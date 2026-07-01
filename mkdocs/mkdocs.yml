@@ -72,6 +72,7 @@ nav:
   - Build a mission:
     - build/index.md
     - World building: build/world-building.md
+    - Tile maps: build/tile-maps.md
     - GUI: cosmos/gui.md
     - Comms: cosmos/comms.md
     - Science: cosmos/science.md
@@ -82,7 +83,9 @@ nav:
     - Objectives: mast/objectives.md
     - Quests: build/quests.md
     - Items & Upgrades: build/items-upgrades.md
+    - Adding an item or upgrade: build/custom-upgrades.md
     - Web pages: build/web-pages.md
+    - Making add-ons: build/addons.md
 
   - Tutorials:
     - tutorial/index.md
@@ -96,6 +99,7 @@ nav:
     - sbs CLI: tooling/cli.md
     - Testing missions: tooling/testing.md
     - Serving web pages: tooling/web-proxy.md
+    - Sharing Python (.sbslib): tooling/libraries.md
 
   - Reference:
     - api/index.md

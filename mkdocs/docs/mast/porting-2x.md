@@ -1,5 +1,11 @@
 # Porting from Artemis 2.x
 
+!!! danger "Work in progress — alpha quality"
+    The `a2x` comfort layer and the `arme2cosmos` tool are **a work in progress at
+    alpha-level quality**. Coverage is incomplete, names and behavior may change,
+    and converted missions will need hand-tuning. Treat everything here as a
+    starting point, not a finished path &mdash; and expect rough edges.
+
 Coming from Artemis 2.8 (SBS) XML missions? The **`a2x` comfort layer** mirrors the
 vocabulary of the old XML so hand-ports read like the original, and the
 [`arme2cosmos`](https://github.com/artemis-sbs) migration tool uses it to translate
