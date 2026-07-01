@@ -224,8 +224,18 @@ class Gui:
     Manages the GUI pages for all clients
     """
     clients = {}
+    # Set that accumulates client ids whose widgets went dirty this frame.
+    # Populated fresh each Gui.present, but dirty() can fire during an
+    # immediate present (e.g. Gui.web_page_open -> push -> present) before the
+    # first Gui.present of the frame, so give it a class-level default.
+    represent = set()
+    represent_throttle = 0
     _server_start_page = None
     _client_start_page = None
+    # Client ids that are web-page sessions (browsers served a //web/<path>
+    # route), not engine consoles. Tracked so Gui.present does not purge them
+    # against the engine client list and does not auto-add them as consoles.
+    web_client_ids = set()
 
     @staticmethod
     def server_start_page_class(cls_page):
@@ -265,10 +275,64 @@ class Gui:
             Gui.push(event.client_id, Gui._client_start_page())
 
     @staticmethod
+    def _find_web_label(story, path):
+        """Resolve a web path (e.g. "scores" or "web/scores") to its
+        //web/<path> route label name within ``story``, or None if no such
+        route exists. Resolving against the story that will actually run the
+        page keeps the label name and the scheduler in sync."""
+        path = str(path).strip("/")
+        if not path.startswith("web/"):
+            path = "web/" + path
+        labels = getattr(story, "labels", None)
+        if not labels:
+            return None
+        for name in labels:
+            lbl = labels.get(name)
+            if lbl is not None and getattr(lbl, "path", None) == path:
+                return name
+        return None
+
+    @staticmethod
+    def web_page_open(client_id, path, data=None):
+        """Open a MAST //web/<path> route as a GUI session for a web client.
+
+        Web clients are browsers connected to a web transport rather than the
+        engine console list. They get a normal StoryPage/GuiClient (so widget
+        events and rendering flow through the usual path), but the GUI task is
+        started at the matched //web/<path> route label and the session is
+        exempt from the engine-console purge in Gui.present.
+
+        Returns True if a matching web route was found and opened.
+        """
+        if Gui._client_start_page is None:
+            return False
+        page = Gui._client_start_page()
+        label = Gui._find_web_label(page.story, path)
+        if label is None:
+            return False
+        page.start_label = label
+        page.start_data = data
+        Gui.web_client_ids.add(client_id)
+        Gui.push(client_id, page)
+        return True
+
+    @staticmethod
+    def web_page_close(client_id):
+        """Tear down a web-page session (browser disconnected)."""
+        Gui.web_client_ids.discard(client_id)
+        gui = Gui.clients.get(client_id)
+        if gui is not None:
+            event = FakeEvent(client_id, "mast:client_disconnect")
+            gui.on_event(event)
+            gui.destroyed()
+            Gui.clients.pop(client_id, None)
+            FrameContext.aspect_ratios.pop(client_id, None)
+
+    @staticmethod
     def push(client_id, page):
         """ push
 
-        Presents the new Page on the specified client by pushing it on the stack. 
+        Presents the new Page on the specified client by pushing it on the stack.
 
         :param clientID: called to add a new client
         :type int: client id from the engine
@@ -316,7 +380,7 @@ class Gui:
         # Present GUI needs to tell all clients to present
         #
         for client_id, gui in Gui.clients.items():
-            if client_id == 0 or client_id in client_list:
+            if client_id == 0 or client_id in client_list or client_id in Gui.web_client_ids:
                 # Remove this from the client list/set
                 # since we know about it
                 client_list.discard(client_id)

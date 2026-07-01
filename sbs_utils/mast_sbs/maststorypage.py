@@ -76,6 +76,11 @@ class StoryPage(Page):
         self.pending_on_click = []
         self.on_click = []
         self.gui_task = None
+        # Optional overrides used by web-page sessions (Gui.web_page_open):
+        # when set, start_story starts the GUI task at this label with these
+        # variables instead of the default main/main_client label.
+        self.start_label = None
+        self.start_data = None
         self.change_console_label = None
         self.main_screen_change_label = None
         self.disconnected = False
@@ -129,6 +134,9 @@ class StoryPage(Page):
             if client_id != 0:
                 label = self.__dict__.get("main_client", label)
 
+            # Web-page sessions start at a specific //web/<path> route label
+            if self.start_label is not None:
+                label = self.start_label
 
             self.story_scheduler.page = self
             #
@@ -144,6 +152,10 @@ class StoryPage(Page):
             # Start task defer so we can set gui_task appropriately
             self.gui_task = self.story_scheduler.run(client_id, self, label, cls.inputs, None, True)
             self.gui_task.is_gui_task = True
+            # Seed web-page query/data variables before the first tick
+            if self.start_data:
+                for k in self.start_data:
+                    self.gui_task.set_variable(k, self.start_data[k])
             set_inventory_value(self.client_id, "GUI_TASK", self.gui_task)
             set_inventory_value(self.client_id, "GUI_PAGE", self)
 

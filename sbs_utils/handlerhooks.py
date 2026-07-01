@@ -42,6 +42,7 @@ def reset_mission_state():
     clear_shared()      # rebuild the SHARED agent (drops label names / console types)
     from .procedural.signal import signal_waiters_clear
     signal_waiters_clear()  # drop pending signal_next() awaiters from the old mission
+    Gui.web_client_ids.clear()  # drop web-page sessions from the old mission
 
 
 #	client_id"
