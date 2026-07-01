@@ -107,6 +107,27 @@ class TestWebPageOpen(unittest.TestCase):
         task = Gui.clients[WEB_ID].page.gui_task
         self.assertEqual(task.get_variable("name"), "stranger")
 
+    def test_web_client_has_web_role(self):
+        from sbs_utils.procedural.roles import role
+        Gui.web_page_open(WEB_ID, "scores")
+        self.assertIn(WEB_ID, role("__web__"))
+
+    def test_navigate_switches_page_in_session(self):
+        Gui.web_page_open(WEB_ID, "scores")
+        gui_client = Gui.clients[WEB_ID]
+        self.assertTrue(Gui.web_page_navigate(WEB_ID, "admin/panel"))
+        # Same session (same GuiClient), now on the admin route
+        self.assertIs(Gui.clients[WEB_ID], gui_client)
+        self.assertTrue(
+            gui_client.page.gui_task.active_label.startswith("__route__web/admin/panel"))
+
+    def test_navigate_unknown_path_returns_false(self):
+        Gui.web_page_open(WEB_ID, "scores")
+        self.assertFalse(Gui.web_page_navigate(WEB_ID, "nope"))
+
+    def test_navigate_non_web_client_returns_false(self):
+        self.assertFalse(Gui.web_page_navigate(WEB_ID, "scores"))  # never opened
+
     def test_close_removes_web_client(self):
         Gui.web_page_open(WEB_ID, "scores")
         Gui.web_page_close(WEB_ID)

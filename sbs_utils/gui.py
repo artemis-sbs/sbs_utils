@@ -314,6 +314,31 @@ class Gui:
         page.start_data = data
         Gui.web_client_ids.add(client_id)
         Gui.push(client_id, page)
+        # Tag the session so mission code can find/target web viewers, e.g.
+        # role("__web__") to push updates to everyone watching a web page.
+        gui = Gui.clients.get(client_id)
+        if gui is not None:
+            gui.add_role("__web__")
+        return True
+
+    @staticmethod
+    def web_page_navigate(client_id, path, data=None):
+        """Send an existing web session to a different //web/<path> in-session.
+
+        Returns True if the target web route exists. Unlike opening a new
+        browser URL, this reuses the same web client/session.
+        """
+        gui = Gui.clients.get(client_id)
+        if gui is None or client_id not in Gui.web_client_ids:
+            return False
+        page = gui.page
+        if page is None:
+            return False
+        label = Gui._find_web_label(page.story, path)
+        if label is None:
+            return False
+        from .procedural.gui.navigation import gui_reroute_client
+        gui_reroute_client(client_id, label, data)
         return True
 
     @staticmethod
