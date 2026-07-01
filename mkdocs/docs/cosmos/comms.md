@@ -1,237 +1,106 @@
-# Mast Communication syntax
+# Comms
 
-The mast language provides labels an commands for processing communications.
+Comms is how players talk to the things they select. When a player selects an
+entity, the engine routes a comms event; the comms system checks eligibility with
+`//enable/comms`, then shows the matching `//comms` menu. Scripts don't open comms
+manually.
 
-This is a work in progress, currently it documenting the idea, and not what exists.
+## Enabling comms
 
+An `//enable/comms` route decides whether an entity offers comms, and can set up
+any state it needs:
 
-## Enabling comms for Agents
-
-
-=== "Mast"
+=== ":mast-icon: {{ab.m}}"
     ```
-    //enable/comms if COMMS_SELECTED & "tsn, station"
-    # Other code can be here to initialize data, add invemtory etc.
-    # e.g. The station has three apples, three oranges
-    #
-    # Note this is a proposed simplified get_inventory_value(COMMS_SELECTED_ID, "Apples", 3)
-    #
-    COMMS_SELECTED["Apples"] =  3
-    COMMS_SELECTED["Oranges"] = 3
+    //enable/comms if has_roles(COMMS_SELECTED_ID, "station")
+        set_inventory_value(COMMS_SELECTED_ID, "apples", 3)
     ```
 
+Useful context variables inside comms routes: `COMMS_ORIGIN_ID` (who initiated,
+usually the player) and `COMMS_SELECTED_ID` (what they selected).
 
-## Providing Comms buttons
+## The comms menu
 
-### Providing comms button to the root comms path
+`//comms` is the root menu. Buttons add choices; `+` is a sticky button and `*` is
+consumed after one click. A button can run an inline block, or navigate to a
+submenu route.
 
-=== "Mast"
+=== ":mast-icon: {{ab.m}}"
     ```
-    //comms if COMMS_SELECTED_ID & "tsn, station"
-    + "Buy" //comms/buy
-    ```
-
-### Providing comms button to the comms branch path
-notice this branch the comms to the "buy" path
-
-=== "Mast"
-    ```
-    //comms/buy if COMMS_SELECTED_ID & "tsn, station"
-    + "Buy apple" if COMMS_SELECTED["Apples"] > 0:
-        COMMS_SELECTED["Apples"] -= 1
-    + "Buy orange" if COMMS_SELECTED["Apples"] > 0:
-        COMMS_SELECTED["Oranges"] -= 1
+    //comms if has_roles(COMMS_ORIGIN_ID, "__player__")
+        + "Hail":
+            << [green] "Hail"
+                % Greetings, commander.
+                % How can I help you?
+        + "Trade" //comms/trade
+        + "Attack!" if side_are_enemies(COMMS_ORIGIN_ID, COMMS_SELECTED_ID):
+            >> "Prepare to be boarded."
     ```
 
-### Providing choices of buttons
+A submenu is its own route; `+ "Back" //comms` returns to the root:
 
-=== "Mast"
+=== ":mast-icon: {{ab.m}}"
     ```
-    //comms/buy if COMMS_SELECTED & "tsn, station"
-    + if COMMS_SELECTED.inv["Apples"] > 0:
-        % "Buy a tasty Apple"
-        % "How about an Apple"
-        COMMS_SELECTED["Apples"] -= 1
-    + if COMMS_SELECTED["Apples"] > 0:
-        % "Buy a sweet Orange"
-        % "Need some vitamin C"
-        COMMS_SELECTED["Oranges"] -= 1
+    //comms/trade
+        + "Back" //comms
+        + "Buy apple" if get_inventory_value(COMMS_SELECTED_ID, "apples", 0) > 0:
+            set_inventory_value(COMMS_SELECTED_ID, "apples",
+                                get_inventory_value(COMMS_SELECTED_ID, "apples", 0) - 1)
+            << [green] "Trade" % One apple, coming up.
     ```
 
+Button forms:
 
-### Providing choices of buttons based on reputation
+```
++ "Label"                                # run the inline block
++ "Label" //comms/path                   # navigate to a submenu
++ "Label" handler_label                  # jump to a label
++ "Label" handler_label {"key": "value"} # jump with data
++ "Label" if condition:                  # conditional
++ !0 "Back" //comms                       # !0 = sort priority
++ "{dynamic_text}" handler_label          # interpolated label
+```
 
-=== "Mast"
+## Dialogue
+
+`<<` is an incoming line (the NPC speaks); `>>` is outgoing (the player speaks).
+`%` lines are alternatives &mdash; one is picked at random each time, so messages
+feel fresh:
+
+=== ":mast-icon: {{ab.m}}"
     ```
-    //comms/buy if COMMS_SELECTED & "tsn, station"
-    + if COMMS_SELECTED.inv["Apples"] > 0:
-        %+ "Free tasty Apple"
-        %+ "How about a free Apple"
-        %= "Buy a tasty Apple"
-        %= "How about an Apple"
-        %- "Buy a day old Apple"
-        %- "How about half an Apple"
-        . . .
-    ```
+    << [green] "Hostile Hail"
+        % Go climb a tree!
+        % You can't win!
 
-### Providing choices of buttons based on reputation levels
-Multiple reputation indicators create 'bands' 
-
-=== "Mast"
-    ```
-    //comms/buy if COMMS_SELECTED & "tsn, station"
-    + if COMMS_SELECTED.inv["Apples"] > 0:
-        %+++ "Free tasty Apple"
-        %+++ "How about a free Apple"
-        %++ "Buy a tasty Apple"
-        %++ "How about an Apple"
-        %+ "Buy a day old Apple"
-        %+ "How about half an Apple"
-        . . .
+    >> "Understood, moving out."
     ```
 
-### Providing choices of buttons based on reputation levels, weighting
-Multiple reputation indicators create 'bands' 
-Adding a weight number increases the chances
+Other message kinds: `<all>` (broadcast), `<scan>` (science scan result), and `()`
+(a speech bubble).
 
-=== "Mast"
+## Colors
+
+`=$` declares a named color/style for dialogue titles:
+
+=== ":mast-icon: {{ab.m}}"
     ```
-    //comms/buy if COMMS_SELECTED & "tsn, station"
-    + if COMMS_SELECTED.inv["Apples"] > 0:
-        %+++3 "Free tasty Apple"
-        %+++ "How about a free Apple"
-        %++3 "Buy a tasty Apple"
-        %++ "How about an Apple"
-        %+4 "Buy a day old Apple"
-        %+ "How about half an Apple"
-        . . .
-    ```
+    =$ raider red, white
+    =$ friendly green
 
-
-### Providing choices of via data
-What data is need tbd
-
-=== "Mast"
-    ```
-    //comms/buy if COMMS_SELECTED & "tsn, station"
-    + apple_options if COMMS_SELECTED["Apples"] > 0:
-        COMMS_SELECTED["Apples"] -= 1
-    + orange_options if COMMS_SELECTED["Apples"] > 0:
-        COMMS_SELECTED["Oranges"] -= 1
+    << [$raider] "Hail"
+        % This sector is ours.
     ```
 
-### Providing via data with limits, and validity
-What data is need tbd
+## Navigating and sending from code
 
-You can provide a number to pick and the number of those that are valid
-You can shuffle them once or every time
+```
+comms_navigate("//comms/trade")   # jump to a submenu
+comms_navigate("")                 # go back / up
+comms_message(text, players, from_id)   # push a message to players' comms
+```
 
-=== "Mast"
-    ```
-    //comms if COMMS_SELECTED & "tsn, station"
-    + taunt_options choose once 3 validate 1 handle_taunt
-    + complement_options choose once 3 validate 2 handle_complement
-    + salutation_options choose always 3  handle_salutation
-    ```
-
-
-## comms messages
-
-### Receive message
-
-=== "Mast"
-    ```
-    <<[$info] Title
-        " this is a multiline 
-        " message
-        " here
-    ```
-
-### Transmit message
-
-=== "Mast"
-    ```
-    >>[$info] Title
-        " this is a multiline 
-        " message
-        " here
-    ```
-
-
-### Speech Bubble message
-
-=== "Mast"
-    ```
-    <>[$info] Title
-        " this is a multiline 
-        " message
-        " here
-    ```
-
-
-### Message with options
-
-=== "Mast"
-    ```
-    <<[$info] Title
-        % option 1
-        " message
-        % option 2
-        " here
-    ```
-
-
-### Message with options with rep
-
-=== "Mast"
-    ```
-    <<[$info] Title
-        %+ option good
-        " message
-        %= option neutral
-        " here
-        %- option neutral
-        " here
-
-    ```
-
-### Message with options with rep level bands
-
-=== "Mast"
-    ```
-    <<[$info] Title
-        %+++ option good
-        " message
-        %++ option neutral
-        " here
-        %+ option neutral
-        " here
-
-    ```
-
-### Message with options with rep level bands
-
-=== "Mast"
-    ```
-    <<[$info] Title
-        %+++3 option good most likely
-        " message
-        %+++3 option good most likely
-        " message
-        %+++2 option good more likely
-        " message
-        %+++2 option good more likely
-        " message
-        %+++ option good less likely
-        " message
-        %+++ option good less likely
-        " message
-        %++ option good etc.
-        " message
-        %++ option good etc.
-        " message
-        %+ option good etc.
-        " message
-        %+ option good etc.
-        " message
-    ```
+See the [comms routes](../mast/routes/comms.md) reference and the
+[comms tutorial](../tutorial/comms/simple_comms.md) for a worked example. Legendary
+Missions' `comms`, `gamemaster_comms`, and `internal_comms` add-ons provide
+ready-made comms trees.
