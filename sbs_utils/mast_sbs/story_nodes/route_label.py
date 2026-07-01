@@ -153,9 +153,9 @@ class RouteDecoratorLabel(DecoratorLabel):
                 cmd.line_num = self.line_num
                 cmd.line = f"signal_register in main for {self.name}"
                 main_cmds.append(cmd)
-            case ["signal", *b]: 
+            case ["signal", *b]:
                 #
-                # This needs to run 
+                # This needs to run
                 # on the first run of main
                 #
                 cmd = FuncCommand(py_cmds=f'signal_register("{paths[1]}", "{self.name}", False)', compile_info=compile_info)
@@ -163,7 +163,16 @@ class RouteDecoratorLabel(DecoratorLabel):
                 cmd.line_num = self.line_num
                 cmd.line = f"signal_register in main for {self.name}"
                 main_cmds.append(cmd)
-            
+
+            case ["web", *b]:
+                #
+                # A web-page entry point (//web/<path>). No compile-time
+                # registration is needed: it is discovered by its path via
+                # labels_get_type("web/") and dispatched by the web transport
+                # when a browser connects to that path. Just accept it.
+                #
+                pass
+
             case _:
                 raise Exception(f"Invalid route label {self.path}")
     
