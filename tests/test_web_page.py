@@ -23,6 +23,7 @@ from sbs_utils.helpers import FrameContext, Context, FakeEvent
 
 WEB_CODE = """
 //web/scores
+    gui_section("area: 5,5,95,95;")
     gui_text("SCORES PAGE")
     await gui()
 
@@ -127,6 +128,36 @@ class TestWebPageOpen(unittest.TestCase):
 
     def test_navigate_non_web_client_returns_false(self):
         self.assertFalse(Gui.web_page_navigate(WEB_ID, "scores"))  # never opened
+
+    def test_render_sink_captures_web_output(self):
+        # Proves a web client's render can be captured in pure Python (the basis
+        # for serving web pages from the REAL engine with no engine changes):
+        # a sink shim installed as ctx.sbs records send_gui_* for the web client.
+        class CaptureSbs:
+            def __init__(self, real):
+                self._real = real
+                self.cmds = []
+            def __getattr__(self, name):
+                if name.startswith("send_gui") or name == "send_client_widget_list":
+                    return lambda *a, **k: self.cmds.append((name, a))
+                return getattr(self._real, name)
+
+        shims = {}
+        Gui.web_render_sink = lambda cid, real: shims.setdefault(cid, CaptureSbs(real))
+        try:
+            Gui.web_page_open(WEB_ID, "scores")      # initial present
+            for _ in range(5):                        # let the layout build + emit
+                Gui.present(FakeEvent(0, "gui_present"))
+        finally:
+            Gui.web_render_sink = None
+
+        # The web client's output was captured...
+        cap = shims[WEB_ID]
+        texts = [a for (m, a) in cap.cmds if m == "send_gui_text"]
+        self.assertTrue(any("SCORES PAGE" in str(a) for a in texts),
+                        f"captured: {cap.cmds}")
+        # ...and the server console (id 0) was NOT routed through the sink.
+        self.assertNotIn(0, shims)
 
     def test_close_removes_web_client(self):
         Gui.web_page_open(WEB_ID, "scores")

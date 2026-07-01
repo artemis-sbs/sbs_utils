@@ -236,6 +236,14 @@ class Gui:
     # route), not engine consoles. Tracked so Gui.present does not purge them
     # against the engine client list and does not auto-add them as consoles.
     web_client_ids = set()
+    # Optional callable web_render_sink(client_id, real_sbs) -> sbs-like shim.
+    # When set, a web client's present is rendered through the returned shim
+    # (installed as FrameContext.context.sbs for that client only) instead of
+    # the real engine transport. This lets a host-side proxy capture a web
+    # client's send_gui_* output in pure Python - the basis for serving MAST
+    # web pages from the REAL engine with no engine changes (the mock leaves
+    # this None and renders web clients straight to the browser as usual).
+    web_render_sink = None
 
     @staticmethod
     def server_start_page_class(cls_page):
@@ -313,7 +321,19 @@ class Gui:
         page.start_label = label
         page.start_data = data
         Gui.web_client_ids.add(client_id)
-        Gui.push(client_id, page)
+        # The push triggers the first (full-frame) present; later presents send
+        # only dirty deltas. So this initial present must go through the render
+        # sink too, or a host proxy would miss the page layout.
+        if Gui.web_render_sink is not None:
+            ctx = FrameContext.context
+            sbs_restore = ctx.sbs
+            ctx.sbs = Gui.web_render_sink(client_id, sbs_restore)
+            try:
+                Gui.push(client_id, page)
+            finally:
+                ctx.sbs = sbs_restore
+        else:
+            Gui.push(client_id, page)
         # Tag the session so mission code can find/target web viewers, e.g.
         # role("__web__") to push updates to everyone watching a web page.
         gui = Gui.clients.get(client_id)
@@ -412,9 +432,22 @@ class Gui:
                 event = FakeEvent(client_id, "gui_present")
                 e_restore = FrameContext.context.event
                 FrameContext.context.event = event
-                gui.tick_gui_task()
-                gui.present(event)
-                FrameContext.context.event = e_restore
+                # Web clients can be redirected through a capture shim so their
+                # render output can be forwarded to a browser by a host proxy
+                # (real-engine web pages). Inert unless web_render_sink is set.
+                sbs_restore = None
+                if (Gui.web_render_sink is not None
+                        and client_id in Gui.web_client_ids):
+                    sbs_restore = FrameContext.context.sbs
+                    FrameContext.context.sbs = Gui.web_render_sink(
+                        client_id, sbs_restore)
+                try:
+                    gui.tick_gui_task()
+                    gui.present(event)
+                finally:
+                    if sbs_restore is not None:
+                        FrameContext.context.sbs = sbs_restore
+                    FrameContext.context.event = e_restore
             else:
                 disconnect.append(client_id)
         for cid in disconnect:
@@ -463,10 +496,22 @@ class Gui:
             # Gui could have disconnected
             if gui:
                 event = FakeEvent(client_id, "gui_represent")
-                e_restore = FrameContext.context.event 
+                e_restore = FrameContext.context.event
                 FrameContext.context.event = event
-                gui.present(event)
-                FrameContext.context.event = e_restore
+                # Dirty widgets emit here (not in the main present loop), so web
+                # clients must go through the render sink here too.
+                sbs_restore = None
+                if (Gui.web_render_sink is not None
+                        and client_id in Gui.web_client_ids):
+                    sbs_restore = FrameContext.context.sbs
+                    FrameContext.context.sbs = Gui.web_render_sink(
+                        client_id, sbs_restore)
+                try:
+                    gui.present(event)
+                finally:
+                    if sbs_restore is not None:
+                        FrameContext.context.sbs = sbs_restore
+                    FrameContext.context.event = e_restore
         #Gui.present_dirty()
 
         
