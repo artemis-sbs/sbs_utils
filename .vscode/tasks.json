@@ -82,9 +82,13 @@
             "args": [
               "/C"
             ]
+          },
+          "cwd": "${workspaceFolder}/mkdocs",
+          "env": {
+            "PATH": "C:\\Program Files\\Git\\bin;${env:PATH}"
           }
         },
-        "command": "cd .\\mkdocs&&mkdocs serve",
+        "command": "mkdocs serve",
         "problemMatcher": [],
         "group": {
           "kind": "mkdocs",
@@ -100,9 +104,13 @@
             "args": [
               "/C"
             ]
+          },
+          "cwd": "${workspaceFolder}/mkdocs",
+          "env": {
+            "PATH": "C:\\Program Files\\Git\\bin;${env:PATH}"
           }
         },
-        "command": "cd mkdocs&&mkdocs gh-deploy --force",
+        "command": "mkdocs gh-deploy --force",
         "problemMatcher": [],
         "group": {
           "kind": "mkdocs",
