@@ -29,6 +29,7 @@ import json
 import multiprocessing
 import os
 import queue as _q
+import threading
 import time
 
 _WP = "cosmos_dev.webproxy.engine_side"
@@ -79,6 +80,42 @@ def _call(fn, *args):
 _EVENT_FIELDS = ("tag", "sub_tag", "value_tag", "sub_float", "extra_tag")
 
 
+def _tail_frames(path, gui_q, stop, poll=0.02):
+    """Tail the engine's NDJSON frames file and forward each wire command to the
+    browser (via gui_q). Pure push: no dev-queue round-trip, so no polling stall.
+    Handles truncation (new stream) and a partially-written trailing line."""
+    offset = 0
+    buf = ""
+    while not stop.is_set():
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            time.sleep(poll)
+            continue
+        if size < offset:          # file was truncated -> fresh stream
+            offset, buf = 0, ""
+        if size > offset:
+            try:
+                with open(path, "r") as f:
+                    f.seek(offset)
+                    buf += f.read()
+                    offset = f.tell()
+            except OSError:
+                time.sleep(poll)
+                continue
+            lines = buf.split("\n")
+            buf = lines[-1]        # keep the incomplete trailing line
+            for line in lines[:-1]:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    gui_q.put(json.loads(line))
+                except ValueError:
+                    pass
+        time.sleep(poll)
+
+
 def run(queue_dir, host="127.0.0.1", port=8770, cosmos_dir=None, rate=0.04):
     from cosmos_dev.mockgui import server as server_mod
 
@@ -96,11 +133,28 @@ def run(queue_dir, host="127.0.0.1", port=8770, cosmos_dir=None, rate=0.04):
         raise RuntimeError(f"web server did not start on {host}:{port}")
 
     client = _QueueClient(queue_dir)
+    frames_path = os.path.join(queue_dir, "web_frames.ndjson")
+
+    # Enable PUSH: the engine streams rendered frames to frames_path; we tail it
+    # and forward to browsers with no per-tick dev-queue round-trip.
+    try:
+        client.eval(_call("set_frames_file", frames_path))
+    except Exception as e:
+        print(f"[webproxy] WARNING: could not enable push mode ({e}); "
+              "is the mission with cosmos_devqueue + cosmos_dev loaded?")
+
+    stop = threading.Event()
+    tail = threading.Thread(target=_tail_frames, args=(frames_path, gui_q, stop),
+                            daemon=True, name="webproxy-tail")
+    tail.start()
+
     print(f"[webproxy] serving http://{host}:{port}/web/<path>")
     print(f"[webproxy] bridging to engine dev queue at {queue_dir}")
+    print(f"[webproxy] streaming frames from {frames_path}")
     try:
         while True:
-            # --- browser -> engine -------------------------------------
+            # --- browser -> engine (open / event / close) --------------
+            # Rendering flows the other way via the tail thread (push).
             while True:
                 try:
                     cev = client_q.get_nowait()
@@ -130,19 +184,11 @@ def run(queue_dir, host="127.0.0.1", port=8770, cosmos_dir=None, rate=0.04):
                 except Exception as e:
                     print(f"[webproxy] gui-event error: {e}")
 
-            # --- engine -> browser -------------------------------------
-            try:
-                frames = client.eval(_call("web_drain")) or []
-            except Exception as e:
-                print(f"[webproxy] drain error: {e}")
-                frames = []
-            for fr in frames:
-                gui_q.put(fr)
-
             time.sleep(rate)
     except KeyboardInterrupt:
         print("\n[webproxy] shutting down")
     finally:
+        stop.set()
         proc.terminate()
 
 

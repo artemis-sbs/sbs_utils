@@ -6,26 +6,64 @@ inside the real engine:
     web_open(cid, path, query)   - open a //web/<path> session for a browser
     web_event(cid, event)        - deliver a browser widget event
     web_close(cid)               - browser disconnected
-    web_drain()                  - return + clear the wire commands rendered for
-                                   web clients since the last call (the engine's
-                                   own tick drives Gui.present, which renders web
-                                   clients through the installed WebRenderSink)
+
+Rendered wire commands reach the host two ways:
+  * PUSH (default when set_frames_file is called): each command is appended as an
+    NDJSON line to a file the proxy tails - no per-frame dev-queue round-trip, so
+    the browser updates as soon as the engine renders (no polling stalls).
+  * PULL (web_drain): return + clear buffered commands on request (used by tests
+    and as a fallback). The engine's own tick drives Gui.present, which renders
+    web clients through the installed WebRenderSink.
 
 This module holds no engine specifics, so it runs identically under the mock
-and is unit-testable. Only proxy.py (WS server + dev-queue file polling) needs
-a live engine.
+and is unit-testable. Only proxy.py (WS server + dev-queue bridge) needs a live
+engine.
 """
+import json
+import os
+
 from sbs_utils.gui import Gui
 from sbs_utils.helpers import FrameContext, FakeEvent
 from .render_sink import make_sink_factory
 
-# Wire commands rendered for all web clients, awaiting a drain by the host.
+# PULL buffer: wire commands awaiting a web_drain() (when no frames file is set).
 _frames = []
+# PUSH target: absolute path of the NDJSON frames file, or None for pull mode.
+_frames_path = None
 _installed = False
 
 
 def _out(wire):
-    _frames.append(wire)
+    if _frames_path is not None:
+        # Append one JSON line. Open/append/close per line keeps it robust to a
+        # concurrent tailing reader on Windows (no long-lived shared handle);
+        # web GUIs are low volume so the cost is negligible.
+        try:
+            with open(_frames_path, "a") as f:
+                f.write(json.dumps(wire) + "\n")
+        except OSError:
+            pass
+    else:
+        _frames.append(wire)
+
+
+def set_frames_file(path):
+    """Enable PUSH mode: stream rendered frames as NDJSON to `path`. Truncates
+    the file so the proxy starts from a clean stream. Returns the path."""
+    global _frames_path
+    _frames_path = path
+    try:
+        open(path, "w").close()   # truncate / create
+    except OSError:
+        pass
+    install()
+    return path
+
+
+def clear_frames_file():
+    """Back to PULL mode (web_drain)."""
+    global _frames_path
+    _frames_path = None
 
 
 def install():
@@ -37,9 +75,10 @@ def install():
 
 
 def uninstall():
-    global _installed
+    global _installed, _frames_path
     Gui.web_render_sink = None
     _installed = False
+    _frames_path = None
     _frames.clear()
 
 

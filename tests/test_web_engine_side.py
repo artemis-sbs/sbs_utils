@@ -94,6 +94,32 @@ class TestEngineSide(unittest.TestCase):
         engine_side.web_close(WEB)
         self.assertNotIn(WEB, Gui.clients)
 
+    def test_push_mode_streams_ndjson_to_file(self):
+        import json
+        import os
+        import tempfile
+        path = os.path.join(tempfile.mkdtemp(), "web_frames.ndjson")
+        engine_side.set_frames_file(path)     # PUSH mode
+        engine_side.web_open(WEB, "scores")
+        self._present()
+        with open(path) as f:
+            lines = [json.loads(l) for l in f if l.strip()]
+        cmds = {c["cmd"] for c in lines}
+        self.assertIn("text", cmds)
+        self.assertIn("button", cmds)
+        self.assertTrue(all(c["clientID"] == WEB for c in lines))
+        # push mode does not buffer for pull
+        self.assertEqual(engine_side.web_drain(), [])
+
+    def test_set_frames_file_truncates(self):
+        import os
+        import tempfile
+        path = os.path.join(tempfile.mkdtemp(), "web_frames.ndjson")
+        with open(path, "w") as f:
+            f.write('{"stale": true}\n')
+        engine_side.set_frames_file(path)     # must truncate
+        self.assertEqual(os.path.getsize(path), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
