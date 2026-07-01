@@ -18,12 +18,23 @@ Add a `//web/<path>` route and build it like any GUI:
     await gui()
 ```
 
-Run the [web server](../tooling/web-proxy.md) and open
-`http://localhost:8770/web/scores`. Widget events (buttons, dropdowns) route back
-to the page exactly like a console.
+Widget events (buttons, dropdowns) route back to the page exactly like a console.
 
 Web clients are **not** consoles: they never enter console-select or get a player
 ship, and they carry the `__web__` role so mission code can target viewers.
+
+### Serving the page
+
+The engine has no web server of its own &mdash; a small host-side proxy serves
+your `//web` pages. With the mission running, start it with the `sbs` tool:
+
+```
+sbs web .          # serve this mission's //web pages
+```
+
+Then open `http://localhost:8770/web/scores`. It's always-on (start it before or
+after the engine) and re-arms across restarts. See
+[Serving web pages](../tooling/web-proxy.md) for multi-engine serving and details.
 
 ## Parameters from the URL
 
