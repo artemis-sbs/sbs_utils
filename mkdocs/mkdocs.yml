@@ -38,6 +38,8 @@ repo_name: artemis-sbs/sbs_utils
 nav:
   - Home: index.md
 
+  - What's New: whats-new.md
+
   - Get started:
     - Creating a mission: home/start.md
     - Getting the library: home/get_library.md
