@@ -37,84 +37,61 @@ repo_name: artemis-sbs/sbs_utils
 
 nav:
   - Home: index.md
-  - Getting started: 
+
+  - Get started:
     - Creating a mission: home/start.md
-    - Getting the library: home/get_library.md
-    - Creating a script: home/create_script.md
-    - Publishing your mission: 
-      - home/publish/index.md
-      - Tools: home/publish/tools.md
-      - Github: home/publish/github.md
-
-
+    - Run & debug: tooling/testing.md
     - Contributing:
       - home/contributing/index.md
       - Debugging: home/contributing/debugging.md
       - Testing: home/contributing/testing.md
 
-  - Mast:
+  - Learn MAST:
     - mast/index.md
-    - Getting Started: mast/tutorial.md
-    - MAST Language: mast/overview.md
-    - PyMAST: mast/python.md
-    - Agent Model: mast/model.md
+    - Tutorial: mast/tutorial.md
+    - Language: mast/overview.md
     - Syntax: mast/syntax.md
+    - Agent Model: mast/model.md
+    - Runtime & Tasks: mast/runtime.md
+    - PyMAST: mast/python.md
     - Prefabs: mast/prefabs.md
-    - Runtime: mast/runtime.md
-    - AI:
-      - mast/ai/index.md
-      - Simple AI: mast/ai/simple.md
-      - Brain Trees: mast/ai/brains.md
-    - Objectives: mast/objectives.md
-    - Routes: 
+    - Routes:
       - mast/routes/index.md
       - Comms: mast/routes/comms.md
       - Science: mast/routes/science.md
-      - Lifetime: mast/routes/lifetime.md
       - User Interface: mast/routes/user_interact.md
       - Gui: mast/routes/gui.md
       - Signals: mast/routes/signals.md
+      - Lifetime: mast/routes/lifetime.md
       - Maps: mast/routes/maps.md
-    
 
-  - Cosmos:
-    - cosmos/index.md
+  - Build a mission:
+    - build/index.md
+    - GUI: cosmos/gui.md
     - Comms: cosmos/comms.md
     - Science: cosmos/science.md
-    - Gui: cosmos/gui.md
-    - World Building: cosmos/world_building.md
-    - Routing:
-      - cosmos/routes/index.md
-      - Routing Lifetime: cosmos/routes/lifetime.md
-      - Routing console: cosmos/routes/console.md
-      - Routing damage: cosmos/routes/damage.md
-
-  - Tutorial:
-    - tutorial/index.md
-    - gui:
-      - tutorial/gui/index.md
-      - simple: tutorial/gui/simple_gui.md
-    - comms:
-      - tutorial/comms/index.md
-      - simple: tutorial/comms/simple_comms.md
-      - complex: tutorial/comms/complex_comms.md
-    - science:
-      - tutorial/science/index.md
-      - simple: tutorial/science/simple_science.md
     - AI:
-      - tutorial/ai/index.md
-      - simple: tutorial/ai/simple_ai.md
-      - complex: tutorial/ai/complex_ai.md
-    - damage:
-      - tutorial/damage/index.md
+      - mast/ai/index.md
+      - Brain Trees: mast/ai/brains.md
+    - Objectives: mast/objectives.md
+    - Quests: build/quests.md
+    - Items & Upgrades: build/items-upgrades.md
+    - Web pages: build/web-pages.md
 
-  - SBS Utils:
-    - sbs_utils/index.md
-    
-  - SBS:
-    - sbs/index.md
+  - Tutorials:
+    - tutorial/index.md
+    - GUI: tutorial/gui/simple_gui.md
+    - Comms: tutorial/comms/simple_comms.md
+    - Science: tutorial/science/simple_science.md
+    - AI: tutorial/ai/simple_ai.md
 
-  - API:
+  - Tooling:
+    - tooling/index.md
+    - sbs CLI: tooling/cli.md
+    - Testing missions: tooling/testing.md
+    - Serving web pages: tooling/web-proxy.md
+
+  - Reference:
     - api/index.md
     - Engine:
       - api/engine/index.md
@@ -128,52 +105,57 @@ nav:
     - Procedural:
       - api/procedural/index.md
       - behavior: api/procedural/behavior.md
+      - brain: api/procedural/brain.md
       - cards: api/procedural/cards.md
       - comms: api/procedural/comms.md
       - cosmos: api/procedural/cosmos.md
+      - data: api/procedural/data.md
       - dmx: api/procedural/dmx.md
       - docking: api/procedural/docking.md
       - execution: api/procedural/execution.md
-      - gui: api/procedural/gui.md
+      - extra_scan_sources: api/procedural/extra_scan_sources.md
       - grid: api/procedural/grid.md
+      - gui: api/procedural/gui.md
+      - internal_damage: api/procedural/internal_damage.md
       - inventory: api/procedural/inventory.md
+      - items: api/procedural/items.md
       - lifeform: api/procedural/lifeform.md
       - links: api/procedural/links.md
       - maps: api/procedural/maps.md
+      - media: api/procedural/media.md
+      - mission: api/procedural/mission.md
       - modifiers: api/procedural/modifiers.md
-      - query: api/procedural/query.md
-      - promise_functions: api/procedural/promise_functions.md
       - objective: api/procedural/objective.md
+      - popup: api/procedural/popup.md
+      - prefab: api/procedural/prefab.md
+      - promise_functions: api/procedural/promise_functions.md
+      - query: api/procedural/query.md
+      - quest: api/procedural/quest.md
       - roles: api/procedural/roles.md
       - routes: api/procedural/routes.md
       - science: api/procedural/science.md
+      - settings: api/procedural/settings.md
       - ship_data: api/procedural/ship_data.md
       - sides: api/procedural/sides.md
       - signal: api/procedural/signal.md
       - space_objects: api/procedural/space_objects.md
       - spawn: api/procedural/spawn.md
+      - style: api/procedural/style.md
       - terrain: api/procedural/terrain.md
       - timers: api/procedural/timers.md
-      - brain: api/procedural/brain.md
-      - data: api/procedural/data.md
-      - internal_damage: api/procedural/internal_damage.md
-      - media: api/procedural/media.md
-      - mission: api/procedural/mission.md
-      - popup: api/procedural/popup.md
-      - prefab: api/procedural/prefab.md
-      - quest: api/procedural/quest.md
-      - settings: api/procedural/settings.md
       - torpedoes: api/procedural/torpedoes.md
       - upgrades: api/procedural/upgrades.md
-
-
+      - web: api/procedural/web.md
     - Dispatch:
       - api/dispatch/index.md
       - TickDispatcher: api/dispatch/tick_dispatcher.md
       - DamageDispatcher: api/dispatch/damage_dispatcher.md
       - ConsoleDispatcher: api/dispatch/console_dispatcher.md
 
-  - About: 
+  - LegendaryMissions:
+    - legendary/index.md
+
+  - About:
     - about/index.md
 
 
