@@ -672,6 +672,12 @@ def _run(
                             else:
                                 print(f"[runner] client {cid} connected")
                                 _fire_client_connect(cid)
+                        elif cev.get("event") == "resync":
+                            # The server page joined without a client_connect
+                            # (e.g. connecting after the game already started),
+                            # so resend the full radar/terrain/skybox baseline.
+                            if hasattr(sbs, "_force_terrain_push"):
+                                sbs._force_terrain_push()
                         elif cev.get("event") == "disconnect":
                             cid = cev.get("clientID")
                             print(f"[runner] client {cid} disconnected")

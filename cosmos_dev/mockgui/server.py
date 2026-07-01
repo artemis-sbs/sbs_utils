@@ -365,6 +365,12 @@ async def _handle_websocket(client_id: int,
     await _register(client_id, writer)
     if fire_connect:
         _client_event_queue.put({"event": "connect", "clientID": client_id})
+    else:
+        # The server page (/ws/server) fires no client_connect, so it would miss
+        # the connect-time radar/terrain/skybox baseline resend and join the
+        # delta stream with nothing (no ships/terrain/skybox when the server was
+        # already running). Request a resync so late joins still get full state.
+        _client_event_queue.put({"event": "resync", "clientID": client_id})
     _log(f"[server] client {client_id} connected (fire_connect={fire_connect})")
     await _replay(client_id, writer)
 
