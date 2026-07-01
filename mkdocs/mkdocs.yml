@@ -68,12 +68,14 @@ nav:
 
   - Build a mission:
     - build/index.md
+    - World building: build/world-building.md
     - GUI: cosmos/gui.md
     - Comms: cosmos/comms.md
     - Science: cosmos/science.md
     - AI:
       - mast/ai/index.md
       - Brain Trees: mast/ai/brains.md
+    - Damage: build/damage.md
     - Objectives: mast/objectives.md
     - Quests: build/quests.md
     - Items & Upgrades: build/items-upgrades.md
