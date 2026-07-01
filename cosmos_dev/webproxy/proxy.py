@@ -43,7 +43,7 @@ class _QueueClient:
         self.out_path = os.path.join(queue_dir, "dev_queue.out.json")
         self._seq = 0
 
-    def eval(self, expr, timeout=10.0, poll=0.03):
+    def eval(self, expr, timeout=3.0, poll=0.02):
         # Monotonic ms seq so a fresh proxy never reuses a seq the long-lived
         # engine consumer already processed (which it would dedupe and skip).
         self._seq = max(self._seq + 1, int(time.time() * 1000))
