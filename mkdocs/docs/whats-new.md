@@ -55,11 +55,38 @@ Docs: [Web pages](build/web-pages.md) · [Serving web pages](tooling/web-proxy.m
 
 Playing & hosting: [LegendaryMissions](legendarymissions/index.md).
 
+## 🏆 Game Results & Scorekeeping
+
+The end-of-game screen is now a **tabbed results board** with real scorekeeping —
+built for bragging rights, and for running a scored event.
+
+- **Five tabs:** **Summary**, **Fleet**, **Air Wing**, **Quests**, and **Enemies**.
+- **Objective scoring.** Every kill is credited to the ship (or pilot) that landed
+  the final blow, and tallied three ways:
+    - **Kills** — enemies destroyed.
+    - **Tonnage** — naval-style "tonnage sunk," scaled by each hull's size, so
+      bigger kills are worth more than swatting fighters.
+    - **Damage dealt** — raw impact, so crews who soften targets without stealing
+      the kill still show up.
+- **Fleet** ranks each bridge ship (kills / tonnage / damage / hull remaining);
+  **Air Wing** ranks each fighter & shuttle **pilot by call sign** (sorties / kills
+  / tonnage / objectives). Bridge and cockpit credit never double-count.
+- **Every game is saved** to a rolling history — with an even denser
+  per-ship / per-pilot / per-quest breakdown than the screen shows.
+
+!!! tip "Running a tournament? — for Convention Operators"
+    Pair the scoreboard with **repeatable seeds** and a **shareable game code**:
+    hand every crew the same code and they all play the **identical** map and enemy
+    layout, then rank them by their **Fleet / Air Wing** boards (kills, tonnage,
+    damage) for an objective result. The **Director** console gives you a
+    spectator / big-screen view for the venue floor.
+
+Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/features.md).
+
 ## 🎬 Quality-of-Life & Presentation
 
 - **The Director console** (formerly Console View) — pair and rotate multiple
   views, with a cinematic mode for the big screen.
-- **Game results** are saved after every game — a rolling history of outcomes.
 - **Shareable game codes** and per-map seed options so crews can replay the exact
   same setup.
 
