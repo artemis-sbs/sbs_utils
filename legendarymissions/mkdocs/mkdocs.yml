@@ -1,0 +1,95 @@
+site_name: Legendary Missions Documentation
+copyright: "An Artemis: Cosmos mission"
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/solid/cart-shopping
+      link: https://www.artemisspaceshipbridge.com/
+    - icon: fontawesome/brands/youtube 
+      link: https://www.youtube.com/@ArtemisSbs
+    - icon: fontawesome/brands/steam 
+      link: https://store.steampowered.com/app/2467840/Artemis_Cosmos/
+    - icon: material/forum
+      link: https://artemis.forumchitchat.com/
+
+extra_css:
+  - stylesheets/extra.css
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - content.code.copy
+    #- navigation.footer
+  custom_dir: overrides
+  icon: 
+    #logo: material/castle
+    logo: mast/icon
+    #admonition:
+      # note: mast/icon
+      # # note: simple/windowsterminal
+      # mast: mast/icon
+      # python: simple/python
+      # abstract: octicons/checklist-16
+      # info: octicons/info-16
+      # tip: octicons/squirrel-16
+      # success: octicons/check-16
+      # question: octicons/question-16
+      # warning: octicons/alert-16
+      # failure: octicons/x-circle-16
+      # danger: octicons/zap-16
+      # bug: octicons/bug-16
+      #example: octicons/beaker-16
+      #quote: octicons/quote-16
+
+repo_url: https://github.com/artemis-sbs/LegendaryMissions
+repo_name: artemis-sbs/LegendaryMissions
+
+nav:
+  - Home: index.md
+
+  - Playing:
+    - playing/index.md
+    - Game features: playing/features.md
+    - Updating: playing/updating.md
+
+  - Hosting:
+    - hosting/index.md
+    - Settings: hosting/settings.yaml.md
+
+  - Addons:
+    - addons/index.md
+    - Maps & terrain: script/maps/index.md
+
+  - About:
+    - about/index.md
+
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji 
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      options:
+        custom_icons:
+          - overrides/.icons
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [".."]
