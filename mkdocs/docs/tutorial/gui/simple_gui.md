@@ -73,7 +73,9 @@ Use `gui_button` inside `await gui()` to add a clickable button. The `*` prefix 
 
 ## Update a widget without rebuilding
 
-Use `on change` to watch a value and update a single widget in place. `gui_represent` re-renders just that widget.
+Use `on change` to watch a value and update a single widget in place. Calling
+`.update(...)` marks the widget dirty and it re-renders automatically &mdash; no
+full rebuild needed.
 
 === ":mast-icon: {{ab.m}}"
     ```
@@ -86,7 +88,6 @@ Use `on change` to watch a value and update a single widget in place. `gui_repre
         on change get_data_set_value(ship_id, "red_alert", 0):
             alert = get_data_set_value(ship_id, "red_alert", 0)
             status_text.update(f"$text: {'RED ALERT' if alert else 'Ready'};")
-            gui_represent(status_text)
 
         await gui()
     ```
