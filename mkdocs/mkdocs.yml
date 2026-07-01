@@ -43,6 +43,7 @@ nav:
   - Get started:
     - Creating a mission: home/start.md
     - Getting the library: home/get_library.md
+    - Mission settings: home/settings.md
     - Run & debug: tooling/testing.md
     - Contributing:
       - home/contributing/index.md
@@ -72,8 +73,11 @@ nav:
 
   - Build a mission:
     - build/index.md
+    - Anatomy of a mission: build/anatomy.md
     - World building: build/world-building.md
     - Tile maps: build/tile-maps.md
+    - Sides, lifeforms & faces: build/sides-lifeforms.md
+    - Player ships & consoles: build/players-consoles.md
     - GUI: cosmos/gui.md
     - Comms: cosmos/comms.md
     - Science: cosmos/science.md
@@ -81,6 +85,7 @@ nav:
       - mast/ai/index.md
       - Brain Trees: mast/ai/brains.md
     - Damage: build/damage.md
+    - Story & NPC messages: build/messages.md
     - Objectives: mast/objectives.md
     - Quests: build/quests.md
     - Items & Upgrades: build/items-upgrades.md
