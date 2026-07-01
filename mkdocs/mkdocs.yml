@@ -54,6 +54,7 @@ nav:
     - Tutorial: mast/tutorial.md
     - Language: mast/overview.md
     - Syntax: mast/syntax.md
+    - Common gotchas: mast/gotchas.md
     - Agent Model: mast/model.md
     - Runtime & Tasks: mast/runtime.md
     - PyMAST: mast/python.md
