@@ -1,216 +1,190 @@
-# Language Basics
+# Syntax reference
 
-* Data
-* Task flow
-* Conditional
-* Loops 
-* Scheduling Tasks
+The building blocks of MAST: variables, labels, flow control, tasks, and the rest.
+MAST evaluates expressions with Python, so Python types and expressions work
+inside MAST statements.
 
+## Variables
 
-## Data
-You can create data that is any valid python type.
-This data can be used in your {{ab.m}} tasks.
+Assign with `name = value`:
 
-### Simple assignment
+```
+enemy_count = 20
+name = "Artemis"
+```
 
-To do so you use the assignment statement::
+For values the MAST parser struggles with (nested lists, dict/set literals), wrap
+the expression in **inline python** &mdash; two or more tildes (`~~`) on each side:
 
-    fred = 3
+```
+inventory = ~~ [[2, 3], [4, 5]] ~~
+```
 
-Assignment has a variable name an equals followed by a value.
+### Scope
 
-### Using python with assignment
+Variables are scoped to the **task** by default. Two modifiers change that:
 
+```
+shared enemy_count = 20      # visible to every task in the story
+default difficulty = 5       # set only if it isn't already defined
+```
 
-The assignment is simple and has trouble with more complex python statements e.g. a list of list, etc.
-To allow more complex assignments you can wrap the value in 'snakes' to have the python compiler used::
+Reading is automatic &mdash; you only mark scope at assignment:
 
-    players_inventory = ~~ [ [2,3], [4,5]] ~~
+```
+shared beer_count = 8
+my_beer = beer_count         # read the shared value
+shared beer_count = 0        # update the shared value
+```
 
-You need at least 2 'snakes' (the tilde character), before and after the python values. But you can have more tha two, and the number doesn't need to be exactly the same, as long as you have at least two::
+## Labels
 
-    players_inventory = 
-        ~~~~~~~~~ 
-        [
-            [2,3], 
-            [4,5]
-        ] 
-        ~~~~~~
-
-### Shared data assignment
-
-Data has multiple scopes. Data can be at the scope of a {{ab.m}} story, a scheduler, a task, or a label.
-
-There are times you want data to be shared by all tasks within a story. To share data you add the 'shared' marked in front of the assignment::
-
-    shared enemy_count = 20
-    shared beer_count = 8
-
-When using Data, scope is automatically handled. You only need to specify shared at assignment::
-
-    shared beer_count = 8
-    my_beer = 0
-
-    # Drink all the beer
-    my_beer = my_beer + beer_count
-    share beer_count = 0
-
-
-## Task Flow: Story sections via labels
-
-A {{ab.m}} story is broken into sections using labels.
-You also can have comments, and there are also other 'markers' that can help organizing sections and help have them stand out in the file.
-
-### Labels
-
-Labels have a Name with no spaces and are  enclosed in 2 or more equals
-
-=== ":mast-icon: {{ab.m}}"
-
-    ```
-    ====== GotoBar ====
-     . . .
-    == ShowHelm ==
-     . . .
-
-    ========================================== MoreStuff ===========================
-     . . .
-    ```
-
-There are two labels that are implied: main and END.
-
-The label "main" is the very start of the script.
-The label "END" end the current task.
-
-They are predefined and don't need to be defined in script.
-
-Labels are not 'functions', one label passes into the next label
-=== ":mast-icon: {{ab.m}}"
-
-    ```
-    ======== One =====
-    log("One")
-    ======== Two =====
-    log("Two")
-    ===== Three ====
-    log("Three")
-    ```
-
-=== "Output"
-
-    ```
-    One
-    Two
-    Three
-    ```
-
-## State/Flow changes: Jump
-
-There are times you will want to change what part of a task is running.
-This is done by redirecting the flow to a label.
-
-### Jump
-
-This can be done by a Jump command. Which is a 'thin arrow' followed by the label name.::
+A label starts at column 0 with two or more `=` signs. The trailing `=` is
+optional, and the count doesn't matter:
 
 === ":mast-icon: {{ab.m}}"
     ```
-    -> Here
+    == goto_bar ==
+        ...
+    === show_helm
+        ...
+    ```
 
-    ======== NotHere =====
-    log("Got here later")
-    -> End
+Two labels are implicit and don't need defining: **`main`** (where every script
+starts) and **`END`** (ends the current task).
 
-    ======== Here =====
-    log("First")
-    -> NotHere
+Labels are **not** functions &mdash; execution falls through from one into the
+next:
 
-    ======== End =====
-    log("Done")
-    ->END
-    ======== Never =====
-    log("Can never reach")
+=== ":mast-icon: {{ab.m}}"
+    ```
+    == one ==
+        log("one")
+    == two ==
+        log("two")
+    == three ==
+        log("three")
     ```
 
 === "Output"
     ```
-    First
-    Got Here later
-    Done
+    one
+    two
+    three
     ```
 
+## Jumps and ending
 
-### Jump to End
-
-To immediately end a task you can use a Jump to End.
-
-Jump to end looks like a Jump with a thin arrow and the label "END"
-
+`jump label` (or the shortcut `-> label`) redirects flow. `->END` ends the task:
 
 === ":mast-icon: {{ab.m}}"
     ```
-    ===== start ====
+    == start ==
+        log("first")
+        -> here
 
-    log("See you later")
-    ->END
-    log("Never gets here")
-    ```
+    == skipped ==
+        log("got here later")
+        -> done
 
-=== ":simple-python: {{ab.pm}}"
+    == here ==
+        log("second")
+        -> skipped
 
-    ``` py
-    @label()
-    def start(self):
-        print("See you later")
-        yield END()
+    == done ==
+        log("done")
+        ->END
     ```
 
 === "Output"
     ```
-    See you later
+    first
+    second
+    got here later
+    done
     ```
 
-Jump to End ends the task. If that task the only task, the whole story ends.
+Ending the last remaining task ends the story.
 
+## Conditionals
 
-## Scheduling tasks and waiting for them to complete
-
-A story can have multiple tasks running in parallel.
-
-For example, a ship maybe have multiple Tasks associated with it. 
-One tracking it comms, several for its client consoles, and several related to 'quest' it is involved in.
-
-To do so, new task can be scheduled. Either in python or via Mast.
-
-### Scheduling tasks in mast
-
-Schedule a task is similar to a Jump, but it uses the Fat arrow.
-The difference is another task begins, and the original task continues on.
+MAST supports Python-style `if` / `elif` / `else` (and they can nest):
 
 === ":mast-icon: {{ab.m}}"
     ```
-    log("before")
-    #
-    task_schedule(ATask)
-    log("after")
-
-    === ATask ===
-    log("in task")
+    if value < 300:
+        log("less")
+    elif value > 300:
+        log("more")
+    else:
+        log("equal")
     ```
 
-=== ":simple-python: {{ab.pm}}"
+...and `match` / `case`:
 
-    ``` py   
-    @label()
-    def start(self):
-        logger()
+=== ":mast-icon: {{ab.m}}"
+    ```
+    match value:
+        case 200:
+            log("200")
+        case 300:
+            log("300")
+        case _:
+            log("something else")
+    ```
+
+Conditions also work inline on many statements:
+
+```
+->END if obj is None
+jump loop if not is_timer_finished(0, "warmup")
+```
+
+## Loops
+
+Standard `for ... in`, plus a MAST-specific `for ... while` that loops until a
+condition goes false. `break` and `continue` work as in Python:
+
+=== ":mast-icon: {{ab.m}}"
+    ```
+    for x in range(3):
+        log(f"{x}")
+
+    y = 10
+    for z while y < 30:
+        log(f"{z} {y}")
+        y += 10
+    ```
+
+=== "Output"
+    ```
+    0
+    1
+    2
+    0 10
+    1 20
+    2 30
+    ```
+
+!!! tip "Interpolating variables in `log`"
+    `log()` is a function call, so use an f-string to interpolate:
+    `log(f"{x}")`. (Plain `log("{x}")` prints the literal text `{x}`.) GUI and
+    comms text &mdash; `"""{x} ships"""` &mdash; interpolate without the `f`.
+
+## Tasks
+
+Start a background task with `task_schedule`; the current task keeps running:
+
+=== ":mast-icon: {{ab.m}}"
+    ```
+    == start ==
         log("before")
-        task_schedule(self.a_task)
+        task_schedule(a_task)
         log("after")
 
-    @label()
-    def a_task(self):
+    == a_task ==
         log("in task")
+        ->END
     ```
 
 === "Output"
@@ -220,519 +194,106 @@ The difference is another task begins, and the original task continues on.
     in task
     ```
 
+### Passing data
 
-### passing data to a task
-
-You can pass data to a new task. The data passed is different than the original task.
+Data passed to a task becomes variables in it, separate from the caller's:
 
 === ":mast-icon: {{ab.m}}"
     ```
-    message = "Different"
-    task_schedule(ATask, {"message": "Hello"})
-    log(f"{message}")
-
-    === ATask ===
-    log(f"{message}")
-    message = "Who cares"
-    ```
-
-
-=== ":simple-python: {{ab.pm}}"
-
-    ``` py
-    @label()
-    def start():
-        logger()
-
+    == start ==
+        message = "caller"
         task_schedule(a_task, {"message": "Hello"})
-        message = get_variable("message")
         log(f"{message}")
+        ->END
 
-    @label()
-    def a_task():
-        log(task.message)
-        set_variable("message", "Should not change original")
+    == a_task ==
+        log(f"{message}")     # "Hello" - from the passed data
+        ->END
     ```
 
-=== "Output"
-    ```
-    different
-    Hello
-    ```
+### Waiting for tasks
 
-### Named task and waiting for a Task or Tasks
-
-You can assign a task to a variable by putting a name in front of the fat arrow.
-
-This can be used to await the task later.
-
-Example scheduling a task
+Capture a task in a variable and `await` it, or race/join several with
+`promise_any` / `promise_all`:
 
 === ":mast-icon: {{ab.m}}"
     ```
-    log("Start")
-    task1 task_schedule(ATask)
-    await task1
-    log("Done")
+    t = task_schedule(a_task)
+    await t                                   # wait for one task
 
-    === ATask ===
-    log("task run")
+    a = task_schedule(worker, {"say": "A"})
+    b = task_schedule(worker, {"say": "B"})
+    await promise_all(a, b)                    # wait for both
+    # await promise_any(a, b)                  # wait for the first to finish
     ```
 
-=== "Output"
+### Cancelling
 
-    ```
-    Start
-    task run
-    Done
-    ```
-
-### Awaiting for any or all tasks
-
-
-This can be used to await a list of tasks.
-You can await for ay task to complete.
-And you can await for all tasks to finish.
-
-Example await all
-
-=== ":mast-icon: {{ab.m}}"
-    ```
-    log("Start")
-    task1 = task_schedule(ATask, data= {"say": "Task1"})
-    task2 = task_schedule(ATask, data= {"say": "Task2"})
-    #### This needs to be refactored it isn't valid yet
-    await task_all(task1,task2)
-    log("Done")
-
-    === ATask ===
-    log("{say}")
-    ```
-=== "Output"
-    ```
-    Start
-    Task1
-    Task2
-    Done
-    ```
-
-Await any
-
-=== ":mast-icon: {{ab.m}}"
-    ```
-    log("Start")
-    task1 = task_schedule(ATask, data= {"say": "Task1"})
-    task2 = task_schedule(ATask, data= {"say": "Task2"})
-    #### This needs to be refactored
-    await task_any(task1,task2)
-    log("Done")
-
-    === ATask ===
-    log("{say}")"
-    ```
-
-=== "Output"
-    ```
-    Start
-    Task1
-    Task2
-    Done
-    ```
-
-The order maybe be different based on timing of the tasks.
-
-For an await any if any task end, the await is satisfied.
-
-
-### Canceling a task
-
-You can cancel a tasks by name from another task.
-
-=== ":mast-icon: {{ab.m}}"
-    ```
-    log("Start")
-    task1 task_schedule(ATask)
-    task_cancel(task1)
-    log("Done")
-
-    === ATask ===
-    log("May not run")
-    ```
-
-=== ":simple-python: {{ab.pm}}"
-
-    ``` py
-    @label()
-    def start(self):
-        logger()
-        log("Start")
-        task1 = task_schedule(a_task)
-        task_cancel(task1)
-        log("Done")
-
-    @label()
-    def a_task(self):
-        log("May not run")
-    ```
-
-
-=== "Output"
-
-    Start
-    Done
-
-
-## Conditional Statements
-
-{{ab.m}} supports both if and match statements similar to python syntax.
-{{ab.pm}} simply uses the python statements.
-
-### If statements
-
-{{ab.m}} supports if statements similar to python with if, elif, and else.
-
-
-If conditionals can be nested as well.
-
-=== ":mast-icon: {{ab.m}}"
-    
-    ```
-    ===== start ====
-    value = 300
-
-    if value < 300:
-        log("less")
-    elif value > 300:
-    log("more")
-    else:
-        log("equal")
-    ```
-
-=== ":simple-python: {{ab.pm}}"
-
-    ``` py
-    @label()
-    def start():
-        value = 300
-        if value < 300:
-            log("less")
-        elif value > 300:
-            log("more")
-        else:
-            log("equal")
-    ```
-    
-=== "Output"
-    ```
-    equal
-    ```
-
-### Match statements
-
-{{ab.m}} supports match statements similar to python with match, case.
-
-
-=== ":mast-icon: {{ab.m}}"
-    ```
-    ===== start ====
-    value = 300
-
-    match value:
-        case 200:
-            log("200")
-        case 300:
-            log("300")
-        case _:
-            log*("something else")
-    ```
-
-=== ":simple-python: {{ab.pm}}"
-
-    ``` py
-    @label()
-    def start(self):
-        value = 300
-        match value:
-            case 200:
-                log("200")
-            case 300:
-                log("300")
-            case _:
-                log("something else")
-    ```
-
-=== "Output"
-    ```
-    300
-    ```
-
-### For loops
-
-{{ab.m}} supports for loop similar to python with for, break, continue .
-
-{{ab.pm}} uses the standard python for or while loop.
-
-However, {{ab.m}} support a for ... in loop and a for .. while loop.
-
-=== ":mast-icon: {{ab.m}}"
-
-    ```
-    for x in range(3):
-        log("{x}")
-    
-
-    y = 10
-    for z while y < 30:
-        log("{z} {y}")
-        y += 10
-    ```
-    
-
-=== ":simple-python: {{ab.pm}}"
-
-    ``` py
-    for x in range(3):
-        log("{x}")
-
-    y = 10
-    z = 0
-    while y < 30:
-        log("{z} {y}")
-        y += 10
-        z += 1
-    ```
-
-
-    
-=== "Output"
-    ```
-    1
-    2
-    3
-    0 10
-    1 20
-    2 30
-    ```
-
-
+```
+t = task_schedule(a_task)
+task_cancel(t)
+```
 
 ## Comments
 
-Comments provide code extra information to help make it more understandable.
-
-### Comments
-
-Single line comments start with a # and go until the end of the line.
-
-Comments use the # like python does
+Line comments use `#`. MAST also supports C-style block comments:
 
 === ":mast-icon: {{ab.m}}"
     ```
-    fred = 10 # set fred to 10
+    fred = 10   # set fred to 10
+
+    /*
+      A block comment.
+      Handy for disabling several lines at once.
+    */
     ```
 
-### Multi line Comments aka block comments
-
-You can have a c style block comment
-
-=== ":mast-icon: {{ab.m}}"
-    ```
-    /*********
-    Beware
-    This is the tricky part
-    ****/
-    ```
-
-Using block comments to 'disable' code it can quickly get confusing. Therefore, an additional block comment is supported.
-
+!!! warning "`//` is not a comment"
+    A line starting with `//` is a **route label**, not a comment. Use `#`.
 
 ## Importing
 
-You can break up mast content into multiple files and use import to included them
+Split a mission across files and `import` them &mdash; including from a zip
+(the basis of shareable add-ons):
 
 === ":mast-icon: {{ab.m}}"
     ```
     import story_two.mast
-    ```
-
-The import command also supports importing from a zip fill
-
-=== ":mast-icon: {{ab.m}}"
-    ```
     from my_lib.zip import bar.mast
     ```
 
-One use of the zip file concept it to create a sharable library of things.
+## Delays
 
+Delays need a clock. `delay_app` uses the **real-time** clock (always running);
+`delay_sim` uses **sim time** (paused when the game is). Both accept `minutes` and
+`seconds`:
+
+=== ":mast-icon: {{ab.m}}"
+    ```
+    await delay_app(seconds=10)
+    await delay_app(minutes=1, seconds=5)
+    await delay_sim(5)            # 5 sim-seconds
+
+    for x in range(3):
+        log(f"{x}")
+        await delay_sim(1)
+    ```
 
 ## Logging
 
-{{ab.m}} supports syntax to simplify pythons logging features.
-
-
-### logger command
-
-The logger command sets up logging. 
-
-Logging needs to be enabled
-
-Logging can enabled for stdout, to a string stream (stringIO) variable, and a file
-
+`logger()` enables logging; `log()` writes to it. Logging can go to stdout, a
+string variable, and/or a file, and you can have several named loggers.
 
 === ":mast-icon: {{ab.m}}"
     ```
-    # enable logging to stdout
-    logger()
-    # enable logging to stdout, and a string
-    logger(var="string my_string_logger")
-    # enable logging to stdout, and a file
-    logger(file="{mission_dir}/my_log.log")
-    # enable logging to stdout, a string and a file
-    logger(var="my_string_logger", file="{mission_dir}/my_log.log")
+    logger()                                    # enable stdout logging
+    logger(file="{mission_dir}/my.log")         # also to a file
+    logger(name="tonnage", var="tonnage")       # a second, named logger
+
+    log("Hello, world")                         # default logger
+    log(f"Tonnage: {tonnage}", name="tonnage")  # named logger
+    log("Careful", level="warning")             # with a level
     ```
 
-=== ":simple-python: {{ab.pm}}"
-
-    ``` py
-    @label
-    def some_label(self):
-        # Logging to stdout
-        logger()
-        # Logging to string IO
-        logger(var="my_string_logger")
-        # Logging to file
-        logger(file="{mission_dir}/my_log.log")
-        logger()
-    ```        
-
-You can have multiple loggers, each logger can have separate strings, or files.
-
-The default logger does not need to specify the name.
-
-To create a new loggers by using the logger command specifying a name
-
-=== ":mast-icon: {{ab.m}}"
-    ```
-    logger(name="tonnage")
-    logger(name="tonnage", var="tonnage")
-    logger(name="tonnage",file="{get_mission_dir()}/tonnage.txt")
-    ```
-
-=== ":simple-python: {{ab.pm}}"
-
-    ``` py
-
-    # this import is needed for get_mission_dir
-    from sbs_utils.fs import get_mission_dir
-
-    @label
-    def some_label(self):
-        logger(name="tonnage")
-        logger(name="tonnage", var="tonnage")
-        logger(name="tonnage",file="{get_mission_dir()}/tonnage.txt")
-    ```
-
-### log command
-
-The log command is how you send messages to the log.
-
-=== ":mast-icon: {{ab.m}}"
-    ```
-    # no logger name defaults to name "mast"
-    log("Hello, World")
-    # Specify a name to log to a secondary logger
-    log("Tonnage score {tonnage}", name="tonnage")
-    ```
-        
-=== ":simple-python: {{ab.pm}}"
-
-    ```py
-    @label
-    def some_label(self):
-        # no logger name defaults to name "mast"
-        log("Hello, World")
-        # Specify a name to log to a secondary logger
-        log("Tonnage score {tonnage}", name="tonnage")
-    ```
-            
-
-The log command can accept levels. These are visible is the stdout messages.
-
-
-=== ":mast-icon: {{ab.m}}"
-    ```
-    log("Hello, World", level="info")
-    log("Hello, World", level= "debug")
-    log("Hello, World", level= "error")
-    ```
-
-=== ":simple-python: {{ab.pm}}"
-
-    ```py
-    @label
-    def some_label(self):
-
-        log("Hello, World", level="info")
-        log("Hello, World", level= "debug")
-        log("Hello, World", level= "error")
-    ```
-
- 
-
-## Delay commands
-
-The delay command continues to execute for a period of time.
-
-A Delay needs a clock to use. Artemis Cosmos has two clocks: gui and sim.
-The gui clock is running continuously (realtime). The sim clock can be paused when the simulation is not running (game time).
-
-For gui and other things use the gui clock.
-If you want to delay 10s of game time use sim.
-
-Delay can specify minutes and seconds.
-
-
-=== ":mast-icon: {{ab.m}}"           
-    ```
-    await delay_app(minutes=1)
-    await delay_app(seconds=10)
-    await delay_app(seconds=5, minutes=1)
-    await delay_sim(0, 10)
-    ```
-
-=== ":simple-python: {{ab.pm}}"           
-
-    ```py
-    yield AWAIT(delay_app(minutes=1))
-    yield AWAIT(delay_app(seconds=10))
-    yield AWAIT(delay_app(seconds=5, minutes=1))
-    yield AWAIT(delay_sim(0, 10))
-    ```
-
-Delay can delay the flow of the code
-
-=== ":mast-icon: {{ab.m}}"
-    ```
-    for x in range(3):
-        log("{x}")
-        await delay_app(1)
-    
-    ```
-
-=== ":simple-python: {{ab.pm}}"
-
-    ```py
-    for x in range(3):
-        log("{x}")
-        yield AWAIT(delay_app(1))
-    ```
-
-    
-=== "Output"
-    ```
-    1
-    2
-    3
-    ```
-
-
+`log(message, name=None, level=None)` is preferred over `print()`. See the
+[execution API](../api/procedural/execution.md).
