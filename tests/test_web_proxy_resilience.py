@@ -8,7 +8,8 @@ test_set_exe_dir()
 import unittest
 
 from cosmos_dev.webproxy.proxy import (_ensure_armed, _IS_ARMED_EXPR,
-                                       _Engine, _resolve_engine)
+                                       _Engine, _resolve_engine,
+                                       _persist_filename, _serve_persisted)
 
 
 class _FakeClient:
@@ -93,6 +94,44 @@ class TestResolveEngine(unittest.TestCase):
         e, page = _resolve_engine("alpha/admin/panel", by_name, default)
         self.assertEqual(e.name, "alpha")
         self.assertEqual(page, "admin/panel")
+
+
+class TestPersistHelpers(unittest.TestCase):
+    def test_persist_filename(self):
+        self.assertEqual(_persist_filename("scores"), "scores.json")
+        self.assertEqual(_persist_filename("/web/scores"), "scores.json")
+        self.assertEqual(_persist_filename("admin/panel"), "admin__panel.json")
+        self.assertEqual(_persist_filename(""), "index.json")
+
+    def test_persist_filename_matches_engine_side(self):
+        # proxy reader and engine writer must agree on the filename
+        from cosmos_dev.webproxy.engine_side import _persist_safe
+        for p in ("scores", "web/scores", "admin/panel"):
+            self.assertEqual(_persist_filename(p), _persist_safe(p))
+
+    def test_serve_persisted_pushes_retagged_frames(self):
+        import json
+        import os
+        import queue as _q
+        import tempfile
+        eng = _Engine("", tempfile.mkdtemp())
+        os.makedirs(os.path.join(eng.queue_dir, "web_persist"), exist_ok=True)
+        snap = [{"clientID": 0x7EB0000000000000, "cmd": "text", "tag": "1"},
+                {"clientID": 0x7EB0000000000000, "cmd": "complete", "tag": ""}]
+        with open(os.path.join(eng.queue_dir, "web_persist", "scores.json"), "w") as f:
+            json.dump(snap, f)
+        q = _q.Queue()
+        cid = 0x8080000000000009
+        self.assertTrue(_serve_persisted(eng, "scores", cid, q))
+        got = [q.get_nowait() for _ in range(q.qsize())]
+        self.assertEqual(len(got), 2)
+        self.assertTrue(all(fr["clientID"] == cid for fr in got))  # re-tagged
+
+    def test_serve_persisted_missing_file_false(self):
+        import queue as _q
+        import tempfile
+        eng = _Engine("", tempfile.mkdtemp())
+        self.assertFalse(_serve_persisted(eng, "nope", 1, _q.Queue()))
 
 
 if __name__ == "__main__":

@@ -151,3 +151,38 @@ def web_snapshot(path, query=None, ticks=6, client_id=None):
         return frames
     finally:
         Gui.web_render_sink = saved_sink
+
+
+def _persist_safe(path):
+    from sbs_utils.procedural.web import web_norm_path
+    return (web_norm_path(path).replace("/", "__") or "index") + ".json"
+
+
+def web_persist(path, query=None, ticks=6, out_dir=None):
+    """Snapshot a //web/<path> and save its frames to disk so it can be served
+    after the game (when the engine is gone). Writes <out_dir>/<safe>.json;
+    out_dir defaults to the mission's web_persist/ dir. Returns the file path,
+    or None if the route is missing."""
+    frames = web_snapshot(path, query, ticks)
+    if frames is None:
+        return None
+    if out_dir is None:
+        try:
+            from sbs_utils.fs import get_mission_dir_filename
+            out_dir = get_mission_dir_filename("web_persist")
+        except Exception:
+            out_dir = "web_persist"
+    os.makedirs(out_dir, exist_ok=True)
+    out = os.path.join(out_dir, _persist_safe(path))
+    tmp = out + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(frames, f)
+    os.replace(tmp, out)   # atomic; a reader never sees a half file
+    return out
+
+
+def web_living_pages():
+    """Return the living-page registry ({path: {persist, refresh}}) for the host
+    proxy to drive persistence. Populated by web_living() calls in route bodies."""
+    from sbs_utils.procedural.web import web_living_pages as _lp
+    return _lp()

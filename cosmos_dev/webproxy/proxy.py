@@ -105,6 +105,51 @@ def _ensure_armed(client, frames_path, was_armed, label="default"):
         return False
 
 
+# Living-page registry ({path: {persist, refresh}}) and game-end flag, read from
+# the engine to drive persistence.
+_LIVING_EXPR = ("__import__('cosmos_dev.webproxy.engine_side', "
+                "fromlist=['web_living_pages']).web_living_pages()")
+_GAME_ENDED_EXPR = ("bool(__import__('sbs_utils.agent', fromlist=['Agent'])"
+                    ".Agent.SHARED.get_inventory_value('GAME_ENDED', False))")
+
+
+def _persist_filename(page):
+    """Match engine_side._persist_safe: normalized page key -> <safe>.json."""
+    p = str(page).strip("/")
+    if p.startswith("web/"):
+        p = p[len("web/"):]
+    return (p.replace("/", "__") or "index") + ".json"
+
+
+def _persist_dir(engine):
+    return os.path.join(engine.queue_dir, "web_persist")
+
+
+def _persist(engine, page):
+    """Ask the engine to snapshot a living page to its web_persist dir."""
+    try:
+        engine.client.eval(_call("web_persist", page, {}, 6, _persist_dir(engine)),
+                           timeout=5.0)
+    except Exception:
+        pass
+
+
+def _serve_persisted(engine, page, cid, gui_q):
+    """When the engine is down, push the last saved snapshot of `page` to the
+    browser (re-tagged with its client id). Returns True if a snapshot existed."""
+    path = os.path.join(_persist_dir(engine), _persist_filename(page))
+    try:
+        with open(path) as f:
+            frames = json.load(f)
+    except (OSError, ValueError):
+        return False
+    for fr in frames:
+        fr = dict(fr)
+        fr["clientID"] = cid
+        gui_q.put(fr)
+    return True
+
+
 def _tail_frames(path, gui_q, stop, poll=0.02):
     """Tail the engine's NDJSON frames file and forward each wire command to the
     browser (via gui_q). Pure push: no dev-queue round-trip, so no polling stall.
@@ -150,6 +195,11 @@ class _Engine:
         self.frames_path = os.path.join(queue_dir, "web_frames.ndjson")
         self.armed = False
         self.last_arm = 0.0
+        # living/persistent pages: {path: {persist, refresh}}
+        self.living = {}
+        self.last_persist = {}   # path -> monotonic time of last snapshot
+        self.last_discover = 0.0
+        self.game_ended = False
 
     def disp(self, path):
         return f"/web/{self.name}/{path}" if self.name else f"/web/{path}"
@@ -222,6 +272,10 @@ def run(engines, host="127.0.0.1", port=8770, cosmos_dir=None, rate=0.04):
                                      "query": cev.get("query", {}), "opened": False}
                     if e is None:
                         print(f"[webproxy] no engine for /web/{cev.get('path')}")
+                    elif not e.armed:
+                        # engine down: serve the last saved snapshot if we have one
+                        if _serve_persisted(e, page, cid, gui_q):
+                            print(f"[webproxy] served persisted {e.disp(page)} (engine down)")
                 elif ev == "web_disconnect":
                     s = sessions.pop(cid, None)
                     if s and s["engine"] is not None:
@@ -258,6 +312,35 @@ def run(engines, host="127.0.0.1", port=8770, cosmos_dir=None, rate=0.04):
                     for s in sessions.values():   # re-open this engine's sessions
                         if s["engine"] is e:
                             s["opened"] = False
+
+                # --- living-page persistence -------------------------------
+                if e.armed:
+                    # discover which pages declared web_living (throttled)
+                    if now - e.last_discover > 4.0:
+                        e.last_discover = now
+                        try:
+                            e.living = e.client.eval(_LIVING_EXPR, timeout=3.0) or {}
+                        except Exception:
+                            pass
+                    # cadence re-snapshot (refresh: N seconds)
+                    for path, cfg in e.living.items():
+                        rf = cfg.get("refresh")
+                        if rf and now - e.last_persist.get(path, 0) >= rf:
+                            _persist(e, path)
+                            e.last_persist[path] = now
+                    # snapshot persist pages once when the game ends
+                    try:
+                        ended = e.client.eval(_GAME_ENDED_EXPR, timeout=3.0)
+                    except Exception:
+                        ended = e.game_ended
+                    if ended and not e.game_ended:
+                        for path, cfg in e.living.items():
+                            if cfg.get("persist"):
+                                _persist(e, path)
+                                e.last_persist[path] = now
+                        print(f"[webproxy] game ended - persisted living pages "
+                              f"({e.name or 'default'})")
+                    e.game_ended = bool(ended)
 
             # --- (re)open any sessions not yet live on their engine --------
             for cid, s in sessions.items():

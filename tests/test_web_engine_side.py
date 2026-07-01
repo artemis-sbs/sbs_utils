@@ -133,6 +133,26 @@ class TestEngineSide(unittest.TestCase):
         self.assertIs(Gui.web_render_sink, live_sink)
         self.assertEqual(engine_side._frames_path, path)
 
+    def test_persist_writes_frames_file(self):
+        import json
+        import os
+        import tempfile
+        d = tempfile.mkdtemp()
+        out = engine_side.web_persist("scores", ticks=6, out_dir=d)
+        self.assertIsNotNone(out)
+        self.assertTrue(os.path.isfile(out))
+        with open(out) as f:
+            frames = json.load(f)
+        cmds = {c["cmd"] for c in frames}
+        self.assertIn("text", cmds)
+        self.assertIn("button", cmds)
+        # no lingering session from the persist snapshot
+        self.assertNotIn(engine_side._SNAPSHOT_CID, Gui.clients)
+
+    def test_persist_missing_route_returns_none(self):
+        import tempfile
+        self.assertIsNone(engine_side.web_persist("nope", out_dir=tempfile.mkdtemp()))
+
     def test_set_frames_file_truncates(self):
         import os
         import tempfile

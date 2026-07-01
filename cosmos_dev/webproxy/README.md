@@ -64,6 +64,25 @@ serve it from any web server - it scales to any number of viewers with zero
 engine load after generation. Purely additive: the live `//web` path is
 unchanged, and a simple page works either way.
 
+## Living pages (live during the game, available after)
+A `//web` page can be **living** - updated live while playing and kept as a
+snapshot for afterwards (e.g. a leaderboard). Author it with two calls (core,
+`sbs_utils.procedural.web`):
+
+- In the route body: `web_living(persist=True, refresh=5)` declares the page
+  living (persist on game end; optionally re-snapshot every 5s).
+- From mission code: `web_refresh("scores")` when the data changes, so open
+  browsers re-render.
+
+The always-on proxy then:
+- discovers living pages, re-snapshots `refresh: N` pages every N seconds and
+  snapshots `persist` pages once when the game ends (`GAME_ENDED`), writing
+  `<mission>/web_persist/<page>.json` (via `engine_side.web_persist`);
+- when the engine is **down**, serves the last saved snapshot at the same
+  `/web/<page>` URL - so the leaderboard stays viewable after the match.
+
+Same page, one URL: live while the engine runs, the saved snapshot when it's gone.
+
 ## Verification status
 Everything except the live-engine process and the browser render is unit-tested
 against the mock (`tests/test_web_render_sink.py`, `test_web_engine_side.py`,
