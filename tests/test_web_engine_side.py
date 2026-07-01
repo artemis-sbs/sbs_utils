@@ -111,6 +111,28 @@ class TestEngineSide(unittest.TestCase):
         # push mode does not buffer for pull
         self.assertEqual(engine_side.web_drain(), [])
 
+    def test_snapshot_renders_and_leaves_no_session(self):
+        frames = engine_side.web_snapshot("scores", ticks=6)
+        cmds = {f["cmd"] for f in frames}
+        self.assertIn("text", cmds)
+        self.assertIn("button", cmds)
+        # one-shot: no lingering session, and the live sink is restored (None)
+        self.assertNotIn(engine_side._SNAPSHOT_CID, Gui.clients)
+        self.assertIsNone(Gui.web_render_sink)
+
+    def test_snapshot_missing_route_returns_none(self):
+        self.assertIsNone(engine_side.web_snapshot("nope"))
+
+    def test_snapshot_preserves_live_push_sink(self):
+        import os
+        import tempfile
+        path = os.path.join(tempfile.mkdtemp(), "web_frames.ndjson")
+        engine_side.set_frames_file(path)             # live push mode active
+        live_sink = Gui.web_render_sink
+        engine_side.web_snapshot("scores", ticks=3)   # must not disturb it
+        self.assertIs(Gui.web_render_sink, live_sink)
+        self.assertEqual(engine_side._frames_path, path)
+
     def test_set_frames_file_truncates(self):
         import os
         import tempfile

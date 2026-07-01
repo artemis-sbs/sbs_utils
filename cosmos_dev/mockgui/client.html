@@ -170,6 +170,7 @@ const _wsRoute = location.pathname === '/server' ? 'server'
 // seed page variables.
 const WS_URL = `ws://${location.host}/ws/${_wsRoute}` + (_isWeb ? location.search : '');
 let CLIENT_ID = null;   // assigned by server on connect via "init" message
+let IS_STATIC = false;  // static snapshot mode: render embedded frames, no WebSocket
 
 let msgCount = 0;
 
@@ -690,7 +691,18 @@ function connect() {
     }
   };
 }
-connect();
+
+// Static snapshot mode: a generator embeds window.__STATIC_FRAMES__ (a list of
+// wire commands from a one-shot render). Render them once and do NOT open a
+// WebSocket - a read-only page with no live session.
+if (Array.isArray(window.__STATIC_FRAMES__)) {
+  IS_STATIC = true;
+  const st = document.getElementById('status-text');
+  if (st) st.textContent = 'static';
+  for (const msg of window.__STATIC_FRAMES__) dispatch(msg);
+} else {
+  connect();
+}
 
 // ── Event → server ────────────────────────────────────────────────────────────
 // clientID is the owner of the widget that fired the event — taken from the
@@ -707,7 +719,7 @@ function dispatch(msg) {
   // In client mode, ignore GUI commands addressed to the server (clientID "0") or any
   // other client. The server rebuilds and broadcasts its own frame every tick; without
   // this filter those clear/complete cycles wipe the client's own frame each tick.
-  if (_mode === 'client' && CLIENT_ID !== null &&
+  if (!IS_STATIC && _mode === 'client' && CLIENT_ID !== null &&
       msg.cmd !== 'init' && msg.cmd !== 'log' &&
       msg.cmd !== 'radar' && msg.cmd !== 'radar_terrain' &&
       msg.cmd !== 'widget_rect' && msg.cmd !== 'cinematic' &&

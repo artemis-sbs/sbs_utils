@@ -112,3 +112,42 @@ def web_drain():
     f = _frames[:]
     _frames.clear()
     return f
+
+
+# Temp client id for one-shot static snapshots (distinct high range).
+_SNAPSHOT_CID = 0x7EB0000000000000
+
+
+def web_snapshot(path, query=None, ticks=6, client_id=None):
+    """Render a //web/<path> ONCE and return its wire commands, leaving no live
+    session - the basis for static (read-only) pages served as plain HTML.
+
+    Opens a temporary web session, drives its GUI task for a few ticks so the
+    layout builds and emits, captures the wire commands, then closes it. Returns
+    a list of wire dicts (clientID as the temp id), or None if the route is
+    missing. Isolated: swaps in a private capture sink and restores the live one,
+    and presents only the temp client (not the whole Gui).
+    """
+    cid = client_id if client_id is not None else _SNAPSHOT_CID
+    frames = []
+    saved_sink = Gui.web_render_sink
+    Gui.web_render_sink = make_sink_factory(out=frames.append)
+    try:
+        if not Gui.web_page_open(cid, path, data=query or None):
+            return None
+        gui = Gui.clients.get(cid)
+        for _ in range(ticks):
+            if gui is None:
+                break
+            ev = FakeEvent(client_id=cid, tag="gui_present")
+            real = FrameContext.context.sbs
+            FrameContext.context.sbs = Gui.web_render_sink(cid, real)
+            try:
+                gui.tick_gui_task()
+                gui.present(ev)
+            finally:
+                FrameContext.context.sbs = real
+        Gui.web_page_close(cid)
+        return frames
+    finally:
+        Gui.web_render_sink = saved_sink

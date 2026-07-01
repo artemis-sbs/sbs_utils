@@ -29,6 +29,23 @@ browser <-- WS/HTTP --> proxy.py <-- dev queue --> real engine (engine_side.py)
    ```
 3. Open `http://127.0.0.1:8770/web/<path>` (e.g. `/web/scores?title=Hi`).
 
+## Static pages (read-only, no live session)
+For a read-only page (dashboard/report) you can render it **once** to a
+self-contained HTML file instead of holding a live session:
+
+```
+python -m cosmos_dev.webproxy.snapshot <mission_dir> scores -o scores.html \
+        --query title=Standings
+```
+
+It renders `//web/scores` once via `engine_side.web_snapshot` (open -> present a
+few ticks -> capture -> close, no lingering session) and embeds the frames into
+`client.html` as `window.__STATIC_FRAMES__` (`static_render.frames_to_html`), so
+the renderer draws them once and skips the WebSocket. Open the file directly or
+serve it from any web server - it scales to any number of viewers with zero
+engine load after generation. Purely additive: the live `//web` path is
+unchanged, and a simple page works either way.
+
 ## Verification status
 Everything except the live-engine process and the browser render is unit-tested
 against the mock (`tests/test_web_render_sink.py`, `test_web_engine_side.py`,
