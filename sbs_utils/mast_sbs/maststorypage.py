@@ -81,6 +81,7 @@ class StoryPage(Page):
         # variables instead of the default main/main_client label.
         self.start_label = None
         self.start_data = None
+        self.web_path = None
         self.change_console_label = None
         self.main_screen_change_label = None
         self.disconnected = False

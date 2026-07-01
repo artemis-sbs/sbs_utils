@@ -320,6 +320,9 @@ class Gui:
             return False
         page.start_label = label
         page.start_data = data
+        # Normalized page key ("web/scores" route -> "scores") for web_refresh.
+        _lbl = page.story.labels.get(label)
+        page.web_path = (getattr(_lbl, "path", "") or "")[len("web/"):]
         Gui.web_client_ids.add(client_id)
         # The push triggers the first (full-frame) present; later presents send
         # only dirty deltas. So this initial present must go through the render
