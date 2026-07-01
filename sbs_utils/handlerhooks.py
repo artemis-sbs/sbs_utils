@@ -199,9 +199,21 @@ def cosmos_event_handler(sim, event):
                 #     gui.present(Context(sim, sbs, None), event)
                 ar = Vec3(event.source_point.x, event.source_point.y,event.source_point.z)
 
-                FrameContext.aspect_ratios[event.client_id] = ar
-                Gui.on_event(event)
-                tick_the_rest(event)
+                #
+                # Only refresh when the size actually changed. The engine can
+                # re-report the viewport several times for a single resolution
+                # change (the new layout alters the usable area, which is
+                # reported again). Without this guard every duplicate forces a
+                # full gui refresh, which can look like the console "running
+                # multiple times" and can feed a resize->refresh->resize loop.
+                #
+                prev = FrameContext.aspect_ratios.get(event.client_id)
+                if prev is not None and prev.x == ar.x and prev.y == ar.y:
+                    tick_the_rest(event)
+                else:
+                    FrameContext.aspect_ratios[event.client_id] = ar
+                    Gui.on_event(event)
+                    tick_the_rest(event)
             case "client_change":
                 if event.sub_tag == "change_console":
                     Gui.on_event(event)
