@@ -1,8 +1,10 @@
 """Engine-side consumer for the cosmos_dev command queue (dev-only).
 
 Packaged into ``cosmos_devqueue.mastlib`` and opted into by a mission's
-``story.json`` ``mastlib`` list. When the ``COSMOS_DEV_QUEUE`` env var is set on
-the engine process, ``queue.mast`` schedules a server task that calls
+``story.json`` ``mastlib`` list. It runs when EITHER the ``COSMOS_DEV_QUEUE`` env
+var is set on the engine process OR a ``dev_queue.enable`` marker file exists in
+the mission dir (the latter lets you enable it without env vars, so the engine
+can be launched normally). ``queue.mast`` then schedules a server task that calls
 ``dev_queue_tick()`` every frame. The tick drains a JSON command file written by
 the host driver (``cosmos_dev.engine_driver``), execs it in the live engine, and
 writes the result to a JSON reply file.
@@ -43,11 +45,24 @@ def _out_path():
 
 
 def dev_queue_enabled():
-    """True when the engine was launched with COSMOS_DEV_QUEUE set (non-empty,
-    not 0/false). Keeps the consumer inert in normal play even if the mastlib is
-    present."""
+    """True when the dev queue should run. Two opt-ins (either enables it), so it
+    stays inert in normal play even when the mastlib is present:
+
+    1. COSMOS_DEV_QUEUE env var set at launch (non-empty, not 0/false) - needed
+       when the engine is launched from a script/driver (EngineDriver).
+    2. A `dev_queue.enable` marker file in the mission dir - lets you enable it
+       WITHOUT env vars, so the engine can be started normally (double-click):
+       just drop the file next to the mission and load it. Dev-only; delete the
+       file to turn it back off.
+    """
     v = os.environ.get("COSMOS_DEV_QUEUE", "")
-    return v not in ("", "0", "false", "False")
+    if v not in ("", "0", "false", "False"):
+        return True
+    try:
+        from sbs_utils.fs import get_mission_dir_filename
+        return os.path.isfile(get_mission_dir_filename("dev_queue.enable"))
+    except Exception:
+        return False
 
 
 # Per-process poll state (single-threaded, so a plain dict is fine).
