@@ -217,3 +217,32 @@ page loads to produce ready-to-paste Python constants for
 
 Use this whenever the fonts are updated or the mock text measurement functions
 need re-calibration.
+
+---
+
+## Jump to a story chapter while testing
+
+Long narrative missions are painful to test if every run starts from the top. A
+common trick is to keep the main story task in a shared variable, then add a
+**dev-only comms route** that jumps it straight to any chapter label:
+
+```
+# in the @map body, once the story task is running:
+shared main_story_task = mast_task
+
+# in a debug.mast, gated so it only appears in dev builds:
+//comms/chapters if main_story_task
+    + "scene: distress call" :
+        main_story_task.jump("scene_distress_call")
+    + "scene: salvage" :
+        main_story_task.jump("salvage")
+
+//enable/comms if is_dev_build()
+```
+
+- `mast_task` is the currently running task; stash it in `shared` so other tasks
+  (like a debug comms menu) can steer it.
+- `some_task.jump("label")` redirects that task to a label &mdash; here, teleporting
+  the story to a chosen chapter.
+- `is_dev_build()` gates the route so these shortcuts never show up in a shipped
+  mission.

@@ -43,6 +43,22 @@ for c in to_object_list(linked_to(ship_id, "consoles") & role("comms")):
     sbs.send_story_dialog(c.client_id, name, text, face, "#444")
 ```
 
+## Audio & voice
+
+Play a sound or voice line from your mission's `media/` folder. Resolve the path
+with `get_mission_audio_file`, and let players opt out with a shared flag:
+
+```
+shared AUDIO_ENABLED = True     # top-level default
+
+# later, at a story beat:
+if AUDIO_ENABLED:
+    sbs.play_audio_file(0, get_mission_audio_file("audio/distress_call"), 1.0, 1.0)
+```
+
+For music, `sbs.play_music_file(0, "music/default/victory")`. See the
+[media API](../api/procedural/media.md).
+
 ## Chatter / info panels
 
 For ambient, non-blocking narrative (universe chatter, lore), prefer the info

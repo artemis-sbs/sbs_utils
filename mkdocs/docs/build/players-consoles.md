@@ -42,8 +42,7 @@ Add your own console with a `@console/` label:
 ```
 
 `@console/name !priority ^sort "Display" if condition` &mdash; see the
-[GUI cookbook](../cosmos/gui.md) for building console layouts, and
-[Console routing](../cosmos/routes/console.md).
+[GUI cookbook](../cosmos/gui.md) for building console layouts.
 
 Without LegendaryMissions, route consoles yourself with `gui_reroute_server` /
 `gui_reroute_clients`; MiningDays is an example that loads no add-ons.
