@@ -166,7 +166,9 @@ const _mode  = location.pathname === '/server' ? 'server' : 'client';
 const _wsRoute = location.pathname === '/server' ? 'server'
                : _isWeb ? 'web/' + location.pathname.slice('/web/'.length)
                : 'client';
-const WS_URL = `ws://${location.host}/ws/${_wsRoute}`;
+// Web pages carry their query string through to the server so /web/x?a=1 can
+// seed page variables.
+const WS_URL = `ws://${location.host}/ws/${_wsRoute}` + (_isWeb ? location.search : '');
 let CLIENT_ID = null;   // assigned by server on connect via "init" message
 
 let msgCount = 0;

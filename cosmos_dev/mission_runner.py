@@ -502,13 +502,13 @@ def _run(
         if hasattr(sbs, "_force_terrain_push"):
             sbs._force_terrain_push()
 
-    def _fire_web_connect(cid: int, path: str) -> None:
+    def _fire_web_connect(cid: int, path: str, query: dict = None) -> None:
         # A browser opened /web/<path>: dispatch it to the matching //web/<path>
         # MAST route as a web-client GUI session. Web clients are not engine
         # consoles (no register_client / client_connect), so they never enter
-        # the console-select / player flow.
+        # the console-select / player flow. Query string params seed page vars.
         FrameContext.context = Context(sbs.sim, sbs, FakeEvent(client_id=cid, tag="mission_tick"))
-        opened = Gui.web_page_open(cid, path)
+        opened = Gui.web_page_open(cid, path, data=query or None)
         if not opened:
             print(f"[runner] web client {cid}: no //web/{path} route")
             if hasattr(sbs, "send_gui_clear"):
@@ -671,9 +671,9 @@ def _run(
                         print(f"[runner] deferred client_connect: {cid}")
                         _fire_client_connect(cid)
                     _pending_client_connects.clear()
-                    for cid, path in _pending_web_connects:
+                    for cid, path, query in _pending_web_connects:
                         print(f"[runner] deferred web_connect: {cid} -> /web/{path}")
-                        _fire_web_connect(cid, path)
+                        _fire_web_connect(cid, path, query)
                     _pending_web_connects.clear()
 
             # Drain physics events queued by the background physics thread.
@@ -702,13 +702,14 @@ def _run(
                             if hasattr(sbs, "_force_terrain_push"):
                                 sbs._force_terrain_push()
                         elif cev.get("event") == "web_connect":
-                            cid  = cev["clientID"]
-                            path = cev.get("path", "")
+                            cid   = cev["clientID"]
+                            path  = cev.get("path", "")
+                            query = cev.get("query", {})
                             if not _server_initialized:
-                                _pending_web_connects.append((cid, path))
+                                _pending_web_connects.append((cid, path, query))
                                 _show_waiting_screen(cid)
                             else:
-                                _fire_web_connect(cid, path)
+                                _fire_web_connect(cid, path, query)
                         elif cev.get("event") == "web_disconnect":
                             cid = cev.get("clientID")
                             print(f"[runner] web client {cid} disconnected")

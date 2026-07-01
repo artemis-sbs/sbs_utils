@@ -22,6 +22,7 @@ import mimetypes
 import multiprocessing
 import os
 import struct
+from urllib.parse import parse_qs
 from typing import Dict, List, Optional, Set
 
 VERBOSE: bool = True
@@ -361,15 +362,17 @@ async def _handle_websocket(client_id: int,
                               reader: asyncio.StreamReader,
                               writer: asyncio.StreamWriter,
                               fire_connect: bool = True,
-                              web_path: Optional[str] = None) -> None:
+                              web_path: Optional[str] = None,
+                              web_query: Optional[dict] = None) -> None:
     await _ws_send(writer, json.dumps({"cmd": "init", "clientID": str(client_id)}))
     await _register(client_id, writer)
     if web_path is not None:
         # A browser opened /web/<path>: not an engine console. Tell the runtime
         # to dispatch the matching //web/<path> MAST route as a web-client GUI
-        # session (Gui.web_page_open); no client_connect / console flow.
+        # session (Gui.web_page_open); no client_connect / console flow. Any
+        # query string (?a=1&b=2) is passed through to seed page variables.
         _client_event_queue.put({"event": "web_connect", "clientID": client_id,
-                                 "path": web_path})
+                                 "path": web_path, "query": web_query or {}})
     elif fire_connect:
         _client_event_queue.put({"event": "connect", "clientID": client_id})
     else:
@@ -462,6 +465,7 @@ async def _handle_connection(reader: asyncio.StreamReader,
             # /ws/web/<path>    → browser is a MAST web page (//web/<path>), not an engine console
             # /ws/client or /ws → browser gets a unique client ID and fires client_connect
             web_path = None
+            web_query = None
             if url_path_bare == '/ws/server':
                 client_id    = 0
                 fire_connect = False
@@ -472,9 +476,13 @@ async def _handle_connection(reader: asyncio.StreamReader,
                 fire_connect = True
                 if url_path_bare.startswith('/ws/web/'):
                     web_path = url_path_bare[len('/ws/web/'):]
+                    # Parse ?a=1&b=2 into {"a": "1", "b": "2"} (last value wins)
+                    q = url_path.split('?', 1)[1] if '?' in url_path else ''
+                    web_query = {k: v[-1] for k, v in parse_qs(q).items()}
 
             await _handle_websocket(client_id, reader, writer,
-                                    fire_connect=fire_connect, web_path=web_path)
+                                    fire_connect=fire_connect,
+                                    web_path=web_path, web_query=web_query)
         else:
             # /server and /client both serve client.html; the page reads location.pathname
             # to decide which WebSocket path to connect to. /web/<path> also serves

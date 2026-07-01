@@ -29,6 +29,11 @@ WEB_CODE = """
 //web/admin/panel
     gui_text("ADMIN PANEL")
     await gui()
+
+//web/greet
+    default name = "stranger"
+    gui_text("hello")
+    await gui()
 """
 
 WEB_ID = 0x8080000000000042  # a web (non-engine) client id
@@ -89,6 +94,18 @@ class TestWebPageOpen(unittest.TestCase):
         self.assertNotIn(WEB_ID, sbs.get_client_ID_list())
         Gui.present(FakeEvent(0, "gui_present"))
         self.assertIn(WEB_ID, Gui.clients)
+
+    def test_query_data_seeds_page_variables(self):
+        # /web/greet?name=World -> the page's GUI task sees name="World"
+        self.assertTrue(Gui.web_page_open(WEB_ID, "greet", data={"name": "World"}))
+        task = Gui.clients[WEB_ID].page.gui_task
+        self.assertEqual(task.get_variable("name"), "World")
+
+    def test_no_query_keeps_default(self):
+        # Without data, the route's `default name` applies.
+        self.assertTrue(Gui.web_page_open(WEB_ID, "greet"))
+        task = Gui.clients[WEB_ID].page.gui_task
+        self.assertEqual(task.get_variable("name"), "stranger")
 
     def test_close_removes_web_client(self):
         Gui.web_page_open(WEB_ID, "scores")
