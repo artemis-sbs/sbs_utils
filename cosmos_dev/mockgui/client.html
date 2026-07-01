@@ -157,9 +157,18 @@
 <script>
 // ── Config ───────────────────────────────────────────────────────────────────
 // /server → connects as the server console (clientID=0, no client_connect fired)
+// /web/<path> → connects as a MAST web page (//web/<path>), unique clientID, no console flow
 // /client or anything else → connects as a new client (unique clientID)
-const _mode  = location.pathname === '/server' ? 'server' : 'client';
-const WS_URL = `ws://${location.host}/ws/${_mode}`;
+let _wsRoute;
+if (location.pathname === '/server') {
+  _wsRoute = 'server';
+} else if (location.pathname.startsWith('/web/')) {
+  // preserve the sub-path so the server can route to //web/<path>
+  _wsRoute = 'web/' + location.pathname.slice('/web/'.length);
+} else {
+  _wsRoute = 'client';
+}
+const WS_URL = `ws://${location.host}/ws/${_wsRoute}`;
 let CLIENT_ID = null;   // assigned by server on connect via "init" message
 
 let msgCount = 0;

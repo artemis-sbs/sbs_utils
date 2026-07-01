@@ -360,10 +360,17 @@ async def _queue_dispatcher() -> None:
 async def _handle_websocket(client_id: int,
                               reader: asyncio.StreamReader,
                               writer: asyncio.StreamWriter,
-                              fire_connect: bool = True) -> None:
+                              fire_connect: bool = True,
+                              web_path: Optional[str] = None) -> None:
     await _ws_send(writer, json.dumps({"cmd": "init", "clientID": str(client_id)}))
     await _register(client_id, writer)
-    if fire_connect:
+    if web_path is not None:
+        # A browser opened /web/<path>: not an engine console. Tell the runtime
+        # to dispatch the matching //web/<path> MAST route as a web-client GUI
+        # session (Gui.web_page_open); no client_connect / console flow.
+        _client_event_queue.put({"event": "web_connect", "clientID": client_id,
+                                 "path": web_path})
+    elif fire_connect:
         _client_event_queue.put({"event": "connect", "clientID": client_id})
     else:
         # The server page (/ws/server) fires no client_connect, so it would miss
@@ -393,7 +400,9 @@ async def _handle_websocket(client_id: int,
     finally:
         await _ws_close(writer)
         await _unregister(client_id, writer)
-        if fire_connect:
+        if web_path is not None:
+            _client_event_queue.put({"event": "web_disconnect", "clientID": client_id})
+        elif fire_connect:
             _client_event_queue.put({"event": "disconnect", "clientID": client_id})
         _log(f"[server] client {client_id} disconnected")
 
@@ -449,8 +458,10 @@ async def _handle_connection(reader: asyncio.StreamReader,
             ).encode())
             await writer.drain()
 
-            # /ws/server  → browser acts as the server console (clientID=0, no client_connect)
+            # /ws/server       → browser acts as the server console (clientID=0, no client_connect)
+            # /ws/web/<path>    → browser is a MAST web page (//web/<path>), not an engine console
             # /ws/client or /ws → browser gets a unique client ID and fires client_connect
+            web_path = None
             if url_path_bare == '/ws/server':
                 client_id    = 0
                 fire_connect = False
@@ -459,12 +470,17 @@ async def _handle_connection(reader: asyncio.StreamReader,
                     client_id       = _next_client_id
                     _next_client_id += 1
                 fire_connect = True
+                if url_path_bare.startswith('/ws/web/'):
+                    web_path = url_path_bare[len('/ws/web/'):]
 
-            await _handle_websocket(client_id, reader, writer, fire_connect=fire_connect)
+            await _handle_websocket(client_id, reader, writer,
+                                    fire_connect=fire_connect, web_path=web_path)
         else:
             # /server and /client both serve client.html; the page reads location.pathname
-            # to decide which WebSocket path to connect to.
-            if url_path_bare in ('/', '/client.html', '/server', '/client'):
+            # to decide which WebSocket path to connect to. /web/<path> also serves
+            # the same renderer (it connects to /ws/web/<path>).
+            if (url_path_bare in ('/', '/client.html', '/server', '/client')
+                    or url_path_bare.startswith('/web/') or url_path_bare == '/web'):
                 html = _read_package_bytes("client.html")
                 if html is not None:
                     await _http_send(writer, "200 OK", "text/html; charset=utf-8",

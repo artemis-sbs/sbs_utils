@@ -480,6 +480,7 @@ def _run(
     # and show a placeholder, then replay them once the server tick completes.
     _server_initialized = False
     _pending_client_connects: list = []   # client IDs waiting for server init
+    _pending_web_connects: list = []      # (client_id, path) web pages waiting for server init
 
     def _show_waiting_screen(cid: int) -> None:
         if not gui or not hasattr(sbs, "send_gui_clear"):
@@ -500,6 +501,24 @@ def _run(
         _drain_client_strings(sbs.sim, cosmos_event_handler, FakeEvent)
         if hasattr(sbs, "_force_terrain_push"):
             sbs._force_terrain_push()
+
+    def _fire_web_connect(cid: int, path: str) -> None:
+        # A browser opened /web/<path>: dispatch it to the matching //web/<path>
+        # MAST route as a web-client GUI session. Web clients are not engine
+        # consoles (no register_client / client_connect), so they never enter
+        # the console-select / player flow.
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent(client_id=cid, tag="mission_tick"))
+        opened = Gui.web_page_open(cid, path)
+        if not opened:
+            print(f"[runner] web client {cid}: no //web/{path} route")
+            if hasattr(sbs, "send_gui_clear"):
+                sbs.send_gui_clear(cid, "")
+                sbs.send_gui_text(cid, "", "web_err",
+                                  f"$text:No web page at /web/{path};color:#ff5555;",
+                                  5, 40, 95, 60)
+                sbs.send_gui_complete(cid, "")
+        else:
+            print(f"[runner] web client {cid} -> //web/{path}")
 
     _cov = _verdict = _exerciser = None
     _test_exit = 0
@@ -652,6 +671,10 @@ def _run(
                         print(f"[runner] deferred client_connect: {cid}")
                         _fire_client_connect(cid)
                     _pending_client_connects.clear()
+                    for cid, path in _pending_web_connects:
+                        print(f"[runner] deferred web_connect: {cid} -> /web/{path}")
+                        _fire_web_connect(cid, path)
+                    _pending_web_connects.clear()
 
             # Drain physics events queued by the background physics thread.
             _drain_physics_events(sbs.sim, cosmos_event_handler, FakeEvent)
@@ -678,6 +701,21 @@ def _run(
                             # so resend the full radar/terrain/skybox baseline.
                             if hasattr(sbs, "_force_terrain_push"):
                                 sbs._force_terrain_push()
+                        elif cev.get("event") == "web_connect":
+                            cid  = cev["clientID"]
+                            path = cev.get("path", "")
+                            if not _server_initialized:
+                                _pending_web_connects.append((cid, path))
+                                _show_waiting_screen(cid)
+                            else:
+                                _fire_web_connect(cid, path)
+                        elif cev.get("event") == "web_disconnect":
+                            cid = cev.get("clientID")
+                            print(f"[runner] web client {cid} disconnected")
+                            _pending_web_connects[:] = [
+                                w for w in _pending_web_connects if w[0] != cid
+                            ]
+                            Gui.web_page_close(cid)
                         elif cev.get("event") == "disconnect":
                             cid = cev.get("clientID")
                             print(f"[runner] client {cid} disconnected")
