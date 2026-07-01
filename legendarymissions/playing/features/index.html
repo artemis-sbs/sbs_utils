@@ -4034,9 +4034,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#game-results" class="md-nav__link">
+  <a href="#game-results-scorekeeping" class="md-nav__link">
     <span class="md-ellipsis">
-      Game results
+      Game results &amp; scorekeeping
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-a-tournament" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running a tournament
     </span>
   </a>
   
@@ -4473,9 +4482,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#game-results" class="md-nav__link">
+  <a href="#game-results-scorekeeping" class="md-nav__link">
     <span class="md-ellipsis">
-      Game results
+      Game results &amp; scorekeeping
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-a-tournament" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running a tournament
     </span>
   </a>
   
@@ -4520,9 +4538,66 @@ surviving.</p>
 <p>The <strong>Director</strong> console (formerly Console View) lets you pair and rotate multiple
 views, with a <strong>cinematic mode</strong> for the big screen &mdash; great for spectating,
 streaming, or running a venue.</p>
-<h2 id="game-results">Game results</h2>
-<p><strong>Game results are saved after every game</strong> &mdash; a rolling history of outcomes
-and stats you can look back on.</p>
+<h2 id="game-results-scorekeeping">Game results &amp; scorekeeping</h2>
+<p>The end-of-game screen is a <strong>tabbed results board</strong>, and it keeps score.</p>
+<p><strong>The tabs:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Tab</th>
+<th>Shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Summary</strong></td>
+<td>Difficulty, enemies destroyed, tonnage destroyed, damage dealt, surrenders, game time.</td>
+</tr>
+<tr>
+<td><strong>Fleet</strong></td>
+<td>Each surviving player bridge ship: kills, tonnage, damage, hull remaining.</td>
+</tr>
+<tr>
+<td><strong>Air Wing</strong></td>
+<td>Each fighter/shuttle <strong>pilot by call sign</strong>: sorties, kills, tonnage, objectives.</td>
+</tr>
+<tr>
+<td><strong>Quests</strong></td>
+<td>Game and per-ship quests with their final state (secret quests stay hidden).</td>
+</tr>
+<tr>
+<td><strong>Enemies</strong></td>
+<td>Ships destroyed, broken down by race.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>How the score works:</strong></p>
+<ul>
+<li><strong>Kills</strong> &mdash; every destroyed enemy is credited to the ship (or pilot) that
+  landed the <strong>final blow</strong>.</li>
+<li><strong>Tonnage</strong> &mdash; flavor "tonnage sunk," scaled by the destroyed hull's size, so
+  killing a capital ship is worth far more than a fighter.</li>
+<li><strong>Damage dealt</strong> &mdash; raw damage, so a crew that softens targets for others
+  still shows up on the board.</li>
+<li>Bridge-ship credit and fighter/shuttle (cockpit) credit are tracked separately, so
+  the two <strong>never double-count</strong>.</li>
+</ul>
+<p><strong>Saved every game.</strong> Each result is written to a rolling history with an even
+denser per-ship / per-pilot / per-quest breakdown than the screen displays.</p>
+<h2 id="running-a-tournament">Running a tournament</h2>
+<p>The pieces above combine into a simple, fair competition format &mdash; handy for
+<strong>convention operators</strong> and league nights:</p>
+<ol>
+<li>Set up a match and share its <strong>game code</strong> (map, size, seed, and options), or just
+   agree on a <strong>seed</strong> &mdash; every crew now plays the <strong>identical</strong> battlefield and
+   enemy layout.</li>
+<li>Each crew plays the match; the <strong>Fleet</strong> and <strong>Air Wing</strong> boards give you kills,
+   tonnage, and damage per ship and per pilot.</li>
+<li>Rank crews (or individual pilots) by whichever number you're scoring on. The saved
+   result gives you the full breakdown after the fact.</li>
+</ol>
+<p>Use the <strong>Director</strong> console for a spectator / big-screen view of the action while
+crews compete.</p>
 
 
 
