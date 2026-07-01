@@ -81,7 +81,7 @@ Playing & hosting: [LegendaryMissions](legendarymissions/index.md).
   reproducible runs. → [The `sbs` CLI](tooling/cli.md)
 - **`signal_next`** — one-shot await of the next signal. → [Signals](api/procedural/signal.md)
 - **An Artemis 2.8 → Cosmos porting-comfort layer** to ease bringing older content
-  forward.
+  forward. → [Porting from Artemis 2.x](mast/porting-2x.md)
 - **A faster, friendlier MAST compiler** — quicker parsing, *all* errors reported at
   once, sturdier crash handling, and more Python built-ins available in scripts.
   → [The MAST language](mast/overview.md)

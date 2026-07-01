@@ -58,6 +58,7 @@ nav:
     - Runtime & Tasks: mast/runtime.md
     - PyMAST: mast/python.md
     - Prefabs: mast/prefabs.md
+    - Porting from Artemis 2.x: mast/porting-2x.md
     - Routes:
       - mast/routes/index.md
       - Comms: mast/routes/comms.md
