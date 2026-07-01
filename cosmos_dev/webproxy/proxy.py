@@ -79,6 +79,31 @@ def _call(fn, *args):
 
 _EVENT_FIELDS = ("tag", "sub_tag", "value_tag", "sub_float", "extra_tag")
 
+# True in-engine once push is armed. Resets to falsy when the engine process
+# restarts (fresh Python -> engine_side._frames_path is None again), which is how
+# the proxy detects a restart and re-arms.
+_IS_ARMED_EXPR = ("bool(__import__('cosmos_dev.webproxy.engine_side', "
+                  "fromlist=['x'])._frames_path)")
+
+
+def _ensure_armed(client, frames_path, was_armed):
+    """Make sure push mode is armed in the (possibly just-started) engine.
+    Returns the current armed state; never raises (engine may be down)."""
+    try:
+        is_armed = client.eval(_IS_ARMED_EXPR, timeout=3.0)
+    except Exception:
+        return False   # engine unreachable; re-arm when it returns
+    if is_armed:
+        if not was_armed:
+            print("[webproxy] engine up - push armed")
+        return True
+    try:
+        client.eval(_call("set_frames_file", frames_path), timeout=3.0)
+        print("[webproxy] engine up - push armed")
+        return True
+    except Exception:
+        return False
+
 
 def _tail_frames(path, gui_q, stop, poll=0.02):
     """Tail the engine's NDJSON frames file and forward each wire command to the
@@ -135,42 +160,40 @@ def run(queue_dir, host="127.0.0.1", port=8770, cosmos_dir=None, rate=0.04):
     client = _QueueClient(queue_dir)
     frames_path = os.path.join(queue_dir, "web_frames.ndjson")
 
-    # Enable PUSH: the engine streams rendered frames to frames_path; we tail it
-    # and forward to browsers with no per-tick dev-queue round-trip.
-    try:
-        client.eval(_call("set_frames_file", frames_path))
-    except Exception as e:
-        print(f"[webproxy] WARNING: could not enable push mode ({e}); "
-              "is the mission with cosmos_devqueue + cosmos_dev loaded?")
-
     stop = threading.Event()
     tail = threading.Thread(target=_tail_frames, args=(frames_path, gui_q, stop),
                             daemon=True, name="webproxy-tail")
     tail.start()
 
+    # Always-on: the engine may not be running yet, may restart, or missions may
+    # come and go. All dev-queue calls happen here in the main thread (the tail
+    # thread only reads the file), so no locking is needed. We (re)arm push
+    # whenever the engine appears, and re-open live sessions after a restart.
+    sessions = {}     # cid -> {"path", "query", "opened"}
+    armed = False
+    last_arm = 0.0
+
     print(f"[webproxy] serving http://{host}:{port}/web/<path>")
     print(f"[webproxy] bridging to engine dev queue at {queue_dir}")
-    print(f"[webproxy] streaming frames from {frames_path}")
+    print("[webproxy] waiting for engine (start/stop missions freely)...")
     try:
         while True:
-            # --- browser -> engine (open / event / close) --------------
-            # Rendering flows the other way via the tail thread (push).
+            # --- browser events: track sessions, forward widget events -----
             while True:
                 try:
                     cev = client_q.get_nowait()
                 except _q.Empty:
                     break
                 ev, cid = cev.get("event"), cev.get("clientID")
-                try:
-                    if ev == "web_connect":
-                        ok = client.eval(_call("web_open", cid,
-                                               cev.get("path", ""),
-                                               cev.get("query", {})))
-                        print(f"[webproxy] web_open {cid} /web/{cev.get('path')} -> {ok}")
-                    elif ev == "web_disconnect":
+                if ev == "web_connect":
+                    sessions[cid] = {"path": cev.get("path", ""),
+                                     "query": cev.get("query", {}), "opened": False}
+                elif ev == "web_disconnect":
+                    sessions.pop(cid, None)
+                    try:
                         client.eval(_call("web_close", cid))
-                except Exception as e:
-                    print(f"[webproxy] client-event error: {e}")
+                    except Exception:
+                        pass
 
             while True:
                 try:
@@ -181,8 +204,33 @@ def run(queue_dir, host="127.0.0.1", port=8770, cosmos_dir=None, rate=0.04):
                 payload = {k: gev[k] for k in _EVENT_FIELDS if k in gev}
                 try:
                     client.eval(_call("web_event", cid, payload))
-                except Exception as e:
-                    print(f"[webproxy] gui-event error: {e}")
+                except Exception:
+                    pass   # engine not ready; widget events are transient
+
+            # --- (re)arm push when the engine appears / restarts -----------
+            now = time.time()
+            if now - last_arm > 1.0:
+                last_arm = now
+                prev = armed
+                armed = _ensure_armed(client, frames_path, prev)
+                if armed and not prev:
+                    # engine (re)appeared: re-open every known live session
+                    for s in sessions.values():
+                        s["opened"] = False
+
+            # --- (re)open any sessions not yet live in the engine ----------
+            if armed:
+                for cid, s in sessions.items():
+                    if s["opened"]:
+                        continue
+                    try:
+                        ok = client.eval(_call("web_open", cid, s["path"], s["query"]))
+                        if ok:
+                            s["opened"] = True
+                            print(f"[webproxy] web_open {cid} /web/{s['path']} -> True")
+                    except Exception:
+                        armed = False   # engine went away mid-open; re-arm later
+                        break
 
             time.sleep(rate)
     except KeyboardInterrupt:
