@@ -6,7 +6,7 @@ zip:
 
 - `artemis-sbs.sbs_utils.v1.4.0.sbslib` &mdash; the `sbs_utils` library
 - `artemis-sbs.LegendaryMissions.<addon>.v1.4.0.mastlib` &mdash; optional
-  [LegendaryMissions](../legendary/index.md) addons
+  [LegendaryMissions](../legendarymissions/addons/index.md) addons
 
 Your mission's [`story.json`](start.md) lists the ones it needs:
 

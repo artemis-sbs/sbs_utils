@@ -155,8 +155,7 @@ nav:
       - DamageDispatcher: api/dispatch/damage_dispatcher.md
       - ConsoleDispatcher: api/dispatch/console_dispatcher.md
 
-  - LegendaryMissions:
-    - legendary/index.md
+  - LegendaryMissions: '!import https://github.com/artemis-sbs/LegendaryMissions?branch=v1.4.0_dev&config=mkdocs/mkdocs.yml&docs_dir=mkdocs/docs'
 
   - About:
     - about/index.md
@@ -191,6 +190,7 @@ plugins:
             show_source: false
             show_symbol_type_toc: true
           paths: [".."]
+  - multirepo
 
 hooks:
   - mkdocs_hooks.py
