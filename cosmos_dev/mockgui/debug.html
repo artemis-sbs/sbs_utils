@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>mockgui debug</title>
+<style>
+  body { background:#0b0f14; color:#cfd8dc; font-family:Consolas,monospace;
+         margin:0; padding:16px; font-size:14px; }
+  h1 { font-size:16px; color:#00e5ff; margin:0 0 12px 0; }
+  h2 { font-size:13px; color:#80deea; margin:14px 0 6px 0; text-transform:uppercase;
+       letter-spacing:1px; }
+  .card { background:#121a22; border:1px solid #1f2d3a; border-radius:6px;
+          padding:10px 14px; margin-bottom:12px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:6px 0; }
+  button { background:#173042; color:#cfd8dc; border:1px solid #2a4a63;
+           border-radius:4px; padding:6px 14px; font-family:inherit; font-size:13px;
+           cursor:pointer; }
+  button:hover { background:#1f4258; }
+  button.warn { border-color:#7a4a1f; background:#3a2512; }
+  button.warn:hover { background:#4d3016; }
+  input, textarea { background:#0e141b; color:#cfd8dc; border:1px solid #2a4a63;
+                    border-radius:4px; padding:5px 8px; font-family:inherit;
+                    font-size:13px; }
+  textarea { width:100%; box-sizing:border-box; }
+  table { border-collapse:collapse; }
+  td { padding:2px 14px 2px 0; vertical-align:top; }
+  td.k { color:#80deea; }
+  #conn { display:inline-block; width:10px; height:10px; border-radius:50%;
+          background:#f44336; margin-right:8px; }
+  #conn.up { background:#4caf50; }
+  #msg { color:#ffb74d; min-height:1.2em; }
+  #log { background:#0a0d10; border:1px solid #1f2d3a; border-radius:4px;
+         height:320px; overflow-y:auto; padding:6px 8px; white-space:pre-wrap;
+         font-size:12px; line-height:1.45; }
+  .err { color:#ef5350; }
+  .dbg { color:#ffd54f; }
+  .hint { color:#546e7a; font-size:12px; }
+  a { color:#4fc3f7; }
+</style>
+</head>
+<body>
+<h1><span id="conn"></span>mockgui debug console</h1>
+<div class="hint">Consoles: <a href="/server" target="_blank">/server</a>
+  &nbsp;<a href="/client" target="_blank">/client</a>
+  &nbsp;-&nbsp; the mission restarts in-process; this server and every browser tab stay up.</div>
+
+<div class="card">
+  <h2>Status</h2>
+  <table id="status"><tr><td class="hint">waiting for runner...</td></tr></table>
+</div>
+
+<div class="card">
+  <h2>Mission</h2>
+  <div class="row">
+    <button onclick="send({action:'pause'})">Pause sim</button>
+    <button onclick="send({action:'resume'})">Resume sim</button>
+    <button class="warn" onclick="send({action:'restart'})">Restart mission</button>
+  </div>
+  <div class="row">
+    <input id="map" placeholder="map index or name" size="22">
+    <button class="warn" onclick="send({action:'restart', map:val('map')})">Restart with map</button>
+    <button class="warn" onclick="send({action:'restart', picker:true})">Restart to picker</button>
+  </div>
+  <div id="msg"></div>
+</div>
+
+<div class="card">
+  <h2>Signal</h2>
+  <div class="row">
+    <input id="signame" placeholder="signal name" size="22">
+    <button onclick="emitSignal()">Emit</button>
+  </div>
+  <div class="row" style="align-items:flex-start;">
+    <textarea id="sigdata" rows="2" placeholder='optional JSON data, e.g. {"count": 3}'></textarea>
+  </div>
+  <div class="hint">Runs //signal/&lt;name&gt; routes (best effort - needs the mission ticking).</div>
+</div>
+
+<div class="card">
+  <h2>Runner log</h2>
+  <div class="row">
+    <label><input type="checkbox" id="follow" checked> follow</label>
+    <button onclick="document.getElementById('log').textContent=''">Clear</button>
+  </div>
+  <div id="log"></div>
+</div>
+
+<script>
+"use strict";
+let ws = null;
+let statusTimer = null;
+const LOG_MAX = 800;
+
+function val(id) { return document.getElementById(id).value.trim(); }
+
+function send(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(obj));
+  } else {
+    setMsg("not connected");
+  }
+}
+
+function emitSignal() {
+  const name = val("signame");
+  if (!name) { setMsg("signal needs a name"); return; }
+  let data = null;
+  const raw = val("sigdata");
+  if (raw) {
+    try { data = JSON.parse(raw); }
+    catch (e) { setMsg("bad JSON in signal data: " + e.message); return; }
+  }
+  send({action: "signal", name: name, data: data});
+}
+
+function setMsg(t) { document.getElementById("msg").textContent = t; }
+
+function addLog(text, cls) {
+  const log = document.getElementById("log");
+  const line = document.createElement("div");
+  if (cls) line.className = cls;
+  line.textContent = text;
+  log.appendChild(line);
+  while (log.childNodes.length > LOG_MAX) log.removeChild(log.firstChild);
+  if (document.getElementById("follow").checked) log.scrollTop = log.scrollHeight;
+}
+
+function renderStatus(st) {
+  const tbl = document.getElementById("status");
+  tbl.innerHTML = "";
+  for (const [k, v] of Object.entries(st)) {
+    const tr = document.createElement("tr");
+    const kd = document.createElement("td"); kd.className = "k"; kd.textContent = k;
+    const vd = document.createElement("td");
+    vd.textContent = Array.isArray(v) ? (v.length ? v.join(", ") : "(none)") : String(v);
+    tr.appendChild(kd); tr.appendChild(vd);
+    tbl.appendChild(tr);
+  }
+}
+
+function handle(cmd) {
+  if (cmd.cmd === "debug_status") {
+    if (cmd.status) renderStatus(cmd.status);
+    if (cmd.ack) { setMsg(cmd.ack); addLog("[debug] " + cmd.ack, "dbg"); }
+    if (cmd.error) { setMsg("ERROR: " + cmd.error); addLog("[debug] ERROR: " + cmd.error, "err"); }
+  } else if (cmd.cmd === "log") {
+    addLog(cmd.text, cmd.level === "error" ? "err" : "");
+  }
+  // Everything else (game GUI frames broadcast to all tabs) is ignored.
+}
+
+function connect() {
+  ws = new WebSocket("ws://" + location.host + "/ws/debug");
+  ws.onopen = () => {
+    document.getElementById("conn").className = "up";
+    setMsg("");
+    send({action: "status"});
+    if (statusTimer) clearInterval(statusTimer);
+    statusTimer = setInterval(() => send({action: "status"}), 2000);
+  };
+  ws.onmessage = (ev) => {
+    let payload;
+    try { payload = JSON.parse(ev.data); } catch (e) { return; }
+    if (Array.isArray(payload)) payload.forEach(handle);
+    else handle(payload);
+  };
+  ws.onclose = () => {
+    document.getElementById("conn").className = "";
+    if (statusTimer) { clearInterval(statusTimer); statusTimer = null; }
+    setTimeout(connect, 1500);
+  };
+  ws.onerror = () => { try { ws.close(); } catch (e) {} };
+}
+connect();
+</script>
+</body>
+</html>

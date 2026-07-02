@@ -208,6 +208,7 @@ When `--map` is given, `_try_auto_start_map()` polls `maps_get_list()` each tick
 | `http://localhost:8765/server` | Connects as the server console (`clientID=0`). Replays the server frame. No `client_connect` event fired — server page is already running. |
 | `http://localhost:8765/client` | Connects as a new client with a unique `clientID`. Fires `client_connect` so the MAST client page starts. Replays server frame then client frame. |
 | `http://localhost:8765/` | Same as `/client` (default). |
+| `http://localhost:8765/debug` | Runner control page (`debug.html` → `/ws/debug`): live status (sim time, paused, clients, agent/player/NPC/terrain counts), pause/resume, **in-process mission restart** (rides the `run_next_mission` reload — the server process and every browser tab stay up; optional map override or back-to-picker), best-effort `signal_emit`, and a live runner-log tail (the `_TeeWriter` `log` broadcasts). Debug connections are not engine consoles: no `client_connect`, no frame replay; page commands travel the client-event queue as `{"event": "debug", ...}` and replies come back as `debug_status` frames (fixed tag, so repeats replace in place). |
 
 Each widget fires events with the `clientID` of the frame that rendered it — server-page widgets (rendered with `clientID=0`) automatically fire as the server; client-page widgets fire as the browser's assigned ID. No manual override is needed.
 

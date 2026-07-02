@@ -520,6 +520,86 @@ def _run(
         else:
             print(f"[runner] web client {cid} -> //web/{path}")
 
+    # ---- /debug control channel (mockgui /ws/debug) ---------------------------
+    def _debug_reply(cid: int, data: dict) -> None:
+        """Send a control-plane reply to one /debug tab. The fixed tag makes
+        repeat replies replace in place in the server's frame state instead of
+        accumulating."""
+        try:
+            payload = {"cmd": "debug_status", "clientID": cid, "tag": "status"}
+            payload.update(data)
+            sbs.gui_queue.put(payload)
+        except Exception as e:
+            _log_exc(f"debug reply error: {e}")
+
+    def _debug_status() -> dict:
+        from sbs_utils.helpers import _TPS
+        players = npcs = terrain = 0
+        for a in list(Agent.all.values()):
+            if getattr(a, "is_player", False):
+                players += 1
+            elif getattr(a, "is_npc", False):
+                npcs += 1
+            elif getattr(a, "is_terrain", False):
+                terrain += 1
+        return {
+            "mission": os.path.basename(mission_folder),
+            "map": str(map_arg) if map_arg is not None else "(picker)",
+            "sim_seconds": round(sbs.sim.time_tick_counter / _TPS, 1) if sbs.sim else 0.0,
+            "paused": bool(sbs.sim._paused) if sbs.sim else True,
+            "clients": [f"{c:#x}" for c in Gui.clients if c != 0],
+            "agents": len(Agent.all),
+            "players": players,
+            "npcs": npcs,
+            "terrain": terrain,
+            "tick_rate": tick_rate,
+        }
+
+    def _handle_debug_command(cev: dict) -> None:
+        nonlocal map_arg
+        cid    = cev.get("clientID", 0)
+        data   = cev.get("data") or {}
+        action = str(data.get("action", "")).strip().lower()
+        if action == "status":
+            _debug_reply(cid, {"status": _debug_status()})
+        elif action == "pause":
+            sbs.pause_sim()
+            _debug_reply(cid, {"ack": "sim paused", "status": _debug_status()})
+        elif action == "resume":
+            sbs.resume_sim()
+            _debug_reply(cid, {"ack": "sim resumed", "status": _debug_status()})
+        elif action == "restart":
+            # Optionally retarget the auto-start map, then ride the existing
+            # run_next_mission reload path (recompile + reset_mission_state +
+            # fresh sim + browser re-handshake). The server process and every
+            # browser websocket stay up - no teardown.
+            if str(data.get("map", "")).strip() != "":
+                m = str(data["map"]).strip()
+                map_arg = int(m) if m.lstrip("-").isdigit() else m
+                os.environ["COSMOS_DEBUG_MAP"] = str(map_arg)
+            elif data.get("picker"):
+                map_arg = None
+                os.environ["COSMOS_DEBUG_MAP"] = "None"
+            sbs.run_next_mission(str(data.get("mission", "") or ""))
+            print(f"[runner] debug: restart requested (map={map_arg})")
+            _debug_reply(cid, {"ack": f"restarting (map={map_arg if map_arg is not None else 'picker'})"})
+        elif action == "signal":
+            name = str(data.get("name", "")).strip()
+            if not name:
+                _debug_reply(cid, {"error": "signal needs a name"})
+                return
+            from sbs_utils.procedural.signal import signal_emit
+            sig_data = data.get("data") if isinstance(data.get("data"), dict) else None
+            try:
+                # Best-effort: FrameContext.mast is whatever the last MAST tick
+                # left in place; before the first tick this is a no-op.
+                signal_emit(name, sig_data)
+                _debug_reply(cid, {"ack": f"signal '{name}' emitted"})
+            except Exception as e:
+                _debug_reply(cid, {"error": f"signal failed: {e}"})
+        else:
+            _debug_reply(cid, {"error": f"unknown action {action!r}"})
+
     _cov = _verdict = _exerciser = None
     _test_exit = 0
     _game_end = None
@@ -717,6 +797,9 @@ def _run(
                                 w for w in _pending_web_connects if w[0] != cid
                             ]
                             Gui.web_page_close(cid)
+                        elif cev.get("event") == "debug":
+                            # /debug page control command (restart/pause/...).
+                            _handle_debug_command(cev)
                         elif cev.get("event") == "disconnect":
                             cid = cev.get("clientID")
                             print(f"[runner] client {cid} disconnected")

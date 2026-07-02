@@ -363,10 +363,17 @@ async def _handle_websocket(client_id: int,
                               writer: asyncio.StreamWriter,
                               fire_connect: bool = True,
                               web_path: Optional[str] = None,
-                              web_query: Optional[dict] = None) -> None:
+                              web_query: Optional[dict] = None,
+                              debug: bool = False) -> None:
     await _ws_send(writer, json.dumps({"cmd": "init", "clientID": str(client_id)}))
     await _register(client_id, writer)
-    if web_path is not None:
+    if debug:
+        # A /debug control tab: not an engine console and not a MAST web page.
+        # No client_connect / resync / replay - its messages are runner control
+        # commands (restart/pause/status/...), routed via the client event queue
+        # so the runner handles them next loop iteration regardless of MAST rate.
+        pass
+    elif web_path is not None:
         # A browser opened /web/<path>: not an engine console. Tell the runtime
         # to dispatch the matching //web/<path> MAST route as a web-client GUI
         # session (Gui.web_page_open); no client_connect / console flow. Any
@@ -381,8 +388,9 @@ async def _handle_websocket(client_id: int,
         # delta stream with nothing (no ships/terrain/skybox when the server was
         # already running). Request a resync so late joins still get full state.
         _client_event_queue.put({"event": "resync", "clientID": client_id})
-    _log(f"[server] client {client_id} connected (fire_connect={fire_connect})")
-    await _replay(client_id, writer)
+    _log(f"[server] client {client_id} connected (fire_connect={fire_connect}, debug={debug})")
+    if not debug:
+        await _replay(client_id, writer)
 
     try:
         while True:
@@ -392,6 +400,12 @@ async def _handle_websocket(client_id: int,
             if opcode == 1:     # text frame
                 text  = payload.decode('utf-8', errors='replace')
                 event = json.loads(text)
+                if debug:
+                    # Control-plane command from the /debug page.
+                    _log(f"[debug]  client={client_id} {event}")
+                    _client_event_queue.put({"event": "debug", "clientID": client_id,
+                                             "data": event})
+                    continue
                 # clientID arrives as a string (sent that way to avoid JS float precision
                 # loss for 64-bit IDs); convert back to int for internal use.
                 raw = event.get("clientID")
@@ -403,7 +417,9 @@ async def _handle_websocket(client_id: int,
     finally:
         await _ws_close(writer)
         await _unregister(client_id, writer)
-        if web_path is not None:
+        if debug:
+            pass    # control tab: nothing to tear down on the mission side
+        elif web_path is not None:
             _client_event_queue.put({"event": "web_disconnect", "clientID": client_id})
         elif fire_connect:
             _client_event_queue.put({"event": "disconnect", "clientID": client_id})
@@ -463,9 +479,11 @@ async def _handle_connection(reader: asyncio.StreamReader,
 
             # /ws/server       → browser acts as the server console (clientID=0, no client_connect)
             # /ws/web/<path>    → browser is a MAST web page (//web/<path>), not an engine console
+            # /ws/debug         → runner control channel for the /debug page
             # /ws/client or /ws → browser gets a unique client ID and fires client_connect
             web_path = None
             web_query = None
+            debug = False
             if url_path_bare == '/ws/server':
                 client_id    = 0
                 fire_connect = False
@@ -474,7 +492,10 @@ async def _handle_connection(reader: asyncio.StreamReader,
                     client_id       = _next_client_id
                     _next_client_id += 1
                 fire_connect = True
-                if url_path_bare.startswith('/ws/web/'):
+                if url_path_bare == '/ws/debug':
+                    debug = True
+                    fire_connect = False
+                elif url_path_bare.startswith('/ws/web/'):
                     web_path = url_path_bare[len('/ws/web/'):]
                     # Parse ?a=1&b=2 into {"a": "1", "b": "2"} (last value wins)
                     q = url_path.split('?', 1)[1] if '?' in url_path else ''
@@ -482,12 +503,22 @@ async def _handle_connection(reader: asyncio.StreamReader,
 
             await _handle_websocket(client_id, reader, writer,
                                     fire_connect=fire_connect,
-                                    web_path=web_path, web_query=web_query)
+                                    web_path=web_path, web_query=web_query,
+                                    debug=debug)
         else:
             # /server and /client both serve client.html; the page reads location.pathname
             # to decide which WebSocket path to connect to. /web/<path> also serves
-            # the same renderer (it connects to /ws/web/<path>).
-            if (url_path_bare in ('/', '/client.html', '/server', '/client')
+            # the same renderer (it connects to /ws/web/<path>). /debug serves the
+            # runner control page (debug.html - restart/pause/status/log).
+            if url_path_bare == '/debug':
+                html = _read_package_bytes("debug.html")
+                if html is not None:
+                    await _http_send(writer, "200 OK", "text/html; charset=utf-8",
+                                      html.decode('utf-8'))
+                else:
+                    await _http_send(writer, "404 Not Found", "text/plain",
+                                      "debug.html not found in cosmos_dev.mockgui")
+            elif (url_path_bare in ('/', '/client.html', '/server', '/client')
                     or url_path_bare.startswith('/web/') or url_path_bare == '/web'):
                 html = _read_package_bytes("client.html")
                 if html is not None:
