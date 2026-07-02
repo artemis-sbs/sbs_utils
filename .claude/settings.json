@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m cosmos_dev.mission_runner *)",
+      "PowerShell(python -m cosmos_dev.mission_runner *)",
+      "Bash(python -m unittest *)",
+      "PowerShell(python -m unittest *)",
+      "Bash(python -m py_compile *)",
+      "PowerShell(python -m py_compile *)",
+      "Bash(python -m mkdocs build *)",
+      "PowerShell(python -m mkdocs build *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(Select-String *)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(Compare-Object *)",
+      "PowerShell(pip list *)",
+      "PowerShell(git status *)",
+      "PowerShell(git log *)",
+      "PowerShell(git diff *)",
+      "PowerShell(git show *)",
+      "PowerShell(git branch *)",
+      "PowerShell(git -C * status*)",
+      "PowerShell(git -C * log*)",
+      "PowerShell(git -C * diff*)",
+      "PowerShell(git -C * show*)"
+    ]
+  }
+}
