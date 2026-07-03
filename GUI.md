@@ -75,6 +75,38 @@ Update a live widget by setting `.value` or calling `.update("<style>")`:
 - Give text rows enough **`row-height` (~2.2em+)** — cramped vertical text is a
   common first review note.
 
+## gui_text_area = rich multi-line text (mini-markdown)
+
+`gui_text_area(props, style=None)` is **not** just a bigger `gui_text` — it parses a
+**mini markdown-like language** and **auto-scrolls** (adds a vertical slider) when
+content overflows its bounds. Reach for it for multi-line / formatted blocks (help,
+briefings, logs, comms transcripts); keep plain `gui_text` for a single styled line.
+Authoritative parser + built-in styles: `pages/layout/text_area.py`.
+
+- **Line syntax (leading token):** `#`/`##`/`###` → h1/h2/h3 headings (auto-numbered);
+  `-` → bullet; `1.`/digit-led → ordered list (auto-numbered); **blank line** resets
+  style + restarts list numbering; `^` → newline (the setter maps `^`→`\n`), a line of
+  `<br>`/`<br/>` also breaks; `{var}` interpolation works.
+- **Inline objects** via namespaced markdown link-refs (with a `?query`):
+  `![](image://KEY?scale=0.5&color=#f00&fill=fit|center)`,
+  `[](ship://HULL_TAG?height=50&align=center|right)`,
+  `[](face://FACESTRING?height=50&align=..)`,
+  `[](style://font:gui-4;color:#8cf;background:#123)` (inline style switch).
+  Define once / reference later: `[name]: image://KEY` … then `[name]`.
+- **Custom / per-line styles:** built-in keys `t h1 h2 h3 p1 ul ol _`(default), each
+  with font/color/prepend/indent/height. New styles via `=$name font:..;color:..` or
+  `[name]: style://font:..;`; per-line override `$stylekey text…` or `$$font:..; text…`.
+  Auto-number `prepend`: `1`(numeric) `a`/`A`(alpha) `i`/`I`(roman) `*`/`-`(bullet).
+- **Fast path / failure mode:** a single line with no `=`/`$`/`$text:` prefix renders
+  as plain `send_gui_text` (no parsing). On **any** parse error the whole area drops to
+  simple text reading `Document syntax issue line number N` — a blank/garbled area
+  usually means a syntax slip on that line. (Engine is ASCII-only — no smart quotes.)
+
+```
+gui_text_area("## Status\nAll systems nominal.\n- shields up\n- 1 contact")
+gui_text_area("![](image://logo?scale=0.5) Mission active")
+```
+
 ## Listboxes = the repeating-list pattern
 
 **Every repeating list is a `gui_list_box` + a context/detail panel** acting on the
