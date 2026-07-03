@@ -8,7 +8,10 @@ class Await(MastNode):
     waits for an existing or a new 'task' to run in parallel
     this needs to be a rule before Parallel
     """
-    rule = re.compile(r"""await[ \t]+(until[ \t]+(?P<until>\w+)[ \t]+)?(?P<if_exp>[^:\n\r\f]+)"""+BLOCK_START)
+    # if_exp is lazy (`+?`) and allows colons so a `:` inside a quoted string
+    # isn't mistaken for the block-start colon (BLOCK_START requires the colon be
+    # at end-of-line). Matches the `if`/`on` rules. e.g. await foo("x:y"):
+    rule = re.compile(r"""await[ \t]+(until[ \t]+(?P<until>\w+)[ \t]+)?(?P<if_exp>[ \t\S]+?)"""+BLOCK_START)
     def __init__(self, until=None, if_exp=None, is_end = None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
@@ -51,7 +54,9 @@ class Await(MastNode):
 
 @mast_node()
 class AwaitInlineLabel(MastNode):
-    rule = re.compile(r"\=(?P<val>[^:\n\r\f]+)"+BLOCK_START)
+    # val is lazy + allows colons so a `:` in a quoted string isn't taken for
+    # the block-start colon (see Await above).
+    rule = re.compile(r"\=(?P<val>[ \t\S]+?)"+BLOCK_START)
     def __init__(self, val=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc

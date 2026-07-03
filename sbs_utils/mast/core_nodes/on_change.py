@@ -6,7 +6,12 @@ import re
 
 @mast_node()
 class OnChange(MastNode):
-    rule = re.compile(r"on[ \t]+(change[ \t]+)?(?P<val>[^:]+)"+BLOCK_START)
+    # val is lazy (`+?`) and allows colons so a `:` inside a quoted string
+    # (e.g. on gui_message(gui_button("Test Upgrades:")):) doesn't get mistaken
+    # for the block-start colon -- BLOCK_START requires the colon be followed by
+    # end-of-line/comment, so lazy expansion walks past string colons to it.
+    # (Matches how the `if` rule handles the same case.)
+    rule = re.compile(r"on[ \t]+(change[ \t]+)?(?P<val>[ \t\S]+?)"+BLOCK_START)
     def __init__(self, end=None, val=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc

@@ -49,11 +49,19 @@ class TestSplitProps(unittest.TestCase):
         result = split_props("Mission status: active", "$text")
         self.assertEqual(result, {"$text": "Mission status: active"})
 
-    def test_single_word_before_colon_is_treated_as_key(self):
-        # "Clicks" has no whitespace so it is parsed as a style key — this is
-        # the known limitation of the whitespace-based heuristic.
-        result = split_props("Clicks: 0", "$text")
-        self.assertEqual(result, {"Clicks": " 0"})
+    def test_single_word_capitalized_before_colon_is_text(self):
+        # A capitalized word before a colon is NOT a style key (all real keys
+        # are lowercase or "$"-prefixed), so it falls back to the default key.
+        self.assertEqual(split_props("Clicks: 0", "$text"), {"$text": "Clicks: 0"})
+        self.assertEqual(split_props("Upgrades:", "$text"), {"$text": "Upgrades:"})
+        self.assertEqual(split_props("Score:5", "$text"), {"$text": "Score:5"})
+        self.assertEqual(split_props("HP: 100/100", "$text"), {"$text": "HP: 100/100"})
+
+    def test_lowercase_leading_text_is_still_ambiguous(self):
+        # Documented residual gap: all-lowercase text before a colon still
+        # reads as a style key. Use a "$text:" prefix to force text.
+        self.assertEqual(split_props("ready: go", "$text"), {"ready": " go"})
+        self.assertEqual(split_props("$text:ready: go", "$text"), {"$text": "ready: go"})
 
     # ── $text key mixed with other style keys ─────────────────────────────────
 

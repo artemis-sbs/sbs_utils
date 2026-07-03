@@ -140,7 +140,7 @@ class TextArea(Control):
     
     # Old style system
     rule_style_def = re.compile(r"=\$(?P<style_name>\w+)[ \t]*(?P<remainder>.*)")
-    rule_style_ref = re.compile(r"$(?P<style_name>\w+)[ \t]*(?P<remainder>.*)")
+    rule_style_ref = re.compile(r"\$(?P<style_name>\w+)[ \t]*(?P<remainder>.*)")
     # New markdown system style, image,face, ship
     rule_link_def = re.compile(r"!?\[(?P<link_name>\w*)\]:[ \t]+(?P<ns>\w+):(//)?(?P<urn>.*)")
     # The ! is optional

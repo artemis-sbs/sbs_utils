@@ -167,6 +167,21 @@ Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/fe
     `if` conditions alike. Error line numbers stay accurate, and every existing
     script compiles exactly as before. → [The MAST language](mast/overview.md)
 
+!!! tip "✨ New — colons inside quoted strings"
+    A `:` inside a quoted string no longer confuses the parser, so you can write
+    handler labels naturally — no more assigning the button to a variable first:
+
+    ```mast
+    on gui_message(gui_button("Test Upgrades:")):
+        show_upgrades()
+    ```
+
+    Previously the `:` in `"Test Upgrades:"` was mistaken for the end of the
+    `on ...:` header and the line failed to compile. The same fix applies to
+    `await ...:` blocks, and button/text **labels** with colons
+    (`gui_button("Score: 5")`) now render as text instead of being misread as a
+    style key.
+
 ---
 
 *Thanks for playing, building, and tinkering. There's more under the hood than ever
