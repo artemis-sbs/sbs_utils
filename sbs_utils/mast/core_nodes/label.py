@@ -19,6 +19,9 @@ class Label(DescribableNode, Agent):
         self.replace = replace is not None
         self.labels = {}
         self.metadata = {}
+        # True once a metadata block is applied; lets the jump hot path skip the
+        # metadata-injection work for the vast majority of labels with none.
+        self.has_metadata = False
         self.id = get_story_id()
         self.add()
         self.add_role("__MAST_LABEL__")
@@ -68,6 +71,7 @@ class Label(DescribableNode, Agent):
     
     def apply_metadata(self, data):
         #self.inventory |= data
+        self.has_metadata = True
         for k in data:
             self.set_inventory_value(k, data[k])
         return True

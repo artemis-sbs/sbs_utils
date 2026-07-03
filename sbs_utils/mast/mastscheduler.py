@@ -165,6 +165,17 @@ class MastTicker:
                 self.active_cmd = activate_cmd
                 self.runtime_node = None
                 self.done = False
+                # Inject the entered label's metadata as task variables (the
+                # single point for start / jump / reroute). `has_metadata` gates
+                # this so labels without a metadata block pay only one boolean
+                # check. Only a real top-of-label entry (activate_cmd == 0)
+                # applies it - inline/loop jumps skip. Defaults semantics: a var
+                # already set (passed data / live state) wins.
+                if activate_cmd == 0 and getattr(label_runtime_node, "has_metadata", False):
+                    _syms = self.task.get_symbols()
+                    for _k, _v in label_runtime_node.inventory.collections.items():
+                        if _k not in _syms:
+                            self.task.set_value(_k, _v, Scope.NORMAL)
                 #
                 # This is for sub tasks so the can run again
                 #
@@ -1285,12 +1296,10 @@ class MastScheduler(Agent):
             label =  self.mast.labels.get(label, None)
         if label is None:
             raise Exception(f"Calling undefined label {label_name}")
-        # Add Meta data, but the task and passed data overrides it
-        if hasattr(label, "inventory"):
-            if inputs is None:
-                inputs = label.inventory.collections.copy()
-            else:
-                inputs = label.inventory.collections.copy() | inputs
+        # NOTE: label metadata is no longer merged here. Entering the label (the
+        # t.jump that follows in start_task) injects it via MastTicker.do_jump -
+        # one place for start / jump / reroute. Passed `inputs` are set on the
+        # task first, so they still override the metadata defaults.
         t= MastAsyncTask(self, inputs, task_name)
         return t
 
