@@ -120,6 +120,7 @@ nav:
       - Vec3: api/utility/vec.md
     - Procedural:
       - api/procedural/index.md
+      - amd: api/procedural/amd.md
       - behavior: api/procedural/behavior.md
       - brain: api/procedural/brain.md
       - cards: api/procedural/cards.md
@@ -142,6 +143,7 @@ nav:
       - mission: api/procedural/mission.md
       - modifiers: api/procedural/modifiers.md
       - objective: api/procedural/objective.md
+      - persistence: api/procedural/persistence.md
       - popup: api/procedural/popup.md
       - prefab: api/procedural/prefab.md
       - promise_functions: api/procedural/promise_functions.md
@@ -156,6 +158,7 @@ nav:
       - signal: api/procedural/signal.md
       - space_objects: api/procedural/space_objects.md
       - spawn: api/procedural/spawn.md
+      - standby: api/procedural/standby.md
       - style: api/procedural/style.md
       - terrain: api/procedural/terrain.md
       - timers: api/procedural/timers.md
