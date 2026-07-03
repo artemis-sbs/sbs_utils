@@ -165,12 +165,15 @@ class MastTicker:
                 self.active_cmd = activate_cmd
                 self.runtime_node = None
                 self.done = False
-                # Inject the entered label's metadata as task variables (the
-                # single point for start / jump / reroute). `has_metadata` gates
-                # this so labels without a metadata block pay only one boolean
-                # check. Only a real top-of-label entry (activate_cmd == 0)
-                # applies it - inline/loop jumps skip. Defaults semantics: a var
-                # already set (passed data / live state) wins.
+                # Inject the entered label's metadata as task variables on a
+                # jump/reroute INTO the label (e.g. a GUI route). `_start_task`
+                # separately seeds metadata at task creation for spawns, which is
+                # needed because a spawned task may first enter at a non-zero
+                # command (a brain/objective +++ sub-block) that this skips.
+                # `has_metadata` gates this so labels without a metadata block pay
+                # only one boolean check; only a top-of-label entry
+                # (activate_cmd == 0) applies it. Defaults: a var already set
+                # (passed data / live state) wins.
                 if activate_cmd == 0 and getattr(label_runtime_node, "has_metadata", False):
                     _syms = self.task.get_symbols()
                     for _k, _v in label_runtime_node.inventory.collections.items():
@@ -1296,10 +1299,16 @@ class MastScheduler(Agent):
             label =  self.mast.labels.get(label, None)
         if label is None:
             raise Exception(f"Calling undefined label {label_name}")
-        # NOTE: label metadata is no longer merged here. Entering the label (the
-        # t.jump that follows in start_task) injects it via MastTicker.do_jump -
-        # one place for start / jump / reroute. Passed `inputs` are set on the
-        # task first, so they still override the metadata defaults.
+        # Merge the label's metadata as the task's base variables (passed data
+        # overrides). do_jump ALSO injects metadata, but only on a top-of-label
+        # (activate_cmd == 0) entry; a spawned task may begin inside a sub-block
+        # (e.g. a brain/objective +++ block) at a non-zero command, which do_jump
+        # skips - so the spawn path must seed metadata here.
+        if hasattr(label, "inventory"):
+            if inputs is None:
+                inputs = label.inventory.collections.copy()
+            else:
+                inputs = label.inventory.collections.copy() | inputs
         t= MastAsyncTask(self, inputs, task_name)
         return t
 
