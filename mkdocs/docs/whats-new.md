@@ -15,6 +15,30 @@ go to the relevant docs.
 
 See the [LegendaryMissions addon reference](legendarymissions/addons/index.md).
 
+## 🎰 The Casino is open
+
+Dock in the hangar bay and step into the **Casino** — a self-contained hangout
+that adds a **Casino** tab to the bay (leave it out and nothing changes). It runs
+on an Arvonian **bit-card deck**, dealt in some games by **the Understander**,
+their revered master computer.
+
+- **Play with chips.** Start with a stack; the **cage** lets you **Buy** more or
+  **Cash Out** — buying dips into the crew's shared credits so you can always get
+  back in, and a hot session earns **comp** chips.
+- **Eight games**, from a ten-second flutter to a full poker duel: **Parity**
+  (quick XOR bet), **Blackjack**, **Nibble**, **Gates** (bit-card baccarat),
+  **Choga**, **Video Poker**, and the new **KoraTa — Ghost-Writing**, a five-round
+  head-to-head where you play cards as **values** to build your run or as
+  **opcodes** to corrupt your rival's (3-bit and 4-bit tables).
+- **The bar.** Toast the room, buy a regular a drink, and **ask for a rumor** —
+  act on it to see if it pans out. Reliable patrons earn your trust; enough trust
+  opens the **grey market**.
+- **Pilot market.** Spend your winnings on **real ship upgrades and gear** —
+  chips first, then side credits.
+
+Play guide: [How to play the Casino](legendarymissions/playing/casino.md) ·
+Authors: [The Casino addon](legendarymissions/addons/casino.md).
+
 ## 🧭 Quests & Stories
 
 - **A signal-driven quest engine** with kill / collect / scan / dock / reach /
