@@ -2649,6 +2649,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -2692,6 +2698,29 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/procedural/amd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    amd
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -3207,6 +3236,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../api/procedural/persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    persistence
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../api/procedural/popup/" class="md-nav__link">
         
   
@@ -3512,6 +3564,29 @@
   
   <span class="md-ellipsis">
     spawn
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/procedural/standby/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    standby
     
   </span>
   
@@ -4112,6 +4187,15 @@
   <a href="#choga-soul-tickle" class="md-nav__link">
     <span class="md-ellipsis">
       Choga &mdash; Soul Tickle
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#korata-ghost-writing" class="md-nav__link">
+    <span class="md-ellipsis">
+      KoraTa &mdash; Ghost-Writing
     </span>
   </a>
   
@@ -5174,6 +5258,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#korata-ghost-writing" class="md-nav__link">
+    <span class="md-ellipsis">
+      KoraTa &mdash; Ghost-Writing
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -5210,7 +5303,7 @@
 <h1 id="how-to-play-the-casino">How to play the Casino</h1>
 <p>When your ship is in the hangar bay, open the <strong>Casino</strong> tab. Inside is a
 lobby: pick a room from the list on the left, read its blurb, and hit <strong>Play</strong>.
-There's a <strong>bar</strong>, six <strong>games</strong>, and a <strong>pilot market</strong>.</p>
+There's a <strong>bar</strong>, eight <strong>games</strong>, and a <strong>pilot market</strong>.</p>
 <h2 id="chips">Chips</h2>
 <p>Everything is played with <strong>chips</strong>. You start with a small stack, and the
 <strong>cage</strong> at the top of the lobby lets you <strong>Buy</strong> more or <strong>Cash Out</strong>. Buying
@@ -5247,7 +5340,7 @@ hitting until 17.</p>
 <p>Just you and the paytable &mdash; no dealer.</p>
 <ol>
 <li>You're dealt <strong>five cards</strong>.</li>
-<li>Tap <strong>Hold</strong> on the ones you want to keep.</li>
+<li><strong>Tap the cards</strong> you want to keep &mdash; each shows <strong>HELD</strong>.</li>
 <li>Press <strong>Draw</strong> to replace the rest.</li>
 <li>Your final hand is paid by the table shown at the top.</li>
 </ol>
@@ -5273,7 +5366,7 @@ house's toughest table &mdash; play it steady.</p>
 hand yourself.</p>
 <ol>
 <li>Two hands are dealt: <strong>Player</strong> and <strong>Banker</strong>. Each is a bit card, a logic
-   gate (AND, OR, NOR, NAND, XOR), and another bit card.</li>
+   gate <strong>printed on the card</strong> (AND, OR, NOR, or NAND), and another bit card.</li>
 <li>Bet <strong>Bet Player</strong> or <strong>Bet Banker</strong>.</li>
 <li>Each hand's score is <code>first-bit GATE second-bit</code> (0-7). Highest total wins;
    the <strong>Banker wins ties</strong>.</li>
@@ -5290,6 +5383,21 @@ hand yourself.</p>
 <p>A special Arvonian twist: if your five card values <strong>XOR to zero</strong> ("a clean
 checksum"), you collect a bonus on top. And a quirk of this 64-card deck &mdash;
 a <strong>straight beats a flush</strong> here, the opposite of a normal deck.</p>
+<h3 id="korata-ghost-writing">KoraTa &mdash; Ghost-Writing</h3>
+<p>A five-round duel against the Understander's <strong>apprentice</strong>. You each build a
+scoring <strong>run</strong> from your cards &mdash; and the gates those cards carry let you
+<strong>sabotage</strong> the other run.</p>
+<ol>
+<li>You get a hand of cards and play one each round, over <strong>five rounds</strong> in the
+   fixed order <strong>Value, Opcode, Value, Opcode, Value</strong>.</li>
+<li>On a <strong>Value</strong> round, play a card for its <strong>number</strong> to extend your own run.</li>
+<li>On an <strong>Opcode</strong> round, play a card for the <strong>gate printed on it</strong> to fold
+   into &mdash; and corrupt &mdash; the apprentice's run.</li>
+<li>Bet across <strong>two streets</strong> during the duel. The <strong>higher final score takes
+   the pot</strong>.</li>
+</ol>
+<p>Two tables to choose from: the <strong>3-bit</strong> game runs values 0-7 (tighter scores,
+more ties), and the <strong>4-bit</strong> game runs 0-15 (bigger swings, fewer ties).</p>
 <hr />
 <h2 id="the-pilot-market">The pilot market</h2>
 <p>Spend your winnings on real gear. Browse the list, <strong>Buy</strong> what you want, or

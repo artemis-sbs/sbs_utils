@@ -1073,6 +1073,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#metadata-label-defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      Metadata (label defaults)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#waiting-for-tasks" class="md-nav__link">
     <span class="md-ellipsis">
       Waiting for tasks
@@ -2837,6 +2846,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -2880,6 +2895,29 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/amd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    amd
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -3395,6 +3433,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/procedural/persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    persistence
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/procedural/popup/" class="md-nav__link">
         
   
@@ -3700,6 +3761,29 @@
   
   <span class="md-ellipsis">
     spawn
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/standby/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    standby
     
   </span>
   
@@ -5203,6 +5287,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#metadata-label-defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      Metadata (label defaults)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#waiting-for-tasks" class="md-nav__link">
     <span class="md-ellipsis">
       Waiting for tasks
@@ -5615,6 +5708,28 @@ in task
 </div>
 </div>
 </div>
+<h3 id="metadata-label-defaults">Metadata (label defaults)</h3>
+<p>A label can carry a <code>metadata:</code> block — a fenced YAML section whose keys are
+<strong>injected as task variables</strong> when a task enters the label. They are
+<strong>defaults</strong>: a variable already in scope (passed data, live state) wins.</p>
+<div class="highlight"><pre><span></span><code>== patrol ==
+metadata: ``` yaml
+speed: 0.5
+radius: 4000
+```
+    # `speed` and `radius` are now variables in this task
+    set_throttle(ship_id, speed)
+    -&gt;END
+</code></pre></div>
+<ul>
+<li>Injected on <strong>entry</strong> — at task creation for spawned tasks (brains, objectives,
+  prefabs) and on a jump/reroute into the label.</li>
+<li><strong>Column-0 rule:</strong> the <code>metadata:</code> line, the top-level YAML keys, and the
+  closing fence must sit at column 0 — only the label's <em>code</em> is indented.</li>
+<li>Works on any label type, including <code>//</code> routes and <code>@</code> decorator labels.</li>
+</ul>
+<p>Brain and objective labels lean on this for tunables — see
+<a href="../ai/brains/">brains</a> and <a href="../objectives/">objectives</a>.</p>
 <h3 id="waiting-for-tasks">Waiting for tasks</h3>
 <p>Capture a task in a variable and <code>await</code> it, or race/join several with
 <code>promise_any</code> / <code>promise_all</code>:</p>

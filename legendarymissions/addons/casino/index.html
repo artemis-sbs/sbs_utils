@@ -2649,6 +2649,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -2692,6 +2698,29 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/procedural/amd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    amd
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -3207,6 +3236,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../api/procedural/persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    persistence
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../api/procedural/popup/" class="md-nav__link">
         
   
@@ -3512,6 +3564,29 @@
   
   <span class="md-ellipsis">
     spawn
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/procedural/standby/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    standby
     
   </span>
   
@@ -4286,9 +4361,18 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#add-a-drink-or-a-bar-regular" class="md-nav__link">
+  <a href="#add-a-bar-regular" class="md-nav__link">
     <span class="md-ellipsis">
-      Add a drink or a bar regular
+      Add a bar regular
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add-a-drink" class="md-nav__link">
+    <span class="md-ellipsis">
+      Add a drink
     </span>
   </a>
   
@@ -5103,9 +5187,18 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#add-a-drink-or-a-bar-regular" class="md-nav__link">
+  <a href="#add-a-bar-regular" class="md-nav__link">
     <span class="md-ellipsis">
-      Add a drink or a bar regular
+      Add a bar regular
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add-a-drink" class="md-nav__link">
+    <span class="md-ellipsis">
+      Add a drink
     </span>
   </a>
   
@@ -5155,7 +5248,7 @@
 
 <h1 id="the-casino">The Casino</h1>
 <p>Give your crew somewhere to unwind. The <strong>Casino</strong> is a hangar-bay hangout: a
-<strong>bar</strong> with regulars who trade gossip, six <strong>games of chance</strong>, and a <strong>pilot
+<strong>bar</strong> with regulars who trade gossip, eight <strong>games of chance</strong>, and a <strong>pilot
 market</strong> where winnings buy real ship upgrades. It runs on an Arvonian card
 deck &mdash; the computer-loving Arvonians play with bit-based cards, and the
 house dealer in some games is flavored as <strong>the Understander</strong>, their revered
@@ -5190,7 +5283,7 @@ and they can always buy back in &mdash; nobody gets stuck.</p>
   (a quiet pilot) and <strong>Cogs</strong> (a mechanic who hears things) sit around. Buy a
   patron a drink, toast the room, or ask them for a rumor.</li>
 <li>
-<p><strong>Six games.</strong> Pick one from the lobby list; each has a "how to play" blurb
+<p><strong>Eight games.</strong> Pick one from the lobby list; each has a "how to play" blurb
   and a <strong>Play</strong> button.</p>
 <table>
 <thead>
@@ -5211,6 +5304,14 @@ and they can always buy back in &mdash; nobody gets stuck.</p>
 <tr>
 <td><strong>Choga</strong></td>
 <td>Arvonian stud poker vs. the Understander</td>
+</tr>
+<tr>
+<td><strong>KoraTa (3-bit)</strong></td>
+<td>Head-to-head opcode duel &mdash; build your run, corrupt theirs (values 0-7)</td>
+</tr>
+<tr>
+<td><strong>KoraTa (4-bit)</strong></td>
+<td>The wide KoraTa table &mdash; same duel, values 0-15</td>
 </tr>
 <tr>
 <td><strong>Blackjack</strong></td>
@@ -5238,31 +5339,44 @@ and they can always buy back in &mdash; nobody gets stuck.</p>
 </ul>
 <hr />
 <h2 id="make-it-your-own">Make it your own</h2>
-<p>You don't need to be a programmer to change the flavor. Each kind of content
-lives in one file as a simple list &mdash; copy a line, change the words.</p>
+<p>You don't need to be a programmer to change the flavor. The whole social layer
+of the bar &mdash; the regulars, their rumors, and the ambient chatter &mdash;
+is one authored file, <strong><code>casino/bar.amd</code></strong>. It reads like a script: copy a
+block, change the words.</p>
 <h3 id="add-a-rumor-a-patron-can-tell">Add a rumor a patron can tell</h3>
-<p>Open <strong><code>casino/bar_rumors.py</code></strong>. Each patron has a list of tips. A tip is what
-they say (<code>tip</code>) and the payoff if it pans out (<code>intel</code>). Add one:</p>
-<div class="highlight"><pre><span></span><code><span class="s2">&quot;ghost&quot;</span><span class="p">:</span> <span class="p">[</span>
-    <span class="p">{</span><span class="s2">&quot;tip&quot;</span><span class="p">:</span> <span class="s2">&quot;A convoy&#39;s slipping through the approaches light on escort.&quot;</span><span class="p">,</span>
-     <span class="s2">&quot;intel&quot;</span><span class="p">:</span> <span class="s2">&quot;The convoy&#39;s there, just as Ghost said. Easy pickings.&quot;</span><span class="p">},</span>
-    <span class="c1"># add your own below:</span>
-    <span class="p">{</span><span class="s2">&quot;tip&quot;</span><span class="p">:</span> <span class="s2">&quot;Something big is squatting in the old minefield.&quot;</span><span class="p">,</span>
-     <span class="s2">&quot;intel&quot;</span><span class="p">:</span> <span class="s2">&quot;Ghost was right - and it&#39;s carrying salvage.&quot;</span><span class="p">},</span>
-<span class="p">],</span>
+<p>In <strong><code>casino/bar.amd</code></strong>, each patron is a <code>#</code> heading and each rumor is a <code>##</code>
+heading under them. The line the patron <strong>says</strong> is the prose under the heading;
+the payoff shown if it pans out is the <code>intel:</code> line. Add one under a patron:</p>
+<div class="highlight"><pre><span></span><code>## [rumor: minefield](ghost_r4)
+---
+intel: &quot;Ghost was right - and it&#39;s carrying salvage.&quot;
+---
+Something big is squatting in the old minefield.
 </code></pre></div>
 <p>Whether a rumor turns out <strong>true</strong> is rolled against that patron's reputation,
-so you don't mark it true or false yourself &mdash; just write the tip and the
-good outcome.</p>
-<h3 id="add-a-drink-or-a-bar-regular">Add a drink or a bar regular</h3>
-<p>Open <strong><code>casino/bar.mast</code></strong> (the top few lines). The bar's stock and its regulars
-are plain lists:</p>
+so you don't mark it true or false yourself &mdash; just write the line they say
+and the good outcome. Give each new rumor a unique key in the <code>(parentheses)</code>.</p>
+<h3 id="add-a-bar-regular">Add a bar regular</h3>
+<p>Add another <code>#</code> heading in <strong><code>casino/bar.amd</code></strong>. The <code>---</code> block sets their
+call sign, face, and starting trust; the prose beneath is their vibe:</p>
+<div class="highlight"><pre><span></span><code># [Sparks](sparks)
+---
+call_sign: Sparks
+face_kind: terran_male
+reliability: 0.6
+---
+A comms rating who overhears half the sector and repeats a third of it.
+</code></pre></div>
+<p><code>face_kind</code> is <code>torgoth_male</code>, <code>terran_male</code>, or <code>terran_female</code>;
+<code>reliability</code> (0.0&ndash;1.0) is how often their rumors ring true to start.
+Ambient one-liners the regulars mutter live in the <code># [Chatter]</code> block at the
+bottom of the same file &mdash; add lines to its <code>lines:</code> list for more color.</p>
+<h3 id="add-a-drink">Add a drink</h3>
+<p>The bar's drink stock is in <strong><code>casino/bar.mast</code></strong> (the top few lines):</p>
 <div class="highlight"><pre><span></span><code>shared bar_martinis = 10        # change the numbers to restock
 shared bar_beer = 10
 shared bar_vodka = 8
 </code></pre></div>
-<p>Ambient one-liners the regulars mutter live in <code>bar_chatter</code> &mdash; add your
-own lines to that list for more color.</p>
 <h3 id="add-something-to-the-market">Add something to the market</h3>
 <p>Open <strong><code>casino/casino_market.py</code></strong> and add a line to the catalog. Each item has
 a short <strong>name</strong>, a <strong>price</strong> in chips, a <strong>section</strong>, and a one-line <strong>desc</strong>:</p>
@@ -5280,13 +5394,24 @@ pilot has to win big, or the crew chips in from shared credits.</p>
 <h2 id="add-your-own-game-a-bit-more-advanced">Add your own game (a bit more advanced)</h2>
 <p>Every lobby entry &mdash; games and the market alike &mdash; is just a labelled
 "room" the casino discovers automatically. To add one, make a new file in
-<code>casino/</code> with a route at the top:</p>
-<div class="highlight"><pre><span></span><code>//casino/game/roulette &quot;Roulette&quot;
-    jump show_roulette
+<code>casino/</code> with a route at the top. Give it a <strong><code>help</code> metadata block</strong> (and a
+<code>min_bet</code>) &mdash; the lobby's detail panel renders <code>help</code> as mini-markdown, so a
+<code>$t</code> title and <code>-</code> bullets read nicely:</p>
+<p><div class="highlight"><pre><span></span><code>//casino/game/roulette &quot;Roulette&quot;
+metadata: ``` yaml
+help: |
+  $t Roulette
 
-=== show_roulette ==
-    # ...your screen here...
+  Spin the wheel and bet on where it lands.
+
+  - Pick a number or a color.
+  - Watch the wheel; matches pay out.
+min_bet: 10
 </code></pre></div>
+    jump show_roulette</p>
+<p>=== show_roulette ==
+    # ...your screen here...
+```</p>
 <p>...then add <code>import roulette.mast</code> to <code>casino/__init__.mast</code>. It appears in the
 lobby on its own &mdash; no other edits. The simplest existing game,
 <code>parity.mast</code>, is a good one to copy from.</p>

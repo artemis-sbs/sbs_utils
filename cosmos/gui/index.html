@@ -1646,6 +1646,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#rich-text-areas" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rich text areas
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#reacting-while-the-gui-is-up" class="md-nav__link">
     <span class="md-ellipsis">
       Reacting while the GUI is up
@@ -2771,6 +2780,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -2814,6 +2829,29 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/amd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    amd
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -3329,6 +3367,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/procedural/persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    persistence
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/procedural/popup/" class="md-nav__link">
         
   
@@ -3634,6 +3695,29 @@
   
   <span class="md-ellipsis">
     spawn
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/standby/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    standby
     
   </span>
   
@@ -5094,6 +5178,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#rich-text-areas" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rich text areas
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#reacting-while-the-gui-is-up" class="md-nav__link">
     <span class="md-ellipsis">
       Reacting while the GUI is up
@@ -5300,9 +5393,49 @@ on gui_click(ib):
 </div>
 <p>Read a widget's value with <code>widget.get_value()</code> / <code>widget.value</code>; a list box also
 has <code>get_selected()</code>, <code>get_selected_index()</code>, and <code>set_selected_index(i)</code>.</p>
+<h2 id="rich-text-areas">Rich text areas</h2>
+<p><code>gui_text</code> is a single styled line. For a <strong>multi-line, formatted block</strong> — help,
+briefings, a log, a comms transcript — use <strong><code>gui_text_area</code></strong>, which parses a
+small markdown-like language and <strong>auto-scrolls</strong> when its content overflows.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="5:1"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>brief = &quot;$t Mission Briefing^^Reach the beacon and hold the line.^^- Jump to the Kessel system.^- Defend the relay for five minutes.^- Do not let the convoy through.&quot;
+gui_text_area(brief)
+</code></pre></div>
+</div>
+</div>
+</div>
+<ul>
+<li><code>$t</code> a title; <code>#</code>/<code>##</code>/<code>###</code> headings (auto-numbered, so use <code>$t</code> for a plain
+  title); <code>-</code> bullets; <code>1.</code> ordered lists; a blank line resets; <code>^</code> is a newline;
+  <code>{var}</code> interpolates.</li>
+<li>Inline objects by namespace: <code>![](image://key?scale=0.5)</code>, <code>[](ship://hull?...)</code>,
+  <code>[](face://...)</code>, <code>[](style://font:gui-4;color:#8cf)</code>.</li>
+<li>A single unformatted line just renders as plain text; a parse slip shows
+  <code>Document syntax issue line number N</code> — so a blank/garbled area is usually a
+  syntax slip on that line. Engine text is ASCII-only.</li>
+</ul>
 <h2 id="reacting-while-the-gui-is-up">Reacting while the GUI is up</h2>
 <p><code>on</code> handlers run while a GUI is on screen:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="5:1"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="6:1"><input checked="checked" id="__tabbed_6_1" name="__tabbed_6" type="radio" /><div class="tabbed-labels"><label for="__tabbed_6_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">
@@ -5340,7 +5473,7 @@ on signal &quot;wave_cleared&quot;:                  # a signal fired
 <h2 id="updating-without-a-rebuild">Updating without a rebuild</h2>
 <p>Set a widget's value and the dirty system re-renders it automatically &mdash; no
 need to rebuild the whole page:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="6:1"><input checked="checked" id="__tabbed_6_1" name="__tabbed_6" type="radio" /><div class="tabbed-labels"><label for="__tabbed_6_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="7:1"><input checked="checked" id="__tabbed_7_1" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="__tabbed_7_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">
@@ -5373,7 +5506,7 @@ own. Calling <code>gui_represent()</code> is harmless but redundant.</p>
 </div>
 <h2 id="consoles">Consoles</h2>
 <p>Route a client to a standard console, or build one widget by widget:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="7:1"><input checked="checked" id="__tabbed_7_1" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="__tabbed_7_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="8:1"><input checked="checked" id="__tabbed_8_1" name="__tabbed_8" type="radio" /><div class="tabbed-labels"><label for="__tabbed_8_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">
@@ -5402,7 +5535,7 @@ gui_layout_widget(&quot;2dview&quot;)          # size a gameplay view (2dview / 
 </div>
 <h2 id="full-rebuild-reroute">Full rebuild / reroute</h2>
 <p>To rebuild a page, jump back to its label; to move clients between pages:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="8:1"><input checked="checked" id="__tabbed_8_1" name="__tabbed_8" type="radio" /><div class="tabbed-labels"><label for="__tabbed_8_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="9:1"><input checked="checked" id="__tabbed_9_1" name="__tabbed_9" type="radio" /><div class="tabbed-labels"><label for="__tabbed_9_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">
