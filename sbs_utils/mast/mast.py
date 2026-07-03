@@ -296,7 +296,16 @@ class Mast():
         # Library (.mastlib) python: unchanged - one isolated module per file.
         if self.lib_name is not None:
             if sys.modules.get(module_name) is None:
+                # content_from_lib_or_file mutates self.basedir to the loaded
+                # file's directory (that cursor is how nested .mast imports
+                # resolve). A .py import reuses `self`, so without this guard the
+                # mutation leaks into the NEXT sibling import: `import
+                # games/engines.py` would move the base into games/ and a
+                # following `import foo.mast` would resolve as games/foo.mast and
+                # fail. A .py import must not shift the base - save and restore.
+                saved_basedir = self.basedir
                 content, errors = self.content_from_lib_or_file(name)
+                self.basedir = saved_basedir
                 if content is None:
                     raise Exception(f"Failed to import python in mast library {name} {self.lib_name}")
                 loader = StringLoader(content)
