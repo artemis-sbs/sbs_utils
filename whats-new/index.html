@@ -5368,11 +5368,41 @@ If something must behave exactly like the engine, verify it in Cosmos.</p>
 <li><strong>An Artemis 2.8 → Cosmos porting-comfort layer</strong> to ease bringing older content
   forward. → <a href="../mast/porting-2x/">Porting from Artemis 2.x</a></li>
 <li><strong>A faster, friendlier MAST compiler</strong> — quicker parsing, <em>all</em> errors reported at
-  once, sturdier crash handling, and more Python built-ins available in scripts.
-  → <a href="../mast/overview/">The MAST language</a></li>
+  once, sturdier crash handling, more Python built-ins available in scripts, and now
+  <strong>multiline expressions</strong> (see below). → <a href="../mast/overview/">The MAST language</a></li>
 <li><strong>Deterministic building blocks</strong> — keyed terrain fields, position-keyed
   <a href="../api/utility/scatter/">scatter</a>, and reusable game-code encode/decode.</li>
 </ul>
+<div class="admonition tip">
+<p class="admonition-title">✨ New — multiline expressions in MAST</p>
+<p>Python dicts, lists, and function calls can now <strong>span multiple lines</strong>, just
+like Python. No more cramming a spawn onto one giant line or reaching for
+<code>~~ ... ~~</code> fences — write it the natural way:</p>
+<div class="highlight"><pre><span></span><code>prefab_spawn(&quot;prefab_fleet_raider&quot;, {
+    &quot;race&quot;: &quot;skaraan&quot;,
+    &quot;fleet_difficulty&quot;: 2,
+    &quot;START_X&quot;: fleet_pos.x,
+    &quot;START_Y&quot;: fleet_pos.y,
+    &quot;START_Z&quot;: fleet_pos.z,
+})
+</code></pre></div>
+<p>Works for any bracketed expression — dict/list/call literals and multiline
+<code>if</code> conditions alike. Error line numbers stay accurate, and every existing
+script compiles exactly as before. → <a href="../mast/overview/">The MAST language</a></p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">✨ New — colons inside quoted strings</p>
+<p>A <code>:</code> inside a quoted string no longer confuses the parser, so you can write
+handler labels naturally — no more assigning the button to a variable first:</p>
+<div class="highlight"><pre><span></span><code>on gui_message(gui_button(&quot;Test Upgrades:&quot;)):
+    show_upgrades()
+</code></pre></div>
+<p>Previously the <code>:</code> in <code>"Test Upgrades:"</code> was mistaken for the end of the
+<code>on ...:</code> header and the line failed to compile. The same fix applies to
+<code>await ...:</code> blocks, and button/text <strong>labels</strong> with colons
+(<code>gui_button("Score: 5")</code>) now render as text instead of being misread as a
+style key.</p>
+</div>
 <hr />
 <p><em>Thanks for playing, building, and tinkering. There's more under the hood than ever
 — go build something great.</em> 🚀</p>

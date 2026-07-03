@@ -1007,6 +1007,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#multiline-expressions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Multiline expressions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#route-labels" class="md-nav__link">
     <span class="md-ellipsis">
       Route labels
@@ -5160,6 +5169,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#multiline-expressions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Multiline expressions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#route-labels" class="md-nav__link">
     <span class="md-ellipsis">
       Route labels
@@ -5422,6 +5440,30 @@ task &mdash; so the same label can be scheduled many times with different data:<
 </code></pre></div>
 </div>
 </div>
+</div>
+<h2 id="multiline-expressions">Multiline expressions</h2>
+<p>A Python expression can <strong>span several lines</strong> as long as it stays inside
+brackets <code>( ) [ ] { }</code> — just like Python. Reach for it when a dict or a call
+argument list gets long, instead of cramming it onto one line or wrapping it in
+<code>~~ … ~~</code>:</p>
+<div class="highlight"><pre><span></span><code>prefab_spawn(&quot;prefab_fleet_raider&quot;, {
+    &quot;race&quot;: &quot;skaraan&quot;,
+    &quot;fleet_difficulty&quot;: 2,
+    &quot;START_X&quot;: fleet_pos.x,
+    &quot;START_Y&quot;: fleet_pos.y,
+    &quot;START_Z&quot;: fleet_pos.z,
+})
+</code></pre></div>
+<p>It works for any bracketed expression — dict/list/call literals and multiline
+<code>if</code> conditions alike. Error line numbers stay accurate for everything after the
+block (an error <em>inside</em> a multiline expression is reported at the expression's
+first line). The lines are only joined <strong>inside</strong> brackets, so ordinary
+indentation and block structure are unaffected.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>A quoted string that itself spans real newlines inside the brackets isn't
+joined (its newlines are text, not layout) — keep multiline <strong>string</strong>
+content in a triple-quoted <code>"""…"""</code> block or a <code>~~ … ~~</code> fence.</p>
 </div>
 <h2 id="route-labels">Route labels</h2>
 <p><strong>Route labels</strong> run automatically when an engine event matches their condition
