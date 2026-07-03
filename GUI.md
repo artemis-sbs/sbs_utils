@@ -175,9 +175,10 @@ The headless mock (`--test`) is **permissive**; the engine MAST compiler is
 stricter, so a GUI can pass `--test` and still fail to compile (or mis-render) in
 Cosmos. Confirmed gotchas:
 
-- **No `:` inside an inline `on gui_message(gui_button("…:…"))` label** — the engine
-  confuses it with the handler block's `:`. Assign the button to a **var** first,
-  then `on gui_message(btn):`.
+- **Colons inside a quoted string** in an `on ...:` / `await ...:` header now
+  compile fine (fixed v1.4.0) — e.g. `on gui_message(gui_button("Test Upgrades:")):`.
+  On an **older sbslib** the `:` was mistaken for the block colon; the workaround
+  there is to assign the button to a **var** first, then `on gui_message(btn):`.
 - **Don't start an identifier with `jump`** (`jump_btn`) — it parses as a `jump`
   statement. Use `go_btn`.
 - **IDE-linter false positive:** *"Missing required argument(s): 'fields'"* on a

@@ -151,6 +151,34 @@ task &mdash; so the same label can be scheduled many times with different data:
         log(f"{get_shared_variable('greeting')}, {name}")
     ```
 
+## Multiline expressions
+
+A Python expression can **span several lines** as long as it stays inside
+brackets `( ) [ ] { }` — just like Python. Reach for it when a dict or a call
+argument list gets long, instead of cramming it onto one line or wrapping it in
+`~~ … ~~`:
+
+```
+prefab_spawn("prefab_fleet_raider", {
+    "race": "skaraan",
+    "fleet_difficulty": 2,
+    "START_X": fleet_pos.x,
+    "START_Y": fleet_pos.y,
+    "START_Z": fleet_pos.z,
+})
+```
+
+It works for any bracketed expression — dict/list/call literals and multiline
+`if` conditions alike. Error line numbers stay accurate for everything after the
+block (an error *inside* a multiline expression is reported at the expression's
+first line). The lines are only joined **inside** brackets, so ordinary
+indentation and block structure are unaffected.
+
+!!! note
+    A quoted string that itself spans real newlines inside the brackets isn't
+    joined (its newlines are text, not layout) — keep multiline **string**
+    content in a triple-quoted `"""…"""` block or a `~~ … ~~` fence.
+
 ## Route labels
 
 **Route labels** run automatically when an engine event matches their condition
