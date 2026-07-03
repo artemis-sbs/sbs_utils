@@ -299,18 +299,29 @@ Different from `mast_task.jump()` — `gui_task_jump` targets the console's GUI 
 
 ## Metadata Blocks
 
-Metadata is a data section embedded in a label that ends up as variables when the label executes. Systems can read metadata **before** the label executes — used to describe brain/prefab configuration. Metadata values represent defaults that can be overridden by the schedule/spawn call.
+Metadata is a data section embedded in a label. Its values are **injected as task
+variables** when a task enters the label — seeded at task creation for spawned
+tasks (brains/objectives/prefabs) and injected on a jump/reroute into the label
+(e.g. a GUI route). Systems can also read metadata off the label **before** it
+executes (`get_inventory_value`). Metadata values are **defaults**: a variable
+already in scope (passed schedule/spawn data, live state) wins.
+
+**Fence indentation (this bites):** the `metadata:` line, the top-level YAML keys,
+and the **closing ` ``` ` fence must be at column 0** — the parser's rule ends in
+`\n``` ` with no leading whitespace. Indent the whole block and you get
+"Unrecognized syntax". The label's *code* is indented as usual; YAML-internal
+nesting is indented per YAML. (Metadata works on any label type, including `@`
+decorator labels and `//` routes.)
 
 ```
 === ai_chase_target
-    metadata: ``` yaml
-    type: brain/npc
-    distance: 5000
-    throttle: 1.0
-    stop_dist: 500
-    force_shoot: false
-    ```
-    
+metadata: ``` yaml
+type: brain/npc
+distance: 5000
+throttle: 1.0
+stop_dist: 500
+force_shoot: false
+```
     # Code follows — "distance", "throttle" etc. are now variables
     yield fail if sbs.distance_id(BRAIN_AGENT_ID, target_id) > distance
     target(BRAIN_AGENT_ID, target_id, force_shoot, throttle, stop_dist=stop_dist)
@@ -342,12 +353,11 @@ import terrain_prefabs.mast
 ```
 @map/secretmeeting "Secret Meeting"
     " The ambassadors are meeting secretly at starbase Phoenix.
-    metadata: ``` yaml
-    Properties:
-        Player Ships: 'gui_int_slider("$text:int;low: 1.0;high:8.0;", var= "PLAYER_COUNT")'
-        Difficulty: 'gui_int_slider("$text:int;low: 1.0;high:11.0;", var= "DIFFICULTY")'
-    ```
-    
+metadata: ``` yaml
+Properties:
+    Player Ships: 'gui_int_slider("$text:int;low: 1.0;high:8.0;", var= "PLAYER_COUNT")'
+    Difficulty: 'gui_int_slider("$text:int;low: 1.0;high:11.0;", var= "DIFFICULTY")'
+```
     station_object = npc_spawn(0,0,0, "Starbase Phoenix", "tsn, station", ...)
     await task_schedule(spawn_players)
     ->END
