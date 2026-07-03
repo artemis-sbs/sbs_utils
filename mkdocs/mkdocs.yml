@@ -170,6 +170,8 @@ nav:
 
   - LegendaryMissions: '!import https://github.com/artemis-sbs/LegendaryMissions?branch=v1.4.0_dev&config=mkdocs/mkdocs.yml&docs_dir=mkdocs/docs'
 
+  - OpenUniverse: '!import https://github.com/artemis-sbs/OpenUniverse?branch=v1.4.0_dev&config=mkdocs/mkdocs.yml&docs_dir=mkdocs/docs'
+
   - About:
     - about/index.md
 
