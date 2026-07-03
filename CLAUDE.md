@@ -2,6 +2,7 @@
 
 @MAST_CLAUDE.md
 @MAST_MISSION_CLAUDE.md
+@GUI.md
 
 ## Environment
 

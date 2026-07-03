@@ -472,6 +472,11 @@ comms_navigate_override(role("admiral_cam") & role(side), worldlet_id)
 
 ## GUI System
 
+> **See `GUI.md` for GUI best practices & gotchas** — the dirty system / live
+> updates, `.update()` replacing the whole style, listbox+detail pattern, the
+> for-loop handler trap, engine-widget embedding, and the compiler-vs-mock traps.
+> This section is the quick syntax; `GUI.md` is how to build GUIs well.
+
 GUI display is through the GUI system — not standalone quoted strings. Quoted strings (`"text"`) are only valid in specific page contexts (comms pages, story pages).
 
 For general output: `print()` or `log(message, category)`.
