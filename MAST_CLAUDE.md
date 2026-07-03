@@ -452,6 +452,22 @@ comms_navigate("//comms/ship_to_ship")   # go to submenu
 comms_navigate("")                        # go back/up
 ```
 
+**Refreshing an open comms menu from OUTSIDE the comms task.** When game state
+changes (a build finishes, a new option unlocks), an already-open comms menu is
+stale. `comms_navigate_override(origin, selected, path=None)` re-runs the comms
+routes for that origin/selected pair, so the new buttons appear immediately — and
+it **no-ops if that pair isn't currently in a comms interaction**, so it's safe to
+call broadly. Scope it to the right consoles (e.g. `role("admiral_cam") &
+role(side)`), never all clients.
+
+```
+# from a build task, when a platform finishes:
+comms_navigate_override(role("admiral_cam") & role(side), worldlet_id)
+```
+
+`follow_route_select_comms(origin, selected)` (procedural/routes) fires a comms
+*selection* programmatically — as if the player clicked that object.
+
 ---
 
 ## GUI System
@@ -780,6 +796,53 @@ shared main_story_task = mast_task   # in @map body
 # From a debug comms route:
 main_story_task.jump("scene_two")    # redirect the task to a different label
 ```
+
+---
+
+## Detached command consoles (GM / Admiral pattern)
+
+A console that oversees the whole system from a god's-eye 2D view (Game Master,
+the OU Admiral) rides a **detached camera**, not a ship. The pattern (see LM
+`gamemaster.mast` and OU `admiral.mast`):
+
+```
+# Per client: an invisible camera the console rides.
+cam = to_object(player_spawn(0, 1000, 0, "", "#,admiral_cam,admiral,has_science_scan", "invisible"))
+remove_role(cam, "__player__")                       # not a real player ship
+link(cam.id, "extra_scan_source", any_role("__npc__,__player__"))  # sees everything
+cam.side = "tsn"
+cam.data_set.set("ship_base_scan_range", 40000, 0)   # see the whole system
+sbs.assign_client_to_ship(client_id, cam.id)
+gui_activate_console("gamemaster_overseer_comms")    # see naming note below
+gui_layout_widget("comms_2d_view")                   # embed the engine 2D view
+```
+
+**Selection routing depends on the CONSOLE NAME** (`consoledispatcher.py`): a name
+containing `"sci"` or `"admiral"` routes a 2D-view click to the **science**
+selection; `"comm"` routes it to the **comms** selection (which the `//comms`
+routes need). A `gamemaster_` **prefix** also gets the engine's optimized
+detached-console network path. So `gamemaster_overseer_comms` = optimized network +
+comms selection. (The console *name* is separate from the camera's *role* — the
+GM/Admiral routes gate on the `gamemaster`/`admiral` role, not the name.)
+
+**Comms won't OPEN on an object the side has no science data for.**
+`science_set_scan_data(origin, target, tabs)` stores the scan **per the origin's
+side** (side-wide, not per-console), so one pass marks a whole side's objects
+"known". Scan the console's own theatre (its worldlets/platforms/fleets) once so
+comms enables on the first click.
+
+**Click-to-move the camera.** `//focus/comms` (and `//focus/science`) fire on a 2D
+click carrying `EVENT.source_point` (the clicked point) and `EVENT.extra_extra_tag`
+(`lmb`/`rmb`). Set the origin's `.pos` to pan: `COMMS_ORIGIN.pos =
+Vec3(EVENT.source_point)`.
+
+**Roles come from the ART too.** Spawning with a starbase art auto-adds the
+`station` role from that art's ship_data — so `remove_role(obj, "station")` **after**
+spawn if you don't want LM's default station comms (docking/market) on the object.
+
+**IDE-linter false positive:** a `+ "label" handler_label` comms button (no data
+dict) may flag *"Missing required argument(s): 'fields'"* in the editor — the real
+MAST compiler accepts it. Verify with a headless `--test`, not the linter.
 
 ---
 

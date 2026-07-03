@@ -244,6 +244,12 @@ Widgets mark themselves dirty when their value changes; the engine re-renders th
 
 ---
 
+## Documentation (mkdocs)
+
+Docs live in `mkdocs/` (Material theme). The **multirepo plugin** pulls sibling missions into the one site via `!import` nav lines — **LegendaryMissions** and **OpenUniverse** are both imported from their `origin/v1.4.0_dev` (so pushing a mission's docs publishes them into the combined site). GFM pipe **tables render by default** — no `tables` extension needed; use them for genuinely tabular content.
+
+---
+
 ## Folder Layout
 
 ```

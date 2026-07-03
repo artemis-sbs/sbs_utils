@@ -537,6 +537,10 @@ The `LegendaryMissions.consoles` mastlib provides standard `@console/` decorator
 
 Mission scripts can extend this by defining additional `@console/` labels for new console types.
 
+### Detached command consoles (GM / Admiral)
+
+A console that surveys the whole system from a 2D map (Game Master, the OU Admiral) rides an **invisible detached camera** instead of a ship, and commands by selecting objects on the view. The full pattern — the cambot spawn, console-name selection routing, the `gamemaster_` optimized-network prefix, side-wide scan so comms enables, `remove_role` for art-derived roles, and click-to-move via `//focus/comms` — is in `MAST_CLAUDE.md` ("Detached command consoles"). LM `gamemaster.mast` and OU `admiral.mast` are the working templates.
+
 ### Without LegendaryMissions
 
 Route server and clients to specific labels manually:
