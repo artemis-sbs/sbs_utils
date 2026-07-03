@@ -143,10 +143,29 @@ Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/fe
 - **An Artemis 2.8 → Cosmos porting-comfort layer** to ease bringing older content
   forward. → [Porting from Artemis 2.x](mast/porting-2x.md)
 - **A faster, friendlier MAST compiler** — quicker parsing, *all* errors reported at
-  once, sturdier crash handling, and more Python built-ins available in scripts.
-  → [The MAST language](mast/overview.md)
+  once, sturdier crash handling, more Python built-ins available in scripts, and now
+  **multiline expressions** (see below). → [The MAST language](mast/overview.md)
 - **Deterministic building blocks** — keyed terrain fields, position-keyed
   [scatter](api/utility/scatter.md), and reusable game-code encode/decode.
+
+!!! tip "✨ New — multiline expressions in MAST"
+    Python dicts, lists, and function calls can now **span multiple lines**, just
+    like Python. No more cramming a spawn onto one giant line or reaching for
+    `~~ ... ~~` fences — write it the natural way:
+
+    ```mast
+    prefab_spawn("prefab_fleet_raider", {
+        "race": "skaraan",
+        "fleet_difficulty": 2,
+        "START_X": fleet_pos.x,
+        "START_Y": fleet_pos.y,
+        "START_Z": fleet_pos.z,
+    })
+    ```
+
+    Works for any bracketed expression — dict/list/call literals and multiline
+    `if` conditions alike. Error line numbers stay accurate, and every existing
+    script compiles exactly as before. → [The MAST language](mast/overview.md)
 
 ---
 

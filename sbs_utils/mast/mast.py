@@ -16,6 +16,7 @@ import json
 from .mast_globals import MastGlobals
 from .mast_node import MastNode, Scope
 from .first_chars import first_chars_for_pattern
+from .mast_linejoin import join_bracket_continuations
 
 
 # --- compiler dispatch by first character ------------------------------------
@@ -704,6 +705,10 @@ class Mast():
     def compile(self, lines, file_name, root):
         # Catching compiler errors lower to give better error message
         errors = []
+        # Merge bracket-continued physical lines into one logical line so
+        # multiline python expressions parse. Line numbers are preserved.
+        # (Comment out the next line to fully disable the feature.)
+        lines = join_bracket_continuations(lines)
         try:
             return self._compile(lines, file_name, root)
         except Exception as e:
