@@ -97,6 +97,29 @@ class TestLabelMetadataInjection(unittest.TestCase):
             "    shared a = min_bet\n    ->END\n")
         self.assertEqual(r.get_value("a")[0], 42)
 
+    def test_start_task_seeds_metadata_at_creation(self):
+        # Regression guard: _start_task must seed a label's metadata at task
+        # CREATION (before any jump). A spawned brain/objective can first execute
+        # at a NON-ZERO command (a +++ sub-block, via start_task(defer=True) +
+        # run_sub_label), which do_jump's top-of-label injection skips - so the
+        # metadata has to already be on the task. do_jump alone does NOT cover
+        # this (that's the bug that broke defender.mast's line_of_sight).
+        mast = Mast()
+        clear_shared()
+        errors = mast.compile(
+            "=== obj\n"
+            "metadata: ``` yaml\n"
+            "los: 10000\n"
+            "```\n"
+            "    ->END\n", "t", mast)
+        self.assertFalse(errors, errors)
+        FrameContext.context = Context(_Sim(), sbs, FakeEvent())
+        FrameContext.mast = mast
+        sched = _Sched(mast)
+        # created but NOT jumped/ticked - so only _start_task's seed can supply it
+        t = sched._start_task("obj")
+        self.assertEqual(t.get_value("los")[0], 10000)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
