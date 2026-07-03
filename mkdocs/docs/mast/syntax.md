@@ -211,6 +211,32 @@ Data passed to a task becomes variables in it, separate from the caller's:
         ->END
     ```
 
+### Metadata (label defaults)
+
+A label can carry a `metadata:` block — a fenced YAML section whose keys are
+**injected as task variables** when a task enters the label. They are
+**defaults**: a variable already in scope (passed data, live state) wins.
+
+````mast
+== patrol ==
+metadata: ``` yaml
+speed: 0.5
+radius: 4000
+```
+    # `speed` and `radius` are now variables in this task
+    set_throttle(ship_id, speed)
+    ->END
+````
+
+- Injected on **entry** — at task creation for spawned tasks (brains, objectives,
+  prefabs) and on a jump/reroute into the label.
+- **Column-0 rule:** the `metadata:` line, the top-level YAML keys, and the
+  closing fence must sit at column 0 — only the label's *code* is indented.
+- Works on any label type, including `//` routes and `@` decorator labels.
+
+Brain and objective labels lean on this for tunables — see
+[brains](ai/brains.md) and [objectives](objectives.md).
+
 ### Waiting for tasks
 
 Capture a task in a variable and `await` it, or race/join several with

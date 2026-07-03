@@ -83,6 +83,27 @@ changes with `on gui_message(widget):` (fires when the value changes) or
 Read a widget's value with `widget.get_value()` / `widget.value`; a list box also
 has `get_selected()`, `get_selected_index()`, and `set_selected_index(i)`.
 
+## Rich text areas
+
+`gui_text` is a single styled line. For a **multi-line, formatted block** — help,
+briefings, a log, a comms transcript — use **`gui_text_area`**, which parses a
+small markdown-like language and **auto-scrolls** when its content overflows.
+
+=== ":mast-icon: {{ab.m}}"
+    ```
+    brief = "$t Mission Briefing^^Reach the beacon and hold the line.^^- Jump to the Kessel system.^- Defend the relay for five minutes.^- Do not let the convoy through."
+    gui_text_area(brief)
+    ```
+
+- `$t` a title; `#`/`##`/`###` headings (auto-numbered, so use `$t` for a plain
+  title); `-` bullets; `1.` ordered lists; a blank line resets; `^` is a newline;
+  `{var}` interpolates.
+- Inline objects by namespace: `![](image://key?scale=0.5)`, `[](ship://hull?...)`,
+  `[](face://...)`, `[](style://font:gui-4;color:#8cf)`.
+- A single unformatted line just renders as plain text; a parse slip shows
+  `Document syntax issue line number N` — so a blank/garbled area is usually a
+  syntax slip on that line. Engine text is ASCII-only.
+
 ## Reacting while the GUI is up
 
 `on` handlers run while a GUI is on screen:
