@@ -1,0 +1,60 @@
+site_name: Open Universe Documentation
+copyright: "An Artemis: Cosmos mission"
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/solid/cart-shopping
+      link: https://www.artemisspaceshipbridge.com/
+    - icon: fontawesome/brands/youtube
+      link: https://www.youtube.com/@ArtemisSbs
+    - icon: fontawesome/brands/steam
+      link: https://store.steampowered.com/app/2467840/Artemis_Cosmos/
+    - icon: material/forum
+      link: https://artemis.forumchitchat.com/
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - content.code.copy
+
+repo_url: https://github.com/artemis-sbs/OpenUniverse
+repo_name: artemis-sbs/OpenUniverse
+
+nav:
+  - Home: index.md
+
+  - Playing:
+    - How to play the Admiral: playing/admiral.md
+
+  - Writing a universe:
+    - writing/index.md
+    - 1. Getting started: writing/getting-started.md
+    - 2. Clans - who lives here: writing/clans.md
+    - 3. Jobs - the work they offer: writing/jobs.md
+    - 4. Story and goals: writing/story.md
+    - 5. Painting the map: writing/map.md
+    - 6. Captains and the cast: writing/people.md
+    - 7. Dialogue: writing/dialogue.md
+    - 8. The dials: writing/dials.md
+    - 9. The Admiralty - a side to command: writing/admiralty.md
+    - The complete example: writing/silver-reach.md
+    - Troubleshooting: writing/troubleshooting.md
+
+  - Reference:
+    - reference/index.md
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - admonition
+  - tables
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search

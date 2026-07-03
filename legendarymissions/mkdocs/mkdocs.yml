@@ -53,6 +53,7 @@ nav:
   - Playing:
     - playing/index.md
     - Game features: playing/features.md
+    - How to play the Casino: playing/casino.md
     - Updating: playing/updating.md
 
   - Hosting:
@@ -61,6 +62,7 @@ nav:
 
   - Addons:
     - addons/index.md
+    - The Casino: addons/casino.md
     - Maps & terrain: script/maps/index.md
 
   - About:
