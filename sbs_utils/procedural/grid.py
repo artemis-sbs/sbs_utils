@@ -100,8 +100,6 @@ def grid_close_list(grid_obj, the_set, max_dist=None, filter_func=None) -> list[
         test = abs(this_x-other_x) + abs(this_y-other_y)
         if test < max_dist:
             ret.append(CloseData(other.id, other, test))
-
-        ret.append(CloseData(other.id, other, test))
         continue
 
     return ret
