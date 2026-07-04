@@ -716,6 +716,34 @@ avatar_widgets = ~~{
 }~~
 ```
 
+**Never span a bare `{}`/dict across lines.** MAST parses **line by line**, so a
+dict literal broken across lines — even as a normal function argument — makes the
+first line an unclosed `{`:
+
+```
+# BROKEN — compiles to "'{' was never closed", then cascades:
+prefab_spawn("prefab_fleet_raider", {
+    "race": "skaraan",
+    "fleet_difficulty": 4
+})
+```
+
+**The failure is silent and cascading.** The unclosed-brace error desyncs the parser
+for the rest of the file (spurious "Weighted text without start" / "Unrecognized
+syntax" on the continuation lines), which can leave the **whole story's main task
+empty** — the mission then runs with **0 labels executed, no output, and still
+reports "PASS - no runtime errors"** (a headless `--test` shows `labels 0/N`). If a
+mission mysteriously does nothing, suspect a multi-line literal first.
+
+Two fixes — keep it on **one line**, or wrap the multi-line literal in `~~ … ~~`
+(as the `avatar_widgets` example above; multi-line *is* fine inside `~~`):
+
+```
+# both compile:
+fleet_data = ~~{"race": "skaraan", "fleet_difficulty": 4, "START_X": x, "START_Y": y, "START_Z": z}~~
+prefab_spawn("prefab_fleet_raider", fleet_data)
+```
+
 ---
 
 ## Common Idioms

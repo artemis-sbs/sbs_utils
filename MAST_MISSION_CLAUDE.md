@@ -103,6 +103,14 @@ Keywords: combat, asteroids
 
 **Avoid apostrophes in `Visible Mission Name`** — YAML unquoted strings with a single quote require `''` (doubled) to escape, which the engine may render literally. Use a name without apostrophes, or test carefully.
 
+**No dashes/hyphens (`-`) anywhere in the values — a `-` crashes the engine.** This
+includes mid-word (`Auto-ramping` → `Auto ramping`) and in `Keywords`. Prefer spaces
+or reword. (A leading `- ` is also YAML list syntax, but the crash bites even
+mid-string, so just avoid `-` entirely here.)
+
+**Keep `Description` short** — one terse phrase (`Auto ramping load harness.`), not a
+sentence or two. Long descriptions read badly in the browser and invite the `-` crash.
+
 ---
 
 ## settings.yaml

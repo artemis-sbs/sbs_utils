@@ -9,8 +9,31 @@ out of it.)
 Brains are MAST tasks independent of the sim, so a parked NPC's brain would keep
 acting on a non-simulated object - so the culler pauses a parked object's brain
 (`brain_pause`) and resumes it on retrieve. That makes terrain AND self-brained
-NPCs/POIs safe to cull. A parked object isn't in normal space, so its position is
+NPCs/POIs *safe* to cull. A parked object isn't in normal space, so its position is
 cached here.
+
+**Cull the fighters, not the rocks.** Standby only pays off for objects that cost
+the engine sim/network *continuously* - moving, brained, per-tick-replicating NPCs
+and fleets. It is a poor fit for terrain:
+  * Engine tick cost of passive terrain is near-zero (measured: ~100k passive agents
+    held real-time; see OpenUniverse/MULTI_SYSTEM_FEASIBILITY.md).
+  * Terrain replicates to a client once, then only on a forced update - so there is
+    no ongoing network cost for standby to save.
+  * The py-side Agent persists while parked, so standby never shrinks the Python
+    heap / GC pressure regardless.
+And it is net-negative for terrain: `retrieve` re-inserts the object into sim +
+network, so crossing the radius re-sends parked terrain to in-range clients (a
+network burst + pop-in hitch) that resident terrain never incurs. So although
+terrain is *safe* to cull, prefer to leave it resident and aim the culler at active
+content (`standby_cull_fleets` is the valuable path). Terrain standby is justified
+only as an engine-side memory measure for genuinely dormant, far, unlikely-to-be-
+visited systems - not as a per-tick or network optimization.
+(Caveat: the perf run that grounds "terrain is cheap" had NO connected clients, so it
+measured compute only - the NETWORK axis, which is standby's whole reason to exist,
+is unmeasured. The "terrain replicates once, then only on force" model and the
+`retrieve`-re-sends churn cost are *reasoned*, not measured. So the compute + heap
+legs of "leave terrain resident" are solid; the network leg is a hypothesis - verify
+with a client-connected run before relying on the churn-cost argument.)
 
 Fleets are handled as a unit (`standby_cull_fleets`): a fleet's brain lives on the
 fleet agent, not its ships (linked via a "ship_list" role/link), so all a fleet's
