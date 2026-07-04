@@ -574,15 +574,17 @@ gui_reroute_clients("launch_to_cockpit") # each client runs this label
 
 ## LegendaryMissions Addon Reference
 
-> **SEARCH RULE — three layers, always.** A running mission = **sbs_utils** (engine
-> library) + **LegendaryMissions** (shared mission mechanics as mastlibs) + **the
-> mission** (its own `.mast`/`.py`/`.amd`). **Shared drivers live in LM, not
-> sbs_utils or the mission** — quest completion (`LegendaryMissions/quests/
-> quest_driver.{py,mast}`: on_kill/on_reach/on_scan/on_dock/on_signal), docking,
-> fleets, comms, consoles, hangar. So when tracing how a mechanic works, **grep all
-> three repos** (`sbs_utils/`, `LegendaryMissions/`, the mission). **Never conclude a
-> mechanic is "missing / opaque / broken" after searching only sbs_utils + the
-> mission** — that's exactly how the quest driver (in LM) got mislabeled once.
+> **SEARCH RULE — check the mission's DEPENDENCIES first.** A mission declares what it
+> loads in its **`story.json`** (`sbslib` + the `mastlib` list) — that manifest is the
+> map of where its mechanics live. Before tracing any mechanic, **read `story.json` and
+> search every dependency it lists**, not just the mission folder. The shared drivers
+> (quest completion, docking, fleets, comms, consoles, hangar) are almost always in a
+> **LegendaryMissions mastlib**, not sbs_utils or the mission — e.g. quest completion is
+> `LegendaryMissions/quests/quest_driver.{py,mast}` (on_kill/on_reach/on_scan/on_dock/
+> on_signal). **Never conclude a mechanic is "missing / opaque / broken" after searching
+> only sbs_utils + the mission folder** — that's how the quest driver got mislabeled
+> once. (Which mastlibs vary per mission; WalkTheLine ≠ OpenUniverse — so *read that
+> mission's* `story.json` rather than assuming a fixed set.)
 
 | Mastlib | Key Labels Provided |
 |---|---|
