@@ -574,6 +574,16 @@ gui_reroute_clients("launch_to_cockpit") # each client runs this label
 
 ## LegendaryMissions Addon Reference
 
+> **SEARCH RULE — three layers, always.** A running mission = **sbs_utils** (engine
+> library) + **LegendaryMissions** (shared mission mechanics as mastlibs) + **the
+> mission** (its own `.mast`/`.py`/`.amd`). **Shared drivers live in LM, not
+> sbs_utils or the mission** — quest completion (`LegendaryMissions/quests/
+> quest_driver.{py,mast}`: on_kill/on_reach/on_scan/on_dock/on_signal), docking,
+> fleets, comms, consoles, hangar. So when tracing how a mechanic works, **grep all
+> three repos** (`sbs_utils/`, `LegendaryMissions/`, the mission). **Never conclude a
+> mechanic is "missing / opaque / broken" after searching only sbs_utils + the
+> mission** — that's exactly how the quest driver (in LM) got mislabeled once.
+
 | Mastlib | Key Labels Provided |
 |---|---|
 | `fleets` | `spawn_players`, `prefab_fleet_raider`, `prefab_fleet_empty` |
