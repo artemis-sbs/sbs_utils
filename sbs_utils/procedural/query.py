@@ -471,7 +471,10 @@ def set_console_selection(id_or_not, other_id_or_obj, console):
     """
     blob = to_blob(id_or_not)
     other = to_id(other_id_or_obj)
-    if other is None:
+    if not isinstance(other, int):
+        # to_id passes through anything that isn't an Agent/CloseData/SpawnData
+        # (None, a raw engine space_object, etc.). Only an int id may be stored -
+        # a non-int would poison the selection blob and crash every later reader.
         other = 0
     if blob is not None:
         blob.set(console, other, 0)
