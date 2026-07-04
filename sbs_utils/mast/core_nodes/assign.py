@@ -26,7 +26,9 @@ class Assign(MastNode):
         
         #r'(?P<scope>(shared|assigned|client|temp)\s+)?(?P<lhs>[\w\.\[\]]+)\s*(?P<oper>=|\+=|-=|\*=|%=|/=|//=)(?P<a_wait>\s*await)?\s*(?P<exp>('+PY_EXP_REGEX+'|'+STRING_REGEX+'|[^\n\r\f]+))')
 
-    """ Note this doesn't support destructuring. To do so isn't worth the effort"""
+    """Tuple unpacking (`a, b = expr`) IS supported for plain comma-separated names
+    (see AssignRuntimeNode._set_value); a target carrying `.`/`[` in the tuple falls
+    through to exec. `for a, b in ...` is handled separately by the Loop node."""
     def __init__(self, is_default, scope, lhs, oper, exp,a_wait=None,  quote=None, py=None, yaml=None,loc=None, compile_info=None):
         super().__init__()
         self.lhs = lhs
@@ -73,9 +75,27 @@ class AssignRuntimeNode(MastRuntimeNode):
         self.promise = None
 
     def _set_value(self, value, node, task):
+        # Tuple unpacking: `a, b = expr` binds each plain name (mimics Python), using
+        # the same per-name write-back as a normal assignment. Only engages when every
+        # target is a bare name (no `.`/`[`); a mixed/attr/subscript tuple falls through
+        # to the exec path below. MAST vars live in task inventory, so we bind by name -
+        # not via exec (whose locals dict is thrown away).
+        if "," in node.lhs:
+            parts = [p.strip() for p in node.lhs.split(",")]
+            if len(parts) > 1 and all(p and "." not in p and "[" not in p for p in parts):
+                vals = list(value)
+                if len(vals) != len(parts):
+                    raise Exception(
+                        f"tuple unpack '{node.lhs}': expected {len(parts)} values, got {len(vals)}")
+                for name, val in zip(parts, vals):
+                    if node.scope:
+                        task.set_value(name, val, node.scope)
+                    else:
+                        task.set_value_keep_scope(name, val)
+                return
         if "." in node.lhs or "[" in node.lhs:
             task.exec_code(f"""{node.lhs} = __mast_value""",{"__mast_value": value}, None )
-        elif node.scope: 
+        elif node.scope:
             task.set_value(node.lhs, value, node.scope)
         else:
             task.set_value_keep_scope(node.lhs, value)
