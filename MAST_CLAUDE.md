@@ -896,6 +896,15 @@ MAST compiler accepts it. Verify with a headless `--test`, not the linter.
 - Routes inside labels (routes are always top-level)
 - Function-style return values from labels (use `yield result` or task data)
 - Standalone quoted strings outside page contexts (use `log()` or `print()`)
+- **Tuple unpacking** — `a, b = ship_cell(id)` and `for a, b in enumerate(x):` are
+  **not** recognized; the second silently **desyncs the parser** (whole story empty,
+  `labels 0/N`, still reports "PASS"). Workaround today: index — `c = ship_cell(id); a
+  = c[0]; b = c[1]` and `for x in xs:` with a manual counter.
+  **TODO (language enhancement): add tuple-unpacking support to MAST** — most cleanly
+  as a source-level pre-pass like `mast_linejoin.py` (rewrite `a, b = expr` →
+  `__t = expr; a = __t[0]; b = __t[1]` and the `for` form to an indexed loop), so
+  existing scripts are unaffected and line numbers are preserved. See
+  [[project-mast-multiline-expressions]] for the pre-pass pattern.
 
 ---
 
