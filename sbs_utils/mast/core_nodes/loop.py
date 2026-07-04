@@ -16,7 +16,9 @@ class LoopEnd(MastNode):
 
 @mast_node()
 class LoopStart(MastNode):
-    rule = re.compile(r'(for[ \t]*(?P<name>\w+)[ \t]*)(?P<while_in>in|while)((?P<cond>[^\n\r\f]+))'+BLOCK_START)
+    # `name` accepts a comma-separated target list, so `for a, b in enumerate(xs):`
+    # unpacks each iteration (see the runtime below). A single name is the common case.
+    rule = re.compile(r'(for[ \t]*(?P<name>\w+(?:[ \t]*,[ \t]*\w+)*)[ \t]*)(?P<while_in>in|while)((?P<cond>[^\n\r\f]+))'+BLOCK_START)
     def __init__(self, while_in=None, cond=None, name=None, loc=None, compile_info=None):
         super().__init__()
         if cond:
@@ -25,6 +27,8 @@ class LoopStart(MastNode):
         else:
             self.code = None
         self.name = name
+        # Comma target list -> tuple-unpack each iteration; single name -> [name].
+        self.targets = [t.strip() for t in name.split(",")] if name else []
         self.is_while = while_in == "while"
         self.loc = loc
         self.end = None
@@ -148,7 +152,13 @@ class LoopStartRuntimeNode(MastRuntimeNode):
         else:
             try:
                 current = next(scoped_cond)
-                task.set_value(node.name, current, Scope.TEMP)
+                if len(node.targets) > 1:
+                    # `for a, b in ...`: unpack this iteration into each target name.
+                    _vals = list(current)
+                    for _t, _v in zip(node.targets, _vals):
+                        task.set_value(_t, _v, Scope.TEMP)
+                else:
+                    task.set_value(node.name, current, Scope.TEMP)
             except StopIteration:
                 # done iterating jump to end
                 task.set_value(node.name, None, Scope.TEMP)

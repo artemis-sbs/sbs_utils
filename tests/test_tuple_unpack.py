@@ -82,5 +82,39 @@ class TestTupleUnpack(unittest.TestCase):
         self.assertEqual(Agent.SHARED.get_inventory_value("b"), 22)
 
 
+class TestForTupleUnpack(unittest.TestCase):
+    def test_for_enumerate(self):
+        code = ('logger(var="output")\ntotal = 0\n'
+                'for i, v in enumerate([10, 20, 30]):\n    total = total + i + v\n'
+                'log(str(total))\n->END\n')                 # (0+10)+(1+20)+(2+32)? no: 10,21,32 -> 63
+        errors, runner = _run(code)
+        self.assertEqual(errors, [])
+        self.assertEqual(_out(runner), "63\n")
+
+    def test_for_pairs(self):
+        code = ('logger(var="output")\ntotal = 0\n'
+                'for k, v in [[1, 2], [3, 4]]:\n    total = total + k * v\n'
+                'log(str(total))\n->END\n')                 # 1*2 + 3*4 = 14
+        errors, runner = _run(code)
+        self.assertEqual(errors, [])
+        self.assertEqual(_out(runner), "14\n")
+
+    def test_for_single_name_regression(self):
+        code = ('logger(var="output")\ntotal = 0\n'
+                'for x in [1, 2, 3]:\n    total = total + x\n'
+                'log(str(total))\n->END\n')                 # 6
+        errors, runner = _run(code)
+        self.assertEqual(errors, [])
+        self.assertEqual(_out(runner), "6\n")
+
+    def test_for_while_form_regression(self):
+        code = ('logger(var="output")\nn = 0\n'
+                'for x while n < 3:\n    n = n + 1\n'
+                'log(str(n))\n->END\n')                      # while n<3 -> n ends 3
+        errors, runner = _run(code)
+        self.assertEqual(errors, [])
+        self.assertEqual(_out(runner), "3\n")
+
+
 if __name__ == '__main__':
     unittest.main(exit=False)
