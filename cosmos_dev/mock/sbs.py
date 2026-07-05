@@ -1762,7 +1762,22 @@ class simulation(object): ### from pybind
         return not self._paused
 
     def launch_torpedo(self: simulation, source_ship: space_object, tube_index: int, is_fighter_flag: bool) -> None:
-        """launches a torpedo from the space object provided."""
+        """launches a torpedo from the space object provided.
+
+        Engine API (a weapons console / autoplay / fighter calls it). Wires to the mock
+        projectile sim: spend a round of a loaded torpedo type and spawn the projectile
+        toward the ship's weapon target (straight ahead if none). The mock keys ammo by
+        type rather than by physical tube, so `tube_index` fires the first loaded type
+        (reserved for a future per-tube loadout model); `is_fighter_flag` is accepted for
+        API parity - the projectile spawns from `source_ship` either way."""
+        if source_ship is None:
+            return
+        ds = source_ship.data_set
+        kind = _consume_torpedo(ds)          # spend a round; None if the tube is empty
+        if kind is None:
+            return
+        rng = ds.get("torpedo_launch_max_range") or _TORP_RANGE
+        launch_missile(source_ship._id, _weapon_target(ds), kind=kind, max_range=rng)
 
     def navpoint_exists(self: simulation, id: int) -> bool:
         """returns true if the navpoint exists, by integer id"""
@@ -3375,8 +3390,12 @@ def _physics_launchers(sim, active: list, dt: float) -> None:
         dz = a._pos.z - target._pos.z
         dist2 = dx * dx + dy * dy + dz * dz
 
-        # Torpedoes are PLAYER-EXCLUSIVE (a weapons-console crew fires them; the mock
-        # auto-fires at the weapon target when tubes are loaded). NPCs never torpedo.
+        # Torpedoes are PLAYER-EXCLUSIVE (a weapons-console crew fires them). Headless
+        # missions with no weapons crew get a stand-in: the mock auto-fires at the weapon
+        # target when tubes are loaded, ON A COOLDOWN, through the engine API
+        # (sim.launch_torpedo) - the same path a real console / autoplay uses. NPCs never
+        # torpedo. (Autoplay that fires its own torpedoes is throttled by the same
+        # per-ship cooldown, so it won't double up with this stand-in.)
         if (a._abits & 0x20) and (ds.get("torpedo_tube_count") or 0) > 0:
             cd = getattr(a, "_torp_cooldown", 0.0)
             if cd > 0:
@@ -3384,10 +3403,8 @@ def _physics_launchers(sim, active: list, dt: float) -> None:
             else:
                 rng = ds.get("torpedo_launch_max_range") or _TORP_RANGE
                 if dist2 <= rng * rng:
-                    kind = _consume_torpedo(ds)     # decrement the first loaded type
-                    if kind is not None:
-                        launch_missile(aid, target_id, kind=kind, max_range=rng)
-                        a._torp_cooldown = _TORP_CYCLE
+                    sim.launch_torpedo(a, 0, bool(ds.get("is_fighter_flag")))
+                    a._torp_cooldown = _TORP_CYCLE
 
         # Drones are an NPC capability flagged by elite_drone_launcher==1 (Torgoth +
         # Ximni; set from shipData's drone_launch_timer). Uses the engine's
