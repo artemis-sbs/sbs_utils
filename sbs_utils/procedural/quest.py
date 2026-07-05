@@ -208,6 +208,38 @@ def quest_remove(agent, quest_id):
         return child
     return None
 
+def quest_kill_count_for_difficulty(count, difficulty, baseline=5, grind_min=3, floor=1):
+    """Scale a 'grind' kill target to the current difficulty.
+
+    The authored ``count`` is treated as the target at ``baseline`` difficulty and
+    scaled linearly (``count * difficulty / baseline``). Only grind-sized targets
+    (``>= grind_min``) scale, so single-target / boss kill quests are left exactly
+    as authored. The result never drops below ``floor``.
+
+    Args:
+        count (int): Authored kill target (the value at ``baseline`` difficulty).
+        difficulty (float): Current difficulty (e.g. the DIFFICULTY setting).
+        baseline (int): Difficulty at which ``count`` is used unchanged. Default 5.
+        grind_min (int): Smallest target that scales; below this, return as-is.
+        floor (int): Minimum returned target.
+
+    Returns:
+        int: The difficulty-adjusted kill target (or ``count`` unchanged if it is
+        below ``grind_min`` or the inputs aren't numeric).
+    """
+    try:
+        count = int(count)
+    except (TypeError, ValueError):
+        return count
+    if count < grind_min or baseline <= 0:
+        return count
+    try:
+        difficulty = float(difficulty)
+    except (TypeError, ValueError):
+        return count
+    return max(int(floor), int(round(count * difficulty / float(baseline))))
+
+
 def quest_add(agents, quest_id, display_text, description, state=QuestState.IDLE, data=None):
     """Add a quest to one or more agents.
 
