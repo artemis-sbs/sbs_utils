@@ -639,10 +639,12 @@ class TextArea(Control):
             if "$text:" in message_list[0]:
                 self.simple_text = True
                 self.content = message_list
+                self.mark_visual_dirty()
                 return
             if not (message_list[0].startswith("=") or message_list[0].startswith("$")):
                 self.simple_text = True
                 self.content = message_list
+                self.mark_visual_dirty()
                 return
         # Make sure there is an end line
         self.simple_text = False
@@ -652,7 +654,7 @@ class TextArea(Control):
         self.content = message_list
 
         # self.styles = TextArea.styles.copy()
-        self.mark_visual_dirty() 
+        self.mark_visual_dirty()
 
 
     def parse_header(self, header):
