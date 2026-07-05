@@ -45,6 +45,12 @@ Authors: [The Casino addon](legendarymissions/addons/casino.md).
   arrive triggers and real rewards — all **authored in simple AMD files**.
 - **A proper Quest Log** you can accept and abandon quests from.
 - **Multi-step bridge stories** that unfold a step at a time.
+- **Quest-driven end-game.** A mission is now a **tree of quests** — a parent mission
+  with children marked **required** (must finish to win) or **critical** (fail one and
+  the game is lost). Quests can carry an **end_win** / **end_lose** outcome and **fail
+  triggers** (a signal fires, a target dies, or a timer expires), so the whole win/lose
+  condition is **authored in AMD**, not hand-wired in script. The Siege bosses use this
+  to hang their objectives on the siege's mission tree.
 
 Docs: [Quests](build/quests.md).
 
@@ -76,8 +82,29 @@ Docs: [Web pages](build/web-pages.md) · [Serving web pages](tooling/web-proxy.m
 - **Share the exact setup** with per-map **seed options** and a **shareable game
   code**.
 - **Optional bonus objectives** for skilled crews.
+- **Survive Clock option.** Choose what the time limit *means*: **Win** = outlast the
+  clock to hold the line, or **Loss** = break the siege before time runs out or you
+  lose. One dropdown flips a defensive hold into a race against the clock.
 
-Playing & hosting: [LegendaryMissions](legendarymissions/index.md).
+### 💀 Bosses
+
+The Siege can now escalate into a **boss** that warps in when the raiders thin out —
+picked from a new **Boss** dropdown:
+
+- **Warlord** — a named enemy flagship and honor-guard reinforcements.
+- **Continuous** — endless waves until the clock nears its end, then the attackers
+  break off in retreat for a hard-won defender victory.
+- **Ragnarok** — the renegade "42 Fleet" led by a Terran juggernaut. Beat it outright,
+  or have your comms officer **hail XORN** and turn one of its captains to your side.
+- **Infestation** — a **BioMech** swarm that drifts neutral and feeds on asteroids
+  until you provoke it, then wakes as a collective, **evolves through four stages**,
+  and **breeds** — with the sentient Stage 4 hailable to calm or enrage.
+
+Bosses are **data-driven and folder-scanned** — each is a small file in `maps/bosses/`,
+so authoring a new one is just dropping in a file.
+
+Playing & hosting: [LegendaryMissions](legendarymissions/index.md) ·
+Authors: [Writing a Siege boss](legendarymissions/script/bosses.md).
 
 ## 🏆 Game Results & Scorekeeping
 
