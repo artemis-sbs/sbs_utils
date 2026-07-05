@@ -1,4 +1,12 @@
 from sbs_utils.helpers import FrameContext
+from sbs_utils.mast.pollresults import PollResults
+from sbs_utils.futures import Promise
+def _resolve_signal_waiters (name, data):
+    """Fire all tasks currently awaiting ``name`` (one-shot) and clear them."""
+def _signal_waiter_remove (name, prom):
+    ...
+def awaitable (func):
+    ...
 def signal_emit (name, data=None):
     """Emit a named signal, running all registered ``//signal/<name>`` routes.
     
@@ -9,6 +17,25 @@ def signal_emit (name, data=None):
         name (str): The signal name.
         data (dict, optional): Arbitrary data passed to each signal handler.
             Defaults to None."""
+def signal_next (name, timeout=None) -> sbs_utils.procedural.signal.SignalPromise:
+    """Suspend the current task until the next ``signal_emit(name)``.
+    
+    Resolves with that emit's data (may be ``None``). One-shot - loop it to
+    react to each occurrence; for persistent reaction use a ``//signal/<name>``
+    route. Composes with ``promise_any`` for event-or-timeout, or pass
+    ``timeout`` (application seconds) to resolve with ``None`` on expiry.
+    
+    Args:
+        name (str): Signal name to wait for.
+        timeout (float, optional): Seconds to wait before resolving with
+            ``None`` (``timed_out`` set). Defaults to None (wait forever).
+    
+    Returns:
+        SignalPromise: Await it; the value is the emitted data.
+    
+    Example:
+        data = await signal_next("wave_cleared")
+        result = await promise_any(signal_next("docked"), delay_sim(30))"""
 def signal_register (name, label, server=False, task=None, loc=0, is_jump=True, is_temporary=False):
     """Register a label as a handler for a named signal.
     
@@ -29,7 +56,26 @@ def signal_register (name, label, server=False, task=None, loc=0, is_jump=True, 
         is_temporary (bool, optional): If ``True``, attach the handler to a
             transient idle task that is cleaned up on the next GUI load.
             Defaults to False."""
+def signal_waiters_clear ():
+    """Drop all pending signal_next waiters (call on mission reset)."""
 class SignalLabelInfo(object):
     """class SignalLabelInfo"""
     def __init__ (self, is_jump, label, loc, server) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+class SignalPromise(Promise):
+    """Resolves the next time ``name`` is emitted (one-shot).
+    
+    ``result()`` is the emitted data dict (which may be ``None``). With a
+    ``timeout`` (application seconds, so it advances even while the sim is
+    paused) it resolves with ``None`` and sets ``timed_out = True`` if the
+    signal does not arrive in time."""
+    def __init__ (self, name, timeout=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def _fire (self, data):
+        ...
+    def cancel (self, msg=None):
+        ...
+    def done (self):
+        ...
+    def poll (self):
+        ...

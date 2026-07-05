@@ -11,6 +11,11 @@ def get_client_aspect_ratio (cid):
 class Gui(object):
     """class GUI
     Manages the GUI pages for all clients"""
+    def _find_web_label (story, path):
+        """Resolve a web path (e.g. "scores" or "web/scores") to its
+        //web/<path> route label name within ``story``, or None if no such
+        route exists. Resolving against the story that will actually run the
+        page keeps the label name and the scheduler in sync."""
     def add_client (event):
         """add_client
         
@@ -79,6 +84,23 @@ class Gui(object):
         
         :param cls_page:  The class of the page to create
         :type class: A python class typically a Page"""
+    def web_page_close (client_id):
+        """Tear down a web-page session (browser disconnected)."""
+    def web_page_navigate (client_id, path, data=None):
+        """Send an existing web session to a different //web/<path> in-session.
+        
+        Returns True if the target web route exists. Unlike opening a new
+        browser URL, this reuses the same web client/session."""
+    def web_page_open (client_id, path, data=None):
+        """Open a MAST //web/<path> route as a GUI session for a web client.
+        
+        Web clients are browsers connected to a web transport rather than the
+        engine console list. They get a normal StoryPage/GuiClient (so widget
+        events and rendering flow through the usual path), but the GUI task is
+        started at the matched //web/<path> route label and the session is
+        exempt from the engine-console purge in Gui.present.
+        
+        Returns True if a matching web route was found and opened."""
 class GuiClient(Agent):
     """Manages the pages for a client
     

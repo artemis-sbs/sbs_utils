@@ -1,19 +1,22 @@
 from enum import IntEnum
 class PollResults(IntEnum):
-    """int([x]) -> integer
-    int(x, base=10) -> integer
+    """Result of a runtime node ``poll()`` — tells the ticker what to do next.
     
-    Convert a number or string to an integer, or return 0 if no arguments
-    are given.  If x is a number, return x.__int__().  For floating point
-    numbers, this truncates towards zero.
+    Flow results:
+    - ``OK_JUMP``         — control moved (jump/pop applied); re-loop, don't advance.
+    - ``OK_ADVANCE_TRUE`` / ``OK_ADVANCE_FALSE`` — step to the next command
+      (the TRUE/FALSE distinction carries a condition outcome for the caller).
+    - ``OK_RUN_AGAIN``    — keep polling this same node next tick.
+    - ``OK_YIELD``        — advance, but the task yields this tick (see
+      ``yields_once``).
+    - ``OK_IDLE``         — behavior-tree "still running"; stop ticking this pass.
     
-    If x is not a number or if base is given, then x must be a string,
-    bytes, or bytearray instance representing an integer literal in the
-    given base.  The literal can be preceded by '+' or '-' and be surrounded
-    by whitespace.  The base defaults to 10.  Valid bases are 0 and 2-36.
-    Base 0 means to interpret the base from the string as an integer literal.
-    >>> int('0b100', base=0)
-    4"""
+    Terminal results — NOTE the deliberate value aliasing (IntEnum collapses
+    equal values, so the later names are *aliases* of the first):
+    - ``OK_END == OK_SUCCESS == BT_SUCCESS == 99``  (success / normal end)
+    - ``FAIL_END == BT_FAIL == 100``                 (failure end)
+    The ``BT_*`` / ``*_SUCCESS`` spellings exist so behavior-tree code reads
+    naturally; they are the same values as the flow ``*_END`` results."""
     FAIL_END : 100
     OK_ADVANCE_FALSE : 3
     OK_ADVANCE_TRUE : 2

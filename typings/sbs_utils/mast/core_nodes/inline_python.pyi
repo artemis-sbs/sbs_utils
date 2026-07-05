@@ -12,7 +12,7 @@ class PyCode(MastNode):
     """class PyCode"""
     def __init__ (self, py_cmds=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
+    def parse (src, pos=0):
         ...
 class PyCodeRuntimeNode(MastRuntimeNode):
     """class PyCodeRuntimeNode"""

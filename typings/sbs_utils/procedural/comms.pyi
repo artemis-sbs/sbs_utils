@@ -103,6 +103,45 @@ def comms_info (name, face=None, color=None) -> None:
     
     Example:
         comms_info("Commander Karn", face="crew/karn", color="red")"""
+def comms_info_card (client_id, message=None, title=None, color=None, face=None, icon_index=None, banner=None, button=None, time=10, history=True, path=None):
+    """Send an "incoming comms" card to one or more clients' info panel.
+    
+    A reusable wrapper over ``gui_info_panel_send_message`` for narrative / ambient
+    comms that should read as a hail - a speaker name + color (and optional
+    face/icon/banner), kept in the panel's history and auto-dismissed - instead of
+    an ephemeral text-waterfall line. Use this for chatter, hails, and quest
+    hand-offs; keep ``comms_broadcast`` for pure mechanical status text.
+    
+    The ``color`` is applied to both the title and the body. If ``button`` is
+    given, the call returns an awaitable ``Promise`` that resolves when a player
+    presses it (so the card can ask for a decision).
+    
+    Args:
+        client_id (int | set): Client/console id(s) to receive the card. Commonly
+            ``all_roles("console, comms")`` or a ship's linked comms consoles.
+        message (str, optional): Card body text.
+        title (str, optional): Header line - typically the speaker / clan name.
+        color (str, optional): Color for the title and body (name or hex).
+        face (str, optional): Face/portrait string to show alongside the message.
+        icon_index (int, optional): Icon index to show alongside the message.
+        banner (str, optional): Larger banner text above the title.
+        button (str | list, optional): Button label(s); when set the call returns
+            an awaitable Promise that resolves on press.
+        time (int, optional): Auto-dismiss after this many seconds (when there is
+            no button). Defaults to 10.
+        history (bool, optional): Keep the card in panel history. Defaults to True.
+        path (str, optional): Info-panel tab path. Defaults to ``"message"``.
+    
+    Returns:
+        Promise | None: Resolves on button press, or None if no button was given.
+    
+    Example:
+        comms_info_card(all_roles("console, comms"),
+            "You're a long way from friends, captain.",
+            title="Ashfang Raiders", color="#ee3333")"""
+def comms_info_clear (client_id, path=None):
+    """Clear a client's info-panel comms tab (no message) and fall back to the
+    ship-data tab. Mirrors the HereThereBeMonsters clear-comms idiom."""
 def comms_info_face_override (face=None) -> None:
     """Override the face portrait shown in the comms panel for this interaction.
     
@@ -374,6 +413,42 @@ def get_inventory_value (id_or_object, key: str, default=None):
     
     Returns:
         any: The inventory value, or ``default`` if the key is not set."""
+def gui_info_panel_send_message (client_id, message=None, message_color=None, path=None, title=None, title_color=None, banner=None, banner_color=None, face=None, icon_index=None, icon_color=None, button=None, history=True, time=-1):
+    """Send a message card to a client's info panel.
+    
+    The message is queued under the given ``path`` tab and displayed when that
+    tab is active. If a ``button`` label is provided the call suspends until the
+    player presses it. Messages are stored in history (up to 9 items) unless
+    ``history=False``.
+    
+    Args:
+        client_id (int | set): Client(s) to receive the message.
+        message (str, optional): Main body text.
+        message_color (str, optional): CSS color for the body text.
+        path (str, optional): Tab path to place the message in. Defaults to
+            ``"message"``.
+        title (str, optional): Bold header line above the message.
+        title_color (str, optional): CSS color for the title.
+        banner (str, optional): Larger banner text shown above the title.
+        banner_color (str, optional): CSS color for the banner.
+        face (str, optional): Face/portrait key to display alongside the message.
+        icon_index (int, optional): Icon index to display alongside the message.
+        icon_color (str, optional): CSS color for the icon.
+        button (str | list, optional): Button label(s) to show. When set the
+            function returns an awaitable Promise that resolves on button press.
+        history (bool, optional): Append to message history. Defaults to True.
+        time (int, optional): Auto-dismiss after this many seconds if no button
+            is configured. Defaults to -1 (use panel default of 10 s).
+    
+    Returns:
+        Promise | None: Resolves when the button is pressed, or None if no
+            button was specified.
+    
+    Example:
+        await gui_info_panel_send_message(CLIENT_ID,
+            title="New Orders",
+            message="Report to DS1 immediately.",
+            face="captain")"""
 def gui_properties_set (p=None, tag=None):
     """Update the data displayed in a property list box.
     

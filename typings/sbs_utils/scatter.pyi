@@ -1,5 +1,8 @@
 from collections.abc import Generator
+from random import Random
 from sbs_utils.vec import Vec3
+def _mix (*vals):
+    ...
 def arc (count, x, y, z, r, start=0.0, end=90.0, random=False) -> collections.abc.Generator:
     """Calculate the points along an circular arc.
     
@@ -58,6 +61,47 @@ def box_fill (cw, ch, cd, x, y, z, w, h, d, random=False, ax=0, ay=0, az=0, degr
     
     Returns:
         points (Generator): A generator of Vec3    """
+def cell_roll (key, cell, x, z, salt=0):
+    """Deterministic value in [0, 1) for the lattice cell containing (x, z).
+    
+    Use it to make position-keyed decisions about a point from
+    :func:`grid_keyed` - asteroid vs nebula vs empty, station present, POI kind -
+    so the *contents* match across map sizes too, not just positions. ``salt``
+    selects independent rolls for independent decisions. Reliable because
+    grid_keyed keeps each point inside its own cell.
+    
+    Args:
+        key (int): Same world/map seed used with grid_keyed.
+        cell (float): Same cell size used with grid_keyed.
+        x, z (float): A point's world coordinates.
+        salt (int): Distinguishes independent decisions for the same cell.
+    
+    Returns:
+        float: A stable pseudo-random value in [0, 1)."""
+def grid_keyed (key, cell, x_min, z_min, x_max, z_max, y_min=0, y_max=0, drift=1.0, radius=None):
+    """Position-keyed scatter over a global lattice anchored at the origin.
+    
+    One point is produced per grid cell whose center lies within the bounds.
+    Each cell's jitter and height come from a per-cell RNG seeded by
+    ``(key, ix, iz)``, so a cell at a given world position is identical no matter
+    what bounds are requested. A smaller region is therefore exactly the centered
+    subset of a larger one - the basis for "small maps match big maps" and for a
+    sector-based universe that regenerates from only its seed.
+    
+    Args:
+        key (int): The world/map seed. A concrete value is reproducible; 0 is a
+            valid, reproducible seed (NOT "random"). Callers that want a random
+            map pass a random int so grid_keyed and cell_roll share it.
+        cell (float): Square cell size in world units.
+        x_min, z_min, x_max, z_max (float): World-space bounds (inclusive).
+        y_min, y_max (float): Height range; a single value when equal.
+        drift (float): Jitter as a fraction of the cell; clamped to <= 1 so each
+            point stays inside its own cell (lets cell_roll recover the cell).
+        radius (float, optional): If set, drop points farther than this from the
+            origin (circular clip).
+    
+    Returns:
+        list[Vec3]: Points in deterministic lattice order."""
 def line (count, start_x, start_y, start_z, end_x, end_y, end_z, random=False) -> collections.abc.Generator:
     """Calculate the points along a line.
     

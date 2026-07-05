@@ -5,5 +5,5 @@ class Import(MastNode):
     """class Import"""
     def __init__ (self, name, lib=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
+    def parse (src, pos=0):
         ...

@@ -19,6 +19,11 @@ def version_get_minor ():
     ...
 class MastGlobals(object):
     """class MastGlobals"""
+    def get_mission_py_module (scope_key):
+        """Get-or-create the shared namespace module for a mission (by basedir).
+        
+        Real builtins are present (so float/Exception/getattr/etc. keep working),
+        unlike MastGlobals.globals which is a curated MAST-eval whitelist."""
     def import_python_function (func, name=None):
         """Import a python function as a global and optionally specify a name for it.
         Args:
@@ -34,3 +39,7 @@ class MastGlobals(object):
         Args:
             mod_name (str): The name of the module
             prepend (str): The string to prepend to the function names"""
+    def register_mission_functions (mod):
+        """Register the functions DEFINED in a mission's shared namespace as MAST
+        globals so .mast can call them. Functions imported from libraries keep their
+        own __module__, so only this mission's own defs are added (not re-exports)."""

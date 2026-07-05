@@ -8,18 +8,38 @@ from pathlib import Path
 from zipfile import ZipFile
 def DEBUG (msg):
     ...
+def _candidates_for (nodes, ch):
+    ...
+def _node_first_chars (node_cls):
+    ...
 def find_exp_end (s, expect_block):
     ...
-def first_newline_index (s):
+def first_chars_for_pattern (pattern):
+    """Return a set of possible first chars, or None for 'matches anything'."""
+def first_newline_index (s, start=0):
     ...
-def first_non_newline_index (s):
+def first_non_newline_index (s, start=0):
     ...
 def first_non_space_index (s):
     ...
-def first_non_whitespace_index (s):
+def first_non_whitespace_index (s, start=0):
     ...
 def format_exception (message, source):
     ...
+def join_bracket_continuations (src):
+    ...
+class CompileContext(object):
+    """Per-compile scratch state for block-structured nodes.
+    
+    if/match/await/on/for nodes need to track their open blocks while parsing.
+    This state used to live as class attributes on the node types and was shared
+    across every compile, so an aborted compile (we bail early on the first
+    error) or a nested import (imports compile recursively mid-parse) could
+    corrupt the next/outer compile -- e.g. `if_chains` keyed only by indent could
+    alias unrelated blocks. Each `_compile` now gets its own context, reached by
+    nodes through `compile_info.ctx`."""
+    def __init__ (self):
+        """Initialize self.  See help(type(self)) for accurate signature."""
 class ExpParseData(object):
     """class ExpParseData"""
     def __init__ (self):

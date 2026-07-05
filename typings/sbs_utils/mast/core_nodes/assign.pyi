@@ -12,7 +12,7 @@ class Assign(MastNode):
     """class Assign"""
     def __init__ (self, is_default, scope, lhs, oper, exp, a_wait=None, quote=None, py=None, yaml=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
+    def parse (src, pos=0):
         ...
 class AssignRuntimeNode(MastRuntimeNode):
     """class AssignRuntimeNode"""

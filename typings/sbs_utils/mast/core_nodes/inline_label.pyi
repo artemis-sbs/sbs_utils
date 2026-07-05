@@ -11,7 +11,7 @@ class InlineLabel(MastNode):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def never_indent (self):
         ...
-    def parse (lines):
+    def parse (src, pos=0):
         ...
 class InlineLabelRuntimeNode(MastRuntimeNode):
     """class InlineLabelRuntimeNode"""

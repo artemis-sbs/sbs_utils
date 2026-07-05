@@ -409,7 +409,7 @@ class HandleLifetime(object):
     """class HandleLifetime"""
     def __init__ (self, lifecycle, label, filter_func=None) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def selected (self, so):
+    def selected (self, so, event=None):
         ...
 class RouteCommsFocus(RouteConsole):
     """decorator for routing to a python function or python class method

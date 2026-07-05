@@ -1,11 +1,12 @@
 from sbs_utils.agent import Agent
 from sbs_utils.mast.core_nodes.comment import Comment
-from enum import Enum
+from sbs_utils.mast.mast import CompileContext
 from sbs_utils.mast.mast import ExpParseData
 from sbs_utils.mast.mast import InlineData
 from sbs_utils.mast.mast import Mast
 from sbs_utils.mast.mast import Rule
 from sbs_utils.mast.mast import SourceMapData
+from enum import Enum
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.core_nodes.inline_label import InlineLabel
 from sbs_utils.mast.core_nodes.label import Label
@@ -23,19 +24,23 @@ def DEBUG (msg):
     ...
 def find_exp_end (s, expect_block):
     ...
-def first_newline_index (s):
+def first_chars_for_pattern (pattern):
+    """Return a set of possible first chars, or None for 'matches anything'."""
+def first_newline_index (s, start=0):
     ...
-def first_non_newline_index (s):
+def first_non_newline_index (s, start=0):
     ...
 def first_non_space_index (s):
     ...
-def first_non_whitespace_index (s):
+def first_non_whitespace_index (s, start=0):
     ...
 def format_exception (message, source):
     ...
 def get_fall_through (inner):
     ...
 def get_task_id ():
+    ...
+def join_bracket_continuations (src):
     ...
 class ChangeRuntimeNode(MastRuntimeNode):
     """class ChangeRuntimeNode"""
@@ -246,7 +251,41 @@ class MastScheduler(Agent):
     def tick (self):
         ...
 class MastTicker(object):
-    """class MastTicker"""
+    """Interpreter for one task's compiled `.mast` (BASIC-like linear flow).
+    
+    State
+    -----
+    - ``active_label`` / ``active_cmd`` / ``cmds`` — the current label name, the
+      index of the current command within it, and that label's command list.
+    - ``runtime_node`` — the live runtime instance for the current command
+      (built in ``next()`` via ``enter()``, retired via ``leave()``).
+    - ``last_poll_result`` — the most recent ``PollResults`` (drives the caller).
+    - ``done`` — task finished.
+    
+    Control transfer is *deferred*: methods set ``pending_jump`` /
+    ``pending_pop``, and ``tick()`` applies them at the top of its loop.
+    **``pending_jump`` always wins over ``pending_pop``.**
+    
+    - ``jump(label, cmd)`` — request a jump (sets ``pending_jump``). A jump also
+      unwinds any outstanding inline-block frames (see ``pop_on_jump``), because
+      jumping out of an inline context abandons it.
+    - ``do_jump(...)`` — performs the jump: resolves the target (label name,
+      sub/inline label, or runtime node), repoints ``cmds`` /
+      ``active_label`` / ``active_cmd``, then ``next()``.
+    - ``do_resume(...)`` — re-enters a *saved* ``runtime_node`` (used when an
+      inline block pops back to resume the very node that pushed it).
+    
+    label_stack (a list of ``PushData``) has two push styles:
+    - ``push_label`` — a true "call": saves ``(active_label, active_cmd)`` and
+      jumps; the matching ``pop_label`` returns to ``active_cmd + 1``.
+    - ``push_inline_block`` — for buttons / dropdowns / event routes that run a
+      block and then **resume the same runtime node** that was active when they
+      fired. It saves the node too and bumps ``pop_on_jump``.
+    
+    ``pop_on_jump`` counts inline-block frames that must be auto-unwound the next
+    time we ``jump`` (a jump escapes the inline context). ``pop_label`` chooses
+    between resuming the saved node (``do_resume``) and treating the pop like a
+    jump back to the caller's next command."""
     def __init__ (self, task, main):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def call_leave (self):

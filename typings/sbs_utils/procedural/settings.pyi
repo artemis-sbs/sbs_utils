@@ -1,3 +1,10 @@
+def _runtime_settings_override ():
+    """Settings overrides supplied at runtime via the ``COSMOS_SETTINGS`` env var
+    (a JSON object), highest priority and requiring no ``settings.yaml`` edit.
+    
+    Used by tooling such as ``sbs debug --set AUTO_START=true``. Top-level keys
+    replace the file/built-in values (e.g. ``{"AUTO_PLAY": {"enable": true}}``
+    replaces the whole AUTO_PLAY entry)."""
 def get_mission_dir_filename (filename):
     """Get the full path to a file in the current mission directory.
     
@@ -45,3 +52,20 @@ def settings_get_defaults ():
     
     Returns:
         dict: The default settings mapping."""
+def settings_seed_apply (value=None):
+    """Seed the global RNG so a run is reproducible.
+    
+    Every random draw in sbs_utils flows through Python's single global
+    ``random.Random`` instance -- both module-level ``random.*`` calls and the
+    ``from random import ...`` bindings (scatter, vec) resolve to it -- so one
+    seed here makes terrain scatter, fleet-race weights, dialogue ``%``
+    selection, faces, and names all reproducible.
+    
+    Args:
+        value (int|None): explicit seed. If ``None`` the ``seed_value`` setting
+            is used. A falsy seed (the default ``0`` = "don't care") means pick
+            one: a fresh entropy-based seed is generated, applied, and returned,
+            so a run can always be reproduced later by passing the value back.
+    
+    Returns:
+        int: the seed actually applied."""

@@ -1,0 +1,6 @@
+def _first_set (seq, i=0):
+    ...
+def _in_first_chars (items):
+    ...
+def first_chars_for_pattern (pattern):
+    """Return a set of possible first chars, or None for 'matches anything'."""

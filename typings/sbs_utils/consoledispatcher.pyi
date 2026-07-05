@@ -77,6 +77,8 @@ class ConsoleDispatcher(object):
         :type console: string
         :param cb: call back function
         :type cb:  should have arguments of other ctx and object's id"""
+    def clear ():
+        """Drop all registered console routes (fresh mission / in-process recompile)."""
     def convert (event):
         ...
     def convert_to_console_id (event):

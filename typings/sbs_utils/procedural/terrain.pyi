@@ -117,6 +117,26 @@ def terrain_asteroid_clusters (terrain_value, center=None, selectable=False, poi
     
     Returns:
         list[Vec3]: The cluster centre positions used."""
+def terrain_field_plan_keyed (key, cell, x_min, z_min, x_max, z_max, nebula_chance, asteroid_chance, exclude=None, exclude_radius=0, y_min=-375, y_max=375):
+    """Decide what the keyed terrain field contains, without spawning.
+    
+    Walks the global lattice (``scatter.grid_keyed``) and, per cell, uses
+    ``scatter.cell_roll`` to pick nebula / asteroid / empty. Pure and
+    deterministic: the same ``(key, cell)`` yields the same plan for any cell, so
+    a smaller region is the centered subset of a larger one. ``exclude`` points
+    (e.g. stations) within ``exclude_radius`` are skipped.
+    
+    Args:
+        key (int): World/map seed (concrete; caller maps "random" to a random int).
+        cell (float): Lattice cell size.
+        x_min, z_min, x_max, z_max (float): World bounds.
+        nebula_chance, asteroid_chance (float): Per-cell probabilities (0..1).
+        exclude (list, optional): Points/objects to keep clear of.
+        exclude_radius (float): Clearance radius around ``exclude``.
+        y_min, y_max (float): Height range for the points.
+    
+    Returns:
+        list[tuple[Vec3, str]]: ``(position, "nebula"|"asteroid")`` entries."""
 def terrain_nebula_color (cluster_color):
     ...
 def terrain_nebula_spawn (v2, height, cluster_color, diameter, density, selectable):
@@ -266,6 +286,19 @@ def terrain_spawn_black_holes (lethal_value, center=None, points=None):
     
     Returns:
         list[SpaceObject]: The spawned black hole objects."""
+def terrain_spawn_field_keyed (key, cell, x_min, z_min, x_max, z_max, terrain_value, nebula_chance, asteroid_chance, y_min=-375, y_max=375, exclude=None, exclude_radius=0, selectable=False, marker=True):
+    """Spawn a position-keyed asteroid / nebula field over the given bounds.
+    
+    The field is a pure function of ``(key, position)``: the same seed produces
+    the same field, and a small map is the centered subset of a large one. Each
+    cluster's contents come from a per-cell RNG (the global RNG is re-seeded per
+    cell from the cell's coords and restored afterward), so the existing
+    cluster-spawn code is reused and stays deterministic. ``terrain_value``
+    (0-4) controls cluster richness; ``nebula_chance`` / ``asteroid_chance`` are
+    per-cell probabilities.
+    
+    Returns:
+        list[tuple[Vec3, str]]: the plan that was spawned."""
 def terrain_spawn_monsters (monster_value, center=None, points=None):
     """Spawn Typhon-class monster prefabs based on the monster difficulty value.
     

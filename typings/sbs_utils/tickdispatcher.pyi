@@ -4,6 +4,8 @@ def get_task_id ():
     ...
 class TickDispatcher(object):
     """The Tick Dispatcher is used to manager timed items via the HandleSimulationTick"""
+    def clear ():
+        """Drop all scheduled ticks (fresh mission / in-process recompile)."""
     def dispatch_tick ():
         """Process all the tasks
         The task is updated to see if it should be triggered,

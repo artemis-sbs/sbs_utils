@@ -8,7 +8,7 @@ def func(*argv):
     """assign_client_to_alt_ship(clientComputerID: int, controlledShipID: int) -> None
     
     Tells a client computer that the 2d radar should focus on controlledShipID, instead of its assigned ship.  Turn this code off by providing zero as the second argument."""
-def handle_purge_tasks (so):
+def handle_purge_tasks (so, event=None):
     """This will clear out all tasks related to the destroyed item"""
 def mast_assert (cond):
     ...

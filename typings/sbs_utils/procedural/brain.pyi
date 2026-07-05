@@ -57,6 +57,18 @@ def brain_clear (agent_id_or_set):
     
     Example:
         brain_clear(ENEMY_ID)"""
+def brain_pause (agent_id_or_set, paused=True):
+    """Pause (or resume) one or more agents' brains without removing them.
+    
+    A paused brain is skipped by ``brains_run_all`` until resumed - used when an
+    object is parked on the standby list so its brain doesn't act on a
+    non-simulated object. The brain tree is preserved (unlike ``brain_clear``).
+    
+    Args:
+        agent_id_or_set: Agent ID, object, or set/list of either.
+        paused (bool, optional): True to pause, False to resume. Defaults True."""
+def brain_resume (agent_id_or_set):
+    """Resume one or more agents' brains (see ``brain_pause``)."""
 def brain_schedule ():
     """Schedule the brain tick task via the objective system."""
 def brains_run_all (tick_task):

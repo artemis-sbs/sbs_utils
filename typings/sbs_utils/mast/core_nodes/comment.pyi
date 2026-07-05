@@ -5,5 +5,5 @@ class Comment(MastNode):
     """class Comment"""
     def __init__ (self, com=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
+    def parse (src, pos=0):
         ...

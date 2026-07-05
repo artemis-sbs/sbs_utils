@@ -10,7 +10,7 @@ class LoopBreak(MastNode):
     """class LoopBreak"""
     def __init__ (self, op=None, name=None, if_exp=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
+    def parse (src, pos=0):
         ...
 class LoopBreakRuntimeNode(MastRuntimeNode):
     """class LoopBreakRuntimeNode"""
@@ -22,7 +22,7 @@ class LoopEnd(MastNode):
     """LoopEnd is a node that is injected to allow loops to know where the end is"""
     def __init__ (self, start=None, name=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
+    def parse (src, pos=0):
         ...
 class LoopEndRuntimeNode(MastRuntimeNode):
     """class LoopEndRuntimeNode"""
@@ -38,7 +38,7 @@ class LoopStart(MastNode):
         ...
     def must_indent (self):
         ...
-    def parse (lines):
+    def parse (src, pos=0):
         ...
     def post_dedent (self, compile_info):
         ...

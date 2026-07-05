@@ -26,6 +26,8 @@ class GridDispatcher(object):
         Args:
             id (int): The unique identifier of the grid point.
             cb (Callable): Callback function to invoke when the point is selected."""
+    def clear ():
+        """Drop all registered grid routes (fresh mission / in-process recompile)."""
     def dispatch_grid_event (event):
         """Dispatch a grid event to registered callbacks.
         

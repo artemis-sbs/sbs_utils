@@ -25,7 +25,7 @@ class AppendText(MastNode):
     """class AppendText"""
     def __init__ (self, message, if_exp, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
+    def parse (src, pos=0):
         ...
 class AppendTextRuntimeNode(MastRuntimeNode):
     """class AppendTextRuntimeNode"""
@@ -35,7 +35,7 @@ class Text(MastNode):
     """class Text"""
     def __init__ (self, message, if_exp, style_name=None, style=None, style_q=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
+    def parse (src, pos=0):
         ...
 class TextRuntimeNode(MastRuntimeNode):
     """class TextRuntimeNode"""

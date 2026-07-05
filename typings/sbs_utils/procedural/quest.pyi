@@ -2,7 +2,9 @@ from sbs_utils.agent import Agent
 from sbs_utils.helpers import FrameContext
 from enum import IntEnum
 from sbs_utils.mast.mast_node import MastDataObject
-def _document_get_amd_file (file_path, root_display_text='', strip_comments=True, content=None):
+def _amd_slug (text):
+    """A heading display -> a key: lowercase, non-alphanumeric runs -> single '_'."""
+def _document_get_amd_file (file_path, root_display_text='', strip_comments=True, content=None, data_parser=None, allow_bare_headings=False):
     ...
 def document_flatten (doc_obj, header=None, indent=0, data=None):
     """Flatten a nested quest/document tree into an ordered display list.
@@ -20,7 +22,7 @@ def document_flatten (doc_obj, header=None, indent=0, data=None):
     
     Returns:
         list: Flat ordered list of ``gui_list_box_header`` items."""
-def document_get_amd_file (file_path, root_display_text='', strip_comments=True, content=None):
+def document_get_amd_file (file_path, root_display_text='', strip_comments=True, content=None, data_parser=None, allow_bare_headings=False):
     """Parse an AMD markdown file into a nested quest/document structure.
     
     AMD files use ``# [Display Name](key)`` headings to define hierarchical
@@ -343,6 +345,24 @@ def quest_is_console_enabled (console):
     Example:
         if quest_is_console_enabled("helm"):
             ~~ show_quest_panel() ~~"""
+def quest_kill_count_for_difficulty (count, difficulty, baseline=5, grind_min=3, floor=1):
+    """Scale a 'grind' kill target to the current difficulty.
+    
+    The authored ``count`` is treated as the target at ``baseline`` difficulty and
+    scaled linearly (``count * difficulty / baseline``). Only grind-sized targets
+    (``>= grind_min``) scale, so single-target / boss kill quests are left exactly
+    as authored. The result never drops below ``floor``.
+    
+    Args:
+        count (int): Authored kill target (the value at ``baseline`` difficulty).
+        difficulty (float): Current difficulty (e.g. the DIFFICULTY setting).
+        baseline (int): Difficulty at which ``count`` is used unchanged. Default 5.
+        grind_min (int): Smallest target that scales; below this, return as-is.
+        floor (int): Minimum returned target.
+    
+    Returns:
+        int: The difficulty-adjusted kill target (or ``count`` unchanged if it is
+        below ``grind_min`` or the inputs aren't numeric)."""
 def quest_remove (agent, quest_id):
     """Remove a quest from an agent and return it.
     
@@ -374,9 +394,10 @@ def quest_set_key (agent, quest_id, key, value):
 def quest_set_state (agent, quest_id, state):
     """Set the state of a quest and emit the appropriate signal.
     
-    Emits ``quest_activated`` when ``state`` is ``QuestState.ACTIVE`` and
-    ``quest_completed`` when ``state`` is ``QuestState.COMPLETE``. Does
-    nothing if the quest is already in the requested state.
+    Emits ``quest_activated`` when ``state`` is ``QuestState.ACTIVE``,
+    ``quest_completed`` when ``state`` is ``QuestState.COMPLETE``, and
+    ``quest_failed`` when ``state`` is ``QuestState.FAILED``. Does nothing if
+    the quest is already in the requested state.
     
     Args:
         agent: Agent ID or object that owns the quest.

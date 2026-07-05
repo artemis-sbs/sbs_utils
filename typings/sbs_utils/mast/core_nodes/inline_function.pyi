@@ -10,7 +10,7 @@ class FuncCommand(MastNode):
     """class FuncCommand"""
     def __init__ (self, is_await=None, py_cmds=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
+    def parse (src, pos=0):
         ...
 class FuncCommandRuntimeNode(MastRuntimeNode):
     """class FuncCommandRuntimeNode"""

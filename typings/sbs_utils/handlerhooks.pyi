@@ -14,6 +14,8 @@ from sbs_utils.launchdispatcher import LaunchDispatcher
 from sbs_utils.lifetimedispatcher import LifetimeDispatcher
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.vec import Vec3
+def clear_shared ():
+    ...
 def cosmos_event_handler (sim, event):
     ...
 def format_exception (message, source):
@@ -46,6 +48,8 @@ def print_event (event):
     """Print the event data.
     Args:
         event (event): The event of interest."""
+def reset_mission_state ():
+    """Reset all per-mission runtime state for a fresh mission / in-process recompile."""
 def set_inventory_value (so, key: str, value):
     """Set an inventory value on one or more agents.
     

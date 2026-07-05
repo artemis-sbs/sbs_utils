@@ -9,7 +9,7 @@ class Jump(MastNode):
     """class Jump"""
     def __init__ (self, pop=None, jump=None, jump_name=None, if_exp=None, data=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def parse (lines):
+    def parse (src, pos=0):
         ...
 class JumpRuntimeNode(MastRuntimeNode):
     """class JumpRuntimeNode"""

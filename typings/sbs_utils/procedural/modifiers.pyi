@@ -1,16 +1,7 @@
 from sbs_utils.agent import Agent
-def AWAIT (promise: sbs_utils.futures.Promise) -> sbs_utils.futures.PromiseWaiter:
-    """Wrap a promise in a non-blocking waiter.
-    
-    Returns a ``PromiseWaiter`` whose ``done()`` method can be polled each tick
-    without suspending the current task.
-    
-    Args:
-        promise (Promise): The promise to wait on.
-    
-    Returns:
-        PromiseWaiter: A waiter that reports completion without blocking."""
 def awaitable (func):
+    ...
+def debug_print (*args, **kwargs):
     ...
 def delay_sim (seconds=0, minutes=0) -> sbs_utils.procedural.timers.Delay:
     """Suspend the current task for a duration measured in simulation time.
@@ -80,16 +71,6 @@ def get_time_remaining (id_or_obj, name):
         secs = get_time_remaining(SHIP_ID, "mission")
         if secs < 60:
             "Less than a minute remaining!""""
-def get_variable (key, default=None) -> any:
-    """Get the value of a variable from the current task's scope.
-    
-    Args:
-        key (str): Variable name.
-        default (optional): Value to return when the variable is absent.
-            Defaults to None.
-    
-    Returns:
-        any: The variable value, or ``default``."""
 def has_role (so, role):
     """Return whether an agent currently holds a given role.
     
@@ -255,12 +236,6 @@ def set_timer (id_or_obj, name, seconds=0, minutes=0):
         set_timer(SHIP_ID, "repair", seconds=30)
         if is_timer_finished(SHIP_ID, "repair"):
             "Repairs complete!""""
-def set_variable (key, value) -> None:
-    """Set a variable in the current task's scope.
-    
-    Args:
-        key (str): Variable name.
-        value (any): Value to assign."""
 def side_members_set (side):
     """Return the set of agent IDs that belong to a given side.
     
@@ -283,23 +258,6 @@ def signal_emit (name, data=None):
         name (str): The signal name.
         data (dict, optional): Arbitrary data passed to each signal handler.
             Defaults to None."""
-def task_schedule (label: str | sbs_utils.mast.core_nodes.label.Label, data=None, var: str = None, defer=False, inherit=True, unscheduled=False) -> 'MastAsyncTask':
-    """Schedule a new task starting at the given label.
-    
-    Args:
-        label (str | Label): The label to start the task at.
-        data (dict, optional): Initial task variables. Defaults to None.
-        var (str, optional): Variable name to store the created task. Defaults
-            to None.
-        defer (bool, optional): Defer first tick to the next frame. Defaults to
-            False.
-        inherit (bool, optional): Inherit parent task variables. Defaults to
-            True.
-        unscheduled (bool, optional): Create without scheduling immediately.
-            Defaults to False.
-    
-    Returns:
-        MastAsyncTask: The task created, or None outside a task context."""
 def to_blob (id_or_obj):
     """Return the engine data-set (blob) for an agent. Same as ``to_data_set``.
     

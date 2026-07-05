@@ -10,7 +10,7 @@ class DefineFormat(MastNode):
     def is_virtual (self):
         """Virtual nodes are not added to the command stack
         instead the interact with other nodes"""
-    def parse (lines):
+    def parse (src, pos=0):
         ...
     def resolve_colors (c):
         ...

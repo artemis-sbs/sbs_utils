@@ -6,6 +6,16 @@ def STRING_REGEX_NAMED_2 (name):
     ...
 def STRING_REGEX_NAMED_3 (name):
     ...
+def compile_format_string (message):
+    """Compile a MAST format string into a code object (eval mode).
+    
+    Text containing ``{`` is wrapped as an f-string and compiled so it can be
+    formatted later; other text is returned unchanged. A triple-quote delimiter
+    that does not occur in the text (and won't be escaped by a trailing quote)
+    is chosen so embedded quotes don't terminate the literal early. If the text
+    still cannot be wrapped safely, a clear error is raised rather than emitting
+    broken code (the old ``f"""{message}"""`` wrapping silently produced a
+    cryptic SyntaxError on any embedded triple-quote)."""
 def mast_node (append=True):
     ...
 class DescribableNode(MastNode):
@@ -21,8 +31,13 @@ class DescribableNode(MastNode):
     @property
     def desc (self):
         ...
-    def parse (lines):
+    def parse (src, pos=0):
         ...
+    def pick_option (self, task=None):
+        """Choose a line: drop gated lines whose condition is false (evaluated in
+        the task scope), then weighted-random among the rest. Returns None if
+        nothing is eligible (author should include an ungated fallback). Falls
+        back to uniform choice when no task or no gates are present."""
 class MastDataObject(object):
     """class MastDataObject"""
     def __init__ (self, dictionary):
@@ -50,7 +65,7 @@ class MastNode(object):
         ...
     def never_indent (self):
         ...
-    def parse (lines):
+    def parse (src, pos=0):
         ...
     def post_dedent (self, compile_info):
         ...
