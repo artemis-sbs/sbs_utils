@@ -30,6 +30,23 @@ TRIGGER_VERBS = {
 }
 
 
+def _resolve_role(target, aliases=None):
+    """A friendly role name -> its real role: apply an alias, else singularize
+    ('raiders' -> 'raider') but keep 'ss' words ('boss' stays 'boss')."""
+    aliases = aliases or {}
+    role = aliases.get(target.lower())
+    if role is None:
+        role = target.lower()
+        if role.endswith("s") and not role.endswith("ss"):
+            role = role[:-1]
+    return role
+
+
+def _signal_name(value):
+    """A signal name, lowercased with spaces -> underscores (matched exactly)."""
+    return str(value).strip().lower().replace(" ", "_")
+
+
 def amd_trigger(value, aliases=None):
     """'destroy 4 raiders' -> ('on_kill', {role: raider, count: 4}); 'reach 6, 4' ->
     ('on_reach', {sector: [6,4]}); 'signal x' -> ('on_signal', {name: x}). Returns
@@ -56,7 +73,7 @@ def amd_trigger(value, aliases=None):
         # single-token signal name; lowercase + underscores so `signal Eliminated Foe`
         # and `signal eliminated_foe` agree (quest_on_signal matches exactly).
         if target:
-            data["name"] = target.strip().lower().replace(" ", "_")
+            data["name"] = _signal_name(target)
         if count is not None:
             data["count"] = count
     elif kind == "key":
@@ -65,13 +82,7 @@ def amd_trigger(value, aliases=None):
         if count is not None:
             data["count"] = count
     else:  # role
-        role = aliases.get(target.lower())
-        if role is None:
-            role = target.lower()
-            # singularize "raiders" -> "raider", but keep "ss" words ("boss", "class")
-            if role.endswith("s") and not role.endswith("ss"):
-                role = role[:-1]
-        data["role"] = role
+        data["role"] = _resolve_role(target, aliases)
         data["count"] = count if count is not None else 1
     return trig, data
 
@@ -85,14 +96,18 @@ def amd_reward(value):
 
 
 def amd_quest_facts(aliases=None):
-    """Return an ``amd_parse_facts`` handler for the shared quest vocabulary:
-    Scope / State / Goal / When / Then / Pays / Win / Lose / Tier / Display.
+    """Return an ``amd_parse_facts`` handler for the shared quest vocabulary.
+
+    Objective/flow labels: Scope / State / Goal / When / Then / Pays / Tier / Display.
+    End-game + mission-tree labels: Win / Lose (bare flag -> end_win/end_lose; prose ->
+    also the win_text/lose_text reason), Parent, Required, Critical, and the fail
+    triggers Fail on signal / Fail on all dead / Fail after. These map to the data keys
+    the LM quest end-game driver reads (parent aggregation, end_win/end_lose game-over,
+    fail_on_signal/fail_on_all_dead/fail_after).
 
     Unknown labels return None, so a mission with extra vocabulary chains its own
-    handler after this one (or falls to amd_parse_facts's default coercion). Win/Lose
-    set ``end_win`` / ``end_lose`` - the keys the LM quest end-game driver reads to end
-    the game on a mission quest's terminal transition. ``aliases`` is forwarded to
-    ``amd_trigger``."""
+    handler after this one (or falls to amd_parse_facts's default coercion).
+    ``aliases`` is forwarded to ``amd_trigger`` / role resolution."""
     def handler(data, label, value):
         if label in ("scope", "state"):
             data[label] = value
@@ -117,7 +132,28 @@ def amd_quest_facts(aliases=None):
         elif label == "pays":
             data["reward"] = amd_reward(value)
         elif label in ("win", "lose"):
-            data["end_" + label] = str(value).strip().lower() in ("true", "yes", "1", "")
+            v = str(value).strip()
+            lo = v.lower()
+            if lo in ("false", "no", "0"):
+                data["end_" + label] = False
+            else:
+                data["end_" + label] = True
+                # prose after Win:/Lose: (not a bare flag) is the end-screen reason.
+                if lo not in ("true", "yes", "1", ""):
+                    data[label + "_text"] = v
+        # --- mission tree (the LM quest end-game structure) ---
+        elif label == "parent":
+            data["parent"] = str(value).strip()
+        elif label in ("required", "critical"):
+            data[label] = str(value).strip().lower() in ("true", "yes", "1", "")
+        elif label in ("fail on signal", "fail_on_signal"):
+            data["fail_on_signal"] = {"name": _signal_name(value)}
+        elif label in ("fail on all dead", "fail_on_all_dead"):
+            data["fail_on_all_dead"] = {"role": _resolve_role(str(value).strip(), aliases)}
+        elif label in ("fail after", "fail_after"):
+            n = next((int(t) for t in str(value).split() if t.isdigit()), 0)
+            unit = "seconds" if "second" in str(value).lower() else "minutes"
+            data["fail_after"] = {unit: n}
         else:
             return None
         return True

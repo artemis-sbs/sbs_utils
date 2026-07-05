@@ -85,5 +85,45 @@ class AmdQuestFactsTests(unittest.TestCase):
         self.assertEqual(amd_quest_data("When: the stars align")["when"], "the stars align")
 
 
+class MissionTreeTests(unittest.TestCase):
+    def test_parent_required_critical(self):
+        d = amd_quest_data("Parent: siege_mission\nRequired: true\nCritical: true")
+        self.assertEqual(d["parent"], "siege_mission")
+        self.assertTrue(d["required"])
+        self.assertTrue(d["critical"])
+
+    def test_win_prose_becomes_reason_text(self):
+        d = amd_quest_data("Win: Victory! The starbases held.")
+        self.assertTrue(d["end_win"])
+        self.assertEqual(d["win_text"], "Victory! The starbases held.")
+
+    def test_win_bare_flag_has_no_text(self):
+        d = amd_quest_data("Win: true")
+        self.assertTrue(d["end_win"])
+        self.assertNotIn("win_text", d)
+
+    def test_win_false(self):
+        self.assertFalse(amd_quest_data("Win: false")["end_win"])
+
+    def test_lose_prose(self):
+        d = amd_quest_data("Lose: The starbases have fallen.")
+        self.assertTrue(d["end_lose"])
+        self.assertEqual(d["lose_text"], "The starbases have fallen.")
+
+    def test_fail_on_signal(self):
+        self.assertEqual(amd_quest_data("Fail on signal: Siege Bases Lost")["fail_on_signal"],
+                         {"name": "siege_bases_lost"})
+
+    def test_fail_on_all_dead_keeps_boss_and_singularizes(self):
+        self.assertEqual(amd_quest_data("Fail on all dead: convoys")["fail_on_all_dead"],
+                         {"role": "convoy"})
+        self.assertEqual(amd_quest_data("Fail on all dead: boss")["fail_on_all_dead"],
+                         {"role": "boss"})
+
+    def test_fail_after_minutes_and_seconds(self):
+        self.assertEqual(amd_quest_data("Fail after: 10 minutes")["fail_after"], {"minutes": 10})
+        self.assertEqual(amd_quest_data("Fail after: 30 seconds")["fail_after"], {"seconds": 30})
+
+
 if __name__ == "__main__":
     unittest.main()
