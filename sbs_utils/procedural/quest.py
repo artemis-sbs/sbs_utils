@@ -15,7 +15,7 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.fs import load_yaml_string
 from enum import IntEnum
 from sbs_utils.agent import Agent
-from sbs_utils.procedural.gui.listbox import gui_list_box_header
+from sbs_utils.procedural.gui.listbox import gui_list_box_header, gui_list_box_is_header
 
 class QuestState(IntEnum):
     IDLE = 0
@@ -800,3 +800,101 @@ def document_get_amd_file(file_path, root_display_text="", strip_comments=True, 
     except Exception as e:
         return {"key": "__root__", "file_path": file_path,
             "children": [], "description":"", "display_text": e}
+
+# --- Shared quest-log GUI ----------------------------------------------------
+# One renderer for BOTH the in-game quest tab and the end-game results tab, so the
+# look is fixed in a single place; the callers differ ONLY in the `sources` list.
+QUEST_LOG_STATE_ICON = 101
+
+_QUEST_LOG_STATE_LABEL = {
+    int(QuestState.ACTIVE): "Active", int(QuestState.IDLE): "Available",
+    int(QuestState.COMPLETE): "Done", int(QuestState.FAILED): "Failed",
+    int(QuestState.POSTING): "Posted",
+}
+# The square state icon (101) recolored by state: amber active, gray available,
+# green done, red failed.
+_QUEST_LOG_STATE_ICON_COLOR = {
+    int(QuestState.ACTIVE): "#cc0", int(QuestState.IDLE): "#888",
+    int(QuestState.COMPLETE): "#151", int(QuestState.FAILED): "#a22",
+    int(QuestState.POSTING): "#88a",
+}
+# Row order within a section: active -> available/posted -> done -> failed.
+_QUEST_LOG_STATE_ORDER = {
+    int(QuestState.ACTIVE): 0, int(QuestState.IDLE): 1, int(QuestState.POSTING): 1,
+    int(QuestState.COMPLETE): 2, int(QuestState.FAILED): 3,
+}
+
+
+def quest_log_state_label(state):
+    """Display label for a quest state (Active / Available / Done / Failed / ...)."""
+    return _QUEST_LOG_STATE_LABEL.get(int(state or 0), "")
+
+
+def quest_log_state_icon_color(state):
+    """Hex color for the state icon (defaults to gray)."""
+    return _QUEST_LOG_STATE_ICON_COLOR.get(int(state or 0), "#888")
+
+
+def quest_log_build_items(sources):
+    """Build the collapsible quest-log item list shared by both logs.
+
+    `sources` is a list of (section_label, agent_id). Each becomes a
+    gui_list_box_header followed by that agent's non-SECRET quests (state-sorted);
+    empty sections are skipped. Rows are MastDataObject with agent_id / key / group
+    / title / state / state_label / progress / desc, so quest_log_template renders
+    them the same everywhere. The ONLY thing the two callers vary is `sources`.
+    """
+    items = []
+    for group, aid in sources:
+        rows = []
+        tree = quest_agent_quests(aid)
+        children = tree.get("children") if tree is not None else None
+        for qid, q in (children or {}).items():
+            st = int(q.get("state", QuestState.IDLE) or 0)
+            if st == int(QuestState.SECRET):
+                continue
+            rows.append(MastDataObject({
+                "agent_id": aid, "key": qid, "group": group,
+                "title": str(q.get("display_text", qid)), "state": st,
+                "state_label": quest_log_state_label(st),
+                "progress": q.get("progress", 0),
+                "desc": (q.get("description") or "").strip(),
+            }))
+        if not rows:
+            continue  # don't show an empty section header
+        rows.sort(key=lambda it: _QUEST_LOG_STATE_ORDER.get(it.get("state"), 9))
+        items.append(gui_list_box_header(str(group), False, 0, True, {"section": group}))
+        items.extend(rows)
+    return items
+
+
+def quest_log_title():
+    """Shared list title for the quest log."""
+    from sbs_utils.procedural.gui import gui_row, gui_text
+    gui_row("row-height: 1.2em;padding:13px;background:#1578;")
+    gui_text("$text:Quest Log;justify: left;")
+
+
+def quest_log_template(item):
+    """Canonical quest-log row renderer (section headers + quest rows), shared by
+    the in-game and end-game logs. Fix the look here and both update."""
+    from sbs_utils.procedural.gui import gui_row, gui_text, gui_icon
+    # Collapsible section header (Game / You / Ship / <ship name>): label + arrow.
+    if gui_list_box_is_header(item):
+        gui_row("row-height: 1.4em;padding:6px;")
+        icon_index = 155 if not item.collapse else 154
+        gui_text(f"$text:{item.label};justify: left;color:#fff;", "padding:5px,6px,0,0;background:#1578")
+        icon = gui_icon(f"icon_index:{icon_index};color:#fff;", "padding:0,0,5px,0;background:#1578;")
+        if item.selectable:
+            icon.click_text = ""
+            icon.click_tag = item.collapse_tag
+            icon.click_background = "#aaaa"
+            icon.click_color = "black"
+        return
+    # State icon (recolored) + title, then the state label on a second row.
+    icon_color = quest_log_state_icon_color(item.get("state"))
+    gui_row("row-height: 1.2em;padding:6px;")
+    gui_icon(f"icon_index:{QUEST_LOG_STATE_ICON};color:{icon_color};", "padding:5px,0,5px,0;")
+    gui_text(f"$text:{item.get('title')};justify: left;", "padding:5px,6px,0,0;")
+    gui_row("row-height: 1.0em;padding:6px;")
+    gui_text(f"$text:{quest_log_state_label(item.get('state'))};justify: left;font:gui-1")
