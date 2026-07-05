@@ -98,7 +98,8 @@ picked from a new **Boss** dropdown:
   or have your comms officer **hail XORN** and turn one of its captains to your side.
 - **Infestation** — a **BioMech** swarm that drifts neutral and feeds on asteroids
   until you provoke it, then wakes as a collective, **evolves through four stages**,
-  and **breeds** — with the sentient Stage 4 hailable to calm or enrage.
+  and **breeds** — with the sentient Stage 4 hailable to calm or enrage. BioMechs are a
+  reusable [addon](legendarymissions/addons/biomech.md) you can drop into any mission.
 
 Bosses are **data-driven and folder-scanned** — each is a small file in `maps/bosses/`,
 so authoring a new one is just dropping in a file.
