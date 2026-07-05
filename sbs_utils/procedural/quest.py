@@ -343,9 +343,10 @@ def quest_get_state(agent, quest_id):
 def quest_set_state(agent, quest_id, state):
     """Set the state of a quest and emit the appropriate signal.
 
-    Emits ``quest_activated`` when ``state`` is ``QuestState.ACTIVE`` and
-    ``quest_completed`` when ``state`` is ``QuestState.COMPLETE``. Does
-    nothing if the quest is already in the requested state.
+    Emits ``quest_activated`` when ``state`` is ``QuestState.ACTIVE``,
+    ``quest_completed`` when ``state`` is ``QuestState.COMPLETE``, and
+    ``quest_failed`` when ``state`` is ``QuestState.FAILED``. Does nothing if
+    the quest is already in the requested state.
 
     Args:
         agent: Agent ID or object that owns the quest.
@@ -355,12 +356,14 @@ def quest_set_state(agent, quest_id, state):
     cur_state = quest_get_state(agent, quest_id)
     if cur_state == state:
         return
-    
+
     quest = quest_get(agent, quest_id)
     if state == QuestState.ACTIVE:
         signal_emit("quest_activated", {"AGENT_ID": to_id(agent), "QUEST_ID": quest_id, "QUEST": quest})
     if state == QuestState.COMPLETE:
         signal_emit("quest_completed", {"AGENT_ID": to_id(agent), "QUEST_ID": quest_id, "QUEST": quest})
+    if state == QuestState.FAILED:
+        signal_emit("quest_failed", {"AGENT_ID": to_id(agent), "QUEST_ID": quest_id, "QUEST": quest})
 
 
 def quest_get_data(agent, quest_id):
