@@ -1283,6 +1283,19 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Signals
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1294,6 +1307,67 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#waiting-for-a-signal-signal_next" class="md-nav__link">
+    <span class="md-ellipsis">
+      Waiting for a signal: signal_next
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Waiting for a signal: signal_next">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#with-a-timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      With a timeout
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-or-timeout-with-promise_any" class="md-nav__link">
+    <span class="md-ellipsis">
+      Event or timeout with promise_any
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#route-vs-signal_next" class="md-nav__link">
+    <span class="md-ellipsis">
+      Route vs signal_next
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -4226,6 +4300,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -4301,12 +4379,58 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../legendarymissions/addons/biomech/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    BioMech
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../legendarymissions/script/maps/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     Maps & terrain
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../legendarymissions/script/bosses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Writing a Siege boss
     
   </span>
   
@@ -5024,6 +5148,56 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#waiting-for-a-signal-signal_next" class="md-nav__link">
+    <span class="md-ellipsis">
+      Waiting for a signal: signal_next
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Waiting for a signal: signal_next">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#with-a-timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      With a timeout
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-or-timeout-with-promise_any" class="md-nav__link">
+    <span class="md-ellipsis">
+      Event or timeout with promise_any
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#route-vs-signal_next" class="md-nav__link">
+    <span class="md-ellipsis">
+      Route vs signal_next
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -5121,6 +5295,120 @@
 </div>
 </div>
 </div>
+<h2 id="waiting-for-a-signal-signal_next">Waiting for a signal: <code>signal_next</code></h2>
+<p>A <code>//signal/&lt;name&gt;</code> route is a <strong>persistent</strong> handler — it fires every time the signal
+is emitted, from anywhere. Sometimes you instead want to <strong>pause a task at a point in
+its flow</strong> until the next emit. That's <code>await signal_next(name)</code>:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="4:1"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>data = await signal_next(&quot;wave_cleared&quot;)
+&quot;The wave is down - move up.&quot;
+</code></pre></div>
+</div>
+</div>
+</div>
+<ul>
+<li><strong>One-shot.</strong> It resolves on the <strong>next</strong> emit of <code>name</code> and returns that emit's
+  <strong>data</strong> (which may be <code>None</code>). To react repeatedly, loop it; for an always-on
+  handler, use a <code>//signal/&lt;name&gt;</code> route instead.</li>
+<li><strong>Resumes right where it waited</strong>, so it reads like a step in the story — no separate
+  route needed for a one-time beat.</li>
+</ul>
+<h3 id="with-a-timeout">With a timeout</h3>
+<p>Pass <code>timeout</code> (application seconds — it advances even while the sim is paused) to give
+up waiting; the await then resolves with <code>None</code>:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="5:1"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>data = await signal_next(&quot;reinforcements&quot;, timeout=30)
+if data is None:
+    &quot;No reinforcements came.&quot;
+</code></pre></div>
+</div>
+</div>
+</div>
+<h3 id="event-or-timeout-with-promise_any">Event or timeout with <code>promise_any</code></h3>
+<p><code>signal_next</code> composes with <code>promise_any</code>, which resolves with whichever finishes first
+— handy for "the event, or a fallback":</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="6:1"><input checked="checked" id="__tabbed_6_1" name="__tabbed_6" type="radio" /><div class="tabbed-labels"><label for="__tabbed_6_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>result = await promise_any(signal_next(&quot;docked&quot;), delay_sim(30))
+</code></pre></div>
+</div>
+</div>
+</div>
+<h3 id="route-vs-signal_next">Route vs <code>signal_next</code></h3>
+<table>
+<thead>
+<tr>
+<th>Use</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>//signal/&lt;name&gt;</code> route</td>
+<td>A <strong>persistent</strong> reaction that should fire <strong>every</strong> time, from anywhere.</td>
+</tr>
+<tr>
+<td><code>await signal_next(name)</code></td>
+<td>A task needs to <strong>wait inline</strong> for the next emit and continue its own flow.</td>
+</tr>
+</tbody>
+</table>
 
 
 

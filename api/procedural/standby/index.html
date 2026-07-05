@@ -4339,6 +4339,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -4414,12 +4418,58 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../legendarymissions/addons/biomech/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    BioMech
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../legendarymissions/script/maps/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     Maps & terrain
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../legendarymissions/script/bosses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Writing a Siege boss
     
   </span>
   
@@ -5316,8 +5366,30 @@ out of it.)</p>
 <p>Brains are MAST tasks independent of the sim, so a parked NPC's brain would keep
 acting on a non-simulated object - so the culler pauses a parked object's brain
 (<code>brain_pause</code>) and resumes it on retrieve. That makes terrain AND self-brained
-NPCs/POIs safe to cull. A parked object isn't in normal space, so its position is
+NPCs/POIs <em>safe</em> to cull. A parked object isn't in normal space, so its position is
 cached here.</p>
+<p><strong>Cull the fighters, not the rocks.</strong> Standby only pays off for objects that cost
+the engine sim/network <em>continuously</em> - moving, brained, per-tick-replicating NPCs
+and fleets. It is a poor fit for terrain:
+  * Engine tick cost of passive terrain is near-zero (measured: ~100k passive agents
+    held real-time; see OpenUniverse/MULTI_SYSTEM_FEASIBILITY.md).
+  * Terrain replicates to a client once, then only on a forced update - so there is
+    no ongoing network cost for standby to save.
+  * The py-side Agent persists while parked, so standby never shrinks the Python
+    heap / GC pressure regardless.
+And it is net-negative for terrain: <code>retrieve</code> re-inserts the object into sim +
+network, so crossing the radius re-sends parked terrain to in-range clients (a
+network burst + pop-in hitch) that resident terrain never incurs. So although
+terrain is <em>safe</em> to cull, prefer to leave it resident and aim the culler at active
+content (<code>standby_cull_fleets</code> is the valuable path). Terrain standby is justified
+only as an engine-side memory measure for genuinely dormant, far, unlikely-to-be-
+visited systems - not as a per-tick or network optimization.
+(Caveat: the perf run that grounds "terrain is cheap" had NO connected clients, so it
+measured compute only - the NETWORK axis, which is standby's whole reason to exist,
+is unmeasured. The "terrain replicates once, then only on force" model and the
+<code>retrieve</code>-re-sends churn cost are <em>reasoned</em>, not measured. So the compute + heap
+legs of "leave terrain resident" are solid; the network leg is a hypothesis - verify
+with a client-connected run before relying on the churn-cost argument.)</p>
 <p>Fleets are handled as a unit (<code>standby_cull_fleets</code>): a fleet's brain lives on the
 fleet agent, not its ships (linked via a "ship_list" role/link), so all a fleet's
 ships park/retrieve together and the one fleet brain pauses/resumes - the whole

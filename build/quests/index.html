@@ -1848,6 +1848,39 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Authoring in AMD">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quest-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quest fields
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#triggers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Triggers
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mission-tree-end-game" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mission tree &amp; end-game
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -4274,6 +4307,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -4349,12 +4386,58 @@
   
   
     <li class="md-nav__item">
+      <a href="../../legendarymissions/addons/biomech/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    BioMech
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../legendarymissions/script/maps/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     Maps & terrain
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legendarymissions/script/bosses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Writing a Siege boss
     
   </span>
   
@@ -5085,6 +5168,39 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Authoring in AMD">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quest-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quest fields
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#triggers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Triggers
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mission-tree-end-game" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mission tree &amp; end-game
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -5122,7 +5238,147 @@ players accept and abandon quests from, and multi-step stories.</p>
 <h2 id="authoring-in-amd">Authoring in AMD</h2>
 <p>Quests are authored in <strong>AMD files</strong> (a movie-script-style dialogue/story format)
 rather than hand-written control flow, which keeps the writing readable and the
-logic consistent.</p>
+logic consistent. A quest is a <code>## [Title](key)</code> heading with a fenced block of
+fields, then prose:</p>
+<div class="highlight"><pre><span></span><code>## [Defend the Convoy](defend_convoy)
+---
+Scope: shared
+State: active
+Goal: destroy 6 raiders
+Pays: 500 credits
+---
+Escort the freighters through the belt - every raider you burn buys them time.
+</code></pre></div>
+<h3 id="quest-fields">Quest fields</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Scope:</code></td>
+<td><code>shared</code> (one quest for the whole game) or per-ship.</td>
+</tr>
+<tr>
+<td><code>State:</code></td>
+<td>Starting state — e.g. <code>active</code>, or omitted for a quest players must accept.</td>
+</tr>
+<tr>
+<td><code>Goal:</code></td>
+<td>The completion <strong>trigger</strong> plus the objective text shown in the log (see <a href="#triggers">Triggers</a>).</td>
+</tr>
+<tr>
+<td><code>When:</code></td>
+<td>A trigger with no objective text (same grammar as <code>Goal:</code>).</td>
+</tr>
+<tr>
+<td><code>Pays:</code></td>
+<td>Reward on completion — <code>500 credits</code>, an item key, …</td>
+</tr>
+<tr>
+<td><code>Then:</code></td>
+<td>Follow-up on completion — <code>reveal &lt;quest&gt;</code> (unlock another) or <code>signal &lt;name&gt;</code>.</td>
+</tr>
+<tr>
+<td><code>Display:</code> / <code>Tier:</code></td>
+<td>Optional label / ordering for the log.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="triggers">Triggers</h3>
+<p>The verb in <code>Goal:</code> / <code>When:</code> (or a <code>fail_*</code> field) maps to the event the quest
+listens for:</p>
+<table>
+<thead>
+<tr>
+<th>Verb(s)</th>
+<th>Fires on</th>
+<th>Argument</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>destroy</code>, <code>kill</code></td>
+<td>a kill</td>
+<td>role (+ count, e.g. <code>destroy 6 raiders</code>)</td>
+</tr>
+<tr>
+<td><code>collect</code>, <code>recover</code>, <code>gather</code></td>
+<td>picking up an item</td>
+<td>item key</td>
+</tr>
+<tr>
+<td><code>scan</code>, <code>survey</code></td>
+<td>a science scan</td>
+<td>role</td>
+</tr>
+<tr>
+<td><code>dock</code></td>
+<td>docking</td>
+<td>role</td>
+</tr>
+<tr>
+<td><code>reach</code>, <code>travel</code></td>
+<td>arriving at a sector</td>
+<td>sector (e.g. <code>reach 6, 4</code>)</td>
+</tr>
+<tr>
+<td><code>signal</code></td>
+<td>a named signal — the escape hatch for any game-state milestone</td>
+<td>signal name</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mission-tree-end-game">Mission tree &amp; end-game</h3>
+<p>Quests form a <strong>tree</strong> so a mission's whole win/lose condition is authored in AMD,
+not hand-wired in script:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Parent:</code></td>
+<td>Attach this quest to a parent quest (its <code>key</code>), aggregating into that mission.</td>
+</tr>
+<tr>
+<td><code>Required:</code></td>
+<td>The parent isn't won until this child completes.</td>
+</tr>
+<tr>
+<td><code>Critical:</code></td>
+<td>Failing this quest <strong>loses</strong> the game.</td>
+</tr>
+<tr>
+<td><code>Win:</code></td>
+<td>Completing this quest <strong>wins</strong> the game. Bare flag, or prose that becomes the end-screen reason.</td>
+</tr>
+<tr>
+<td><code>Lose:</code></td>
+<td>Completing (or failing) it <strong>loses</strong> the game. Bare flag, or prose reason.</td>
+</tr>
+<tr>
+<td><code>Fail on signal:</code></td>
+<td>Fail the quest when a signal fires.</td>
+</tr>
+<tr>
+<td><code>Fail on all dead:</code></td>
+<td>Fail when every object of a role is gone.</td>
+</tr>
+<tr>
+<td><code>Fail after:</code></td>
+<td>Fail after a time — <code>Fail after: 5 minutes</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>This is the same vocabulary Open Universe uses and the Siege bosses hang their
+objectives on.</p>
 <h2 id="signals">Signals</h2>
 <p>Quests emit signals you can react to from anywhere:</p>
 <table>
@@ -5143,6 +5399,11 @@ logic consistent.</p>
 <td><code>quest_completed</code></td>
 <td><code>AGENT_ID</code>, <code>QUEST_ID</code>, <code>QUEST</code></td>
 <td>a quest is finished</td>
+</tr>
+<tr>
+<td><code>quest_failed</code></td>
+<td><code>AGENT_ID</code>, <code>QUEST_ID</code>, <code>QUEST</code></td>
+<td>a quest fails (a fail trigger fired)</td>
 </tr>
 </tbody>
 </table>

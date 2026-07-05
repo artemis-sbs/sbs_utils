@@ -624,6 +624,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="🛡️ The Siege Map, Refined">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bosses" class="md-nav__link">
+    <span class="md-ellipsis">
+      💀 Bosses
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -4329,6 +4344,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -4404,12 +4423,58 @@
   
   
     <li class="md-nav__item">
+      <a href="../legendarymissions/addons/biomech/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    BioMech
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../legendarymissions/script/maps/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     Maps & terrain
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../legendarymissions/script/bosses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Writing a Siege boss
     
   </span>
   
@@ -5185,6 +5250,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="🛡️ The Siege Map, Refined">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bosses" class="md-nav__link">
+    <span class="md-ellipsis">
+      💀 Bosses
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -5274,6 +5354,12 @@ Authors: <a href="../legendarymissions/addons/casino/">The Casino addon</a>.</p>
   arrive triggers and real rewards — all <strong>authored in simple AMD files</strong>.</li>
 <li><strong>A proper Quest Log</strong> you can accept and abandon quests from.</li>
 <li><strong>Multi-step bridge stories</strong> that unfold a step at a time.</li>
+<li><strong>Quest-driven end-game.</strong> A mission is now a <strong>tree of quests</strong> — a parent mission
+  with children marked <strong>required</strong> (must finish to win) or <strong>critical</strong> (fail one and
+  the game is lost). Quests can carry an <strong>end_win</strong> / <strong>end_lose</strong> outcome and <strong>fail
+  triggers</strong> (a signal fires, a target dies, or a timer expires), so the whole win/lose
+  condition is <strong>authored in AMD</strong>, not hand-wired in script. The Siege bosses use this
+  to hang their objectives on the siege's mission tree.</li>
 </ul>
 <p>Docs: <a href="../build/quests/">Quests</a>.</p>
 <h2 id="items-upgrades">💱 Items &amp; Upgrades</h2>
@@ -5302,8 +5388,28 @@ Authors: <a href="../legendarymissions/addons/casino/">The Casino addon</a>.</p>
 <li><strong>Share the exact setup</strong> with per-map <strong>seed options</strong> and a <strong>shareable game
   code</strong>.</li>
 <li><strong>Optional bonus objectives</strong> for skilled crews.</li>
+<li><strong>Survive Clock option.</strong> Choose what the time limit <em>means</em>: <strong>Win</strong> = outlast the
+  clock to hold the line, or <strong>Loss</strong> = break the siege before time runs out or you
+  lose. One dropdown flips a defensive hold into a race against the clock.</li>
 </ul>
-<p>Playing &amp; hosting: <a href="../legendarymissions/">LegendaryMissions</a>.</p>
+<h3 id="bosses">💀 Bosses</h3>
+<p>The Siege can now escalate into a <strong>boss</strong> that warps in when the raiders thin out —
+picked from a new <strong>Boss</strong> dropdown:</p>
+<ul>
+<li><strong>Warlord</strong> — a named enemy flagship and honor-guard reinforcements.</li>
+<li><strong>Continuous</strong> — endless waves until the clock nears its end, then the attackers
+  break off in retreat for a hard-won defender victory.</li>
+<li><strong>Ragnarok</strong> — the renegade "42 Fleet" led by a Terran juggernaut. Beat it outright,
+  or have your comms officer <strong>hail XORN</strong> and turn one of its captains to your side.</li>
+<li><strong>Infestation</strong> — a <strong>BioMech</strong> swarm that drifts neutral and feeds on asteroids
+  until you provoke it, then wakes as a collective, <strong>evolves through four stages</strong>,
+  and <strong>breeds</strong> — with the sentient Stage 4 hailable to calm or enrage. BioMechs are a
+  reusable <a href="../legendarymissions/addons/biomech/">addon</a> you can drop into any mission.</li>
+</ul>
+<p>Bosses are <strong>data-driven and folder-scanned</strong> — each is a small file in <code>maps/bosses/</code>,
+so authoring a new one is just dropping in a file.</p>
+<p>Playing &amp; hosting: <a href="../legendarymissions/">LegendaryMissions</a> ·
+Authors: <a href="../legendarymissions/script/bosses/">Writing a Siege boss</a>.</p>
 <h2 id="game-results-scorekeeping">🏆 Game Results &amp; Scorekeeping</h2>
 <p>The end-of-game screen is now a <strong>tabbed results board</strong> with real scorekeeping —
 built for bragging rights, and for running a scored event.</p>

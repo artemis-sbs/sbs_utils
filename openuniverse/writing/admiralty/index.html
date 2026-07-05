@@ -4206,6 +4206,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -4281,12 +4285,58 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../legendarymissions/addons/biomech/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    BioMech
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../legendarymissions/script/maps/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     Maps & terrain
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../legendarymissions/script/bosses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Writing a Siege boss
     
   </span>
   
@@ -4909,6 +4959,39 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Step 6 - tune the dials (only if you want to)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mode-one-dial-for-the-missions-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mode — one dial for the mission's shape
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#victory-defeat-via-quests-the-mode-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      Victory &amp; defeat (via quests + the Mode default)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#economy-pace-one-dial-for-game-length" class="md-nav__link">
+    <span class="md-ellipsis">
+      Economy pace — one dial for game length
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -5201,6 +5284,39 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Step 6 - tune the dials (only if you want to)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mode-one-dial-for-the-missions-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mode — one dial for the mission's shape
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#victory-defeat-via-quests-the-mode-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      Victory &amp; defeat (via quests + the Mode default)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#economy-pace-one-dial-for-game-length" class="md-nav__link">
+    <span class="md-ellipsis">
+      Economy pace — one dial for game length
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -5380,7 +5496,8 @@ Chain milestones with <code>Requires:</code> to build a ladder climbed one rung 
 <h2 id="step-6-tune-the-dials-only-if-you-want-to">Step 6 - tune the dials (only if you want to)</h2>
 <p>The whole game above ran on defaults. When you want to reshape it, the
 <code>## Admiralty</code> fence takes dials - <strong>all optional, each line skippable</strong>:</p>
-<div class="highlight"><pre><span></span><code>Worldlet chance: 30%      // chance a NON-home system holds a worldlet
+<div class="highlight"><pre><span></span><code>Economy pace: standard    // brisk | standard | epic - scales the dials below together
+Worldlet chance: 30%      // chance a NON-home system holds a worldlet
 Start ore: 300            // opening stockpiles (mind the warning in step 2)
 Start gas: 100
 Start crew: 40
@@ -5388,7 +5505,6 @@ Storage: 600              // per-resource cap; Refineries and Research raise it
 Command points: 3         // how many fleets at once; Sensor Relays add more
 Fleet gas burn: 2         // gas per minute a fleet burns on an active order
 Requisition budget: 800 credits   // starting funds for the Requisition catalog
-Admiral view: overseer    // overseer (the 2D map) or bridge (the old tab console)
 Build model: menu         // menu (instant) or fabricator (a builder ship flies out)
 Skirmish pressure: border // where border raids come from (border, or none)
 Skirmish interval: 240    // seconds between border raids
@@ -5396,8 +5512,151 @@ MIA timer: 300            // rescue window for a downed captain&#39;s pod, in se
 Relay rate: 50%           // income a Relay Gate keeps paying from a system you left
 Research pace: campaign   // how quickly the tech ladder is meant to be climbed
 </code></pre></div>
-<p>Leave <code>Admiral view</code> as <code>overseer</code> - that is the map-and-click console this page
-described. <code>bridge</code> is the older tabbed version.</p>
+<p>The Admiral commands from the <strong>overseer</strong>: a detached camera over a system-wide 2D
+map where you select objects to act (worldlet build, fleet orders, platform actions).
+The older tabbed "bridge" console has been retired.</p>
+<h3 id="mode-one-dial-for-the-missions-shape">Mode — one dial for the mission's shape</h3>
+<p><code>Mode</code> picks the <strong>kind</strong> of mission and sets sensible defaults for the dials below
+(any dial you set explicitly still wins). It's the keystone the Open Universe
+foundation grows on (see <code>FOUNDATION_PLAN.md</code>). Author it in a mission-level
+<strong><code>## Scenario</code></strong> chapter — so a <code>story</code> universe needs no <code>## Admiralty</code> block at all:</p>
+<div class="highlight"><pre><span></span><code>## Scenario
+---
+Mode: story
+---
+</code></pre></div>
+<p>(<code>Mode:</code> is still accepted inside <code>## Admiralty</code> for older universes.)</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Admiral RTS</th>
+<th>Economy</th>
+<th>Skirmish</th>
+<th>For</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sandbox</code></td>
+<td>on</td>
+<td>standard</td>
+<td>border</td>
+<td>today's living universe (default)</td>
+</tr>
+<tr>
+<td><code>skirmish</code></td>
+<td>on</td>
+<td>brisk</td>
+<td>border</td>
+<td>a punchy 1–3 h RTS</td>
+</tr>
+<tr>
+<td><code>war</code></td>
+<td>on</td>
+<td>epic</td>
+<td>border</td>
+<td>a long, multi-side war</td>
+</tr>
+<tr>
+<td><code>campaign</code></td>
+<td><strong>off</strong></td>
+<td>epic</td>
+<td>off</td>
+<td>a persistent single-ship epic</td>
+</tr>
+<tr>
+<td><code>story</code></td>
+<td><strong>off</strong></td>
+<td>standard</td>
+<td>off</td>
+<td>a bounded 1–2 h narrative</td>
+</tr>
+</tbody>
+</table>
+<p><code>campaign</code>/<code>story</code> switch the <strong>admiral economy off entirely</strong> even if a Worldlets
+chapter is present — so a story mission can reuse the universe without the RTS. An
+unknown or omitted mode is <code>sandbox</code>. (More of the mission shape — hostile side
+relations, victory/defeat conditions, which subsystems load — folds into <code>Mode</code> in
+later phases; today it drives the admiral/economy/skirmish switches.)</p>
+<h3 id="victory-defeat-via-quests-the-mode-default">Victory &amp; defeat (via quests + the Mode default)</h3>
+<p>Victory conditions are <strong>authored as quests</strong>, not a separate config block — a quest
+with <code>Win: yes</code> that completes ends the game in victory (<code>Lose: yes</code> in defeat). The
+war Modes also come with a built-in default so a PvP match ends on its own.</p>
+<ul>
+<li><strong>Last side standing</strong> <em>(skirmish/war default)</em> — a player side is eliminated when
+  it holds no Headquarters (conquest); when one side remains it wins. No authoring
+  needed; it just works in <code>skirmish</code>/<code>war</code>.</li>
+<li><strong>Decapitation quick-win</strong> — a side's <strong>first HQ is its capital</strong>, tagged with a
+  <code>&lt;side&gt;_capital</code> role. Capturing/destroying it is a normal quest:</li>
+</ul>
+<div class="highlight"><pre><span></span><code># [Take the Orion capital](win_decap)
+When: destroy 1 orion_capital
+Win: yes
+</code></pre></div>
+<ul>
+<li><strong>Conquest as a quest</strong> — to make "wipe out a <em>specific</em> side" an authored objective
+  (not just the automatic last-standing), hook the war-state milestone signal:</li>
+</ul>
+<div class="highlight"><pre><span></span><code># [Break the Orion Concord](win_conquest)
+When: signal eliminated_orion
+Win: yes
+</code></pre></div>
+<p>The war-state watcher fires <code>eliminated_&lt;side&gt;</code> when a side loses its last HQ (and
+  <code>last_side_standing</code> when one remains); <code>When: signal &lt;name&gt;</code> completes the quest via
+  the quest driver's generic <code>on_signal</code> hook.
+- <strong>Story / objective wins</strong> — any quest with <code>Win:</code>/<code>Lose:</code> (reach a sector, recover
+  an item, etc.) ends the game, so a <code>story</code> mission's victory is just its final quest.</p>
+<p>Under the hood a war-state watcher emits <code>side_eliminated</code> / <code>last_side_standing</code>
+(and mirrors them to the quest <code>quest_signal</code> hook); game end sets the shared
+<code>UNIVERSE_GAME_OVER</code>.</p>
+<h3 id="economy-pace-one-dial-for-game-length">Economy pace — one dial for game length</h3>
+<p>Base resources accumulate slowly on purpose (an anti-snowball economy: single-digit
+per-minute yields against 60–400-ore platforms, capped by Storage). Rather than
+hand-tune Yields, Reserve, Storage and Start separately, pick a <strong>pace</strong> — it scales
+all four together (as multipliers on whatever you authored):</p>
+<table>
+<thead>
+<tr>
+<th>Pace</th>
+<th>Yield</th>
+<th>Reserve</th>
+<th>Storage</th>
+<th>Start</th>
+<th>For</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>brisk</code></td>
+<td>×2.0</td>
+<td>×2.0</td>
+<td>×1.5</td>
+<td>×1.5</td>
+<td>a punchy ~1-hour session</td>
+</tr>
+<tr>
+<td><code>standard</code></td>
+<td>×1.0</td>
+<td>×1.0</td>
+<td>×1.0</td>
+<td>×1.0</td>
+<td>today's balance (default)</td>
+</tr>
+<tr>
+<td><code>epic</code></td>
+<td>×1.0</td>
+<td>×5.0</td>
+<td>×3.0</td>
+<td>×1.5</td>
+<td>a long / persistent game</td>
+</tr>
+</tbody>
+</table>
+<p><code>brisk</code> speeds the whole curve; <code>epic</code> keeps the same per-hour ramp but makes finite
+worldlets last far longer and lets you bank much more for late infrastructure. You can
+still set explicit <code>Yields</code> / <code>Reserve</code> / <code>Storage</code> / <code>Start</code> values — the pace scales
+those. An unknown pace (or omitting the line) is <code>standard</code>.</p>
 <div class="admonition note">
 <p class="admonition-title">It's multi-side, for free</p>
 <p>Everything on this page is written <strong>once</strong> and runs for <strong>every</strong>
