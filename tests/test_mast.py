@@ -279,6 +279,31 @@ log("no-1")
         value = st.getvalue()
         assert(value=="2\n45\nyes-1\nyes-2\nyes-3\n")
 
+    def test_jump_prefixed_identifier_not_a_jump(self):
+        # A variable whose name starts with the letters "jump" must parse as an
+        # assignment, NOT a jump. The old rule `(jump|->)[ \t]*` let `jump` swallow
+        # `_ship` in `jump_ship = ...` (a jump to label "_ship"), dropping the
+        # assignment - an engine-only misparse the mock never flagged. `jump ` (with
+        # whitespace) and `->` must still jump.
+        (errors, runner, mast) = mast_run( code = """
+logger(var="output")
+jump_ship = 7
+jumpy = jump_ship + 1
+log("{jump_ship}-{jumpy}")
+jump ok_label if jump_ship == 7
+log("bad")
+->END
+
+==== ok_label ===
+log("good")
+->END
+""")
+        assert(len(errors)==0)
+        output = runner.get_value("output", None)
+        assert(output is not None)
+        value = output[0].getvalue()
+        assert(value=="7-8\ngood\n")
+
     def test_await_all_any_compile_err(self):
         (errors, mast) =mast_compile( code = """
 

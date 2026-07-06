@@ -6,7 +6,13 @@ import re
 @mast_node()
 class Jump(MastNode):
     #rule = re.compile(r"""(((?P<jump>jump|->|push|->>|popjump|<<->|poppush|<<->>)[ \t]*(?P<jump_name>\w+))|(?P<pop>pop|<<-))"""+OPT_ARGS_REGEX+IF_EXP_REGEX)
-    rule = re.compile(r"""(?P<jump>jump|->)[ \t]*(?P<jump_name>\w+)"""+OPT_DATA_REGEX+IF_EXP_REGEX)
+    # The `jump` keyword MUST be followed by whitespace before the label, so an
+    # identifier that merely starts with the letters "jump" (e.g. `jump_ship = ...`)
+    # is NOT swallowed as a jump statement. `->` keeps zero-or-more space so `->END`
+    # (and `-> main`) still parse. (Old `(jump|->)[ \t]*` used `*` for both, which let
+    # `jump` eat any `jump`-prefixed identifier - an engine-only misparse the mock
+    # never flagged.) No valid script breaks: `jump foo` is always written with a space.
+    rule = re.compile(r"""(?P<jump>jump[ \t]+|->[ \t]*)(?P<jump_name>\w+)"""+OPT_DATA_REGEX+IF_EXP_REGEX)
     def __init__(self, pop=None, jump=None, jump_name=None, if_exp=None, data=None, loc=None, compile_info=None):
         super().__init__()
         self.loc = loc
