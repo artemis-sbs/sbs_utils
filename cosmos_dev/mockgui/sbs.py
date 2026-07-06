@@ -814,6 +814,7 @@ def _push_radar() -> None:
         terrain_ids = set(s._terrain_ids) & objs.keys()
         active_all = set(s._active_ids) & objs.keys()
         client_ships = dict(s.client_ships)
+        client_alt_ships = dict(s.client_alt_ships)
         nav_points = dict(s.nav_points)
         nav_by_id = list(s.nav_points_by_id.values())
 
@@ -879,12 +880,20 @@ def _push_radar() -> None:
 
     client_focus: dict = {}
     for cid, ship_id in client_ships.items():
-        obj = objs.get(ship_id)
+        # assign_client_to_alt_ship: the 2D radar focuses on the ALT ship (e.g. the
+        # galaxy-theater cam) instead of the assigned one. Mirror the engine's
+        # documented behavior - the mock previously stored the alt ship but never used
+        # it, so the view never moved. Fall back to the assigned ship if the alt is gone.
+        focus_id = client_alt_ships.get(cid, ship_id)
+        obj = objs.get(focus_id)
+        if obj is None:
+            focus_id = ship_id
+            obj = objs.get(ship_id)
         if obj is not None:
             client_focus[str(cid)] = {
                 "x":       round(obj._pos.x, 1),
                 "z":       round(obj._pos.z, 1),
-                "ship_id": str(ship_id),
+                "ship_id": str(focus_id),
             }
 
     # Unique ships with at least one connected client, plus the GM view (ship_id=0).
