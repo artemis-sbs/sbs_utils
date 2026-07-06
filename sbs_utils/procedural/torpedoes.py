@@ -230,6 +230,37 @@ def torpedo_get_available_types_for_ship(id) -> list[str]:
             return type_list
     return list()
 
+def fire_torpedo(id_or_obj, kind=None, tube_index=0) -> None:
+    """Fire a torpedo at the ship's current weapon target, via the engine
+    (``sbs.simulation.launch_torpedo``). Callable from MAST or Python.
+
+    Beams auto-fire, but torpedoes need an explicit launch - this is that call. If
+    ``kind`` is given (e.g. ``"Nuke"``, ``"EMP"``), the tube holding that loaded type is
+    selected; otherwise ``tube_index`` fires as-is (``0`` = the default/first loaded
+    type). No-ops if the ship is gone or the type is out of ammo.
+
+    Args:
+        id_or_obj (int | Agent): The firing ship.
+        kind (str, optional): Torpedo type to fire; resolved to its tube. Defaults to
+            None (fire ``tube_index``).
+        tube_index (int, optional): Tube to fire when ``kind`` is not given. Defaults 0.
+    """
+    obj = to_object(id_or_obj)
+    if obj is None:
+        return
+    ctx = FrameContext.context
+    if ctx is None or ctx.sim is None:
+        return
+    if kind is not None:
+        types = torpedo_get_available_types_for_ship(obj)
+        if kind in types:
+            tube_index = types.index(kind)
+    so = ctx.sim.get_space_object(obj.id)   # launch_torpedo wants the engine space object
+    if so is None:
+        return
+    is_fighter = bool(get_data_set_value(obj, "is_fighter_flag") or 0)
+    ctx.sim.launch_torpedo(so, tube_index, is_fighter)
+
 def torpedo_make_available(id, key:str, count:int=0, fill:bool=True) -> None:
     """Add a torpedo type to a player ship's loadout.
 

@@ -373,6 +373,37 @@ class TestMockProjectiles(unittest.TestCase):
         self.assertEqual(_drain(), [])
         self.assertEqual(len(sbs._projectiles), 0)
 
+    # --- the fire_torpedo wrapper + launch_torpedo type selection -----------
+    def test_fire_torpedo_selects_type_by_kind(self):
+        from sbs_utils.helpers import FrameContext, Context
+        from sbs_utils.procedural.spawn import player_spawn, npc_spawn
+        from sbs_utils.procedural.query import to_id, to_object
+        from sbs_utils.procedural.torpedoes import fire_torpedo, torpedo_make_available
+        FrameContext.context = Context(self.sim, sbs, None)   # the wrapper needs a context
+        p = player_spawn(0, 0, 0, "Artemis", "tsn", "tsn_light_cruiser"); pid = to_id(p)
+        t = npc_spawn(500, 0, 0, "Foe", "raider", "tsn_light_cruiser", "behav_npcship")
+        po = to_object(pid)
+        po.data_set.set("torpedo_tube_count", 1, 0)
+        po.data_set.set("weapon_target_UID", to_id(t), 0)
+        # a clean, known loadout (override any shipData starting torps)
+        po.data_set.set("torpedo_types_available", "Homing,Nuke,EMP", 0)
+        for k in ("Homing", "Nuke", "EMP"):
+            po.data_set.set(f"{k}_NUM", 3, 0)
+
+        _drain()
+        fire_torpedo(pid, "Nuke")                            # kind -> that tube fires
+        kinds = [e[5] for e in _drain() if e[0] == "player_launches_missile"]
+        self.assertEqual(kinds, ["Nuke"])
+        self.assertEqual(po.data_set.get("Nuke_NUM"), 2)     # only the Nuke was spent
+        self.assertEqual(po.data_set.get("Homing_NUM"), 3)
+
+        fire_torpedo(pid)                                    # default -> first loaded (Homing)
+        self.assertEqual(po.data_set.get("Homing_NUM"), 2)
+
+        fire_torpedo(pid, "Mine")                            # unloaded -> falls back to Homing
+        self.assertEqual(po.data_set.get("Homing_NUM"), 1)
+        self.assertEqual(len(sbs._projectiles), 3)          # every call fired
+
 
 if __name__ == '__main__':
     unittest.main()

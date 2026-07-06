@@ -1773,7 +1773,12 @@ class simulation(object): ### from pybind
         if source_ship is None:
             return
         ds = source_ship.data_set
-        kind = _consume_torpedo(ds)          # spend a round; None if the tube is empty
+        # tube_index selects which loaded torpedo TYPE to fire (index into
+        # torpedo_types_available - the mock keys ammo by type). Out of range falls back
+        # to the first loaded type. (Real engine tube<->type mapping: verify.)
+        avail = [t.strip() for t in str(ds.get("torpedo_types_available", "") or "").split(",") if t.strip()]
+        want = avail[tube_index] if 0 <= tube_index < len(avail) else None
+        kind = _consume_torpedo(ds, want)    # spend a round; None if out of ammo
         if kind is None:
             return
         rng = ds.get("torpedo_launch_max_range") or _TORP_RANGE
@@ -3356,12 +3361,14 @@ def _physics_heat(active: list, dt: float) -> None:
                 cds.pop(idx, None)    # cooled below critical -> re-entry fires at once
 
 
-def _consume_torpedo(ds) -> "str | None":
-    """Pick the first loaded torpedo type (NUM>0) from torpedo_types_available and
-    spend one round: decrement its `{kind}_NUM` and `{kind}_VAL` (the engine's count
-    fields the ship_data HUD reads). Returns the kind fired, or None if out of ammo."""
-    avail = str(ds.get("torpedo_types_available", 0) or "")
-    for kind in [t.strip() for t in avail.split(",") if t.strip()]:
+def _consume_torpedo(ds, prefer=None) -> "str | None":
+    """Spend one round of a loaded torpedo type and return the kind fired (or None if
+    out of ammo). Fires `prefer` if it is loaded with ammo; otherwise the first loaded
+    type in torpedo_types_available order (the default tube). Decrements the kind's
+    `{kind}_NUM` / `{kind}_VAL` (the engine count fields the ship_data HUD reads)."""
+    avail = [t.strip() for t in str(ds.get("torpedo_types_available", 0) or "").split(",") if t.strip()]
+    order = ([prefer] + [k for k in avail if k != prefer]) if prefer else avail
+    for kind in order:
         num = int(ds.get(f"{kind}_NUM", 0) or 0)
         if num > 0:
             ds.set(f"{kind}_NUM", num - 1, 0)
