@@ -294,27 +294,36 @@ class Mast():
 
         module_name = name[:-3]
 
-        # Library (.mastlib) python: unchanged - one isolated module per file.
+        # Library (.mastlib) python: exec every .py of one mastlib into a SINGLE shared
+        # namespace (keyed by lib_name), so a helper in one file can call a sibling
+        # file's helper by bare name - the same "one shared MAST namespace" a local
+        # mission addon gets (get_mission_py_module). Previously each mastlib .py loaded
+        # as an ISOLATED module, so a bare-name cross-file call NameErrored once the addon
+        # was packaged (e.g. an OpenUniverse .py calling a sibling's helper) - fine as a
+        # local folder, broken as a mastlib. Sharing is a superset of isolation (explicit
+        # `import sibling` still resolves via sys.modules below); functions are still
+        # registered into MastGlobals.globals for MAST-level calls.
         if self.lib_name is not None:
-            if sys.modules.get(module_name) is None:
-                # content_from_lib_or_file mutates self.basedir to the loaded
-                # file's directory (that cursor is how nested .mast imports
-                # resolve). A .py import reuses `self`, so without this guard the
-                # mutation leaks into the NEXT sibling import: `import
-                # games/engines.py` would move the base into games/ and a
-                # following `import foo.mast` would resolve as games/foo.mast and
-                # fail. A .py import must not shift the base - save and restore.
-                saved_basedir = self.basedir
-                content, errors = self.content_from_lib_or_file(name)
-                self.basedir = saved_basedir
-                if content is None:
-                    raise Exception(f"Failed to import python in mast library {name} {self.lib_name}")
-                loader = StringLoader(content)
-                spec = importlib.util.spec_from_loader(module_name, loader, origin="built-in")
-                module = importlib.util.module_from_spec(spec)
-                sys.modules[module_name] = module
-                spec.loader.exec_module(module)
-                MastGlobals.import_python_module(module_name)
+            # content_from_lib_or_file mutates self.basedir to the loaded file's
+            # directory (that cursor is how nested .mast imports resolve). A .py import
+            # reuses `self`, so save/restore the base or the mutation leaks into the
+            # NEXT sibling import.
+            saved_basedir = self.basedir
+            content, errors = self.content_from_lib_or_file(name)
+            self.basedir = saved_basedir
+            if content is None:
+                raise Exception(f"Failed to import python in mast library {name} {self.lib_name}")
+            ns_mod = MastGlobals.get_mission_py_module(self.lib_name)
+            # Expose the shared namespace under this file's bare module name so a
+            # `from sibling import x` / `import sibling` between the mastlib's .py files
+            # resolves to the shared dict. Idempotent; set before exec.
+            sys.modules[module_name] = ns_mod
+            exec_files = ns_mod.__dict__.setdefault("__mast_files__", set())
+            if name in exec_files:
+                return
+            exec(compile(content, "<not a real path>/" + module_name + ".py", "exec"), ns_mod.__dict__)
+            exec_files.add(name)
+            MastGlobals.register_mission_functions(ns_mod)
             return
 
         # Mission addon python: exec every .py of one mission into a single shared
