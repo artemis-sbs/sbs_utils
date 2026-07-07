@@ -835,34 +835,65 @@ def quest_log_state_icon_color(state):
     return _QUEST_LOG_STATE_ICON_COLOR.get(int(state or 0), "#888")
 
 
+_QUEST_LOG_MAX_DEPTH = 5
+
+
+def _quest_log_rows(children, aid, group, depth):
+    """One level of the quest tree. A quest that HAS visible children is emitted as a
+    COLLAPSIBLE gui_list_box_header - so it folds its steps exactly like the Game/You/Ship
+    group headers - followed by its children one level deeper; a leaf quest is a plain row.
+    The list box itself does the fold + indent (a parent header sits at visual `depth`
+    while its logical indent `depth+1` folds/indents its subtree; each row carries its own
+    `indent`), so NO manual padding. State-sorted per level; SECRET (and subtrees) hidden."""
+    entries = []
+    for cid, q in (children or {}).items():
+        st = int(q.get("state", QuestState.IDLE) or 0)
+        if st == int(QuestState.SECRET):
+            continue
+        entries.append((cid, q, st))
+    entries.sort(key=lambda e: _QUEST_LOG_STATE_ORDER.get(e[2], 9))
+    out = []
+    for cid, q, st in entries:
+        # `key` is the FULL path (q["id"], e.g. "arc/step1") so accept/abandon/Engage look
+        # it up path-aware; falls back to the child segment for older quests.
+        row = MastDataObject({
+            "agent_id": aid, "key": q.get("id") or cid, "group": group, "indent": depth,
+            "title": str(q.get("display_text", cid)), "state": st,
+            "state_label": quest_log_state_label(st),
+            "progress": q.get("progress", 0),
+            "desc": (q.get("description") or "").strip(),
+        })
+        kids = q.get("children")
+        has_visible_kids = kids and any(
+            int(c.get("state", 0) or 0) != int(QuestState.SECRET) for c in kids.values())
+        if has_visible_kids and depth < _QUEST_LOG_MAX_DEPTH:
+            # Parent quest -> collapsible header carrying the quest's row data; its steps
+            # follow one level deeper and fold under it.
+            out.append(gui_list_box_header(row.get("title"), False, depth + 1, True, row, visual_indent=depth))
+            out.extend(_quest_log_rows(kids, aid, group, depth + 1))
+        else:
+            out.append(row)
+    return out
+
+
 def quest_log_build_items(sources):
     """Build the collapsible quest-log item list shared by both logs.
 
     `sources` is a list of (section_label, agent_id). Each becomes a
-    gui_list_box_header followed by that agent's non-SECRET quests (state-sorted);
-    empty sections are skipped. Rows are MastDataObject with agent_id / key / group
-    / title / state / state_label / progress / desc, so quest_log_template renders
-    them the same everywhere. The ONLY thing the two callers vary is `sources`.
+    gui_list_box_header followed by that agent's non-SECRET quests. Child quests
+    (nested via `/`-separated keys, e.g. `arc/step1`) render indented under their
+    parent as a TREE (see _quest_log_rows); empty sections are skipped. Rows are
+    MastDataObject with agent_id / key / group / depth / title / state /
+    state_label / progress / desc, so quest_log_template renders them the same
+    everywhere. The ONLY thing the two callers vary is `sources`.
     """
     items = []
     for group, aid in sources:
-        rows = []
         tree = quest_agent_quests(aid)
         children = tree.get("children") if tree is not None else None
-        for qid, q in (children or {}).items():
-            st = int(q.get("state", QuestState.IDLE) or 0)
-            if st == int(QuestState.SECRET):
-                continue
-            rows.append(MastDataObject({
-                "agent_id": aid, "key": qid, "group": group,
-                "title": str(q.get("display_text", qid)), "state": st,
-                "state_label": quest_log_state_label(st),
-                "progress": q.get("progress", 0),
-                "desc": (q.get("description") or "").strip(),
-            }))
+        rows = _quest_log_rows(children, aid, group, 0)
         if not rows:
             continue  # don't show an empty section header
-        rows.sort(key=lambda it: _QUEST_LOG_STATE_ORDER.get(it.get("state"), 9))
         items.append(gui_list_box_header(str(group), False, 0, True, {"section": group}))
         items.extend(rows)
     return items
@@ -879,19 +910,32 @@ def quest_log_template(item):
     """Canonical quest-log row renderer (section headers + quest rows), shared by
     the in-game and end-game logs. Fix the look here and both update."""
     from sbs_utils.procedural.gui import gui_row, gui_text, gui_icon
-    # Collapsible section header (Game / You / Ship / <ship name>): label + arrow.
+    # A header row. Two kinds: a source group (Game / You / Ship) is a bare label + fold
+    # arrow; a PARENT QUEST (its data carries a quest `key`) folds its steps and renders
+    # like a quest row - state icon + title - with the fold arrow. The list box handles the
+    # indent (by header level); this template does not pad.
     if gui_list_box_is_header(item):
-        gui_row("row-height: 1.4em;padding:6px;")
-        icon_index = 155 if not item.collapse else 154
-        gui_text(f"$text:{item.label};justify: left;color:#fff;", "padding:5px,6px,0,0;background:#1578")
-        icon = gui_icon(f"icon_index:{icon_index};color:#fff;", "padding:0,0,5px,0;background:#1578;")
+        icon_index = 155 if not item.collapse else 154   # fold arrow: open / collapsed
+        hdata = getattr(item, "data", None) or {}
+        if hdata.get("key") is not None:
+            gui_row("row-height: 1.2em;padding:6px;")
+            gui_icon(f"icon_index:{QUEST_LOG_STATE_ICON};color:{quest_log_state_icon_color(hdata.get('state'))};", "padding:5px,0,5px,0;")
+            gui_text(f"$text:{item.label};justify: left;", "padding:5px,6px,0,0;")
+            arrow = gui_icon(f"icon_index:{icon_index};color:#fff;", "padding:0,0,5px,0;")
+            gui_row("row-height: 1.0em;padding:6px;")
+            gui_text(f"$text:{quest_log_state_label(hdata.get('state'))};justify: left;font:gui-1")
+        else:
+            gui_row("row-height: 1.4em;padding:6px;")
+            gui_text(f"$text:{item.label};justify: left;color:#fff;", "padding:5px,6px,0,0;background:#1578")
+            arrow = gui_icon(f"icon_index:{icon_index};color:#fff;", "padding:0,0,5px,0;background:#1578;")
         if item.selectable:
-            icon.click_text = ""
-            icon.click_tag = item.collapse_tag
-            icon.click_background = "#aaaa"
-            icon.click_color = "black"
+            arrow.click_text = ""
+            arrow.click_tag = item.collapse_tag
+            arrow.click_background = "#aaaa"
+            arrow.click_color = "black"
         return
-    # State icon (recolored) + title, then the state label on a second row.
+    # Leaf quest row: state icon (recolored) + title, then the state label on a second row.
+    # The list box indents it by its `indent` level (no manual padding).
     icon_color = quest_log_state_icon_color(item.get("state"))
     gui_row("row-height: 1.2em;padding:6px;")
     gui_icon(f"icon_index:{QUEST_LOG_STATE_ICON};color:{icon_color};", "padding:5px,0,5px,0;")
