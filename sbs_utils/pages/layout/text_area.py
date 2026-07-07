@@ -129,9 +129,16 @@ class ImageLine:
 class TextArea(Control):
     styles = {
         "t": {"style": "font:gui-6;color:#bbb;", "prepend": "", "indent": 0, "height": 48},
-        "h1":{"style":  "font:gui-5;color:#bbb;", "prepend": "1", "indent": 0, "height": 32},
-        "h2":{"style":  "font:gui-4;color:#bbb;", "prepend": "1", "indent": 0, "height": 28},
-        "h3":{"style":  "font:gui-3;color:#bbb;", "prepend": "1", "indent": 0, "height": 24},
+        # `#`/`##`/`###` markdown headings map to h1/h2/h3. NON-numbered (like standard
+        # markdown); use the numbered variants nh1/nh2/nh3 (`$nh1 ...`) if you want an
+        # auto-numbered outline. (Numbering used to be the h1-3 default; retired so `#`,
+        # now the canonical heading syntax, behaves like markdown.)
+        "h1":{"style":  "font:gui-5;color:#bbb;", "prepend": "", "indent": 0, "height": 32},
+        "h2":{"style":  "font:gui-4;color:#bbb;", "prepend": "", "indent": 0, "height": 28},
+        "h3":{"style":  "font:gui-3;color:#bbb;", "prepend": "", "indent": 0, "height": 24},
+        "nh1":{"style": "font:gui-5;color:#bbb;", "prepend": "1", "indent": 0, "height": 32},
+        "nh2":{"style": "font:gui-4;color:#bbb;", "prepend": "1", "indent": 0, "height": 28},
+        "nh3":{"style": "font:gui-3;color:#bbb;", "prepend": "1", "indent": 0, "height": 24},
         "p1":{"style":  "font:gui-2;color:#11f;", "prepend": "", "indent": 0, "height": 20},
         "ul":{"style":  "font:gui-2;color:#11f;", "prepend": "-", "indent": 2, "height": 20},
         "ol":{"style":  "font:gui-2;color:white;", "prepend": "1", "indent": 2, "height": 20},
