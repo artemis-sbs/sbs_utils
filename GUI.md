@@ -97,6 +97,10 @@ Authoritative parser + built-in styles: `pages/layout/text_area.py`.
   with font/color/prepend/indent/height. New styles via `=$name font:..;color:..` or
   `[name]: style://font:..;`; per-line override `$stylekey text…` or `$$font:..; text…`.
   Auto-number `prepend`: `1`(numeric) `a`/`A`(alpha) `i`/`I`(roman) `*`/`-`(bullet).
+- **Headings: use `#`/`##`/`###`, not `$h1`/`$h2`/`$h3`.** The `$h1..$h3` per-line
+  style prefix is a **deprecated** way to reach the h1–h3 styles — it still works
+  (back-compat), but `#`-style markdown headings are canonical now that AMD headings
+  are the link form (`# [x](key)`), so `#` in a body is always content. Prefer `#`.
 - **Fast path / failure mode:** a single line with no `=`/`$`/`$text:` prefix renders
   as plain `send_gui_text` (no parsing). On **any** parse error the whole area drops to
   simple text reading `Document syntax issue line number N` — a blank/garbled area
