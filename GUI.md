@@ -166,6 +166,43 @@ views this way — see `MAST_CLAUDE.md` **"Detached command consoles"** for the 
 pattern (cambot spawn, console-name selection routing, `comms_navigate_override` to
 refresh an open menu, side-wide scan so comms enables).
 
+## Adding a console tab (the clean, per-console way)
+
+To add your own tab to a console (e.g. a Fabrication tab on Engineering), do **not**
+use `gui_tab_add_top("x")` at a mission top level — it adds the tab **globally** and,
+dropped in a mission's `story.mast`, it **silently collapses the compile** (`labels
+0/N, nodes 0`, yet `--test` prints "PASS"). It works only inside a packaged addon.
+
+Instead, register the tab **content** and **enable** it from each console's activation
+route:
+
+```
+# 1. The tab's content (a //gui/tab route + a screen label).
+//gui/tab/fabrication
+    jump fabrication_screen
+
+=== fabrication_screen
+    gui_tab_back(CONSOLE_SELECT)
+    # ... build the panel ...
+    await gui()
+
+# 2. Enable it ON the console(s) you want. `//gui/normal_<console>` runs each time
+#    that console is activated, and CAN HAVE MULTIPLE handlers - so a mission (or
+#    addon) adds its own without touching the consoles addon. Console suffixes:
+#    engi / sci / helm / weap / comm / main (see LM consoles/layout_widgets.mast).
+//gui/normal_engi
+    gui_tab_enable("fabrication")
+
+//gui/normal_sci
+    gui_tab_enable("fabrication")
+```
+
+This scopes the tab to exactly the consoles you name, is flexible (any console opts in
+by adding a `//gui/normal_<console>` handler), and compiles cleanly. Reserve
+`gui_tab_add_top` for tabs that genuinely belong on **every** console. The OU
+`fabrication` addon is the reference implementation (engine-only; the mission enables +
+authors content).
+
 ## Layout
 
 - `gui_section(style="area: x, y, x2, y2;")` — a positioned region (percent coords).
