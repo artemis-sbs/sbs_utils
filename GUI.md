@@ -186,10 +186,14 @@ route:
     # ... build the panel ...
     await gui()
 
-# 2. Enable it ON the console(s) you want. `//gui/normal_<console>` runs each time
-#    that console is activated, and CAN HAVE MULTIPLE handlers - so a mission (or
-#    addon) adds its own without touching the consoles addon. Console suffixes:
-#    engi / sci / helm / weap / comm / main (see LM consoles/layout_widgets.mast).
+# 2. Enable it ON the console(s) you want. The hook is `//gui/<console name>`, where
+#    <console name> is the EXACT string that console passes to `gui_console(...)` /
+#    `gui_activate_console(...)` - it fires each time that console is activated, and
+#    CAN HAVE MULTIPLE handlers, so a mission (or addon) adds its own without touching
+#    the console's own code. Names: the standard consoles are `normal_engi`,
+#    `normal_sci`, `normal_helm`, `normal_weap`, `normal_comm`, `normal_main` (LM
+#    consoles/layout_widgets.mast); the hangar is `hangar`; a custom console is whatever
+#    you named it. Enable is what scopes the tab - so drop any `CONSOLE_SELECT ==` gate.
 //gui/normal_engi
     gui_tab_enable("fabrication")
 
@@ -198,10 +202,11 @@ route:
 ```
 
 This scopes the tab to exactly the consoles you name, is flexible (any console opts in
-by adding a `//gui/normal_<console>` handler), and compiles cleanly. Reserve
-`gui_tab_add_top` for tabs that genuinely belong on **every** console. The OU
-`fabrication` addon is the reference implementation (engine-only; the mission enables +
-authors content).
+by adding a `//gui/<name>` handler), and compiles cleanly. Reserve `gui_tab_add_top` for
+tabs that genuinely belong on **every** console. The OU `fabrication` addon is the
+reference (engine-only; the mission enables per console + authors content); the LM casino
+tab (enabled from `//gui/hangar` in the maps folder) and the OU admiral galaxy tab follow
+the same pattern.
 
 ## Layout
 
