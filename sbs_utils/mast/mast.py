@@ -327,14 +327,21 @@ class Mast():
             return
 
         # Mission addon python: exec every .py of one mission into a single shared
-        # namespace (per basedir) so a helper in one file can call a sibling file's
-        # helper by bare name. Functions are still registered into MastGlobals.globals
-        # for MAST-level calls. (See MastGlobals.get_mission_py_module.)
+        # namespace so a helper in one file can call a sibling file's helper by bare
+        # name. Keyed by the MISSION DIR, not self.basedir - so a mission's LOCAL SIBLING
+        # addon folders (e.g. OpenUniverse's universe_core/ + admiral/ + fabrication/)
+        # all share ONE namespace and cross-call both directions, the way they did when
+        # they were a single folder before the Phase 2b split. (Keying by the per-addon
+        # basedir put each folder in its own namespace, so admiral's universe_worldlets.py
+        # couldn't see universe_core's universe_section, and universe_core's admiral_present
+        # couldn't see admiral's admiralty_configure -> the Admiral console silently
+        # vanished.) Functions are still registered into MastGlobals.globals for MAST-level
+        # calls. (See MastGlobals.get_mission_py_module.) self.basedir still locates the file.
         if os.path.isfile(os.path.join(self.basedir, name)):
             import_file_name = os.path.join(self.basedir, name)
         else:
             import_file_name = os.path.join(fs.get_mission_dir(), name)
-        ns_mod = MastGlobals.get_mission_py_module(self.basedir)
+        ns_mod = MastGlobals.get_mission_py_module(fs.get_mission_dir())
         # Expose the shared namespace under this file's bare module name so existing
         # `from sibling import x` / `import sibling` Python imports between a mission's
         # .py files keep working - the symbols live in the shared dict. Idempotent;
