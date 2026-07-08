@@ -170,6 +170,26 @@ class TestCrossFile(unittest.TestCase):
                "% hi\n- [buy](a) ; signal buy_ghost\n")
         self.assertEqual(_by_code(amd_lint(content=doc), "signal-no-route"), [])
 
+    def test_wait_signal_unfired(self):
+        # `When: signal X` with nothing emitting X -> unfired-signal warning.
+        doc = ("# [Root](root)\n## [N](narrative)\n### [Q](q)\n"
+               "---\nWhen: signal never_emitted\n---\nbody\n")
+        f = _by_code(amd_lint(content=doc, mast_sources=["// empty mast\n"]), "unfired-signal")
+        self.assertEqual(len(f), 1)
+        self.assertEqual(f[0].severity, WARNING)
+
+    def test_wait_signal_satisfied_by_signal_name_emit(self):
+        # Emitted via the quest-signal plumbing in .mast -> no warning.
+        doc = ("# [Root](root)\n## [N](narrative)\n### [Q](q)\n"
+               "---\nWhen: signal briefed\n---\nbody\n")
+        mast = ['signal_emit("quest_signal", {"SIGNAL_NAME": "briefed"})\n']
+        self.assertEqual(_by_code(amd_lint(content=doc, mast_sources=mast), "unfired-signal"), [])
+
+    def test_wait_signal_skipped_without_mast(self):
+        doc = ("# [Root](root)\n## [N](narrative)\n### [Q](q)\n"
+               "---\nWhen: signal x\n---\nbody\n")
+        self.assertEqual(_by_code(amd_lint(content=doc), "unfired-signal"), [])
+
 
 class TestSpans(unittest.TestCase):
     """Findings carry exact column ranges from the amd_core model (not line-only)."""

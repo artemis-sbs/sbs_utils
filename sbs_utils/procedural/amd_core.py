@@ -183,13 +183,25 @@ def _extract_data_refs(node, fence_lines):
     when = _di(data, "When")
     if when:
         toks = str(when).split(None, 1)
-        if toks and toks[0].lower() in ("reach", "travel") and len(toks) > 1:
+        verb = toks[0].lower() if toks else ""
+        if verb in ("reach", "travel") and len(toks) > 1:
             cell = _coords(toks[1])
             if cell:
                 r = _token_span(fence_lines, "When", toks[1].strip(), key, "reach")
                 if r:
                     r.value = cell
                     node.refs.append(r)
+        elif verb == "signal" and len(toks) > 1:
+            # class-2 quest trigger: waits for a SIGNAL_NAME emit of this name
+            r = _token_span(fence_lines, "When", toks[1].strip(), key, "wait_signal")
+            if r:
+                node.refs.append(r)
+
+    fail = _di(data, "Fail on signal")
+    if fail:
+        r = _token_span(fence_lines, "Fail on signal", str(fail).strip(), key, "wait_signal")
+        if r:
+            node.refs.append(r)
 
     at = _di(data, "At")
     if at:

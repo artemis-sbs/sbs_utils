@@ -227,11 +227,36 @@ def _mast_routes(mast_sources):
     return routes
 
 
+# Signal names EMITTED from .mast/.py: literal signal_emit("x") and the quest-signal
+# `"SIGNAL_NAME": "x"` plumbing (what a quest `When: signal x` actually waits on).
+_RE_EMIT = re.compile(r'signal_emit\s*\(\s*["\']([A-Za-z0-9_]+)["\']')
+_RE_SIGNAL_NAME = re.compile(r'["\']SIGNAL_NAME["\']\s*:\s*["\']([A-Za-z0-9_]+)["\']')
+
+
+def _emitted_from_sources(mast_sources):
+    """Signal names statically discoverable as emitted in the given source texts."""
+    names = set()
+    for src in mast_sources or []:
+        names.update(m.group(1) for m in _RE_EMIT.finditer(src))
+        names.update(m.group(1) for m in _RE_SIGNAL_NAME.finditer(src))
+    return names
+
+
 def amd_lint_cross_file(doc, mast_sources=None):
-    """Flag emitted `signal X` with no `//signal/X` route (and not a known driver
-    signal), and `reach i,j` cells with no landmark `At: i,j`. WARNING."""
+    """Flag emitted `signal X` with no `//signal/X` route, a quest `When: signal X`
+    that nothing emits, and `reach i,j` cells with no landmark `At: i,j`. WARNING.
+
+    The signal checks need `mast_sources` (a list of .mast/.py source strings) to
+    know the mission's routes and emits; without it they are skipped."""
     findings = []
     routes = _mast_routes(mast_sources)
+
+    # The signals this mission actually emits: .amd raw emits + statically-scanned
+    # signal_emit()/SIGNAL_NAME from .mast/.py + the always-present driver signals.
+    emitted = None
+    if mast_sources is not None:
+        emitted = ({r.value for r in doc.refs if r.kind == "signal"}
+                   | _emitted_from_sources(mast_sources) | DRIVER_SIGNALS)
 
     for ref in doc.refs:
         if ref.kind == "signal" and mast_sources is not None:
@@ -241,6 +266,12 @@ def amd_lint_cross_file(doc, mast_sources=None):
                 ref.span, WARNING, "signal-no-route",
                 f"`{ref.owner}` emits signal `{ref.value}` but no `//signal/{ref.value}` "
                 f"route was found in the mission's .mast (nor a known driver signal)"))
+        elif ref.kind == "wait_signal" and emitted is not None:
+            if ref.value not in emitted:
+                findings.append(AmdFinding.at(
+                    ref.span, WARNING, "unfired-signal",
+                    f"`{ref.owner}` waits on signal `{ref.value}` (When/Fail on signal) "
+                    f"but nothing in the mission emits it"))
         elif ref.kind == "reach":
             if ref.value not in doc.landmark_cells:
                 i, j = ref.value

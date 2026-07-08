@@ -42,8 +42,8 @@ sbs lint . --no-cross      # skip cross-file (signal->route, reach->landmark) ch
 
 **Errors** (fail the run): broken/vanishing headings, unclosed `---` fences,
 heading-level jumps. **Warnings**: dangling choice / `Scene:` / `Then: reveal` /
-`Parent:` targets, an emitted `signal X` with no `//signal/X` route, a `reach i,j`
-with no landmark `At:`. Backed by `sbs_utils.procedural.amd_lint` — also callable
+`Parent:` targets, an emitted `signal X` with no `//signal/X` route, a quest
+`When: signal X` that nothing emits, a `reach i,j` with no landmark `At:`. Backed by `sbs_utils.procedural.amd_lint` — also callable
 directly on a single file: `python -m sbs_utils.procedural.amd_lint <file.amd>`.
 
 `--format compact` emits `file:line:col:` lines for editor problem-matchers;
