@@ -13,6 +13,7 @@ line. Run `sbs <command> --help` for full options.
 | `sbs lib <folder>` | Build a `.sbslib` / `.mastlib` library |
 | `sbs compile <mission>` | Compile-check the MAST |
 | `sbs lint <mission>` | **Validate** the mission's `.amd` files (headings, references, signals) |
+| `sbs fmt <mission>` | **Format** the mission's `.amd` files (canonical, prose-safe) |
 | `sbs fetch` / `sbs update` | Fetch missions / update the tool |
 
 ## Running a mission
@@ -48,6 +49,19 @@ directly on a single file: `python -m sbs_utils.procedural.amd_lint <file.amd>`.
 `--format compact` emits `file:line:col:` lines for editor problem-matchers;
 `--format json` emits structured findings (with exact ranges) for tools/CI.
 
+## Formatting
+
+```
+sbs fmt .                  # canonically format this mission's .amd (writes in place)
+sbs fmt . --check          # report + exit 1 if any file isn't formatted (CI)
+```
+
+Normalizes trailing whitespace, heading spacing, `---` fences, and blank-line runs.
+It is **prose-safe and idempotent** — it never reflows prose and is guaranteed not to
+change the parsed model. Backed by `sbs_utils.procedural.amd_fmt` (single file:
+`python -m sbs_utils.procedural.amd_fmt --write <file.amd>`), and exposed as the LSP
+formatting provider below (format-on-save).
+
 ### In your editor (language server)
 
 ```
@@ -58,8 +72,8 @@ Point any LSP client at that command for **live diagnostics as you type** — VS
 Neovim, Emacs, Sublime, JetBrains. It's the same checks over the same `amd_core`
 model (`sbs_utils.procedural.amd_lsp`), dependency-free. Beyond diagnostics it also
 provides **go-to-definition** (a `reveal` / choice / `Scene:` target → its node),
-a **document outline** of the heading tree, **hover**, and **completion** of node
-keys — all from the one model.
+a **document outline** of the heading tree, **hover**, **completion** of node keys,
+and **formatting** (format-on-save) — all from the one model.
 
 ## Serving web pages
 

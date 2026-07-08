@@ -149,6 +149,19 @@ class TestProviders(unittest.TestCase):
                             {"textDocument": {"uri": "file:///tmp/x.amd"}, "position": {"line": 4, "character": 7}})
         self.assertIn("b", hov["contents"]["value"])
 
+    def test_formatting_returns_edit(self):
+        edits = self._request("textDocument/formatting",
+                              {"textDocument": {"uri": "file:///tmp/x.amd"}, "options": {}},
+                              doc="#   [Root](root)   \nbody\n")
+        self.assertEqual(len(edits), 1)
+        self.assertTrue(edits[0]["newText"].startswith("# [Root](root)\n"))
+
+    def test_formatting_clean_doc_no_edits(self):
+        edits = self._request("textDocument/formatting",
+                              {"textDocument": {"uri": "file:///tmp/x.amd"}, "options": {}},
+                              doc="# [Root](root)\nbody\n")
+        self.assertEqual(edits, [])
+
 
 if __name__ == "__main__":
     unittest.main()

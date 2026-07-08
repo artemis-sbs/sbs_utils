@@ -184,6 +184,18 @@ def _completion(doc):
     return {"isIncomplete": False, "items": items}
 
 
+def _formatting(text):
+    """A single whole-document TextEdit with the canonically formatted text."""
+    from sbs_utils.procedural.amd_fmt import format_text
+    formatted = format_text(text)
+    if formatted == text:
+        return []
+    lines = text.split("\n")
+    end = {"line": len(lines) - 1, "character": len(lines[-1])}
+    return [{"range": {"start": {"line": 0, "character": 0}, "end": end},
+             "newText": formatted}]
+
+
 # --- server loop ------------------------------------------------------------
 def serve(stdin=None, stdout=None):
     """Run the LSP loop until `exit` / EOF. `stdin`/`stdout` are binary streams
@@ -207,6 +219,7 @@ def serve(stdin=None, stdout=None):
                     "documentSymbolProvider": True,
                     "hoverProvider": True,
                     "completionProvider": {"triggerCharacters": ["(", " "]},
+                    "documentFormattingProvider": True,
                 },
                 "serverInfo": {"name": "amd-lsp", "version": "0.1"}}})
         elif method == "initialized":
@@ -229,6 +242,10 @@ def serve(stdin=None, stdout=None):
             docs.pop(uri, None)
             _write_message(stdout, {"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics",
                                     "params": {"uri": uri, "diagnostics": []}})
+        elif method == "textDocument/formatting":
+            uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _formatting(docs.get(uri, ""))})
         elif method in ("textDocument/definition", "textDocument/documentSymbol",
                         "textDocument/hover", "textDocument/completion"):
             params = msg.get("params", {})
