@@ -181,24 +181,36 @@ DRIVER_SIGNALS = frozenset({
 
 
 # --- Phase 2: reference integrity (model-level, exact spans) -----------------
-def amd_lint_references(doc):
+def _resolves(doc, value, known_keys):
+    """A bare key or `a/b/c` path resolves inside this doc, or (cross-file) its
+    key/leaf is a known symbol elsewhere in the mission (another .amd node or a
+    MAST label). Cross-file structure can't be verified from one file, so the leaf
+    check is intentionally soft."""
+    if "/" in value:
+        return doc.path_resolves(value) or value.split("/")[-1] in known_keys
+    return value in doc.keys or value in known_keys
+
+
+def amd_lint_references(doc, known_keys=frozenset()):
     """Flag intra-document references that resolve to no node: dialogue/comms choice
     `](target)`, lifeform `Scene:`, quest `Then: reveal <path>`, `Parent:`. Uses the
-    `amd_core` model, so each finding carries the target's exact range. WARNING."""
+    `amd_core` model, so each finding carries the target's exact range. `known_keys`
+    are symbols defined elsewhere in the mission (sibling .amd nodes + MAST labels),
+    so a legitimate cross-file / MAST-label target is not flagged. WARNING."""
     findings = []
     for ref in doc.refs:
         if ref.kind == "scene":
-            if ref.value not in doc.keys:
+            if not _resolves(doc, ref.value, known_keys):
                 findings.append(AmdFinding.at(
                     ref.span, WARNING, "dangling-scene",
                     f"`{ref.owner}` Scene points at `{ref.value}`, which is not a defined node"))
         elif ref.kind == "parent":
-            if ref.value not in doc.keys:
+            if not _resolves(doc, ref.value, known_keys):
                 findings.append(AmdFinding.at(
                     ref.span, WARNING, "dangling-parent",
                     f"`{ref.owner}` Parent points at `{ref.value}`, which is not a defined node"))
         elif ref.kind == "reveal":
-            if not doc.path_resolves(ref.value):
+            if not _resolves(doc, ref.value, known_keys):
                 findings.append(AmdFinding.at(
                     ref.span, WARNING, "dangling-reveal",
                     f"`{ref.owner}` Then reveals `{ref.value}`, which resolves to no node"))
@@ -206,8 +218,7 @@ def amd_lint_references(doc):
             target = ref.value
             if not target or target.startswith("//"):
                 continue  # empty (comms back) or a route -> not an intra-doc node
-            ok = doc.path_resolves(target) if "/" in target else target in doc.keys
-            if not ok:
+            if not _resolves(doc, target, known_keys):
                 findings.append(AmdFinding.at(
                     ref.span, WARNING, "dangling-choice",
                     f"choice in `{ref.owner}` points at `{target}`, which resolves to no node"))
@@ -242,6 +253,27 @@ def _emitted_from_sources(mast_sources):
     return names
 
 
+# Optional declarations in a `metadata:` block (MAST or AMD): `emits: [a, b]` names
+# signals the label emits (for what static scanning can't see - dynamic/computed
+# names); `handles: [c]` names signals it handles (like a `//signal/` route). Both
+# are read as a convention - MAST just treats the keys as (unused) task vars.
+_RE_DECLARE = re.compile(r'^[ \t]*(emits|handles)[ \t]*:[ \t]*(.+?)[ \t]*$', re.I | re.M)
+_RE_NAME = re.compile(r'^[A-Za-z0-9_]+$')
+
+
+def _declared_from_sources(mast_sources):
+    """(emits, handles) name sets declared via `emits:` / `handles:` metadata lines."""
+    emits, handles = set(), set()
+    for src in mast_sources or []:
+        for m in _RE_DECLARE.finditer(src):
+            bucket = emits if m.group(1).lower() == "emits" else handles
+            for tok in m.group(2).strip().strip("[]").split(","):
+                name = tok.strip().strip("'\"")
+                if _RE_NAME.match(name):
+                    bucket.add(name)
+    return emits, handles
+
+
 def amd_lint_cross_file(doc, mast_sources=None):
     """Flag emitted `signal X` with no `//signal/X` route, a quest `When: signal X`
     that nothing emits, and `reach i,j` cells with no landmark `At: i,j`. WARNING.
@@ -249,14 +281,17 @@ def amd_lint_cross_file(doc, mast_sources=None):
     The signal checks need `mast_sources` (a list of .mast/.py source strings) to
     know the mission's routes and emits; without it they are skipped."""
     findings = []
-    routes = _mast_routes(mast_sources)
+    routes = set()
 
     # The signals this mission actually emits: .amd raw emits + statically-scanned
-    # signal_emit()/SIGNAL_NAME from .mast/.py + the always-present driver signals.
+    # signal_emit()/SIGNAL_NAME + declared `emits:` + the always-present driver
+    # signals. Routes = `//signal/` handlers + declared `handles:`.
     emitted = None
     if mast_sources is not None:
+        decl_emits, decl_handles = _declared_from_sources(mast_sources)
+        routes = _mast_routes(mast_sources) | decl_handles
         emitted = ({r.value for r in doc.refs if r.kind == "signal"}
-                   | _emitted_from_sources(mast_sources) | DRIVER_SIGNALS)
+                   | _emitted_from_sources(mast_sources) | decl_emits | DRIVER_SIGNALS)
 
     for ref in doc.refs:
         if ref.kind == "signal" and mast_sources is not None:
@@ -282,13 +317,29 @@ def amd_lint_cross_file(doc, mast_sources=None):
     return findings
 
 
-def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None):
+def mast_labels(mast_sources):
+    """Top-level MAST label names (`== name ==`) across the given sources - valid
+    jump/handler targets an AMD reference may point at."""
+    labels = set()
+    rx = re.compile(r"^={2,}\s*(?P<name>\w+)")
+    for src in mast_sources or []:
+        for line in src.splitlines():
+            m = rx.match(line.strip())
+            if m:
+                labels.add(m.group("name"))
+    return labels
+
+
+def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
+             known_keys=None):
     """Run all passes and return a combined, position-sorted [AmdFinding].
 
-    Phase 1 (structural, ERROR) always runs. Phases 2/3 run when the model parses;
-    the cross-file signal check additionally needs `mast_sources` (a list of .mast
-    source strings). Pass `cross_file=False` to skip Phase 3. Any exception from the
-    parser is downgraded to a single finding rather than raised."""
+    Phase 1 (structural, ERROR) always runs. Phases 2/3 run when the model parses.
+    `known_keys` are symbols defined elsewhere in the mission (sibling .amd node
+    keys + MAST labels) so cross-file / MAST-label references don't false-positive;
+    the cross-file signal check additionally needs `mast_sources` (.mast/.py source
+    strings). Pass `cross_file=False` to skip Phase 3. Any parser exception is
+    downgraded to a single finding rather than raised."""
     findings = list(amd_lint_structural(file_path, content))
 
     if content is None and file_path is not None:
@@ -301,7 +352,9 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None):
     try:
         from sbs_utils.procedural.amd_core import parse
         doc = parse(content)
-        findings += amd_lint_references(doc)
+        keys = set(known_keys) if known_keys else set()
+        keys |= mast_labels(mast_sources)   # MAST labels are valid targets too
+        findings += amd_lint_references(doc, keys)
         if cross_file is not False:
             findings += amd_lint_cross_file(doc, mast_sources)
     except Exception as e:

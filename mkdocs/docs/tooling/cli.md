@@ -46,6 +46,13 @@ heading-level jumps. **Warnings**: dangling choice / `Scene:` / `Then: reveal` /
 `When: signal X` that nothing emits, a `reach i,j` with no landmark `At:`. Backed by `sbs_utils.procedural.amd_lint` — also callable
 directly on a single file: `python -m sbs_utils.procedural.amd_lint <file.amd>`.
 
+References resolve across **all of the mission's `.amd` files** and against MAST
+`== labels ==`, so a `Scene:` / choice / `reveal` that targets a node in a sibling
+file (or a MAST handler label) isn't wrongly flagged. To vouch for a signal the
+linter can't see statically — a dynamic or computed `signal_emit` — add an optional
+`emits: [name, …]` (or `handles: [name]`) line to a `metadata:` block; it needs no
+new syntax (MAST just treats the key as an unused variable).
+
 `--format compact` emits `file:line:col:` lines for editor problem-matchers;
 `--format json` emits structured findings (with exact ranges) for tools/CI.
 

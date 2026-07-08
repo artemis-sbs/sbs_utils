@@ -126,6 +126,21 @@ class TestReferences(unittest.TestCase):
         f = _by_code(amd_lint(content=doc, cross_file=False), "dangling-parent")
         self.assertEqual(len(f), 1)
 
+    def test_cross_file_scene_resolved_via_known_keys(self):
+        # `Scene: talk` lives in another .amd -> flagged alone, resolved with known key.
+        doc = ("# [Root](root)\n## [Lifeforms](lifeforms)\n### [S](storm)\n"
+               "---\nScene: talk\n---\nbody\n")
+        self.assertEqual(len(_by_code(amd_lint(content=doc, cross_file=False), "dangling-scene")), 1)
+        clean = amd_lint(content=doc, cross_file=False, known_keys={"talk"})
+        self.assertEqual(_by_code(clean, "dangling-scene"), [])
+
+    def test_mast_label_target_not_flagged(self):
+        # A choice target that is a MAST label (`== go_there ==`) must resolve.
+        doc = ("# [Root](root)\n## [Dialogue](dialogue)\n### [A](a)\n"
+               "% hi\n- [go](go_there)\n")
+        clean = amd_lint(content=doc, mast_sources=["== go_there ==\n    ->END\n"])
+        self.assertEqual(_by_code(clean, "dangling-choice"), [])
+
 
 class TestCrossFile(unittest.TestCase):
     """Phase 3 - signals vs routes, reach vs landmark (all WARNING)."""
@@ -189,6 +204,20 @@ class TestCrossFile(unittest.TestCase):
         doc = ("# [Root](root)\n## [N](narrative)\n### [Q](q)\n"
                "---\nWhen: signal x\n---\nbody\n")
         self.assertEqual(_by_code(amd_lint(content=doc), "unfired-signal"), [])
+
+    def test_declared_emits_satisfies_wait_signal(self):
+        # `emits: [foo]` in a metadata block asserts foo is emitted (Option A).
+        doc = ("# [Root](root)\n## [N](narrative)\n### [Q](q)\n"
+               "---\nWhen: signal foo\n---\nbody\n")
+        mast = ["metadata block with\nemits: [foo]\n"]
+        self.assertEqual(_by_code(amd_lint(content=doc, mast_sources=mast), "unfired-signal"), [])
+
+    def test_declared_handles_satisfies_signal_route(self):
+        # `handles: [bar]` counts as a handler, like a //signal/bar route.
+        doc = ("# [Root](root)\n## [Dialogue](dialogue)\n### [A](a)\n"
+               "% hi\n- [x](a) ; signal bar\n")
+        mast = ["handles: [bar]\n"]
+        self.assertEqual(_by_code(amd_lint(content=doc, mast_sources=mast), "signal-no-route"), [])
 
 
 class TestSpans(unittest.TestCase):
