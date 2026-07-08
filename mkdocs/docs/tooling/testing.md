@@ -31,6 +31,19 @@ verdict &mdash; ideal for CI. Add `--exercise` to actively drive
 selections/comms/console-cycling for more route coverage, `--junit <path>` for a
 JUnit report, and `--seed N` for reproducibility.
 
+## Validating AMD files
+
+```
+sbs lint .                  # check .amd for silent structural/reference errors
+```
+
+AMD's failure modes are **silent** — a typo'd `# [Display](key)` heading drops a whole
+quest with no error. `sbs lint` re-scans a mission's `.amd` and reports broken/vanishing
+headings, unclosed `---` fences, and heading-level jumps (**errors**, exit `1`), plus
+dangling `Then: reveal` / choice / `Scene:` targets, a `signal X` with no `//signal/X`
+route, and a `reach i,j` with no landmark `At:` (**warnings**). Add `--strict` to fail on
+warnings for CI. See [the CLI page](cli.md#validating-amd).
+
 ## Unit tests
 
 The library uses `unittest`:

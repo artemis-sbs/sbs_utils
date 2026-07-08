@@ -12,6 +12,7 @@ line. Run `sbs <command> --help` for full options.
 | `sbs web-static <mission> <page>` | Render one web page to a standalone HTML file |
 | `sbs lib <folder>` | Build a `.sbslib` / `.mastlib` library |
 | `sbs compile <mission>` | Compile-check the MAST |
+| `sbs lint <mission>` | **Validate** the mission's `.amd` files (headings, references, signals) |
 | `sbs fetch` / `sbs update` | Fetch missions / update the tool |
 
 ## Running a mission
@@ -25,6 +26,24 @@ sbs debug . --no-gui --map 0 --test 30    # headless, play ~30s, pass/fail verdi
 Handy flags: `--use-working-tree` (test local library edits against the packaged
 mission), `--seed N` (reproducible runs), and settings overrides that don't touch
 `settings.yaml` (`--auto-start`, `--players N`, `--set KEY=VALUE`).
+
+## Validating AMD
+
+`compile` checks the MAST; `lint` checks the `.amd` content (quests, dialogue,
+cast, maps). AMD fails *silently* — a typo'd `# [Display](key)` heading becomes body
+text and its node vanishes — so lint re-scans a mission's `.amd` and surfaces it.
+
+```
+sbs lint .                 # errors + warnings, exit 0/1
+sbs lint . --strict        # warnings fail too (CI)
+sbs lint . --no-cross      # skip cross-file (signal->route, reach->landmark) checks
+```
+
+**Errors** (fail the run): broken/vanishing headings, unclosed `---` fences,
+heading-level jumps. **Warnings**: dangling choice / `Scene:` / `Then: reveal` /
+`Parent:` targets, an emitted `signal X` with no `//signal/X` route, a `reach i,j`
+with no landmark `At:`. Backed by `sbs_utils.procedural.amd_lint` — also callable
+directly on a single file: `python -m sbs_utils.procedural.amd_lint <file.amd>`.
 
 ## Serving web pages
 
