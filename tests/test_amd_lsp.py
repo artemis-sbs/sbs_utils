@@ -87,5 +87,68 @@ class TestLsp(unittest.TestCase):
         self.assertNotIn(":/f", p)
 
 
+# A doc with a resolvable choice target `a -> b`, and a heading tree for symbols.
+_DOC = "# [Root](root)\n## [Dialogue](dialogue)\n### [A](a)\n% hi\n- [go](b)\n### [B](b)\n% there\n"
+
+
+class TestProviders(unittest.TestCase):
+    def _request(self, method, params, doc=_DOC, uri="file:///tmp/x.amd"):
+        stream = (
+            _frame({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+            + _frame({"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                      "params": {"textDocument": {"uri": uri, "text": doc}}})
+            + _frame({"jsonrpc": "2.0", "id": 2, "method": method, "params": params})
+            + _frame({"jsonrpc": "2.0", "method": "exit"})
+        )
+        out = io.BytesIO()
+        serve(stdin=io.BytesIO(stream), stdout=out)
+        msgs = _parse_frames(out.getvalue())
+        return next(m for m in msgs if m.get("id") == 2)["result"]
+
+    def test_initialize_advertises_providers(self):
+        stream = (_frame({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+                  + _frame({"jsonrpc": "2.0", "method": "exit"}))
+        out = io.BytesIO()
+        serve(stdin=io.BytesIO(stream), stdout=out)
+        caps = next(m for m in _parse_frames(out.getvalue()) if m.get("id") == 1)["result"]["capabilities"]
+        self.assertTrue(caps["definitionProvider"])
+        self.assertTrue(caps["documentSymbolProvider"])
+        self.assertTrue(caps["hoverProvider"])
+        self.assertIn("completionProvider", caps)
+
+    def test_definition_jumps_to_target_node(self):
+        uri = "file:///tmp/x.amd"
+        # position on the `b` inside `- [go](b)` (line 5 -> LSP 4, col 7)
+        loc = self._request("textDocument/definition",
+                            {"textDocument": {"uri": uri}, "position": {"line": 4, "character": 7}})
+        self.assertEqual(loc["uri"], uri)
+        # `### [B](b)` is source line 6 -> LSP line 5
+        self.assertEqual(loc["range"]["start"]["line"], 5)
+
+    def test_definition_none_off_a_reference(self):
+        loc = self._request("textDocument/definition",
+                            {"textDocument": {"uri": "file:///tmp/x.amd"},
+                             "position": {"line": 3, "character": 0}})  # the `% hi` line
+        self.assertIsNone(loc)
+
+    def test_document_symbols_tree(self):
+        syms = self._request("textDocument/documentSymbol", {"textDocument": {"uri": "file:///tmp/x.amd"}})
+        self.assertEqual([s["name"] for s in syms], ["Root"])
+        dialogue = syms[0]["children"][0]
+        self.assertEqual(dialogue["detail"], "dialogue")
+        self.assertEqual({c["detail"] for c in dialogue["children"]}, {"a", "b"})
+
+    def test_completion_offers_keys(self):
+        comp = self._request("textDocument/completion",
+                             {"textDocument": {"uri": "file:///tmp/x.amd"}, "position": {"line": 4, "character": 7}})
+        labels = {i["label"] for i in comp["items"]}
+        self.assertTrue({"root", "dialogue", "a", "b"} <= labels)
+
+    def test_hover_shows_target(self):
+        hov = self._request("textDocument/hover",
+                            {"textDocument": {"uri": "file:///tmp/x.amd"}, "position": {"line": 4, "character": 7}})
+        self.assertIn("b", hov["contents"]["value"])
+
+
 if __name__ == "__main__":
     unittest.main()

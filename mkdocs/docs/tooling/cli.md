@@ -56,8 +56,10 @@ sbs lint --lsp             # AMD language server over stdio
 
 Point any LSP client at that command for **live diagnostics as you type** — VSCode,
 Neovim, Emacs, Sublime, JetBrains. It's the same checks over the same `amd_core`
-model (`sbs_utils.procedural.amd_lsp`), dependency-free. Navigation, completion, and
-symbols are natural follow-ons over the model.
+model (`sbs_utils.procedural.amd_lsp`), dependency-free. Beyond diagnostics it also
+provides **go-to-definition** (a `reveal` / choice / `Scene:` target → its node),
+a **document outline** of the heading tree, **hover**, and **completion** of node
+keys — all from the one model.
 
 ## Serving web pages
 

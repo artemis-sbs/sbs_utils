@@ -61,7 +61,7 @@ class AmdNode:
     """A heading and its contents. `span` covers the heading line; `data` is the
     merged `---` fence dict; `refs` are references sourced from this node."""
     __slots__ = ("key", "display", "level", "span", "query", "data",
-                 "children", "parent", "refs")
+                 "children", "parent", "refs", "summary")
 
     def __init__(self, key, display, level, span=None, parent=None):
         self.key = key
@@ -73,6 +73,7 @@ class AmdNode:
         self.children = []
         self.parent = parent
         self.refs = []
+        self.summary = ""      # first prose body line, for hover
 
 
 class AmdDocument:
@@ -82,6 +83,7 @@ class AmdDocument:
         self.nodes = nodes            # every node except the synthetic root
         self.refs = refs              # every AmdRef, document order
         self.keys = {n.key for n in nodes}
+        self.by_key = {n.key: n for n in nodes}
         self.parent_of = {n.key: (n.parent.key if n.parent and n.parent.key != "__root__" else None)
                           for n in nodes}
         self.landmark_cells = {r.value for r in refs if r.kind == "at"}
@@ -95,6 +97,15 @@ class AmdDocument:
         if any(s not in self.keys for s in segs):
             return False
         return all(self.parent_of.get(b) == a for a, b in zip(segs, segs[1:]))
+
+    def resolve_target(self, value):
+        """The AmdNode a reference points at (bare key or `a/b/c` path), or None."""
+        segs = [s for s in str(value).split("/") if s]
+        if not segs:
+            return None
+        if len(segs) == 1:
+            return self.by_key.get(segs[0])
+        return self.by_key.get(segs[-1]) if self.path_resolves(value) else None
 
 
 # --- helpers ----------------------------------------------------------------
@@ -266,7 +277,11 @@ def parse(content, file_path=None):
             continue
 
         # body line of the current node - scan for choice/signal references
-        _extract_choice_refs(stack[-1], idx, raw)
+        node = stack[-1]
+        _extract_choice_refs(node, idx, raw)
+        stripped = raw.strip()
+        if stripped and not node.summary and not stripped.startswith("- ["):
+            node.summary = stripped
 
     # Collect refs in document order (data refs were attached per-node above).
     for n in nodes:
