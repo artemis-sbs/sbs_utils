@@ -8,7 +8,10 @@ test_set_exe_dir()
 
 import io
 import json
+import os
+import tempfile
 import unittest
+from pathlib import Path
 
 from sbs_utils.procedural.amd_lsp import serve, _uri_to_path
 
@@ -187,6 +190,77 @@ class TestProviders(unittest.TestCase):
         edits = we["changes"][uri]
         self.assertEqual(len(edits), 2)                       # decl + one reference
         self.assertTrue(all(e["newText"] == "bravo" for e in edits))
+
+
+class TestWorkspace(unittest.TestCase):
+    """Whole-mission indexing: cross-file resolution matches `sbs lint`."""
+
+    def _mission(self, tmp):
+        os.mkdir(os.path.join(tmp, "m"))
+        root = os.path.join(tmp, "m")
+        with open(os.path.join(root, "story.json"), "w") as f:
+            f.write("{}")
+        # b.amd defines the dialogue scene `talk`
+        with open(os.path.join(root, "b.amd"), "w") as f:
+            f.write("# [R](rb)\n## [Dialogue](dialogue)\n### [Talk](talk)\n% hi\n")
+        # a.amd references it cross-file via Scene:
+        a = os.path.join(root, "a.amd")
+        with open(a, "w") as f:
+            f.write("# [R](ra)\n## [Lifeforms](lifeforms)\n### [S](storm)\n"
+                    "---\nScene: talk\n---\nbody\n")
+        return root, a
+
+    def _drive(self, msgs):
+        out = io.BytesIO()
+        serve(stdin=io.BytesIO(b"".join(_frame(m) for m in msgs)), stdout=out)
+        return _parse_frames(out.getvalue())
+
+    def test_cross_file_definition(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, a = self._mission(tmp)
+            uri = Path(a).as_uri()
+            out = self._drive([
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                 "params": {"textDocument": {"uri": uri, "text": Path(a).read_text()}}},
+                {"jsonrpc": "2.0", "id": 2, "method": "textDocument/definition",
+                 "params": {"textDocument": {"uri": uri}, "position": {"line": 4, "character": 7}}},
+                {"jsonrpc": "2.0", "method": "exit"},
+            ])
+            loc = next(m for m in out if m.get("id") == 2)["result"]
+            self.assertTrue(loc["uri"].endswith("b.amd"))     # jumped to the other file
+            self.assertEqual(loc["range"]["start"]["line"], 2)  # `### [Talk](talk)`
+
+    def test_cross_file_diagnostics_clean(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, a = self._mission(tmp)
+            uri = Path(a).as_uri()
+            out = self._drive([
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                 "params": {"textDocument": {"uri": uri, "text": Path(a).read_text()}}},
+                {"jsonrpc": "2.0", "method": "exit"},
+            ])
+            pub = next(m for m in out if m.get("method") == "textDocument/publishDiagnostics")
+            codes = [d["code"] for d in pub["params"]["diagnostics"]]
+            self.assertNotIn("dangling-scene", codes)          # resolved via b.amd
+
+    def test_cross_file_references(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, a = self._mission(tmp)
+            uri = Path(a).as_uri()
+            out = self._drive([
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                 "params": {"textDocument": {"uri": uri, "text": Path(a).read_text()}}},
+                {"jsonrpc": "2.0", "id": 2, "method": "textDocument/references",
+                 "params": {"textDocument": {"uri": uri}, "position": {"line": 4, "character": 7},
+                            "context": {"includeDeclaration": True}}},
+                {"jsonrpc": "2.0", "method": "exit"},
+            ])
+            locs = next(m for m in out if m.get("id") == 2)["result"]
+            uris = {os.path.basename(_uri_to_path(l["uri"])) for l in locs}
+            self.assertEqual(uris, {"a.amd", "b.amd"})          # ref in a, decl in b
 
 
 if __name__ == "__main__":

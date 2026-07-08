@@ -45,23 +45,91 @@ def _mission_root(path):
     return None
 
 
-def _mast_sources(root):
-    if not root:
+def _read(path):
+    try:
+        with open(path, "r") as f:
+            return f.read()
+    except Exception:
         return None
-    out = []
-    for p in glob.glob(os.path.join(root, "**", "*.mast"), recursive=True):
-        try:
-            with open(p, "r") as f:
-                out.append(f.read())
-        except Exception:
-            pass
+
+
+def _path_to_uri(path):
+    from pathlib import Path
+    return Path(os.path.abspath(path)).as_uri()
+
+
+# --- workspace index (whole-mission awareness, so editor == `sbs lint`) ------
+# Cached per mission root; cleared on any document mutation. An index holds the
+# mission-wide symbol table, every .amd doc (parsed from the open buffer when a
+# file is open, else disk), and the .mast/.py sources for the signal checks.
+_index_cache = {}
+
+
+def _invalidate():
+    _index_cache.clear()
+
+
+def _open_by_path(docs):
+    """normcase(abspath) -> (text, uri) for every open document."""
+    out = {}
+    for uri, text in docs.items():
+        out[os.path.normcase(os.path.abspath(_uri_to_path(uri)))] = (text, uri)
     return out
 
 
-def _diagnostics(text, path):
-    """amd_lint findings for `text` -> LSP Diagnostic dicts (0-based positions)."""
+def _mission_index(root, docs):
+    if root in _index_cache:
+        return _index_cache[root]
+    from sbs_utils.procedural.amd_core import parse
+    open_by = _open_by_path(docs)
+    amd_docs, known = [], set()
+    for p in glob.glob(os.path.join(root, "**", "*.amd"), recursive=True):
+        ap = os.path.normcase(os.path.abspath(p))
+        text, uri = open_by.get(ap, (None, None))
+        if text is None:
+            text = _read(p)
+        if text is None:
+            continue
+        doc = parse(text)
+        amd_docs.append((ap, uri or _path_to_uri(p), doc))
+        known |= doc.keys
+    mast = []
+    for pat in ("*.mast", "*.py"):
+        for p in glob.glob(os.path.join(root, "**", pat), recursive=True):
+            t = _read(p)
+            if t is not None:
+                mast.append(t)
+    index = {"known": known, "docs": amd_docs, "mast": mast or None}
+    _index_cache[root] = index
+    return index
+
+
+def _index_for(uri, docs):
+    """The mission index for `uri`, or a single-file index if no mission root."""
+    path = _uri_to_path(uri)
+    root = _mission_root(path)
+    if root:
+        return _mission_index(root, docs)
+    from sbs_utils.procedural.amd_core import parse
+    doc = parse(docs.get(uri, ""))
+    ap = os.path.normcase(os.path.abspath(path))
+    return {"known": set(doc.keys), "docs": [(ap, uri, doc)], "mast": None}
+
+
+def _cur_doc(index, uri):
+    """The parsed doc + canonical uri for `uri` within an index."""
+    ap = os.path.normcase(os.path.abspath(_uri_to_path(uri)))
+    for p, u, d in index["docs"]:
+        if p == ap:
+            return d, u
+    return None, uri
+
+
+def _diagnostics(text, index):
+    """amd_lint findings for `text` (mission-aware) -> LSP Diagnostic dicts."""
     from sbs_utils.procedural.amd_lint import amd_lint
-    findings = amd_lint(content=text, mast_sources=_mast_sources(_mission_root(path)))
+    findings = amd_lint(content=text, mast_sources=index["mast"],
+                        known_keys=index["known"])
     lines = text.splitlines()
     diags = []
     for f in findings:
@@ -114,9 +182,9 @@ def _write_message(stdout, msg):
     stdout.flush()
 
 
-def _publish(stdout, uri, text, path):
+def _publish(stdout, uri, text, docs):
     try:
-        diags = _diagnostics(text, path)
+        diags = _diagnostics(text, _index_for(uri, docs))
     except Exception:
         diags = []
     _write_message(stdout, {"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics",
@@ -153,21 +221,32 @@ def _symbols(node):
     return out
 
 
-def _definition(doc, pos, uri):
-    ref = _ref_at(doc, pos.get("line", 0), pos.get("character", 0))
-    if not ref:
+def _find_node(index, key):
+    """The (uri, node) that defines `key` anywhere in the mission, or (None, None)."""
+    for _p, u, d in index["docs"]:
+        n = d.by_key.get(key)
+        if n is not None:
+            return u, n
+    return None, None
+
+
+def _definition(index, doc, pos):
+    subject = _subject_key(doc, pos.get("line", 0), pos.get("character", 0))
+    if not subject:
         return None
-    target = doc.resolve_target(ref.value)
-    if target and target.span:
-        return {"uri": uri, "range": _node_range(target)}
+    uri, node = _find_node(index, subject)
+    if node and node.key_span:
+        s = node.key_span
+        return {"uri": uri, "range": _lsp_range(s.line, s.col, s.end_col)}
     return None
 
 
-def _hover(doc, pos):
+def _hover(index, doc, pos):
     ref = _ref_at(doc, pos.get("line", 0), pos.get("character", 0))
     if not ref:
         return None
-    target = doc.resolve_target(ref.value)
+    leaf = str(ref.value).split("/")[-1]
+    _uri, target = _find_node(index, leaf)
     val = f"**{ref.kind}** → `{ref.value}`"
     if target:
         val += f"\n\n**{target.display or target.key}**"
@@ -178,9 +257,9 @@ def _hover(doc, pos):
     return {"contents": {"kind": "markdown", "value": val}}
 
 
-def _completion(doc):
-    # Offer every node key (choice/Scene/reveal targets). kind 6 = Variable.
-    items = [{"label": k, "kind": 6} for k in sorted(doc.keys)]
+def _completion(index):
+    # Offer every node key across the mission. kind 6 = Variable.
+    items = [{"label": k, "kind": 6} for k in sorted(index["known"])]
     return {"isIncomplete": False, "items": items}
 
 
@@ -243,21 +322,28 @@ def _key_ranges(doc, subject, include_decl=True):
     return decl + refs
 
 
-def _references(doc, pos, uri, include_decl):
+def _references(index, doc, pos, include_decl):
     subject = _subject_key(doc, pos.get("line", 0), pos.get("character", 0))
     if not subject:
         return None
-    return [{"uri": uri, "range": rg}
-            for rg in _key_ranges(doc, subject, include_decl=include_decl)]
+    out = []
+    for _p, u, d in index["docs"]:
+        for rg in _key_ranges(d, subject, include_decl=include_decl):
+            out.append({"uri": u, "range": rg})
+    return out
 
 
-def _rename(doc, pos, new_name, uri):
+def _rename(index, doc, pos, new_name):
     subject = _subject_key(doc, pos.get("line", 0), pos.get("character", 0))
     if not subject or not new_name:
         return None
-    edits = [{"range": rg, "newText": new_name}
-             for rg in _key_ranges(doc, subject, include_decl=True)]
-    return {"changes": {uri: edits}} if edits else None
+    changes = {}
+    for _p, u, d in index["docs"]:
+        edits = [{"range": rg, "newText": new_name}
+                 for rg in _key_ranges(d, subject, include_decl=True)]
+        if edits:
+            changes[u] = edits
+    return {"changes": changes} if changes else None
 
 
 def _formatting(text):
@@ -314,10 +400,12 @@ def serve(stdin=None, stdout=None):
             else:  # didSave
                 text = params.get("text") or docs.get(uri, "")
             docs[uri] = text
-            _publish(stdout, uri, text, _uri_to_path(uri))
+            _invalidate()                 # a buffer changed -> rebuild the index
+            _publish(stdout, uri, text, docs)
         elif method == "textDocument/didClose":
             uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
             docs.pop(uri, None)
+            _invalidate()
             _write_message(stdout, {"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics",
                                     "params": {"uri": uri, "diagnostics": []}})
         elif method == "textDocument/formatting":
@@ -329,21 +417,24 @@ def serve(stdin=None, stdout=None):
                         "textDocument/references", "textDocument/rename"):
             params = msg.get("params", {})
             uri = params.get("textDocument", {}).get("uri", "")
-            doc = _parse(docs.get(uri, ""))
+            index = _index_for(uri, docs)
+            doc, _curi = _cur_doc(index, uri)
+            if doc is None:
+                doc = _parse(docs.get(uri, ""))
             pos = params.get("position", {})
             if method == "textDocument/definition":
-                result = _definition(doc, pos, uri)
+                result = _definition(index, doc, pos)
             elif method == "textDocument/documentSymbol":
                 result = _symbols(doc.root)
             elif method == "textDocument/hover":
-                result = _hover(doc, pos)
+                result = _hover(index, doc, pos)
             elif method == "textDocument/completion":
-                result = _completion(doc)
+                result = _completion(index)
             elif method == "textDocument/references":
                 include_decl = params.get("context", {}).get("includeDeclaration", True)
-                result = _references(doc, pos, uri, include_decl)
+                result = _references(index, doc, pos, include_decl)
             else:  # rename
-                result = _rename(doc, pos, params.get("newName", ""), uri)
+                result = _rename(index, doc, pos, params.get("newName", ""))
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": result})
         elif method == "shutdown":
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": None})
