@@ -162,6 +162,32 @@ class TestProviders(unittest.TestCase):
                               doc="# [Root](root)\nbody\n")
         self.assertEqual(edits, [])
 
+    def test_references_from_a_choice(self):
+        # cursor on `b` in `- [go](b)` -> its declaration + the one reference
+        uri = "file:///tmp/x.amd"
+        locs = self._request("textDocument/references",
+                             {"textDocument": {"uri": uri}, "position": {"line": 4, "character": 7},
+                              "context": {"includeDeclaration": True}})
+        lines = sorted(l["range"]["start"]["line"] for l in locs)
+        # `### [B](b)` decl on source line 6 (LSP 5) + the choice ref on line 5 (LSP 4)
+        self.assertEqual(lines, [4, 5])
+
+    def test_references_exclude_declaration(self):
+        uri = "file:///tmp/x.amd"
+        locs = self._request("textDocument/references",
+                             {"textDocument": {"uri": uri}, "position": {"line": 4, "character": 7},
+                              "context": {"includeDeclaration": False}})
+        self.assertEqual([l["range"]["start"]["line"] for l in locs], [4])  # ref only
+
+    def test_rename_updates_declaration_and_references(self):
+        uri = "file:///tmp/x.amd"
+        we = self._request("textDocument/rename",
+                           {"textDocument": {"uri": uri}, "position": {"line": 5, "character": 8},
+                            "newName": "bravo"})   # cursor on the `### [B](b)` heading key
+        edits = we["changes"][uri]
+        self.assertEqual(len(edits), 2)                       # decl + one reference
+        self.assertTrue(all(e["newText"] == "bravo" for e in edits))
+
 
 if __name__ == "__main__":
     unittest.main()

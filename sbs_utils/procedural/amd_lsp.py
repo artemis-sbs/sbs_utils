@@ -184,6 +184,82 @@ def _completion(doc):
     return {"isIncomplete": False, "items": items}
 
 
+# The reference kinds that carry a renameable node key (not coords/signals).
+_KEY_REF_KINDS = ("choice", "scene", "parent", "reveal")
+
+
+def _node_at(doc, line0, char):
+    """The node whose heading line contains the 0-based (line, char), or None."""
+    for n in doc.nodes:
+        s = n.span
+        if s and s.line - 1 == line0 and s.col <= char <= s.end_col:
+            return n
+    return None
+
+
+def _ref_segment(ref, char):
+    """For a path ref (`a/b/c`), the segment key under the cursor; else the value."""
+    val = str(ref.value)
+    off = 0
+    for seg in val.split("/"):
+        start = ref.span.col + off
+        if start <= char < start + len(seg):
+            return seg
+        off += len(seg) + 1
+    return val.split("/")[-1]
+
+
+def _subject_key(doc, line0, char):
+    """The node key the cursor is on - via a key-carrying reference or a heading."""
+    ref = _ref_at(doc, line0, char)
+    if ref and ref.kind in _KEY_REF_KINDS:
+        return _ref_segment(ref, char)
+    node = _node_at(doc, line0, char)
+    return node.key if node else None
+
+
+def _lsp_range(line1, col, end_col):
+    return {"start": {"line": line1 - 1, "character": col},
+            "end": {"line": line1 - 1, "character": end_col}}
+
+
+def _key_ranges(doc, subject, include_decl=True):
+    """Every source range where node key `subject` appears - the heading
+    declaration(s) and each matching path segment of a key-carrying reference."""
+    decl, refs = [], []
+    if include_decl:
+        for n in doc.nodes:
+            if n.key == subject and n.key_span:
+                s = n.key_span
+                decl.append(_lsp_range(s.line, s.col, s.end_col))
+    for r in doc.refs:
+        if r.kind not in _KEY_REF_KINDS:
+            continue
+        off = 0
+        for seg in str(r.value).split("/"):
+            if seg == subject:
+                refs.append(_lsp_range(r.span.line, r.span.col + off, r.span.col + off + len(seg)))
+            off += len(seg) + 1
+    return decl + refs
+
+
+def _references(doc, pos, uri, include_decl):
+    subject = _subject_key(doc, pos.get("line", 0), pos.get("character", 0))
+    if not subject:
+        return None
+    return [{"uri": uri, "range": rg}
+            for rg in _key_ranges(doc, subject, include_decl=include_decl)]
+
+
+def _rename(doc, pos, new_name, uri):
+    subject = _subject_key(doc, pos.get("line", 0), pos.get("character", 0))
+    if not subject or not new_name:
+        return None
+    edits = [{"range": rg, "newText": new_name}
+             for rg in _key_ranges(doc, subject, include_decl=True)]
+    return {"changes": {uri: edits}} if edits else None
+
+
 def _formatting(text):
     """A single whole-document TextEdit with the canonically formatted text."""
     from sbs_utils.procedural.amd_fmt import format_text
@@ -220,6 +296,8 @@ def serve(stdin=None, stdout=None):
                     "hoverProvider": True,
                     "completionProvider": {"triggerCharacters": ["(", " "]},
                     "documentFormattingProvider": True,
+                    "referencesProvider": True,
+                    "renameProvider": True,
                 },
                 "serverInfo": {"name": "amd-lsp", "version": "0.1"}}})
         elif method == "initialized":
@@ -247,7 +325,8 @@ def serve(stdin=None, stdout=None):
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                     "result": _formatting(docs.get(uri, ""))})
         elif method in ("textDocument/definition", "textDocument/documentSymbol",
-                        "textDocument/hover", "textDocument/completion"):
+                        "textDocument/hover", "textDocument/completion",
+                        "textDocument/references", "textDocument/rename"):
             params = msg.get("params", {})
             uri = params.get("textDocument", {}).get("uri", "")
             doc = _parse(docs.get(uri, ""))
@@ -258,8 +337,13 @@ def serve(stdin=None, stdout=None):
                 result = _symbols(doc.root)
             elif method == "textDocument/hover":
                 result = _hover(doc, pos)
-            else:  # completion
+            elif method == "textDocument/completion":
                 result = _completion(doc)
+            elif method == "textDocument/references":
+                include_decl = params.get("context", {}).get("includeDeclaration", True)
+                result = _references(doc, pos, uri, include_decl)
+            else:  # rename
+                result = _rename(doc, pos, params.get("newName", ""), uri)
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": result})
         elif method == "shutdown":
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": None})

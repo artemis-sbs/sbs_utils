@@ -60,14 +60,15 @@ class AmdRef:
 class AmdNode:
     """A heading and its contents. `span` covers the heading line; `data` is the
     merged `---` fence dict; `refs` are references sourced from this node."""
-    __slots__ = ("key", "display", "level", "span", "query", "data",
+    __slots__ = ("key", "display", "level", "span", "key_span", "query", "data",
                  "children", "parent", "refs", "summary")
 
     def __init__(self, key, display, level, span=None, parent=None):
         self.key = key
         self.display = display
         self.level = level
-        self.span = span
+        self.span = span            # the whole heading line
+        self.key_span = None        # just the `key` token inside `](key)`
         self.query = {}
         self.data = {}
         self.children = []
@@ -260,6 +261,8 @@ def parse(content, file_path=None):
             urn = m.group("urn").split("?", 1)
             node = AmdNode(urn[0], m.group("display"), level,
                            span=Span(idx, 0, idx, len(raw)))
+            ustart = m.start("urn")
+            node.key_span = Span(idx, ustart, idx, ustart + len(urn[0]))
             if len(urn) == 2:
                 for kv in urn[1].split("&"):
                     kv = kv.split("=")

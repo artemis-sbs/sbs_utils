@@ -74,7 +74,8 @@ highlighting + a thin client for this server) lives in the `sbs_cli` repo under
 `editors/vscode/`. It's the same checks over the same `amd_core`
 model (`sbs_utils.procedural.amd_lsp`), dependency-free. Beyond diagnostics it also
 provides **go-to-definition** (a `reveal` / choice / `Scene:` target → its node),
-a **document outline** of the heading tree, **hover**, **completion** of node keys,
+**find-references** and **rename** (a node key + every reference to it), a
+**document outline** of the heading tree, **hover**, **completion** of node keys,
 and **formatting** (format-on-save) — all from the one model.
 
 ## Serving web pages
