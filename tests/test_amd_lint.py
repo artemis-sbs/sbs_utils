@@ -171,5 +171,21 @@ class TestCrossFile(unittest.TestCase):
         self.assertEqual(_by_code(amd_lint(content=doc), "signal-no-route"), [])
 
 
+class TestSpans(unittest.TestCase):
+    """Findings carry exact column ranges from the amd_core model (not line-only)."""
+
+    def test_choice_target_span(self):
+        doc = "# [Root](root)\n## [Dialogue](dialogue)\n### [A](a)\n% hi\n- [go](nope)\n"
+        f = _by_code(amd_lint(content=doc, cross_file=False), "dangling-choice")[0]
+        self.assertEqual((f.line, f.col, f.end_col), (5, 7, 11))  # "- [go](" -> target at 7
+
+    def test_signal_span(self):
+        doc = ("# [Root](root)\n## [Dialogue](dialogue)\n### [A](a)\n"
+               "% hi\n- [buy](a) ; signal ghost_sig\n")
+        f = _by_code(amd_lint(content=doc, mast_sources=[]), "signal-no-route")
+        # driver allowlist empty here, no route -> flagged, with a real column
+        self.assertTrue(f and f[0].col is not None and f[0].end_col > f[0].col)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -39,23 +39,59 @@ _RE_DATA_FENCE = re.compile(r"\s*-{3,}\s*$")
 
 
 class AmdFinding:
-    """One linter result. `line` is 1-based (0 when file-global)."""
-    __slots__ = ("line", "severity", "code", "message")
+    """One linter result. `line` is 1-based (0 when file-global); `col`/`end_line`/
+    `end_col` (0-based columns, end-exclusive) locate a precise range when known."""
+    __slots__ = ("line", "severity", "code", "message", "col", "end_line", "end_col")
 
-    def __init__(self, line, severity, code, message):
+    def __init__(self, line, severity, code, message, col=None, end_line=None, end_col=None):
         self.line = line
         self.severity = severity
         self.code = code
         self.message = message
+        self.col = col
+        self.end_line = end_line
+        self.end_col = end_col
+
+    @classmethod
+    def at(cls, span, severity, code, message):
+        """Build a finding anchored to an `amd_core.Span`."""
+        return cls(span.line, severity, code, message,
+                   col=span.col, end_line=span.end_line, end_col=span.end_col)
 
     def is_error(self):
         return self.severity == ERROR
+
+    def to_dict(self, file=None):
+        """Serializable form (1-based line, 0-based col, end-exclusive). Consumers
+        building LSP diagnostics subtract 1 from `line`."""
+        d = {"line": self.line, "severity": self.severity,
+             "code": self.code, "message": self.message}
+        if self.col is not None:
+            d["col"] = self.col
+        if self.end_line is not None:
+            d["endLine"] = self.end_line
+        if self.end_col is not None:
+            d["endCol"] = self.end_col
+        if file is not None:
+            d["file"] = file
+        return d
+
+    def compact(self, file="<amd>"):
+        """`file:line:col: severity: message [code]` - one line, for editor
+        problem-matchers (columns emitted 1-based)."""
+        col = (self.col + 1) if self.col is not None else 1
+        return f"{file}:{self.line}:{col}: {self.severity}: {self.message} [{self.code}]"
 
     def __repr__(self):
         return f"AmdFinding({self.line}, {self.severity!r}, {self.code!r}, {self.message!r})"
 
     def __str__(self):
-        where = f"line {self.line}" if self.line else "file"
+        if not self.line:
+            where = "file"
+        elif self.col is not None:
+            where = f"line {self.line}:{self.col}"
+        else:
+            where = f"line {self.line}"
         return f"[{self.severity.upper()}] {where}: {self.message} ({self.code})"
 
 
@@ -134,12 +170,6 @@ def amd_lint_structural(file_path=None, content=None):
     return findings
 
 
-# --- reference extraction helpers (shared by Phase 2 & 3) -------------------
-# A dialogue/comms choice line: `- [label](target) <rest>` (rest = guard/outcomes).
-_RE_CHOICE = re.compile(r"^\s*-\s*\[(?P<label>[^\]]*)\]\((?P<target>[^)]*)\)(?P<rest>.*)$")
-# A `signal <name>` outcome token (dialogue outcome or quest Then:/When:).
-_RE_SIGNAL = re.compile(r"\bsignal\s+(?P<name>[A-Za-z0-9_]+)")
-
 # Engine / quest-driver signals that have built-in handlers - never flag these as
 # "emitted with no route" (source: schema map, quest_driver.mast + engine routes).
 DRIVER_SIGNALS = frozenset({
@@ -150,147 +180,41 @@ DRIVER_SIGNALS = frozenset({
 })
 
 
-def _coords(value, n=2):
-    """First `n` signed-int tokens of a coord string ('2, -1' -> (2, -1)); else None."""
-    toks = [int(t) for t in str(value).replace(",", " ").split() if t.lstrip("-").isdigit()]
-    return tuple(toks[:n]) if len(toks) >= n else None
-
-
-def _locate(source_lines, needle, used):
-    """1-based line of the first occurrence of `needle` not already claimed in `used`
-    (so repeated tokens map to distinct lines); 0 if not found."""
-    for i, line in enumerate(source_lines, start=1):
-        if i in used:
-            continue
-        if needle and needle in line:
-            used.add(i)
-            return i
-    return 0
-
-
-def _index_tree(toc):
-    """Walk the parsed tree once. Returns dicts the reference passes need:
-      keys           - set of every node key
-      parent_of      - key -> parent key (for path shape checks)
-      nodes          - list of (key, data, description) for every non-root node
-    """
-    keys, parent_of, nodes = set(), {}, []
-
-    def walk(node, parent_key):
-        key = node.get("key")
-        if key and key != "__root__":
-            keys.add(key)
-            parent_of[key] = parent_key
-            nodes.append((key, node.get("data") or {}, node.get("description") or ""))
-        for child in node.get("children", []) or []:
-            walk(child, key)
-
-    walk(toc, None)
-    return {"keys": keys, "parent_of": parent_of, "nodes": nodes}
-
-
-def _path_resolves(path, keys, parent_of):
-    """A slash path (`beacon_arc/ep1_scan`) resolves iff every segment is a known
-    key AND each segment's parent is the preceding segment. A bare key resolves iff
-    it exists. Mirrors the quest-driver's `<parent>/<child>` grant paths."""
-    segs = [s for s in str(path).split("/") if s]
-    if not segs:
-        return True
-    if any(s not in keys for s in segs):
-        return False
-    for a, b in zip(segs, segs[1:]):
-        if parent_of.get(b) != a:
-            return False
-    return True
-
-
-def _di(data, *names):
-    """Case-insensitive fetch of the first present key from a node's data dict."""
-    lower = {str(k).lower(): v for k, v in data.items()}
-    for n in names:
-        if n.lower() in lower:
-            return lower[n.lower()]
-    return None
-
-
-# --- Phase 2: reference integrity (tree-level) ------------------------------
-def amd_lint_references(toc, source=""):
+# --- Phase 2: reference integrity (model-level, exact spans) -----------------
+def amd_lint_references(doc):
     """Flag intra-document references that resolve to no node: dialogue/comms choice
-    `](target)`, lifeform `Scene:`, quest `Then: reveal <path>`, `Parent:`. All
-    WARNING (per the structural-fail / refs-warn policy)."""
-    idx = _index_tree(toc)
-    keys, parent_of = idx["keys"], idx["parent_of"]
-    lines = source.splitlines() if source else []
-    used = set()
+    `](target)`, lifeform `Scene:`, quest `Then: reveal <path>`, `Parent:`. Uses the
+    `amd_core` model, so each finding carries the target's exact range. WARNING."""
     findings = []
-
-    def warn(needle, code, msg):
-        findings.append(AmdFinding(_locate(lines, needle, used), WARNING, code, msg))
-
-    for key, data, desc in idx["nodes"]:
-        # Lifeform Scene: -> a dialogue scene key
-        scene = _di(data, "Scene")
-        if scene and scene not in keys:
-            warn(f"Scene: {scene}", "dangling-scene",
-                 f"`{key}` Scene points at `{scene}`, which is not a defined node")
-
-        # Parent: -> a quest key in the same doc
-        parent = _di(data, "Parent")
-        if parent and parent not in keys:
-            warn(f"Parent: {parent}", "dangling-parent",
-                 f"`{key}` Parent points at `{parent}`, which is not a defined node")
-
-        # Then: reveal <path> / a bare Then: label -> resolvable node path
-        then = _di(data, "Then")
-        if then:
-            toks = str(then).split()
-            verb = toks[0].lower() if toks else ""
-            if verb == "reveal" and len(toks) >= 2:
-                if not _path_resolves(toks[1], keys, parent_of):
-                    warn(f"reveal {toks[1]}", "dangling-reveal",
-                         f"`{key}` Then reveals `{toks[1]}`, which resolves to no node")
-            elif verb not in ("reveal", "signal"):
-                # bare `Then: <label>` is treated as a reveal target by the driver
-                if not _path_resolves(then, keys, parent_of):
-                    warn(f"{then}", "dangling-reveal",
-                         f"`{key}` Then: `{then}` resolves to no node")
-
-        # Choice targets in the description: `- [label](target)`
-        for cl in desc.splitlines():
-            m = _RE_CHOICE.match(cl)
-            if not m:
-                continue
-            target = m.group("target").strip()
+    for ref in doc.refs:
+        if ref.kind == "scene":
+            if ref.value not in doc.keys:
+                findings.append(AmdFinding.at(
+                    ref.span, WARNING, "dangling-scene",
+                    f"`{ref.owner}` Scene points at `{ref.value}`, which is not a defined node"))
+        elif ref.kind == "parent":
+            if ref.value not in doc.keys:
+                findings.append(AmdFinding.at(
+                    ref.span, WARNING, "dangling-parent",
+                    f"`{ref.owner}` Parent points at `{ref.value}`, which is not a defined node"))
+        elif ref.kind == "reveal":
+            if not doc.path_resolves(ref.value):
+                findings.append(AmdFinding.at(
+                    ref.span, WARNING, "dangling-reveal",
+                    f"`{ref.owner}` Then reveals `{ref.value}`, which resolves to no node"))
+        elif ref.kind == "choice":
+            target = ref.value
             if not target or target.startswith("//"):
                 continue  # empty (comms back) or a route -> not an intra-doc node
-            if "/" in target:
-                if not _path_resolves(target, keys, parent_of):
-                    warn(f"]({target})", "dangling-choice",
-                         f"choice in `{key}` points at `{target}`, which resolves to no node")
-            elif target not in keys:
-                warn(f"]({target})", "dangling-choice",
-                     f"choice in `{key}` points at `{target}`, which is not a defined node")
-
+            ok = doc.path_resolves(target) if "/" in target else target in doc.keys
+            if not ok:
+                findings.append(AmdFinding.at(
+                    ref.span, WARNING, "dangling-choice",
+                    f"choice in `{ref.owner}` points at `{target}`, which resolves to no node"))
     return findings
 
 
 # --- Phase 3: cross-file (signals vs routes, reach vs landmark) --------------
-def _emitted_signals(idx):
-    """Yield (signal_name, key, needle) for every raw signal EMITTED in the doc:
-    dialogue-choice `; ... signal X` outcomes and quest `Then: signal X`."""
-    for key, data, desc in idx["nodes"]:
-        then = _di(data, "Then")
-        if then:
-            m = _RE_SIGNAL.match(str(then).strip()) or _RE_SIGNAL.search(str(then))
-            if str(then).strip().lower().startswith("signal") and m:
-                yield m.group("name"), key, f"signal {m.group('name')}"
-        for cl in desc.splitlines():
-            mc = _RE_CHOICE.match(cl)
-            rest = mc.group("rest") if mc else (cl if cl.strip().startswith("%") else "")
-            for sm in _RE_SIGNAL.finditer(rest or ""):
-                yield sm.group("name"), key, f"signal {sm.group('name')}"
-
-
 def _mast_routes(mast_sources):
     """Set of declared `//signal/<name>` route names across the given .mast sources."""
     routes = set()
@@ -303,58 +227,37 @@ def _mast_routes(mast_sources):
     return routes
 
 
-def amd_lint_cross_file(toc, source="", mast_sources=None):
+def amd_lint_cross_file(doc, mast_sources=None):
     """Flag emitted `signal X` with no `//signal/X` route (and not a known driver
-    signal), and `When: reach i,j` cells with no landmark `At: i,j`. WARNING."""
-    idx = _index_tree(toc)
-    lines = source.splitlines() if source else []
-    used = set()
+    signal), and `reach i,j` cells with no landmark `At: i,j`. WARNING."""
     findings = []
     routes = _mast_routes(mast_sources)
 
-    # Signals -> routes (only when we were given mast to check against)
-    if mast_sources is not None:
-        for name, key, needle in _emitted_signals(idx):
-            if name in routes or name in DRIVER_SIGNALS:
+    for ref in doc.refs:
+        if ref.kind == "signal" and mast_sources is not None:
+            if ref.value in routes or ref.value in DRIVER_SIGNALS:
                 continue
-            ln = _locate(lines, needle, used)
-            findings.append(AmdFinding(
-                ln, WARNING, "signal-no-route",
-                f"`{key}` emits signal `{name}` but no `//signal/{name}` route was "
-                f"found in the mission's .mast (nor a known driver signal)"))
-
-    # reach cells -> landmark At cells
-    landmark_cells = set()
-    reach_refs = []
-    for key, data, desc in idx["nodes"]:
-        at = _coords(_di(data, "At") or "")
-        if at:
-            landmark_cells.add(at)
-        when = _di(data, "When")
-        if when:
-            toks = str(when).split(None, 1)
-            if toks and toks[0].lower() in ("reach", "travel") and len(toks) > 1:
-                cell = _coords(toks[1])
-                if cell:
-                    reach_refs.append((cell, key, str(when).strip()))
-    for cell, key, when in reach_refs:
-        if cell not in landmark_cells:
-            ln = _locate(lines, when, used)
-            findings.append(AmdFinding(
-                ln, WARNING, "reach-no-landmark",
-                f"`{key}` sends the player to cell {cell[0]},{cell[1]} but no landmark "
-                f"has `At: {cell[0]}, {cell[1]}` - they may jump to an empty cell"))
-
+            findings.append(AmdFinding.at(
+                ref.span, WARNING, "signal-no-route",
+                f"`{ref.owner}` emits signal `{ref.value}` but no `//signal/{ref.value}` "
+                f"route was found in the mission's .mast (nor a known driver signal)"))
+        elif ref.kind == "reach":
+            if ref.value not in doc.landmark_cells:
+                i, j = ref.value
+                findings.append(AmdFinding.at(
+                    ref.span, WARNING, "reach-no-landmark",
+                    f"`{ref.owner}` sends the player to cell {i},{j} but no landmark has "
+                    f"`At: {i}, {j}` - they may jump to an empty cell"))
     return findings
 
 
 def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None):
-    """Run all passes and return a combined, line-sorted [AmdFinding].
+    """Run all passes and return a combined, position-sorted [AmdFinding].
 
-    Phase 1 (structural, ERROR) always runs. Phases 2/3 run when the tree parses;
+    Phase 1 (structural, ERROR) always runs. Phases 2/3 run when the model parses;
     the cross-file signal check additionally needs `mast_sources` (a list of .mast
     source strings). Pass `cross_file=False` to skip Phase 3. Any exception from the
-    tree parser is downgraded to a single finding rather than raised."""
+    parser is downgraded to a single finding rather than raised."""
     findings = list(amd_lint_structural(file_path, content))
 
     if content is None and file_path is not None:
@@ -365,33 +268,50 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None):
             content = ""
 
     try:
-        from sbs_utils.procedural.quest import document_get_amd_file
-        toc = document_get_amd_file(None, content=content)
-        findings += amd_lint_references(toc, content or "")
+        from sbs_utils.procedural.amd_core import parse
+        doc = parse(content)
+        findings += amd_lint_references(doc)
         if cross_file is not False:
-            findings += amd_lint_cross_file(toc, content or "", mast_sources)
+            findings += amd_lint_cross_file(doc, mast_sources)
     except Exception as e:
         findings.append(AmdFinding(0, WARNING, "parse-skipped",
-                                   f"reference checks skipped - tree parse failed: {e}"))
+                                   f"reference checks skipped - parse failed: {e}"))
 
-    findings.sort(key=lambda f: (f.line, 0 if f.is_error() else 1))
+    findings.sort(key=lambda f: (f.line, 0 if f.is_error() else 1,
+                                 f.col if f.col is not None else -1))
     return findings
 
 
 def _main(argv):
-    import sys
+    """Minimal file linter: `python -m sbs_utils.procedural.amd_lint [--json|--compact]
+    <file.amd> ...`. (No cross-file signal check here - use `sbs lint` for a whole
+    mission with its .mast.)"""
+    fmt = "text"
+    if argv and argv[0] in ("--json", "--compact"):
+        fmt = argv[0][2:]
+        argv = argv[1:]
     if not argv:
-        print("usage: python -m sbs_utils.procedural.amd_lint <file.amd> ...")
+        print("usage: python -m sbs_utils.procedural.amd_lint [--json|--compact] <file.amd> ...")
         return 2
+
     any_error = False
+    bundle = []
     for path in argv:
         findings = amd_lint(file_path=path)
-        print(f"== {path} ==")
-        if not findings:
-            print("  clean")
-        for f in findings:
-            print(f"  {f}")
-            any_error = any_error or f.is_error()
+        any_error = any_error or any(f.is_error() for f in findings)
+        if fmt == "text":
+            print(f"== {path} ==")
+            print("  clean" if not findings else "", end="" if findings else "\n")
+            for f in findings:
+                print(f"  {f}")
+        elif fmt == "compact":
+            for f in findings:
+                print(f.compact(path))
+        else:  # json
+            bundle.extend(f.to_dict(file=path) for f in findings)
+    if fmt == "json":
+        import json
+        print(json.dumps(bundle, indent=2))
     return 1 if any_error else 0
 
 
