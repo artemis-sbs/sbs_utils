@@ -69,7 +69,9 @@ sbs lint --lsp             # AMD language server over stdio
 ```
 
 Point any LSP client at that command for **live diagnostics as you type** — VSCode,
-Neovim, Emacs, Sublime, JetBrains. It's the same checks over the same `amd_core`
+Neovim, Emacs, Sublime, JetBrains. A ready-to-build **VSCode extension** (syntax
+highlighting + a thin client for this server) lives in the `sbs_cli` repo under
+`editors/vscode/`. It's the same checks over the same `amd_core`
 model (`sbs_utils.procedural.amd_lsp`), dependency-free. Beyond diagnostics it also
 provides **go-to-definition** (a `reveal` / choice / `Scene:` target → its node),
 a **document outline** of the heading tree, **hover**, **completion** of node keys,
