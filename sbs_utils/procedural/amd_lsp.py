@@ -92,6 +92,7 @@ def _mission_index(root, docs):
         if text is None:
             continue
         doc = parse(text)
+        doc.source = text
         amd_docs.append((ap, uri or _path_to_uri(p), doc))
         known |= doc.keys
     mast = []
@@ -113,6 +114,7 @@ def _index_for(uri, docs):
         return _mission_index(root, docs)
     from sbs_utils.procedural.amd_core import parse
     doc = parse(docs.get(uri, ""))
+    doc.source = docs.get(uri, "")
     ap = os.path.normcase(os.path.abspath(path))
     return {"known": set(doc.keys), "docs": [(ap, uri, doc)], "mast": None}
 
@@ -527,6 +529,7 @@ def _mission_map(index):
     """Landmarks (`At: i,j`) and regions (`Center:`/`Radius:`) across the mission,
     for a map view. Each carries its source uri+line (to jump) and, for landmarks,
     the exact `atRange` of the `At:` value (so the view can drag-to-move it)."""
+    problems = _problems_by_key(index)
     landmarks, regions = [], []
     for _p, u, d in index["docs"]:
         line_count = getattr(d, "line_count", 0)
@@ -544,7 +547,8 @@ def _mission_map(index):
                                   "kind": str(_dget(n.data, "Kind") or ""),
                                   "uri": u, "line": line, "addLine": add_line,
                                   "atRange": _span_range(at_ref.span) if at_ref else None,
-                                  "kindRange": _span_range(kind_ref.span) if kind_ref else None})
+                                  "kindRange": _span_range(kind_ref.span) if kind_ref else None,
+                                  "problems": problems.get(n.key)})
             center, radius = _dget(n.data, "Center"), _dget(n.data, "Radius")
             c = _coord2(center) if center is not None else None
             if c is not None and radius is not None:
@@ -662,11 +666,40 @@ def _rename_by_key(index, key, new_name):
     return {"changes": changes}
 
 
+def _problems_by_key(index):
+    """{node key -> {error, warning}} from running the linter over each doc and
+    bucketing findings by the node whose range contains them - for badges."""
+    from sbs_utils.procedural.amd_lint import amd_lint
+    out = {}
+    for _p, _u, d in index["docs"]:
+        src = getattr(d, "source", None)
+        if src is None:
+            continue
+        nodes = d.nodes
+        bounds = []
+        for i, n in enumerate(nodes):
+            start = (n.span.line - 1) if n.span else 0
+            nxt = nodes[i + 1] if i + 1 < len(nodes) else None
+            end = (nxt.span.line - 1) if (nxt and nxt.span) else getattr(d, "line_count", 1 << 30)
+            bounds.append((start, end, n.key))
+        for f in amd_lint(content=src, mast_sources=index["mast"], known_keys=index["known"]):
+            if not f.line:
+                continue
+            line0 = f.line - 1
+            key = next((k for (s, e, k) in bounds if s <= line0 < e), None)
+            if key is None:
+                continue
+            b = out.setdefault(key, {"error": 0, "warning": 0})
+            b["error" if f.is_error() else "warning"] += 1
+    return out
+
+
 def _mission_graph(index):
     """Nodes + reference edges (choice/scene/reveal/parent) across the mission -
     the data for a story graph. Nodes carry their section, source uri/line, and
     `addLine` = where to insert a new choice (end of the node's body), so the graph
     can add an edge by dragging one node to another."""
+    problems = _problems_by_key(index)
     nodes, seen = [], set()
     for _p, u, d in index["docs"]:
         line_count = getattr(d, "line_count", 0)
@@ -679,7 +712,7 @@ def _mission_graph(index):
             nodes.append({"key": n.key, "display": n.display or n.key,
                           "section": _section_of(n), "uri": u,
                           "line": (n.span.line - 1) if n.span else 0,
-                          "addLine": add_line})
+                          "addLine": add_line, "problems": problems.get(n.key)})
     known = {nd["key"] for nd in nodes}
     edges, edge_seen = [], set()
     for _p, u, d in index["docs"]:
