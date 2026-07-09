@@ -16,7 +16,7 @@ metadata verbs) but not what any domain *means*; callers resolve keys/signals.
 """
 import re
 
-from sbs_utils.fs import load_yaml_string
+from sbs_utils.procedural.amd import amd_parse_facts
 
 # Grammar - kept in agreement with quest.py `_document_get_amd_file`.
 _RE_SECTION = re.compile(r"(?P<hashes>#+)[ \t]+\[(?P<display>.*)\]\((?P<urn>.*)\)[ \t]*")
@@ -111,11 +111,15 @@ class AmdDocument:
 
 # --- helpers ----------------------------------------------------------------
 def _di(data, *names):
-    """Case-insensitive first-present fetch from a fence data dict."""
+    """First-present fetch from a fence data dict, tolerant of the fact reader's
+    key normalization (lowercase, spaces -> underscores)."""
     lower = {str(k).lower(): v for k, v in data.items()}
     for n in names:
-        if n.lower() in lower:
-            return lower[n.lower()]
+        key = n.lower()
+        if key in lower:
+            return lower[key]
+        if key.replace(" ", "_") in lower:
+            return lower[key.replace(" ", "_")]
     return None
 
 
@@ -251,7 +255,10 @@ def parse(content, file_path=None):
             if in_data:
                 block = "\n".join(t for _, t in fence_lines)
                 try:
-                    parsed = load_yaml_string(block)
+                    # The friendly AMD fact reader: YAML for flow (`{`/`[`), else a
+                    # `Label: value` sheet - so `Color: #86c` keeps its value (raw
+                    # YAML would read `#86c` as a comment).
+                    parsed = amd_parse_facts(block)
                 except Exception:
                     parsed = None
                 if isinstance(parsed, dict):

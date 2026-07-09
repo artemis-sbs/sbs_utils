@@ -351,6 +351,35 @@ class TestWorkspace(unittest.TestCase):
             codes = [d["code"] for d in pub["params"]["diagnostics"]]
             self.assertNotIn("dangling-scene", codes)          # resolved via b.amd
 
+    def test_mission_map(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "m")
+            os.mkdir(root)
+            with open(os.path.join(root, "story.json"), "w") as f:
+                f.write("{}")
+            with open(os.path.join(root, "map.amd"), "w") as f:
+                f.write("# [R](r)\n"
+                        "## [Regions](regions)\n### [Marches](marches)\n"
+                        "---\nCenter: 0, -1\nRadius: 8\nColor: #86c\n---\nb\n"
+                        "## [Landmarks](landmarks)\n### [Ruin](ruin)\n"
+                        "---\nAt: 2, -1\nKind: derelict\n---\nb\n")
+            uri = Path(os.path.join(root, "map.amd")).as_uri()
+            out = self._drive([
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                 "params": {"textDocument": {"uri": uri, "text": Path(os.path.join(root, "map.amd")).read_text()}}},
+                {"jsonrpc": "2.0", "id": 2, "method": "amd/map",
+                 "params": {"textDocument": {"uri": uri}}},
+                {"jsonrpc": "2.0", "method": "exit"},
+            ])
+            m = next(x for x in out if x.get("id") == 2)["result"]
+            self.assertEqual(len(m["landmarks"]), 1)
+            self.assertEqual((m["landmarks"][0]["i"], m["landmarks"][0]["j"]), (2, -1))
+            self.assertEqual(m["landmarks"][0]["kind"], "derelict")
+            self.assertEqual(len(m["regions"]), 1)
+            self.assertEqual(m["regions"][0]["radius"], 8.0)
+            self.assertEqual(m["regions"][0]["color"], "#86c")
+
     def test_cross_file_references(self):
         with tempfile.TemporaryDirectory() as tmp:
             root, a = self._mission(tmp)

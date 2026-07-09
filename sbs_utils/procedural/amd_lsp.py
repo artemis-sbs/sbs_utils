@@ -500,6 +500,51 @@ def _formatting(text):
              "newText": formatted}]
 
 
+# --- mission map (custom `amd/map` request -> webview data) -----------------
+def _dget(data, *names):
+    low = {str(k).lower(): v for k, v in (data or {}).items()}
+    for n in names:
+        key = n.lower()
+        if key in low:
+            return low[key]
+        if key.replace(" ", "_") in low:
+            return low[key.replace(" ", "_")]
+    return None
+
+
+def _coord2(v):
+    toks = [int(t) for t in str(v).replace(",", " ").split() if t.lstrip("-").isdigit()]
+    return (toks[0], toks[1]) if len(toks) >= 2 else None
+
+
+def _mission_map(index):
+    """Landmarks (`At: i,j`) and regions (`Center:`/`Radius:`) across the mission,
+    for a map view. Each carries its source uri+line so the view can jump to it."""
+    landmarks, regions = [], []
+    for _p, u, d in index["docs"]:
+        for n in d.nodes:
+            line = (n.span.line - 1) if n.span else 0
+            at = _dget(n.data, "At")
+            cell = _coord2(at) if at is not None else None
+            if cell:
+                landmarks.append({"key": n.key, "display": n.display or n.key,
+                                  "i": cell[0], "j": cell[1],
+                                  "kind": str(_dget(n.data, "Kind") or ""),
+                                  "uri": u, "line": line})
+            center, radius = _dget(n.data, "Center"), _dget(n.data, "Radius")
+            c = _coord2(center) if center is not None else None
+            if c is not None and radius is not None:
+                try:
+                    r = float(str(radius).strip())
+                except ValueError:
+                    r = 0.0
+                regions.append({"key": n.key, "display": n.display or n.key,
+                                "i": c[0], "j": c[1], "radius": r,
+                                "color": str(_dget(n.data, "Color") or ""),
+                                "uri": u, "line": line})
+    return {"landmarks": landmarks, "regions": regions}
+
+
 # --- server loop ------------------------------------------------------------
 def serve(stdin=None, stdout=None):
     """Run the LSP loop until `exit` / EOF. `stdin`/`stdout` are binary streams
@@ -612,6 +657,10 @@ def serve(stdin=None, stdout=None):
             else:  # rename
                 result = _rename(index, doc, pos, params.get("newName", ""))
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": result})
+        elif method == "amd/map":
+            uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _mission_map(_index_for(uri, docs))})
         elif method == "shutdown":
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": None})
         elif method == "exit":
