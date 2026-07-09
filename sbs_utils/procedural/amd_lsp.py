@@ -575,6 +575,30 @@ def _section_of(node):
     return n.key
 
 
+def _face_random(race):
+    """A random face string for a race, via sbs_utils.faces. '' if faces can't load
+    (kept lazy + guarded so the server never hard-depends on it)."""
+    try:
+        import sbs_utils.faces as faces
+    except Exception:
+        return ""
+    builders = {
+        "terran female": lambda: faces.random_terran_female(),
+        "terran male": lambda: faces.random_terran_male(),
+        "terran": lambda: faces.random_terran(),
+        "skaraan": faces.random_skaraan,
+        "torgoth": faces.random_torgoth,
+        "arvonian": faces.random_arvonian,
+        "kralien": faces.random_kralien,
+        "ximni": faces.random_ximni,
+    }
+    fn = builders.get(race)
+    try:
+        return fn() if fn else ""
+    except Exception:
+        return ""
+
+
 def _node_detail(index, key):
     """A node's editable detail for the inspector: display + metadata fields +
     body text, each with the exact range to rewrite. None if key not found."""
@@ -870,6 +894,9 @@ def serve(stdin=None, stdout=None):
             uri = p.get("textDocument", {}).get("uri", "")
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                     "result": _choice_at(_index_for(uri, docs), uri, p.get("line", -1))})
+        elif method == "amd/faceRandom":
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": {"face": _face_random(msg.get("params", {}).get("race", ""))}})
         elif method == "shutdown":
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": None})
         elif method == "exit":
