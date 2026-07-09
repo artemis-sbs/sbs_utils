@@ -529,17 +529,22 @@ def _mission_map(index):
     the exact `atRange` of the `At:` value (so the view can drag-to-move it)."""
     landmarks, regions = [], []
     for _p, u, d in index["docs"]:
-        for n in d.nodes:
+        line_count = getattr(d, "line_count", 0)
+        for i, n in enumerate(d.nodes):
             line = (n.span.line - 1) if n.span else 0
+            nxt = d.nodes[i + 1] if i + 1 < len(d.nodes) else None
+            add_line = (nxt.span.line - 1) if (nxt and nxt.span) else line_count
             at = _dget(n.data, "At")
             cell = _coord2(at) if at is not None else None
             if cell:
                 at_ref = next((r for r in n.refs if r.kind == "at"), None)
+                kind_ref = next((r for r in n.refs if r.kind == "kind"), None)
                 landmarks.append({"key": n.key, "display": n.display or n.key,
                                   "i": cell[0], "j": cell[1],
                                   "kind": str(_dget(n.data, "Kind") or ""),
-                                  "uri": u, "line": line,
-                                  "atRange": _span_range(at_ref.span) if at_ref else None})
+                                  "uri": u, "line": line, "addLine": add_line,
+                                  "atRange": _span_range(at_ref.span) if at_ref else None,
+                                  "kindRange": _span_range(kind_ref.span) if kind_ref else None})
             center, radius = _dget(n.data, "Center"), _dget(n.data, "Radius")
             c = _coord2(center) if center is not None else None
             if c is not None and radius is not None:

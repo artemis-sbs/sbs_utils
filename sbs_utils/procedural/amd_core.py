@@ -229,6 +229,11 @@ def _extract_data_refs(node, fence_lines):
         r = _token_span(fence_lines, "Radius", str(radius).strip(), key, "radius")
         if r:
             node.refs.append(r)
+    kind = _di(data, "Kind")
+    if kind:
+        r = _token_span(fence_lines, "Kind", str(kind).strip(), key, "kind")
+        if r:
+            node.refs.append(r)
 
 
 def _extract_choice_refs(node, lineno, raw):

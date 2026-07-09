@@ -383,9 +383,13 @@ class TestWorkspace(unittest.TestCase):
             self.assertEqual(m["regions"][0]["centerRange"]["start"]["line"], 4)
             self.assertEqual(m["regions"][0]["radiusRange"]["start"]["line"], 5)
             # the landmark carries the editable range of its `At:` value
-            ar = m["landmarks"][0]["atRange"]
+            lm = m["landmarks"][0]
+            ar = lm["atRange"]
             self.assertEqual(ar["start"]["line"], 12)   # `At: 2, -1` source line 13 -> LSP 12
             self.assertGreater(ar["end"]["character"], ar["start"]["character"])
+            # plus a Kind range (source line 14 -> LSP 13) and a delete point (EOF)
+            self.assertEqual(lm["kindRange"]["start"]["line"], 13)
+            self.assertGreaterEqual(lm["addLine"], 13)
 
     def test_mission_graph(self):
         with tempfile.TemporaryDirectory() as tmp:
