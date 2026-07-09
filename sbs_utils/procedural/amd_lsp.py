@@ -612,7 +612,9 @@ def _mission_graph(index):
             key = (r.owner, leaf, r.kind)
             if r.owner in known and leaf in known and r.owner != leaf and key not in edge_seen:
                 edge_seen.add(key)
-                edges.append({"from": r.owner, "to": leaf, "kind": r.kind})
+                edges.append({"from": r.owner, "to": leaf, "kind": r.kind,
+                              "uri": u, "line": r.span.line - 1,
+                              "targetRange": _span_range(r.span)})
     return {"nodes": nodes, "edges": edges}
 
 

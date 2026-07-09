@@ -420,6 +420,10 @@ class TestWorkspace(unittest.TestCase):
             self.assertEqual(na["section"], "dialogue")
             # `A` body ends right before `### [B](b)` (source line 7 -> insert at line 6)
             self.assertEqual(na["addLine"], 6)
+            # each edge carries its source line + target range (for delete/rewire)
+            eab = next(e for e in g["edges"] if e["from"] == "a" and e["to"] == "b")
+            self.assertIn("targetRange", eab)
+            self.assertIsInstance(eab["line"], int)
 
     def test_rename_by_key_cross_file(self):
         with tempfile.TemporaryDirectory() as tmp:
