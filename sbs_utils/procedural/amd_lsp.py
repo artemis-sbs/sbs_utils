@@ -517,9 +517,16 @@ def _coord2(v):
     return (toks[0], toks[1]) if len(toks) >= 2 else None
 
 
+def _span_range(span):
+    """An amd_core Span -> an LSP Range dict (for the editor to rewrite in place)."""
+    return {"start": {"line": span.line - 1, "character": span.col},
+            "end": {"line": span.end_line - 1, "character": span.end_col}}
+
+
 def _mission_map(index):
     """Landmarks (`At: i,j`) and regions (`Center:`/`Radius:`) across the mission,
-    for a map view. Each carries its source uri+line so the view can jump to it."""
+    for a map view. Each carries its source uri+line (to jump) and, for landmarks,
+    the exact `atRange` of the `At:` value (so the view can drag-to-move it)."""
     landmarks, regions = [], []
     for _p, u, d in index["docs"]:
         for n in d.nodes:
@@ -527,10 +534,12 @@ def _mission_map(index):
             at = _dget(n.data, "At")
             cell = _coord2(at) if at is not None else None
             if cell:
+                at_ref = next((r for r in n.refs if r.kind == "at"), None)
                 landmarks.append({"key": n.key, "display": n.display or n.key,
                                   "i": cell[0], "j": cell[1],
                                   "kind": str(_dget(n.data, "Kind") or ""),
-                                  "uri": u, "line": line})
+                                  "uri": u, "line": line,
+                                  "atRange": _span_range(at_ref.span) if at_ref else None})
             center, radius = _dget(n.data, "Center"), _dget(n.data, "Radius")
             c = _coord2(center) if center is not None else None
             if c is not None and radius is not None:
