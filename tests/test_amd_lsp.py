@@ -192,6 +192,112 @@ class TestProviders(unittest.TestCase):
         self.assertTrue(all(e["newText"] == "bravo" for e in edits))
 
 
+class TestCodeActions(unittest.TestCase):
+    """Quick fixes: 'Change to <near key>' and 'Create node'."""
+
+    # `- [go](ndoe)` is a typo of `node` (defined below); one char transposed.
+    _DOC = ("# [Root](root)\n## [Dialogue](dialogue)\n### [A](a)\n% hi\n"
+            "- [go](ndoe)\n### [Node](node)\n% there\n")
+
+    def _actions(self, doc, drange, code, uri="file:///tmp/x.amd"):
+        diag = {"range": drange, "code": code, "severity": 2, "message": "x"}
+        stream = (
+            _frame({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+            + _frame({"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                      "params": {"textDocument": {"uri": uri, "text": doc}}})
+            + _frame({"jsonrpc": "2.0", "id": 2, "method": "textDocument/codeAction",
+                      "params": {"textDocument": {"uri": uri},
+                                 "range": drange, "context": {"diagnostics": [diag]}}})
+            + _frame({"jsonrpc": "2.0", "method": "exit"})
+        )
+        out = io.BytesIO()
+        serve(stdin=io.BytesIO(stream), stdout=out)
+        return next(m for m in _parse_frames(out.getvalue()) if m.get("id") == 2)["result"], uri
+
+    def test_did_you_mean_and_create(self):
+        # `ndoe` is on line 5 (LSP 4), cols 7..11
+        drange = {"start": {"line": 4, "character": 7}, "end": {"line": 4, "character": 11}}
+        actions, uri = self._actions(self._DOC, drange, "dangling-choice")
+        titles = [a["title"] for a in actions]
+        self.assertIn("Change to `node`", titles)
+        self.assertTrue(any(t.startswith("Create node") for t in titles))
+        # the 'Change to node' fix replaces the bad token with the suggestion
+        fix = next(a for a in actions if a["title"] == "Change to `node`")
+        edit = fix["edit"]["changes"][uri][0]
+        self.assertEqual(edit["newText"], "node")
+        self.assertEqual(edit["range"], drange)
+        self.assertTrue(fix["isPreferred"])
+
+    def test_capability_advertised(self):
+        stream = (_frame({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+                  + _frame({"jsonrpc": "2.0", "method": "exit"}))
+        out = io.BytesIO()
+        serve(stdin=io.BytesIO(stream), stdout=out)
+        caps = next(m for m in _parse_frames(out.getvalue()) if m.get("id") == 1)["result"]["capabilities"]
+        self.assertIn("codeActionProvider", caps)
+
+
+class TestLenses(unittest.TestCase):
+    """CodeLens (reference count), color swatches, inlay hints."""
+
+    _DOC = ("# [Root](root)\n## [Dialogue](dialogue)\n### [A](a)\n"
+            "---\nColor: #6cf\n---\n% hi\n- [go](b)\n### [Big B](b)\n% there\n")
+
+    def _req(self, method, extra=None, uri="file:///tmp/x.amd"):
+        params = {"textDocument": {"uri": uri}}
+        params.update(extra or {})
+        stream = (
+            _frame({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+            + _frame({"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                      "params": {"textDocument": {"uri": uri, "text": self._DOC}}})
+            + _frame({"jsonrpc": "2.0", "id": 2, "method": method, "params": params})
+            + _frame({"jsonrpc": "2.0", "method": "exit"})
+        )
+        out = io.BytesIO()
+        serve(stdin=io.BytesIO(stream), stdout=out)
+        return next(m for m in _parse_frames(out.getvalue()) if m.get("id") == 2)["result"]
+
+    def test_code_lens_reference_count(self):
+        lenses = self._req("textDocument/codeLens")
+        # node `b` is referenced once (by the choice) -> a "1 reference(s)" lens
+        titles = [l["command"]["title"] for l in lenses]
+        self.assertIn("1 reference(s)", titles)
+        lens = next(l for l in lenses if l["command"]["title"] == "1 reference(s)")
+        self.assertEqual(lens["command"]["command"], "editor.action.showReferences")
+
+    def test_document_color(self):
+        colors = self._req("textDocument/documentColor")
+        self.assertEqual(len(colors), 1)
+        c = colors[0]["color"]
+        # #6cf -> #66ccff
+        self.assertAlmostEqual(c["red"], 0x66 / 255, places=3)
+        self.assertAlmostEqual(c["green"], 0xcc / 255, places=3)
+        self.assertAlmostEqual(c["blue"], 0xff / 255, places=3)
+
+    def test_color_presentation(self):
+        # request color presentation for pure red
+        uri = "file:///tmp/x.amd"
+        stream = (_frame({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+                  + _frame({"jsonrpc": "2.0", "id": 2, "method": "textDocument/colorPresentation",
+                            "params": {"textDocument": {"uri": uri},
+                                       "color": {"red": 1.0, "green": 0.0, "blue": 0.0, "alpha": 1.0},
+                                       "range": {"start": {"line": 0, "character": 0},
+                                                 "end": {"line": 0, "character": 0}}}})
+                  + _frame({"jsonrpc": "2.0", "method": "exit"}))
+        out = io.BytesIO()
+        serve(stdin=io.BytesIO(stream), stdout=out)
+        res = next(m for m in _parse_frames(out.getvalue()) if m.get("id") == 2)["result"]
+        self.assertEqual(res[0]["label"], "#ff0000")
+
+    def test_inlay_hint_shows_display(self):
+        hints = self._req("textDocument/inlayHint",
+                          {"range": {"start": {"line": 0, "character": 0},
+                                     "end": {"line": 20, "character": 0}}})
+        # the choice `](b)` gets a ghosted " Big B" (node b's display)
+        labels = [h["label"] for h in hints]
+        self.assertIn(" Big B", labels)
+
+
 class TestWorkspace(unittest.TestCase):
     """Whole-mission indexing: cross-file resolution matches `sbs lint`."""
 

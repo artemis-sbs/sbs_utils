@@ -16,6 +16,7 @@ completion, symbols, and rename are natural follow-ons over the same model.
 """
 import sys
 import os
+import re
 import json
 import glob
 from urllib.parse import urlparse, unquote
@@ -263,6 +264,147 @@ def _completion(index):
     return {"isIncomplete": False, "items": items}
 
 
+# --- code actions (quick fixes) ---------------------------------------------
+_FIXABLE_DANGLING = ("dangling-choice", "dangling-scene", "dangling-parent", "dangling-reveal")
+
+
+def _levenshtein(a, b):
+    if a == b:
+        return 0
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1]
+
+
+def _closest(word, keys, n=3):
+    """Up to `n` keys nearest `word` (edit distance within a length-scaled bound)."""
+    maxd = max(2, len(word) // 3)
+    scored = sorted((( _levenshtein(word, k), k) for k in keys if k and k != word),
+                    key=lambda x: (x[0], x[1]))
+    return [k for d, k in scored if d <= maxd][:n]
+
+
+def _end_pos(text):
+    lines = text.split("\n")
+    return {"line": len(lines) - 1, "character": len(lines[-1])}
+
+
+def _code_actions(index, doc, text, uri, diagnostics):
+    """Quick fixes for the diagnostics overlapping the request: 'Change to <near
+    key>' (fuzzy match against the mission symbol table) and 'Create node'."""
+    actions = []
+    for d in diagnostics or []:
+        if d.get("code") not in _FIXABLE_DANGLING:
+            continue
+        rng = d.get("range") or {}
+        start = rng.get("start", {})
+        ref = _ref_at(doc, start.get("line", -1), start.get("character", -1))
+        value = ref.value if ref else None
+        if not value:
+            continue
+        leaf = str(value).split("/")[-1]
+        prefix = value[:-len(leaf)] if "/" in value else ""   # keep any path prefix
+
+        for i, cand in enumerate(_closest(leaf, index["known"])):
+            actions.append({
+                "title": f"Change to `{cand}`",
+                "kind": "quickfix",
+                "diagnostics": [d],
+                "isPreferred": i == 0,
+                "edit": {"changes": {uri: [{"range": rng, "newText": prefix + cand}]}},
+            })
+
+        stub = f"\n### [{leaf}]({leaf})\n"
+        actions.append({
+            "title": f"Create node `{leaf}`",
+            "kind": "quickfix",
+            "diagnostics": [d],
+            "edit": {"changes": {uri: [{"range": {"start": _end_pos(text),
+                                                  "end": _end_pos(text)}, "newText": stub}]}},
+        })
+    return actions
+
+
+# --- CodeLens: a clickable reference count above each node ------------------
+def _code_lens(index, doc, uri):
+    out = []
+    for node in doc.nodes:
+        locs = []
+        for _p, u, d in index["docs"]:
+            for rg in _key_ranges(d, node.key, include_decl=False):
+                locs.append({"uri": u, "range": rg})
+        if locs:
+            pos = {"line": node.span.line - 1, "character": node.span.col}
+            out.append({"range": _node_range(node),
+                        "command": {"title": f"{len(locs)} reference(s)",
+                                    "command": "editor.action.showReferences",
+                                    "arguments": [uri, pos, locs]}})
+    return out
+
+
+# --- Color: swatches + picker for hex colors --------------------------------
+_RE_HEX = re.compile(r"#([0-9A-Fa-f]{3,8})\b")
+
+
+def _hex_to_rgba(h):
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    elif len(h) == 4:
+        h = "".join(c * 2 for c in h)
+    if len(h) not in (6, 8):
+        return None
+    try:
+        vals = [int(h[i:i + 2], 16) / 255.0 for i in range(0, len(h), 2)]
+    except ValueError:
+        return None
+    r, g, b = vals[0], vals[1], vals[2]
+    a = vals[3] if len(vals) == 4 else 1.0
+    return {"red": r, "green": g, "blue": b, "alpha": a}
+
+
+def _document_colors(text):
+    out = []
+    for i, line in enumerate(text.split("\n")):
+        for m in _RE_HEX.finditer(line):
+            color = _hex_to_rgba(m.group(1))
+            if color is None:
+                continue
+            out.append({"range": {"start": {"line": i, "character": m.start()},
+                                  "end": {"line": i, "character": m.end()}},
+                        "color": color})
+    return out
+
+
+def _color_presentations(color):
+    to = lambda v: max(0, min(255, round((color.get(v, 0.0)) * 255)))
+    hexstr = f"#{to('red'):02x}{to('green'):02x}{to('blue'):02x}"
+    if color.get("alpha", 1.0) < 1.0:
+        hexstr += f"{to('alpha'):02x}"
+    return [{"label": hexstr}]
+
+
+# --- Inlay hints: a reference's target display name, inline -----------------
+def _inlay_hints(index, doc, rng):
+    lo = rng.get("start", {}).get("line", 0)
+    hi = rng.get("end", {}).get("line", 10 ** 9)
+    out = []
+    for ref in doc.refs:
+        if ref.kind not in _KEY_REF_KINDS:
+            continue
+        if not (lo <= ref.span.line - 1 <= hi):
+            continue
+        leaf = str(ref.value).split("/")[-1]
+        _u, node = _find_node(index, leaf)
+        if node and node.display and node.display != leaf:
+            out.append({"position": {"line": ref.span.line - 1, "character": ref.span.end_col},
+                        "label": f" {node.display}", "paddingLeft": True, "kind": 2})
+    return out
+
+
 # The reference kinds that carry a renameable node key (not coords/signals).
 _KEY_REF_KINDS = ("choice", "scene", "parent", "reveal")
 
@@ -384,6 +526,10 @@ def serve(stdin=None, stdout=None):
                     "documentFormattingProvider": True,
                     "referencesProvider": True,
                     "renameProvider": True,
+                    "codeActionProvider": {"codeActionKinds": ["quickfix"]},
+                    "codeLensProvider": {"resolveProvider": False},
+                    "colorProvider": True,
+                    "inlayHintProvider": True,
                 },
                 "serverInfo": {"name": "amd-lsp", "version": "0.1"}}})
         elif method == "initialized":
@@ -412,6 +558,36 @@ def serve(stdin=None, stdout=None):
             uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                     "result": _formatting(docs.get(uri, ""))})
+        elif method == "textDocument/codeAction":
+            params = msg.get("params", {})
+            uri = params.get("textDocument", {}).get("uri", "")
+            index = _index_for(uri, docs)
+            doc, _u = _cur_doc(index, uri)
+            if doc is None:
+                doc = _parse(docs.get(uri, ""))
+            diags = params.get("context", {}).get("diagnostics", [])
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _code_actions(index, doc, docs.get(uri, ""), uri, diags)})
+        elif method == "textDocument/colorPresentation":
+            color = msg.get("params", {}).get("color", {})
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _color_presentations(color)})
+        elif method in ("textDocument/codeLens", "textDocument/documentColor",
+                        "textDocument/inlayHint"):
+            params = msg.get("params", {})
+            uri = params.get("textDocument", {}).get("uri", "")
+            if method == "textDocument/documentColor":
+                result = _document_colors(docs.get(uri, ""))
+            else:
+                index = _index_for(uri, docs)
+                doc, curi = _cur_doc(index, uri)
+                if doc is None:
+                    doc = _parse(docs.get(uri, ""))
+                if method == "textDocument/codeLens":
+                    result = _code_lens(index, doc, curi or uri)
+                else:  # inlayHint
+                    result = _inlay_hints(index, doc, params.get("range", {}))
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": result})
         elif method in ("textDocument/definition", "textDocument/documentSymbol",
                         "textDocument/hover", "textDocument/completion",
                         "textDocument/references", "textDocument/rename"):

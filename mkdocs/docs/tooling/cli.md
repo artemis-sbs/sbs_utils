@@ -82,8 +82,10 @@ highlighting + a thin client for this server) lives in the `sbs_cli` repo under
 model (`sbs_utils.procedural.amd_lsp`), dependency-free. Beyond diagnostics it also
 provides **go-to-definition** (a `reveal` / choice / `Scene:` target → its node),
 **find-references** and **rename** (a node key + every reference to it), a
-**document outline** of the heading tree, **hover**, **completion** of node keys,
-and **formatting** (format-on-save) — all from the one model.
+**document outline**, **hover**, **completion**, **quick-fixes** (did-you-mean /
+create-node), a reference **CodeLens**, **color swatches** for `#rrggbb`, **inlay
+hints** (a reference's display name inline), and **formatting** — all from the one
+model, and all resolved across the whole mission.
 
 ## Serving web pages
 
