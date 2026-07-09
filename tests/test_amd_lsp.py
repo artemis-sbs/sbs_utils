@@ -379,6 +379,9 @@ class TestWorkspace(unittest.TestCase):
             self.assertEqual(len(m["regions"]), 1)
             self.assertEqual(m["regions"][0]["radius"], 8.0)
             self.assertEqual(m["regions"][0]["color"], "#86c")
+            # region carries editable Center/Radius ranges (source lines 5, 6 -> LSP 4, 5)
+            self.assertEqual(m["regions"][0]["centerRange"]["start"]["line"], 4)
+            self.assertEqual(m["regions"][0]["radiusRange"]["start"]["line"], 5)
             # the landmark carries the editable range of its `At:` value
             ar = m["landmarks"][0]["atRange"]
             self.assertEqual(ar["start"]["line"], 12)   # `At: 2, -1` source line 13 -> LSP 12

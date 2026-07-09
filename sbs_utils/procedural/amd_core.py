@@ -217,6 +217,19 @@ def _extract_data_refs(node, fence_lines):
                 r.value = cell
                 node.refs.append(r)
 
+    # Region geometry - spans so a map view can drag/resize (value carried too).
+    center = _di(data, "Center")
+    if center is not None and _coords(center):
+        r = _token_span(fence_lines, "Center", str(center).strip(), key, "center")
+        if r:
+            r.value = _coords(center)
+            node.refs.append(r)
+    radius = _di(data, "Radius")
+    if radius is not None:
+        r = _token_span(fence_lines, "Radius", str(radius).strip(), key, "radius")
+        if r:
+            node.refs.append(r)
+
 
 def _extract_choice_refs(node, lineno, raw):
     """A `- [label](target) ; ... signal X` line -> a choice-target ref plus any

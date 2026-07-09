@@ -547,10 +547,14 @@ def _mission_map(index):
                     r = float(str(radius).strip())
                 except ValueError:
                     r = 0.0
+                center_ref = next((x for x in n.refs if x.kind == "center"), None)
+                radius_ref = next((x for x in n.refs if x.kind == "radius"), None)
                 regions.append({"key": n.key, "display": n.display or n.key,
                                 "i": c[0], "j": c[1], "radius": r,
                                 "color": str(_dget(n.data, "Color") or ""),
-                                "uri": u, "line": line})
+                                "uri": u, "line": line,
+                                "centerRange": _span_range(center_ref.span) if center_ref else None,
+                                "radiusRange": _span_range(radius_ref.span) if radius_ref else None})
     return {"landmarks": landmarks, "regions": regions}
 
 
