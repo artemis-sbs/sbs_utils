@@ -221,6 +221,15 @@ def send_gui_face(clientID: int, parent: str, tag: str, face_string: str,
           parent=parent, tag=tag, face_string=face_string,
           left=left, top=top, right=right, bottom=bottom)
 
+def send_story_dialog(clientID: int, title: str, text: str, face: str, color: str) -> None:
+    """Stream a story dialog (title + text + composited face) to the client's
+    browser. The engine renders this in C++; the base mock is a no-op, so this
+    override is what makes admiral/comms narrative (and its face) visible in the
+    browser mock. It is not part of a region rebuild — the browser shows it as a
+    dismissable card until the player closes it."""
+    _send(clientID, "story_dialog",
+          title=title or "", text=text or "", face=face or "", color=color or "#444")
+
 def send_gui_slider(clientID: int, parent: str, tag: str, current: float,
                     style: str, left: float, top: float,
                     right: float, bottom: float) -> None:
