@@ -607,6 +607,25 @@ def _node_detail(index, key):
     return None
 
 
+def _section_insert(index, uri, section):
+    """Where to insert a new node under the `##` section with key `section`, in the
+    doc for `uri`: the end of that section (before the next `##`/`#`, or EOF).
+    `exists` is False when the section is absent (caller adds the header)."""
+    d, _u = _cur_doc(index, uri)
+    if d is None:
+        return {"line": 0, "exists": False}
+    nodes = d.nodes
+    sec_idx = next((i for i, n in enumerate(nodes) if n.level == 2 and n.key == section), None)
+    if sec_idx is None:
+        return {"line": getattr(d, "line_count", 0), "exists": False}
+    end_line = getattr(d, "line_count", 0)
+    for n in nodes[sec_idx + 1:]:
+        if n.level <= 2:
+            end_line = (n.span.line - 1) if n.span else end_line
+            break
+    return {"line": end_line, "exists": True}
+
+
 def _rename_by_key(index, key, new_name):
     """A mission-wide rename of node `key` (declaration + every reference) as an LSP
     WorkspaceEdit - the graph's right-click Rename. No-op if key/name missing."""
@@ -785,6 +804,11 @@ def serve(stdin=None, stdout=None):
             uri = p.get("textDocument", {}).get("uri", "")
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                     "result": _node_detail(_index_for(uri, docs), p.get("key", ""))})
+        elif method == "amd/sectionInsert":
+            p = msg.get("params", {})
+            uri = p.get("textDocument", {}).get("uri", "")
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _section_insert(_index_for(uri, docs), uri, p.get("section", ""))})
         elif method == "shutdown":
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": None})
         elif method == "exit":

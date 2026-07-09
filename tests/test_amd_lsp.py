@@ -454,6 +454,34 @@ class TestWorkspace(unittest.TestCase):
             # body range ends where the next node (### [Q2]) begins (source line 10 -> 9)
             self.assertEqual(n["bodyRange"]["end"]["line"], 9)
 
+    def test_section_insert(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "m")
+            os.mkdir(root)
+            with open(os.path.join(root, "story.json"), "w") as f:
+                f.write("{}")
+            doc = ("# [R](r)\n## [Dialogue](dialogue)\n### [A](a)\n% hi\n"
+                   "## [Narrative](narrative)\n### [Q](q)\nx\n")
+            with open(os.path.join(root, "a.amd"), "w") as f:
+                f.write(doc)
+            uri = Path(os.path.join(root, "a.amd")).as_uri()
+
+            def ask(section):
+                out = self._drive([
+                    {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                    {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                     "params": {"textDocument": {"uri": uri, "text": doc}}},
+                    {"jsonrpc": "2.0", "id": 2, "method": "amd/sectionInsert",
+                     "params": {"textDocument": {"uri": uri}, "section": section}},
+                    {"jsonrpc": "2.0", "method": "exit"},
+                ])
+                return next(x for x in out if x.get("id") == 2)["result"]
+
+            d = ask("dialogue")   # end of Dialogue = before ## Narrative (source line 5 -> 4)
+            self.assertEqual((d["line"], d["exists"]), (4, True))
+            g = ask("goals")      # missing -> EOF, exists False
+            self.assertFalse(g["exists"])
+
     def test_rename_by_key_cross_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             root, a = self._mission(tmp)   # a.amd Scene: talk -> b.amd ### [Talk](talk)
