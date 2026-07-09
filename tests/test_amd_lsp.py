@@ -425,6 +425,35 @@ class TestWorkspace(unittest.TestCase):
             self.assertIn("targetRange", eab)
             self.assertIsInstance(eab["line"], int)
 
+    def test_node_detail(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "m")
+            os.mkdir(root)
+            with open(os.path.join(root, "story.json"), "w") as f:
+                f.write("{}")
+            doc = ("# [R](r)\n## [N](narrative)\n### [Quest One](q1)\n"
+                   "---\nState: active\nWhen: reach 2, -1\n---\n"
+                   "The first quest.\nGo to the ruin.\n"
+                   "### [Q2](q2)\nx\n")
+            with open(os.path.join(root, "a.amd"), "w") as f:
+                f.write(doc)
+            uri = Path(os.path.join(root, "a.amd")).as_uri()
+            out = self._drive([
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                 "params": {"textDocument": {"uri": uri, "text": doc}}},
+                {"jsonrpc": "2.0", "id": 2, "method": "amd/node",
+                 "params": {"textDocument": {"uri": uri}, "key": "q1"}},
+                {"jsonrpc": "2.0", "method": "exit"},
+            ])
+            n = next(x for x in out if x.get("id") == 2)["result"]
+            self.assertEqual(n["display"], "Quest One")
+            self.assertEqual([(f["label"], f["value"]) for f in n["fields"]],
+                             [("State", "active"), ("When", "reach 2, -1")])
+            self.assertEqual(n["bodyText"], "The first quest.\nGo to the ruin.")
+            # body range ends where the next node (### [Q2]) begins (source line 10 -> 9)
+            self.assertEqual(n["bodyRange"]["end"]["line"], 9)
+
     def test_rename_by_key_cross_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             root, a = self._mission(tmp)   # a.amd Scene: talk -> b.amd ### [Talk](talk)

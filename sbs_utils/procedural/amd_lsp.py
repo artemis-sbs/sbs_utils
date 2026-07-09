@@ -571,6 +571,42 @@ def _section_of(node):
     return n.key
 
 
+def _node_detail(index, key):
+    """A node's editable detail for the inspector: display + metadata fields +
+    body text, each with the exact range to rewrite. None if key not found."""
+    for _p, u, d in index["docs"]:
+        node = d.by_key.get(key)
+        if node is None:
+            continue
+        nodes = d.nodes
+        i = nodes.index(node)
+        nxt = nodes[i + 1] if i + 1 < len(nodes) else None
+        add_line = (nxt.span.line - 1) if (nxt and nxt.span) else getattr(d, "line_count", 0)
+
+        fields, fl = [], node.fence_lines
+        for _ln, raw in fl:
+            s = raw.strip()
+            if not s or s.startswith("//") or ":" not in raw:
+                continue
+            label, value = raw.split(":", 1)
+            fields.append({"label": label.strip(), "value": value.strip()})
+        fence_range = None
+        if fl:
+            fence_range = {"start": {"line": fl[0][0] - 1, "character": 0},
+                           "end": {"line": fl[-1][0] - 1, "character": len(fl[-1][1])}}
+
+        body = [raw for (ln, raw) in node.body_lines if (ln - 1) >= node.body_start]
+        return {
+            "key": node.key, "display": node.display, "uri": u,
+            "displayRange": _span_range(node.display_span) if node.display_span else None,
+            "fields": fields, "fenceRange": fence_range,
+            "bodyText": "\n".join(body),
+            "bodyRange": {"start": {"line": node.body_start, "character": 0},
+                          "end": {"line": add_line, "character": 0}},
+        }
+    return None
+
+
 def _rename_by_key(index, key, new_name):
     """A mission-wide rename of node `key` (declaration + every reference) as an LSP
     WorkspaceEdit - the graph's right-click Rename. No-op if key/name missing."""
@@ -744,6 +780,11 @@ def serve(stdin=None, stdout=None):
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                     "result": _rename_by_key(_index_for(uri, docs),
                                                              p.get("key", ""), p.get("newName", ""))})
+        elif method == "amd/node":
+            p = msg.get("params", {})
+            uri = p.get("textDocument", {}).get("uri", "")
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _node_detail(_index_for(uri, docs), p.get("key", ""))})
         elif method == "shutdown":
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": None})
         elif method == "exit":

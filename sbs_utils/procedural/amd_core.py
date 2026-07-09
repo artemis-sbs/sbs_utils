@@ -60,8 +60,9 @@ class AmdRef:
 class AmdNode:
     """A heading and its contents. `span` covers the heading line; `data` is the
     merged `---` fence dict; `refs` are references sourced from this node."""
-    __slots__ = ("key", "display", "level", "span", "key_span", "query", "data",
-                 "children", "parent", "refs", "summary")
+    __slots__ = ("key", "display", "level", "span", "key_span", "display_span",
+                 "query", "data", "children", "parent", "refs", "summary",
+                 "fence_lines", "body_lines", "body_start")
 
     def __init__(self, key, display, level, span=None, parent=None):
         self.key = key
@@ -69,12 +70,16 @@ class AmdNode:
         self.level = level
         self.span = span            # the whole heading line
         self.key_span = None        # just the `key` token inside `](key)`
+        self.display_span = None    # just the display text inside `[...]`
         self.query = {}
         self.data = {}
         self.children = []
         self.parent = parent
         self.refs = []
-        self.summary = ""      # first prose body line, for hover
+        self.summary = ""           # first prose body line, for hover
+        self.fence_lines = []       # (lineno, raw) of the `---` metadata content
+        self.body_lines = []        # (lineno, raw) of the prose/choice body
+        self.body_start = 0         # 0-based line where the body begins
 
 
 class AmdDocument:
@@ -283,6 +288,8 @@ def parse(content, file_path=None):
                 if isinstance(parsed, dict):
                     stack[-1].data.update(parsed)
                     _extract_data_refs(stack[-1], fence_lines)
+                stack[-1].fence_lines = list(fence_lines)
+                stack[-1].body_start = idx      # 0-based line after the closing ---
                 in_data = False
                 fence_lines = []
             else:
@@ -301,6 +308,9 @@ def parse(content, file_path=None):
                            span=Span(idx, 0, idx, len(raw)))
             ustart = m.start("urn")
             node.key_span = Span(idx, ustart, idx, ustart + len(urn[0]))
+            dstart = m.start("display")
+            node.display_span = Span(idx, dstart, idx, dstart + len(m.group("display")))
+            node.body_start = idx           # 0-based line after the heading
             if len(urn) == 2:
                 for kv in urn[1].split("&"):
                     kv = kv.split("=")
@@ -319,6 +329,7 @@ def parse(content, file_path=None):
 
         # body line of the current node - scan for choice/signal references
         node = stack[-1]
+        node.body_lines.append((idx, raw))
         _extract_choice_refs(node, idx, raw)
         stripped = raw.strip()
         if stripped and not node.summary and not stripped.startswith("- ["):
