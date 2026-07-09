@@ -454,6 +454,30 @@ class TestWorkspace(unittest.TestCase):
             # body range ends where the next node (### [Q2]) begins (source line 10 -> 9)
             self.assertEqual(n["bodyRange"]["end"]["line"], 9)
 
+    def test_choice_at(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "m")
+            os.mkdir(root)
+            with open(os.path.join(root, "story.json"), "w") as f:
+                f.write("{}")
+            doc = ("# [R](r)\n## [Dialogue](dialogue)\n### [A](a)\n% hi\n"
+                   "- [Buy it](sold) if credits >= 10 ; costs 10 credits, signal buy\n")
+            with open(os.path.join(root, "a.amd"), "w") as f:
+                f.write(doc)
+            uri = Path(os.path.join(root, "a.amd")).as_uri()
+            out = self._drive([
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                 "params": {"textDocument": {"uri": uri, "text": doc}}},
+                {"jsonrpc": "2.0", "id": 2, "method": "amd/choice",
+                 "params": {"textDocument": {"uri": uri}, "line": 4}},   # the choice line
+                {"jsonrpc": "2.0", "method": "exit"},
+            ])
+            c = next(x for x in out if x.get("id") == 2)["result"]
+            self.assertEqual(c["label"], "Buy it")
+            self.assertEqual(c["target"], "sold")
+            self.assertEqual(c["trailer"], " if credits >= 10 ; costs 10 credits, signal buy")
+
     def test_section_insert(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = os.path.join(tmp, "m")

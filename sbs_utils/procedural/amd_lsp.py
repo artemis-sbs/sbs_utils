@@ -607,6 +607,29 @@ def _node_detail(index, key):
     return None
 
 
+_RE_CHOICE = re.compile(r"^\s*-\s*\[(?P<label>[^\]]*)\]\((?P<target>[^)]*)\)(?P<rest>.*)$")
+
+
+def _choice_at(index, uri, line):
+    """The choice on 0-based `line` broken into label / target / trailer (the raw
+    ` if … ; …` after `)`) + the line range, for a choice editor. None if not one."""
+    d, _u = _cur_doc(index, uri)
+    if d is None:
+        return None
+    want = line + 1
+    for n in d.nodes:
+        for ln, raw in n.body_lines:
+            if ln == want:
+                m = _RE_CHOICE.match(raw)
+                if not m:
+                    return None
+                return {"label": m.group("label"), "target": m.group("target"),
+                        "trailer": m.group("rest"),
+                        "range": {"start": {"line": line, "character": 0},
+                                  "end": {"line": line, "character": len(raw)}}}
+    return None
+
+
 def _section_insert(index, uri, section):
     """Where to insert a new node under the `##` section with key `section`, in the
     doc for `uri`: the end of that section (before the next `##`/`#`, or EOF).
@@ -809,6 +832,11 @@ def serve(stdin=None, stdout=None):
             uri = p.get("textDocument", {}).get("uri", "")
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                     "result": _section_insert(_index_for(uri, docs), uri, p.get("section", ""))})
+        elif method == "amd/choice":
+            p = msg.get("params", {})
+            uri = p.get("textDocument", {}).get("uri", "")
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _choice_at(_index_for(uri, docs), uri, p.get("line", -1))})
         elif method == "shutdown":
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": None})
         elif method == "exit":
