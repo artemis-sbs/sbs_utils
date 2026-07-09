@@ -409,7 +409,10 @@ class TestWorkspace(unittest.TestCase):
             self.assertTrue({"a", "b", "c"} <= keys)
             pairs = {(e["from"], e["to"]) for e in g["edges"]}
             self.assertEqual(pairs, {("a", "b"), ("a", "c"), ("b", "a")})
-            self.assertEqual(next(n for n in g["nodes"] if n["key"] == "a")["section"], "dialogue")
+            na = next(n for n in g["nodes"] if n["key"] == "a")
+            self.assertEqual(na["section"], "dialogue")
+            # `A` body ends right before `### [B](b)` (source line 7 -> insert at line 6)
+            self.assertEqual(na["addLine"], 6)
 
     def test_cross_file_references(self):
         with tempfile.TemporaryDirectory() as tmp:

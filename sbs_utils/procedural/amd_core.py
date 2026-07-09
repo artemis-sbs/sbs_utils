@@ -79,10 +79,11 @@ class AmdNode:
 
 class AmdDocument:
     """Parsed model + the index the reference passes need."""
-    def __init__(self, root, nodes, refs):
+    def __init__(self, root, nodes, refs, line_count=0):
         self.root = root
         self.nodes = nodes            # every node except the synthetic root
         self.refs = refs              # every AmdRef, document order
+        self.line_count = line_count  # source line count (for end-of-file inserts)
         self.keys = {n.key for n in nodes}
         self.by_key = {n.key: n for n in nodes}
         self.parent_of = {n.key: (n.parent.key if n.parent and n.parent.key != "__root__" else None)
@@ -309,4 +310,4 @@ def parse(content, file_path=None):
     for n in nodes:
         refs.extend(n.refs)
     refs.sort(key=lambda r: (r.span.line, r.span.col))
-    return AmdDocument(root, nodes, refs)
+    return AmdDocument(root, nodes, refs, line_count=len(lines))

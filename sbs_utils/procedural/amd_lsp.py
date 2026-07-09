@@ -564,16 +564,22 @@ def _section_of(node):
 
 def _mission_graph(index):
     """Nodes + reference edges (choice/scene/reveal/parent) across the mission -
-    the data for a story graph. Nodes carry their section + source uri/line."""
+    the data for a story graph. Nodes carry their section, source uri/line, and
+    `addLine` = where to insert a new choice (end of the node's body), so the graph
+    can add an edge by dragging one node to another."""
     nodes, seen = [], set()
     for _p, u, d in index["docs"]:
-        for n in d.nodes:
+        line_count = getattr(d, "line_count", 0)
+        for i, n in enumerate(d.nodes):
             if n.key in seen:
                 continue
             seen.add(n.key)
+            nxt = d.nodes[i + 1] if i + 1 < len(d.nodes) else None
+            add_line = (nxt.span.line - 1) if (nxt and nxt.span) else line_count
             nodes.append({"key": n.key, "display": n.display or n.key,
                           "section": _section_of(n), "uri": u,
-                          "line": (n.span.line - 1) if n.span else 0})
+                          "line": (n.span.line - 1) if n.span else 0,
+                          "addLine": add_line})
     known = {nd["key"] for nd in nodes}
     edges, edge_seen = [], set()
     for _p, u, d in index["docs"]:
