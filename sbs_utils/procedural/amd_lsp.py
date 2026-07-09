@@ -562,6 +562,19 @@ def _section_of(node):
     return n.key
 
 
+def _rename_by_key(index, key, new_name):
+    """A mission-wide rename of node `key` (declaration + every reference) as an LSP
+    WorkspaceEdit - the graph's right-click Rename. No-op if key/name missing."""
+    if not key or not new_name:
+        return {"changes": {}}
+    changes = {}
+    for _p, u, d in index["docs"]:
+        edits = [{"range": rg, "newText": new_name} for rg in _key_ranges(d, key, include_decl=True)]
+        if edits:
+            changes[u] = edits
+    return {"changes": changes}
+
+
 def _mission_graph(index):
     """Nodes + reference edges (choice/scene/reveal/parent) across the mission -
     the data for a story graph. Nodes carry their section, source uri/line, and
@@ -714,6 +727,12 @@ def serve(stdin=None, stdout=None):
             uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                     "result": _mission_graph(_index_for(uri, docs))})
+        elif method == "amd/rename":
+            p = msg.get("params", {})
+            uri = p.get("textDocument", {}).get("uri", "")
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _rename_by_key(_index_for(uri, docs),
+                                                             p.get("key", ""), p.get("newName", ""))})
         elif method == "shutdown":
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": None})
         elif method == "exit":

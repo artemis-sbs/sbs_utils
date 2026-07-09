@@ -414,6 +414,23 @@ class TestWorkspace(unittest.TestCase):
             # `A` body ends right before `### [B](b)` (source line 7 -> insert at line 6)
             self.assertEqual(na["addLine"], 6)
 
+    def test_rename_by_key_cross_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, a = self._mission(tmp)   # a.amd Scene: talk -> b.amd ### [Talk](talk)
+            uri = Path(a).as_uri()
+            out = self._drive([
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                 "params": {"textDocument": {"uri": uri, "text": Path(a).read_text()}}},
+                {"jsonrpc": "2.0", "id": 2, "method": "amd/rename",
+                 "params": {"textDocument": {"uri": uri}, "key": "talk", "newName": "chat"}},
+                {"jsonrpc": "2.0", "method": "exit"},
+            ])
+            changes = next(x for x in out if x.get("id") == 2)["result"]["changes"]
+            bases = {os.path.basename(_uri_to_path(u)) for u in changes}
+            self.assertEqual(bases, {"a.amd", "b.amd"})   # ref in a, decl in b both edited
+            self.assertTrue(all(e["newText"] == "chat" for edits in changes.values() for e in edits))
+
     def test_cross_file_references(self):
         with tempfile.TemporaryDirectory() as tmp:
             root, a = self._mission(tmp)
