@@ -72,6 +72,24 @@ class TestStructural(unittest.TestCase):
         self.assertEqual(f[0].severity, ERROR)
 
 
+class TestAscii(unittest.TestCase):
+    """The engine renders ASCII only - flag non-ASCII author text."""
+
+    def test_flags_smart_quotes_and_emoji(self):
+        doc = "# [Root](root)\n% Don’t panic \U0001f600\n"   # smart apostrophe + emoji
+        f = _by_code(amd_lint(content=doc), "non-ascii")
+        self.assertTrue(f)
+        self.assertTrue(all(x.severity == WARNING for x in f))
+
+    def test_clean_ascii(self):
+        doc = "# [Root](root)\n% Don't panic - all good.\n"
+        self.assertEqual(_by_code(amd_lint(content=doc), "non-ascii"), [])
+
+    def test_comment_exempt(self):
+        doc = "# [Root](root)\n// a note with an em-dash — fine in comments\n"
+        self.assertEqual(_by_code(amd_lint(content=doc), "non-ascii"), [])
+
+
 class TestReferences(unittest.TestCase):
     """Phase 2 - intra-document danglers (all WARNING)."""
 

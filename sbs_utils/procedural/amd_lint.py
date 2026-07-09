@@ -170,6 +170,27 @@ def amd_lint_structural(file_path=None, content=None):
     return findings
 
 
+# --- content safety: the engine renders ASCII only --------------------------
+_RE_NONASCII = re.compile(r"[^\x00-\x7f]+")
+
+
+def amd_lint_ascii(file_path=None, content=None):
+    """Flag non-ASCII runs in author text - the engine renders ASCII only, so a
+    pasted smart-quote / em-dash / emoji misrenders or crashes. `//` comment lines
+    are exempt (not rendered). WARNING."""
+    findings = []
+    for i, line in enumerate(_source_lines(file_path, content), start=1):
+        if line.lstrip().startswith("//"):
+            continue
+        for m in _RE_NONASCII.finditer(line):
+            findings.append(AmdFinding(
+                i, WARNING, "non-ascii",
+                f"non-ASCII text {m.group()!r} - the engine renders ASCII only "
+                f"(smart quotes / em-dashes / emoji misrender or crash)",
+                col=m.start(), end_line=i, end_col=m.end()))
+    return findings
+
+
 # Engine / quest-driver signals that have built-in handlers - never flag these as
 # "emitted with no route" (source: schema map, quest_driver.mast + engine routes).
 DRIVER_SIGNALS = frozenset({
@@ -341,6 +362,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
     strings). Pass `cross_file=False` to skip Phase 3. Any parser exception is
     downgraded to a single finding rather than raised."""
     findings = list(amd_lint_structural(file_path, content))
+    findings += amd_lint_ascii(file_path, content)
 
     if content is None and file_path is not None:
         try:
