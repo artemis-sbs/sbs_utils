@@ -380,6 +380,33 @@ class TestWorkspace(unittest.TestCase):
             self.assertEqual(m["regions"][0]["radius"], 8.0)
             self.assertEqual(m["regions"][0]["color"], "#86c")
 
+    def test_mission_graph(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "m")
+            os.mkdir(root)
+            with open(os.path.join(root, "story.json"), "w") as f:
+                f.write("{}")
+            with open(os.path.join(root, "d.amd"), "w") as f:
+                f.write("# [R](r)\n## [Dialogue](dialogue)\n"
+                        "### [A](a)\n% hi\n- [to B](b)\n- [to C](c)\n"
+                        "### [B](b)\n% b\n- [back](a)\n"
+                        "### [C](c)\n% c\n")
+            uri = Path(os.path.join(root, "d.amd")).as_uri()
+            out = self._drive([
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                 "params": {"textDocument": {"uri": uri, "text": Path(os.path.join(root, "d.amd")).read_text()}}},
+                {"jsonrpc": "2.0", "id": 2, "method": "amd/graph",
+                 "params": {"textDocument": {"uri": uri}}},
+                {"jsonrpc": "2.0", "method": "exit"},
+            ])
+            g = next(x for x in out if x.get("id") == 2)["result"]
+            keys = {n["key"] for n in g["nodes"]}
+            self.assertTrue({"a", "b", "c"} <= keys)
+            pairs = {(e["from"], e["to"]) for e in g["edges"]}
+            self.assertEqual(pairs, {("a", "b"), ("a", "c"), ("b", "a")})
+            self.assertEqual(next(n for n in g["nodes"] if n["key"] == "a")["section"], "dialogue")
+
     def test_cross_file_references(self):
         with tempfile.TemporaryDirectory() as tmp:
             root, a = self._mission(tmp)

@@ -545,6 +545,40 @@ def _mission_map(index):
     return {"landmarks": landmarks, "regions": regions}
 
 
+def _section_of(node):
+    """The `##` section key a node lives under (dialogue / narrative / ...)."""
+    n = node
+    while n.parent is not None and n.parent.key != "__root__" and n.level > 2:
+        n = n.parent
+    return n.key
+
+
+def _mission_graph(index):
+    """Nodes + reference edges (choice/scene/reveal/parent) across the mission -
+    the data for a story graph. Nodes carry their section + source uri/line."""
+    nodes, seen = [], set()
+    for _p, u, d in index["docs"]:
+        for n in d.nodes:
+            if n.key in seen:
+                continue
+            seen.add(n.key)
+            nodes.append({"key": n.key, "display": n.display or n.key,
+                          "section": _section_of(n), "uri": u,
+                          "line": (n.span.line - 1) if n.span else 0})
+    known = {nd["key"] for nd in nodes}
+    edges, edge_seen = [], set()
+    for _p, u, d in index["docs"]:
+        for r in d.refs:
+            if r.kind not in ("choice", "scene", "reveal", "parent"):
+                continue
+            leaf = str(r.value).split("/")[-1]
+            key = (r.owner, leaf, r.kind)
+            if r.owner in known and leaf in known and r.owner != leaf and key not in edge_seen:
+                edge_seen.add(key)
+                edges.append({"from": r.owner, "to": leaf, "kind": r.kind})
+    return {"nodes": nodes, "edges": edges}
+
+
 # --- server loop ------------------------------------------------------------
 def serve(stdin=None, stdout=None):
     """Run the LSP loop until `exit` / EOF. `stdin`/`stdout` are binary streams
@@ -661,6 +695,10 @@ def serve(stdin=None, stdout=None):
             uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                     "result": _mission_map(_index_for(uri, docs))})
+        elif method == "amd/graph":
+            uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _mission_graph(_index_for(uri, docs))})
         elif method == "shutdown":
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": None})
         elif method == "exit":
