@@ -693,6 +693,68 @@ def random_face(race=None):
     return random_terran()
 
 
+# --- Face builder recipe (ported from modding_tools char_editor) --------------
+# Per race: the ordered features a builder shows one control for (label, max index,
+# optional). `build_face` turns chosen indices into a face string. Living here (in
+# sbs_utils) keeps the recipe available without the modding_tools mission.
+FACE_FEATURES = {
+    "terran": [
+        {"label": "Body", "max": 1}, {"label": "Eyes", "max": 9}, {"label": "Mouth", "max": 9},
+        {"label": "Hair", "max": 4, "optional": True}, {"label": "Long Hair", "max": 7, "optional": True},
+        {"label": "Facial Hair", "max": 4, "optional": True}, {"label": "Extra", "max": 4, "optional": True},
+        {"label": "Uniform", "max": 9, "optional": True},
+        {"label": "Skin Tone", "max": len(skin_tones) - 1}, {"label": "Hair Tone", "max": len(hair_tones) - 1},
+    ],
+    "skaraan": [
+        {"label": "Eyes", "max": 4}, {"label": "Mouth", "max": 4},
+        {"label": "Horn", "max": 4, "optional": True}, {"label": "Hat", "max": 4, "optional": True},
+    ],
+    "torgoth": [
+        {"label": "Eyes", "max": 4}, {"label": "Mouth", "max": 4},
+        {"label": "Hair", "max": 4, "optional": True}, {"label": "Extra", "max": 3, "optional": True},
+        {"label": "Hat", "max": 0, "optional": True},
+    ],
+    "arvonian": [
+        {"label": "Eyes", "max": 4}, {"label": "Mouth", "max": 4},
+        {"label": "Crown", "max": 4, "optional": True}, {"label": "Jewels", "max": 4, "optional": True},
+    ],
+    "kralien": [
+        {"label": "Eyes", "max": 4}, {"label": "Mouth", "max": 4},
+        {"label": "Scalp", "max": 4, "optional": True}, {"label": "Extra", "max": 4, "optional": True},
+    ],
+    "ximni": [
+        {"label": "Eyes", "max": 4}, {"label": "Mouth", "max": 4},
+        {"label": "Horns", "max": 4, "optional": True}, {"label": "Mask", "max": 2, "optional": True},
+        {"label": "Tattoo", "max": 1, "optional": True},
+    ],
+}
+
+_FACE_BUILDERS = {
+    "terran": terran, "skaraan": skaraan, "torgoth": torgoth,
+    "arvonian": arvonian, "kralien": kralien, "ximni": ximni,
+}
+
+
+def build_face(race, values, enables=None):
+    """Build a face string from per-feature indices in FACE_FEATURES order.
+
+    `values[i]` is the chosen index for feature i; `enables[i]` False sets an
+    (optional) feature to None. Terran maps 1:1 to terran(); other races prepend
+    face_id 0 (the slot their builders expect). Returns '' for an unknown race.
+    """
+    race = str(race).lower()
+    fn = _FACE_BUILDERS.get(race)
+    if fn is None:
+        return ""
+    vals = list(values)
+    if enables is None:
+        enables = [True] * len(vals)
+    args = [(v if (i < len(enables) and enables[i]) else None) for i, v in enumerate(vals)]
+    if race != "terran":
+        args = [0] + args
+    return fn(*args)
+
+
 
 def get_face_from_data(race):
     """

@@ -599,6 +599,24 @@ def _face_random(race):
         return ""
 
 
+def _face_meta():
+    """Per-race feature specs for a face builder (from sbs_utils.faces)."""
+    try:
+        import sbs_utils.faces as faces
+        return {"races": list(faces.FACE_FEATURES.keys()), "features": faces.FACE_FEATURES}
+    except Exception:
+        return {"races": [], "features": {}}
+
+
+def _face_build(race, values, enables):
+    """A face string from per-feature indices, via sbs_utils.faces.build_face."""
+    try:
+        import sbs_utils.faces as faces
+        return faces.build_face(race, values, enables)
+    except Exception:
+        return ""
+
+
 def _node_detail(index, key):
     """A node's editable detail for the inspector: display + metadata fields +
     body text, each with the exact range to rewrite. None if key not found."""
@@ -897,6 +915,12 @@ def serve(stdin=None, stdout=None):
         elif method == "amd/faceRandom":
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                     "result": {"face": _face_random(msg.get("params", {}).get("race", ""))}})
+        elif method == "amd/faceMeta":
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": _face_meta()})
+        elif method == "amd/faceBuild":
+            p = msg.get("params", {})
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": {"face": _face_build(p.get("race", ""), p.get("values", []), p.get("enables"))}})
         elif method == "shutdown":
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": None})
         elif method == "exit":
