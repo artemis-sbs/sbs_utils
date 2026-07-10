@@ -705,6 +705,25 @@ def _section_insert(index, uri, section):
     return {"line": end_line, "exists": True}
 
 
+def _node_at_line(index, uri, line):
+    """The editable detail of the node that owns `line` in `uri` — i.e. the
+    nearest heading at or above the cursor. None if the line is above them all.
+    Lets a docked inspector follow the caret."""
+    doc, _u = _cur_doc(index, uri)
+    if doc is None:
+        return None
+    best_key, best_line = None, -1
+    for key, node in doc.by_key.items():
+        if node.span is None:
+            continue
+        sl = node.span.line - 1
+        if best_line < sl <= line:
+            best_line, best_key = sl, key
+    if best_key is None:
+        return None
+    return _node_detail(index, best_key)
+
+
 def _rename_by_key(index, key, new_name):
     """A mission-wide rename of node `key` (declaration + every reference) as an LSP
     WorkspaceEdit - the graph's right-click Rename. No-op if key/name missing."""
@@ -912,6 +931,11 @@ def serve(stdin=None, stdout=None):
             uri = p.get("textDocument", {}).get("uri", "")
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                     "result": _node_detail(_index_for(uri, docs), p.get("key", ""))})
+        elif method == "amd/nodeAtLine":
+            p = msg.get("params", {})
+            uri = p.get("textDocument", {}).get("uri", "")
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _node_at_line(_index_for(uri, docs), uri, p.get("line", -1))})
         elif method == "amd/sectionInsert":
             p = msg.get("params", {})
             uri = p.get("textDocument", {}).get("uri", "")

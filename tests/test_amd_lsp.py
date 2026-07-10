@@ -541,5 +541,26 @@ class TestWorkspace(unittest.TestCase):
             self.assertEqual(uris, {"a.amd", "b.amd"})          # ref in a, decl in b
 
 
+class TestNodeAtLine(unittest.TestCase):
+    """_node_at_line maps a cursor line to the node that owns it (nearest
+    heading at or above) — the docked inspector's cursor-follow lookup."""
+
+    def test_node_at_line(self):
+        from sbs_utils.procedural.amd_lsp import _index_for, _node_at_line
+        amd = (
+            "# [My Mission](my_mission)\n---\nDisplay: My Mission\n---\nIntro.\n\n"
+            "## [Scene One](scene_one)\nDialogue.\n- [go](scene_two)\n\n"
+            "## [Scene Two](scene_two)\nMore.\n"
+        )
+        uri = "file:///m/story.amd"
+        idx = _index_for(uri, {uri: amd})
+        cases = {0: "my_mission", 3: "my_mission", 6: "scene_one",
+                 8: "scene_one", 11: "scene_two"}
+        for line, key in cases.items():
+            d = _node_at_line(idx, uri, line)
+            self.assertIsNotNone(d, f"line {line}")
+            self.assertEqual(d["key"], key, f"line {line}")
+
+
 if __name__ == "__main__":
     unittest.main()
