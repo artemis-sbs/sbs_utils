@@ -1084,8 +1084,28 @@ def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"
  
             
 
+# Weighted monster bestiary for terrain_spawn_monsters. The classic Typhon hunter
+# dominates; the rest add variety (some hostile, some tame, some helpful). Names
+# resolve to LegendaryMissions prefab labels at spawn time. A mission can reassign
+# this list of (prefab_name, weight) to change the mix, or set it to
+# [("prefab_typhon_classic", 1)] for the old classic-only field.
+monster_species_weights = [
+    ("prefab_typhon_classic", 50),   # classic hostile hunter
+    ("prefab_reaver", 12),           # hostile - enrages when hit
+    ("prefab_grazer", 10),           # tame unless provoked
+    ("prefab_ravener", 8),           # hostile - feeds on weapon fire
+    ("prefab_bulwark", 6),           # tame, inert collision hazard
+    ("prefab_sparkfeeder", 5),       # helpful - gifts energy
+    ("prefab_leech", 5),             # nuisance - drains energy
+    ("prefab_warden", 4),            # helpful - hunts raiders
+]
+
 def terrain_spawn_monsters(monster_value, center=None, points=None):
-    """Spawn Typhon-class monster prefabs based on the monster difficulty value.
+    """Spawn monster-bestiary prefabs based on the monster difficulty value.
+
+    Each monster is rolled from ``monster_species_weights`` (Typhon-dominant), so
+    the field is a mix of hostile, tame and helpful creatures. Reassign that list
+    to change the mix.
 
     Args:
         monster_value (int): Number of monsters to spawn.
@@ -1107,8 +1127,11 @@ def terrain_spawn_monsters(monster_value, center=None, points=None):
     else:
         spawn_points = scatter.box(monster_value, center.x,center.y, center.z, 75000, 1000, 75000, centered=True)
 
+    names = [s[0] for s in monster_species_weights]
+    weights = [s[1] for s in monster_species_weights]
     for v in spawn_points:
-        prefab_spawn("prefab_typhon_classic", None, *v.xyz)
+        prefab = random.choices(names, weights=weights)[0]
+        prefab_spawn(prefab, None, *v.xyz)
     return spawn_points
 
 
