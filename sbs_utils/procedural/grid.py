@@ -46,6 +46,49 @@ def grid_objects_at(so_id, x,y) -> set[int]:
     return to_set(hm.get_objects_at_point(x,y))
 
 
+def grid_valid_blob(id_or_obj):
+    """Return a grid object's engine blob only if its backing space object is
+    still valid, otherwise ``None``.
+
+    A destroyed host ship leaves the grid object's ``Agent`` and its cached blob
+    wrapper in place, so ``to_blob`` still returns a non-``None`` wrapper -- but
+    the engine raises ``ValueError: invalid space object`` on any ``get``/``set``
+    of that wrapper. This probes cheaply so callers can guard the dead-object
+    case with a plain ``is None`` check, the same as a missing object.
+
+    Args:
+        id_or_obj (Agent | int): Agent id or object.
+
+    Returns:
+        data_set | None: The live blob, or ``None`` if the object is gone or its
+            host space object has been destroyed.
+    """
+    blob = to_blob(id_or_obj)
+    if blob is None:
+        return None
+    try:
+        # Any access raises ValueError once the backing space object is gone.
+        blob.get("curx", 0)
+    except ValueError:
+        return None
+    return blob
+
+
+def grid_object_valid(id_or_obj) -> bool:
+    """Return whether a grid object still has a valid backing space object.
+
+    Returns ``False`` once the host ship is destroyed, even though the grid
+    object's ``Agent`` may still resolve. See :func:`grid_valid_blob`.
+
+    Args:
+        id_or_obj (Agent | int): Agent id or object.
+
+    Returns:
+        bool: ``True`` if the grid object's blob can be safely accessed.
+    """
+    return grid_valid_blob(id_or_obj) is not None
+
+
 ################################
 ##########################################
 ####### TODO: Update for sets
@@ -64,7 +107,10 @@ def grid_close_list(grid_obj, the_set, max_dist=None, filter_func=None) -> list[
     """    
     ret = []
     grid_obj=to_object(grid_obj)
-    blob = to_blob(grid_obj.id)
+    blob = grid_valid_blob(grid_obj.id)
+    # Host ship destroyed out from under this brain -> nothing to compare against.
+    if blob is None:
+        return ret
     this_x= blob.get("curx", 0)
     this_y=blob.get("cury",  0)
     if max_dist is None:
@@ -88,8 +134,8 @@ def grid_close_list(grid_obj, the_set, max_dist=None, filter_func=None) -> list[
             continue
         
         # curx, cury
-        other_blob = to_blob(other_id)
-        # if this is gone and we missed that fact ealier
+        other_blob = grid_valid_blob(other_id)
+        # if this is gone (or its host was destroyed) and we missed that earlier
         if other_blob is None:
             continue
         other_x= other_blob.get("curx", 0)
@@ -156,8 +202,8 @@ def grid_target(grid_obj_or_set, target_id: int, speed=0.01):
     """    
     grid_objs= to_object_list(grid_obj_or_set)
     for grid_obj in grid_objs:
-        this_blob = to_blob(grid_obj.id)
-        other_blob = to_blob(target_id)
+        this_blob = grid_valid_blob(grid_obj.id)
+        other_blob = grid_valid_blob(target_id)
         if other_blob and this_blob:
             curx= this_blob.get("curx", 0)
             cury= this_blob.get("cury",  0)
@@ -184,7 +230,9 @@ def grid_target_pos(grid_obj_or_set, x:float, y:float, speed=0.01):
     """
     grid_objs= to_object_list(grid_obj_or_set)
     for grid_obj in grid_objs:
-        blob = to_blob(grid_obj.id)
+        blob = grid_valid_blob(grid_obj.id)
+        if blob is None:
+            continue
         curx= blob.get("curx", 0)
         cury=blob.get("cury",  0)
 
@@ -215,7 +263,9 @@ def grid_clear_target(grid_obj_or_set):
     """
     grid_objs= to_object_list(grid_obj_or_set)
     for grid_obj in grid_objs:
-        blob = to_blob(grid_obj.id)
+        blob = grid_valid_blob(grid_obj.id)
+        if blob is None:
+            continue
         x= blob.get("curx", 0)
         y=blob.get("cury",  0)
         grid_target_pos(grid_obj_or_set, x,y)
@@ -251,7 +301,7 @@ def grid_speech_bubble(id_or_obj, status, color=None, seconds=0, minutes=0):
         seconds (int): The seconds for the speech bubble
         minutes: (int): The minutes for the speech bubble
     """        
-    blob = to_blob(id_or_obj)
+    blob = grid_valid_blob(id_or_obj)
     if blob is None:
         return
     # set speech bubble
@@ -290,7 +340,7 @@ def grid_short_status(id_or_obj, status, color=None, seconds=0, minutes=0):
         minutes (int, optional): Additional minutes for the bubble duration.
             Defaults to 0.
     """
-    blob = to_blob(id_or_obj)
+    blob = grid_valid_blob(id_or_obj)
     if blob is None:
         return
     # Set tooltip
@@ -306,7 +356,7 @@ def grid_detailed_status(id_or_obj, status, color=None):
         color (str, optional): Text color. ``None`` keeps the current value.
             Defaults to None.
     """
-    blob = to_blob(id_or_obj)
+    blob = grid_valid_blob(id_or_obj)
     if blob is None:
         return
     # Set tooltip
@@ -502,9 +552,9 @@ def grid_pos_data(id):
     Returns:
         tuple[float, float, float]: ``(curx, cury, path_length)``.
     """
-    blob = to_data_set(to_id(id))
+    blob = grid_valid_blob(to_id(id))
     if blob is None:
-        (None, None, None)
+        return (None, None, None)
     path_length = blob.get("path_length", 0)
     curx= blob.get("curx", 0)
     cury=blob.get("cury",  0)
