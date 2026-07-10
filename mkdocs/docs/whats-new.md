@@ -107,6 +107,33 @@ so authoring a new one is just dropping in a file.
 Playing & hosting: [LegendaryMissions](legendarymissions/index.md) ·
 Authors: [Writing a Siege boss](legendarymissions/script/bosses.md).
 
+## 🐙 A Living Bestiary
+
+Space monsters are no longer just one hostile Typhon. The **Monsters** map option
+now seeds a **weighted mix of species** — some deadly, some harmless, some that
+actually *help* you — and a Game Master can drop any of them from the spawn menu.
+**Scan** an unknown creature and its science readout tells you what it is before you
+decide to shoot.
+
+- **Seven new species over one behaviour:**
+  **Reaver** (fast hunter that *enrages* — faster and redder with every wound),
+  **Ravener** (an apex predator that **feeds on weapon fire** — beams and torpedoes
+  only heal it; the one thing it can't eat is a black hole),
+  **Grazer** (a placid drifter that's **tame unless provoked**, then turns on you),
+  **Bulwark** (colossal, inert living reef — harmless unless you ram it),
+  **Sparkfeeder** (a docile creature that **recharges your ship's energy**),
+  **Siphon Leech** (its parasitic twin — **drains** energy, non-lethal), and the
+  **Warden** (a friendly guardian that hunts *raiders*, never you).
+- **Every monster has an age.** Individuals spawn **Young**, **Mature** or **Ancient** —
+  older ones are tougher and larger (age never changes the damage they deal), and an
+  aged Ancient eventually seeks out a **black hole** to die.
+- **Black holes bite again.** Player ships *and* fighters that drift into a black
+  hole's pull are now reliably destroyed — no more bobbing at the edge or warping
+  free (fixes the long-standing "black holes don't kill" bug).
+
+Authors add a species by dropping in a prefab file over `behav_typhon`; the roster
+and mix live in one weight table.
+
 ## 🏆 Game Results & Scorekeeping
 
 The end-of-game screen is now a **tabbed results board** with real scorekeeping —
