@@ -737,6 +737,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#validating-amd-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validating AMD files
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#unit-tests" class="md-nav__link">
     <span class="md-ellipsis">
       Unit tests
@@ -2296,6 +2305,15 @@
   <a href="#headless-conformance-run" class="md-nav__link">
     <span class="md-ellipsis">
       Headless conformance run
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validating-amd-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validating AMD files
     </span>
   </a>
   
@@ -4585,6 +4603,8 @@
       
         
       
+        
+      
     
     
     
@@ -5062,6 +5082,8 @@
           
         
       
+        
+      
     
     
     
@@ -5079,6 +5101,95 @@
         
           
           <div class="md-nav__link md-nav__container">
+            <a href="../../openuniverse/editor/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    The AMD editor
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_10_4" id="__nav_10_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_10_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10_4">
+            <span class="md-nav__icon md-icon"></span>
+            The AMD editor
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../openuniverse/editor/tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Get started - build a scene
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
             <a href="../../openuniverse/reference/" class="md-nav__link ">
               
   
@@ -5093,8 +5204,8 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_10_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_10_4">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_10_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10_5">
             <span class="md-nav__icon md-icon"></span>
             Reference
           </label>
@@ -5222,6 +5333,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#validating-amd-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validating AMD files
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#unit-tests" class="md-nav__link">
     <span class="md-ellipsis">
       Unit tests
@@ -5273,6 +5393,15 @@ energy, and the weapons model (beams, torpedoes, drones, mines, EMP).</p>
 verdict &mdash; ideal for CI. Add <code>--exercise</code> to actively drive
 selections/comms/console-cycling for more route coverage, <code>--junit &lt;path&gt;</code> for a
 JUnit report, and <code>--seed N</code> for reproducibility.</p>
+<h2 id="validating-amd-files">Validating AMD files</h2>
+<div class="highlight"><pre><span></span><code>sbs lint .                  # check .amd for silent structural/reference errors
+</code></pre></div>
+<p>AMD's failure modes are <strong>silent</strong> — a typo'd <code># [Display](key)</code> heading drops a whole
+quest with no error. <code>sbs lint</code> re-scans a mission's <code>.amd</code> and reports broken/vanishing
+headings, unclosed <code>---</code> fences, and heading-level jumps (<strong>errors</strong>, exit <code>1</code>), plus
+dangling <code>Then: reveal</code> / choice / <code>Scene:</code> targets, a <code>signal X</code> with no <code>//signal/X</code>
+route, and a <code>reach i,j</code> with no landmark <code>At:</code> (<strong>warnings</strong>). Add <code>--strict</code> to fail on
+warnings for CI. See <a href="../cli/#validating-amd">the CLI page</a>.</p>
 <h2 id="unit-tests">Unit tests</h2>
 <p>The library uses <code>unittest</code>:</p>
 <div class="highlight"><pre><span></span><code>python -m unittest discover -s tests

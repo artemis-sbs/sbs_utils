@@ -4444,6 +4444,8 @@
       
         
       
+        
+      
     
     
     
@@ -4631,6 +4633,15 @@
   <a href="#raising-and-commanding-fleets" class="md-nav__link">
     <span class="md-ellipsis">
       Raising and commanding fleets
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-galaxy-map-commanding-across-systems" class="md-nav__link">
+    <span class="md-ellipsis">
+      The galaxy map - commanding across systems
     </span>
   </a>
   
@@ -5037,6 +5048,8 @@
           
         
       
+        
+      
     
     
     
@@ -5057,6 +5070,98 @@
         
           
           <div class="md-nav__link md-nav__container">
+            <a href="../../editor/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    The AMD editor
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_10_4" id="__nav_10_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_10_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10_4">
+            <span class="md-nav__icon md-icon"></span>
+            The AMD editor
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../editor/tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Get started - build a scene
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
             <a href="../../reference/" class="md-nav__link ">
               
   
@@ -5071,8 +5176,8 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_10_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_10_4">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_10_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10_5">
             <span class="md-nav__icon md-icon"></span>
             Reference
           </label>
@@ -5218,6 +5323,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-galaxy-map-commanding-across-systems" class="md-nav__link">
+    <span class="md-ellipsis">
+      The galaxy map - commanding across systems
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#research" class="md-nav__link">
     <span class="md-ellipsis">
       Research
@@ -5284,7 +5398,9 @@ view of the system. Whether the other sides are <strong>allies</strong> (a co-op
 </div>
 <h2 id="the-command-view">The command view</h2>
 <p>The Admiral doesn't sit on a ship. You ride a <strong>camera high over the current
-system</strong> - a god's-eye 2D map of everything on your side. You give every order by
+system</strong> - a god's-eye 2D map of everything on your side. (A second view, the
+<strong>Galaxy</strong> tab, zooms out to the whole map of star systems - see <a href="#the-galaxy-map-commanding-across-systems">the galaxy
+map</a> below.) You give every order by
 <strong>selecting things on that map</strong>:</p>
 <ul>
 <li><strong>Click empty space</strong> - the view pans there. Use it to reach worldlets and
@@ -5392,6 +5508,39 @@ captain's pod has only a short window to be <strong>rescued</strong> before they
 (ransom them at the captor's stations) or lost for good. Fleets also burn <strong>gas</strong>
 on active orders and won't operate inside an antimatter <strong>veil</strong> - keep them
 fuelled and out of the lethal systems.</p>
+<h2 id="the-galaxy-map-commanding-across-systems">The galaxy map - commanding across systems</h2>
+<p>Everything above is your <strong>home system</strong>. To command the wider galaxy, open the
+<strong>Galaxy</strong> tab. The command camera rides out to a strategic <strong>map of star systems</strong> -
+one icon per system, meshed and coloured by what's there (your bases, foes, nebulae,
+unexplored fog). It's your whole theatre at a glance, and where you move forces
+<strong>between</strong> systems.</p>
+<p><strong>Click a system</strong>, and its orders appear:</p>
+<ul>
+<li><strong>Send \&lt;captain&gt; here</strong> - dispatch that fleet to the system. It travels, arrives,
+  and takes orders there (a fleet holds a system <em>live</em> while it's on station).</li>
+<li><strong>Send \&lt;ship&gt; here</strong> - vector a <strong>player ship</strong> to the system. You're the strategic
+  navigator: crews fly locally, you move them between systems. (A ship already in the
+  selected system isn't offered - no point sending it where it is.)</li>
+<li><strong>Jump here</strong> - take <strong>yourself</strong> (the command camera) to that system to oversee it
+  up close.</li>
+<li><strong>Known locations</strong> - a shortcut list of notable systems (home, clan capitals, active
+  objectives) to jump to without hunting the map.</li>
+</ul>
+<p>Your own ships show as <strong>live icons</strong> on the map: their <strong>colour is health</strong> (green -&gt;
+amber -&gt; red as shields fall) and their <strong>label shows where they're headed</strong> (<code>Artemis
+-&gt;(2,3)</code> while travelling). The map updates as they move - no need to reopen it.</p>
+<div class="admonition note">
+<p class="admonition-title">Your own galaxy map</p>
+<p>With more than one Admiral, <strong>each commands its own galaxy map</strong>, centred on its own
+theatre - your orders and your board never disturb another Admiral's.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">How crews travel on their own</p>
+<p>You aren't the only way a ship moves. A bridge crew <strong>takes a job</strong> and travels to it:
+the <strong>Quests tab</strong> has an <strong>Engage</strong> button that jumps the ship to its current
+objective. So movement is <em>purposeful</em> - the Admiral vectors the fleet, and crews
+pursue their own contracts - with no free-roam map to babysit.</p>
+</div>
 <h2 id="research">Research</h2>
 <p>Build a <strong>Lab</strong>, then click it to see the tech ladder. Each project costs
 resources and time, some require an earlier one first, and they unlock real
@@ -5411,9 +5560,10 @@ at once.</p>
 </ul>
 <h2 id="seeing-the-galaxy">Seeing the galaxy</h2>
 <p>A <strong>Sensor Relay</strong> doesn't just add a command point - it <strong>charts the neighbouring
-systems</strong>, revealing what's out there without a scout having to fly the jump.
-Relays you leave behind also keep sending a share of their system's income home,
-so an expanding network pays you even while the fleet moves on.</p>
+systems</strong>, revealing what's out there (they light up on the <strong>Galaxy map</strong> above)
+without a scout having to fly the jump. Relays you leave behind also keep sending a
+share of their system's income home, so an expanding network pays you even while the
+fleet moves on.</p>
 <hr />
 <p>That's the whole loop: <strong>mine, build, expand, command.</strong> Start with an Extractor,
 grow the base that lets you field a navy, and command it across the galaxy the

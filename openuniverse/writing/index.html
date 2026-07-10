@@ -4444,6 +4444,8 @@
       
         
       
+        
+      
     
     
     
@@ -4932,6 +4934,8 @@
           
         
       
+        
+      
     
     
     
@@ -4952,6 +4956,98 @@
         
           
           <div class="md-nav__link md-nav__container">
+            <a href="../editor/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    The AMD editor
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_10_4" id="__nav_10_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_10_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10_4">
+            <span class="md-nav__icon md-icon"></span>
+            The AMD editor
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../editor/tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Get started - build a scene
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
             <a href="../reference/" class="md-nav__link ">
               
   
@@ -4966,8 +5062,8 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_10_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_10_4">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_10_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10_5">
             <span class="md-nav__icon md-icon"></span>
             Reference
           </label>
@@ -5153,7 +5249,7 @@ playable from the Universe dropdown right now.</p>
 <h2 id="the-shape-of-the-file-learn-this-once">The shape of the file (learn this once)</h2>
 <p>Your whole universe is one <code>.amd</code> file, and every piece of it - a faction, a
 job, a chapter of story - has the same three-part shape:</p>
-<div class="highlight"><pre><span></span><code>### The Red Veil (veil)          &lt;- a heading: a NAME and a (key)
+<div class="highlight"><pre><span></span><code>### [The Red Veil](veil)         &lt;- a heading: a NAME in [ ] and a (key)
 ---                              &lt;- a fence: 3 dashes on their own line
 Color: #cc2244                   &lt;- the fact sheet: one fact per line
 Disposition: foe
@@ -5162,15 +5258,17 @@ Corsairs of the outer dark.      &lt;- the prose: what players read
 They take what the light forgets.
 </code></pre></div>
 <ul>
-<li><strong>The heading</strong> names the thing. The part in <code>(...)</code> is its <strong>key</strong> - a
-  short one-word nickname, lowercase, no spaces. Other lines refer to it by
-  this key, the way a screenplay refers to <code>INT. BRIDGE</code> after introducing it
-  once. Keys must be unique.</li>
+<li><strong>The heading</strong> names the thing: the display name in <code>[...]</code>, then its <strong>key</strong>
+  in <code>(...)</code> - a short one-word nickname, lowercase, no spaces. Other lines refer
+  to it by this key, the way a screenplay refers to <code>INT. BRIDGE</code> after introducing
+  it once. Keys must be unique. (The brackets are what make it a <em>heading</em>; that
+  keeps <code>#</code> free to be a markdown heading in your prose - see below.)</li>
 <li><strong>The fence</strong> holds the fact sheet: <code>Label: value</code>, one per line, like the
   header of a character sheet. Skip any fact you don't care about.</li>
 <li><strong>The prose</strong> is yours. Everything under the fence that isn't a heading is
-  description - the flavor text players actually read. This is where you
-  write.</li>
+  description - the flavor text players actually read. It renders as <strong>markdown</strong>,
+  so you can use <code>#</code>/<code>##</code> headings, <code>-</code> bullet lists, blank-line paragraphs, and
+  inline <code>image://</code> / <code>ship://</code> / <code>face://</code> objects to make it rich.</li>
 </ul>
 <p>The number of <code>#</code> marks is the outline level, exactly like headings in a
 document: <code>#</code> is the universe itself, <code>##</code> is a chapter (Clans, Jobs,

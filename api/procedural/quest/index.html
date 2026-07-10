@@ -4827,6 +4827,8 @@
       
         
       
+        
+      
     
     
     
@@ -5304,6 +5306,8 @@
           
         
       
+        
+      
     
     
     
@@ -5321,6 +5325,95 @@
         
           
           <div class="md-nav__link md-nav__container">
+            <a href="../../../openuniverse/editor/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    The AMD editor
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_10_4" id="__nav_10_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_10_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10_4">
+            <span class="md-nav__icon md-icon"></span>
+            The AMD editor
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../openuniverse/editor/tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Get started - build a scene
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
             <a href="../../../openuniverse/reference/" class="md-nav__link ">
               
   
@@ -5335,8 +5428,8 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_10_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_10_4">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_10_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10_5">
             <span class="md-nav__icon md-icon"></span>
             Reference
           </label>
@@ -7861,10 +7954,12 @@ as authored. The result never drops below <code>floor</code>.</p>
 
         <p>Build the collapsible quest-log item list shared by both logs.</p>
 <p><code>sources</code> is a list of (section_label, agent_id). Each becomes a
-gui_list_box_header followed by that agent's non-SECRET quests (state-sorted);
-empty sections are skipped. Rows are MastDataObject with agent_id / key / group
-/ title / state / state_label / progress / desc, so quest_log_template renders
-them the same everywhere. The ONLY thing the two callers vary is <code>sources</code>.</p>
+gui_list_box_header followed by that agent's non-SECRET quests. Child quests
+(nested via <code>/</code>-separated keys, e.g. <code>arc/step1</code>) render indented under their
+parent as a TREE (see _quest_log_rows); empty sections are skipped. Rows are
+MastDataObject with agent_id / key / group / depth / title / state /
+state_label / progress / desc, so quest_log_template renders them the same
+everywhere. The ONLY thing the two callers vary is <code>sources</code>.</p>
 
 
     </div>

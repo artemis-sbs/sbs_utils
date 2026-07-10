@@ -43,6 +43,10 @@ nav:
     - The complete example: writing/silver-reach.md
     - Troubleshooting: writing/troubleshooting.md
 
+  - The AMD editor:
+    - editor/index.md
+    - Get started - build a scene: editor/tutorial.md
+
   - Reference:
     - reference/index.md
 

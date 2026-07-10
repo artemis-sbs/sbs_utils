@@ -2201,6 +2201,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#validating-amd" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validating AMD
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#formatting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Formatting
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Formatting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#in-your-editor-language-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      In your editor (language server)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#serving-web-pages" class="md-nav__link">
     <span class="md-ellipsis">
       Serving web pages
@@ -4507,6 +4540,8 @@
       
         
       
+        
+      
     
     
     
@@ -4984,6 +5019,8 @@
           
         
       
+        
+      
     
     
     
@@ -5001,6 +5038,95 @@
         
           
           <div class="md-nav__link md-nav__container">
+            <a href="../../openuniverse/editor/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    The AMD editor
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_10_4" id="__nav_10_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_10_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10_4">
+            <span class="md-nav__icon md-icon"></span>
+            The AMD editor
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../openuniverse/editor/tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Get started - build a scene
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
             <a href="../../openuniverse/reference/" class="md-nav__link ">
               
   
@@ -5015,8 +5141,8 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_10_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_10_4">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_10_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10_5">
             <span class="md-nav__icon md-icon"></span>
             Reference
           </label>
@@ -5135,6 +5261,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#validating-amd" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validating AMD
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#formatting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Formatting
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Formatting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#in-your-editor-language-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      In your editor (language server)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#serving-web-pages" class="md-nav__link">
     <span class="md-ellipsis">
       Serving web pages
@@ -5202,6 +5361,14 @@ line. Run <code>sbs &lt;command&gt; --help</code> for full options.</p>
 <td>Compile-check the MAST</td>
 </tr>
 <tr>
+<td><code>sbs lint &lt;mission&gt;</code></td>
+<td><strong>Validate</strong> the mission's <code>.amd</code> files (headings, references, signals)</td>
+</tr>
+<tr>
+<td><code>sbs fmt &lt;mission&gt;</code></td>
+<td><strong>Format</strong> the mission's <code>.amd</code> files (canonical, prose-safe)</td>
+</tr>
+<tr>
 <td><code>sbs fetch</code> / <code>sbs update</code></td>
 <td>Fetch missions / update the tool</td>
 </tr>
@@ -5215,6 +5382,51 @@ sbs debug . --no-gui --map 0 --test 30    # headless, play ~30s, pass/fail verdi
 <p>Handy flags: <code>--use-working-tree</code> (test local library edits against the packaged
 mission), <code>--seed N</code> (reproducible runs), and settings overrides that don't touch
 <code>settings.yaml</code> (<code>--auto-start</code>, <code>--players N</code>, <code>--set KEY=VALUE</code>).</p>
+<h2 id="validating-amd">Validating AMD</h2>
+<p><code>compile</code> checks the MAST; <code>lint</code> checks the <code>.amd</code> content (quests, dialogue,
+cast, maps). AMD fails <em>silently</em> — a typo'd <code># [Display](key)</code> heading becomes body
+text and its node vanishes — so lint re-scans a mission's <code>.amd</code> and surfaces it.</p>
+<div class="highlight"><pre><span></span><code>sbs lint .                 # errors + warnings, exit 0/1
+sbs lint . --strict        # warnings fail too (CI)
+sbs lint . --no-cross      # skip cross-file (signal-&gt;route, reach-&gt;landmark) checks
+</code></pre></div>
+<p><strong>Errors</strong> (fail the run): broken/vanishing headings, unclosed <code>---</code> fences,
+heading-level jumps. <strong>Warnings</strong>: dangling choice / <code>Scene:</code> / <code>Then: reveal</code> /
+<code>Parent:</code> targets, an emitted <code>signal X</code> with no <code>//signal/X</code> route, a quest
+<code>When: signal X</code> that nothing emits, a <code>reach i,j</code> with no landmark <code>At:</code>, and
+non-ASCII author text (the engine renders ASCII only). Backed by <code>sbs_utils.procedural.amd_lint</code> — also callable
+directly on a single file: <code>python -m sbs_utils.procedural.amd_lint &lt;file.amd&gt;</code>.</p>
+<p>References resolve across <strong>all of the mission's <code>.amd</code> files</strong> and against MAST
+<code>== labels ==</code>, so a <code>Scene:</code> / choice / <code>reveal</code> that targets a node in a sibling
+file (or a MAST handler label) isn't wrongly flagged. To vouch for a signal the
+linter can't see statically — a dynamic or computed <code>signal_emit</code> — add an optional
+<code>emits: [name, …]</code> (or <code>handles: [name]</code>) line to a <code>metadata:</code> block; it needs no
+new syntax (MAST just treats the key as an unused variable).</p>
+<p><code>--format compact</code> emits <code>file:line:col:</code> lines for editor problem-matchers;
+<code>--format json</code> emits structured findings (with exact ranges) for tools/CI.</p>
+<h2 id="formatting">Formatting</h2>
+<div class="highlight"><pre><span></span><code>sbs fmt .                  # canonically format this mission&#39;s .amd (writes in place)
+sbs fmt . --check          # report + exit 1 if any file isn&#39;t formatted (CI)
+</code></pre></div>
+<p>Normalizes trailing whitespace, heading spacing, <code>---</code> fences, and blank-line runs.
+It is <strong>prose-safe and idempotent</strong> — it never reflows prose and is guaranteed not to
+change the parsed model. Backed by <code>sbs_utils.procedural.amd_fmt</code> (single file:
+<code>python -m sbs_utils.procedural.amd_fmt --write &lt;file.amd&gt;</code>), and exposed as the LSP
+formatting provider below (format-on-save).</p>
+<h3 id="in-your-editor-language-server">In your editor (language server)</h3>
+<div class="highlight"><pre><span></span><code>sbs lint --lsp             # AMD language server over stdio
+</code></pre></div>
+<p>Point any LSP client at that command for <strong>live diagnostics as you type</strong> — VSCode,
+Neovim, Emacs, Sublime, JetBrains. A ready-to-build <strong>VSCode extension</strong> (syntax
+highlighting + a thin client for this server) lives in the <code>sbs_cli</code> repo under
+<code>editors/vscode/</code>. It's the same checks over the same <code>amd_core</code>
+model (<code>sbs_utils.procedural.amd_lsp</code>), dependency-free. Beyond diagnostics it also
+provides <strong>go-to-definition</strong> (a <code>reveal</code> / choice / <code>Scene:</code> target → its node),
+<strong>find-references</strong> and <strong>rename</strong> (a node key + every reference to it), a
+<strong>document outline</strong>, <strong>hover</strong>, <strong>completion</strong>, <strong>quick-fixes</strong> (did-you-mean /
+create-node), a reference <strong>CodeLens</strong>, <strong>color swatches</strong> for <code>#rrggbb</code>, <strong>inlay
+hints</strong> (a reference's display name inline), and <strong>formatting</strong> — all from the one
+model, and all resolved across the whole mission.</p>
 <h2 id="serving-web-pages">Serving web pages</h2>
 <div class="highlight"><pre><span></span><code>sbs web .                                  # serve this mission&#39;s //web pages
 sbs web --engine a=missionA --engine b=missionB   # one server, many engines
