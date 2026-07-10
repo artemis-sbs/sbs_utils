@@ -755,6 +755,171 @@ def build_face(race, values, enables=None):
     return fn(*args)
 
 
+# Inverse of build_face — recover per-feature indices from a face string so an
+# editor can seed its sliders from an existing face instead of starting at
+# defaults. FACE_FEATURES order -> the *_map key each feature came from.
+_FACE_ALIAS_TO_RACE = {
+    "ter": "terran", "tor": "torgoth", "ska": "skaraan",
+    "kra": "kralien", "zim": "ximni", "arv": "arvonian",
+}
+_FACE_FEATURE_KEYS = {
+    "skaraan":  ["eyes", "mouth", "horns", "hat"],
+    "torgoth":  ["eyes", "mouth", "hair", "extra", "hat"],
+    "arvonian": ["eyes", "mouth", "crown", "collar"],
+    "kralien":  ["eyes", "mouth", "scalp", "extra"],
+    "ximni":    ["eyes", "mouth", "horns", "mask", "collar"],
+}
+_FACE_MAPS = {
+    "skaraan": skaraan_map, "torgoth": torgoth_map, "arvonian": arvonian_map,
+    "kralien": kralien_map, "ximni": ximni_map,
+}
+
+
+def _parse_face_layers(face_string):
+    layers = []
+    for seg in (face_string or "").split(";"):
+        p = seg.split()
+        if len(p) < 4:
+            continue
+        try:
+            layers.append({
+                "alias": p[0], "color": p[1].lstrip("#").lower(),
+                "col": int(p[2]), "row": int(p[3]),
+                "ox": int(p[4]) if len(p) > 4 else 0,
+                "oy": int(p[5]) if len(p) > 5 else 0,
+            })
+        except ValueError:
+            continue
+    return layers
+
+
+def _tone_index(color, tones):
+    c = (color or "").lower()
+    if c in ("fff", "ffffff"):
+        return 0
+    for i, t in enumerate(tones):
+        if t.lower() == c:
+            return i
+    return 0
+
+
+def _parse_face_generic(race, feats, layers):
+    keys = _FACE_FEATURE_KEYS[race]
+    fmap = _FACE_MAPS[race]
+    values = [0] * len(feats)
+    # Non-optional features are always on; optionals start off until a layer hits.
+    enables = [not f.get("optional", False) for f in feats]
+    lookup = {}
+    for fi, key in enumerate(keys):
+        for ci, cell in enumerate(fmap[key]):
+            lookup.setdefault((cell[0], cell[1]), (fi, ci))
+    for L in layers:
+        pos = (L["col"], L["row"])
+        if pos == (0, 0):   # base face
+            continue
+        hit = lookup.get(pos)
+        if hit is None:
+            continue
+        fi, ci = hit
+        values[fi] = ci
+        enables[fi] = True
+    return {"race": race, "values": values, "enables": enables}
+
+
+def _parse_face_terran(feats, layers):
+    tm = terran_map
+    values = [0] * 10
+    enables = [True] * 10
+    for i in (3, 4, 5, 6, 7):    # Hair, Long Hair, Facial Hair, Extra, Uniform
+        enables[i] = False
+
+    # Gender from the base face layer (male col 0, female col 3).
+    female = False
+    for L in layers:
+        if L["ox"] == 0 and L["oy"] == 0 and L["row"] == 0 and L["col"] in (0, 3):
+            female = (L["col"] == 3)
+            break
+    values[0] = 1 if female else 0     # Body
+
+    def unf(col):
+        return col - 3 if (female and col >= 3) else col
+
+    def find(key, col, row):
+        try:
+            return tm[key].index((col, row))
+        except ValueError:
+            return None
+
+    shirt_i = None
+    hat_i = None
+    for L in layers:
+        col, row, ox, oy, color = L["col"], L["row"], L["ox"], L["oy"], L["color"]
+        if (ox, oy) == (6, -2):                       # hair or long hair
+            i = find("longhair", col, row)
+            if i is not None:
+                values[4] = i; enables[4] = True; values[9] = _tone_index(color, hair_tones)
+            else:
+                i = find("hair", col, row)
+                if i is not None:
+                    values[3] = i; enables[3] = True; values[9] = _tone_index(color, hair_tones)
+            continue
+        if (ox, oy) == (14, -2):                      # uniform hat
+            hat_i = find("hat", col, row)
+            continue
+        if (ox, oy) == (12, 4):                       # facial hair
+            i = find("facial", col, row)
+            if i is not None:
+                values[5] = i; enables[5] = True; values[9] = _tone_index(color, hair_tones)
+            continue
+        if (ox, oy) == (20, 4):                        # extra
+            i = find("extra", col, row)
+            if i is not None:
+                values[6] = i; enables[6] = True
+            continue
+        # No offset: face / eyes / mouth / shirt (skintone-tinted, shirt is #fff).
+        c = unf(col)
+        if (c, row) == (0, 0):                         # face
+            values[8] = _tone_index(color, skin_tones)
+            continue
+        i = find("eyes", c, row)
+        if i is not None:
+            values[1] = i; values[8] = _tone_index(color, skin_tones); continue
+        i = find("mouth", c, row)
+        if i is not None:
+            values[2] = i; values[8] = _tone_index(color, skin_tones); continue
+        i = find("shirt", c, row)
+        if i is not None:
+            shirt_i = i
+
+    # Uniform: a hat + a non-civilian shirt map back to a terran_uniform entry.
+    civilian_shirt = tm["shirt"].index((2, 5))
+    if hat_i is not None or (shirt_i is not None and shirt_i != civilian_shirt):
+        try:
+            values[7] = terran_uniform.index((hat_i if hat_i is not None else 0, shirt_i if shirt_i is not None else 0))
+            enables[7] = True
+        except ValueError:
+            enables[7] = False
+    return {"race": "terran", "values": values, "enables": enables}
+
+
+def parse_face(face_string):
+    """Recover (race, values, enables) from a face string — the inverse of
+    build_face. Returns None if the string is not a recognized face. The result
+    rebuilds to the same visual face via build_face (indices reproduce the same
+    cells), so an editor can seed its controls from an existing face.
+    """
+    layers = _parse_face_layers(face_string)
+    if not layers:
+        return None
+    race = _FACE_ALIAS_TO_RACE.get(layers[0]["alias"])
+    if race is None or race not in FACE_FEATURES:
+        return None
+    feats = FACE_FEATURES[race]
+    if race == "terran":
+        return _parse_face_terran(feats, layers)
+    return _parse_face_generic(race, feats, layers)
+
+
 
 def get_face_from_data(race):
     """

@@ -617,6 +617,16 @@ def _face_build(race, values, enables):
         return ""
 
 
+def _face_parse(face_string):
+    """Recover {race, values, enables} from a face string so an editor can seed
+    its controls from an existing face. None if it isn't a recognized face."""
+    try:
+        import sbs_utils.faces as faces
+        return faces.parse_face(face_string)
+    except Exception:
+        return None
+
+
 def _node_detail(index, key):
     """A node's editable detail for the inspector: display + metadata fields +
     body text, each with the exact range to rewrite. None if key not found."""
@@ -921,6 +931,9 @@ def serve(stdin=None, stdout=None):
             p = msg.get("params", {})
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                     "result": {"face": _face_build(p.get("race", ""), p.get("values", []), p.get("enables"))}})
+        elif method == "amd/faceParse":
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _face_parse(msg.get("params", {}).get("face", ""))})
         elif method == "shutdown":
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": None})
         elif method == "exit":
