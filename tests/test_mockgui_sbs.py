@@ -396,6 +396,51 @@ class TestMockguiRadarHiddenBehaviors(unittest.TestCase):
         self.assertIn(str(ship), radar_ids)
         self.assertNotIn(str(marker), radar_ids)
 
+    def test_selection_marker_WITH_art_is_shown(self):
+        # behav_selection is ALSO the production behaviour for VISIBLE map markers (nebula
+        # markers, the galaxy-theater board). One WITH an art (data tag) is a real marker,
+        # not a blank helper - it must draw. name_tag + radar_color_override ride along.
+        marker = mockgui.sim.create_space_object("behav_selection", "generic-sphere", 0x00)
+        mo = mockgui.sim.space_objects[marker]
+        mo._pos = mockgui.vec3(400, 0, 400)
+        mo.data_set.set("name_tag", "System 2,1", 0)
+        mo.data_set.set("radar_color_override", "#ff4444", 0)
+
+        mockgui._push_radar()
+        rec = None
+        for m in self._drain():
+            if m.get("cmd") == "radar_terrain":
+                for o in m.get("objects", []):
+                    if o["id"] == str(marker):
+                        rec = o
+        self.assertIsNotNone(rec, "art-bearing behav_selection marker must be streamed")
+        self.assertEqual(rec.get("name"), "System 2,1")   # name_tag rides the terrain rec
+        self.assertEqual(rec.get("tint"), "#ff4444")       # radar_color_override rides too
+
+    def test_terrain_restreams_when_a_marker_moves(self):
+        # Reconcile-in-place moves a marker without changing its id; the terrain channel
+        # must re-stream on the position change (not only on an id-set change), or a moved
+        # galaxy-board icon stays pinned to its first-drawn spot.
+        marker = mockgui.sim.create_space_object("behav_selection", "generic-sphere", 0x00)
+        mo = mockgui.sim.space_objects[marker]
+        mo._pos = mockgui.vec3(400, 0, 400)
+        mockgui._push_radar()
+        self.assertIn(str(marker), self._ids_in("radar_terrain"))   # initial stream
+        # No move -> no re-stream (id-set + positions unchanged).
+        mockgui._push_radar()
+        self.assertNotIn(str(marker), self._ids_in("radar_terrain"))
+        # Move it -> must re-stream at the new position.
+        mo._pos = mockgui.vec3(9000, 0, 9000)
+        mockgui._push_radar()
+        moved = None
+        for m in self._drain():
+            if m.get("cmd") == "radar_terrain":
+                for o in m.get("objects", []):
+                    if o["id"] == str(marker):
+                        moved = o
+        self.assertIsNotNone(moved, "a moved marker must be re-streamed")
+        self.assertEqual(moved["x"], 9000)
+
 
 class TestMockguiRadarThreadSafety(unittest.TestCase):
     """_push_radar runs on the 30 Hz physics thread while the MAST/main thread spawns

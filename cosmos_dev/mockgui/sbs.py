@@ -361,7 +361,20 @@ _RADAR_INTERVAL: int = 1    # push radar every physics tick (physics thread runs
 # Behaviours that render as grid icon 0 (blank) in the engine - selection/marker
 # helpers. They must not draw anything on the 2D radar, so the mock simply omits them
 # from the radar stream entirely (which also keeps their mesh out of the 3D view).
+# NOTE: only the BLANK ones (no art / data tag) are helpers. behav_selection is ALSO the
+# production behaviour for VISIBLE, selectable MAP markers (terrain.py nebula markers, the
+# galaxy-theater board) - those carry a real art and MUST draw. So the hide is gated on
+# "behav_selection AND no art" (see _is_hidden_marker), not the behaviour alone.
 _RADAR_HIDDEN_BEHAVIORS = frozenset({"behav_selection"})
+
+
+def _is_hidden_marker(obj) -> bool:
+    """True if this object is an engine selection HELPER that must not draw: a hidden-
+    behaviour object (behav_selection) with NO art. A behav_selection WITH an art is a real
+    map marker (the production nebula markers + the galaxy-theater board spawn this way) and
+    renders normally."""
+    return (obj._tick_type in _RADAR_HIDDEN_BEHAVIORS
+            and not getattr(obj, "_data_tag", ""))
 _cinematic_tick: int = 0
 _CINEMATIC_INTERVAL: int = 2  # push the 3D camera every 2nd radar tick (~15 Hz) - the
                               # browser lerps the camera between updates, so 30 Hz is wasted
@@ -830,15 +843,22 @@ def _push_radar() -> None:
         nav_points = dict(s.nav_points)
         nav_by_id = list(s.nav_points_by_id.values())
 
-    # --- Channel 1: terrain — only when the terrain id-set changes ---
+    # --- Channel 1: terrain — rebroadcast when the terrain SET changes OR any terrain MOVES.
+    # A set-only trigger missed reconcile-in-place moves: the galaxy-board unit/fleet icons
+    # move to a new cell offset WITHOUT changing id, so a moved marker stayed pinned to its
+    # first-drawn spot (only the marker at the overseer's own system ever showed). Key the
+    # snapshot on (id, rounded x, rounded z) so a move re-streams; positions are rounded so a
+    # static object reassigning the same value each tick never thrashes.
     # Selection/marker helpers (grid icon 0 = blank) are omitted so they never draw.
-    current_terrain_ids = frozenset(
-        tid for tid in terrain_ids
-        if objs[tid]._tick_type not in _RADAR_HIDDEN_BEHAVIORS)
-    if current_terrain_ids != _last_terrain_snapshot:
-        _last_terrain_snapshot = current_terrain_ids
+    visible_terrain_ids = [tid for tid in terrain_ids
+                           if not _is_hidden_marker(objs[tid])]
+    current_terrain_sig = frozenset(
+        (tid, round(objs[tid]._pos.x, 1), round(objs[tid]._pos.z, 1))
+        for tid in visible_terrain_ids)
+    if current_terrain_sig != _last_terrain_snapshot:
+        _last_terrain_snapshot = current_terrain_sig
         terrain_objects = []
-        for tid in current_terrain_ids:
+        for tid in visible_terrain_ids:
             obj = objs[tid]
             rec = {
                 "id":   str(obj._id),
@@ -847,6 +867,12 @@ def _push_radar() -> None:
                 "side": obj._side,
                 "y":    round(obj._pos.y, 1),
                 "q":    _quat_of(obj),
+                # name_tag is the on-radar label (galaxy-board markers/icons carry one).
+                "name": obj.data_set.get("name_tag") or obj.data_set.get("display_text") or "",
+                # Per-object radar colour (map markers set radar_color_override instead of a
+                # side); the client prefers it over the side colour. Distinct key from the
+                # nebula "color" (emission) so `rec.update(neb)` below never clobbers it.
+                "tint": obj.data_set.get("radar_color_override") or None,
             }
             neb = _nebula_info(obj)
             if neb is not None:
@@ -870,7 +896,7 @@ def _push_radar() -> None:
     # --- Channel 2: per-ship delta ---
     # Drop selection/marker helpers (grid icon 0 = blank) so they never draw.
     active_ids = {id_ for id_ in active_all
-                  if objs[id_]._tick_type not in _RADAR_HIDDEN_BEHAVIORS}
+                  if not _is_hidden_marker(objs[id_])}
     r2 = CULL_RADIUS * CULL_RADIUS
 
     # Build navpoints + navareas + client_focus (sent in every per-ship message).

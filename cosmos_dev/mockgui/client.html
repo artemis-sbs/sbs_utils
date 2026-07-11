@@ -1004,7 +1004,9 @@ function cmdRadarTerrain(msg) {
   _terrainMeta.clear();
   for (let i = 0; i < objects.length && i < _MAX_TERRAIN; i++) {
     const o = objects[i];
-    const {r, g, b} = _cssToRGB(_sideColor(o.side));
+    // Map markers carry a per-object radar colour (radar_color_override → o.tint); prefer
+    // it over the side colour so the galaxy board's kind/health tints render.
+    const {r, g, b} = _cssToRGB(o.tint || _sideColor(o.side));
     const base = i * 3;
     _terrainPosBuf[base]     = o.x;
     _terrainPosBuf[base + 1] = o.z;   // world Z → Three.js Y
@@ -1016,6 +1018,7 @@ function cmdRadarTerrain(msg) {
     _terrainRevMap.set(i, o.id);
     _terrainMeta.set(o.id, {
       art: o.art || '', meshscale: o.meshscale ?? 1, y: o.y ?? 0, q: o.q || null,
+      name: o.name || '', tint: o.tint || null,
       nebula: !!o.nebula, radius: o.radius || 0, density: o.density || 0, seed: o.seed || 1,
       color: o.color || null, color2: o.color2 || null, swirl: o.swirl || 0, warp: o.warp || 0,
     });
@@ -1696,6 +1699,23 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
       ctx.fillText(meta.name, px, py - s / 2 - 1);
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     }
+  }
+
+  // Terrain labels: map markers (galaxy-board system/unit/fleet icons, nebula markers)
+  // carry a name_tag. Their dots render in the WebGL layer; draw their names here on the
+  // 2D overlay, in the marker's own tint, under the same zoom gate as ship names.
+  if (showNames) {
+    ctx.font = `${Math.max(8, fontSize)}px monospace`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    for (const [id, meta] of _terrainMeta) {
+      if (!meta.name) continue;
+      const idx = _terrainMap.get(id);
+      if (idx === undefined || idx >= _terrainCount) continue;
+      const b = idx * 3;
+      ctx.fillStyle = meta.tint || '#9fb3c8';
+      ctx.fillText(meta.name, toX(_terrainPosBuf[b]), toY(_terrainPosBuf[b + 1]) - 6);
+    }
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   }
 
   // Combat FX (drawn over ships, inside the radar clip): beam-fire lines and
