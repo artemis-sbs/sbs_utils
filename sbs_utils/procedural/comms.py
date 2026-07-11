@@ -102,11 +102,11 @@ def comms_broadcast(ids_or_obj, msg, color=None) -> None:
         for id in _ids:
             if query.is_client_id(id):
                 FrameContext.context.sbs.send_message_to_client(id, color, msg)
-            else:
-                # Just verify the id
-                obj = Agent.get(id)
-                if obj is not None or id==0:
-                    FrameContext.context.sbs.send_message_to_player_ship(id, color, msg)
+            elif id == 0 or query.is_space_object_id(id):
+                # send_message_to_player_ship needs a real space object. Skip any
+                # non-space id (e.g. the SHARED story agent that owns shared-scope
+                # quests) - the engine raises "invalid space object" for those.
+                FrameContext.context.sbs.send_message_to_player_ship(id, color, msg)
 
 def _comms_get_colors(to_obj, from_obj, is_receive, title_color, color):
     # 

@@ -773,8 +773,23 @@ def send_client_widget_rects(arg0: int, arg1: str, arg2: float, arg3: float, arg
 def send_comms_button_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
     """sends a complex message to the comms console of a certain ship."""
 
+def _require_space_object(objID, fn_name):
+    """Mirror the engine's validation: a player-ship message must target a LIVE
+    space object. The real ``SendMessageToPlayerShip`` raises "invalid space
+    object" for a non-space id - e.g. the SHARED story agent (a bookkeeping
+    counter with no space-object bit) that owns shared-scope quests. The mock is
+    otherwise a no-op, so without this the bug silently passes headless tests;
+    raising here catches exactly what the engine rejects at runtime. (id 0 =
+    server/all, left alone.)"""
+    if objID == 0:
+        return
+    if sim is None or not sim.space_object_exists(objID):
+        raise ValueError(f"invalid space object while calling {fn_name}")
+
+
 def send_comms_message_to_player_ship(playerID: int, otherID: int, faceDesc: str, titleText: str, titleColor: str, bodyText: str, bodyColor: str) -> None:
     """sends a complex message to the comms console of a certain ship."""
+    _require_space_object(playerID, "SendCommsMessageToPlayerShip")
 
 def send_comms_selection_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
     """sends a complex message to the comms console of a certain ship."""
@@ -853,6 +868,7 @@ def send_message_to_client(clientID: int, colorDesc: str, text: str) -> None:
 
 def send_message_to_player_ship(playerID: int, colorDesc: str, text: str) -> None:
     """sends a text message to the text box, on every client for a certain ship."""
+    _require_space_object(playerID, "SendMessageToPlayerShip")
 
 def send_speech_bubble_to_object(clientComputerID: int, spaceObjectID: int, seconds: int, color: str, text: str) -> None:
     """attaches a speech bubble to a space object on the 2d radar."""

@@ -253,6 +253,9 @@ def send_message_to_client(clientID: int, colorDesc: str, text: str) -> None:
 def send_message_to_player_ship(playerID: int, colorDesc: str, text: str) -> None:
     """Append a colored line to the waterfall of every client controlling
     playerID (mirrors the engine routing ship messages to its consoles)."""
+    # Mirror the engine's validation (see the base mock) so a non-space id - e.g.
+    # the SHARED story agent - raises here instead of silently matching no client.
+    _base_mock._require_space_object(playerID, "SendMessageToPlayerShip")
     if _base_mock.sim is None:
         return
     for cid, sid in list(_base_mock.sim.client_ships.items()):
