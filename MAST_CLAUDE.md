@@ -634,14 +634,24 @@ match menu:
 
 ## Route Types
 
+> **`//signal` vs `//shared/signal` — the #1 multiplayer footgun.** `//signal` runs its
+> body **once per connected console** (plus the server); `//shared/signal` runs **only on
+> the server, once**. Litmus test: *"with five consoles, do I want this five times?"* If the
+> route **spawns, saves, rewards, applies a modifier, counts, ends the game, rolls random, or
+> starts a server ticker → `//shared/signal`.** Only per-console **display** (a GUI screen /
+> widget) stays `//signal`. `comms_broadcast`/`comms_message`/`info_card` are server sends —
+> call them once. Need both? Split: `//shared/signal` does the work + `signal_emit`s a display
+> signal a `//signal` route paints. Full rule + the split pattern: **`SIGNAL_ROUTING.md`**.
+> `sbs lint` flags side-effects in a `//signal` route.
+
 | Route | Triggered by |
 |---|---|
 | `//spawn` | Object spawned |
 | `//spawn/grid` | Grid object spawned |
 | `//comms` | Comms opened (root menu) |
 | `//comms/path` | Comms submenu |
-| `//signal/name` | `signal_emit("name", ...)` |
-| `//shared/signal/name` | Signal, fires for all clients/tasks |
+| `//signal/name` | `signal_emit("name", ...)` — runs **once per connected console + server** |
+| `//shared/signal/name` | `signal_emit("name", ...)` — runs **ONLY on the server** (once) |
 | `//damage/object` | Object takes damage |
 | `//damage/destroy` | Object destroyed |
 | `//damage/killed` | Object killed |
