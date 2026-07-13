@@ -12,6 +12,10 @@ go to the relevant docs.
 - **Loadouts as upgrades.** Craft loadouts are now deltas over the ship hull —
   shields and ammo applied through the item/upgrade system — with an image-based
   cockpit overlay.
+- **Rearming takes time.** A craft's refit now runs longer the more torpedoes it
+  has to reload — every empty tube adds time (tunable per dock), so a bomber that
+  spent its payload turns around slower than one that never fired. Fit the new
+  **Torpedo Autoloader** upgrade to cut that per-torpedo cost.
 
 See the [LegendaryMissions addon reference](legendarymissions/addons/index.md).
 
