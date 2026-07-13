@@ -601,6 +601,57 @@ def side_set_hostile_to_players(faction_key, relation=None):
             side_set_relations(ps, faction_key, relation)
 
 
+def side_surrender(ship, combat_role="raider"):
+    """Move a ship to the neutral ``surrendered`` side (creating it if needed) and
+    mark it surrendered, recording its origin side for a later
+    :func:`side_unsurrender`.
+
+    Changing the SIDE (not merely stripping a combat role) makes the ship non-hostile
+    by diplomacy itself, so every side/relation consumer treats it as out of the fight
+    — not only the ones that scope by the combat role. The ``surrendered`` side is
+    created with no hostile links, so it is neutral to everyone. The ship keeps its
+    race/clan role, so its faction identity is preserved.
+
+    Args:
+        ship (Agent | int): The surrendering ship.
+        combat_role (str, optional): Combat/hostile class role to drop (so
+            role-scoped queries stop counting it). Defaults to ``"raider"``; pass
+            ``None`` to leave roles untouched.
+    """
+    obj = to_object(ship)
+    if obj is None:
+        return
+    if obj.get_inventory_value("origin_side", None) is None:
+        obj.set_inventory_value("origin_side", getattr(obj, "side", None))
+    side_ensure("surrendered")
+    obj.side = "surrendered"
+    obj.add_role("surrendered")
+    if combat_role:
+        obj.remove_role(combat_role)
+    obj.data_set.set("surrender_flag", 1, 0)
+
+
+def side_unsurrender(ship, combat_role="raider"):
+    """Reverse :func:`side_surrender` — restore the ship's origin side and re-arm it
+    (drop ``surrendered``, restore the combat role, clear ``surrender_flag``).
+
+    Args:
+        ship (Agent | int): The ship to re-arm.
+        combat_role (str, optional): Combat role to restore. Defaults to ``"raider"``.
+    """
+    obj = to_object(ship)
+    if obj is None:
+        return
+    origin = obj.get_inventory_value("origin_side", None)
+    if origin is not None:
+        obj.side = origin
+        obj.set_inventory_value("origin_side", None)
+    obj.remove_role("surrendered")
+    if combat_role:
+        obj.add_role(combat_role)
+    obj.data_set.set("surrender_flag", 0, 0)
+
+
 def side_set_side_icon_index(key_or_id, icon_index)->None:
     """Set the icon index for a side, changing how its ships appear on the 2D map.
 

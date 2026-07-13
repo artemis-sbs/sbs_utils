@@ -14,6 +14,7 @@ from sbs_utils.procedural.sides import (
     side_allied_members, players_allied_members,
     side_are_friendly, is_allied_to_players,
     side_ensure, side_set_hostile_to_players,
+    side_surrender, side_unsurrender,
 )
 import unittest
 
@@ -304,6 +305,37 @@ class TestSides(unittest.TestCase):
         sid = side_ensure("kralien")
         self.assertEqual(to_side_id("kralien"), sid)   # now resolvable
         self.assertEqual(side_ensure("kralien"), sid)  # idempotent
+
+    def test_surrender_changes_side_and_is_reversible(self):
+        make_side("tsn", "TSN"); make_side("raider", "Raider")
+        side_set_relations("tsn", "raider", sbs.DIPLOMACY.HOSTILE)
+        PlayerShip().spawn(0, 0, 0, "Artemis", "tsn", "tsn_battle_cruiser")
+        foe = Npc().spawn(2000, 0, 2000, "Foe", "raider", "kralien_cruiser", "behav_npcship").py_object
+        foe.add_role("raider"); foe.add_role("kralien")
+        # BEFORE: a hostile raider-side ship.
+        self.assertTrue(side_are_enemies("tsn", foe))
+        self.assertIn(foe.id, players_hostile_members("raider"))
+
+        side_surrender(foe)
+        # Side flipped to the neutral "surrendered" side; non-hostile everywhere.
+        self.assertEqual(foe.side, "surrendered")
+        self.assertFalse(side_are_enemies("tsn", foe))          # neutral by SIDE now
+        self.assertFalse(is_hostile_to_players(foe))
+        self.assertNotIn(foe.id, side_enemy_members_set("tsn"))
+        self.assertNotIn(foe.id, players_hostile_members("raider"))
+        self.assertTrue(foe.has_role("surrendered"))
+        self.assertFalse(foe.has_role("raider"))
+        self.assertTrue(foe.has_role("kralien"))                # faction identity kept
+        self.assertEqual(foe.data_set.get("surrender_flag", 0), 1)
+
+        side_unsurrender(foe)
+        # Restored: origin side back, hostile again, re-armed.
+        self.assertEqual(foe.side, "raider")
+        self.assertTrue(side_are_enemies("tsn", foe))
+        self.assertIn(foe.id, players_hostile_members("raider"))
+        self.assertTrue(foe.has_role("raider"))
+        self.assertFalse(foe.has_role("surrendered"))
+        self.assertEqual(foe.data_set.get("surrender_flag", 0), 0)
 
     def test_side_set_hostile_to_players_registers_faction(self):
         # A player on tsn; register a per-faction enemy side and a ship on it.
