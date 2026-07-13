@@ -393,6 +393,60 @@ def is_hostile_combatant(observer, target, scope_role="raider")->bool:
     return side_are_enemies(observer, target)
 
 
+def players_hostile_members(scope_role=None):
+    """Return the agent IDs on a side HOSTILE to at least one current player ship's
+    side, optionally intersected with a combat-class role.
+
+    The player-perspective form of :func:`side_hostile_members` — for checks that are
+    not tied to a single observer: "are there enemies left" (victory), "count the
+    threat", "was an enemy killed" (reward). Diplomacy-driven, so ceasefired/neutral
+    sides drop out and multiple player sides are all accounted for. Empty when there
+    are no player ships with a side.
+
+    Args:
+        scope_role (str, optional): A combat-class role (e.g. ``"raider"``) to
+            intersect the result with. Defaults to None.
+
+    Returns:
+        set[int]: IDs hostile to some player side, optionally scoped to ``scope_role``.
+    """
+    foes = set()
+    seen = set()
+    for p in to_object_list(role("__player__")):
+        s = getattr(p, "side", None)
+        if s and s not in seen:
+            seen.add(s)
+            foes |= side_enemy_members_set(s)
+    if scope_role:
+        foes = foes & role(scope_role)
+    return foes
+
+
+def is_hostile_to_players(target, scope_role="raider")->bool:
+    """Return whether ``target`` is a hostile combatant to at least one player side.
+
+    The player-perspective boolean (see :func:`is_hostile_combatant`): ``target``
+    still carries the combat class role ``scope_role`` AND is diplomatically HOSTILE
+    to some current player side. A ceasefired/neutral or surrendered ship is False.
+    Pass ``scope_role=None`` for a pure diplomacy test.
+
+    Args:
+        target (str | int | Agent): The candidate to test.
+        scope_role (str, optional): Combat-class role the target must hold. Defaults
+            to ``"raider"``.
+
+    Returns:
+        bool: ``True`` if ``target`` is a hostile combatant to any player side.
+    """
+    if scope_role is not None and not has_role(target, scope_role):
+        return False
+    for p in to_object_list(role("__player__")):
+        s = getattr(p, "side", None)
+        if s and side_are_enemies(s, target):
+            return True
+    return False
+
+
 def side_set_side_icon_index(key_or_id, icon_index)->None:
     """Set the icon index for a side, changing how its ships appear on the 2D map.
 

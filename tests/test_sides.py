@@ -10,6 +10,7 @@ from sbs_utils.procedural.sides import (
     side_are_allies, side_are_enemies, side_are_neutral, side_are_same_side,
     side_set_relations, side_get_relations,
     side_hostile_members, is_hostile_combatant,
+    players_hostile_members, is_hostile_to_players,
 )
 import unittest
 
@@ -231,6 +232,25 @@ class TestSides(unittest.TestCase):
         self.assertFalse(is_hostile_combatant("tsn", pirate_ship))
         # Pure diplomacy test (scope_role=None) ignores the role.
         self.assertTrue(is_hostile_combatant("tsn", pirate_ship, scope_role=None))
+
+    def test_players_hostile_members(self):
+        # tsn_ship is the only player; pirate hostile, civ neutral.
+        tsn_ship, pirate_ship, civ_ship = self._hostile_setup()
+        foes = players_hostile_members("raider")
+        self.assertIn(pirate_ship.id, foes)
+        self.assertNotIn(civ_ship.id, foes)     # neutral to the player
+        self.assertNotIn(tsn_ship.id, foes)
+        # No players with a side -> empty (victory can't false-fire off an empty set
+        # only because there is genuinely nothing hostile).
+        tsn_ship.remove_role("__player__")
+        self.assertEqual(players_hostile_members("raider"), set())
+
+    def test_is_hostile_to_players(self):
+        tsn_ship, pirate_ship, civ_ship = self._hostile_setup()
+        self.assertTrue(is_hostile_to_players(pirate_ship))
+        self.assertFalse(is_hostile_to_players(civ_ship))       # neutral
+        pirate_ship.remove_role("raider")                        # surrendered
+        self.assertFalse(is_hostile_to_players(pirate_ship))
 
 
 if __name__ == '__main__':
