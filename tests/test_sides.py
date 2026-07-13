@@ -13,6 +13,7 @@ from sbs_utils.procedural.sides import (
     players_hostile_members, is_hostile_to_players,
     side_allied_members, players_allied_members,
     side_are_friendly, is_allied_to_players,
+    side_ensure, side_set_hostile_to_players,
 )
 import unittest
 
@@ -293,6 +294,27 @@ class TestSides(unittest.TestCase):
         self.assertTrue(is_allied_to_players(tsn_st))    # same side as the player
         self.assertTrue(is_allied_to_players(uspf_st))   # allied
         self.assertFalse(is_allied_to_players(pir_st))   # hostile
+
+    # ------------------------------------------------------------------
+    # side_ensure / side_set_hostile_to_players  (spawn-side decouple primitives)
+    # ------------------------------------------------------------------
+
+    def test_side_ensure_creates_and_is_idempotent(self):
+        self.assertIsNone(to_side_id("kralien"))
+        sid = side_ensure("kralien")
+        self.assertEqual(to_side_id("kralien"), sid)   # now resolvable
+        self.assertEqual(side_ensure("kralien"), sid)  # idempotent
+
+    def test_side_set_hostile_to_players_registers_faction(self):
+        # A player on tsn; register a per-faction enemy side and a ship on it.
+        make_side("tsn", "TSN")
+        PlayerShip().spawn(0, 0, 0, "Artemis", "tsn", "tsn_battle_cruiser")
+        side_set_hostile_to_players("kralien")          # creates the side + relations
+        foe = Npc().spawn(0, 0, 0, "K", "kralien", "Light Cruiser", "behav_npcship").py_object
+        foe.add_role("raider")
+        self.assertTrue(side_are_enemies("tsn", "kralien"))
+        self.assertTrue(is_hostile_to_players(foe))     # hostile via diplomacy, own faction side
+        self.assertIn(foe.id, players_hostile_members("raider"))
 
 
 if __name__ == '__main__':

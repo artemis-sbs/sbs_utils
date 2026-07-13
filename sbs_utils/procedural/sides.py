@@ -537,6 +537,66 @@ def players_allied_members(scope_role=None):
     return out
 
 
+def side_ensure(key, name=None):
+    """Ensure a side with ``key`` exists, creating a minimal one if missing, and
+    return its side-agent ID.
+
+    The programmatic (Python) counterpart of the ``prefab_side_generic`` MAST prefab
+    — use it before spawning ships on a new faction side so diplomacy can resolve
+    that side. Idempotent: returns the existing side's ID if already registered. The
+    new side is allied to itself (matching ``prefab_side_generic``), so a same-side
+    pair reads friendly via :func:`side_are_allies` as well.
+
+    Args:
+        key (str): The side key (e.g. ``"kralien"``).
+        name (str, optional): Display name. Defaults to ``key``.
+
+    Returns:
+        int: The side agent's ID.
+    """
+    existing = to_side_id(key)
+    if existing is not None:
+        return existing
+    from ..agent import Agent, get_story_id
+    a = Agent()
+    a.id = get_story_id()
+    a.add()
+    a.add_role("__side__")
+    a.set_inventory_value("side_key", key)
+    a.set_inventory_value("side_name", name if name is not None else key)
+    sbs = FrameContext.context.sbs
+    if sbs is not None:
+        side_set_relations(key, key, sbs.DIPLOMACY.ALLIED)
+    return a.id
+
+
+def side_set_hostile_to_players(faction_key, relation=None):
+    """Make ``faction_key`` HOSTILE to every current player side (creating the
+    faction side if needed).
+
+    The programmatic generalisation of a mission's single ``side_set_relations``
+    line: instead of lumping every enemy on one shared ``"raider"`` side, spawn a
+    faction on its OWN side and call this, so hostility is expressed by diplomacy —
+    which the migrated targeting / victory / quest consumers already honour, and
+    which a runtime ceasefire can flip. Applies the relation once per distinct side
+    among the current ``role("__player__")`` ships.
+
+    Args:
+        faction_key (str): The enemy faction's side key.
+        relation (sbs.DIPLOMACY, optional): Defaults to ``HOSTILE``.
+    """
+    sbs = FrameContext.context.sbs
+    if relation is None:
+        relation = sbs.DIPLOMACY.HOSTILE
+    side_ensure(faction_key)
+    seen = set()
+    for p in to_object_list(role("__player__")):
+        ps = getattr(p, "side", None)
+        if ps and ps not in seen:
+            seen.add(ps)
+            side_set_relations(ps, faction_key, relation)
+
+
 def side_set_side_icon_index(key_or_id, icon_index)->None:
     """Set the icon index for a side, changing how its ships appear on the 2D map.
 
