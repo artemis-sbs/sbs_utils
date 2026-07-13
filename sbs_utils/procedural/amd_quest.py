@@ -82,7 +82,14 @@ def amd_trigger(value, aliases=None):
         if count is not None:
             data["count"] = count
     else:  # role
-        data["role"] = _resolve_role(target, aliases)
+        # A kill goal worded against "enemies"/"hostiles" scores by DIPLOMACY rather
+        # than a specific faction role: general, faction-agnostic, and ceasefire-safe
+        # (a neutral/ceasefired ship does not count). "destroy 4 raiders" still binds
+        # to the raider role as before.
+        if trig == "on_kill" and target.lower().strip() in ("enemy", "enemies", "hostile", "hostiles"):
+            data["hostile"] = True
+        else:
+            data["role"] = _resolve_role(target, aliases)
         data["count"] = count if count is not None else 1
     return trig, data
 

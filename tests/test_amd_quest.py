@@ -22,6 +22,14 @@ class AmdTriggerTests(unittest.TestCase):
         self.assertEqual(amd_trigger("kill boss"),
                          ("on_kill", {"role": "boss", "count": 1}))
 
+    def test_destroy_enemies_is_diplomacy_based(self):
+        # The general, faction-agnostic, ceasefire-safe kill goal: scores by
+        # diplomacy (hostile) rather than binding to a specific faction role.
+        self.assertEqual(amd_trigger("destroy 5 enemies"),
+                         ("on_kill", {"hostile": True, "count": 5}))
+        self.assertEqual(amd_trigger("kill hostiles"),
+                         ("on_kill", {"hostile": True, "count": 1}))
+
     def test_signal_normalizes_case_and_spaces(self):
         self.assertEqual(amd_trigger("signal Xorn Defected"),
                          ("on_signal", {"name": "xorn_defected"}))
