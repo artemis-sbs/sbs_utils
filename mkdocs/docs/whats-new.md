@@ -171,6 +171,40 @@ Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/fe
 
 Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/features.md).
 
+## 🤝 Friend or Foe — decided by Diplomacy, not by labels
+
+A deep pass reworked how the game answers one deceptively simple question: *"is this
+ship a friend or an enemy?"* It used to be answered by **hardcoded role labels** —
+`raider` meant "the bad guys" and `tsn` meant "the good guys" — an assumption quietly
+baked into targeting, victory checks, docking, comms, loot, and quests. Now those
+questions are answered by **diplomacy**: the actual **side relationships**. A side's
+*name* no longer decides its allegiance.
+
+What that unlocks:
+
+- **Runtime ceasefires & alliances that actually stick.** Negotiate peace with a
+  hostile faction and it *really* stops being a target — your fleets break off, its
+  ships stop counting as "enemies remaining," you can claim its systems, and killing
+  it no longer pays a bounty. Ally with a faction and its bases count as **your**
+  friendly bases.
+- **Many enemy factions, not one lump.** Enemies can field their **own faction
+  sides**, each independently at war or at peace — instead of everyone sharing a
+  single "raider" side.
+- **More than one player side.** Co-op or rival player factions work without
+  assuming everyone is `tsn`: friendly stations, escorts, and win/lose conditions
+  all derive from **who the players actually are**.
+- **Quests that mean "enemies," not "raiders."** A kill objective can be authored as
+  **`destroy N enemies`** — faction-agnostic and ceasefire-safe — right alongside the
+  familiar `destroy N raiders`.
+
+For authors it arrives as a symmetric **sides & diplomacy vocabulary** — ask
+`side_are_enemies` / `side_are_friendly`, or grab the whole set of what's hostile (or
+allied) to a ship or to the players — so you never hardcode `role("raider")` or
+`role("tsn")` again. Every stock single-side mission plays **exactly as before**; the
+new reach is there when you want it.
+
+Docs: [Sides & Diplomacy](api/procedural/sides.md).
+
 ---
 
 ## 🛠️ For Mission Makers & Tinkerers
@@ -194,6 +228,11 @@ Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/fe
   torpedoes, drones, mines, EMP). → [Testing missions](tooling/testing.md)
 - **`--use-working-tree`** to smoke-test local library edits, and **`--seed`** for
   reproducible runs. → [The `sbs` CLI](tooling/cli.md)
+- **An in-game Avatar Editor** — an opt-in addon that customizes a character face
+  **inside Cosmos**, with a **live `gui_face` preview** that updates as you move the
+  sliders (unlike the extension's blind builder). Pick a race, tweak each feature,
+  and the face is **copied to your clipboard** on every change — paste it straight
+  into a `.amd` `Face:` field. → [Avatar Editor addon](legendarymissions/addons/avatar.md)
 - **`signal_next`** — one-shot await of the next signal. → [Signals](api/procedural/signal.md)
 - **An Artemis 2.8 → Cosmos porting-comfort layer** to ease bringing older content
   forward. → [Porting from Artemis 2.x](mast/porting-2x.md)
