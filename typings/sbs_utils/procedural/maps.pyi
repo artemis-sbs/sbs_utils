@@ -47,17 +47,19 @@ def game_code_label (code):
     e.g. ``"siege;PLAYER_COUNT=2;DIFFICULTY=5;seed_value=4242"`` -> ``"P2 D5 seed4242"``.
     Falls back to the raw code if it has no value pairs."""
 def game_code_presets_for_map (map_path, filename=None):
-    """Return the list of saved game codes for one map (newest last)."""
+    """Return one map's saved presets as ``[{"name", "code"}, ...]`` (newest last)."""
 def game_code_presets_load (filename=None):
-    """Load the saved game-code presets, a dict of ``{map_path: [code, ...]}``.
-    
-    Returns an empty dict if the file is missing or malformed. Presets are kept
-    separated by map so each map only shows its own."""
-def game_code_presets_save_code (code, filename=None):
-    """Save a game code as a preset under its map, de-duplicating.
-    
+    """Load the saved game-code presets, a dict of ``{map_path: [entry, ...]}``.
+
+    Each entry is a ``{"name": str, "code": str}`` dict (legacy bare-string
+    entries still load). Returns an empty dict if the file is missing or
+    malformed. Presets are kept separated by map so each map only shows its own."""
+def game_code_presets_save_code (code, name=None, filename=None):
+    """Save a game code as a named preset under its map, de-duplicating on code.
+
     The map is taken from the code's first token, so presets land in the right
-    per-map bucket. Returns the code saved, or ``None`` if ``code`` is empty."""
+    per-map bucket. ``name`` defaults to ``"Preset N"``. Returns the code saved,
+    or ``None`` if ``code`` is empty."""
 def game_code_vars (map):
     """Return the var names that make up a map's game code, in order.
     

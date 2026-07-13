@@ -12,6 +12,7 @@ from sbs_utils.procedural.maps import (
     game_code_encode, game_code_decode, game_code_vars,
     _map_property_vars, _coerce_like, game_code_label,
     game_code_presets_load, game_code_presets_for_map, game_code_presets_save_code,
+    player_loadout_encode, player_loadout_decode, player_loadout_from_ships,
 )
 from sbs_utils.procedural.execution import get_shared_variable, set_shared_variable
 
@@ -138,19 +139,34 @@ class TestGameCodePresets(unittest.TestCase):
         self.assertEqual(game_code_label(""), "")
 
     def test_save_separates_by_map(self):
-        game_code_presets_save_code("siege;DIFFICULTY=5;seed_value=1", self.tmp)
-        game_code_presets_save_code("siege;DIFFICULTY=7;seed_value=2", self.tmp)
-        game_code_presets_save_code("border_war;DIFFICULTY=3;seed_value=9", self.tmp)
+        game_code_presets_save_code("siege;DIFFICULTY=5;seed_value=1", filename=self.tmp)
+        game_code_presets_save_code("siege;DIFFICULTY=7;seed_value=2", filename=self.tmp)
+        game_code_presets_save_code("border_war;DIFFICULTY=3;seed_value=9", filename=self.tmp)
         data = game_code_presets_load(self.tmp)
         self.assertEqual(set(data.keys()), {"siege", "border_war"})
         self.assertEqual(
             game_code_presets_for_map("siege", self.tmp),
-            ["siege;DIFFICULTY=5;seed_value=1", "siege;DIFFICULTY=7;seed_value=2"])
+            [{"name": "Preset 1", "code": "siege;DIFFICULTY=5;seed_value=1"},
+             {"name": "Preset 2", "code": "siege;DIFFICULTY=7;seed_value=2"}])
         self.assertEqual(len(game_code_presets_for_map("border_war", self.tmp)), 1)
 
+    def test_save_default_and_explicit_name(self):
+        game_code_presets_save_code("siege;DIFFICULTY=5", filename=self.tmp)
+        game_code_presets_save_code("siege;DIFFICULTY=7", name="Brutal", filename=self.tmp)
+        presets = game_code_presets_for_map("siege", self.tmp)
+        self.assertEqual([p["name"] for p in presets], ["Preset 1", "Brutal"])
+
+    def test_legacy_string_entries_get_default_names(self):
+        # A file written by the old format (bare code strings) still loads.
+        from sbs_utils.fs import save_yaml_data
+        save_yaml_data(self.tmp, {"siege": ["siege;DIFFICULTY=5", "siege;DIFFICULTY=7"]})
+        presets = game_code_presets_for_map("siege", self.tmp)
+        self.assertEqual([p["name"] for p in presets], ["Preset 1", "Preset 2"])
+        self.assertEqual(presets[0]["code"], "siege;DIFFICULTY=5")
+
     def test_save_dedups(self):
-        game_code_presets_save_code("siege;DIFFICULTY=5", self.tmp)
-        game_code_presets_save_code("siege;DIFFICULTY=5", self.tmp)
+        game_code_presets_save_code("siege;DIFFICULTY=5", filename=self.tmp)
+        game_code_presets_save_code("siege;DIFFICULTY=5", filename=self.tmp)
         self.assertEqual(len(game_code_presets_for_map("siege", self.tmp)), 1)
 
     def test_for_map_missing_returns_empty(self):
@@ -160,8 +176,49 @@ class TestGameCodePresets(unittest.TestCase):
         self.assertEqual(game_code_presets_load(self.tmp), {})
 
     def test_save_empty_code_is_noop(self):
-        self.assertIsNone(game_code_presets_save_code("", self.tmp))
+        self.assertIsNone(game_code_presets_save_code("", filename=self.tmp))
         self.assertFalse(os.path.exists(self.tmp))
+
+
+class TestPlayerLoadout(unittest.TestCase):
+    def test_round_trip(self):
+        slots = [{"name": "Artemis", "hull": "tsn_light_cruiser"},
+                 {"name": "Intrepid", "hull": "tsn_battle_cruiser"}]
+        token = player_loadout_encode(slots)
+        self.assertEqual(player_loadout_decode(token), slots)
+
+    def test_token_is_game_code_safe(self):
+        # No ';' (pair sep) or '=' (key sep) may appear, or it corrupts the code.
+        token = player_loadout_encode([{"name": "A;B=C|D~E", "hull": "hull;X"}])
+        self.assertNotIn(";", token)
+        self.assertNotIn("=", token)
+        # The separators we sanitize don't survive inside a field.
+        slot = player_loadout_decode(token)[0]
+        self.assertNotIn("|", slot["name"])
+        self.assertNotIn("~", slot["name"])
+
+    def test_empty_and_none(self):
+        self.assertEqual(player_loadout_encode([]), "")
+        self.assertEqual(player_loadout_decode(""), [])
+        self.assertEqual(player_loadout_decode(None), [])
+
+    def test_from_ships_sorts_by_id(self):
+        class Ship:
+            def __init__(self, id, name, art_id):
+                self.id, self.name, self.art_id = id, name, art_id
+        ships = [Ship(20, "Second", "hull_b"), Ship(10, "First", "hull_a")]
+        self.assertEqual(
+            player_loadout_decode(player_loadout_from_ships(ships)),
+            [{"name": "First", "hull": "hull_a"},
+             {"name": "Second", "hull": "hull_b"}])
+
+    def test_folds_through_a_game_code(self):
+        # The whole point: SHIP_LOADOUT survives a game-code encode/decode.
+        token = player_loadout_encode([{"name": "Artemis", "hull": "tsn_light_cruiser"}])
+        code = f"siege;SHIP_LOADOUT={token}"
+        pairs = dict(p.partition("=")[::2] for p in code.split(";")[1:])
+        self.assertEqual(player_loadout_decode(pairs["SHIP_LOADOUT"]),
+                         [{"name": "Artemis", "hull": "tsn_light_cruiser"}])
 
 
 if __name__ == "__main__":

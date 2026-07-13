@@ -252,8 +252,10 @@ def _game_code_presets_file(filename):
 
 
 def game_code_presets_load(filename=None):
-    """Load the saved game-code presets, a dict of ``{map_path: [code, ...]}``.
+    """Load the saved game-code presets, a dict of ``{map_path: [entry, ...]}``.
 
+    Each entry is a ``{"name": str, "code": str}`` dict. Legacy files stored a
+    bare code string per entry; those still load (see :func:`_preset_normalize`).
     Returns an empty dict if the file is missing or malformed. Presets are kept
     separated by map so each map only shows its own.
     """
@@ -262,29 +264,117 @@ def game_code_presets_load(filename=None):
     return data if isinstance(data, dict) else {}
 
 
+def _preset_normalize(entry, position):
+    """Coerce a stored preset entry to ``{"name": str, "code": str}``.
+
+    New entries are already that dict. A legacy bare-string entry (just the
+    code) gets a generated ``"Preset N"`` name from its 1-based ``position``.
+    """
+    if isinstance(entry, dict):
+        code = entry.get("code", "")
+        name = entry.get("name") or f"Preset {position}"
+        return {"name": name, "code": code}
+    return {"name": f"Preset {position}", "code": str(entry)}
+
+
 def game_code_presets_for_map(map_path, filename=None):
-    """Return the list of saved game codes for one map (newest last)."""
-    codes = game_code_presets_load(filename).get(map_path)
-    return list(codes) if isinstance(codes, list) else []
+    """Return one map's saved presets as ``[{"name", "code"}, ...]`` (newest last)."""
+    entries = game_code_presets_load(filename).get(map_path)
+    if not isinstance(entries, list):
+        return []
+    return [_preset_normalize(e, i + 1) for i, e in enumerate(entries)]
 
 
-def game_code_presets_save_code(code, filename=None):
-    """Save a game code as a preset under its map, de-duplicating.
+# --- player-ship loadout, foldable into a game code -------------------------
+# "Start the next crew like the last one": a loadout is a list of per-slot
+# {"name", "hull"} dicts packed into ONE game-code value (the SHIP_LOADOUT var),
+# so it rides the same shareable code / preset as the map options. It must avoid
+# the code's own separators (';' between pairs, '=' after a key): slots join with
+# '|', the two fields within a slot with '~'.
+
+def _loadout_clean(text):
+    """Strip the loadout + game-code separators from a free-text field."""
+    for ch in ("|", "~", ";", "="):
+        text = text.replace(ch, " ")
+    return text.strip()
+
+
+def player_loadout_encode(slots):
+    """Pack ``[{"name","hull"}, ...]`` into one game-code-safe token (``""`` for none)."""
+    parts = []
+    for s in slots:
+        name = _loadout_clean(str(s.get("name", "")))
+        hull = _loadout_clean(str(s.get("hull", "")))
+        parts.append(f"{name}~{hull}")
+    return "|".join(parts)
+
+
+def player_loadout_decode(token):
+    """Inverse of :func:`player_loadout_encode`. Empty/None -> ``[]``."""
+    if not token:
+        return []
+    slots = []
+    for part in str(token).split("|"):
+        name, _, hull = part.partition("~")
+        slots.append({"name": name, "hull": hull})
+    return slots
+
+
+def player_loadout_from_ships(ships):
+    """Build a loadout token from ship objects, reading ``.name`` and ``.art_id``.
+
+    ``ships`` is sorted by id first so the slot order is stable and matches the
+    rehydrate side (spawn_players walks the player ships in id order too).
+    """
+    ordered = sorted(ships, key=lambda s: getattr(s, "id", 0))
+    return player_loadout_encode(
+        [{"name": getattr(s, "name", ""), "hull": getattr(s, "art_id", "")} for s in ordered])
+
+
+def player_loadout_capture(ships):
+    """Capture ``ships`` into the shared ``SHIP_LOADOUT`` var; return the token.
+
+    Call right before encoding a game code so the code carries the current
+    crew's hulls + names.
+    """
+    from .execution import set_shared_variable
+    token = player_loadout_from_ships(ships)
+    set_shared_variable("SHIP_LOADOUT", token)
+    return token
+
+
+def player_loadout_active():
+    """Decode the live ``SHIP_LOADOUT`` shared var into a slot list (``[]`` if unset)."""
+    from .execution import get_shared_variable
+    return player_loadout_decode(get_shared_variable("SHIP_LOADOUT"))
+
+
+def game_code_presets_save_code(code, name=None, filename=None):
+    """Save a game code as a named preset under its map, de-duplicating on code.
 
     The map is taken from the code's first token, so presets land in the right
-    per-map bucket. Returns the code saved, or ``None`` if ``code`` is empty.
+    per-map bucket. ``name`` defaults to ``"Preset N"`` (N = the next slot for
+    that map). Re-saving an identical code is a no-op (keeps the first name).
+    Returns the code saved, or ``None`` if ``code`` is empty.
     """
     from ..fs import save_yaml_data
     if not code:
         return None
     map_path = code.split(";")[0]
     data = game_code_presets_load(filename)
-    codes = data.get(map_path)
-    if not isinstance(codes, list):
-        codes = []
-    if code not in codes:
-        codes.append(code)
-    data[map_path] = codes
+    entries = data.get(map_path)
+    if not isinstance(entries, list):
+        entries = []
+    for e in entries:
+        e_code = e.get("code", "") if isinstance(e, dict) else str(e)
+        if e_code == code:
+            return code
+    if not name:
+        name = f"Preset {len(entries) + 1}"
+    # Commas would split the preset dropdown's comma-joined label list.
+    name = str(name).replace(",", " ").strip() or f"Preset {len(entries) + 1}"
+    entries.append({"name": name, "code": code})
+    data[map_path] = entries
     save_yaml_data(_game_code_presets_file(filename), data)
     return code
 
