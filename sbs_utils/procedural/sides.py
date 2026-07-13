@@ -342,7 +342,46 @@ def side_are_neutral(side1, side2)->bool:
     o1 = to_side_id(side1)
     o2 = to_side_id(side2)
     return has_link_to(o1, "side_neutral", o2)
-    
+
+
+def side_are_friendly(side1, side2)->bool:
+    """Return whether two sides are friendly — the SAME side, or ALLIED.
+
+    The friendly counterpart of :func:`side_are_enemies`. Use this for "is this one
+    of ours" checks: :func:`side_are_allies` alone is not enough because a side is
+    not recorded as allied to itself, so a same-side ship would read as non-friendly.
+
+    Args:
+        side1 (str | int | Agent): First side — key, agent ID, or object.
+        side2 (str | int | Agent): Second side — key, agent ID, or object.
+
+    Returns:
+        bool: ``True`` if the sides are the same or allied.
+    """
+    return side_are_same_side(side1, side2) or side_are_allies(side1, side2)
+
+
+def is_allied_to_players(target, scope_role=None)->bool:
+    """Return whether ``target`` is friendly to some player side (same side or
+    allied), optionally requiring a class role. The friend analog of
+    :func:`is_hostile_to_players`.
+
+    Args:
+        target (str | int | Agent): The candidate to test.
+        scope_role (str, optional): A role the target must hold. Defaults to None.
+
+    Returns:
+        bool: ``True`` if ``target`` is friendly to any player side.
+    """
+    if scope_role is not None and not has_role(target, scope_role):
+        return False
+    for p in to_object_list(role("__player__")):
+        ps = getattr(p, "side", None)
+        if ps and side_are_friendly(ps, target):
+            return True
+    return False
+
+
 def side_hostile_members(observer, scope_role=None):
     """Return the agent IDs on any side HOSTILE to ``observer``, optionally
     intersected with a combat-class role.
@@ -445,6 +484,57 @@ def is_hostile_to_players(target, scope_role="raider")->bool:
         if s and side_are_enemies(s, target):
             return True
     return False
+
+
+def side_allied_members(observer, scope_role=None):
+    """Return the agent IDs on ``observer``'s OWN side or a side ALLIED to it (the
+    "friendly" set from observer's point of view), optionally intersected with a
+    class role. The ally analog of :func:`side_hostile_members`.
+
+    Args:
+        observer (str | int | Agent): Side key, side agent ID, or any object whose
+            side is used as the point of view.
+        scope_role (str, optional): A role to intersect the result with (e.g.
+            ``"station"``). Defaults to None (all own+allied members). Prefer a
+            scope role, as the raw set includes non-ship side members (clients).
+
+    Returns:
+        set[int]: IDs of own-side and allied-side agents, optionally scoped.
+    """
+    friends = side_members_set(observer) | side_ally_members_set(observer)
+    if scope_role:
+        friends = friends & role(scope_role)
+    return friends
+
+
+def players_allied_members(scope_role=None):
+    """Return the agent IDs on a PLAYER side or a side ALLIED to one (the "friendly
+    to the players" set), optionally intersected with a class role.
+
+    The player-perspective ally set (friend analog of :func:`players_hostile_members`)
+    — for friendly-base / friendly-ship checks not tied to a single observer, e.g.
+    "all our stations are gone" lose conditions. Covers every player side and their
+    allies, so it works with a second player side or an allied faction instead of a
+    hardcoded side role like ``role("tsn")``.
+
+    Args:
+        scope_role (str, optional): A role to intersect with (e.g. ``"station"``).
+            Defaults to None. Prefer a scope role (the raw set includes clients).
+
+    Returns:
+        set[int]: IDs friendly to the players, optionally scoped to ``scope_role``.
+    """
+    out = set()
+    seen = set()
+    for p in to_object_list(role("__player__")):
+        s = getattr(p, "side", None)
+        if s and s not in seen:
+            seen.add(s)
+            out |= side_members_set(s)
+            out |= side_ally_members_set(s)
+    if scope_role:
+        out = out & role(scope_role)
+    return out
 
 
 def side_set_side_icon_index(key_or_id, icon_index)->None:

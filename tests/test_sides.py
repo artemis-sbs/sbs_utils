@@ -11,6 +11,8 @@ from sbs_utils.procedural.sides import (
     side_set_relations, side_get_relations,
     side_hostile_members, is_hostile_combatant,
     players_hostile_members, is_hostile_to_players,
+    side_allied_members, players_allied_members,
+    side_are_friendly, is_allied_to_players,
 )
 import unittest
 
@@ -251,6 +253,46 @@ class TestSides(unittest.TestCase):
         self.assertFalse(is_hostile_to_players(civ_ship))       # neutral
         pirate_ship.remove_role("raider")                        # surrendered
         self.assertFalse(is_hostile_to_players(pirate_ship))
+
+    def _friendly_setup(self):
+        """tsn (player) + uspf (ALLIED to tsn) + pirate (hostile). Returns
+        (tsn_station, uspf_station, pirate_station)."""
+        make_side("tsn", "TSN"); make_side("uspf", "USPF"); make_side("pirate", "Pirates")
+        tsn_p = PlayerShip().spawn(0, 0, 0, "Artemis", "tsn", "tsn_battle_cruiser").py_object
+        tsn_st = Npc().spawn(0, 0, 0, "Home", "tsn", "starbase_command", "behav_spaceport").py_object
+        uspf_st = Npc().spawn(0, 0, 0, "Ally", "uspf", "starbase_command", "behav_spaceport").py_object
+        pir_st = Npc().spawn(0, 0, 0, "Foe", "pirate", "starbase_command", "behav_spaceport").py_object
+        for s in (tsn_st, uspf_st, pir_st):
+            s.add_role("station")
+        side_set_relations("tsn", "uspf", sbs.DIPLOMACY.ALLIED)
+        side_set_relations("tsn", "pirate", sbs.DIPLOMACY.HOSTILE)
+        return tsn_st, uspf_st, pir_st
+
+    def test_players_allied_members_stations(self):
+        tsn_st, uspf_st, pir_st = self._friendly_setup()
+        friendly = players_allied_members("station")
+        self.assertIn(tsn_st.id, friendly)      # own player side
+        self.assertIn(uspf_st.id, friendly)     # allied side
+        self.assertNotIn(pir_st.id, friendly)   # hostile
+
+    def test_side_allied_members(self):
+        tsn_st, uspf_st, pir_st = self._friendly_setup()
+        friends = side_allied_members("tsn", "station")
+        self.assertIn(tsn_st.id, friends)       # own side
+        self.assertIn(uspf_st.id, friends)      # ally
+        self.assertNotIn(pir_st.id, friends)    # enemy
+
+    def test_side_are_friendly_includes_same_side(self):
+        tsn_st, uspf_st, pir_st = self._friendly_setup()
+        self.assertTrue(side_are_friendly("tsn", "tsn"))     # same side is friendly
+        self.assertTrue(side_are_friendly("tsn", "uspf"))    # allied
+        self.assertFalse(side_are_friendly("tsn", "pirate")) # enemy
+
+    def test_is_allied_to_players(self):
+        tsn_st, uspf_st, pir_st = self._friendly_setup()
+        self.assertTrue(is_allied_to_players(tsn_st))    # same side as the player
+        self.assertTrue(is_allied_to_players(uspf_st))   # allied
+        self.assertFalse(is_allied_to_players(pir_st))   # hostile
 
 
 if __name__ == '__main__':
