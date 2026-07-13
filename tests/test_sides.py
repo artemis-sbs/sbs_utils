@@ -14,7 +14,7 @@ from sbs_utils.procedural.sides import (
     side_allied_members, players_allied_members,
     side_are_friendly, is_allied_to_players,
     side_ensure, side_set_hostile_to_players,
-    side_surrender, side_unsurrender,
+    side_surrender, side_unsurrender, side_capture,
 )
 import unittest
 
@@ -336,6 +336,22 @@ class TestSides(unittest.TestCase):
         self.assertTrue(foe.has_role("raider"))
         self.assertFalse(foe.has_role("surrendered"))
         self.assertEqual(foe.data_set.get("surrender_flag", 0), 0)
+
+    def test_capture_makes_a_prize_join_the_captor(self):
+        make_side("tsn", "TSN"); make_side("raider", "Raider")
+        side_set_relations("tsn", "raider", sbs.DIPLOMACY.HOSTILE)
+        player = PlayerShip().spawn(0, 0, 0, "Artemis", "tsn", "tsn_battle_cruiser").py_object
+        foe = Npc().spawn(2000, 0, 2000, "Foe", "raider", "kralien_cruiser", "behav_npcship").py_object
+        foe.add_role("raider"); foe.add_role("kralien")
+        side_surrender(foe)
+        self.assertEqual(foe.side, "surrendered")
+        side_capture(foe, player)                       # take it as a prize
+        self.assertEqual(foe.side, "tsn")               # joined the captor's side
+        self.assertTrue(is_allied_to_players(foe))      # now friendly
+        self.assertFalse(is_hostile_to_players(foe))
+        self.assertTrue(foe.has_role("captured"))
+        self.assertFalse(foe.has_role("surrendered"))   # no longer flees home
+        self.assertTrue(foe.has_role("kralien"))        # identity kept
 
     def test_side_set_hostile_to_players_registers_faction(self):
         # A player on tsn; register a per-faction enemy side and a ship on it.

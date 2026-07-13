@@ -652,6 +652,35 @@ def side_unsurrender(ship, combat_role="raider"):
     obj.data_set.set("surrender_flag", 0, 0)
 
 
+def side_capture(ship, captor):
+    """A surrendered ship JOINS its captor: move it onto the captor's side, so it is
+    now friendly to the captor and hostile to the captor's enemies (by diplomacy), and
+    clear the surrendered state.
+
+    The ship keeps its race/clan role for identity and is marked with a ``captured``
+    role (so ``take_surrendered_home``, which flies ``surrendered`` ships off and
+    deletes them, leaves it alone — it is a prize now, not a fugitive). Give it a
+    brain/objective afterwards if you want it to actively fight for you.
+
+    Args:
+        ship (Agent | int): The surrendered ship being taken as a prize.
+        captor (Agent | int | str): The capturing ship/console (its side is used), or
+            a side key directly.
+    """
+    obj = to_object(ship)
+    if obj is None:
+        return
+    cap = to_object(captor)
+    captor_side = getattr(cap, "side", None) if cap is not None else None
+    if captor_side is None:
+        captor_side = captor            # allow a bare side key
+    obj.side = captor_side
+    obj.remove_role("surrendered")
+    obj.add_role("captured")
+    obj.set_inventory_value("origin_side", None)
+    obj.data_set.set("surrender_flag", 0, 0)
+
+
 def side_set_side_icon_index(key_or_id, icon_index)->None:
     """Set the icon index for a side, changing how its ships appear on the 2D map.
 
