@@ -47,8 +47,12 @@ def side_members_set(side):
     if key is None: # Should never happen, but just in case
         return set()
     objs = role(key) - role("__side__") # remove the actual side, since it's a MastAsyncTask instead of a Ship
-    # If the role for the side wasn't properly updated, remove the object?
-    # objs = {x for x in objs if to_object(x).side == side}
+    # Membership is by ACTUAL side, not merely the side-named role: an enemy that
+    # lives on its own faction side (e.g. "kralien") but keeps a shared class/compat
+    # role (e.g. "raider") must NOT count as a member of the "raider" side, or a
+    # runtime ceasefire of its faction can't drop it from side_enemy_members_set.
+    # (Clients / non-space agents have no .side and are correctly excluded.)
+    objs = {x for x in objs if getattr(to_object(x), "side", None) == key}
     return objs
 
 def side_ally_members_set(side):
