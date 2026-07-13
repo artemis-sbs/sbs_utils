@@ -9,6 +9,7 @@ from sbs_utils.procedural.sides import (
     side_members_set, side_ally_members_set, side_enemy_members_set,
     side_are_allies, side_are_enemies, side_are_neutral, side_are_same_side,
     side_set_relations, side_get_relations,
+    side_hostile_members, is_hostile_combatant,
 )
 import unittest
 
@@ -184,6 +185,52 @@ class TestSides(unittest.TestCase):
         enemies = side_enemy_members_set("tsn")
         self.assertIn(pirate_ship.id, enemies)
         self.assertNotIn(tsn_ship.id, enemies)
+
+    # ------------------------------------------------------------------
+    # side_hostile_members / is_hostile_combatant  (raider-migration source of truth)
+    # ------------------------------------------------------------------
+
+    def _hostile_setup(self):
+        """tsn (player), pirate (hostile, raider-tagged), civ (neutral, raider-tagged).
+        Returns (tsn_ship, pirate_ship, civ_ship)."""
+        make_side("tsn", "TSN")
+        make_side("pirate", "Pirates")
+        make_side("civ", "Civ")
+        tsn_ship = PlayerShip().spawn(0, 0, 0, "Artemis", "tsn", "tsn_battle_cruiser").py_object
+        pirate_ship = Npc().spawn(0, 0, 0, "Raider", "pirate", "Light Cruiser", "behav_npcship").py_object
+        civ_ship = Npc().spawn(0, 0, 0, "Trader", "civ", "Light Cruiser", "behav_npcship").py_object
+        # Both foe and neutral carry the combat "raider" tag (the overloaded marker).
+        pirate_ship.add_role("raider")
+        civ_ship.add_role("raider")
+        side_set_relations("tsn", "pirate", sbs.DIPLOMACY.HOSTILE)
+        side_set_relations("tsn", "civ", sbs.DIPLOMACY.NEUTRAL)
+        return tsn_ship, pirate_ship, civ_ship
+
+    def test_side_hostile_members_scoped_excludes_neutral(self):
+        tsn_ship, pirate_ship, civ_ship = self._hostile_setup()
+        foes = side_hostile_members("tsn", "raider")
+        self.assertIn(pirate_ship.id, foes)       # hostile + raider-tagged
+        self.assertNotIn(civ_ship.id, foes)       # neutral (ceasefire analogue) drops out
+        self.assertNotIn(tsn_ship.id, foes)       # own side
+
+    def test_side_hostile_members_scope_respects_role_removal(self):
+        # A surrendered/defected ship drops the raider role -> leaves the scoped set
+        # even though its side is still diplomatically hostile.
+        tsn_ship, pirate_ship, civ_ship = self._hostile_setup()
+        pirate_ship.remove_role("raider")
+        self.assertNotIn(pirate_ship.id, side_hostile_members("tsn", "raider"))
+        # ...but without the scope it is still a hostile-side member.
+        self.assertIn(pirate_ship.id, side_hostile_members("tsn"))
+
+    def test_is_hostile_combatant(self):
+        tsn_ship, pirate_ship, civ_ship = self._hostile_setup()
+        self.assertTrue(is_hostile_combatant("tsn", pirate_ship))    # hostile + raider
+        self.assertFalse(is_hostile_combatant("tsn", civ_ship))      # neutral
+        # Surrender/defection removes the role -> no longer a combatant.
+        pirate_ship.remove_role("raider")
+        self.assertFalse(is_hostile_combatant("tsn", pirate_ship))
+        # Pure diplomacy test (scope_role=None) ignores the role.
+        self.assertTrue(is_hostile_combatant("tsn", pirate_ship, scope_role=None))
 
 
 if __name__ == '__main__':

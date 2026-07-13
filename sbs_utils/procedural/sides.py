@@ -343,6 +343,56 @@ def side_are_neutral(side1, side2)->bool:
     o2 = to_side_id(side2)
     return has_link_to(o1, "side_neutral", o2)
     
+def side_hostile_members(observer, scope_role=None):
+    """Return the agent IDs on any side HOSTILE to ``observer``, optionally
+    intersected with a combat-class role.
+
+    The canonical "who may I fight" set: diplomacy decides allegiance (a side that
+    is neutral/allied — e.g. one you have ceasefired — drops out), and the optional
+    ``scope_role`` (such as ``"raider"``) scopes the result to combat ships. Because
+    a role like ``raider`` is removed on surrender/defection, scoping by it also
+    drops ships that have already struck their colours. Prefer this over a bare
+    ``role("raider")`` anywhere a set is tested for "is there an enemy".
+
+    Args:
+        observer (str | int | Agent): Side key, side agent ID, or any object whose
+            side is used as the point of view.
+        scope_role (str, optional): A role to intersect the result with (combat-ship
+            scope). Defaults to None (all hostile-side members).
+
+    Returns:
+        set[int]: IDs of hostile-side agents, optionally scoped to ``scope_role``.
+    """
+    foes = side_enemy_members_set(observer)
+    if scope_role:
+        foes = foes & role(scope_role)
+    return foes
+
+
+def is_hostile_combatant(observer, target, scope_role="raider")->bool:
+    """Return whether ``target`` is a hostile combatant relative to ``observer``.
+
+    The boolean single source of truth for "may I treat this as an enemy": ``target``
+    is diplomatically HOSTILE to ``observer``'s side AND still carries the combat
+    class role ``scope_role``. This honours both "no longer my enemy" conventions at
+    once — a ceasefired/neutral side fails :func:`side_are_enemies`, and a
+    surrendered/defected ship has had ``scope_role`` removed. Pass
+    ``scope_role=None`` for a pure diplomacy test.
+
+    Args:
+        observer (str | int | Agent): The point-of-view side/agent.
+        target (str | int | Agent): The candidate to test.
+        scope_role (str, optional): Combat-class role the target must still hold.
+            Defaults to ``"raider"``.
+
+    Returns:
+        bool: ``True`` if ``target`` is a hostile combatant to ``observer``.
+    """
+    if scope_role is not None and not has_role(target, scope_role):
+        return False
+    return side_are_enemies(observer, target)
+
+
 def side_set_side_icon_index(key_or_id, icon_index)->None:
     """Set the icon index for a side, changing how its ships appear on the 2D map.
 
