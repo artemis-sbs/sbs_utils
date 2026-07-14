@@ -5,6 +5,13 @@ from random import uniform
 
 #@dataclass
 class Vec3:
+    # Value type created hundreds of thousands of times per second under load
+    # (LM siege: 425k Vec3() calls / 30s). __slots__ drops the per-instance
+    # __dict__ -> smaller instances, faster x/y/z access, less allocation/GC
+    # churn. Audited safe: no subclasses, already unhashable (__eq__, no
+    # __hash__), never pickled, no dynamic attributes set anywhere.
+    __slots__ = ("x", "y", "z")
+
     def __init__(self, *args):
         count = len(args)
         if count == 0:

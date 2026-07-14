@@ -48,6 +48,12 @@ class ChangeRuntimeNode(MastRuntimeNode):
 
 
 class PushData:
+    # label_stack entry, allocated on every push_label / push_inline_block.
+    # __slots__ drops the per-instance __dict__ (smaller, one fewer GC-tracked
+    # container). Audited safe: 4 fixed fields, no subclasses, no dynamic attrs;
+    # get_symbols() reads `.data`, which is still a slot.
+    __slots__ = ("label", "active_cmd", "data", "runtime_node")
+
     def __init__(self, label, active_cmd, data=None, resume_node=None):
         self.label = label
         self.active_cmd = active_cmd
