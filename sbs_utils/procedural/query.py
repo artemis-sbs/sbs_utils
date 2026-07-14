@@ -222,8 +222,11 @@ def object_exists(so_id):
     # A tombstoned (deferred-delete) object is logically gone the instant
     # delete_object() is called, even though its native memory is freed later at
     # the end-of-handler drain. Report it gone now to preserve the pre-deferral
-    # contract. See delete_queue.DeleteQueue.
-    if DeleteQueue.is_pending(so_id):
+    # contract. object_exists is a hot per-tick path, so read the set directly and
+    # short-circuit on empty (the common case: nothing pending) rather than pay a
+    # method call every time. See delete_queue.DeleteQueue.
+    pending = DeleteQueue._pending
+    if pending and so_id in pending:
         return False
     return FrameContext.context.sim.space_object_exists(so_id) != 0
     #return eo is not None

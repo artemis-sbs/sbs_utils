@@ -431,7 +431,9 @@ def cosmos_event_handler(sim, event):
 
         # Deferred native frees: every task this tick has yielded, so it is now
         # safe to actually free objects that were tombstoned by delete_object().
-        DeleteQueue.drain()
+        # Guard the (common) empty case at the call site to skip the method call.
+        if DeleteQueue._pending:
+            DeleteQueue.drain()
 
         Agent.SHARED.set_inventory_value("sim", None)
         Agent.context = None

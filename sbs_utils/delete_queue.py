@@ -27,6 +27,8 @@ engine-side generational handles); it does eliminate the same-tick crash, which
 is the dominant path.
 """
 
+from .helpers import FrameContext
+
 
 class DeleteQueue:
     _pending = set()
@@ -62,7 +64,6 @@ class DeleteQueue:
         """Free every tombstoned object. Called at the end of the event handler."""
         if not cls._pending:
             return
-        from .helpers import FrameContext
         ctx = FrameContext.context
         if ctx is None or ctx.sbs is None:
             # No valid context to free against (shouldn't happen inside the
