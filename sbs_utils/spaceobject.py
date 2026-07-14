@@ -85,9 +85,18 @@ class SpaceObject(Agent):
     def delete_object(self):
         """
         Delete this SpaceObject.
+
+        The native free is **deferred**: the agent is tombstoned now
+        (``destroyed()`` drops it from ``Agent.all``/roles, so
+        ``object_exists()``/``to_object()`` report it gone immediately) and the
+        actual ``sbs.delete_object()`` runs when the event handler drains the
+        queue, after every MAST task for this tick has yielded. This closes the
+        use-after-free window where another task still references this object
+        within the same tick. See ``delete_queue.DeleteQueue``.
         """
-        FrameContext.context.sbs.delete_object(self.id)
+        from .delete_queue import DeleteQueue
         self.destroyed()
+        DeleteQueue.queue(self.id)
 
         
     

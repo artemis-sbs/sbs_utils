@@ -1,6 +1,7 @@
 from random import choice, choices
 from ..agent import Agent, CloseData, SpawnData
 from ..helpers import FrameContext
+from ..delete_queue import DeleteQueue
 
 ###################
 # Set functions
@@ -217,6 +218,12 @@ def object_exists(so_id):
     """
     so_id = to_id(so_id)
     if so_id is None:
+        return False
+    # A tombstoned (deferred-delete) object is logically gone the instant
+    # delete_object() is called, even though its native memory is freed later at
+    # the end-of-handler drain. Report it gone now to preserve the pre-deferral
+    # contract. See delete_queue.DeleteQueue.
+    if DeleteQueue.is_pending(so_id):
         return False
     return FrameContext.context.sim.space_object_exists(so_id) != 0
     #return eo is not None

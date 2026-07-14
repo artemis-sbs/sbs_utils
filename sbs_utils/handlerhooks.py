@@ -5,6 +5,7 @@ from .tickdispatcher import TickDispatcher
 from .lifetimedispatcher import LifetimeDispatcher
 from .launchdispatcher import LaunchDispatcher
 from .garbagecollector import GarbageCollector
+from .delete_queue import DeleteQueue
 from .extra_dispatcher import HotkeyDispatcher, ClientStringDispatcher
 from .procedural.inventory import get_inventory_value, set_inventory_value
 
@@ -30,7 +31,7 @@ def reset_mission_state():
     """Reset all per-mission runtime state for a fresh mission / in-process recompile."""
     for d in (GridDispatcher, DamageDispatcher, CollisionDispatcher, ConsoleDispatcher,
               TickDispatcher, LifetimeDispatcher, LaunchDispatcher, GarbageCollector,
-              HotkeyDispatcher, ClientStringDispatcher):
+              DeleteQueue, HotkeyDispatcher, ClientStringDispatcher):
         d.clear()
     # Decorator-label registries that accumulate at compile time (lazy import - these
     # live in mast_sbs.story_nodes, which imports back into the mast layer).
@@ -427,7 +428,11 @@ def cosmos_event_handler(sim, event):
         GarbageCollector.collect()
         from .pages.layout.dirty import Dirty
         Dirty.represent_dirty()
-        
+
+        # Deferred native frees: every task this tick has yielded, so it is now
+        # safe to actually free objects that were tombstoned by delete_object().
+        DeleteQueue.drain()
+
         Agent.SHARED.set_inventory_value("sim", None)
         Agent.context = None
     

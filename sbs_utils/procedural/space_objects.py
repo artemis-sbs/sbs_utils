@@ -445,8 +445,7 @@ def delete_objects_sphere(x,y,z, radius, broad_type=0x0F, roles=None):
         pos = Vec3(obj.pos)
         diff = mid-pos
         if diff.dot(diff) <= r:
-            obj.remove()
-            FrameContext.context.sbs.delete_object(id)
+            obj.delete_object()   # deferred native free (see DeleteQueue)
 
 
 
@@ -478,8 +477,7 @@ def delete_objects_box(x,y,z, w,h,d, broad_type=0x0F, roles=None):
         pos = Vec3(obj.pos)
 
         if abs(pos.y-y) <= h:
-            obj.remove()
-            FrameContext.context.sbs.delete_object(id)
+            obj.delete_object()   # deferred native free (see DeleteQueue)
 
 def delete_object(id_or_objs):
     """Delete one or more agents from the simulation.
