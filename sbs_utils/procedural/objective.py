@@ -107,7 +107,7 @@ def objectives_run_everything(tick_task):
     """
     state = tick_task.state % 3
     tick_task.state += 1
-    #t = time.perf_counter()
+    t = time.perf_counter()
     if state == 0:
         objectives_run_all(tick_task)
         ModifierHandler.remove_expired_modifiers()
@@ -116,15 +116,16 @@ def objectives_run_everything(tick_task):
     elif state == 2:
         extra_scan_sources_run_all(tick_task)
         game_end_run_all(tick_task)
-        
 
     # Cycle this every 5 seconds
     tick_task.state = tick_task.state % 5
-    
 
-    # et = time.perf_counter() - t
-    # if et > 0.033:
-    #     print(f"Elapsed time: {et} shared task state {state} ")
+    # Attribute a driver spike to its state (objectives / brains / scan+gameend)
+    # so the handler's "dispatch_tick" spike line can be traced one level deeper.
+    et = time.perf_counter() - t
+    if et > 0.033:
+        _slice = ("objectives", "brains", "scan+gameend")[state]
+        print(f"  tick-driver spike: {_slice} (state {state}) {et*1000:.0f}ms")
 
 
 class Objective(Agent):

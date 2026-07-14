@@ -37,6 +37,22 @@ if _g0 < _GC_GEN0_THRESHOLD:
     gc.set_threshold(_GC_GEN0_THRESHOLD, _g1, _g2)
 
 
+def _phase(store, name, fn, *args):
+    """Time one phase of the event handler into `store` (name -> seconds).
+
+    Used only to enrich the existing >33ms "Elapsed time" spike print with a
+    per-phase breakdown (dispatch_tick / spawn / Gui.present / gc / dirty /
+    delete), so a spike can be attributed to a subsystem live in the engine.
+    Cost is one perf_counter pair per phase (~sub-microsecond); the breakdown is
+    only printed on a frame that already exceeds the spike threshold.
+    """
+    _s = time.perf_counter()
+    try:
+        return fn(*args)
+    finally:
+        store[name] = store.get(name, 0.0) + (time.perf_counter() - _s)
+
+
 # Every dispatcher/registry that accumulates per-mission state at COMPILE time and so
 # must be wiped to (re)start a mission cleanly. The engine forks a fresh process per
 # mission, so it never needs this; an in-process recompile (the dev runner's
@@ -169,6 +185,7 @@ def cosmos_event_handler(sim, event):
     try:
         #t = time.process_time()
         t = time.perf_counter()
+        phase_ms = {}   # per-phase timing; printed only on a >33ms spike
         import sbs
         from .procedural.signal import signal_emit
         # Allow guis more direct access to events
@@ -256,11 +273,15 @@ def cosmos_event_handler(sim, event):
                 #Agent.SHARED.set_inventory_value("SIM_STATE", "sim_running")
                 # Give a few ticks (NOT NEEDED This would not tick Gui)
                 #for x in range(5):
-                TickDispatcher.dispatch_tick()
+                # dispatch_tick runs the shared per-second driver
+                # (objectives/brains/scan/game-end); brains_run_all is the usual
+                # periodic-spike culprit here. Gui.present ticks all MAST story
+                # tasks (per client) then renders.
+                _phase(phase_ms, "dispatch_tick(brains/timers)", TickDispatcher.dispatch_tick)
                 # after tick task handle any lifetime events
-                LifetimeDispatcher.dispatch_spawn()
+                _phase(phase_ms, "spawn", LifetimeDispatcher.dispatch_spawn)
                 # Run Guis, tick task
-                Gui.present(event)
+                _phase(phase_ms, "gui_present(MAST+render)", Gui.present, event)
  
             case "damage":
                 #print_event(event)
@@ -441,23 +462,27 @@ def cosmos_event_handler(sim, event):
         # with the garbage collector
         # with IDs and a callback
         # When the ID is no longer valid the callback is called
-        GarbageCollector.collect()
+        _phase(phase_ms, "gc", GarbageCollector.collect)
         from .pages.layout.dirty import Dirty
-        Dirty.represent_dirty()
+        _phase(phase_ms, "dirty", Dirty.represent_dirty)
 
         # Deferred native frees: every task this tick has yielded, so it is now
         # safe to actually free objects that were tombstoned by delete_object().
         # Guard the (common) empty case at the call site to skip the method call.
         if DeleteQueue._pending:
-            DeleteQueue.drain()
+            _phase(phase_ms, "delete", DeleteQueue.drain)
 
         Agent.SHARED.set_inventory_value("sim", None)
         Agent.context = None
-    
+
         #et = time.process_time() - t
         et = time.perf_counter() - t
         if et > 0.033:
-            print(f"Elapsed time: {et} {event.tag}-{event.sub_tag}")
+            # Attribute the spike: which phase(s) dominated this frame.
+            brk = "  ".join(f"{k}={v*1000:.0f}ms"
+                            for k, v in sorted(phase_ms.items(), key=lambda kv: -kv[1])
+                            if v > 0.001)
+            print(f"Elapsed time: {et:.4f} {event.tag}-{event.sub_tag} | {brk}")
 
     except BaseException as err:
         SBS.pause_sim()
