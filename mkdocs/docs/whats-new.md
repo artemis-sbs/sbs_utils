@@ -209,6 +209,29 @@ new reach is there when you want it.
 
 Docs: [Sides & Diplomacy](api/procedural/sides.md).
 
+## ⚡ Smoother with big fleets
+
+Large battles used to **stutter on a beat**. Every few seconds the game processed
+**every NPC brain in a single frame** — then, on another beat, **every mission
+objective** — so the frame time spiked periodically. The bigger the fleet, the
+bigger the hitch.
+
+That work is now **spread evenly across frames**. Each brain and each objective
+still updates on the same schedule as before — the AI is exactly as sharp and
+reacts just as fast — but instead of one big burst, the load is smoothed out tick
+by tick. On a busy Siege those **periodic frame spikes are largely gone**, and it
+**scales far better** as fleets grow. Nothing to configure; every mission gets it
+automatically.
+
+!!! note "For tinkerers — how it works"
+    Per-tick work that iterated a whole set at once (all brains, all objectives)
+    now runs a **rolling slice** each tick, sized by a shared `RollingSlicer` so a
+    full pass still completes in the same period regardless of set size or tick
+    rate — same cadence and total cost, no batch spike. If you're chasing a
+    `mission_tick` that overruns its budget, the engine's **`Elapsed time`** log
+    line now prints a **per-phase breakdown** (`dispatch_tick` / `gui_present` /
+    `gc` / …) so you can see exactly which subsystem caused a given spike.
+
 ---
 
 ## 🛠️ For Mission Makers & Tinkerers
