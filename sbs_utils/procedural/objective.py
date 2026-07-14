@@ -12,12 +12,27 @@ from sbs_utils.procedural.signal import signal_emit
 
 
 __objective_tick_task = None
+__brain_tick_task = None
+
+# Spread a full pass over every brain across ~this many seconds of sim time, so
+# a large fleet's brains don't all run in one frame. Preserves the prior ~3s
+# per-brain cadence and total cost while removing the batch spike.
+BRAIN_PASS_SECONDS = 3
+
+def _brains_tick(tt):
+    """Per-tick driver: run a rolling slice of brains (see brains_run_all)."""
+    brains_run_all(tt, pass_seconds=BRAIN_PASS_SECONDS)
+
 def objective_schedule():
     """Ensure the background tick task that drives objectives is running."""
-    global __objective_tick_task
+    global __objective_tick_task, __brain_tick_task
     if __objective_tick_task is None:
         __objective_tick_task = TickDispatcher.do_interval(objectives_run_everything, 1)
         __objective_tick_task.state = 0
+        # Brains run as a rolling per-tick slice, NOT an all-at-once batch every
+        # 3s at state 1 (which spiked ~140ms for a ~65-ship fleet). do_interval
+        # with delay 0 runs every dispatch_tick; brains_run_all sizes the slice.
+        __brain_tick_task = TickDispatcher.do_interval(_brains_tick, 0)
 
 from .brain import brains_run_all
 from .extra_scan_sources import extra_scan_sources_run_all
@@ -112,7 +127,9 @@ def objectives_run_everything(tick_task):
         objectives_run_all(tick_task)
         ModifierHandler.remove_expired_modifiers()
     elif state == 1:
-        brains_run_all(tick_task)
+        # Brains now run as a rolling per-tick slice (see objective_schedule /
+        # _brains_tick), so they are no longer batched here.
+        pass
     elif state == 2:
         extra_scan_sources_run_all(tick_task)
         game_end_run_all(tick_task)

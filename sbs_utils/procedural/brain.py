@@ -7,6 +7,7 @@ from sbs_utils.procedural.query import to_set, to_object
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.mast.mast_node import MastNode
+from sbs_utils.tickdispatcher import TickDispatcher
 import random
 
 from enum import IntFlag
@@ -332,26 +333,73 @@ def brain_add(agent_id_or_set, label, data=None, client_id=0, parent=None):
 
 
 __brains_is_running = False
-def brains_run_all(tick_task):
-    """Run all agent brains for the current tick.
+_brain_cursor = 0
+_brain_sorted = []      # cached stable order for the rolling slice
+_brain_sig = None       # frozenset signature of the cached order
+_brain_accum = 0.0      # fractional brains-owed carry (exact rate, any fleet size)
 
-    Iterates every agent with a ``__BRAIN__`` inventory entry and calls
-    ``brain.run()``. Re-entrant calls are suppressed with a guard flag.
-    Agents whose ``Agent.get`` returns ``None`` are silently skipped.
+def brains_run_all(tick_task, pass_seconds=None):
+    """Run agent brains for the current tick.
+
+    Iterates agents with a ``__BRAIN__`` inventory entry and calls
+    ``brain.run()``. Re-entrant calls are suppressed with a guard flag; agents
+    whose ``Agent.get`` returns ``None`` (or that are paused) are skipped.
+
+    ``pass_seconds`` controls batching:
+
+    * ``None`` (default) - run **all** brains this call (original behavior; kept
+      for existing callers/tests).
+    * a number - run only a **rolling slice** this call, sized so a full pass
+      over every brain completes in about ``pass_seconds`` of sim time. This
+      spreads a large fleet's brains across ticks instead of one batch, so no
+      single tick spikes. Each brain still runs about once per ``pass_seconds``,
+      preserving the prior cadence and total cost.
 
     Args:
         tick_task: The tick task or event that triggered this run.
+        pass_seconds: If set, spread a full pass over ~this many seconds.
     """
-    global __brains_is_running
+    global __brains_is_running, _brain_cursor, _brain_sorted, _brain_sig, _brain_accum
     if __brains_is_running:
         return
     __brains_is_running = True
 
-    all = has_inventory("__BRAIN__")
-    for agent in all:
+    ids = has_inventory("__BRAIN__")
+    if pass_seconds is None:
+        # Original behavior: run every brain this call, order-agnostic.
+        seq = ids
+    else:
+        # Rolling slice needs a stable order so the cursor advances
+        # predictably. Cache the sorted order and only re-sort when the brain
+        # set actually changes (spawn/death), not every tick.
+        sig = frozenset(ids)
+        if sig != _brain_sig:
+            _brain_sorted = sorted(ids)
+            _brain_sig = sig
+        agents = _brain_sorted
+        n = len(agents)
+        if n == 0:
+            seq = ()
+        else:
+            # Run n / (pass_seconds * tps) brains PER CALL on average, carrying
+            # the fraction so a full pass takes exactly pass_seconds of sim time
+            # regardless of fleet size or tick rate (no over-run on small
+            # fleets, no spike on large ones). Cap at n so a very long pause
+            # can't demand more than one full pass at once.
+            _brain_accum += n / (pass_seconds * TickDispatcher.tps)
+            budget = min(n, int(_brain_accum))
+            if budget <= 0:
+                seq = ()
+            else:
+                _brain_accum -= budget
+                start = _brain_cursor % n
+                seq = [agents[(start + k) % n] for k in range(budget)]
+                _brain_cursor = (start + budget) % n
+
+    for agent in seq:
         try:
-            # Paused brains are skipped (e.g. while parked on the standby list,
-            # so they don't act on a non-simulated object). See brain_pause.
+            # Paused brains are skipped (e.g. while parked on the standby
+            # list, so they don't act on a non-simulated object).
             if get_inventory_value(agent, "__BRAIN_PAUSED__", False):
                 continue
             agent_root = get_inventory_value(agent, "__BRAIN__")
@@ -360,10 +408,8 @@ def brains_run_all(tick_task):
             if agent_obj is None:
                 continue
             agent_root.run()
-        
         except Exception as e:
-            msg = e
-            print(f"Exception in brain processing {msg}")
+            print(f"Exception in brain processing {e}")
     __brains_is_running = False
     
 
