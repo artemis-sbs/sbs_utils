@@ -39,9 +39,25 @@ class TabbedPanel(layout.Column):
         self.tick_task = None
         self.tab_tick_cb = None
 
+    # Dev diagnostic: set True to log how often each info-panel tab rebuilds.
+    # A tab is meant to re-present on tab-switch or its ~1Hz tick, NOT every
+    # frame; a high rate here means something is re-presenting the panel each
+    # tick (e.g. an expensive show() like a live roster in a repaint loop).
+    _trace_present = False
+    _trace_rate = {}
+
     def present_panel(self, event, panel, icon_size):
         CID = event.client_id
         self.client_id = CID
+        if TabbedPanel._trace_present:
+            path = panel.get("path")
+            now = TickDispatcher.current
+            rec = TabbedPanel._trace_rate.setdefault(path, [now, 0])
+            rec[1] += 1
+            if now - rec[0] >= TickDispatcher.tps:  # ~1 second window
+                print(f"[info-panel] tab '{path}' rebuilt {rec[1]}x in ~1s")
+                rec[0] = now
+                rec[1] = 0
         space = 1.1
         
         top = self.bounds.top
