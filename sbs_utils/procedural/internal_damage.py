@@ -329,6 +329,13 @@ def grid_apply_system_damage(id_or_obj):
     if has_role(ship_id, "exploded"):
         return
     blob = to_blob(ship_id)
+    if blob is None:
+        # The ship was removed (e.g. destroyed) before this internal-damage tick
+        # ran, so it has no data_set. Previously a raw sbs.delete_object left the
+        # agent in Agent.all with a dangling data_set pointer, masking this as a
+        # silent use-after-free; with deferred delete to_blob correctly returns
+        # None, so guard it.
+        return
 
     undamaged_grid_objects = grid_objects(ship_id) & role("__undamaged__")
     damaged_grid_objects = grid_objects(ship_id) & role("__damaged__")
