@@ -290,3 +290,93 @@ ships without its own approval.** Listed so they're tracked, not lost.
   overlaps T3, needs sign-off); (b) Tier 1 clarity docs (safe, no logic change);
   (c) optional full-mission smoke; (d) sign-off for T3.1/T3.2 (gated). Committed:
   Tier 0 + tests + bench (`afedb08`). Nothing else outstanding in the tree.
+
+---
+
+## GC investigation (2026-07-14)
+
+Hypothesis (user): the periodic per-tick hitches they see may be the Python
+**garbage collector**. Investigated before touching code.
+
+### Finding — GC is NOT the hitch source (in the bench)
+Added a `--gc` mode to [bench/bench_runtime.py](bench/bench_runtime.py):
+per-tick mean/median/**max/p99** + `gc.get_stats()` collection deltas + time in
+GC (via a `gc.callbacks` timer). Diagnostic A/B across default / `gc.disable()` /
+`gc.freeze()` / freeze+threshold (200 workers, 1000 watchers, 300 ticks):
+
+- GC is **~1.3% of tick time**; **`gc.disable()` barely moves max/p99** (22→20 ms).
+- The **12 slowest ticks are all `tick % 7 == 0`** — the exact ticks where watched
+  shared vars change and a **batch of `on change` handlers fire**. Median tick
+  1.9 ms; those spike to 15–24 ms. **The hitches are watcher-firing batches, not
+  GC.** (Real-engine hitch cadence still worth confirming — periodic ⇒ GC/timer,
+  event-correlated ⇒ watcher/GUI batch, like the bench.)
+
+### Hard line (user, confirmed): don't touch variable semantics
+`get_symbols()` **is** the variable namespace and `on change` timing **is**
+observable behavior. **Dropped** (fragile): get_symbols scratch-dict reuse /
+one-pass rebuild, extending the P2 cache into the main loop, any `on change`
+coalescing/caching. Kept only changes provably orthogonal to variable resolution.
+
+### Shipped
+- **G3 — hoisted the `{"__builtins__": MastGlobals.globals}` eval/exec wrapper**
+  to a module constant `_EVAL_GLOBALS` in
+  [mastscheduler.py](sbs_utils/mast/mastscheduler.py) (`MastGlobals.globals` is
+  mutated in place, never reassigned — verified). Removes ~one dict alloc per
+  expression eval. **Bench: neutral** — gen0 collection count unchanged ([77,8,1]),
+  because `get_symbols`' merge-dicts dominate allocation and that lever is
+  off-limits. Kept as harmless tidiness; it is *not* a needle-mover alone.
+- **G2 — raised the gen0 GC threshold 700→10000** once on `handlerhooks` import
+  ([handlerhooks.py](sbs_utils/handlerhooks.py)). Behavior-neutral (refcounting
+  still frees non-cyclic garbage immediately; cyclic garbage still collected,
+  just less often). Verified applied on import; the earlier probe showed
+  threshold tuning cuts collections ~78→1. **Note:** the bench imports
+  `mastscheduler` directly and never imports `handlerhooks`, so it does *not*
+  exercise G2 — validated separately.
+- Full suite **899 OK**; new `--gc` bench baseline: mean ~3.2 / median ~1.8 /
+  max ~20 / p99 ~15 ms.
+
+### Deferred (user decision)
+- **G1 — `gc.freeze()` after mission load: DEFERRED entirely.** Its only real
+  payoff is cutting gen1/gen2 **scan cost** in a large-object-population mission
+  (tens of thousands of agents), which the bench cannot measure, and it adds a
+  memory-lifetime policy. Given GC is 1.3% and not the hitch, not worth the
+  surface yet. Revisit only if a real large-mission engine session shows gen2
+  scan cost. (Engine forks a process per mission, so freeze would never need
+  unfreeze there; `reset_mission_state()` is the unfreeze hook if it's ever added.)
+
+### Reality check — the bench is NOT representative (2026-07-14)
+`bench_runtime` is an **`on_change` stress test** (1000 watchers), which made
+`get_symbols`/`on_change` look dominant. Measured the **real** mission instead —
+LM `@map/siege` headless, 989 frames (~30 s):
+
+- **`on_change` is a non-issue in real missions:** **3** watchers registered
+  lifetime, **avg 1.0 / max 1** concurrent per frame, **1** fire in 30 s. The
+  "watcher batches cause the hitch" conclusion was a pure bench artifact.
+- **Siege isn't even CPU-bound** at normal scale: `time.sleep` was 29.8 s of a
+  42.5 s run (~70% idle).
+- **Real hot path is flat** (of the ~12.7 s non-sleep): no dominator. Top
+  self-time is `Vec3.__init__` (425k calls), the interpreter loop
+  (`MastTicker.tick`/`next`/`eval`/`assign.poll`), and **game-state queries** —
+  `to_object` (275k), `get/set_inventory_value` (487k combined), `add_to_collection`
+  (211k), plus `Vec3.__sub__` (186k) and `timers.done` (146k). **`get_symbols` is
+  ~4% here, not 30%.**
+- **Takeaway:** the real levers are object/state access + `Vec3` churn (from AI
+  steering/distance), only felt at large scale (perf_probe ~190-ship ceiling) —
+  NOT `get_symbols`/`on_change`/GC. Use a *stress-scale siege profile* for future
+  perf work, not `bench_runtime`.
+
+### Shipped — f-string compile cache (2026-07-14)
+- **`lru_cache(maxsize=2048)` on `compile_format_string`**
+  ([mast_node.py](sbs_utils/mast/mast_node.py)). Caches the pure
+  template-text→code-object step; live interpolation still runs every call in
+  `format_string()`, so it is **dynamic-safe by construction** (verified: 899
+  tests OK incl. format tests). **Siege: 980 cache hits / 318 distinct templates**
+  — 980 redundant `compile()` calls avoided, cache far under bound. Covers the
+  `style.py`/`MastNode` copies too (they delegate to it).
+
+### Still open (separate, reviewable pass — NOT variable-semantics)
+`__slots__` on high-churn types — **`Vec3` first** (425k allocations in siege, the
+biggest single churn), then `MastRuntimeNode` subclasses + `PushData` (allocation/
+memory win, *not* a pause fix; skip `MastAsyncTask`/`Agent` where inventory lives);
+a `to_object` fast-path (275k calls); and the free clarity wins (`is Comment` skip,
+O(n²) done-removal, node-dispatch memo).

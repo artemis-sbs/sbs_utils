@@ -14,9 +14,16 @@ from .core_nodes.inline_label import InlineLabel
 
 from .mast_runtime_node import MastRuntimeNode
 from .mast_globals import MastGlobals
-    
-    
-    
+
+# Cached eval/exec globals wrapper. Variables resolve from the LOCALS arg
+# (get_symbols()); this dict only carries __builtins__. MastGlobals.globals is
+# mutated in place (never reassigned — runtime import_python edits land in the
+# same object), so one shared wrapper stays current and spares us building a
+# fresh {"__builtins__": ...} dict on every eval_code/format_string call (~one
+# per expression eval, hundreds of thousands per second under load).
+_EVAL_GLOBALS = {"__builtins__": MastGlobals.globals}
+
+
 class ChangeRuntimeNode(MastRuntimeNode):
     def enter(self, mast:Mast, task:MastAsyncTask, node):
         self.task = task
@@ -1004,7 +1011,7 @@ class MastAsyncTask(Agent, Promise):
         #     if k == "myslot":
         #         logger.info(f"{k}: {v}")
         try:
-            value = eval(message, {"__builtins__": MastGlobals.globals}, allowed)
+            value = eval(message, _EVAL_GLOBALS, allowed)
             return value
         except Exception as err:
             s =  f"FORMAT String error:\n\t f'{message}'\n"
@@ -1026,7 +1033,7 @@ class MastAsyncTask(Agent, Promise):
         value = None
         try:
             allowed = self.get_symbols()
-            value = eval(code, {"__builtins__": MastGlobals.globals}, allowed)
+            value = eval(code, _EVAL_GLOBALS, allowed)
         except Exception:
             err = format_exception("", "Mast eval level Runtime Error:")
             if end_on_exception:
@@ -1046,10 +1053,9 @@ class MastAsyncTask(Agent, Promise):
             else:                
                 allowed = self.get_symbols()
             if gbls is not None:
-                g = MastGlobals.globals | gbls
+                exec(code, {"__builtins__": MastGlobals.globals | gbls}, allowed)
             else:
-                g = MastGlobals.globals
-            exec(code, {"__builtins__": g}, allowed)
+                exec(code, _EVAL_GLOBALS, allowed)
         except Exception:
             #err = traceback.format_exc()
             #err = format_exception("", "Mast exec level Runtime Error:")

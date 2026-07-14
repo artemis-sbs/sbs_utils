@@ -113,6 +113,40 @@ def run_ticks(runner, ticks, mutate_every):
         runner.tick()
 
 
+def run_ticks_timed(runner, ticks, mutate_every):
+    """Like run_ticks, but times each tick individually and tracks GC.
+
+    Returns (per_tick_ms_list, gc_time_ms, [gen0, gen1, gen2] collection counts).
+    The mean HIDES hitches; max/p99 expose them, and the GC deltas tell us
+    whether a spike is a collection or just heavier per-tick work.
+    """
+    import gc
+    gc_time = [0.0]
+    t_start = [0.0]
+    def _cb(phase, info):
+        if phase == "start":
+            t_start[0] = time.perf_counter()
+        else:
+            gc_time[0] += time.perf_counter() - t_start[0]
+    gc.callbacks.append(_cb)
+    stats0 = [dict(s) for s in gc.get_stats()]
+    per_tick = []
+    try:
+        for t in range(ticks):
+            if mutate_every and t % mutate_every == 0:
+                Agent.SHARED.set_inventory_value("s0", (t % 3) + 1)
+                Agent.SHARED.set_inventory_value("s5", (t % 5) + 1)
+            a = time.perf_counter()
+            runner.tick()
+            per_tick.append((time.perf_counter() - a) * 1000.0)
+    finally:
+        gc.callbacks.remove(_cb)
+    stats1 = gc.get_stats()
+    collections = [stats1[i]["collections"] - stats0[i]["collections"]
+                   for i in range(len(stats1))]
+    return per_tick, gc_time[0] * 1000.0, collections
+
+
 def main():
     import argparse
     ap = argparse.ArgumentParser(description="MAST runtime benchmark")
@@ -122,6 +156,8 @@ def main():
                     help="mutate shared vars every N ticks (0 = never)")
     ap.add_argument("--profile", action="store_true",
                     help="run under cProfile and print top cumulative functions")
+    ap.add_argument("--gc", action="store_true",
+                    help="per-tick mean/max/p99 + GC collections/time (exposes hitches)")
     args = ap.parse_args()
 
     import sbs_utils.mast.mastscheduler as _m
@@ -147,6 +183,22 @@ def main():
         pstats.Stats(pr, stream=s).sort_stats("cumulative").print_stats(18)
         print(s.getvalue())
         print(f"runtime errors: {runner.runtime_errors}")
+        return
+
+    if args.gc:
+        import statistics
+        run_ticks(runner, 1, 0)  # warm: let spawns settle (not timed)
+        per_tick, gc_ms, collections = run_ticks_timed(
+            runner, args.ticks, args.mutate_every)
+        ordered = sorted(per_tick)
+        p99 = ordered[min(len(ordered) - 1, int(len(ordered) * 0.99))]
+        total_ms = sum(per_tick)
+        print(f"runtime errors: {runner.runtime_errors}")
+        print(f"per-tick: mean {statistics.mean(per_tick):.3f} ms  |  "
+              f"median {statistics.median(per_tick):.3f} ms  |  "
+              f"max {max(per_tick):.3f} ms  |  p99 {p99:.3f} ms")
+        print(f"GC: {gc_ms:.1f} ms ({gc_ms/total_ms*100:.1f}% of tick time)  |  "
+              f"collections [gen0, gen1, gen2] = {collections}")
         return
 
     run_ticks(runner, 1, 0)  # warm: let spawns settle (not timed)

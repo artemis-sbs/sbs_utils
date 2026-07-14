@@ -19,6 +19,22 @@ from .vec import Vec3
 from .agent import Agent, clear_shared
 from .helpers import FrameContext, Context, format_exception
 import time
+import gc
+
+
+# --- GC policy (G2, see MAST_RUNTIME_IMPROVEMENTS.md) -------------------------
+# The tick loop allocates many short-lived containers (symbol tables, eval
+# namespaces, transient sets). CPython's default gen0 threshold (700 net
+# container allocations) triggers a gen0 sweep several times PER TICK under
+# load. Raising it trades a little peak memory for far fewer sweeps
+# (bench: 77 -> a handful of collections over 300 ticks) with no behavior
+# change: refcounting still frees non-cyclic garbage immediately, and cyclic
+# garbage is still collected, just less often. sbs_utils owns the embedded
+# runtime, so a one-time process-wide policy here is appropriate.
+_GC_GEN0_THRESHOLD = 10000
+_g0, _g1, _g2 = gc.get_threshold()
+if _g0 < _GC_GEN0_THRESHOLD:
+    gc.set_threshold(_GC_GEN0_THRESHOLD, _g1, _g2)
 
 
 # Every dispatcher/registry that accumulates per-mission state at COMPILE time and so
