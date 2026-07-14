@@ -225,7 +225,14 @@ from .core_nodes.comment import Comment
 class Mast():
     include_code = False
 
-    
+    # Optional verdict/trace seam. When set to a callable, a compile that produces
+    # errors invokes ``on_compile_error(errors, file_name)``. Default ``None`` → a
+    # single ``is not None`` check, no overhead; never set in the shipped library.
+    # Used by dev tooling (cosmos_dev MastVerdict) to turn a headless --test into a
+    # pass/fail on COMPILE errors too, not just runtime errors (the engine surfaces
+    # compile errors; the mock previously ran on with the bad file silently empty).
+    on_compile_error = None
+
     inline_count = 0
     source_map_files = []
 
@@ -726,13 +733,21 @@ class Mast():
         # (Comment out the next line to fully disable the feature.)
         lines = join_bracket_continuations(lines)
         try:
-            return self._compile(lines, file_name, root)
+            errors = self._compile(lines, file_name, root) or []
         except Exception as e:
             logger = logging.getLogger("mast.compile")
             logger.error(f"Exception: {e}")
             errors.append(f"\nException: {e}")
             errors.append(format_exception("",""))
-            return errors # return with first errors
+        # Dev seam: let a harness (cosmos_dev MastVerdict) observe compile errors so a
+        # headless --test can FAIL on them. No-op in production (hook is None). Fires
+        # per compiled file (incl. imported mastlib files), so a bad addon is caught.
+        if errors and Mast.on_compile_error is not None:
+            try:
+                Mast.on_compile_error(errors, file_name)
+            except Exception:
+                pass
+        return errors
 
         
 
