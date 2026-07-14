@@ -280,6 +280,36 @@ Docs: [Sides & Diplomacy](api/procedural/sides.md).
     (`gui_button("Score: 5")`) now render as text instead of being misread as a
     style key.
 
+!!! danger "⚠️ Don't call `sbs.delete_object` — use `delete_object` instead"
+    Deleting an object with the raw engine call **`sbs.delete_object(id)`** is a
+    known way to **crash Cosmos to the desktop**. Delete through the procedural
+    **`delete_object(id)`** (or **`obj.delete_object()`**) instead:
+
+    ```mast
+    # ✗ risky — frees the object immediately
+    sbs.delete_object(DAMAGE_TARGET_ID)
+
+    # ✓ safe — tombstoned now, freed safely later
+    delete_object(DAMAGE_TARGET_ID)
+    ```
+
+    **Why it crashes.** `sbs.delete_object` frees the native C++ object — and its
+    `engine_object`/`data_set` pointers — **the instant you call it**. But MAST
+    tasks run **interleaved across a tick**: another task (or even the next line,
+    in a different task) may still be holding that object. When it touches the
+    freed object it reads dead memory — a **use-after-free** that crashes to the
+    desktop, or, if the memory slot has been reused for a new object, **silently
+    corrupts** that unrelated object and crashes later somewhere else.
+
+    **Why `delete_object` is safe.** It **tombstones** the object immediately —
+    `object_exists()` and `to_object()` report it gone at once, and it stops
+    ticking — but **defers the actual native free** to the end of the event
+    handler, once every task for that tick has finished. So a reference held
+    elsewhere this tick still points at valid memory instead of crashing. It also
+    **does nothing if the object is already gone**, so a double delete can't
+    double-free. Scripts that already use `delete_object` / `obj.delete_object()`
+    need no change — only direct `sbs.delete_object` calls should be swapped.
+
 ---
 
 *Thanks for playing, building, and tinkering. There's more under the hood than ever
