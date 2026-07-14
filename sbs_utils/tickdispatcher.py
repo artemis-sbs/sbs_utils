@@ -62,6 +62,50 @@ class TickTask(Agent):
         return self.count <= 0
 
 
+class RollingSlicer:
+    """Spread per-tick work over a set of ids across ticks (anti-spike).
+
+    A large per-tick batch (e.g. running every brain or objective in one frame)
+    causes a periodic hitch. A RollingSlicer instead hands back a small slice
+    each tick, sized by a fractional accumulator so a full pass over every id
+    completes in exactly ``pass_seconds`` of sim time -- regardless of set size
+    or tick rate (no over-run on small sets, no spike on large ones). The set's
+    sorted order is cached and only rebuilt when membership changes, so the
+    cursor advances predictably as ids are added/removed.
+
+    Usage:
+        _slicer = RollingSlicer()
+        for id in _slicer.slice(id_set, pass_seconds=3):
+            ...work one item...
+    """
+    def __init__(self):
+        self.cursor = 0
+        self.accum = 0.0
+        self._sorted = []
+        self._sig = None
+
+    def slice(self, ids, pass_seconds):
+        sig = frozenset(ids)
+        if sig != self._sig:
+            self._sorted = sorted(ids)
+            self._sig = sig
+        items = self._sorted
+        n = len(items)
+        if n == 0:
+            return ()
+        # run n / (pass_seconds * tps) items per call on average; carry the
+        # fraction so the full-pass period is exact for any n / tick rate.
+        self.accum += n / (pass_seconds * TickDispatcher.tps)
+        budget = min(n, int(self.accum))
+        if budget <= 0:
+            return ()
+        self.accum -= budget
+        start = self.cursor % n
+        seq = [items[(start + k) % n] for k in range(budget)]
+        self.cursor = (start + budget) % n
+        return seq
+
+
 class TickDispatcher:
     """
     The Tick Dispatcher is used to manager timed items via the HandleSimulationTick

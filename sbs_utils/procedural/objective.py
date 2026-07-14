@@ -5,7 +5,7 @@ from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_va
 from sbs_utils.procedural.links import linked_to,unlink, has_link_to, link
 from sbs_utils.agent import Agent, get_story_id
 from sbs_utils.procedural.query import to_set, to_object_list
-from sbs_utils.tickdispatcher import TickDispatcher
+from sbs_utils.tickdispatcher import TickDispatcher, RollingSlicer
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.procedural.signal import signal_emit
@@ -13,26 +13,35 @@ from sbs_utils.procedural.signal import signal_emit
 
 __objective_tick_task = None
 __brain_tick_task = None
+__objectives_slice_task = None
 
-# Spread a full pass over every brain across ~this many seconds of sim time, so
-# a large fleet's brains don't all run in one frame. Preserves the prior ~3s
-# per-brain cadence and total cost while removing the batch spike.
+# Spread a full pass over every brain / objective across ~this many seconds of
+# sim time, so a large fleet (brains) or a large goal list (objectives) doesn't
+# run all-at-once in one frame. Preserves the prior ~3s cadence and total cost
+# while removing the batch spike. (Both were batched every 3s before.)
 BRAIN_PASS_SECONDS = 3
+OBJECTIVE_PASS_SECONDS = 3
 
 def _brains_tick(tt):
     """Per-tick driver: run a rolling slice of brains (see brains_run_all)."""
     brains_run_all(tt, pass_seconds=BRAIN_PASS_SECONDS)
 
+def _objectives_tick(tt):
+    """Per-tick driver: run a rolling slice of objectives (see objectives_run_all)."""
+    objectives_run_all(tt, pass_seconds=OBJECTIVE_PASS_SECONDS)
+
 def objective_schedule():
     """Ensure the background tick task that drives objectives is running."""
-    global __objective_tick_task, __brain_tick_task
+    global __objective_tick_task, __brain_tick_task, __objectives_slice_task
     if __objective_tick_task is None:
         __objective_tick_task = TickDispatcher.do_interval(objectives_run_everything, 1)
         __objective_tick_task.state = 0
-        # Brains run as a rolling per-tick slice, NOT an all-at-once batch every
-        # 3s at state 1 (which spiked ~140ms for a ~65-ship fleet). do_interval
-        # with delay 0 runs every dispatch_tick; brains_run_all sizes the slice.
+        # Brains and objectives run as rolling per-tick slices, NOT all-at-once
+        # batches every 3s (brains spiked ~140ms for a ~65-ship fleet; objectives
+        # reached ~23ms at 30 goals and would spike further at scale). do_interval
+        # with delay 0 runs every dispatch_tick; each *_run_all sizes its slice.
         __brain_tick_task = TickDispatcher.do_interval(_brains_tick, 0)
+        __objectives_slice_task = TickDispatcher.do_interval(_objectives_tick, 0)
 
 from .brain import brains_run_all
 from .extra_scan_sources import extra_scan_sources_run_all
@@ -124,7 +133,9 @@ def objectives_run_everything(tick_task):
     tick_task.state += 1
     t = time.perf_counter()
     if state == 0:
-        objectives_run_all(tick_task)
+        # Objectives now run as a rolling per-tick slice (see objective_schedule
+        # / _objectives_tick); only the cheap modifier sweep stays on the 3s
+        # rotation here.
         ModifierHandler.remove_expired_modifiers()
     elif state == 1:
         # Brains now run as a rolling per-tick slice (see objective_schedule /
@@ -376,34 +387,41 @@ def objective_add(agent_id_or_set, label, data=None, client_id=0):
     return ret
 
 __objectives_is_running = False
-def objectives_run_all(tick_task):
-    """Poll every active ``OBJECTIVE_RUN`` objective, removing any whose agent no longer exists.
+_objective_slicer = RollingSlicer()
+def objectives_run_all(tick_task, pass_seconds=None):
+    """Poll active ``OBJECTIVE_RUN`` objectives; skip any whose agent is gone.
+
+    ``pass_seconds`` controls batching (mirrors brains_run_all):
+
+    * ``None`` (default) - run **all** objectives this call (original behavior).
+    * a number - run only a **rolling slice** this call, sized so a full pass
+      over every objective completes in ~``pass_seconds`` of sim time, spreading
+      a large goal list across ticks instead of one batch.
 
     Args:
         tick_task (Task): Tick task (unused).
+        pass_seconds: If set, spread a full pass over ~this many seconds.
     """
     global __objectives_is_running
     if __objectives_is_running:
         return
     __objectives_is_running = True
 
-
     try:
-        remove_obj = []
-        # Don't care about the key here
-        for obj_id in list(Agent.get_role_set("OBJECTIVE_RUN")):
+        ids = Agent.get_role_set("OBJECTIVE_RUN")
+        seq = list(ids) if pass_seconds is None else _objective_slicer.slice(ids, pass_seconds)
+        for obj_id in seq:
             obj = Agent.get(obj_id)
-            # Verify the agent is valid
-            agent = obj.agent
-            agent_obj = Agent.get(agent)
-            if agent_obj is None:
-                remove_obj.append(obj.id)
+            # The objective itself may have been removed since the snapshot
+            # (more likely now that a pass is spread across ticks).
+            if obj is None:
+                continue
+            # Verify the objective's agent is still valid.
+            if Agent.get(obj.agent) is None:
                 continue
             obj.run()
-        
     except Exception as e:
-        msg = e
-        print(f"Exception in objective processing {msg}")
+        print(f"Exception in objective processing {e}")
     __objectives_is_running = False
 
 
