@@ -239,7 +239,7 @@ def grid_restore_damcons(id_or_obj):
     #
     #TODO: REMOVE When Grid AI is proven
     settings = settings_get_defaults()
-    interns = settings.get("NEW_DAMCONS", is_dev_build())
+    interns = True # settings.get("NEW_DAMCONS", is_dev_build())
     prefab_label = get_inventory_value(ship_id, "PREFAB_DAMCONS", "prefab_lifeform_damcons")
     #
     # Create damcons/lifeforms
@@ -283,24 +283,24 @@ def grid_restore_damcons(id_or_obj):
                     continue
                 
 #region TODO: Old Damcons remove
-            if not interns and dc is None:
-                icon = 2
-                color = colors[i%color_count]
-                dc = grid_spawn(ship_id, _name, _name, point[0],point[1],icon, color, "crew,damcons,lifeform")
-                #
-                # Create idle/rally point
-                #
-                _id = to_id(dc)
-                _go = to_object(dc)
-                marker_tag = f"{_go.name} rally point"
+            # if not interns and dc is None:
+            #     icon = 2
+            #     color = colors[i%color_count]
+            #     dc = grid_spawn(ship_id, _name, _name, point[0],point[1],icon, color, "crew,damcons,lifeform")
+            #     #
+            #     # Create idle/rally point
+            #     #
+            #     _id = to_id(dc)
+            #     _go = to_object(dc)
+            #     marker_tag = f"{_go.name} rally point"
                 
-                icon =  rally_theme_data.icon
-                rally_scale = rally_theme_data.scale
+            #     icon =  rally_theme_data.icon
+            #     rally_scale = rally_theme_data.scale
 
-                idle_marker = grid_spawn(ship_id, marker_tag, marker_tag, point[0],point[1], icon, color, "#,rally_point") 
-                _blob = to_blob(idle_marker)
-                _blob.set("icon_scale", rally_scale, 0)
-                set_inventory_value(_id, "idle_marker", to_id(idle_marker))
+            #     idle_marker = grid_spawn(ship_id, marker_tag, marker_tag, point[0],point[1], icon, color, "#,rally_point") 
+            #     _blob = to_blob(idle_marker)
+            #     _blob.set("icon_scale", rally_scale, 0)
+            #     set_inventory_value(_id, "idle_marker", to_id(idle_marker))
 #endregion
             
             dc.engine_object.layer = 4

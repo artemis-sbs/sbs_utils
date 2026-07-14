@@ -24,7 +24,8 @@
       "PowerShell(git -C * status*)",
       "PowerShell(git -C * log*)",
       "PowerShell(git -C * diff*)",
-      "PowerShell(git -C * show*)"
+      "PowerShell(git -C * show*)",
+      "Bash(git push *)"
     ]
   }
 }
