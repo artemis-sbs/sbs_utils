@@ -682,6 +682,8 @@ function dispatch(msg) {
     case 'target_data':  cmdTargetData(msg);  break;
     case 'text_msg':     cmdTextMsg(msg);     break;
     case 'text_active':  cmdTextActive(msg);  break;
+    case 'red_alert':    cmdRedAlert(msg);    break;
+    case 'red_alert_btn':cmdRedAlertBtn(msg); break;
     case 'story_dialog': cmdStoryDialog(msg); break;
     case 'hud_rect':     cmdHudRect(msg);     break;
     case 'batch':        msg.items.forEach(dispatch); break;
@@ -796,11 +798,22 @@ window.addEventListener('mousemove', e => {
   else if (document.body.style.cursor === 'grab') document.body.style.cursor = '';
 });
 
-window.addEventListener('mouseup', () => {
-  _panArmed = false;
-  if (!_panning) return;
-  _panning = false;
+window.addEventListener('mouseup', e => {
+  const armed = _panArmed, wasPanning = _panning;
+  _panArmed = false; _panning = false;
   document.body.style.cursor = '';
+  // A clean left-click (armed inside a radar view, no drag) → object selection.
+  if (wasPanning || !armed || e.button !== 0) return;
+  _radarSelectAt(e.clientX, e.clientY, 'lmb');
+});
+
+// Right-click inside a 2D view → selection with the rmb button (the //focus/comms
+// click-to-move / galaxy-theater "Close on empty" path reads extra_extra_tag).
+window.addEventListener('contextmenu', e => {
+  if (!_pointInRadarView(e.clientX, e.clientY)) return;
+  if (_currentRadarViews().isCorner) return;
+  e.preventDefault();
+  _radarSelectAt(e.clientX, e.clientY, 'rmb');
 });
 
 // Double-click recentres the radar (clears the pan offset).
@@ -810,6 +823,34 @@ window.addEventListener('dblclick', e => {
   _requestRadarRender();
   e.preventDefault();
 });
+
+// Pick the nearest radar object to a click and fire a selection event, mirroring
+// the engine's 2D-view select. The runner turns this into a `select_space_object`
+// event; consoledispatcher.py routes it to comms / science by the console NAME.
+// An empty-space click selects id 0 (still carries source_point + button, which the
+// //focus/comms camera-pan path uses).
+const _PICK_PX_THRESHOLD = 20;
+function _radarSelectAt(px, py, button) {
+  const { views, isCorner } = _currentRadarViews();
+  if (isCorner || views.length === 0 || !_pickState) return;
+  if (!_pointInRadarView(px, py)) return;
+  const { cx, cz, halfSpan, box } = _pickState;
+  const proj = _radarProj(box, cx, cz, halfSpan);
+  let bestId = 0, bestD = _PICK_PX_THRESHOLD;
+  const consider = (id, wx, wz) => {
+    const d = Math.hypot(proj.toX(wx) - px, proj.toY(wz) - py);
+    if (d < bestD) { bestD = d; bestId = id; }
+  };
+  for (const [id, idx] of _dynamicMap)
+    if (idx < _dynamicCount) consider(id, _dynamicPosBuf[idx * 3], _dynamicPosBuf[idx * 3 + 1]);
+  for (const [id, idx] of _terrainMap)
+    if (idx < _terrainCount) consider(id, _terrainPosBuf[idx * 3], _terrainPosBuf[idx * 3 + 1]);
+  // World point under the cursor (invert the projection) for source_point.
+  const wx = cx + (px - proj.cxp) / proj.scale;
+  const wz = cz - (py - proj.cyp) / proj.scale;
+  sendEvent('radar_select', '', CLIENT_ID !== null ? CLIENT_ID : 0,
+            { id: bestId, wx, wy: 0, wz, button, widget: '2dview' });
+}
 
 function _sideColor(side) {
   if (!side) return '#888';
@@ -945,6 +986,10 @@ let _radarZoom = 1.0;
 let _radarPanX = 0, _radarPanZ = 0;
 let _lastWorldPerPx = 1;
 let _panning = false, _panStartPX = 0, _panStartPZ = 0;
+// Projection of the primary 2D view captured each render, so a click can pick the
+// object under the cursor (screen→world) without recomputing bounds. Null until the
+// first render or when no 2D view is on screen.
+let _pickState = null;
 
 // Engine 2D-view widget types whose screen rect registers as a radar view area.
 const _2D_VIEW_WIDGET_TYPES = new Set(['2dview','science_2d_view','comms_2d_view','weapon_2d_view']);
@@ -1314,6 +1359,84 @@ function cmdStoryDialog(msg) {
 function cmdTextActive(msg) {
   if (!msg.active) { if (_textWfEl) _textWfEl.style.display = 'none'; return; }
   if (_textWfEl && _textWfEl.childElementCount > 0) _textWfEl.style.display = 'block';
+}
+
+// ── cmdRedAlert — full-viewport red-alert vignette (engine red_alert widget) ──
+// The engine renders red_alert as a console widget in C++; the mock shows an
+// unmistakable pulsing red edge vignette + banner while the client's ship is in
+// red alert. Server sends only on transitions; the element retains state.
+let _redAlertEl = null;
+function _ensureRedAlertEl() {
+  if (_redAlertEl) return _redAlertEl;
+  if (!document.getElementById('redAlertKeys')) {
+    const st = document.createElement('style');
+    st.id = 'redAlertKeys';
+    st.textContent = '@keyframes redAlertPulse{0%,100%{opacity:.4}50%{opacity:.95}}';
+    document.head.appendChild(st);
+  }
+  const el = document.createElement('div');
+  el.id = 'redAlert';
+  el.style.cssText =
+    'position:fixed;inset:0;z-index:45;pointer-events:none;display:none;' +
+    'box-shadow:inset 0 0 90px 24px rgba(255,28,28,.6);' +
+    'animation:redAlertPulse 1s ease-in-out infinite;';
+  el.innerHTML =
+    '<div style="position:absolute;top:6%;left:50%;transform:translateX(-50%);' +
+    'font:600 13px/1 monospace;letter-spacing:2px;color:#fff;' +
+    'background:rgba(180,0,0,.85);padding:5px 12px;border-radius:3px;' +
+    'text-shadow:0 1px 2px #000;">RED ALERT</div>';
+  document.body.appendChild(el);
+  _redAlertEl = el;
+  return el;
+}
+function cmdRedAlert(msg) {
+  if (!msg.active) { if (_redAlertEl) _redAlertEl.style.display = 'none'; return; }
+  const el = _ensureRedAlertEl();
+  el.style.display = msg.alert ? 'block' : 'none';
+}
+
+// ── cmdRedAlertBtn — the real red_alert engine widget: a TOGGLE BUTTON (in comms) ──
+// Clicking it toggles the ship's red alert and fires the red_alert event; the vignette
+// (cmdRedAlert) then lights every console of that ship. Position arrives from the widget
+// layout rect (screen %); on-state from the per-tick push. Fields merge (retained).
+let _redAlertBtnEl = null;
+let _redAlertBtnMsg = {};
+function _ensureRedAlertBtnEl() {
+  if (_redAlertBtnEl) return _redAlertBtnEl;
+  const el = document.createElement('div');
+  el.id = 'redAlertBtn';
+  el.style.cssText =
+    'position:fixed;z-index:48;display:none;box-sizing:border-box;cursor:pointer;' +
+    'align-items:center;justify-content:center;text-align:center;' +
+    'font:600 13px/1.1 monospace;letter-spacing:1px;border-radius:4px;user-select:none;';
+  el.addEventListener('click', () => {
+    // Request the opposite of the current on-state.
+    sendEvent('red_alert_toggle', '', CLIENT_ID !== null ? CLIENT_ID : 0,
+              { on: !_redAlertBtnMsg.on });
+  });
+  document.body.appendChild(el);
+  _redAlertBtnEl = el;
+  return el;
+}
+function cmdRedAlertBtn(msg) {
+  if (msg.active === false) { if (_redAlertBtnEl) _redAlertBtnEl.style.display = 'none'; return; }
+  _redAlertBtnMsg = Object.assign(_redAlertBtnMsg, msg);   // merge position + state
+  const m = _redAlertBtnMsg;
+  const el = _ensureRedAlertBtnEl();
+  if (m.left !== undefined) {
+    el.style.left = m.left + '%';
+    el.style.top = m.top + '%';
+    el.style.width = Math.max(0, m.right - m.left) + '%';
+    el.style.height = Math.max(0, m.bottom - m.top) + '%';
+  }
+  const on = !!m.on;
+  el.textContent = on ? 'RED ALERT ON' : 'RED ALERT';
+  el.style.background = on ? '#c22' : '#3a1416';
+  el.style.color = on ? '#fff' : '#f88';
+  el.style.border = '1px solid ' + (on ? '#f66' : '#833');
+  el.style.boxShadow = on ? '0 0 10px 2px rgba(255,40,40,.7)' : 'none';
+  // Only show once we have a layout rect (avoids a 0-size flash at 0,0).
+  el.style.display = (m.left !== undefined) ? 'flex' : 'none';
 }
 
 // ── cmdRadar — delta update for active (NPC/PLAYER) objects ──────────────────
@@ -1800,6 +1923,9 @@ function _renderRadar() {
   // screen deltas to world deltas at the current zoom.
   const _primaryBox = _radarBox(W, H, views[0], isCorner);
   if (_primaryBox) _lastWorldPerPx = (2 * halfSpan) / _primaryBox.fit;
+  // Capture the primary projection for click-picking — only for a console 2D view
+  // (the corner minimap is not a selection surface).
+  _pickState = (_primaryBox && !isCorner) ? { cx, cz, halfSpan, box: _primaryBox } : null;
 
   // 2D chrome: backgrounds, rings, crosshairs.
   for (const rect of views) _drawRadarChrome(_radarCtx, W, H, rect, cx, cz, halfSpan, isCorner, ax, az);

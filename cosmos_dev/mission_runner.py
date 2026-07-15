@@ -709,6 +709,39 @@ def _run(
                             gev_ev = FakeEvent(client_id=cid, tag="screen_size")
                             gev_ev.source_point = Vec3(gev.get("width", 1024),
                                                        gev.get("height", 768), 0)
+                        elif etype == "red_alert_toggle":
+                            # The red_alert toggle button (comms widget) → the engine's
+                            # "red_alert" event; handlerhooks sets the ship's red_alert and
+                            # emits red_alert_change. value_tag "on"/"off" per the browser
+                            # button's requested next state.
+                            gev_ev = FakeEvent(client_id=cid, tag="red_alert")
+                            gev_ev.value_tag = "on" if gev.get("on") else "off"
+                        elif etype == "radar_select":
+                            # A 2D-view click in the browser radar → the engine's
+                            # select_space_object event. The runner supplies origin_id
+                            # (the client's assigned ship/cam) and sub_tag (the console
+                            # name); consoledispatcher.py routes to comms/science by name.
+                            try:
+                                sel = int(gev.get("id", 0) or 0)
+                            except (TypeError, ValueError):
+                                sel = 0
+                            origin = 0
+                            try:
+                                origin = sbs.get_ship_of_client(cid) or 0
+                            except Exception:
+                                origin = 0
+                            console = ""
+                            _getname = getattr(sbs, "get_client_console_name", None)
+                            if _getname is not None:
+                                console = _getname(cid) or ""
+                            gev_ev = FakeEvent(client_id=cid, tag="select_space_object",
+                                               sub_tag=console, origin_id=origin,
+                                               selected_id=sel)
+                            gev_ev.value_tag = gev.get("widget", "2dview") or "2dview"
+                            gev_ev.extra_extra_tag = gev.get("button", "lmb")
+                            gev_ev.source_point = Vec3(gev.get("wx", 0.0),
+                                                       gev.get("wy", 0.0),
+                                                       gev.get("wz", 0.0))
                         else:
                             gev_ev = FakeEvent(client_id=cid, tag="gui_message",
                                                sub_tag=gev.get("tag", ""))

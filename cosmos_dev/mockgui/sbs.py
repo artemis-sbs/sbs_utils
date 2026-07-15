@@ -15,6 +15,7 @@ For unit tests that don't need live GUI, use the base mock directly:
     from cosmos_dev.mock import sbs
 """
 
+import os
 import sys
 import multiprocessing
 from typing import Any
@@ -324,6 +325,14 @@ def send_client_widget_rects(clientID: int, widgetName: str,
             _view3d_rects[clientID] = (round(l1, 2), round(t1, 2), round(r1, 2), round(b1, 2))
         return
 
+    # red_alert toggle button — position it where the layout placed the widget (screen %).
+    if widgetName == "red_alert":
+        if gui_queue is not None:
+            _send(clientID, "red_alert_btn", active=True,
+                  left=round(l1, 2), top=round(t1, 2),
+                  right=round(r1, 2), bottom=round(b1, 2))
+        return
+
     # Mock HUD overlays (ship_data, text_waterfall) default to a screen corner;
     # when a script positions them via a rect, move them to it.
     if widgetName in _HUD_WIDGETS:
@@ -430,9 +439,35 @@ _hud_cache: dict = {}
 # tick for these clients so it stays visible (like ship_data).
 _view_text_clients: set = set()
 
+# Clients whose console widget list declares the "red_alert" widget — i.e. the ones
+# that show the red-alert TOGGLE BUTTON (the real engine widget, in comms). Pressing it
+# toggles the ship's red_alert. The alert VIGNETTE is separate: it lights every console
+# of a ship in red alert (helm/weapons/…), not just the button owners.
+_view_redalert_clients: set = set()
+# Last vignette state (bool) sent per client, so we only push on transitions.
+_redalert_state: dict = {}
+# Last button on-state (bool) sent per button-owner client.
+_redalert_btn_state: dict = {}
+# DEV DEMO KNOB: MOCK_FORCE_RED_ALERT=1 forces the red-alert vignette ON for every
+# client showing a 2D view, regardless of the mission's console layout or the ship's
+# real red_alert value. Purely to eyeball the widget render (e.g. on the OU Admiral,
+# whose console has no red_alert widget). Leave unset for normal behavior.
+_FORCE_RED_ALERT = os.environ.get("MOCK_FORCE_RED_ALERT", "") not in ("", "0", "false", "False")
+
 # HUD overlays the browser draws for mock-only widgets; given an explicit rect via
 # send_client_widget_rects they reposition (else they sit in a default corner).
 _HUD_WIDGETS = frozenset({"ship_data", "text_waterfall"})
+
+# Per-client console NAME (from send_client_widget_list's consoleType == page.console).
+# Used to fill event.sub_tag on a radar-click selection so consoledispatcher routes it
+# to the right console selection (a name with "comm" -> comms, "sci"/"admiral" -> science).
+_console_name: dict = {}
+
+
+def get_client_console_name(clientID: int) -> str:
+    """The console name last activated for this client (e.g. 'gamemaster_overseer_comms',
+    'normal_sci'), or '' if unknown. The runner reads it to route a radar-click select."""
+    return _console_name.get(clientID, "")
 
 
 def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) -> None:
@@ -440,6 +475,9 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
     views from this client's widget list: activate the 3dview when a "3dview"
     widget is present, and register a 2D radar rect when a 2D-view widget is."""
     _base_mock.send_client_widget_list(clientID, consoleType, widgetList)
+    # Remember the console NAME for this client — a radar-click selection event needs
+    # it as event.sub_tag so consoledispatcher.py routes to comms/science by name.
+    _console_name[clientID] = consoleType or ""
     widgets = (widgetList or "").split("^")
 
     # New console epoch: drop last epoch's explicit 3dview rect (re-sent on present
@@ -485,6 +523,17 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
     elif clientID in _view_text_clients:
         _view_text_clients.discard(clientID)
         _send(clientID, "text_active", active=False)
+
+    # red_alert TOGGLE BUTTON — shown on consoles whose widget list declares it (comms).
+    # Its screen position arrives via send_client_widget_rects (ConsoleWidget layout); its
+    # on-state is streamed by _push_red_alert. (The vignette is driven separately, per ship.)
+    if "red_alert" in widgets:
+        _view_redalert_clients.add(clientID)
+        _redalert_btn_state.pop(clientID, None)   # force a fresh state push next tick
+    elif clientID in _view_redalert_clients:
+        _view_redalert_clients.discard(clientID)
+        _redalert_btn_state.pop(clientID, None)
+        _send(clientID, "red_alert_btn", active=False)
 
 
 def _push_2dview_rects() -> None:
@@ -658,6 +707,48 @@ def _push_text_active() -> None:
         _send(cid, "text_active", active=True)
 
 
+def _ship_red_alert(cid, get_inventory_value, space) -> bool:
+    """True if the ship assigned to client `cid` is in red alert. Red alert lives on the
+    Agent INVENTORY in the mock (handlerhooks.py: set_inventory_value(ship, "red_alert",
+    ...)) OR the engine data_set in real Cosmos; space.get() returns the ENGINE object
+    (has data_set, NO get_inventory_value), so read inventory by id via the procedural API."""
+    sid = _base_mock.get_ship_of_client(cid)
+    if not sid:
+        return False
+    inv_v = get_inventory_value(sid, "red_alert", 0)
+    obj = space.get(sid)
+    ds_v = obj.data_set.get("red_alert", 0) if obj is not None else 0
+    return bool(inv_v or ds_v or 0)
+
+
+def _push_red_alert() -> None:
+    """Two streams, both transition-only (browser retains state):
+      1. the alert VIGNETTE to every connected console whose assigned ship is in red alert
+         (ship-wide — helm/weapons/comms/engineering/science), and
+      2. the toggle BUTTON's on-state to consoles that declare the red_alert widget."""
+    if _base_mock.sim is None or gui_queue is None:
+        return
+    # Lazy import (procedural imports `sbs` — this module — so import at call time to
+    # avoid a load-order cycle, matching the other lazy imports in this file).
+    from sbs_utils.procedural.inventory import get_inventory_value
+    space = _base_mock.sim.space_objects
+
+    # (1) Vignette — every connected console client, keyed on its OWN ship's state.
+    for cid in _base_mock.get_client_ID_list():
+        alert = True if _FORCE_RED_ALERT else _ship_red_alert(cid, get_inventory_value, space)
+        if _redalert_state.get(cid) != alert:
+            _redalert_state[cid] = alert
+            _send(cid, "red_alert", active=True, alert=alert)
+
+    # (2) Button on-state — only consoles that declare the widget (position comes from
+    # send_client_widget_rects; here we keep the button's label/glow in sync with state).
+    for cid in list(_view_redalert_clients):
+        on = _ship_red_alert(cid, get_inventory_value, space)
+        if _redalert_btn_state.get(cid) != on:
+            _redalert_btn_state[cid] = on
+            _send(cid, "red_alert_btn", active=True, on=on)
+
+
 def physics_tick(dt: float = 1.0 / 60.0) -> None:
     """Delegate to base physics then broadcast a radar delta to the browser."""
     global sim, _radar_tick, _cinematic_tick
@@ -676,6 +767,7 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         _push_ship_data()
         _push_target_data()
         _push_text_active()
+        _push_red_alert()
         _push_skybox()
 
 
