@@ -526,6 +526,28 @@ def grid_get_item_theme_data(roles, name=None):
     
     return r
 
+def grid_delete_object(host_id_or_obj, id_or_obj):
+    """Delete a single grid object, deferring the native free.
+
+    Tombstones the grid agent now (dropped from ``Agent.all``/roles, so
+    ``object_exists()``/``to_object()`` report it gone this instant) and enqueues
+    the native ``sbs.delete_grid_object(host_id, id)`` to run at the end of the
+    event handler. Mirrors ``SpaceObject.delete_object`` for grid objects, closing
+    the same-tick use-after-free window. See ``DeleteQueue``.
+
+    Args:
+        host_id_or_obj (Agent | int): The host ship the grid object lives on.
+        id_or_obj (Agent | int): The grid object (or its id) to delete.
+    """
+    from ..delete_queue import DeleteQueue
+    host_id = to_id(host_id_or_obj)
+    gid = to_id(id_or_obj)
+    if gid is None:
+        return
+    Agent.remove_id(gid)
+    DeleteQueue.queue_grid(host_id, gid)
+
+
 def grid_delete_objects(ship_id_or_obj):
     """Delete all grid objects belonging to a ship.
 
@@ -538,9 +560,8 @@ def grid_delete_objects(ship_id_or_obj):
         return
     items =grid_objects(craft_id)
     for k in items:
-        # delete by id
-        FrameContext.context.sbs.delete_grid_object(craft_id, k)
-        Agent.remove_id(k)
+        # delete by id (deferred native free)
+        grid_delete_object(craft_id, k)
 
 
 def grid_pos_data(id):

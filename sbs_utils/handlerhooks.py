@@ -397,6 +397,7 @@ def cosmos_event_handler(sim, event):
                 tick_the_rest(event)
 
             case "press_comms_button":
+                # print_event(event)
                 ConsoleDispatcher.dispatch_message(event, "comms_target_UID")
                 tick_the_rest(event)
 
@@ -469,7 +470,7 @@ def cosmos_event_handler(sim, event):
         # Deferred native frees: every task this tick has yielded, so it is now
         # safe to actually free objects that were tombstoned by delete_object().
         # Guard the (common) empty case at the call site to skip the method call.
-        if DeleteQueue._pending:
+        if DeleteQueue.has_pending():
             _phase(phase_ms, "delete", DeleteQueue.drain)
 
         Agent.SHARED.set_inventory_value("sim", None)

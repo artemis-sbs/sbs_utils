@@ -139,6 +139,25 @@ class GridObject(Agent):
         :rtype: The simulation space_object
         """
         return self.grid_object()
+
+    def delete_object(self):
+        """
+        Delete this GridObject.
+
+        The native free is **deferred**, mirroring
+        ``SpaceObject.delete_object``: the agent is tombstoned now
+        (``destroyed()`` drops it from ``Agent.all``/roles, so
+        ``object_exists()``/``to_object()`` report it gone immediately) and the
+        actual ``sbs.delete_grid_object(host_id, id)`` runs when the event
+        handler drains the queue, after every MAST task for this tick has
+        yielded. This closes the same-tick use-after-free window where another
+        task still references this grid object. See ``delete_queue.DeleteQueue``.
+        """
+        from .delete_queue import DeleteQueue
+        host_id = self.host_id
+        gid = self.id
+        self.destroyed()
+        DeleteQueue.queue_grid(host_id, gid)
     
     
     def spawn(self, host_id, name, tag, x, y, icon_index, color,  go_type=None):

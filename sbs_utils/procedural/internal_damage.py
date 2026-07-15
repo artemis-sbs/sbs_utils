@@ -2,7 +2,7 @@ from .query import to_id, to_blob, to_object, to_list, to_set
 from .roles import role, add_role, remove_role, all_roles,has_role
 from .links import link,unlink
 from .inventory import get_inventory_value, set_inventory_value
-from .grid import grid_objects, grid_objects_at, grid_closest, grid_get_grid_data, grid_get_item_theme_data, grid_get_grid_current_theme
+from .grid import grid_objects, grid_objects_at, grid_closest, grid_get_grid_data, grid_get_item_theme_data, grid_get_grid_current_theme, grid_delete_object
 from .spawn import grid_spawn
 from .comms import comms_broadcast
 from .settings import settings_get_defaults
@@ -103,12 +103,11 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None):
     blob.set("internal_color_ship_nodes", theme["colors"]["nodes"],0)
 
 
-    # Delete all grid objects
+    # Delete all grid objects (deferred native free)
     items =grid_objects(ship_id)
     for k in items:
         # delete by id
-        SBS.delete_grid_object(ship_id, k)
-        Agent.remove_id(k)
+        grid_delete_object(ship_id, k)
 
 
     #
@@ -738,9 +737,7 @@ def grid_take_internal_damage_at(id_or_obj, source_point, system_hit=None, damag
             #@signal life_form_died data SHIP_id, LIFE_FORM_NAME
             signal_emit("life_form_died", {"SHIP_ID": ship_id, "LIFE_FORM_NAME": go.name})
             comms_broadcast(ship_id, f"{go.name} has perished", dc_damage_color)
-            SBS.delete_grid_object(go.host_id, d)
-            if go is not None:
-                go.destroyed()
+            grid_delete_object(go.host_id, d)
         else:
             comms_broadcast(ship_id, f"{go.name} has been hurt hp={hp}","yellow")
             #@signal life_form_hp_changed data SHIP_id, LIFE_FORM_ID, HP
@@ -822,8 +819,7 @@ def grid_repair_grid_objects(player_ship, id_or_set, who_repaired=None):
         # else restore color and repair system
         system_heal = None
         if has_role(id, "hallway"):
-            SBS.delete_grid_object(go.host_id, id)
-            go.destroyed()
+            grid_delete_object(go.host_id, id)
         #
         # This is a room, fix
         #
