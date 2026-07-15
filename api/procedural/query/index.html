@@ -4730,6 +4730,8 @@
       
         
       
+        
+      
     
     
     
@@ -4811,6 +4813,29 @@
   
   <span class="md-ellipsis">
     BioMech
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../legendarymissions/addons/avatar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Avatar Editor
     
   </span>
   
@@ -8036,7 +8061,16 @@ in the blob so the console has no active target.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Convert a string to an integer, returning a default on failure.</p>
+        <p>Convert a value to an integer, returning a default on failure.</p>
+<p>Accepts strings (GUI typeins / loaded game codes arrive as strings) as well
+as values that are already <code>int</code>/<code>float</code> - a GUI property can be either
+depending on whether it was typed, defaulted, or loaded from settings, so
+callers must not assume a string. Non-numeric input yields <code>defa</code>.</p>
+<p>A prefixed literal is also accepted: <code>"0x1F"</code> -&gt; 31 (and <code>0o</code>/<code>0b</code>).
+Decimal is tried first so leading-zero decimals still parse as base 10
+(<code>"007"</code> -&gt; 7). Bare hex without the <code>0x</code> prefix is intentionally NOT
+accepted - <code>"42"</code> is valid hex too, so it would silently reinterpret
+ordinary decimal input.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -8055,11 +8089,11 @@ in the blob so the console has no active target.</p>
                 <code>s</code>
             </td>
             <td>
-                  <code><span title="str">str</span> | <span title="any">any</span></code>
+                  <code><span title="str">str</span> | <span title="int">int</span> | <span title="float">float</span> | <span title="any">any</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The value to convert. Expected to be a string.</p>
+                <p>The value to convert.</p>
               </div>
             </td>
             <td>

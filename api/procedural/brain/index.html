@@ -4379,6 +4379,8 @@
       
         
       
+        
+      
     
     
     
@@ -4460,6 +4462,29 @@
   
   <span class="md-ellipsis">
     BioMech
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../legendarymissions/addons/avatar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Avatar Editor
     
   </span>
   
@@ -5982,17 +6007,27 @@ non-simulated object. The brain tree is preserved (unlike <code>brain_clear</cod
 
 
 <h2 id="sbs_utils.procedural.brain.brains_run_all" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">brains_run_all</span><span class="p">(</span><span class="n">tick_task</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">brains_run_all</span><span class="p">(</span><span class="n">tick_task</span><span class="p">,</span> <span class="n">pass_seconds</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
 
     <div class="doc doc-contents ">
 
-        <p>Run all agent brains for the current tick.</p>
-<p>Iterates every agent with a <code>__BRAIN__</code> inventory entry and calls
-<code>brain.run()</code>. Re-entrant calls are suppressed with a guard flag.
-Agents whose <code>Agent.get</code> returns <code>None</code> are silently skipped.</p>
+        <p>Run agent brains for the current tick.</p>
+<p>Iterates agents with a <code>__BRAIN__</code> inventory entry and calls
+<code>brain.run()</code>. Re-entrant calls are suppressed with a guard flag; agents
+whose <code>Agent.get</code> returns <code>None</code> (or that are paused) are skipped.</p>
+<p><code>pass_seconds</code> controls batching:</p>
+<ul>
+<li><code>None</code> (default) - run <strong>all</strong> brains this call (original behavior; kept
+  for existing callers/tests).</li>
+<li>a number - run only a <strong>rolling slice</strong> this call, sized so a full pass
+  over every brain completes in about <code>pass_seconds</code> of sim time. This
+  spreads a large fleet's brains across ticks instead of one batch, so no
+  single tick spikes. Each brain still runs about once per <code>pass_seconds</code>,
+  preserving the prior cadence and total cost.</li>
+</ul>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -6019,6 +6054,21 @@ Agents whose <code>Agent.get</code> returns <code>None</code> are silently skipp
             </td>
             <td>
                 <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>pass_seconds</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If set, spread a full pass over ~this many seconds.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
             </td>
           </tr>
       </tbody>

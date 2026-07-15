@@ -4325,6 +4325,8 @@
       
         
       
+        
+      
     
     
     
@@ -4406,6 +4408,29 @@
   
   <span class="md-ellipsis">
     BioMech
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../legendarymissions/addons/avatar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Avatar Editor
     
   </span>
   
@@ -5550,6 +5575,65 @@ class MyPlayer(PlayerShip):
 
 
 
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="sbs_utils.tickdispatcher.RollingSlicer" class="doc doc-heading">
+            <code>RollingSlicer</code>
+
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+
+        <p>Spread per-tick work over a set of ids across ticks (anti-spike).</p>
+<p>A large per-tick batch (e.g. running every brain or objective in one frame)
+causes a periodic hitch. A RollingSlicer instead hands back a small slice
+each tick, sized by a fractional accumulator so a full pass over every id
+completes in exactly <code>pass_seconds</code> of sim time -- regardless of set size
+or tick rate (no over-run on small sets, no spike on large ones). The set's
+sorted order is cached and only rebuilt when membership changes, so the
+cursor advances predictably as ids are added/removed.</p>
+
+
+<details class="usage" open>
+  <summary>Usage</summary>
+  <p>_slicer = RollingSlicer()
+for id in _slicer.slice(id_set, pass_seconds=3):
+    ...work one item...</p>
+</details>
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
 
 <div class="doc doc-object doc-class">
 

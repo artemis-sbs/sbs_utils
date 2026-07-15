@@ -3312,6 +3312,51 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.player_loadout_active" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;player_loadout_active
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.player_loadout_capture" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;player_loadout_capture
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.player_loadout_decode" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;player_loadout_decode
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.player_loadout_encode" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;player_loadout_encode
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.player_loadout_from_ships" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;player_loadout_from_ships
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4397,6 +4442,8 @@
       
         
       
+        
+      
     
     
     
@@ -4478,6 +4525,29 @@
   
   <span class="md-ellipsis">
     BioMech
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../legendarymissions/addons/avatar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Avatar Editor
     
   </span>
   
@@ -5466,6 +5536,51 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.player_loadout_active" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;player_loadout_active
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.player_loadout_capture" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;player_loadout_capture
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.player_loadout_decode" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;player_loadout_decode
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.player_loadout_encode" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;player_loadout_encode
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.player_loadout_from_ships" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;player_loadout_from_ships
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5754,7 +5869,7 @@ Falls back to the raw code if it has no value pairs.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Return the list of saved game codes for one map (newest last).</p>
+        <p>Return one map's saved presets as <code>[{"name", "code"}, ...]</code> (newest last).</p>
 
 
     </div>
@@ -5772,8 +5887,10 @@ Falls back to the raw code if it has no value pairs.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Load the saved game-code presets, a dict of <code>{map_path: [code, ...]}</code>.</p>
-<p>Returns an empty dict if the file is missing or malformed. Presets are kept
+        <p>Load the saved game-code presets, a dict of <code>{map_path: [entry, ...]}</code>.</p>
+<p>Each entry is a <code>{"name": str, "code": str}</code> dict. Legacy files stored a
+bare code string per entry; those still load (see :func:<code>_preset_normalize</code>).
+Returns an empty dict if the file is missing or malformed. Presets are kept
 separated by map so each map only shows its own.</p>
 
 
@@ -5785,16 +5902,18 @@ separated by map so each map only shows its own.</p>
 
 
 <h2 id="sbs_utils.procedural.maps.game_code_presets_save_code" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">game_code_presets_save_code</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">game_code_presets_save_code</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
 
     <div class="doc doc-contents ">
 
-        <p>Save a game code as a preset under its map, de-duplicating.</p>
+        <p>Save a game code as a named preset under its map, de-duplicating on code.</p>
 <p>The map is taken from the code's first token, so presets land in the right
-per-map bucket. Returns the code saved, or <code>None</code> if <code>code</code> is empty.</p>
+per-map bucket. <code>name</code> defaults to <code>"Preset N"</code> (N = the next slot for
+that map). Re-saving an identical code is a no-op (keeps the first name).
+Returns the code saved, or <code>None</code> if <code>code</code> is empty.</p>
 
 
     </div>
@@ -6025,6 +6144,100 @@ list. If no map labels are found at all, returns a placeholder list with a
           </tr>
       </tbody>
     </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.maps.player_loadout_active" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">player_loadout_active</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Decode the live <code>SHIP_LOADOUT</code> shared var into a slot list (<code>[]</code> if unset).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.maps.player_loadout_capture" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">player_loadout_capture</span><span class="p">(</span><span class="n">ships</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Capture <code>ships</code> into the shared <code>SHIP_LOADOUT</code> var; return the token.</p>
+<p>Call right before encoding a game code so the code carries the current
+crew's hulls + names.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.maps.player_loadout_decode" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">player_loadout_decode</span><span class="p">(</span><span class="n">token</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Inverse of :func:<code>player_loadout_encode</code>. Empty/None -&gt; <code>[]</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.maps.player_loadout_encode" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">player_loadout_encode</span><span class="p">(</span><span class="n">slots</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Pack <code>[{"name","hull"}, ...]</code> into one game-code-safe token (<code>""</code> for none).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.maps.player_loadout_from_ships" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">player_loadout_from_ships</span><span class="p">(</span><span class="n">ships</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Build a loadout token from ship objects, reading <code>.name</code> and <code>.art_id</code>.</p>
+<p><code>ships</code> is sorted by id first so the slot order is stable and matches the
+rehydrate side (spawn_players walks the player ships in id order too).</p>
 
 
     </div>

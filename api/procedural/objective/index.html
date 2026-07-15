@@ -4466,6 +4466,8 @@
       
         
       
+        
+      
     
     
     
@@ -4547,6 +4549,29 @@
   
   <span class="md-ellipsis">
     BioMech
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../legendarymissions/addons/avatar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Avatar Editor
     
   </span>
   
@@ -6420,14 +6445,21 @@ None.</p>
 
 
 <h2 id="sbs_utils.procedural.objective.objectives_run_all" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">objectives_run_all</span><span class="p">(</span><span class="n">tick_task</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">objectives_run_all</span><span class="p">(</span><span class="n">tick_task</span><span class="p">,</span> <span class="n">pass_seconds</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
 
     <div class="doc doc-contents ">
 
-        <p>Poll every active <code>OBJECTIVE_RUN</code> objective, removing any whose agent no longer exists.</p>
+        <p>Poll active <code>OBJECTIVE_RUN</code> objectives; skip any whose agent is gone.</p>
+<p><code>pass_seconds</code> controls batching (mirrors brains_run_all):</p>
+<ul>
+<li><code>None</code> (default) - run <strong>all</strong> objectives this call (original behavior).</li>
+<li>a number - run only a <strong>rolling slice</strong> this call, sized so a full pass
+  over every objective completes in ~<code>pass_seconds</code> of sim time, spreading
+  a large goal list across ticks instead of one batch.</li>
+</ul>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -6455,6 +6487,21 @@ None.</p>
             </td>
             <td>
                 <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>pass_seconds</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If set, spread a full pass over ~this many seconds.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
             </td>
           </tr>
       </tbody>

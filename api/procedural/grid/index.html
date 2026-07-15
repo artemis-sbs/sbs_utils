@@ -3125,6 +3125,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.grid.grid_delete_object" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_delete_object
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.grid.grid_delete_objects" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_delete_objects
@@ -3182,6 +3191,15 @@
   <a href="#sbs_utils.procedural.grid.grid_get_item_theme_data" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_get_item_theme_data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.grid.grid_object_valid" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_object_valid
     </span>
   </a>
   
@@ -3281,6 +3299,15 @@
   <a href="#sbs_utils.procedural.grid.grid_target_pos" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_target_pos
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.grid.grid_valid_blob" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_valid_blob
     </span>
   </a>
   
@@ -4532,6 +4559,8 @@
       
         
       
+        
+      
     
     
     
@@ -4613,6 +4642,29 @@
   
   <span class="md-ellipsis">
     BioMech
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../legendarymissions/addons/avatar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Avatar Editor
     
   </span>
   
@@ -5575,6 +5627,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.grid.grid_delete_object" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_delete_object
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.grid.grid_delete_objects" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_delete_objects
@@ -5632,6 +5693,15 @@
   <a href="#sbs_utils.procedural.grid.grid_get_item_theme_data" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_get_item_theme_data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.grid.grid_object_valid" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_object_valid
     </span>
   </a>
   
@@ -5731,6 +5801,15 @@
   <a href="#sbs_utils.procedural.grid.grid_target_pos" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_target_pos
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.grid.grid_valid_blob" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_valid_blob
     </span>
   </a>
   
@@ -6351,6 +6430,76 @@ object(s) to stop.</p>
 <div class="doc doc-object doc-function">
 
 
+<h2 id="sbs_utils.procedural.grid.grid_delete_object" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">grid_delete_object</span><span class="p">(</span><span class="n">host_id_or_obj</span><span class="p">,</span> <span class="n">id_or_obj</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Delete a single grid object, deferring the native free.</p>
+<p>Tombstones the grid agent now (dropped from <code>Agent.all</code>/roles, so
+<code>object_exists()</code>/<code>to_object()</code> report it gone this instant) and enqueues
+the native <code>sbs.delete_grid_object(host_id, id)</code> to run at the end of the
+event handler. Mirrors <code>SpaceObject.delete_object</code> for grid objects, closing
+the same-tick use-after-free window. See <code>DeleteQueue</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>host_id_or_obj</code>
+            </td>
+            <td>
+                  <code><span title="sbs_utils.agent.Agent">Agent</span> | <span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The host ship the grid object lives on.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>id_or_obj</code>
+            </td>
+            <td>
+                  <code><span title="sbs_utils.agent.Agent">Agent</span> | <span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The grid object (or its id) to delete.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="sbs_utils.procedural.grid.grid_delete_objects" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">grid_delete_objects</span><span class="p">(</span><span class="n">ship_id_or_obj</span><span class="p">)</span></code>
 
@@ -6801,6 +6950,80 @@ current theme. Defaults to None.</p>
               <div class="doc-md-description">
                 <p>Object with <code>.icon</code> (int), <code>.scale</code> (float), <code>.color</code>
 (str), and <code>.damage_color</code> (str) attributes.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.grid.grid_object_valid" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">grid_object_valid</span><span class="p">(</span><span class="n">id_or_obj</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return whether a grid object still has a valid backing space object.</p>
+<p>Returns <code>False</code> once the host ship is destroyed, even though the grid
+object's <code>Agent</code> may still resolve. See :func:<code>grid_valid_blob</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>id_or_obj</code>
+            </td>
+            <td>
+                  <code><span title="sbs_utils.agent.Agent">Agent</span> | <span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Agent id or object.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>bool</code></td>            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>True</code> if the grid object's blob can be safely accessed.</p>
               </div>
             </td>
           </tr>
@@ -7723,6 +7946,84 @@ object(s) to move.</p>
             </td>
             <td>
                   <code>0.01</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.grid.grid_valid_blob" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">grid_valid_blob</span><span class="p">(</span><span class="n">id_or_obj</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return a grid object's engine blob only if its backing space object is
+still valid, otherwise <code>None</code>.</p>
+<p>A destroyed host ship leaves the grid object's <code>Agent</code> and its cached blob
+wrapper in place, so <code>to_blob</code> still returns a non-<code>None</code> wrapper -- but
+the engine raises <code>ValueError: invalid space object</code> on any <code>get</code>/<code>set</code>
+of that wrapper. This probes cheaply so callers can guard the dead-object
+case with a plain <code>is None</code> check, the same as a missing object.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>id_or_obj</code>
+            </td>
+            <td>
+                  <code><span title="sbs_utils.agent.Agent">Agent</span> | <span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Agent id or object.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>data_set | None: The live blob, or <code>None</code> if the object is gone or its
+host space object has been destroyed.</p>
+              </div>
             </td>
           </tr>
       </tbody>
