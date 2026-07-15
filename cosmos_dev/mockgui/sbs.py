@@ -1097,6 +1097,11 @@ def _push_radar() -> None:
                 # side); the client prefers it over the side colour. Distinct key from the
                 # nebula "color" (emission) so `rec.update(neb)` below never clobbers it.
                 "tint": obj.data_set.get("radar_color_override") or None,
+                # Flat radar-atlas glyph (behav_selection markers: galaxy board etc.). The
+                # engine draws icon_index from the game atlas, sized by icon_scale, tinted by
+                # radar_color_override — NOT the ship mesh. None when unset (drawn as a dot).
+                "icon_index": obj.data_set.get("icon_index"),
+                "icon_scale": obj.data_set.get("icon_scale"),
                 # Not hit-testable (selectable==0 asteroids/nebula, or invisible cambots).
                 "nosel": _not_hittable(obj),
             }

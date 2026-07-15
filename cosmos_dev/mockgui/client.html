@@ -240,6 +240,18 @@ function _drawIcon(canvas, ctx2d, sheet, iconIndex, colorStr) {
   }
 }
 
+// Draw an atlas glyph (icon_index) at a radar position, tinted, `size` px square. Used for
+// galaxy-board markers (behav_selection), which the engine renders as flat atlas icons — not
+// ship meshes. Renders into a reused scratch canvas then blits, so it composites onto the
+// shared radar 2D context at the marker's screen position.
+const _radarIconScratch = document.createElement('canvas');
+function _drawRadarIcon(ctx, sheet, iconIndex, px, py, size, colorStr) {
+  if (!sheet || size < 2) return;
+  _radarIconScratch.width = _radarIconScratch.height = 48;
+  _drawIcon(_radarIconScratch, _radarIconScratch.getContext('2d'), sheet, iconIndex, colorStr);
+  ctx.drawImage(_radarIconScratch, px - size / 2, py - size / 2, size, size);
+}
+
 function _buildIconWidget(s, tag, ownerId, cssClass, isClickable, isToggle) {
   const wrapper = document.createElement('div');
   wrapper.className = cssClass;
@@ -1096,6 +1108,8 @@ function cmdRadarTerrain(msg) {
     _terrainMeta.set(o.id, {
       art: o.art || '', meshscale: o.meshscale ?? 1, y: o.y ?? 0, q: o.q || null,
       name: o.name || '', tint: o.tint || null, nosel: !!o.nosel,
+      icon_index: (o.icon_index != null ? +o.icon_index : null),
+      icon_scale: (o.icon_scale != null ? +o.icon_scale : null),
       nebula: !!o.nebula, radius: o.radius || 0, density: o.density || 0, seed: o.seed || 1,
       color: o.color || null, color2: o.color2 || null, swirl: o.swirl || 0, warp: o.warp || 0,
     });
@@ -1998,15 +2012,25 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
   // WebGL layer only draws it as a 3px dot (icon_scale isn't honored), so it's hard to see
   // and click. Draw a clearer filled circle in the marker's tint here (always, not gated on
   // the name zoom). Plain terrain (asteroids) has no tint and stays a small dot.
+  // A marker with an icon_index (behav_selection: galaxy board) draws its ATLAS GLYPH sized
+  // by icon_scale + tinted, matching the engine. Tinted terrain WITHOUT an icon_index (e.g.
+  // worldlets) falls back to a filled circle.
+  const _iconSheetImg = _iconSheet.img;              // synchronous once loaded
+  if (!_iconSheetImg) _getIconSheet(() => _requestRadarRender());   // load once, redraw when ready
   for (const [id, meta] of _terrainMeta) {
-    if (!meta.tint) continue;
+    if (!meta.tint && meta.icon_index == null) continue;
     const idx = _terrainMap.get(id);
     if (idx === undefined || idx >= _terrainCount) continue;
     const b = idx * 3;
     const px = toX(_terrainPosBuf[b]), py = toY(_terrainPosBuf[b + 1]);
-    ctx.fillStyle = meta.tint;
-    ctx.beginPath(); ctx.arc(px, py, 6, 0, 2 * Math.PI); ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 1; ctx.stroke();
+    if (meta.icon_index != null && _iconSheetImg) {
+      const size = Math.max(6, 18 * (meta.icon_scale || 1));
+      _drawRadarIcon(ctx, _iconSheetImg, meta.icon_index, px, py, size, meta.tint || 'white');
+    } else if (meta.tint) {
+      ctx.fillStyle = meta.tint;
+      ctx.beginPath(); ctx.arc(px, py, 6, 0, 2 * Math.PI); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 1; ctx.stroke();
+    }
   }
 
   // Terrain labels: map markers (galaxy-board system/unit/fleet icons, nebula markers)
