@@ -349,6 +349,14 @@ def send_client_widget_rects(clientID: int, widgetName: str,
                   right=round(r1, 2), bottom=round(b1, 2))
         return
 
+    # comms_waterfall message list — position it where the layout placed the widget.
+    if widgetName == "comms_waterfall":
+        if gui_queue is not None:
+            _send(clientID, "comms_wf", op="rect",
+                  left=round(l1, 2), top=round(t1, 2),
+                  right=round(r1, 2), bottom=round(b1, 2))
+        return
+
     # Mock HUD overlays (ship_data, text_waterfall) default to a screen corner;
     # when a script positions them via a rect, move them to it.
     if widgetName in _HUD_WIDGETS:
@@ -511,6 +519,9 @@ _view_comms_control_clients: set = set()
 # Clients whose console declares the "comms_face" widget — the selected target's portrait.
 # The face string arrives in send_comms_selection_info (2nd arg); rendered via face.js.
 _view_comms_face_clients: set = set()
+# Clients whose console declares the "comms_waterfall" widget — the comms dialogue stream.
+# Fed by send_comms_message_to_player_ship (comms_message/comms_transmit/comms_broadcast).
+_view_comms_wf_clients: set = set()
 # DEV DEMO KNOB: MOCK_FORCE_RED_ALERT=1 forces the red-alert vignette ON for every
 # client showing a 2D view, regardless of the mission's console layout or the ship's
 # real red_alert value. Purely to eyeball the widget render (e.g. on the OU Admiral,
@@ -625,6 +636,13 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
     elif clientID in _view_comms_face_clients:
         _view_comms_face_clients.discard(clientID)
         _send(clientID, "comms_face", op="hide")
+
+    # comms_waterfall — the comms dialogue stream (iMessage-style message list).
+    if "comms_waterfall" in widgets:
+        _view_comms_wf_clients.add(clientID)
+    elif clientID in _view_comms_wf_clients:
+        _view_comms_wf_clients.discard(clientID)
+        _send(clientID, "comms_wf", op="hide")
 
 
 def _push_2dview_rects() -> None:
@@ -878,6 +896,20 @@ def send_comms_button_info(origin_id, color, msg, tag) -> None:
         if cid in _view_comms_control_clients:
             _send(cid, "comms_control", op="button", tag=str(tag), color=color or "white",
                   msg=msg or "")
+
+
+def send_comms_message_to_player_ship(playerID, otherID, faceDesc, titleText, titleColor,
+                                      bodyText, bodyColor) -> None:
+    """A comms transmission to a player ship (comms_message / comms_transmit / comms_broadcast
+    all route here). Streamed to that ship's comms_waterfall consoles as an iMessage-style
+    message: sender face + coloured title + body. otherID is the other party (not rendered)."""
+    if gui_queue is None or _base_mock.sim is None:
+        return
+    for cid, sid in list(_base_mock.sim.client_ships.items()):
+        if sid == playerID and cid in _view_comms_wf_clients:
+            _send(cid, "comms_wf", op="msg", face=faceDesc or "",
+                  title=titleText or "", title_color=titleColor or "white",
+                  body=bodyText or "", body_color=bodyColor or "white")
 
 
 def physics_tick(dt: float = 1.0 / 60.0) -> None:
