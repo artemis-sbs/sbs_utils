@@ -195,10 +195,13 @@ wander and shoot; it plays like a coordinated crew:
   the start of a match asks friendly **stations to build Nukes** to keep itself armed.
 - **Plays engineer.** It **overpowers drive and weapons** for a faster, harder-hitting
   ship and **balances the heat with coolant**, easing off when energy runs low.
-- **Survives sensibly.** It **docks to repair** when hurt, and if its **maneuvering is
-  shot out** it **holds station** to keep fighting instead of burning off into deep space.
+- **Survives sensibly.** It **flees lethal terrain** — steering clear of a **black hole's**
+  pull well before it's caught in the well — **docks to repair** when hurt, and if its
+  **maneuvering is shot out** it **holds station** to keep fighting instead of burning off
+  into deep space.
 
-Turn it on in [LegendaryMissions](legendarymissions/index.md) settings.
+Turn it on — and tune its **stand-off range** and **engineering overpower** — in
+[LegendaryMissions](legendarymissions/index.md) settings.
 
 ## 🤝 Friend or Foe — decided by Diplomacy, not by labels
 
