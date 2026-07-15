@@ -685,6 +685,7 @@ function dispatch(msg) {
     case 'red_alert':    cmdRedAlert(msg);    break;
     case 'red_alert_btn':cmdRedAlertBtn(msg); break;
     case 'comms_control':cmdCommsControl(msg);break;
+    case 'comms_face':   cmdCommsFace(msg);   break;
     case 'story_dialog': cmdStoryDialog(msg); break;
     case 'hud_rect':     cmdHudRect(msg);     break;
     case 'batch':        msg.items.forEach(dispatch); break;
@@ -769,6 +770,11 @@ function _pointInRadarView(px, py) {
 
 let _panArmed = false, _panDownX = 0, _panDownY = 0;
 
+// Long-press = hold the left button still for _LONG_PRESS_MS → the engine's hold_click
+// (same as a right-click). Cancelled if the press turns into a drag-pan.
+const _LONG_PRESS_MS = 500;
+let _longPressTimer = null, _longPressFired = false;
+
 window.addEventListener('mousedown', e => {
   if (e.button !== 0) return;
   if (!_pointInRadarView(e.clientX, e.clientY)) return;
@@ -776,12 +782,21 @@ window.addEventListener('mousedown', e => {
   _panArmed = true; _panning = false;
   _panDownX = e.clientX; _panDownY = e.clientY;
   _panStartPX = _radarPanX; _panStartPZ = _radarPanZ;
+  _longPressFired = false;
+  clearTimeout(_longPressTimer);
+  _longPressTimer = setTimeout(() => {
+    if (_panArmed && !_panning) {   // still held, not dragging → long-press
+      _longPressFired = true;
+      _radarSelectAt(_panDownX, _panDownY, 'rmb');
+    }
+  }, _LONG_PRESS_MS);
 });
 
 window.addEventListener('mousemove', e => {
   if (_panArmed && !_panning &&
       Math.abs(e.clientX - _panDownX) + Math.abs(e.clientY - _panDownY) > 4) {
     _panning = true;
+    clearTimeout(_longPressTimer);   // a drag cancels the pending long-press
     document.body.style.cursor = 'grabbing';
   }
   if (_panning) {
@@ -800,11 +815,13 @@ window.addEventListener('mousemove', e => {
 });
 
 window.addEventListener('mouseup', e => {
-  const armed = _panArmed, wasPanning = _panning;
+  const armed = _panArmed, wasPanning = _panning, longFired = _longPressFired;
   _panArmed = false; _panning = false;
+  clearTimeout(_longPressTimer);
   document.body.style.cursor = '';
-  // A clean left-click (armed inside a radar view, no drag) → object selection.
-  if (wasPanning || !armed || e.button !== 0) return;
+  // A clean left-click (armed inside a radar view, no drag, no long-press already
+  // fired) → object selection.
+  if (wasPanning || !armed || e.button !== 0 || longFired) return;
   _radarSelectAt(e.clientX, e.clientY, 'lmb');
 });
 
@@ -842,10 +859,20 @@ function _radarSelectAt(px, py, button) {
     const d = Math.hypot(proj.toX(wx) - px, proj.toY(wz) - py);
     if (d < bestD) { bestD = d; bestId = id; }
   };
-  for (const [id, idx] of _dynamicMap)
-    if (idx < _dynamicCount) consider(id, _dynamicPosBuf[idx * 3], _dynamicPosBuf[idx * 3 + 1]);
-  for (const [id, idx] of _terrainMap)
-    if (idx < _terrainCount) consider(id, _terrainPosBuf[idx * 3], _terrainPosBuf[idx * 3 + 1]);
+  // Skip objects with selectable==0 (nosel): asteroids, individual nebula — visible but
+  // not clickable. (Invisible cambots are already absent from the stream entirely.)
+  for (const [id, idx] of _dynamicMap) {
+    if (idx >= _dynamicCount) continue;
+    const m = _dynamicMeta.get(id);
+    if (m && m.nosel) continue;
+    consider(id, _dynamicPosBuf[idx * 3], _dynamicPosBuf[idx * 3 + 1]);
+  }
+  for (const [id, idx] of _terrainMap) {
+    if (idx >= _terrainCount) continue;
+    const m = _terrainMeta.get(id);
+    if (m && m.nosel) continue;
+    consider(id, _terrainPosBuf[idx * 3], _terrainPosBuf[idx * 3 + 1]);
+  }
   // World point under the cursor (invert the projection) for source_point.
   const wx = cx + (px - proj.cxp) / proj.scale;
   const wz = cz - (py - proj.cyp) / proj.scale;
@@ -1068,7 +1095,7 @@ function cmdRadarTerrain(msg) {
     _terrainRevMap.set(i, o.id);
     _terrainMeta.set(o.id, {
       art: o.art || '', meshscale: o.meshscale ?? 1, y: o.y ?? 0, q: o.q || null,
-      name: o.name || '', tint: o.tint || null,
+      name: o.name || '', tint: o.tint || null, nosel: !!o.nosel,
       nebula: !!o.nebula, radius: o.radius || 0, density: o.density || 0, seed: o.seed || 1,
       color: o.color || null, color2: o.color2 || null, swirl: o.swirl || 0, warp: o.warp || 0,
     });
@@ -1514,6 +1541,73 @@ function cmdCommsControl(msg) {
   _renderCommsCtrl();
 }
 
+// ── cmdCommsFace — the comms_face engine widget: the selected target's portrait ──
+// The face string arrives with the comms header (send_comms_selection_info); rendered
+// via the shared FaceRender (face.js), same as the story-dialog portrait. Positioned by
+// the widget layout rect (op:rect); face string set by op:face (empty = clear).
+let _commsFaceEl = null, _commsFaceCanvas = null, _commsFaceTitle = null;
+let _commsFaceRect = null, _commsFaceStr = '', _commsFaceName = '', _commsFaceColor = 'white';
+function _ensureCommsFaceEl() {
+  if (_commsFaceEl) return _commsFaceEl;
+  // Box positioned to the widget rect. A wrapper centers a SQUARE canvas (intrinsic
+  // 128x128, max-width/height:100% so the face never stretches); a name plate sits below.
+  const box = document.createElement('div');
+  box.id = 'commsFace';
+  box.style.cssText = 'position:fixed;z-index:47;display:none;flex-direction:column;';
+  const faceWrap = document.createElement('div');
+  faceWrap.style.cssText = 'flex:1 1 auto;min-height:0;display:flex;' +
+    'align-items:center;justify-content:center;';
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  c.style.cssText = 'max-width:100%;max-height:100%;background:#0d0f14;' +
+    'border:1px solid #2a3a4a;border-radius:4px;';
+  faceWrap.appendChild(c);
+  const title = document.createElement('div');
+  title.style.cssText = 'flex:0 0 auto;font:600 12px monospace;text-align:center;' +
+    'padding:3px 4px 0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+  box.appendChild(faceWrap);
+  box.appendChild(title);
+  document.body.appendChild(box);
+  _commsFaceEl = box;
+  _commsFaceCanvas = c;
+  _commsFaceTitle = title;
+  return box;
+}
+function _renderCommsFace() {
+  const box = _ensureCommsFaceEl();
+  if (!_commsFaceRect) { box.style.display = 'none'; return; }
+  const r = _commsFaceRect;
+  box.style.left = r.left + '%';
+  box.style.top = r.top + '%';
+  box.style.width = Math.max(0, r.right - r.left) + '%';
+  box.style.height = Math.max(0, r.bottom - r.top) + '%';
+  box.style.display = 'flex';
+  const c = _commsFaceCanvas;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+  const f = (_commsFaceStr || '').trim();
+  if (f) FaceRender.drawString(c, ctx, f);
+  _commsFaceTitle.textContent = _commsFaceName || '';
+  _commsFaceTitle.style.color = _commsFaceColor || '#cde';
+  _commsFaceTitle.style.display = _commsFaceName ? 'block' : 'none';
+}
+function cmdCommsFace(msg) {
+  switch (msg.op) {
+    case 'rect':
+      _commsFaceRect = { left: msg.left, top: msg.top, right: msg.right, bottom: msg.bottom };
+      break;
+    case 'face':
+      _commsFaceStr = msg.face || '';
+      _commsFaceName = msg.title || '';
+      _commsFaceColor = msg.color || 'white';
+      break;
+    case 'hide':
+      if (_commsFaceEl) _commsFaceEl.style.display = 'none';
+      return;
+  }
+  _renderCommsFace();
+}
+
 // ── cmdRadar — delta update for active (NPC/PLAYER) objects ──────────────────
 function cmdFx(msg) {
   // Transient combat visuals for the radar overlay: beam-fire lines and
@@ -1602,7 +1696,7 @@ function cmdRadar(msg) {
           side: o.side, tick_type: o.tick_type,
           fx: o.fx ?? 0, fz: o.fz ?? 0, name: o.name || '', art: o.art || '',
           y: o.y ?? 0, meshscale: o.meshscale ?? 1, q: o.q || null,
-          shp: o.shp ?? -1,
+          shp: o.shp ?? -1, nosel: !!o.nosel,
         });
       } else {
         const meta = _dynamicMeta.get(o.id);
@@ -1897,6 +1991,22 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
       ctx.fillText(meta.name, px, py - s / 2 - 1);
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     }
+  }
+
+  // Map-marker icons: tinted terrain (radar_color_override) — worldlets, galaxy-board
+  // system/unit/fleet markers — is meant to be SELECTED on the 2D command view, but the
+  // WebGL layer only draws it as a 3px dot (icon_scale isn't honored), so it's hard to see
+  // and click. Draw a clearer filled circle in the marker's tint here (always, not gated on
+  // the name zoom). Plain terrain (asteroids) has no tint and stays a small dot.
+  for (const [id, meta] of _terrainMeta) {
+    if (!meta.tint) continue;
+    const idx = _terrainMap.get(id);
+    if (idx === undefined || idx >= _terrainCount) continue;
+    const b = idx * 3;
+    const px = toX(_terrainPosBuf[b]), py = toY(_terrainPosBuf[b + 1]);
+    ctx.fillStyle = meta.tint;
+    ctx.beginPath(); ctx.arc(px, py, 6, 0, 2 * Math.PI); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 1; ctx.stroke();
   }
 
   // Terrain labels: map markers (galaxy-board system/unit/fleet icons, nebula markers)

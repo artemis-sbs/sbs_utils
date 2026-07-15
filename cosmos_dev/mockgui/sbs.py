@@ -341,6 +341,14 @@ def send_client_widget_rects(clientID: int, widgetName: str,
                   right=round(r1, 2), bottom=round(b1, 2))
         return
 
+    # comms_face portrait — position it where the layout placed the widget.
+    if widgetName == "comms_face":
+        if gui_queue is not None:
+            _send(clientID, "comms_face", op="rect",
+                  left=round(l1, 2), top=round(t1, 2),
+                  right=round(r1, 2), bottom=round(b1, 2))
+        return
+
     # Mock HUD overlays (ship_data, text_waterfall) default to a screen corner;
     # when a script positions them via a rect, move them to it.
     if widgetName in _HUD_WIDGETS:
@@ -392,6 +400,44 @@ def _is_hidden_marker(obj) -> bool:
     renders normally."""
     return (obj._tick_type in _RADAR_HIDDEN_BEHAVIORS
             and not getattr(obj, "_data_tag", ""))
+
+
+def _is_invisible(obj) -> bool:
+    """True for objects spawned with the 'invisible' art — the detached-command cambots
+    (Admiral / GM / galaxy overseer cameras). They ride the camera centre and the engine
+    never shows them, so they must NOT draw on the radar OR be hit-tested (otherwise the
+    invisible cambot steals every 2D-view click from the object behind it). NOTE: this is
+    about invisibility, not ownership — a visible own ship (e.g. a player selecting itself
+    on comms) is a valid pick and is left alone."""
+    return getattr(obj, "_data_tag", "") == "invisible"
+
+
+def _not_selectable(obj) -> bool:
+    """True if the object carries data_set selectable == 0 — VISIBLE but not clickable
+    (asteroids, individual nebula). Streamed as `nosel` so the 2D-view pick skips it while
+    it still DRAWS (unlike _is_invisible, which drops the object from the stream entirely)."""
+    v = obj.data_set.get("selectable")
+    if v is None:
+        return False           # default: selectable
+    try:
+        return float(v) == 0.0
+    except (TypeError, ValueError):
+        return False
+
+
+def _not_hittable(obj) -> bool:
+    """Object must NOT be hit-tested on the 2D view — streamed as `nosel` so the pick skips
+    it. Two cases, same rule: data_set selectable==0 (asteroids, nebula) or spawned invisible
+    (the detached-command cambots)."""
+    return _not_selectable(obj) or _is_invisible(obj)
+
+
+def _drop_from_radar(obj) -> bool:
+    """Object must not appear on the radar AT ALL (not drawn, not streamed). An INVISIBLE
+    object is fully hidden UNLESS its BEHAVIOUR is behav_player: the detached-command cambot
+    (invisible + behav_player) is the one invisible thing that still draws a faint dot at the
+    camera. Every OTHER invisible object is dropped."""
+    return _is_invisible(obj) and getattr(obj, "_tick_type", "") != "behav_player"
 _cinematic_tick: int = 0
 _CINEMATIC_INTERVAL: int = 2  # push the 3D camera every 2nd radar tick (~15 Hz) - the
                               # browser lerps the camera between updates, so 30 Hz is wasted
@@ -462,6 +508,9 @@ _redalert_btn_state: dict = {}
 # send_comms_button_info (each button), keyed by the comms ORIGIN (ship/cam); the mock
 # maps that origin back to the viewing client(s) and streams a clickable panel.
 _view_comms_control_clients: set = set()
+# Clients whose console declares the "comms_face" widget — the selected target's portrait.
+# The face string arrives in send_comms_selection_info (2nd arg); rendered via face.js.
+_view_comms_face_clients: set = set()
 # DEV DEMO KNOB: MOCK_FORCE_RED_ALERT=1 forces the red-alert vignette ON for every
 # client showing a 2D view, regardless of the mission's console layout or the ship's
 # real red_alert value. Purely to eyeball the widget render (e.g. on the OU Admiral,
@@ -563,6 +612,13 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
     elif clientID in _view_comms_control_clients:
         _view_comms_control_clients.discard(clientID)
         _send(clientID, "comms_control", op="hide")
+
+    # comms_face — the selected target's portrait (fed by send_comms_selection_info).
+    if "comms_face" in widgets:
+        _view_comms_face_clients.add(clientID)
+    elif clientID in _view_comms_face_clients:
+        _view_comms_face_clients.discard(clientID)
+        _send(clientID, "comms_face", op="hide")
 
 
 def _push_2dview_rects() -> None:
@@ -782,27 +838,29 @@ def _push_red_alert() -> None:
 # comms_control — the comms action menu (button tree)
 # ---------------------------------------------------------------------------
 def _comms_clients_for_origin(origin_id):
-    """The comms-control console clients whose assigned ship IS the comms origin. The
-    comms system addresses buttons by origin (ship/cam) id; the mock renders them on the
-    console(s) viewing that origin. Runs on the MAST thread (comms event handling)."""
+    """Console clients whose assigned ship IS the comms origin. The comms system addresses
+    the header/buttons by origin (ship/cam) id; the mock renders on the console(s) viewing
+    that origin. Callers filter by which comms widget the client declares. Runs on the MAST
+    thread (comms event handling)."""
     if not origin_id:
         return []
-    out = []
-    for cid in _base_mock.get_client_ID_list():
-        if cid in _view_comms_control_clients and _base_mock.get_ship_of_client(cid) == origin_id:
-            out.append(cid)
-    return out
+    return [cid for cid in _base_mock.get_client_ID_list()
+            if _base_mock.get_ship_of_client(cid) == origin_id]
 
 
 def send_comms_selection_info(origin_id, face, color, title) -> None:
-    """Comms header (face/colour/title) — the engine renders it above the comms buttons.
-    In the mock it OPENS/refreshes the comms_control panel: clears prior buttons and sets
-    the header. send_comms_button_info calls then append the buttons (set_buttons order)."""
+    """Comms header — face/colour/title. Drives BOTH the comms_control panel (OPEN: clear
+    prior buttons + set header; send_comms_button_info then appends buttons in set_buttons
+    order) and the comms_face portrait (the face string)."""
     if gui_queue is None:
         return
     for cid in _comms_clients_for_origin(origin_id):
-        _send(cid, "comms_control", op="open", face=face or "", color=color or "white",
-              title=title or "")
+        if cid in _view_comms_control_clients:
+            _send(cid, "comms_control", op="open", face=face or "", color=color or "white",
+                  title=title or "")
+        if cid in _view_comms_face_clients:
+            _send(cid, "comms_face", op="face", face=face or "",
+                  title=title or "", color=color or "white")
 
 
 def send_comms_button_info(origin_id, color, msg, tag) -> None:
@@ -811,8 +869,9 @@ def send_comms_button_info(origin_id, color, msg, tag) -> None:
     if gui_queue is None:
         return
     for cid in _comms_clients_for_origin(origin_id):
-        _send(cid, "comms_control", op="button", tag=str(tag), color=color or "white",
-              msg=msg or "")
+        if cid in _view_comms_control_clients:
+            _send(cid, "comms_control", op="button", tag=str(tag), color=color or "white",
+                  msg=msg or "")
 
 
 def physics_tick(dt: float = 1.0 / 60.0) -> None:
@@ -1009,7 +1068,8 @@ def _push_radar() -> None:
     # static object reassigning the same value each tick never thrashes.
     # Selection/marker helpers (grid icon 0 = blank) are omitted so they never draw.
     visible_terrain_ids = [tid for tid in terrain_ids
-                           if not _is_hidden_marker(objs[tid])]
+                           if not _is_hidden_marker(objs[tid])
+                           and not _drop_from_radar(objs[tid])]
     current_terrain_sig = frozenset(
         (tid, round(objs[tid]._pos.x, 1), round(objs[tid]._pos.z, 1))
         for tid in visible_terrain_ids)
@@ -1031,6 +1091,8 @@ def _push_radar() -> None:
                 # side); the client prefers it over the side colour. Distinct key from the
                 # nebula "color" (emission) so `rec.update(neb)` below never clobbers it.
                 "tint": obj.data_set.get("radar_color_override") or None,
+                # Not hit-testable (selectable==0 asteroids/nebula, or invisible cambots).
+                "nosel": _not_hittable(obj),
             }
             neb = _nebula_info(obj)
             if neb is not None:
@@ -1052,9 +1114,12 @@ def _push_radar() -> None:
             pass
 
     # --- Channel 2: per-ship delta ---
-    # Drop selection/marker helpers (grid icon 0 = blank) so they never draw.
+    # Drop selection/marker helpers (grid icon 0 = blank) and invisible non-player objects
+    # so they never draw. The behav_player cambot (invisible) is KEPT — it draws its faint
+    # dot — but is streamed `nosel` (below) so the pick skips it. selectable==0 terrain also
+    # stays and is `nosel`.
     active_ids = {id_ for id_ in active_all
-                  if not _is_hidden_marker(objs[id_])}
+                  if not _is_hidden_marker(objs[id_]) and not _drop_from_radar(objs[id_])}
     r2 = CULL_RADIUS * CULL_RADIUS
 
     # Build navpoints + navareas + client_focus (sent in every per-ship message).
@@ -1144,6 +1209,7 @@ def _push_radar() -> None:
                     "meshscale": _mesh_scale_for(obj),
                     "q":         _quat_of(obj),
                     "shp":       shp,
+                    "nosel":     _not_hittable(obj),
                     "new":       True,
                 })
             else:
