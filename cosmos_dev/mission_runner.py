@@ -718,9 +718,10 @@ def _run(
                             gev_ev.value_tag = "on" if gev.get("on") else "off"
                         elif etype == "comms_button":
                             # A click on a comms_control menu button → the engine's
-                            # press_comms_button event. sub_tag = the button INDEX (the
-                            # comms system reads int(event.sub_tag)); route by the comms
-                            # origin (the client's ship/cam) + its current comms selection.
+                            # press_comms_button event. sub_tag = the button INDEX (the comms
+                            # system reads int(event.sub_tag)); routed by the comms origin (the
+                            # client's ship/cam) + its current comms selection (the object —
+                            # which can legitimately be id 0).
                             origin = 0
                             try:
                                 origin = sbs.get_ship_of_client(cid) or 0

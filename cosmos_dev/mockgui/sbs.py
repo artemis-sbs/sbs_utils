@@ -545,9 +545,15 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
     views from this client's widget list: activate the 3dview when a "3dview"
     widget is present, and register a 2D radar rect when a 2D-view widget is."""
     _base_mock.send_client_widget_list(clientID, consoleType, widgetList)
-    # Remember the console NAME for this client — a radar-click selection event needs
-    # it as event.sub_tag so consoledispatcher.py routes to comms/science by name.
-    _console_name[clientID] = consoleType or ""
+    # Remember the console NAME for this client — a radar-click selection event needs it as
+    # event.sub_tag so consoledispatcher routes to comms/science by name. Keep the last
+    # NON-EMPTY name: a repaint (or widget-only update) can call this with an empty
+    # consoleType (the Admiral doesn't re-run gui_activate_console on its repaint), and wiping
+    # the name would make a later 2D-view select route to normal_target_UID instead of
+    # comms_target_UID — breaking comms selection after e.g. a comms button. The engine tracks
+    # the console name independently and never loses it; this mirrors that.
+    if consoleType:
+        _console_name[clientID] = consoleType
     widgets = (widgetList or "").split("^")
 
     # New console epoch: drop last epoch's explicit 3dview rect (re-sent on present
