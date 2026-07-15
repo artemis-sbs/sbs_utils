@@ -175,6 +175,31 @@ Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/fe
 
 Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/features.md).
 
+## 🤖 Attract Mode — the ship flies itself
+
+Flip on **Auto Play** (`AUTO_PLAY: enable: true`) and every bridge runs itself — a
+great **lobby / attract screen** or hands-free demo. The autoplayer doesn't just
+wander and shoot; it plays like a coordinated crew:
+
+- **Stand-off alpha strike.** Against an enemy at range it holds at **5000u**, opens
+  with an **EMP** to strip shields, then a **single Nuke**, waits for the blast to
+  clear, and only then closes to **mop up with beams and homing torps** — so it never
+  catches itself in its own explosion.
+- **Fires only what it has.** It reads real magazine counts and launches only loaded
+  types — no more phantom Homing torpedoes once the tubes run dry — and it **won't
+  friendly-fire**: area torps are held whenever an ally sits in the blast, and
+  **wrecks get beams only**, never torpedoes. A **PShock** finishes a target whose
+  shields are down.
+- **Talks like a crew.** It hails enemies to **taunt** them with the *right* line — the
+  one an **intel scan** reveals — **demands their surrender** once shields drop, and at
+  the start of a match asks friendly **stations to build Nukes** to keep itself armed.
+- **Plays engineer.** It **overpowers drive and weapons** for a faster, harder-hitting
+  ship and **balances the heat with coolant**, easing off when energy runs low.
+- **Survives sensibly.** It **docks to repair** when hurt, and if its **maneuvering is
+  shot out** it **holds station** to keep fighting instead of burning off into deep space.
+
+Turn it on in [LegendaryMissions](legendarymissions/index.md) settings.
+
 ## 🤝 Friend or Foe — decided by Diplomacy, not by labels
 
 A deep pass reworked how the game answers one deceptively simple question: *"is this
