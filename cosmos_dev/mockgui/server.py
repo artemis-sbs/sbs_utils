@@ -165,6 +165,8 @@ async def _http_send(writer: asyncio.StreamWriter,
         f"HTTP/1.1 {status}\r\n"
         f"Content-Type: {content_type}\r\n"
         f"Content-Length: {len(body)}\r\n"
+        # Dev tool: never cache, so an edited client.html always loads fresh on refresh.
+        f"Cache-Control: no-store, no-cache, must-revalidate\r\n"
         f"Connection: close\r\n\r\n"
     ).encode() + body
     writer.write(resp)
@@ -235,7 +237,7 @@ async def _broadcast(payload: dict, _record_only: bool = False):
     # clear/complete carry the region tag in 'tag'; widget commands carry it in 'parent'
     region_tag = payload.get("tag", "") if cmd in ("clear", "complete") else payload.get("parent", "")
 
-    if cmd in ("log", "radar", "radar_terrain", "widget_rect", "cinematic", "skybox"):
+    if cmd in ("log", "radar", "radar_terrain", "widget_rect", "cinematic", "skybox", "colors"):
         # Transient messages: broadcast to all live browsers but never recorded
         # in frames (must not replay to a newly connected tab).
         async with _get_lock():

@@ -673,7 +673,7 @@ function dispatch(msg) {
       msg.cmd !== 'init' && msg.cmd !== 'log' &&
       msg.cmd !== 'radar' && msg.cmd !== 'radar_terrain' &&
       msg.cmd !== 'widget_rect' && msg.cmd !== 'cinematic' &&
-      msg.cmd !== 'skybox' && msg.cmd !== 'fx' && msg.cmd !== 'batch' &&
+      msg.cmd !== 'skybox' && msg.cmd !== 'colors' && msg.cmd !== 'fx' && msg.cmd !== 'batch' &&
       msg.cmd !== 'ship_data' && msg.cmd !== 'target_data' &&
       msg.cmd !== 'text_msg' && msg.cmd !== 'text_active' && msg.cmd !== 'world_reset') {
     if (msg.clientID !== CLIENT_ID) return;
@@ -689,6 +689,7 @@ function dispatch(msg) {
     case 'widget_rect':  cmdWidgetRect(msg);  break;
     case 'cinematic':    cmdCinematic(msg);   break;
     case 'skybox':       cmdSkybox(msg);      break;
+    case 'colors':       cmdColors(msg);      break;
     case 'fx':           cmdFx(msg);          break;
     case 'ship_data':    cmdShipData(msg);    break;
     case 'target_data':  cmdTargetData(msg);  break;
@@ -790,8 +791,17 @@ let _panArmed = false, _panDownX = 0, _panDownY = 0;
 const _LONG_PRESS_MS = 500;
 let _longPressTimer = null, _longPressFired = false;
 
+// A click on an overlay control (radar zoom/mode buttons, comms panels, red-alert button)
+// must NOT be treated as a radar select even though it geometrically sits over the 2D view.
+function _clickOnOverlay(e) {
+  const t = e.target;
+  return !!(t && t.closest && t.closest(
+    '#radarZoomCtrl,#commsControl,#commsFace,#commsWaterfall,#commsSortedList,#redAlertBtn'));
+}
+
 window.addEventListener('mousedown', e => {
   if (e.button !== 0) return;
+  if (_clickOnOverlay(e)) return;
   if (!_pointInRadarView(e.clientX, e.clientY)) return;
   // Arm — but don't claim the event yet, so a plain click still reaches widgets.
   _panArmed = true; _panning = false;
@@ -843,6 +853,7 @@ window.addEventListener('mouseup', e => {
 // Right-click inside a 2D view → selection with the rmb button (the //focus/comms
 // click-to-move / galaxy-theater "Close on empty" path reads extra_extra_tag).
 window.addEventListener('contextmenu', e => {
+  if (_clickOnOverlay(e)) return;
   if (!_pointInRadarView(e.clientX, e.clientY)) return;
   if (_currentRadarViews().isCorner) return;
   e.preventDefault();
@@ -904,6 +915,78 @@ function _sideColor(side) {
   let h = 0;
   for (let i = 0; i < side.length; i++) h = (h * 31 + side.charCodeAt(i)) & 0xffff;
   return `hsl(${(h * 137) % 360},70%,60%)`;
+}
+
+// ── Radar colour mode: SIDE vs DIPLOMACY (viewer-relative) ────────────────────────
+// Fed by the `colors` command (side_set_icon_color / sim.set_diplomacy_color /
+// side_set_relations). Toggle via the topbar SIDE/DIPLO button. In DIPLO mode an object is
+// coloured by the diplomacy between the VIEWER's side and the object's side.
+let _radarColorMode = localStorage.getItem('radarColorMode') || 'side';   // 'side' | 'diplo'
+let _sideColors = {};                 // sideTag -> css colour (side_set_icon_color)
+let _dipColors  = {};                 // DIPLOMACY int (as string) -> css colour
+const _relations = new Map();         // "a|b" (sorted) -> DIPLOMACY int
+// Fallback colours if the script set none (UNKNOWN0 NEUTRAL1 ALLIED2 HOSTILE3).
+const _DIP_DEFAULT = { '0': '#888', '1': '#0aa', '2': '#3f6', '3': '#f44' };
+function _viewerSide() {
+  // Prefer the side the server sends in client_focus (robust — the own ship isn't always a
+  // drawn dynamic dot); fall back to the own ship's meta.
+  const myKey = CLIENT_ID !== null ? String(CLIENT_ID) : '0';
+  const entry = _radarClientFocus[myKey];
+  if (entry && entry.side) return entry.side;
+  const m = _myShipId != null ? _dynamicMeta.get(_myShipId) : null;
+  return m ? m.side : null;
+}
+function _dipBetween(a, b) {
+  const key = [String(a), String(b)].sort().join('|');
+  return _relations.has(key) ? _relations.get(key) : null;
+}
+function _objColor(side, tint) {
+  if (tint) return tint;                       // explicit map-marker colour always wins
+  if (_radarColorMode === 'diplo' && side != null) {
+    const vs = _viewerSide();
+    if (vs != null) {
+      const dip = (side === vs) ? 2 : _dipBetween(vs, side);   // own side => ALLIED
+      if (dip != null) return _dipColors[String(dip)] || _DIP_DEFAULT[String(dip)]
+                            || _sideColors[side] || _sideColor(side);
+    }
+  }
+  return _sideColors[side] || _sideColor(side);
+}
+function _recolorRadar() {
+  for (const [id, meta] of _dynamicMeta) {
+    const idx = _dynamicMap.get(id);
+    if (idx === undefined || idx >= _dynamicCount) continue;
+    const c = _cssToRGB(_objColor(meta.side, null));   // dynamic objects carry no tint
+    const cb = idx * 3;
+    _dynamicColBuf[cb] = c.r; _dynamicColBuf[cb + 1] = c.g; _dynamicColBuf[cb + 2] = c.b;
+  }
+  if (_dynamicPoints) _dynamicPoints.geometry.attributes.color.needsUpdate = true;
+  for (const [id, meta] of _terrainMeta) {
+    const idx = _terrainMap.get(id);
+    if (idx === undefined || idx >= _terrainCount) continue;
+    const c = _cssToRGB(_objColor(meta.side, meta.tint));
+    const cb = idx * 3;
+    _terrainColBuf[cb] = c.r; _terrainColBuf[cb + 1] = c.g; _terrainColBuf[cb + 2] = c.b;
+  }
+  if (_terrainPoints) _terrainPoints.geometry.attributes.color.needsUpdate = true;
+  _requestRadarRender();
+}
+function cmdColors(msg) {
+  if (msg.sides) _sideColors = msg.sides || {};
+  if (msg.diplo) _dipColors = msg.diplo || {};
+  if (msg.relations) {
+    _relations.clear();
+    for (const r of msg.relations)
+      _relations.set([String(r[0]), String(r[1])].sort().join('|'), r[2]);
+  }
+  _recolorRadar();
+}
+function _toggleRadarColorMode() {
+  _radarColorMode = _radarColorMode === 'diplo' ? 'side' : 'diplo';
+  localStorage.setItem('radarColorMode', _radarColorMode);
+  const btn = document.getElementById('color-mode-btn');
+  if (btn) btn.textContent = _radarColorMode === 'diplo' ? 'DIPLO' : 'SIDE';
+  _recolorRadar();
 }
 
 // ── Ship sprite cache ─────────────────────────────────────────────────────────
@@ -1098,7 +1181,7 @@ function cmdRadarTerrain(msg) {
     const o = objects[i];
     // Map markers carry a per-object radar colour (radar_color_override → o.tint); prefer
     // it over the side colour so the galaxy board's kind/health tints render.
-    const {r, g, b} = _cssToRGB(o.tint || _sideColor(o.side));
+    const {r, g, b} = _cssToRGB(_objColor(o.side, o.tint));
     const base = i * 3;
     _terrainPosBuf[base]     = o.x;
     _terrainPosBuf[base + 1] = o.z;   // world Z → Three.js Y
@@ -1110,7 +1193,7 @@ function cmdRadarTerrain(msg) {
     _terrainRevMap.set(i, o.id);
     _terrainMeta.set(o.id, {
       art: o.art || '', meshscale: o.meshscale ?? 1, y: o.y ?? 0, q: o.q || null,
-      name: o.name || '', tint: o.tint || null, nosel: !!o.nosel,
+      name: o.name || '', tint: o.tint || null, nosel: !!o.nosel, side: o.side,
       icon_index: (o.icon_index != null ? +o.icon_index : null),
       icon_scale: (o.icon_scale != null ? +o.icon_scale : null),
       nebula: !!o.nebula, radius: o.radius || 0, density: o.density || 0, seed: o.seed || 1,
@@ -1753,6 +1836,18 @@ function _ensureRadarZoomEl() {
   };
   box.appendChild(mk('−', 1 / 1.3, 'Zoom out'));   // −
   box.appendChild(mk('+', 1.3, 'Zoom in'));             // +
+  // Side / diplomacy colour-mode toggle — part of the radar zoom control.
+  const mode = document.createElement('div');
+  mode.id = 'color-mode-btn';
+  mode.textContent = _radarColorMode === 'diplo' ? 'DIPLO' : 'SIDE';
+  mode.title = 'Radar colour: by side vs by diplomacy (relative to your ship)';
+  mode.style.cssText = 'flex:1 1 0;max-width:82px;cursor:pointer;user-select:none;display:flex;' +
+    'align-items:center;justify-content:center;background:#16202c;border:1px solid #2c3c4c;' +
+    'border-radius:5px;color:#cde;font:700 12px monospace;letter-spacing:1px;';
+  mode.addEventListener('mouseenter', () => mode.style.background = '#22323f');
+  mode.addEventListener('mouseleave', () => mode.style.background = '#16202c');
+  mode.addEventListener('click', _toggleRadarColorMode);
+  box.appendChild(mode);
   (document.getElementById('gui-root') || document.body).appendChild(box);
   _radarZoomEl = box;
   return box;
@@ -1897,7 +1992,7 @@ function cmdRadar(msg) {
         idx = _dynamicCount++;
         _dynamicMap.set(o.id, idx);
         _dynamicRevMap.set(idx, o.id);
-        const {r, g, b} = _cssToRGB(_sideColor(o.side));
+        const {r, g, b} = _cssToRGB(_objColor(o.side, null));
         const cb = idx * 3;
         _dynamicColBuf[cb] = r; _dynamicColBuf[cb+1] = g; _dynamicColBuf[cb+2] = b;
         colorsDirty = true;
@@ -2164,7 +2259,7 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
     if (idx === undefined || idx >= _dynamicCount) continue;
     const base = idx * 3;
     const px = toX(_dynamicPosBuf[base]), py = toY(_dynamicPosBuf[base + 1]);
-    const col = _sideColor(meta.side);
+    const col = _objColor(meta.side, null);   // mode-aware (side vs diplomacy)
     const isPlayer = meta.tick_type === 'PLAYER' || meta.tick_type === 'player';
     const s = isPlayer ? basePlayer : baseNpc;
     const sprite = _tintedSprite(meta.art, col);

@@ -982,6 +982,33 @@ def _push_comms_list() -> None:
         _send(cid, "comms_list", op="list", items=[it for _, it in items[:60]])
 
 
+_last_colors_sent = None
+
+
+def _push_colors() -> None:
+    """Broadcast the side icon colors, diplomacy colors, and side relations so the radar can
+    colour by SIDE or by DIPLOMACY (viewer-relative). Set via side_set_icon_color /
+    sim.set_diplomacy_color / side_set_relations at mission setup; sent on change only (and
+    re-sent to late joiners via _force_terrain_push resetting the snapshot)."""
+    global _last_colors_sent
+    s = _base_mock.sim
+    if s is None or gui_queue is None:
+        return
+    sides = dict(getattr(s, "side_icon_colors", {}) or {})
+    diplo = {str(int(k)): v for k, v in (getattr(s, "diplomacy_colors", {}) or {}).items()}
+    rels = []
+    for pair, dip in (getattr(s, "side_relations", {}) or {}).items():
+        p = list(pair)
+        a, b = p[0], (p[1] if len(p) > 1 else p[0])
+        rels.append([a, b, int(dip)])
+    snap = (tuple(sorted(sides.items())), tuple(sorted(diplo.items())),
+            tuple(sorted((tuple(sorted((str(r[0]), str(r[1])))), r[2]) for r in rels)))
+    if snap == _last_colors_sent:
+        return
+    _last_colors_sent = snap
+    _send(0, "colors", sides=sides, diplo=diplo, relations=rels)
+
+
 def physics_tick(dt: float = 1.0 / 60.0) -> None:
     """Delegate to base physics then broadcast a radar delta to the browser."""
     global sim, _radar_tick, _cinematic_tick, _comms_list_tick
@@ -1005,6 +1032,7 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         if _comms_list_tick >= _COMMS_LIST_INTERVAL:
             _comms_list_tick = 0
             _push_comms_list()
+            _push_colors()
         _push_skybox()
 
 
@@ -1087,10 +1115,11 @@ def _force_terrain_push() -> None:
     Call this when a new browser client connects so they receive complete radar state
     immediately rather than waiting for the next incremental change.
     """
-    global _last_terrain_snapshot, _last_per_ship, _last_skybox_sent
+    global _last_terrain_snapshot, _last_per_ship, _last_skybox_sent, _last_colors_sent
     _last_terrain_snapshot = frozenset()
     _last_per_ship = {}
     _last_skybox_sent = "\0"   # force the skybox to re-broadcast to the new client
+    _last_colors_sent = None   # force the colour config to re-broadcast to the new client
 
 
 _last_fx_nonempty = False
@@ -1272,6 +1301,9 @@ def _push_radar() -> None:
                 "x":       round(obj._pos.x, 1),
                 "z":       round(obj._pos.z, 1),
                 "ship_id": str(focus_id),
+                # The viewer's own side — the radar DIPLOMACY colour mode needs it and can't
+                # always find the own ship in _dynamicMeta (it isn't always a drawn dot).
+                "side":    getattr(obj, "_side", None),
             }
 
     # Unique ships with at least one connected client, plus the GM view (ship_id=0).

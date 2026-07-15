@@ -1643,6 +1643,8 @@ class simulation(object): ### from pybind
         self.client_alt_ships = {}    # clientID -> altShipID (radar focus)
         self.client_types = {}        # clientID -> consoleType str
         self.side_relations = {}      # frozenset({s1,s2}) -> DIPLOMACY int
+        self.side_icon_colors = {}    # SideTag -> color string (side_set_icon_color)
+        self.diplomacy_colors = {}    # DIPLOMACY int -> color string (set_diplomacy_color)
         self.shared_strings = {}      # key -> value (synced server→clients in real engine)
         self._terrain_ids: set = set()   # abits & 0x30 == 0 — static; skipped in physics
         self._active_ids:  set = set()   # abits & 0x30 != 0 — NPCs + players; full physics
@@ -1817,12 +1819,14 @@ class simulation(object): ### from pybind
 
     def set_diplomacy_color(self: simulation, diplomacyEnumValue: int, colorString: str) -> None:
         """set the color of a diplomatic state (like DIPLOMACY::UNKNOWN or DIPLOMACY::ALLIED)"""
+        self.diplomacy_colors[int(diplomacyEnumValue)] = colorString
 
     def set_navproxy_pos(self: simulation, navproxy: navproxy, x: float, y: float, z: float) -> None:
         """takes a navproxy (the reference, not the ID), and sets the xyz values"""
 
     def set_side_icon_color(self: simulation, SideTag: str, colorString: str) -> None:
         """set the color of a SideTag (like TSN or Raider)"""
+        self.side_icon_colors[SideTag] = colorString
 
     def set_side_icon_index(self: simulation, SideTag: str, iconIndex: int) -> None:
         """set the value of the icon of a SideTag (like TSN or Raider)"""
