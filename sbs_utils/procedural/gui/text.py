@@ -1,8 +1,13 @@
-from ...helpers import FrameContext
+from ...helpers import FrameContext, gui_text_escape
 from ..style import apply_control_styles
 
 from ...pages.layout.text import Text
 from ...pages.layout.text_area import TextArea
+
+# Re-exported for MAST authors: wrap a dynamic name/value before dropping it
+# into a $text: string, e.g.  gui_text(f"$text:{gui_text_escape(ship.name)};color:red;")
+# so a name containing ':' or ';' cannot inject style properties (issue #569).
+__all__ = ["gui_text", "gui_text_area", "gui_text_escape"]
 
 def gui_text(props, style=None):
     """Add a text label to the current GUI layout.

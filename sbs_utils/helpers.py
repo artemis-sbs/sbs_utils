@@ -231,7 +231,19 @@ def split_props(s, def_key):
             ret[def_key] = s[start:]
             return ret
         colon += 1
-        end = s.find(";", colon)
+        # A backtick-quoted value is opaque: the ':' and ';' inside it are
+        # literal text, not delimiters (issue #569). Read past the closing
+        # backtick before looking for the terminating ';'. Only values that
+        # actually start (after optional spaces) with a backtick take this
+        # path, so unquoted props parse exactly as before.
+        vstart = colon
+        while vstart < len(s) and s[vstart] == ' ':
+            vstart += 1
+        if vstart < len(s) and s[vstart] == '`':
+            close = s.find('`', vstart + 1)
+            end = s.find(";", close + 1) if close != -1 else -1
+        else:
+            end = s.find(";", colon)
         if end == -1:
             ret[s_key] = s[colon:]
             start = len(s)
@@ -244,4 +256,27 @@ def merge_props(d):
     s=""
     for k,v in d.items():
         s += f"{k}:{v};"
-    return s  
+    return s
+
+
+def gui_text_escape(s):
+    """Quote a dynamic value for safe inclusion as a ``$text:`` style value.
+
+    Wraps ``s`` in backticks so any ``:`` or ``;`` it contains is treated as
+    literal text by the style parser rather than a style property (issue #569).
+    A literal backtick -- the quoting delimiter itself -- is stripped. An empty
+    or ``None`` value returns ``""`` so the caller emits ``$text:;`` with no
+    stray backtick in the box (issue #641).
+
+    Use this ONLY on the dynamic value, e.g. ``f"$text:{gui_text_escape(name)};color:red;"``
+    -- never on a whole authored props string, so the author's own ``:``/``;``
+    styling is left untouched.
+    """
+    if s is None:
+        return ""
+    s = str(s)
+    if "`" in s:
+        s = s.replace("`", "")
+    if not s:
+        return ""
+    return "`" + s + "`"

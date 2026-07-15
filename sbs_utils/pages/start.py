@@ -1,5 +1,5 @@
 from ..gui import Page
-from ..helpers import FrameContext
+from ..helpers import FrameContext, gui_text_escape
 from ..spaceobject import SpaceObject
 
 
@@ -59,7 +59,7 @@ class ClientSelectPage(Page):
                 name = player.name
                 if self.player_id is None:
                     self.player_id = player.id
-                SBS.send_gui_checkbox(CID,"", str(player.id), f"$text:{name};state:{'on' if self.player_id == player.id else 'off'}", 20,75-i*5, 39,79-i*5)
+                SBS.send_gui_checkbox(CID,"", str(player.id), f"$text:{gui_text_escape(name)};state:{'on' if self.player_id == player.id else 'off'}", 20,75-i*5, 39,79-i*5)
                 i+=1
 
             if self.player_id is not None:

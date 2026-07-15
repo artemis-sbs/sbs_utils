@@ -196,6 +196,58 @@ class TestTextInputOnMessage(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# TextInput style-string injection guard (issues #569 / #641)
+# ---------------------------------------------------------------------------
+
+class TestTextInputInjectionGuard(unittest.TestCase):
+    """The value is re-quoted in backticks on every present so ':' and ';' the
+    player types are treated as literal text rather than style properties
+    (#569); an empty value is sent without backticks so no stray ` shows (#641).
+    """
+
+    def test_prefill_extracts_raw_value_from_backticks(self):
+        ti = TextInput("ti1", "$text:`Bob`;desc:Crew Name;")
+        self.assertEqual(ti.value, "Bob")                 # stored raw, no backticks
+        self.assertEqual(ti.props, "desc:Crew Name;")     # trailing props preserved
+
+    def test_prefill_empty_is_blank_not_backtick(self):
+        # The #641 regression: empty pre-fill must render blank, not a lone `.
+        ti = TextInput("ti1", "$text:;desc:Crew Name;")
+        self.assertEqual(ti.value, "")
+        self.assertEqual(ti._text_prop(), "$text:;")
+
+    def test_prefill_legacy_empty_backticks_is_blank(self):
+        # Older gui_input built $text:``; for an empty value — still normalize.
+        ti = TextInput("ti1", "$text:``;desc:Crew Name;")
+        self.assertEqual(ti.value, "")
+        self.assertEqual(ti._text_prop(), "$text:;")
+
+    def test_prefill_preserves_colon_and_semicolon(self):
+        ti = TextInput("ti1", "$text:`a:b;font:g`;desc:x;")
+        self.assertEqual(ti.value, "a:b;font:g")
+
+    def test_typed_value_is_backtick_quoted(self):
+        # #569 attack path: a typed ';font:g' must not become a real property.
+        ti = TextInput("ti1", "")
+        ti.on_message(_gui("ti1", value_tag="abc;font:g"))
+        self.assertEqual(ti.value, "abc;font:g")
+        self.assertEqual(ti._text_prop(), "$text:`abc;font:g`;")
+
+    def test_typed_backtick_is_stripped(self):
+        # A literal backtick would break the quoting, so it is removed.
+        ti = TextInput("ti1", "")
+        ti.on_message(_gui("ti1", value_tag="back`tick"))
+        self.assertEqual(ti.value, "backtick")
+        self.assertEqual(ti._text_prop(), "$text:`backtick`;")
+
+    def test_cleared_value_sends_no_backticks(self):
+        ti = TextInput("ti1", "$text:`Bob`;")
+        ti.on_message(_gui("ti1", value_tag=""))
+        self.assertEqual(ti.value, "")
+        self.assertEqual(ti._text_prop(), "$text:;")
+
+
+# ---------------------------------------------------------------------------
 # Icon / click_tag path through Column.on_message
 # ---------------------------------------------------------------------------
 

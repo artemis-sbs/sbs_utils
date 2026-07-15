@@ -38,7 +38,15 @@ def gui_input(props, style=None, var=None, data=None):
         val = task.get_variable(var, "")
 
     if "$text:" not in props:
-        props = f"$text:`{val}`;{props}"
+        # Wrap the value in backticks so any ':' or ';' in it is treated as
+        # literal text rather than a style delimiter (issue #569). An EMPTY
+        # value must NOT be wrapped: `` renders as a stray ` in the box
+        # (issue #641) which then seeds the #569 corruption once the player
+        # types into it.
+        if val:
+            props = f"$text:`{val}`;{props}"
+        else:
+            props = f"$text:;{props}"
 
     layout_item = TextInput(tag, props)
     layout_item.data = data
