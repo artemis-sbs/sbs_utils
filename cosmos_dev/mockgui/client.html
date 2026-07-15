@@ -699,6 +699,8 @@ function dispatch(msg) {
     case 'comms_control':cmdCommsControl(msg);break;
     case 'comms_face':   cmdCommsFace(msg);   break;
     case 'comms_wf':     cmdCommsWf(msg);     break;
+    case 'radar_zoom':   cmdRadarZoom(msg);   break;
+    case 'comms_list':   cmdCommsList(msg);   break;
     case 'story_dialog': cmdStoryDialog(msg); break;
     case 'hud_rect':     cmdHudRect(msg);     break;
     case 'batch':        msg.items.forEach(dispatch); break;
@@ -1424,7 +1426,7 @@ function _ensureRedAlertEl() {
   const el = document.createElement('div');
   el.id = 'redAlert';
   el.style.cssText =
-    'position:fixed;inset:0;z-index:45;pointer-events:none;display:none;' +
+    'position:absolute;inset:0;z-index:45;pointer-events:none;display:none;' +
     'box-shadow:inset 0 0 90px 24px rgba(255,28,28,.6);' +
     'animation:redAlertPulse 1s ease-in-out infinite;';
   el.innerHTML =
@@ -1432,7 +1434,7 @@ function _ensureRedAlertEl() {
     'font:600 13px/1 monospace;letter-spacing:2px;color:#fff;' +
     'background:rgba(180,0,0,.85);padding:5px 12px;border-radius:3px;' +
     'text-shadow:0 1px 2px #000;">RED ALERT</div>';
-  document.body.appendChild(el);
+  (document.getElementById('gui-root') || document.body).appendChild(el);
   _redAlertEl = el;
   return el;
 }
@@ -1453,7 +1455,7 @@ function _ensureRedAlertBtnEl() {
   const el = document.createElement('div');
   el.id = 'redAlertBtn';
   el.style.cssText =
-    'position:fixed;z-index:48;display:none;box-sizing:border-box;cursor:pointer;' +
+    'position:absolute;z-index:48;display:none;box-sizing:border-box;cursor:pointer;' +
     'align-items:center;justify-content:center;text-align:center;' +
     'font:600 13px/1.1 monospace;letter-spacing:1px;border-radius:4px;user-select:none;';
   el.addEventListener('click', () => {
@@ -1461,7 +1463,7 @@ function _ensureRedAlertBtnEl() {
     sendEvent('red_alert_toggle', '', CLIENT_ID !== null ? CLIENT_ID : 0,
               { on: !_redAlertBtnMsg.on });
   });
-  document.body.appendChild(el);
+  (document.getElementById('gui-root') || document.body).appendChild(el);
   _redAlertBtnEl = el;
   return el;
 }
@@ -1498,7 +1500,7 @@ function _ensureCommsCtrlEl() {
   const el = document.createElement('div');
   el.id = 'commsControl';
   el.style.cssText =
-    'position:fixed;z-index:47;display:none;box-sizing:border-box;flex-direction:column;' +
+    'position:absolute;z-index:47;display:none;box-sizing:border-box;flex-direction:column;' +
     'background:rgba(8,14,22,.9);border:1px solid #2a3a4a;border-radius:5px;' +
     'padding:6px;font:12px/1.3 monospace;';
   _commsCtrlHdr = document.createElement('div');
@@ -1507,7 +1509,7 @@ function _ensureCommsCtrlEl() {
   _commsCtrlList.style.cssText = 'flex:1 1 auto;overflow-y:auto;min-height:0;';
   el.appendChild(_commsCtrlHdr);
   el.appendChild(_commsCtrlList);
-  document.body.appendChild(el);
+  (document.getElementById('gui-root') || document.body).appendChild(el);
   _commsCtrlEl = el;
   return el;
 }
@@ -1568,7 +1570,7 @@ function _ensureCommsFaceEl() {
   // 128x128, max-width/height:100% so the face never stretches); a name plate sits below.
   const box = document.createElement('div');
   box.id = 'commsFace';
-  box.style.cssText = 'position:fixed;z-index:47;display:none;flex-direction:column;';
+  box.style.cssText = 'position:absolute;z-index:47;display:none;flex-direction:column;';
   const faceWrap = document.createElement('div');
   faceWrap.style.cssText = 'flex:1 1 auto;min-height:0;display:flex;' +
     'align-items:center;justify-content:center;';
@@ -1582,7 +1584,7 @@ function _ensureCommsFaceEl() {
     'padding:3px 4px 0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
   box.appendChild(faceWrap);
   box.appendChild(title);
-  document.body.appendChild(box);
+  (document.getElementById('gui-root') || document.body).appendChild(box);
   _commsFaceEl = box;
   _commsFaceCanvas = c;
   _commsFaceTitle = title;
@@ -1635,7 +1637,7 @@ function _ensureCommsWfEl() {
   if (_commsWfEl) return _commsWfEl;
   const el = document.createElement('div');
   el.id = 'commsWaterfall';
-  el.style.cssText = 'position:fixed;z-index:47;display:none;box-sizing:border-box;flex-direction:row;' +
+  el.style.cssText = 'position:absolute;z-index:47;display:none;box-sizing:border-box;flex-direction:row;' +
     'background:rgba(8,14,22,.92);border:1px solid #2a3a4a;border-radius:5px;overflow:hidden;' +
     'font:12px/1.35 monospace;';
   _commsWfListEl = document.createElement('div');
@@ -1644,7 +1646,7 @@ function _ensureCommsWfEl() {
   _commsWfThreadEl.style.cssText = 'flex:1 1 auto;min-width:0;overflow-y:auto;padding:6px;';
   el.appendChild(_commsWfListEl);
   el.appendChild(_commsWfThreadEl);
-  document.body.appendChild(el);
+  (document.getElementById('gui-root') || document.body).appendChild(el);
   _commsWfEl = el;
   return el;
 }
@@ -1722,6 +1724,97 @@ function cmdCommsWf(msg) {
     if (_commsWfSel === null) _commsWfSel = name;   // open the first conversation
   }
   _renderCommsWf();
+}
+
+// ── cmdRadarZoom — the radar_zoom_ctrl widget: zoom-in / zoom-out BUTTONS ──
+// Browser-local (no server state): steps _radarZoom (also mouse-wheel adjustable). Positioned
+// by the widget layout rect.
+let _radarZoomEl = null, _radarZoomRect = null;
+function _radarZoomStep(factor) {
+  _radarZoom = Math.max(0.05, Math.min(20, _radarZoom * factor));
+  _requestRadarRender();
+}
+function _ensureRadarZoomEl() {
+  if (_radarZoomEl) return _radarZoomEl;
+  const box = document.createElement('div');
+  box.id = 'radarZoomCtrl';
+  box.style.cssText = 'position:absolute;z-index:47;display:none;box-sizing:border-box;' +
+    'align-items:stretch;justify-content:center;gap:6px;padding:3px 6px;';
+  const mk = (txt, factor, title) => {
+    const b = document.createElement('div');
+    b.textContent = txt; b.title = title;
+    b.style.cssText = 'flex:1 1 0;max-width:64px;cursor:pointer;user-select:none;display:flex;' +
+      'align-items:center;justify-content:center;background:#16202c;border:1px solid #2c3c4c;' +
+      'border-radius:5px;color:#cde;font:700 16px monospace;';
+    b.addEventListener('mouseenter', () => b.style.background = '#22323f');
+    b.addEventListener('mouseleave', () => b.style.background = '#16202c');
+    b.addEventListener('click', () => _radarZoomStep(factor));
+    return b;
+  };
+  box.appendChild(mk('−', 1 / 1.3, 'Zoom out'));   // −
+  box.appendChild(mk('+', 1.3, 'Zoom in'));             // +
+  (document.getElementById('gui-root') || document.body).appendChild(box);
+  _radarZoomEl = box;
+  return box;
+}
+function cmdRadarZoom(msg) {
+  if (msg.op === 'hide') { if (_radarZoomEl) _radarZoomEl.style.display = 'none'; return; }
+  if (msg.op === 'rect') {
+    _radarZoomRect = { left: msg.left, top: msg.top, right: msg.right, bottom: msg.bottom };
+  }
+  if (!_radarZoomRect) { if (_radarZoomEl) _radarZoomEl.style.display = 'none'; return; }
+  const box = _ensureRadarZoomEl(), r = _radarZoomRect;
+  box.style.left = r.left + '%';
+  box.style.top = r.top + '%';
+  box.style.width = Math.max(0, r.right - r.left) + '%';
+  box.style.height = Math.max(0, r.bottom - r.top) + '%';
+  box.style.display = 'flex';
+}
+
+// ── cmdCommsList — the comms_sorted_list widget: a scrollable list of comms targets ──
+// The mock streams nearby sided ships (op:list). A row click fires a select_space_object for
+// that object — routed to comms by the console name — opening comms, same as clicking it on
+// the 2D view. Positioned by the widget layout rect.
+let _commsListEl = null, _commsListRect = null;
+function _ensureCommsListEl() {
+  if (_commsListEl) return _commsListEl;
+  const el = document.createElement('div');
+  el.id = 'commsSortedList';
+  el.style.cssText = 'position:absolute;z-index:47;display:none;box-sizing:border-box;' +
+    'overflow-y:auto;background:rgba(8,14,22,.9);border:1px solid #2a3a4a;border-radius:5px;' +
+    'font:12px/1.3 monospace;';
+  (document.getElementById('gui-root') || document.body).appendChild(el);
+  _commsListEl = el;
+  return el;
+}
+function cmdCommsList(msg) {
+  if (msg.op === 'hide') { if (_commsListEl) _commsListEl.style.display = 'none'; return; }
+  if (msg.op === 'rect') {
+    _commsListRect = { left: msg.left, top: msg.top, right: msg.right, bottom: msg.bottom };
+  } else if (msg.op === 'list') {
+    const el = _ensureCommsListEl();
+    el.textContent = '';
+    for (const it of (msg.items || [])) {
+      const row = document.createElement('div');
+      row.textContent = it.name || '?';
+      row.style.cssText = 'padding:4px 8px;cursor:pointer;border-bottom:1px solid #1a2632;' +
+        'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + _sideColor(it.side) + ';';
+      row.addEventListener('mouseenter', () => row.style.background = '#1d2b3a');
+      row.addEventListener('mouseleave', () => row.style.background = '');
+      row.addEventListener('click', () => {
+        sendEvent('select_space_object', '', CLIENT_ID !== null ? CLIENT_ID : 0,
+                  { id: it.id, wx: 0, wy: 0, wz: 0, button: 'lmb', widget: 'comms_sorted_list' });
+      });
+      el.appendChild(row);
+    }
+  }
+  if (!_commsListRect) { if (_commsListEl) _commsListEl.style.display = 'none'; return; }
+  const el = _ensureCommsListEl(), r = _commsListRect;
+  el.style.left = r.left + '%';
+  el.style.top = r.top + '%';
+  el.style.width = Math.max(0, r.right - r.left) + '%';
+  el.style.height = Math.max(0, r.bottom - r.top) + '%';
+  el.style.display = 'block';
 }
 
 // ── cmdRadar — delta update for active (NPC/PLAYER) objects ──────────────────

@@ -357,6 +357,22 @@ def send_client_widget_rects(clientID: int, widgetName: str,
                   right=round(r1, 2), bottom=round(b1, 2))
         return
 
+    # radar_zoom_ctrl slider — position it where the layout placed the widget.
+    if widgetName == "radar_zoom_ctrl":
+        if gui_queue is not None:
+            _send(clientID, "radar_zoom", op="rect",
+                  left=round(l1, 2), top=round(t1, 2),
+                  right=round(r1, 2), bottom=round(b1, 2))
+        return
+
+    # comms_sorted_list — position it where the layout placed the widget.
+    if widgetName == "comms_sorted_list":
+        if gui_queue is not None:
+            _send(clientID, "comms_list", op="rect",
+                  left=round(l1, 2), top=round(t1, 2),
+                  right=round(r1, 2), bottom=round(b1, 2))
+        return
+
     # Mock HUD overlays (ship_data, text_waterfall) default to a screen corner;
     # when a script positions them via a rect, move them to it.
     if widgetName in _HUD_WIDGETS:
@@ -522,6 +538,14 @@ _view_comms_face_clients: set = set()
 # Clients whose console declares the "comms_waterfall" widget — the comms dialogue stream.
 # Fed by send_comms_message_to_player_ship (comms_message/comms_transmit/comms_broadcast).
 _view_comms_wf_clients: set = set()
+# Clients whose console declares the "radar_zoom_ctrl" widget — a browser-local zoom slider
+# bound to the 2D radar scale (no server state; the mock renders/handles it entirely).
+_view_radar_zoom_clients: set = set()
+# Clients whose console declares the "comms_sorted_list" widget — a scrollable list of comms
+# targets. The engine builds this internally; the mock streams nearby sided ships each second.
+_view_comms_list_clients: set = set()
+_comms_list_tick: int = 0
+_COMMS_LIST_INTERVAL: int = 15   # rebuild ~twice a second (physics thread is 30 Hz)
 # DEV DEMO KNOB: MOCK_FORCE_RED_ALERT=1 forces the red-alert vignette ON for every
 # client showing a 2D view, regardless of the mission's console layout or the ship's
 # real red_alert value. Purely to eyeball the widget render (e.g. on the OU Admiral,
@@ -643,6 +667,20 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
     elif clientID in _view_comms_wf_clients:
         _view_comms_wf_clients.discard(clientID)
         _send(clientID, "comms_wf", op="hide")
+
+    # radar_zoom_ctrl — the 2D-view zoom slider (browser-local).
+    if "radar_zoom_ctrl" in widgets:
+        _view_radar_zoom_clients.add(clientID)
+    elif clientID in _view_radar_zoom_clients:
+        _view_radar_zoom_clients.discard(clientID)
+        _send(clientID, "radar_zoom", op="hide")
+
+    # comms_sorted_list — the comms-target list (mock builds + streams it each second).
+    if "comms_sorted_list" in widgets:
+        _view_comms_list_clients.add(clientID)
+    elif clientID in _view_comms_list_clients:
+        _view_comms_list_clients.discard(clientID)
+        _send(clientID, "comms_list", op="hide")
 
 
 def _push_2dview_rects() -> None:
@@ -912,9 +950,41 @@ def send_comms_message_to_player_ship(playerID, otherID, faceDesc, titleText, ti
                   body=bodyText or "", body_color=bodyColor or "white")
 
 
+def _push_comms_list() -> None:
+    """Stream each comms_sorted_list console a list of nearby comms-target ships (sided active
+    objects, nearest first). The engine builds this widget internally; the mock approximates
+    it. A row click reuses the select_space_object path (routed to comms by console name)."""
+    s = _base_mock.sim
+    if s is None or gui_queue is None or not _view_comms_list_clients:
+        return
+    with s._lock:   # snapshot under the lock (MAST thread spawns/deletes) — see _push_radar
+        objs = dict(s.space_objects)
+        active = list(set(s._active_ids) & objs.keys())
+        client_ships = dict(s.client_ships)
+    for cid in list(_view_comms_list_clients):
+        oid = client_ships.get(cid, 0)
+        oo = objs.get(oid)
+        ox = oo._pos.x if oo is not None else 0.0
+        oz = oo._pos.z if oo is not None else 0.0
+        items = []
+        for i in active:
+            if i == oid:
+                continue
+            o = objs[i]
+            if not getattr(o, "side", None) or _drop_from_radar(o) or _not_selectable(o):
+                continue
+            dx = o._pos.x - ox
+            dz = o._pos.z - oz
+            name = (o.data_set.get("name_tag") or o.data_set.get("display_text")
+                    or getattr(o, "_data_tag", "") or "?")
+            items.append((dx * dx + dz * dz, {"id": str(i), "name": name, "side": o._side}))
+        items.sort(key=lambda t: t[0])
+        _send(cid, "comms_list", op="list", items=[it for _, it in items[:60]])
+
+
 def physics_tick(dt: float = 1.0 / 60.0) -> None:
     """Delegate to base physics then broadcast a radar delta to the browser."""
-    global sim, _radar_tick, _cinematic_tick
+    global sim, _radar_tick, _cinematic_tick, _comms_list_tick
     _base_mock.physics_tick(dt)
     sim = _base_mock.sim   # keep local alias in sync (create_new_sim may have changed it)
     _radar_tick += 1
@@ -931,6 +1001,10 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         _push_target_data()
         _push_text_active()
         _push_red_alert()
+        _comms_list_tick += 1
+        if _comms_list_tick >= _COMMS_LIST_INTERVAL:
+            _comms_list_tick = 0
+            _push_comms_list()
         _push_skybox()
 
 
