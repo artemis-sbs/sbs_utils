@@ -684,6 +684,7 @@ function dispatch(msg) {
     case 'text_active':  cmdTextActive(msg);  break;
     case 'red_alert':    cmdRedAlert(msg);    break;
     case 'red_alert_btn':cmdRedAlertBtn(msg); break;
+    case 'comms_control':cmdCommsControl(msg);break;
     case 'story_dialog': cmdStoryDialog(msg); break;
     case 'hud_rect':     cmdHudRect(msg);     break;
     case 'batch':        msg.items.forEach(dispatch); break;
@@ -848,8 +849,12 @@ function _radarSelectAt(px, py, button) {
   // World point under the cursor (invert the projection) for source_point.
   const wx = cx + (px - proj.cxp) / proj.scale;
   const wz = cz - (py - proj.cyp) / proj.scale;
-  sendEvent('radar_select', '', CLIENT_ID !== null ? CLIENT_ID : 0,
-            { id: bestId, wx, wy: 0, wz, button, widget: '2dview' });
+  // The engine fires DIFFERENT event tags per button: left-click = select_space_object
+  // (selection); right-click = hold_click (popup / move-camera). The runner fills the
+  // remaining fields (console name/type, widget, UID) from mock state.
+  const type = (button === 'rmb') ? 'hold_click' : 'select_space_object';
+  sendEvent(type, '', CLIENT_ID !== null ? CLIENT_ID : 0,
+            { id: bestId, wx, wy: 0, wz, button });
 }
 
 function _sideColor(side) {
@@ -1437,6 +1442,76 @@ function cmdRedAlertBtn(msg) {
   el.style.boxShadow = on ? '0 0 10px 2px rgba(255,40,40,.7)' : 'none';
   // Only show once we have a layout rect (avoids a 0-size flash at 0,0).
   el.style.display = (m.left !== undefined) ? 'flex' : 'none';
+}
+
+// ── cmdCommsControl — the comms_control engine widget: the comms action menu ──
+// The comms system streams a header (op:open, clears prior buttons) then buttons
+// (op:button), keyed by the comms origin; a click posts comms_button → the engine
+// press_comms_button event. Positioned by the widget layout rect (op:rect). The button
+// LIST scrolls independently under a sticky header when it overflows the panel.
+let _commsCtrlEl = null, _commsCtrlHdr = null, _commsCtrlList = null;
+const _commsCtrl = { rect: null, title: '', color: 'white', buttons: [] };
+function _ensureCommsCtrlEl() {
+  if (_commsCtrlEl) return _commsCtrlEl;
+  const el = document.createElement('div');
+  el.id = 'commsControl';
+  el.style.cssText =
+    'position:fixed;z-index:47;display:none;box-sizing:border-box;flex-direction:column;' +
+    'background:rgba(8,14,22,.9);border:1px solid #2a3a4a;border-radius:5px;' +
+    'padding:6px;font:12px/1.3 monospace;';
+  _commsCtrlHdr = document.createElement('div');
+  _commsCtrlHdr.style.cssText = 'flex:0 0 auto;font-weight:600;margin-bottom:5px;';
+  _commsCtrlList = document.createElement('div');   // the scrollable button list
+  _commsCtrlList.style.cssText = 'flex:1 1 auto;overflow-y:auto;min-height:0;';
+  el.appendChild(_commsCtrlHdr);
+  el.appendChild(_commsCtrlList);
+  document.body.appendChild(el);
+  _commsCtrlEl = el;
+  return el;
+}
+function _renderCommsCtrl() {
+  const el = _ensureCommsCtrlEl();
+  const r = _commsCtrl.rect;
+  if (!r) { el.style.display = 'none'; return; }
+  el.style.left = r.left + '%';
+  el.style.top = r.top + '%';
+  el.style.width = Math.max(0, r.right - r.left) + '%';
+  el.style.height = Math.max(0, r.bottom - r.top) + '%';
+  el.style.display = 'flex';
+  _commsCtrlHdr.textContent = _commsCtrl.title || '';
+  _commsCtrlHdr.style.color = _commsCtrl.color || '#8cf';
+  _commsCtrlHdr.style.display = _commsCtrl.title ? 'block' : 'none';
+  _commsCtrlList.textContent = '';
+  for (const b of _commsCtrl.buttons) {
+    const btn = document.createElement('div');
+    btn.textContent = b.msg;
+    btn.style.cssText = 'cursor:pointer;padding:5px 7px;margin:2px 0;border-radius:3px;' +
+      'background:#16202c;border:1px solid #2c3c4c;color:' + (b.color || '#cde') + ';';
+    btn.addEventListener('mouseenter', () => btn.style.background = '#22323f');
+    btn.addEventListener('mouseleave', () => btn.style.background = '#16202c');
+    btn.addEventListener('click', () =>
+      sendEvent('comms_button', '', CLIENT_ID !== null ? CLIENT_ID : 0, { tag: b.tag }));
+    _commsCtrlList.appendChild(btn);
+  }
+}
+function cmdCommsControl(msg) {
+  switch (msg.op) {
+    case 'rect':
+      _commsCtrl.rect = { left: msg.left, top: msg.top, right: msg.right, bottom: msg.bottom };
+      break;
+    case 'open':
+      _commsCtrl.title = msg.title || '';
+      _commsCtrl.color = msg.color || 'white';
+      _commsCtrl.buttons = [];
+      break;
+    case 'button':
+      _commsCtrl.buttons.push({ tag: msg.tag, color: msg.color, msg: msg.msg });
+      break;
+    case 'hide':
+      if (_commsCtrlEl) _commsCtrlEl.style.display = 'none';
+      return;
+  }
+  _renderCommsCtrl();
 }
 
 // ── cmdRadar — delta update for active (NPC/PLAYER) objects ──────────────────

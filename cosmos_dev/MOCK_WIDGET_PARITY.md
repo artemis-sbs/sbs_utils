@@ -161,10 +161,11 @@ detached-command console and the galaxy theater need it):
   view — distinguished from a drag-pan by the existing 4px threshold — runs
   `_radarSelectAt`, which picks the nearest object to the cursor (within 20px, over
   `_dynamicMap` + `_terrainMap`, using the render's captured `_pickState` projection) and
-  posts a `radar_select` event with the picked id, the click's world point, and
-  `lmb`/`rmb`. Empty space picks id 0 (still carries `source_point` for camera-pan).
-- **Runner** (`mission_runner.py`): turns `radar_select` into the engine's
-  `select_space_object` event, supplying `origin_id` (the client's assigned ship/cam) and
+  posts a `select_space_object` event (same type name the engine uses) with the picked id,
+  the click's world point, and `lmb`/`rmb`. Empty space picks id 0 (still carries
+  `source_point` for camera-pan).
+- **Runner** (`mission_runner.py`): enriches the `select_space_object` event, supplying
+  `origin_id` (the client's assigned ship/cam) and
   `sub_tag` (the console name, via `sbs.get_client_console_name`). `value_tag="2dview"`.
 - **Routing** is the *real* shared code: `consoledispatcher.py` `convert()` maps
   (`sub_tag` console name + `value_tag`) → a selection tag — a name containing `comm` →

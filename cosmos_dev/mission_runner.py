@@ -716,11 +716,31 @@ def _run(
                             # button's requested next state.
                             gev_ev = FakeEvent(client_id=cid, tag="red_alert")
                             gev_ev.value_tag = "on" if gev.get("on") else "off"
-                        elif etype == "radar_select":
+                        elif etype == "comms_button":
+                            # A click on a comms_control menu button → the engine's
+                            # press_comms_button event. sub_tag = the button INDEX (the
+                            # comms system reads int(event.sub_tag)); route by the comms
+                            # origin (the client's ship/cam) + its current comms selection.
+                            origin = 0
+                            try:
+                                origin = sbs.get_ship_of_client(cid) or 0
+                            except Exception:
+                                origin = 0
+                            selected = 0
+                            try:
+                                from sbs_utils.procedural.query import get_comms_selection
+                                selected = get_comms_selection(origin) or 0
+                            except Exception:
+                                selected = 0
+                            gev_ev = FakeEvent(client_id=cid, tag="press_comms_button",
+                                               sub_tag=str(gev.get("tag", "")),
+                                               origin_id=origin, selected_id=selected)
+                        elif etype == "select_space_object":
                             # A 2D-view click in the browser radar → the engine's
-                            # select_space_object event. The runner supplies origin_id
-                            # (the client's assigned ship/cam) and sub_tag (the console
-                            # name); consoledispatcher.py routes to comms/science by name.
+                            # select_space_object event (same type name the engine uses).
+                            # The runner supplies origin_id (the client's assigned ship/cam)
+                            # and sub_tag (the console name); consoledispatcher.py routes to
+                            # comms/science by name.
                             try:
                                 sel = int(gev.get("id", 0) or 0)
                             except (TypeError, ValueError):
@@ -734,11 +754,68 @@ def _run(
                             _getname = getattr(sbs, "get_client_console_name", None)
                             if _getname is not None:
                                 console = _getname(cid) or ""
+                            # consoledispatcher routes a selection by the target-UID it
+                            # derives (convert_to_console_id). For a 2D-view click that UID
+                            # must be the console's registered selection key — comms/science
+                            # register under comms_target_UID / science_target_UID, NOT the
+                            # ..._2d_ variant. Set extra_tag to the right UID (matched early in
+                            # convert) so the registered select callback actually fires.
+                            _cn = console.lower()
+                            if "weap" in _cn:
+                                _uid = "weapon_target_UID"
+                            elif "sci" in _cn or "admiral" in _cn:
+                                _uid = "science_target_UID"
+                            elif "comm" in _cn:
+                                _uid = "comms_target_UID"
+                            else:
+                                _uid = "normal_target_UID"
+                            # value_tag is the real 2D WIDGET name (engine sends e.g.
+                            # "comms_2d_view", not "2dview"); the mock knows it per client.
+                            _w2d = getattr(sbs, "get_client_2d_widget", None)
+                            _widget = (_w2d(cid) if _w2d is not None else "") \
+                                or gev.get("widget", "2dview") or "2dview"
                             gev_ev = FakeEvent(client_id=cid, tag="select_space_object",
                                                sub_tag=console, origin_id=origin,
                                                selected_id=sel)
-                            gev_ev.value_tag = gev.get("widget", "2dview") or "2dview"
+                            gev_ev.value_tag = _widget
+                            gev_ev.extra_tag = _uid
                             gev_ev.extra_extra_tag = gev.get("button", "lmb")
+                            gev_ev.source_point = Vec3(gev.get("wx", 0.0),
+                                                       gev.get("wy", 0.0),
+                                                       gev.get("wz", 0.0))
+                        elif etype == "hold_click":
+                            # Right-click / long-press on a 2D view → the engine's hold_click
+                            # event (popup / move-camera path, distinct from selection). sub_tag
+                            # is the console TYPE (e.g. "comms"), not the full name; convert_to_
+                            # console_id maps a hold to "<type>_popup". No value_tag/extra_tag.
+                            try:
+                                sel = int(gev.get("id", 0) or 0)
+                            except (TypeError, ValueError):
+                                sel = 0
+                            origin = 0
+                            try:
+                                origin = sbs.get_ship_of_client(cid) or 0
+                            except Exception:
+                                origin = 0
+                            console = ""
+                            _getname = getattr(sbs, "get_client_console_name", None)
+                            if _getname is not None:
+                                console = _getname(cid) or ""
+                            _cn = console.lower()
+                            if "weap" in _cn:
+                                _ctype = "weapons"
+                            elif "sci" in _cn or "admiral" in _cn:
+                                _ctype = "science"
+                            elif "comm" in _cn:
+                                _ctype = "comms"
+                            elif "helm" in _cn:
+                                _ctype = "helm"
+                            else:
+                                _ctype = _cn
+                            gev_ev = FakeEvent(client_id=cid, tag="hold_click",
+                                               sub_tag=_ctype, origin_id=origin,
+                                               selected_id=sel)
+                            gev_ev.parent_id = origin
                             gev_ev.source_point = Vec3(gev.get("wx", 0.0),
                                                        gev.get("wy", 0.0),
                                                        gev.get("wz", 0.0))

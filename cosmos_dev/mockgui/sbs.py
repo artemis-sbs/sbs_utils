@@ -333,6 +333,14 @@ def send_client_widget_rects(clientID: int, widgetName: str,
                   right=round(r1, 2), bottom=round(b1, 2))
         return
 
+    # comms_control action-menu panel — position it where the layout placed the widget.
+    if widgetName == "comms_control":
+        if gui_queue is not None:
+            _send(clientID, "comms_control", op="rect",
+                  left=round(l1, 2), top=round(t1, 2),
+                  right=round(r1, 2), bottom=round(b1, 2))
+        return
+
     # Mock HUD overlays (ship_data, text_waterfall) default to a screen corner;
     # when a script positions them via a rect, move them to it.
     if widgetName in _HUD_WIDGETS:
@@ -448,6 +456,12 @@ _view_redalert_clients: set = set()
 _redalert_state: dict = {}
 # Last button on-state (bool) sent per button-owner client.
 _redalert_btn_state: dict = {}
+
+# Clients whose console declares the "comms_control" widget — the comms action menu.
+# The comms system emits the menu via send_comms_selection_info (header) +
+# send_comms_button_info (each button), keyed by the comms ORIGIN (ship/cam); the mock
+# maps that origin back to the viewing client(s) and streams a clickable panel.
+_view_comms_control_clients: set = set()
 # DEV DEMO KNOB: MOCK_FORCE_RED_ALERT=1 forces the red-alert vignette ON for every
 # client showing a 2D view, regardless of the mission's console layout or the ship's
 # real red_alert value. Purely to eyeball the widget render (e.g. on the OU Admiral,
@@ -468,6 +482,13 @@ def get_client_console_name(clientID: int) -> str:
     """The console name last activated for this client (e.g. 'gamemaster_overseer_comms',
     'normal_sci'), or '' if unknown. The runner reads it to route a radar-click select."""
     return _console_name.get(clientID, "")
+
+
+def get_client_2d_widget(clientID: int) -> str:
+    """The 2D-view widget name on this client's console (e.g. 'comms_2d_view',
+    'science_2d_view'), or '' if none. The engine puts this in a selection event's
+    value_tag; the runner reads it so a radar-click select matches the engine exactly."""
+    return _view2d_widget_clients.get(clientID, "")
 
 
 def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) -> None:
@@ -534,6 +555,14 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
         _view_redalert_clients.discard(clientID)
         _redalert_btn_state.pop(clientID, None)
         _send(clientID, "red_alert_btn", active=False)
+
+    # comms_control — the comms action menu. Position arrives via widget rects; content
+    # via the send_comms_* overrides below, keyed on the comms origin.
+    if "comms_control" in widgets:
+        _view_comms_control_clients.add(clientID)
+    elif clientID in _view_comms_control_clients:
+        _view_comms_control_clients.discard(clientID)
+        _send(clientID, "comms_control", op="hide")
 
 
 def _push_2dview_rects() -> None:
@@ -747,6 +776,43 @@ def _push_red_alert() -> None:
         if _redalert_btn_state.get(cid) != on:
             _redalert_btn_state[cid] = on
             _send(cid, "red_alert_btn", active=True, on=on)
+
+
+# ---------------------------------------------------------------------------
+# comms_control — the comms action menu (button tree)
+# ---------------------------------------------------------------------------
+def _comms_clients_for_origin(origin_id):
+    """The comms-control console clients whose assigned ship IS the comms origin. The
+    comms system addresses buttons by origin (ship/cam) id; the mock renders them on the
+    console(s) viewing that origin. Runs on the MAST thread (comms event handling)."""
+    if not origin_id:
+        return []
+    out = []
+    for cid in _base_mock.get_client_ID_list():
+        if cid in _view_comms_control_clients and _base_mock.get_ship_of_client(cid) == origin_id:
+            out.append(cid)
+    return out
+
+
+def send_comms_selection_info(origin_id, face, color, title) -> None:
+    """Comms header (face/colour/title) — the engine renders it above the comms buttons.
+    In the mock it OPENS/refreshes the comms_control panel: clears prior buttons and sets
+    the header. send_comms_button_info calls then append the buttons (set_buttons order)."""
+    if gui_queue is None:
+        return
+    for cid in _comms_clients_for_origin(origin_id):
+        _send(cid, "comms_control", op="open", face=face or "", color=color or "white",
+              title=title or "")
+
+
+def send_comms_button_info(origin_id, color, msg, tag) -> None:
+    """One comms button: label `msg`, `tag` is the button INDEX the engine echoes back in
+    press_comms_button.sub_tag. Appended to the panel opened by send_comms_selection_info."""
+    if gui_queue is None:
+        return
+    for cid in _comms_clients_for_origin(origin_id):
+        _send(cid, "comms_control", op="button", tag=str(tag), color=color or "white",
+              msg=msg or "")
 
 
 def physics_tick(dt: float = 1.0 / 60.0) -> None:
