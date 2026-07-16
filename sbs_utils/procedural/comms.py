@@ -723,6 +723,7 @@ class CommsPromise(ButtonPromise):
         else:
             ConsoleDispatcher.remove_select_pair(self.origin_id, self.selected_id, 'comms_target_UID')
             ConsoleDispatcher.remove_message_pair(self.origin_id, self.selected_id, 'comms_target_UID')
+        _forget_comms_promise(self.origin_id, self.selected_id)
 
         if self.assign is not None:
             self.task.set_value_keep_scope(self.assign, self.button)        
@@ -1033,6 +1034,19 @@ def create_grid_comms_label():
         print ("COMMS, grid Exception")
 
 __comms_promises = {}
+
+
+def _forget_comms_promise(origin_id, selected_id):
+    """Evict a cached comms promise for an (origin, selected) pair.
+
+    Called from ``CommsPromise.leave`` -- which the GarbageCollector runs the moment
+    either object of the pair is destroyed -- so a promise can't outlive its objects
+    and be handed back for a recycled id. Fires on ordinary in-engine object deletion,
+    not only the dev in-process reset, keeping the cache coherent in the real game.
+    """
+    __comms_promises.pop((origin_id, selected_id), None)
+
+
 def start_comms_common_selected(event, is_grid):
     # Don't run if the selection doesn't exist
     if event.origin_id == 0:
@@ -1057,7 +1071,14 @@ def start_comms_common_selected(event, is_grid):
         # This is not expected to be called
         #
         #print ("__COMMS_PROMISE creation already exists")
-        return promise_task
+        # Reuse it only if it still refers to live objects. A destroyed (and possibly
+        # id-recycled) selection otherwise returns a stale task. selected_id 0 is a
+        # point selection (no object).
+        o_id, s_id = test
+        stale = (o_id != 0 and query.to_object(o_id) is None) or (s_id != 0 and query.to_object(s_id) is None)
+        if not stale:
+            return promise_task
+        __comms_promises.pop(test, None)
     
     
 

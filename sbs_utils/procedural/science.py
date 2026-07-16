@@ -378,6 +378,7 @@ class ScanPromise(ButtonPromise):
         GarbageCollector.remove_garbage_collect(self.collect)
         ConsoleDispatcher.remove_select_pair(self.origin_id, self.selected_id, 'science_target_UID')
         ConsoleDispatcher.remove_message_pair(self.origin_id, self.selected_id, 'science_target_UID')
+        _forget_science_promise(self.origin_id, self.selected_id)
      
     def show_buttons(self):
         sel_so = to_object(self.selected_id)
@@ -512,6 +513,20 @@ def create_scan_label():
 
 
 __science_promises = {}
+
+
+def _forget_science_promise(origin_id, selected_id):
+    """Evict a cached scan promise for an (origin, selected) pair.
+
+    Called from ``ScanPromise.leave`` -- which the GarbageCollector runs the moment
+    either object of the pair is destroyed -- so a promise can't outlive its objects
+    and be handed back for a recycled id. This fires on ordinary in-engine object
+    deletion, not only the dev in-process reset, so the cache stays coherent in the
+    real game as well as the mock.
+    """
+    __science_promises.pop((origin_id, selected_id), None)
+
+
 def start_science_selected(event):
     """Start or resume a science scan for the given selection event.
 
@@ -543,7 +558,14 @@ def start_science_selected(event):
     promise = __science_promises.get(test)
     if promise is not None:
         #print ("__SCIENCE_PROMISE creation already exists")
-        return promise
+        # Reuse it only if it still refers to live objects. A destroyed (and possibly
+        # id-recycled) selection otherwise returns a stale promise whose task has
+        # ended, silently dropping the scan. selected_id 0 is a point scan (no object).
+        o_id, s_id = test
+        stale = (o_id != 0 and to_object(o_id) is None) or (s_id != 0 and to_object(s_id) is None)
+        if not stale:
+            return promise
+        __science_promises.pop(test, None)
     
     
 
