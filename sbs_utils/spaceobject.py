@@ -412,7 +412,13 @@ class MSpawn:
                 self.add_role(role)
         else:
             self._comms_id = name if name is not None else f""
-        
+
+        # Entries merged at runtime (tagged "#mod") aren't in the engine's shipData, so this
+        # freshly-created object never received the entry's art/stats. Apply them now that
+        # name/side/data_set are set up. (See ship_data.mod_ship_data_process.)
+        if ship_data and ship_data.get(SHIP_DATA.SHIP_DATA_MOD_KEY) is not None:
+            SHIP_DATA.mod_ship_data_process(self, ship_data)
+
         return blob
 
 

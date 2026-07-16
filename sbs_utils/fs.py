@@ -269,6 +269,34 @@ def load_yaml_data(file, multi=False):
     except Exception as e:
         return None
 
+def load_data(file):
+    """Load a data file as YAML or JSON, dispatching on the extension.
+
+    ``.yaml``/``.yml`` are parsed as YAML; ``.json`` as JSON (comment- and
+    trailing-comma-tolerant). When ``file`` has no recognised extension it is
+    treated as a BASE path and the ``.yaml``, ``.yml`` then ``.json`` siblings are
+    tried in turn -- so a caller can pass ``"shipData"`` (no extension) and get
+    whichever form is present, YAML preferred.
+
+    Args:
+        file (str): Path to the data file, with or without a
+            ``.yaml``/``.yml``/``.json`` extension.
+
+    Returns:
+        dict | list | None: The parsed data, or ``None`` if nothing loaded.
+    """
+    ext = os.path.splitext(file)[1].lower()
+    if ext in (".yaml", ".yml"):
+        return load_yaml_data(file)
+    if ext == ".json":
+        return load_json_data(file)
+    # No recognised extension: treat as a base, preferring YAML then JSON.
+    for cand, loader in ((file + ".yaml", load_yaml_data), (file + ".yml", load_yaml_data), (file + ".json", load_json_data)):
+        if os.path.exists(cand):
+            return loader(cand)
+    return None
+
+
 def load_yaml_string(s):
     """Parse a YAML string.
     

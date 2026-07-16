@@ -1,4 +1,4 @@
-from ..fs import load_json_data, get_artemis_data_dir, get_mission_dir, get_mod_dir
+from ..fs import load_data, load_yaml_string, get_artemis_data_dir, get_mission_dir, get_mod_dir
 import os
 
 
@@ -17,22 +17,180 @@ def get_ship_data():
     if ship_data_cache is not None:
         return ship_data_cache
     
-    ship_data_cache = load_json_data( os.path.join(get_artemis_data_dir(), "shipData.yaml"))
-    if ship_data_cache is None:
-        ship_data_cache = load_json_data( os.path.join(get_artemis_data_dir(), "shipData.json"))
-    
-    script_ship_data = load_json_data( os.path.join(get_mission_dir(), "extraShipData.json"))
+    # Base name (no extension) so load_data picks shipData.yaml or shipData.json.
+    ship_data_cache = load_data( os.path.join(get_artemis_data_dir(), "shipData"))
+
+    # extraShipData may be supplied as .yaml or .json.
+    script_ship_data = load_data( os.path.join(get_mission_dir(), "extraShipData"))
     if script_ship_data is not None:
         ship_data_cache["#ship-list"] = script_ship_data["#ship-list"] + ship_data_cache["#ship-list"]
         # ship_data_cache |= script_ship_data
 
     return ship_data_cache
 
-def merge_mod_ship_data(mod):
-    """Merge a mod folder's ``extraShipData.json`` into the ship data cache.
+# Runtime-merged ("mod") ship data entries are stamped with this key naming their source, so
+# the low-level spawn can tell them from engine-known shipData and post-process them.
+SHIP_DATA_MOD_KEY = "#mod"
+
+# shipData scalar fields the engine copies 1-to-1 onto the data_set (same name), as floats.
+# (Mirrors cosmos_dev.mock.sbs._apply_ship_data_to_object, the reverse-engineered mapping.)
+_MOD_SCALAR_FLOAT_SAME = (
+    "interactionradius", "turn_rate", "speed_coeff", "scan_strength_coeff",
+    "ship_energy_cost", "warp_energy_cost", "jump_energy_cost", "drone_launch_timer",
+    "repair_rate_shields", "repair_rate_systems", "repair_rate_armor",
+)
+
+# beamDamage = port damage_coeff * the engine beam-load base.
+_MOD_BEAM_LOAD_BASE = 6.0
+
+
+def _tag_mod_entries(entries, mod):
+    """Stamp every entry (in place) with its source mod so spawns can post-process it."""
+    if mod is not None:
+        for e in entries:
+            if isinstance(e, dict):
+                e[SHIP_DATA_MOD_KEY] = mod
+    return entries
+
+
+def ship_data_get_mod(key_or_entry):
+    """Return the source mod of a ship data entry, or ``None`` if it is engine-known.
+
+    Args:
+        key_or_entry (str | dict): A ship key, or a ship data entry dict.
+
+    Returns:
+        str | None: The mod name stamped at merge time, or ``None`` for built-in data.
+    """
+    entry = key_or_entry
+    if isinstance(key_or_entry, str):
+        entry = get_ship_data_for(key_or_entry)
+    if not isinstance(entry, dict):
+        return None
+    return entry.get(SHIP_DATA_MOD_KEY)
+
+
+def mod_ship_data_process(so, entry):
+    """Apply a runtime-merged (mod) ship data entry to a freshly spawned object.
+
+    The engine's built-in shipData table doesn't contain entries merged at runtime
+    (:func:`merge_mod_ship_yaml` / :func:`merge_mod_ship_data` / :func:`add_ship_data`),
+    so ``create_space_object`` returns a bare object that never got the values the engine
+    normally derives from a KNOWN shipData entry. The low-level spawn (``spawn_common``)
+    calls this for such objects to reproduce that derivation.
+
+    The shipData-field -> object mapping mirrors ``cosmos_dev.mock.sbs``'s reverse-engineered
+    ``_apply_ship_data_to_object`` (the engine's data_set names are NOT the shipData spellings):
+
+    * **Art** via ``set_ship_data_key(artfileroot)`` when the modded key differs from its art
+      (the engine picks the mesh from ``data_tag``, not a data_set field). ``meshscale`` /
+      ``radarscale`` are engine-internal render props with NO data_set key -- not applied.
+    * **``exclusionradius``** -> the physics attribute ``engine_object.exclusion_radius``
+      (not a data_set field).
+    * **1-to-1 float scalars** (``turn_rate``, ``speed_coeff``, ``interactionradius``, ...).
+    * **``hullpoints``** -> ``armor`` / ``armorMax`` (stations only; ships use another system).
+    * **``baycount``** -> ``bay_count``; **``tubecount``** -> ``torpedo_tube_count``.
+    * **``shields``** array -> ``shield_count`` + ``shield_val`` / ``shield_max_val`` per facing.
+    * **``hull_port_sets``** beams -> ``beamCount`` + ``beamRange`` / ``beamDamage`` (coeff *
+      6.0) / ``beamCycleTime`` / ``beamArcWidth`` / ``beamBarrelAngle`` per port.
+    * **``torpedostart``** -> ``{Type}_NUM`` / ``_MAX`` / ``_VAL`` + ``torpedo_types_available``.
+
+    Fields with no known engine mapping (and the meta key/name/side/roles/#mod) are skipped;
+    a prefab may still set anything extra afterwards (it runs after spawn, so it wins).
+
+    Args:
+        so: The spawned SpaceObject (exposes ``.data_set`` and ``.set_ship_data_key``).
+        entry (dict): The ship data entry (as merged, carrying ``#mod``).
+    """
+    if not isinstance(entry, dict):
+        return
+    blob = getattr(so, "data_set", None)
+    if blob is None:
+        return
+
+    # Art (data_tag), only when the modded key names a different (engine-known) mesh.
+    art = entry.get("artfileroot")
+    if art and art != entry.get("key") and hasattr(so, "set_ship_data_key"):
+        so.set_ship_data_key(art)
+
+    # exclusionradius is a physics attribute, not a data_set field.
+    er = entry.get("exclusionradius")
+    if er is not None:
+        eo = getattr(so, "engine_object", None)
+        if eo is not None:
+            eo.exclusion_radius = float(er)
+
+    # 1-to-1 float scalars.
+    for field in _MOD_SCALAR_FLOAT_SAME:
+        val = entry.get(field)
+        if val is not None:
+            blob.set(field, float(val), 0)
+
+    # Renamed scalars.
+    bc = entry.get("baycount")
+    if bc is not None:
+        blob.set("bay_count", int(bc), 0)
+    tc = entry.get("tubecount")
+    if tc is not None:
+        blob.set("torpedo_tube_count", int(tc), 0)
+
+    # hullpoints -> station armor (ships use a different hull system in the engine).
+    hp = entry.get("hullpoints")
+    if hp is not None and hasattr(so, "has_role") and so.has_role("station"):
+        blob.set("armor", float(hp), 0)
+        blob.set("armorMax", float(hp), 0)
+
+    # Shields (per-facing array).
+    shields = entry.get("shields")
+    if shields:
+        blob.set("shield_count", len(shields), 0)
+        for i, sv in enumerate(shields):
+            blob.set("shield_val", float(sv), i)
+            blob.set("shield_max_val", float(sv), i)
+
+    # Beams from every "beam ..." hull_port_sets entry (monster arts name theirs "beam Bite",
+    # "beam Maw", ...; standard ships use "beam Primary Beams").
+    hps = entry.get("hull_port_sets")
+    if isinstance(hps, dict):
+        beams = []
+        for pname, plist in hps.items():
+            if isinstance(pname, str) and pname.startswith("beam") and isinstance(plist, list):
+                beams.extend(plist)
+        if beams:
+            blob.set("beamCount", len(beams), 0)
+            for i, b in enumerate(beams):
+                blob.set("beamRange",       float(b.get("range", 1000)), i)
+                blob.set("beamDamage",      float(b.get("damage_coeff", 1.0)) * _MOD_BEAM_LOAD_BASE, i)
+                blob.set("beamCycleTime",   float(b.get("cycle_time", 6.0)), i)
+                blob.set("beamArcWidth",    float(b.get("arcwidth", 360)), i)
+                blob.set("beamBarrelAngle", float(b.get("barrel_angle", 0)), i)
+
+    # Starting torpedoes: shipData "torpedostart" is a {type: count} dict or a list of them.
+    torp_start = entry.get("torpedostart")
+    if torp_start:
+        if isinstance(torp_start, dict):
+            items = list(torp_start.items())
+        else:
+            items = [kv for e in torp_start if isinstance(e, dict) for kv in e.items()]
+        names = []
+        for tname, count in items:
+            names.append(tname)
+            blob.set(f"{tname}_NUM", int(count), 0)
+            blob.set(f"{tname}_MAX", int(count), 0)
+            blob.set(f"{tname}_VAL", int(count), 0)
+        if names:
+            blob.set("torpedo_types_available", ",".join(names), 0)
+
+
+def merge_mod_ship_data(mod, file=None):
+    """Merge a mod folder's extra ship data (YAML or JSON) into the ship data cache.
 
     Args:
         mod (str): Mod directory name (resolved via ``get_mod_dir``).
+        file (str, optional): The data file within the mod folder. Defaults to
+            the base name ``"extraShipData"``, which loads ``extraShipData.yaml``
+            or ``extraShipData.json`` (YAML preferred). Pass a name WITH a
+            ``.yaml``/``.yml``/``.json`` extension to force a specific format.
 
     Returns:
         dict: The updated ship data cache.
@@ -40,12 +198,99 @@ def merge_mod_ship_data(mod):
     global ship_data_cache
 
     ship_data_cache = get_ship_data()
-    
-    script_ship_data = load_json_data( os.path.join(get_mod_dir(mod), "extraShipData.json"))
+    if file is None:
+        file = "extraShipData"
+
+    script_ship_data = load_data( os.path.join(get_mod_dir(mod), file))
     if script_ship_data is not None:
-        ship_data_cache["#ship-list"] = script_ship_data["#ship-list"] + ship_data_cache["#ship-list"]
+        entries = _tag_mod_entries(script_ship_data["#ship-list"], mod)
+        ship_data_cache["#ship-list"] = entries + ship_data_cache["#ship-list"]
 
     return ship_data_cache
+
+
+def merge_mod_ship_yaml(content, mod=None):
+    """Merge ship data supplied as a YAML/JSON string into the ship data cache.
+
+    Companion to :func:`sbs_utils.procedural.media.media_read_relative_file`, which
+    returns a data file's CONTENTS relative to the current addon -- working whether
+    the addon is a loose folder (dev) or a packaged ``.mastlib`` zip, where a plain
+    filesystem path can't reach the file. So an addon can ship its own ship/terrain
+    data next to its prefabs and load it in one line:
+
+        merge_mod_ship_yaml(media_read_relative_file("shipData_monsters.yaml"), "MyMod")
+
+    The parsed ``#ship-list`` is **prepended** (addon data ahead of built-in). Each entry
+    is stamped with ``mod`` (the ``#mod`` key) so the low-level spawn can tell these
+    engine-unknown entries apart and post-process them (see :func:`mod_ship_data_process`).
+    The derived caches (``ship_index`` and the ``*_keys`` caches) are cleared so the new
+    entries are visible on the next lookup.
+
+    Args:
+        content (str): YAML or JSON text (YAML is a JSON superset, so both parse).
+        mod (str, optional): Name of the mod/addon these entries come from; stamped on
+            each entry as ``#mod``. Defaults to None (untagged).
+
+    Returns:
+        dict | None: The updated ship data cache, or ``None`` if ``content`` was
+            empty or carried no ``#ship-list``.
+    """
+    if content is None:
+        return None
+    global ship_data_cache
+    data = load_yaml_string(content)
+    if data is None or "#ship-list" not in data:
+        return None
+    ship_data_cache = get_ship_data()
+    entries = _tag_mod_entries(data["#ship-list"], mod)
+    ship_data_cache["#ship-list"] = entries + ship_data_cache["#ship-list"]
+    reset_ship_data_caches()
+    return ship_data_cache
+
+
+def add_ship_data(entry, mod=None, prepend=True):
+    """Add a single entry to the in-memory ship data.
+
+    Inserts ``entry`` into the ``#ship-list`` so it is returned by
+    :func:`get_ship_data`, :func:`get_ship_index`, :func:`get_ship_data_for`,
+    :func:`filter_ship_data_by_side`, and the ``*_keys`` helpers -- letting a
+    script register a ship/terrain/pickup type at runtime without editing
+    ``shipData`` or shipping an ``extraShipData.json``.
+
+    The entry is **prepended** by default, matching how ``extraShipData.json`` is
+    merged (script data ahead of built-in data). The derived caches
+    (``ship_index`` and every ``*_keys`` cache) are cleared so the new entry shows
+    up on the next lookup; the loaded ``ship_data_cache`` itself is preserved.
+
+    Args:
+        entry (dict): A ship data dict. Must include a ``"key"`` (used to index
+            it); typically also ``"name"``, ``"side"``, ``"roles"``, and
+            ``"artfileroot"``.
+        mod (str, optional): Name of the mod/addon this entry comes from; stamped on
+            the entry as ``#mod`` so the low-level spawn post-processes it (see
+            :func:`mod_ship_data_process`). Defaults to None (untagged).
+        prepend (bool, optional): Insert at the front of the list (script
+            priority) when ``True`` (default); append to the end when ``False``.
+
+    Returns:
+        dict | None: The updated ship data cache, or ``None`` if ship data could
+            not be loaded.
+    """
+    global ship_data_cache
+    data = get_ship_data()
+    if data is None:
+        return None
+    if mod is not None and isinstance(entry, dict):
+        entry[SHIP_DATA_MOD_KEY] = mod
+    ship_list = data.setdefault("#ship-list", [])
+    if prepend:
+        ship_list.insert(0, entry)
+    else:
+        ship_list.append(entry)
+    # Rebuild the key index and the cached key lists so the new entry is visible;
+    # the loaded ship_data_cache (which we just mutated) is intentionally kept.
+    reset_ship_data_caches()
+    return data
 
 
 def reset_ship_data_caches():
