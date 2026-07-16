@@ -53,8 +53,11 @@ def _tag_mod_entries(entries, mod):
     return entries
 
 
-def ship_data_get_mod(key_or_entry):
+def get_mod(key_or_entry):
     """Return the source mod of a ship data entry, or ``None`` if it is engine-known.
+
+    Exposed to MAST as ``ship_data_get_mod`` (the ``ship_data_`` prelude prefix); named
+    ``get_mod`` here so it doesn't double-prefix to ``ship_data_ship_data_get_mod``.
 
     Args:
         key_or_entry (str | dict): A ship key, or a ship data entry dict.
