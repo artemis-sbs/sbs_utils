@@ -558,12 +558,17 @@ def start_science_selected(event):
     promise = __science_promises.get(test)
     if promise is not None:
         #print ("__SCIENCE_PROMISE creation already exists")
-        # Reuse it only if it still refers to live objects. A destroyed (and possibly
-        # id-recycled) selection otherwise returns a stale promise whose task has
-        # ended, silently dropping the scan. selected_id 0 is a point scan (no object).
+        # Reuse it only if it still refers to the SAME objects. Existence isn't enough:
+        # the engine recycles ids, so a destroyed selection whose id now backs a DIFFERENT
+        # object would pass a to_object-is-not-None check yet hand back a promise built for
+        # the dead object (replaying stale scan data / dropping the scan). to_object returns
+        # the stable Agent.get(id) instance -- a NEW instance once an id is recycled -- so
+        # compare identity against what the promise was built for. selected_id/origin_id 0
+        # is a point scan (no object); to_object(0) is None on both sides, so they match.
         o_id, s_id = test
-        stale = (o_id != 0 and to_object(o_id) is None) or (s_id != 0 and to_object(s_id) is None)
-        if not stale:
+        same = getattr(promise, "_recycle_origin", None) is to_object(o_id) and \
+               getattr(promise, "_recycle_selected", None) is to_object(s_id)
+        if same:
             return promise
         __science_promises.pop(test, None)
     
@@ -671,6 +676,11 @@ def start_science_selected(event):
     if promise is None:
         print("SCIENCE SYSTEM Unexpected missing promise")
     __science_promises[test] = promise
+    if promise is not None:
+        # Stamp the objects this promise is bound to, so the read site can tell a live
+        # re-selection (same instances) from a recycled id (new instances) -- see above.
+        promise._recycle_origin = to_object(event.origin_id)
+        promise._recycle_selected = to_object(event.selected_id)
 
     FrameContext.task = restore_task
     FrameContext.page = restore_page

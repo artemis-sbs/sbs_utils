@@ -1071,12 +1071,17 @@ def start_comms_common_selected(event, is_grid):
         # This is not expected to be called
         #
         #print ("__COMMS_PROMISE creation already exists")
-        # Reuse it only if it still refers to live objects. A destroyed (and possibly
-        # id-recycled) selection otherwise returns a stale task. selected_id 0 is a
-        # point selection (no object).
+        # Reuse it only if it still refers to the SAME objects. Existence isn't enough:
+        # the engine recycles ids, so a destroyed selection whose id now backs a DIFFERENT
+        # object would pass a to_object-is-not-None check yet hand back the stale task.
+        # to_object returns the stable Agent.get(id) instance -- a NEW instance once an id
+        # is recycled -- so compare identity against what the task was bound to. A
+        # selected_id/origin_id of 0 is a point selection (to_object(0) is None on both
+        # sides, so they match).
         o_id, s_id = test
-        stale = (o_id != 0 and query.to_object(o_id) is None) or (s_id != 0 and query.to_object(s_id) is None)
-        if not stale:
+        same = getattr(promise_task, "_recycle_origin", None) is query.to_object(o_id) and \
+               getattr(promise_task, "_recycle_selected", None) is query.to_object(s_id)
+        if same:
             return promise_task
         __comms_promises.pop(test, None)
     
@@ -1180,6 +1185,10 @@ def start_comms_common_selected(event, is_grid):
     # actual task can run
     #
     __comms_promises[test] = t
+    # Stamp the objects this task is bound to, so the read site can tell a live
+    # re-selection (same instances) from a recycled id (new instances) -- see above.
+    t._recycle_origin = query.to_object(event.origin_id)
+    t._recycle_selected = query.to_object(event.selected_id)
     t.tick_in_context()
     bp = t.get_variable("BUTTON_PROMISE")
     if bp is not None:
