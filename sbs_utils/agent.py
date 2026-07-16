@@ -211,8 +211,16 @@ class Agent():
     @classmethod
     def _remove(cls, id):
         Agent.all.pop(id, None) #Allow remove if not added
-        ## TODO: Remove from inventory, and links
+        # Purge this id from EVERY class-level membership registry, not just roles.
+        # These registries (roles / _has_inventory / has_links) are keyed by name with
+        # the object's own id in the set; the per-object inventory/links/roles die with
+        # the instance, but these class-level mirrors would otherwise retain the id. A
+        # lingering _has_inventory entry is what let a recycled id resurface via
+        # has_inventory(key) after delete (e.g. a phantom "__BRAIN__" -> the caught
+        # "Exception in brain processing 'NoneType' object has no attribute 'run'").
         Agent.roles.remove_every_collection(id)
+        Agent._has_inventory.remove_every_collection(id)
+        Agent.has_links.remove_every_collection(id)
 
     ########## ROLES ########################
     def add_role(self, role: str):

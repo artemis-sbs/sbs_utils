@@ -376,6 +376,15 @@ def brains_run_all(tick_task, pass_seconds=None):
             agent_obj = Agent.get(agent)
             if agent_obj is None:
                 continue
+            # __BRAIN__ can resolve to None even though this id is still listed in the
+            # class-level has_inventory("__BRAIN__") registry: the brain-carrying object
+            # was deleted (leaving a stale registry entry) and its id was then recycled to
+            # a NEW object whose own inventory has no brain. Agent.get() returns that new
+            # object (non-None), but the per-object __BRAIN__ read is None - so guard it
+            # rather than crash on None.run() (previously surfaced as the caught
+            # "Exception in brain processing 'NoneType' object has no attribute 'run'").
+            if agent_root is None:
+                continue
             agent_root.run()
         except Exception as e:
             print(f"Exception in brain processing {e}")
