@@ -62,7 +62,6 @@ class StoryScheduler(MastScheduler):
                 pass
         FrameContext.context.sbs.pause_sim()
         err = format_exception(message, "SBS Utils Page level Runtime Error:")
-        print(err)
         FrameContext.error_message = err
         task = self.active_task
         if task is not None:
@@ -71,8 +70,11 @@ class StoryScheduler(MastScheduler):
         if not err.startswith("NoneType"):
             #message += str(err)
             self.errors = [err]
-        else:
-            print(err)
+        print(err)
+        import logging
+        logger = logging.getLogger("mast.runtime")
+        logger.error(err)
+
 
 
     def get_value(self, key, defa=None):
