@@ -245,3 +245,111 @@ def has_any_role(so, roles):
             if so.has_role(role):
                 return True
     return False
+
+
+# --- Role EXPRESSIONS -------------------------------------------------------------
+# A small, safe evaluator for role conditions written with set-style operators. Roles
+# (side counts as a role) are combined with:  | OR   & AND   - AND-NOT   ! NOT   ( )
+# Precedence high->low: ! , then &/- (left to right), then |. No `eval` - a fixed
+# recursive-descent grammar, so an authored/stored condition string can't run code.
+
+def _role_expr_tokenize(expr):
+    toks = []
+    i, n = 0, len(expr)
+    while i < n:
+        c = expr[i]
+        if c.isspace():
+            i += 1
+        elif c in "()|&-!":
+            toks.append(c)
+            i += 1
+        else:
+            j = i
+            while j < n and not expr[j].isspace() and expr[j] not in "()|&-!":
+                j += 1
+            toks.append(expr[i:j])
+            i = j
+    return toks
+
+
+def _role_expr_match(so, toks):
+    # Recursive-descent boolean eval of the token list for a single agent.
+    pos = [0]
+    def peek():
+        return toks[pos[0]] if pos[0] < len(toks) else None
+    def advance():
+        t = toks[pos[0]]
+        pos[0] += 1
+        return t
+    def p_or():
+        v = p_and()
+        while peek() == "|":
+            advance()
+            r = p_and()
+            v = v or r
+        return v
+    def p_and():
+        v = p_unary()
+        while peek() in ("&", "-"):
+            op = advance()
+            r = p_unary()
+            v = (v and r) if op == "&" else (v and not r)
+        return v
+    def p_unary():
+        if peek() == "!":
+            advance()
+            return not p_unary()
+        return p_atom()
+    def p_atom():
+        t = advance()
+        if t == "(":
+            v = p_or()
+            if peek() == ")":
+                advance()
+            return v
+        return has_role(so, t)
+    if not toks:
+        return False
+    return p_or()
+
+
+def role_matches(so, expr):
+    """Return whether an agent satisfies a role EXPRESSION.
+
+    The expression combines role names (a ship's side counts as a role) with set-style
+    operators, evaluated for the single agent ``so``:
+
+    * ``|`` OR       -- ``"__player__ | tsn"``     (a player OR a tsn ship)
+    * ``&`` AND      -- ``"__player__ & tsn"``     (a tsn player)
+    * ``-`` AND-NOT  -- ``"__player__ - cockpit"`` (a player that is not a fighter)
+    * ``!`` NOT      -- ``"!tsn"``                 (anything not tsn); ``-`` is BINARY
+    * ``( )`` group  -- ``"(tsn | raider) & !__player__"``
+
+    Precedence high->low: ``!``, then ``&``/``-`` (left to right), then ``|`` -- use
+    parentheses for other groupings. An empty/None expression matches nothing.
+
+    Args:
+        so (Agent | int): Agent ID or object to test.
+        expr (str): The role expression.
+
+    Returns:
+        bool: ``True`` if the agent satisfies the expression.
+    """
+    if not expr:
+        return False
+    return _role_expr_match(so, _role_expr_tokenize(expr))
+
+
+def roles_matching(expr):
+    """Return the set of agent IDs that satisfy a role expression (see :func:`role_matches`).
+
+    Args:
+        expr (str): The role expression (``| & - !`` and parentheses).
+
+    Returns:
+        set[int]: IDs of all agents matching the expression.
+    """
+    if not expr:
+        return set()
+    toks = _role_expr_tokenize(expr)
+    return {aid for aid in list(Agent.all.keys()) if _role_expr_match(aid, toks)}
