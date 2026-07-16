@@ -258,6 +258,11 @@ def get_data_set_value(id_or_obj, key, index=0):
     Returns:
         any: The stored value, or ``None`` if the object or key is not found.
     """
+    # Initialize so an id that is NEITHER a space nor a grid object (e.g. a side id,
+    # a story id, or the server id 0) returns None instead of raising UnboundLocalError
+    # on the `object is not None` check below. This unblocks callers like side-level
+    # modifier_add, whose is_key_for_blob probes get_data_set_value on the side id.
+    object = None
     if is_space_object_id(id_or_obj):
         object = to_space_object(id_or_obj)
     elif is_grid_object_id(id_or_obj):

@@ -118,12 +118,18 @@ class ModifierHandler:
         add_modifier = 0
         mult_modifier = 1
         for mod in modifiers:
+            # A modifier's value list is sized to the SOURCE's index count. A side-level
+            # (or inventory) modifier carries a single scalar meant to apply at EVERY index,
+            # so its value list is length 1. Clamp the read so applying such a modifier to a
+            # multi-index blob key uses that scalar for every index instead of IndexError-ing
+            # (side-key modifier_add on a member whose key spans >1 index hit this).
+            v = mod.value[index] if index < len(mod.value) else mod.value[-1]
             if mod.mod_type == 0:
-                new_value += mod.value[index]
+                new_value += v
             elif mod.mod_type == 1:
-                add_modifier += mod.value[index]
+                add_modifier += v
             elif mod.mod_type == 2:
-                mult_modifier *= (mod.value[index]+1)
+                mult_modifier *= (v+1)
 
         new_value = new_value * (1+add_modifier) * mult_modifier
         return new_value
