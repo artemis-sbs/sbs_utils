@@ -3619,6 +3619,24 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.roles.role_matches" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;role_matches
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.roles.roles_matching" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;roles_matching
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5599,6 +5617,24 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.roles.role_matches" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;role_matches
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.roles.roles_matching" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;roles_matching
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -6773,6 +6809,175 @@ close = closest(ship_id, role(&quot;tsn&quot;))        # side is also a role
             <td>
               <div class="doc-md-description">
                 <p><code>True</code> if both objects have at least one allied side in common.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.roles.role_matches" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">role_matches</span><span class="p">(</span><span class="n">so</span><span class="p">,</span> <span class="n">expr</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return whether an agent satisfies a role EXPRESSION.</p>
+<p>The expression combines role names (a ship's side counts as a role) with set-style
+operators, evaluated for the single agent <code>so</code>:</p>
+<ul>
+<li><code>|</code> OR       -- <code>"__player__ | tsn"</code>     (a player OR a tsn ship)</li>
+<li><code>&amp;</code> AND      -- <code>"__player__ &amp; tsn"</code>     (a tsn player)</li>
+<li><code>-</code> AND-NOT  -- <code>"__player__ - cockpit"</code> (a player that is not a fighter)</li>
+<li><code>!</code> NOT      -- <code>"!tsn"</code>                 (anything not tsn); <code>-</code> is BINARY</li>
+<li><code>( )</code> group  -- <code>"(tsn | raider) &amp; !__player__"</code></li>
+</ul>
+<p>Precedence high-&gt;low: <code>!</code>, then <code>&amp;</code>/<code>-</code> (left to right), then <code>|</code> -- use
+parentheses for other groupings. An empty/None expression matches nothing.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>so</code>
+            </td>
+            <td>
+                  <code><span title="sbs_utils.agent.Agent">Agent</span> | <span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Agent ID or object to test.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>expr</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The role expression.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>bool</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>True</code> if the agent satisfies the expression.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.roles.roles_matching" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">roles_matching</span><span class="p">(</span><span class="n">expr</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return the set of agent IDs that satisfy a role expression (see :func:<code>role_matches</code>).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>expr</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The role expression (<code>| &amp; - !</code> and parentheses).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>set[int]: IDs of all agents matching the expression.</p>
               </div>
             </td>
           </tr>

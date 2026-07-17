@@ -609,6 +609,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#peacetime-remastered-a-mission-written-in-amd" class="md-nav__link">
+    <span class="md-ellipsis">
+      🕵️ Peacetime Remastered — a mission written in AMD
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#web-pages-written-in-mast" class="md-nav__link">
     <span class="md-ellipsis">
       🌐 Web pages, written in MAST
@@ -5389,6 +5398,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#peacetime-remastered-a-mission-written-in-amd" class="md-nav__link">
+    <span class="md-ellipsis">
+      🕵️ Peacetime Remastered — a mission written in AMD
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#web-pages-written-in-mast" class="md-nav__link">
     <span class="md-ellipsis">
       🌐 Web pages, written in MAST
@@ -5562,6 +5580,60 @@ Authors: <a href="../legendarymissions/addons/casino/">The Casino addon</a>.</p>
   space and activate them through a generic <strong>Upgrades GUI</strong>.</li>
 </ul>
 <p>Docs: <a href="../build/items-upgrades/">Items &amp; Upgrades</a>.</p>
+<h2 id="peacetime-remastered-a-mission-written-in-amd">🕵️ Peacetime Remastered — a mission written in AMD</h2>
+<p><strong>Peacetime Remastered</strong> is a border-patrol shift that doubles as a worked example of
+authoring a whole mission as <strong>data</strong>. Almost everything the crew sees — the story, the
+job board, the cast, the clues, even the chatter — is declared in one <code>.amd</code> fact-sheet;
+MAST holds only the <em>logic</em> that reacts to it.</p>
+<table>
+<thead>
+<tr>
+<th>What the crew sees</th>
+<th>Authored as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The <strong>Ambassador Florbin kidnapping</strong></td>
+<td>a <strong>quest tree</strong> — take the case, identify the kidnapper, subdue, recover</td>
+</tr>
+<tr>
+<td>The <strong>cast</strong> (a deck chief, the Admiral, the Ambassador…)</td>
+<td><strong>lifeforms</strong> — hosted contacts appear as comms <strong>badges</strong> you hail</td>
+</tr>
+<tr>
+<td>The <strong>40 allergy clues</strong></td>
+<td>generic <strong>AMD records</strong> — each heading is a container the ambassador could hide in, its body the clue</td>
+</tr>
+<tr>
+<td>The Ambassador's <strong>passenger complaints</strong></td>
+<td>a <strong>chatter line-pool</strong> — one picked at random</td>
+</tr>
+<tr>
+<td>Briefings, cargo manifests, interview reports</td>
+<td><strong>prose templates</strong> filled in at send time</td>
+</tr>
+<tr>
+<td><strong>Object scans</strong> (cargo ships, anomalies)</td>
+<td>dialogue-native scans (<code>Scan of:</code> / <code>Tab:</code> / <code>%</code> variants)</td>
+</tr>
+<tr>
+<td>The <strong>job board</strong> — gunnery, rocks, poacher, mercy, customs, survey</td>
+<td><strong>quests</strong> with goals, rewards, and fail triggers</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The job board is a pick-up-work board.</strong> Every job starts <strong>idle</strong> — shown as
+<em>Available</em> — and the crew <strong>Accepts</strong> the ones they want from the Quest Log. Accepting is
+when a job's clock starts <em>and</em> when its targets spawn, so a timed rescue gives you the
+full window (the Mayday arrives, then the shuttle) and nothing clutters space for work
+nobody took. Weapons stays busy in peacetime: qualify on drones, break hazard rocks, and
+<strong>disable — don't destroy</strong> a poacher.</p>
+<p>Under the hood the whole kidnap mystery is built by a <strong>pure, seeded Python core</strong> — one
+kidnapper, the Ambassador hidden in exactly one cargo hold, a decoy-laced clue trail —
+that is <strong>unit-tested over many seeds</strong>, so the puzzle is always solvable however the dice
+fall.</p>
+<p>Authoring reference: <a href="../build/quests/">Quests</a> · <a href="../build/sides-lifeforms/">Sides, lifeforms &amp; faces</a>.</p>
 <h2 id="web-pages-written-in-mast">🌐 Web pages, written in MAST</h2>
 <ul>
 <li>Author browser pages with <code>//web/&lt;path&gt;</code> routes using the same <code>gui_*</code> layout you

@@ -2809,6 +2809,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_chain
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.amd.amd_coords" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_coords
@@ -5402,6 +5411,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_chain
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.amd.amd_coords" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_coords
@@ -5628,6 +5646,30 @@ unit-testable outside the engine.</p>
 
 
 
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.amd.amd_chain" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">amd_chain</span><span class="p">(</span><span class="o">*</span><span class="n">handlers</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Compose several <code>amd_parse_facts</code> handlers into one. Each label is offered to the
+handlers in order; the first that consumes it (returns truthy) wins, otherwise it falls
+through to the default coercion. Lets a single parser understand SEVERAL vocabularies at
+once - e.g. quests + science scans + landmarks - so a mission can author all its content
+sections in ONE .amd file (parsed by document_get_amd_file with the chained parser) and
+hand each section to its own loader. Ordering matters only where two handlers claim the
+same label; keep the most specific first.</p>
+
+
+    </div>
+
+</div>
 
 <div class="doc doc-object doc-function">
 

@@ -3286,6 +3286,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.map_apply_defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;map_apply_defaults
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.map_get_defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;map_get_defaults
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.maps.map_get_properties" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;map_get_properties
@@ -5510,6 +5528,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.map_apply_defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;map_apply_defaults
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.map_get_defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;map_get_defaults
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.maps.map_get_properties" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;map_get_properties
@@ -5984,6 +6020,140 @@ about from the code string. A map can also pin the set explicitly with a
             <td>
               <div class="doc-md-description">
                 <p>list[str]: Ordered var names included in the code.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.maps.map_apply_defaults" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">map_apply_defaults</span><span class="p">(</span><span class="nb">map</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Apply a map's <code>Defaults:</code> metadata as SET-IF-ABSENT shared variables.</p>
+<p>For each <code>VAR: value</code> in the map's <code>Defaults</code> block, set the shared variable to
+<code>value</code> ONLY if it is not already set - so a value seeded by <code>settings.yaml</code>, the
+story, or a loaded game code always wins (the same semantics as <code>default shared</code>). This
+lets a map give its own Properties controls a starting value without promoting a map-local
+setting (e.g. a <code>JOBS_SELECT</code> only this map uses) to global settings or scattering
+<code>default</code> through the map body.</p>
+<p>The map's Properties panel renders (and binds its controls to SHARED scope) BEFORE the map
+body runs, so this must be applied at BOTH moments: when the panel is presented, AND again
+whenever the map is started as a task (AUTO_START and a headless <code>--map</code> runner start the
+map task without ever presenting the panel). It is idempotent - a map with no <code>Defaults</code>
+is a no-op, and an already-set var is left untouched - so calling it at both points is safe.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>map</code>
+            </td>
+            <td>
+                  <code><span title="Label">Label</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The map label object (<code>None</code> is a no-op).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.maps.map_get_defaults" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">map_get_defaults</span><span class="p">(</span><span class="nb">map</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return the <code>Defaults</code> metadata dict of a map label (fallback <code>defaults</code>).</p>
+<p>A sibling of <code>Properties</code> in a map's <code>metadata:</code> block: a flat <code>{VAR: value}</code> map of
+starting values for the variables the map's Properties controls bind to (and any other var
+the map wants defaulted). Read the same way as <code>Properties</code> / <code>GameCode</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>map</code>
+            </td>
+            <td>
+                  <code><span title="Label">Label</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The map label object.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>dict | None: The defaults dict, or <code>None</code> if the map declares none.</p>
               </div>
             </td>
           </tr>

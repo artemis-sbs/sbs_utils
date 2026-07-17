@@ -3577,6 +3577,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.ship_data.add_ship_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;add_ship_data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.ship_data.alien_keys" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;alien_keys
@@ -3649,6 +3658,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.ship_data.get_mod" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;get_mod
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.ship_data.get_ship_data" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;get_ship_data
@@ -3706,6 +3724,24 @@
   <a href="#sbs_utils.procedural.ship_data.merge_mod_ship_data" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;merge_mod_ship_data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.ship_data.merge_mod_ship_yaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;merge_mod_ship_yaml
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.ship_data.mod_ship_data_process" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;mod_ship_data_process
     </span>
   </a>
   
@@ -5573,6 +5609,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.ship_data.add_ship_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;add_ship_data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.ship_data.alien_keys" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;alien_keys
@@ -5645,6 +5690,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.ship_data.get_mod" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;get_mod
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.ship_data.get_ship_data" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;get_ship_data
@@ -5702,6 +5756,24 @@
   <a href="#sbs_utils.procedural.ship_data.merge_mod_ship_data" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;merge_mod_ship_data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.ship_data.merge_mod_ship_yaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;merge_mod_ship_yaml
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.ship_data.mod_ship_data_process" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;mod_ship_data_process
     </span>
   </a>
   
@@ -5952,6 +6024,124 @@
 
 
 
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.ship_data.add_ship_data" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">add_ship_data</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">mod</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prepend</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Add a single entry to the in-memory ship data.</p>
+<p>Inserts <code>entry</code> into the <code>#ship-list</code> so it is returned by
+:func:<code>get_ship_data</code>, :func:<code>get_ship_index</code>, :func:<code>get_ship_data_for</code>,
+:func:<code>filter_ship_data_by_side</code>, and the <code>*_keys</code> helpers -- letting a
+script register a ship/terrain/pickup type at runtime without editing
+<code>shipData</code> or shipping an <code>extraShipData.json</code>.</p>
+<p>The entry is <strong>prepended</strong> by default, matching how <code>extraShipData.json</code> is
+merged (script data ahead of built-in data). The derived caches
+(<code>ship_index</code> and every <code>*_keys</code> cache) are cleared so the new entry shows
+up on the next lookup; the loaded <code>ship_data_cache</code> itself is preserved.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>entry</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A ship data dict. Must include a <code>"key"</code> (used to index
+it); typically also <code>"name"</code>, <code>"side"</code>, <code>"roles"</code>, and
+<code>"artfileroot"</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>mod</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the mod/addon this entry comes from; stamped on
+the entry as <code>#mod</code> so the low-level spawn post-processes it (see
+:func:<code>mod_ship_data_process</code>). Defaults to None (untagged).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>prepend</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Insert at the front of the list (script
+priority) when <code>True</code> (default); append to the end when <code>False</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>dict | None: The updated ship data cache, or <code>None</code> if ship data could
+not be loaded.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
 
 <div class="doc doc-object doc-function">
 
@@ -6358,6 +6548,79 @@ full data dicts. Defaults to False.</p>
 <div class="doc doc-object doc-function">
 
 
+<h2 id="sbs_utils.procedural.ship_data.get_mod" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_mod</span><span class="p">(</span><span class="n">key_or_entry</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return the source mod of a ship data entry, or <code>None</code> if it is engine-known.</p>
+<p>Exposed to MAST as <code>ship_data_get_mod</code> (the <code>ship_data_</code> prelude prefix); named
+<code>get_mod</code> here so it doesn't double-prefix to <code>ship_data_ship_data_get_mod</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>key_or_entry</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | <span title="dict">dict</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A ship key, or a ship data entry dict.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>str | None: The mod name stamped at merge time, or <code>None</code> for built-in data.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="sbs_utils.procedural.ship_data.get_ship_data" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">get_ship_data</span><span class="p">()</span></code>
 
@@ -6664,14 +6927,14 @@ take priority over built-in data.</p>
 
 
 <h2 id="sbs_utils.procedural.ship_data.merge_mod_ship_data" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">merge_mod_ship_data</span><span class="p">(</span><span class="n">mod</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">merge_mod_ship_data</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
 
     <div class="doc doc-contents ">
 
-        <p>Merge a mod folder's <code>extraShipData.json</code> into the ship data cache.</p>
+        <p>Merge a mod folder's extra ship data (YAML or JSON) into the ship data cache.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -6701,6 +6964,25 @@ take priority over built-in data.</p>
                 <em>required</em>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>file</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The data file within the mod folder. Defaults to
+the base name <code>"extraShipData"</code>, which loads <code>extraShipData.yaml</code>
+or <code>extraShipData.json</code> (YAML preferred). Pass a name WITH a
+<code>.yaml</code>/<code>.yml</code>/<code>.json</code> extension to force a specific format.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -6721,6 +7003,194 @@ take priority over built-in data.</p>
               <div class="doc-md-description">
                 <p>The updated ship data cache.</p>
               </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.ship_data.merge_mod_ship_yaml" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">merge_mod_ship_yaml</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">mod</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Merge ship data supplied as a YAML/JSON string into the ship data cache.</p>
+<p>Companion to :func:<code>sbs_utils.procedural.media.media_read_relative_file</code>, which
+returns a data file's CONTENTS relative to the current addon -- working whether
+the addon is a loose folder (dev) or a packaged <code>.mastlib</code> zip, where a plain
+filesystem path can't reach the file. So an addon can ship its own ship/terrain
+data next to its prefabs and load it in one line:</p>
+<pre><code>merge_mod_ship_yaml(media_read_relative_file("shipData_monsters.yaml"), "MyMod")
+</code></pre>
+<p>The parsed <code>#ship-list</code> is <strong>prepended</strong> (addon data ahead of built-in). Each entry
+is stamped with <code>mod</code> (the <code>#mod</code> key) so the low-level spawn can tell these
+engine-unknown entries apart and post-process them (see :func:<code>mod_ship_data_process</code>).
+The derived caches (<code>ship_index</code> and the <code>*_keys</code> caches) are cleared so the new
+entries are visible on the next lookup.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>content</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>YAML or JSON text (YAML is a JSON superset, so both parse).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>mod</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the mod/addon these entries come from; stamped on
+each entry as <code>#mod</code>. Defaults to None (untagged).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>dict | None: The updated ship data cache, or <code>None</code> if <code>content</code> was
+empty or carried no <code>#ship-list</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.ship_data.mod_ship_data_process" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">mod_ship_data_process</span><span class="p">(</span><span class="n">so</span><span class="p">,</span> <span class="n">entry</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Apply a runtime-merged (mod) ship data entry to a freshly spawned object.</p>
+<p>The engine's built-in shipData table doesn't contain entries merged at runtime
+(:func:<code>merge_mod_ship_yaml</code> / :func:<code>merge_mod_ship_data</code> / :func:<code>add_ship_data</code>),
+so <code>create_space_object</code> returns a bare object that never got the values the engine
+normally derives from a KNOWN shipData entry. The low-level spawn (<code>spawn_common</code>)
+calls this for such objects to reproduce that derivation.</p>
+<p>The shipData-field -&gt; object mapping mirrors <code>cosmos_dev.mock.sbs</code>'s reverse-engineered
+<code>_apply_ship_data_to_object</code> (the engine's data_set names are NOT the shipData spellings):</p>
+<ul>
+<li><strong>Art</strong> via <code>set_ship_data_key(artfileroot)</code> when the modded key differs from its art
+  (the engine picks the mesh from <code>data_tag</code>, not a data_set field). <code>meshscale</code> /
+  <code>radarscale</code> are engine-internal render props with NO data_set key -- not applied.</li>
+<li><strong><code>exclusionradius</code></strong> -&gt; the physics attribute <code>engine_object.exclusion_radius</code>
+  (not a data_set field).</li>
+<li><strong>1-to-1 float scalars</strong> (<code>turn_rate</code>, <code>speed_coeff</code>, <code>interactionradius</code>, ...).</li>
+<li><strong><code>hullpoints</code></strong> -&gt; <code>armor</code> / <code>armorMax</code> (stations only; ships use another system).</li>
+<li><strong><code>baycount</code></strong> -&gt; <code>bay_count</code>; <strong><code>tubecount</code></strong> -&gt; <code>torpedo_tube_count</code>.</li>
+<li><strong><code>shields</code></strong> array -&gt; <code>shield_count</code> + <code>shield_val</code> / <code>shield_max_val</code> per facing.</li>
+<li><strong><code>hull_port_sets</code></strong> beams -&gt; <code>beamCount</code> + <code>beamRange</code> / <code>beamDamage</code> (coeff *
+  6.0) / <code>beamCycleTime</code> / <code>beamArcWidth</code> / <code>beamBarrelAngle</code> per port.</li>
+<li><strong><code>torpedostart</code></strong> -&gt; <code>{Type}_NUM</code> / <code>_MAX</code> / <code>_VAL</code> + <code>torpedo_types_available</code>.</li>
+</ul>
+<p>Fields with no known engine mapping (and the meta key/name/side/roles/#mod) are skipped;
+a prefab may still set anything extra afterwards (it runs after spawn, so it wins).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>so</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The spawned SpaceObject (exposes <code>.data_set</code> and <code>.set_ship_data_key</code>).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>entry</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The ship data entry (as merged, carrying <code>#mod</code>).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
             </td>
           </tr>
       </tbody>

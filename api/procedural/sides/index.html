@@ -3717,6 +3717,42 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.sides.side_create" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;side_create
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.sides.side_diplomacy_apply" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;side_diplomacy_apply
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.sides.side_diplomacy_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;side_diplomacy_key
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.sides.side_diplomacy_set" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;side_diplomacy_set
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.sides.side_display_name" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;side_display_name
@@ -5789,6 +5825,42 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.sides.side_create" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;side_create
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.sides.side_diplomacy_apply" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;side_diplomacy_apply
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.sides.side_diplomacy_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;side_diplomacy_key
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.sides.side_diplomacy_set" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;side_diplomacy_set
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.sides.side_display_name" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;side_display_name
@@ -7275,6 +7347,87 @@ a side key directly.</p>
           </tr>
       </tbody>
     </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.sides.side_create" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">side_create</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">icon_index</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">races</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">allies</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">enemies</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Create and configure a faction SIDE from data - the Python port of the
+<code>prefab_side_generic</code> MAST prefab, so the same setup is callable from Python or a
+declarative loader without the mast prefab.</p>
+<p>Sets side_name / side_key / side_desc / side_races inventory, icon color + index, and
+applies ally/enemy diplomacy (plus the self-ally that <code>side_ensure</code> seeds). Idempotent:
+if the side already exists it is reconfigured in place (<code>side_ensure</code> returns the
+existing id). <code>races</code>/<code>allies</code>/<code>enemies</code> accept a comma string or a list.</p>
+<p>Returns the side agent id (None if <code>key</code> is falsy).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.sides.side_diplomacy_apply" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">side_diplomacy_apply</span><span class="p">(</span><span class="n">overrides</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Re-apply saved per-pair diplomacy overrides via side_set_relations (call after the
+sides exist, e.g. on load).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.sides.side_diplomacy_key" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">side_diplomacy_key</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Order-independent key for a side PAIR (relations are symmetric).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.sides.side_diplomacy_set" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">side_diplomacy_set</span><span class="p">(</span><span class="n">overrides</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">relation</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Record a per-pair diplomacy override in <code>overrides</code> (created if not a dict);
+returns the dict. Persist it to carry live relation changes across saves.</p>
 
 
     </div>
