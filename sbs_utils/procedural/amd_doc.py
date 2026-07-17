@@ -105,3 +105,33 @@ def amd_splice(doc, section_key, included_doc):
         if sec.get("key") == section_key:
             sec.get("children").extend(included_doc.get("children", []))
             return
+
+
+def amd_text_map(section):
+    """A section's per-heading prose as a ``{key: text}`` lookup: each child's ``key`` mapped
+    to its stripped ``description``. Built as plain data (not interpolated at load) so a mission
+    can load a section of prose TEMPLATES once and fill their ``{slots}`` later (see amd_fill).
+    Returns ``{}`` when ``section`` is None."""
+    out = {}
+    if section is not None:
+        for n in section.get("children", []):
+            out[n.get("key")] = (n.get("description") or "").strip()
+    return out
+
+
+class _AmdFormatDict(dict):
+    """format_map helper: an unfilled ``{slot}`` is left LITERAL rather than raising."""
+    def __missing__(self, key):
+        return "{" + key + "}"
+
+
+def amd_fill(template, values):
+    """Fill a template's ``{slot}`` placeholders from ``values`` via ``format_map``, leaving
+    UNKNOWN slots literal (missing-key-safe). Returns ``""`` for an empty/None template. Pairs
+    with amd_text_map: load prose templates once, fill their slots per use."""
+    if not template:
+        return ""
+    try:
+        return template.format_map(_AmdFormatDict(values))
+    except Exception:
+        return template

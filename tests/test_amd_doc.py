@@ -9,7 +9,8 @@ test_set_exe_dir()
 
 import sbs_utils.mast_sbs.story_nodes  # import first to break a circular import
 from sbs_utils.procedural.amd_doc import (
-    amd_document, amd_root_node, amd_root_data, amd_section, amd_includes, amd_splice)
+    amd_document, amd_root_node, amd_root_data, amd_section, amd_includes, amd_splice,
+    amd_text_map, amd_fill)
 
 
 def _doc(text):
@@ -61,6 +62,36 @@ class AmdDocTests(unittest.TestCase):
         doc = _doc(TOC)
         amd_splice(doc, "nope", _doc("# [X](x)\n"))   # no crash
         amd_splice(doc, "clans", None)                # no crash
+
+
+class AmdTextMapTests(unittest.TestCase):
+    def test_reads_children_stripped(self):
+        section = {"children": [
+            {"key": "a", "description": " hi "},
+            {"key": "b", "description": "there"},
+        ]}
+        self.assertEqual(amd_text_map(section), {"a": "hi", "b": "there"})
+
+    def test_none_description_becomes_empty(self):
+        section = {"children": [{"key": "c", "description": None}]}
+        self.assertEqual(amd_text_map(section), {"c": ""})
+
+    def test_none_section_safe(self):
+        self.assertEqual(amd_text_map(None), {})
+
+
+class AmdFillTests(unittest.TestCase):
+    def test_fills_known_slots(self):
+        self.assertEqual(
+            amd_fill("{ship} docked at {stop}", {"ship": "Kestrel", "stop": "DS2"}),
+            "Kestrel docked at DS2")
+
+    def test_unknown_slot_left_literal(self):
+        self.assertEqual(amd_fill("hi {x}", {"y": "z"}), "hi {x}")
+
+    def test_empty_and_none_template(self):
+        self.assertEqual(amd_fill("", {"x": "1"}), "")
+        self.assertEqual(amd_fill(None, {"x": "1"}), "")
 
 
 if __name__ == "__main__":
