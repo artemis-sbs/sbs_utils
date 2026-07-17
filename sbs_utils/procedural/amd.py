@@ -107,6 +107,22 @@ def amd_fact_lines(text):
         yield label.strip().lower(), value.strip()
 
 
+def amd_chain(*handlers):
+    """Compose several `amd_parse_facts` handlers into one. Each label is offered to the
+    handlers in order; the first that consumes it (returns truthy) wins, otherwise it falls
+    through to the default coercion. Lets a single parser understand SEVERAL vocabularies at
+    once - e.g. quests + science scans + landmarks - so a mission can author all its content
+    sections in ONE .amd file (parsed by document_get_amd_file with the chained parser) and
+    hand each section to its own loader. Ordering matters only where two handlers claim the
+    same label; keep the most specific first."""
+    def handler(data, label, value):
+        for fn in handlers:
+            if fn is not None and fn(data, label, value):
+                return True
+        return None
+    return handler
+
+
 def amd_parse_facts(text, handler=None, default=amd_num):
     """Parse a friendly fact-sheet fence into a dict.
 
