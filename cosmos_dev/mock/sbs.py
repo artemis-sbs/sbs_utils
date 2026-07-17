@@ -214,6 +214,12 @@ def create_new_sim() -> None:
     _blasts.clear()
     _beam_fires.clear()
     _broad_hash = {"key": None, "grid": None}   # drop the old mission's spatial hash
+    # Drop every ship's hull map too. hull_map_objects is a MODULE global keyed by ship id;
+    # sim.__init__ recycles space-object ids, so without this a new ship reuses an old id and
+    # get_hull_map hands back the PREVIOUS ship's grid objects - grid_objects() then reports the
+    # stale nodes on top of the new ones (e.g. a fresh 3-node ship reading 7). Blank it so a new
+    # sim starts with no grid state.
+    hull_map_objects.clear()
     return sim
 
 
