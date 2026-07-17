@@ -103,6 +103,42 @@ class ScienceDefineScanAmdTests(unittest.TestCase):
         self.assertEqual(science_scan_tab(self.poacher, "scan"), "A trawler.")
         self.assertEqual(science_scan_tab(self.poacher, "intel"), "Registered to Captain Vale.")
 
+    def test_dialogue_native_random_variants(self):
+        # Option B: one heading per (role, tab); Scan of: binds it; body % lines are variants.
+        doc = {"children": [
+            {"key": "rock_hull", "data": {"scan of": "hazard_rock", "tab": "scan"},
+             "description": "% Dense metallic asteroid.\n% A tumbling nickel-iron boulder."},
+            {"key": "rock_mat", "data": {"scan of": "hazard_rock", "tab": "mat"},
+             "description": "High nickel-iron content."},
+        ]}
+        science_define_scan_amd(doc)
+        for _ in range(10):
+            self.assertIn(science_scan_tab(self.rock, "scan"),
+                          ["Dense metallic asteroid.", "A tumbling nickel-iron boulder."])
+        self.assertEqual(science_scan_tab(self.rock, "mat"), "High nickel-iron content.")
+
+    def test_dialogue_native_body_placeholder(self):
+        # {captain} in a BODY line is safe (never hits YAML flow) and interpolates
+        doc = {"children": [
+            {"key": "poach_intel", "data": {"scan of": "poacher", "tab": "intel"},
+             "description": "Registered to Captain {captain}."},
+        ]}
+        science_define_scan_amd(doc)
+        from sbs_utils.procedural.inventory import set_inventory_value
+        set_inventory_value(self.poacher, "captain", "Marlin")
+        self.assertEqual(science_scan_tab(self.poacher, "intel"), "Registered to Captain Marlin.")
+
+    def test_dialogue_native_and_flat_compose(self):
+        # a role can get tabs from both a flat heading and dialogue-native headings
+        doc = {"children": [
+            {"key": "hazard_rock", "data": {"mat": "Iron."}, "description": ""},
+            {"key": "extra", "data": {"scan of": "hazard_rock", "tab": "scan"},
+             "description": "A rock."},
+        ]}
+        science_define_scan_amd(doc)
+        self.assertEqual(science_scan_tab(self.rock, "mat"), "Iron.")
+        self.assertEqual(science_scan_tab(self.rock, "scan"), "A rock.")
+
     def test_none_doc_is_safe(self):
         science_define_scan_amd(None)   # no crash
 

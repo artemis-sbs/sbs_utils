@@ -95,6 +95,18 @@ class ScienceScanDefTests(unittest.TestCase):
         self.assertTrue(science_has_scan_def(self.ship))
         self.assertEqual(science_scan_tab(self.ship, "bio"), "Crew of 40, all healthy.")
 
+    def test_list_value_is_random_one_of(self):
+        # a list tab value = %-style random variants; each read is one of them
+        science_define_scan("hazard_rock", {"scan": ["A rock.", "A boulder.", "A hulk."]})
+        opts = {"A rock.", "A boulder.", "A hulk."}
+        for _ in range(20):
+            self.assertIn(science_scan_tab(self.rock, "scan"), opts)
+
+    def test_list_variant_still_interpolates(self):
+        science_define_scan("hazard_rock", {"intel": ["Captain {captain}.", "Skipper {captain}."]})
+        set_inventory_value(self.rock, "captain", "Vale")
+        self.assertIn(science_scan_tab(self.rock, "intel"), ["Captain Vale.", "Skipper Vale."])
+
 
 if __name__ == "__main__":
     unittest.main()

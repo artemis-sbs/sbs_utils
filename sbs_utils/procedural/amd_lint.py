@@ -204,16 +204,26 @@ _RE_FENCE_LABEL = re.compile(r"^[ \t]*([A-Za-z][A-Za-z0-9 _]*?)[ \t]*:")
 
 
 def _scan_fence_findings(fence):
-    """Findings for one `---` fence's (lineno, label) list, IF it looks like a scan
-    definition (>=1 real scan tab, no quest label). A label outside the scan vocabulary is
-    captured by the parser but never rendered - warn."""
-    labels = [lab for _, lab in fence]
+    """Findings for one `---` fence's (lineno, label, value) list. Two scan shapes:
+    * dialogue-native - a `Scan of:` fence; warn if its `Tab:` value isn't a real scan tab.
+    * flat - >=1 real scan tab and no quest label; warn on a label outside the scan
+      vocabulary (captured by the parser but never rendered - a typo)."""
+    labels = [lab for _, lab, _ in fence]
+    if "scan of" in labels or "scan_of" in labels:
+        out = []
+        for lineno, lab, val in fence:
+            if lab == "tab" and val.strip().lower() not in _SCAN_TABS:
+                out.append(AmdFinding(
+                    lineno, WARNING, "unknown-scan-tab",
+                    f"`Tab: {val}` is not a known scan tab (scan/status/intel/mat/bio); "
+                    f"that scan will never render - likely a typo"))
+        return out
     if not any(l in _SCAN_TABS for l in labels):
         return []   # not a scan fence
     if any(l in _QUEST_LABELS for l in labels):
         return []   # a quest fence, not a scan fence
     out = []
-    for lineno, lab in fence:
+    for lineno, lab, _ in fence:
         if lab not in _SCAN_TABS:
             out.append(AmdFinding(
                 lineno, WARNING, "unknown-scan-label",
@@ -223,12 +233,12 @@ def _scan_fence_findings(fence):
 
 
 def amd_lint_scan_labels(file_path=None, content=None):
-    """In a SCAN fence, warn on a label that is not a known scan tab. A typo like `Scna:`
-    is silently swallowed and that tab never renders - exactly the silent failure class the
-    linter exists to surface. Quest / other-vocabulary fences are left alone. WARNING."""
+    """In a SCAN fence, warn on a tab that is not one of scan/status/intel/mat/bio - a typo
+    (`Scna:`, or `Tab: scna`) is silently swallowed and that scan never renders, exactly the
+    silent failure class the linter exists to surface. Quest / other fences are left alone."""
     lines = _source_lines(file_path, content)
     findings = []
-    fence = None  # collecting (lineno, label) between --- fences, or None outside one
+    fence = None  # collecting (lineno, label, value) between --- fences, or None outside
     for i, line in enumerate(lines, start=1):
         if _RE_DATA_FENCE.match(line):
             if fence is None:
@@ -240,7 +250,8 @@ def amd_lint_scan_labels(file_path=None, content=None):
         if fence is not None:
             m = _RE_FENCE_LABEL.match(line)
             if m:
-                fence.append((i, m.group(1).strip().lower()))
+                value = line.split(":", 1)[1].strip() if ":" in line else ""
+                fence.append((i, m.group(1).strip().lower(), value))
     return findings
 
 

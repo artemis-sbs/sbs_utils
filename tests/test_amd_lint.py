@@ -277,6 +277,16 @@ class TestScanLabels(unittest.TestCase):
         doc = ("# [Q](q)\n---\nGoal: destroy 3 raiders\nStatus: anything\n---\n")
         self.assertEqual(_by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-label"), [])
 
+    def test_dialogue_native_bad_tab_flagged(self):
+        doc = ("# [Hull](hull)\n---\nScan of: wreck\nTab: scna\n---\n% Wreckage.\n")
+        f = _by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-tab")
+        self.assertEqual(len(f), 1)
+        self.assertEqual(f[0].line, 4)   # the Tab: line
+
+    def test_dialogue_native_good_tab_clean(self):
+        doc = ("# [Hull](hull)\n---\nScan of: wreck\nTab: mat\n---\n% Salvage: 1.3 kt.\n")
+        self.assertEqual(_by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-tab"), [])
+
 
 if __name__ == "__main__":
     unittest.main()

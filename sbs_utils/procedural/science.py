@@ -1,4 +1,5 @@
 import re
+import random
 from .query  import to_object, to_object_list, to_id, to_blob
 from ..helpers import FrameContext, FakeEvent
 from ..mast_sbs.story_nodes.button import Button
@@ -198,10 +199,14 @@ def science_has_scan_def(selected_id):
 
 def science_scan_tab(selected_id, tab):
     """The resolved text for one tab on an object (``""`` if none): per-object override or
-    role default, with ``{key}`` placeholders filled from inventory. The generic science
-    route uses this both as the tab's show-condition and as its scan result text."""
-    text = science_scan_def_for(selected_id).get(tab, "")
-    return _science_scan_interp(selected_id, str(text)) if text else ""
+    role default, with ``{key}`` placeholders filled from inventory. A LIST value is a set
+    of ``%``-style random variants - one is picked at random per call (so a fresh line each
+    scan, like the engine's ``%``). The generic science route uses this both as the tab's
+    show-condition and as its scan result text."""
+    val = science_scan_def_for(selected_id).get(tab, "")
+    if isinstance(val, (list, tuple)):
+        val = random.choice(val) if val else ""
+    return _science_scan_interp(selected_id, str(val)) if val else ""
 
 
 def science_get_scan_data(origin, target, tab="scan")->str:
