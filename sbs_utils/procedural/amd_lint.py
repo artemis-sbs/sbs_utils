@@ -191,6 +191,59 @@ def amd_lint_ascii(file_path=None, content=None):
     return findings
 
 
+# --- scan vocabulary: a typo'd tab is silently swallowed --------------------
+# Standard science-scan tabs (mirror procedural.science SCIENCE_SCAN_TABS - kept local so
+# this module stays stdlib-only). A few quest labels, enough to tell a quest fence from a
+# scan fence so a quest's Goal/When isn't mistaken for a bad scan tab.
+_SCAN_TABS = frozenset({"scan", "status", "intel", "mat", "bio"})
+_QUEST_LABELS = frozenset({
+    "scope", "state", "goal", "when", "then", "pays", "tier", "display",
+    "win", "lose", "parent", "required", "critical",
+    "fail on signal", "fail on all dead", "fail after", "reveals", "scan text"})
+_RE_FENCE_LABEL = re.compile(r"^[ \t]*([A-Za-z][A-Za-z0-9 _]*?)[ \t]*:")
+
+
+def _scan_fence_findings(fence):
+    """Findings for one `---` fence's (lineno, label) list, IF it looks like a scan
+    definition (>=1 real scan tab, no quest label). A label outside the scan vocabulary is
+    captured by the parser but never rendered - warn."""
+    labels = [lab for _, lab in fence]
+    if not any(l in _SCAN_TABS for l in labels):
+        return []   # not a scan fence
+    if any(l in _QUEST_LABELS for l in labels):
+        return []   # a quest fence, not a scan fence
+    out = []
+    for lineno, lab in fence:
+        if lab not in _SCAN_TABS:
+            out.append(AmdFinding(
+                lineno, WARNING, "unknown-scan-label",
+                f"`{lab}` is not a known scan tab (scan/status/intel/mat/bio); it is "
+                f"captured but never rendered - likely a typo"))
+    return out
+
+
+def amd_lint_scan_labels(file_path=None, content=None):
+    """In a SCAN fence, warn on a label that is not a known scan tab. A typo like `Scna:`
+    is silently swallowed and that tab never renders - exactly the silent failure class the
+    linter exists to surface. Quest / other-vocabulary fences are left alone. WARNING."""
+    lines = _source_lines(file_path, content)
+    findings = []
+    fence = None  # collecting (lineno, label) between --- fences, or None outside one
+    for i, line in enumerate(lines, start=1):
+        if _RE_DATA_FENCE.match(line):
+            if fence is None:
+                fence = []
+            else:
+                findings += _scan_fence_findings(fence)
+                fence = None
+            continue
+        if fence is not None:
+            m = _RE_FENCE_LABEL.match(line)
+            if m:
+                fence.append((i, m.group(1).strip().lower()))
+    return findings
+
+
 # Engine / quest-driver signals that have built-in handlers - never flag these as
 # "emitted with no route" (source: schema map, quest_driver.mast + engine routes).
 DRIVER_SIGNALS = frozenset({
@@ -363,6 +416,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
     downgraded to a single finding rather than raised."""
     findings = list(amd_lint_structural(file_path, content))
     findings += amd_lint_ascii(file_path, content)
+    findings += amd_lint_scan_labels(file_path, content)
 
     if content is None and file_path is not None:
         try:

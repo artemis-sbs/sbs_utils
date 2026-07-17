@@ -254,5 +254,29 @@ class TestSpans(unittest.TestCase):
         self.assertTrue(f and f[0].col is not None and f[0].end_col > f[0].col)
 
 
+class TestScanLabels(unittest.TestCase):
+    """Scan-vocabulary check - a typo'd tab is silently swallowed and never renders."""
+
+    def test_clean_scan_fence(self):
+        doc = ("# [Rock](rock)\n---\nScan: A rock.\nMat: Salvageable.\nBio: No life.\n---\n")
+        self.assertEqual(_by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-label"), [])
+
+    def test_typo_tab_flagged(self):
+        doc = ("# [Rock](rock)\n---\nScan: A rock.\nScna: oops.\n---\n")
+        f = _by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-label")
+        self.assertEqual(len(f), 1)
+        self.assertEqual(f[0].line, 4)   # the Scna: line
+
+    def test_placeholder_intel_is_clean(self):
+        # a {placeholder} value (parses as YAML) must not trip the scan-label check
+        doc = ("# [Ship](ship)\n---\nScan: A ship.\nIntel: Captain {captain}.\n---\n")
+        self.assertEqual(_by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-label"), [])
+
+    def test_quest_fence_not_treated_as_scan(self):
+        # a quest fence that happens to use Status: must not be judged as a scan fence
+        doc = ("# [Q](q)\n---\nGoal: destroy 3 raiders\nStatus: anything\n---\n")
+        self.assertEqual(_by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-label"), [])
+
+
 if __name__ == "__main__":
     unittest.main()
