@@ -268,6 +268,35 @@ def side_set_relations(side1, side2, relation):
     sim.set_side_relationship(o1_key, o2_key, relation)
     signal_emit("side_relations_updated", {"side1": o1, "side2": o2, "relation": relation, "old_relation": old_relation})
 
+
+# --- Persisted per-pair diplomacy overrides ----------------------------------
+# Base relations come from side setup; when relations CHANGE at runtime (a ceasefire, a
+# defection) record the override in a plain dict and persist it, then re-apply after the
+# sides exist on load. Order-independent keys (relations are symmetric). Promoted from OU.
+def side_diplomacy_key(a, b):
+    """Order-independent key for a side PAIR (relations are symmetric)."""
+    return "|".join(sorted([str(a), str(b)]))
+
+
+def side_diplomacy_set(overrides, a, b, relation):
+    """Record a per-pair diplomacy override in ``overrides`` (created if not a dict);
+    returns the dict. Persist it to carry live relation changes across saves."""
+    if not isinstance(overrides, dict):
+        overrides = {}
+    overrides[side_diplomacy_key(a, b)] = int(relation)
+    return overrides
+
+
+def side_diplomacy_apply(overrides):
+    """Re-apply saved per-pair diplomacy overrides via side_set_relations (call after the
+    sides exist, e.g. on load)."""
+    if not isinstance(overrides, dict):
+        return
+    for k, relation in overrides.items():
+        parts = k.split("|")
+        if len(parts) == 2:
+            side_set_relations(parts[0], parts[1], relation)
+
 def side_get_relations(side1, side2):
     """Return the current diplomatic relationship between two sides.
 
