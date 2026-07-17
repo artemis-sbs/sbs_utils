@@ -182,6 +182,8 @@ Properties:
     Player Ships: 'gui_int_slider("$text:int;low: 1.0;high:8.0;", var= "PLAYER_COUNT")'
     Difficulty: 'gui_int_slider("$text:int;low: 1.0;high:11.0;", var= "DIFFICULTY")'
     Game Length: 'gui_input("desc: Minutes;", var="GAME_TIME_LIMIT")'
+Defaults:
+    JOBS_SELECT: some
 ```
     # Spawn world
     ...
@@ -191,6 +193,19 @@ Properties:
     # Game loop
     ...
     ->END
+
+> **`Defaults:` metadata (sibling of `Properties:`)** — a flat `VAR: value` map of starting
+> values for the map's Properties vars (and any other var the map wants defaulted). The property
+> panel renders at map-SELECTION time, *before* the `@map` body runs, and its controls bind to
+> **shared** scope — so a var a control reads (`{JOBS_SELECT}` interpolation, a slider's start
+> position) must already exist in shared scope or it renders blank/0. `Defaults` supplies that.
+> Applied **set-if-absent** (like `default shared`), so `settings.yaml` / story / loaded game-code
+> values always win — put *cross-map* settings in `settings.yaml`, and *map-local* ones (a
+> `JOBS_SELECT` only this map uses) here, instead of promoting them to global settings or
+> scattering `default X = ...` through the map body. The library applies them at BOTH moments the
+> map is materialized: when the selection panel is presented, and again whenever the map is started
+> as a task (`map_apply_defaults(map)` in `maps.py`; the LM server console and the headless
+> `--map` runner both call it). A map with no `Defaults` is unaffected.
 
 # 5. Helper labels
 === send_admiral_message

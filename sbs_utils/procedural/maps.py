@@ -83,6 +83,55 @@ def map_get_properties(map):
     return map.get_inventory_value("Properties", map.get_inventory_value("properties"))
 
 
+def map_get_defaults(map):
+    """Return the ``Defaults`` metadata dict of a map label (fallback ``defaults``).
+
+    A sibling of ``Properties`` in a map's ``metadata:`` block: a flat ``{VAR: value}`` map of
+    starting values for the variables the map's Properties controls bind to (and any other var
+    the map wants defaulted). Read the same way as ``Properties`` / ``GameCode``.
+
+    Args:
+        map (Label): The map label object.
+
+    Returns:
+        dict | None: The defaults dict, or ``None`` if the map declares none.
+    """
+    return map.get_inventory_value("Defaults", map.get_inventory_value("defaults"))
+
+
+_DEFAULT_MISSING = object()
+
+
+def map_apply_defaults(map):
+    """Apply a map's ``Defaults:`` metadata as SET-IF-ABSENT shared variables.
+
+    For each ``VAR: value`` in the map's ``Defaults`` block, set the shared variable to
+    ``value`` ONLY if it is not already set - so a value seeded by ``settings.yaml``, the
+    story, or a loaded game code always wins (the same semantics as ``default shared``). This
+    lets a map give its own Properties controls a starting value without promoting a map-local
+    setting (e.g. a ``JOBS_SELECT`` only this map uses) to global settings or scattering
+    ``default`` through the map body.
+
+    The map's Properties panel renders (and binds its controls to SHARED scope) BEFORE the map
+    body runs, so this must be applied at BOTH moments: when the panel is presented, AND again
+    whenever the map is started as a task (AUTO_START and a headless ``--map`` runner start the
+    map task without ever presenting the panel). It is idempotent - a map with no ``Defaults``
+    is a no-op, and an already-set var is left untouched - so calling it at both points is safe.
+
+    Args:
+        map (Label): The map label object (``None`` is a no-op).
+    """
+    if map is None:
+        return
+    defaults = map_get_defaults(map)
+    if not isinstance(defaults, dict):
+        return
+    from .execution import get_shared_variable, set_shared_variable
+    for name, value in defaults.items():
+        if get_shared_variable(name, _DEFAULT_MISSING) is _DEFAULT_MISSING:
+            set_shared_variable(str(name), value)
+
+
 def _map_property_vars(map):
     """Var names bound in a map's Properties metadata, in declaration order.
 

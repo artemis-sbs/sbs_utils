@@ -113,6 +113,13 @@ def _try_auto_start_map(map_arg, sbs) -> bool:
 
     map_label = real_maps[idx]
 
+    # Apply the map's Defaults metadata (set-if-absent shared vars) before starting it - the
+    # real engine does this when presenting the properties panel and again at launch, but the
+    # headless runner skips the panel, so a map-local property var (e.g. JOBS_SELECT) would
+    # otherwise be undefined in the map body.
+    from sbs_utils.procedural.maps import map_apply_defaults
+    map_apply_defaults(map_label)
+
     # task_schedule_server needs the server page's gui task. A trivial mission can
     # reach the registered @map list before that task exists (heavier missions
     # like LegendaryMissions don't); retry next tick instead of crashing.
