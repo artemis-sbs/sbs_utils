@@ -89,6 +89,20 @@ class ScienceDefineScanAmdTests(unittest.TestCase):
         from sbs_utils.procedural.science import science_scan_def_for
         self.assertEqual(science_scan_def_for(self.rock), {"scan": "A rock."})  # no 'weight'
 
+    def test_placeholder_value_yaml_mode_still_registers(self):
+        # a {placeholder} value flips the fence to YAML (amd_is_yaml_flow triggers on '{'),
+        # which preserves label CASE - the loader lowercases so it still registers, and the
+        # placeholder is kept literal for scan-time interpolation.
+        doc = {"children": [
+            {"key": "poacher", "description": "",
+             "data": amd_scan_data("Scan: A trawler.\nIntel: Registered to Captain {captain}.")},
+        ]}
+        science_define_scan_amd(doc)
+        from sbs_utils.procedural.inventory import set_inventory_value
+        set_inventory_value(self.poacher, "captain", "Vale")
+        self.assertEqual(science_scan_tab(self.poacher, "scan"), "A trawler.")
+        self.assertEqual(science_scan_tab(self.poacher, "intel"), "Registered to Captain Vale.")
+
     def test_none_doc_is_safe(self):
         science_define_scan_amd(None)   # no crash
 

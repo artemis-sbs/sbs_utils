@@ -49,7 +49,11 @@ def science_define_scan_amd(doc):
         role = n.get("key")
         if not role:
             continue
-        data = n.get("data") or {}
+        # Lowercase the keys: a fence that carries a {placeholder} value (e.g. an intel
+        # template "Captain {captain}") trips amd_is_yaml_flow and is parsed as YAML, which
+        # preserves the label CASE ("Scan"/"Intel"); the friendly path lowercases them. Do
+        # both so tab lookups (lowercase) match either way.
+        data = {str(k).lower(): v for k, v in (n.get("data") or {}).items()}
         # Only the standard scan tabs (amd_parse_facts' default coercion also captures any
         # stray labels, which we ignore here).
         tabs = {k: data[k] for k in SCIENCE_SCAN_TABS if k in data}
