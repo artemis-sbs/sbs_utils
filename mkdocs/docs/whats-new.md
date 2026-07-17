@@ -65,6 +65,37 @@ Docs: [Quests](build/quests.md).
 
 Docs: [Items & Upgrades](build/items-upgrades.md).
 
+## 🕵️ Peacetime Remastered — a mission written in AMD
+
+**Peacetime Remastered** is a border-patrol shift that doubles as a worked example of
+authoring a whole mission as **data**. Almost everything the crew sees — the story, the
+job board, the cast, the clues, even the chatter — is declared in one `.amd` fact-sheet;
+MAST holds only the *logic* that reacts to it.
+
+| What the crew sees | Authored as |
+|---|---|
+| The **Ambassador Florbin kidnapping** | a **quest tree** — take the case, identify the kidnapper, subdue, recover |
+| The **cast** (a deck chief, the Admiral, the Ambassador…) | **lifeforms** — hosted contacts appear as comms **badges** you hail |
+| The **40 allergy clues** | generic **AMD records** — each heading is a container the ambassador could hide in, its body the clue |
+| The Ambassador's **passenger complaints** | a **chatter line-pool** — one picked at random |
+| Briefings, cargo manifests, interview reports | **prose templates** filled in at send time |
+| **Object scans** (cargo ships, anomalies) | dialogue-native scans (`Scan of:` / `Tab:` / `%` variants) |
+| The **job board** — gunnery, rocks, poacher, mercy, customs, survey | **quests** with goals, rewards, and fail triggers |
+
+**The job board is a pick-up-work board.** Every job starts **idle** — shown as
+*Available* — and the crew **Accepts** the ones they want from the Quest Log. Accepting is
+when a job's clock starts *and* when its targets spawn, so a timed rescue gives you the
+full window (the Mayday arrives, then the shuttle) and nothing clutters space for work
+nobody took. Weapons stays busy in peacetime: qualify on drones, break hazard rocks, and
+**disable — don't destroy** a poacher.
+
+Under the hood the whole kidnap mystery is built by a **pure, seeded Python core** — one
+kidnapper, the Ambassador hidden in exactly one cargo hold, a decoy-laced clue trail —
+that is **unit-tested over many seeds**, so the puzzle is always solvable however the dice
+fall.
+
+Authoring reference: [Quests](build/quests.md) · [Sides, lifeforms & faces](build/sides-lifeforms.md).
+
 ## 🌐 Web pages, written in MAST
 
 - Author browser pages with `//web/<path>` routes using the same `gui_*` layout you

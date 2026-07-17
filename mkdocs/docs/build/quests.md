@@ -27,7 +27,7 @@ Escort the freighters through the belt - every raider you burn buys them time.
 | Field | Meaning |
 |---|---|
 | `Scope:` | `shared` (one quest for the whole game) or per-ship. |
-| `State:` | Starting state — e.g. `active`, or omitted for a quest players must accept. |
+| `State:` | Starting state — `active` (running immediately), or `idle` (shown on the log as **Available** for a player to **Accept**; omit for the same effect). A whole board of `idle` jobs is a pick-up-work board. |
 | `Goal:` | The completion **trigger** plus the objective text shown in the log (see [Triggers](#triggers)). |
 | `When:` | A trigger with no objective text (same grammar as `Goal:`). |
 | `Pays:` | Reward on completion — `500 credits`, an item key, … |
@@ -84,6 +84,15 @@ not hand-wired in script:
 
 This is the same vocabulary Open Universe uses and the Siege bosses hang their
 objectives on.
+
+!!! tip "`Fail after:` starts counting when the quest goes ACTIVE"
+    The deadline is anchored **lazily** — the clock starts on the first tick the
+    quest is **active**, not when it is granted. So an `idle` job's timer does not
+    run until a player **Accepts** it: a timed rescue gives the crew the full window
+    from the moment they take it on, instead of ticking down while it sits
+    unaccepted on the board. (Pair it with **spawn-on-accept** — key the target
+    spawn off the `quest_activated` signal or a state watch — so the objective's
+    objects also appear only once the job is taken.)
 
 ## Signals
 
