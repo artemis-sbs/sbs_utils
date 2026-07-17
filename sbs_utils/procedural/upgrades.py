@@ -11,7 +11,7 @@ from sbs_utils.procedural.links import linked_to,unlink, has_link_to, link
 from sbs_utils.procedural.inventory import get_inventory_value
 from sbs_utils.procedural.execution import task_schedule_server
 from sbs_utils.procedural.signal import signal_emit
-from sbs_utils.procedural.modifiers import modifier_remove, modifier_add
+from sbs_utils.procedural.modifiers import modifier_remove, modifier_add, Modifier
 
 
 
@@ -62,10 +62,61 @@ class Upgrade(Agent):
         # Task runs on the server inheriting no data except what is passed
         self.task = task_schedule_server(self.label, data, inherit=False)
         self.task.tick_in_context()
+        # Apply any DECLARED modifiers (data-driven effect). This lets a simple upgrade/item
+        # declare its whole effect as data (e.g. an AMD item's ``Modifiers`` field) with no
+        # hand-written MAST body. It runs IN ADDITION to whatever the label body does, so a
+        # hand-authored body that also calls modifier_add is unaffected; a label with no
+        # ``modifiers`` metadata gets nothing extra (no regression).
+        if UPGRADE_AGENT is not None:
+            self._apply_declared_modifiers(data)
         #@signal upgrade_activated
         signal_emit("upgrade_activated", data)
         # There might be now modifiers
         # I think as long as they exists the upgrade is active
+
+    def _label_meta(self, field, default=None):
+        """Read a metadata field off this upgrade's label (safe if the label is a plain
+        string/callable rather than a Label object)."""
+        getter = getattr(self.label, "get_inventory_value", None)
+        if getter is None:
+            return default
+        return getter(field, default)
+
+    def _apply_declared_modifiers(self, data):
+        """Apply a declarative ``modifiers`` spec (a list of ``[blob_key, value]`` pairs) carried
+        on the label's metadata - the data-only effect for an item authored with just a
+        ``Modifiers:`` field and no MAST body.
+
+        Each pair becomes ``modifier_add(holder, blob_key, value, source, duration=duration)``
+        where ``source`` is the item ``key`` and ``duration`` is the item's ``Duration`` (so the
+        modifier auto-expires and ``deactivate`` can remove it). No-op when the label carries no
+        ``modifiers`` metadata, so hand-authored bodies are never affected."""
+        specs = self._label_meta("modifiers", None)
+        if not specs:
+            return
+        data = data or {}
+        # source keys the modifier (for overwrite / removal); prefer the activation data's key,
+        # fall back to the label's own metadata key, then a stable label-name string.
+        source = data.get("key") or self._label_meta("key") or str(self.label)
+        # duration -> auto-expiry; None/0 means permanent. Prefer explicit activation data.
+        duration = data.get("duration")
+        if duration is None:
+            duration = self._label_meta("duration")
+        if not duration:
+            duration = None
+        for spec in specs:
+            if not spec:
+                continue
+            try:
+                mkey = str(spec[0])
+                mval = float(spec[1])
+            except (IndexError, TypeError, ValueError):
+                continue
+            mod = modifier_add(self.agent_id, mkey, mval, source, duration=duration)
+            # Track created modifiers so deactivate() removes them (modifier_add returns a single
+            # Modifier for a single-agent target; a set of ids only for multi-agent).
+            if isinstance(mod, Modifier):
+                self.modifiers.append(mod)
 
     def deactivate(self):
         # Remove all modifiers

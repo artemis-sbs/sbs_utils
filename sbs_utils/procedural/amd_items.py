@@ -32,17 +32,69 @@ the story (``labels_get_type("item/")``): ``item_get(key)`` returns that label, 
 the *same* label's body as the effect (``upgrade_add`` in ``item_activate.mast``). So registering an
 item declaratively means applying the AMD data as metadata onto that label.
 
-EFFECT LOGIC IS NOT IN AMD. The effect (the modifier_add / signal_emit body) stays in MAST, under
-the convention that item ``<key>`` maps to the label ``prefab_item_<key>``
-(``item_effect_label_name``). ``items_declare_amd`` applies the authored metadata to that label if
-the mission already wrote it (mission writes the effect body, AMD supplies the data); if no such
-label exists it registers a data-only item (still discoverable/queryable by the registry - useful
-for a pure resource/economy record that has no active effect). Generalises the OU/LM item pattern
-the same way ``amd_lifeforms`` / ``amd_landmarks`` generalise their spawns.
+DECLARATIVE MODIFIER EFFECT (no MAST body). A *simple* upgrade item whose whole effect is applying
+stat modifiers can be authored FULLY in AMD - the effect becomes data. Add a ``Modifiers`` field:
+
+    # [Carapaction Coil](carapaction_coil)
+    ---
+    Type: item/upgrade/defense
+    Art: alien_2a
+    Mode: consumable
+    Duration: 300
+    Tier: 2
+    Price: 250
+    Modifiers: all_shield_upgrade_coeff 2.0
+    ---
+    Reinforces shields for a time.
+
+``Modifiers`` is a comma-separated list of ``blob_key value`` pairs (one or many):
+
+    Modifiers: impulse_upgrade_coeff 2.0, turn_upgrade_coeff 2.0
+
+Each pair is parsed to ``[blob_key:str, value:float]`` and exposed on the record as
+``record.modifiers`` (a list). It is stamped onto the item's label metadata, and on activation the
+upgrade path (``Upgrade._apply_declared_modifiers`` in ``procedural.upgrades``) auto-applies each as
+``modifier_add(holder, blob_key, value, item_key, duration=item_duration)`` - exactly the call a
+hand-written ``prefab_item_<key>`` body would make, so no MAST effect body is needed. The modifier
+auto-expires after the item's ``Duration`` and is removed when the upgrade is deactivated.
+
+EFFECT LOGIC BEYOND MODIFIERS STAYS IN MAST. A richer effect (signal_emit, spawns, conditional
+logic) still lives in MAST, under the convention that item ``<key>`` maps to the label
+``prefab_item_<key>`` (``item_effect_label_name``). ``items_declare_amd`` applies the authored
+metadata to that label if the mission already wrote it (mission writes the effect body, AMD supplies
+the data); if no such label exists it registers a data-only item (still discoverable/queryable by
+the registry). Declared ``Modifiers`` apply IN ADDITION to whatever a body does, so an item may
+have both a body AND declared modifiers, and a hand-authored body with no ``Modifiers`` field is
+completely unaffected (no regression). Generalises the OU/LM item pattern the same way
+``amd_lifeforms`` / ``amd_landmarks`` generalise their spawns.
 """
 from sbs_utils.procedural.amd import amd_parse_facts
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.mast_node import MastDataObject
+
+
+def amd_parse_modifiers(spec):
+    """Parse a ``Modifiers`` field into a structured ``[[blob_key, value], ...]`` list.
+
+    Accepts the AMD string form ``"key value, key2 value2"`` (comma-separated ``blob_key value``
+    pairs) or an already-structured list of pairs. Pairs that don't have a numeric value are
+    skipped. Always returns a list (empty for ``None``/blank/unparseable)."""
+    out = []
+    if not spec:
+        return out
+    items = spec if isinstance(spec, (list, tuple)) else str(spec).split(",")
+    for item in items:
+        if isinstance(item, (list, tuple)):
+            toks = [str(t) for t in item]
+        else:
+            toks = str(item).split()
+        if len(toks) < 2:
+            continue
+        try:
+            out.append([toks[0], float(toks[1])])
+        except (TypeError, ValueError):
+            continue
+    return out
 
 
 def amd_item_data(text):
@@ -71,6 +123,7 @@ def items_from_section(section):
                 "duration": data.get("duration"),
                 "tier": data.get("tier"),
                 "price": data.get("price"),
+                "modifiers": amd_parse_modifiers(data.get("modifiers")),  # [[blob_key, value], ...]
                 "data": data,   # carry the raw fence for mission-specific extras
             }))
     return out
@@ -100,6 +153,13 @@ def _item_metadata(record):
     desc = record.get("desc")
     if desc:
         meta["desc"] = desc
+    # Stamp the STRUCTURED modifier spec (list of [blob_key, value] pairs), replacing the raw
+    # "Modifiers" string from the fence, so the activation path can apply it directly.
+    mods = record.get("modifiers")
+    if mods:
+        meta["modifiers"] = mods
+    elif "modifiers" in meta:
+        del meta["modifiers"]
     return meta
 
 
