@@ -121,6 +121,60 @@ def science_update_scan_data(origin, target, info, tab="scan"):
     # update the list of tabs used
     so.data_set.set("scan_type_list", tab_list)
     
+# --- Declarative per-role scan content -------------------------------------------------
+# Register what a SCIENCE SCAN returns for a ROLE, so any object holding that role becomes
+# scannable and renders this text - no hand-authored //science route per object type. The
+# object-level twin of the quest `reveal_scan` (which attaches scan text to a quest target).
+# A generic //science route (LegendaryMissions science_scans) renders the standard tabs
+# (scan / status / intel / mat / bio) from this registry.
+_scan_defs = {}
+
+
+def science_define_scan(role, tabs):
+    """Register declarative science-scan content for a ROLE.
+
+    Args:
+        role (str): The role an object must hold to get this scan content.
+        tabs (dict | str): ``{tab_name: text}`` (e.g. ``{"scan": "...", "bio": "..."}``);
+            a bare string is shorthand for ``{"scan": string}``. Standard tab names:
+            ``scan``, ``status``, ``intel``, ``mat``, ``bio``. Merges with any tabs already
+            registered for the role.
+    """
+    if isinstance(tabs, str):
+        tabs = {"scan": tabs}
+    cur = _scan_defs.get(role, {})
+    cur.update(tabs)
+    _scan_defs[role] = cur
+
+
+def science_clear_scan_defs():
+    """Clear all registered per-role scan content (test/reset helper)."""
+    _scan_defs.clear()
+
+
+def science_scan_def_for(selected_id):
+    """Merged ``{tab: text}`` scan content for every registered role the object holds
+    (empty dict if none). Later-registered roles win on tab conflicts."""
+    from .roles import has_role
+    out = {}
+    for r in _scan_defs:
+        if has_role(selected_id, r):
+            out.update(_scan_defs[r])
+    return out
+
+
+def science_has_scan_def(selected_id):
+    """True if the object has any registered scan content - gates the generic
+    //enable/science + //science route that renders it."""
+    return len(science_scan_def_for(selected_id)) > 0
+
+
+def science_scan_tab(selected_id, tab):
+    """The registered text for one tab on an object (``""`` if none). The generic science
+    route uses this both as the tab's show-condition and as its scan result text."""
+    return science_scan_def_for(selected_id).get(tab, "")
+
+
 def science_get_scan_data(origin, target, tab="scan")->str:
     """Return the scan text on a tab as seen by the scanning ship.
 
