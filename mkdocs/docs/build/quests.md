@@ -33,6 +33,24 @@ Escort the freighters through the belt - every raider you burn buys them time.
 | `Pays:` | Reward on completion — `500 credits`, an item key, … |
 | `Then:` | Follow-up on completion — `reveal <quest>` (unlock another) or `signal <name>`. |
 | `Display:` / `Tier:` | Optional label / ordering for the log. |
+| `Accept On:` | Restrict which **consoles** may Accept/Abandon this job from the Quests tab — e.g. `comms`, or `comms, admiral`. Overrides the mission default (see [Console gating](#console-gating)). |
+| `Engage On:` | Restrict which consoles may **Engage** (travel to) this job — e.g. `helm`. Only meaningful when the mission enables the Engage button. |
+
+### Console gating
+
+The Quests tab **displays** on every enabled console, but *who may act* is gated per
+console. A mission sets the defaults (shared vars, e.g. in `settings.yaml`):
+
+| Var | Default | Controls |
+|---|---|---|
+| `QUEST_ACCEPT_CONSOLES` | `comms,admiral` | Consoles that show **Accept / Abandon**. `""` = any console (the pre-gating behavior). |
+| `QUEST_ENGAGE_CONSOLES` | `helm` | Consoles that show **Engage** (when `QUEST_ENGAGE_ENABLED`). |
+
+Engage additionally requires the job to be **accepted** (ACTIVE) — before that, the
+helm shows a short *"Accept this job before engaging."* hint. On a console that can't
+act, the buttons are replaced with text naming the console(s) that can. `Accept On:` /
+`Engage On:` on a single quest override these lists for that job (a station-specific
+task).
 
 ### Triggers
 

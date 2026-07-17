@@ -102,10 +102,20 @@ def amd_reward(value):
     return {"credits": 0}
 
 
+def amd_console_list(value):
+    """'comms, admiral' / 'comms admiral' -> ['comms', 'admiral'] (lowercased). Used by
+    the Quests-tab `Accept On:` / `Engage On:` labels to restrict WHICH consoles may
+    accept/abandon or engage this quest (a job specific to one station)."""
+    raw = str(value).replace(",", " ").split()
+    return [t.strip().lower() for t in raw if t.strip()]
+
+
 def amd_quest_facts(aliases=None):
     """Return an ``amd_parse_facts`` handler for the shared quest vocabulary.
 
     Objective/flow labels: Scope / State / Goal / When / Then / Pays / Tier / Display.
+    Quests-tab action gating: Accept On (consoles that may Accept/Abandon) and Engage On
+    (consoles that may Engage) restrict a job to specific stations.
     End-game + mission-tree labels: Win / Lose (bare flag -> end_win/end_lose; prose ->
     also the win_text/lose_text reason), Parent, Required, Critical, and the fail
     triggers Fail on signal / Fail on all dead / Fail after. These map to the data keys
@@ -138,6 +148,14 @@ def amd_quest_facts(aliases=None):
                 data["reveal"] = value
         elif label == "pays":
             data["reward"] = amd_reward(value)
+        elif label in ("accept on", "accept_on", "manage on", "manage_on"):
+            # Restrict WHICH consoles may Accept/Abandon this quest from the Quests tab
+            # (else the mission default QUEST_ACCEPT_CONSOLES). A job specific to a station.
+            data["accept_consoles"] = amd_console_list(value)
+        elif label in ("engage on", "engage_on"):
+            # Restrict WHICH consoles may Engage (travel to) this quest (else the mission
+            # default QUEST_ENGAGE_CONSOLES). Only meaningful when QUEST_ENGAGE_ENABLED.
+            data["engage_consoles"] = amd_console_list(value)
         elif label in ("reveals", "scan text"):
             # Declarative SCIENCE SCAN content: scanning this quest's on_scan target
             # shows this text (and the quest driver makes the target scannable). This is
