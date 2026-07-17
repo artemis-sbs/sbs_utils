@@ -92,6 +92,17 @@ class AmdQuestFactsTests(unittest.TestCase):
     def test_when_without_verb_kept_as_when(self):
         self.assertEqual(amd_quest_data("When: the stars align")["when"], "the stars align")
 
+    def test_reveals_sets_reveal_scan(self):
+        # Declarative science-scan content: `Reveals:` carries what a scan returns, so a
+        # `Goal: scan X` quest needs no hand-authored //science route.
+        d = amd_quest_data("Goal: scan anomaly\nReveals: A stable subspace distortion.")
+        self.assertEqual(d["on_scan"], {"role": "anomaly", "count": 1})
+        self.assertEqual(d["reveal_scan"], "A stable subspace distortion.")
+
+    def test_scan_text_alias(self):
+        self.assertEqual(amd_quest_data("Scan text: Bio-signs detected.")["reveal_scan"],
+                         "Bio-signs detected.")
+
 
 class MissionTreeTests(unittest.TestCase):
     def test_parent_required_critical(self):

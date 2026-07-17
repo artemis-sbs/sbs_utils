@@ -138,6 +138,12 @@ def amd_quest_facts(aliases=None):
                 data["reveal"] = value
         elif label == "pays":
             data["reward"] = amd_reward(value)
+        elif label in ("reveals", "scan text"):
+            # Declarative SCIENCE SCAN content: scanning this quest's on_scan target
+            # shows this text (and the quest driver makes the target scannable). This is
+            # the science analogue of attaching comms to an object - the quest carries
+            # what the scan returns, so no hand-authored //science route is needed.
+            data["reveal_scan"] = str(value).strip()
         elif label in ("win", "lose"):
             v = str(value).strip()
             lo = v.lower()
