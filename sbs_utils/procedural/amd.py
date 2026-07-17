@@ -116,7 +116,16 @@ def amd_parse_facts(text, handler=None, default=amd_num):
     `data[amd_norm(label)] = default(value)`. The handler receives the mutable
     `data` dict so it can setdefault / nest / append freely. Returns `data`."""
     if amd_is_yaml_flow(text):
-        return load_yaml_string(text)
+        y = load_yaml_string(text)
+        # Normalize TOP-LEVEL keys the same way the friendly path does (amd_norm), so a fence
+        # parses to the SAME keys whether it took the friendly path or YAML flow. A stray
+        # `{`/`[` (e.g. an `Intel: Captain {name}` value, or a `reputation: {...}` block)
+        # flips the whole fence to YAML, which otherwise preserves label CASE - the historical
+        # source of capitalized-vs-lowercase key drift. Nested structure is left as authored
+        # (mission code reads those inner keys by their exact names).
+        if isinstance(y, dict):
+            return {amd_norm(k): v for k, v in y.items()}
+        return y
     data = {}
     for label, value in amd_fact_lines(text):
         if handler is not None and handler(data, label, value):
