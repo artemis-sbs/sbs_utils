@@ -208,7 +208,15 @@ def create_new_sim() -> None:
     if sim is None:
         sim = simulation()
     else:
+        # Keep the grid-object id counter MONOTONIC across resets. sim.__init__ would reset it, so
+        # grid-object ids would RECYCLE - and grid objects (unlike ships) are not deleted by a
+        # harness reset, so their stale role-registry entries (e.g. "__damaged__") persist and a
+        # new grid node reusing that id would inherit them (a fresh 3-weapon-node ship then reads a
+        # phantom damaged node). Monotonic ids can't collide, so no stale-role inheritance.
+        _keep_grid_ids = getattr(sim, "grid_object_ids", 0)
         sim.__init__()   # reset fields in place; preserves object identity
+        if sim.grid_object_ids < _keep_grid_ids:
+            sim.grid_object_ids = _keep_grid_ids
     _contact_pairs = {}
     _projectiles.clear()
     _blasts.clear()
