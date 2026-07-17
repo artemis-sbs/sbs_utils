@@ -119,6 +119,35 @@ def amd_text_map(section):
     return out
 
 
+def amd_records(section):
+    """A section's children as GENERIC records - the raw AMD atom, before any domain lens.
+
+    Every AMD heading (``# [Display](key)`` + an optional ``---`` fence + body prose) carries
+    exactly four things; this returns one ``MastDataObject`` per child exposing them verbatim:
+
+        key      : the ``(slug)``            -> ``rec.get("key")``
+        display  : the ``[Display]`` text    -> ``rec.get("display")``
+        body     : the prose under it        -> ``rec.get("body")`` (stripped)
+        data     : the ``---`` fence dict    -> ``rec.get("data")`` (keys lower-cased, ``{}`` if none)
+
+    The domain loaders (amd_lifeforms / amd_items / amd_chatter) are each a projection of this
+    same node; ``amd_records`` is that substrate exposed directly, for content that IS just a
+    labelled line of prose and needs no domain shape. Canonical example: a mystery clue authored as
+    ``# [Container Name](slug)`` + the clue text as body -> ``{display: container, body: clue}``.
+    Returns ``[]`` when ``section`` is None."""
+    out = []
+    if section is not None:
+        for n in section.get("children", []):
+            data = {str(k).lower(): v for k, v in (n.get("data") or {}).items()}
+            out.append(MastDataObject({
+                "key": n.get("key"),
+                "display": n.get("display_text"),
+                "body": (n.get("description") or "").strip(),
+                "data": data,
+            }))
+    return out
+
+
 class _AmdFormatDict(dict):
     """format_map helper: an unfilled ``{slot}`` is left LITERAL rather than raising."""
     def __missing__(self, key):

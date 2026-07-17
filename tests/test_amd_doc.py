@@ -10,7 +10,7 @@ test_set_exe_dir()
 import sbs_utils.mast_sbs.story_nodes  # import first to break a circular import
 from sbs_utils.procedural.amd_doc import (
     amd_document, amd_root_node, amd_root_data, amd_section, amd_includes, amd_splice,
-    amd_text_map, amd_fill)
+    amd_text_map, amd_fill, amd_records)
 
 
 def _doc(text):
@@ -78,6 +78,36 @@ class AmdTextMapTests(unittest.TestCase):
 
     def test_none_section_safe(self):
         self.assertEqual(amd_text_map(None), {})
+
+
+class AmdRecordsTests(unittest.TestCase):
+    # Clues as generic records: heading display = the container, body = the clue.
+    CLUES = (
+        "# [Case File](case)\n"
+        "## [Florbin Clues](florbin_clues)\n"
+        "### [Cheddar Milkshake Mix](milk)\n"
+        "The captain is allergic to milk.\n"
+        "### [Cerulean Oysters](shellfish)\n"
+        "---\n"
+        "Weight: 3\n"
+        "---\n"
+        "The captain is allergic to shellfish.\n"
+    )
+
+    def test_records_expose_key_display_body(self):
+        recs = amd_records(amd_section(_doc(self.CLUES), "florbin_clues"))
+        self.assertEqual([r.get("key") for r in recs], ["milk", "shellfish"])
+        self.assertEqual(recs[0].get("display"), "Cheddar Milkshake Mix")
+        self.assertEqual(recs[0].get("body"), "The captain is allergic to milk.")
+        self.assertEqual(recs[0].get("data"), {})
+
+    def test_records_carry_fence_data_lowercased(self):
+        recs = amd_records(amd_section(_doc(self.CLUES), "florbin_clues"))
+        self.assertEqual(recs[1].get("data").get("weight"), 3)
+        self.assertEqual(recs[1].get("body"), "The captain is allergic to shellfish.")
+
+    def test_none_section_safe(self):
+        self.assertEqual(amd_records(None), [])
 
 
 class AmdFillTests(unittest.TestCase):
