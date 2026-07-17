@@ -255,27 +255,8 @@ class TestSpans(unittest.TestCase):
 
 
 class TestScanLabels(unittest.TestCase):
-    """Scan-vocabulary check - a typo'd tab is silently swallowed and never renders."""
-
-    def test_clean_scan_fence(self):
-        doc = ("# [Rock](rock)\n---\nScan: A rock.\nMat: Salvageable.\nBio: No life.\n---\n")
-        self.assertEqual(_by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-label"), [])
-
-    def test_typo_tab_flagged(self):
-        doc = ("# [Rock](rock)\n---\nScan: A rock.\nScna: oops.\n---\n")
-        f = _by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-label")
-        self.assertEqual(len(f), 1)
-        self.assertEqual(f[0].line, 4)   # the Scna: line
-
-    def test_placeholder_intel_is_clean(self):
-        # a {placeholder} value (parses as YAML) must not trip the scan-label check
-        doc = ("# [Ship](ship)\n---\nScan: A ship.\nIntel: Captain {captain}.\n---\n")
-        self.assertEqual(_by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-label"), [])
-
-    def test_quest_fence_not_treated_as_scan(self):
-        # a quest fence that happens to use Status: must not be judged as a scan fence
-        doc = ("# [Q](q)\n---\nGoal: destroy 3 raiders\nStatus: anything\n---\n")
-        self.assertEqual(_by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-label"), [])
+    """Scan-vocabulary check - a typo'd `Tab:` is silently swallowed and never renders. Only
+    the dialogue-native `Scan of:` fence is a scan fence (the flat form was retired)."""
 
     def test_dialogue_native_bad_tab_flagged(self):
         doc = ("# [Hull](hull)\n---\nScan of: wreck\nTab: scna\n---\n% Wreckage.\n")
@@ -286,6 +267,18 @@ class TestScanLabels(unittest.TestCase):
     def test_dialogue_native_good_tab_clean(self):
         doc = ("# [Hull](hull)\n---\nScan of: wreck\nTab: mat\n---\n% Salvage: 1.3 kt.\n")
         self.assertEqual(_by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-tab"), [])
+
+    def test_default_tab_clean(self):
+        # `Scan of:` with no `Tab:` defaults to the scan tab - not a typo, no finding
+        doc = ("# [Hull](hull)\n---\nScan of: wreck\n---\n% Wreckage.\n")
+        self.assertEqual(_by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-tab"), [])
+
+    def test_lone_scan_named_label_not_treated_as_scan(self):
+        # a fence whose only label collides with a tab name (e.g. a rumor reveal `Intel:`) is
+        # NOT a scan fence - with the flat form retired, the linter never guesses from tab names
+        doc = ("# [Rumor](r)\n---\nIntel: The tip was solid.\n---\nWord on the dock.\n")
+        self.assertEqual(_by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-tab"), [])
+        self.assertEqual(_by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-label"), [])
 
 
 if __name__ == "__main__":

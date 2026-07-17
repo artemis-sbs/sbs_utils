@@ -11,16 +11,20 @@ Each `##` section is then handed to its own loader:
 Mirrors how Open Universe composes one universe.amd from the quest vocabulary plus its own
 labels. Sides are intentionally NOT chained here (they are usually a mission-global concern,
 not per-map content); use amd_chain to build a different combination if you need one.
+
+Science scans need no fence handler here: their text lives in the fence BODY (the
+dialogue-native ``Scan of:`` / ``Tab:`` + ``%`` form), so the fence's plain values coerce
+by default and ``science_define_scan_amd`` reads the body. Only quest and landmark fences
+carry values a handler must interpret.
 """
 from sbs_utils.procedural.amd import amd_parse_facts, amd_chain
 from sbs_utils.procedural.amd_quest import amd_quest_facts
-from sbs_utils.procedural.amd_science import amd_scan_facts
 from sbs_utils.procedural.amd_landmarks import amd_landmark_facts
 
 
 def amd_mission_facts(aliases=None):
-    """The chained handler: quest, then science-scan, then landmark vocabularies."""
-    return amd_chain(amd_quest_facts(aliases), amd_scan_facts(), amd_landmark_facts())
+    """The chained handler: quest, then landmark vocabularies (scans are body-based)."""
+    return amd_chain(amd_quest_facts(aliases), amd_landmark_facts())
 
 
 def amd_mission_data(text, aliases=None):

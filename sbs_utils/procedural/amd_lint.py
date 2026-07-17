@@ -193,49 +193,34 @@ def amd_lint_ascii(file_path=None, content=None):
 
 # --- scan vocabulary: a typo'd tab is silently swallowed --------------------
 # Standard science-scan tabs (mirror procedural.science SCIENCE_SCAN_TABS - kept local so
-# this module stays stdlib-only). A few quest labels, enough to tell a quest fence from a
-# scan fence so a quest's Goal/When isn't mistaken for a bad scan tab.
+# this module stays stdlib-only). Only the dialogue-native `Scan of:` fence is a scan fence;
+# there is no longer a flat-tab form to detect heuristically (a lone `Intel:` may be a rumor
+# reveal or any other domain key, not a scan - so we never guess).
 _SCAN_TABS = frozenset({"scan", "status", "intel", "mat", "bio"})
-_QUEST_LABELS = frozenset({
-    "scope", "state", "goal", "when", "then", "pays", "tier", "display",
-    "win", "lose", "parent", "required", "critical",
-    "fail on signal", "fail on all dead", "fail after", "reveals", "scan text"})
 _RE_FENCE_LABEL = re.compile(r"^[ \t]*([A-Za-z][A-Za-z0-9 _]*?)[ \t]*:")
 
 
 def _scan_fence_findings(fence):
-    """Findings for one `---` fence's (lineno, label, value) list. Two scan shapes:
-    * dialogue-native - a `Scan of:` fence; warn if its `Tab:` value isn't a real scan tab.
-    * flat - >=1 real scan tab and no quest label; warn on a label outside the scan
-      vocabulary (captured by the parser but never rendered - a typo)."""
+    """Findings for one `---` fence's (lineno, label, value) list. A scan fence is the
+    dialogue-native `Scan of:` form; warn if its `Tab:` value isn't a real scan tab (a typo
+    like `Tab: scna` is silently swallowed and that scan never renders)."""
     labels = [lab for _, lab, _ in fence]
-    if "scan of" in labels or "scan_of" in labels:
-        out = []
-        for lineno, lab, val in fence:
-            if lab == "tab" and val.strip().lower() not in _SCAN_TABS:
-                out.append(AmdFinding(
-                    lineno, WARNING, "unknown-scan-tab",
-                    f"`Tab: {val}` is not a known scan tab (scan/status/intel/mat/bio); "
-                    f"that scan will never render - likely a typo"))
-        return out
-    if not any(l in _SCAN_TABS for l in labels):
+    if "scan of" not in labels and "scan_of" not in labels:
         return []   # not a scan fence
-    if any(l in _QUEST_LABELS for l in labels):
-        return []   # a quest fence, not a scan fence
     out = []
-    for lineno, lab, _ in fence:
-        if lab not in _SCAN_TABS:
+    for lineno, lab, val in fence:
+        if lab == "tab" and val.strip().lower() not in _SCAN_TABS:
             out.append(AmdFinding(
-                lineno, WARNING, "unknown-scan-label",
-                f"`{lab}` is not a known scan tab (scan/status/intel/mat/bio); it is "
-                f"captured but never rendered - likely a typo"))
+                lineno, WARNING, "unknown-scan-tab",
+                f"`Tab: {val}` is not a known scan tab (scan/status/intel/mat/bio); "
+                f"that scan will never render - likely a typo"))
     return out
 
 
 def amd_lint_scan_labels(file_path=None, content=None):
-    """In a SCAN fence, warn on a tab that is not one of scan/status/intel/mat/bio - a typo
-    (`Scna:`, or `Tab: scna`) is silently swallowed and that scan never renders, exactly the
-    silent failure class the linter exists to surface. Quest / other fences are left alone."""
+    """In a `Scan of:` fence, warn on a `Tab:` that is not one of scan/status/intel/mat/bio -
+    a typo (`Tab: scna`) is silently swallowed and that scan never renders, exactly the silent
+    failure class the linter exists to surface. Quest / other fences are left alone."""
     lines = _source_lines(file_path, content)
     findings = []
     fence = None  # collecting (lineno, label, value) between --- fences, or None outside
