@@ -24,7 +24,8 @@ mission's ``amd_mission_data``) - no dedicated fact handler needed. ``lifeforms_
 from sbs_utils.procedural.amd import amd_parse_facts
 from sbs_utils.faces import face_resolve
 from sbs_utils.procedural.lifeform import lifeform_spawn
-from sbs_utils.procedural.inventory import set_inventory_value
+from sbs_utils.procedural.inventory import set_inventory_value, get_inventory_value
+from sbs_utils.procedural.query import to_object
 from sbs_utils.mast.mast_node import MastDataObject
 
 
@@ -67,7 +68,25 @@ def lifeform_from_record(record, host_id=None):
     if record.get("scene") is not None:
         set_inventory_value(agent, "scene", record.get("scene"))
     set_inventory_value(agent, "lf_key", record.get("key"))
+    # Store the card colour + key on the lifeform so a comms-cast route can resolve its speaker
+    # from the hailed lifeform itself (lifeform_speaker_of), with no separate records source.
+    set_inventory_value(agent, "lf_color", record.get("color") or "green")
     return agent
+
+
+def lifeform_speaker_of(agent_id, default_color="#0cf"):
+    """A dialogue speaker card (key/name/color/leans) built from a spawned lifeform Agent ITSELF -
+    for the comms-cast route, where the hailed lifeform IS the speaker (its badge was selected).
+    ``None`` if the id is not a live agent; cast NPCs carry no reputation, so leans is empty."""
+    a = to_object(agent_id)
+    if a is None:
+        return None
+    return MastDataObject({
+        "key": get_inventory_value(agent_id, "lf_key", None),
+        "name": a.name,
+        "color": get_inventory_value(agent_id, "lf_color", None) or default_color,
+        "leans": {},
+    })
 
 
 def lifeforms_spawn(section, host_id=None):
