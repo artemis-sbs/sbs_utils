@@ -603,6 +603,49 @@ def side_ensure(key, name=None):
     return a.id
 
 
+def _side_csv_list(value):
+    """A comma string OR a list/set -> a stripped list of non-empty items."""
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        return [str(v).strip() for v in value if str(v).strip()]
+    return [p.strip() for p in str(value).split(",") if p.strip()]
+
+
+def side_create(key, name=None, desc=None, color=None, icon_index=None,
+                races=None, allies=None, enemies=None):
+    """Create and configure a faction SIDE from data - the Python port of the
+    ``prefab_side_generic`` MAST prefab, so the same setup is callable from Python or a
+    declarative loader without the mast prefab.
+
+    Sets side_name / side_key / side_desc / side_races inventory, icon color + index, and
+    applies ally/enemy diplomacy (plus the self-ally that ``side_ensure`` seeds). Idempotent:
+    if the side already exists it is reconfigured in place (``side_ensure`` returns the
+    existing id). ``races``/``allies``/``enemies`` accept a comma string or a list.
+
+    Returns the side agent id (None if ``key`` is falsy).
+    """
+    if not key:
+        return None
+    sid = side_ensure(key, name)   # create if missing (+ __side__, side_key/name, self-ally)
+    if name is not None:
+        set_inventory_value(sid, "side_name", name)
+    set_inventory_value(sid, "side_desc",
+                        desc if desc is not None else (name if name is not None else key))
+    set_inventory_value(sid, "side_races", set(_side_csv_list(races)))
+    if color is not None:
+        side_set_icon_color(sid, color)
+    if icon_index is not None:
+        side_set_side_icon_index(sid, icon_index)
+    sbs = FrameContext.context.sbs
+    if sbs is not None:
+        for a in _side_csv_list(allies):
+            side_set_relations(key, a, sbs.DIPLOMACY.ALLIED)
+        for e in _side_csv_list(enemies):
+            side_set_relations(key, e, sbs.DIPLOMACY.HOSTILE)
+    return sid
+
+
 def side_set_hostile_to_players(faction_key, relation=None):
     """Make ``faction_key`` HOSTILE to every current player side (creating the
     faction side if needed).
