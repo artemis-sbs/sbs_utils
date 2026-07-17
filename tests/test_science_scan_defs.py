@@ -16,6 +16,7 @@ from sbs_utils.helpers import FrameContext, Context
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.procedural.spawn import npc_spawn
 from sbs_utils.procedural.query import to_id
+from sbs_utils.procedural.inventory import set_inventory_value
 from sbs_utils.procedural.science import (
     science_define_scan, science_clear_scan_defs, science_scan_def_for,
     science_has_scan_def, science_scan_tab)
@@ -71,6 +72,28 @@ class ScienceScanDefTests(unittest.TestCase):
         science_define_scan("hazard_rock", "Asteroid.")
         science_clear_scan_defs()
         self.assertFalse(science_has_scan_def(self.rock))
+
+    def test_interpolation_from_inventory(self):
+        # a role TEMPLATE resolves per object from inventory
+        science_define_scan("hazard_rock", {"intel": "Registered to Captain {captain}."})
+        set_inventory_value(self.rock, "captain", "Vale")
+        self.assertEqual(science_scan_tab(self.rock, "intel"), "Registered to Captain Vale.")
+
+    def test_interpolation_unknown_key_left_literal(self):
+        science_define_scan("hazard_rock", {"intel": "Captain {captain}."})
+        # no 'captain' inventory -> placeholder left as-is (harmless), not a crash
+        self.assertEqual(science_scan_tab(self.rock, "intel"), "Captain {captain}.")
+
+    def test_per_object_override_wins(self):
+        science_define_scan("hazard_rock", {"scan": "Generic asteroid."})
+        set_inventory_value(self.rock, "scan_scan", "THIS specific rock is unstable.")
+        self.assertEqual(science_scan_tab(self.rock, "scan"), "THIS specific rock is unstable.")
+
+    def test_override_makes_scannable_without_role_def(self):
+        # a per-object override alone (no role def) is enough to be scannable
+        set_inventory_value(self.ship, "scan_bio", "Crew of 40, all healthy.")
+        self.assertTrue(science_has_scan_def(self.ship))
+        self.assertEqual(science_scan_tab(self.ship, "bio"), "Crew of 40, all healthy.")
 
 
 if __name__ == "__main__":

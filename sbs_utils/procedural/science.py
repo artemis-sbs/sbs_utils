@@ -1,3 +1,4 @@
+import re
 from .query  import to_object, to_object_list, to_id, to_blob
 from ..helpers import FrameContext, FakeEvent
 from ..mast_sbs.story_nodes.button import Button
@@ -121,13 +122,19 @@ def science_update_scan_data(origin, target, info, tab="scan"):
     # update the list of tabs used
     so.data_set.set("scan_type_list", tab_list)
     
-# --- Declarative per-role scan content -------------------------------------------------
-# Register what a SCIENCE SCAN returns for a ROLE, so any object holding that role becomes
-# scannable and renders this text - no hand-authored //science route per object type. The
-# object-level twin of the quest `reveal_scan` (which attaches scan text to a quest target).
-# A generic //science route (LegendaryMissions science_scans) renders the standard tabs
-# (scan / status / intel / mat / bio) from this registry.
+# --- Declarative, data-driven scan content ---------------------------------------------
+# Define what a SCIENCE SCAN returns as DATA, so an object becomes scannable and renders
+# it with no hand-authored //science route per object type (the object-level twin of the
+# quest `reveal_scan`). Three, most-specific-wins:
+#   1. per-OBJECT override - an inventory value ``scan_<tab>`` on the object (fully bespoke).
+#   2. per-ROLE default    - registered with science_define_scan(role, {tab: text}).
+#   3. neither -> "".
+# In (1) and (2) the text may carry ``{key}`` placeholders, filled from the object's
+# inventory at scan time - so a role TEMPLATE like "Captain {captain}" resolves per object.
+# The generic //science route (LegendaryMissions science_scans) renders the standard tabs.
+SCIENCE_SCAN_TABS = ("scan", "status", "intel", "mat", "bio")
 _scan_defs = {}
+_SCAN_INTERP = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}")
 
 
 def science_define_scan(role, tabs):
@@ -137,7 +144,8 @@ def science_define_scan(role, tabs):
         role (str): The role an object must hold to get this scan content.
         tabs (dict | str): ``{tab_name: text}`` (e.g. ``{"scan": "...", "bio": "..."}``);
             a bare string is shorthand for ``{"scan": string}``. Standard tab names:
-            ``scan``, ``status``, ``intel``, ``mat``, ``bio``. Merges with any tabs already
+            ``scan``, ``status``, ``intel``, ``mat``, ``bio``. Text may contain ``{key}``
+            placeholders, filled per object from inventory. Merges with any tabs already
             registered for the role.
     """
     if isinstance(tabs, str):
@@ -152,27 +160,48 @@ def science_clear_scan_defs():
     _scan_defs.clear()
 
 
+def _science_scan_interp(selected_id, text):
+    """Fill ``{key}`` placeholders in scan text from the object's inventory (unknown keys
+    are left as-is, so a stray brace is harmless). Lets a role template like
+    ``"Captain {captain}"`` resolve per object."""
+    if not text or "{" not in text:
+        return text
+    from .inventory import get_inventory_value
+    def repl(m):
+        val = get_inventory_value(selected_id, m.group(1), None)
+        return str(val) if val is not None else m.group(0)
+    return _SCAN_INTERP.sub(repl, text)
+
+
 def science_scan_def_for(selected_id):
-    """Merged ``{tab: text}`` scan content for every registered role the object holds
-    (empty dict if none). Later-registered roles win on tab conflicts."""
+    """Effective ``{tab: text}`` scan content for an object BEFORE interpolation: the
+    merged per-role defaults, with per-object inventory overrides (a ``scan_<tab>``
+    inventory value wins). Empty dict if the object has neither."""
     from .roles import has_role
+    from .inventory import get_inventory_value
     out = {}
     for r in _scan_defs:
         if has_role(selected_id, r):
             out.update(_scan_defs[r])
+    for tab in SCIENCE_SCAN_TABS:
+        ov = get_inventory_value(selected_id, "scan_" + tab, None)
+        if ov is not None:
+            out[tab] = ov
     return out
 
 
 def science_has_scan_def(selected_id):
-    """True if the object has any registered scan content - gates the generic
+    """True if the object has any registered/overridden scan content - gates the generic
     //enable/science + //science route that renders it."""
     return len(science_scan_def_for(selected_id)) > 0
 
 
 def science_scan_tab(selected_id, tab):
-    """The registered text for one tab on an object (``""`` if none). The generic science
+    """The resolved text for one tab on an object (``""`` if none): per-object override or
+    role default, with ``{key}`` placeholders filled from inventory. The generic science
     route uses this both as the tab's show-condition and as its scan result text."""
-    return science_scan_def_for(selected_id).get(tab, "")
+    text = science_scan_def_for(selected_id).get(tab, "")
+    return _science_scan_interp(selected_id, str(text)) if text else ""
 
 
 def science_get_scan_data(origin, target, tab="scan")->str:
