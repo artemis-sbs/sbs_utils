@@ -655,6 +655,24 @@ def random_terran_fluid(civilian=None):
     return random_terran(randrange(0, 10)%2+2, civilian)
 
 
+_FACE_KEYWORDS = {
+    "terran": random_terran, "male": random_terran_male, "terran_male": random_terran_male,
+    "female": random_terran_female, "terran_female": random_terran_female,
+    "fluid": random_terran_fluid, "terran_fluid": random_terran_fluid,
+}
+
+
+def face_resolve(spec):
+    """Resolve a declarative face spec to a face string. A KEYWORD (terran / male / female /
+    fluid) -> a fresh random face of that kind; a literal face string -> itself unchanged;
+    None/empty -> a random terran. Lets AMD/data author a face as a simple word instead of a
+    raw face string. (Promoted from Open Universe's lifeform_face.)"""
+    if not spec:
+        return random_terran()
+    gen = _FACE_KEYWORDS.get(str(spec).strip().lower())
+    return gen() if gen is not None else spec
+
+
 def random_face(race=None):
     """
     Returns a random face for the specified race.
