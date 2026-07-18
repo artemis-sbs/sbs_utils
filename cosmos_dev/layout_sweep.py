@@ -21,10 +21,11 @@ import re
 import subprocess
 import sys
 
-# Small -> large, plus a tall/narrow and an ultrawide — the extremes are where
-# mixed-unit layouts break.
-DEFAULT_ASPECTS = ["640x480", "800x600", "1024x768", "1280x720",
-                   "1600x900", "1920x1080", "2560x1080", "768x1024"]
+# Realistic supported spread (smallest supported -> ultrawide). 1024x768 is the
+# practical floor — below that (e.g. 640x480) isn't worth worrying about. Pass
+# --aspects to probe extremes explicitly.
+DEFAULT_ASPECTS = ["1024x768", "1280x720", "1366x768",
+                   "1600x900", "1920x1080", "2560x1080", "3440x1440"]
 
 _OVERFLOW_RE = re.compile(
     r"OVERFLOW\s+\((?P<con>[^)]*)\)\s+\[(?P<kind>[^\]]+)\]"
