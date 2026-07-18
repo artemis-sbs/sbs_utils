@@ -368,6 +368,7 @@ def _run(
     exercise: bool = False,
     use_working_tree: bool = False,
     seed: int | None = None,
+    audit_layout: bool = False,
 ) -> int:
     mission_folder = os.path.abspath(mission_folder)
     missions_root  = _find_missions_root(mission_folder)
@@ -402,6 +403,13 @@ def _run(
         sys.stderr = _TeeWriter(sys.__stderr__, "error", sbs.gui_queue)
     else:
         import cosmos_dev.mock.sbs as sbs
+
+    # SPIKE (gui-sizing-accuracy): tap the emitted rect stream for a read-only
+    # layout audit (overflow / overlap). Zero render change; off unless asked.
+    if audit_layout:
+        from cosmos_dev import layout_audit
+        layout_audit.install(sbs)
+        print("[runner] layout audit installed")
 
     # Make this process look like script.py (handlerhooks expects it)
     sys.modules["script"] = sys.modules.get("__main__")
@@ -973,6 +981,9 @@ def _run(
             _test_exit = _emit_test_report(mission_folder, map_arg, sbs,
                                            _cov, _verdict, junit_path, _exerciser,
                                            game_end=_game_end)
+        if audit_layout:
+            from cosmos_dev import layout_audit
+            print(layout_audit.report())
     return _test_exit
 
 
@@ -1047,6 +1058,9 @@ if __name__ == "__main__":
     ap.add_argument("--use-working-tree", action="store_true",
                     help="Run the working-tree sbs_utils instead of the packaged "
                          ".sbslib (smoke-test local library edits against a mission)")
+    ap.add_argument("--audit-layout", action="store_true",
+                    help="Tap the emitted GUI rect stream and report widget "
+                         "overflow / overlap (read-only; prints at end of run)")
     args = ap.parse_args()
 
     if args.map is None:
@@ -1070,5 +1084,6 @@ if __name__ == "__main__":
         exercise=args.exercise,
         use_working_tree=args.use_working_tree,
         seed=args.seed,
+        audit_layout=args.audit_layout,
     )
     sys.exit(_exit or 0)

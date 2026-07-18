@@ -89,12 +89,22 @@
   .slider-num { font-size:11px; min-width:2.5em; text-align:right; color:var(--text-dim); flex-shrink:0; white-space:nowrap; align-self:center; }
 
   .region-container { position:absolute; overflow:hidden; pointer-events:none; }
+  /* UNCLIP debug (gui-sizing-accuracy): reveal overflow the real engine would
+     draw but the browser normally clips. Outlines regions (red) + widgets (blue). */
+  body.unclip #gui-root, body.unclip .gui-buffer,
+  body.unclip .region-container, body.unclip .region-buffer { overflow:visible !important; }
+  body.unclip .region-container { outline:1px solid rgba(255,70,70,0.55); }
+  body.unclip .widget { outline:1px solid rgba(90,170,255,0.45); }
   .region-buffer    { position:absolute; inset:0; pointer-events:none; }
   .region-buffer.front { display:block; }
   .region-buffer.back  { display:none; }
 
-  .w-text { background:transparent; padding:4px 6px; justify-content:flex-start;
-            align-items:flex-start; white-space:pre-wrap; word-break:break-word; line-height:1.5;
+  /* line-height/padding tuned to the sbs_utils layout budget: rows are reserved at
+     get_text_line_height (≈1.25× the font px), so the old CSS line-height:1.5 + 6px
+     padding overran the box and CLIPPED text the engine draws fine (browser-only
+     artifact — engine blits tight to the rect). See gui-sizing-accuracy notes. */
+  .w-text { background:transparent; padding:0 2px; justify-content:flex-start;
+            align-items:flex-start; white-space:pre-wrap; word-break:break-word; line-height:1.2;
             pointer-events:none; }
 
   .w-typein input { width:100%; height:100%; background:var(--surface); color:var(--text);
@@ -140,6 +150,7 @@
   <button id="script-log-btn" class="log-btn" title="Toggle MAST/sbs_utils stdout+stderr">LOG</button>
   <button id="dbg-log-btn"    class="log-btn" title="Toggle browser WS/widget debug">DBG</button>
   <button id="corner-radar-btn" class="log-btn" title="Toggle the fallback corner radar (when no console 2D view is active)">RADAR</button>
+  <button id="unclip-btn" class="log-btn" title="Disable region clipping + outline boxes to reveal widget overflow the engine would show">UNCLIP</button>
 </div>
 
 <div id="gui-root">
@@ -722,6 +733,11 @@ document.getElementById('corner-radar-btn').addEventListener('click', () => {
   _cornerRadarEnabled = !_cornerRadarEnabled;
   document.getElementById('corner-radar-btn').classList.toggle('active', _cornerRadarEnabled);
   _requestRadarRender();
+});
+
+document.getElementById('unclip-btn').addEventListener('click', () => {
+  const on = document.body.classList.toggle('unclip');
+  document.getElementById('unclip-btn').classList.toggle('active', on);
 });
 
 // ── cmdLog: stdout/stderr forwarded from the runner ───────────────────────────
