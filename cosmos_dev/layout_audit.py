@@ -25,6 +25,10 @@ So:
 from __future__ import annotations
 
 # --- tunables --------------------------------------------------------------
+# Overshoot is RESOLUTION-DEPENDENT: layouts mix percent with fixed px/em units, so a
+# fixed row/font takes a different fraction of a %-derived region as the window
+# resizes (small windows = worst case). So don't desensitize to a single resolution —
+# the valuable audit sweeps aspect ratios and takes the WORST case (see LAYOUT_AUDIT.md).
 EPS = 0.5          # percent slop before a rect counts as "out of region"
 MIN_OVERLAP = 1.0  # percent^2 min intersection area before flagging overlap
 

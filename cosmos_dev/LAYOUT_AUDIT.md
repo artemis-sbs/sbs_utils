@@ -83,23 +83,43 @@ suspects:
 Evidence-based; needs a 5-second browser glance to confirm (does console-select stop
 clipping?).
 
+## Outcome so far
+
+- **Audit findings across LM (map 0, Peacetime) + OU (universe): all benign.** The GUIs
+  are clean because the layout work was done up front — so the audit's value is a
+  **regression guard** (stay green on good code; red on a future regression), not a
+  current-bug finder. `.w-text` browser clipping fixed (CSS box overhead); both LM findings
+  judged benign in-engine.
+- **Real production fix landed (engine-verified):** the actual sizing bug wasn't found by
+  the audit but by the user's report — `TextArea` (`text_area.py`) estimated line capacity
+  from the width of `M` (widest glyph), wrapping at ~60% of the usable width. Fixed to
+  measure the real line's average → 100% width. Affects every `gui_text_area` everywhere.
+
+## The real bug taxonomy (and which tool reaches each)
+
+Overshoot is **resolution-dependent**: layouts mix percent with fixed px/em, so fixed
+rows/fonts take a different fraction of a %-region as the window resizes (small windows =
+worst). Three classes:
+
+| Class | Caught by |
+|---|---|
+| 1. mixed %/fixed-unit overflow | mock audit **+ resolution sweep** |
+| 2. listbox/text_area not re-adapting to bounds | mock audit **+ resolution sweep** |
+| 3. engine word-wrap ≠ the measure functions | **real engine only** (mock wrap == mock measure) — needs `dev_queue`/EngineDriver |
+
 ## Roadmap / open items
 
-- [ ] **Confirm the `.w-text` fix** visually (one browser load).
-- [ ] **Human call on the two findings** (severity / intent) → gate decision.
-- [ ] **Unify font metrics to one engine source.** Today `_FONT_MAP` (browser) and
-  `mock/sbs.py` `_font_size` / `_CHAR_WIDTHS` are separate hand-tuned tables. Derive font
-  **sizes** from `preferences.json` (line-height = size × leading), so a config change
-  flows everywhere. `_font_size` ≈ 1.22× the prefs size today (a leading constant) — a
-  behaviour-preserving refactor, but it touches the mock many tests depend on; validate
-  with the full suite.
-- [ ] **Text-fit audit is DEFERRED.** A "text taller than its box" check would be
-  valuable (the real engine-drawing dimension), but until the mock renders text as tightly
-  as the engine (above), it would flag browser-only false positives. Build it *after*
-  metric unification.
-- [ ] **Runner-chrome noise.** When a run hits MAST runtime errors, the error/debug
-  overlay (`error`/`resume`/`pause`/…) produces overlap false positives. Filter by
-  provenance if it becomes a nuisance (error-free runs are already clean).
+- [ ] **Resolution sweep** (the high-value buildable piece) — vary `FrameContext.
+  aspect_ratios`, re-present, take the WORST-case overflow per widget. Turns "audit at one
+  resolution" into "find the window size where fixed fonts break the %-layout" (classes 1 & 2).
+- [ ] **Real-engine measure-vs-render check** (class 3) — only the engine shows wrap ≠
+  measure; drive it via `dev_queue`/EngineDriver, compare actual text extent to `get_text_*`.
+- [ ] **Text-fit audit** stays deferred until the mock renders as tight as the engine
+  (else browser-only false positives).
+- [ ] **Font-metric table unification** to `preferences.json` (maintainability; touches
+  mock tests — validate with the full suite). Low priority — cosmetic preview only.
+- [ ] **Runner-chrome noise** — filter the error-overlay tags if it becomes a nuisance
+  (error-free runs are already clean).
 
 ## Files
 
