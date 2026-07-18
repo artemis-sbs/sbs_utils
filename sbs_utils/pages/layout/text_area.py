@@ -204,6 +204,43 @@ class TableLine:
             y += row_h
 
 
+class HrLine:
+    """Horizontal rule (`<hr>` / `<hr/>`) — a thin full-width divider. Uses `<hr>`
+    rather than `---` so it never clashes with the table separator row."""
+    def __init__(self, ar) -> None:
+        self.is_sec_end = False
+        self._ar = ar
+        self.height = (12.0 / ar.y) * 100          # ~12px slot
+
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+        mid = top + (bottom - top) / 2.0
+        half = (1.0 / self._ar.y) * 100
+        SBS.send_gui_image(client_id, region_tag, tag,
+                           "image:smallwhite;color:#888;draw_layer:1000;",
+                           left, mid - half, right, mid + half)
+
+
+class LinkLine:
+    """A whole-line hyperlink `[Display](ref://key)`. Renders as styled clickable
+    text plus a transparent clickregion on top whose click_tag routes back to the
+    owning TextArea's on_message, which resolves the key (intra-document nav)."""
+    def __init__(self, display, click_tag, ar, sbs, font="gui-2") -> None:
+        self.display = display
+        self.click_tag = click_tag
+        self.font = font
+        self.is_sec_end = False
+        self.height = (sbs.get_text_line_height(font, display) / ar.y) * 100
+
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+        SBS.send_gui_text(client_id, region_tag, tag,
+                          f"$text:`{self.display}`;color:#6cf;font:{self.font}",
+                          left, top, right, bottom)
+        # transparent hit area on top; its click_tag carries the target key
+        SBS.send_gui_clickregion(client_id, region_tag, self.click_tag,
+                                 "background_color:#00000000;",
+                                 left, top, right, bottom)
+
+
 class TextArea(Control):
     styles = {
         "t": {"style": "font:gui-6;color:#bbb;", "prepend": "", "indent": 0, "height": 48},
@@ -252,6 +289,9 @@ class TextArea(Control):
         self.error_line = ""
         self.error_line_num = 0
         self.styles = TextArea.styles.copy()
+        self.link_resolver = None   # fn(key) -> new text; drives [x](ref://key) nav
+        self.on_link_cb = None      # fn(key, self); notified on any link click
+        self._link_map = {}         # click_tag -> target key
         #self.region = None
         #self.local_region_tag = self.tag+"$$"
 
@@ -291,6 +331,7 @@ class TextArea(Control):
         
 
         self.lines = []
+        self._link_map = {}
         links = {}
         calc_height = 0
         self.scroll_line = 0
@@ -382,6 +423,25 @@ class TextArea(Control):
                 is_a_list = None
                 if line_len == 0:
                     continue
+
+            # Horizontal rule: <hr> / <hr/> (not '---', which is a table separator)
+            if line.strip().lower() in ("<hr>", "<hr/>"):
+                hr = HrLine(ar)
+                self.lines.append(hr)
+                calc_height += hr.height
+                continue
+
+            # Whole-line hyperlink: [Display](ref://key) -> clickable LinkLine that
+            # navigates within the document via the TextArea's link_resolver.
+            m_link = TextArea._whole_link_re.match(line.strip())
+            if m_link is not None:
+                ctag = f"{self.tag}:lnk{len(self.lines)}"
+                self._link_map[ctag] = m_link.group("key").strip()
+                ln = LinkLine(m_link.group("disp").strip(), ctag, ar,
+                              FrameContext.context.sbs)
+                self.lines.append(ln)
+                calc_height += ln.height
+                continue
 
             # GFM pipe table: 2+ consecutive lines starting with '|' become a
             # TableLine block. A lone '|' line falls through to normal text.
@@ -573,6 +633,7 @@ class TextArea(Control):
         
 
     _table_sep_re = re.compile(r"^:?-{2,}:?$")
+    _whole_link_re = re.compile(r"^\[(?P<disp>[^\]]+)\]\((?:ref|link)://(?P<key>[^)]+)\)$")
 
     def _build_table(self, raw_rows, ar, pixel_width):
         """Parse GFM pipe rows into a TableLine. The |:--|--:| separator row (if
@@ -846,6 +907,18 @@ class TextArea(Control):
 
 
     def on_message(self, event):
+        # Hyperlink click: resolve the key and navigate within the document.
+        if event.sub_tag in self._link_map:
+            key = self._link_map[event.sub_tag]
+            if self.on_link_cb is not None:
+                self.on_link_cb(key, self)
+            if self.link_resolver is not None:
+                new_text = self.link_resolver(key)
+                if new_text is not None:
+                    self.value = new_text        # triggers recalc on next present
+                    self.scroll_line = 0
+                    self.present(event)
+            return
         if event.sub_tag != f"{self.tag}vbar":
             return
         value = int(event.sub_float)
