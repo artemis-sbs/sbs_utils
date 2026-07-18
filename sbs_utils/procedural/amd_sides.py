@@ -47,7 +47,10 @@ def sides_from_section(node):
     out = []
     if node is not None:
         for n in node.get("children", []):
-            data = n.get("data") or {}
+            # Lower-case fence keys so the read is robust to casing/parser: a mission authors
+            # `Color:`/`Enemies:` (natural case), and while amd_side_data's friendly path
+            # lowercases, the default reader keeps case - normalize here like amd_records does.
+            data = {str(k).lower(): v for k, v in (n.get("data") or {}).items()}
             out.append(MastDataObject({
                 "key": n.get("key"),
                 "name": data.get("name") or n.get("display_text"),
@@ -86,3 +89,15 @@ def sides_declare(records):
 def sides_declare_amd(node):
     """Declare all sides authored under an AMD node (flat sides doc or a Sides section)."""
     return sides_declare(sides_from_section(node))
+
+
+def sides_load_amd(file_path):
+    """Load a sides file relative to the mission folder and declare every side in it - the
+    one-call path a mission should use. Bakes in ``data_parser=amd_side_data`` so a caller
+    can't accidentally omit it: the default AMD reader is YAML, which would silently drop a
+    ``Color: #07F`` value (``#`` starts a YAML comment). Returns {key: side_id}."""
+    from sbs_utils.procedural.amd_doc import amd_document
+    from sbs_utils.fs import get_mission_dir_filename
+    with open(get_mission_dir_filename(file_path), "r") as f:
+        content = f.read()
+    return sides_declare_amd(amd_document(content, data_parser=amd_side_data))

@@ -13,7 +13,7 @@ from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.procedural.sides import side_create, to_side_id, side_are_enemies, side_are_allies
 from sbs_utils.procedural.inventory import get_inventory_value
 from sbs_utils.procedural.amd_doc import amd_document
-from sbs_utils.procedural.amd_sides import amd_side_data, sides_declare, sides_declare_amd, sides_from_section
+from sbs_utils.procedural.amd_sides import amd_side_data, sides_declare, sides_declare_amd, sides_from_section, sides_load_amd
 
 
 class FakeEvent:
@@ -58,6 +58,36 @@ class DeclareTests(unittest.TestCase):
         recs = [{"key": "tsn", "name": "TSN", "enemies": "raider"},
                 {"key": "raider", "name": "Raider"}]
         sides_declare(recs)
+        self.assertTrue(side_are_enemies("tsn", "raider"))
+
+    def test_capitalized_keys_read(self):
+        # sides_from_section must read fence keys regardless of case: a parser that keeps the
+        # author's natural case (Color/Enemies) must resolve the same as a lowercasing one.
+        node = {"children": [{"key": "tsn", "display_text": "TSN", "description": "The navy.",
+                              "data": {"Color": "#07F", "Enemies": "raider"}}]}
+        recs = sides_from_section(node)
+        self.assertEqual(recs[0].get("color"), "#07F")
+        self.assertEqual(recs[0].get("enemies"), "raider")
+        self.assertEqual(recs[0].get("name"), "TSN")
+
+    def test_load_amd_bakes_in_parser(self):
+        # sides_load_amd must apply amd_side_data itself, so a `Color: #07F` value survives
+        # (the default YAML reader would drop it - `#` starts a comment).
+        import tempfile, os
+        import sbs_utils.fs as fs
+        fd, path = tempfile.mkstemp(suffix=".amd")
+        os.close(fd)
+        with open(path, "w") as f:
+            f.write("# [TSN](tsn)\n---\nColor: #07F\nEnemies: raider\n---\nThe navy.\n"
+                    "# [Raider](raider)\n---\nColor: #F00\n---\n")
+        orig = fs.get_mission_dir_filename
+        fs.get_mission_dir_filename = lambda p: path
+        try:
+            ids = sides_load_amd("ignored.amd")
+        finally:
+            fs.get_mission_dir_filename = orig
+            os.remove(path)
+        self.assertEqual(set(ids), {"tsn", "raider"})
         self.assertTrue(side_are_enemies("tsn", "raider"))
 
     def test_amd_flat_file(self):
