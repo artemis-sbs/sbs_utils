@@ -122,8 +122,86 @@ class ImageLine:
             self.height = (height / ar.y) * 100 * scale
 
     def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
-        self.atlas.send_gui_image(SBS, client_id, region_tag, tag, self.fill,  
+        self.atlas.send_gui_image(SBS, client_id, region_tag, tag, self.fill,
                     left, top, right, bottom, self.color)
+
+
+class TableLine:
+    """A GFM pipe-table rendered as a grid of text cells — a block-line like
+    ImageLine/FaceLine (owns its rect via send_gui). Columns are sized to their
+    measured content then shrunk to fit the region width (never overflow — there's
+    no horizontal scroll); row height is the tallest wrapped cell. Per-column
+    alignment comes from the |:--|--:| separator row. Keep tables SMALL/static:
+    scrolling is line-indexed so a tall table clips at the block boundary."""
+    HDR_FONT = "gui-3"
+    BODY_FONT = "gui-2"
+
+    def __init__(self, rows, aligns, ar, pixel_width, sbs) -> None:
+        self.is_sec_end = False
+        self.ar = ar
+        self.aligns = aligns
+        ncols = max((len(r) for r in rows), default=0)
+        self.ncols = ncols
+        self.rows = [r + [""] * (ncols - len(r)) for r in rows]
+        self.col_px = []
+        self.row_h_px = []
+        self.cell_pad_px = 0
+        self.height = 0
+        if ncols == 0 or not self.rows:
+            return
+
+        # Natural column widths (px) — measure real glyphs (header in header font).
+        col_px = [0.0] * ncols
+        for ri, r in enumerate(self.rows):
+            f = self.HDR_FONT if ri == 0 else self.BODY_FONT
+            for c in range(ncols):
+                if r[c]:
+                    w = sbs.get_text_line_width(f, r[c])
+                    if w > col_px[c]:
+                        col_px[c] = w
+        self.cell_pad_px = sbs.get_text_line_width(self.BODY_FONT, "MM")   # gutter
+        avail = max(1.0, pixel_width - self.cell_pad_px * (ncols - 1))
+        natural = sum(col_px)
+        if natural > avail and natural > 0:                                # fit-to-width
+            col_px = [w * (avail / natural) for w in col_px]
+        floor = min(sbs.get_text_line_width(self.BODY_FONT, "MMM"), avail / ncols)
+        col_px = [max(w, floor) for w in col_px]                           # min column
+        self.col_px = col_px
+
+        # Row heights (px) from the tallest wrapped cell in each row.
+        for ri, r in enumerate(self.rows):
+            f = self.HDR_FONT if ri == 0 else self.BODY_FONT
+            h = 0
+            for c in range(ncols):
+                cw = int(col_px[c])
+                bh = (sbs.get_text_block_height(f, r[c], cw) if (r[c] and cw > 0)
+                      else sbs.get_text_line_height(f, "M"))
+                if bh > h:
+                    h = bh
+            self.row_h_px.append(h)
+        self.height = (sum(self.row_h_px) / ar.y) * 100                    # percent
+
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+        if not self.rows or self.ncols == 0:
+            return
+        ar = self.ar
+        col_pct = [(w / ar.x) * 100 for w in self.col_px]
+        pad_pct = (self.cell_pad_px / ar.x) * 100
+        just_map = {"l": "left", "c": "center", "r": "right"}
+        y = top
+        for ri, r in enumerate(self.rows):
+            f = TableLine.HDR_FONT if ri == 0 else TableLine.BODY_FONT
+            row_h = (self.row_h_px[ri] / ar.y) * 100
+            color = "#bbb" if ri == 0 else "white"
+            x = left
+            for c in range(self.ncols):
+                a = self.aligns[c] if c < len(self.aligns) else "l"
+                style = f"font:{f};justify:{just_map.get(a, 'left')};color:{color}"
+                SBS.send_gui_text(client_id, region_tag, f"{tag}:r{ri}c{c}",
+                                  f"$text:`{r[c]}`;{style}",
+                                  x, y, x + col_pct[c], y + row_h)
+                x += col_pct[c] + pad_pct
+            y += row_h
 
 
 class TextArea(Control):
@@ -282,7 +360,10 @@ class TextArea(Control):
         roman = ["_", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", 
                 "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx"]
         
+        table_skip = 0
         for i, line in enumerate(content_lines):
+            if i < table_skip:                 # lines consumed by a table block
+                continue
             self.error_line = line
             self.error_line_num = i
             # EMPTY LINE reset style and prepend
@@ -301,6 +382,22 @@ class TextArea(Control):
                 is_a_list = None
                 if line_len == 0:
                     continue
+
+            # GFM pipe table: 2+ consecutive lines starting with '|' become a
+            # TableLine block. A lone '|' line falls through to normal text.
+            if (line.strip().startswith("|") and i + 1 < len(content_lines)
+                    and content_lines[i + 1].strip().startswith("|")):
+                traw = []
+                j = i
+                while j < len(content_lines) and content_lines[j].strip().startswith("|"):
+                    traw.append(content_lines[j].strip())
+                    j += 1
+                table_skip = j
+                tbl = self._build_table(traw, ar, pixel_width)
+                if tbl is not None and tbl.height > 0:
+                    self.lines.append(tbl)
+                    calc_height += tbl.height
+                continue
 
             style_key, line = self.get_line_style(line, style)
             
@@ -474,6 +571,28 @@ class TextArea(Control):
         self.last_line = min(self.last_line+1, len(self.lines))
         self.scroll_line = min(self.last_line+1,len(self.lines))
         
+
+    _table_sep_re = re.compile(r"^:?-{2,}:?$")
+
+    def _build_table(self, raw_rows, ar, pixel_width):
+        """Parse GFM pipe rows into a TableLine. The |:--|--:| separator row (if
+        present) supplies per-column alignment and is dropped from the data; a
+        table with no separator row just renders all-left with row 0 as header."""
+        rows = []
+        aligns = []
+        for rr in raw_rows:
+            cells = [c.strip() for c in rr.strip().strip("|").split("|")]
+            non_empty = [c for c in cells if c != ""]
+            if non_empty and all(TextArea._table_sep_re.match(c) for c in non_empty):
+                aligns = []
+                for c in cells:
+                    lft, rgt = c.startswith(":"), c.endswith(":")
+                    aligns.append("c" if lft and rgt else "r" if rgt else "l")
+                continue
+            rows.append(cells)
+        if not rows:
+            return None
+        return TableLine(rows, aligns, ar, pixel_width, FrameContext.context.sbs)
 
     def get_line_style(self, some_lines, previous):
         style_key = None
