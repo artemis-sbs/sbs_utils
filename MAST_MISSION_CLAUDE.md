@@ -626,6 +626,29 @@ A mission can also skip LegendaryMissions entirely and handle everything itself 
 
 ---
 
+## Declarative content in AMD (loaders)
+
+Author mission **content as data** in a `.amd` fact-sheet — one `# [Display](key)` heading per record, an optional `---` fence, and body prose — so MAST holds only the reacting logic. Parse once with `document_get_amd_file(path, data_parser=amd_mission_data)`, then hand each `## section` to its loader via `amd_section(doc, key)`. The shared loaders (in `sbs_utils.procedural`, promoted from Open Universe — LM Peacetime Remastered is the worked example):
+
+| Loader | Reads | Returns / does |
+|---|---|---|
+| `amd_records(section)` | any `# [Display](key)` + body | `[{key, display, body, data}]` — the **generic AMD atom**, no domain shape (e.g. a clue: display = container, body = clue) |
+| `amd_text_map(section)` | prose templates | `{key: text}`; fill later with `amd_fill(tmpl, values)` (unknown `{slot}` left literal) |
+| `amd_chatter` | line pools | `chatter_scenes(section)` → `{key:[lines]}`; `chatter_line(scenes, key, **fields)` picks one (leading `%` optional, as in dialogue) |
+| `amd_lifeforms` | a cast | `lifeforms_spawn(section)` → `{key: lifeform}`; a record with `Host` + `Path` shows as a comms **badge** |
+| `amd_items` | items | stamps item data onto `prefab_item_<key>`; `Modifiers:` = a bodyless modifier-upgrade |
+| `amd_landmarks` | fixed objects | `landmarks_from_section` + `landmark_spawn(record)` (one) / `landmarks_spawn(section)` (all) |
+| `amd_sides` | sides | `sides_declare_amd` (two-pass: create, then relations) |
+| quests / scans | `amd_quest` / `amd_science` | the quest tree + dialogue-native `Scan of:` / `Tab:` / `%` scans |
+
+The domain loaders are each a **projection** of the same `amd_records` node. `amd_mission_data` chains the content vocabulary (quests + scans + landmarks) so **one file** can hold every `## section`. Fence keys are case-robust; a `{`/`[` value flips a fence to YAML flow; a colon inside a plain value (`Reveals: Survey logged: …`) needs the mission parser (`amd_mission_data`), not the bare default reader.
+
+### Idle-until-accepted job board (pattern)
+
+Author jobs **`State: idle`** → they show on the Quest tab as **Available**; the player **Accepts** one (`quest_tab_accept` → ACTIVE). **`Fail after:` anchors lazily on the first ACTIVE tick**, so a timed job's clock starts on **acceptance**, not at map start. Pair it with **spawn-on-accept** — a server watcher keyed off `pr_job_active(key)` (or the `quest_activated` signal) that spawns the job's targets once when it first goes active — so counted jobs can't be spoiled by pre-accept kills and space isn't cluttered by untaken work. Grant **per player** for credit rewards; `quest_grant_amd(count_scale=…)` scales the whole board. Route notifications to the info panel (`comms_info_card`), not the text waterfall.
+
+---
+
 ## Terrain — Higher-Level Helpers
 
 Beyond the manual `terrain_spawn()` loop, procedural helpers exist for common patterns:
