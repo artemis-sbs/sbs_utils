@@ -369,6 +369,7 @@ def _run(
     use_working_tree: bool = False,
     seed: int | None = None,
     audit_layout: bool = False,
+    aspect: str | None = None,
 ) -> int:
     mission_folder = os.path.abspath(mission_folder)
     missions_root  = _find_missions_root(mission_folder)
@@ -410,6 +411,17 @@ def _run(
         from cosmos_dev import layout_audit
         layout_audit.install(sbs)
         print("[runner] layout audit installed")
+
+    # Resolution sweep: force a client screen size so layouts build at it (mixed
+    # %/px units make overflow resolution-dependent — small windows are worst).
+    _aspect_wh = None
+    if aspect:
+        try:
+            _w, _h = (int(x) for x in aspect.lower().split("x"))
+            _aspect_wh = (_w, _h)
+            print(f"[runner] forcing aspect {_w}x{_h}")
+        except Exception:
+            print(f"[runner] bad --aspect {aspect!r}, expected WxH (e.g. 1280x720)")
 
     # Make this process look like script.py (handlerhooks expects it)
     sys.modules["script"] = sys.modules.get("__main__")
@@ -941,6 +953,13 @@ def _run(
             if not _map_started:
                 _map_started = _try_auto_start_map(map_arg, sbs)
 
+            # Resolution sweep: pin every client's screen size each tick so layouts
+            # (re)build at the forced aspect instead of the 1024x768 default.
+            if _aspect_wh is not None:
+                _arv = Vec3(_aspect_wh[0], _aspect_wh[1], 1)
+                for _cid in (0, _TEST_CLIENT_ID, *_pending_client_connects):
+                    FrameContext.aspect_ratios[_cid] = _arv
+
             # --test --exercise: connect one synthetic console client so console
             # GUI (helm/weapons/science widgets + the monkey/fuzz) gets exercised -
             # headless otherwise only has the server page.
@@ -1061,6 +1080,10 @@ if __name__ == "__main__":
     ap.add_argument("--audit-layout", action="store_true",
                     help="Tap the emitted GUI rect stream and report widget "
                          "overflow / overlap (read-only; prints at end of run)")
+    ap.add_argument("--aspect", default=None, metavar="WxH",
+                    help="Force the client screen size (e.g. 1280x720) so layouts "
+                         "build at it — with --audit-layout, sweep sizes to find "
+                         "where fixed fonts break the %%-layout")
     args = ap.parse_args()
 
     if args.map is None:
@@ -1085,5 +1108,6 @@ if __name__ == "__main__":
         use_working_tree=args.use_working_tree,
         seed=args.seed,
         audit_layout=args.audit_layout,
+        aspect=args.aspect,
     )
     sys.exit(_exit or 0)
