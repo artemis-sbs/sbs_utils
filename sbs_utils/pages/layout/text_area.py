@@ -415,14 +415,16 @@ class TextArea(Control):
                 continue
             
 
-            # Use Python's text wrapper to break up lines
-            # pixel_char_width = get_font_size(font)
+            # Use Python's text wrapper to break up lines. Estimate how many
+            # characters fit per line from THIS line's own average glyph width
+            # (measure the real line, divide by its length). The old estimate used
+            # 'M' — the widest glyph — as the per-char width, which under-counted
+            # capacity and wrapped early, leaving text using only ~60% of the
+            # available width. Same measure font, same call count.
             pixel_char_width = 20
-            if len(line)>0:
-                #pixel_char_width = FrameContext.context.sbs.get_text_line_width("gui-1", line) / len(line) 
-                pixel_char_width = FrameContext.context.sbs.get_text_line_width(font, "MMMM") / 4
-            # I'm not sure why divide by 2 works, but it seems to
-            num_char = int(pixel_width / pixel_char_width)
+            if len(line) > 0:
+                pixel_char_width = FrameContext.context.sbs.get_text_line_width(font, line) / len(line)
+            num_char = max(1, int(pixel_width / pixel_char_width))
             
             wrapper = TextWrapper(width=num_char)
             sub_lines = wrapper.wrap(line)
