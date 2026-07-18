@@ -43,14 +43,17 @@ console. A mission sets the defaults (shared vars, e.g. in `settings.yaml`):
 
 | Var | Default | Controls |
 |---|---|---|
-| `QUEST_ACCEPT_CONSOLES` | `comms,admiral` | Consoles that show **Accept / Abandon**. `""` = any console (the pre-gating behavior). |
-| `QUEST_ENGAGE_CONSOLES` | `helm` | Consoles that show **Engage** (when `QUEST_ENGAGE_ENABLED`). |
+| `QUEST_ACCEPT_CONSOLES` | `comms,admiral` | Consoles that may show **Accept / Abandon**. `""` = any console (the pre-gating behavior). |
+| `QUEST_ENGAGE_CONSOLES` | `helm` | Consoles that may show **Engage** (when `QUEST_ENGAGE_ENABLED`). |
 
-Engage additionally requires the job to be **accepted** (ACTIVE) — before that, the
-helm shows a short *"Accept this job before engaging."* hint. On a console that can't
-act, the buttons are replaced with text naming the console(s) that can. `Accept On:` /
-`Engage On:` on a single quest override these lists for that job (a station-specific
-task).
+Each control is also gated by the job's **state**: **Accept** shows only for an
+available (not-yet-accepted) job, **Abandon** only for an accepted (active) one, and
+**Engage** only for an active one. A completed or failed job — or a section header /
+no selection — shows no action controls. Engage additionally means the job must be
+accepted first — before that, the helm shows a short *"Accept this job … before
+engaging."* hint. On a console that can't act on an actionable job, the buttons are
+replaced with text naming the console(s) that can. `Accept On:` / `Engage On:` on a
+single quest override these lists for that job (a station-specific task).
 
 ### Triggers
 
