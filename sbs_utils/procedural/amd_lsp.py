@@ -646,6 +646,15 @@ def _node_detail(index, key):
                 continue
             label, value = raw.split(":", 1)
             fields.append({"label": label.strip(), "value": value.strip()})
+
+        # Type each field via the schema, so the Inspector renders a typed widget
+        # (enum -> dropdown, ref -> key-picker, colour -> swatch, ...). The mission
+        # symbol lists ride along once (candidates for the reference widgets).
+        from sbs_utils.procedural.amd_schema import infer_archetype, field_schema
+        arch = infer_archetype([f["label"] for f in fields], _section_of(node))
+        for f in fields:
+            f["schema"] = field_schema(f["label"], arch)
+
         fence_range = None
         if fl:
             fence_range = {"start": {"line": fl[0][0] - 1, "character": 0},
@@ -654,13 +663,50 @@ def _node_detail(index, key):
         body = [raw for (ln, raw) in node.body_lines if (ln - 1) >= node.body_start]
         return {
             "key": node.key, "display": node.display, "uri": u,
+            "archetype": arch,
             "displayRange": _span_range(node.display_span) if node.display_span else None,
             "fields": fields, "fenceRange": fence_range,
+            "options": _mission_symbols(index),
             "bodyText": "\n".join(body),
             "bodyRange": {"start": {"line": node.body_start, "character": 0},
                           "end": {"line": add_line, "character": 0}},
         }
     return None
+
+
+def _record_labels(node):
+    """The fence field labels of a node (skipping `//` comments / label-less lines)."""
+    out = []
+    for _ln, raw in (node.fence_lines or []):
+        if ":" in raw and not raw.strip().startswith("//"):
+            lab = raw.split(":", 1)[0].strip()
+            if lab:
+                out.append(lab)
+    return out
+
+
+def _mission_symbols(index):
+    """Candidate lists for the Inspector's reference widgets, mission-wide: every
+    node key (`node`), the side keys (`side`), and the known signal names
+    (`signal`) - so a `ref`/`signal` field renders as a combobox, not a bare box."""
+    from sbs_utils.procedural.amd_schema import infer_archetype
+    from sbs_utils.procedural.amd_lint import (
+        _mast_routes, _emitted_from_sources, _declared_from_sources, DRIVER_SIGNALS)
+    nodes = sorted(index["known"])
+    sides = set()
+    sig = set()
+    for _p, _u, d in index["docs"]:
+        for n in d.nodes:
+            if infer_archetype(_record_labels(n), _section_of(n)) == "side":
+                sides.add(n.key)
+        for r in d.refs:
+            if r.kind in ("signal", "wait_signal"):
+                sig.add(r.value)
+    mast = index.get("mast")
+    decl_emits, decl_handles = _declared_from_sources(mast)
+    sig |= (_mast_routes(mast) | decl_handles | decl_emits
+            | _emitted_from_sources(mast) | set(DRIVER_SIGNALS))
+    return {"node": nodes, "side": sorted(sides) or nodes, "signal": sorted(sig)}
 
 
 _RE_CHOICE = re.compile(r"^\s*-\s*\[(?P<label>[^\]]*)\]\((?P<target>[^)]*)\)(?P<rest>.*)$")
@@ -722,6 +768,36 @@ def _node_at_line(index, uri, line):
     if best_key is None:
         return None
     return _node_detail(index, best_key)
+
+
+def _node_schema(index, key):
+    """The field SCHEMA for a node (via amd_schema): its resolved archetype plus a
+    per-field descriptor (enum / node-ref / coord2 / colour / face / ...), so the
+    Inspector can render a typed widget per field instead of a plain text box.
+    None if the key isn't found."""
+    from sbs_utils.procedural.amd_schema import record_schema
+    for _p, _u, d in index["docs"]:
+        node = d.by_key.get(key)
+        if node is None:
+            continue
+        labels = []
+        for _ln, raw in (node.fence_lines or []):
+            if ":" not in raw or raw.strip().startswith("//"):
+                continue
+            label = raw.split(":", 1)[0].strip()
+            if label:
+                labels.append(label)
+        return record_schema(labels, _section_of(node))
+    return None
+
+
+def _archetype_template(archetype):
+    """A 'new <archetype>' fence skeleton + its typed field descriptors, for the
+    editor's New Record form. `{fields}` is ordered as authored in amd_schema."""
+    from sbs_utils.procedural.amd_schema import template_fields, field_schema
+    labels = template_fields(archetype)
+    return {"archetype": archetype,
+            "fields": [{"label": l, "schema": field_schema(l, archetype)} for l in labels]}
 
 
 def _rename_by_key(index, key, new_name):
@@ -931,6 +1007,14 @@ def serve(stdin=None, stdout=None):
             uri = p.get("textDocument", {}).get("uri", "")
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                     "result": _node_detail(_index_for(uri, docs), p.get("key", ""))})
+        elif method == "amd/schema":
+            p = msg.get("params", {})
+            uri = p.get("textDocument", {}).get("uri", "")
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _node_schema(_index_for(uri, docs), p.get("key", ""))})
+        elif method == "amd/template":
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _archetype_template(msg.get("params", {}).get("archetype", ""))})
         elif method == "amd/nodeAtLine":
             p = msg.get("params", {})
             uri = p.get("textDocument", {}).get("uri", "")

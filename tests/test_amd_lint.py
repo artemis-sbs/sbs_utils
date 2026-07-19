@@ -14,6 +14,44 @@ from sbs_utils.procedural.amd_lint import (
 )
 
 
+class TestFieldValues(unittest.TestCase):
+    """Phase 2b - schema-driven enum-value checking (unknown-enum-value)."""
+
+    def test_typoed_state_warns(self):
+        doc = ("# [Jobs](jobs)\n"
+               "## [Jobs](jobs)\n"
+               "### [Patrol](patrol)\n"
+               "---\n"
+               "State: activ\n"
+               "---\n"
+               "body\n")
+        findings = amd_lint(content=doc)
+        bad = _by_code(findings, "unknown-enum-value")
+        self.assertEqual(len(bad), 1)
+        self.assertEqual(bad[0].severity, WARNING)
+        self.assertIn("State", bad[0].message)
+
+    def test_valid_state_is_clean(self):
+        for good in ("active", "idle", "secret"):
+            doc = ("## [Jobs](jobs)\n### [Patrol](patrol)\n---\n"
+                   f"State: {good}\n---\nbody\n")
+            self.assertEqual(_by_code(amd_lint(content=doc), "unknown-enum-value"), [])
+
+    def test_open_kind_enum_does_not_warn(self):
+        # Kind is an open enum: npc/antimatter are legitimate, must not warn.
+        doc = ("## [Landmarks](landmarks)\n### [X](x)\n---\n"
+               "Kind: antimatter\nAt: 3, 4\n---\nbody\n")
+        self.assertEqual(_by_code(amd_lint(content=doc), "unknown-enum-value"), [])
+
+    def test_bad_scan_tab_warns(self):
+        doc = ("## [Science](science)\n### [Hull](hull)\n---\n"
+               "Scan of: derelict\nTab: scna\n---\n% wreck\n")
+        # Both the scan-label pass and the schema pass can catch this; assert at
+        # least the schema value-check fires with the right value.
+        bad = _by_code(amd_lint(content=doc), "unknown-enum-value")
+        self.assertTrue(any("scna" in f.message for f in bad))
+
+
 def _codes(findings):
     return [f.code for f in findings]
 

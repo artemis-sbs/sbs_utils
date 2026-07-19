@@ -191,6 +191,33 @@ class TestProviders(unittest.TestCase):
         self.assertEqual(len(edits), 2)                       # decl + one reference
         self.assertTrue(all(e["newText"] == "bravo" for e in edits))
 
+    # A scan node under a conventionally-named `## [Science]` section, so the schema
+    # resolves it to the `scan` archetype and types each field.
+    _SCHEMA_DOC = ("# [Root](root)\n## [Science](science)\n### [Hull](hull)\n---\n"
+                   "Scan of: derelict\nTab: scan\n---\n% wreck\n")
+
+    def test_schema_types_a_scan_node(self):
+        res = self._request("amd/schema",
+                            {"textDocument": {"uri": "file:///tmp/x.amd"}, "key": "hull"},
+                            doc=self._SCHEMA_DOC)
+        self.assertEqual(res["archetype"], "scan")
+        self.assertEqual(res["fields"]["Tab"]["type"], "enum")
+        self.assertEqual(res["fields"]["Scan of"]["ref"], "role")
+
+    def test_schema_none_for_missing_key(self):
+        res = self._request("amd/schema",
+                            {"textDocument": {"uri": "file:///tmp/x.amd"}, "key": "nope"},
+                            doc=self._SCHEMA_DOC)
+        self.assertIsNone(res)
+
+    def test_template_returns_ordered_typed_fields(self):
+        res = self._request("amd/template", {"archetype": "item"})
+        self.assertEqual(res["archetype"], "item")
+        labels = [f["label"] for f in res["fields"]]
+        self.assertEqual(labels[0], "type")
+        mode = next(f for f in res["fields"] if f["label"] == "mode")
+        self.assertEqual(mode["schema"]["values"], ["consumable", "install", "resource"])
+
 
 class TestCodeActions(unittest.TestCase):
     """Quick fixes: 'Change to <near key>' and 'Create node'."""

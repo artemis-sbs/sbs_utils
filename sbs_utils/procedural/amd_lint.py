@@ -387,6 +387,56 @@ def amd_lint_cross_file(doc, mast_sources=None):
     return findings
 
 
+# --- Phase 2b: field values (schema-driven, exact spans) --------------------
+def _section_key(node):
+    """The `##` section key a node lives under (mirrors amd_lsp._section_of), so a
+    conventionally-named section (`## Items`) resolves the record's archetype."""
+    n = node
+    while n.parent is not None and n.parent.key != "__root__" and n.level > 2:
+        n = n.parent
+    return n.key
+
+
+def _fence_fields(node):
+    """(lineno, raw, label, value) for each `Label: value` line in a node's fence,
+    skipping `//` comments and label-less lines. `label` is trimmed (natural case);
+    the archetype resolver lower-cases it."""
+    out = []
+    for lineno, raw in (getattr(node, "fence_lines", None) or []):
+        if ":" not in raw or raw.strip().startswith("//"):
+            continue
+        label = raw.split(":", 1)[0].strip()
+        if label:
+            out.append((lineno, raw, label, raw.split(":", 1)[1].strip()))
+    return out
+
+
+def amd_lint_field_values(doc):
+    """Flag a closed-enum field carrying a value outside its vocabulary - `State:
+    activ` (typo) otherwise does nothing, silently. Resolves each record's archetype
+    via `amd_schema` (its `##` section, else its discriminating fields) and checks
+    only genuinely closed enums; open enums and booleans are lenient. WARNING."""
+    from sbs_utils.procedural.amd_schema import infer_archetype, enum_values
+    findings = []
+    for node in doc.nodes:
+        fields = _fence_fields(node)
+        arch = infer_archetype([lab for _l, _r, lab, _v in fields], _section_key(node))
+        for lineno, raw, label, value in fields:
+            vals = enum_values(label, arch)
+            if not vals or set(vals) == {"true", "false"}:
+                continue                       # not closed, or a lenient boolean
+            if value and value.lower() not in vals:
+                prefix = raw.split(":", 1)[0] + ":"
+                after = raw[len(prefix):]
+                col = len(prefix) + (len(after) - len(after.lstrip()))
+                findings.append(AmdFinding(
+                    lineno, WARNING, "unknown-enum-value",
+                    f"`{label}: {value}` is not a valid {arch} value "
+                    f"({'/'.join(vals)}); likely a typo - it will be silently ignored",
+                    col=col, end_line=lineno, end_col=col + len(value)))
+    return findings
+
+
 def mast_labels(mast_sources):
     """Top-level MAST label names (`== name ==`) across the given sources - valid
     jump/handler targets an AMD reference may point at."""
@@ -427,6 +477,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         keys = set(known_keys) if known_keys else set()
         keys |= mast_labels(mast_sources)   # MAST labels are valid targets too
         findings += amd_lint_references(doc, keys)
+        findings += amd_lint_field_values(doc)
         if cross_file is not False:
             findings += amd_lint_cross_file(doc, mast_sources)
     except Exception as e:
