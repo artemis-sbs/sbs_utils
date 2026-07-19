@@ -319,6 +319,7 @@ Reuses the coverage machinery verbatim; good low-risk first deliverable.
 | 4 | ✅ **DONE (headless)** — attach mode: `MastDapAdapter` attach path + `serve_dap_socket` (DAP over TCP) + `live_mission_provider`, wired to `mission_runner --dap-port` (inert by default). Tested over a real loopback socket against a live loop (`test_mast_dap.py`). **Needs live browser+VS Code verification.** | med | — |
 | 5 | ✅ **DONE** — conditional breakpoints, hit conditions, logpoints, and setVariable, wired through the adapter (capabilities + `output`/`setVariable`); watch/evaluate already present. Tests in `test_mast_debug.py` + `test_mast_dap.py`. | low | — |
 | 6 | Long-poll stepping (poll-site tap); any real-engine bridge | high | — |
+| 7 | ✅ **DONE (core+DAP)** — step INTO Python that MAST evals. `cosmos_dev/mast_pystep.py` (`PyStepper`, a `bdb.Bdb` adapter) + core integration (arm on step-in, unified MAST+Python stack, Locals scope) + DAP dynamic scopes. Wraps `eval_code`/`exec_code` (monkeypatch, no shipped change); self-guards under debugpy (`sys.gettrace()`). Needs the **plain** runner (not debugpy). `tests/test_mast_pystep.py`. | med | dynamic scopes (done) |
 
 ---
 

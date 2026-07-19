@@ -45,6 +45,7 @@ Usage::
     dbg.uninstall()
 """
 import os
+import sys
 import threading
 
 from sbs_utils.mast.mastscheduler import MastTicker
@@ -170,6 +171,16 @@ class MastDebugCore:
         self._prev_bp = None               # last breakpoint key (basename,line) — dedup
         self._step = None                  # active step request dict, or None
 
+        # Step-into-Python (experimental): trace eval_code/exec_code with bdb.
+        self._py_enabled = False           # eval/exec wrapping installed?
+        self._py_armed = False             # trace the next eval/exec?
+        self._pystep = None                # active PyStepper
+        self._cur_py = None                # current Python frame when paused in Python
+        self._py_action = "step"           # what the controller asked in Python mode
+        self._stop_in = None               # step filter predicate
+        self._orig_eval_code = None
+        self._orig_exec_code = None
+
     def install(self, mast=None):
         if not self._installed:
             self._prev_hook = MastTicker.on_enter_node
@@ -184,6 +195,8 @@ class MastDebugCore:
             MastTicker.on_enter_node = self._prev_hook
             self._prev_hook = None
             self._installed = False
+        if self._py_enabled:
+            self.disable_python_step()
         # release any parked tick thread so it can finish
         self._step = None
         self._paused = False
@@ -345,6 +358,91 @@ class MastDebugCore:
     def is_paused(self):
         return self._paused
 
+    # -- step into Python (experimental) -----------------------------------
+    def enable_python_step(self, stop_in=None, extra_dirs=()):
+        """Wrap MastAsyncTask.eval_code/exec_code so a step-into can descend into
+        the Python that MAST evaluates. Requires the plain runner (NOT debugpy —
+        sys.settrace is one-per-thread). No shipped-code change: monkeypatch."""
+        from .mast_pystep import default_stop_filter
+        from sbs_utils.mast.mastscheduler import MastAsyncTask
+        self._stop_in = stop_in or default_stop_filter(extra_dirs)
+        if self._orig_eval_code is None:
+            # Always wrap the REAL method (unwrap any prior wrapper) so repeated
+            # enable/disable never nests wrappers.
+            base_eval = getattr(MastAsyncTask.eval_code, "_mast_orig", MastAsyncTask.eval_code)
+            base_exec = getattr(MastAsyncTask.exec_code, "_mast_orig", MastAsyncTask.exec_code)
+            self._orig_eval_code = base_eval
+            self._orig_exec_code = base_exec
+            core = self
+
+            def eval_code(task, code, end_on_exception=True):
+                return core._maybe_trace(lambda: base_eval(task, code, end_on_exception))
+
+            def exec_code(task, code, vars, gbls):
+                return core._maybe_trace(lambda: base_exec(task, code, vars, gbls))
+
+            eval_code._mast_orig = base_eval
+            exec_code._mast_orig = base_exec
+            MastAsyncTask.eval_code = eval_code
+            MastAsyncTask.exec_code = exec_code
+        self._py_enabled = True
+
+    def disable_python_step(self):
+        from sbs_utils.mast.mastscheduler import MastAsyncTask
+        if self._orig_eval_code is not None:
+            MastAsyncTask.eval_code = self._orig_eval_code
+            MastAsyncTask.exec_code = self._orig_exec_code
+            self._orig_eval_code = self._orig_exec_code = None
+        self._py_enabled = False
+        self._py_armed = False
+
+    def arm_python_step(self):
+        """Trace the next eval/exec — set alongside a MAST step-in."""
+        if self._py_enabled:
+            self._py_armed = True
+
+    def _maybe_trace(self, fn):
+        if not (self._py_armed and self._enabled):
+            return fn()
+        self._py_armed = False
+        tr = sys.gettrace()
+        if tr is not None:
+            # Another tracer (debugpy / coverage) owns sys.settrace on this
+            # thread — don't fight it; just run the eval normally.
+            if self.on_output:
+                self.on_output(f"[mast] step-into skipped: a tracer is already active ({tr!r})")
+            return fn()
+        if self.on_output:
+            self.on_output("[mast] step-into: tracing this eval for Python step-in")
+        from .mast_pystep import PyStepper
+        self._pystep = PyStepper(self._stop_in, park_fn=self._park_python)
+        try:
+            return self._pystep.trace_around(fn)
+        finally:
+            hit = self._pystep.parked if self._pystep else False
+            self._pystep = None
+            if self.on_output and not hit:
+                self.on_output("[mast] step-into: eval ran but no user-code line matched "
+                               "the step filter (stepped over)")
+
+    def _park_python(self, frame):
+        """Park the tick thread inside Python, sharing the core's handshake so
+        the same monitor/wait_for_pause/stopped machinery covers both worlds."""
+        self._step = None            # the MAST step-in is fulfilled by entering Python
+        self._cur_py = frame
+        self._reason = "step"
+        self._paused = True
+        self._go.clear()
+        self._stopped.set()
+        self._go.wait()
+        self._paused = False
+        self._cur_py = None
+        return self._py_action
+
+    @property
+    def in_python(self):
+        return self._cur_py is not None
+
     # -- the seam ----------------------------------------------------------
     def _on_enter(self, label, cmd):
         # Always chain the previously installed hook (coverage etc.) first.
@@ -489,16 +587,29 @@ class MastDebugCore:
         self._step = step
         self._go.set()
 
+    def _release_py(self, action):
+        self._py_action = action
+        self._go.set()
+
     def resume(self):
+        if self._cur_py is not None:
+            return self._release_py("cont")
         self._release(None)
 
     def step_in(self):
+        if self._cur_py is not None:
+            return self._release_py("step")
+        self.arm_python_step()          # a MAST step-in may descend into Python
         self._release(self._make_step("in"))
 
     def step_over(self):
+        if self._cur_py is not None:
+            return self._release_py("next")
         self._release(self._make_step("over"))
 
     def step_out(self):
+        if self._cur_py is not None:
+            return self._release_py("out")
         self._release(self._make_step("out"))
 
     def _make_step(self, mode):
@@ -512,6 +623,12 @@ class MastDebugCore:
 
     # -- inspection --------------------------------------------------------
     def location(self):
+        if self._cur_py is not None:
+            f = self._cur_py
+            code = f.f_code
+            return {"reason": self._reason, "task_id": None, "label": code.co_name,
+                    "file": code.co_filename, "path": code.co_filename,
+                    "line": f.f_lineno, "loc": None, "cmd": "python"}
         if self._cur is None:
             return None
         task, label, cmd = self._cur
@@ -526,6 +643,24 @@ class MastDebugCore:
             "cmd": cmd.__class__.__name__ if cmd is not None else None,
         }
 
+    def _py_stack(self):
+        """Python frames (innermost out) to the eval boundary, then the MAST
+        node we stepped from as the bottom frame — one merged call stack."""
+        frames = []
+        f = self._cur_py
+        while f is not None:
+            code = f.f_code
+            name = code.co_filename
+            if name == "<string>":
+                break
+            frames.append({"label": code.co_name, "file": name, "path": name,
+                           "line": f.f_lineno, "loc": None, "cmd": "python"})
+            f = f.f_back
+        if self._cur is not None:               # MAST frame underneath
+            task, label, cmd = self._cur
+            frames.append(self._frame(label, cmd))
+        return frames
+
     def _frame(self, label, cmd):
         return {
             "label": label,
@@ -539,6 +674,8 @@ class MastDebugCore:
     def stack(self, task=None):
         """Call stack, innermost first: the active node then each label_stack
         caller frame (a `call`/inline push saved its return location)."""
+        if self._cur_py is not None:
+            return self._py_stack()
         task = task or (self._cur[0] if self._cur else None)
         if task is None:
             return []
@@ -554,7 +691,14 @@ class MastDebugCore:
         return frames
 
     def scopes(self, task=None):
-        """Separated variable scopes (Frame / Task / Shared / Global)."""
+        """Separated variable scopes (Frame / Task / Shared / Global).
+        In Python mode: the frame's Locals + Globals."""
+        if self._cur_py is not None:
+            f = self._cur_py
+            return {
+                "Locals": _clean(f.f_locals),
+                "Global": _clean(MastGlobals.globals),
+            }
         task = task or (self._cur[0] if self._cur else None)
         if task is None:
             return {}

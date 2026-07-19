@@ -27,6 +27,33 @@ watch).
 - **Variables** grouped by scope: **Frame**, **Task**, **Shared**, **Global** — and you
   can **edit a value** in place while paused.
 - **Watch / evaluate** — expressions run in the paused task's scope.
+- **Step into Python** — *Step In* on a MAST line that calls Python (`~~ … ~~`, a
+  function call, a condition) descends into that Python function: real `.py`
+  source, a merged MAST+Python call stack, and the frame's **Locals**. See the
+  setup below.
+
+### Step into Python — setup
+
+Two requirements, because `sys.settrace` is one-per-thread and debugpy owns it:
+
+1. **Run the mission *plain* (not under debugpy).** In VS Code, debug launches are
+   always debugpy, so run the runner as a **task** or terminal command instead.
+   Under debugpy the feature auto-disables (you'll see `[mast] step-into … disabled
+   … under debugpy` in the Debug Console) and you use debugpy for the Python half.
+2. **Load `sbs_utils` from source** with `--use-working-tree`, so Python frames
+   point at real editable files instead of a path inside the packaged `.sbslib`
+   zip.
+
+The LegendaryMissions `.vscode` ships a **one-click** setup: run
+**"MAST: debug (plain, Python step-in)"** — a background task starts
+`python -m cosmos_dev.mission_runner . --gui --map 0 --dap-port 4711 --dap-wait
+--use-working-tree` (plain, source), waits for it to listen, then attaches. Then
+Step In on a line like `x = terrain_to_value(SEL)` opens the real
+`procedural/terrain.py` with the arrow on the line and Locals populated.
+
+The Debug Console tells you which mode you're in: `[mast] step-into: tracing this
+eval …` (working) vs `… skipped: a tracer is already active (…pydevd…)` (still
+under debugpy).
 
 !!! note "Stops just before a line runs"
     A breakpoint parks execution when a line is *entered* — its assignment/effect hasn't
@@ -163,6 +190,7 @@ runs** and **no change to the shipped `.sbslib`** — all the debugger code live
 | Launch mode | Logic `.mast` only (not full StoryScheduler missions) |
 | Attach mode | Working — verified live against a running mission |
 | Physics while paused | Not frozen (separate thread) |
+| Step into Python MAST evals | Working (plain runner only; auto-off under debugpy) |
 | PyMAST (`@label` Python generators) | Not debuggable (that's Python — use `debugpy`) |
 | Breaking *inside* a long `await`/`delay` poll | Not yet (stops on node entry, not re-poll) |
 

@@ -125,7 +125,6 @@ class MastDapAdapter:
         self._dbg.install(mast)
         self._respond(request)
         self._event("initialized")  # now the client may setBreakpoints
-        self._report_indexed_files()
 
     def _req_attach(self, request):
         """Attach to an already-running mission loop (someone else owns ticking).
@@ -146,13 +145,22 @@ class MastDapAdapter:
         self._dbg.index_all()               # pick up every live mission mast
         self._respond(request)
         self._event("initialized")
-        self._report_indexed_files()
 
     def _report_indexed_files(self):
         files = self._dbg.files()
         self._emit_output(f"[mast] {len(files)} source file(s) indexed for debugging")
         for f in files:
             self._emit_output(f"[mast]   {f}")
+
+    def _enable_python_step(self):
+        """Turn on step-into-Python. It self-guards at runtime (skips if debugpy
+        already owns the tracer), so enabling is always safe."""
+        try:
+            self._dbg.enable_python_step()
+            self._emit_output("[mast] step-into-Python enabled (Step In descends into "
+                              "Python the MAST evaluates; disabled automatically under debugpy)")
+        except Exception as err:
+            self._emit_output(f"[mast] step-into-Python unavailable: {err}")
 
     def _req_setBreakpoints(self, request):
         args = request.get("arguments", {})
@@ -177,6 +185,10 @@ class MastDapAdapter:
 
     def _req_configurationDone(self, request):
         self._respond(request)
+        # Announce AFTER config: DAP output events emitted between `initialized`
+        # and here are dropped by VS Code (the session isn't "running" yet).
+        self._report_indexed_files()
+        self._enable_python_step()
         if self._external:
             self._start_monitor()   # the mission loop already ticks; just watch
         else:
@@ -261,14 +273,18 @@ class MastDapAdapter:
             self._respond(request, success=False, message=f"cannot read {path}: {err}")
 
     def _req_scopes(self, request):
-        self._respond(request, body={"scopes": [
-            {"name": name, "variablesReference": ref, "expensive": False}
-            for ref, name in _SCOPE_REFS.items()
-        ]})
+        # Built dynamically: MAST mode gives Frame/Task/Shared/Global; Python mode
+        # (stepped into eval) gives Locals/Global.
+        self._scope_refs = {}
+        out = []
+        for i, name in enumerate(self._dbg.scopes().keys(), start=1):
+            self._scope_refs[i] = name
+            out.append({"name": name, "variablesReference": i, "expensive": False})
+        self._respond(request, body={"scopes": out})
 
     def _req_variables(self, request):
         ref = request.get("arguments", {}).get("variablesReference")
-        scope = _SCOPE_REFS.get(ref)
+        scope = getattr(self, "_scope_refs", {}).get(ref) or _SCOPE_REFS.get(ref)
         out = []
         if scope is not None:
             for k, v in self._dbg.variables(scope).items():
@@ -285,8 +301,9 @@ class MastDapAdapter:
 
     def _req_setVariable(self, request):
         args = request.get("arguments", {})
-        scope = _SCOPE_REFS.get(args.get("variablesReference"))
-        if scope is None:
+        ref = args.get("variablesReference")
+        scope = getattr(self, "_scope_refs", {}).get(ref) or _SCOPE_REFS.get(ref)
+        if scope is None or scope not in ("Frame", "Task", "Shared", "Global"):
             self._respond(request, success=False, message="unknown variables scope")
             return
         try:
