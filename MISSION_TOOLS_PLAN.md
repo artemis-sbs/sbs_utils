@@ -159,6 +159,13 @@ Each: **Problem → Panel → Seam → Effort.**
 - **Phasing:** (a) list/tree + focus view with in/out connection chips + open-source
   (ships the scalability win alone); (b) local mini-graph; (c) retrofit the existing full
   diagram with filter/search/click-to-focus.
+- **STATUS — phase (a) DONE.** Command **`amd.showStoryOutline`** ("Show Story Outline
+  (scalable)"): a searchable, section-filterable outline (left) + focus detail (right)
+  showing the selected node's **Leads to** / **Reached from** connections as clickable
+  chips (re-focus in place) with **↪ src** and **Open source / Edit** buttons. Reuses the
+  existing `amd/graph` model + `openLocation`/`showInspector` — pure client-side view, the
+  diagram (`amd.showGraph`) is untouched, no live tap needed. Auto-refreshes on `.amd`
+  edits. Phases (b) mini-graph and (c) diagram retrofit remain.
 
 ---
 
