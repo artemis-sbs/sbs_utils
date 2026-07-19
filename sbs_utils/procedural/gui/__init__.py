@@ -25,6 +25,7 @@ from .slider import gui_int_slider, gui_slider
 from .text import gui_text, gui_text_area, gui_text_escape
 
 from .listbox import gui_list_box, gui_list_box_header,gui_listbox_items_convert_headers, gui_list_box_is_header
+from .table import gui_table
 from .property_listbox import gui_properties_set, gui_property_list_box, gui_property_list_box_stacked
 from .update import gui_hide, gui_refresh, gui_represent, gui_show, gui_rebuild, gui_update, gui_update_shared
 from .style import gui_set_style_def, gui_style_def
