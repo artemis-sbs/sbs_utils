@@ -25,6 +25,35 @@ def _cell(item, key):
     return getattr(item, key, "")
 
 
+def _set(item, key, value):
+    """Write a field back to a row (dict, MastDataObject, or plain object)."""
+    if isinstance(item, dict):
+        item[key] = value
+        return
+    try:
+        setattr(item, key, value)      # MastDataObject stores as attrs, not items
+    except Exception:
+        pass
+
+
+def _widget_value(sender):
+    """Read the current value from a control widget (get_value() or .value)."""
+    getter = getattr(sender, "get_value", None)
+    if callable(getter):
+        try:
+            return getter()
+        except Exception:
+            pass
+    return getattr(sender, "value", None)
+
+
+def _disp(value):
+    """Display text for a $text:`...` cell. Empty renders as a space so the
+    backtick-quoted value is never empty (`$text:``;` shows a stray backtick)."""
+    s = str(value)
+    return s if s != "" else " "
+
+
 def _resolve_columns(items, columns, font):
     """Normalize the column specs and turn every 'auto' width into a percent,
     sized to the widest measured cell and sharing the width the fixed columns
@@ -43,7 +72,10 @@ def _resolve_columns(items, columns, font):
         label = col.get("label", col.get("key", ""))
         width = col.get("width", "auto")
         resolved.append({"key": col.get("key"), "label": label,
-                         "just": just, "width": width})
+                         "just": just, "width": width,
+                         "type": str(col.get("type", "text")),
+                         "options": col.get("options", []),
+                         "button_label": col.get("button_label", label)})
         if width == "auto" or width is None:
             auto_idx.append(i)
             mx = measure(label)
@@ -65,7 +97,7 @@ def _resolve_columns(items, columns, font):
 
 
 def gui_table(items, columns, style="row-height: 1.6em;", select=False,
-              header=True, font="gui-2", **kwargs):
+              header=True, font="gui-2", on_cell_change=None, **kwargs):
     """Add a declarative table (a selectable/scrollable gui_list_box) to the layout.
 
     Args:
@@ -74,13 +106,20 @@ def gui_table(items, columns, style="row-height: 1.6em;", select=False,
             {"key": <field name>,
              "label": <header text>            (default: key),
              "align": "l" | "c" | "r"          (default: "l"),
-             "width": <percent number> | "auto" (default: "auto")}
-            'auto' columns are sized to the widest cell (header + data) and share
-            whatever percent the fixed columns leave.
+             "width": <percent number> | "auto" (default: "auto"),
+             "type": "text" | "checkbox" | "dropdown" | "input" | "button"
+                                               (default: "text", read-only),
+             "options": [...]                  (dropdown choices),
+             "button_label": <text>}           (button cell label; default: label)
+            Interactive cells write their new value back to the row and fire
+            on_cell_change. 'auto' columns are sized to the widest cell (header +
+            data) and share whatever percent the fixed columns leave.
         style: row style (row-height, padding, ...).
         select: allow row selection (default False).
         header: render the column-label header row (default True).
         font: cell/header font tag (default gui-2).
+        on_cell_change: fn(item, key, value) called when a cell control changes
+            (value is None for a button press). The row is already updated.
         **kwargs: forwarded to gui_list_box (multi, carousel, ...).
 
     Returns:
@@ -95,12 +134,43 @@ def gui_table(items, columns, style="row-height: 1.6em;", select=False,
     """
     cols = _resolve_columns(items, columns, font)
 
+    def _bind(widget, item, key):
+        # write the control's new value back to the row + notify on_cell_change.
+        # default-args capture item/key per call (dodges the for-loop closure trap).
+        from . import gui_message_callback
+
+        def handler(event, sender, _i=item, _k=key):
+            v = _widget_value(sender)
+            _set(_i, _k, v)
+            if on_cell_change is not None:
+                on_cell_change(_i, _k, v)
+        gui_message_callback(widget, handler)
+
     def row_template(item):
-        from . import gui_row, gui_text
+        from . import (gui_row, gui_text, gui_checkbox, gui_drop_down,
+                       gui_input, gui_button, gui_message_callback)
         gui_row(style)
         for c in cols:
-            gui_text(f"$text:`{_cell(item, c['key'])}`;justify:{c['just']};font:{font};",
-                     f"col-width:{c['width']};")
+            w = f"col-width:{c['width']};"
+            key = c["key"]
+            val = _cell(item, key)
+            t = c["type"]
+            if t == "checkbox":
+                _bind(gui_checkbox(f"state:{bool(val)};", w), item, key)
+            elif t == "dropdown":
+                opts = ",".join(str(o) for o in c["options"])
+                _bind(gui_drop_down(f"text:{val};list:{opts};", w), item, key)
+            elif t == "input":
+                _bind(gui_input(f"text:{val};", w), item, key)
+            elif t == "button":
+                btn = gui_button(str(c['button_label']), w)
+
+                def press(event, sender, _i=item, _k=key):
+                    if on_cell_change is not None:
+                        on_cell_change(_i, _k, None)
+                gui_message_callback(btn, press)
+            else:  # "text" — read-only display
+                gui_text(f"$text:`{_disp(val)}`;justify:{c['just']};font:{font};", w)
 
     title_template = None
     if header:
@@ -108,7 +178,7 @@ def gui_table(items, columns, style="row-height: 1.6em;", select=False,
             from . import gui_row, gui_text
             gui_row(style)
             for c in cols:
-                gui_text(f"$text:`{c['label']}`;justify:{c['just']};color:#bbb;font:{font};",
+                gui_text(f"$text:`{_disp(c['label'])}`;justify:{c['just']};color:#bbb;font:{font};",
                          f"col-width:{c['width']};")
 
     return gui_list_box(items, style, item_template=row_template,

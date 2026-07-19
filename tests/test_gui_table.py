@@ -11,7 +11,7 @@ import unittest
 
 from cosmos_dev.mock import sbs
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
-from sbs_utils.procedural.gui.table import _resolve_columns, _cell
+from sbs_utils.procedural.gui.table import _resolve_columns, _cell, _set, _widget_value, _disp
 
 
 class TestGuiTable(unittest.TestCase):
@@ -63,6 +63,51 @@ class TestGuiTable(unittest.TestCase):
         cols = _resolve_columns([{"x": "1"}], [
             {"key": "x", "align": "r", "width": 100}], "gui-2")
         self.assertEqual(cols[0]["just"], "right")
+
+    # -- control cells --------------------------------------------------------
+    def test_columns_carry_type_and_options(self):
+        cols = _resolve_columns([{"a": True, "b": "x"}], [
+            {"key": "a", "type": "checkbox", "width": 20},
+            {"key": "b", "type": "dropdown", "options": ["x", "y"], "width": 80}],
+            "gui-2")
+        self.assertEqual(cols[0]["type"], "checkbox")
+        self.assertEqual(cols[1]["type"], "dropdown")
+        self.assertEqual(cols[1]["options"], ["x", "y"])
+
+    def test_default_type_is_text(self):
+        cols = _resolve_columns([{"a": "1"}], [{"key": "a", "width": 100}], "gui-2")
+        self.assertEqual(cols[0]["type"], "text")
+
+    def test_set_writes_back_to_dict(self):
+        row = {"active": False}
+        _set(row, "active", True)
+        self.assertTrue(row["active"])
+
+    def test_set_writes_back_to_object(self):
+        class Row:
+            pass
+        r = Row()
+        _set(r, "mode", "escort")
+        self.assertEqual(r.mode, "escort")
+
+    def test_disp_empty_becomes_space_but_zero_stays(self):
+        # empty -> space (avoids the stray-backtick from `$text:``;`), but a
+        # numeric 0 must NOT collapse to blank
+        self.assertEqual(_disp(""), " ")
+        self.assertEqual(_disp(None if False else ""), " ")
+        self.assertEqual(_disp(0), "0")
+        self.assertEqual(_disp("Mode"), "Mode")
+
+    def test_widget_value_prefers_get_value(self):
+        class W1:
+            def get_value(self):
+                return "got"
+            value = "raw"
+        self.assertEqual(_widget_value(W1()), "got")
+
+        class W2:
+            value = "raw"
+        self.assertEqual(_widget_value(W2()), "raw")
 
 
 if __name__ == "__main__":
