@@ -42,6 +42,13 @@ LIST_CODE = """
         gui_text("SHOULD_NOT_APPEAR {x}")
     gui_text("ONLY_FOOTER")
     await gui()
+
+//web/select
+    gui_section("area: 5,5,95,95;")
+    ships = ["Alpha", "Beta", "Gamma"]
+    with gui_list(ships, select=True) as ship:
+        gui_text("{ship}")
+    await gui()
 """
 
 WEB_ID = 0x8080000000000042
@@ -118,6 +125,14 @@ class TestGuiList(unittest.TestCase):
         cap, texts, blob = self._render("empty")
         self.assertNotIn("SHOULD_NOT_APPEAR", blob)
         self.assertIn("ONLY_FOOTER", blob)
+
+    def test_select_makes_rows_clickable(self):
+        # A selectable list is a real listbox: each row emits a click region.
+        cap, texts, blob = self._render("select")
+        self.assertIn("Alpha", blob)
+        self.assertIn("Gamma", blob)
+        clicks = [a for (m, a) in cap.cmds if m == "send_gui_clickregion"]
+        self.assertGreaterEqual(len(clicks), 3, f"expected a click region per row: {cap.cmds}")
 
 
 if __name__ == "__main__":

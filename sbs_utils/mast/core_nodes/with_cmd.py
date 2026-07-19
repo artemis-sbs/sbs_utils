@@ -84,27 +84,29 @@ if TYPE_CHECKING:
 @mast_runtime_node(WithStart)
 class WithStartRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:WithStart):
-        # Already iterating a row-template `with` (gui_list): the body ran for the
-        # previous row and WithEnd jumped us back here — advance to the next item.
-        cm = task.get_scoped_value(node.with_name + "__row_cm", None, Scope.TEMP)
-        if cm is not None:
-            return self._next_row(task, node, cm)
-
         value = task.eval_code(node.code)
         if value is None:
             return PollResults.OK_ADVANCE_TRUE
 
-        # Row-template context managers (e.g. gui_list) turn the `with` into a
-        # per-row loop: the body runs once PER item — on this task, node by node,
-        # like a `for` — instead of once. Guarded by the marker, so every ordinary
-        # `with` below is untouched. See sbs_utils/procedural/gui/list.py.
-        if getattr(value, '_gui_row_template', False) and node.end is not None:
+        # Row-template context managers (e.g. gui_list) treat the body as a
+        # per-row template that is run *later*, once per item (the object drives
+        # that — a listbox replays it per visible row). The `with` body is an
+        # addressable range, so we hand the object its address (this label,
+        # node.loc+1 .. WithEnd) and the `as` name to bind, let it build itself,
+        # then SKIP the eager inline run by jumping past WithEnd. Guarded by the
+        # marker, so every ordinary `with` below is untouched.
+        # See sbs_utils/procedural/gui/list.py.
+        is_row_template = (getattr(value, '_gui_row_template', False)
+                           and node.end is not None
+                           and hasattr(value, '_capture_block'))
+        if is_row_template:
+            value._capture_block(task, task.active_label, node.loc + 1,
+                                 node.end, node.name)
+            task.set_value(node.with_name, value, Scope.NORMAL)
             if hasattr(value, '__enter__'):
                 value.__enter__()
-            task.set_value(node.with_name, value, Scope.NORMAL)          # for WithEnd
-            task.set_value(node.with_name + "__row_cm", value, Scope.TEMP)
-            task.set_value(node.with_name + "__row_iter", iter(value.row_items()), Scope.TEMP)
-            return self._next_row(task, node, value)
+            task.jump(task.active_label, node.dedent_loc)   # skip the eager body
+            return PollResults.OK_JUMP
 
         if node.name is not None:
             task.set_value(node.name, value, Scope.NORMAL)
@@ -116,31 +118,15 @@ class WithStartRuntimeNode(MastRuntimeNode):
 
         return PollResults.OK_ADVANCE_TRUE
 
-    def _next_row(self, task, node, cm):
-        itr = task.get_scoped_value(node.with_name + "__row_iter", None, Scope.TEMP)
-        try:
-            item = next(itr)
-        except StopIteration:
-            task.set_value(node.with_name + "__row_cm", None, Scope.TEMP)
-            task.set_value(node.with_name + "__row_iter", None, Scope.TEMP)
-            if hasattr(cm, "__exit__"):
-                cm.__exit__()
-            task.jump(task.active_label, node.dedent_loc)     # past the with block
-            return PollResults.OK_JUMP
-        if hasattr(cm, "on_row"):
-            cm.on_row(item)
-        if node.name is not None:
-            task.set_value(node.name, item, Scope.NORMAL)     # bind `as` name to the row
-        return PollResults.OK_ADVANCE_TRUE
-
 
 @mast_runtime_node(WithEnd)
 class WithEndRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:WithEnd):
-        # Row-template `with`: loop back to WithStart for the next item.
-        if task.get_scoped_value(node.start.with_name + "__row_cm", None, Scope.TEMP) is not None:
-            task.jump(task.active_label, node.start.loc)
-            return PollResults.OK_JUMP
+        # A row-template replay runs the body as a bounded sub-task; this same
+        # WithEnd is the row's end — stop the replay here (see PageList._run_row).
+        if getattr(task, '_gui_row_end_node', None) is node:
+            task.end()
+            return PollResults.OK_END
 
         value = task.get_variable(node.start.with_name)
         if value is None:
