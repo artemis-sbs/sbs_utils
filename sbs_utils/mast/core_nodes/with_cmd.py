@@ -84,10 +84,28 @@ if TYPE_CHECKING:
 @mast_runtime_node(WithStart)
 class WithStartRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:WithStart):
+        # Already iterating a row-template `with` (gui_list): the body ran for the
+        # previous row and WithEnd jumped us back here — advance to the next item.
+        cm = task.get_scoped_value(node.with_name + "__row_cm", None, Scope.TEMP)
+        if cm is not None:
+            return self._next_row(task, node, cm)
+
         value = task.eval_code(node.code)
         if value is None:
             return PollResults.OK_ADVANCE_TRUE
-        
+
+        # Row-template context managers (e.g. gui_list) turn the `with` into a
+        # per-row loop: the body runs once PER item — on this task, node by node,
+        # like a `for` — instead of once. Guarded by the marker, so every ordinary
+        # `with` below is untouched. See sbs_utils/procedural/gui/list.py.
+        if getattr(value, '_gui_row_template', False) and node.end is not None:
+            if hasattr(value, '__enter__'):
+                value.__enter__()
+            task.set_value(node.with_name, value, Scope.NORMAL)          # for WithEnd
+            task.set_value(node.with_name + "__row_cm", value, Scope.TEMP)
+            task.set_value(node.with_name + "__row_iter", iter(value.row_items()), Scope.TEMP)
+            return self._next_row(task, node, value)
+
         if node.name is not None:
             task.set_value(node.name, value, Scope.NORMAL)
         task.set_value(node.with_name, value, Scope.NORMAL)
@@ -95,13 +113,35 @@ class WithStartRuntimeNode(MastRuntimeNode):
         if not hasattr(value, '__enter__'):
             return PollResults.OK_ADVANCE_TRUE
         value.__enter__()
-        
+
         return PollResults.OK_ADVANCE_TRUE
-    
-    
+
+    def _next_row(self, task, node, cm):
+        itr = task.get_scoped_value(node.with_name + "__row_iter", None, Scope.TEMP)
+        try:
+            item = next(itr)
+        except StopIteration:
+            task.set_value(node.with_name + "__row_cm", None, Scope.TEMP)
+            task.set_value(node.with_name + "__row_iter", None, Scope.TEMP)
+            if hasattr(cm, "__exit__"):
+                cm.__exit__()
+            task.jump(task.active_label, node.dedent_loc)     # past the with block
+            return PollResults.OK_JUMP
+        if hasattr(cm, "on_row"):
+            cm.on_row(item)
+        if node.name is not None:
+            task.set_value(node.name, item, Scope.NORMAL)     # bind `as` name to the row
+        return PollResults.OK_ADVANCE_TRUE
+
+
 @mast_runtime_node(WithEnd)
 class WithEndRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:WithEnd):
+        # Row-template `with`: loop back to WithStart for the next item.
+        if task.get_scoped_value(node.start.with_name + "__row_cm", None, Scope.TEMP) is not None:
+            task.jump(task.active_label, node.start.loc)
+            return PollResults.OK_JUMP
+
         value = task.get_variable(node.start.with_name)
         if value is None:
             return PollResults.OK_ADVANCE_TRUE

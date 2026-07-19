@@ -7,6 +7,7 @@ from .blank import gui_blank
 from .hole import gui_hole
 from .row import gui_row
 from .grid import gui_grid
+from .list import gui_list
 from .section import gui_section, gui_region, gui_sub_section
 
 
