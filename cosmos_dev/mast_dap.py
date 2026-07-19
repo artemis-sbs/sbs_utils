@@ -224,6 +224,7 @@ class MastDapAdapter:
         # and here are dropped by VS Code (the session isn't "running" yet).
         self._report_indexed_files()
         self._enable_python_step()
+        self._start_inspection()
         if self._external:
             self._start_monitor()   # the mission loop already ticks; just watch
         else:
@@ -365,6 +366,23 @@ class MastDapAdapter:
     def _emit_output(self, text):
         self._event("output", {"category": "console", "output": text + "\n"})
 
+    # -- live inspection (signals, and later gui/brains/agents) ------------
+    def _start_inspection(self):
+        """Stream live-inspection events (e.g. signals) to the editor as
+        `mast/inspect` custom events, without pausing the mission."""
+        from .mast_inspect import BUS, ALL_TAPS
+        if getattr(self, "_inspect_taps", None):
+            return
+        BUS.subscribe(lambda ev: self._event("mast/inspect", ev))
+        self._inspect_taps = [tap().install() for tap in ALL_TAPS]
+
+    def _stop_inspection(self):
+        from .mast_inspect import BUS
+        for tap in getattr(self, "_inspect_taps", []) or []:
+            tap.uninstall()
+        self._inspect_taps = []
+        BUS.unsubscribe()
+
     # -- teardown ----------------------------------------------------------
     def _req_disconnect(self, request):
         self._teardown()
@@ -374,6 +392,7 @@ class MastDapAdapter:
 
     def _teardown(self):
         self._stop_monitor = True
+        self._stop_inspection()
         self._dbg.disable()
         self._dbg.uninstall()   # releases any parked tick thread
         self._released.set()

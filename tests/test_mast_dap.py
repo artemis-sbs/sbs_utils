@@ -175,13 +175,56 @@ await delay_test(1)
 jump spin_loop
 """
 
+# Same loop, but emits a signal each iteration — for the live Signal Tracer.
+SIGNAL_LOOP_CODE = """
+counter = 0
+=== spin_loop ===
+counter = counter + 1
+signal_emit("tick_sig", {"n": counter})
+await delay_test(1)
+jump spin_loop
+"""
+
 
 class TestAttachMode(unittest.TestCase):
     """Attach to a live, indefinitely-running mission loop, break repeatedly,
     then detach WITHOUT ending the mission."""
     def tearDown(self):
         from sbs_utils.mast.mastscheduler import MastTicker
+        from sbs_utils.mast.mast import Mast
         MastTicker.on_enter_node = None
+        base = getattr(Mast.signal_emit, "_mast_orig", None)
+        if base is not None:
+            Mast.signal_emit = base   # restore if a signal tap lingered
+
+    def test_signal_tracer_streams_over_attach(self):
+        errors, runner, mast = build_runner(SIGNAL_LOOP_CODE)
+        self.assertEqual(errors, [])
+        stop = threading.Event()
+
+        def mission_loop():
+            runner.start_task("main")
+            while not stop.is_set():
+                runner.tick()
+        loop_thread = threading.Thread(target=mission_loop, daemon=True)
+        loop_thread.start()
+        time.sleep(0.05)
+
+        client = DapClient(attach_provider=lambda a: (errors, runner, mast))
+        try:
+            client.send("initialize")
+            client.send("attach")
+            client.send("setBreakpoints", source={"path": FILE}, breakpoints=[])
+            client.send("configurationDone")          # starts live inspection
+            ev = client.wait_event("mast/inspect")
+            self.assertIsNotNone(ev, "no mast/inspect event streamed")
+            self.assertEqual(ev["body"]["kind"], "signal")
+            self.assertEqual(ev["body"]["payload"]["name"], "tick_sig")
+            self.assertIn("n", ev["body"]["payload"]["data"])
+            client.send("disconnect")
+        finally:
+            stop.set()
+            loop_thread.join(2.0)
 
     def test_launch_over_socket_routes_to_attach(self):
         # The one-click mission-launch config is request:"launch", but the runner's
