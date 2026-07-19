@@ -100,6 +100,13 @@ small markdown-like language and **auto-scrolls** when its content overflows.
   `{var}` interpolates.
 - Inline objects by namespace: `![](image://key?scale=0.5)`, `[](ship://hull?...)`,
   `[](face://...)`, `[](style://font:gui-4;color:#8cf)`.
+- **Pipe tables** — `| Ship | Hull |` rows with a `|:--|--:|` alignment row — render
+  as a grid, columns sized to fit. (For an *interactive* table with controls, use
+  [`gui_table`](gui_table.md) instead.)
+- **Hyperlinks** — a `[Torgoth](ref://torgoth)` line is a clickable link; give the
+  area a `link_resolver` (`fn(key) -> new text`) and it **navigates within the same
+  document** — a Kralien entry can link straight to the Torgoth one (a codex). `<hr>`
+  draws a horizontal rule.
 - A single unformatted line just renders as plain text; a parse slip shows
   `Document syntax issue line number N` — so a blank/garbled area is usually a
   syntax slip on that line. Engine text is ASCII-only.

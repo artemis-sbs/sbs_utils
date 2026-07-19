@@ -293,6 +293,29 @@ automatically.
 
 ---
 
+## 📋 Richer GUI — tables, and text that does more
+
+- **[`gui_table`](cosmos/gui_table.md).** Describe a table as **rows + column
+  specs** and get back a real, selectable, scrollable list box with the columns
+  **auto-sized to their content**. Cells aren't just text — a column `type` can be a
+  **checkbox, dropdown, input, or button**, and interactive cells write straight back
+  to the row and fire an `on_cell_change` callback. An editable data grid in one call.
+
+- **Pipe tables, links & rules in `gui_text_area`.** The rich-text area learned a few
+  new tricks in its mini-markdown:
+    - **GFM pipe tables** — `| Ship | Hull |` with a `|:--|--:|` alignment row —
+      render as a real grid, columns sized to fit.
+    - **Hyperlinks** — a `[Torgoth](ref://torgoth)` line becomes a clickable link that
+      **navigates within the same document** (give the area a `link_resolver`), so a
+      Kralien entry can link straight to the Torgoth one. Perfect for a codex.
+    - **`<hr>`** draws a horizontal rule.
+
+- **Text areas use their full width.** A long-standing measuring bug made
+  `gui_text_area` wrap text at roughly **60%** of the available width; it now measures
+  properly and fills the space.
+
+---
+
 ## 🛠️ For Mission Makers & Tinkerers
 
 !!! warning "For testing only — not an engine replacement"
