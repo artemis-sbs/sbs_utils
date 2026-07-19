@@ -791,6 +791,88 @@ def _node_schema(index, key):
     return None
 
 
+def _synth_record(node):
+    """A dict-shaped view of an amd_core node for the pure content loaders
+    (dialogue/scan), which read `.get('data')` / `.get('description')`. Returns
+    (data_lowercased, body_text, record_dict)."""
+    data = {}
+    for _ln, raw in (node.fence_lines or []):
+        if ":" in raw and not raw.strip().startswith("//"):
+            k, v = raw.split(":", 1)
+            if k.strip():
+                data[k.strip().lower()] = v.strip()
+    body = "\n".join(raw for (ln, raw) in node.body_lines if (ln - 1) >= node.body_start)
+    return data, body, {"data": data, "description": body}
+
+
+def _resolve_face(face_kw):
+    """A face string from a Face keyword/string via sbs_utils.faces (guarded - the
+    server never hard-depends on faces). Passes the raw value through on failure."""
+    try:
+        from sbs_utils.faces import face_resolve
+        return face_resolve(face_kw)
+    except Exception:
+        return face_kw or ""
+
+
+def _speaker_card(index, speaker_key):
+    """Resolve a dialogue Speaker key to a display card {key,name,color,face} from
+    the mission's lifeform/side records; defaults if unresolved. None for no key."""
+    if not speaker_key:
+        return None
+    for _p, _u, d in index["docs"]:
+        n = d.by_key.get(speaker_key)
+        if n is None:
+            continue
+        data, _body, _rec = _synth_record(n)
+        return {"key": speaker_key, "name": n.display or speaker_key,
+                "color": data.get("color") or data.get("title color") or "#0cf",
+                "face": _resolve_face(data.get("face"))}
+    return {"key": speaker_key, "name": speaker_key, "color": "#0cf", "face": ""}
+
+
+def _node_preview(index, key):
+    """A render-preview payload for a node, so the editor draws it as it would
+    appear in-game: a dialogue scene (speaker card + lines + choices), a science
+    scan (tab + variant lines), or a lifeform face. Falls back to plain text.
+    None if the key isn't found. Pure/offline - reuses the content loaders."""
+    from sbs_utils.procedural.amd_dialogue import dialogue_parse
+    from sbs_utils.procedural.amd_schema import infer_archetype
+    for _p, _u, d in index["docs"]:
+        node = d.by_key.get(key)
+        if node is None:
+            continue
+        data, body, rec = _synth_record(node)
+        arch = infer_archetype(list(data.keys()), _section_of(node))
+        if "speaker" in data:
+            scene = dialogue_parse(rec)
+            return {"kind": "dialogue", "key": key,
+                    "speaker": _speaker_card(index, scene.get("speaker")),
+                    "when": scene.get("when"),
+                    "lines": [t for (t, _g) in scene["lines"]],
+                    "choices": [{"label": c["label"], "target": c["target"],
+                                 "guard": c.get("guard")} for c in scene["choices"]]}
+        if "scan of" in data or "scan_of" in data:
+            # Scan variant lines (mirrors amd_science._scan_body_lines) - inlined so
+            # the server stays dependency-light (importing amd_science drags the heavy
+            # science / story_nodes chain and circular-imports under the LSP env).
+            lines = []
+            for raw in body.splitlines():
+                s = raw.strip()
+                if not s or s.startswith("//"):
+                    continue
+                lines.append(s[1:].strip() if s.startswith("%") else s)
+            return {"kind": "scan", "key": key,
+                    "role": data.get("scan of") or data.get("scan_of"),
+                    "tab": data.get("tab", "scan"), "lines": lines}
+        if arch == "lifeform" or "face" in data:
+            return {"kind": "face", "key": key, "name": node.display or key,
+                    "color": data.get("color") or data.get("title color") or "#0cf",
+                    "face": _resolve_face(data.get("face"))}
+        return {"kind": "text", "key": key, "display": node.display, "body": body}
+    return None
+
+
 def _archetype_template(archetype):
     """A 'new <archetype>' fence skeleton + its typed field descriptors, for the
     editor's New Record form. `{fields}` is ordered as authored in amd_schema."""
@@ -1015,6 +1097,11 @@ def serve(stdin=None, stdout=None):
         elif method == "amd/template":
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                     "result": _archetype_template(msg.get("params", {}).get("archetype", ""))})
+        elif method == "amd/preview":
+            p = msg.get("params", {})
+            uri = p.get("textDocument", {}).get("uri", "")
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _node_preview(_index_for(uri, docs), p.get("key", ""))})
         elif method == "amd/nodeAtLine":
             p = msg.get("params", {})
             uri = p.get("textDocument", {}).get("uri", "")

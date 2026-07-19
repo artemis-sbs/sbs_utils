@@ -218,6 +218,41 @@ class TestProviders(unittest.TestCase):
         mode = next(f for f in res["fields"] if f["label"] == "mode")
         self.assertEqual(mode["schema"]["values"], ["consumable", "install", "resource"])
 
+    # A cast character + a dialogue scene that names it as Speaker, for amd/preview.
+    _PREVIEW_DOC = (
+        "# [Root](root)\n"
+        "## [Cast](cast)\n"
+        "### [Ashfang](ashfang)\n---\nFace: skaraan\nColor: #f33\n---\nA raider captain.\n"
+        "## [Dialogue](dialogue)\n"
+        "### [Ashfang Hail](ashfang_hail)\n---\nSpeaker: ashfang\nWhen: comms\n---\n"
+        "% You are a long way from friends.\n"
+        "- [Apologize](ashfang_backoff)\n")
+
+    def test_preview_dialogue_scene(self):
+        res = self._request("amd/preview",
+                            {"textDocument": {"uri": "file:///tmp/x.amd"}, "key": "ashfang_hail"},
+                            doc=self._PREVIEW_DOC)
+        self.assertEqual(res["kind"], "dialogue")
+        self.assertEqual(res["speaker"]["name"], "Ashfang")     # resolved from the cast record
+        self.assertEqual(res["speaker"]["color"], "#f33")
+        self.assertIn("You are a long way from friends.", res["lines"])
+        self.assertEqual(res["choices"][0]["target"], "ashfang_backoff")
+
+    def test_preview_scan_node(self):
+        doc = ("# [Root](root)\n## [Science](science)\n### [Hull](hull)\n---\n"
+               "Scan of: derelict\nTab: intel\n---\n% Gutted wreckage.\n% Still smoking.\n")
+        res = self._request("amd/preview",
+                            {"textDocument": {"uri": "file:///tmp/x.amd"}, "key": "hull"}, doc=doc)
+        self.assertEqual(res["kind"], "scan")
+        self.assertEqual(res["tab"], "intel")
+        self.assertEqual(len(res["lines"]), 2)
+
+    def test_preview_missing_key(self):
+        res = self._request("amd/preview",
+                            {"textDocument": {"uri": "file:///tmp/x.amd"}, "key": "nope"},
+                            doc=self._PREVIEW_DOC)
+        self.assertIsNone(res)
+
 
 class TestCodeActions(unittest.TestCase):
     """Quick fixes: 'Change to <near key>' and 'Create node'."""
