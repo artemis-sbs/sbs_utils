@@ -1,205 +1,127 @@
-# Debugging MAST
+# Debugging your mission
 
-The **MAST source debugger** lets you set breakpoints, step, and inspect variables
-**in your `.mast` files** — from inside VS Code — while a mission runs under the
-`cosmos_dev` mock. It speaks the standard **Debug Adapter Protocol (DAP)**, so it
-plugs into the normal VS Code debugger UI (breakpoint gutter, call stack, variables,
-watch).
+Ever had a mission where the comms menu doesn't appear, a value comes out wrong, or a
+scene fires at the wrong moment — and you're left sprinkling `print` lines to guess what
+happened? The **MAST debugger** lets you **pause your mission while it plays and look
+inside it**: which line it's on, what every value is, and how it got there. Then you can
+walk through it one line at a time and watch your story unfold.
 
-!!! note "Two different debuggers"
-    This is a **MAST-level** debugger — breakpoints on `.mast` lines, MAST variables,
-    the MAST call stack. It is **not** the Python/`debugpy` setup in
-    [Contributing &rsaquo; Debugging](../home/contributing/debugging.md), which steps
-    through the *Python* runner and library. Use this one to debug **mission logic**;
-    use `debugpy` to debug **`sbs_utils` / the runner itself**.
+It runs right inside VS Code, using the familiar debugger toolbar (▶ ⏸ ⏭).
 
-## What you get
+!!! note "You don't need to be a programmer"
+    This is for **mission writers**. You put a pause point on a line of your `.mast`,
+    play your mission, and it stops there so you can look around. No Python required.
 
-- **Breakpoints** on `.mast` lines (a breakpoint on a blank/comment line binds to the
-  next real statement).
-- **Conditional & hit-count breakpoints** — right-click a breakpoint → *Edit
-  Breakpoint*. Condition is any MAST/Python expression (e.g. `hp < 20`); hit count
-  accepts `N`, `==N`, `>N`, `>=N`, `%N` (every Nth).
-- **Logpoints** — a breakpoint with a `{expr}` message that **logs and keeps running**
-  instead of stopping (great for a busy route you don't want to pause).
-- **Stepping** — step over / step in / step out, at source-line granularity.
-- **Call stack** — the current label plus caller frames (from `call`/inline blocks).
-- **Variables** grouped by scope: **Frame**, **Task**, **Shared**, **Global** — and you
-  can **edit a value** in place while paused.
-- **Watch / evaluate** — expressions run in the paused task's scope.
-- **Step into Python** — *Step In* on a MAST line that calls Python (`~~ … ~~`, a
-  function call, a condition) descends into that Python function: real `.py`
-  source, a merged MAST+Python call stack, and the frame's **Locals**. See the
-  setup below.
+## Set it up once
 
-### Step into Python — setup
+Install the **Artemis AMD** extension in VS Code: open the **Extensions** view, search
+for *Artemis AMD*, and click **Install**. That's the whole setup — it already knows how
+to find your Cosmos install.
 
-Two requirements, because `sys.settrace` is one-per-thread and debugpy owns it:
+## Debug a mission — the one-click way
 
-1. **Run the mission *plain* (not under debugpy).** The **"MAST: Debug mission
-   (one click)"** config does this for you — the extension runs `sbs debug` (via
-   `sbs.pyz`, which is plain), so Step-into-Python is on. (If you instead run the
-   mission under a `debugpy` launch, the feature auto-disables — you'll see
-   `[mast] step-into … disabled … under debugpy` — and you use debugpy for the
-   Python half.)
-2. Optionally **load `sbs_utils` from source** (`"useWorkingTree": true` on the
-   config, or `sbs debug --use-working-tree`), so Python frames point at real
-   *editable* files. Not required just to *see* the source: the debugger extracts
-   source straight from a `.sbslib`/`.mastlib` zip and serves it (read-only) via
-   the DAP `source` request — so Step In shows the library source either way. Use
-   the working tree only when you want to **edit** the library live.
+1. Open your mission folder in VS Code.
+2. Go to the **Run and Debug** panel (the ▶🐞 icon on the left bar), choose
+   **"MAST: Debug mission (one click)"** in the dropdown, and press the green **▶**.
+   Your mission starts and the game window opens in your browser, just like normal.
+3. **Set a pause point.** Open a `.mast` file and click in the **left margin** next to a
+   line — a red dot appears. That's a *breakpoint*: your mission will pause when it
+   reaches that line.
+4. **Play your mission** in the game window until it reaches that line. It **pauses**, and
+   VS Code jumps to the exact line with a yellow arrow.
+5. **Look around** (see below), **step** through line by line, or press **Continue (▶)**
+   to run on to the next pause point.
+6. When you're done, press **Stop (⏹)**. The mission shuts down and tidies up after
+   itself — nothing left running for you to clean up.
 
-Step In on a line like `x = terrain_to_value(SEL)` then opens
-`procedural/terrain.py` with the arrow on the line and Locals populated. The Debug
-Console tells you which mode you're in: `[mast] step-into: tracing this eval …`
-(working) vs `… skipped: a tracer is already active (…pydevd…)` (under debugpy).
+!!! tip "A pause point only catches lines that run *while you're watching*"
+    If a line ran once at the very start and never again, pausing there won't trigger
+    until that code runs again. The one-click config handles the usual case (it waits for
+    you before starting the map). Otherwise, put your pause point on something you can
+    re-trigger — a comms button, a scene you can reach, a check that repeats.
 
-!!! note "Stops just before a line runs"
-    A breakpoint parks execution when a line is *entered* — its assignment/effect hasn't
-    run yet, so you see the pre-line state (e.g. breaking on `x = 2` shows the old `x`).
-    One subtlety: a function call evaluates its arguments on entry, so editing a variable
-    changes **later** lines, not the already-entered call on the current line.
+## What you can do while paused
 
-## Requirements
+The panels on the left show everything about that frozen moment.
 
-- The **Artemis AMD** VS Code extension — it contributes the `mast` debug type and
-  connects `.mast` breakpoints to the adapter. **VS Code needs it to debug MAST.**
-- A Cosmos install with `data/missions/sbs.pyz` (the extension auto-detects it by
-  walking up from the open file, same as the language server).
+**See your values.** The **Variables** panel lists what your mission is tracking, grouped
+by where each value lives:
 
-!!! info "The adapter itself doesn't need the extension"
-    `sbs dap` (stdio) and `--dap-port` (socket) are a plain **DAP server** — any
-    DAP-speaking client can drive them. The extension is only what makes the
-    **VS Code UI** (breakpoint gutter, `type: mast` configs, step buttons) speak to it.
+- **Task** — variables in the task that's running right now (the everyday ones).
+- **Shared** — your `shared` variables, visible across the whole mission.
+- **Global** — mission-wide and built-in names.
+- **Frame** — short-lived values inside the current block.
 
----
+Want to try a "what if"? **Double-click a value, type a new one, press Enter** — the
+mission carries on with your change.
 
-## Launch mode — debug one `.mast`
+**Walk through the story** with the toolbar:
 
-Runs a `.mast` under the mock and stops at your breakpoints. Best for **library / logic
-`.mast`** you can run start-to-finish.
+- **Step Over** — run this line, stop on the next one.
+- **Step Into** — go *inside* a label or block this line calls.
+- **Step Out** — finish the current block and stop back where it was called from.
+- **Continue (▶)** — run until the next pause point.
 
-### From VS Code
+**See how you got here.** The **Call Stack** panel shows the trail of labels that led to
+the current line.
 
-Open a `.mast`, set a breakpoint, press **F5**. With no `launch.json` the extension
-debugs the open file. To save a config, add to `.vscode/launch.json`:
+**Keep an eye on something.** In the **Watch** panel, add an expression like `hp < 20` or
+`player.name` and its value updates as you step.
 
-```json
-{
-  "type": "mast",
-  "request": "launch",
-  "name": "Debug MAST",
-  "program": "${file}"
-}
-```
+!!! note "It pauses *just before* the line runs"
+    A pause point stops the mission the instant it *reaches* a line — before that line
+    does its work. So if you pause on `hp = hp - 10`, `hp` still shows the old number;
+    step once and you'll watch it change.
 
-Under the hood VS Code launches `sbs dap <mission>` and drives it over stdio.
+## Smarter pause points
 
-### From the CLI
+Right-click a red dot and choose **Edit Breakpoint** to make it do more:
 
-```sh
-sbs dap <mission_path> --mast logic.mast
-```
+- **Only pause sometimes** — give a condition like `hp < 20`. It pauses only when that's
+  true.
+- **Pause on the Nth time** — a count like `3` (the third time it's hit), `>5`, or `%2`
+  (every other time).
+- **Just take a note, don't pause** — a *log point*. Type a message with values in braces,
+  e.g. `enemy hp is {hp}`. Every time the line runs it prints that to the Debug Console and
+  keeps going — like a temporary `print` you never have to remember to delete.
 
-`sbs dap` speaks DAP on **stdin/stdout** (diagnostics go to stderr). You normally let
-VS Code start it, but it can be driven by any DAP client.
+## Good to know
 
-!!! warning "Launch mode targets logic `.mast`"
-    Launch mode compiles and runs the file under a plain scheduler. Full
-    **StoryScheduler missions** (comms/GUI/maps/story lifecycle) don't run to
-    completion this way — debug those with **attach mode** below.
+- **The game keeps moving while you're paused.** Your *story* is frozen and safe to read,
+  but ships in the practice sim keep drifting. So the values are trustworthy; positions may
+  have moved on by the time you continue.
+- **Map files come alive as you reach them.** A map like `siege.mast` only loads when its
+  map starts, so its pause points become active then. The Debug Console notes files as they
+  load.
+- **Stop tidies up.** Pressing Stop shuts down the mission and its game window — you never
+  have to hunt for a leftover process.
 
----
+## Peeking into the engine (optional, advanced)
 
-## Debug a live mission
+Sometimes a MAST line calls a built-in like `terrain_to_value(...)` and you want to see
+what happens *inside* it. **Step Into** on such a line drops you into the engine's own
+code (read-only) with its values, then **Step Out** brings you back to your story. Most
+writers never need this — it's there for chasing something deep. If it's switched off for
+how your mission was started, the Debug Console will say so.
 
-Debug a mission **while it plays** (browser GUI and all): set breakpoints, hit them in
-real time, step, inspect. This is the mode for full StoryScheduler missions.
+## Debug a single script file (advanced)
 
-### One click (recommended)
+For a standalone logic `.mast` that runs start-to-finish (not a full mission), open it and
+press **F5** — the extension runs just that file and stops at your pause points. Full
+missions (with comms, maps, and GUI) use the one-click flow above.
 
-LegendaryMissions and LM_TestRange ship a **"MAST: Debug mission (one click)"** config
-(`type: mast`, `request: launch`, with a `mission`). Pick it in the Run and Debug
-dropdown and press play: the extension launches the mission (`sbs debug --dap-port
---dap-wait`), waits for it, attaches, and **stops the runner when you end the session** —
-no task, no terminal, no process cleanup. `--dap-wait` holds the map's auto-start until
-you're attached, so a breakpoint that runs at map start isn't missed.
+## When something looks off
 
-### Manual (attach to a mission you started)
+- **No red dots, or it doesn't say "MAST"** — make sure the file ends in `.mast` and the
+  Artemis AMD extension is installed (the language is shown at the bottom-right of the
+  editor).
+- **It never pauses** — the line probably already ran; try a pause point on something you
+  can re-trigger.
+- **Read the Debug Console** (bottom panel, the "MAST: Debug mission" session) — it prints
+  friendly notes about what loaded and what's happening.
 
-You can also start the mission yourself and attach:
+!!! info "It doesn't slow your mission down"
+    The debugger only does anything when you're actively debugging. Normal mission runs —
+    and the shipped game — are completely unaffected.
 
-```sh
-sbs debug . --gui --dap-port 4711 --dap-wait
-```
-
-The runner prints `[runner] MAST debug adapter LISTENING on 127.0.0.1:4711`, then holds
-for the debugger. Attach with a `mast` config:
-
-```sh
-sbs debug . --gui --dap-port 4711 --dap-wait
-```
-
-The runner prints `[runner] MAST debug adapter (attach) on 127.0.0.1:4711`, then holds
-for the debugger. Attach with a `mast` config:
-
-```json
-{ "type": "mast", "request": "attach", "name": "Attach to MAST", "host": "127.0.0.1", "port": 4711 }
-```
-
-`--dap-port` is **opt-in** — without it the runner behaves exactly as before.
-`--dap-wait` is optional but recommended when a breakpoint runs during map start.
-
-### Play and break
-
-Set a breakpoint in a `.mast` (e.g. a `//comms` route body), then trigger it in the
-browser. Execution stops on that line; inspect the call stack and variables, step, then
-**Continue**. **Disconnect** detaches without ending the mission.
-
-!!! warning "Timing: a breakpoint only hits code that runs *while attached*"
-    If auto-start (or `--map 0`) runs a map immediately and you attach a moment later,
-    the map's start-up code has already executed — so a breakpoint there won't fire until
-    that code runs again. **`--dap-wait` fixes this** by holding auto-start until you've
-    attached. Map files (e.g. `maps/siege.mast`) compile lazily when the map starts; the
-    adapter re-scans and arms them automatically — watch the Debug Console for
-    `[mast] newly indexed: …` and the initial `[mast] N source file(s) indexed` list.
-
-!!! note "Attach is verified against a live mission"
-    Attach has been exercised end-to-end — attach to a running LegendaryMissions,
-    break in a lazily-loaded map file (`maps/siege.mast`), view the source, and inspect
-    the stack + variables. Still young, so report anything that misbehaves.
-
-!!! note "The sim keeps moving while paused"
-    A breakpoint parks the MAST tick loop, but the mock's **physics runs on its own
-    thread** — ships keep drifting while you're stopped. MAST state is frozen and safe to
-    inspect; the world is not.
-
----
-
-## How it works
-
-Every MAST node passes through one choke point on entry (`MastTicker.next()`), which
-fires an optional, **`None`-by-default** hook (`MastTicker.on_enter_node`). The debugger
-installs that hook to test breakpoints and **park the tick thread** when one matches;
-control commands (continue/step) arrive on a **separate** thread (stdio or socket) and
-release it.
-
-Because the hook is inert unless a debugger attaches, there is **zero cost to normal
-runs** and **no change to the shipped `.sbslib`** — all the debugger code lives in
-`cosmos_dev` and the extension. It's the same seam
-[MAST coverage](testing.md#headless-conformance-run) already uses.
-
-## Status & limitations
-
-| Area | State |
-|---|---|
-| Breakpoints (incl. conditional / hit-count / logpoints), step over/in/out, stack, variables, set-variable, watch | Working (launch + attach) |
-| Launch mode | Logic `.mast` only (not full StoryScheduler missions) |
-| Attach mode | Working — verified live against a running mission |
-| Physics while paused | Not frozen (separate thread) |
-| Step into Python MAST evals | Working (plain runner only; auto-off under debugpy) |
-| PyMAST (`@label` Python generators) | Not debuggable (that's Python — use `debugpy`) |
-| Breaking *inside* a long `await`/`delay` poll | Not yet (stops on node entry, not re-poll) |
-
-See also: [Testing missions](testing.md) · [sbs CLI](cli.md) ·
-[Contributing &rsaquo; Debugging](../home/contributing/debugging.md).
+See also: [Testing missions](testing.md) · [The sbs command](cli.md).
