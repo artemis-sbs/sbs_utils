@@ -183,6 +183,24 @@ class TestAttachMode(unittest.TestCase):
         from sbs_utils.mast.mastscheduler import MastTicker
         MastTicker.on_enter_node = None
 
+    def test_launch_over_socket_routes_to_attach(self):
+        # The one-click mission-launch config is request:"launch", but the runner's
+        # socket adapter has an attach_provider (no runner_factory). A `launch`
+        # request must route to attach, not call the None runner_factory.
+        errors, runner, mast = build_runner(CODE)
+        self.assertEqual(errors, [])
+        sent = []
+        adapter = MastDapAdapter(sent.append, attach_provider=lambda a: ([], runner, mast))
+        try:
+            adapter.handle({"type": "request", "seq": 1, "command": "initialize"})
+            adapter.handle({"type": "request", "seq": 2, "command": "launch", "arguments": {}})
+            inits = [m for m in sent if m.get("event") == "initialized"]
+            self.assertTrue(inits, "launch did not route to attach")
+            resp = [m for m in sent if m.get("command") == "launch"][-1]
+            self.assertTrue(resp["success"], resp.get("message"))
+        finally:
+            adapter.handle({"type": "request", "seq": 3, "command": "disconnect"})
+
     def test_attach_break_continue_detach(self):
         errors, runner, mast = build_runner(LOOP_CODE)
         self.assertEqual(errors, [])

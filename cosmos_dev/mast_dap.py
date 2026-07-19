@@ -143,6 +143,11 @@ class MastDapAdapter:
         # setBreakpoints (which follows it) can resolve against a real index.
 
     def _req_launch(self, request):
+        # A socket adapter serving an already-running mission has no
+        # runner_factory: a `launch` config over this socket (VS Code spawned the
+        # runner and connected) means "attach to the mission I'm serving".
+        if self._runner_factory is None and self._attach_provider is not None:
+            return self._req_attach(request)
         args = request.get("arguments", {})
         self._launch_label = args.get("label", "main")
         self._launch_inputs = args.get("inputs")
