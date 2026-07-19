@@ -95,7 +95,7 @@ class WithStartRuntimeNode(MastRuntimeNode):
         # node.loc+1 .. WithEnd) and the `as` name to bind, let it build itself,
         # then SKIP the eager inline run by jumping past WithEnd. Guarded by the
         # marker, so every ordinary `with` below is untouched.
-        # See sbs_utils/procedural/gui/list.py.
+        # See sbs_utils/procedural/gui/list_view.py.
         is_row_template = (getattr(value, '_gui_row_template', False)
                            and node.end is not None
                            and hasattr(value, '_capture_block'))
