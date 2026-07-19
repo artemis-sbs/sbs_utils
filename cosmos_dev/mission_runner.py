@@ -26,6 +26,61 @@ import traceback
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def _pid_alive(pid: int) -> bool:
+    try:
+        if os.name == "nt":
+            import subprocess
+            out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                                 capture_output=True, text=True)
+            return str(pid) in out.stdout
+        os.kill(pid, 0)
+        return True
+    except Exception:
+        return False
+
+
+def _kill_tree(pid: int) -> None:
+    try:
+        if os.name == "nt":
+            import subprocess
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True)
+        else:
+            import signal
+            os.kill(pid, signal.SIGTERM)
+    except Exception:
+        pass
+
+
+def _ensure_single_runner(tag) -> None:
+    """Make the debug runner a singleton per port: on start, stop any previous
+    instance we launched on the same port (and its child GUI server), then record
+    our own PID. This means a re-launch "just works" — no zombie processes or
+    port conflicts for the user to clean up by hand.
+
+    Only ever targets a PID we ourselves recorded (a prior runner), and only if
+    it's still alive — so it can't hit an unrelated process.
+    """
+    import tempfile
+    import atexit
+    pidfile = os.path.join(tempfile.gettempdir(), f"cosmos_dev_runner_{tag}.pid")
+    try:
+        if os.path.isfile(pidfile):
+            with open(pidfile) as f:
+                old = int((f.read() or "0").strip() or 0)
+            if old and old != os.getpid() and _pid_alive(old):
+                print(f"[runner] stopping previous debug runner (pid {old}) on port {tag}")
+                _kill_tree(old)
+                time.sleep(0.6)   # let the OS release the ports
+    except Exception:
+        pass
+    try:
+        with open(pidfile, "w") as f:
+            f.write(str(os.getpid()))
+        atexit.register(lambda: os.path.isfile(pidfile) and os.remove(pidfile))
+    except Exception:
+        pass
+
+
 def _log_exc(prefix: str) -> None:
     """Print a one-line prefix followed by the FULL traceback of the exception being
     handled. The runner's except blocks used to print only str(e), which hid the
@@ -411,6 +466,11 @@ def _run(
         sys.path.insert(0, _PROJECT_ROOT)
 
     _load_libs(mission_folder, missions_root, use_working_tree)
+
+    # Be a singleton per port: stop any previous runner we launched on this port
+    # (and its child GUI server) so a re-launch never leaves zombies / port
+    # conflicts for the user to clean up. Scoped to the debug port when present.
+    _ensure_single_runner(dap_port or port)
 
     # Opt-in MAST source debugger (dev-only). Off by default: with dap_port unset
     # nothing here runs and the mission behaves exactly as before. Started HERE —
