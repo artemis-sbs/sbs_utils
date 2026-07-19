@@ -14,6 +14,7 @@ subscribed (inert otherwise), and installs its patch only while a tool is active
 First tap: **signals** (`Mast.signal_emit`). Others (gui / brains / agents) follow
 the same shape. See MISSION_TOOLS_PLAN.md.
 """
+import threading
 
 
 def _json_safe(value, _depth=0):
@@ -106,5 +107,70 @@ class SignalTap:
             self._orig = None
 
 
+class WorldTap:
+    """Publish a periodic snapshot of the world's space objects — id, name, side,
+    roles, kind (player/npc/terrain), and inventory. A poller (not event-driven),
+    so it runs a lightweight daemon thread while active and reads a *snapshot* of
+    ``Agent.all`` (the tick thread may mutate it)."""
+
+    def __init__(self, bus=BUS, interval=0.5):
+        self._bus = bus
+        self._interval = interval
+        self._stop = threading.Event()
+        self._thread = None
+
+    def install(self):
+        if self._thread is not None:
+            return self
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._loop, name="mast-world-tap", daemon=True)
+        self._thread.start()
+        return self
+
+    def uninstall(self):
+        self._stop.set()
+        self._thread = None
+
+    def _loop(self):
+        while not self._stop.is_set():
+            if self._bus.active:
+                try:
+                    self._bus.publish("agents", self.snapshot())
+                except Exception:
+                    pass
+            self._stop.wait(self._interval)
+
+    def snapshot(self):
+        from sbs_utils.agent import Agent
+        from sbs_utils.spaceobject import SpaceObject
+        out = []
+        for a in list(Agent.all.values()):
+            if not isinstance(a, SpaceObject):
+                continue
+            try:
+                out.append(self._one(a))
+            except Exception:
+                pass
+            if len(out) >= 500:
+                break
+        return {"agents": out}
+
+    @staticmethod
+    def _one(a):
+        kind = ("player" if a.is_player else
+                "terrain" if a.is_terrain else
+                "npc" if a.is_npc else "object")
+        try:
+            side = a.side
+        except Exception:
+            side = None
+        roles = sorted(r for r in a.get_roles() if not (isinstance(r, str) and r.startswith("__")))
+        inv = {k: v for k, v in a.inventory.collections.items()
+               if not (isinstance(k, str) and (k.startswith("__") or k in ("mast_task", "SHARED")))}
+        return {"id": a.get_id(), "name": getattr(a, "name", None),
+                "side": side, "kind": kind, "roles": roles,
+                "inventory": _json_safe(inv)}
+
+
 # All available taps, so the adapter can install/uninstall the set at once.
-ALL_TAPS = (SignalTap,)
+ALL_TAPS = (SignalTap, WorldTap)

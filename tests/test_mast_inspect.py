@@ -7,7 +7,7 @@ test_set_exe_dir()
 
 import unittest
 from tests.test_mast_debug import build_runner
-from cosmos_dev.mast_inspect import InspectionBus, SignalTap, _json_safe
+from cosmos_dev.mast_inspect import InspectionBus, SignalTap, WorldTap, _json_safe
 
 SIG_CODE = """
 logger(var="output")
@@ -83,6 +83,50 @@ class TestSignalTap(unittest.TestCase):
     def test_json_safe(self):
         self.assertEqual(_json_safe({"a": 1, "b": [1, "x"]}), {"a": 1, "b": [1, "x"]})
         self.assertIsInstance(_json_safe(object()), str)  # non-serializable -> repr
+
+
+class TestWorldTap(unittest.TestCase):
+    def setUp(self):
+        from cosmos_dev.mock import sbs
+        from sbs_utils.spaceobject import SpaceObject
+        from sbs_utils.helpers import FrameContext, Context, FakeEvent
+        SpaceObject.clear()
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+
+    def test_snapshot_lists_space_objects(self):
+        from sbs_utils.objects import Npc, PlayerShip
+        from sbs_utils.procedural.roles import add_role
+        PlayerShip().spawn(0, 0, 0, "Console", "tsn", "Battle Cruiser")
+        raider = Npc().spawn(500, 0, 0, "Raider1", "raider", "Battleship", "behav_npcship")
+        add_role(raider, "enemy")
+
+        snap = WorldTap().snapshot()
+        by_name = {a["name"]: a for a in snap["agents"]}
+        self.assertIn("Console", by_name)
+        self.assertIn("Raider1", by_name)
+        self.assertEqual(by_name["Console"]["kind"], "player")
+        self.assertEqual(by_name["Console"]["side"], "tsn")
+        self.assertEqual(by_name["Raider1"]["kind"], "npc")
+        self.assertEqual(by_name["Raider1"]["side"], "raider")
+        self.assertIn("enemy", by_name["Raider1"]["roles"])
+
+    def test_poll_thread_publishes(self):
+        from sbs_utils.objects import PlayerShip
+        PlayerShip().spawn(0, 0, 0, "Console", "tsn", "Battle Cruiser")
+        got = []
+        bus = InspectionBus()
+        bus.subscribe(got.append)
+        tap = WorldTap(bus, interval=0.02).install()
+        try:
+            import time
+            time.sleep(0.12)
+            agent_events = [e for e in got if e["kind"] == "agents"]
+            self.assertTrue(agent_events, "poll thread published nothing")
+            names = [a["name"] for a in agent_events[-1]["payload"]["agents"]]
+            self.assertIn("Console", names)
+        finally:
+            tap.uninstall()
 
 
 if __name__ == "__main__":
