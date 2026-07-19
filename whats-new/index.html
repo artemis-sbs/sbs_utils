@@ -705,6 +705,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#richer-gui-tables-and-text-that-does-more" class="md-nav__link">
+    <span class="md-ellipsis">
+      📋 Richer GUI — tables, and text that does more
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#for-mission-makers-tinkerers" class="md-nav__link">
     <span class="md-ellipsis">
       🛠️ For Mission Makers &amp; Tinkerers
@@ -1571,6 +1580,8 @@
       
         
       
+        
+      
     
     
     
@@ -1761,6 +1772,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../cosmos/gui_table/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tables (gui_table)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cosmos/comms/" class="md-nav__link">
         
   
@@ -1828,7 +1862,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_11" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1845,14 +1879,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_10" id="__nav_5_10_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_11" id="__nav_5_11_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_10">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_11">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -5494,6 +5528,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#richer-gui-tables-and-text-that-does-more" class="md-nav__link">
+    <span class="md-ellipsis">
+      📋 Richer GUI — tables, and text that does more
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#for-mission-makers-tinkerers" class="md-nav__link">
     <span class="md-ellipsis">
       🛠️ For Mission Makers &amp; Tinkerers
@@ -5815,6 +5858,34 @@ rate — same cadence and total cost, no batch spike. If you're chasing a
 line now prints a <strong>per-phase breakdown</strong> (<code>dispatch_tick</code> / <code>gui_present</code> /
 <code>gc</code> / …) so you can see exactly which subsystem caused a given spike.</p>
 </div>
+<hr />
+<h2 id="richer-gui-tables-and-text-that-does-more">📋 Richer GUI — tables, and text that does more</h2>
+<ul>
+<li>
+<p><strong><a href="../cosmos/gui_table/"><code>gui_table</code></a>.</strong> Describe a table as <strong>rows + column
+  specs</strong> and get back a real, selectable, scrollable list box with the columns
+  <strong>auto-sized to their content</strong>. Cells aren't just text — a column <code>type</code> can be a
+  <strong>checkbox, dropdown, input, or button</strong>, and interactive cells write straight back
+  to the row and fire an <code>on_cell_change</code> callback. An editable data grid in one call.</p>
+</li>
+<li>
+<p><strong>Pipe tables, links &amp; rules in <code>gui_text_area</code>.</strong> The rich-text area learned a few
+  new tricks in its mini-markdown:</p>
+<ul>
+<li><strong>GFM pipe tables</strong> — <code>| Ship | Hull |</code> with a <code>|:--|--:|</code> alignment row —
+  render as a real grid, columns sized to fit.</li>
+<li><strong>Hyperlinks</strong> — a <code>[Torgoth](ref://torgoth)</code> line becomes a clickable link that
+  <strong>navigates within the same document</strong> (give the area a <code>link_resolver</code>), so a
+  Kralien entry can link straight to the Torgoth one. Perfect for a codex.</li>
+<li><strong><code>&lt;hr&gt;</code></strong> draws a horizontal rule.</li>
+</ul>
+</li>
+<li>
+<p><strong>Text areas use their full width.</strong> A long-standing measuring bug made
+  <code>gui_text_area</code> wrap text at roughly <strong>60%</strong> of the available width; it now measures
+  properly and fills the space.</p>
+</li>
+</ul>
 <hr />
 <h2 id="for-mission-makers-tinkerers">🛠️ For Mission Makers &amp; Tinkerers</h2>
 <div class="admonition warning">

@@ -12,7 +12,7 @@
         <link rel="prev" href="../../build/players-consoles/">
       
       
-        <link rel="next" href="../comms/">
+        <link rel="next" href="../gui_table/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -1390,6 +1390,8 @@
       
         
       
+        
+      
     
     
     
@@ -1706,6 +1708,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../gui_table/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tables (gui_table)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../comms/" class="md-nav__link">
         
   
@@ -1776,7 +1801,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_11" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1793,14 +1818,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_10" id="__nav_5_10_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5_11" id="__nav_5_11_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_10">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_11">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -5597,6 +5622,13 @@ gui_text_area(brief)
   <code>{var}</code> interpolates.</li>
 <li>Inline objects by namespace: <code>![](image://key?scale=0.5)</code>, <code>[](ship://hull?...)</code>,
   <code>[](face://...)</code>, <code>[](style://font:gui-4;color:#8cf)</code>.</li>
+<li><strong>Pipe tables</strong> — <code>| Ship | Hull |</code> rows with a <code>|:--|--:|</code> alignment row — render
+  as a grid, columns sized to fit. (For an <em>interactive</em> table with controls, use
+  <a href="../gui_table/"><code>gui_table</code></a> instead.)</li>
+<li><strong>Hyperlinks</strong> — a <code>[Torgoth](ref://torgoth)</code> line is a clickable link; give the
+  area a <code>link_resolver</code> (<code>fn(key) -&gt; new text</code>) and it <strong>navigates within the same
+  document</strong> — a Kralien entry can link straight to the Torgoth one (a codex). <code>&lt;hr&gt;</code>
+  draws a horizontal rule.</li>
 <li>A single unformatted line just renders as plain text; a parse slip shows
   <code>Document syntax issue line number N</code> — so a blank/garbled area is usually a
   syntax slip on that line. Engine text is ASCII-only.</li>

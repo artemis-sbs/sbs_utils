@@ -1390,6 +1390,8 @@
       
         
       
+        
+      
     
     
     
@@ -1583,6 +1585,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../cosmos/gui_table/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tables (gui_table)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../cosmos/comms/" class="md-nav__link">
         
   
@@ -1653,7 +1678,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_11" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1670,14 +1695,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_10" id="__nav_5_10_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5_11" id="__nav_5_11_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_10">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_11">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -5447,20 +5472,23 @@ console. A mission sets the defaults (shared vars, e.g. in <code>settings.yaml</
 <tr>
 <td><code>QUEST_ACCEPT_CONSOLES</code></td>
 <td><code>comms,admiral</code></td>
-<td>Consoles that show <strong>Accept / Abandon</strong>. <code>""</code> = any console (the pre-gating behavior).</td>
+<td>Consoles that may show <strong>Accept / Abandon</strong>. <code>""</code> = any console (the pre-gating behavior).</td>
 </tr>
 <tr>
 <td><code>QUEST_ENGAGE_CONSOLES</code></td>
 <td><code>helm</code></td>
-<td>Consoles that show <strong>Engage</strong> (when <code>QUEST_ENGAGE_ENABLED</code>).</td>
+<td>Consoles that may show <strong>Engage</strong> (when <code>QUEST_ENGAGE_ENABLED</code>).</td>
 </tr>
 </tbody>
 </table>
-<p>Engage additionally requires the job to be <strong>accepted</strong> (ACTIVE) — before that, the
-helm shows a short <em>"Accept this job before engaging."</em> hint. On a console that can't
-act, the buttons are replaced with text naming the console(s) that can. <code>Accept On:</code> /
-<code>Engage On:</code> on a single quest override these lists for that job (a station-specific
-task).</p>
+<p>Each control is also gated by the job's <strong>state</strong>: <strong>Accept</strong> shows only for an
+available (not-yet-accepted) job, <strong>Abandon</strong> only for an accepted (active) one, and
+<strong>Engage</strong> only for an active one. A completed or failed job — or a section header /
+no selection — shows no action controls. Engage additionally means the job must be
+accepted first — before that, the helm shows a short <em>"Accept this job … before
+engaging."</em> hint. On a console that can't act on an actionable job, the buttons are
+replaced with text naming the console(s) that can. <code>Accept On:</code> / <code>Engage On:</code> on a
+single quest override these lists for that job (a station-specific task).</p>
 <h3 id="triggers">Triggers</h3>
 <p>The verb in <code>Goal:</code> / <code>When:</code> (or a <code>fail_*</code> field) maps to the event the quest
 listens for:</p>
