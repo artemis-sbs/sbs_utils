@@ -36,27 +36,23 @@ watch).
 
 Two requirements, because `sys.settrace` is one-per-thread and debugpy owns it:
 
-1. **Run the mission *plain* (not under debugpy).** In VS Code, debug launches are
-   always debugpy, so run the runner as a **task** or terminal command instead.
-   Under debugpy the feature auto-disables (you'll see `[mast] step-into … disabled
-   … under debugpy` in the Debug Console) and you use debugpy for the Python half.
-2. Optionally **load `sbs_utils` from source** with `--use-working-tree`, so
-   Python frames point at real *editable* files. Not required just to *see* the
-   source: the debugger extracts source straight from a `.sbslib`/`.mastlib` zip
-   and serves it (read-only) via the DAP `source` request — so Step In shows the
-   library source either way. Use `--use-working-tree` when you want to **edit**
-   the library live.
+1. **Run the mission *plain* (not under debugpy).** The **"MAST: Debug mission
+   (one click)"** config does this for you — the extension runs `sbs debug` (via
+   `sbs.pyz`, which is plain), so Step-into-Python is on. (If you instead run the
+   mission under a `debugpy` launch, the feature auto-disables — you'll see
+   `[mast] step-into … disabled … under debugpy` — and you use debugpy for the
+   Python half.)
+2. Optionally **load `sbs_utils` from source** (`"useWorkingTree": true` on the
+   config, or `sbs debug --use-working-tree`), so Python frames point at real
+   *editable* files. Not required just to *see* the source: the debugger extracts
+   source straight from a `.sbslib`/`.mastlib` zip and serves it (read-only) via
+   the DAP `source` request — so Step In shows the library source either way. Use
+   the working tree only when you want to **edit** the library live.
 
-The LegendaryMissions `.vscode` ships a **one-click** setup: run
-**"MAST: debug (plain, Python step-in)"** — a background task starts
-`python -m cosmos_dev.mission_runner . --gui --map 0 --dap-port 4711 --dap-wait
---use-working-tree` (plain, source), waits for it to listen, then attaches. Then
-Step In on a line like `x = terrain_to_value(SEL)` opens the real
-`procedural/terrain.py` with the arrow on the line and Locals populated.
-
-The Debug Console tells you which mode you're in: `[mast] step-into: tracing this
-eval …` (working) vs `… skipped: a tracer is already active (…pydevd…)` (still
-under debugpy).
+Step In on a line like `x = terrain_to_value(SEL)` then opens
+`procedural/terrain.py` with the arrow on the line and Locals populated. The Debug
+Console tells you which mode you're in: `[mast] step-into: tracing this eval …`
+(working) vs `… skipped: a tracer is already active (…pydevd…)` (under debugpy).
 
 !!! note "Stops just before a line runs"
     A breakpoint parks execution when a line is *entered* — its assignment/effect hasn't
@@ -115,22 +111,30 @@ VS Code start it, but it can be driven by any DAP client.
 
 ---
 
-## Attach mode — debug a live mission
+## Debug a live mission
 
-Attach to a mission **while it plays** (browser GUI and all), set breakpoints, and hit
-them in real time. Detaching leaves the mission running.
+Debug a mission **while it plays** (browser GUI and all): set breakpoints, hit them in
+real time, step, inspect. This is the mode for full StoryScheduler missions.
 
 ### One click (recommended)
 
-LegendaryMissions and LM_TestRange ship a **compound** config —
-**"Debug MAST (mission + attach)"** — that starts the mission *and* attaches the
-debugger together. Just pick it in the Run and Debug dropdown and press play.
+LegendaryMissions and LM_TestRange ship a **"MAST: Debug mission (one click)"** config
+(`type: mast`, `request: launch`, with a `mission`). Pick it in the Run and Debug
+dropdown and press play: the extension launches the mission (`sbs debug --dap-port
+--dap-wait`), waits for it, attaches, and **stops the runner when you end the session** —
+no task, no terminal, no process cleanup. `--dap-wait` holds the map's auto-start until
+you're attached, so a breakpoint that runs at map start isn't missed.
 
-It works reliably because the runner is started with **`--dap-wait`**, which holds the
-map's auto-start until the debugger is attached — so a breakpoint that runs at map start
-isn't missed (see the warning below).
+### Manual (attach to a mission you started)
 
-### Manual (two steps)
+You can also start the mission yourself and attach:
+
+```sh
+sbs debug . --gui --dap-port 4711 --dap-wait
+```
+
+The runner prints `[runner] MAST debug adapter LISTENING on 127.0.0.1:4711`, then holds
+for the debugger. Attach with a `mast` config:
 
 ```sh
 sbs debug . --gui --dap-port 4711 --dap-wait
