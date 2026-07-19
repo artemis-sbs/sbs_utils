@@ -204,6 +204,14 @@ so existing scripts are untouched — tiered by value:
     existing layouts. `.add`/`.add_all`/`.rows()`/`.build(layout)`. Size defaults
     apply only where a cell hasn't set its own. Tested structurally
     (`tests/test_layout_grid.py`, 8 cases) — no renderer needed.
+  - **Grid — MAST-native `gui_grid()` DONE.** So writers get grids in *pure MAST*
+    (not just Python): `with gui_grid(N):` (context manager, like
+    `gui_sub_section`) + `procedural/gui/grid.py`, auto-registered into MAST
+    globals. `StoryPage` gained a `_grid_stack` + `grid_begin`/`grid_end`, and
+    `add_content` auto-breaks to a new row every N and Hole-pads the final row.
+    Inert unless a grid is open — no behaviour change to existing pages. Nestable.
+    Tested (`tests/test_gui_grid.py`, 8 cases); 107-test GUI/MAST regression green.
+    Usage: `with gui_grid(3): gui_text(...); for s in ships: gui_button(s.name)`.
   - **Group/Panel — DONE (additive).** `pages/layout/group.py`: `Group(tag,
     title, …)` is a standard `Layout` configured with `border_style`/
     `border_color` + an optional title `Row` holding a `Text`. `.add`/`.add_all`/

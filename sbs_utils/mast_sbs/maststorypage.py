@@ -62,6 +62,9 @@ class StoryPage(Page):
         self.pending_tag_map = {}
         self.tag_map = {}
         self.pending_gui = True
+        # Active gui_grid() contexts (a stack, so grids can nest). Each entry is
+        # {"columns": N, "count": M}; add_content auto-breaks to a new row every N.
+        self._grid_stack = []
 
         #self.aspect_ratio = sbs.vec2(1024,768)
         self.client_id = None
@@ -363,6 +366,34 @@ class StoryPage(Page):
         self.add_tag(layout_item, runtime_node)
 
         self.pending_row.add(layout_item)
+
+        # gui_grid() auto-flow: after every N cells, break to a fresh row so
+        # items lay out as an N-column grid. Inert unless a grid is active.
+        if self._grid_stack:
+            grid = self._grid_stack[-1]
+            grid["count"] += 1
+            if grid["count"] % grid["columns"] == 0:
+                self.add_row()
+
+    def grid_begin(self, columns):
+        """Enter a gui_grid() context: subsequent add_content()s flow into an
+        ``columns``-wide grid, auto-breaking rows. Nestable."""
+        columns = max(1, int(columns))
+        self.add_row()                       # start the grid on a clean row
+        self._grid_stack.append({"columns": columns, "count": 0})
+
+    def grid_end(self):
+        """Leave the current gui_grid() context, padding the final row with Hole
+        spacers so its columns stay aligned, then start a fresh row."""
+        if not self._grid_stack:
+            return
+        grid = self._grid_stack.pop()
+        row = self.pending_row
+        if row is not None and 0 < len(row.columns) < grid["columns"]:
+            from ..pages.layout.hole import Hole
+            while len(row.columns) < grid["columns"]:
+                row.add(Hole())
+        self.add_row()                       # content after the grid isn't in it
 
     # def add_on_change(self, runtime_node):
     #     self.pending_on_change_items.append(runtime_node)

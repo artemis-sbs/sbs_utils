@@ -6,6 +6,7 @@ from .console_types import gui_add_console_type, gui_get_console_type, gui_get_c
 from .blank import gui_blank
 from .hole import gui_hole
 from .row import gui_row
+from .grid import gui_grid
 from .section import gui_section, gui_region, gui_sub_section
 
 
