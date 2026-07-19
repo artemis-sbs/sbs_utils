@@ -1,0 +1,9 @@
+logger(var="output")
+x = 1
+x = 2
+log("x is {x}")
+jump part_two
+
+=== part_two ===
+y = 10
+log("done {y}")

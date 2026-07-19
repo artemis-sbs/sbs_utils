@@ -105,6 +105,7 @@ nav:
     - tooling/index.md
     - sbs CLI: tooling/cli.md
     - Testing missions: tooling/testing.md
+    - Debugging MAST: tooling/mast-debugger.md
     - Serving web pages: tooling/web-proxy.md
     - Sharing Python (.sbslib): tooling/libraries.md
 

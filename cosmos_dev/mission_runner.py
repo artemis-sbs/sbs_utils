@@ -391,6 +391,8 @@ def _run(
     seed: int | None = None,
     audit_layout: bool = False,
     aspect: str | None = None,
+    dap_port: int | None = None,
+    dap_wait: bool = False,
 ) -> int:
     mission_folder = os.path.abspath(mission_folder)
     missions_root  = _find_missions_root(mission_folder)
@@ -409,6 +411,25 @@ def _run(
         sys.path.insert(0, _PROJECT_ROOT)
 
     _load_libs(mission_folder, missions_root, use_working_tree)
+
+    # Opt-in MAST source debugger (dev-only). Off by default: with dap_port unset
+    # nothing here runs and the mission behaves exactly as before. Started HERE —
+    # right after libs load, before the ~seconds of GUI/story setup — so the
+    # socket is listening almost immediately and a one-click attach doesn't race
+    # it. A daemon thread serves DAP; the editor attaches and its breakpoints park
+    # the tick loop while control is serviced on that thread.
+    _dap_ready = threading.Event()          # set once an editor has attached + configured
+    if dap_port:
+        from cosmos_dev.mast_dap import serve_dap_socket, live_mission_provider
+        threading.Thread(
+            target=serve_dap_socket,
+            kwargs=dict(host="127.0.0.1", port=dap_port,
+                        attach_provider=live_mission_provider(),
+                        on_configured=_dap_ready.set,
+                        ready=lambda p: print(f"[runner] MAST debug adapter LISTENING on 127.0.0.1:{p}")),
+            daemon=True, name="mast-dap").start()
+        if dap_wait:
+            print("[runner] --dap-wait: holding map auto-start until a debugger attaches")
 
     # Communicate map choice to the debug .mast via environment variable
     os.environ["COSMOS_DEBUG_MAP"] = str(map_arg)
@@ -677,6 +698,8 @@ def _run(
             _exerciser = Exerciser(sbs)
         print(f"[runner] TEST mode: run ~{test_seconds:g}s sim time, map={map_arg}"
               f"{', exercising' if exercise else ''}")
+
+    _dap_wait_deadline = None   # set on first auto-start attempt so we don't wait forever
 
     try:
         while True:
@@ -981,9 +1004,20 @@ def _run(
                         _log_exc(f"client event error: {e}")
 
             # Auto-start: poll each tick until @map/ labels are registered,
-            # then schedule the requested map (replaces extern_debug.mast logic)
+            # then schedule the requested map (replaces extern_debug.mast logic).
+            # With --dap-wait, hold auto-start until a debugger has attached (so
+            # breakpoints in the map are armed before its code runs) — but not
+            # forever: fall through after ~120s if nobody attaches.
             if not _map_started:
-                _map_started = _try_auto_start_map(map_arg, sbs)
+                _hold = dap_wait and dap_port and not _dap_ready.is_set()
+                if _hold:
+                    if _dap_wait_deadline is None:
+                        _dap_wait_deadline = time.time() + 120.0
+                    elif time.time() > _dap_wait_deadline:
+                        print("[runner] --dap-wait timed out; auto-starting without a debugger")
+                        _hold = False
+                if not _hold:
+                    _map_started = _try_auto_start_map(map_arg, sbs)
 
             # Resolution sweep: pin every client's screen size each tick so layouts
             # (re)build at the forced aspect instead of the 1024x768 default.
@@ -1116,6 +1150,12 @@ if __name__ == "__main__":
                     help="Force the client screen size (e.g. 1280x720) so layouts "
                          "build at it — with --audit-layout, sweep sizes to find "
                          "where fixed fonts break the %%-layout")
+    ap.add_argument("--dap-port", type=int, default=None, metavar="PORT",
+                    help="Serve the MAST source debugger (DAP) on this localhost "
+                         "port so VS Code can attach and set breakpoints (dev-only)")
+    ap.add_argument("--dap-wait", action="store_true",
+                    help="With --dap-port, hold map auto-start until a debugger "
+                         "attaches (so early breakpoints aren't missed)")
     args = ap.parse_args()
 
     if args.map is None:
@@ -1141,5 +1181,7 @@ if __name__ == "__main__":
         seed=args.seed,
         audit_layout=args.audit_layout,
         aspect=args.aspect,
+        dap_port=args.dap_port,
+        dap_wait=args.dap_wait,
     )
     sys.exit(_exit or 0)
