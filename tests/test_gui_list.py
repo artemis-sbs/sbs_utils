@@ -49,6 +49,12 @@ LIST_CODE = """
     with gui_list(ships, select=True) as ship:
         gui_text("{ship}")
     await gui()
+
+//web/table
+    gui_section("area: 5,5,95,95;")
+    fleet = [{"name":"Alpha","hull":90}, {"name":"Beta","hull":40}]
+    gui_table(fleet, [{"key":"name","label":"Ship"}, {"key":"hull","label":"Hull","align":"c","width":20}], select=True)
+    await gui()
 """
 
 WEB_ID = 0x8080000000000042
@@ -133,6 +139,17 @@ class TestGuiList(unittest.TestCase):
         self.assertIn("Gamma", blob)
         clicks = [a for (m, a) in cap.cmds if m == "send_gui_clickregion"]
         self.assertGreaterEqual(len(clicks), 3, f"expected a click region per row: {cap.cmds}")
+
+    def test_gui_table_is_authorable_in_pure_mast(self):
+        # gui_table is declarative: items + column specs are plain data MAST
+        # builds directly. It renders headers + per-row cells with no Python
+        # template. Proves "a table in just MAST".
+        cap, texts, blob = self._render("table")
+        self.assertIn("Ship", blob)     # header labels
+        self.assertIn("Hull", blob)
+        self.assertIn("Alpha", blob)    # cell values, bound from the dict rows
+        self.assertIn("90", blob)
+        self.assertIn("Beta", blob)
 
 
 if __name__ == "__main__":
