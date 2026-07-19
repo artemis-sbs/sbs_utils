@@ -316,6 +316,33 @@ automatically.
 
 ---
 
+## 🐞 Debug your mission — pause it and look inside
+
+Ever chased a bug by sprinkling `print` lines and replaying? Now you can **pause your
+mission while it plays and look inside it** — right in VS Code. Put a **pause point** on
+any `.mast` line, play your mission, and it stops there: the exact line, every value your
+story is tracking, and how it got there. Then step through one line at a time and watch it
+unfold.
+
+- **One click.** Pick **"MAST: Debug mission (one click)"** and press play — the mission
+  launches with its game window, you set pause points and debug, and pressing **Stop**
+  shuts it all down. No terminals, no leftover processes to hunt for.
+- **Proper debugging tools.** Pause points that stop **only when a condition is true**
+  (`hp < 20`), on the **Nth hit**, or that **just log a note without pausing**; step
+  over / into / out; a live **Variables** panel (Task / Shared / Global) you can **edit
+  while paused**; a **call stack**; and **watch** expressions.
+- **Step into the engine.** On a line that calls a built-in like `terrain_to_value(...)`,
+  **Step Into** drops you into the engine's own Python — real source and its values — then
+  Step Out brings you back to your story. Even library code that ships **zipped** shows its
+  source.
+
+It costs **nothing** when you're not debugging — normal mission runs and the shipped game
+are completely unaffected.
+
+Docs: [Debugging your mission](tooling/mast-debugger.md).
+
+---
+
 ## 🛠️ For Mission Makers & Tinkerers
 
 !!! warning "For testing only — not an engine replacement"
