@@ -83,6 +83,27 @@ def _load_libs(mission_folder: str, missions_root: str,
         print("[runner] using working-tree sbs_utils (overrides packaged sbslib)")
 
 
+def _preview_story_args(payload: dict):
+    """Map an ``amd/preview`` payload (dialogue/scan/face/text) to the four
+    ``send_story_dialog(title, text, face, color)`` args, so an authored node can be
+    rendered live in a running session. Pure (unit-tested) - the transport (an HTTP
+    POST to /debug/command) and the sbs call live in the runner."""
+    p = payload or {}
+    kind = str(p.get("kind", ""))
+    key = p.get("key", "")
+    if kind == "dialogue":
+        sp = p.get("speaker") or {}
+        lines = p.get("lines") or []
+        return (sp.get("name") or key, lines[0] if lines else "",
+                sp.get("face") or "", sp.get("color") or "#0cf")
+    if kind == "face":
+        return (p.get("name") or key, "", p.get("face") or "", p.get("color") or "#0cf")
+    if kind == "scan":
+        lines = p.get("lines") or []
+        return (f"Scan: {p.get('role', '')}".strip(), lines[0] if lines else "", "", "#0aa")
+    return (p.get("display") or key, p.get("body") or "", "", "#888")
+
+
 def _try_auto_start_map(map_arg, sbs) -> bool:
     """Try to schedule the target map. Returns True once done, False if maps not ready yet.
 
@@ -610,6 +631,17 @@ def _run(
             sbs.run_next_mission(str(data.get("mission", "") or ""))
             print(f"[runner] debug: restart requested (map={map_arg})")
             _debug_reply(cid, {"ack": f"restarting (map={map_arg if map_arg is not None else 'picker'})"})
+        elif action == "preview":
+            # Render an authored AMD node (from the VS Code extension's amd/preview)
+            # live in this session as a story dialog - the highest-fidelity preview.
+            payload = data.get("payload") or {}
+            try:
+                title, text, face, color = _preview_story_args(payload)
+                sbs.send_story_dialog(0, title, text, face, color)
+                _debug_reply(cid, {"ack": f"previewed {payload.get('kind') or 'node'} "
+                                          f"'{payload.get('key', '')}'"})
+            except Exception as e:
+                _debug_reply(cid, {"error": f"preview failed: {e}"})
         elif action == "signal":
             name = str(data.get("name", "")).strip()
             if not name:

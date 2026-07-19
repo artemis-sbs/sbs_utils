@@ -507,6 +507,30 @@ async def _handle_connection(reader: asyncio.StreamReader,
                                     fire_connect=fire_connect,
                                     web_path=web_path, web_query=web_query,
                                     debug=debug)
+        elif req.get('method', '').upper() == 'POST' and url_path_bare == '/debug/command':
+            # HTTP control endpoint: an external tool (the VS Code AMD extension)
+            # POSTs a debug command (same shape as a /ws/debug message) to inject
+            # into the runner - e.g. {"action":"preview","payload":{...}} to render
+            # an authored dialogue/scan/face live in the running session.
+            try:
+                length = int(headers.get('content-length', '0') or '0')
+            except ValueError:
+                length = 0
+            try:
+                raw = await reader.readexactly(length) if length else b''
+            except Exception:
+                raw = b''
+            try:
+                payload = json.loads(raw.decode('utf-8')) if raw else {}
+            except Exception:
+                payload = None
+            if payload is None:
+                await _http_send(writer, "400 Bad Request",
+                                 "application/json", '{"error":"bad json"}')
+            else:
+                if _client_event_queue is not None:
+                    _client_event_queue.put({"event": "debug", "clientID": 0, "data": payload})
+                await _http_send(writer, "200 OK", "application/json", '{"ok":true}')
         else:
             # /server and /client both serve client.html; the page reads location.pathname
             # to decide which WebSocket path to connect to. /web/<path> also serves
