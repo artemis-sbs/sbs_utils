@@ -250,5 +250,94 @@ class GuiTap:
             self._frames.setdefault(cid, []).append(w)
 
 
+def _brain_label_name(lbl):
+    if lbl is None:
+        return None
+    if isinstance(lbl, str):
+        return lbl
+    return getattr(lbl, "name", None)
+
+
+def _brain_type_name(brain):
+    from sbs_utils.procedural.brain import BrainType
+    bt = getattr(brain, "brain_type", 0)
+    if bt & BrainType.Select:
+        return "select"
+    if bt & BrainType.Sequence:
+        return "sequence"
+    return "simple"
+
+
+class BrainTap:
+    """Publish a periodic snapshot of every agent's behaviour-tree brain — the
+    node tree (select/sequence/simple), each node's label and last result, and
+    which child a composite currently has active. A poller (brains mutate on the
+    tick thread), so it reads a best-effort snapshot like ``WorldTap``.
+
+    Reads the ``__BRAIN__`` inventory the brain system already maintains, so it
+    needs no library change and adds nothing to a non-inspected run."""
+
+    def __init__(self, bus=BUS, interval=0.5):
+        self._bus = bus
+        self._interval = interval
+        self._stop = threading.Event()
+        self._thread = None
+
+    def install(self):
+        if self._thread is not None:
+            return self
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._loop, name="mast-brain-tap", daemon=True)
+        self._thread.start()
+        return self
+
+    def uninstall(self):
+        self._stop.set()
+        self._thread = None
+
+    def _loop(self):
+        while not self._stop.is_set():
+            if self._bus.active:
+                try:
+                    self._bus.publish("brains", self.snapshot())
+                except Exception:
+                    pass
+            self._stop.wait(self._interval)
+
+    def snapshot(self):
+        from sbs_utils.procedural.inventory import has_inventory, get_inventory_value
+        from sbs_utils.agent import Agent
+        out = []
+        for agent_id in list(has_inventory("__BRAIN__")):
+            try:
+                root = get_inventory_value(agent_id, "__BRAIN__", None)
+                if root is None:
+                    continue
+                obj = Agent.get(agent_id)
+                paused = bool(get_inventory_value(agent_id, "__BRAIN_PAUSED__", False))
+                out.append({"agent": agent_id,
+                            "name": getattr(obj, "name", None),
+                            "paused": paused,
+                            "tree": self._node(root)})
+            except Exception:
+                pass
+            if len(out) >= 200:
+                break
+        return {"brains": out}
+
+    def _node(self, brain, depth=0):
+        node = {"type": _brain_type_name(brain),
+                "label": _brain_label_name(getattr(brain, "label", None)),
+                "result": getattr(getattr(brain, "result", None), "name", None)}
+        children = getattr(brain, "children", None)
+        if children and depth < 8:
+            active = getattr(brain, "_active", None)
+            node["children"] = kids = [self._node(c, depth + 1) for c in children]
+            for c, kid in zip(children, kids):
+                if c is active:
+                    kid["active"] = True
+        return node
+
+
 # All available taps, so the adapter can install/uninstall the set at once.
-ALL_TAPS = (SignalTap, WorldTap, GuiTap)
+ALL_TAPS = (SignalTap, WorldTap, GuiTap, BrainTap)

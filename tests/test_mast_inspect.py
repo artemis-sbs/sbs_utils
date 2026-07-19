@@ -7,7 +7,7 @@ test_set_exe_dir()
 
 import unittest
 from tests.test_mast_debug import build_runner
-from cosmos_dev.mast_inspect import InspectionBus, SignalTap, WorldTap, GuiTap, _json_safe
+from cosmos_dev.mast_inspect import InspectionBus, SignalTap, WorldTap, GuiTap, BrainTap, _json_safe
 
 SIG_CODE = """
 logger(var="output")
@@ -165,6 +165,66 @@ class TestGuiTap(unittest.TestCase):
         self.assertIsNot(self.sbs.send_gui_button, orig)   # wrapped
         tap.uninstall()
         self.assertIs(self.sbs.send_gui_button, orig)      # restored
+
+
+class TestBrainTap(unittest.TestCase):
+    def setUp(self):
+        from cosmos_dev.mock import sbs
+        from sbs_utils.spaceobject import SpaceObject
+        from sbs_utils.helpers import FrameContext, Context, FakeEvent
+        SpaceObject.clear()
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+
+    def _build_brain(self):
+        from sbs_utils.objects import Npc
+        from sbs_utils.procedural.brain import Brain, BrainType
+        from sbs_utils.procedural.inventory import set_inventory_value
+        from sbs_utils.mast.pollresults import PollResults
+        raider = Npc().spawn(500, 0, 0, "Raider1", "raider", "Battleship", "behav_npcship")
+        aid = raider.id
+        root = Brain(aid, "SEL root", None, 0, BrainType.Select)
+        patrol = Brain(aid, "patrol", None, 0, BrainType.Simple)
+        attack = Brain(aid, "attack", None, 0, BrainType.Simple)
+        root.children = [patrol, attack]
+        root._active = attack
+        attack._result = PollResults.BT_SUCCESS
+        set_inventory_value(aid, "__BRAIN__", root)
+        return aid
+
+    def test_snapshot_walks_tree(self):
+        self._build_brain()
+        snap = BrainTap().snapshot()
+        self.assertEqual(len(snap["brains"]), 1)
+        b = snap["brains"][0]
+        self.assertEqual(b["name"], "Raider1")
+        self.assertFalse(b["paused"])
+        self.assertEqual(b["tree"]["type"], "select")
+        kids = b["tree"]["children"]
+        by_label = {k["label"]: k for k in kids}
+        self.assertIn("patrol", by_label)
+        self.assertIn("attack", by_label)
+        self.assertEqual(by_label["attack"]["type"], "simple")
+        self.assertTrue(by_label["attack"].get("active"))     # the active child is marked
+        self.assertNotIn("active", by_label["patrol"])
+        # BT_SUCCESS aliases OK_END (both == 99); .name yields the canonical alias.
+        self.assertIn(by_label["attack"]["result"], ("BT_SUCCESS", "OK_END"))
+
+    def test_poll_thread_publishes(self):
+        self._build_brain()
+        got = []
+        bus = InspectionBus()
+        bus.subscribe(got.append)
+        tap = BrainTap(bus, interval=0.02).install()
+        try:
+            import time
+            time.sleep(0.12)
+            brain_events = [e for e in got if e["kind"] == "brains"]
+            self.assertTrue(brain_events, "poll thread published nothing")
+            names = [b["name"] for b in brain_events[-1]["payload"]["brains"]]
+            self.assertIn("Raider1", names)
+        finally:
+            tap.uninstall()
 
 
 if __name__ == "__main__":

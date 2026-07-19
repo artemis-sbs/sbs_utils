@@ -168,10 +168,15 @@ Each: **Problem → Panel → Seam → Effort.**
   no sink) + `SignalTap` (`Mast.signal_emit`), `WorldTap` (poll `Agent.all`),
   `GuiTap` (wrap the live `sbs.send_gui_*` — assemble the per-frame widget list
   with parent/tag/rect). All stream as DAP custom `mast/inspect` events.
-- **Mission Inspector panel** (extension) — **DONE (v1).** Renders the World table
-  + Signals log; auto-opens on a `mast` session. The **Widgets tree** pane (from
-  GuiTap) is the next panel addition.
-- Next taps: **Brain Watcher**, **AMD Live Resolver**.
+- **Brain Watcher tap** — **DONE (core).** `BrainTap` polls the `__BRAIN__`
+  inventory and publishes each agent's behaviour tree (select/sequence/simple,
+  per-node label + last result, active child marked, paused flag). No library
+  change.
+- **Mission Inspector panel** (extension) — **DONE (v1, 2×2 grid).** World table,
+  Signals log, **Widgets tree** (GuiTap), **Brains tree** (BrainTap, active node
+  highlighted); auto-opens on a `mast` session.
+- Next tap: **AMD Live Resolver** (§3.5) — then the **Improved Story Graph**
+  (§3.5.1) as the navigable view over that same resolved model.
 
 ---
 
