@@ -198,6 +198,15 @@ so existing scripts are untouched — tiered by value:
   per-child sizing share — the single biggest editor win: "drag a divider" = set
   weights), **Group/Panel** (titled/bordered frame over a Column — cheap, maps to
   section/sub_section).
+  - **Grid — DONE (additive core).** `pages/layout/grid.py`: `Grid(columns,
+    col_width, row_height)` composes **standard Rows of Columns** (short final row
+    padded with `Hole` spacers), so it adds no render path and can't regress
+    existing layouts. `.add`/`.add_all`/`.rows()`/`.build(layout)`. Size defaults
+    apply only where a cell hasn't set its own. Tested structurally
+    (`tests/test_layout_grid.py`, 8 cases) — no renderer needed.
+  - **weight/grow** deferred: it modifies the **core** flex math in `layout.py`
+    (`calc`), which runs in every shipped layout — needs visual QA, so it wants a
+    checkpoint rather than a blind edit.
 - **Tier 2:** **Wrap** (a Row that flows onto the next line — variable badge/chip
   lists), **Overlay/Stack** (z-layering: badges, HUD over a view).
 - **Tier 3:** **Repeater/ItemsView** (bind a container to a list, render a child
