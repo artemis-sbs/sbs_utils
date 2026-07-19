@@ -40,9 +40,12 @@ Two requirements, because `sys.settrace` is one-per-thread and debugpy owns it:
    always debugpy, so run the runner as a **task** or terminal command instead.
    Under debugpy the feature auto-disables (you'll see `[mast] step-into … disabled
    … under debugpy` in the Debug Console) and you use debugpy for the Python half.
-2. **Load `sbs_utils` from source** with `--use-working-tree`, so Python frames
-   point at real editable files instead of a path inside the packaged `.sbslib`
-   zip.
+2. Optionally **load `sbs_utils` from source** with `--use-working-tree`, so
+   Python frames point at real *editable* files. Not required just to *see* the
+   source: the debugger extracts source straight from a `.sbslib`/`.mastlib` zip
+   and serves it (read-only) via the DAP `source` request — so Step In shows the
+   library source either way. Use `--use-working-tree` when you want to **edit**
+   the library live.
 
 The LegendaryMissions `.vscode` ships a **one-click** setup: run
 **"MAST: debug (plain, Python step-in)"** — a background task starts

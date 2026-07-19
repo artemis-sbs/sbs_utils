@@ -23,11 +23,37 @@ the protocol thread. All outgoing writes go through one lock.
 Like the rest of cosmos_dev this is never shipped in the ``.sbslib``.
 """
 import json
+import os
+import re
 import sys
 import threading
+import zipfile
 
 from sbs_utils.agent import Agent
 from .mast_debug import MastDebugCore, run_scheduler_in_thread
+
+# A source path that lives inside a packaged library zip, e.g.
+#   …\artemis-sbs.sbs_utils.v1.4.0.sbslib\sbs_utils\procedural\terrain.py
+#   …\lib.mastlib\some\file.mast
+_ZIP_RE = re.compile(r'(?i)^(.*?\.(?:sbslib|mastlib|zip))[\\/](.+)$')
+
+
+def _read_source(path):
+    """Read a source file's text — from disk, or extracted from a .sbslib /
+    .mastlib / .zip when the path points inside one (zipimport / mastlib)."""
+    if not path:
+        raise ValueError("no source path")
+    m = _ZIP_RE.match(path)
+    if m:
+        zip_path, internal = m.group(1), m.group(2).replace("\\", "/")
+        with zipfile.ZipFile(zip_path) as z:
+            return z.read(internal).decode("utf-8", "replace")
+    with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        return fh.read()
+
+
+def _is_readable_source(path):
+    return bool(path) and (os.path.isfile(path) or _ZIP_RE.match(path) is not None)
 
 # Stable variablesReference ids for the four scopes at the current stop.
 _SCOPE_REFS = {1: "Frame", 2: "Task", 3: "Shared", 4: "Global"}
@@ -58,6 +84,10 @@ class MastDapAdapter:
         # DAP threadId (small int) <-> MAST task
         self._threads = {}          # task.id -> threadId
         self._task_by_tid = {}      # threadId -> task
+
+        # sourceReference -> path, for sources hosted inside a .sbslib/.mastlib zip
+        self._source_refs = {}
+        self._src_ref_seq = 1000
 
     # -- outgoing ----------------------------------------------------------
     def _next_seq(self):
@@ -243,32 +273,47 @@ class MastDapAdapter:
         self._respond(request, body={"threads": threads})
 
     def _req_stackTrace(self, request):
-        import os
         task = self._resolve_thread(request.get("arguments", {}).get("threadId"))
         frames = []
         for i, f in enumerate(self._dbg.stack(task)):
-            path = f.get("path") or f.get("file")
-            src = {"name": os.path.basename(path) if path else f.get("file")}
-            if path:
-                src["path"] = path            # absolute -> the editor opens it directly
             frames.append({
                 "id": i,
                 "name": f["label"] or "?",
                 "line": f["line"] or 0,
                 "column": 1,
-                "source": src,
+                "source": self._source_for(f.get("path") or f.get("file")),
             })
         self._respond(request, body={"stackFrames": frames, "totalFrames": len(frames)})
 
+    def _source_for(self, path):
+        """DAP source object. A real file gets a `path` the editor opens itself;
+        a file inside a .sbslib/.mastlib zip gets a `sourceReference` so the
+        editor asks us (via the `source` request) for the extracted text."""
+        if not path:
+            return None
+        name = os.path.basename(path) or path
+        if os.path.isfile(path):
+            return {"name": name, "path": path}
+        if _ZIP_RE.match(path):
+            ref = next((r for r, p in self._source_refs.items() if p == path), None)
+            if ref is None:
+                self._src_ref_seq += 1
+                ref = self._src_ref_seq
+                self._source_refs[ref] = path
+            # A short display path (…lib.sbslib/…/terrain.py) reads better than the
+            # full absolute zip path.
+            return {"name": name, "path": path, "sourceReference": ref}
+        return {"name": name, "path": path}
+
     def _req_source(self, request):
-        # Fallback: the editor couldn't open the file itself and asks us for the
-        # text. Read it from disk (the mission's .mast files are real files).
+        # The editor can't open the file itself (e.g. inside a .sbslib/.mastlib
+        # zip) and asks us for the text — read from disk or extract from the zip.
         args = request.get("arguments", {})
+        ref = args.get("sourceReference")
         src = args.get("source") or {}
-        path = src.get("path") or src.get("name")
+        path = self._source_refs.get(ref) or src.get("path") or src.get("name")
         try:
-            with open(path, "r", encoding="utf-8", errors="replace") as fh:
-                self._respond(request, body={"content": fh.read()})
+            self._respond(request, body={"content": _read_source(path)})
         except Exception as err:
             self._respond(request, success=False, message=f"cannot read {path}: {err}")
 

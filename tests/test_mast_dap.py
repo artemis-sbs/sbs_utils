@@ -20,7 +20,7 @@ from tests.test_mast_debug import (
 )
 from cosmos_dev.mast_dap import (
     MastDapAdapter, build_file_runner, file_runner_factory, run_stdio,
-    serve_dap_socket, _read_message, _write_message,
+    serve_dap_socket, _read_message, _write_message, _read_source, _is_readable_source,
 )
 from cosmos_dev.mast_debug import MastDebugCore, run_scheduler_in_thread
 
@@ -429,6 +429,45 @@ class TestConditionalAndSetVar(unittest.TestCase):
         client.send("continue", threadId=tid)
         self.assertIsNotNone(client.wait_event("terminated"))
         self.assertEqual(logged(holder["runner"]), "x is 42\n")
+
+
+class TestZipSource(unittest.TestCase):
+    """Serve source that lives inside a .sbslib / .mastlib zip."""
+
+    def _make_zip(self, name, arcname, text):
+        import tempfile, zipfile, os
+        d = tempfile.mkdtemp()
+        zpath = os.path.join(d, name)
+        with zipfile.ZipFile(zpath, "w") as z:
+            z.writestr(arcname, text)
+        return os.path.join(zpath, arcname.replace("/", os.sep))  # a path INTO the zip
+
+    def test_read_source_from_sbslib_and_mastlib(self):
+        py_in_zip = self._make_zip("lib.sbslib", "sbs_utils/procedural/terrain.py",
+                                   "def terrain_to_value(x):\n    return 42\n")
+        self.assertTrue(_is_readable_source(py_in_zip))
+        self.assertIn("return 42", _read_source(py_in_zip))
+
+        mast_in_zip = self._make_zip("lib.mastlib", "maps/siege.mast", 'log("hi from lib")\n')
+        self.assertIn("hi from lib", _read_source(mast_in_zip))
+
+    def test_source_request_serves_zip_hosted_file(self):
+        inside = self._make_zip("lib.sbslib", "pkg/mod.py", "X = 99\n")
+        sent = []
+        adapter = MastDapAdapter(sent.append)
+        src = adapter._source_for(inside)
+        self.assertIn("sourceReference", src, "zip path should get a sourceReference")
+        adapter.handle({"type": "request", "seq": 1, "command": "source",
+                        "arguments": {"sourceReference": src["sourceReference"], "source": src}})
+        resp = [m for m in sent if m.get("command") == "source"][-1]
+        self.assertTrue(resp["success"], resp.get("message"))
+        self.assertIn("X = 99", resp["body"]["content"])
+
+    def test_real_file_gets_path_not_reference(self):
+        adapter = MastDapAdapter(lambda m: None)
+        src = adapter._source_for(FIXTURE)          # a real .mast on disk
+        self.assertEqual(src["path"], FIXTURE)
+        self.assertNotIn("sourceReference", src)
 
 
 class TestFileRunner(unittest.TestCase):
