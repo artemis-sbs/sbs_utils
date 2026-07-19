@@ -172,5 +172,83 @@ class WorldTap:
                 "inventory": _json_safe(inv)}
 
 
+class GuiTap:
+    """Publish the widget list a console builds each frame, by wrapping the live
+    ``sbs`` module's ``send_gui_*`` functions (attribute lookups, so a patch is
+    seen — unlike cached MAST globals). Widgets are accumulated between
+    ``send_gui_clear`` and ``send_gui_complete`` and published per client, with
+    parent/tag/rect/type so a panel can show the tree. Only meaningful with a GUI
+    (the headless mock's ``send_gui_*`` are no-ops)."""
+
+    def __init__(self, bus=BUS):
+        self._bus = bus
+        self._sbs = None
+        self._orig = {}
+        self._frames = {}   # clientID -> [widget dicts]
+
+    def install(self):
+        from sbs_utils.helpers import FrameContext
+        ctx = getattr(FrameContext, "context", None)
+        sbs = getattr(ctx, "sbs", None)
+        if sbs is None or self._orig:
+            return self
+        self._sbs = sbs
+        for name in dir(sbs):
+            if not name.startswith("send_gui_"):
+                continue
+            orig = getattr(sbs, name)
+            if not callable(orig):
+                continue
+            self._orig[name] = orig
+            setattr(sbs, name, self._make(name, orig))
+        return self
+
+    def uninstall(self):
+        if self._sbs is not None:
+            for name, orig in self._orig.items():
+                try:
+                    setattr(self._sbs, name, orig)
+                except Exception:
+                    pass
+        self._orig = {}
+        self._sbs = None
+
+    def _make(self, name, orig):
+        tap = self
+
+        def wrap(*args, **kwargs):
+            try:
+                tap._capture(name, args)
+            except Exception:
+                pass
+            return orig(*args, **kwargs)
+        return wrap
+
+    def _capture(self, name, args):
+        kind = name[len("send_gui_"):]
+        if not args:
+            return
+        cid = args[0]
+        if kind == "clear":
+            self._frames[cid] = []
+        elif kind == "complete":
+            widgets = self._frames.get(cid, [])
+            self._bus.publish("widgets", {"client": str(cid), "widgets": widgets})
+        else:
+            w = {"type": kind}
+            if len(args) >= 3:
+                w["parent"] = args[1]
+                w["tag"] = args[2]
+            # rect = the last 4 numeric args (l,t,r,b) — robust across the varied
+            # send_gui_* signatures (slider/face insert an extra arg before them).
+            nums = [a for a in args if isinstance(a, (int, float)) and not isinstance(a, bool)]
+            if len(nums) >= 4:
+                w["rect"] = nums[-4:]
+            style = next((a for a in args[3:] if isinstance(a, str)), None)
+            if style is not None:
+                w["style"] = style
+            self._frames.setdefault(cid, []).append(w)
+
+
 # All available taps, so the adapter can install/uninstall the set at once.
-ALL_TAPS = (SignalTap, WorldTap)
+ALL_TAPS = (SignalTap, WorldTap, GuiTap)

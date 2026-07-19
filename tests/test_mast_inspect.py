@@ -7,7 +7,7 @@ test_set_exe_dir()
 
 import unittest
 from tests.test_mast_debug import build_runner
-from cosmos_dev.mast_inspect import InspectionBus, SignalTap, WorldTap, _json_safe
+from cosmos_dev.mast_inspect import InspectionBus, SignalTap, WorldTap, GuiTap, _json_safe
 
 SIG_CODE = """
 logger(var="output")
@@ -127,6 +127,44 @@ class TestWorldTap(unittest.TestCase):
             self.assertIn("Console", names)
         finally:
             tap.uninstall()
+
+
+class TestGuiTap(unittest.TestCase):
+    def setUp(self):
+        from cosmos_dev.mock import sbs
+        from sbs_utils.helpers import FrameContext, Context, FakeEvent
+        self.sbs = sbs
+        FrameContext.context = Context(None, sbs, FakeEvent())
+
+    def test_frame_capture_builds_widget_list(self):
+        got = []
+        bus = InspectionBus()
+        bus.subscribe(got.append)
+        tap = GuiTap(bus).install()
+        try:
+            self.sbs.send_gui_clear(0, "root")
+            self.sbs.send_gui_button(0, "root", "btn1", "style", 0.0, 0.0, 1.0, 0.5)
+            self.sbs.send_gui_text(0, "root", "txt1", "note", 0.0, 0.5, 1.0, 1.0)
+            self.sbs.send_gui_complete(0, "root")
+
+            widget_events = [e for e in got if e["kind"] == "widgets"]
+            self.assertTrue(widget_events, "no widgets snapshot published on complete")
+            widgets = widget_events[-1]["payload"]["widgets"]
+            by_tag = {w["tag"]: w for w in widgets}
+            self.assertIn("btn1", by_tag)
+            self.assertIn("txt1", by_tag)
+            self.assertEqual(by_tag["btn1"]["type"], "button")
+            self.assertEqual(by_tag["btn1"]["parent"], "root")
+            self.assertEqual(by_tag["btn1"]["rect"], [0.0, 0.0, 1.0, 0.5])
+        finally:
+            tap.uninstall()
+
+    def test_uninstall_restores(self):
+        orig = self.sbs.send_gui_button
+        tap = GuiTap().install()
+        self.assertIsNot(self.sbs.send_gui_button, orig)   # wrapped
+        tap.uninstall()
+        self.assertIs(self.sbs.send_gui_button, orig)      # restored
 
 
 if __name__ == "__main__":

@@ -125,13 +125,53 @@ Each: **Problem → Panel → Seam → Effort.**
   against live mission state over the socket. The static half is lint-you-already-have;
   the live half is a new tap.
 
+### 3.5.1 Improved Story Graph  ·  effort: **med**
+- **Problem:** the current `amd.showGraph` is a free node-link diagram. It reads fine at
+  ~20 elements and becomes a **hairball** past that — edges cross, nodes overlap, and you
+  can't find anything. The force layout fights the author instead of helping.
+- **Root cause:** we made *"see the whole graph at once"* the primary interaction. That
+  doesn't scale — no auto-layout keeps a large story readable, and a writer rarely needs
+  the whole thing; they need *"what connects to the node I'm looking at."*
+- **Strategy — navigate, don't render-it-all (their instinct is right):** make a
+  **master list/tree + focus view** the default, and demote the full diagram to an
+  optional overview. This is code-navigation applied to the story (outline +
+  go-to-definition / find-references), and it stays readable at any element count because
+  we never draw the whole graph.
+  - **Left — outline tree**, grouped `file → label/scene/quest`, **searchable** and
+    **filterable by kind** (scenes / quests / signals / labels). This replaces "scan the
+    hairball" with "type a name."
+  - **Right — focus view** for the selected element: its **direct connections only**,
+    split **incoming** vs **outgoing** — what it reveals / jumps-to / signals, and what
+    reveals / jumps-to / signals *it*. Each connection is a chip that **re-focuses** on
+    click (walk the graph one hop at a time) and has a **↪ open source** link (we already
+    have source spans). A tiny **local mini-graph** (selected node + 1 hop) gives shape
+    without the spaghetti.
+  - **Overview (optional)** — keep the full diagram, but add **filter-by-kind**,
+    **search-to-highlight**, and **click-to-focus** (selecting in the diagram drives the
+    same focus view). Consider a **hierarchical (layered) layout** and **collapse-by-group**
+    so the overview degrades gracefully instead of into a hairball.
+- **Why this over "just a better layout":** Sugiyama/edge-bundling reduces crossings but is
+  still one big picture that overwhelms at scale. The list/tree+focus scales to *any* count
+  because the visible element budget is bounded by the selection, not the story size.
+- **Reuses what exists:** same resolved model as **3.5 AMD Live Resolver** (this is the
+  navigable *view* of that model) and the source-span links from lint. Build the model
+  extraction once; the Resolver and the Story Graph are two panels over it.
+- **Phasing:** (a) list/tree + focus view with in/out connection chips + open-source
+  (ships the scalability win alone); (b) local mini-graph; (c) retrofit the existing full
+  diagram with filter/search/click-to-focus.
+
 ---
 
 ## 3.6 Status
-- **Signal Tracer** — **STARTED.** `cosmos_dev/mast_inspect.py`: an `InspectionBus`
-  (pub/sub, inert with no sink) + `SignalTap` (monkeypatches `Mast.signal_emit`),
-  streamed to the editor as DAP custom `mast/inspect` events. Panel (webview) is
-  the next step.
+- **Platform + Signal Tracer + World Inspector + GUI DevTools taps** — **DONE
+  (cores).** `cosmos_dev/mast_inspect.py`: an `InspectionBus` (pub/sub, inert with
+  no sink) + `SignalTap` (`Mast.signal_emit`), `WorldTap` (poll `Agent.all`),
+  `GuiTap` (wrap the live `sbs.send_gui_*` — assemble the per-frame widget list
+  with parent/tag/rect). All stream as DAP custom `mast/inspect` events.
+- **Mission Inspector panel** (extension) — **DONE (v1).** Renders the World table
+  + Signals log; auto-opens on a `mast` session. The **Widgets tree** pane (from
+  GuiTap) is the next panel addition.
+- Next taps: **Brain Watcher**, **AMD Live Resolver**.
 
 ---
 
