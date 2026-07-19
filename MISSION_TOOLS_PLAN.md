@@ -204,11 +204,21 @@ so existing scripts are untouched — tiered by value:
     existing layouts. `.add`/`.add_all`/`.rows()`/`.build(layout)`. Size defaults
     apply only where a cell hasn't set its own. Tested structurally
     (`tests/test_layout_grid.py`, 8 cases) — no renderer needed.
+  - **Group/Panel — DONE (additive).** `pages/layout/group.py`: `Group(tag,
+    title, …)` is a standard `Layout` configured with `border_style`/
+    `border_color` + an optional title `Row` holding a `Text`. `.add`/`.add_all`/
+    `.build()`. No border/title ⇒ an ordinary Layout, so no new failure mode.
+    Tested (`tests/test_layout_group_repeater.py`).
   - **weight/grow** deferred: it modifies the **core** flex math in `layout.py`
     (`calc`), which runs in every shipped layout — needs visual QA, so it wants a
     checkpoint rather than a blind edit.
 - **Tier 2:** **Wrap** (a Row that flows onto the next line — variable badge/chip
   lists), **Overlay/Stack** (z-layering: badges, HUD over a view).
+- **Repeater — DONE (additive).** `pages/layout/repeater.py`: `Repeater(columns,
+  factory, …)` maps a list through `factory(item, index) -> cell` and lays the
+  cells out in rows via **Grid** (so only standard Rows/Columns are emitted).
+  `.cells_for`/`.rows_for`/`.build(items, layout)`. Tested. (The runtime
+  live-expand/binding — re-run on data change — is the remaining editor piece.)
 - **Tier 3:** **Repeater/ItemsView** (bind a container to a list, render a child
   *template* per item — the fix for data-driven GUIs; the editor authors the
   template, live-expanded at runtime).
