@@ -23,13 +23,14 @@ class PageList:
     _gui_row_template = True          # the marker the `with` runtime keys on
 
     def __init__(self, items, style="", select=False, multi=False,
-                 title=None, read_only=False):
+                 title=None, read_only=False, row_height="1.6em"):
         self.items = list(items) if items is not None else []
         self.style = style
         self.select = select
         self.multi = multi
         self.title = title
         self.read_only = read_only
+        self.row_height = row_height
         # filled in by _capture_block (the block's address) at build time
         self.task = None
         self.label = None
@@ -98,10 +99,11 @@ class PageList:
         task = self.task
         if task is None:
             return
-        # Give the row a bounded height (like the default template) so the
-        # listbox fits many rows; without it a row fills the box -> only 1 slot.
+        # Give the row a bounded height so the listbox fits many rows (without it
+        # a row fills the box -> only 1 slot). A roomy default keeps text from
+        # looking cramped; override via gui_list(row_height=...).
         from .row import gui_row
-        gui_row("row-height: 1.0;")
+        gui_row(f"row-height: {self.row_height};")
         inputs = {"item": item, "LB_ITEM": item}
         if self.item_var:
             inputs[self.item_var] = item
@@ -123,7 +125,8 @@ class PageList:
                 pass
 
 
-def gui_list(items, style="", select=False, multi=False, title=None, read_only=False):
+def gui_list(items, style="", select=False, multi=False, title=None,
+             read_only=False, row_height="1.6em"):
     """Data-bound listbox: the ``with`` block is the per-row template.
 
     Args:
@@ -134,6 +137,8 @@ def gui_list(items, style="", select=False, multi=False, title=None, read_only=F
         multi (bool, optional): allow multiple selection. Defaults to False.
         title (str, optional): a title row for the listbox. Defaults to None.
         read_only (bool, optional): prevent modification. Defaults to False.
+        row_height (str, optional): height of each row (e.g. "1.6em", "3em").
+            A roomier value gives cells more breathing room. Defaults to "1.6em".
 
     Returns:
         PageList: A row-template context manager. Use with ``with``.
@@ -143,4 +148,4 @@ def gui_list(items, style="", select=False, multi=False, title=None, read_only=F
             gui_text("{ship.name}")
             gui_text("{ship.hull}%")
     """
-    return PageList(items, style, select, multi, title, read_only)
+    return PageList(items, style, select, multi, title, read_only, row_height)

@@ -88,6 +88,7 @@ Whatever each item is, the `as` name becomes that item while its row is drawn.
 | `select=True` | let the player click to select a row |
 | `multi=True` | allow more than one selected row (with `select`) |
 | `title="…"` | show a heading row above the list |
+| `row_height="…"` | how tall each row is (default `"1.6em"`; raise it, e.g. `"3em"`, if rows look cramped) |
 | `style="…"` | style the list container |
 
 ## `gui_list` vs `gui_table` vs `gui_grid`
