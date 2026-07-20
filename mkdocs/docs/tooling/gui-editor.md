@@ -59,6 +59,34 @@ shows the GUI Editor, and your visual changes are saved back to the file as MAST
 - You can edit it either way — the editor reads your text back in when you return, so
   comments and anything it doesn't recognise are kept as-is.
 
+## Console screens — engine widgets
+
+Beyond layout widgets, the palette has the real **engine console views** so you can lay out a
+helm/weapons/science/cockpit-style screen the way the shipped consoles do:
+
+- **Console views** — drop a **3D View**, **2D Radar** (and the Science / Weapons / Comms 2D
+  variants), **Ship Data**, **Text Waterfall**, **Radar Zoom**, **Ship Internal**, the **Comms**
+  cluster, or **Red Alert** into a section. Each emits `gui_layout_widget("<name>")` — the engine
+  owns the content, so you place and size it (via the section's **Area**) and the preview shows a
+  recognizable placeholder (a radar scope, a 3D-view starfield, stat bars, …). One widget fills
+  its section, matching the engine.
+- **Console setup** — a **Console preset** (`gui_console("helm"|"weapons"|…)` — a whole prebuilt
+  console), **Activate console** (`gui_activate_console`), and a **Cinematic camera**
+  (`gui_cinematic_auto` / `gui_cinematic_full_control`).
+- **Template…** (top bar) — start from a ready-made skeleton: *Cinematic* (full-screen 3D view),
+  *Cockpit* (background image + placed views), or *Science* (info | 2D view | data columns).
+
+The real pattern is a full-screen background section plus absolutely-positioned `area:` sections,
+each holding one engine widget — exactly what the templates produce.
+
+## Control events — `on gui_message`
+
+Interactive controls can carry a handler that runs when the player uses them. A **Button** has an
+**On click** (matched by its label). A **Checkbox / Slider / Dropdown / Radio / Input** has an
+**On message** handler plus an optional **Ref var** — the editor emits `<ref> = gui_checkbox(...)`
+and an `on gui_message(<ref>):` block (leave Ref var blank and it auto-names one). Existing files
+using either form round-trip unchanged.
+
 ## What it can't do (yet)
 
 - The Preview is **approximate** — it shows where things sit, not a pixel-perfect render.
