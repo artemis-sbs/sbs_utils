@@ -592,6 +592,47 @@ async def _serve(host: str, port: int) -> None:
 # ---------------------------------------------------------------------------
 # Subprocess entry point (called by sbs.start_server)
 # ---------------------------------------------------------------------------
+def _pid_alive(pid: int) -> bool:
+    if pid is None or pid <= 1:
+        return False
+    if os.name == "nt":
+        import ctypes
+        k = ctypes.windll.kernel32
+        h = k.OpenProcess(0x1000, False, pid)   # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        code = ctypes.c_ulong()
+        ok = k.GetExitCodeProcess(h, ctypes.byref(code))
+        k.CloseHandle(h)
+        return bool(ok) and code.value == 259    # STILL_ACTIVE
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def _watch_parent_and_exit() -> None:
+    """Exit this server process if the parent runner dies — daemon=True only
+    covers a *clean* parent exit, so a crash/force-kill would otherwise orphan the
+    port. A 1 s watchdog frees the port so a fresh run (or the editor's preview)
+    isn't blocked by a zombie."""
+    import threading
+    import time
+    try:
+        pp = multiprocessing.parent_process()
+        ppid = pp.pid if pp is not None else os.getppid()
+    except Exception:
+        ppid = os.getppid()
+
+    def _loop():
+        while True:
+            time.sleep(1.0)
+            if not _pid_alive(ppid):
+                os._exit(0)
+    threading.Thread(target=_loop, daemon=True, name="parent-watchdog").start()
+
+
 def run_server(
     gui_q:          multiprocessing.Queue,
     client_event_q: multiprocessing.Queue,
@@ -608,6 +649,7 @@ def run_server(
     _gui_event_queue    = gui_event_q
     _ready_event        = ready_event
     _cosmos_dir         = cosmos_dir
+    _watch_parent_and_exit()
     asyncio.run(_serve(host, port))
 
 # ---------------------------------------------------------------------------
