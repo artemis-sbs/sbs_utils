@@ -36,6 +36,19 @@ def calc_float_attribute(name, col, row, sec, aspect_ratio_axis, font_size):
     return att
 
 
+def effective_font(col, row_font):
+    """The font a column renders with.
+
+    Note the precedence is ROW-first, not column-first: a row font overrides
+    the column's own default_font. That is long-standing behaviour and is
+    relied on by existing layouts, so it is preserved exactly. It is hoisted
+    into one place only so the width pass and the presentation pass can never
+    drift apart on it -- a measure pass that used a different font than the
+    renderer would mis-size every cell.
+    """
+    return row_font if row_font is not None else col.default_font
+
+
 def resolved_size(value):
     """A resolved size as a number, or None when it is not one yet.
 
@@ -309,6 +322,76 @@ class Layout(Clickable):
 
         
 
+    def _resolve_col_widths(self, row, row_bounds_area, aspect_ratio, row_font):
+        """Decide how wide each visible column in `row` gets to be.
+
+        Returns (actual_cols, col_widths, square_width, square_height), where
+        col_widths is parallel to actual_cols and holds the width BEFORE the
+        square override and Hole donation are applied. None if the row has no
+        visible columns.
+
+        Split out of calc() so width can be resolved independently of the
+        presentation pass. Content-sized rows need their columns' widths before
+        their height can be measured (text wraps to the width it is given), and
+        that ordering is impossible while the two are interleaved.
+
+        Behaviour is deliberately unchanged here -- see
+        tests/test_layout_geometry_golden.py, which pins every rect this
+        produces across a corpus of layouts and three aspect ratios.
+
+        Note squares are sized from row_bounds_area.HEIGHT, so column width
+        depends on row height whenever a square is present. That knot is why a
+        content row containing squares has to be resolved in two steps.
+        """
+        actual_cols = []
+        fixed_widths = []
+        squares = 0
+        assigned_space = 0
+        assigned_cols = 0
+
+        col: Column
+        for col in row.columns:
+            if col.is_hidden:
+                continue
+            squares += 1 if col.square else 0
+            col_font_size = get_font_size(effective_font(col, row_font))
+            # A content width is not resolvable yet, so the column stays in the
+            # flex pool for now (S3 measures it).
+            default_width = resolved_size(calc_float_attribute(
+                "default_width", col, row, self, aspect_ratio.x, col_font_size))
+            if default_width is not None:
+                assigned_space += default_width
+                assigned_cols += 1
+            actual_cols.append(col)
+            fixed_widths.append(default_width)
+
+        if len(actual_cols) == 0:
+            return None
+
+        # get the width and the height of a cell in pixels
+        actual_width = row_bounds_area.width/len(actual_cols) * aspect_ratio.x / 100
+        actual_height =  row_bounds_area.height * aspect_ratio.y /100
+
+        # get the low of these two as a percentage of the window width
+        if actual_height < actual_width:
+            square_width = (actual_height/aspect_ratio.x) * 100
+            square_height = (actual_height/aspect_ratio.y) * 100
+        else:
+            square_width = (actual_width/aspect_ratio.x) *100
+            square_height = (actual_width/aspect_ratio.y) * 100
+
+        if len(actual_cols) != squares:
+            need_assigned = max(len(actual_cols)-squares-assigned_cols,1)
+            rect_col_width = (row_bounds_area.width-assigned_space-(squares*square_width))/need_assigned
+            if square_width> rect_col_width:
+                square_width= rect_col_width
+                rect_col_width = (row_bounds_area.width-(squares*square_width))/need_assigned
+        else:
+            rect_col_width = square_width
+
+        col_widths = [rect_col_width if w is None else w for w in fixed_widths]
+        return actual_cols, col_widths, square_width, square_height
+
     def calc(self, client_id):
         aspect_ratio = get_client_aspect_ratio(client_id)
         self.client_id = client_id
@@ -421,64 +504,21 @@ class Layout(Clickable):
                 row_bounds_area.shrink(row.padding)
                 row_bounds_area.shrink(row.border)
 
-                squares = 0
-
-                col: Column
                 if len(row.columns)==0:
                     continue
-                
-                actual_cols = []
-                assigned_space = 0
-                assigned_cols = 0
-                for col in row.columns:
-                    if col.is_hidden:
-                        continue
-                    squares += 1 if col.square else 0
-                    col_font = row_font
-                    if col_font is None:
-                        col_font = col.default_font
 
-                    col_font_size  = get_font_size(col_font)
-                    # A content width is not resolvable yet, so the column
-                    # stays in the flex pool for now (S3 measures it).
-                    default_width = resolved_size(calc_float_attribute("default_width", col, row, self, aspect_ratio.x, col_font_size))
-                    if default_width is not None:
-                        assigned_space += default_width
-                        assigned_cols += 1
-
-                    actual_cols.append(col)
-
-                if len(actual_cols)==0:
+                resolved = self._resolve_col_widths(row, row_bounds_area,
+                                                    aspect_ratio, row_font)
+                if resolved is None:
                     continue
-                
-                # get the width and the height of a cell in pixels
-                actual_width = row_bounds_area.width/len(actual_cols) * aspect_ratio.x / 100
-                actual_height =  row_bounds_area.height * aspect_ratio.y /100
-
-                # get the low of these two as a percentage of the window width
-                if actual_height < actual_width:
-                    square_width = (actual_height/aspect_ratio.x) * 100
-                    square_height = (actual_height/aspect_ratio.y) * 100
-                else:
-                    square_width = (actual_width/aspect_ratio.x) *100
-                    square_height = (actual_width/aspect_ratio.y) * 100
-
-                if len(actual_cols) != squares:
-                    need_assigned = max(len(actual_cols)-squares-assigned_cols,1)
-                    rect_col_width = (row_bounds_area.width-assigned_space-(squares*square_width))/need_assigned
-                    if square_width> rect_col_width:
-                        square_width= rect_col_width
-                        rect_col_width = (row_bounds_area.width-(squares*square_width))/need_assigned
-                else:
-                    rect_col_width = square_width
+                actual_cols, col_widths, square_width, square_height = resolved
 
                 # bit of a hack to make sure face aren't the biggest things
+                col: Column
                 col_left = row_bounds_area.left
                 hole_size = 0
-                for col in actual_cols:
-                    col_font = row_font
-                    if col_font is None:
-                        col_font = col.default_font
+                for col_index, col in enumerate(actual_cols):
+                    col_font = effective_font(col, row_font)
                     col.font = col_font
                     col_font_size  = get_font_size(col_font)
 
@@ -488,11 +528,11 @@ class Layout(Clickable):
 
                     col_bounds_area = Bounds(row_bounds_area)
                     col_bounds_area.left = col_left
-                    
-                    assigned_space = rect_col_width
-                    default_width = resolved_size(calc_float_attribute("default_width", col, row, self, aspect_ratio.x, col_font_size))
-                    if default_width is not None:
-                        assigned_space = default_width
+
+                    # Width already resolved by _resolve_col_widths. It used to
+                    # be recomputed here, duplicating a calc_float_attribute per
+                    # column on every calc for an identical result.
+                    assigned_space = col_widths[col_index]
 
 
                     if col.square:
