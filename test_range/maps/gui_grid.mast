@@ -1,0 +1,21 @@
+@map/gui_grid "gui_grid — fixed grid"
+" A palette of buttons laid out in even columns.
+    gui_reroute_server("show_gui_grid")
+    ->END
+
+=== show_gui_grid
+    colors = ~~["Red", "Green", "Blue", "Cyan",
+                "Magenta", "Yellow", "White", "Orange",
+                "Teal", "Violet", "Lime", "Rose"]~~
+
+    gui_section("area: 5, 5, 95, 40;")
+    gui_text("$text:gui_grid(4) — items flow into even rows of 4, wrapping for you.;justify:center;")
+
+    gui_section("area: 5, 42, 95, 92;")
+    # A 4-column grid: the block runs once, the loop adds items, the grid breaks
+    # rows every 4.
+    with gui_grid(4):
+        for c in colors:
+            gui_button(c)
+
+    await gui()

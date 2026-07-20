@@ -1,0 +1,28 @@
+@map/gui_list "gui_list — custom rows"
+" Data-bound listbox with a MAST-authored row (scrolls + selects).
+    gui_reroute_server("show_gui_list")
+    ->END
+
+=== show_gui_list
+    fleet = ~~[
+        {"name": "Artemis",         "hull": 100, "side": "tsn"},
+        {"name": "Intrepid",        "hull": 85,  "side": "tsn"},
+        {"name": "Raptor Longname", "hull": 60,  "side": "raider"},
+        {"name": "Hawk",            "hull": 40,  "side": "raider"},
+        {"name": "Gadfly",          "hull": 95,  "side": "kralien"},
+        {"name": "Wisp",            "hull": 70,  "side": "arvon"},
+    ]~~
+
+    gui_section("area: 5, 5, 60, 92;")
+    # The row is designed here, in MAST, and repeats for every ship. Several
+    # widgets on the row become its cells.
+    ship_list = gui_list(fleet, select=True, title="$text:Fleet;justify:center;")
+    with ship_list as ship:
+        gui_text("$text:`{ship['name']}`;justify:left;")
+        gui_text("$text:`{ship['side']}`;justify:center;color:#8cf;")
+        gui_text("$text:`{ship['hull']}%`;justify:right;")
+
+    gui_section("area: 65, 5, 95, 92;")
+    gui_text("$text:Pick a ship on the left. Selecting a row highlights it; the row layout (name / side / hull) is authored in MAST and repeats per ship.;")
+
+    await gui()
