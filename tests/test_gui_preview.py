@@ -37,16 +37,17 @@ class TestGuiPreview(unittest.TestCase):
         FrameContext.context = Context(sbs.sim, sbs, FakeEvent(0, "test"))
 
     def test_presents_a_design(self):
-        # Exactly what the GUI Editor generates: layout, an on gui_message handler,
-        # and a trailing await gui().
-        code = ('gui_section("area: 5,5,95,95;")\n'
-                'gui_text("$text:HELLO PREVIEW;")\n'
-                'with gui_grid(2):\n'
-                '    gui_button("A")\n'
-                '    gui_button("B")\n'
-                'on gui_message(gui_button("A")):\n'
-                '    ~~ x = 1 ~~\n'
-                'await gui()')
+        # Exactly what the GUI Editor generates: a labelled gui with layout, an
+        # on gui_message handler, and a trailing await gui().
+        code = ('=== my_gui\n'
+                '    gui_section("area: 5,5,95,95;")\n'
+                '    gui_text("$text:HELLO PREVIEW;")\n'
+                '    with gui_grid(2):\n'
+                '        gui_button("A")\n'
+                '        gui_button("B")\n'
+                '    on gui_message(gui_button("A")):\n'
+                '        ~~ x = 1 ~~\n'
+                '    await gui()')
         # A preview client that survives Gui.present's engine-console purge.
         Gui.web_client_ids.add(WEB_ID)
         real = FrameContext.context.sbs

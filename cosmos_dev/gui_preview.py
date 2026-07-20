@@ -16,19 +16,25 @@ def present_gui_code(code, client_id=0):
     Returns a list of compile errors ([] on success). The page is pushed onto the
     client's stack, so popping/reloading returns to what was there before.
     """
+    import re
     from sbs_utils.mast.maststory import MastStory
     from sbs_utils.mast_sbs.maststorypage import StoryPage
     from sbs_utils.gui import Gui
 
-    # Wrap the design under its own label (not `main`, which the running mission
-    # already owns). The editor's code already ends with await gui(); add one only
-    # if a hand-crafted block lacks it, so the layout actually presents.
-    label = "__gui_preview__"
     code = str(code or "")
-    lines = code.replace("\r", "").split("\n")
-    indented = "\n".join((("    " + ln) if ln.strip() else ln) for ln in lines)
-    tail = "" if "await gui(" in code else "\n    await gui()"
-    src = "=== " + label + "\n" + indented + tail
+    m = re.match(r"^\s*===+\s*(\w+)", code)
+    if m:
+        # The editor emits a complete `=== <label>` gui — compile as-is and start
+        # at that label (never `main`).
+        label = m.group(1)
+        src = code if "await gui(" in code else code + "\n    await gui()"
+    else:
+        # A bare block (e.g. hand-pasted) — wrap it in a preview label.
+        label = "__gui_preview__"
+        lines = code.replace("\r", "").split("\n")
+        indented = "\n".join((("    " + ln) if ln.strip() else ln) for ln in lines)
+        tail = "" if "await gui(" in code else "\n    await gui()"
+        src = "=== " + label + "\n" + indented + tail
     if not src.endswith("\n"):
         src += "\n"                    # MAST needs a newline after the last statement
 
