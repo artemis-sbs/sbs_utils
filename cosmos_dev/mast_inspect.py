@@ -143,12 +143,20 @@ class WorldTap:
     def snapshot(self):
         from sbs_utils.agent import Agent
         from sbs_utils.spaceobject import SpaceObject
+        # The diplomacy verdict "is this an enemy of the players?" is a relationship,
+        # not a label — resolve the whole hostile-to-players set ONCE per snapshot
+        # (pure diplomacy, no combat-role filter) so each agent is an O(1) lookup.
+        try:
+            from sbs_utils.procedural.sides import players_hostile_members
+            foes = set(players_hostile_members(scope_role=None))
+        except Exception:
+            foes = set()
         out = []
         for a in list(Agent.all.values()):
             if not isinstance(a, SpaceObject):
                 continue
             try:
-                out.append(self._one(a))
+                out.append(self._one(a, foes))
             except Exception:
                 pass
             if len(out) >= 500:
@@ -156,7 +164,7 @@ class WorldTap:
         return {"agents": out}
 
     @staticmethod
-    def _one(a):
+    def _one(a, foes=frozenset()):
         kind = ("player" if a.is_player else
                 "terrain" if a.is_terrain else
                 "npc" if a.is_npc else "object")
@@ -169,6 +177,7 @@ class WorldTap:
                if not (isinstance(k, str) and (k.startswith("__") or k in ("mast_task", "SHARED")))}
         return {"id": a.get_id(), "name": getattr(a, "name", None),
                 "side": side, "kind": kind, "roles": roles,
+                "enemy": a.get_id() in foes,
                 "inventory": _json_safe(inv)}
 
 

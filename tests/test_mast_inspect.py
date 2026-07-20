@@ -110,6 +110,10 @@ class TestWorldTap(unittest.TestCase):
         self.assertEqual(by_name["Raider1"]["kind"], "npc")
         self.assertEqual(by_name["Raider1"]["side"], "raider")
         self.assertIn("enemy", by_name["Raider1"]["roles"])
+        # each agent carries a diplomacy verdict (the value depends on live side
+        # relationships; here we assert the field is present and boolean).
+        self.assertIn("enemy", by_name["Console"])
+        self.assertIsInstance(by_name["Console"]["enemy"], bool)
 
     def test_poll_thread_publishes(self):
         from sbs_utils.objects import PlayerShip
