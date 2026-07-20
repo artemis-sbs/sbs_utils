@@ -31,6 +31,10 @@ from __future__ import annotations
 # the valuable audit sweeps aspect ratios and takes the WORST case (see LAYOUT_AUDIT.md).
 EPS = 0.5          # percent slop before a rect counts as "out of region"
 MIN_OVERLAP = 1.0  # percent^2 min intersection area before flagging overlap
+TEXT_EPS_PX = 2.0  # pixel slop before drawn text counts as not fitting its box
+
+# Widget kinds whose args[2] is a props string carrying the drawn text.
+_TEXT_KINDS = frozenset({"text", "button"})
 
 # Widget kinds that carry visible content and should never overlap a sibling of
 # the same kind. Images/clickregions/sub_regions are structural or intentional
@@ -63,6 +67,57 @@ def _kind(sender: str) -> str:
     return sender[len("send_gui_"):]
 
 
+#
+# Local copies of the props parsing, kept deliberately tiny. This module is a
+# dependency-free tap -- importing sbs_utils here would couple the audit to the
+# very library it audits.
+#
+def _prop(props: str, key: str):
+    """Value of `key` in a props string, honouring backtick quoting."""
+    i = 0
+    n = len(props)
+    while i < n:
+        colon = props.find(":", i)
+        if colon == -1:
+            return None
+        k = props[i:colon].strip()
+        j = colon + 1
+        while j < n and props[j] == " ":
+            j += 1
+        if j < n and props[j] == "`":          # opaque: ':'/';' inside are literal
+            close = props.find("`", j + 1)
+            end = props.find(";", close + 1) if close != -1 else -1
+        else:
+            end = props.find(";", colon)
+        val = props[colon + 1:] if end == -1 else props[colon + 1:end]
+        if k == key:
+            return val
+        if end == -1:
+            return None
+        i = end + 1
+    return None
+
+
+def _display_text(props: str) -> str:
+    if not props:
+        return ""
+    val = _prop(props, "$text")
+    if val is None:
+        val = _prop(props, "text")
+    if val is None:
+        return "" if ":" in props else props.strip()
+    val = val.strip()
+    if len(val) >= 2 and val.startswith("`") and val.endswith("`"):
+        val = val[1:-1]
+    return val
+
+
+def _props_font(props: str):
+    f = _prop(props or "", "font")
+    f = f.strip() if f else ""
+    return f or None
+
+
 def _draw_layer(style: str) -> int:
     if not style or "draw_layer" not in style:
         return 0
@@ -77,11 +132,12 @@ def _draw_layer(style: str) -> int:
 
 
 class _Widget:
-    __slots__ = ("cid", "parent", "tag", "kind", "layer", "l", "t", "r", "b")
+    __slots__ = ("cid", "parent", "tag", "kind", "layer", "l", "t", "r", "b", "msg")
 
-    def __init__(self, cid, parent, tag, kind, layer, l, t, r, b):
+    def __init__(self, cid, parent, tag, kind, layer, l, t, r, b, msg=None):
         self.cid, self.parent, self.tag, self.kind, self.layer = cid, parent, tag, kind, layer
         self.l, self.t, self.r, self.b = float(l), float(t), float(r), float(b)
+        self.msg = msg
 
 
 class LayoutAudit:
@@ -89,12 +145,24 @@ class LayoutAudit:
         # live snapshot: (cid, tag) -> _Widget   (re-sends overwrite; the dirty
         # system re-emits each tick, so latest rect wins)
         self._live: dict = {}
+        # region geometry, persistent across clear() -- see record()
+        self._regions: dict = {}
         # deduped findings: key -> (kind, message)
         self._findings: dict = {}
         self._frames = 0
         # optional: sbs_module.get_type_of_client, to label WHICH console a
         # finding is on so it can be navigated to. Set by install().
         self._resolve_console = None
+        # set by install(): the sbs module (for text metrics) and the screen
+        # size in pixels. Without both, the text-fit check is skipped.
+        self._sbs = None
+        self._aspect = None
+        self._text_cache = {}
+        # Coverage, so "0 findings" is interpretable: it separates "measured
+        # 500 labels, all fit" from "never measured anything". An audit that
+        # cannot tell those apart is not worth trusting.
+        self._text_checked = set()
+        self._text_skipped = set()
 
     def _console(self, cid):
         try:
@@ -103,8 +171,19 @@ class LayoutAudit:
             return "?"
 
     # -- recording -----------------------------------------------------------
-    def record(self, sender, cid, parent, tag, layer, l, t, r, b):
-        self._live[(cid, tag)] = _Widget(cid, parent, tag, _kind(sender), layer, l, t, r, b)
+    def record(self, sender, cid, parent, tag, layer, l, t, r, b, msg=None):
+        w = _Widget(cid, parent, tag, _kind(sender), layer, l, t, r, b, msg)
+        self._live[(cid, tag)] = w
+        if w.kind == "sub_region":
+            #
+            # Region GEOMETRY is kept in its own map, deliberately outside the
+            # clear() lifecycle. A region is declared and then immediately
+            # cleared (Layout.region_begin sends send_gui_sub_region followed by
+            # send_gui_clear on the same tag), so a region recorded only in
+            # _live is erased the instant it is created -- which left the
+            # text-fit check unable to resolve a pixel size for 86% of widgets.
+            #
+            self._regions[(cid, tag)] = w
 
     def clear(self, cid, tag):
         # drop this region and anything parented under it
@@ -141,6 +220,11 @@ class LayoutAudit:
                           f"({con}) [{w.kind}] {w.tag} in <{w.parent}> spills: {', '.join(over)} "
                           f"rect=({w.l:.2f},{w.t:.2f},{w.r:.2f},{w.b:.2f})")
 
+            # 1b) does the TEXT fit the rect? (rects above are necessary but
+            # not sufficient -- the engine draws unclipped past a correct box)
+            if w.kind in _TEXT_KINDS:
+                self._audit_text(w, con)
+
         # 2) sibling overlap — same parent, same draw_layer, both content kinds
         by_parent: dict = {}
         for w in widgets:
@@ -168,16 +252,119 @@ class LayoutAudit:
         iy = max(0.0, min(a.b, b.b) - max(a.t, b.t))
         return ix * iy
 
+    # -- text fit ------------------------------------------------------------
+    #
+    # The checks above reason about RECTS. They cannot see a correctly sized
+    # rect holding text too big for it -- and since the engine does not clip,
+    # that text is drawn anyway, over whatever is next to or below it. This
+    # check closes that gap by measuring what will actually be drawn.
+    #
+    # Rects are percent-local to the parent region at every depth, so a pixel
+    # comparison needs the parent region's true pixel size: walk the
+    # sub_region chain up to the root and multiply.
+    #
+    def _region_px(self, cid, tag, seen=None):
+        """(width_px, height_px) of a region, or None if unresolvable."""
+        if self._aspect is None:
+            return None
+        if not tag:                      # root region == the whole screen
+            return self._aspect
+        if seen is None:
+            seen = set()
+        if tag in seen:                  # malformed tree; do not spin
+            return None
+        seen.add(tag)
+        w = self._regions.get((cid, tag))
+        if w is None:
+            return None
+        parent = self._region_px(cid, w.parent, seen)
+        if parent is None:
+            return None
+        return (parent[0] * (w.r - w.l) / 100.0,
+                parent[1] * (w.b - w.t) / 100.0)
+
+    def _audit_text(self, w, con):
+        if self._sbs is None or self._aspect is None or not w.msg:
+            return
+        text = _display_text(w.msg)
+        if not text:
+            return
+        region = self._region_px(w.cid, w.parent)
+        if region is None:
+            self._text_skipped.add((w.cid, w.tag))
+            return
+        box_w = region[0] * (w.r - w.l) / 100.0
+        box_h = region[1] * (w.b - w.t) / 100.0
+        if box_w <= 1 or box_h <= 1:
+            self._text_skipped.add((w.cid, w.tag))
+            return
+        self._text_checked.add((w.cid, w.tag))
+
+        # A font declared in the widget's own props wins at render time. When
+        # none is declared we do NOT guess a default -- we measure with the
+        # SMALLEST font, so a finding means "overflows even at the smallest
+        # font". That trades recall for precision: every finding is real.
+        font = _props_font(w.msg)
+        assumed = font is None
+        if assumed:
+            font = "smallest"
+
+        key = (font, text, int(box_w))
+        got = self._text_cache.get(key)
+        if got is None:
+            try:
+                line_w = self._sbs.get_text_line_width(font, text)
+                block_h = self._sbs.get_text_block_height(font, text, max(1, int(box_w)))
+            except Exception:
+                return
+            got = (line_w, block_h)
+            self._text_cache[key] = got
+        line_w, block_h = got
+
+        note = " (font assumed 'smallest')" if assumed else f" (font {font})"
+        short = text if len(text) <= 40 else text[:37] + "..."
+
+        if line_w > box_w + TEXT_EPS_PX:
+            self._add((w.cid, w.tag, "text_wide"), "TEXT_WIDE",
+                      f"({con}) [{w.kind}] {w.tag} in <{w.parent}> text {short!r} "
+                      f"needs {line_w:.0f}px, box is {box_w:.0f}px{note}")
+        if block_h > box_h + TEXT_EPS_PX:
+            self._add((w.cid, w.tag, "text_tall"), "TEXT_TALL",
+                      f"({con}) [{w.kind}] {w.tag} in <{w.parent}> text {short!r} "
+                      f"wraps to {block_h:.0f}px, box is {box_h:.0f}px{note}")
+
     # -- report --------------------------------------------------------------
     def report(self, limit=40):
-        counts = {"OVERFLOW": 0, "OVERLAP": 0, "DEGENERATE": 0}
+        counts = {"OVERFLOW": 0, "OVERLAP": 0, "DEGENERATE": 0,
+                  "TEXT_WIDE": 0, "TEXT_TALL": 0}
         for kind, _ in self._findings.values():
             counts[kind] = counts.get(kind, 0) + 1
+        if not self._aspect or self._sbs is None:
+            text_note = "  (text-fit check OFF)"
+        else:
+            text_note = (f"  [measured {len(self._text_checked)} text widgets, "
+                         f"{len(self._text_skipped)} skipped]")
         lines = ["", "=" * 60,
                  f"LAYOUT AUDIT  ({self._frames} frames audited)",
                  f"  OVERFLOW={counts['OVERFLOW']}  OVERLAP={counts['OVERLAP']}  "
                  f"DEGENERATE={counts['DEGENERATE']}  total={len(self._findings)}",
+                 f"  TEXT_WIDE={counts['TEXT_WIDE']}  TEXT_TALL={counts['TEXT_TALL']}"
+                 f"{text_note}",
                  "-" * 60]
+        if counts["TEXT_WIDE"] or counts["TEXT_TALL"]:
+            lines += [
+                "  Reading the text findings (the engine does not clip, so"
+                " anything that",
+                "  does not fit is DRAWN over its neighbours):",
+                "    TEXT_TALL             - real: wraps to more height than the"
+                " box has,",
+                "                            so it spills into whatever is below.",
+                "    TEXT_WIDE + TEXT_TALL - real: too big in both axes.",
+                "    TEXT_WIDE alone       - usually benign: the line is longer"
+                " than the box",
+                "                            but it wraps and still fits the"
+                " height.",
+                "-" * 60]
         for i, (kind, msg) in enumerate(self._findings.values()):
             if i >= limit:
                 lines.append(f"  ... {len(self._findings) - limit} more")
@@ -199,13 +386,26 @@ def report(limit=40) -> str:
     return _AUDIT.report(limit) if _AUDIT is not None else "layout audit not installed"
 
 
-def install(sbs_module) -> LayoutAudit:
-    """Wrap the module's send_gui_* senders with recording taps. Idempotent."""
+def install(sbs_module, aspect=None) -> LayoutAudit:
+    """Wrap the module's send_gui_* senders with recording taps. Idempotent.
+
+    `aspect` is the screen size in pixels as (width, height). It is required
+    for the text-fit check (TEXT_WIDE / TEXT_TALL), which converts a widget's
+    percent-local rect into pixels to compare against measured text. Omit it
+    and only the rect checks run.
+    """
     global _AUDIT
     if getattr(sbs_module, "_layout_audit_installed", False):
         return _AUDIT
     _AUDIT = LayoutAudit()
     _AUDIT._resolve_console = getattr(sbs_module, "get_type_of_client", None)
+    # Text metrics come from the module under audit, so the audit measures with
+    # exactly the same numbers the layout did.
+    if all(hasattr(sbs_module, n) for n in
+           ("get_text_line_width", "get_text_block_height")):
+        _AUDIT._sbs = sbs_module
+    if aspect is not None:
+        _AUDIT._aspect = (float(aspect[0]), float(aspect[1]))
 
     def wrap_widget(name, rect_at):
         orig = getattr(sbs_module, name)
@@ -216,7 +416,11 @@ def install(sbs_module) -> LayoutAudit:
                 style = args[2] if name not in ("send_gui_face", "send_gui_slider") else (
                     args[3] if name == "send_gui_slider" else "")
                 l, t, r, b = args[rect_at:rect_at + 4]
-                _AUDIT.record(name, clientID, parent, tag, _draw_layer(style), l, t, r, b)
+                # For text-bearing widgets args[2] IS the props string holding
+                # the drawn text, so `style` doubles as the message.
+                msg = style if _kind(name) in _TEXT_KINDS else None
+                _AUDIT.record(name, clientID, parent, tag, _draw_layer(style),
+                              l, t, r, b, msg)
             except Exception:
                 pass  # never let the tap perturb a run
             return orig(clientID, *args, **kw)
