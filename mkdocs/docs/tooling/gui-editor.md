@@ -51,6 +51,15 @@ Two ways:
   `# <gui-designer>` … `# </gui-designer>` block, it updates just that block (so your
   hand-written code around it is left alone); otherwise it inserts at your cursor.
 
+## `*.web.mast` — author a web page visually
+
+Name a file `something.web.mast` and it opens as the editor in **web-page mode**: the same
+palette and layout, but it writes a **`//web/<path>` route** instead of `=== <label>`. Set the
+**Web path** in the Screen inspector (e.g. `scores`) — it becomes `//web/scores`, served at
+`/web/scores` by `sbs web` (see [Web pages](../build/web-pages.md)). "Preview in mock" renders it
+as a real web page. Everything else — sections, widgets, `on gui_message` handlers — works the
+same.
+
 ## `*.gui.mast` files — edit visually or as text
 
 Name a file `something.gui.mast` and it becomes an **editor-owned screen**: opening it

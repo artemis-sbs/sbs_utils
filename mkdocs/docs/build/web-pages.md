@@ -20,6 +20,11 @@ Add a `//web/<path>` route and build it like any GUI:
 
 Widget events (buttons, dropdowns) route back to the page exactly like a console.
 
+!!! tip "Author it visually"
+    Save the route in a `*.web.mast` file and it opens in the **GUI Editor** in web-page mode —
+    compose the layout visually and it writes the `//web/<path>` route for you. See
+    [the GUI Editor](../tooling/gui-editor.md#webmast-author-a-web-page-visually).
+
 Web clients are **not** consoles: they never enter console-select or get a player
 ship, and they carry the `__web__` role so mission code can target viewers.
 

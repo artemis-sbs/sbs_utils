@@ -63,6 +63,27 @@ class TestGuiPreview(unittest.TestCase):
         blob = " || ".join(str(a) for (m, a) in cap.cmds if m == "send_gui_text")
         self.assertIn("HELLO PREVIEW", blob, f"captured: {cap.cmds}")
 
+    def test_presents_a_web_page(self):
+        # A .web.mast page: a //web/<path> route. Its label name is generated, so
+        # present_gui_code must resolve it and start there.
+        code = ('//web/scores\n'
+                '    gui_section("area: 5,5,95,95;")\n'
+                '    gui_text("$text:WEB HELLO;")\n'
+                '    await gui()')
+        Gui.web_client_ids.add(WEB_ID)
+        real = FrameContext.context.sbs
+        cap = _CaptureSbs(real)
+        FrameContext.context.sbs = cap
+        try:
+            errors = present_gui_code(code, client_id=WEB_ID)
+            self.assertEqual(errors, [])
+            for _ in range(6):
+                Gui.present(FakeEvent(0, "gui_present"))
+        finally:
+            FrameContext.context.sbs = real
+        blob = " || ".join(str(a) for (m, a) in cap.cmds if m == "send_gui_text")
+        self.assertIn("WEB HELLO", blob, f"captured: {cap.cmds}")
+
     def test_invalid_code_returns_errors(self):
         errors = present_gui_code('with gui_grid(:\n    gui_text("x")', client_id=WEB_ID)
         self.assertTrue(errors, "expected compile errors for malformed code")

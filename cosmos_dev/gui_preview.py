@@ -23,10 +23,18 @@ def present_gui_code(code, client_id=0):
 
     code = str(code or "")
     m = re.match(r"^\s*===+\s*(\w+)", code)
+    mw = re.match(r"^\s*//web/(\S+)", code)
+    web_path = None
     if m:
         # The editor emits a complete `=== <label>` gui — compile as-is and start
         # at that label (never `main`).
         label = m.group(1)
+        src = code if "await gui(" in code else code + "\n    await gui()"
+    elif mw:
+        # A web page — compile the `//web/<path>` route as-is; its label name is
+        # generated, so resolve it from the compiled story below.
+        web_path = mw.group(1)
+        label = None
         src = code if "await gui(" in code else code + "\n    await gui()"
     else:
         # A bare block (e.g. hand-pasted) — wrap it in a preview label.
@@ -42,6 +50,10 @@ def present_gui_code(code, client_id=0):
     errors = story.compile(src, "gui_preview", story)
     if errors:
         return errors
+    if web_path is not None:
+        label = Gui._find_web_label(story, web_path)
+        if label is None:
+            return ["preview: no //web/%s route compiled" % web_path]
 
     class PreviewPage(StoryPage):
         pass
