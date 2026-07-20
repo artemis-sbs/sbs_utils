@@ -79,7 +79,9 @@ nav:
     - Sides, lifeforms & faces: build/sides-lifeforms.md
     - Player ships & consoles: build/players-consoles.md
     - GUI: cosmos/gui.md
+    - Custom lists (gui_list): cosmos/gui_list.md
     - Tables (gui_table): cosmos/gui_table.md
+    - Grids (gui_grid): cosmos/gui_grid.md
     - Comms: cosmos/comms.md
     - Science: cosmos/science.md
     - AI:
