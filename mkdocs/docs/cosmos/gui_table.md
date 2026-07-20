@@ -11,6 +11,24 @@ you. The thing it does that a hand-written `item_template` can't is **size colum
 across all the rows at once** — a per-row template only ever sees one row, so it
 can't know how wide the "Name" column needs to be for the whole list.
 
+## Two ways to write one
+
+**Declarative** (below) — describe the columns and it builds the rows. Best when
+each cell is a field of the row.
+
+**Block form** — author the row yourself with a `with` block, like the other
+containers ([`gui_list`](gui_list.md), [`gui_grid`](gui_grid.md)):
+
+```
+with gui_table(fleet, headers=["Ship", "Hull"], select=True) as ship:
+    gui_text("{ship.name}")
+    gui_text("{ship.hull}%")
+```
+
+Each widget in the block is a column; the `headers` line up above them. Reach for
+the block form when a cell needs more than a field value (a button, a face, mixed
+widgets). Pass **no** `columns` — that's what selects the block form.
+
 ## A basic table
 
 ```
