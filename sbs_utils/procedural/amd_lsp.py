@@ -958,6 +958,94 @@ def _mission_graph(index):
     return {"nodes": nodes, "edges": edges}
 
 
+def _mission_resolve(index):
+    """The resolved AMD model for the Live Resolver: every heading as an entity
+    (key/display/section/archetype/span/summary/fields/problems + inbound/outbound
+    reference counts and an `orphan` flag), every reference with a `resolved` bool
+    and any dangling lint code, and the mission-wide lint `issues` (structural +
+    cross-file) each anchored to a source line. A serialization pass over the
+    existing amd_core model + amd_lint output - no new resolution logic here."""
+    from sbs_utils.procedural.amd_schema import infer_archetype
+    from sbs_utils.procedural.amd_lint import amd_lint
+    problems = _problems_by_key(index)
+    known = set(index["known"])
+
+    # inbound/outbound story-edge counts (choice/scene/reveal/parent).
+    EDGE = ("choice", "scene", "reveal", "parent")
+    inbound, outbound = {}, {}
+    for _p, _u, d in index["docs"]:
+        for r in d.refs:
+            if r.kind not in EDGE:
+                continue
+            leaf = str(r.value).split("/")[-1]
+            if r.owner in known:
+                outbound[r.owner] = outbound.get(r.owner, 0) + 1
+            if leaf in known:
+                inbound[leaf] = inbound.get(leaf, 0) + 1
+
+    # lint findings indexed by (uri, line) so refs pick up their dangling code; the
+    # flat list becomes the panel's jump-to-source issue list.
+    findings_by_uri, issues = {}, []
+    for _p, u, d in index["docs"]:
+        src = getattr(d, "source", None)
+        if src is None:
+            continue
+        for f in amd_lint(content=src, mast_sources=index["mast"], known_keys=known):
+            if not f.line:
+                continue
+            findings_by_uri.setdefault(u, {}).setdefault(f.line, []).append(f)
+            issues.append({"uri": u, "line": f.line - 1, "col": max((f.col or 1) - 1, 0),
+                           "severity": f.severity, "code": f.code, "message": f.message})
+
+    entities, seen = [], set()
+    for _p, u, d in index["docs"]:
+        for n in d.nodes:
+            if n.key in seen:
+                continue
+            seen.add(n.key)
+            fields = []
+            for _ln, raw in (n.fence_lines or []):
+                if ":" not in raw or raw.strip().startswith("//") or not raw.strip():
+                    continue
+                label, value = raw.split(":", 1)
+                fields.append({"label": label.strip(), "value": value.strip()})
+            arch = infer_archetype([f["label"] for f in fields], _section_of(n))
+            inn = inbound.get(n.key, 0)
+            entities.append({
+                "key": n.key, "display": n.display or n.key,
+                "section": _section_of(n), "archetype": arch, "level": n.level,
+                "uri": u, "line": (n.span.line - 1) if n.span else 0,
+                "span": _span_range(n.span) if n.span else None,
+                "summary": getattr(n, "summary", "") or "",
+                "fields": fields, "problems": problems.get(n.key),
+                "inbound": inn, "outbound": outbound.get(n.key, 0),
+                "orphan": inn == 0 and (n.level or 0) >= 3,
+            })
+
+    _DANGLE = ("dangling", "signal-no-route", "unfired-signal", "reach-no-landmark")
+    refs = []
+    for _p, u, d in index["docs"]:
+        fmap = findings_by_uri.get(u, {})
+        for r in d.refs:
+            leaf = str(r.value).split("/")[-1]
+            key_kind = r.kind in EDGE       # targets a heading; others resolve cross-file
+            resolved = (leaf in known) if key_kind else True
+            code = None
+            if r.span:
+                for f in fmap.get(r.span.line, []):
+                    if f.code and f.code.startswith(_DANGLE):
+                        code = f.code
+                        if not key_kind:
+                            resolved = False
+                        break
+            refs.append({"kind": r.kind, "value": str(r.value), "owner": r.owner,
+                         "uri": u, "line": (r.span.line - 1) if r.span else 0,
+                         "span": _span_range(r.span) if r.span else None,
+                         "resolved": resolved, "code": code})
+
+    return {"entities": entities, "refs": refs, "issues": issues}
+
+
 # --- server loop ------------------------------------------------------------
 def serve(stdin=None, stdout=None):
     """Run the LSP loop until `exit` / EOF. `stdin`/`stdout` are binary streams
@@ -1078,6 +1166,10 @@ def serve(stdin=None, stdout=None):
             uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                     "result": _mission_graph(_index_for(uri, docs))})
+        elif method == "amd/resolve":
+            uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _mission_resolve(_index_for(uri, docs))})
         elif method == "amd/rename":
             p = msg.get("params", {})
             uri = p.get("textDocument", {}).get("uri", "")

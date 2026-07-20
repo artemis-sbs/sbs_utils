@@ -487,6 +487,45 @@ class TestWorkspace(unittest.TestCase):
             self.assertIn("targetRange", eab)
             self.assertIsInstance(eab["line"], int)
 
+    def test_mission_resolve(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "m")
+            os.mkdir(root)
+            with open(os.path.join(root, "story.json"), "w") as f:
+                f.write("{}")
+            # A resolves to B (good) and to a missing target (dangling); C has no
+            # inbound edge (orphan).
+            with open(os.path.join(root, "d.amd"), "w") as f:
+                f.write("# [R](r)\n## [Dialogue](dialogue)\n"
+                        "### [A](a)\n% hi\n- [to B](b)\n- [to gone](nowhere)\n"
+                        "### [B](b)\n% b\n"
+                        "### [C](c)\n% c\n")
+            uri = Path(os.path.join(root, "d.amd")).as_uri()
+            out = self._drive([
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                 "params": {"textDocument": {"uri": uri, "text": Path(os.path.join(root, "d.amd")).read_text()}}},
+                {"jsonrpc": "2.0", "id": 2, "method": "amd/resolve",
+                 "params": {"textDocument": {"uri": uri}}},
+                {"jsonrpc": "2.0", "method": "exit"},
+            ])
+            m = next(x for x in out if x.get("id") == 2)["result"]
+            ents = {e["key"]: e for e in m["entities"]}
+            self.assertTrue({"a", "b", "c"} <= set(ents))
+            self.assertEqual(ents["a"]["section"], "dialogue")
+            # C is a level-3 heading nobody points at -> orphan; B is reached.
+            self.assertTrue(ents["c"]["orphan"])
+            self.assertFalse(ents["b"]["orphan"])
+            self.assertEqual(ents["b"]["inbound"], 1)
+            # the good ref resolves; the dangling one is flagged with a lint code.
+            good = next(r for r in m["refs"] if r["value"] == "b" and r["kind"] == "choice")
+            gone = next(r for r in m["refs"] if r["value"] == "nowhere")
+            self.assertTrue(good["resolved"])
+            self.assertFalse(gone["resolved"])
+            self.assertTrue((gone["code"] or "").startswith("dangling"))
+            # a dangling choice surfaces in the issue list too, anchored to a line.
+            self.assertTrue(any(i["code"] and i["code"].startswith("dangling") for i in m["issues"]))
+
     def test_node_detail(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = os.path.join(tmp, "m")

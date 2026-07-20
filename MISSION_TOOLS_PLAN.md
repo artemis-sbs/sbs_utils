@@ -124,6 +124,20 @@ Each: **Problem → Panel → Seam → Effort.**
 - **Seam:** `amd_core.parse` (static, already exists, with source spans) cross-referenced
   against live mission state over the socket. The static half is lint-you-already-have;
   the live half is a new tap.
+- **STATUS — static half DONE.** New LSP request **`amd/resolve`** (`amd_lsp.py`
+  `_mission_resolve`): serializes the whole `amd_core` model — every heading as an
+  **entity** (key/display/section/**archetype**/span/summary/fields + inbound/outbound
+  reference counts + an **`orphan`** flag) and every **reference** with a `resolved`
+  bool and any dangling lint code, plus the mission-wide **`issues`** list (structural
+  + cross-file lint). It's a serialization pass over the existing model + `amd_lint`
+  output — no new resolution logic. Command **`amd.showResolver`** ("AMD Resolver"):
+  two panes — left, the **resolved entity tree** grouped by archetype with error/warn/
+  **orphan** badges, each row jumping to source and expandable to show its refs marked
+  **✓ resolved / ✗ dangling**; right, the **red-flags** list (dangling refs + orphan
+  headings + structural/cross-file issues), severity-sorted, each jumping to source.
+  Auto-refreshes on `.amd` edits. Tested (`test_amd_lsp.py::test_mission_resolve`; 38
+  LSP tests green). **The live half** (attach → active quests / fired dialogue / "why
+  didn't this show?" trace) remains — needs the socket tap.
 
 ### 3.5.1 Improved Story Graph  ·  effort: **med**
 - **Problem:** the current `amd.showGraph` is a free node-link diagram. It reads fine at
@@ -192,8 +206,11 @@ Each: **Problem → Panel → Seam → Effort.**
   filter boxes (match/total counts) and a Signals **Pause** (freeze auto-scroll,
   keep collecting). Still wants a live click-test against a running session.
 - **Improved Story Graph (§3.5.1) — DONE** (outline + mini-graph + diagram
-  search). Next tap: **AMD Live Resolver** (§3.5) — the navigable view over that
-  same resolved model.
+  search).
+- **AMD Live Resolver (§3.5) — static half DONE** (`amd/resolve` +
+  `amd.showResolver`: resolved entity tree + red-flags, resolved/dangling refs,
+  orphan headings). Remaining: the **live half** — attach over the socket for
+  active-quest / fired-dialogue state and a "why didn't this show?" trace.
 
 ---
 
