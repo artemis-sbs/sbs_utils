@@ -648,11 +648,21 @@ def _run(
             # POST is processed a tick later than the browser connects) lands here
             # when the gui_preview command arrives.
             _preview["clients"].add(cid)
-            if _preview["code"] is not None:
+            if _preview["code"]:
                 from cosmos_dev.gui_preview import present_gui_code
-                present_gui_code(_preview["code"], client_id=cid)
-                print(f"[runner] preview client {cid} -> GUI Editor design")
+                errs = present_gui_code(_preview["code"], client_id=cid)
+                if errs:
+                    msg = "; ".join(str(e).strip() for e in errs)
+                    print(f"[runner] preview compile errors: {msg}")
+                    sbs.send_gui_clear(cid, "")
+                    sbs.send_gui_text(cid, "", "perr",
+                                      "$text:Preview error: " + msg.replace(";", ",")[:300] + ";color:#f66;",
+                                      5, 5, 95, 95)
+                    sbs.send_gui_complete(cid, "")
+                else:
+                    print(f"[runner] preview client {cid:#x} rendered ({len(_preview['code'])} chars)")
             else:
+                print(f"[runner] preview client {cid:#x}: no design stored yet")
                 sbs.send_gui_clear(cid, "")
                 sbs.send_gui_text(cid, "", "no_preview",
                                   "$text:Waiting for a design — press Preview in the GUI Editor.;color:#8ab;",
@@ -751,6 +761,8 @@ def _run(
             # if a preview browser is already open, re-render it there now.
             code = data.get("code", "")
             _preview["code"] = code
+            print(f"[runner] gui_preview: stored {len(code)} chars; "
+                  f"open browsers: {[f'{c:#x}' for c in _preview['clients'] if c in Gui.clients]}")
             try:
                 from cosmos_dev.gui_preview import present_gui_code
                 live = [c for c in list(_preview["clients"]) if c in Gui.clients]
