@@ -55,6 +55,14 @@ class TestSignalTap(unittest.TestCase):
             hit = next(p for p in payloads if p["name"] == "test_sig")
             self.assertEqual(hit["data"], {"say": "hi"})   # json-safe copy
             self.assertGreaterEqual(hit["routes"], 1)      # the listener registered
+            # source locations: the emitter (the signal_emit call) + the route(s)
+            self.assertIn("emitter", hit)
+            self.assertIn("route_list", hit)
+            self.assertIsInstance(hit["route_list"], list)
+            self.assertTrue(hit["emitter"] and hit["emitter"].get("line"),
+                            f"no emitter location: {hit['emitter']}")
+            self.assertTrue(any(r.get("line") and r.get("path") for r in hit["route_list"]),
+                            f"no route locations: {hit['route_list']}")
             # events carry a monotonic seq
             self.assertEqual([e["seq"] for e in got], sorted(e["seq"] for e in got))
         finally:

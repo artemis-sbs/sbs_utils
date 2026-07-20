@@ -83,7 +83,8 @@ the mission's actual state in a 2×2 grid:
   carries). Filter the table, tick **enemies** to show only foes, click a row to peek its
   inventory.
 - **Signals** — a live, timestamped log of every signal fired and how many routes it hit;
-  filter by name, **Pause** to freeze the scroll while you read.
+  filter by name, **Pause** to freeze the scroll while you read, and click **↪ emit** / **↪
+  route:line** to jump to where the signal was emitted or handled in source.
 - **Widgets** — the widget tree a console is building this frame (tag, rect, parent).
 - **Brains** — each NPC's behaviour tree with the active branch lit.
 

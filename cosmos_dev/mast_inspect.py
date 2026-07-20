@@ -66,9 +66,60 @@ class InspectionBus:
 BUS = InspectionBus()
 
 
+def _signal_source(mast_self, name, sender_task):
+    """Best-effort source locations for a signal: the emitter (the command the
+    sender task is running) and each registered route (the //signal/X or
+    on-signal handler label). Uses the debugger's node->source helpers. Returns
+    ``(emitter_or_None, [routes])`` — any failure degrades to that, never breaks
+    signal dispatch. Each location is ``{path, line, label?}`` (1-based line)."""
+    emitter, routes = None, []
+    try:
+        from cosmos_dev.mast_debug import _abs_file_of
+    except Exception:
+        return emitter, routes
+
+    def loc_of(node):
+        try:
+            path = _abs_file_of(node)
+            line = getattr(node, "line_num", None)
+            if path and line:
+                return {"path": path, "line": line}
+        except Exception:
+            pass
+        return None
+
+    try:                                   # emitter = the sender task's live command
+        if sender_task is not None:
+            cmd = sender_task.get_active_node()
+            if cmd is not None:
+                emitter = loc_of(cmd)
+    except Exception:
+        pass
+
+    try:                                   # routes = each registered handler's label
+        for _task, infos in mast_self.signal_observers.get(name, {}).items():
+            for info in infos:
+                lbl = getattr(info, "label", None)
+                if isinstance(lbl, str):
+                    lbl = mast_self.labels.get(lbl)
+                if lbl is None:
+                    continue
+                node, iloc, cmds = lbl, getattr(info, "loc", 0), getattr(lbl, "cmds", None)
+                if cmds and isinstance(iloc, int) and 0 <= iloc < len(cmds):
+                    node = cmds[iloc]
+                loc = loc_of(node)
+                if loc:
+                    loc["label"] = getattr(lbl, "name", None) or None
+                    routes.append(loc)
+    except Exception:
+        pass
+    return emitter, routes[:20]
+
+
 class SignalTap:
-    """Publish every emitted signal (name, data, sender, how many routes fired) by
-    wrapping the reference-stable ``Mast.signal_emit`` dispatch."""
+    """Publish every emitted signal (name, data, sender, how many routes fired,
+    and the emitter + route source locations) by wrapping the reference-stable
+    ``Mast.signal_emit`` dispatch."""
 
     def __init__(self, bus=BUS):
         self._bus = bus
@@ -90,8 +141,10 @@ class SignalTap:
                                  mast_self.signal_observers.get(name, {}).values())
                     sender = (getattr(sender_task, "name", None)
                               or getattr(sender_task, "id", None))
+                    emitter, route_list = _signal_source(mast_self, name, sender_task)
                     bus.publish("signal", {"name": name, "data": _json_safe(data),
-                                           "sender": sender, "routes": routes})
+                                           "sender": sender, "routes": routes,
+                                           "emitter": emitter, "route_list": route_list})
                 except Exception:
                     pass
             return base(mast_self, name, sender_task, data)
