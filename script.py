@@ -166,7 +166,12 @@ class TestLayoutPage(LayoutPage):
 
 class GuiStory(StoryPage):
     story_file = "tests/mast/story_gui.mast"
-    
+
+
+class GuiContainersStory(StoryPage):
+    # Visual demos of the sbs_utils GUI containers (gui_list/grid/table).
+    story_file = "tests/mast/gui_containers.mast"
+
 
 class TttStory(StoryPage):
     story_file = "tests/mast/ttt.mast"
@@ -202,6 +207,7 @@ class GuiMain(Page):
         sbs.send_gui_button(event.client_id,"", "avatar", "$text: Avatar Editor", *next(w))
         sbs.send_gui_button(event.client_id,"", "ship", "$text: Ship Picker", *next(w))
         sbs.send_gui_button(event.client_id,"", "shiplist", "$text: Ship Lists", *next(w))
+        sbs.send_gui_button(event.client_id,"", "containers", "$text: GUI Containers", *next(w))
         sbs.send_gui_button(event.client_id,"", "stub", "$text: StubGen", *next(w))
         sbs.send_gui_button(event.client_id,"", "layout", "$text: Layout", *next(w))
         sbs.send_gui_button(event.client_id,"", "story", "$text: Mast bar", *next(w))
@@ -267,8 +273,12 @@ class GuiMain(Page):
 
             case "story":
                 page = GuiStory()
-                #page.run(sim , story_script)        
-                Gui.client_start_page_class(GuiStory)        
+                #page.run(sim , story_script)
+                Gui.client_start_page_class(GuiStory)
+                Gui.push(event.client_id, page)
+
+            case "containers":
+                page = GuiContainersStory()
                 Gui.push(event.client_id, page)
 
             case "story_ttt":

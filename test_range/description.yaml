@@ -1,6 +1,0 @@
-format version: 1
-Category: Test
-Category Priority: C
-Visible Mission Name: sbs_utils Test Range
-Description: Visual test range for sbs_utils library features (GUI containers, etc.). Conformance lives in sbs_utils/tests; this range is for looking at things in a running console.
-Keywords: test, visual, library, sbs_utils, dev

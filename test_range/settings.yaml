@@ -1,9 +1,0 @@
-# sbs_utils Test Range - GUI-only visual checks. No players / autoplay: each map
-# just presents a layout for you to look at.
-AUTO_START: false
-DIFFICULTY: 5
-PLAYER_COUNT: 1
-PLAYER_CREATE_DEFAULT: false
-
-AUTO_PLAY:
-    enable: false
