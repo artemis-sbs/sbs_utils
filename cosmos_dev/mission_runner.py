@@ -20,9 +20,74 @@ import queue as _queue_mod
 import sys
 import threading
 import time
+import traceback
 
 # sbs_utils project root: cosmos_dev/mission_runner.py → cosmos_dev/ → project root
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        if os.name == "nt":
+            import subprocess
+            out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                                 capture_output=True, text=True)
+            return str(pid) in out.stdout
+        os.kill(pid, 0)
+        return True
+    except Exception:
+        return False
+
+
+def _kill_tree(pid: int) -> None:
+    try:
+        if os.name == "nt":
+            import subprocess
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True)
+        else:
+            import signal
+            os.kill(pid, signal.SIGTERM)
+    except Exception:
+        pass
+
+
+def _ensure_single_runner(tag) -> None:
+    """Make the debug runner a singleton per port: on start, stop any previous
+    instance we launched on the same port (and its child GUI server), then record
+    our own PID. This means a re-launch "just works" — no zombie processes or
+    port conflicts for the user to clean up by hand.
+
+    Only ever targets a PID we ourselves recorded (a prior runner), and only if
+    it's still alive — so it can't hit an unrelated process.
+    """
+    import tempfile
+    import atexit
+    pidfile = os.path.join(tempfile.gettempdir(), f"cosmos_dev_runner_{tag}.pid")
+    try:
+        if os.path.isfile(pidfile):
+            with open(pidfile) as f:
+                old = int((f.read() or "0").strip() or 0)
+            if old and old != os.getpid() and _pid_alive(old):
+                print(f"[runner] stopping previous debug runner (pid {old}) on port {tag}")
+                _kill_tree(old)
+                time.sleep(0.6)   # let the OS release the ports
+    except Exception:
+        pass
+    try:
+        with open(pidfile, "w") as f:
+            f.write(str(os.getpid()))
+        atexit.register(lambda: os.path.isfile(pidfile) and os.remove(pidfile))
+    except Exception:
+        pass
+
+
+def _log_exc(prefix: str) -> None:
+    """Print a one-line prefix followed by the FULL traceback of the exception being
+    handled. The runner's except blocks used to print only str(e), which hid the
+    stack - making mission-end / reload crashes impossible to diagnose. Always call
+    this from inside an `except` so the crash is visible on the console."""
+    print(f"[runner] {prefix}")
+    traceback.print_exc()
 
 
 def _find_missions_root(start: str) -> str:
@@ -39,8 +104,14 @@ def _find_missions_root(start: str) -> str:
         path = parent
 
 
-def _load_libs(mission_folder: str, missions_root: str) -> None:
-    """Parse story.json and add every listed sbslib and mastlib to sys.path."""
+def _load_libs(mission_folder: str, missions_root: str,
+               use_working_tree: bool = False) -> None:
+    """Parse story.json and add every listed sbslib and mastlib to sys.path.
+
+    When ``use_working_tree`` is set, the working-tree project root is moved back
+    ahead of the just-added packaged ``.sbslib`` so local sbs_utils edits are what
+    actually run — for smoke-testing library changes against a real mission. (By
+    default the packaged sbslib wins, matching the shipped library.)"""
     story_json = os.path.join(mission_folder, "story.json")
     if not os.path.isfile(story_json):
         print(f"[runner] warning: no story.json in {mission_folder!r}")
@@ -57,6 +128,35 @@ def _load_libs(mission_folder: str, missions_root: str) -> None:
                     print(f"[runner] {kind}: {name}")
             else:
                 print(f"[runner] warning: {kind} not found — {lib_path!r}")
+    if use_working_tree:
+        # Keep the working tree ahead of the sbslib we just inserted at sys.path[0].
+        # Safe because sbs_utils is imported lazily (after this call), so the path
+        # order is what the first import sees.
+        if _PROJECT_ROOT in sys.path:
+            sys.path.remove(_PROJECT_ROOT)
+        sys.path.insert(0, _PROJECT_ROOT)
+        print("[runner] using working-tree sbs_utils (overrides packaged sbslib)")
+
+
+def _preview_story_args(payload: dict):
+    """Map an ``amd/preview`` payload (dialogue/scan/face/text) to the four
+    ``send_story_dialog(title, text, face, color)`` args, so an authored node can be
+    rendered live in a running session. Pure (unit-tested) - the transport (an HTTP
+    POST to /debug/command) and the sbs call live in the runner."""
+    p = payload or {}
+    kind = str(p.get("kind", ""))
+    key = p.get("key", "")
+    if kind == "dialogue":
+        sp = p.get("speaker") or {}
+        lines = p.get("lines") or []
+        return (sp.get("name") or key, lines[0] if lines else "",
+                sp.get("face") or "", sp.get("color") or "#0cf")
+    if kind == "face":
+        return (p.get("name") or key, "", p.get("face") or "", p.get("color") or "#0cf")
+    if kind == "scan":
+        lines = p.get("lines") or []
+        return (f"Scan: {p.get('role', '')}".strip(), lines[0] if lines else "", "", "#0aa")
+    return (p.get("display") or key, p.get("body") or "", "", "#888")
 
 
 def _try_auto_start_map(map_arg, sbs) -> bool:
@@ -70,6 +170,7 @@ def _try_auto_start_map(map_arg, sbs) -> bool:
     from sbs_utils.procedural.maps import maps_get_list
     from sbs_utils.procedural.execution import task_schedule_server, set_shared_variable
     from sbs_utils.procedural.signal import signal_emit
+    from sbs_utils.helpers import FrameContext
 
     mission_list = maps_get_list()
     # maps_get_list returns plain dicts (not Label objects) as a placeholder when
@@ -87,11 +188,36 @@ def _try_auto_start_map(map_arg, sbs) -> bool:
         )
 
     map_label = real_maps[idx]
-    print(f"[runner] auto-starting map: {getattr(map_label, 'path', map_arg)}")
 
-    task_schedule_server(map_label, defer=True)
+    # Apply the map's Defaults metadata (set-if-absent shared vars) before starting it - the
+    # real engine does this when presenting the properties panel and again at launch, but the
+    # headless runner skips the panel, so a map-local property var (e.g. JOBS_SELECT) would
+    # otherwise be undefined in the map body.
+    from sbs_utils.procedural.maps import map_apply_defaults
+    map_apply_defaults(map_label)
+
+    # task_schedule_server needs the server page's gui task. A trivial mission can
+    # reach the registered @map list before that task exists (heavier missions
+    # like LegendaryMissions don't); retry next tick instead of crashing.
+    try:
+        server_task = task_schedule_server(map_label, defer=True)
+    except Exception as e:
+        return False
+
+    print(f"[runner] auto-starting map: {getattr(map_label, 'path', map_arg)}")
     set_shared_variable("GAME_STARTED", True)
+
+    # signal_emit() is a no-op when FrameContext.mast is None, and we run in the
+    # bare tick loop (outside cosmos_event_handler), so it normally is. The real
+    # engine emits "game_started" from inside the server "start" MAST label where
+    # the context is live, which is what fires routes like autoplay's
+    # //signal/game_started. Establish the same context here so the signal is
+    # actually delivered. The next cosmos_event_handler tick resets these.
+    if server_task is not None:
+        FrameContext.task = server_task
+        FrameContext.mast = server_task.main.mast
     signal_emit("game_started", {})
+
     sbs.resume_sim()
     return True
 
@@ -123,23 +249,40 @@ class _TeeWriter:
 
 
 def _drain_physics_events(sim, cosmos_event_handler, FakeEvent) -> None:
-    """Drain collision events queued by the physics background thread.
+    """Drain physics events queued by the physics background thread.
 
-    Each entry in _pending_physics_events is (tag, sub_tag, origin_id, selected_id).
-    Uses queue.Queue.get_nowait() for thread-safe non-blocking reads.
+    Each entry is a tuple (tag, sub_tag, origin_id, selected_id[, parent_id
+    [, extra_extra_tag]]). The optional 5th/6th elements carry parent_id and
+    the launch_type (extra_extra_tag) for launch events; collision/damage use
+    the 4-tuple form. Uses queue.Queue.get_nowait() for thread-safe reads.
     """
     import cosmos_dev.mock.sbs as _mock
     while True:
         try:
-            tag, sub_tag, origin_id, selected_id = _mock._pending_physics_events.get_nowait()
+            item = _mock._pending_physics_events.get_nowait()
         except _queue_mod.Empty:
             break
+        # Optional trailing dict carries extra FakeEvent attrs (e.g. sub_float,
+        # source_point for //damage/internal). Pop it before positional parsing.
+        extra_attrs = None
+        if isinstance(item[-1], dict):
+            extra_attrs = item[-1]
+            item = item[:-1]
+        tag, sub_tag, origin_id, selected_id = item[0], item[1], item[2], item[3]
+        parent_id = item[4] if len(item) > 4 else 0
+        extra_extra = item[5] if len(item) > 5 else ""
         ev = FakeEvent(client_id=0, tag=tag, sub_tag=sub_tag,
-                       origin_id=origin_id, selected_id=selected_id)
+                       origin_id=origin_id, selected_id=selected_id,
+                       parent_id=parent_id)
+        if extra_extra:
+            ev.extra_extra_tag = extra_extra
+        if extra_attrs:
+            for _k, _v in extra_attrs.items():
+                setattr(ev, _k, _v)
         try:
             cosmos_event_handler(sim, ev)
         except Exception as e:
-            print(f"[runner] physics event error ({tag}/{sub_tag}): {e}")
+            _log_exc(f"physics event error ({tag}/{sub_tag}): {e}")
 
 
 def _drain_client_strings(sim, cosmos_event_handler, FakeEvent) -> None:
@@ -163,6 +306,131 @@ def _drain_client_strings(sim, cosmos_event_handler, FakeEvent) -> None:
             print(f"[runner] client_string drain error ({key}): {e}")
 
 
+def _detect_game_end(sbs):
+    """If the mission's game-end logic has fired, return (message, is_win); else
+    None. Reads Agent.SHARED (set by objective.game_end_run_all) and the
+    registered end conditions for the win/lose flag - no library change needed.
+    is_win may be None if the triggering condition can't be matched."""
+    from sbs_utils.agent import Agent
+    if not Agent.SHARED.get_inventory_value("GAME_ENDED", False):
+        return None
+    msg = Agent.SHARED.get_inventory_value("START_TEXT", "") or ""
+    is_win = None
+    try:
+        import sbs_utils.procedural.objective as _obj
+        for cond in getattr(_obj, "__end_game_promise", []):
+            _id, promise, message, win, _music, _signal = cond
+            if promise.done():
+                is_win = win
+                if message:
+                    msg = message
+                break
+    except Exception:
+        pass
+    return (msg, is_win)
+
+
+def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
+                      exerciser=None, game_end=None) -> int:
+    """Print the coverage + verdict report for a --test run; optionally write
+    JUnit XML. Returns the process exit code (0 pass / 1 fail)."""
+    from sbs_utils.gui import Gui
+    mast = None
+    gc = Gui.clients.get(0)
+    if gc is not None and gc.page is not None:
+        mast = getattr(gc.page, "story", None)
+    summ = cov.summary(mast) if cov is not None else {}
+    ok = verdict.ok if verdict is not None else True
+    name = os.path.basename(os.path.abspath(mission_folder))
+
+    print("\n==== mission test report ====")
+    print(f"mission: {name}   map: {map_arg}")
+    if summ:
+        print(f"coverage: labels {summ.get('labels_hit')}/{summ.get('labels_defined','?')} "
+              f"({summ.get('labels_pct','?')}%)   nodes {summ.get('nodes_entered')}")
+        for k, hd in (summ.get("by_kind") or {}).items():
+            print(f"   {k:16} {hd[0]}/{hd[1]}")
+    if exerciser is not None:
+        print(f"exercise: steps {exerciser.steps}, enemies(last) {exerciser.enemies_last}, "
+              f"combats forced {exerciser.forced}, beam-damage hits {getattr(sbs, '_apply_damage_calls', '?')}")
+    # Combat-readiness diagnostic: do ships actually have beams, and how close?
+    try:
+        from sbs_utils.procedural.roles import role
+        space = sbs.sim.space_objects if sbs.sim is not None else {}
+        pids = [i for i in role("__player__") if i in space]
+        npc_ids = [i for i in space if i not in set(pids)
+                   and ((space[i].data_set.get("shield_max_val") or 0) > 0
+                        or (space[i].data_set.get("beamCount") or 0) > 0
+                        or (space[i].data_set.get("armorMax") or 0) > 0)
+                   and (space[i]._abits & 0x10)]
+        def _beamed(ids):
+            return sum(1 for i in ids if (space[i].data_set.get("beamCount") or 0) > 0)
+        mind = None
+        for pi in pids:
+            for ni in npc_ids:
+                dx = space[pi]._pos.x - space[ni]._pos.x
+                dz = space[pi]._pos.z - space[ni]._pos.z
+                d = (dx * dx + dz * dz) ** 0.5
+                mind = d if mind is None else min(mind, d)
+        print(f"combat-ready: players w/beams {_beamed(pids)}/{len(pids)}, "
+              f"npc(armed) w/beams {_beamed(npc_ids)}/{len(npc_ids)}, "
+              f"min player->enemy {round(mind) if mind is not None else '-'}")
+        if pids:
+            hulls = [(getattr(space[i], "_data_tag", None), getattr(space[i], "_tick_type", None))
+                     for i in pids]
+            print(f"  __player__ hulls: {hulls}")
+        # Damage sub-route detail (the by-kind rollup collapses //damage/* into one).
+        if cov is not None and mast is not None:
+            hit = cov.labels_hit
+            dmg = sorted(l for l in mast.labels if l.startswith("__route__damage"))
+            if dmg:
+                marks = ", ".join(f"{l[len('__route__'):]}[{'x' if l in hit else '-'}]"
+                                  for l in dmg)
+                print(f"  damage routes: {marks}")
+    except Exception as _e:
+        print(f"combat-ready diag error: {_e}")
+    if game_end is None:
+        print("game end: did not end within the test window")
+    else:
+        msg, is_win = game_end
+        verdict_word = "WIN" if is_win else ("LOSE" if is_win is not None else "ENDED")
+        print(f"game end: {verdict_word} - {msg!r}")
+    print(verdict.report() if verdict is not None else "no verdict")
+    print("=============================")
+
+    if junit_path:
+        try:
+            _write_junit(junit_path, name, ok, verdict, summ)
+            print(f"[runner] junit written: {junit_path}")
+        except Exception as e:
+            print(f"[runner] junit write failed: {e}")
+    return 0 if ok else 1
+
+
+def _write_junit(path, name, ok, verdict, summ) -> None:
+    """Minimal JUnit XML: one testsuite, one testcase (the mission run)."""
+    from xml.sax.saxutils import escape
+    failures = 0 if ok else 1
+    cov_txt = ""
+    if summ:
+        cov_txt = (f"coverage labels {summ.get('labels_hit')}/{summ.get('labels_defined','?')} "
+                   f"({summ.get('labels_pct','?')}%), nodes {summ.get('nodes_entered')}")
+    body = ""
+    if not ok and verdict is not None:
+        body = f'      <failure message="runtime errors">{escape(verdict.report())}</failure>\n'
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        f'<testsuite name="cosmos_dev.mission_runner" tests="1" failures="{failures}">\n'
+        f'    <testcase classname="mission" name="{escape(name)}">\n'
+        f'      <system-out>{escape(cov_txt)}</system-out>\n'
+        f'{body}'
+        f'    </testcase>\n'
+        f'</testsuite>\n'
+    )
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(xml)
+
+
 def _run(
     mission_folder: str,
     mast_file: str | None = None,
@@ -171,15 +439,57 @@ def _run(
     port: int = 8765,
     tick_rate: int = 60,
     cosmos_dir: str | None = None,
-) -> None:
+    test_seconds: float | None = None,
+    junit_path: str | None = None,
+    exercise: bool = False,
+    use_working_tree: bool = False,
+    seed: int | None = None,
+    audit_layout: bool = False,
+    aspect: str | None = None,
+    dap_port: int | None = None,
+    dap_wait: bool = False,
+) -> int:
     mission_folder = os.path.abspath(mission_folder)
     missions_root  = _find_missions_root(mission_folder)
+
+    # --test SECONDS: headless conformance run. Force GUI off, default to map 0,
+    # install MAST coverage + verdict, run ~SECONDS of sim time, then report +
+    # exit code (0 pass / 1 fail). See AUTOPLAY_PLAN.md.
+    _test = test_seconds is not None
+    if _test:
+        gui = False
+        if map_arg is None:
+            map_arg = 0
 
     # Source project takes precedence over any packaged sbslib on the path
     if _PROJECT_ROOT not in sys.path:
         sys.path.insert(0, _PROJECT_ROOT)
 
-    _load_libs(mission_folder, missions_root)
+    _load_libs(mission_folder, missions_root, use_working_tree)
+
+    # Be a singleton per port: stop any previous runner we launched on this port
+    # (and its child GUI server) so a re-launch never leaves zombies / port
+    # conflicts for the user to clean up. Scoped to the debug port when present.
+    _ensure_single_runner(dap_port or port)
+
+    # Opt-in MAST source debugger (dev-only). Off by default: with dap_port unset
+    # nothing here runs and the mission behaves exactly as before. Started HERE —
+    # right after libs load, before the ~seconds of GUI/story setup — so the
+    # socket is listening almost immediately and a one-click attach doesn't race
+    # it. A daemon thread serves DAP; the editor attaches and its breakpoints park
+    # the tick loop while control is serviced on that thread.
+    _dap_ready = threading.Event()          # set once an editor has attached + configured
+    if dap_port:
+        from cosmos_dev.mast_dap import serve_dap_socket, live_mission_provider
+        threading.Thread(
+            target=serve_dap_socket,
+            kwargs=dict(host="127.0.0.1", port=dap_port,
+                        attach_provider=live_mission_provider(),
+                        on_configured=_dap_ready.set,
+                        ready=lambda p: print(f"[runner] MAST debug adapter LISTENING on 127.0.0.1:{p}")),
+            daemon=True, name="mast-dap").start()
+        if dap_wait:
+            print("[runner] --dap-wait: holding map auto-start until a debugger attaches")
 
     # Communicate map choice to the debug .mast via environment variable
     os.environ["COSMOS_DEBUG_MAP"] = str(map_arg)
@@ -197,6 +507,27 @@ def _run(
     else:
         import cosmos_dev.mock.sbs as sbs
 
+    # Resolution sweep: force a client screen size so layouts build at it (mixed
+    # %/px units make overflow resolution-dependent — small windows are worst).
+    # Parsed BEFORE the audit installs, because the text-fit check needs the
+    # screen size to turn percent-local rects back into pixels.
+    _aspect_wh = None
+    if aspect:
+        try:
+            _w, _h = (int(x) for x in aspect.lower().split("x"))
+            _aspect_wh = (_w, _h)
+            print(f"[runner] forcing aspect {_w}x{_h}")
+        except Exception:
+            print(f"[runner] bad --aspect {aspect!r}, expected WxH (e.g. 1280x720)")
+
+    # SPIKE (gui-sizing-accuracy): tap the emitted rect stream for a read-only
+    # layout audit (overflow / overlap / text-fit). Zero render change; off
+    # unless asked.
+    if audit_layout:
+        from cosmos_dev import layout_audit
+        layout_audit.install(sbs, aspect=_aspect_wh or (1024, 768))
+        print("[runner] layout audit installed")
+
     # Make this process look like script.py (handlerhooks expects it)
     sys.modules["script"] = sys.modules.get("__main__")
 
@@ -204,6 +535,13 @@ def _run(
     # missions_root = .../data/missions  →  exe_dir = .../Cosmos-x.x.x
     from sbs_utils import fs
     fs.exe_dir = os.path.dirname(os.path.dirname(missions_root))
+    # The mission dir is derived from fs.script_dir.  We set sys.modules["script"]
+    # to __main__ (the runner) above, so get_script_dir() would otherwise resolve
+    # to the runner's directory and get_mission_dir_filename("settings.yaml") would
+    # miss — leaving every settings.yaml value (AUTO_PLAY, DIFFICULTY, PLAYER_COUNT,
+    # ...) at its built-in default.  In the real engine script.py lives in the
+    # mission folder, so point script_dir there explicitly to match.
+    fs.script_dir = os.path.abspath(mission_folder).replace("/", "\\")
 
     # Import order matters: core nodes before Cosmos extensions
     from sbs_utils.mast import core_nodes               # noqa: F401 — side-effect: registers node types
@@ -212,9 +550,18 @@ def _run(
     from sbs_utils.mast_sbs.maststorypage import StoryPage
     from sbs_utils.helpers import FrameContext, Context, FakeEvent
     from sbs_utils.vec import Vec3
-    from sbs_utils.agent import Agent
-    from sbs_utils.handlerhooks import cosmos_event_handler
+    from sbs_utils.agent import Agent, clear_shared
+    from sbs_utils.handlerhooks import cosmos_event_handler, reset_mission_state
     from sbs_utils.gui import Gui
+
+    # Seed the RNG before any world spawn so the run is reproducible.  Resolves
+    # to --seed if given, else the mission's seed_value setting, else a fresh
+    # random seed.  The applied seed is always printed so a failing run can be
+    # reproduced by passing it back via --seed.  See AUTOPLAY_PLAN.md.
+    from sbs_utils.procedural.settings import settings_seed_apply
+    _seed_used = settings_seed_apply(seed)
+    print(f"[runner] rng seed: {_seed_used}"
+          + ("" if seed is not None else "  (pass --seed to reproduce)"))
 
     sim = sbs.create_new_sim()
     Agent.SHARED.set_inventory_value("sim", sim)
@@ -236,18 +583,20 @@ def _run(
     _mast_counter  = 0
     _map_started   = map_arg is None  # skip auto-start when no map was requested
 
-    # Physics runs in a background daemon thread at 2 Hz, decoupled from MAST.
+    # Physics runs in a background daemon thread, decoupled from MAST.
     # The main loop drains physics events each iteration via queue.Queue.get_nowait().
+    _PHYSICS_HZ = 30.0
+    _PHYSICS_DT = 1.0 / _PHYSICS_HZ      # sim-seconds advanced per physics tick
     _stop_physics = threading.Event()
 
     def _physics_worker(sbs_mod, stop_ev):
         while not stop_ev.is_set():
             if sbs_mod.sim is not None and not sbs_mod.sim._paused:
                 try:
-                    sbs_mod.physics_tick(dt=0.5)
+                    sbs_mod.physics_tick(dt=_PHYSICS_DT)
                 except Exception as e:
-                    print(f"[runner] physics worker error: {e}")
-            stop_ev.wait(timeout=0.5)   # 2 Hz; exits promptly on stop signal
+                    _log_exc(f"physics worker error: {e}")
+            stop_ev.wait(timeout=_PHYSICS_DT)   # exits promptly on stop signal
 
     _physics_thread = threading.Thread(
         target=_physics_worker,
@@ -256,13 +605,14 @@ def _run(
         name="sbs-physics",
     )
     _physics_thread.start()
-    print(f"[runner] running at {tick_rate} Hz  (MAST 5 Hz, physics 2 Hz background thread)")
+    print(f"[runner] running at {tick_rate} Hz  (MAST 5 Hz, physics {_PHYSICS_HZ:g} Hz background thread)")
 
     # Guard: clients that connect before the server's first MAST tick would run their
     # client_connect handler against uninitialised game state.  Buffer those connections
     # and show a placeholder, then replay them once the server tick completes.
     _server_initialized = False
     _pending_client_connects: list = []   # client IDs waiting for server init
+    _pending_web_connects: list = []      # (client_id, path) web pages waiting for server init
 
     def _show_waiting_screen(cid: int) -> None:
         if not gui or not hasattr(sbs, "send_gui_clear"):
@@ -284,8 +634,259 @@ def _run(
         if hasattr(sbs, "_force_terrain_push"):
             sbs._force_terrain_push()
 
+    # GUI Editor live preview: the last design pushed via a gui_preview command,
+    # plus the browser client ids showing it (see _fire_web_connect / gui_preview).
+    _preview = {"code": None, "clients": set()}
+
+    def _fire_web_connect(cid: int, path: str, query: dict = None) -> None:
+        # A browser opened /web/<path>: dispatch it to the matching //web/<path>
+        # MAST route as a web-client GUI session. Web clients are not engine
+        # consoles (no register_client / client_connect), so they never enter
+        # the console-select / player flow. Query string params seed page vars.
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent(client_id=cid, tag="mission_tick"))
+        # /web/gui_preview is the GUI Editor's live preview: render the last design
+        # the editor pushed (a gui_preview command) as THIS browser's own page.
+        if str(path).strip("/") == "gui_preview":
+            # Always track this browser, so a design that's still being stored (the
+            # POST is processed a tick later than the browser connects) lands here
+            # when the gui_preview command arrives.
+            _preview["clients"].add(cid)
+            if _preview["code"]:
+                from cosmos_dev.gui_preview import present_gui_code
+                errs = present_gui_code(_preview["code"], client_id=cid)
+                if errs:
+                    msg = "; ".join(str(e).strip() for e in errs)
+                    print(f"[runner] preview compile errors: {msg}")
+                    sbs.send_gui_clear(cid, "")
+                    sbs.send_gui_text(cid, "", "perr",
+                                      "$text:Preview error: " + msg.replace(";", ",")[:300] + ";color:#f66;",
+                                      5, 5, 95, 95)
+                    sbs.send_gui_complete(cid, "")
+                else:
+                    print(f"[runner] preview client {cid:#x} rendered ({len(_preview['code'])} chars)")
+            else:
+                print(f"[runner] preview client {cid:#x}: no design stored yet")
+                sbs.send_gui_clear(cid, "")
+                sbs.send_gui_text(cid, "", "no_preview",
+                                  "$text:Waiting for a design — press Preview in the GUI Editor.;color:#8ab;",
+                                  5, 40, 95, 60)
+                sbs.send_gui_complete(cid, "")
+            return
+        opened = Gui.web_page_open(cid, path, data=query or None)
+        if not opened:
+            print(f"[runner] web client {cid}: no //web/{path} route")
+            if hasattr(sbs, "send_gui_clear"):
+                sbs.send_gui_clear(cid, "")
+                sbs.send_gui_text(cid, "", "web_err",
+                                  f"$text:No web page at /web/{path};color:#ff5555;",
+                                  5, 40, 95, 60)
+                sbs.send_gui_complete(cid, "")
+        else:
+            print(f"[runner] web client {cid} -> //web/{path}")
+
+    # ---- /debug control channel (mockgui /ws/debug) ---------------------------
+    def _debug_reply(cid: int, data: dict) -> None:
+        """Send a control-plane reply to one /debug tab. The fixed tag makes
+        repeat replies replace in place in the server's frame state instead of
+        accumulating."""
+        try:
+            payload = {"cmd": "debug_status", "clientID": cid, "tag": "status"}
+            payload.update(data)
+            sbs.gui_queue.put(payload)
+        except Exception as e:
+            _log_exc(f"debug reply error: {e}")
+
+    def _debug_status() -> dict:
+        from sbs_utils.helpers import _TPS
+        players = npcs = terrain = 0
+        for a in list(Agent.all.values()):
+            if getattr(a, "is_player", False):
+                players += 1
+            elif getattr(a, "is_npc", False):
+                npcs += 1
+            elif getattr(a, "is_terrain", False):
+                terrain += 1
+        return {
+            "mission": os.path.basename(mission_folder),
+            "map": str(map_arg) if map_arg is not None else "(picker)",
+            "sim_seconds": round(sbs.sim.time_tick_counter / _TPS, 1) if sbs.sim else 0.0,
+            "paused": bool(sbs.sim._paused) if sbs.sim else True,
+            "clients": [f"{c:#x}" for c in Gui.clients if c != 0],
+            "agents": len(Agent.all),
+            "players": players,
+            "npcs": npcs,
+            "terrain": terrain,
+            "tick_rate": tick_rate,
+        }
+
+    def _handle_debug_command(cev: dict) -> None:
+        nonlocal map_arg
+        cid    = cev.get("clientID", 0)
+        data   = cev.get("data") or {}
+        action = str(data.get("action", "")).strip().lower()
+        if action == "status":
+            _debug_reply(cid, {"status": _debug_status()})
+        elif action == "pause":
+            sbs.pause_sim()
+            _debug_reply(cid, {"ack": "sim paused", "status": _debug_status()})
+        elif action == "resume":
+            sbs.resume_sim()
+            _debug_reply(cid, {"ack": "sim resumed", "status": _debug_status()})
+        elif action == "restart":
+            # Optionally retarget the auto-start map, then ride the existing
+            # run_next_mission reload path (recompile + reset_mission_state +
+            # fresh sim + browser re-handshake). The server process and every
+            # browser websocket stay up - no teardown.
+            if str(data.get("map", "")).strip() != "":
+                m = str(data["map"]).strip()
+                map_arg = int(m) if m.lstrip("-").isdigit() else m
+                os.environ["COSMOS_DEBUG_MAP"] = str(map_arg)
+            elif data.get("picker"):
+                map_arg = None
+                os.environ["COSMOS_DEBUG_MAP"] = "None"
+            sbs.run_next_mission(str(data.get("mission", "") or ""))
+            print(f"[runner] debug: restart requested (map={map_arg})")
+            _debug_reply(cid, {"ack": f"restarting (map={map_arg if map_arg is not None else 'picker'})"})
+        elif action == "preview":
+            # Render an authored AMD node (from the VS Code extension's amd/preview)
+            # live in this session as a story dialog - the highest-fidelity preview.
+            payload = data.get("payload") or {}
+            try:
+                title, text, face, color = _preview_story_args(payload)
+                sbs.send_story_dialog(0, title, text, face, color)
+                _debug_reply(cid, {"ack": f"previewed {payload.get('kind') or 'node'} "
+                                          f"'{payload.get('key', '')}'"})
+            except Exception as e:
+                _debug_reply(cid, {"error": f"preview failed: {e}"})
+        elif action == "gui_preview":
+            # Store a GUI Editor design (a block of gui_* MAST). A browser at
+            # /web/gui_preview renders it as its own page (see _fire_web_connect);
+            # if a preview browser is already open, re-render it there now.
+            code = data.get("code", "")
+            _preview["code"] = code
+            print(f"[runner] gui_preview: stored {len(code)} chars; "
+                  f"open browsers: {[f'{c:#x}' for c in _preview['clients'] if c in Gui.clients]}")
+            try:
+                from cosmos_dev.gui_preview import present_gui_code
+                live = [c for c in list(_preview["clients"]) if c in Gui.clients]
+                _preview["clients"] = set(live)
+                errs = []
+                for c in live:
+                    errs = present_gui_code(code, client_id=c) or errs
+                if errs:
+                    _debug_reply(cid, {"error": "gui_preview: " + "; ".join(str(e).strip() for e in errs)})
+                else:
+                    _debug_reply(cid, {"ack": f"gui preview stored"
+                                            + (f", shown on {len(live)} browser(s)" if live else " — open /web/gui_preview")})
+            except Exception as e:
+                _debug_reply(cid, {"error": f"gui_preview failed: {e}"})
+        elif action == "signal":
+            name = str(data.get("name", "")).strip()
+            if not name:
+                _debug_reply(cid, {"error": "signal needs a name"})
+                return
+            from sbs_utils.procedural.signal import signal_emit
+            sig_data = data.get("data") if isinstance(data.get("data"), dict) else None
+            try:
+                # Best-effort: FrameContext.mast is whatever the last MAST tick
+                # left in place; before the first tick this is a no-op.
+                signal_emit(name, sig_data)
+                _debug_reply(cid, {"ack": f"signal '{name}' emitted"})
+            except Exception as e:
+                _debug_reply(cid, {"error": f"signal failed: {e}"})
+        else:
+            _debug_reply(cid, {"error": f"unknown action {action!r}"})
+
+    _cov = _verdict = _exerciser = None
+    _test_exit = 0
+    _game_end = None
+    _test_client_connected = False
+    _TEST_CLIENT_ID = 0x8080000000000001   # synthetic console client for --test --exercise
+    _test_wall0 = time.time()
+    _test_wall_cap = (test_seconds * 2 + 30) if _test else 0
+    if _test:
+        from cosmos_dev.coverage import MastCoverage
+        from cosmos_dev.verdict import MastVerdict
+        from sbs_utils.helpers import _TPS as _TEST_TPS
+        _cov = MastCoverage().install()
+        _verdict = MastVerdict().install()
+        if exercise:
+            from cosmos_dev.exerciser import Exerciser
+            _exerciser = Exerciser(sbs)
+        print(f"[runner] TEST mode: run ~{test_seconds:g}s sim time, map={map_arg}"
+              f"{', exercising' if exercise else ''}")
+
+    _dap_wait_deadline = None   # set on first auto-start attempt so we don't wait forever
+
     try:
         while True:
+            if _test:
+                _sim_s = sbs.sim.time_tick_counter / _TEST_TPS
+                if _sim_s >= test_seconds or (time.time() - _test_wall0) >= _test_wall_cap:
+                    break
+            # run_next_mission(): restart the current mission or switch to another.
+            # The engine swaps missions at the process level; here we rebuild the
+            # mission in-process between ticks. Polls the mock's pending request.
+            _next_mission = sbs.pop_next_mission() if hasattr(sbs, "pop_next_mission") else None
+            if _next_mission is not None:
+                try:
+                    # run_next_mission(name) passes a mission *folder name* relative
+                    # to the missions dir (like the engine), not a CWD-relative path.
+                    # Resolve against missions_root; abspath(name) vs CWD pointed at a
+                    # nonexistent dir, so fs.script_dir went bad and the log-file
+                    # FileHandler crashed on the next mission.
+                    if _next_mission:
+                        cand = (_next_mission if os.path.isabs(_next_mission)
+                                else os.path.join(missions_root, _next_mission))
+                        new_folder = os.path.abspath(cand)
+                    else:
+                        new_folder = mission_folder
+                    print(f"[runner] run_next_mission -> {new_folder}")
+                    if not os.path.isdir(new_folder):
+                        print(f"[runner] run_next_mission: no such mission folder "
+                              f"{new_folder!r} (from {_next_mission!r}) - ignoring")
+                        raise FileNotFoundError(new_folder)
+                    if new_folder != mission_folder:
+                        _load_libs(new_folder, missions_root, use_working_tree)
+                        fs.script_dir = new_folder.replace("/", "\\")
+                        mission_folder = new_folder
+                    # Fresh page subclass so the story recompiles with fresh shared
+                    # state (cls.story is a per-class cached compile).
+                    story_path = os.path.join(mission_folder, mast_file or "story.mast")
+
+                    class _MissionPage(StoryPage):
+                        story_file = story_path
+
+                    Gui.server_start_page_class(_MissionPage)
+                    Gui.client_start_page_class(_MissionPage)
+                    # Drop all pages; the next server tick recreates the server page
+                    # (Gui.present rebuilds it when Gui.clients is empty), and the
+                    # previously-connected browsers re-handshake below.
+                    prev_clients = [c for c in Gui.clients if c != 0]
+                    Gui.clients.clear()
+                    # Reset shared/agent state so the recompile is a clean slate, like
+                    # the engine's fresh process. Without this, the previous compile's
+                    # label names + console types linger in Agent.SHARED and the
+                    # recompile fails ("Label conflicts with shared name", duplicate
+                    # console) - run_next_mission was rarely exercised, so it was latent.
+                    # Reset ALL per-mission runtime state (agents, shared names, and
+                    # every route/tick/damage/etc. dispatcher) via the library's single
+                    # source of truth, so the recompile is a clean slate like the engine's
+                    # fresh process. (MAST globals from `import file.py` persist - the
+                    # import dedup keeps them; a `default` that precedes the import is
+                    # allowed against a global, see assign.py is_default.)
+                    reset_mission_state()
+                    # Fresh sim — in GUI mode create_new_sim also broadcasts
+                    # world_reset so browsers wipe the old mission's 2D/3D views.
+                    sbs.create_new_sim()
+                    Agent.SHARED.set_inventory_value("sim", sbs.sim)
+                    FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+                    _server_initialized = False
+                    _map_started = (map_arg is None)
+                    _pending_client_connects = list(prev_clients)
+                except Exception as e:
+                    _log_exc(f"run_next_mission reload failed: {e}")
+
             sim_state = "sim_paused" if sbs.sim._paused else "sim_running"
             tick_event = FakeEvent(client_id=0, tag="mission_tick", sub_tag=sim_state)
 
@@ -307,6 +908,117 @@ def _run(
                             gev_ev = FakeEvent(client_id=cid, tag="screen_size")
                             gev_ev.source_point = Vec3(gev.get("width", 1024),
                                                        gev.get("height", 768), 0)
+                        elif etype == "red_alert_toggle":
+                            # The red_alert toggle button (comms widget) → the engine's
+                            # "red_alert" event; handlerhooks sets the ship's red_alert and
+                            # emits red_alert_change. value_tag "on"/"off" per the browser
+                            # button's requested next state.
+                            gev_ev = FakeEvent(client_id=cid, tag="red_alert")
+                            gev_ev.value_tag = "on" if gev.get("on") else "off"
+                        elif etype == "comms_button":
+                            # A click on a comms_control menu button → the engine's
+                            # press_comms_button event. sub_tag = the button INDEX (the comms
+                            # system reads int(event.sub_tag)); routed by the comms origin (the
+                            # client's ship/cam) + its current comms selection (the object —
+                            # which can legitimately be id 0).
+                            origin = 0
+                            try:
+                                origin = sbs.get_ship_of_client(cid) or 0
+                            except Exception:
+                                origin = 0
+                            selected = 0
+                            try:
+                                from sbs_utils.procedural.query import get_comms_selection
+                                selected = get_comms_selection(origin) or 0
+                            except Exception:
+                                selected = 0
+                            gev_ev = FakeEvent(client_id=cid, tag="press_comms_button",
+                                               sub_tag=str(gev.get("tag", "")),
+                                               origin_id=origin, selected_id=selected)
+                        elif etype == "select_space_object":
+                            # A 2D-view click in the browser radar → the engine's
+                            # select_space_object event (same type name the engine uses).
+                            # The runner supplies origin_id (the client's assigned ship/cam)
+                            # and sub_tag (the console name); consoledispatcher.py routes to
+                            # comms/science by name.
+                            try:
+                                sel = int(gev.get("id", 0) or 0)
+                            except (TypeError, ValueError):
+                                sel = 0
+                            origin = 0
+                            try:
+                                origin = sbs.get_ship_of_client(cid) or 0
+                            except Exception:
+                                origin = 0
+                            console = ""
+                            _getname = getattr(sbs, "get_client_console_name", None)
+                            if _getname is not None:
+                                console = _getname(cid) or ""
+                            # consoledispatcher routes a selection by the target-UID it
+                            # derives (convert_to_console_id). For a 2D-view click that UID
+                            # must be the console's registered selection key — comms/science
+                            # register under comms_target_UID / science_target_UID, NOT the
+                            # ..._2d_ variant. Set extra_tag to the right UID (matched early in
+                            # convert) so the registered select callback actually fires.
+                            _cn = console.lower()
+                            if "weap" in _cn:
+                                _uid = "weapon_target_UID"
+                            elif "sci" in _cn or "admiral" in _cn:
+                                _uid = "science_target_UID"
+                            elif "comm" in _cn:
+                                _uid = "comms_target_UID"
+                            else:
+                                _uid = "normal_target_UID"
+                            # value_tag is the real 2D WIDGET name (engine sends e.g.
+                            # "comms_2d_view", not "2dview"); the mock knows it per client.
+                            _w2d = getattr(sbs, "get_client_2d_widget", None)
+                            _widget = (_w2d(cid) if _w2d is not None else "") \
+                                or gev.get("widget", "2dview") or "2dview"
+                            gev_ev = FakeEvent(client_id=cid, tag="select_space_object",
+                                               sub_tag=console, origin_id=origin,
+                                               selected_id=sel)
+                            gev_ev.value_tag = _widget
+                            gev_ev.extra_tag = _uid
+                            gev_ev.extra_extra_tag = gev.get("button", "lmb")
+                            gev_ev.source_point = Vec3(gev.get("wx", 0.0),
+                                                       gev.get("wy", 0.0),
+                                                       gev.get("wz", 0.0))
+                        elif etype == "hold_click":
+                            # Right-click / long-press on a 2D view → the engine's hold_click
+                            # event (popup / move-camera path, distinct from selection). sub_tag
+                            # is the console TYPE (e.g. "comms"), not the full name; convert_to_
+                            # console_id maps a hold to "<type>_popup". No value_tag/extra_tag.
+                            try:
+                                sel = int(gev.get("id", 0) or 0)
+                            except (TypeError, ValueError):
+                                sel = 0
+                            origin = 0
+                            try:
+                                origin = sbs.get_ship_of_client(cid) or 0
+                            except Exception:
+                                origin = 0
+                            console = ""
+                            _getname = getattr(sbs, "get_client_console_name", None)
+                            if _getname is not None:
+                                console = _getname(cid) or ""
+                            _cn = console.lower()
+                            if "weap" in _cn:
+                                _ctype = "weapons"
+                            elif "sci" in _cn or "admiral" in _cn:
+                                _ctype = "science"
+                            elif "comm" in _cn:
+                                _ctype = "comms"
+                            elif "helm" in _cn:
+                                _ctype = "helm"
+                            else:
+                                _ctype = _cn
+                            gev_ev = FakeEvent(client_id=cid, tag="hold_click",
+                                               sub_tag=_ctype, origin_id=origin,
+                                               selected_id=sel)
+                            gev_ev.parent_id = origin
+                            gev_ev.source_point = Vec3(gev.get("wx", 0.0),
+                                                       gev.get("wy", 0.0),
+                                                       gev.get("wz", 0.0))
                         else:
                             gev_ev = FakeEvent(client_id=cid, tag="gui_message",
                                                sub_tag=gev.get("tag", ""))
@@ -317,14 +1029,26 @@ def _run(
                                 gev_ev.value_tag = str(val)
                         cosmos_event_handler(sbs.sim, gev_ev)
                     except Exception as e:
-                        print(f"[runner] gui event error: {e}")
+                        _log_exc(f"gui event error: {e}")
 
             if run_mast:
                 # Server MAST tick at 5 Hz.
                 # Use sbs.sim (not the captured sim) so that sim_create() in a script
                 # replaces the active simulation without breaking the tick loop.
-                cosmos_event_handler(sbs.sim, tick_event)
-                sbs.sim._time_tick_counter += 1
+                try:
+                    cosmos_event_handler(sbs.sim, tick_event)
+                except Exception as e:
+                    if _verdict is not None:
+                        _verdict.record_exception(e, where="mission_tick")
+                    else:
+                        # GUI/interactive debug: a MAST tick error (often surfacing at
+                        # mission end) must NOT kill the runner - print the full trace
+                        # and keep ticking, like the engine logs to mast.runtime.log
+                        # and carries on. (--test re-raises via the verdict path above.)
+                        _log_exc(f"mission_tick error: {e}")
+                # NOTE: sim time (time_tick_counter) is advanced by the physics
+                # tick, not the MAST tick — the physics thread is the sim-time
+                # source, matching the engine.  See cosmos_dev/mock/sbs.py.
                 # Drain any client_string responses queued during this tick.
                 _drain_client_strings(sbs.sim, cosmos_event_handler, FakeEvent)
 
@@ -337,6 +1061,10 @@ def _run(
                         print(f"[runner] deferred client_connect: {cid}")
                         _fire_client_connect(cid)
                     _pending_client_connects.clear()
+                    for cid, path, query in _pending_web_connects:
+                        print(f"[runner] deferred web_connect: {cid} -> /web/{path}")
+                        _fire_web_connect(cid, path, query)
+                    _pending_web_connects.clear()
 
             # Drain physics events queued by the background physics thread.
             _drain_physics_events(sbs.sim, cosmos_event_handler, FakeEvent)
@@ -357,6 +1085,31 @@ def _run(
                             else:
                                 print(f"[runner] client {cid} connected")
                                 _fire_client_connect(cid)
+                        elif cev.get("event") == "resync":
+                            # The server page joined without a client_connect
+                            # (e.g. connecting after the game already started),
+                            # so resend the full radar/terrain/skybox baseline.
+                            if hasattr(sbs, "_force_terrain_push"):
+                                sbs._force_terrain_push()
+                        elif cev.get("event") == "web_connect":
+                            cid   = cev["clientID"]
+                            path  = cev.get("path", "")
+                            query = cev.get("query", {})
+                            if not _server_initialized:
+                                _pending_web_connects.append((cid, path, query))
+                                _show_waiting_screen(cid)
+                            else:
+                                _fire_web_connect(cid, path, query)
+                        elif cev.get("event") == "web_disconnect":
+                            cid = cev.get("clientID")
+                            print(f"[runner] web client {cid} disconnected")
+                            _pending_web_connects[:] = [
+                                w for w in _pending_web_connects if w[0] != cid
+                            ]
+                            Gui.web_page_close(cid)
+                        elif cev.get("event") == "debug":
+                            # /debug page control command (restart/pause/...).
+                            _handle_debug_command(cev)
                         elif cev.get("event") == "disconnect":
                             cid = cev.get("clientID")
                             print(f"[runner] client {cid} disconnected")
@@ -365,12 +1118,50 @@ def _run(
                             ]
                             sbs.unregister_client(cid)
                     except Exception as e:
-                        print(f"[runner] client event error: {e}")
+                        _log_exc(f"client event error: {e}")
 
             # Auto-start: poll each tick until @map/ labels are registered,
-            # then schedule the requested map (replaces extern_debug.mast logic)
+            # then schedule the requested map (replaces extern_debug.mast logic).
+            # With --dap-wait, hold auto-start until a debugger has attached (so
+            # breakpoints in the map are armed before its code runs) — but not
+            # forever: fall through after ~120s if nobody attaches.
             if not _map_started:
-                _map_started = _try_auto_start_map(map_arg, sbs)
+                _hold = dap_wait and dap_port and not _dap_ready.is_set()
+                if _hold:
+                    if _dap_wait_deadline is None:
+                        _dap_wait_deadline = time.time() + 120.0
+                    elif time.time() > _dap_wait_deadline:
+                        print("[runner] --dap-wait timed out; auto-starting without a debugger")
+                        _hold = False
+                if not _hold:
+                    _map_started = _try_auto_start_map(map_arg, sbs)
+
+            # Resolution sweep: pin every client's screen size each tick so layouts
+            # (re)build at the forced aspect instead of the 1024x768 default.
+            if _aspect_wh is not None:
+                _arv = Vec3(_aspect_wh[0], _aspect_wh[1], 1)
+                for _cid in (0, _TEST_CLIENT_ID, *_pending_client_connects):
+                    FrameContext.aspect_ratios[_cid] = _arv
+
+            # --test --exercise: connect one synthetic console client so console
+            # GUI (helm/weapons/science widgets + the monkey/fuzz) gets exercised -
+            # headless otherwise only has the server page.
+            if (_exerciser is not None and _map_started and _server_initialized
+                    and not _test_client_connected):
+                _test_client_connected = True
+                print(f"[runner] TEST: connecting synthetic console client {_TEST_CLIENT_ID:#x}")
+                try:
+                    _fire_client_connect(_TEST_CLIENT_ID)
+                except Exception as e:
+                    print(f"[runner] synthetic client connect failed: {e}")
+
+            # --exercise: drive selections/comms each MAST tick once the world is up.
+            if _exerciser is not None and _map_started and run_mast and not sbs.sim._paused:
+                _exerciser.step()
+
+            # Record the first game-end (win/lose) the mission's logic triggers.
+            if _test and _game_end is None:
+                _game_end = _detect_game_end(sbs)
 
             time.sleep(tick_sleep)
     except KeyboardInterrupt:
@@ -384,6 +1175,18 @@ def _run(
             sys.stderr = _orig_stderr
         if _server_proc is not None and _server_proc.is_alive():
             _server_proc.terminate()
+        if _test:
+            if _cov is not None:
+                _cov.uninstall()
+            if _verdict is not None:
+                _verdict.uninstall()
+            _test_exit = _emit_test_report(mission_folder, map_arg, sbs,
+                                           _cov, _verdict, junit_path, _exerciser,
+                                           game_end=_game_end)
+        if audit_layout:
+            from cosmos_dev import layout_audit
+            print(layout_audit.report())
+    return _test_exit
 
 
 def run_mission(
@@ -394,9 +1197,12 @@ def run_mission(
     port: int = 8765,
     tick_rate: int = 60,
     cosmos_dir: str | None = None,
-) -> None:
+    test_seconds: float | None = None,
+    junit_path: str | None = None,
+    use_working_tree: bool = False,
+) -> int:
     """Entry point for per-mission extern_debug.py wrappers."""
-    _run(
+    return _run(
         mission_folder=os.path.dirname(os.path.abspath(caller_file)),
         mast_file=mast_file,
         map_arg=map_arg,
@@ -404,6 +1210,9 @@ def run_mission(
         port=port,
         tick_rate=tick_rate,
         cosmos_dir=cosmos_dir,
+        test_seconds=test_seconds,
+        junit_path=junit_path,
+        use_working_tree=use_working_tree,
     )
 
 
@@ -436,6 +1245,34 @@ if __name__ == "__main__":
                     help="Ticks per second  [default: 60]")
     ap.add_argument("--cosmos-dir", default=None,
                     help="Cosmos install root for image serving  [default: auto-detected]")
+    ap.add_argument("--test", type=float, default=None, metavar="SECONDS",
+                    help="Headless conformance run: play ~SECONDS of sim time, then "
+                         "print MAST coverage + a pass/fail verdict and exit 0/1")
+    ap.add_argument("--junit", default=None, metavar="PATH",
+                    help="With --test, also write a JUnit XML report to PATH")
+    ap.add_argument("--seed", type=int, default=None, metavar="N",
+                    help="Seed the RNG for a reproducible run (overrides the "
+                         "seed_value setting). Omit to use seed_value, or 0 for a "
+                         "fresh random seed (the seed used is printed).")
+    ap.add_argument("--exercise", action="store_true",
+                    help="With --test, actively drive selections/comms each tick to "
+                         "push route coverage (vs only the mission's own autoplay)")
+    ap.add_argument("--use-working-tree", action="store_true",
+                    help="Run the working-tree sbs_utils instead of the packaged "
+                         ".sbslib (smoke-test local library edits against a mission)")
+    ap.add_argument("--audit-layout", action="store_true",
+                    help="Tap the emitted GUI rect stream and report widget "
+                         "overflow / overlap (read-only; prints at end of run)")
+    ap.add_argument("--aspect", default=None, metavar="WxH",
+                    help="Force the client screen size (e.g. 1280x720) so layouts "
+                         "build at it — with --audit-layout, sweep sizes to find "
+                         "where fixed fonts break the %%-layout")
+    ap.add_argument("--dap-port", type=int, default=None, metavar="PORT",
+                    help="Serve the MAST source debugger (DAP) on this localhost "
+                         "port so VS Code can attach and set breakpoints (dev-only)")
+    ap.add_argument("--dap-wait", action="store_true",
+                    help="With --dap-port, hold map auto-start until a debugger "
+                         "attaches (so early breakpoints aren't missed)")
     args = ap.parse_args()
 
     if args.map is None:
@@ -446,7 +1283,7 @@ if __name__ == "__main__":
         except ValueError:
             map_val = args.map
 
-    _run(
+    _exit = _run(
         mission_folder=args.mission,
         mast_file=args.mast,
         map_arg=map_val,
@@ -454,4 +1291,14 @@ if __name__ == "__main__":
         port=args.port,
         tick_rate=args.tick_rate,
         cosmos_dir=args.cosmos_dir,
+        test_seconds=args.test,
+        junit_path=args.junit,
+        exercise=args.exercise,
+        use_working_tree=args.use_working_tree,
+        seed=args.seed,
+        audit_layout=args.audit_layout,
+        aspect=args.aspect,
+        dap_port=args.dap_port,
+        dap_wait=args.dap_wait,
     )
+    sys.exit(_exit or 0)
