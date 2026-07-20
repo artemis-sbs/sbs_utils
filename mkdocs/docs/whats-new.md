@@ -301,6 +301,22 @@ automatically.
   **checkbox, dropdown, input, or button**, and interactive cells write straight back
   to the row and fire an `on_cell_change` callback. An editable data grid in one call.
 
+- **[`gui_list`](cosmos/gui_list.md) — design your own rows, in pure MAST.** When a
+  row needs more than columns (a picture, a button, two lines), write the row *once*
+  as a `with` block and it repeats for every item — scrolling and selectable, no
+  Python helper required:
+  ```
+  with gui_list(ships, select=True) as ship:
+      gui_text("{ship.name}")
+      gui_button("Hail"):
+          jump hail
+  ```
+  Keep the handle to read what they picked: `ship_list.get_selected()`.
+
+- **[`gui_grid`](cosmos/gui_grid.md).** `with gui_grid(3):` arranges items in even
+  rows of N — a palette of buttons or a board of tiles — breaking to the next row
+  for you. Great with a `for` loop.
+
 - **Pipe tables, links & rules in `gui_text_area`.** The rich-text area learned a few
   new tricks in its mini-markdown:
     - **GFM pipe tables** — `| Ship | Hull |` with a `|:--|--:|` alignment row —
