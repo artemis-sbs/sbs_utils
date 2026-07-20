@@ -1129,179 +1129,190 @@ def serve(stdin=None, stdout=None):
         method = msg.get("method")
         mid = msg.get("id")
 
-        if method == "initialize":
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": {
-                "capabilities": {
-                    "textDocumentSync": 1,               # 1 = Full
-                    "definitionProvider": True,
-                    "documentSymbolProvider": True,
-                    "hoverProvider": True,
-                    "completionProvider": {"triggerCharacters": ["(", " "]},
-                    "documentFormattingProvider": True,
-                    "referencesProvider": True,
-                    "renameProvider": True,
-                    "codeActionProvider": {"codeActionKinds": ["quickfix"]},
-                    "codeLensProvider": {"resolveProvider": False},
-                    "colorProvider": True,
-                    "inlayHintProvider": True,
-                },
-                "serverInfo": {"name": "amd-lsp", "version": "0.1"}}})
-        elif method == "initialized":
-            pass
-        elif method in ("textDocument/didOpen", "textDocument/didChange", "textDocument/didSave"):
-            params = msg.get("params", {})
-            td = params.get("textDocument", {})
-            uri = td.get("uri", "")
-            if method == "textDocument/didOpen":
-                text = td.get("text", "")
-            elif method == "textDocument/didChange":
-                changes = params.get("contentChanges", [])
-                text = changes[-1].get("text", "") if changes else docs.get(uri, "")
-            else:  # didSave
-                text = params.get("text") or docs.get(uri, "")
-            docs[uri] = text
-            _invalidate()                 # a buffer changed -> rebuild the index
-            _publish(stdout, uri, text, docs)
-        elif method == "textDocument/didClose":
-            uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
-            docs.pop(uri, None)
-            _invalidate()
-            _write_message(stdout, {"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics",
-                                    "params": {"uri": uri, "diagnostics": []}})
-        elif method == "textDocument/formatting":
-            uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _formatting(docs.get(uri, ""))})
-        elif method == "textDocument/codeAction":
-            params = msg.get("params", {})
-            uri = params.get("textDocument", {}).get("uri", "")
-            index = _index_for(uri, docs)
-            doc, _u = _cur_doc(index, uri)
-            if doc is None:
-                doc = _parse(docs.get(uri, ""))
-            diags = params.get("context", {}).get("diagnostics", [])
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _code_actions(index, doc, docs.get(uri, ""), uri, diags)})
-        elif method == "textDocument/colorPresentation":
-            color = msg.get("params", {}).get("color", {})
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _color_presentations(color)})
-        elif method in ("textDocument/codeLens", "textDocument/documentColor",
-                        "textDocument/inlayHint"):
-            params = msg.get("params", {})
-            uri = params.get("textDocument", {}).get("uri", "")
-            if method == "textDocument/documentColor":
-                result = _document_colors(docs.get(uri, ""))
-            else:
+        if method == "exit":
+            break
+        try:
+            if method == "initialize":
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": {
+                    "capabilities": {
+                        "textDocumentSync": 1,               # 1 = Full
+                        "definitionProvider": True,
+                        "documentSymbolProvider": True,
+                        "hoverProvider": True,
+                        "completionProvider": {"triggerCharacters": ["(", " "]},
+                        "documentFormattingProvider": True,
+                        "referencesProvider": True,
+                        "renameProvider": True,
+                        "codeActionProvider": {"codeActionKinds": ["quickfix"]},
+                        "codeLensProvider": {"resolveProvider": False},
+                        "colorProvider": True,
+                        "inlayHintProvider": True,
+                    },
+                    "serverInfo": {"name": "amd-lsp", "version": "0.1"}}})
+            elif method == "initialized":
+                pass
+            elif method in ("textDocument/didOpen", "textDocument/didChange", "textDocument/didSave"):
+                params = msg.get("params", {})
+                td = params.get("textDocument", {})
+                uri = td.get("uri", "")
+                if method == "textDocument/didOpen":
+                    text = td.get("text", "")
+                elif method == "textDocument/didChange":
+                    changes = params.get("contentChanges", [])
+                    text = changes[-1].get("text", "") if changes else docs.get(uri, "")
+                else:  # didSave
+                    text = params.get("text") or docs.get(uri, "")
+                docs[uri] = text
+                _invalidate()                 # a buffer changed -> rebuild the index
+                _publish(stdout, uri, text, docs)
+            elif method == "textDocument/didClose":
+                uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
+                docs.pop(uri, None)
+                _invalidate()
+                _write_message(stdout, {"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics",
+                                        "params": {"uri": uri, "diagnostics": []}})
+            elif method == "textDocument/formatting":
+                uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _formatting(docs.get(uri, ""))})
+            elif method == "textDocument/codeAction":
+                params = msg.get("params", {})
+                uri = params.get("textDocument", {}).get("uri", "")
                 index = _index_for(uri, docs)
-                doc, curi = _cur_doc(index, uri)
+                doc, _u = _cur_doc(index, uri)
                 if doc is None:
                     doc = _parse(docs.get(uri, ""))
-                if method == "textDocument/codeLens":
-                    result = _code_lens(index, doc, curi or uri)
-                else:  # inlayHint
-                    result = _inlay_hints(index, doc, params.get("range", {}))
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": result})
-        elif method in ("textDocument/definition", "textDocument/documentSymbol",
-                        "textDocument/hover", "textDocument/completion",
-                        "textDocument/references", "textDocument/rename"):
-            params = msg.get("params", {})
-            uri = params.get("textDocument", {}).get("uri", "")
-            index = _index_for(uri, docs)
-            doc, _curi = _cur_doc(index, uri)
-            if doc is None:
-                doc = _parse(docs.get(uri, ""))
-            pos = params.get("position", {})
-            if method == "textDocument/definition":
-                result = _definition(index, doc, pos)
-            elif method == "textDocument/documentSymbol":
-                result = _symbols(doc.root)
-            elif method == "textDocument/hover":
-                result = _hover(index, doc, pos)
-            elif method == "textDocument/completion":
-                result = _completion(index)
-            elif method == "textDocument/references":
-                include_decl = params.get("context", {}).get("includeDeclaration", True)
-                result = _references(index, doc, pos, include_decl)
-            else:  # rename
-                result = _rename(index, doc, pos, params.get("newName", ""))
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": result})
-        elif method == "amd/map":
-            uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _mission_map(_index_for(uri, docs))})
-        elif method == "amd/graph":
-            uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _mission_graph(_index_for(uri, docs))})
-        elif method == "amd/resolve":
-            uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _mission_resolve(_index_for(uri, docs))})
-        elif method == "amd/rename":
-            p = msg.get("params", {})
-            uri = p.get("textDocument", {}).get("uri", "")
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _rename_by_key(_index_for(uri, docs),
-                                                             p.get("key", ""), p.get("newName", ""))})
-        elif method == "amd/node":
-            p = msg.get("params", {})
-            uri = p.get("textDocument", {}).get("uri", "")
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _node_detail(_index_for(uri, docs), p.get("key", ""))})
-        elif method == "amd/schema":
-            p = msg.get("params", {})
-            uri = p.get("textDocument", {}).get("uri", "")
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _node_schema(_index_for(uri, docs), p.get("key", ""))})
-        elif method == "amd/template":
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _archetype_template(msg.get("params", {}).get("archetype", ""))})
-        elif method == "amd/preview":
-            p = msg.get("params", {})
-            uri = p.get("textDocument", {}).get("uri", "")
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _node_preview(_index_for(uri, docs), p.get("key", ""))})
-        elif method == "amd/nodeAtLine":
-            p = msg.get("params", {})
-            uri = p.get("textDocument", {}).get("uri", "")
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _node_at_line(_index_for(uri, docs), uri, p.get("line", -1))})
-        elif method == "amd/sectionInsert":
-            p = msg.get("params", {})
-            uri = p.get("textDocument", {}).get("uri", "")
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _section_insert(_index_for(uri, docs), uri, p.get("section", ""))})
-        elif method == "amd/newInSection":
-            p = msg.get("params", {})
-            uri = p.get("textDocument", {}).get("uri", "")
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _new_in_section(_index_for(uri, docs), uri, p.get("section", ""))})
-        elif method == "amd/choice":
-            p = msg.get("params", {})
-            uri = p.get("textDocument", {}).get("uri", "")
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _choice_at(_index_for(uri, docs), uri, p.get("line", -1))})
-        elif method == "amd/faceRandom":
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": {"face": _face_random(msg.get("params", {}).get("race", ""))}})
-        elif method == "amd/faceMeta":
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": _face_meta()})
-        elif method == "amd/faceBuild":
-            p = msg.get("params", {})
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": {"face": _face_build(p.get("race", ""), p.get("values", []), p.get("enables"))}})
-        elif method == "amd/faceParse":
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "result": _face_parse(msg.get("params", {}).get("face", ""))})
-        elif method == "shutdown":
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": None})
-        elif method == "exit":
-            break
-        elif mid is not None:
-            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                    "error": {"code": -32601, "message": f"method not found: {method}"}})
+                diags = params.get("context", {}).get("diagnostics", [])
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _code_actions(index, doc, docs.get(uri, ""), uri, diags)})
+            elif method == "textDocument/colorPresentation":
+                color = msg.get("params", {}).get("color", {})
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _color_presentations(color)})
+            elif method in ("textDocument/codeLens", "textDocument/documentColor",
+                            "textDocument/inlayHint"):
+                params = msg.get("params", {})
+                uri = params.get("textDocument", {}).get("uri", "")
+                if method == "textDocument/documentColor":
+                    result = _document_colors(docs.get(uri, ""))
+                else:
+                    index = _index_for(uri, docs)
+                    doc, curi = _cur_doc(index, uri)
+                    if doc is None:
+                        doc = _parse(docs.get(uri, ""))
+                    if method == "textDocument/codeLens":
+                        result = _code_lens(index, doc, curi or uri)
+                    else:  # inlayHint
+                        result = _inlay_hints(index, doc, params.get("range", {}))
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": result})
+            elif method in ("textDocument/definition", "textDocument/documentSymbol",
+                            "textDocument/hover", "textDocument/completion",
+                            "textDocument/references", "textDocument/rename"):
+                params = msg.get("params", {})
+                uri = params.get("textDocument", {}).get("uri", "")
+                index = _index_for(uri, docs)
+                doc, _curi = _cur_doc(index, uri)
+                if doc is None:
+                    doc = _parse(docs.get(uri, ""))
+                pos = params.get("position", {})
+                if method == "textDocument/definition":
+                    result = _definition(index, doc, pos)
+                elif method == "textDocument/documentSymbol":
+                    result = _symbols(doc.root)
+                elif method == "textDocument/hover":
+                    result = _hover(index, doc, pos)
+                elif method == "textDocument/completion":
+                    result = _completion(index)
+                elif method == "textDocument/references":
+                    include_decl = params.get("context", {}).get("includeDeclaration", True)
+                    result = _references(index, doc, pos, include_decl)
+                else:  # rename
+                    result = _rename(index, doc, pos, params.get("newName", ""))
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": result})
+            elif method == "amd/map":
+                uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _mission_map(_index_for(uri, docs))})
+            elif method == "amd/graph":
+                uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _mission_graph(_index_for(uri, docs))})
+            elif method == "amd/resolve":
+                uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _mission_resolve(_index_for(uri, docs))})
+            elif method == "amd/rename":
+                p = msg.get("params", {})
+                uri = p.get("textDocument", {}).get("uri", "")
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _rename_by_key(_index_for(uri, docs),
+                                                                 p.get("key", ""), p.get("newName", ""))})
+            elif method == "amd/node":
+                p = msg.get("params", {})
+                uri = p.get("textDocument", {}).get("uri", "")
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _node_detail(_index_for(uri, docs), p.get("key", ""))})
+            elif method == "amd/schema":
+                p = msg.get("params", {})
+                uri = p.get("textDocument", {}).get("uri", "")
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _node_schema(_index_for(uri, docs), p.get("key", ""))})
+            elif method == "amd/template":
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _archetype_template(msg.get("params", {}).get("archetype", ""))})
+            elif method == "amd/preview":
+                p = msg.get("params", {})
+                uri = p.get("textDocument", {}).get("uri", "")
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _node_preview(_index_for(uri, docs), p.get("key", ""))})
+            elif method == "amd/nodeAtLine":
+                p = msg.get("params", {})
+                uri = p.get("textDocument", {}).get("uri", "")
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _node_at_line(_index_for(uri, docs), uri, p.get("line", -1))})
+            elif method == "amd/sectionInsert":
+                p = msg.get("params", {})
+                uri = p.get("textDocument", {}).get("uri", "")
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _section_insert(_index_for(uri, docs), uri, p.get("section", ""))})
+            elif method == "amd/newInSection":
+                p = msg.get("params", {})
+                uri = p.get("textDocument", {}).get("uri", "")
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _new_in_section(_index_for(uri, docs), uri, p.get("section", ""))})
+            elif method == "amd/choice":
+                p = msg.get("params", {})
+                uri = p.get("textDocument", {}).get("uri", "")
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _choice_at(_index_for(uri, docs), uri, p.get("line", -1))})
+            elif method == "amd/faceRandom":
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": {"face": _face_random(msg.get("params", {}).get("race", ""))}})
+            elif method == "amd/faceMeta":
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": _face_meta()})
+            elif method == "amd/faceBuild":
+                p = msg.get("params", {})
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": {"face": _face_build(p.get("race", ""), p.get("values", []), p.get("enables"))}})
+            elif method == "amd/faceParse":
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _face_parse(msg.get("params", {}).get("face", ""))})
+            elif method == "shutdown":
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": None})
+            elif mid is not None:
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "error": {"code": -32601, "message": f"method not found: {method}"}})
 
+        except Exception as _e:
+            # A single bad request must never take the whole server down: log
+            # it and reply with an error (for a request) instead of exiting.
+            import traceback
+            sys.stderr.write(
+                "[amd-lsp] error handling %s: %s\n%s\n" % (method, _e, traceback.format_exc()))
+            if mid is not None:
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "error": {"code": -32603,
+                                                  "message": "internal error: %s" % _e}})
     return 0
 
 

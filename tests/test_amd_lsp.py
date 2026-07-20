@@ -583,6 +583,32 @@ class TestWorkspace(unittest.TestCase):
             # a dangling choice surfaces in the issue list too, anchored to a line.
             self.assertTrue(any(i["code"] and i["code"].startswith("dangling") for i in m["issues"]))
 
+    def test_bad_request_does_not_crash_server(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "m")
+            os.mkdir(root)
+            with open(os.path.join(root, "story.json"), "w") as f:
+                f.write("{}")
+            with open(os.path.join(root, "d.amd"), "w") as f:
+                f.write("# [R](r)\n## [N](narrative)\n### [A](a)\n---\nState: active\n---\nhi\n")
+            uri = Path(os.path.join(root, "d.amd")).as_uri()
+            out = self._drive([
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                 "params": {"textDocument": {"uri": uri, "text": Path(os.path.join(root, "d.amd")).read_text()}}},
+                # malformed params (a string, not an object) makes the handler raise
+                {"jsonrpc": "2.0", "id": 2, "method": "amd/graph", "params": "not-a-dict"},
+                # the server must survive and still answer the next request
+                {"jsonrpc": "2.0", "id": 3, "method": "amd/graph",
+                 "params": {"textDocument": {"uri": uri}}},
+                {"jsonrpc": "2.0", "method": "exit"},
+            ])
+            bad = next(x for x in out if x.get("id") == 2)
+            self.assertIn("error", bad)              # replied with an error instead of crashing
+            good = next(x for x in out if x.get("id") == 3)
+            self.assertIn("result", good)            # and kept serving
+            self.assertTrue(any(n["key"] == "a" for n in good["result"]["nodes"]))
+
     def test_node_detail(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = os.path.join(tmp, "m")
