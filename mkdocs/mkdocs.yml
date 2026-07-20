@@ -108,6 +108,7 @@ nav:
     - sbs CLI: tooling/cli.md
     - Testing missions: tooling/testing.md
     - Debugging your mission: tooling/mast-debugger.md
+    - AMD authoring tools: tooling/amd-tools.md
     - GUI Editor: tooling/gui-editor.md
     - Serving web pages: tooling/web-proxy.md
     - Sharing Python (.sbslib): tooling/libraries.md
