@@ -644,15 +644,18 @@ def _run(
         # /web/gui_preview is the GUI Editor's live preview: render the last design
         # the editor pushed (a gui_preview command) as THIS browser's own page.
         if str(path).strip("/") == "gui_preview":
+            # Always track this browser, so a design that's still being stored (the
+            # POST is processed a tick later than the browser connects) lands here
+            # when the gui_preview command arrives.
+            _preview["clients"].add(cid)
             if _preview["code"] is not None:
                 from cosmos_dev.gui_preview import present_gui_code
                 present_gui_code(_preview["code"], client_id=cid)
-                _preview["clients"].add(cid)
                 print(f"[runner] preview client {cid} -> GUI Editor design")
             else:
                 sbs.send_gui_clear(cid, "")
                 sbs.send_gui_text(cid, "", "no_preview",
-                                  "$text:No design yet — press Preview in the GUI Editor.;color:#8ab;",
+                                  "$text:Waiting for a design — press Preview in the GUI Editor.;color:#8ab;",
                                   5, 40, 95, 60)
                 sbs.send_gui_complete(cid, "")
             return

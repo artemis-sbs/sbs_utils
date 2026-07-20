@@ -21,11 +21,16 @@ def present_gui_code(code, client_id=0):
     from sbs_utils.gui import Gui
 
     # Wrap the design under its own label (not `main`, which the running mission
-    # already owns) with a trailing await gui() to present it.
+    # already owns). The editor's code already ends with await gui(); add one only
+    # if a hand-crafted block lacks it, so the layout actually presents.
     label = "__gui_preview__"
-    lines = str(code or "").replace("\r", "").split("\n")
+    code = str(code or "")
+    lines = code.replace("\r", "").split("\n")
     indented = "\n".join((("    " + ln) if ln.strip() else ln) for ln in lines)
-    src = "=== " + label + "\n" + indented + "\n    await gui()\n"
+    tail = "" if "await gui(" in code else "\n    await gui()"
+    src = "=== " + label + "\n" + indented + tail
+    if not src.endswith("\n"):
+        src += "\n"                    # MAST needs a newline after the last statement
 
     story = MastStory()
     errors = story.compile(src, "gui_preview", story)
