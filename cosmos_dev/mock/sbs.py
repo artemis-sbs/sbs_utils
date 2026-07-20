@@ -322,15 +322,6 @@ except ImportError:
     _FM = None
 
 
-# A real per-glyph table captured from the engine, if one has been baked in by
-# missions/font_measure/apply_capture.py. It removes the bucket model entirely.
-# Absent (fresh checkout, no capture yet) we fall back to the buckets above.
-try:
-    from . import _font_metrics as _FM
-except ImportError:
-    _FM = None
-
-
 def _char_pixel_width(ch: str, fontTag: str) -> float:
     if _FM is not None:
         table = _FM.CHAR_WIDTH.get(fontTag)
