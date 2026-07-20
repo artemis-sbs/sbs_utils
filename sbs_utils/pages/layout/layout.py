@@ -1,6 +1,6 @@
 from ...gui import get_client_aspect_ratio
 from ...helpers import FrameContext
-from ...mast.parsers import LayoutAreaParser
+from ...mast.parsers import LayoutAreaParser, ContentSize
 from enum import IntEnum
 from .bounds import Bounds
 from .hole import Hole
@@ -22,9 +22,29 @@ def calc_float_attribute(name, col, row, sec, aspect_ratio_axis, font_size):
         att = getattr(sec, name, None)
 
     if att is not None:
+        #
+        # A content size is a marker, not an expression -- it cannot be
+        # resolved without the widgets, so hand it back for calc to interpret.
+        # This check must come BEFORE the float test, since compute() would
+        # blow up on it. One identity comparison per resolution is the entire
+        # cost content sizing imposes on a layout that does not use it.
+        #
+        if att.__class__ is ContentSize:
+            return att
         if not isinstance(att, float):
             return LayoutAreaParser.compute(att, None,aspect_ratio_axis, font_size)
     return att
+
+
+def resolved_size(value):
+    """A resolved size as a number, or None when it is not one yet.
+
+    calc_float_attribute returns either a percentage or a ContentSize marker.
+    Call sites that do arithmetic use this to fall back to flex sizing for a
+    content value they cannot yet resolve, instead of letting a marker reach
+    a subtraction.
+    """
+    return None if value.__class__ is ContentSize else value
 
 
 def cascade_attribute(name, col, row, sec):
@@ -322,8 +342,12 @@ class Layout(Clickable):
             bounds_area.shrink(self.border)
             bounds_area.shrink(self.padding)
             
-            if self.default_height is not None:
-                layout_row_height = calc_float_attribute("default_height", None, None, self, aspect_ratio.y, 20)
+            section_height = resolved_size(
+                calc_float_attribute("default_height", None, None, self, aspect_ratio.y, 20)
+            ) if self.default_height is not None else None
+
+            if section_height is not None:
+                layout_row_height = section_height
             else:
                 layout_row_height = bounds_area.height
                 flex_rows = len(rows)
@@ -334,10 +358,13 @@ class Layout(Clickable):
 
                     if row.default_height is not None:
                         row_font_height  = get_font_size(row_font)
-                        value = calc_float_attribute("default_height", None, row, self, aspect_ratio.y, row_font_height)
-                        layout_row_height -= value
-                        flex_rows -= 1
-                        
+                        value = resolved_size(calc_float_attribute("default_height", None, row, self, aspect_ratio.y, row_font_height))
+                        # A content height is not resolvable yet, so the row
+                        # stays in the flex pool for now (S4 measures it).
+                        if value is not None:
+                            layout_row_height -= value
+                            flex_rows -= 1
+
                 if flex_rows>0:
                     layout_row_height /= flex_rows
             
@@ -361,9 +388,10 @@ class Layout(Clickable):
                 row.border =Bounds(calc_bounds(row.border_style, aspect_ratio, row_font_height))
 
                 # This is for drawing background and border?
+                row_height = None
                 if row.default_height is not None:
-                    row_height = calc_float_attribute("default_height", None, row, None,  aspect_ratio.y, row_font_height)
-                else:
+                    row_height = resolved_size(calc_float_attribute("default_height", None, row, None,  aspect_ratio.y, row_font_height))
+                if row_height is None:
                     row_height = layout_row_height
 
                 row_bounds_area = Bounds(bounds_area)
@@ -411,7 +439,9 @@ class Layout(Clickable):
                         col_font = col.default_font
 
                     col_font_size  = get_font_size(col_font)
-                    default_width = calc_float_attribute("default_width", col, row, self, aspect_ratio.x, col_font_size)
+                    # A content width is not resolvable yet, so the column
+                    # stays in the flex pool for now (S3 measures it).
+                    default_width = resolved_size(calc_float_attribute("default_width", col, row, self, aspect_ratio.x, col_font_size))
                     if default_width is not None:
                         assigned_space += default_width
                         assigned_cols += 1
@@ -460,7 +490,7 @@ class Layout(Clickable):
                     col_bounds_area.left = col_left
                     
                     assigned_space = rect_col_width
-                    default_width = calc_float_attribute("default_width", col, row, self, aspect_ratio.x, col_font_size)
+                    default_width = resolved_size(calc_float_attribute("default_width", col, row, self, aspect_ratio.x, col_font_size))
                     if default_width is not None:
                         assigned_space = default_width
 

@@ -56,10 +56,24 @@ Two things this immediately shows:
     content support is deferred -- it multiplies the one path that is already
     the hot spot.
 
-Wall-clock is dominated by the runner itself (~60s for 15s of sim), so the ms
-figures are indicative only; call counts are the deterministic metric.
+WHICH NUMBERS ARE ACTUALLY STABLE (measured, three runs at one commit):
 
-Re-run after each stage. The no-content numbers must not move.
+    calc_top   122, 122, 94      <- NOISY, do not gate on it
+    rows       152, 152, 124     <- NOISY
+    engine text 105, 105, 105    <- deterministic
+
+The runner plays N sim-seconds of real time, so how many frames (and therefore
+how many screens) the exerciser gets through depends on machine load. Call
+counts for Layout.calc inherit that variance; the text-metric count does not,
+because it is driven by content rather than by frame count.
+
+So: GATE ON `engine text`. Treat a change in calc_top as signal only if it is
+large and reproducible across several runs.
+
+Wall-clock is dominated by the runner itself (~60s for 15s of sim), so the ms
+figures are indicative only.
+
+Re-run after each stage. The no-content engine-text number must not move.
 """
 from __future__ import annotations
 
