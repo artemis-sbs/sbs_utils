@@ -305,8 +305,15 @@ covers all the containers (`section`/`sub_section`/`row`/`grid`/`list`) + widget
 Code-gen handles `with`-block indentation (grid/list/sub_section) and procedural flow
 (section/row), button jump-blocks, and `gui_table`'s declarative form. Output → clipboard
 or **Insert into file** (replaces a `# <gui-designer> … # </gui-designer>` block, else
-inserts at the cursor). A representative generated snippet compiles as valid MAST. Next:
-the pixel-faithful canvas/preview (G0/G2) and drag-reorder polish.
+inserts at the cursor). A representative generated snippet compiles as valid MAST.
+
+**G1 shipped further:** classic 3-pane layout (palette · Preview/Code tabs · tree +
+inspector), a root **Screen** node with **sections-only-off-root**, **drag** nodes in the
+tree, **move/resize sections** in the preview, and **round-trip** — a parser reads the
+editor's own dialect back into the model (comments/unknowns kept as `raw`; `parse→gen`
+byte-stable). **`*.gui.mast` opens as the editor** (CustomTextEditorProvider, two-way
+synced, loop-guarded) with a one-click toggle to/from the full text editor. Writer docs:
+`tooling/gui-editor.md`. Next: the pixel-faithful canvas/preview (G0/G2) and undo/redo.
 | G2 | **Live preview** in the mock (render the design via the socket) |
 | G3 | **Live capture & tweak** (strategy 2) — reuses GUI DevTools |
 | G4 | (optional) declarative sub-format for lossless round-trip |
