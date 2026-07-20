@@ -882,6 +882,52 @@ def _archetype_template(archetype):
             "fields": [{"label": l, "schema": field_schema(l, archetype)} for l in labels]}
 
 
+def _new_in_section(index, uri, section):
+    """A ready-to-insert skeleton for a NEW record under `## section` in `uri`:
+    resolve the section's archetype (by conventional name, else from an existing
+    sibling), mint a unique key, and return the heading + a fence of that
+    archetype's schema fields, with the insert line. When the section doesn't
+    exist yet, the text is prefixed with its `##` header (`exists` is False).
+    None if the doc can't be read. Backs the panels' per-section "+" add."""
+    from sbs_utils.procedural.amd_schema import archetype_for_section, template_fields
+    d, _u = _cur_doc(index, uri)
+    if d is None:
+        return None
+    cap = lambda s: (s[:1].upper() + s[1:]) if s else s
+    alias = archetype_for_section(section)
+    # Skeleton fields: mirror a representative sibling in this section (its own
+    # authored convention - leaner and correct even for archetype-less sections
+    # like dialogue), falling back to the archetype's schema fields for an empty
+    # section. `_record_labels` returns labels already cased as authored.
+    sib = next((n for n in d.nodes
+                if (n.level or 0) >= 3 and _section_of(n) == section and _record_labels(n)), None)
+    if sib is not None:
+        labels = _record_labels(sib)
+    elif alias:
+        labels = [cap(l) for l in template_fields(alias)]
+    else:
+        labels = []
+    word = alias or (section.rstrip("s") or "node")
+    base = "new_" + word
+    known = set(index["known"])
+    key, i = base, 2
+    while key in known:
+        key = "{}_{}".format(base, i)
+        i += 1
+    lines = ["### [New {}]({})".format(cap(word), key)]
+    if labels:
+        lines.append("---")
+        lines += ["{}: ".format(l) for l in labels]
+        lines.append("---")
+    lines.append("Description.")
+    ins = _section_insert(index, uri, section)
+    text = "\n" + "\n".join(lines) + "\n"
+    if not ins["exists"]:
+        text = "\n## [{}]({})\n".format(cap(section), section) + text
+    return {"line": ins["line"], "text": text, "key": key,
+            "archetype": alias, "exists": ins["exists"]}
+
+
 def _rename_by_key(index, key, new_name):
     """A mission-wide rename of node `key` (declaration + every reference) as an LSP
     WorkspaceEdit - the graph's right-click Rename. No-op if key/name missing."""
@@ -1224,6 +1270,11 @@ def serve(stdin=None, stdout=None):
             uri = p.get("textDocument", {}).get("uri", "")
             _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                     "result": _section_insert(_index_for(uri, docs), uri, p.get("section", ""))})
+        elif method == "amd/newInSection":
+            p = msg.get("params", {})
+            uri = p.get("textDocument", {}).get("uri", "")
+            _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                    "result": _new_in_section(_index_for(uri, docs), uri, p.get("section", ""))})
         elif method == "amd/choice":
             p = msg.get("params", {})
             uri = p.get("textDocument", {}).get("uri", "")

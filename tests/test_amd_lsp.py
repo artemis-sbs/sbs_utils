@@ -487,6 +487,47 @@ class TestWorkspace(unittest.TestCase):
             self.assertIn("targetRange", eab)
             self.assertIsInstance(eab["line"], int)
 
+    def test_new_in_section(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "m")
+            os.mkdir(root)
+            with open(os.path.join(root, "story.json"), "w") as f:
+                f.write("{}")
+            with open(os.path.join(root, "d.amd"), "w") as f:
+                f.write("# [R](r)\n"
+                        "## [Dialogue](dialogue)\n"
+                        "### [Hail](hail)\n---\nSpeaker: bob\nWhen: comms\n---\n% hi\n")
+            uri = Path(os.path.join(root, "d.amd")).as_uri()
+
+            def ask(section):
+                out = self._drive([
+                    {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                    {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                     "params": {"textDocument": {"uri": uri, "text": Path(os.path.join(root, "d.amd")).read_text()}}},
+                    {"jsonrpc": "2.0", "id": 2, "method": "amd/newInSection",
+                     "params": {"textDocument": {"uri": uri}, "section": section}},
+                    {"jsonrpc": "2.0", "method": "exit"},
+                ])
+                return next(x for x in out if x.get("id") == 2)["result"]
+
+            # An existing (archetype-less) section mirrors a sibling's fields and
+            # gets a unique key; no `##` header is prepended.
+            r = ask("dialogue")
+            self.assertEqual(r["key"], "new_dialogue")
+            self.assertTrue(r["exists"])
+            self.assertIn("### [New Dialogue](new_dialogue)", r["text"])
+            self.assertIn("Speaker:", r["text"])
+            self.assertIn("When:", r["text"])
+            self.assertNotIn("## [Dialogue]", r["text"])   # section already present
+
+            # A missing conventional section falls back to the schema fields and
+            # prepends its `##` header.
+            r2 = ask("lifeforms")
+            self.assertFalse(r2["exists"])
+            self.assertEqual(r2["archetype"], "lifeform")
+            self.assertIn("## [Lifeforms](lifeforms)", r2["text"])
+            self.assertIn("Face:", r2["text"])
+
     def test_mission_resolve(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = os.path.join(tmp, "m")
