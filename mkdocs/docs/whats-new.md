@@ -359,6 +359,23 @@ Docs: [Debugging your mission](tooling/mast-debugger.md).
 
 ---
 
+## 🎨 Design a screen without writing the code — the GUI Editor
+
+Lay out a console screen **visually** and it writes the MAST for you. Drag sections,
+rows, buttons, lists and tables from a **palette**, size a section by dragging its corner,
+rearrange the **tree**, and watch a live **preview** — then **Copy** the generated code or
+**Insert** it into your `.mast` (it updates just a `# <gui-designer>` block if you have
+one).
+
+- **`*.gui.mast` files open *as* the editor** — the whole file is the screen, edited
+  visually and saved back as MAST, with a one-click toggle to the raw text and back.
+- **Round-trips** — reopen a screen and keep editing; your comments and anything the editor
+  doesn't model are left untouched.
+
+Docs: [The GUI Editor](tooling/gui-editor.md).
+
+---
+
 ## 🛠️ For Mission Makers & Tinkerers
 
 !!! warning "For testing only — not an engine replacement"
