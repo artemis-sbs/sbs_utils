@@ -297,6 +297,16 @@ live two-way) emits the MAST. A **live preview** can render the design in the re
 |---|---|
 | G0 | Shared widget-render module (§2.3), used by a read-only **preview** of a selected `.mast` GUI region |
 | G1 | Palette + canvas + properties → **code-gen into a marked region** (one-way author) |
+
+**G1 — STARTED (v0).** Command **`amd.guiEditor`**: a structural composer (palette →
+design tree → properties → live **Generated MAST**), not yet a pixel canvas. Palette
+covers all the containers (`section`/`sub_section`/`row`/`grid`/`list`) + widgets
+(`text`/`button`/`checkbox`/`slider`/`input`/`face`/`icon`/`image`/`blank`/`table`).
+Code-gen handles `with`-block indentation (grid/list/sub_section) and procedural flow
+(section/row), button jump-blocks, and `gui_table`'s declarative form. Output → clipboard
+or **Insert into file** (replaces a `# <gui-designer> … # </gui-designer>` block, else
+inserts at the cursor). A representative generated snippet compiles as valid MAST. Next:
+the pixel-faithful canvas/preview (G0/G2) and drag-reorder polish.
 | G2 | **Live preview** in the mock (render the design via the socket) |
 | G3 | **Live capture & tweak** (strategy 2) — reuses GUI DevTools |
 | G4 | (optional) declarative sub-format for lossless round-trip |
