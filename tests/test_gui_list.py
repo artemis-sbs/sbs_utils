@@ -56,6 +56,14 @@ LIST_CODE = """
     gui_table(fleet, [{"key":"name","label":"Ship"}, {"key":"hull","label":"Hull","align":"c","width":20}], select=True)
     await gui()
 
+//web/table_block
+    gui_section("area: 5,5,95,95;")
+    fleet = [{"name":"Alpha","hull":90}, {"name":"Beta","hull":40}]
+    with gui_table(fleet, headers=["Ship", "Hull"], select=True) as ship:
+        gui_text("$text:`{ship['name']}`;")
+        gui_text("$text:`{ship['hull']}%`;")
+    await gui()
+
 //web/sel
     gui_section("area: 5,5,95,95;")
     ships = ["Alpha", "Beta", "Gamma"]
@@ -161,6 +169,17 @@ class TestGuiList(unittest.TestCase):
         self.assertIn("Alpha", blob)    # cell values, bound from the dict rows
         self.assertIn("90", blob)
         self.assertIn("Beta", blob)
+
+    def test_gui_table_block_form(self):
+        # with gui_table(items, headers=[...]) as row: — the container/with form.
+        cap, texts, blob = self._render("table_block")
+        self.assertIn("Ship", blob)     # header labels
+        self.assertIn("Hull", blob)
+        self.assertIn("Alpha", blob)    # row cells authored in the block
+        self.assertIn("90", blob)
+        self.assertIn("Beta", blob)
+        clicks = [a for (m, a) in cap.cmds if m == "send_gui_clickregion"]
+        self.assertGreaterEqual(len(clicks), 2, "table rows should be selectable")
 
     def test_selection_readable_via_handle(self):
         # gui_list(...) returns a handle; set/read selection through it in MAST.

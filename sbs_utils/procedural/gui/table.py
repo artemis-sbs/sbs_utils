@@ -96,13 +96,29 @@ def _resolve_columns(items, columns, font):
     return resolved
 
 
-def gui_table(items, columns, style="row-height: 1.6em;", select=False,
-              header=True, font="gui-2", on_cell_change=None, **kwargs):
-    """Add a declarative table (a selectable/scrollable gui_list_box) to the layout.
+def gui_table(items, columns=None, style="row-height: 1.6em;", select=False,
+              header=True, font="gui-2", on_cell_change=None, headers=None, **kwargs):
+    """Add a table (a selectable/scrollable gui_list_box) to the layout.
+
+    Two forms:
+
+    **Block form** — author the row yourself, like the other containers::
+
+        with gui_table(fleet, headers=["Ship", "Hull"], select=True) as ship:
+            gui_text("{ship.name}")
+            gui_text("{ship.hull}%")
+
+    Each widget in the ``with`` block is a column; ``headers`` labels line up above
+    them. (Used with ``with`` — pass no ``columns``.)
+
+    **Declarative form** — pass column specs and it generates the row for you::
+
+        gui_table(fleet, [{"key": "name", "label": "Ship"}, ...], select=True)
 
     Args:
         items: list of rows — dicts, MastDataObjects, or plain objects.
-        columns: list of column specs, each a dict:
+        columns: list of column specs (declarative form). Omit for the block form.
+            Each spec is a dict:
             {"key": <field name>,
              "label": <header text>            (default: key),
              "align": "l" | "c" | "r"          (default: "l"),
@@ -132,6 +148,12 @@ def gui_table(items, columns, style="row-height: 1.6em;", select=False,
             {"key": "side",   "label": "Side",    "align": "r", "width": 20},
         ], select=True)
     """
+    if columns is None:
+        # Block form: `with gui_table(items, headers=[...]) as row:` — the row is
+        # authored in the with-block (see PageTable). Same shape as gui_list.
+        from .list_view import PageTable
+        return PageTable(items, headers=headers, style=style, select=select, **kwargs)
+
     cols = _resolve_columns(items, columns, font)
 
     def _bind(widget, item, key):

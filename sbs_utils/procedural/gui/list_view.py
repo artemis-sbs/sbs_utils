@@ -149,3 +149,28 @@ def gui_list(items, style="", select=False, multi=False, title=None,
             gui_text("{ship.hull}%")
     """
     return PageList(items, style, select, multi, title, read_only, row_height)
+
+
+class PageTable(PageList):
+    """``with gui_table(items, headers=[...]) as row:`` — a selectable, scrolling
+    table whose **row you author as a block** (like ``gui_list``), with an aligned
+    header built from ``headers``. Each widget in the block is a column; the header
+    labels line up above them (equal-flex columns). Reuses the row-template
+    machinery of :class:`PageList`."""
+
+    def __init__(self, items, headers=None, style="", select=False, multi=False,
+                 read_only=False, row_height="1.6em"):
+        super().__init__(items, style, select, multi, None, read_only, row_height)
+        self.headers = list(headers) if headers else None
+
+    def __enter__(self):
+        if self.headers:
+            self.title = self._header_row       # a callable title_template for the listbox
+        return super().__enter__()
+
+    def _header_row(self, **kwargs):
+        from .row import gui_row
+        from .text import gui_text
+        gui_row("row-height: " + str(self.row_height) + ";")
+        for h in self.headers:
+            gui_text("$text:" + str(h) + ";justify:center;color:#bbb;")
