@@ -67,6 +67,31 @@ class PageList:
     def __exit__(self, ex=None, value=None, tb=None):
         return ex is None
 
+    # --- selection passthrough ---------------------------------------------
+    # So authors can read/drive the selection via the gui_list handle:
+    #     ship_list = gui_list(ships, select=True)
+    #     with ship_list as ship:
+    #         gui_text("{ship.name}")
+    #     await gui()
+    #     picked = ship_list.get_selected()
+    def get_selected(self):
+        return self.listbox.get_selected() if self.listbox is not None else None
+
+    def get_selected_index(self):
+        return self.listbox.get_selected_index() if self.listbox is not None else None
+
+    def set_selected_index(self, index, set_cur=True):
+        if self.listbox is not None:
+            self.listbox.set_selected_index(index, set_cur)
+
+    def select_all(self):
+        if self.listbox is not None:
+            self.listbox.select_all()
+
+    @property
+    def selected(self):
+        return list(self.listbox.selected) if self.listbox is not None else []
+
     # The listbox's per-item template: run the captured block once for `item`,
     # building this row into the current sub-page (already FrameContext.page).
     def _run_row(self, item, **kwargs):

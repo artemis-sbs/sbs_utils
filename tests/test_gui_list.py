@@ -55,6 +55,17 @@ LIST_CODE = """
     fleet = [{"name":"Alpha","hull":90}, {"name":"Beta","hull":40}]
     gui_table(fleet, [{"key":"name","label":"Ship"}, {"key":"hull","label":"Hull","align":"c","width":20}], select=True)
     await gui()
+
+//web/sel
+    gui_section("area: 5,5,95,95;")
+    ships = ["Alpha", "Beta", "Gamma"]
+    ship_list = gui_list(ships, select=True)
+    with ship_list as ship:
+        gui_text("{ship}")
+    ship_list.set_selected_index(1)
+    picked = ship_list.get_selected()
+    picked_idx = ship_list.get_selected_index()
+    await gui()
 """
 
 WEB_ID = 0x8080000000000042
@@ -150,6 +161,15 @@ class TestGuiList(unittest.TestCase):
         self.assertIn("Alpha", blob)    # cell values, bound from the dict rows
         self.assertIn("90", blob)
         self.assertIn("Beta", blob)
+
+    def test_selection_readable_via_handle(self):
+        # gui_list(...) returns a handle; set/read selection through it in MAST.
+        Gui.web_page_open(WEB_ID, "sel")
+        for _ in range(3):
+            Gui.present(FakeEvent(0, "gui_present"))
+        task = Gui.clients[WEB_ID].page.gui_task
+        self.assertEqual(task.get_variable("picked"), "Beta")
+        self.assertEqual(task.get_variable("picked_idx"), 1)
 
 
 if __name__ == "__main__":

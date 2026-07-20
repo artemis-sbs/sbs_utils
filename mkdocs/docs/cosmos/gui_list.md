@@ -42,6 +42,24 @@ with gui_list(ships, select=True) as ship:
 
 The list scrolls on its own when there are more rows than fit.
 
+### Reading what they picked
+
+Keep a handle to the list, then ask it after `await gui()`:
+
+```
+ship_list = gui_list(ships, select=True)
+with ship_list as ship:
+    gui_text("{ship.name}")
+
+await gui()
+
+picked = ship_list.get_selected()          # the selected item (e.g. a ship)
+which  = ship_list.get_selected_index()     # its position in the list
+```
+
+You can also set the selection yourself — `ship_list.set_selected_index(0)` to
+pre-select the first row, or `ship_list.select_all()` with `multi=True`.
+
 ## Where the data comes from
 
 `ships` is just a list you make in MAST — of anything:
