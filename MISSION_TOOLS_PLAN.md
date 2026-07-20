@@ -165,7 +165,14 @@ Each: **Problem → Panel → Seam → Effort.**
   chips (re-focus in place) with **↪ src** and **Open source / Edit** buttons. Reuses the
   existing `amd/graph` model + `openLocation`/`showInspector` — pure client-side view, the
   diagram (`amd.showGraph`) is untouched, no live tap needed. Auto-refreshes on `.amd`
-  edits. Phases (b) mini-graph and (c) diagram retrofit remain.
+  edits.
+- **STATUS — phases (b) + (c) DONE.** (b) The Story Outline detail pane draws a
+  **1-hop mini-graph** (selected node centered, incoming left / outgoing right,
+  edge kinds labelled, neighbours click-to-refocus). (c) The full diagram
+  (`amd.showGraph`) gained a **toolbar search box** — filter/spotlight nodes by
+  name or key (dims the rest + their edges), match count, Enter/Shift+Enter to
+  cycle+center matches, Esc to clear — alongside its existing hover-spotlight,
+  section filters, and right-click Focus. **§3.5.1 is now fully shipped.**
 
 ---
 
@@ -181,9 +188,12 @@ Each: **Problem → Panel → Seam → Effort.**
   change.
 - **Mission Inspector panel** (extension) — **DONE (v1, 2×2 grid).** World table,
   Signals log, **Widgets tree** (GuiTap), **Brains tree** (BrainTap, active node
-  highlighted); auto-opens on a `mast` session.
-- Next tap: **AMD Live Resolver** (§3.5) — then the **Improved Story Graph**
-  (§3.5.1) as the navigable view over that same resolved model.
+  highlighted); auto-opens on a `mast` session. **Polish DONE:** World + Signals
+  filter boxes (match/total counts) and a Signals **Pause** (freeze auto-scroll,
+  keep collecting). Still wants a live click-test against a running session.
+- **Improved Story Graph (§3.5.1) — DONE** (outline + mini-graph + diagram
+  search). Next tap: **AMD Live Resolver** (§3.5) — the navigable view over that
+  same resolved model.
 
 ---
 
