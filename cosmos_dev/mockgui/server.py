@@ -22,6 +22,7 @@ import mimetypes
 import multiprocessing
 import os
 import struct
+from urllib.parse import parse_qs
 from typing import Dict, List, Optional, Set
 
 VERBOSE: bool = True
@@ -32,6 +33,27 @@ def _log(*args, **kwargs):
 
 _HERE        = os.path.dirname(os.path.abspath(__file__))
 _CLIENT_HTML = os.path.join(_HERE, "client.html")
+
+
+def _read_package_bytes(name):
+    """Read a file shipped beside this module as bytes, or None if absent.
+
+    Uses importlib.resources so it works whether cosmos_dev is a folder OR a
+    packaged .sbslib zip (you can't open() a file inside a zip). Falls back to
+    the filesystem for the odd case where __package__ isn't set (run as a script
+    from source).
+    """
+    try:
+        from importlib.resources import files
+        res = files(__package__).joinpath(name)
+        if res.is_file():
+            return res.read_bytes()
+    except (FileNotFoundError, ModuleNotFoundError, AttributeError, TypeError, OSError):
+        pass
+    if os.path.isfile(os.path.join(_HERE, name)):
+        with open(os.path.join(_HERE, name), 'rb') as f:
+            return f.read()
+    return None
 
 # ---------------------------------------------------------------------------
 # Injected by run_server() before the event loop starts
@@ -143,6 +165,8 @@ async def _http_send(writer: asyncio.StreamWriter,
         f"HTTP/1.1 {status}\r\n"
         f"Content-Type: {content_type}\r\n"
         f"Content-Length: {len(body)}\r\n"
+        # Dev tool: never cache, so an edited client.html always loads fresh on refresh.
+        f"Cache-Control: no-store, no-cache, must-revalidate\r\n"
         f"Connection: close\r\n\r\n"
     ).encode() + body
     writer.write(resp)
@@ -191,14 +215,29 @@ async def _replay(client_id: int, writer: asyncio.StreamWriter) -> None:
 # ---------------------------------------------------------------------------
 # Broadcast + frame recording
 # ---------------------------------------------------------------------------
-async def _broadcast(payload: dict) -> None:
-    """Record the command into the pending frame and forward to live clients."""
+async def _record(payload: dict):
+    """Record the command into frame state and resolve its target writers.
+
+    Returns (targets, wire) where `wire` is the JSON-ready payload (clientID as a
+    string so 64-bit IDs survive JS). Does NOT send - the dispatcher coalesces a
+    whole tick's wires into one frame per writer (see _queue_dispatcher)."""
+    targets = await _broadcast(payload, _record_only=True)
+    wire = dict(payload)
+    wire["clientID"] = str(payload.get("clientID", 0))
+    return targets, wire
+
+
+async def _broadcast(payload: dict, _record_only: bool = False):
+    """Record the command into the pending frame and forward to live clients.
+
+    With `_record_only`, perform only the frame-state recording + target resolution
+    and RETURN the target writers (no send) - used by the coalescing dispatcher."""
     client_id  = payload.get("clientID", 0)
     cmd        = payload.get("cmd")
     # clear/complete carry the region tag in 'tag'; widget commands carry it in 'parent'
     region_tag = payload.get("tag", "") if cmd in ("clear", "complete") else payload.get("parent", "")
 
-    if cmd in ("log", "radar", "radar_terrain", "widget_rect", "cinematic", "skybox"):
+    if cmd in ("log", "radar", "radar_terrain", "widget_rect", "cinematic", "skybox", "colors"):
         # Transient messages: broadcast to all live browsers but never recorded
         # in frames (must not replay to a newly connected tab).
         async with _get_lock():
@@ -253,6 +292,9 @@ async def _broadcast(payload: dict) -> None:
             else:
                 targets = set(_connections.get(client_id, set()))
 
+    if _record_only:
+        return targets
+
     dead = []
     # Transmit clientID as a string so 64-bit IDs survive JS JSON without precision loss.
     wire = dict(payload)
@@ -264,6 +306,10 @@ async def _broadcast(payload: dict) -> None:
         except Exception:
             dead.append(writer)
 
+    await _drop_dead(dead)
+
+
+async def _drop_dead(dead) -> None:
     if dead:
         async with _get_lock():
             for writer in dead:
@@ -274,13 +320,14 @@ async def _broadcast(payload: dict) -> None:
 # Queue dispatcher — drains all pending commands per event-loop tick
 # ---------------------------------------------------------------------------
 async def _queue_dispatcher() -> None:
-    """Block until at least one command is ready, then drain all remaining
-    commands that arrived concurrently and broadcast each.
+    """Block until at least one command is ready, drain all that arrived
+    concurrently, record each into frame state, then send the whole batch as ONE
+    WebSocket frame per writer (a JSON array).
 
-    Draining the full queue before yielding back to the event loop reduces
-    WebSocket frame count from O(widgets) to effectively O(1) per MAST tick,
-    because all send_gui_* calls from one tick accumulate between two
-    consecutive asyncio iterations.
+    Draining before yielding accumulates a tick's send_gui_* calls between two
+    asyncio iterations; recording each (in order) keeps frame state correct, and
+    coalescing the per-writer wires into a single array frame cuts the wire from
+    O(commands) frames per tick to O(connected clients) - one frame each.
     """
     import queue as _q
     loop = asyncio.get_event_loop()
@@ -294,9 +341,21 @@ async def _queue_dispatcher() -> None:
                 batch.append(_gui_queue.get_nowait())
             except _q.Empty:
                 break
-        # Broadcast each command so frame state is recorded correctly.
+        # Record each (in order, so frame state stays correct) and group the
+        # JSON-ready wires per writer, preserving order.
+        per_writer = {}   # writer -> [wire, ...]
         for payload in batch:
-            await _broadcast(payload)
+            targets, wire = await _record(payload)
+            for w in targets:
+                per_writer.setdefault(w, []).append(wire)
+        # One frame per writer: an array of that writer's commands for this tick.
+        dead = []
+        for writer, wires in per_writer.items():
+            try:
+                await _ws_send(writer, json.dumps(wires))
+            except Exception:
+                dead.append(writer)
+        await _drop_dead(dead)
 
 # ---------------------------------------------------------------------------
 # WebSocket connection handler
@@ -304,13 +363,36 @@ async def _queue_dispatcher() -> None:
 async def _handle_websocket(client_id: int,
                               reader: asyncio.StreamReader,
                               writer: asyncio.StreamWriter,
-                              fire_connect: bool = True) -> None:
+                              fire_connect: bool = True,
+                              web_path: Optional[str] = None,
+                              web_query: Optional[dict] = None,
+                              debug: bool = False) -> None:
     await _ws_send(writer, json.dumps({"cmd": "init", "clientID": str(client_id)}))
     await _register(client_id, writer)
-    if fire_connect:
+    if debug:
+        # A /debug control tab: not an engine console and not a MAST web page.
+        # No client_connect / resync / replay - its messages are runner control
+        # commands (restart/pause/status/...), routed via the client event queue
+        # so the runner handles them next loop iteration regardless of MAST rate.
+        pass
+    elif web_path is not None:
+        # A browser opened /web/<path>: not an engine console. Tell the runtime
+        # to dispatch the matching //web/<path> MAST route as a web-client GUI
+        # session (Gui.web_page_open); no client_connect / console flow. Any
+        # query string (?a=1&b=2) is passed through to seed page variables.
+        _client_event_queue.put({"event": "web_connect", "clientID": client_id,
+                                 "path": web_path, "query": web_query or {}})
+    elif fire_connect:
         _client_event_queue.put({"event": "connect", "clientID": client_id})
-    _log(f"[server] client {client_id} connected (fire_connect={fire_connect})")
-    await _replay(client_id, writer)
+    else:
+        # The server page (/ws/server) fires no client_connect, so it would miss
+        # the connect-time radar/terrain/skybox baseline resend and join the
+        # delta stream with nothing (no ships/terrain/skybox when the server was
+        # already running). Request a resync so late joins still get full state.
+        _client_event_queue.put({"event": "resync", "clientID": client_id})
+    _log(f"[server] client {client_id} connected (fire_connect={fire_connect}, debug={debug})")
+    if not debug:
+        await _replay(client_id, writer)
 
     try:
         while True:
@@ -320,6 +402,12 @@ async def _handle_websocket(client_id: int,
             if opcode == 1:     # text frame
                 text  = payload.decode('utf-8', errors='replace')
                 event = json.loads(text)
+                if debug:
+                    # Control-plane command from the /debug page.
+                    _log(f"[debug]  client={client_id} {event}")
+                    _client_event_queue.put({"event": "debug", "clientID": client_id,
+                                             "data": event})
+                    continue
                 # clientID arrives as a string (sent that way to avoid JS float precision
                 # loss for 64-bit IDs); convert back to int for internal use.
                 raw = event.get("clientID")
@@ -331,7 +419,11 @@ async def _handle_websocket(client_id: int,
     finally:
         await _ws_close(writer)
         await _unregister(client_id, writer)
-        if fire_connect:
+        if debug:
+            pass    # control tab: nothing to tear down on the mission side
+        elif web_path is not None:
+            _client_event_queue.put({"event": "web_disconnect", "clientID": client_id})
+        elif fire_connect:
             _client_event_queue.put({"event": "disconnect", "clientID": client_id})
         _log(f"[server] client {client_id} disconnected")
 
@@ -387,8 +479,13 @@ async def _handle_connection(reader: asyncio.StreamReader,
             ).encode())
             await writer.drain()
 
-            # /ws/server  → browser acts as the server console (clientID=0, no client_connect)
+            # /ws/server       → browser acts as the server console (clientID=0, no client_connect)
+            # /ws/web/<path>    → browser is a MAST web page (//web/<path>), not an engine console
+            # /ws/debug         → runner control channel for the /debug page
             # /ws/client or /ws → browser gets a unique client ID and fires client_connect
+            web_path = None
+            web_query = None
+            debug = False
             if url_path_bare == '/ws/server':
                 client_id    = 0
                 fire_connect = False
@@ -397,27 +494,71 @@ async def _handle_connection(reader: asyncio.StreamReader,
                     client_id       = _next_client_id
                     _next_client_id += 1
                 fire_connect = True
+                if url_path_bare == '/ws/debug':
+                    debug = True
+                    fire_connect = False
+                elif url_path_bare.startswith('/ws/web/'):
+                    web_path = url_path_bare[len('/ws/web/'):]
+                    # Parse ?a=1&b=2 into {"a": "1", "b": "2"} (last value wins)
+                    q = url_path.split('?', 1)[1] if '?' in url_path else ''
+                    web_query = {k: v[-1] for k, v in parse_qs(q).items()}
 
-            await _handle_websocket(client_id, reader, writer, fire_connect=fire_connect)
+            await _handle_websocket(client_id, reader, writer,
+                                    fire_connect=fire_connect,
+                                    web_path=web_path, web_query=web_query,
+                                    debug=debug)
+        elif req.get('method', '').upper() == 'POST' and url_path_bare == '/debug/command':
+            # HTTP control endpoint: an external tool (the VS Code AMD extension)
+            # POSTs a debug command (same shape as a /ws/debug message) to inject
+            # into the runner - e.g. {"action":"preview","payload":{...}} to render
+            # an authored dialogue/scan/face live in the running session.
+            try:
+                length = int(headers.get('content-length', '0') or '0')
+            except ValueError:
+                length = 0
+            try:
+                raw = await reader.readexactly(length) if length else b''
+            except Exception:
+                raw = b''
+            try:
+                payload = json.loads(raw.decode('utf-8')) if raw else {}
+            except Exception:
+                payload = None
+            if payload is None:
+                await _http_send(writer, "400 Bad Request",
+                                 "application/json", '{"error":"bad json"}')
+            else:
+                if _client_event_queue is not None:
+                    _client_event_queue.put({"event": "debug", "clientID": 0, "data": payload})
+                await _http_send(writer, "200 OK", "application/json", '{"ok":true}')
         else:
             # /server and /client both serve client.html; the page reads location.pathname
-            # to decide which WebSocket path to connect to.
-            if url_path_bare in ('/', '/client.html', '/server', '/client'):
-                try:
-                    with open(_CLIENT_HTML, 'r', encoding='utf-8') as f:
-                        html = f.read()
-                    await _http_send(writer, "200 OK", "text/html; charset=utf-8", html)
-                except FileNotFoundError:
+            # to decide which WebSocket path to connect to. /web/<path> also serves
+            # the same renderer (it connects to /ws/web/<path>). /debug serves the
+            # runner control page (debug.html - restart/pause/status/log).
+            if url_path_bare == '/debug':
+                html = _read_package_bytes("debug.html")
+                if html is not None:
+                    await _http_send(writer, "200 OK", "text/html; charset=utf-8",
+                                      html.decode('utf-8'))
+                else:
                     await _http_send(writer, "404 Not Found", "text/plain",
-                                      f"client.html not found at {_CLIENT_HTML}")
+                                      "debug.html not found in cosmos_dev.mockgui")
+            elif (url_path_bare in ('/', '/client.html', '/server', '/client')
+                    or url_path_bare.startswith('/web/') or url_path_bare == '/web'):
+                html = _read_package_bytes("client.html")
+                if html is not None:
+                    await _http_send(writer, "200 OK", "text/html; charset=utf-8",
+                                      html.decode('utf-8'))
+                else:
+                    await _http_send(writer, "404 Not Found", "text/plain",
+                                      "client.html not found in cosmos_dev.mockgui")
             elif '/' not in url_path_bare.lstrip('/'):
-                # Serve a flat file from the mockgui directory (e.g. three.min.js)
-                filename  = url_path_bare.lstrip('/')
-                local_path = os.path.join(_HERE, filename)
-                if os.path.isfile(local_path):
-                    mime, _ = mimetypes.guess_type(local_path)
-                    with open(local_path, 'rb') as f:
-                        data = f.read()
+                # Serve a flat file shipped in the mockgui package (e.g. three.min.js)
+                filename = url_path_bare.lstrip('/')
+                data = _read_package_bytes(filename)
+                if data is not None:
+                    mime, _ = mimetypes.guess_type(filename)
                     await _http_send(writer, "200 OK", mime or "application/octet-stream", data)
                 elif _cosmos_dir:
                     await _serve_static(writer, url_path_bare)
@@ -451,6 +592,47 @@ async def _serve(host: str, port: int) -> None:
 # ---------------------------------------------------------------------------
 # Subprocess entry point (called by sbs.start_server)
 # ---------------------------------------------------------------------------
+def _pid_alive(pid: int) -> bool:
+    if pid is None or pid <= 1:
+        return False
+    if os.name == "nt":
+        import ctypes
+        k = ctypes.windll.kernel32
+        h = k.OpenProcess(0x1000, False, pid)   # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        code = ctypes.c_ulong()
+        ok = k.GetExitCodeProcess(h, ctypes.byref(code))
+        k.CloseHandle(h)
+        return bool(ok) and code.value == 259    # STILL_ACTIVE
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def _watch_parent_and_exit() -> None:
+    """Exit this server process if the parent runner dies — daemon=True only
+    covers a *clean* parent exit, so a crash/force-kill would otherwise orphan the
+    port. A 1 s watchdog frees the port so a fresh run (or the editor's preview)
+    isn't blocked by a zombie."""
+    import threading
+    import time
+    try:
+        pp = multiprocessing.parent_process()
+        ppid = pp.pid if pp is not None else os.getppid()
+    except Exception:
+        ppid = os.getppid()
+
+    def _loop():
+        while True:
+            time.sleep(1.0)
+            if not _pid_alive(ppid):
+                os._exit(0)
+    threading.Thread(target=_loop, daemon=True, name="parent-watchdog").start()
+
+
 def run_server(
     gui_q:          multiprocessing.Queue,
     client_event_q: multiprocessing.Queue,
@@ -467,6 +649,7 @@ def run_server(
     _gui_event_queue    = gui_event_q
     _ready_event        = ready_event
     _cosmos_dir         = cosmos_dir
+    _watch_parent_and_exit()
     asyncio.run(_serve(host, port))
 
 # ---------------------------------------------------------------------------
