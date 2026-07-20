@@ -723,6 +723,19 @@ def _run(
                                           f"'{payload.get('key', '')}'"})
             except Exception as e:
                 _debug_reply(cid, {"error": f"preview failed: {e}"})
+        elif action == "gui_preview":
+            # Render a GUI Editor design (a block of gui_* MAST) live in this
+            # session — the editor's pixel-faithful preview.
+            code = data.get("code", "")
+            try:
+                from cosmos_dev.gui_preview import present_gui_code
+                errs = present_gui_code(code, client_id=cid)
+                if errs:
+                    _debug_reply(cid, {"error": "gui_preview: " + "; ".join(str(e).strip() for e in errs)})
+                else:
+                    _debug_reply(cid, {"ack": "gui previewed"})
+            except Exception as e:
+                _debug_reply(cid, {"error": f"gui_preview failed: {e}"})
         elif action == "signal":
             name = str(data.get("name", "")).strip()
             if not name:
