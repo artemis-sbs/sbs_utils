@@ -30,7 +30,9 @@ Two ways:
   screen; *Code* shows the generated MAST (in a `.gui.mast` file, the **Code** tab opens
   the full text editor).
 - **Right — the tree and the inspector.** The **tree** is your layout's structure (drag to
-  rearrange); the **inspector** edits the selected piece's text, style, size, and so on.
+  rearrange); the **inspector** edits the selected piece's text, style, size, and so on, and has
+  **↑ ↓ Duplicate Delete** actions (all undoable). A line the editor doesn't recognise is kept as
+  an editable **Raw line** rather than lost.
 
 ## Compose a screen
 
@@ -74,7 +76,8 @@ helm/weapons/science/cockpit-style screen the way the shipped consoles do:
   console), **Activate console** (`gui_activate_console`), and a **Cinematic camera**
   (`gui_cinematic_auto` / `gui_cinematic_full_control`).
 - **Template…** (top bar) — start from a ready-made skeleton: *Cinematic* (full-screen 3D view),
-  *Cockpit* (background image + placed views), or *Science* (info | 2D view | data columns).
+  *Cockpit* (background image + placed views), *Science* / *Weapons* / *Comms* (a 2D view beside a
+  controls/data column).
 
 The real pattern is a full-screen background section plus absolutely-positioned `area:` sections,
 each holding one engine widget — exactly what the templates produce.

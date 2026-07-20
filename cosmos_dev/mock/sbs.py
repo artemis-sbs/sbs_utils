@@ -4,7 +4,6 @@ from sbs_utils.vec import Vec3
 
 import math
 import queue
-import random
 import sys
 import threading
 sys.modules["sbs"] = sys.modules[__name__]
@@ -25,46 +24,9 @@ _pending_client_string_events: list = []  # [(client_id, key), ...]
 # main loop get_nowait()s without needing additional locking.
 _pending_physics_events: queue.Queue = queue.Queue()
 
-# Currently-overlapping collision pairs — used to fire start on contact entry
-# and end on contact exit. Maps the canonical pair (min_id, max_id) to
-# (kind, id_a, id_b) where kind is "passive" (collision involving a static
-# terrain object) or "interactive" (two dynamic/active objects), so the matching
-# *_collision_end event can be emitted with the right tag/ids after exit.
-_contact_pairs: dict = {}
-
-# In-flight projectiles (missiles + drones — both travel then deal hull damage
-# on impact). Lightweight dicts (not space_objects, so they don't feed back into
-# collision/beam passes): {pos, target_id, source_id, damage, speed, life, kind}.
-_projectiles: list = []
-
-# Lingering Nuke/Mine blast fields (registered on detonation). Each ripples
-# per_ripple hull damage (distance falloff) once per interval until its lifetime
-# expires: {pos, per_ripple, radius, source_id, life, since_ripple}.
-_blasts: list = []
-
-# Beam fires THIS tick: (firer_id, target_id) pairs. Cleared at the start of each
-# physics_tick and appended to by _physics_beams; the mockgui reads it after the
-# tick to draw transient beam lines. (Beams are instantaneous, so it's per-tick.)
-_beam_fires: list = []
-
-# Base per-shot beam damage by firer category, from set_beam_damages(). None until
-# the script calls it; then _physics_beams uses these (player/npc/station) instead
-# of the shipData-derived "beamDamage". Mirrors the engine, where set_beam_damages
-# is authoritative for per-shot damage.
-_beam_dmg_player: "float | None" = None
-_beam_dmg_npc: "float | None" = None
-_beam_dmg_station: "float | None" = None
-_apply_damage_calls = 0   # dev diagnostic: total apply_damage hits (combat sanity)
-# shipData "damage_coeff" is a per-beam coefficient (~0.1-1.2; 1.0 for base hulls).
-# Real per-shot damage = set_beam_damages base * coeff. The mock stores beamDamage
-# = coeff * _BEAM_LOAD_BASE at load, so coeff = beamDamage / _BEAM_LOAD_BASE.
-_BEAM_LOAD_BASE = 6.0
-# Default per-shot base by firer category when a mission did NOT call
-# set_beam_damages - i.e. the engine's built-in beam damage. Calibrated from the
-# data_capture battle matrix (full-health hits): NPC ~5.5, player ~8.5; these are
-# difficulty-independent (same at DIFFICULTY 1/5/11). per-shot = base * coeff.
-_BEAM_DEFAULT_NPC = 5.5
-_BEAM_DEFAULT_PLAYER = 8.5
+# Currently-overlapping collision pairs — used to fire only on contact entry.
+# Each pair is (min_id, max_id) so order is canonical.
+_contact_pairs: set = set()
 
 # Behavior dispatch: tick_type string → callable(space_object, dt_seconds)
 _behavior_registry: dict = {}
@@ -86,10 +48,10 @@ def app_minutes() -> int:
     return seconds / 60
 
 def app_seconds() -> int:
-    # app time only — sim time (time_tick_counter) is advanced by the physics
-    # tick, not by reading the clock.
-    global seconds
+    global seconds, sim
     seconds += 1
+    if sim is not None:
+        sim._time_tick_counter += 1
     return seconds
 
 
@@ -111,80 +73,22 @@ def assign_client_to_ship(clientComputerID: int, controlledShipID: int) -> None:
         else:
             sim.client_ships[clientComputerID] = controlledShipID
 
-_BROAD_CELL = 5000.0                 # spatial-hash cell size (world units)
-# Cached broad-phase grid, rebuilt when (physics tick, object count) changes - i.e.
-# when objects move (each physics tick) or are spawned/killed. key=None forces build.
-_broad_hash = {"key": None, "grid": None}
-
-
-def _rebuild_broad_hash():
-    """(Re)build the broad-phase spatial hash: cell (cx,cz) -> [objects], using the
-    same _cell() bucketing as the collision grid (so negative coords bucket the same
-    way). Snapshots space_objects (physics thread vs main thread mutate it). NOTE: the
-    collision active_grid/terrain_grid can't be reused here - they're transient and
-    only hold colliders (exclusion_radius>0), whereas broad_test returns ALL objects
-    in the rect (markers, navproxies, zero-radius objects included)."""
-    grid: dict = {}
-    if sim is not None:
-        for v in list(sim.space_objects.values()):
-            grid.setdefault(_cell(v._pos.x, v._pos.z, _BROAD_CELL), []).append(v)
-    return grid
-
-
-def broad_test(x1: float, z1: float, x2: float, z2: float, tick_type: int,
-               use_hash: bool = True) -> List[space_object]:
-    """Return space objects inside an x/z 2D rect, filtered by the tick_type bitfield.
-
-    The engine's broad_test is BVH-backed (sub-linear), and the AI fires many of these
-    per frame, so the mock defaults to a spatial hash: a uniform cell grid built once
-    per (physics tick, object count) and reused across the frame's calls - a query is
-    O(cells in rect) instead of O(all objects). The cache rebuilds when objects move
-    (tick advances) or are spawned/killed (count changes), so a brain that spawns then
-    queries in the same handler still sees the new object. `use_hash=False` forces the
-    linear scan (parity tests / debugging). Both snapshot the object dict so a
-    concurrent spawn/delete can't raise "dictionary changed during iteration"."""
-    global sim, _broad_hash
+def broad_test(x1: float, z1: float, x2: float, z2: float, tick_type: int) -> List[space_object]:
+    """return a list of space objects that are currently inside an x/z 2d rect  ARGS: 2D bounding rect, and bitfield"""
+    global sim
     ret = []
     if x1 > x2:
         x1, x2 = x2, x1
     if z1 > z2:
         z1, z2 = z2, z1
-    if sim is None:
-        return ret
-
-    def _match(v):
-        if tick_type != -1 and not (v._abits & tick_type):
-            return False
-        p = v.pos
-        return p.x >= x1 and p.x < x2 and p.z >= z1 and p.z <= z2
-
-    if use_hash:
-        key = (getattr(sim, "time_tick_counter", 0), len(sim.space_objects))
-        if _broad_hash["grid"] is None or _broad_hash["key"] != key:
-            _broad_hash = {"key": key, "grid": _rebuild_broad_hash()}
-        grid = _broad_hash["grid"]
-        cx0, cz0 = _cell(x1, z1, _BROAD_CELL)
-        cx1, cz1 = _cell(x2, z2, _BROAD_CELL)
-        n_cells = (cx1 - cx0 + 1) * (cz1 - cz0 + 1)
-        if n_cells > len(grid):
-            # Rect spans more cells than are occupied (e.g. a world-sized query): walk
-            # the occupied cells instead of a huge mostly-empty range. Bounds the query
-            # at O(occupied cells + objects) so a big rect never beats itself.
-            for cell_objs in grid.values():
-                for v in cell_objs:
-                    if _match(v):
-                        ret.append(v)
-        else:
-            for cx in range(cx0, cx1 + 1):
-                for cz in range(cz0, cz1 + 1):
-                    for v in grid.get((cx, cz), ()):
-                        if _match(v):
-                            ret.append(v)
-        return ret
-
-    for v in list(sim.space_objects.values()):   # snapshot: thread-safe iteration
-        if _match(v):
-            ret.append(v)
+    if sim is not None:
+        for v in sim.space_objects.values():
+            is_valid_bits = v._abits & tick_type
+            if tick_type != -1 and not is_valid_bits:
+                continue
+            pos = v.pos
+            if pos.x >= x1 and pos.x < x2 and pos.z >= z1 and pos.z <= z2:
+                ret.append(v)
     return ret
 
 
@@ -192,42 +96,9 @@ def clear_client_tags() -> None:
     """stub; does nothing yet."""
 
 def create_new_sim() -> None:
-    """all space objects are deleted; a blank slate is born.
-
-    Resets the existing simulation IN PLACE rather than allocating a new object.
-    The engine reuses its sim instance, and so must the mock: a script's
-    ``sim_create()`` runs *inside* a ``cosmos_event_handler`` call whose
-    ``FrameContext.context`` already holds a reference to the sim. If we swapped
-    in a brand-new object, everything that script spawns after sim_create (e.g.
-    start_server's player ships) would land on the now-orphaned old instance via
-    the stale context, while later ticks build the world on the new one - so the
-    player ships vanish and their ids get reused. Re-initialising in place keeps
-    the object identity, so every held reference stays valid.
-    """
-    global sim, _contact_pairs, _broad_hash
-    if sim is None:
-        sim = simulation()
-    else:
-        # Keep the grid-object id counter MONOTONIC across resets. sim.__init__ would reset it, so
-        # grid-object ids would RECYCLE - and grid objects (unlike ships) are not deleted by a
-        # harness reset, so their stale role-registry entries (e.g. "__damaged__") persist and a
-        # new grid node reusing that id would inherit them (a fresh 3-weapon-node ship then reads a
-        # phantom damaged node). Monotonic ids can't collide, so no stale-role inheritance.
-        _keep_grid_ids = getattr(sim, "grid_object_ids", 0)
-        sim.__init__()   # reset fields in place; preserves object identity
-        if sim.grid_object_ids < _keep_grid_ids:
-            sim.grid_object_ids = _keep_grid_ids
-    _contact_pairs = {}
-    _projectiles.clear()
-    _blasts.clear()
-    _beam_fires.clear()
-    _broad_hash = {"key": None, "grid": None}   # drop the old mission's spatial hash
-    # Drop every ship's hull map too. hull_map_objects is a MODULE global keyed by ship id;
-    # sim.__init__ recycles space-object ids, so without this a new ship reuses an old id and
-    # get_hull_map hands back the PREVIOUS ship's grid objects - grid_objects() then reports the
-    # stale nodes on top of the new ones (e.g. a fresh 3-node ship reading 7). Blank it so a new
-    # sim starts with no grid state.
-    hull_map_objects.clear()
+    """all space objects are deleted; a blank slate is born."""
+    global sim
+    sim = simulation()
     return sim
 
 
@@ -258,7 +129,6 @@ def delete_object(ID: int) -> None:
             sim.space_objects.pop(ID, None)
             sim._active_ids.discard(ID)
             sim._terrain_ids.discard(ID)
-        _orphan_clients_of_ship(ID)
 
 def delete_particle_emittor(emittorID: int) -> None:
     """deletes a particle emittor by ID."""
@@ -379,43 +249,12 @@ def get_shared_string(key: str) -> str:
         return sim.shared_strings.get(key, "")
     return ""
 
-_PLAYER_ABIT = 0x20   # TickType.PLAYER - flags a player-controllable ship
-
-
-def _grab_player_ship(clientID: int) -> int:
-    """Engine-like fallback: when a client has no valid ship, grab a PLAYER-abit
-    ship and assign it. Prefers one not already controlled by another client;
-    falls back to any player ship (consoles can share a ship). 0 if none exist.
-    Mirrors the engine auto-grabbing / falling over to another player ship when
-    the assigned one is missing or deleted."""
-    players = [oid for oid, o in sim.space_objects.items()
-               if o is not None and (o._abits & _PLAYER_ABIT)]
-    if not players:
-        return 0
-    claimed = {sid for cid, sid in sim.client_ships.items() if cid != clientID}
-    pick = next((oid for oid in players if oid not in claimed), players[0])
-    sim.client_ships[clientID] = pick
-    return pick
-
-
-def _orphan_clients_of_ship(shipID: int) -> None:
-    """When a player ship is deleted, drop assignments pointing at it so the next
-    get_ship_of_client falls over to another player ship (engine behavior)."""
-    if sim is None:
-        return
-    for cid in [c for c, s in sim.client_ships.items() if s == shipID]:
-        sim.client_ships.pop(cid, None)
-
-
 def get_ship_of_client(clientID: int) -> int:
     """returns the player ship ID assigned to the client computer"""
     global sim
-    if sim is None:
-        return 0
-    sid = sim.client_ships.get(clientID, 0)
-    if sid == 0:
-        sid = _grab_player_ship(clientID)
-    return sid
+    if sim is not None:
+        return sim.client_ships.get(clientID, 0)
+    return 0
 
 def _font_size(fontTag: str) -> int:
     return {
@@ -533,38 +372,19 @@ def play_audio_file(clientID: int, filename: str, volume: float, pitch: float) -
 def play_music_file(ID: int, filename: str) -> None:
     """Plays a music file now; ID is ship, OR client, OR zero for server."""
 
-# The 4 ship systems the engine tracks (sbs.SHPSYS: WEAPONS/ENGINES/SENSORS/
-# SHIELDS), as (display name, system_damage facet index). Health % is derived from
-# system_damage / system_max_damage per index. grid_apply_system_damage sets
-# system_damage[x] = damaged-node count for player ships; NPCs are managed
-# similarly. (The 8 *_damage_coeff fields are sub-system effectiveness, not the
-# engine's system list.)
-SHIP_SYSTEMS = (
-    ("WEP", 0),   # WEAPONS
-    ("ENG", 1),   # ENGINES
-    ("SEN", 2),   # SENSORS
-    ("SHD", 3),   # SHIELDS
-)
-
-
 def _apply_ship_data_to_object(obj, data: dict) -> None:
     """Populate obj.data_set and physics fields from a shipData.yaml entry."""
     ds = obj.data_set
 
-    # Exclusion radius (solid collision) and interaction radius (interactive contact,
-    # e.g. pickups). Both come from shipData if present.
+    # Exclusion radius
     er = data.get("exclusionradius")
     if er is not None:
         obj._exclusion_radius = float(er)
-    ir = data.get("interactionradius")
-    if ir is not None:
-        ds.set("interactionradius", float(ir))
 
     # Scalar data_set fields that map 1-to-1
     for field in ("turn_rate", "speed_coeff", "scan_strength_coeff",
                   "ship_energy_cost", "warp_energy_cost", "jump_energy_cost",
-                  "drone_launch_timer",
-                  "repair_rate_shields", "repair_rate_systems", "repair_rate_armor"):
+                  "drone_launch_timer"):
         val = data.get(field)
         if val is not None:
             ds.set(field, float(val))
@@ -574,59 +394,11 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
     if bc is not None:
         ds.set("bay_count", int(bc))
 
-    is_player = bool(getattr(obj, "_abits", 0) & 0x20)
-    is_npc = bool(getattr(obj, "_abits", 0) & 0x10)      # NPC tick (ships AND stations)
-    is_station = (getattr(obj, "_tick_type", "") == "behav_station")
-
-    # Hull points -> armor, but armor is a STATION-only field in the engine.
+    # Hull points → armor (hull integrity when shields fail)
     hp = data.get("hullpoints")
-    if hp is not None and is_station:
+    if hp is not None:
         ds.set("armor",    float(hp))
         ds.set("armorMax", float(hp))
-
-    # Engineering regen rates: the engine sets these at runtime (shipData has none).
-    # Capture values (data_capture mission): players recover ~10x faster than NPCs;
-    # the rates are slow so combat depletes shields without stalling.
-    if is_player or is_npc:
-        ds.set("repair_rate_shields", 1.0 if is_player else 0.1)
-        ds.set("repair_rate_systems", 0.025 if is_player else 0.01)
-
-    # Energy + APU (engine runtime defaults, not in shipData): start the tank FULL so
-    # missions don't see an empty player on spawn (the data_set default is 0). The APU
-    # passively trickles energy back to the ceiling; flight drains it (see physics_tick),
-    # docking refills it fast. See PLAYER_ENERGY_MAX.
-    if is_player:
-        ds.set("energy", PLAYER_ENERGY_MAX)
-        ds.set("ship_apu_ceiling", PLAYER_ENERGY_MAX)
-        if not (ds.get("ship_apu_output") or 0.0):
-            ds.set("ship_apu_output", PLAYER_APU_OUTPUT)
-
-    # NPC ships have no armor; the mock drives their death via system damage, so
-    # seed the per-SHPSYS capacity. (Players' system damage is script-managed; the
-    # engine sets system_max_damage there. Stations use armor.)
-    #
-    # Scale node capacity to ship SIZE via shipData hullpoints. For SHIPS hullpoints
-    # is a small tier (~1-8), NOT hit points (stations use 100-200 as armor), so use
-    # it as the per-SHPSYS node count: a ship dies after 4 x hullpoints nodes, so a
-    # light cruiser (hp 3 -> 12 nodes) pops faster than a heavy raider (hp 8 -> 32).
-    # Falls back to 4 per system (the old flat 16-node total) when hullpoints is absent.
-    if is_npc and not is_station:
-        cap = max(1.0, float(hp)) if hp else 4.0
-        for _i in range(4):
-            ds.set("system_max_damage", cap, _i)
-
-    # Drone capability: shipData marks drone-launcher hulls (Torgoth + Ximni) with a
-    # drone_launch_timer. The engine flags those elite_drone_launcher=1 at runtime
-    # (the flag is not in shipData), so the mock does the same -> _physics_launchers
-    # fires drones for them. drone_damage / drone_launch_max_range use mock fallbacks
-    # (also engine-set, not in shipData) until calibrated from a data_capture run.
-    if data.get("drone_launch_timer"):
-        ds.set("elite_drone_launcher", 1)
-        # Mirror the engine's runtime drone params (calibrated from capture, diff 5).
-        if not (ds.get("drone_damage") or 0):
-            ds.set("drone_damage", _DRONE_DAMAGE)
-        if not (ds.get("drone_launch_max_range") or 0):
-            ds.set("drone_launch_max_range", _DRONE_RANGE)
 
     # Shields — per-facing array
     shields = data.get("shields")
@@ -642,36 +414,10 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
         ds.set("beamCount", len(beams))
         for i, b in enumerate(beams):
             ds.set("beamRange",       float(b.get("range",         1000)), i)
-            ds.set("beamDamage",      float(b.get("damage_coeff",   1.0)) * _BEAM_LOAD_BASE, i)
+            ds.set("beamDamage",      float(b.get("damage_coeff",   1.0)) * 6.0, i)
             ds.set("beamCycleTime",   float(b.get("cycle_time",     6.0)), i)
             ds.set("beamArcWidth",    float(b.get("arcwidth",       360)), i)
             ds.set("beamBarrelAngle", float(b.get("barrel_angle",     0)), i)
-
-    # Torpedo tubes — shipData "tubecount". torpedoes are player-fired, so this lets
-    # _physics_launchers auto-fire a player ship's torpedoes (NPCs never torpedo).
-    tubes = data.get("tubecount")
-    if tubes is not None:
-        ds.set("torpedo_tube_count", int(tubes))
-
-    # Torpedoes — starting loadout. shipData "torpedostart" is a list of single-key
-    # {type: count} dicts (or a {type: count} dict). Seed {Type}_NUM/_MAX and the
-    # type list so the weapons/refit/ship_data systems see the ship's torpedoes
-    # (start count is also the capacity — "Stores for N ...").
-    torp_start = data.get("torpedostart")
-    if torp_start:
-        if isinstance(torp_start, dict):
-            items = list(torp_start.items())
-        else:
-            items = [kv for entry in torp_start if isinstance(entry, dict)
-                     for kv in entry.items()]
-        names = []
-        for tname, count in items:
-            names.append(tname)
-            ds.set(f"{tname}_NUM", int(count), 0)   # loaded / available count
-            ds.set(f"{tname}_MAX", int(count), 0)   # capacity
-            ds.set(f"{tname}_VAL", int(count), 0)   # engine's value field (kept in sync)
-        if names:
-            ds.set("torpedo_types_available", ",".join(names), 0)
 
 
 def _try_populate_from_ship_data(obj) -> None:
@@ -709,11 +455,6 @@ def push_to_standby_list_id(id: int) -> None:
                 sim.standby_list[id] = obj
                 sim._active_ids.discard(id)
                 sim._terrain_ids.discard(id)
-                _orphan = True
-            else:
-                _orphan = False
-    if sim is not None and _orphan:
-        _orphan_clients_of_ship(id)
 
 def query_client_tags() -> None:
     """stub; does nothing yet."""
@@ -751,29 +492,8 @@ def retrieve_from_standby_list_id(id: int) -> None:
                 else:
                     sim._terrain_ids.add(id)
 
-_pending_next_mission = None
-
-
 def run_next_mission(mission_folder: str) -> None:
-    """Shuts down this script and starts the mission in the folder argument.
-
-    The real engine swaps missions at the process level. The mock can't do that
-    from inside a tick, so record the request; the mission runner polls
-    pop_next_mission() between ticks and performs the reload. Passing the current
-    mission folder restarts it (the common case: pause-screen restart, autoplay
-    results loop, mission select)."""
-    global _pending_next_mission
-    _pending_next_mission = mission_folder
-
-
-def pop_next_mission():
-    """Return and clear a pending run_next_mission() request (runner polls this).
-
-    Returns the folder string, or None when nothing is pending."""
-    global _pending_next_mission
-    folder = _pending_next_mission
-    _pending_next_mission = None
-    return folder
+    """Shuts down this script and starts the mission in the folder argument"""
 
 def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) -> None:
     """sends the gameplay widgets to draw, on the targeted client (0 = server screen)"""
@@ -787,23 +507,8 @@ def send_client_widget_rects(arg0: int, arg1: str, arg2: float, arg3: float, arg
 def send_comms_button_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
     """sends a complex message to the comms console of a certain ship."""
 
-def _require_space_object(objID, fn_name):
-    """Mirror the engine's validation: a player-ship message must target a LIVE
-    space object. The real ``SendMessageToPlayerShip`` raises "invalid space
-    object" for a non-space id - e.g. the SHARED story agent (a bookkeeping
-    counter with no space-object bit) that owns shared-scope quests. The mock is
-    otherwise a no-op, so without this the bug silently passes headless tests;
-    raising here catches exactly what the engine rejects at runtime. (id 0 =
-    server/all, left alone.)"""
-    if objID == 0:
-        return
-    if sim is None or not sim.space_object_exists(objID):
-        raise ValueError(f"invalid space object while calling {fn_name}")
-
-
 def send_comms_message_to_player_ship(playerID: int, otherID: int, faceDesc: str, titleText: str, titleColor: str, bodyText: str, bodyColor: str) -> None:
     """sends a complex message to the comms console of a certain ship."""
-    _require_space_object(playerID, "SendCommsMessageToPlayerShip")
 
 def send_comms_selection_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
     """sends a complex message to the comms console of a certain ship."""
@@ -882,7 +587,6 @@ def send_message_to_client(clientID: int, colorDesc: str, text: str) -> None:
 
 def send_message_to_player_ship(playerID: int, colorDesc: str, text: str) -> None:
     """sends a text message to the text box, on every client for a certain ship."""
-    _require_space_object(playerID, "SendMessageToPlayerShip")
 
 def send_speech_bubble_to_object(clientComputerID: int, spaceObjectID: int, seconds: int, color: str, text: str) -> None:
     """attaches a speech bubble to a space object on the 2d radar."""
@@ -892,10 +596,6 @@ def send_story_dialog(clientID: int, title: str, text: str, face: str, color: st
 
 def set_beam_damages(clientID: int, playerBeamDamage: float, npcBeamDamage: float, stationBeamDamage: float = 1) -> None:
     """sets the values for player base beam damage, npc base beam damage, and station base beam damage."""
-    global _beam_dmg_player, _beam_dmg_npc, _beam_dmg_station
-    _beam_dmg_player  = float(playerBeamDamage)
-    _beam_dmg_npc     = float(npcBeamDamage)
-    _beam_dmg_station = float(stationBeamDamage)
 
 def set_client_string(clientComputerID: int, string_key: str, string_value: str) -> None:
     """stores a string value (and its string key) to the client computer"""
@@ -945,32 +645,25 @@ def get_cinematic_camera(clientID: int):
 
     Returns {"cam": (x,y,z), "target": (x,y,z), "mode": str, "ship_id": str}.
     """
-    if sim is None:
-        return None
     st = _cinematic.get(clientID)
-    cinematic_mode = _view_modes.get(clientID, (None, None, None))[2] == "cinematic"
-    if st is None:
-        if not cinematic_mode:
-            return None
-        st = {"script": 0}   # cinematic mode with no scripted camera -> auto
+    if st is None or sim is None:
+        return None
 
     def _obj_pos(oid):
         o = sim.space_objects.get(oid)
         return None if o is None else (o._pos.x, o._pos.y, o._pos.z)
 
     if st["script"] == 0:
-        # Auto cinematic: frame the most "exciting" object (the engine's camera-
-        # decision field) so the view follows the action; fall back to the
-        # assigned ship when nothing is exciting.
-        focus_id = (_director_focus(clientID) if cinematic_mode else 0) or sim.client_ships.get(clientID, 0)
-        o = sim.space_objects.get(focus_id)
+        # Auto chase-cam: behind and above the assigned ship, looking ahead.
+        ship_id = sim.client_ships.get(clientID, 0)
+        o = sim.space_objects.get(ship_id)
         if o is None:
             return None
         p = o._pos
         f = o.forward_vector()
         cam = (p.x - f.x * 500.0, p.y + 150.0, p.z - f.z * 500.0)
         tgt = (p.x + f.x * 200.0, p.y, p.z + f.z * 200.0)
-        return {"cam": cam, "target": tgt, "mode": "auto", "ship_id": str(focus_id)}
+        return {"cam": cam, "target": tgt, "mode": "auto", "ship_id": str(ship_id)}
 
     # Scripted: explicit dolly/target objects + offsets.
     db = _obj_pos(st["dolly_id"]) or (0.0, 0.0, 0.0)
@@ -1451,34 +1144,31 @@ _DATA_SET_DEFAULTS = {
     "shields_raised_flag": 0, "surrender_flag": 0,
     "system_coolant_available": 0, "system_coolant_used": 0, "system_last_coolant_change": 0,
     "target_id": 0, "torpedo_tube_count": 0, "unselectable": 0,
-    # interaction radius: a ship within this of the object triggers an INTERACTIVE
-    # collision (pickups set it; 0 = no interactive contact). Engine data_set value.
-    "interactionradius": 0.0,
     "warp_drive_active": 0, "warp_while_docked": 0,
     # int64 / uint64 fields
     "beamTimer": 0, "healTimer": 0, "extra_scan_source": 0, "science_target_UID": 0,
     # float fields
     "absorption_blue": 0.0, "absorption_green": 0.0, "absorption_red": 0.0,
-    "all_beam_damage_coeff": 0.0, "all_beam_upgrade_coeff": 1.0,
-    "all_shield_damage_coeff": 0.0, "all_shield_upgrade_coeff": 1.0,
-    "all_tube_damage_coeff": 0.0, "all_tube_upgrade_coeff": 1.0,
+    "all_beam_damage_coeff": 0.0, "all_beam_upgrade_coeff": 0.0,
+    "all_shield_damage_coeff": 0.0, "all_shield_upgrade_coeff": 0.0,
+    "all_tube_damage_coeff": 0.0, "all_tube_upgrade_coeff": 0.0,
     "anisotropy": 0.0, "armor": 0.0, "armorMax": 0.0,
     "base_amplitude": 0.0, "base_frequency": 0.0,
     "beamArcWidth": 0.0, "beamBarrelAngle": 0.0,
     "beamColorA": 0.0, "beamColorB": 0.0, "beamColorG": 0.0, "beamColorR": 0.0,
     "beamCycleTime": 0.0, "beamDamage": 0.0,
     "beamHullPointX": 0.0, "beamHullPointY": 0.0, "beamHullPointZ": 0.0,
-    "beamRange": 0.0, "beam_damage_coeff": 0.0, "beam_upgrade_coeff": 1.0,
+    "beamRange": 0.0, "beam_damage_coeff": 0.0, "beam_upgrade_coeff": 0.0,
     "body_1_size_coeff": 0.0, "body_2_size_coeff": 0.0,
-    "closest_scan_delay": 0.0, "coolant_damage_coeff": 0.0, "coolant_upgrade_coeff": 1.0,
+    "closest_scan_delay": 0.0, "coolant_damage_coeff": 0.0, "coolant_upgrade_coeff": 0.0,
     "density": 0.0, "detail_amplitude": 0.0, "detail_frequency": 0.0,
     "detail_lacunarity": 0.0, "display_size": 0.0, "domain_warp": 0.0,
     "drone_damage": 0.0, "drone_launch_max_range": 0.0, "drone_launch_timer": 0.0,
     "effect_size": 0.0, "emission_blue": 0.0, "emission_green": 0.0, "emission_red": 0.0,
     "energy": 0.0, "eng_control_cost_coeff": 0.0, "eng_control_value": 0.0,
     "exciting": 0.0, "farthest_scan_delay": 0.0, "fractional_damage": 0.0,
-    "icon_scale": 0.0, "impulse_damage_coeff": 0.0, "impulse_upgrade_coeff": 1.0,
-    "jump_damage_coeff": 0.0, "jump_energy_cost": 0.0, "jump_upgrade_coeff": 1.0,
+    "icon_scale": 0.0, "impulse_damage_coeff": 0.0, "impulse_upgrade_coeff": 0.0,
+    "jump_damage_coeff": 0.0, "jump_energy_cost": 0.0, "jump_upgrade_coeff": 0.0,
     "local_scale_coeff": 0.0, "local_scale_x_coeff": 0.0,
     "local_scale_y_coeff": 0.0, "local_scale_z_coeff": 0.0,
     "max_throttle": 0.0, "mesh_rotate_side": 0.0,
@@ -1490,8 +1180,8 @@ _DATA_SET_DEFAULTS = {
     "repair_rate_armor": 0.0, "repair_rate_shields": 0.0, "repair_rate_systems": 0.0,
     "scan_strength_coeff": 0.0,
     "scattering_blue": 0.0, "scattering_green": 0.0, "scattering_red": 0.0,
-    "sensor_damage_coeff": 0.0, "sensor_upgrade_coeff": 1.0,
-    "shield_damage_coeff": 0.0, "shield_max_val": 0.0, "shield_upgrade_coeff": 1.0,
+    "sensor_damage_coeff": 0.0, "sensor_upgrade_coeff": 0.0,
+    "shield_damage_coeff": 0.0, "shield_max_val": 0.0, "shield_upgrade_coeff": 0.0,
     "shield_val": 0.0, "shield_wave_amplitude": 0.0, "shield_wave_frequency": 0.0,
     "shield_wave_offset": 0.0, "shield_wave_value": 0.0,
     "ship_apu_ceiling": 0.0, "ship_apu_output": 0.0, "ship_base_scan_range": 0.0,
@@ -1500,9 +1190,9 @@ _DATA_SET_DEFAULTS = {
     "system_damage": 0.0, "system_max_damage": 0.0,
     "target_pos_x": 0.0, "target_pos_y": 0.0, "target_pos_z": 0.0,
     "throttle": 0.0, "total_speed_coeff": 0.0,
-    "tube_damage_coeff": 0.0, "tube_upgrade_coeff": 1.0,
-    "turnRate": 0.0, "turn_damage_coeff": 0.0, "turn_rate": 0.0, "turn_upgrade_coeff": 1.0,
-    "warp_damage_coeff": 0.0, "warp_energy_cost": 0.0, "warp_upgrade_coeff": 1.0,
+    "tube_damage_coeff": 0.0, "tube_upgrade_coeff": 0.0,
+    "turnRate": 0.0, "turn_damage_coeff": 0.0, "turn_rate": 0.0, "turn_upgrade_coeff": 0.0,
+    "warp_damage_coeff": 0.0, "warp_energy_cost": 0.0, "warp_upgrade_coeff": 0.0,
     # string fields
     "ally_list": "", "beamColor": "", "bio": "",
     "body_1_color": "", "body_1_diffuse_bitmap_file": "", "body_1_geom_filename": "",
@@ -1522,27 +1212,9 @@ _DATA_SET_DEFAULTS = {
 
 
 class object_data_set(object): ### from pybind
-    """class object_data_set
-
-    Mock note: this carries a lightweight CHANGE counter (`gen`) that bumps only when
-    a ``set()`` actually changes a stored value. Consumers (the mockgui HUD push)
-    remember the last `gen` they saw per object and skip work when nothing changed -
-    so unchanged ship vitals aren't recomputed or re-sent every tick. `dirty_since(g)`
-    returns the exact keys that changed since gen `g` (each key is gen-stamped), which
-    is clobber-free across multiple watchers (unlike a shared dirty set that one
-    consumer would clear out from under another)."""
+    """class object_data_set"""
     def __init__(self):
         self.values = {}
-        self._gen = 0           # bumps on every real value change
-        self._key_gen = {}      # (tag, index) -> gen at which it last changed
-
-    @property
-    def gen(self) -> int:
-        return self._gen
-
-    def dirty_since(self, gen: int):
-        """The (tag, index) keys whose value changed after `gen`."""
-        return [k for k, g in self._key_gen.items() if g > gen]
 
     def clear_data(self, name: str) -> None:
         """deletes all elements in this blob value"""
@@ -1570,9 +1242,6 @@ class object_data_set(object): ### from pybind
 
     def set(self, tag, value, index=0):
         values = self.values.get(tag, {})
-        if values.get(index) != value:          # only mark on a real change
-            self._gen += 1
-            self._key_gen[(tag, index)] = self._gen
         values[index] = value
         self.values[tag] = values
 
@@ -1649,7 +1318,6 @@ class simulation(object): ### from pybind
         self.navproxies = {}
         self.hull_map_objects = {}
         self._time_tick_counter = 0
-        self._tick_accum = 0.0        # fractional sim-ticks carried between physics ticks
         self.tractor_connections = {}
         self._paused = True           # sim starts paused, like the real engine
         self._connected_client_ids: set = set()  # registered via WebSocket (mockgui)
@@ -1657,15 +1325,10 @@ class simulation(object): ### from pybind
         self.client_alt_ships = {}    # clientID -> altShipID (radar focus)
         self.client_types = {}        # clientID -> consoleType str
         self.side_relations = {}      # frozenset({s1,s2}) -> DIPLOMACY int
-        self.side_icon_colors = {}    # SideTag -> color string (side_set_icon_color)
-        self.diplomacy_colors = {}    # DIPLOMACY int -> color string (set_diplomacy_color)
         self.shared_strings = {}      # key -> value (synced server→clients in real engine)
         self._terrain_ids: set = set()   # abits & 0x30 == 0 — static; skipped in physics
         self._active_ids:  set = set()   # abits & 0x30 != 0 — NPCs + players; full physics
-        # Reentrant: physics_tick holds the lock for the whole tick, and within
-        # it collision/beam damage may call apply_damage -> delete_object, which
-        # re-acquires the lock on the same thread.
-        self._lock = threading.RLock()
+        self._lock = threading.Lock()
 
     def AddTractorConnection(self: simulation, arg0: int, arg1: int, arg2: vec3, arg3: float) -> tractor_connection:
         """makes a new connection between two space objects."""
@@ -1794,27 +1457,7 @@ class simulation(object): ### from pybind
         return not self._paused
 
     def launch_torpedo(self: simulation, source_ship: space_object, tube_index: int, is_fighter_flag: bool) -> None:
-        """launches a torpedo from the space object provided.
-
-        Engine API (a weapons console / autoplay / fighter calls it). Wires to the mock
-        projectile sim: spend a round of a loaded torpedo type and spawn the projectile
-        toward the ship's weapon target (straight ahead if none). The mock keys ammo by
-        type rather than by physical tube, so `tube_index` fires the first loaded type
-        (reserved for a future per-tube loadout model); `is_fighter_flag` is accepted for
-        API parity - the projectile spawns from `source_ship` either way."""
-        if source_ship is None:
-            return
-        ds = source_ship.data_set
-        # tube_index selects which loaded torpedo TYPE to fire (index into
-        # torpedo_types_available - the mock keys ammo by type). Out of range falls back
-        # to the first loaded type. (Real engine tube<->type mapping: verify.)
-        avail = [t.strip() for t in str(ds.get("torpedo_types_available", "") or "").split(",") if t.strip()]
-        want = avail[tube_index] if 0 <= tube_index < len(avail) else None
-        kind = _consume_torpedo(ds, want)    # spend a round; None if out of ammo
-        if kind is None:
-            return
-        rng = ds.get("torpedo_launch_max_range") or _TORP_RANGE
-        launch_missile(source_ship._id, _weapon_target(ds), kind=kind, max_range=rng)
+        """launches a torpedo from the space object provided."""
 
     def navpoint_exists(self: simulation, id: int) -> bool:
         """returns true if the navpoint exists, by integer id"""
@@ -1833,14 +1476,12 @@ class simulation(object): ### from pybind
 
     def set_diplomacy_color(self: simulation, diplomacyEnumValue: int, colorString: str) -> None:
         """set the color of a diplomatic state (like DIPLOMACY::UNKNOWN or DIPLOMACY::ALLIED)"""
-        self.diplomacy_colors[int(diplomacyEnumValue)] = colorString
 
     def set_navproxy_pos(self: simulation, navproxy: navproxy, x: float, y: float, z: float) -> None:
         """takes a navproxy (the reference, not the ID), and sets the xyz values"""
 
     def set_side_icon_color(self: simulation, SideTag: str, colorString: str) -> None:
         """set the color of a SideTag (like TSN or Raider)"""
-        self.side_icon_colors[SideTag] = colorString
 
     def set_side_icon_index(self: simulation, SideTag: str, iconIndex: int) -> None:
         """set the value of the icon of a SideTag (like TSN or Raider)"""
@@ -2321,125 +1962,42 @@ def register_behavior(tick_type: str, fn) -> None:
     _behavior_registry[tick_type] = fn
 
 
-# Absolute engine speeds (units/sec), calibrated from the data_capture mission run
-# in the real engine (capture_speed.json). The engine's actual velocity is
-# cur_speed * 36 u/s; the throttle->cur_speed mapping differs sharply by ship kind:
-#
-#   NPC    @ throttle 1.0      -> cur_speed 1.0  * speed_coeff  -> 36 u/s  (scales per hull)
-#   player @ playerThrottle 1.0-> cur_speed 5.0  (impulse cap)  -> 180 u/s (hull-INDEPENDENT)
-#   player @ playerThrottle 3.0-> cur_speed 30.0 (warp)         -> 1080 u/s
-#
-# So NPC top speed scales with shipData speed_coeff (a 0-1 multiplier); player
-# impulse/warp speed does NOT (every player hull tops out the same - matching the
-# engine, where hulls differ in maneuverability, not impulse top speed).
-BASE_TOP_SPEED = 36.0          # NPC impulse top speed at throttle 1.0, speed_coeff 1.0
-PLAYER_IMPULSE_SPEED = 180.0   # player impulse top speed at playerThrottle 1.0 (no speed_coeff)
-# Additional units/sec per warp factor above 1.0: player @ pThr 3 = 180 + 2*450 = 1080.
-PLAYER_WARP_SPEED = 450.0
-# --- Player energy ("fuel") --------------------------------------------------
-# Energy model: a player ship has a 1000-unit tank (artemiswiki "Energy", close enough
-# for the mock). Flight (impulse + warp) and overpowering systems spend it; docking at
-# a station refills it fast. Unlike old Artemis, Cosmos ALSO has a passive auxiliary
-# power unit (APU) that trickles energy back toward the ceiling. The engine sets the
-# tank + APU at runtime (shipData has neither), so the mock seeds them on spawn. Firing
-# or loading torpedoes does NOT cost energy - the weapons console's energy<->torpedo
-# conversion is a separate, manual choice.
-PLAYER_ENERGY_MAX = 1000.0     # full tank / APU ceiling (engine player default)
-PLAYER_APU_OUTPUT = 1.0        # passive regen coefficient (energy/s = output * 2.0)
-# Flight drain coefficients (uncalibrated - no per-second figure available; tuned so
-# sustained warp NET-drains the tank over a few minutes despite APU regen, while idle
-# and light impulse let the APU recharge it). per second:
-# min(thr,1)*ship_energy_cost*IMPULSE_ENERGY_DRAIN + max(0,thr-1)*warp_energy_cost*WARP_ENERGY_DRAIN
-IMPULSE_ENERGY_DRAIN = 1.0
-WARP_ENERGY_DRAIN = 2.0
-# Acceleration is a first-order lag (captured cur_speed approaches its target
-# geometrically, not linearly): cur += (target - cur) * (1 - exp(-dt/SPEED_TAU)).
-# SPEED_TAU is the time constant in seconds (engine NPC ~0.8s, player ~1.7s; 1.0 is
-# a middle value that gives a sensible few-second spin-up for both).
-SPEED_TAU = 1.0
-# Engine sim-tick rate.  simulation.time_tick_counter advances this many ticks per
-# second of sim time; sim_seconds = time_tick_counter / TPS.  Must match
-# sbs_utils.helpers._TPS (30).  The physics tick is the sim-time source (see
-# physics_tick), so it advances the counter by dt * TICKS_PER_SECOND.
-TICKS_PER_SECOND = 30.0
-
-# Hull damage (post-shields) per NPC system node. A ship has 4 SHPSYS x
-# system_max_damage nodes; a hit fills ceil(amount / this) nodes, so ~one beam
-# shot ruins ~one node and the ship dies once all systems are maxed. Tunable.
-_SYSTEM_NODE_HP = 6.0
-
-# Death spiral: a damaged ship outputs less weapon damage (mirrors the engine,
-# where system damage degrades subsystem effectiveness). Offense scales linearly
-# with remaining hull/system health down to this floor, so a battered ship still
-# fights but loses the exchange faster — fights resolve instead of grinding.
-_OFFENSE_FLOOR = 0.25
+# Absolute engine speed (units/sec at throttle=1.0, speed_coeff=1.0).  shipData only
+# carries speed_coeff (a 0.0-1.0 multiplier), never an absolute top speed, so the
+# absolute meters/sec lives here as a constant the coefficient scales.
+BASE_TOP_SPEED = 200.0
+# Additional units/sec per warp factor for player ships (playerThrottle > 1.0).
+PLAYER_WARP_SPEED = 1000.0
+# How fast _cur_speed eases toward its target (units/sec^2) — speed ramps, never snaps.
+SPEED_RAMP_RATE = 60.0
 
 
 def _ramp_speed(obj: space_object, target_speed: float, dt: float) -> None:
-    """Ease obj._cur_speed toward target_speed with a first-order lag (time constant
-    SPEED_TAU), matching the engine's geometric approach to top speed — no instant
-    jumps.  Snaps to the target once negligibly close so a stopped ship settles at
-    exactly 0 and a cruising ship sits exactly at top speed (the lag only approaches
-    asymptotically)."""
+    """Ease obj._cur_speed toward target_speed at SPEED_RAMP_RATE; no instant changes."""
     cur = obj._cur_speed
-    new = cur + (target_speed - cur) * (1.0 - math.exp(-dt / SPEED_TAU))
-    obj._cur_speed = target_speed if abs(target_speed - new) < 1e-3 else new
-
-
-def _steer_toward(obj: space_object, dx: float, dy: float, dz: float,
-                  horiz_dist: float, dist: float, turn_rate: float) -> None:
-    """Drive _steer_yaw + _steer_pitch with a P-controller so the heading rotates
-    toward the world direction (dx, dy, dz).  Yaw turns in the XZ plane; pitch
-    closes the vertical (y) gap so ships maneuver in full 3D, not just a plane.
-
-    horiz_dist = sqrt(dx^2+dz^2), dist = sqrt(dx^2+dy^2+dz^2) (passed in to avoid
-    recomputing).  Both steer terms are clamped to ±turn_rate."""
-    fwd = obj.forward_vector()
-    # Yaw toward the heading in the XZ plane.  Undefined when the target is ~directly
-    # overhead (horiz_dist ~ 0), so skip yaw there and let pitch do the work.
-    if horiz_dist > 1e-3:
-        ndx, ndz = dx / horiz_dist, dz / horiz_dist
-        # Signed heading error via atan2 (sin AND cos), not just the cross product:
-        # the cross alone is sin(error), which is 0 at BOTH 0° and 180°, so a ship
-        # with its target directly behind could never turn around. atan2 gives the
-        # full ±π error so a 180° target drives a max turn.
-        cross_y = fwd.z * ndx - fwd.x * ndz        # sin(error)  (+ = target to starboard)
-        dot = fwd.x * ndx + fwd.z * ndz            # cos(error)
-        err = math.atan2(cross_y, dot)
-        obj._steer_yaw = max(-turn_rate, min(turn_rate, err * turn_rate * 5.0))
-    else:
-        obj._steer_yaw = 0.0
-    # Pitch toward the target elevation.  fwd is unit, so fwd.y is sin(current
-    # elevation) and dy/dist is sin(desired elevation).  +_steer_pitch noses the
-    # ship DOWN (rotation about the body +X axis lowers forward.y), so steer by the
-    # NEGATED elevation error to climb toward a higher target / dive toward a lower one.
-    if dist > 1e-6:
-        elev_err = (dy / dist) - fwd.y
-        obj._steer_pitch = max(-turn_rate, min(turn_rate, -elev_err * turn_rate * 5.0))
-    else:
-        obj._steer_pitch = 0.0
+    step = SPEED_RAMP_RATE * dt
+    if cur < target_speed:
+        obj._cur_speed = min(target_speed, cur + step)
+    elif cur > target_speed:
+        obj._cur_speed = max(target_speed, cur - step)
 
 
 def _npcship_steer(obj: space_object, dt: float) -> None:
-    """Default NPC ship behavior: steer toward target_pos_x/y/z in 3D (yaw for
-    heading, pitch for altitude) and decelerate to arrive, rather than barreling
-    in at full speed.  Speed cruises at throttle × BASE_TOP_SPEED × speed_coeff."""
+    """Default NPC ship behavior: steer toward target_pos_x/y/z and decelerate to
+    arrive, rather than barreling in at full speed.  Speed cruises at
+    throttle × BASE_TOP_SPEED × speed_coeff."""
     ds = obj.data_set
     if ds.get("deathState") > 0:
         obj._steer_yaw = 0.0
-        obj._steer_pitch = 0.0
         obj._cur_speed = 0.0
         return
 
     throttle = ds.get("throttle") or 0.0
     tx = ds.get("target_pos_x") or 0.0
-    ty = ds.get("target_pos_y") or 0.0
     tz = ds.get("target_pos_z") or 0.0
     dx = tx - obj._pos.x
-    dy = ty - obj._pos.y
     dz = tz - obj._pos.z
     horiz_dist = math.sqrt(dx * dx + dz * dz)
-    dist = math.sqrt(dx * dx + dy * dy + dz * dz)
 
     turn_rate = ds.get("turn_rate") or 0.0
     if turn_rate <= 0.0:
@@ -2456,29 +2014,26 @@ def _npcship_steer(obj: space_object, dt: float) -> None:
     if arrive_dist <= 0.0:
         arrive_dist = 20.0
 
-    # Turn to face the target. AIMING is independent of throttle: a ship holding
-    # position (throttle 0, e.g. parked at stop_dist while shooting) still rotates to
-    # keep its weapon target in beam arc, like the engine. Without this a stationary
-    # combatant faces its spawn heading, its beams fall out of arc, and only one side
-    # fires - which made mock fights ~2x too slow. Movement still gates on throttle.
-    has_weapon_target = (ds.get("target_id") or 0) != 0
-    if dist > arrive_dist and (throttle > 0.0 or has_weapon_target):
-        _steer_toward(obj, dx, dy, dz, horiz_dist, dist, turn_rate)
+    if horiz_dist > arrive_dist and throttle > 0.0:
+        fwd = obj.forward_vector()
+        ndx, ndz = dx / horiz_dist, dz / horiz_dist
+        # Y-component of (fwd × desired): positive → target is right of heading → steer right (+yaw)
+        cross_y = fwd.z * ndx - fwd.x * ndz
+        steer = cross_y * turn_rate * 5.0     # P-controller; clamp to ±turn_rate
+        obj._steer_yaw = max(-turn_rate, min(turn_rate, steer))
     else:
         obj._steer_yaw = 0.0
-        obj._steer_pitch = 0.0
 
     # Arrival braking: full speed cruises in, but within ~2× the turn radius the
     # ship slows proportionally so its turn radius shrinks below the distance to
     # the target and it can actually arrive.  Without this it orbits the target
-    # forever (which reads as spinning on the radar).  Uses 3D distance so a ship
-    # directly above/below its target still closes the altitude gap before parking.
+    # forever (which reads as spinning on the 2D radar).
     turn_radius = cruise_speed / turn_rate
     brake_dist = max(2.0 * turn_radius, 100.0)
-    if dist <= arrive_dist:
+    if horiz_dist <= arrive_dist:
         target_speed = 0.0
-    elif dist < brake_dist:
-        target_speed = cruise_speed * (dist / brake_dist)
+    elif horiz_dist < brake_dist:
+        target_speed = cruise_speed * (horiz_dist / brake_dist)
     else:
         target_speed = cruise_speed
     _ramp_speed(obj, target_speed, dt)
@@ -2486,43 +2041,20 @@ def _npcship_steer(obj: space_object, dt: float) -> None:
 
 def _playership_drive(obj: space_object, dt: float) -> None:
     """Default player ship behavior: drive forward along current heading from
-    playerThrottle (0.0-5.0; <=1.0 impulse, >1.0 warp).
-
-    When the helm requests direction steering (steeringToDirFlag set — e.g. the
-    autoplay AI, which writes steerToDirDX/DY/DZ + steeringToDirFlag rather than
-    target_pos), rotate the heading toward that vector in 3D using the same
-    yaw+pitch P-controller as _npcship_steer.  Otherwise leave the heading
-    untouched (manual helm sets _steer_yaw elsewhere).  Throttle ramping is
-    unchanged — autoplay does its own distance-based throttle, so no arrival
-    braking here."""
+    playerThrottle (0.0-5.0; <=1.0 impulse, >1.0 warp).  Helm sets _steer_yaw
+    elsewhere — this only ramps forward speed."""
     ds = obj.data_set
     if ds.get("deathState") > 0:
-        obj._steer_yaw = 0.0
-        obj._steer_pitch = 0.0
         obj._cur_speed = 0.0
         return
 
-    # Direction steering: steer toward the requested heading vector in 3D.  NPCs
-    # steer via target_pos_x/y/z; players are driven via steerToDirD* + the flag.
-    if ds.get("steeringToDirFlag"):
-        dx = ds.get("steerToDirDX") or 0.0
-        dy = ds.get("steerToDirDY") or 0.0
-        dz = ds.get("steerToDirDZ") or 0.0
-        horiz = math.sqrt(dx * dx + dz * dz)
-        dist = math.sqrt(dx * dx + dy * dy + dz * dz)
-        turn_rate = ds.get("turn_rate") or 0.0
-        if turn_rate <= 0.0:
-            turn_rate = 0.1  # ~6 deg/s fallback when shipData not loaded
-        _steer_toward(obj, dx, dy, dz, horiz, dist, turn_rate)
-
-    # Player speed is hull-INDEPENDENT (the engine tops every player hull out the
-    # same on impulse/warp - speed_coeff is not applied to players, only to NPCs).
     pt = ds.get("playerThrottle") or 0.0
+    speed_coeff = ds.get("total_speed_coeff") or ds.get("speed_coeff") or 1.0
     if pt <= 1.0:
-        target_speed = pt * PLAYER_IMPULSE_SPEED
+        target_speed = pt * BASE_TOP_SPEED * speed_coeff
     else:
-        # Warp: full impulse plus a per-warp-factor bonus.
-        target_speed = PLAYER_IMPULSE_SPEED + (pt - 1.0) * PLAYER_WARP_SPEED
+        # Warp: full impulse plus a warp-factor bonus.
+        target_speed = (BASE_TOP_SPEED + (pt - 1.0) * PLAYER_WARP_SPEED) * speed_coeff
     _ramp_speed(obj, target_speed, dt)
 
 
@@ -2539,962 +2071,6 @@ def _cell(x: float, z: float, sz: float):
     return (int(x / sz), int(z / sz))
 
 
-def _is_station(obj_id: int) -> bool:
-    """True if the object's py Agent carries the 'station' role (used to pick
-    station_killed vs npc_killed)."""
-    try:
-        from sbs_utils.agent import Agent
-        a = Agent.get(obj_id)
-        return a is not None and a.has_role("station")
-    except Exception:
-        return False
-
-
-def _hit_facing(target, source, n_facings: int) -> int:
-    """Which shield facing a hit from `source` lands on. The engine reduces the facing
-    toward the attacker; the mock approximates it by the source's bearing relative to
-    the target's heading, split into n_facings even sectors starting at the bow
-    (facing 0 = front, going clockwise). Defaults to facing 0 when the source or
-    heading is unknown - and ships usually face their target, so that's the bow."""
-    if n_facings <= 1 or source is None:
-        return 0
-    dx = source._pos.x - target._pos.x
-    dz = source._pos.z - target._pos.z
-    if dx == 0.0 and dz == 0.0:
-        return 0
-    fwd = target.forward_vector()
-    right = target.right_vector()
-    f = fwd.x * dx + fwd.z * dz                       # forward component
-    r = right.x * dx + right.z * dz                   # starboard component
-    ang = math.degrees(math.atan2(r, f)) % 360.0      # 0 = dead ahead, CW
-    sector = 360.0 / n_facings
-    return int((ang + sector / 2.0) % 360.0 / sector) % n_facings
-
-
-def apply_damage(target_id: int, amount: float, source_id: int = 0, kind: str = "") -> None:
-    """Mock-only hull-damage model.
-
-    Applies `amount` hull damage to `target_id` and queues the matching engine
-    events so handlerhooks routes them like the real Pybind layer:
-      - non-fatal: a ``damage`` event (origin=source, selected=target). Carries
-        ``sub_tag`` = weapon kind (``kind``: "beam"/"drone"/torp type) and
-        ``sub_float`` = the hit amount, like the engine - so //damage routes can read
-        ``EVENT.sub_float`` / ``EVENT.sub_tag`` in the mock too.
-      - fatal: a ``damage``/``destroyed`` event (fires //damage/destroy and
-        removes the py Agent via LifetimeDispatcher) plus ``npc_killed`` or
-        ``station_killed`` (fires //damage/killed, keyed on origin=target).
-    Hull lives in data_set "armor"; only objects with armorMax>0 are damageable
-    (ships from shipData). The dead mock object is removed from the sim.
-    """
-    global sim, _apply_damage_calls
-    if sim is None or amount <= 0:
-        return
-    obj = sim.space_objects.get(target_id)
-    if obj is None:
-        return
-    _apply_damage_calls += 1   # dev diagnostic (mission_runner --test report)
-    hit_amount = float(amount)   # raw weapon damage -> //damage EVENT.sub_float
-
-    def _dmg(destroyed: bool = False):
-        # sub_tag = weapon kind, or "destroyed" for the fatal hit (the //damage/destroy
-        # signal); sub_float = the hit amount. Matches the engine's //damage event.
-        st = "destroyed" if destroyed else kind
-        _pending_physics_events.put(("damage", st, source_id, target_id, {"sub_float": hit_amount}))
-    ds = obj.data_set
-    is_player = bool(obj._abits & 0x20)
-    # Damageable = a ship (shields / player) or a station (armor). Asteroids and
-    # markers (no shields, no armor, not a player) are not damageable.
-    if (not is_player
-            and (ds.get("armorMax") or 0.0) <= 0
-            and (ds.get("shield_max_val") or 0.0) <= 0
-            and (ds.get("system_max_damage", 0) or 0.0) <= 0):
-        return
-    _bump_exciting(obj, _EXCITE_COMBAT)   # taking a hit is camera-worthy (attract)
-    # Shields absorb first, PER FACING (like the engine): a hit lands on the one
-    # facing toward the attacker; only its overflow reaches the hull, and the OTHER
-    # facings stay up - so a ship can die with shields still on its far side (this is
-    # exactly what the data_capture matrix showed). The mock has no real hit geometry
-    # (get_shield_hit_index is a stub), so it picks the facing from the source's
-    # bearing; ships normally face their target, so that's usually the front facing.
-    n_sh = int(ds.get("shield_count") or 0) or 1
-    fi = _hit_facing(obj, sim.space_objects.get(source_id), n_sh)
-    shield = ds.get("shield_val", fi) or 0.0
-    if shield > 0:
-        if amount <= shield:
-            ds.set("shield_val", shield - amount, fi)
-            _dmg()
-            return
-        amount -= shield
-        ds.set("shield_val", 0.0, fi)
-    # Shields down. Three death models:
-    #  * PLAYER -> INTERNAL damage: a hit the script processes (LegendaryMissions
-    #    grids it into system damage), not direct hull loss; the script governs
-    #    player survival.
-    #  * STATION -> armor (hull) loss; station_killed at 0.
-    #  * NPC ship -> no armor (armor is station-only); fill system_damage across
-    #    the 4 SHPSYS, npc_killed when every system is maxed.
-    if is_player:
-        _dmg()
-        # //damage/internal: origin = the damaged ship; reads sub_float (system/
-        # amount) + source_point. source_point is a point on the ship MESH in 3D
-        # that the script maps to grid cell(s). A random point around the ship is
-        # the cheap approximation (real mesh verts would be the expensive option).
-        p = obj._pos
-        r = (obj.data_set.get("exclusion_radius") or 0.0) or 50.0
-        sp = vec3(p.x + random.uniform(-r, r),
-                  p.y + random.uniform(-r, r),
-                  p.z + random.uniform(-r, r))
-        _pending_physics_events.put((
-            "player_internal_damage", "", target_id, source_id,
-            {"sub_float": 1.0, "source_point": sp},
-        ))
-        return
-
-    if _is_station(target_id):
-        armor = (ds.get("armor") or 0.0) - amount
-        if armor > 0:
-            ds.set("armor", armor)
-            _dmg()
-            return
-        ds.set("armor", 0.0)
-        _dmg(destroyed=True)
-        _pending_physics_events.put(("station_killed", "", target_id, target_id))
-        _bump_exciting(sim.space_objects.get(source_id), _EXCITE_KILL)
-        delete_object(target_id)
-        return
-
-    # NPC ship: distribute the hit as node damage across the 4 SHPSYS (filling the
-    # least-damaged system first); destroy when every system is maxed.
-    nodes = max(1, int(round(amount / _SYSTEM_NODE_HP)))
-    for _ in range(nodes):
-        tgt, low = -1, None
-        for i in range(4):
-            mx = ds.get("system_max_damage", i) or 0.0
-            cur = ds.get("system_damage", i) or 0.0
-            if mx > 0 and cur < mx and (low is None or cur < low):
-                low, tgt = cur, i
-        if tgt < 0:
-            break
-        ds.set("system_damage", (ds.get("system_damage", tgt) or 0.0) + 1.0, tgt)
-    dead = all((ds.get("system_max_damage", i) or 0.0) > 0
-               and (ds.get("system_damage", i) or 0.0) >= (ds.get("system_max_damage", i) or 0.0)
-               for i in range(4))
-    if dead:
-        _dmg(destroyed=True)
-        _pending_physics_events.put(("npc_killed", "", target_id, target_id))
-        _bump_exciting(sim.space_objects.get(source_id), _EXCITE_KILL)
-        delete_object(target_id)
-    else:
-        _dmg()
-
-
-def _weapon_target(ds) -> int:
-    """The ship's combat target id. Players set weapon_target_UID (the weapon
-    console's selected target); NPC AI sets target_id. Beams and missiles both
-    fire at this."""
-    return (ds.get("weapon_target_UID") or ds.get("target_id") or 0)
-
-
-def _beam_base_damage(a) -> "float | None":
-    """Per-shot beam damage for firer `a` from set_beam_damages (station/player/npc).
-    Returns None when set_beam_damages was never called - then the caller falls
-    back to the ship's data_set "beamDamage" (so the damage unit tests, which set
-    beamDamage directly, are unaffected)."""
-    if _beam_dmg_player is None:
-        return None
-    if _is_station(a._id):
-        return _beam_dmg_station
-    if a._abits & 0x20:        # TickType.PLAYER
-        return _beam_dmg_player
-    return _beam_dmg_npc
-
-
-def _offense_factor(obj) -> float:
-    """Death-spiral multiplier (0..1) on a firer's weapon damage from its remaining
-    health. NPC ships scale by surviving system-damage capacity; stations by armor.
-    Floored at _OFFENSE_FLOOR so a near-dead ship still bites. An undamaged firer
-    (or one with no health model, e.g. a player whose system_max_damage the script
-    never seeded) returns 1.0 — no degradation."""
-    ds = obj.data_set
-    total_max = sum((ds.get("system_max_damage", i) or 0.0) for i in range(4))
-    if total_max > 0.0:                                   # NPC ship (system-damage death)
-        total_dmg = sum((ds.get("system_damage", i) or 0.0) for i in range(4))
-        return max(_OFFENSE_FLOOR, 1.0 - total_dmg / total_max)
-    amax = ds.get("armorMax") or 0.0
-    if amax > 0.0:                                        # station (armor death)
-        return max(_OFFENSE_FLOOR, (ds.get("armor") or 0.0) / amax)
-    return 1.0
-
-
-def _physics_beams(sim, active: list, dt: float) -> None:
-    """Both players and NPCs auto-fire beams at their weapon target, on cooldown,
-    when the target is within beam RANGE and beam ARC.
-
-    Beams are instantaneous (no projectile/launch event) — they just deal
-    beamDamage hull damage via apply_damage (-> damage/killed events). Target is
-    _weapon_target(ds); beam* fields come from data_set (shipData). beamArcWidth
-    of 0 is treated as omnidirectional (360).
-    """
-    space = sim.space_objects
-    for aid, a in active:
-        if aid not in space:
-            continue  # destroyed earlier this tick
-        ds = a.data_set
-        if (ds.get("beamCount") or 0) <= 0:
-            continue
-        cd = getattr(a, "_beam_cooldown", 0.0)
-        if cd > 0:
-            a._beam_cooldown = cd - dt
-            continue
-        tid = _weapon_target(ds)
-        if not tid:
-            continue
-        target = space.get(tid)
-        if target is None:
-            continue
-        tx = target._pos.x - a._pos.x
-        ty = target._pos.y - a._pos.y
-        tz = target._pos.z - a._pos.z
-        d2 = tx * tx + ty * ty + tz * tz
-        brange = ds.get("beamRange") or 0.0
-        if d2 > brange * brange:
-            continue  # out of range; stay ready (cooldown already elapsed)
-        arc = ds.get("beamArcWidth") or 360.0
-        if arc < 360.0 and d2 > 0.0:
-            fwd = a.forward_vector()
-            dist = math.sqrt(d2)
-            dot = (fwd.x * tx + fwd.y * ty + fwd.z * tz) / dist
-            if dot < math.cos(math.radians(arc * 0.5)):
-                continue  # target outside the beam arc
-        # Per-shot = base(category) * per-beam coeff. The mock stored beamDamage =
-        # coeff * _BEAM_LOAD_BASE, so coeff = beamDamage / _BEAM_LOAD_BASE. The base
-        # is set_beam_damages (if a mission called it), else the engine's built-in
-        # default (calibrated): player ~8.5, NPC/station ~5.5 - players hit harder.
-        beam_dmg = ds.get("beamDamage") or 0.0
-        coeff = beam_dmg / _BEAM_LOAD_BASE
-        base = _beam_base_damage(a)
-        if base is None:
-            base = _BEAM_DEFAULT_PLAYER if (a._abits & 0x20) else _BEAM_DEFAULT_NPC
-        dmg = base * coeff
-        dmg *= _offense_factor(a)        # death spiral: damaged firers hit softer
-        # Engine fires every beam emitter separately - each is its own hit/event
-        # (shields absorb per hit), not one big multiplied hit. Fire one
-        # apply_damage per beam so a 4-beam ship deals 4 hits per volley and the
-        # //damage routes fire per beam. Without this the mock under-damages.
-        if dmg > 0:
-            for _ in range(max(1, int(ds.get("beamCount") or 1))):
-                if tid not in space:
-                    break                      # target destroyed by an earlier beam
-                apply_damage(tid, dmg, aid, kind="beam")
-        a._beam_cooldown = ds.get("beamCycleTime") or 6.0
-        _beam_fires.append((aid, tid))                    # transient, for the mockgui
-        _bump_exciting(a, _EXCITE_COMBAT)                 # combat is camera-worthy
-        _bump_exciting(space.get(tid), _EXCITE_COMBAT)
-
-
-# Projectile defaults (mock approximations).
-_PROJECTILE_HIT_RADIUS = 300.0
-_TORP_RANGE = 6000.0
-_TORP_CYCLE = 8.0
-# Torpedo definitions match LegendaryMissions/prefabs/torpedo_prefabs.mast (LM's
-# start_server spawns these, so LM missions use them - not the engine built-in torps
-# the data_capture run happened to measure). warhead: standard = single-target hull;
-# blast = AoE hull with linear distance falloff; reduce_shields = halve shields.
-# Torpedoes are player-only.
-_TORP_DAMAGE = 35.0          # Homing  (standard, single target; player auto-fire default)
-# The LM "blast" warhead (Nuke/Mine) is a LINGERING field: it applies its `damage`
-# (5) PER RIPPLE, once per ripple interval, for the torpedo's `lifetime`. A centred
-# target therefore accumulates 5 x (lifetime/interval) ~= 5 x 25 ~= ~120-125 - which
-# is the ~120 the data_capture run saw build up at the epicentre. Distance falloff
-# applies per ripple. EMP is a one-shot AoE shield-halve (0 hull, per capture).
-_TORP_BLAST_PER_RIPPLE = 5.0    # LM blast `damage` (applied each ripple)
-_TORP_BLAST_LIFETIME = 25.0     # sim-seconds the blast lingers (LM torpedo `lifetime`)
-_TORP_BLAST_RIPPLE_INTERVAL = 1.0  # sim-seconds between ripples (~25 ripples -> ~125)
-_TORP_BLAST_RADIUS = 1000.0     # blast / EMP AoE radius (LM default)
-_TORP_EMP_SHIELD_MULT = 0.5     # EMP reduce_shields: halve each ship's CURRENT shields
-# Mine (LM behaviour 'mine'): placed at the firing ship and stationary; it arms and
-# detonates (its blast) when any other ship comes within the trigger radius. Persists
-# until triggered or its life expires.
-_TORP_MINE_TRIGGER = 400.0      # proximity radius that sets a placed mine off
-_TORP_MINE_LIFE = 120.0         # sim-seconds a placed mine stays armed if untriggered
-# Drone fallbacks when the engine-set fields are absent. drone_launch_timer comes
-# from shipData (Torgoth + Ximni hulls); elite_drone_launcher / drone_damage /
-# drone_launch_max_range are set by the engine at runtime (not in shipData), so the
-# mock uses these defaults until calibrated from a data_capture run.  TODO: calibrate.
-_DRONE_CYCLE = 10.0          # fallback for drone_launch_timer
-# Calibrated from the data_capture battle matrix (Torgoth + Ximni, DIFFICULTY 5):
-# the engine sets drone_damage=15, drone_launch_max_range=7000 at runtime (these
-# are not in shipData). May scale with difficulty - captured at 5.
-_DRONE_DAMAGE = 15.0         # fallback for drone_damage
-_DRONE_RANGE = 7000.0        # fallback for drone_launch_max_range
-
-# Engineering OVERHEAT model (engine field `system_cur_heat`, per SHPSYS 0..3, 0..1).
-# Heat is NOT a combat effect - it's engineering overpower. Each powered subsystem
-# (eng_control_value, up to 3.0 = 300%) feeds one ship system (eng_control_type_index).
-# The overpower (value-1.0), summed over a system's controls, raises its heat;
-# `system_coolant_used` and a passive decay lower it. At full heat the system overheats
-# and the mock fires heat_critical_damage -> //damage/heat, repeatedly while it stays
-# overheated. The mock does NOT itself write system_damage: how an overheat becomes
-# damage is the MISSION's call - LegendaryMissions, for example, damages grid items and
-# derives system_damage/system_max_damage from the matching grid-item counts. NPCs don't
-# set eng_control_value, so they never overheat. Rates are CALIBRATED from the engine
-# (data_capture capture_heat.json): in 100..300% (value 1.0..3.0) heat rises linearly
-# at 0.0094/s per unit of overpower (value-1.0); each coolant unit removes ~0.002/s;
-# and there is NO passive decay - coolant is the only heat sink. (Past 300% the engine
-# goes sub-linear, but the console caps at 300%, so the mock clamps overpower at 2.0.)
-_HEAT_GAIN = 0.0094         # heat/sec per unit of overpower (eng_control_value - 1.0)
-_HEAT_COOL = 0.002          # heat/sec removed per coolant unit (system_coolant_used)
-_HEAT_DECAY = 0.0           # passive bleed-off - engine has none; coolant is the only sink
-_HEAT_OVERPOWER_MAX = 2.0   # cap overpower at 300% (1.0+2.0), the console's max
-_HEAT_CRITICAL = 1.0        # system_cur_heat at/above this overheats (also the 0..1 clamp)
-_HEAT_EVENT_INTERVAL = 1.0  # sec between //damage/heat events while a system overheats
-
-# Attract cinematic: the engine scores how camera-worthy an object is in the
-# "exciting" data_set field, and cinematic mode cuts to the most exciting one,
-# decrementing it over time. Engine scale is ~200 for a hold; a higher value holds
-# the camera longer. The mock mirrors that: combat events RAISE exciting to a
-# level (not accumulate), it decrements, and the auto cinematic camera frames the
-# most-exciting object so the view follows the action then drifts off.
-_EXCITE_COMBAT = 200.0     # firing / being shot / taking a hit (engine's hold level)
-_EXCITE_KILL = 500.0       # a kill - hold the camera on the victor longer
-_EXCITE_DECREMENT = 40.0   # per second (200 fades in ~5s, 500 in ~12s)
-
-
-def _bump_exciting(obj, level):
-    """Raise 'exciting' to at least `level` (engine-scale ~200; 500 holds longer).
-    Set-to-max, not additive - sustained combat holds at the level, then decays."""
-    if obj is not None and level > (obj.data_set.get("exciting", 0) or 0.0):
-        obj.data_set.set("exciting", level)
-
-
-def _most_exciting_id() -> int:
-    """Id of the object with the highest 'exciting' value (>0), else 0."""
-    best, best_v = 0, 0.0
-    if sim is not None:
-        # Snapshot: this runs on the physics thread while the main (MAST) thread may
-        # spawn/delete space_objects - iterating the live dict raises "dictionary
-        # changed during iteration" in a busy battle.
-        for oid, o in list(sim.space_objects.items()):
-            v = o.data_set.get("exciting", 0) or 0.0
-            if v > best_v:
-                best_v, best = v, oid
-    return best
-
-
-# Camera director pacing. Cutting to the most-exciting object every tick is
-# twitchy: when two ships trade fire their exciting values cross repeatedly and
-# the camera flickers between them. The engine paces cuts; the mock mirrors that
-# with a minimum dwell - hold the current shot for at least _CAM_MIN_DWELL before
-# a lateral cut - while letting a markedly hotter event (e.g. a kill, 500 vs a
-# 200 firefight) steal the camera early.
-_cam_focus: dict = {}      # clientID -> {"id": int, "since": float}
-_CAM_MIN_DWELL = 2.5       # seconds to hold a shot before a same-tier cut
-_CAM_STEAL_MARGIN = 150.0  # a candidate this far above the held shot cuts early
-
-
-def _exciting_of(oid) -> float:
-    o = None if sim is None else sim.space_objects.get(oid)
-    return 0.0 if o is None else (o.data_set.get("exciting", 0) or 0.0)
-
-
-def _director_focus(clientID: int) -> int:
-    """Pick the cinematic focus with pacing. Returns the focus object id, or 0 when
-    nothing is currently exciting (caller falls back to the assigned ship)."""
-    import time
-    now = time.monotonic()
-    cand = _most_exciting_id()
-    cur = _cam_focus.get(clientID)
-    cur_ex = _exciting_of(cur["id"]) if cur else 0.0
-    # Held shot gone cold (decayed to 0 or object destroyed) -> free to re-cut.
-    if cur is None or cur_ex <= 0.0:
-        if cand:
-            _cam_focus[clientID] = {"id": cand, "since": now}
-            return cand
-        _cam_focus.pop(clientID, None)
-        return 0
-    # Live held shot: keep it unless dwell elapsed or a much hotter event appears.
-    if cand and cand != cur["id"]:
-        held = now - cur["since"]
-        if held >= _CAM_MIN_DWELL or _exciting_of(cand) >= cur_ex + _CAM_STEAL_MARGIN:
-            _cam_focus[clientID] = {"id": cand, "since": now}
-            return cand
-    return cur["id"]
-
-
-def _unit_toward(src, tgt):
-    """Unit direction from src toward tgt's position; src forward if no target."""
-    if tgt is not None:
-        dx = tgt._pos.x - src._pos.x
-        dy = tgt._pos.y - src._pos.y
-        dz = tgt._pos.z - src._pos.z
-        n = math.sqrt(dx * dx + dy * dy + dz * dz)
-        if n > 1e-6:
-            return (dx / n, dy / n, dz / n)
-    f = src.forward_vector()
-    return (f.x, f.y, f.z)
-
-
-# Known torpedo warhead / behaviour tokens, for validating mission torp strings.
-_TORP_WARHEADS = ("standard", "blast", "reduce_shields")
-_TORP_BEHAVIORS = ("homing", "mine")
-_torp_warned: set = set()   # dedupe: warn once per (torp, problem)
-
-
-def _torp_warn(kind: str, msg: str) -> None:
-    """Warn (once) about a malformed mission torpedo definition."""
-    key = (kind, msg)
-    if key not in _torp_warned:
-        _torp_warned.add(key)
-        print("[mock] torpedo %r: %s" % (kind, msg))
-
-
-def _torp_num(kind: str, name: str, raw, default: float) -> float:
-    """Parse a torp numeric attribute; on a bad value warn once and use `default`."""
-    try:
-        return float(raw)
-    except (TypeError, ValueError):
-        _torp_warn(kind, "non-numeric %s=%r; using %s" % (name, raw, default))
-        return float(default)
-
-
-def _torp_attrs(kind: str) -> dict:
-    """Resolve a torpedo's attributes, PREFERRING the definition the mission registered
-    as a shared string via torpedo_type() - the engine's actual storage, format
-    'warhead:..;damage:..;blast_radius:..;behavior:..;lifetime:..;'. This decouples the
-    mock from LegendaryMissions: any mission's torp definitions are honored. Falls back
-    to LM-equivalent per-kind defaults when no shared string is registered (standalone
-    runs / unit tests). Returns {warhead, damage, blast_radius, behavior, lifetime}."""
-    k = (kind or "").lower()
-    if k == "emp":
-        d = {"warhead": "blast,reduce_shields", "damage": 0.0, "behavior": "homing"}
-    elif k == "mine":
-        d = {"warhead": "blast", "damage": _TORP_BLAST_PER_RIPPLE, "behavior": "mine"}
-    elif k == "nuke":
-        d = {"warhead": "blast", "damage": _TORP_BLAST_PER_RIPPLE, "behavior": "homing"}
-    else:
-        d = {"warhead": "standard", "damage": _TORP_DAMAGE, "behavior": "homing"}
-    s = sim.shared_strings.get(kind, "") if sim is not None else ""
-    for kv in (s or "").split(";"):
-        kk, sep, vv = kv.partition(":")
-        if sep and kk.strip():
-            d[kk.strip()] = vv.strip()
-    warhead = str(d.get("warhead", "standard"))
-    behavior = str(d.get("behavior", "homing"))
-    # Validate against known tokens - unknown ones still degrade gracefully (an
-    # unknown warhead -> single hit, an unknown behaviour -> homing) but warn once
-    # so a malformed mission torp string is noticed.
-    for tok in warhead.split(","):
-        if tok.strip() and tok.strip() not in _TORP_WARHEADS:
-            _torp_warn(kind, "unknown warhead '%s'" % tok.strip())
-    if behavior not in _TORP_BEHAVIORS:
-        _torp_warn(kind, "unknown behaviour '%s'" % behavior)
-    return {
-        "warhead": warhead,
-        "damage": _torp_num(kind, "damage", d.get("damage", _TORP_DAMAGE), _TORP_DAMAGE),
-        "blast_radius": _torp_num(kind, "blast_radius", d.get("blast_radius", _TORP_BLAST_RADIUS), _TORP_BLAST_RADIUS),
-        "behavior": behavior,
-        "lifetime": _torp_num(kind, "lifetime", d.get("lifetime", _TORP_BLAST_LIFETIME), _TORP_BLAST_LIFETIME),
-    }
-
-
-def _torp_profile(kind: str) -> "tuple[float, float, str]":
-    """(damage, blast_radius, effect) from the resolved torp attrs (see _torp_attrs).
-    warhead drives the effect: 'reduce_shields' -> 'emp' (AoE shield-halve, 0 hull);
-    'blast' -> 'blast' (lingering growing-ring, damage applied per ripple); otherwise
-    'single' (single-target hit)."""
-    a = _torp_attrs(kind)
-    warhead = a["warhead"]
-    if "reduce_shields" in warhead:
-        return 0.0, a["blast_radius"], "emp"
-    if "blast" in warhead:
-        return a["damage"], a["blast_radius"], "blast"
-    return a["damage"], 0.0, "single"
-
-
-def torp_validate(kind: str) -> "list[str]":
-    """Detect problems in a torpedo's shared-string definition (set by torpedo_type()).
-    Returns a list of human-readable problems - empty if the def is clean (or absent,
-    which just means defaults are used). Lets tools/tests check a mission's torp string
-    without firing one. _torp_attrs degrades gracefully on these same problems."""
-    problems = []
-    s = sim.shared_strings.get(kind, "") if sim is not None else ""
-    if not s:
-        return problems
-    d = {}
-    for kv in s.split(";"):
-        if not kv.strip():
-            continue
-        kk, sep, vv = kv.partition(":")
-        if not sep:
-            problems.append("malformed entry %r (missing ':')" % kv)
-        else:
-            d[kk.strip()] = vv.strip()
-    for name in ("damage", "blast_radius", "lifetime", "speed"):
-        if name in d:
-            try:
-                float(d[name])
-            except ValueError:
-                problems.append("non-numeric %s=%r" % (name, d[name]))
-    for tok in d.get("warhead", "standard").split(","):
-        if tok.strip() and tok.strip() not in _TORP_WARHEADS:
-            problems.append("unknown warhead %r" % tok.strip())
-    if d.get("behavior", "homing") not in _TORP_BEHAVIORS:
-        problems.append("unknown behaviour %r" % d.get("behavior"))
-    return problems
-
-
-def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
-                   damage: "float | None" = None, speed: float = 600.0,
-                   life: float = 30.0, max_range: "float | None" = None) -> None:
-    """Mock-only: launch a torpedo of `kind` (Homing / Nuke / Mine / EMP).
-
-    Emits a ``player_launches_missile`` event (routes //launch/missile, with
-    extra_extra_tag=kind, origin=source, selected=target). Every torp launches as a
-    flying projectile aimed at the weapon-selected target (`target_id`); with no
-    selection it flies straight along the firer's heading.
-
-      * Warhead torps (behaviour 'homing': Homing / Nuke / EMP) TRACK the target and
-        re-acquire the nearest object if the target dies mid-flight. On contact:
-        Homing = single hit, Nuke = lingering growing-ring blast, EMP = one-shot
-        shield-halve.
-      * Mines (behaviour 'mine') fly ballistically to their distance (`max_range`)
-        then DEPLOY - they stop and stick around as a stationary proximity mine that
-        detonates its blast when a ship enters the trigger radius (or until mine-life
-        expires).
-
-    `damage` defaults to the per-kind value but can be overridden (the projectile unit
-    tests pass it explicitly).
-    """
-    if sim is None:
-        return
-    src = sim.space_objects.get(source_id)
-    if src is None:
-        return
-    attrs = _torp_attrs(kind)                 # mission def (shared string) or defaults
-    prof_dmg, blast, effect = _torp_profile(kind)
-    if damage is None:
-        damage = prof_dmg
-    blast_life = attrs["lifetime"]            # blast lingers for the torp's lifetime
-    is_mine = attrs["behavior"].lower() == "mine"
-    _pending_physics_events.put(
-        ("player_launches_missile", "", source_id, target_id, source_id, kind))
-    # Mines need a deploy distance even when the caller gives no range; warhead torps
-    # with no max_range fly until they hit or their lifetime expires.
-    mr = float(max_range) if max_range else (_TORP_RANGE if is_mine else 0.0)
-    if is_mine:
-        # Mines drop out the STERN (opposite the firer's heading) and coast to their
-        # distance - they're inert in flight, arming only when they stop (deploy).
-        f = src.forward_vector()
-        direction = (-f.x, -f.y, -f.z)
-    else:
-        direction = _unit_toward(src, sim.space_objects.get(target_id))
-    _projectiles.append({
-        "pos": vec3(src._pos.x, src._pos.y, src._pos.z),
-        "origin": vec3(src._pos.x, src._pos.y, src._pos.z),   # for range cull / mine deploy
-        "dir": direction,
-        "target_id": int(target_id) if target_id else 0,
-        "had_target": bool(target_id),        # a selection was made -> homing may re-acquire
-        "homing": not is_mine,                # warheads track; mines fly ballistically
-        "is_mine": is_mine,
-        "source_id": source_id, "torp_kind": kind,
-        "damage": float(damage), "speed": float(speed),
-        "life": float(life), "kind": "missile",
-        "max_range": mr,
-        "trigger_radius": _TORP_MINE_TRIGGER,
-        "blast_radius": float(blast), "effect": effect, "blast_life": float(blast_life),
-    })
-
-
-def launch_drone(source_id: int, target_id: int, damage: float = 20.0,
-                 speed: float = 400.0, life: float = 40.0) -> None:
-    """Mock-only: launch a drone (also a projectile).
-
-    Emits a ``ship_launches_drone`` event (routes //launch/drone) and registers
-    a homing projectile dealing `damage` hull damage on impact.
-    """
-    if sim is None:
-        return
-    src = sim.space_objects.get(source_id)
-    if src is None:
-        return
-    _pending_physics_events.put(
-        ("ship_launches_drone", "", source_id, target_id, source_id, "drone"))
-    _projectiles.append({
-        "pos": vec3(src._pos.x, src._pos.y, src._pos.z),
-        "target_id": target_id, "source_id": source_id,
-        "damage": float(damage), "speed": float(speed),
-        "life": float(life), "kind": "drone",
-    })
-
-
-def _register_blast(pos, per_ripple: float, max_radius: float, source_id: int,
-                    lifetime: float = _TORP_BLAST_LIFETIME, kind: str = "") -> None:
-    """Register a lingering Nuke/Mine blast at `pos`. _physics_blasts ripples it (see
-    that function): the ring grows from 0 to max_radius over `lifetime` (the torpedo's
-    lifetime), dealing per_ripple hull each ripple to whatever is currently inside it."""
-    _blasts.append({
-        "pos": vec3(pos.x, pos.y, pos.z),
-        "per_ripple": float(per_ripple), "max_radius": float(max_radius),
-        "source_id": source_id, "lifetime": float(lifetime), "age": 0.0, "since": 0.0,
-        "kind": kind,
-    })
-
-
-def _blast_ripple(pos, per_ripple: float, radius: float, source_id: int, kind: str = "") -> None:
-    """One ripple of a growing blast: deal per_ripple hull (flat) to every ship inside
-    the current ring of `radius`. The distance grading emerges over time, not per
-    ripple - the expanding ring reaches closer ships sooner, so they take more ripples
-    (a direct hit catches them all, ~120; something off-centre is caught late = less)."""
-    if sim is None or radius <= 0.0 or per_ripple <= 0.0:
-        return
-    r2 = radius * radius
-    for oid, o in list(sim.space_objects.items()):
-        if oid == source_id:
-            continue
-        dx = o._pos.x - pos.x
-        dy = o._pos.y - pos.y
-        dz = o._pos.z - pos.z
-        if dx * dx + dy * dy + dz * dz <= r2:
-            apply_damage(oid, per_ripple, source_id, kind=kind)
-
-
-def _physics_blasts(sim, dt: float) -> None:
-    """Advance lingering Nuke/Mine blast fields. Each grows its ring from 0 to
-    max_radius over _TORP_BLAST_LIFETIME and, once per _TORP_BLAST_RIPPLE_INTERVAL,
-    deals per_ripple hull to everything currently inside the ring; expires at lifetime."""
-    if not _blasts:
-        return
-    remaining = []
-    for bl in _blasts:
-        life = bl["lifetime"]
-        bl["age"] += dt
-        bl["since"] += dt
-        if bl["since"] >= _TORP_BLAST_RIPPLE_INTERVAL:
-            bl["since"] -= _TORP_BLAST_RIPPLE_INTERVAL
-            frac = min(1.0, bl["age"] / life) if life > 0 else 1.0
-            _blast_ripple(bl["pos"], bl["per_ripple"], bl["max_radius"] * frac,
-                          bl["source_id"], bl.get("kind", ""))
-        if bl["age"] < life:
-            remaining.append(bl)
-    _blasts[:] = remaining
-
-
-def _apply_emp(pos, radius: float, source_id: int, kind: str = "") -> None:
-    """EMP detonation (one-shot AoE reduce_shields): halve the CURRENT shields (per
-    facing) of every ship within `radius` of `pos`. 0 hull damage (per capture - EMP
-    is a shield/system pulse). Emits a damage event per affected ship so //damage
-    routes fire (the engine routes EMP hits with a 0 hull amount); sub_tag = the torp
-    kind, sub_float = 0.0 (no hull)."""
-    if sim is None or radius <= 0.0:
-        return
-    r2 = radius * radius
-    for oid, o in list(sim.space_objects.items()):
-        if oid == source_id:
-            continue
-        dx = o._pos.x - pos.x
-        dy = o._pos.y - pos.y
-        dz = o._pos.z - pos.z
-        if dx * dx + dy * dy + dz * dz > r2:
-            continue
-        ds = o.data_set
-        n = int(ds.get("shield_count", 0) or 0)
-        hit = False
-        for i in range(n):
-            sv = ds.get("shield_val", i) or 0.0
-            if sv > 0.0:
-                ds.set("shield_val", sv * _TORP_EMP_SHIELD_MULT, i)
-                hit = True
-        if hit:
-            _pending_physics_events.put(("damage", kind, source_id, oid, {"sub_float": 0.0}))
-
-
-def _is_damageable(o) -> bool:
-    """True if a torpedo/beam can damage this object: a player ship, an NPC ship
-    (system_max_damage), a shielded object, or a station (armorMax). Mirrors the
-    damageable check in apply_damage - asteroids/markers/pickups are not. (NPC ships
-    have no armorMax, so a hit test that only checked armorMax missed every NPC.)"""
-    ds = o.data_set
-    return (bool(o._abits & 0x20)
-            or (ds.get("armorMax") or 0.0) > 0
-            or (ds.get("shield_max_val") or 0.0) > 0
-            or (ds.get("system_max_damage", 0) or 0.0) > 0)
-
-
-def _nearest_hittable(space, pos, radius: float, exclude_id: int) -> int:
-    """Nearest damageable object whose HULL `pos` is within `radius` of, excluding the
-    firing ship. 0 if none. Contact is `radius + object's exclusion_radius`, so a torp
-    detonates on touching the hull (like the engine) instead of having to reach the
-    object's centre - which matters for big stations. Used for torpedo/missile/mine
-    contact detection."""
-    best = 0
-    best_d2 = float("inf")
-    # Snapshot: runs on the physics thread; the main thread may mutate space_objects.
-    for oid, o in list(space.items()):
-        if oid == exclude_id:
-            continue
-        if not _is_damageable(o):
-            continue
-        dx = o._pos.x - pos.x
-        dy = o._pos.y - pos.y
-        dz = o._pos.z - pos.z
-        d2 = dx * dx + dy * dy + dz * dz
-        reach = radius + (o._exclusion_radius or 0.0)
-        if d2 <= reach * reach and d2 < best_d2:
-            best_d2 = d2
-            best = oid
-    return best
-
-
-def _physics_projectiles(sim, dt: float) -> None:
-    """Advance in-flight projectiles; on impact apply hull damage (apply_damage)
-    and remove; expire on lifetime.
-
-    Missiles (have a fixed "dir") fly straight toward the launch aim point and
-    keep going, hitting the nearest damageable object they pass within range -
-    non-homing. Drones home toward their target_id."""
-    if not _projectiles:
-        return
-    space = sim.space_objects
-    remaining = []
-    for p in _projectiles:
-        p["life"] -= dt
-        if p["life"] <= 0:
-            continue
-        pos = p["pos"]
-        if p.get("kind") == "mine":
-            # Placed mine: stationary; detonate its blast when another ship comes
-            # within the trigger radius, else keep waiting (until life expires).
-            if _nearest_hittable(space, pos, p["trigger_radius"], p["source_id"]):
-                _register_blast(pos, p["damage"], p["blast_radius"], p["source_id"],
-                                p.get("blast_life", _TORP_BLAST_LIFETIME), p.get("torp_kind", ""))
-                continue  # consumed on detonation
-            remaining.append(p)
-            continue
-        step = p["speed"] * dt
-        if p.get("kind") == "missile":
-            # Steer toward the weapon-selected target. A homing (warhead) torp whose
-            # target is gone re-acquires the nearest object; with no selection it flies
-            # straight. Mines never track - they coast out the stern (set at launch).
-            tgt = space.get(p["target_id"]) if p.get("target_id") else None
-            if tgt is None and p.get("homing") and p.get("had_target"):
-                reacq_r = p.get("max_range") or _TORP_RANGE
-                nid = _nearest_hittable(space, pos, reacq_r, p["source_id"])
-                if nid:
-                    p["target_id"] = nid
-                    tgt = space.get(nid)
-            if tgt is not None and not p.get("is_mine"):
-                dx = tgt._pos.x - pos.x; dy = tgt._pos.y - pos.y; dz = tgt._pos.z - pos.z
-                n = math.sqrt(dx * dx + dy * dy + dz * dz)
-                if n > 1e-6:
-                    p["dir"] = (dx / n, dy / n, dz / n)   # re-home each tick
-            d = p["dir"]
-            pos.x += d[0] * step
-            pos.y += d[1] * step
-            pos.z += d[2] * step
-
-            o = p.get("origin", pos)
-            traveled2 = (pos.x - o.x) ** 2 + (pos.y - o.y) ** 2 + (pos.z - o.z) ** 2
-            mr = p.get("max_range", 0.0)
-
-            if p.get("is_mine"):
-                # Inert in flight; on reaching its distance it stops and DEPLOYS as a
-                # stationary, armed proximity mine (sticks around until triggered).
-                if mr > 0.0 and traveled2 >= mr * mr:
-                    remaining.append({
-                        "pos": vec3(pos.x, pos.y, pos.z),
-                        "source_id": p["source_id"], "kind": "mine",
-                        "torp_kind": p.get("torp_kind", ""),
-                        "damage": p["damage"], "blast_radius": p["blast_radius"],
-                        "blast_life": p.get("blast_life", _TORP_BLAST_LIFETIME),
-                        "trigger_radius": p.get("trigger_radius", _TORP_MINE_TRIGGER),
-                        "life": _TORP_MINE_LIFE,
-                    })
-                    continue  # the flyer becomes the deployed mine
-                remaining.append(p)
-                continue
-
-            # Warhead torp: detonate on contact with the nearest hittable.
-            hit = _nearest_hittable(space, pos, _PROJECTILE_HIT_RADIUS, p["source_id"])
-            if hit:
-                eff = p.get("effect", "single")
-                blast = p.get("blast_radius", 0.0)
-                tkind = p.get("torp_kind", "")
-                if eff == "blast" and blast > 0.0:
-                    _register_blast(pos, p["damage"], blast, p["source_id"],
-                                    p.get("blast_life", _TORP_BLAST_LIFETIME), tkind)   # Nuke: lingering ring
-                elif eff == "emp" and blast > 0.0:
-                    _apply_emp(pos, blast, p["source_id"], tkind)             # EMP: one-shot shield-halve
-                else:
-                    apply_damage(hit, p["damage"], p["source_id"], kind=tkind)  # Homing: single hit
-                continue  # consumed on impact
-            # Missed: cull once it has flown its launch range (else expires on life).
-            if mr > 0.0 and traveled2 >= mr * mr:
-                continue  # out of range -> removed
-            remaining.append(p)
-            continue
-        # Drone: home toward its target.
-        target = space.get(p["target_id"])
-        if target is None:
-            continue  # target gone -> drone fizzles
-        dx = target._pos.x - pos.x
-        dy = target._pos.y - pos.y
-        dz = target._pos.z - pos.z
-        dist2 = dx * dx + dy * dy + dz * dz
-        if dist2 <= _PROJECTILE_HIT_RADIUS * _PROJECTILE_HIT_RADIUS or dist2 <= step * step:
-            apply_damage(p["target_id"], p["damage"], p["source_id"], kind="drone")
-            continue  # consumed on impact
-        dist = math.sqrt(dist2)
-        pos.x += dx / dist * step
-        pos.y += dy / dist * step
-        pos.z += dz / dist * step
-        remaining.append(p)
-    _projectiles[:] = remaining
-
-
-def _physics_heat(active: list, dt: float) -> None:
-    """Engineering overheat (engine system_cur_heat, per SHPSYS 0..3).
-
-    Each powered subsystem's overpower (eng_control_value - 1.0, for values > 100%)
-    is summed onto the ship system it feeds (eng_control_type_index) and raises that
-    system's heat; system_coolant_used + a passive decay lower it. Heat clamps 0..1.
-    While a system sits at/above _HEAT_CRITICAL the mock fires heat_critical_damage ->
-    //damage/heat every _HEAT_EVENT_INTERVAL (so a mission route keeps reacting), but
-    it does NOT write system_damage - the mission owns that consequence (LM damages
-    grid items and derives system_damage from them). NPCs set no eng controls, so
-    over[] stays 0 and their heat only ever decays."""
-    for aid, a in active:
-        ds = a.data_set
-        # Overpower per ship system (0..3), summed over the controls feeding it.
-        over = [0.0, 0.0, 0.0, 0.0]
-        for c in range(ds.num_elements("eng_control_value")):
-            v = ds.get("eng_control_value", c) or 0.0
-            if v > 1.0:
-                si = int(ds.get("eng_control_type_index", c) or 0)
-                if 0 <= si < 4:
-                    over[si] += min(v - 1.0, _HEAT_OVERPOWER_MAX)   # cap at 300%
-
-        cds = getattr(a, "_heat_evt_cd", None)
-        for _n, idx in SHIP_SYSTEMS:
-            h = ds.get("system_cur_heat", idx) or 0.0
-            # gain from overpower, minus coolant cooling and passive decay.
-            cool = (ds.get("system_coolant_used", idx) or 0) * _HEAT_COOL
-            h += (over[idx] * _HEAT_GAIN - cool - _HEAT_DECAY) * dt
-            h = max(0.0, min(_HEAT_CRITICAL, h))    # clamp 0..1
-            ds.set("system_cur_heat", h, idx)
-
-            if h >= _HEAT_CRITICAL:
-                # Overheated: notify the mission (//damage/heat) on a throttle; the
-                # mission decides the damage. sub_tag = the SHPSYS index.
-                if cds is None:
-                    cds = a._heat_evt_cd = {}
-                cds[idx] = cds.get(idx, 0.0) - dt
-                if cds[idx] <= 0.0:
-                    cds[idx] = _HEAT_EVENT_INTERVAL
-                    _pending_physics_events.put(("heat_critical_damage", str(idx), aid, aid))
-            elif cds is not None:
-                cds.pop(idx, None)    # cooled below critical -> re-entry fires at once
-
-
-def _consume_torpedo(ds, prefer=None) -> "str | None":
-    """Spend one round of a loaded torpedo type and return the kind fired (or None if
-    out of ammo). Fires `prefer` if it is loaded with ammo; otherwise the first loaded
-    type in torpedo_types_available order (the default tube). Decrements the kind's
-    `{kind}_NUM` / `{kind}_VAL` (the engine count fields the ship_data HUD reads)."""
-    avail = [t.strip() for t in str(ds.get("torpedo_types_available", 0) or "").split(",") if t.strip()]
-    order = ([prefer] + [k for k in avail if k != prefer]) if prefer else avail
-    for kind in order:
-        num = int(ds.get(f"{kind}_NUM", 0) or 0)
-        if num > 0:
-            ds.set(f"{kind}_NUM", num - 1, 0)
-            ds.set(f"{kind}_VAL", max(0, int(ds.get(f"{kind}_VAL", 0) or 0) - 1), 0)
-            return kind
-    return None
-
-
-def _physics_launchers(sim, active: list, dt: float) -> None:
-    """Autonomous NPC fire of projectile weapons at the current target on a
-    cooldown: torpedoes (torpedo_tube_count>0) and drones (drone capability).
-    Players in headless have no target, so this is mainly NPC fire."""
-    space = sim.space_objects
-    for aid, a in active:
-        if aid not in space:
-            continue
-        ds = a.data_set
-        target_id = _weapon_target(ds)   # weapon_target_UID (player) or target_id (NPC)
-        if not target_id:
-            continue
-        target = space.get(target_id)
-        if target is None:
-            continue
-        dx = a._pos.x - target._pos.x
-        dy = a._pos.y - target._pos.y
-        dz = a._pos.z - target._pos.z
-        dist2 = dx * dx + dy * dy + dz * dz
-
-        # Torpedoes are PLAYER-EXCLUSIVE (a weapons-console crew fires them). Headless
-        # missions with no weapons crew get a stand-in: the mock auto-fires at the weapon
-        # target when tubes are loaded, ON A COOLDOWN, through the engine API
-        # (sim.launch_torpedo) - the same path a real console / autoplay uses. NPCs never
-        # torpedo. (Autoplay that fires its own torpedoes is throttled by the same
-        # per-ship cooldown, so it won't double up with this stand-in.)
-        if (a._abits & 0x20) and (ds.get("torpedo_tube_count") or 0) > 0:
-            cd = getattr(a, "_torp_cooldown", 0.0)
-            if cd > 0:
-                a._torp_cooldown = cd - dt
-            else:
-                rng = ds.get("torpedo_launch_max_range") or _TORP_RANGE
-                if dist2 <= rng * rng:
-                    sim.launch_torpedo(a, 0, bool(ds.get("is_fighter_flag")))
-                    a._torp_cooldown = _TORP_CYCLE
-
-        # Drones are an NPC capability flagged by elite_drone_launcher==1 (Torgoth +
-        # Ximni; set from shipData's drone_launch_timer). Uses the engine's
-        # drone_damage / drone_launch_max_range / drone_launch_timer (mock fallbacks
-        # when unset). A drone launches when the target is within max range.
-        if (ds.get("elite_drone_launcher") or 0) >= 1:
-            cd = getattr(a, "_drone_cooldown", 0.0)
-            if cd > 0:
-                a._drone_cooldown = cd - dt
-            else:
-                d_rng = ds.get("drone_launch_max_range") or _DRONE_RANGE
-                if dist2 <= d_rng * d_rng:
-                    launch_drone(aid, target_id, damage=(ds.get("drone_damage") or _DRONE_DAMAGE))
-                    a._drone_cooldown = ds.get("drone_launch_timer") or _DRONE_CYCLE
-
-
-def _emit_collision(tag, kind, ia, ib, is_terrain):
-    """Queue a collision event. Active-vs-terrain fires ONCE with origin = the terrain
-    object (ib) and selected = the active ship (ia) - matching the engine's
-    //collision routes (COLLISION_ORIGIN_ID = terrain/pickup). Active-vs-active fires
-    both id orderings so each ship sees itself as origin."""
-    if is_terrain:
-        _pending_physics_events.put((tag, kind, ib, ia))
-    else:
-        _pending_physics_events.put((tag, kind, ia, ib))
-        _pending_physics_events.put((tag, kind, ib, ia))
-
-
-# Fraction of an overlap eased out per physics tick when two ships interpenetrate
-# (0 = off, 1 = fully resolve in one tick). Soft so the nudge looks smooth, not a snap.
-_SHIP_SEPARATION = 0.25
-
-
-def _separate_pair(a, b, target, dd2, ddx, ddy, ddz) -> None:
-    """Cosmetic: ease two overlapping active objects apart along their center line so
-    they don't visually interpenetrate (each moves half the eased overlap). Mock-only -
-    the engine resolves real collisions; the mock otherwise lets ships pass through.
-    ddx/ddy/ddz = a.pos - b.pos; dd2 their squared distance; target = ra + rb."""
-    d = math.sqrt(dd2)
-    if d > 1e-6:
-        push = _SHIP_SEPARATION * 0.5 * (target - d) / d
-        ox, oy, oz = ddx * push, ddy * push, ddz * push
-    else:
-        # exactly coincident - separate on x by a deterministic amount
-        ox, oy, oz = _SHIP_SEPARATION * 0.5 * target, 0.0, 0.0
-    a._pos.x += ox; a._pos.y += oy; a._pos.z += oz
-    b._pos.x -= ox; b._pos.y -= oy; b._pos.z -= oz
-
-
 def _physics_collision(sim, active: list) -> None:
     """Spatial-hash sphere collision.
 
@@ -3504,39 +2080,19 @@ def _physics_collision(sim, active: list) -> None:
     """
     global _contact_pairs
     if not active:
-        # Everything left contact — emit end events for any open contacts, but skip a
-        # pair whose object was deleted (e.g. a pickup collected on the start event):
-        # the contact ended by destruction, not separation, so no end is fired.
-        for (kind, ia, ib, is_terrain) in _contact_pairs.values():
-            if ia in sim.space_objects and ib in sim.space_objects:
-                _emit_collision(f"{kind}_collision_end", kind, ia, ib, is_terrain)
-        _contact_pairs = {}
+        _contact_pairs = set()
         return
 
     space = sim.space_objects
 
-    # An object's contact reach is its exclusion_radius (solid) or its data_set
-    # interactionradius (interactive, e.g. pickups) - whichever applies. Auto-tune the
-    # cell size to the largest reach so the 9-cell neighborhood never misses a contact.
-    def _reach(o):
-        return max(o._exclusion_radius, o.data_set.get("interactionradius") or 0.0)
-
-    max_reach = 0.0
+    # Auto-tune cell size: 2 × max active exclusion radius, minimum 500 units.
+    max_er = 0.0
     for _id, obj in active:
-        if obj._exclusion_radius > max_reach:
-            max_reach = obj._exclusion_radius
-    terrain_objs = []
-    for tid in sim._terrain_ids:
-        obj = space.get(tid)
-        if obj is None:
-            continue
-        if _reach(obj) <= 0:
-            continue                        # no solid extent and no interaction radius
-        max_reach = max(max_reach, _reach(obj))
-        terrain_objs.append((tid, obj))
-    cell_sz = max(max_reach * 2.0, 500.0)
+        if obj._exclusion_radius > max_er:
+            max_er = obj._exclusion_radius
+    cell_sz = max(max_er * 2.0, 500.0)
 
-    # Build per-cell buckets for active objects and (collidable) terrain.
+    # Build per-cell buckets for active objects and terrain.
     active_grid: dict = {}
     for id_, obj in active:
         if obj._exclusion_radius > 0:
@@ -3544,12 +2100,13 @@ def _physics_collision(sim, active: list) -> None:
             active_grid.setdefault(ck, []).append((id_, obj))
 
     terrain_grid: dict = {}
-    for tid, obj in terrain_objs:
-        ck = _cell(obj._pos.x, obj._pos.z, cell_sz)
-        terrain_grid.setdefault(ck, []).append((tid, obj))
+    for tid in sim._terrain_ids:
+        obj = space.get(tid)
+        if obj is not None and obj._exclusion_radius > 0:
+            ck = _cell(obj._pos.x, obj._pos.z, cell_sz)
+            terrain_grid.setdefault(ck, []).append((tid, obj))
 
-    # canonical pair (min,max) -> (kind, id_a, id_b)
-    new_contacts: dict = {}
+    new_contacts: set = set()
     visited: set = set()
 
     # Active vs active — 9-cell neighborhood, upper-triangle dedup via visited.
@@ -3574,18 +2131,11 @@ def _physics_collision(sim, active: list) -> None:
                 ddx = a._pos.x - b._pos.x
                 ddy = a._pos.y - b._pos.y
                 ddz = a._pos.z - b._pos.z
-                dd2 = ddx * ddx + ddy * ddy + ddz * ddz
-                target = ra + rb
-                if dd2 < target * target:
-                    # two active (dynamic) objects -> interactive collision
-                    new_contacts[pair] = ("interactive", aid, bid, False)
-                    # Cosmetic: ease overlapping SHIPS apart so they don't visually
-                    # interpenetrate. Skip stations - a ship must be able to close on
-                    # one to dock. Only the (rare) overlapping pairs reach here.
-                    if (_SHIP_SEPARATION > 0.0
-                            and a._tick_type != "behav_station"
-                            and b._tick_type != "behav_station"):
-                        _separate_pair(a, b, target, dd2, ddx, ddy, ddz)
+                if ddx * ddx + ddy * ddy + ddz * ddz < (ra + rb) * (ra + rb):
+                    new_contacts.add(pair)
+                    if pair not in _contact_pairs:
+                        _pending_physics_events.put(("collision", "passive", aid, bid))
+                        _pending_physics_events.put(("collision", "passive", bid, aid))
 
     # Active vs terrain — terrain never in active_grid so no dedup needed.
     for (cx, cz), cell_list in active_grid.items():
@@ -3597,44 +2147,16 @@ def _physics_collision(sim, active: list) -> None:
                     if not tb:
                         continue
                     for tid, t in tb:
+                        rt = t._exclusion_radius
                         ddx = a._pos.x - t._pos.x
                         ddy = a._pos.y - t._pos.y
                         ddz = a._pos.z - t._pos.z
-                        d2 = ddx * ddx + ddy * ddy + ddz * ddz
-                        # interactionradius -> INTERACTIVE contact (pickups); else the
-                        # exclusion_radius -> PASSIVE contact (solid terrain). Purely
-                        # data-driven. aid=active, tid=terrain.
-                        ir = t.data_set.get("interactionradius") or 0.0
-                        er = t._exclusion_radius
-                        if ir > 0 and d2 < (ra + ir) * (ra + ir):
-                            ckind = "interactive"
-                        elif er > 0 and d2 < (ra + er) * (ra + er):
-                            ckind = "passive"
-                        else:
-                            continue
-                        pair = (min(aid, tid), max(aid, tid))
-                        new_contacts[pair] = (ckind, aid, tid, True)   # aid=active, tid=terrain
-
-    # Diff against the previous frame: start on contact entry, end on exit.
-    for pair, (kind, ia, ib, is_terrain) in new_contacts.items():
-        if pair not in _contact_pairs:
-            _emit_collision(f"{kind}_collision_start", kind, ia, ib, is_terrain)
-            # On a NEW passive contact, a damaging terrain object (e.g. a mine
-            # with data_set "damage_done") deals hull damage to the active one.
-            # ia is the active object, ib the terrain (see active-vs-terrain
-            # loop above). Asteroids set no damage_done -> harmless.
-            if kind == "passive" and is_terrain:
-                t = space.get(ib)
-                if t is not None:
-                    dmg = t.data_set.get("damage_done") or 0.0
-                    if dmg > 0:
-                        apply_damage(ia, dmg, ib, kind="collision")
-    for pair, (kind, ia, ib, is_terrain) in _contact_pairs.items():
-        if pair not in new_contacts:
-            # Skip the end if either object was deleted (e.g. a pickup collected during
-            # the start event) - the contact ended by destruction, not separation.
-            if ia in sim.space_objects and ib in sim.space_objects:
-                _emit_collision(f"{kind}_collision_end", kind, ia, ib, is_terrain)
+                        if ddx * ddx + ddy * ddy + ddz * ddz < (ra + rt) * (ra + rt):
+                            pair = (min(aid, tid), max(aid, tid))
+                            new_contacts.add(pair)
+                            if pair not in _contact_pairs:
+                                _pending_physics_events.put(("collision", "passive", aid, tid))
+                                _pending_physics_events.put(("collision", "passive", tid, aid))
 
     _contact_pairs = new_contacts
 
@@ -3659,19 +2181,7 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         return
 
     with sim._lock:
-        # The physics tick is the sim-time source (mirrors the engine, where the
-        # physics/sim tick advances time_tick_counter).  dt is sim-seconds, so the
-        # counter advances dt * TICKS_PER_SECOND; sim_seconds = counter / TPS then
-        # tracks elapsed sim time.  Paused sims don't reach here, so time freezes.
-        # Carry the fractional tick so the rate stays exact for any dt / physics Hz
-        # (e.g. dt=1/16 -> 1.875 ticks each; accumulating avoids rounding drift).
-        sim._tick_accum += dt * TICKS_PER_SECOND
-        whole = int(sim._tick_accum)
-        sim._time_tick_counter += whole
-        sim._tick_accum -= whole
-
         space = sim.space_objects
-        _beam_fires.clear()   # transient per-tick beam-fire record (for the mockgui)
 
         # Snapshot active (id, obj) pairs while holding the lock.
         active = [(id_, space[id_]) for id_ in sim._active_ids if id_ in space]
@@ -3718,42 +2228,20 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         # 3. Collision — spatial hash; active-active + active-terrain only.
         _physics_collision(sim, active)
 
-        # 3b. Beams — active objects with a target in range fire on cooldown.
-        _physics_beams(sim, active, dt)
-
-        # 3c. Projectile weapons — NPCs launch missiles/drones; in-flight
-        #     projectiles travel and deal damage on impact.
-        _physics_launchers(sim, active, dt)
-        _physics_projectiles(sim, dt)
-        _physics_blasts(sim, dt)
-        _physics_heat(active, dt)
-
         # 4. Passive systems — shield regen + APU energy, active objects only.
         for _id, obj in active:
             if obj.data_set.get("deathState") > 0:
                 continue
             ds = obj.data_set
 
-            # Decay 'exciting' so the cinematic camera drifts off stale action.
-            ex = ds.get("exciting") or 0.0
-            if ex > 0.0:
-                ds.set("exciting", max(0.0, ex - _EXCITE_DECREMENT * dt))
-
-            # Passive shield regen. The engine spreads repair_rate_shields ACROSS the
-            # facings (measured from data_capture: a 2-facing ship with repair 1.0
-            # regenerates a damaged facing at ~0.5/s, and 0.1 -> ~0.05/s), so each
-            # facing regens at repair_rate_shields / shield_count - NOT the full rate
-            # per facing. The old per-facing full-rate regen was ~2x too fast, which
-            # made ships hold shields too long and stretched out battles.
             repair = ds.get("repair_rate_shields") or 0.0
             if repair > 0.0:
-                n_shields = max(1, ds.get("shield_count") or 0)
-                per_facing = repair / n_shields
-                for si in range(n_shields):
+                n_shields = ds.get("shield_count") or 0
+                for si in range(max(1, n_shields)):
                     sv = ds.get("shield_val", si) or 0.0
                     sm = ds.get("shield_max_val", si) or 0.0
                     if sm > 0.0 and sv < sm:
-                        ds.set("shield_val", min(sm, sv + per_facing * dt), si)
+                        ds.set("shield_val", min(sm, sv + repair * dt), si)
 
             apu = ds.get("ship_apu_output") or 0.0
             if apu > 0.0:
@@ -3761,19 +2249,3 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
                 ceiling = ds.get("ship_apu_ceiling") or 0.0
                 if ceiling > 0.0 and energy < ceiling:
                     ds.set("energy", min(ceiling, energy + apu * 2.0 * dt))
-
-            # Player flight energy drain. Impulse + warp both spend energy from the
-            # tank (scaled by shipData ship_energy_cost / warp_energy_cost); the APU
-            # regen above tops it back up when idle/light-impulse, docking refills it
-            # fast. Firing or loading torpedoes costs NO energy (that's the weapons-
-            # console energy<->torpedo conversion, a separate manual choice).
-            if obj._abits & _PLAYER_ABIT:
-                pt = ds.get("playerThrottle") or 0.0
-                if pt > 0.0:
-                    e_cost = ds.get("ship_energy_cost") or 0.0
-                    w_cost = ds.get("warp_energy_cost") or 0.0
-                    drain = (min(pt, 1.0) * e_cost * IMPULSE_ENERGY_DRAIN
-                             + max(0.0, pt - 1.0) * w_cost * WARP_ENERGY_DRAIN) * dt
-                    if drain > 0.0:
-                        e_now = ds.get("energy") or 0.0
-                        ds.set("energy", max(0.0, e_now - drain))

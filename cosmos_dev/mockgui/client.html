@@ -89,22 +89,12 @@
   .slider-num { font-size:11px; min-width:2.5em; text-align:right; color:var(--text-dim); flex-shrink:0; white-space:nowrap; align-self:center; }
 
   .region-container { position:absolute; overflow:hidden; pointer-events:none; }
-  /* UNCLIP debug (gui-sizing-accuracy): reveal overflow the real engine would
-     draw but the browser normally clips. Outlines regions (red) + widgets (blue). */
-  body.unclip #gui-root, body.unclip .gui-buffer,
-  body.unclip .region-container, body.unclip .region-buffer { overflow:visible !important; }
-  body.unclip .region-container { outline:1px solid rgba(255,70,70,0.55); }
-  body.unclip .widget { outline:1px solid rgba(90,170,255,0.45); }
   .region-buffer    { position:absolute; inset:0; pointer-events:none; }
   .region-buffer.front { display:block; }
   .region-buffer.back  { display:none; }
 
-  /* line-height/padding tuned to the sbs_utils layout budget: rows are reserved at
-     get_text_line_height (≈1.25× the font px), so the old CSS line-height:1.5 + 6px
-     padding overran the box and CLIPPED text the engine draws fine (browser-only
-     artifact — engine blits tight to the rect). See gui-sizing-accuracy notes. */
-  .w-text { background:transparent; padding:0 2px; justify-content:flex-start;
-            align-items:flex-start; white-space:pre-wrap; word-break:break-word; line-height:1.2;
+  .w-text { background:transparent; padding:4px 6px; justify-content:flex-start;
+            align-items:flex-start; white-space:pre-wrap; word-break:break-word; line-height:1.5;
             pointer-events:none; }
 
   .w-typein input { width:100%; height:100%; background:var(--surface); color:var(--text);
@@ -150,7 +140,6 @@
   <button id="script-log-btn" class="log-btn" title="Toggle MAST/sbs_utils stdout+stderr">LOG</button>
   <button id="dbg-log-btn"    class="log-btn" title="Toggle browser WS/widget debug">DBG</button>
   <button id="corner-radar-btn" class="log-btn" title="Toggle the fallback corner radar (when no console 2D view is active)">RADAR</button>
-  <button id="unclip-btn" class="log-btn" title="Disable region clipping + outline boxes to reveal widget overflow the engine would show">UNCLIP</button>
 </div>
 
 <div id="gui-root">
@@ -165,24 +154,13 @@
 <div id="dbg-log-panel"    class="log-panel"></div>
 
 <script src="/three.min.js"></script>
-<script src="/face.js"></script>
 <script>
 // ── Config ───────────────────────────────────────────────────────────────────
 // /server → connects as the server console (clientID=0, no client_connect fired)
-// /web/<path> → connects as a MAST web page (//web/<path>), unique clientID, no console flow
 // /client or anything else → connects as a new client (unique clientID)
-// A web page renders like a client (its own frame, by CLIENT_ID), so _mode
-// stays 'client'; only the WebSocket route carries the /web/<path> sub-path.
-const _isWeb = location.pathname.startsWith('/web/');
 const _mode  = location.pathname === '/server' ? 'server' : 'client';
-const _wsRoute = location.pathname === '/server' ? 'server'
-               : _isWeb ? 'web/' + location.pathname.slice('/web/'.length)
-               : 'client';
-// Web pages carry their query string through to the server so /web/x?a=1 can
-// seed page variables.
-const WS_URL = `ws://${location.host}/ws/${_wsRoute}` + (_isWeb ? location.search : '');
+const WS_URL = `ws://${location.host}/ws/${_mode}`;
 let CLIENT_ID = null;   // assigned by server on connect via "init" message
-let IS_STATIC = false;  // static snapshot mode: render embedded frames, no WebSocket
 
 let msgCount = 0;
 
@@ -251,18 +229,6 @@ function _drawIcon(canvas, ctx2d, sheet, iconIndex, colorStr) {
   }
 }
 
-// Draw an atlas glyph (icon_index) at a radar position, tinted, `size` px square. Used for
-// galaxy-board markers (behav_selection), which the engine renders as flat atlas icons — not
-// ship meshes. Renders into a reused scratch canvas then blits, so it composites onto the
-// shared radar 2D context at the marker's screen position.
-const _radarIconScratch = document.createElement('canvas');
-function _drawRadarIcon(ctx, sheet, iconIndex, px, py, size, colorStr) {
-  if (!sheet || size < 2) return;
-  _radarIconScratch.width = _radarIconScratch.height = 48;
-  _drawIcon(_radarIconScratch, _radarIconScratch.getContext('2d'), sheet, iconIndex, colorStr);
-  ctx.drawImage(_radarIconScratch, px - size / 2, py - size / 2, size, size);
-}
-
 function _buildIconWidget(s, tag, ownerId, cssClass, isClickable, isToggle) {
   const wrapper = document.createElement('div');
   wrapper.className = cssClass;
@@ -306,13 +272,76 @@ function _buildIconWidget(s, tag, ownerId, cssClass, isClickable, isToggle) {
 }
 
 // ── Face sheet infrastructure ─────────────────────────────────────────────
-// The compositor now lives in the shared /face.js (window.FaceRender) so the
-// VS Code AMD extension can reuse the exact same renderer. Sprite sheets live
-// in data/graphics/, served at the root URL by server.py — FaceRender's default
-// resolver (basename + ".png") loads them from there. Thin aliases below keep
-// the existing call sites unchanged.
-const _parseFaceString = (str) => FaceRender.parse(str);
-const _drawFace = (canvas, ctx2d, layers) => FaceRender.draw(canvas, ctx2d, layers);
+// Face sprite sheets live in data/graphics/ (served at root URL by server.py).
+// In the face string, 'row' = X-axis (column index in sheet), 'col' = Y-axis (row index).
+// Terran sheet: 15 cols × 8 rows (~515×514 px per cell). All others: 8×8 (512×512 px).
+const _FACE_ALIAS = {
+  ter: 'Terran_Big-revised', tor: 'Torgoth_Set', ska: 'Skaraan_Set',
+  kra: 'Krailen_Set',        zim: 'Zimni_Set',   arv: 'Arvonian',
+};
+function _faceGridCols(alias) { return alias === 'ter' ? 15 : 8; }
+const _faceCache = {};  // alias → { img: null|Image, cbs: null|[] }
+
+function _getFaceSheet(alias, cb) {
+  const filename = _FACE_ALIAS[alias];
+  if (!filename) { cb(null); return; }
+  if (!_faceCache[alias]) _faceCache[alias] = { img: null, cbs: null };
+  const entry = _faceCache[alias];
+  if (entry.img)          { cb(entry.img); return; }
+  if (entry.cbs !== null) { entry.cbs.push(cb); return; }
+  entry.cbs = [cb];
+  const img = new Image();
+  img.onload  = () => { entry.img = img; const q = entry.cbs; entry.cbs = null; q.forEach(f => f(img)); };
+  img.onerror = () => { console.error(`[face] failed to load ${filename}.png`); const q = entry.cbs; entry.cbs = null; q.forEach(f => f(null)); };
+  img.src = `${filename}.png`;
+}
+
+function _parseFaceString(str) {
+  return (str || '').split(';').map(layer => {
+    const p = layer.trim().split(/\s+/);
+    if (p.length < 4) return null;
+    return { alias: p[0], color: p[1], row: +p[2], col: +p[3], ox: p.length > 4 ? +p[4] : 0, oy: p.length > 5 ? +p[5] : 0 };
+  }).filter(Boolean);
+}
+
+function _drawFaceLayer(canvas, ctx2d, img, cols, row, col, ox, oy, colorStr) {
+  const w = canvas.width, h = canvas.height;
+  if (!img || w <= 0 || h <= 0) return;
+  const cellW = img.width / cols, cellH = img.height / 8;
+  const { r, g, b, a } = _parseColor(colorStr || 'white');
+  const isWhite = r >= 0.99 && g >= 0.99 && b >= 0.99;
+  const sx = row * cellW + ox, sy = col * cellH + oy;
+  if (isWhite) {
+    ctx2d.save(); ctx2d.globalAlpha = a;
+    ctx2d.drawImage(img, sx, sy, cellW, cellH, 0, 0, w, h);
+    ctx2d.restore();
+  } else {
+    const tmp = new OffscreenCanvas(w, h), tctx = tmp.getContext('2d');
+    tctx.drawImage(img, sx, sy, cellW, cellH, 0, 0, w, h);
+    tctx.globalCompositeOperation = 'multiply';
+    tctx.fillStyle = `rgb(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)})`;
+    tctx.fillRect(0, 0, w, h);
+    tctx.globalCompositeOperation = 'destination-in';
+    tctx.drawImage(img, sx, sy, cellW, cellH, 0, 0, w, h);
+    ctx2d.save(); ctx2d.globalAlpha = a; ctx2d.drawImage(tmp, 0, 0); ctx2d.restore();
+  }
+}
+
+function _drawFace(canvas, ctx2d, layers) {
+  const w = canvas.width, h = canvas.height;
+  if (w <= 0 || h <= 0) return;
+  const aliases = [...new Set(layers.map(l => l.alias).filter(a => _FACE_ALIAS[a]))];
+  if (!aliases.length) return;
+  let pending = aliases.length;
+  aliases.forEach(alias => _getFaceSheet(alias, () => {
+    if (--pending > 0) return;
+    ctx2d.clearRect(0, 0, w, h);
+    layers.forEach(({ alias, color, row, col, ox, oy }) => {
+      const img = _faceCache[alias]?.img;
+      if (img) _drawFaceLayer(canvas, ctx2d, img, _faceGridCols(alias), row, col, ox, oy, color);
+    });
+  }));
+}
 
 // Parse any CSS color string (named, hex, rgb, rgba, with leading whitespace)
 // using the browser's own color parser. Returns { r, g, b, a } in [0,1].
@@ -640,30 +669,14 @@ function connect() {
   ws.onmessage = (ev) => {
     msgCount++;
     document.getElementById('msg-count').textContent = msgCount;
-    let data;
-    try { data = JSON.parse(ev.data); }
+    let msg;
+    try { msg = JSON.parse(ev.data); }
     catch(e) { log('bad JSON: ' + ev.data, 'err'); return; }
-    // The server coalesces a tick's commands into ONE frame (a JSON array); replay
-    // still sends single objects. Accept both.
-    const msgs = Array.isArray(data) ? data : [data];
-    for (const msg of msgs) {
-      log(`RX cmd=${msg.cmd} tag=${msg.tag??'—'} clientID=${msg.clientID}`, 'cmd');
-      dispatch(msg);
-    }
+    log(`RX cmd=${msg.cmd} tag=${msg.tag??'—'} clientID=${msg.clientID}`, 'cmd');
+    dispatch(msg);
   };
 }
-
-// Static snapshot mode: a generator embeds window.__STATIC_FRAMES__ (a list of
-// wire commands from a one-shot render). Render them once and do NOT open a
-// WebSocket - a read-only page with no live session.
-if (Array.isArray(window.__STATIC_FRAMES__)) {
-  IS_STATIC = true;
-  const st = document.getElementById('status-text');
-  if (st) st.textContent = 'static';
-  for (const msg of window.__STATIC_FRAMES__) dispatch(msg);
-} else {
-  connect();
-}
+connect();
 
 // ── Event → server ────────────────────────────────────────────────────────────
 // clientID is the owner of the widget that fired the event — taken from the
@@ -680,13 +693,11 @@ function dispatch(msg) {
   // In client mode, ignore GUI commands addressed to the server (clientID "0") or any
   // other client. The server rebuilds and broadcasts its own frame every tick; without
   // this filter those clear/complete cycles wipe the client's own frame each tick.
-  if (!IS_STATIC && _mode === 'client' && CLIENT_ID !== null &&
+  if (_mode === 'client' && CLIENT_ID !== null &&
       msg.cmd !== 'init' && msg.cmd !== 'log' &&
       msg.cmd !== 'radar' && msg.cmd !== 'radar_terrain' &&
       msg.cmd !== 'widget_rect' && msg.cmd !== 'cinematic' &&
-      msg.cmd !== 'skybox' && msg.cmd !== 'colors' && msg.cmd !== 'fx' && msg.cmd !== 'batch' &&
-      msg.cmd !== 'ship_data' && msg.cmd !== 'target_data' &&
-      msg.cmd !== 'text_msg' && msg.cmd !== 'text_active' && msg.cmd !== 'world_reset') {
+      msg.cmd !== 'skybox' && msg.cmd !== 'batch') {
     if (msg.clientID !== CLIENT_ID) return;
   }
   switch (msg.cmd) {
@@ -696,25 +707,9 @@ function dispatch(msg) {
     case 'log':          cmdLog(msg);         break;
     case 'radar':        cmdRadar(msg);       break;
     case 'radar_terrain':cmdRadarTerrain(msg);break;
-    case 'world_reset':  cmdWorldReset(msg);   break;
     case 'widget_rect':  cmdWidgetRect(msg);  break;
     case 'cinematic':    cmdCinematic(msg);   break;
     case 'skybox':       cmdSkybox(msg);      break;
-    case 'colors':       cmdColors(msg);      break;
-    case 'fx':           cmdFx(msg);          break;
-    case 'ship_data':    cmdShipData(msg);    break;
-    case 'target_data':  cmdTargetData(msg);  break;
-    case 'text_msg':     cmdTextMsg(msg);     break;
-    case 'text_active':  cmdTextActive(msg);  break;
-    case 'red_alert':    cmdRedAlert(msg);    break;
-    case 'red_alert_btn':cmdRedAlertBtn(msg); break;
-    case 'comms_control':cmdCommsControl(msg);break;
-    case 'comms_face':   cmdCommsFace(msg);   break;
-    case 'comms_wf':     cmdCommsWf(msg);     break;
-    case 'radar_zoom':   cmdRadarZoom(msg);   break;
-    case 'comms_list':   cmdCommsList(msg);   break;
-    case 'story_dialog': cmdStoryDialog(msg); break;
-    case 'hud_rect':     cmdHudRect(msg);     break;
     case 'batch':        msg.items.forEach(dispatch); break;
     default:             cmdWidget(msg);      break;
   }
@@ -732,12 +727,7 @@ document.getElementById('dbg-log-btn').addEventListener('click', () => {
 document.getElementById('corner-radar-btn').addEventListener('click', () => {
   _cornerRadarEnabled = !_cornerRadarEnabled;
   document.getElementById('corner-radar-btn').classList.toggle('active', _cornerRadarEnabled);
-  _requestRadarRender();
-});
-
-document.getElementById('unclip-btn').addEventListener('click', () => {
-  const on = document.body.classList.toggle('unclip');
-  document.getElementById('unclip-btn').classList.toggle('active', on);
+  _renderRadar();
 });
 
 // ── cmdLog: stdout/stderr forwarded from the runner ───────────────────────────
@@ -773,7 +763,7 @@ window.addEventListener('wheel', e => {
   }
   _radarZoom *= e.deltaY < 0 ? 1.15 : 1 / 1.15;
   _radarZoom = Math.max(0.05, Math.min(20.0, _radarZoom));
-  _requestRadarRender();
+  _renderRadar();
 }, { passive: false });
 
 // ── Drag-pan of the radar ─────────────────────────────────────────────────────
@@ -802,42 +792,19 @@ function _pointInRadarView(px, py) {
 
 let _panArmed = false, _panDownX = 0, _panDownY = 0;
 
-// Long-press = hold the left button still for _LONG_PRESS_MS → the engine's hold_click
-// (same as a right-click). Cancelled if the press turns into a drag-pan.
-const _LONG_PRESS_MS = 500;
-let _longPressTimer = null, _longPressFired = false;
-
-// A click on an overlay control (radar zoom/mode buttons, comms panels, red-alert button)
-// must NOT be treated as a radar select even though it geometrically sits over the 2D view.
-function _clickOnOverlay(e) {
-  const t = e.target;
-  return !!(t && t.closest && t.closest(
-    '#radarZoomCtrl,#commsControl,#commsFace,#commsWaterfall,#commsSortedList,#redAlertBtn'));
-}
-
 window.addEventListener('mousedown', e => {
   if (e.button !== 0) return;
-  if (_clickOnOverlay(e)) return;
   if (!_pointInRadarView(e.clientX, e.clientY)) return;
   // Arm — but don't claim the event yet, so a plain click still reaches widgets.
   _panArmed = true; _panning = false;
   _panDownX = e.clientX; _panDownY = e.clientY;
   _panStartPX = _radarPanX; _panStartPZ = _radarPanZ;
-  _longPressFired = false;
-  clearTimeout(_longPressTimer);
-  _longPressTimer = setTimeout(() => {
-    if (_panArmed && !_panning) {   // still held, not dragging → long-press
-      _longPressFired = true;
-      _radarSelectAt(_panDownX, _panDownY, 'rmb');
-    }
-  }, _LONG_PRESS_MS);
 });
 
 window.addEventListener('mousemove', e => {
   if (_panArmed && !_panning &&
       Math.abs(e.clientX - _panDownX) + Math.abs(e.clientY - _panDownY) > 4) {
     _panning = true;
-    clearTimeout(_longPressTimer);   // a drag cancels the pending long-press
     document.body.style.cursor = 'grabbing';
   }
   if (_panning) {
@@ -846,7 +813,7 @@ window.addEventListener('mousemove', e => {
     // Grab-the-map: the world point under the cursor follows it. +Z is up, +X right.
     _radarPanX = _panStartPX - dx * _lastWorldPerPx;
     _radarPanZ = _panStartPZ + dy * _lastWorldPerPx;
-    _requestRadarRender();
+    _renderRadar();
     e.preventDefault();
     return;
   }
@@ -855,76 +822,20 @@ window.addEventListener('mousemove', e => {
   else if (document.body.style.cursor === 'grab') document.body.style.cursor = '';
 });
 
-window.addEventListener('mouseup', e => {
-  const armed = _panArmed, wasPanning = _panning, longFired = _longPressFired;
-  _panArmed = false; _panning = false;
-  clearTimeout(_longPressTimer);
+window.addEventListener('mouseup', () => {
+  _panArmed = false;
+  if (!_panning) return;
+  _panning = false;
   document.body.style.cursor = '';
-  // A clean left-click (armed inside a radar view, no drag, no long-press already
-  // fired) → object selection.
-  if (wasPanning || !armed || e.button !== 0 || longFired) return;
-  _radarSelectAt(e.clientX, e.clientY, 'lmb');
-});
-
-// Right-click inside a 2D view → selection with the rmb button (the //focus/comms
-// click-to-move / galaxy-theater "Close on empty" path reads extra_extra_tag).
-window.addEventListener('contextmenu', e => {
-  if (_clickOnOverlay(e)) return;
-  if (!_pointInRadarView(e.clientX, e.clientY)) return;
-  if (_currentRadarViews().isCorner) return;
-  e.preventDefault();
-  _radarSelectAt(e.clientX, e.clientY, 'rmb');
 });
 
 // Double-click recentres the radar (clears the pan offset).
 window.addEventListener('dblclick', e => {
   if (!_pointInRadarView(e.clientX, e.clientY)) return;
   _radarPanX = 0; _radarPanZ = 0;
-  _requestRadarRender();
+  _renderRadar();
   e.preventDefault();
 });
-
-// Pick the nearest radar object to a click and fire a selection event, mirroring
-// the engine's 2D-view select. The runner turns this into a `select_space_object`
-// event; consoledispatcher.py routes it to comms / science by the console NAME.
-// An empty-space click selects id 0 (still carries source_point + button, which the
-// //focus/comms camera-pan path uses).
-const _PICK_PX_THRESHOLD = 20;
-function _radarSelectAt(px, py, button) {
-  const { views, isCorner } = _currentRadarViews();
-  if (isCorner || views.length === 0 || !_pickState) return;
-  if (!_pointInRadarView(px, py)) return;
-  const { cx, cz, halfSpan, box } = _pickState;
-  const proj = _radarProj(box, cx, cz, halfSpan);
-  let bestId = 0, bestD = _PICK_PX_THRESHOLD;
-  const consider = (id, wx, wz) => {
-    const d = Math.hypot(proj.toX(wx) - px, proj.toY(wz) - py);
-    if (d < bestD) { bestD = d; bestId = id; }
-  };
-  // Skip objects with selectable==0 (nosel): asteroids, individual nebula — visible but
-  // not clickable. (Invisible cambots are already absent from the stream entirely.)
-  for (const [id, idx] of _dynamicMap) {
-    if (idx >= _dynamicCount) continue;
-    const m = _dynamicMeta.get(id);
-    if (m && m.nosel) continue;
-    consider(id, _dynamicPosBuf[idx * 3], _dynamicPosBuf[idx * 3 + 1]);
-  }
-  for (const [id, idx] of _terrainMap) {
-    if (idx >= _terrainCount) continue;
-    const m = _terrainMeta.get(id);
-    if (m && m.nosel) continue;
-    consider(id, _terrainPosBuf[idx * 3], _terrainPosBuf[idx * 3 + 1]);
-  }
-  // World point under the cursor (invert the projection) for source_point.
-  const wx = cx + (px - proj.cxp) / proj.scale;
-  const wz = cz - (py - proj.cyp) / proj.scale;
-  // The engine fires DIFFERENT event tags per button: left-click = select_space_object
-  // (selection); right-click = hold_click (popup / move-camera). The runner fills the
-  // remaining fields (console name/type, widget, UID) from mock state.
-  const type = (button === 'rmb') ? 'hold_click' : 'select_space_object';
-  sendEvent(type, '', CLIENT_ID !== null ? CLIENT_ID : 0,
-            { id: bestId, wx, wy: 0, wz, button });
-}
 
 function _sideColor(side) {
   if (!side) return '#888';
@@ -933,93 +844,20 @@ function _sideColor(side) {
   return `hsl(${(h * 137) % 360},70%,60%)`;
 }
 
-// ── Radar colour mode: SIDE vs DIPLOMACY (viewer-relative) ────────────────────────
-// Fed by the `colors` command (side_set_icon_color / sim.set_diplomacy_color /
-// side_set_relations). Toggle via the topbar SIDE/DIPLO button. In DIPLO mode an object is
-// coloured by the diplomacy between the VIEWER's side and the object's side.
-let _radarColorMode = localStorage.getItem('radarColorMode') || 'side';   // 'side' | 'diplo'
-let _sideColors = {};                 // sideTag -> css colour (side_set_icon_color)
-let _dipColors  = {};                 // DIPLOMACY int (as string) -> css colour
-const _relations = new Map();         // "a|b" (sorted) -> DIPLOMACY int
-// Fallback colours if the script set none (UNKNOWN0 NEUTRAL1 ALLIED2 HOSTILE3).
-const _DIP_DEFAULT = { '0': '#888', '1': '#0aa', '2': '#3f6', '3': '#f44' };
-function _viewerSide() {
-  // Prefer the side the server sends in client_focus (robust — the own ship isn't always a
-  // drawn dynamic dot); fall back to the own ship's meta.
-  const myKey = CLIENT_ID !== null ? String(CLIENT_ID) : '0';
-  const entry = _radarClientFocus[myKey];
-  if (entry && entry.side) return entry.side;
-  const m = _myShipId != null ? _dynamicMeta.get(_myShipId) : null;
-  return m ? m.side : null;
-}
-function _dipBetween(a, b) {
-  const key = [String(a), String(b)].sort().join('|');
-  return _relations.has(key) ? _relations.get(key) : null;
-}
-function _objColor(side, tint) {
-  if (tint) return tint;                       // explicit map-marker colour always wins
-  if (_radarColorMode === 'diplo' && side != null) {
-    const vs = _viewerSide();
-    if (vs != null) {
-      const dip = (side === vs) ? 2 : _dipBetween(vs, side);   // own side => ALLIED
-      if (dip != null) return _dipColors[String(dip)] || _DIP_DEFAULT[String(dip)]
-                            || _sideColors[side] || _sideColor(side);
-    }
-  }
-  return _sideColors[side] || _sideColor(side);
-}
-function _recolorRadar() {
-  for (const [id, meta] of _dynamicMeta) {
-    const idx = _dynamicMap.get(id);
-    if (idx === undefined || idx >= _dynamicCount) continue;
-    const c = _cssToRGB(_objColor(meta.side, null));   // dynamic objects carry no tint
-    const cb = idx * 3;
-    _dynamicColBuf[cb] = c.r; _dynamicColBuf[cb + 1] = c.g; _dynamicColBuf[cb + 2] = c.b;
-  }
-  if (_dynamicPoints) _dynamicPoints.geometry.attributes.color.needsUpdate = true;
-  for (const [id, meta] of _terrainMeta) {
-    const idx = _terrainMap.get(id);
-    if (idx === undefined || idx >= _terrainCount) continue;
-    const c = _cssToRGB(_objColor(meta.side, meta.tint));
-    const cb = idx * 3;
-    _terrainColBuf[cb] = c.r; _terrainColBuf[cb + 1] = c.g; _terrainColBuf[cb + 2] = c.b;
-  }
-  if (_terrainPoints) _terrainPoints.geometry.attributes.color.needsUpdate = true;
-  _requestRadarRender();
-}
-function cmdColors(msg) {
-  if (msg.sides) _sideColors = msg.sides || {};
-  if (msg.diplo) _dipColors = msg.diplo || {};
-  if (msg.relations) {
-    _relations.clear();
-    for (const r of msg.relations)
-      _relations.set([String(r[0]), String(r[1])].sort().join('|'), r[2]);
-  }
-  _recolorRadar();
-}
-function _toggleRadarColorMode() {
-  _radarColorMode = _radarColorMode === 'diplo' ? 'side' : 'diplo';
-  localStorage.setItem('radarColorMode', _radarColorMode);
-  const btn = document.getElementById('color-mode-btn');
-  if (btn) btn.textContent = _radarColorMode === 'diplo' ? 'DIPLO' : 'SIDE';
-  _recolorRadar();
-}
-
 // ── Ship sprite cache ─────────────────────────────────────────────────────────
 // Dynamic objects draw their top-down art (/ships/<art>256.png) on the radar.
 // Plain HTMLImageElements (for 2D-canvas drawImage); the Three-only _loadTex
 // helper can't be reused here. Returns the cached <img> once decoded, else null.
 // Rotation to add so a sprite's "nose" aligns with its heading. Cosmos top-down
-// art points down (south) — i.e. the nose is 180° from the heading vector — so
-// add π. Adjust here if a given art set points elsewhere.
-const _SPRITE_ART_OFFSET = Math.PI;
+// art points up (north); adjust here if a given art set points elsewhere.
+const _SPRITE_ART_OFFSET = 0;
 const _spriteCache = new Map();   // art root → { img, ready }
 function _shipSprite(art) {
   if (!art) return null;
   let e = _spriteCache.get(art);
   if (e === undefined) {
     e = { img: new Image(), ready: false };
-    e.img.onload  = () => { e.ready = true; _requestRadarRender(); };
+    e.img.onload  = () => { e.ready = true; _renderRadar(); };
     e.img.onerror = () => { e.ready = false; };   // 404 / no art → dot fallback
     e.img.src = `/ships/${art}256.png`;
     _spriteCache.set(art, e);
@@ -1095,10 +933,6 @@ let _radarScene3d = null, _radarCamera3d = null;
 let _terrainPoints = null, _dynamicPoints = null;
 let _terrainPosBuf = null, _terrainColBuf = null;
 let _dynamicPosBuf = null, _dynamicColBuf = null;
-// Smoothed copy of _dynamicPosBuf that the 3D view eases toward each render frame,
-// so ship motion is fluid at 60fps regardless of the (slower, ~30Hz) server push
-// rate. Same index layout as _dynamicPosBuf; kept aligned on add/remove below.
-let _dynamicDispBuf = null;
 
 // Delta state: id → index for O(1) update; reverse map for O(1) swap-with-last removals.
 let _terrainCount = 0, _dynamicCount = 0;
@@ -1112,8 +946,6 @@ const _dynamicMeta   = new Map();  // id (string) → {side, tick_type, fx, fz, 
 // Latest radar overlay data — updated by cmdRadar.
 let _radarNavpoints   = [];
 let _radarNavareas    = [];
-let _radarBeams       = [];   // [[x1,z1,x2,z2], ...] world coords — this tick's beam fires
-let _radarProjectiles = [];   // [[x,z,kind], ...] in-flight missiles/drones
 let _radarClientFocus = {};
 
 // Camera lerp — smooths view when ship assignment or focus changes.
@@ -1132,10 +964,6 @@ let _radarZoom = 1.0;
 let _radarPanX = 0, _radarPanZ = 0;
 let _lastWorldPerPx = 1;
 let _panning = false, _panStartPX = 0, _panStartPZ = 0;
-// Projection of the primary 2D view captured each render, so a click can pick the
-// object under the cursor (screen→world) without recomputing bounds. Null until the
-// first render or when no 2D view is on screen.
-let _pickState = null;
 
 // Engine 2D-view widget types whose screen rect registers as a radar view area.
 const _2D_VIEW_WIDGET_TYPES = new Set(['2dview','science_2d_view','comms_2d_view','weapon_2d_view']);
@@ -1171,7 +999,6 @@ function _initRadar3d() {
 
   const dGeo = new THREE.BufferGeometry();
   _dynamicPosBuf = new Float32Array(_MAX_DYNAMIC * 3);
-  _dynamicDispBuf = new Float32Array(_MAX_DYNAMIC * 3);
   _dynamicColBuf = new Float32Array(_MAX_DYNAMIC * 3);
   dGeo.setAttribute('position', new THREE.BufferAttribute(_dynamicPosBuf, 3));
   dGeo.setAttribute('color',    new THREE.BufferAttribute(_dynamicColBuf, 3));
@@ -1195,9 +1022,7 @@ function cmdRadarTerrain(msg) {
   _terrainMeta.clear();
   for (let i = 0; i < objects.length && i < _MAX_TERRAIN; i++) {
     const o = objects[i];
-    // Map markers carry a per-object radar colour (radar_color_override → o.tint); prefer
-    // it over the side colour so the galaxy board's kind/health tints render.
-    const {r, g, b} = _cssToRGB(_objColor(o.side, o.tint));
+    const {r, g, b} = _cssToRGB(_sideColor(o.side));
     const base = i * 3;
     _terrainPosBuf[base]     = o.x;
     _terrainPosBuf[base + 1] = o.z;   // world Z → Three.js Y
@@ -1209,9 +1034,6 @@ function cmdRadarTerrain(msg) {
     _terrainRevMap.set(i, o.id);
     _terrainMeta.set(o.id, {
       art: o.art || '', meshscale: o.meshscale ?? 1, y: o.y ?? 0, q: o.q || null,
-      name: o.name || '', tint: o.tint || null, nosel: !!o.nosel, side: o.side,
-      icon_index: (o.icon_index != null ? +o.icon_index : null),
-      icon_scale: (o.icon_scale != null ? +o.icon_scale : null),
       nebula: !!o.nebula, radius: o.radius || 0, density: o.density || 0, seed: o.seed || 1,
       color: o.color || null, color2: o.color2 || null, swirl: o.swirl || 0, warp: o.warp || 0,
     });
@@ -1221,721 +1043,10 @@ function cmdRadarTerrain(msg) {
   _terrainPoints.geometry.attributes.position.needsUpdate = true;
   _terrainPoints.geometry.attributes.color.needsUpdate    = true;
   _buildNebula();   // rebuild nebula particle clouds for the new terrain set
-  _requestRadarRender();
-}
-
-// ── cmdWorldReset — wipe leftover world render state on mission (re)start ─────
-// Sent by create_new_sim(): the previous mission's radar objects, terrain,
-// navpoints, combat FX and cinematic 3D view should not bleed into the next
-// mission. The new sim then streams fresh state on the following physics ticks.
-function cmdWorldReset(msg) {
-  // Dynamic objects (ships/NPCs).
-  _dynamicMap.clear(); _dynamicRevMap.clear(); _dynamicMeta.clear();
-  _dynamicCount = 0;
-  if (_dynamicPoints) _dynamicPoints.geometry.setDrawRange(0, 0);
-  // Terrain (asteroids, nebulae, …).
-  _terrainMap.clear(); _terrainRevMap.clear(); _terrainMeta.clear();
-  _terrainCount = 0;
-  if (_terrainPoints) _terrainPoints.geometry.setDrawRange(0, 0);
-  if (typeof _buildNebula === 'function') _buildNebula();   // empties the nebula cloud
-  // Navigation overlays + transient combat FX.
-  _radarNavpoints = []; _radarNavareas = [];
-  _radarBeams = []; _radarProjectiles = [];
-  // 3D instanced hulls/asteroids drop to zero (also recomputed each frame, but
-  // zero now in case the view is inactive and won't re-sync immediately).
-  if (typeof _instArt !== 'undefined') {
-    for (const g of _instArt.values()) { if (g.inst) g.inst.count = 0; }
-  }
-  if (typeof _view3dMeshedIds !== 'undefined') _view3dMeshedIds.clear();
-  if (typeof _dispQuat !== 'undefined') _dispQuat.clear();   // smoothed headings
-  // Turn off the cinematic 3D view from the previous mission.
-  _view3dActive = false;
-  if (_view3dCanvas) _view3dCanvas.style.display = 'none';
-  // Deregister the 2D radar view rects so the radar canvas goes blank (the server
-  // also stops re-registering them via _push_2dview_rects); the next mission's
-  // console re-establishes its 2dview when it loads.
-  _widgetRects.clear();
-  // Reset our tracked ship so the next mission rediscovers it.
-  _myShipId = null;
-  // Drop the HUD overlays + any rect overrides so the next mission starts fresh
-  // (default corner unless it positions them again).
-  for (const k in _hudRects) delete _hudRects[k];
-  if (_shipDataEl)   { _shipDataEl.remove();   _shipDataEl = null; }
-  if (_targetDataEl) { _targetDataEl.remove(); _targetDataEl = null; }
-  if (_textWfEl)     { _textWfEl.remove();     _textWfEl = null; }
-  _shipDataMsg = {}; _targetDataMsg = {};   // drop merged HUD state from old mission
-  if (_radarCtx) _requestRadarRender();
-}
-
-// ── cmdShipData — live player-ship vitals HUD (mock-only) ────────────────────
-// The engine renders the `ship_data` console widget in C++; the mock streams the
-// player ship's stats each tick and we draw a small overlay so autoplay state
-// (shields/energy/dock_state/throttle/target) is visible while watching.
-// Per-widget rect overrides from hud_rect (screen %). Absent => default corner.
-const _hudRects = {};
-function _applyHudRect(el, widget) {
-  const r = _hudRects[widget];
-  if (!r) return;                       // keep the element's default corner
-  el.style.left = r.left + 'vw';
-  el.style.top = r.top + 'vh';
-  el.style.right = 'auto';
-  el.style.bottom = 'auto';
-  el.style.width = (r.right - r.left) + 'vw';
-  el.style.maxHeight = (r.bottom - r.top) + 'vh';
-}
-function cmdHudRect(msg) {
-  _hudRects[msg.widget] = msg;
-  if (msg.widget === 'ship_data' && _shipDataEl) _applyHudRect(_shipDataEl, 'ship_data');
-  if (msg.widget === 'text_waterfall' && _textWfEl) _applyHudRect(_textWfEl, 'text_waterfall');
-}
-
-let _shipDataEl = null;
-function _ensureShipDataEl() {
-  if (_shipDataEl) return _shipDataEl;
-  const el = document.createElement('div');
-  el.id = 'shipDataHud';
-  el.style.cssText =
-    'position:fixed;left:8px;bottom:8px;z-index:50;min-width:190px;' +
-    'font:11px/1.45 monospace;color:#cde;background:rgba(8,14,22,.28);' +
-    'border:1px solid rgba(42,58,74,.5);border-radius:5px;padding:7px 9px;' +
-    'pointer-events:none;white-space:pre;text-shadow:0 1px 2px #000,0 0 2px #000;';
-  document.body.appendChild(el);
-  _shipDataEl = el;
-  _applyHudRect(el, 'ship_data');       // honor a rect that arrived before creation
-  return el;
-}
-function _bar(v, max, w = 12) {
-  if (!max || max <= 0) return '—';
-  const f = Math.max(0, Math.min(1, v / max));
-  const n = Math.round(f * w);
-  return '['.concat('#'.repeat(n), '.'.repeat(w - n), '] ', Math.round(f * 100), '%');
-}
-function _pctColor(p) { return p > 66 ? '#6f6' : p > 33 ? '#fd6' : '#f55'; }
-// Shield ring color from a 0..1 fraction (green > 66%, yellow > 33%, else red).
-function _shieldColor(f) { return f > 0.66 ? '#3f6' : f > 0.33 ? '#fd6' : '#f55'; }
-function _heatColor(h) { return h > 66 ? '#f55' : h > 33 ? '#fd6' : '#9ab'; }
-function _sysCell(s) {
-  const nm = (s.name + '   ').slice(0, 4);
-  const hp = String(s.pct).padStart(3);
-  const ht = String(s.heat || 0).padStart(2);
-  return nm + `<span style="color:${_pctColor(s.pct)}">${hp}</span>/` +
-         `<span style="color:${_heatColor(s.heat || 0)}">${ht}</span>`;
-}
-// Shared HUD body for a ship's stats. `full` adds flight state + torpedoes
-// (own ship); the target panel omits those (just name/shields/hull/energy/systems).
-// Facing labels for per-facing shields. 2 facings = fore/aft (the common Cosmos
-// ship); fall back to S0..Sn for unusual counts.
-const _SHIELD_LABELS = { 1: ['shld'], 2: ['fore', 'aft'], 4: ['fore', 'stbd', 'aft', 'port'] };
-function _shieldLine(label, v, max) {
-  const pct = (max && max > 0) ? Math.round(Math.max(0, Math.min(1, v / max)) * 100) : 0;
-  const col = (max && max > 0) ? _pctColor(pct) : '#9ab';
-  return `${(label + '    ').slice(0, 5)}<span style="color:${col}">${_bar(v, max)}</span>`;
-}
-function _statHtml(msg, full) {
-  let html =
-    `<b style="color:#fff">${msg.name || 'ship'}</b>` +
-    (msg.red_alert ? `  <span style="color:#f55">RED ALERT</span>` : '') + '\n';
-  // Per-facing shields (fore/aft). Fall back to the single combined value if an
-  // older server didn't send the arrays.
-  const shields = msg.shields || [];
-  const smax = msg.shields_max || [];
-  if (shields.length) {
-    const labels = _SHIELD_LABELS[shields.length] || shields.map((_, i) => 'S' + i);
-    html += shields.map((v, i) => _shieldLine(labels[i], v, smax[i] || 0)).join('\n');
-  } else {
-    html += _shieldLine('shld', msg.shield, msg.shield_max);
-  }
-  if (msg.hull_max > 0)   // armor is station-only; ships show shields + systems
-    html += `\nhull   ${_bar(msg.hull, msg.hull_max)}`;
-  if (full) {
-    // energy is an own-ship management stat; NPCs/targets don't have it.
-    const dock = msg.dock_state || 'undocked';
-    const dockColor = dock === 'docked' ? '#6f6'
-                    : (dock === 'dock_start' || dock === 'docking') ? '#fd6' : '#9ab';
-    html += `\nenergy ${Math.round(msg.energy)}` +
-            `\nthrtl  ${msg.throttle}   spd ${msg.speed}` +
-            `\ndock   <span style="color:${dockColor}">${dock}</span>` +
-            `\ntarget ${msg.target || '—'}`;
-  }
-  // Systems: 4 entries, "name hp/heat" (health-colored / heat-colored), 2 per line.
-  const sys = msg.systems || [];
-  if (sys.length) {
-    html += '\n<span style="color:#7a8a9a">— systems hp/heat —</span>';
-    for (let i = 0; i < sys.length; i += 2) {
-      html += '\n' + _sysCell(sys[i]) + (sys[i + 1] ? '  ' + _sysCell(sys[i + 1]) : '');
-    }
-  }
-  // Torpedoes (own ship only): "NAME  num / max [T]" (T = loaded in a tube).
-  const torps = full ? (msg.torps || []) : [];
-  if (torps.length) {
-    html += '\n<span style="color:#7a8a9a">— torpedoes —</span>';
-    for (const tp of torps) {
-      const nm = (tp.name + '          ').slice(0, 10);
-      const tube = tp.tube ? ' <span style="color:#fd6">T</span>' : '';
-      html += `\n${nm}${tp.num} / ${tp.max}${tube}`;
-    }
-  }
-  return html;
-}
-// Retained, merged HUD state — the server sends only CHANGED fields (partial
-// updates), so we accumulate them here and render the merged result.
-let _shipDataMsg = {};
-function cmdShipData(msg) {
-  if (!msg.active) { if (_shipDataEl) _shipDataEl.style.display = 'none'; return; }
-  _shipDataMsg = Object.assign(_shipDataMsg, msg);   // merge partial fields
-  const el = _ensureShipDataEl();
-  el.style.display = 'block';
-  el.innerHTML = _statHtml(_shipDataMsg, true);
-}
-
-// ── cmdTargetData — current-target stats HUD on the main view (mock-only) ─────
-// The engine has no such panel; the mock streams the player's weapon/selected
-// target stats to main-view clients so you can see what you're shooting at.
-let _targetDataEl = null;
-function _ensureTargetDataEl() {
-  if (_targetDataEl) return _targetDataEl;
-  const el = document.createElement('div');
-  el.id = 'targetDataHud';
-  el.style.cssText =
-    'position:fixed;left:50%;bottom:8px;transform:translateX(-50%);z-index:50;' +
-    'min-width:190px;font:11px/1.45 monospace;color:#fcc;background:rgba(26,10,10,.30);' +
-    'border:1px solid rgba(120,60,60,.5);border-radius:5px;padding:7px 9px;' +
-    'pointer-events:none;white-space:pre;text-shadow:0 1px 2px #000,0 0 2px #000;';
-  document.body.appendChild(el);
-  _targetDataEl = el;
-  return el;
-}
-let _targetDataMsg = {};
-function cmdTargetData(msg) {
-  if (!msg.active) { if (_targetDataEl) _targetDataEl.style.display = 'none'; return; }
-  _targetDataMsg = Object.assign(_targetDataMsg, msg);   // merge partial fields
-  const el = _ensureTargetDataEl();
-  el.style.display = 'block';
-  el.innerHTML = '<span style="color:#f88">TARGET</span>\n' + _statHtml(_targetDataMsg, false);
-}
-
-// ── cmdTextMsg — text waterfall (send_message_to_client/player_ship) ─────────
-// A scrolling colored text stream (comms, autoplay status, etc.). The engine
-// renders the text_waterfall widget in C++; the mock streams each line here.
-let _textWfEl = null;
-const _TEXT_WF_MAX = 200;
-function _ensureTextWfEl() {
-  if (_textWfEl) return _textWfEl;
-  const el = document.createElement('div');
-  el.id = 'textWaterfall';
-  el.style.cssText =
-    'position:fixed;right:8px;bottom:8px;z-index:50;width:340px;max-height:38vh;' +
-    'overflow-y:auto;font:11px/1.4 monospace;background:rgba(8,14,22,.82);' +
-    'border:1px solid #2a3a4a;border-radius:5px;padding:6px 8px;' +
-    'text-shadow:0 1px 1px #000;';
-  document.body.appendChild(el);
-  _textWfEl = el;
-  _applyHudRect(el, 'text_waterfall');  // honor a rect that arrived before creation
-  return el;
-}
-function cmdTextMsg(msg) {
-  const el = _ensureTextWfEl();
-  el.style.display = 'block';
-  const line = document.createElement('div');
-  line.style.color = msg.color || '#fff';
-  line.textContent = msg.text || '';
-  el.appendChild(line);
-  while (el.childElementCount > _TEXT_WF_MAX) el.removeChild(el.firstChild);
-  el.scrollTop = el.scrollHeight;   // auto-scroll to newest
-}
-
-// Story dialogs (send_story_dialog): admiral/comms narrative with a portrait.
-// Not part of a region rebuild — shown as a dismissable card stack (newest at the
-// bottom) with the face composited via the shared FaceRender.
-const _STORY_DIALOG_MAX = 4;
-function _ensureStoryDialogHost() {
-  let host = document.getElementById('story-dialogs');
-  if (!host) {
-    host = document.createElement('div');
-    host.id = 'story-dialogs';
-    host.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:60;display:flex;'
-      + 'flex-direction:column;gap:8px;max-width:min(420px,60vw);pointer-events:none;';
-    document.body.appendChild(host);
-  }
-  return host;
-}
-function cmdStoryDialog(msg) {
-  const host = _ensureStoryDialogHost();
-  const accent = msg.color || '#444';
-  const card = document.createElement('div');
-  card.style.cssText = 'pointer-events:auto;display:flex;gap:10px;padding:10px 12px;'
-    + 'background:var(--surface,#161923);border:1px solid var(--border,#2a2f3d);'
-    + 'border-left:4px solid ' + accent + ';border-radius:6px;box-shadow:0 4px 16px #0008;';
-
-  const faceStr = (msg.face || '').trim();
-  if (faceStr) {
-    const fc = document.createElement('canvas');
-    fc.width = fc.height = 128;
-    fc.style.cssText = 'width:56px;height:56px;flex:0 0 auto;border-radius:4px;background:#0d0f14;';
-    card.appendChild(fc);
-    FaceRender.drawString(fc, fc.getContext('2d'), faceStr);
-  }
-
-  const body = document.createElement('div');
-  body.style.cssText = 'flex:1 1 auto;min-width:0;';
-  if (msg.title) {
-    const t = document.createElement('div');
-    t.textContent = msg.title;
-    t.style.cssText = 'font-weight:600;margin-bottom:2px;color:' + accent + ';';
-    body.appendChild(t);
-  }
-  const tx = document.createElement('div');
-  tx.textContent = msg.text || '';
-  tx.style.cssText = 'font-size:13px;line-height:1.35;white-space:pre-wrap;word-break:break-word;';
-  body.appendChild(tx);
-  card.appendChild(body);
-
-  const close = document.createElement('div');
-  close.textContent = '×';
-  close.title = 'Dismiss';
-  close.style.cssText = 'flex:0 0 auto;cursor:pointer;color:var(--text-dim,#889);'
-    + 'font-size:18px;line-height:1;padding:0 2px;';
-  close.addEventListener('click', () => card.remove());
-  card.appendChild(close);
-
-  host.appendChild(card);
-  while (host.childElementCount > _STORY_DIALOG_MAX) host.removeChild(host.firstChild);
-}
-// Per-tick re-assert (or hide) of the waterfall so the server's per-tick
-// send_gui_clear doesn't leave the event-driven panel hidden. Only re-shows a
-// panel that already has content (no empty box before any message arrives).
-function cmdTextActive(msg) {
-  if (!msg.active) { if (_textWfEl) _textWfEl.style.display = 'none'; return; }
-  if (_textWfEl && _textWfEl.childElementCount > 0) _textWfEl.style.display = 'block';
-}
-
-// ── cmdRedAlert — full-viewport red-alert vignette (engine red_alert widget) ──
-// The engine renders red_alert as a console widget in C++; the mock shows an
-// unmistakable pulsing red edge vignette + banner while the client's ship is in
-// red alert. Server sends only on transitions; the element retains state.
-let _redAlertEl = null;
-function _ensureRedAlertEl() {
-  if (_redAlertEl) return _redAlertEl;
-  if (!document.getElementById('redAlertKeys')) {
-    const st = document.createElement('style');
-    st.id = 'redAlertKeys';
-    st.textContent = '@keyframes redAlertPulse{0%,100%{opacity:.4}50%{opacity:.95}}';
-    document.head.appendChild(st);
-  }
-  const el = document.createElement('div');
-  el.id = 'redAlert';
-  el.style.cssText =
-    'position:absolute;inset:0;z-index:45;pointer-events:none;display:none;' +
-    'box-shadow:inset 0 0 90px 24px rgba(255,28,28,.6);' +
-    'animation:redAlertPulse 1s ease-in-out infinite;';
-  el.innerHTML =
-    '<div style="position:absolute;top:6%;left:50%;transform:translateX(-50%);' +
-    'font:600 13px/1 monospace;letter-spacing:2px;color:#fff;' +
-    'background:rgba(180,0,0,.85);padding:5px 12px;border-radius:3px;' +
-    'text-shadow:0 1px 2px #000;">RED ALERT</div>';
-  (document.getElementById('gui-root') || document.body).appendChild(el);
-  _redAlertEl = el;
-  return el;
-}
-function cmdRedAlert(msg) {
-  if (!msg.active) { if (_redAlertEl) _redAlertEl.style.display = 'none'; return; }
-  const el = _ensureRedAlertEl();
-  el.style.display = msg.alert ? 'block' : 'none';
-}
-
-// ── cmdRedAlertBtn — the real red_alert engine widget: a TOGGLE BUTTON (in comms) ──
-// Clicking it toggles the ship's red alert and fires the red_alert event; the vignette
-// (cmdRedAlert) then lights every console of that ship. Position arrives from the widget
-// layout rect (screen %); on-state from the per-tick push. Fields merge (retained).
-let _redAlertBtnEl = null;
-let _redAlertBtnMsg = {};
-function _ensureRedAlertBtnEl() {
-  if (_redAlertBtnEl) return _redAlertBtnEl;
-  const el = document.createElement('div');
-  el.id = 'redAlertBtn';
-  el.style.cssText =
-    'position:absolute;z-index:48;display:none;box-sizing:border-box;cursor:pointer;' +
-    'align-items:center;justify-content:center;text-align:center;' +
-    'font:600 13px/1.1 monospace;letter-spacing:1px;border-radius:4px;user-select:none;';
-  el.addEventListener('click', () => {
-    // Request the opposite of the current on-state.
-    sendEvent('red_alert_toggle', '', CLIENT_ID !== null ? CLIENT_ID : 0,
-              { on: !_redAlertBtnMsg.on });
-  });
-  (document.getElementById('gui-root') || document.body).appendChild(el);
-  _redAlertBtnEl = el;
-  return el;
-}
-function cmdRedAlertBtn(msg) {
-  if (msg.active === false) { if (_redAlertBtnEl) _redAlertBtnEl.style.display = 'none'; return; }
-  _redAlertBtnMsg = Object.assign(_redAlertBtnMsg, msg);   // merge position + state
-  const m = _redAlertBtnMsg;
-  const el = _ensureRedAlertBtnEl();
-  if (m.left !== undefined) {
-    el.style.left = m.left + '%';
-    el.style.top = m.top + '%';
-    el.style.width = Math.max(0, m.right - m.left) + '%';
-    el.style.height = Math.max(0, m.bottom - m.top) + '%';
-  }
-  const on = !!m.on;
-  el.textContent = on ? 'RED ALERT ON' : 'RED ALERT';
-  el.style.background = on ? '#c22' : '#3a1416';
-  el.style.color = on ? '#fff' : '#f88';
-  el.style.border = '1px solid ' + (on ? '#f66' : '#833');
-  el.style.boxShadow = on ? '0 0 10px 2px rgba(255,40,40,.7)' : 'none';
-  // Only show once we have a layout rect (avoids a 0-size flash at 0,0).
-  el.style.display = (m.left !== undefined) ? 'flex' : 'none';
-}
-
-// ── cmdCommsControl — the comms_control engine widget: the comms action menu ──
-// The comms system streams a header (op:open, clears prior buttons) then buttons
-// (op:button), keyed by the comms origin; a click posts comms_button → the engine
-// press_comms_button event. Positioned by the widget layout rect (op:rect). The button
-// LIST scrolls independently under a sticky header when it overflows the panel.
-let _commsCtrlEl = null, _commsCtrlHdr = null, _commsCtrlList = null;
-const _commsCtrl = { rect: null, title: '', color: 'white', buttons: [] };
-function _ensureCommsCtrlEl() {
-  if (_commsCtrlEl) return _commsCtrlEl;
-  const el = document.createElement('div');
-  el.id = 'commsControl';
-  el.style.cssText =
-    'position:absolute;z-index:47;display:none;box-sizing:border-box;flex-direction:column;' +
-    'background:rgba(8,14,22,.9);border:1px solid #2a3a4a;border-radius:5px;' +
-    'padding:6px;font:12px/1.3 monospace;';
-  _commsCtrlHdr = document.createElement('div');
-  _commsCtrlHdr.style.cssText = 'flex:0 0 auto;font-weight:600;margin-bottom:5px;';
-  _commsCtrlList = document.createElement('div');   // the scrollable button list
-  _commsCtrlList.style.cssText = 'flex:1 1 auto;overflow-y:auto;min-height:0;';
-  el.appendChild(_commsCtrlHdr);
-  el.appendChild(_commsCtrlList);
-  (document.getElementById('gui-root') || document.body).appendChild(el);
-  _commsCtrlEl = el;
-  return el;
-}
-function _renderCommsCtrl() {
-  const el = _ensureCommsCtrlEl();
-  const r = _commsCtrl.rect;
-  if (!r) { el.style.display = 'none'; return; }
-  el.style.left = r.left + '%';
-  el.style.top = r.top + '%';
-  el.style.width = Math.max(0, r.right - r.left) + '%';
-  el.style.height = Math.max(0, r.bottom - r.top) + '%';
-  el.style.display = 'flex';
-  _commsCtrlHdr.textContent = _commsCtrl.title || '';
-  _commsCtrlHdr.style.color = _commsCtrl.color || '#8cf';
-  _commsCtrlHdr.style.display = _commsCtrl.title ? 'block' : 'none';
-  _commsCtrlList.textContent = '';
-  for (const b of _commsCtrl.buttons) {
-    const btn = document.createElement('div');
-    btn.textContent = b.msg;
-    btn.style.cssText = 'cursor:pointer;padding:5px 7px;margin:2px 0;border-radius:3px;' +
-      'background:#16202c;border:1px solid #2c3c4c;color:' + (b.color || '#cde') + ';';
-    btn.addEventListener('mouseenter', () => btn.style.background = '#22323f');
-    btn.addEventListener('mouseleave', () => btn.style.background = '#16202c');
-    btn.addEventListener('click', () =>
-      sendEvent('comms_button', '', CLIENT_ID !== null ? CLIENT_ID : 0, { tag: b.tag }));
-    _commsCtrlList.appendChild(btn);
-  }
-}
-function cmdCommsControl(msg) {
-  switch (msg.op) {
-    case 'rect':
-      _commsCtrl.rect = { left: msg.left, top: msg.top, right: msg.right, bottom: msg.bottom };
-      break;
-    case 'open':
-      _commsCtrl.title = msg.title || '';
-      _commsCtrl.color = msg.color || 'white';
-      _commsCtrl.buttons = [];
-      break;
-    case 'button':
-      _commsCtrl.buttons.push({ tag: msg.tag, color: msg.color, msg: msg.msg });
-      break;
-    case 'hide':
-      if (_commsCtrlEl) _commsCtrlEl.style.display = 'none';
-      return;
-  }
-  _renderCommsCtrl();
-}
-
-// ── cmdCommsFace — the comms_face engine widget: the selected target's portrait ──
-// The face string arrives with the comms header (send_comms_selection_info); rendered
-// via the shared FaceRender (face.js), same as the story-dialog portrait. Positioned by
-// the widget layout rect (op:rect); face string set by op:face (empty = clear).
-let _commsFaceEl = null, _commsFaceCanvas = null, _commsFaceTitle = null;
-let _commsFaceRect = null, _commsFaceStr = '', _commsFaceName = '', _commsFaceColor = 'white';
-function _ensureCommsFaceEl() {
-  if (_commsFaceEl) return _commsFaceEl;
-  // Box positioned to the widget rect. A wrapper centers a SQUARE canvas (intrinsic
-  // 128x128, max-width/height:100% so the face never stretches); a name plate sits below.
-  const box = document.createElement('div');
-  box.id = 'commsFace';
-  box.style.cssText = 'position:absolute;z-index:47;display:none;flex-direction:column;';
-  const faceWrap = document.createElement('div');
-  faceWrap.style.cssText = 'flex:1 1 auto;min-height:0;display:flex;' +
-    'align-items:center;justify-content:center;';
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  c.style.cssText = 'max-width:100%;max-height:100%;background:#0d0f14;' +
-    'border:1px solid #2a3a4a;border-radius:4px;';
-  faceWrap.appendChild(c);
-  const title = document.createElement('div');
-  title.style.cssText = 'flex:0 0 auto;font:600 12px monospace;text-align:center;' +
-    'padding:3px 4px 0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-  box.appendChild(faceWrap);
-  box.appendChild(title);
-  (document.getElementById('gui-root') || document.body).appendChild(box);
-  _commsFaceEl = box;
-  _commsFaceCanvas = c;
-  _commsFaceTitle = title;
-  return box;
-}
-function _renderCommsFace() {
-  const box = _ensureCommsFaceEl();
-  if (!_commsFaceRect) { box.style.display = 'none'; return; }
-  const r = _commsFaceRect;
-  box.style.left = r.left + '%';
-  box.style.top = r.top + '%';
-  box.style.width = Math.max(0, r.right - r.left) + '%';
-  box.style.height = Math.max(0, r.bottom - r.top) + '%';
-  box.style.display = 'flex';
-  const c = _commsFaceCanvas;
-  const ctx = c.getContext('2d');
-  ctx.clearRect(0, 0, c.width, c.height);
-  const f = (_commsFaceStr || '').trim();
-  if (f) FaceRender.drawString(c, ctx, f);
-  _commsFaceTitle.textContent = _commsFaceName || '';
-  _commsFaceTitle.style.color = _commsFaceColor || '#cde';
-  _commsFaceTitle.style.display = _commsFaceName ? 'block' : 'none';
-}
-function cmdCommsFace(msg) {
-  switch (msg.op) {
-    case 'rect':
-      _commsFaceRect = { left: msg.left, top: msg.top, right: msg.right, bottom: msg.bottom };
-      break;
-    case 'face':
-      _commsFaceStr = msg.face || '';
-      _commsFaceName = msg.title || '';
-      _commsFaceColor = msg.color || 'white';
-      break;
-    case 'hide':
-      if (_commsFaceEl) _commsFaceEl.style.display = 'none';
-      return;
-  }
-  _renderCommsFace();
-}
-
-// ── cmdCommsWf — the comms_waterfall widget: an iMessage-style TWO-PANE view ──
-// Fed by send_comms_message_to_player_ship (comms_message / comms_transmit / broadcast).
-// LEFT: a list of conversations grouped by sender (face + name + latest-message preview),
-// most-recent first. RIGHT: the selected conversation's thread (bubbles), newest at bottom.
-// Click a sender on the left to read its thread. Positioned by the widget layout rect.
-let _commsWfEl = null, _commsWfRect = null, _commsWfListEl = null, _commsWfThreadEl = null;
-const _commsWfConvos = new Map();   // sender name -> {face, name, msgs:[{title,body,tc,bc}], seq}
-let _commsWfSel = null, _commsWfSeq = 0;
-function _ensureCommsWfEl() {
-  if (_commsWfEl) return _commsWfEl;
-  const el = document.createElement('div');
-  el.id = 'commsWaterfall';
-  el.style.cssText = 'position:absolute;z-index:47;display:none;box-sizing:border-box;flex-direction:row;' +
-    'background:rgba(8,14,22,.92);border:1px solid #2a3a4a;border-radius:5px;overflow:hidden;' +
-    'font:12px/1.35 monospace;';
-  _commsWfListEl = document.createElement('div');
-  _commsWfListEl.style.cssText = 'flex:0 0 42%;min-width:78px;overflow-y:auto;border-right:1px solid #2a3a4a;';
-  _commsWfThreadEl = document.createElement('div');
-  _commsWfThreadEl.style.cssText = 'flex:1 1 auto;min-width:0;overflow-y:auto;padding:6px;';
-  el.appendChild(_commsWfListEl);
-  el.appendChild(_commsWfThreadEl);
-  (document.getElementById('gui-root') || document.body).appendChild(el);
-  _commsWfEl = el;
-  return el;
-}
-function _renderCommsWfList() {
-  const host = _commsWfListEl;
-  host.textContent = '';
-  const convos = Array.from(_commsWfConvos.values()).sort((a, b) => b.seq - a.seq);
-  for (const c of convos) {
-    const sel = c.name === _commsWfSel;
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:5px;align-items:center;padding:5px 6px;cursor:pointer;' +
-      'border-bottom:1px solid #1a2632;' + (sel ? 'background:#1d2b3a;' : '');
-    if (c.face) {
-      const fc = document.createElement('canvas'); fc.width = fc.height = 96;
-      fc.style.cssText = 'width:28px;height:28px;flex:0 0 auto;border-radius:5px;background:#0d0f14;';
-      FaceRender.drawString(fc, fc.getContext('2d'), c.face);
-      row.appendChild(fc);
-    }
-    const txt = document.createElement('div'); txt.style.cssText = 'flex:1 1 auto;min-width:0;';
-    const nm = document.createElement('div'); nm.textContent = c.name;
-    nm.style.cssText = 'font-weight:600;color:#8cf;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-    const last = c.msgs[c.msgs.length - 1];
-    const pv = document.createElement('div'); pv.textContent = last ? (last.body || '') : '';
-    pv.style.cssText = 'color:#9ab;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-    txt.appendChild(nm); txt.appendChild(pv);
-    row.appendChild(txt);
-    row.addEventListener('click', () => { _commsWfSel = c.name; _renderCommsWf(); });
-    host.appendChild(row);
-  }
-}
-function _renderCommsWfThread() {
-  const host = _commsWfThreadEl;
-  host.textContent = '';
-  const c = _commsWfSel ? _commsWfConvos.get(_commsWfSel) : null;
-  if (!c) return;
-  for (const m of c.msgs) {
-    const bubble = document.createElement('div');
-    bubble.style.cssText = 'background:#16202c;border:1px solid #2c3c4c;border-radius:9px;' +
-      'padding:4px 9px;margin:4px 0;max-width:90%;';
-    if (m.title) {
-      const t = document.createElement('div'); t.textContent = m.title;
-      t.style.cssText = 'font-weight:600;margin-bottom:1px;color:' + (m.tc || '#8cf');
-      bubble.appendChild(t);
-    }
-    const b = document.createElement('div'); b.textContent = m.body || '';
-    b.style.cssText = 'white-space:pre-wrap;word-break:break-word;color:' + (m.bc || '#cde');
-    bubble.appendChild(b);
-    host.appendChild(bubble);
-  }
-  host.scrollTop = host.scrollHeight;
-}
-function _renderCommsWf() {
-  if (!_commsWfRect) { if (_commsWfEl) _commsWfEl.style.display = 'none'; return; }
-  const el = _ensureCommsWfEl(), r = _commsWfRect;
-  el.style.left = r.left + '%';
-  el.style.top = r.top + '%';
-  el.style.width = Math.max(0, r.right - r.left) + '%';
-  el.style.height = Math.max(0, r.bottom - r.top) + '%';
-  el.style.display = 'flex';
-  _renderCommsWfList();
-  _renderCommsWfThread();
-}
-function cmdCommsWf(msg) {
-  if (msg.op === 'hide') { if (_commsWfEl) _commsWfEl.style.display = 'none'; return; }
-  if (msg.op === 'rect') {
-    _commsWfRect = { left: msg.left, top: msg.top, right: msg.right, bottom: msg.bottom };
-  } else if (msg.op === 'msg') {
-    _ensureCommsWfEl();
-    const name = (msg.title || '').trim() || 'Comms';
-    let c = _commsWfConvos.get(name);
-    if (!c) { c = { face: '', name, msgs: [], seq: 0 }; _commsWfConvos.set(name, c); }
-    if ((msg.face || '').trim()) c.face = msg.face.trim();
-    c.msgs.push({ title: msg.title || '', body: msg.body || '', tc: msg.title_color, bc: msg.body_color });
-    c.seq = ++_commsWfSeq;
-    if (_commsWfSel === null) _commsWfSel = name;   // open the first conversation
-  }
-  _renderCommsWf();
-}
-
-// ── cmdRadarZoom — the radar_zoom_ctrl widget: zoom-in / zoom-out BUTTONS ──
-// Browser-local (no server state): steps _radarZoom (also mouse-wheel adjustable). Positioned
-// by the widget layout rect.
-let _radarZoomEl = null, _radarZoomRect = null;
-function _radarZoomStep(factor) {
-  _radarZoom = Math.max(0.05, Math.min(20, _radarZoom * factor));
-  _requestRadarRender();
-}
-function _ensureRadarZoomEl() {
-  if (_radarZoomEl) return _radarZoomEl;
-  const box = document.createElement('div');
-  box.id = 'radarZoomCtrl';
-  box.style.cssText = 'position:absolute;z-index:47;display:none;box-sizing:border-box;' +
-    'align-items:stretch;justify-content:center;gap:6px;padding:3px 6px;';
-  const mk = (txt, factor, title) => {
-    const b = document.createElement('div');
-    b.textContent = txt; b.title = title;
-    b.style.cssText = 'flex:1 1 0;max-width:64px;cursor:pointer;user-select:none;display:flex;' +
-      'align-items:center;justify-content:center;background:#16202c;border:1px solid #2c3c4c;' +
-      'border-radius:5px;color:#cde;font:700 16px monospace;';
-    b.addEventListener('mouseenter', () => b.style.background = '#22323f');
-    b.addEventListener('mouseleave', () => b.style.background = '#16202c');
-    b.addEventListener('click', () => _radarZoomStep(factor));
-    return b;
-  };
-  box.appendChild(mk('−', 1 / 1.3, 'Zoom out'));   // −
-  box.appendChild(mk('+', 1.3, 'Zoom in'));             // +
-  // Side / diplomacy colour-mode toggle — part of the radar zoom control.
-  const mode = document.createElement('div');
-  mode.id = 'color-mode-btn';
-  mode.textContent = _radarColorMode === 'diplo' ? 'DIPLO' : 'SIDE';
-  mode.title = 'Radar colour: by side vs by diplomacy (relative to your ship)';
-  mode.style.cssText = 'flex:1 1 0;max-width:82px;cursor:pointer;user-select:none;display:flex;' +
-    'align-items:center;justify-content:center;background:#16202c;border:1px solid #2c3c4c;' +
-    'border-radius:5px;color:#cde;font:700 12px monospace;letter-spacing:1px;';
-  mode.addEventListener('mouseenter', () => mode.style.background = '#22323f');
-  mode.addEventListener('mouseleave', () => mode.style.background = '#16202c');
-  mode.addEventListener('click', _toggleRadarColorMode);
-  box.appendChild(mode);
-  (document.getElementById('gui-root') || document.body).appendChild(box);
-  _radarZoomEl = box;
-  return box;
-}
-function cmdRadarZoom(msg) {
-  if (msg.op === 'hide') { if (_radarZoomEl) _radarZoomEl.style.display = 'none'; return; }
-  if (msg.op === 'rect') {
-    _radarZoomRect = { left: msg.left, top: msg.top, right: msg.right, bottom: msg.bottom };
-  }
-  if (!_radarZoomRect) { if (_radarZoomEl) _radarZoomEl.style.display = 'none'; return; }
-  const box = _ensureRadarZoomEl(), r = _radarZoomRect;
-  box.style.left = r.left + '%';
-  box.style.top = r.top + '%';
-  box.style.width = Math.max(0, r.right - r.left) + '%';
-  box.style.height = Math.max(0, r.bottom - r.top) + '%';
-  box.style.display = 'flex';
-}
-
-// ── cmdCommsList — the comms_sorted_list widget: a scrollable list of comms targets ──
-// The mock streams nearby sided ships (op:list). A row click fires a select_space_object for
-// that object — routed to comms by the console name — opening comms, same as clicking it on
-// the 2D view. Positioned by the widget layout rect.
-let _commsListEl = null, _commsListRect = null;
-function _ensureCommsListEl() {
-  if (_commsListEl) return _commsListEl;
-  const el = document.createElement('div');
-  el.id = 'commsSortedList';
-  el.style.cssText = 'position:absolute;z-index:47;display:none;box-sizing:border-box;' +
-    'overflow-y:auto;background:rgba(8,14,22,.9);border:1px solid #2a3a4a;border-radius:5px;' +
-    'font:12px/1.3 monospace;';
-  (document.getElementById('gui-root') || document.body).appendChild(el);
-  _commsListEl = el;
-  return el;
-}
-function cmdCommsList(msg) {
-  if (msg.op === 'hide') { if (_commsListEl) _commsListEl.style.display = 'none'; return; }
-  if (msg.op === 'rect') {
-    _commsListRect = { left: msg.left, top: msg.top, right: msg.right, bottom: msg.bottom };
-  } else if (msg.op === 'list') {
-    const el = _ensureCommsListEl();
-    el.textContent = '';
-    for (const it of (msg.items || [])) {
-      const row = document.createElement('div');
-      row.textContent = it.name || '?';
-      row.style.cssText = 'padding:4px 8px;cursor:pointer;border-bottom:1px solid #1a2632;' +
-        'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + _sideColor(it.side) + ';';
-      row.addEventListener('mouseenter', () => row.style.background = '#1d2b3a');
-      row.addEventListener('mouseleave', () => row.style.background = '');
-      row.addEventListener('click', () => {
-        sendEvent('select_space_object', '', CLIENT_ID !== null ? CLIENT_ID : 0,
-                  { id: it.id, wx: 0, wy: 0, wz: 0, button: 'lmb', widget: 'comms_sorted_list' });
-      });
-      el.appendChild(row);
-    }
-  }
-  if (!_commsListRect) { if (_commsListEl) _commsListEl.style.display = 'none'; return; }
-  const el = _ensureCommsListEl(), r = _commsListRect;
-  el.style.left = r.left + '%';
-  el.style.top = r.top + '%';
-  el.style.width = Math.max(0, r.right - r.left) + '%';
-  el.style.height = Math.max(0, r.bottom - r.top) + '%';
-  el.style.display = 'block';
+  _renderRadar();
 }
 
 // ── cmdRadar — delta update for active (NPC/PLAYER) objects ──────────────────
-function cmdFx(msg) {
-  // Transient combat visuals for the radar overlay: beam-fire lines and
-  // projectile dots (replaced wholesale each push).
-  _radarBeams       = msg.beams       || [];
-  _radarProjectiles = msg.projectiles || [];
-}
-
 function cmdRadar(msg) {
   if (!_radarCtx) return;
 
@@ -1961,7 +1072,7 @@ function cmdRadar(msg) {
 
   if ((!isGMView && !isMyShip) || (isGMView && !isUnassigned)) {
     // Not our message — nav/focus already updated; redraw for camera lerp.
-    _requestRadarRender();
+    _renderRadar();
     return;
   }
 
@@ -1975,7 +1086,6 @@ function cmdRadar(msg) {
       _dynamicMap.delete(id);
       _dynamicMeta.delete(id);
       _dynamicRevMap.delete(idx);
-      _dispQuat.delete(id);   // drop the smoothed-heading entry for this object
       _dynamicCount--;
       if (idx !== _dynamicCount && _dynamicCount > 0) {
         // Move last element into the vacated slot.
@@ -1984,9 +1094,6 @@ function cmdRadar(msg) {
         _dynamicPosBuf[dstBase]     = _dynamicPosBuf[srcBase];
         _dynamicPosBuf[dstBase + 1] = _dynamicPosBuf[srcBase + 1];
         _dynamicPosBuf[dstBase + 2] = _dynamicPosBuf[srcBase + 2];
-        _dynamicDispBuf[dstBase]     = _dynamicDispBuf[srcBase];   // keep smoothed buf aligned
-        _dynamicDispBuf[dstBase + 1] = _dynamicDispBuf[srcBase + 1];
-        _dynamicDispBuf[dstBase + 2] = _dynamicDispBuf[srcBase + 2];
         _dynamicColBuf[dstBase]     = _dynamicColBuf[srcBase];
         _dynamicColBuf[dstBase + 1] = _dynamicColBuf[srcBase + 1];
         _dynamicColBuf[dstBase + 2] = _dynamicColBuf[srcBase + 2];
@@ -2002,13 +1109,12 @@ function cmdRadar(msg) {
     let colorsDirty = false;
     for (const o of changed) {
       let idx = _dynamicMap.get(o.id);
-      const isNew = idx === undefined;   // client is allocating a fresh slot
       if (idx === undefined) {
         if (_dynamicCount >= _MAX_DYNAMIC) continue;
         idx = _dynamicCount++;
         _dynamicMap.set(o.id, idx);
         _dynamicRevMap.set(idx, o.id);
-        const {r, g, b} = _cssToRGB(_objColor(o.side, null));
+        const {r, g, b} = _cssToRGB(_sideColor(o.side));
         const cb = idx * 3;
         _dynamicColBuf[cb] = r; _dynamicColBuf[cb+1] = g; _dynamicColBuf[cb+2] = b;
         colorsDirty = true;
@@ -2016,26 +1122,16 @@ function cmdRadar(msg) {
           side: o.side, tick_type: o.tick_type,
           fx: o.fx ?? 0, fz: o.fz ?? 0, name: o.name || '', art: o.art || '',
           y: o.y ?? 0, meshscale: o.meshscale ?? 1, q: o.q || null,
-          shp: o.shp ?? -1, nosel: !!o.nosel,
         });
       } else {
         const meta = _dynamicMeta.get(o.id);
         if (meta && o.fx !== undefined) { meta.fx = o.fx; meta.fz = o.fz; }
         if (meta && o.q) meta.q = o.q;
-        if (meta && o.shp !== undefined) meta.shp = o.shp;
-        if (meta && o.y !== undefined) meta.y = o.y;   // altitude (3D view height)
       }
       const pb = idx * 3;
       _dynamicPosBuf[pb]     = o.x;
       _dynamicPosBuf[pb + 1] = o.z;
       _dynamicPosBuf[pb + 2] = 0;
-      if (isNew) {
-        // Snap the smoothed buffer to a brand-new object so it doesn't ease in
-        // from a stale slot / the origin; existing objects ease toward o.x/o.z.
-        _dynamicDispBuf[pb]     = o.x;
-        _dynamicDispBuf[pb + 1] = o.z;
-        _dynamicDispBuf[pb + 2] = 0;
-      }
     }
 
     _dynamicPoints.geometry.setDrawRange(0, _dynamicCount);
@@ -2043,7 +1139,7 @@ function cmdRadar(msg) {
     if (colorsDirty) _dynamicPoints.geometry.attributes.color.needsUpdate = true;
   }
 
-  _requestRadarRender();
+  _renderRadar();
 }
 
 // ── Radar layout helpers ──────────────────────────────────────────────────────
@@ -2170,12 +1266,12 @@ function _drawRadarChrome(ctx, W, H, rect, cx, cz, halfSpan, isCorner, ax, az) {
   if (!box) return;
   const { toX, toY, scale } = _radarProj(box, cx, cz, halfSpan);
 
-  ctx.fillStyle = 'rgba(0,12,30,0.25)';   // near-transparent so the 3D view shows through
+  ctx.fillStyle = '#000c1e';
   ctx.fillRect(x0, y0, rw, rh);
 
   if (isCorner) {
     const labelH = Math.max(18, rh * 0.08);
-    ctx.fillStyle = 'rgba(0,51,102,0.45)';
+    ctx.fillStyle = '#003366';
     ctx.fillRect(x0, y0, rw, labelH);
     ctx.fillStyle = '#00e5ff';
     ctx.font = `bold ${Math.max(10, labelH * 0.55)}px monospace`;
@@ -2275,7 +1371,7 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
     if (idx === undefined || idx >= _dynamicCount) continue;
     const base = idx * 3;
     const px = toX(_dynamicPosBuf[base]), py = toY(_dynamicPosBuf[base + 1]);
-    const col = _objColor(meta.side, null);   // mode-aware (side vs diplomacy)
+    const col = _sideColor(meta.side);
     const isPlayer = meta.tick_type === 'PLAYER' || meta.tick_type === 'player';
     const s = isPlayer ? basePlayer : baseNpc;
     const sprite = _tintedSprite(meta.art, col);
@@ -2297,13 +1393,6 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
       ctx.beginPath(); ctx.moveTo(px, py);
       ctx.lineTo(px + meta.fx * alen, py - meta.fz * alen); ctx.stroke();
     }
-    // Shield ring: a circle around the ship colored by shield fraction (green/
-    // yellow/red). meta.shp < 0 means no shields (station/terrain) -> no ring.
-    if (meta.shp >= 0) {
-      ctx.strokeStyle = _shieldColor(meta.shp);
-      ctx.lineWidth = isPlayer ? 2.5 : 2;
-      ctx.beginPath(); ctx.arc(px, py, s * 0.6, 0, 2 * Math.PI); ctx.stroke();
-    }
     if (showNames && meta.name) {
       ctx.fillStyle = col;
       ctx.font = `${Math.max(8, fontSize)}px monospace`;
@@ -2312,68 +1401,6 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     }
   }
-
-  // Map-marker icons: tinted terrain (radar_color_override) — worldlets, galaxy-board
-  // system/unit/fleet markers — is meant to be SELECTED on the 2D command view, but the
-  // WebGL layer only draws it as a 3px dot (icon_scale isn't honored), so it's hard to see
-  // and click. Draw a clearer filled circle in the marker's tint here (always, not gated on
-  // the name zoom). Plain terrain (asteroids) has no tint and stays a small dot.
-  // A marker with an icon_index (behav_selection: galaxy board) draws its ATLAS GLYPH sized
-  // by icon_scale + tinted, matching the engine. Tinted terrain WITHOUT an icon_index (e.g.
-  // worldlets) falls back to a filled circle.
-  const _iconSheetImg = _iconSheet.img;              // synchronous once loaded
-  if (!_iconSheetImg) _getIconSheet(() => _requestRadarRender());   // load once, redraw when ready
-  for (const [id, meta] of _terrainMeta) {
-    if (!meta.tint && meta.icon_index == null) continue;
-    const idx = _terrainMap.get(id);
-    if (idx === undefined || idx >= _terrainCount) continue;
-    const b = idx * 3;
-    const px = toX(_terrainPosBuf[b]), py = toY(_terrainPosBuf[b + 1]);
-    if (meta.icon_index != null && _iconSheetImg) {
-      const size = Math.max(6, 18 * (meta.icon_scale || 1));
-      _drawRadarIcon(ctx, _iconSheetImg, meta.icon_index, px, py, size, meta.tint || 'white');
-    } else if (meta.tint) {
-      ctx.fillStyle = meta.tint;
-      ctx.beginPath(); ctx.arc(px, py, 6, 0, 2 * Math.PI); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 1; ctx.stroke();
-    }
-  }
-
-  // Terrain labels: map markers (galaxy-board system/unit/fleet icons, nebula markers)
-  // carry a name_tag. Their dots render in the WebGL layer; draw their names here on the
-  // 2D overlay, in the marker's own tint, under the same zoom gate as ship names.
-  if (showNames) {
-    ctx.font = `${Math.max(8, fontSize)}px monospace`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-    for (const [id, meta] of _terrainMeta) {
-      if (!meta.name) continue;
-      const idx = _terrainMap.get(id);
-      if (idx === undefined || idx >= _terrainCount) continue;
-      const b = idx * 3;
-      ctx.fillStyle = meta.tint || '#9fb3c8';
-      ctx.fillText(meta.name, toX(_terrainPosBuf[b]), toY(_terrainPosBuf[b + 1]) - 6);
-    }
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  }
-
-  // Combat FX (drawn over ships, inside the radar clip): beam-fire lines and
-  // in-flight projectile dots (orange = missile, green = drone).
-  if (_radarBeams.length) {
-    ctx.strokeStyle = 'rgba(140,220,255,0.85)';
-    ctx.lineWidth = 2;
-    for (const b of _radarBeams) {
-      ctx.beginPath();
-      ctx.moveTo(toX(b[0]), toY(b[1]));
-      ctx.lineTo(toX(b[2]), toY(b[3]));
-      ctx.stroke();
-    }
-  }
-  for (const p of _radarProjectiles) {
-    const px = toX(p[0]), py = toY(p[1]);
-    ctx.fillStyle = p[2] === 'drone' ? '#7CFC00' : '#ff9a3c';
-    ctx.beginPath(); ctx.arc(px, py, 3, 0, 2 * Math.PI); ctx.fill();
-  }
-
   ctx.restore();
 
   const totalCount = _dynamicCount + _terrainCount;
@@ -2386,17 +1413,6 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
 
   ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 2;
   ctx.strokeRect(x0 + 1, y0 + 1, rw - 2, rh - 2);
-}
-
-// Coalesce render requests: a single network batch can fire several message
-// handlers (terrain + radar delta + sprite loads), each of which wants a redraw.
-// Instead of redrawing the full radar synchronously per message, schedule ONE
-// _renderRadar on the next animation frame.
-let _radarRenderQueued = false;
-function _requestRadarRender() {
-  if (_radarRenderQueued || !_radarCtx) return;
-  _radarRenderQueued = true;
-  requestAnimationFrame(() => { _radarRenderQueued = false; _renderRadar(); });
 }
 
 // ── _renderRadar — composites 2D chrome + Three.js dots onto the radar canvas ─
@@ -2438,9 +1454,6 @@ function _renderRadar() {
   // screen deltas to world deltas at the current zoom.
   const _primaryBox = _radarBox(W, H, views[0], isCorner);
   if (_primaryBox) _lastWorldPerPx = (2 * halfSpan) / _primaryBox.fit;
-  // Capture the primary projection for click-picking — only for a console 2D view
-  // (the corner minimap is not a selection surface).
-  _pickState = (_primaryBox && !isCorner) ? { cx, cz, halfSpan, box: _primaryBox } : null;
 
   // 2D chrome: backgrounds, rings, crosshairs.
   for (const rect of views) _drawRadarChrome(_radarCtx, W, H, rect, cx, cz, halfSpan, isCorner, ax, az);
@@ -2508,12 +1521,6 @@ let _view3dPosBuf = null, _view3dColBuf = null;
 const _instArt = new Map();
 // Object ids drawn as an instance this frame — the point layer skips these.
 const _view3dMeshedIds = new Set();
-// Smoothed per-object heading (id → THREE.Quaternion), slerped toward the target
-// each frame so turns are fluid between the ~30Hz pushes (positions ease too, in
-// _renderView3d). Only dynamic objects; cleared on remove / world_reset.
-const _dispQuat = new Map();
-let _qTarget = null;   // scratch target quaternion (allocated with the others)
-const _DYN_ROT_LERP = 0.15;
 // Scratch math objects (allocated in _initView3d once THREE is known to exist).
 let _m4 = null, _qrot = null, _vpos = null, _vscale = null, _UP = null;
 // Added to a mesh's heading yaw if a model's nose isn't +Z. Calibration knob.
@@ -2749,7 +1756,7 @@ function _initView3d() {
   _view3dRenderer.setClearColor(0x01030a, 1);
   _view3dScene  = new THREE.Scene();
   _view3dCamera = new THREE.PerspectiveCamera(55, 1, 1, 5e7);
-  _m4 = new THREE.Matrix4(); _qrot = new THREE.Quaternion(); _qTarget = new THREE.Quaternion();
+  _m4 = new THREE.Matrix4(); _qrot = new THREE.Quaternion();
   _vpos = new THREE.Vector3(); _vscale = new THREE.Vector3();
   _UP = new THREE.Vector3(0, 1, 0);
   // Lights so the Phong ship meshes are shaded (points don't need them).
@@ -2830,7 +1837,7 @@ function _view3dSync() {
     const id  = _dynamicRevMap.get(i);
     if (id !== undefined && _view3dMeshedIds.has(id)) continue;
     const b = i * 3, o = n * 3;
-    _view3dPosBuf[o] = _dynamicDispBuf[b]; _view3dPosBuf[o+1] = 0; _view3dPosBuf[o+2] = _dynamicDispBuf[b+1];
+    _view3dPosBuf[o] = _dynamicPosBuf[b]; _view3dPosBuf[o+1] = 0; _view3dPosBuf[o+2] = _dynamicPosBuf[b+1];
     _view3dColBuf[o] = _dynamicColBuf[b]; _view3dColBuf[o+1] = _dynamicColBuf[b+1]; _view3dColBuf[o+2] = _dynamicColBuf[b+2];
     n++;
   }
@@ -2865,7 +1872,7 @@ function _view3dSyncInstances() {
   _view3dMeshedIds.clear();
   const byArt = new Map();   // art → [{x,y,z,sc,q,fx,fz}]
 
-  function consider(id, art, x, y, z, sc, q, fx, fz, dyn) {
+  function consider(id, art, x, y, z, sc, q, fx, fz) {
     if (!art) return;
     if (cam) {
       const dx = x-cam[0], dy = y-cam[1], dz = z-cam[2];
@@ -2883,7 +1890,7 @@ function _view3dSyncInstances() {
     if (!g.base) return;   // not loaded yet → stays a point
     let arr = byArt.get(art);
     if (!arr) { arr = []; byArt.set(art, arr); }
-    arr.push({ id, x, y, z, sc, q, fx, fz, dyn });
+    arr.push({ x, y, z, sc, q, fx, fz });
     _view3dMeshedIds.add(id);
   }
 
@@ -2891,15 +1898,15 @@ function _view3dSyncInstances() {
     const idx = _dynamicMap.get(id);
     if (idx === undefined || idx >= _dynamicCount || !meta.art) continue;
     const b = idx * 3;
-    consider(id, meta.art, _dynamicDispBuf[b], meta.y || 0, _dynamicDispBuf[b+1],
-             meta.meshscale || 1, meta.q, meta.fx, meta.fz, true);
+    consider(id, meta.art, _dynamicPosBuf[b], meta.y || 0, _dynamicPosBuf[b+1],
+             meta.meshscale || 1, meta.q, meta.fx, meta.fz);
   }
   for (const [id, meta] of _terrainMeta) {
     const idx = _terrainMap.get(id);
     if (idx === undefined || idx >= _terrainCount || !meta.art) continue;
     const b = idx * 3;
     consider(id, meta.art, _terrainPosBuf[b], meta.y || 0, _terrainPosBuf[b+1],
-             meta.meshscale || 1, meta.q, 0, 1, false);
+             meta.meshscale || 1, meta.q, 0, 1);
   }
 
   for (const [art, g] of _instArt) {
@@ -2911,113 +1918,15 @@ function _view3dSyncInstances() {
     for (let i = 0; i < count; i++) {
       const o = arr[i];
       _vpos.set(o.x, o.y, o.z);
-      // Target heading from the quaternion (if sent) or the fx/fz forward vector.
-      if (o.q) _qTarget.set(o.q[1], o.q[2], o.q[3], o.q[0]);
-      else _qTarget.setFromAxisAngle(_UP, Math.atan2(o.fx, o.fz) + _MESH_YAW_OFFSET);
-      let rot = _qTarget;
-      if (o.dyn) {
-        // Slerp a per-object smoothed heading toward the target so turns are
-        // fluid between pushes. Terrain (static) skips this and uses the target.
-        let dq = _dispQuat.get(o.id);
-        if (!dq) { dq = _qTarget.clone(); _dispQuat.set(o.id, dq); }
-        else dq.slerp(_qTarget, _DYN_ROT_LERP);
-        rot = dq;
-      }
+      if (o.q) _qrot.set(o.q[1], o.q[2], o.q[3], o.q[0]);
+      else _qrot.setFromAxisAngle(_UP, Math.atan2(o.fx, o.fz) + _MESH_YAW_OFFSET);
       _vscale.set(o.sc, o.sc, o.sc);
-      _m4.compose(_vpos, rot, _vscale);
+      _m4.compose(_vpos, _qrot, _vscale);
       inst.setMatrixAt(i, _m4);
     }
     inst.count = count;
     inst.instanceMatrix.needsUpdate = true;
   }
-}
-
-// Combat FX in the 3D world: beam-fire line segments and projectile dots, drawn
-// on the y=0 plane from the same _radarBeams/_radarProjectiles the radar uses.
-let _fxLines = null, _fxPoints = null;
-const _FX_MAX_BEAMS = 256, _FX_MAX_PROJ = 256;
-
-function _view3dSyncFx() {
-  if (!_view3dScene) return;
-  // (Re)create if missing or attached to a stale scene.
-  if (_fxLines && _fxLines.parent !== _view3dScene) _fxLines = null;
-  if (_fxPoints && _fxPoints.parent !== _view3dScene) _fxPoints = null;
-  if (!_fxLines) {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(_FX_MAX_BEAMS * 2 * 3), 3));
-    _fxLines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x8cdcff }));
-    _fxLines.frustumCulled = false;
-    _view3dScene.add(_fxLines);
-  }
-  if (!_fxPoints) {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(_FX_MAX_PROJ * 3), 3));
-    _fxPoints = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xff9a3c, size: 9, sizeAttenuation: false }));
-    _fxPoints.frustumCulled = false;
-    _view3dScene.add(_fxPoints);
-  }
-  const bpos = _fxLines.geometry.attributes.position.array;
-  const nb = Math.min(_radarBeams.length, _FX_MAX_BEAMS);
-  for (let i = 0; i < nb; i++) {
-    const b = _radarBeams[i], o = i * 6;
-    bpos[o] = b[0]; bpos[o + 1] = 0; bpos[o + 2] = b[1];
-    bpos[o + 3] = b[2]; bpos[o + 4] = 0; bpos[o + 5] = b[3];
-  }
-  _fxLines.geometry.setDrawRange(0, nb * 2);
-  _fxLines.geometry.attributes.position.needsUpdate = true;
-
-  const ppos = _fxPoints.geometry.attributes.position.array;
-  const np = Math.min(_radarProjectiles.length, _FX_MAX_PROJ);
-  for (let i = 0; i < np; i++) {
-    const p = _radarProjectiles[i], o = i * 3;
-    ppos[o] = p[0]; ppos[o + 1] = 0; ppos[o + 2] = p[1];
-  }
-  _fxPoints.geometry.setDrawRange(0, np);
-  _fxPoints.geometry.attributes.position.needsUpdate = true;
-}
-
-// Shield rings in the 3D world: a flat ring on the y=0 plane under each shielded
-// ship, colored green/yellow/red by shield fraction (meta.shp). One InstancedMesh
-// with per-instance color, mirroring _view3dSyncInstances' instancing approach.
-let _shieldRingInst = null;
-const _SHIELD_RING_CAP = 256;
-const _ringColor = (typeof THREE !== 'undefined') ? new THREE.Color() : null;
-const _ringQ = (typeof THREE !== 'undefined') ? new THREE.Quaternion() : null;
-function _view3dSyncShieldRings() {
-  if (!_view3dScene || typeof THREE === 'undefined') return;
-  if (_shieldRingInst && _shieldRingInst.parent !== _view3dScene) _shieldRingInst = null;
-  if (!_shieldRingInst) {
-    // Unit ring (radius ~1) lying flat on XZ; per-instance scaled to ship size.
-    const geo = new THREE.RingGeometry(0.92, 1.0, 40);
-    geo.rotateX(-Math.PI / 2);
-    const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true,
-                                              opacity: 0.85, depthWrite: false });
-    _shieldRingInst = new THREE.InstancedMesh(geo, mat, _SHIELD_RING_CAP);
-    _shieldRingInst.frustumCulled = false;   // instanceColor is allocated lazily by setColorAt
-    _view3dScene.add(_shieldRingInst);
-  }
-  let i = 0;
-  for (const [id, meta] of _dynamicMeta) {
-    if (meta.shp < 0 || i >= _SHIELD_RING_CAP) continue;   // no shields -> no ring
-    const idx = _dynamicMap.get(id);
-    if (idx === undefined || idx >= _dynamicCount) continue;
-    const b = idx * 3;
-    // Ring radius from the loaded mesh size (sc * maxDim) so it hugs the hull;
-    // fall back to a sc-scaled constant before the mesh loads.
-    const g = meta.art ? _instArt.get(meta.art) : null;
-    const maxDim = (g && g.base && g.base.userData) ? g.base.userData.maxDim : 0;
-    const r = (maxDim ? maxDim * (meta.meshscale || 1) : (meta.meshscale || 1) * 150) * 0.75;
-    _vpos.set(_dynamicDispBuf[b], (meta.y || 0) + 1, _dynamicDispBuf[b + 1]);
-    _vscale.set(r, r, r);
-    _m4.compose(_vpos, _ringQ, _vscale);   // flat ring (geometry pre-rotated to XZ)
-    _shieldRingInst.setMatrixAt(i, _m4);
-    _ringColor.set(_shieldColor(meta.shp));
-    _shieldRingInst.setColorAt(i, _ringColor);
-    i++;
-  }
-  _shieldRingInst.count = i;
-  _shieldRingInst.instanceMatrix.needsUpdate = true;
-  if (_shieldRingInst.instanceColor) _shieldRingInst.instanceColor.needsUpdate = true;
 }
 
 function _renderView3d() {
@@ -3028,21 +1937,8 @@ function _renderView3d() {
   const H = _view3dCanvas.clientHeight || window.innerHeight;
   if (_view3dCanvas.width !== W)  _view3dCanvas.width  = W;
   if (_view3dCanvas.height !== H) _view3dCanvas.height = H;
-
-  // Ease the smoothed position buffer toward the latest server positions so ships
-  // move fluidly at 60fps between the ~30Hz pushes. Uses the same lerp factor as
-  // the camera (below): the chase cam offset is rigid, so the followed ship stays
-  // perfectly framed while others interpolate. New objects were snapped on add.
-  if (_dynamicDispBuf) {
-    const PL = 0.12, n3 = _dynamicCount * 3;
-    for (let i = 0; i < n3; i++)
-      _dynamicDispBuf[i] += (_dynamicPosBuf[i] - _dynamicDispBuf[i]) * PL;
-  }
-
   _view3dSyncInstances();   // before _view3dSync so meshed objects drop their point
   _view3dSync();
-  _view3dSyncFx();          // combat beams + projectile dots (y=0 plane)
-  _view3dSyncShieldRings();  // shield-fraction rings under shielded ships
   if (_nebMat) _nebMat.uniforms.time.value = performance.now() / 1000;
   // Smooth camera moves so scripted cuts / ship motion ease rather than snap.
   if (_v3dDispCam === null) { _v3dDispCam = _v3dCam.slice(); _v3dDispTgt = _v3dTgt.slice(); }
@@ -3073,7 +1969,7 @@ function _renderView3d() {
     if (idx !== undefined && idx < _dynamicCount) {
       const b = idx * 3;
       const m = _dynamicMeta.get(_myShipId);
-      _view3dHighlight.position.set(_dynamicDispBuf[b], (m && m.y || 0) - 4, _dynamicDispBuf[b + 1]);
+      _view3dHighlight.position.set(_dynamicPosBuf[b], (m && m.y || 0) - 4, _dynamicPosBuf[b + 1]);
       _view3dHighlight.visible = true;
     } else {
       _view3dHighlight.visible = false;
@@ -3096,12 +1992,7 @@ function _renderView3d() {
 function cmdCinematic(msg) {
   // Transient broadcast: keep only messages addressed to our own client.
   if (CLIENT_ID !== null && String(msg.clientID) !== String(CLIENT_ID)) return;
-  const _wasActive = _view3dActive;
   _view3dActive = !!msg.active;
-  // The smoothing ease only runs while the view renders; on (re)activation snap the
-  // display buffer to current positions so ships don't slide in from stale slots.
-  if (_view3dActive && !_wasActive && _dynamicDispBuf && _dynamicPosBuf)
-    _dynamicDispBuf.set(_dynamicPosBuf.subarray(0, _dynamicCount * 3));
   if (_view3dCanvas) {
     _view3dCanvas.style.display = _view3dActive ? 'block' : 'none';
     // Position the 3D canvas to the script-set rect (screen %), or the default
@@ -3201,15 +2092,6 @@ function cmdClear(msg) {
     // Also clear radar view registrations — they'll be re-registered when the
     // new page's 2dview widgets are appended during the upcoming rebuild.
     _widgetRects.clear();
-    // Hide the mock HUD overlays + the 3D cinematic view too. They re-show from
-    // the per-tick ship_data / cinematic push / next text_msg if the rebuilt
-    // console still declares them; text scrollback is preserved (hidden, not
-    // wiped). Matches how the 2D radar clears and re-registers each rebuild.
-    if (_shipDataEl)   _shipDataEl.style.display = 'none';
-    if (_targetDataEl) _targetDataEl.style.display = 'none';
-    if (_textWfEl)     _textWfEl.style.display = 'none';
-    _view3dActive = false;
-    if (_view3dCanvas) _view3dCanvas.style.display = 'none';
     _regions[""].back.innerHTML = '';
     _regions[""].inProgress = true;
     for (const k of Object.keys(_regions)) { if (k !== "") delete _regions[k]; }
@@ -3476,7 +2358,7 @@ function buildWidget(msg, s) {
         _drawFace(fcanvas, fctx, flayers);
       }).observe(el);
       // Preload all referenced sheets early
-      FaceRender.preload(msg.face_string);
+      [...new Set(flayers.map(l => l.alias))].forEach(a => _getFaceSheet(a, () => {}));
       break;
     }
     case 'icon': {
