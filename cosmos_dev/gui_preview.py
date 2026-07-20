@@ -38,5 +38,8 @@ def present_gui_code(code, client_id=0):
 
     page = PreviewPage()
     page.start_label = label
+    # The preview browser is a web client (not an engine console), so exempt it
+    # from Gui.present's console purge — same as a //web/ page.
+    Gui.web_client_ids.add(client_id)
     Gui.push(client_id, page)
     return []

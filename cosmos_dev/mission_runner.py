@@ -631,12 +631,31 @@ def _run(
         if hasattr(sbs, "_force_terrain_push"):
             sbs._force_terrain_push()
 
+    # GUI Editor live preview: the last design pushed via a gui_preview command,
+    # plus the browser client ids showing it (see _fire_web_connect / gui_preview).
+    _preview = {"code": None, "clients": set()}
+
     def _fire_web_connect(cid: int, path: str, query: dict = None) -> None:
         # A browser opened /web/<path>: dispatch it to the matching //web/<path>
         # MAST route as a web-client GUI session. Web clients are not engine
         # consoles (no register_client / client_connect), so they never enter
         # the console-select / player flow. Query string params seed page vars.
         FrameContext.context = Context(sbs.sim, sbs, FakeEvent(client_id=cid, tag="mission_tick"))
+        # /web/gui_preview is the GUI Editor's live preview: render the last design
+        # the editor pushed (a gui_preview command) as THIS browser's own page.
+        if str(path).strip("/") == "gui_preview":
+            if _preview["code"] is not None:
+                from cosmos_dev.gui_preview import present_gui_code
+                present_gui_code(_preview["code"], client_id=cid)
+                _preview["clients"].add(cid)
+                print(f"[runner] preview client {cid} -> GUI Editor design")
+            else:
+                sbs.send_gui_clear(cid, "")
+                sbs.send_gui_text(cid, "", "no_preview",
+                                  "$text:No design yet — press Preview in the GUI Editor.;color:#8ab;",
+                                  5, 40, 95, 60)
+                sbs.send_gui_complete(cid, "")
+            return
         opened = Gui.web_page_open(cid, path, data=query or None)
         if not opened:
             print(f"[runner] web client {cid}: no //web/{path} route")
@@ -724,16 +743,23 @@ def _run(
             except Exception as e:
                 _debug_reply(cid, {"error": f"preview failed: {e}"})
         elif action == "gui_preview":
-            # Render a GUI Editor design (a block of gui_* MAST) live in this
-            # session — the editor's pixel-faithful preview.
+            # Store a GUI Editor design (a block of gui_* MAST). A browser at
+            # /web/gui_preview renders it as its own page (see _fire_web_connect);
+            # if a preview browser is already open, re-render it there now.
             code = data.get("code", "")
+            _preview["code"] = code
             try:
                 from cosmos_dev.gui_preview import present_gui_code
-                errs = present_gui_code(code, client_id=cid)
+                live = [c for c in list(_preview["clients"]) if c in Gui.clients]
+                _preview["clients"] = set(live)
+                errs = []
+                for c in live:
+                    errs = present_gui_code(code, client_id=c) or errs
                 if errs:
                     _debug_reply(cid, {"error": "gui_preview: " + "; ".join(str(e).strip() for e in errs)})
                 else:
-                    _debug_reply(cid, {"ack": "gui previewed"})
+                    _debug_reply(cid, {"ack": f"gui preview stored"
+                                            + (f", shown on {len(live)} browser(s)" if live else " — open /web/gui_preview")})
             except Exception as e:
                 _debug_reply(cid, {"error": f"gui_preview failed: {e}"})
         elif action == "signal":
