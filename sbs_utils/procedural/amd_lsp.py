@@ -933,6 +933,8 @@ def _mission_graph(index):
     for _p, u, d in index["docs"]:
         line_count = getattr(d, "line_count", 0)
         for i, n in enumerate(d.nodes):
+            if (n.level or 0) <= 2:      # `#`/`##` = mission root + section groups, not story nodes
+                continue
             if n.key in seen:
                 continue
             seen.add(n.key)
@@ -1000,6 +1002,8 @@ def _mission_resolve(index):
     entities, seen = [], set()
     for _p, u, d in index["docs"]:
         for n in d.nodes:
+            if (n.level or 0) <= 2:      # `#`/`##` = mission root + section groups, not records
+                continue
             if n.key in seen:
                 continue
             seen.add(n.key)
@@ -1011,14 +1015,20 @@ def _mission_resolve(index):
                 fields.append({"label": label.strip(), "value": value.strip()})
             arch = infer_archetype([f["label"] for f in fields], _section_of(n))
             inn = inbound.get(n.key, 0)
-            # A heading turns on one of two ways: it's REVEALED (an inbound
-            # choice/scene/reveal/parent edge) or it's TRIGGERED by a `When:`
-            # condition (signal / reach / scan / timer) or a fail-on-signal watch.
-            # Only something that is neither is a true orphan (nothing could ever
-            # bring it on screen). A dead trigger signal is a separate red flag
+            # "orphan" = unreachable, and only meaningful for narrative FLOW records
+            # (quest/scan) — the things that must be *reached*. Data records
+            # (lifeform/landmark/region/side/item/...) are placed or matched by the
+            # engine, never reference-reached, so they are never orphans.
+            # A flow record turns on one of three ways: REVEALED (an inbound
+            # choice/scene/reveal/parent edge), TRIGGERED (a `When:`/`Accept on:`/
+            # `Engage on:`/`Fail on signal:` condition, i.e. signal/reach/scan/timer),
+            # or ACTIVE at start (`State: active`). Only one that is none of these is
+            # a true orphan. A dead trigger signal is a separate red flag
             # (unfired-signal), so we don't double-count it here.
             labels = {f["label"] for f in fields}
-            triggered = bool(labels & {"When", "Fail on signal"}) \
+            state = next((f["value"] for f in fields if f["label"] == "State"), "")
+            triggered = bool(labels & {"When", "Fail on signal", "Accept on", "Engage on"}) \
+                or state.strip().lower() == "active" \
                 or any(r.kind in ("wait_signal", "reach") for r in n.refs)
             entities.append({
                 "key": n.key, "display": n.display or n.key,
@@ -1029,7 +1039,7 @@ def _mission_resolve(index):
                 "fields": fields, "problems": problems.get(n.key),
                 "inbound": inn, "outbound": outbound.get(n.key, 0),
                 "triggered": triggered,
-                "orphan": inn == 0 and (n.level or 0) >= 3 and not triggered,
+                "orphan": arch in ("quest", "scan") and inn == 0 and not triggered,
             })
 
     _DANGLE = ("dangling", "signal-no-route", "unfired-signal", "reach-no-landmark")

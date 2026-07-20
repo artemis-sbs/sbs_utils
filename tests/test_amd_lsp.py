@@ -493,14 +493,17 @@ class TestWorkspace(unittest.TestCase):
             os.mkdir(root)
             with open(os.path.join(root, "story.json"), "w") as f:
                 f.write("{}")
-            # A resolves to B (good) and to a missing target (dangling); C has no
-            # inbound edge (orphan).
+            # A (active) resolves to B (good) and to a missing target (dangling);
+            # C is a secret quest nobody reveals (orphan); D is unreferenced but
+            # `When:`-triggered; guy is a lifeform data record (never an orphan).
             with open(os.path.join(root, "d.amd"), "w") as f:
-                f.write("# [R](r)\n## [Dialogue](dialogue)\n"
-                        "### [A](a)\n% hi\n- [to B](b)\n- [to gone](nowhere)\n"
-                        "### [B](b)\n% b\n"
-                        "### [C](c)\n% c\n"
-                        "### [D](d)\n---\nWhen: reach 1, 1\n---\nd\n")
+                f.write("# [R](r)\n## [Narrative](narrative)\n"
+                        "### [A](a)\n---\nState: active\n---\nhi\n- [to B](b)\n- [to gone](nowhere)\n"
+                        "### [B](b)\n---\nState: secret\n---\nb\n"
+                        "### [C](c)\n---\nState: secret\n---\nc\n"
+                        "### [D](d)\n---\nWhen: reach 1, 1\n---\nd\n"
+                        "## [Lifeforms](lifeforms)\n"
+                        "### [Guy](guy)\n---\nSide: friendly\n---\na guy\n")
             uri = Path(os.path.join(root, "d.amd")).as_uri()
             out = self._drive([
                 {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
@@ -512,17 +515,24 @@ class TestWorkspace(unittest.TestCase):
             ])
             m = next(x for x in out if x.get("id") == 2)["result"]
             ents = {e["key"]: e for e in m["entities"]}
-            self.assertTrue({"a", "b", "c"} <= set(ents))
-            self.assertEqual(ents["a"]["section"], "dialogue")
-            # C is a level-3 heading nobody points at and nothing triggers -> orphan;
-            # B is reached by a choice; D is unreferenced but `When:`-triggered, so
-            # it is reachable and must NOT be flagged.
+            self.assertTrue({"a", "b", "c", "d", "guy"} <= set(ents))
+            # section/group headings (`#`/`##`) are not entities.
+            self.assertNotIn("r", ents)
+            self.assertNotIn("narrative", ents)
+            self.assertNotIn("lifeforms", ents)
+            # C is a secret quest nothing reveals or triggers -> orphan. A starts
+            # active, B is revealed by a choice, D is `When:`-triggered -> none orphan.
             self.assertTrue(ents["c"]["orphan"])
+            self.assertFalse(ents["a"]["orphan"])
             self.assertFalse(ents["b"]["orphan"])
             self.assertEqual(ents["b"]["inbound"], 1)
             self.assertEqual(ents["d"]["inbound"], 0)
             self.assertTrue(ents["d"]["triggered"])
             self.assertFalse(ents["d"]["orphan"])
+            # a data record (lifeform) is never an orphan, even with no inbound edge.
+            self.assertEqual(ents["guy"]["archetype"], "lifeform")
+            self.assertEqual(ents["guy"]["inbound"], 0)
+            self.assertFalse(ents["guy"]["orphan"])
             # the good ref resolves; the dangling one is flagged with a lint code.
             good = next(r for r in m["refs"] if r["value"] == "b" and r["kind"] == "choice")
             gone = next(r for r in m["refs"] if r["value"] == "nowhere")
