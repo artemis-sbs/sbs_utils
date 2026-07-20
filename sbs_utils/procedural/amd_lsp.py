@@ -24,6 +24,8 @@ from urllib.parse import urlparse, unquote
 
 # --- mission context --------------------------------------------------------
 def _uri_to_path(uri):
+    if not isinstance(uri, str):
+        return ""       # tolerate a malformed request (e.g. a non-string uri) rather than crash the server
     parsed = urlparse(uri)
     path = unquote(parsed.path)
     # Windows: file:///c:/... -> /c:/... ; strip the leading slash.
