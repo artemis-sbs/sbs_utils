@@ -401,5 +401,84 @@ class BrainTap:
         return node
 
 
+class QuestTap:
+    """Publish a periodic snapshot of every quest's runtime state (idle/active/
+    secret/posting/failed/complete) from the ``__quests__`` inventory tree, keyed
+    by quest id — the live overlay for the AMD Resolver. A poller like WorldTap/
+    BrainTap; reads a best-effort snapshot (the tick thread mutates the store)."""
+
+    _STATES = {0: "idle", 1: "active", 2: "secret", 3: "posting", 98: "failed", 99: "complete"}
+
+    def __init__(self, bus=BUS, interval=0.5):
+        self._bus = bus
+        self._interval = interval
+        self._stop = threading.Event()
+        self._thread = None
+
+    def install(self):
+        if self._thread is not None:
+            return self
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._loop, name="mast-quest-tap", daemon=True)
+        self._thread.start()
+        return self
+
+    def uninstall(self):
+        self._stop.set()
+        self._thread = None
+
+    def _loop(self):
+        while not self._stop.is_set():
+            if self._bus.active:
+                try:
+                    self._bus.publish("quests", self.snapshot())
+                except Exception:
+                    pass
+            self._stop.wait(self._interval)
+
+    def snapshot(self):
+        from sbs_utils.procedural.quest import quest_agent_quests
+        from sbs_utils.procedural.inventory import has_inventory
+        from sbs_utils.agent import Agent
+        out, seen = [], set()
+        try:
+            agent_ids = set(has_inventory("__quests__"))
+        except Exception:
+            agent_ids = set()
+        agent_ids.add(Agent.SHARED_ID)
+        for aid in agent_ids:
+            try:
+                tree = quest_agent_quests(aid)
+            except Exception:
+                tree = None
+            if tree is None:
+                continue
+            scope = "shared" if aid == Agent.SHARED_ID else str(aid)
+            self._walk(tree, out, seen, scope)
+            if len(out) >= 500:
+                break
+        return {"quests": out}
+
+    def _walk(self, node, out, seen, scope):
+        try:
+            children = node.get("children")
+        except Exception:
+            children = None
+        if not children:
+            return
+        for _k, q in list(children.items()):
+            try:
+                qid = _k               # the leaf key = the AMD heading key (matches the Resolver)
+                st = q.get("state")
+                if qid and qid not in seen:
+                    seen.add(qid)
+                    out.append({"key": qid,
+                                "state": self._STATES.get(int(st) if st is not None else 0, "idle"),
+                                "progress": q.get("progress"), "scope": scope})
+                self._walk(q, out, seen, scope)   # nested arcs
+            except Exception:
+                pass
+
+
 # All available taps, so the adapter can install/uninstall the set at once.
-ALL_TAPS = (SignalTap, WorldTap, GuiTap, BrainTap)
+ALL_TAPS = (SignalTap, WorldTap, GuiTap, BrainTap, QuestTap)

@@ -7,7 +7,7 @@ test_set_exe_dir()
 
 import unittest
 from tests.test_mast_debug import build_runner
-from cosmos_dev.mast_inspect import InspectionBus, SignalTap, WorldTap, GuiTap, BrainTap, _json_safe
+from cosmos_dev.mast_inspect import InspectionBus, SignalTap, WorldTap, GuiTap, BrainTap, QuestTap, _json_safe
 
 SIG_CODE = """
 logger(var="output")
@@ -177,6 +177,28 @@ class TestGuiTap(unittest.TestCase):
         self.assertIsNot(self.sbs.send_gui_button, orig)   # wrapped
         tap.uninstall()
         self.assertIs(self.sbs.send_gui_button, orig)      # restored
+
+
+class TestQuestTap(unittest.TestCase):
+    def setUp(self):
+        from cosmos_dev.mock import sbs
+        from sbs_utils.helpers import FrameContext, Context, FakeEvent
+        from sbs_utils.agent import clear_shared
+        clear_shared()
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+
+    def test_snapshot_reads_quest_states(self):
+        from sbs_utils.procedural.quest import quest_add, QuestState
+        from sbs_utils.agent import Agent
+        quest_add(Agent.SHARED_ID, "beacon_arc", "The Beacon Hunt", "", state=QuestState.ACTIVE)
+        quest_add(Agent.SHARED_ID, "beacon_arc/ep1_go", "First Lead", "", state=QuestState.SECRET)
+        snap = QuestTap().snapshot()
+        by = {q["key"]: q for q in snap["quests"]}
+        # keyed by the leaf id (the AMD heading key), nested arcs walked
+        self.assertEqual(by["beacon_arc"]["state"], "active")
+        self.assertEqual(by["ep1_go"]["state"], "secret")
+        self.assertEqual(by["ep1_go"]["scope"], "shared")
 
 
 class TestBrainTap(unittest.TestCase):

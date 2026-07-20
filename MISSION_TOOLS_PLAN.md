@@ -207,10 +207,14 @@ Each: **Problem → Panel → Seam → Effort.**
   keep collecting). Still wants a live click-test against a running session.
 - **Improved Story Graph (§3.5.1) — DONE** (outline + mini-graph + diagram
   search).
-- **AMD Live Resolver (§3.5) — static half DONE** (`amd/resolve` +
-  `amd.showResolver`: resolved entity tree + red-flags, resolved/dangling refs,
-  orphan headings). Remaining: the **live half** — attach over the socket for
-  active-quest / fired-dialogue state and a "why didn't this show?" trace.
+- **AMD Live Resolver (§3.5) — static + live half DONE.** Static: `amd/resolve` +
+  `amd.showResolver` (resolved entity tree + red-flags, resolved/dangling refs,
+  orphan headings). Live: a **`QuestTap`** (`mast_inspect.py`) polls the
+  `__quests__` inventory and streams `{quest key -> state}` (idle/active/secret/
+  complete/failed) over the DAP; the Resolver overlays a live state badge per
+  quest (and "not granted" for quests absent from the running mission), with a
+  ● live / ○ static indicator. Note: dialogue/scene "fired" state doesn't exist
+  at runtime, so the overlay is quest-state focused (not dialogue).
 
 ---
 

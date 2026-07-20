@@ -256,32 +256,88 @@ def get_ship_of_client(clientID: int) -> int:
         return sim.client_ships.get(clientID, 0)
     return 0
 
+#
+# Text metrics below are CAPTURED FROM THE ENGINE, not modelled.
+# Source: missions/font_measure/ (run the "Font Measurement Capture" mission,
+# then compare_measurements.py). Earlier values came from browser
+# canvas.measureText and ran ~20% oversized in both axes.
+#
+# The engine exposes TWO different vertical metrics, and conflating them is a
+# real bug:
+#   * get_text_line_height -> the INK extent of a line (~11px at "smallest")
+#   * the height one line OCCUPIES in a block (~18px at "smallest")
+# Sizing a row from line_height makes it ~40% too short, and the engine does
+# not clip, so the text spills into whatever is below. Keep them separate.
+#
 def _font_size(fontTag: str) -> int:
+    """Ink height of a line -- what get_text_line_height returns."""
+    if _FM is not None and fontTag in _FM.LINE_HEIGHT:
+        return _FM.LINE_HEIGHT[fontTag]
     return {
-        "smallest": 21,
-        "gui-1": 27,
-        "gui-2": 29,
-        "gui-3": 35,
-        "gui-4": 39,
-        "gui-5": 44,
-        "gui-6": 64,
-    }.get(fontTag, 35)
+        "smallest": 11,
+        "gui-1": 13,
+        "gui-2": 13,
+        "gui-3": 14,
+        "gui-4": 16,
+        "gui-5": 18,
+        "gui-6": 26,
+    }.get(fontTag, 14)
+
+def _line_spacing(fontTag: str) -> int:
+    """Height one line OCCUPIES in a wrapped block. Not a function of
+    _font_size: gui-1 and gui-2 share an ink height of 13 but occupy 22 and 24
+    respectively, so this is captured per font rather than derived."""
+    if _FM is not None and fontTag in _FM.LINE_SPACING:
+        return _FM.LINE_SPACING[fontTag]
+    return {
+        "smallest": 18,
+        "gui-1": 22,
+        "gui-2": 24,
+        "gui-3": 28,
+        "gui-4": 32,
+        "gui-5": 36,
+        "gui-6": 52,
+    }.get(fontTag, 28)
 
 _NARROW_CHARS = frozenset("iIl|!;:.,'`1fjr ")
 _WIDE_CHARS   = frozenset("MWmw")
 
-# Per-font char widths (narrow, wide, avg) in pixels — measured from browser canvas.measureText.
+# Per-font char widths (narrow, wide, avg) in pixels — captured from the engine.
 _CHAR_WIDTHS = {
-    "smallest": ( 4.43, 12.38,  8.48),
-    "gui-1":    ( 5.41, 15.13, 10.36),
-    "gui-2":    ( 5.90, 16.50, 11.30),
-    "gui-3":    ( 8.89, 28.09, 20.75),
-    "gui-4":    (10.16, 32.10, 23.72),
-    "gui-5":    (11.43, 36.12, 26.68),
-    "gui-6":    (16.51, 52.17, 38.54),
+    "smallest": ( 4.40, 10.25,  7.10),
+    "gui-1":    ( 5.42, 12.55,  8.68),
+    "gui-2":    ( 5.90, 13.70,  9.47),
+    "gui-3":    ( 8.40, 23.38, 17.23),
+    "gui-4":    ( 9.62, 26.73, 19.73),
+    "gui-5":    (10.80, 30.02, 22.18),
+    "gui-6":    (15.66, 43.40, 32.05),
 }
 
+# A real per-glyph table captured from the engine, if one has been baked in by
+# missions/font_measure/apply_capture.py. It removes the bucket model entirely.
+# Absent (fresh checkout, no capture yet) we fall back to the buckets above.
+try:
+    from . import _font_metrics as _FM
+except ImportError:
+    _FM = None
+
+
+# A real per-glyph table captured from the engine, if one has been baked in by
+# missions/font_measure/apply_capture.py. It removes the bucket model entirely.
+# Absent (fresh checkout, no capture yet) we fall back to the buckets above.
+try:
+    from . import _font_metrics as _FM
+except ImportError:
+    _FM = None
+
+
 def _char_pixel_width(ch: str, fontTag: str) -> float:
+    if _FM is not None:
+        table = _FM.CHAR_WIDTH.get(fontTag)
+        if table is not None:
+            w = table.get(ch)
+            if w is not None:
+                return w
     narrow, wide, avg = _CHAR_WIDTHS.get(fontTag, _CHAR_WIDTHS["gui-3"])
     if ch in _NARROW_CHARS:
         return narrow
@@ -300,8 +356,23 @@ def get_text_line_width(fontTag: str, textToMeasure: str) -> int:
     return int(sum(_char_pixel_width(ch, fontTag) for ch in textToMeasure))
 
 def get_text_block_height(fontTag: str, textToMeasure: str, width: int) -> int:
-    """for a font key, a string of (possibly) multiline text, and a pixel width, this returns the height of the drawn text."""
-    line_height = get_text_line_height(fontTag, textToMeasure)
+    """for a font key, a string of (possibly) multiline text, and a pixel width, this returns the height of the drawn text.
+
+    Accuracy vs the engine, measured against a real capture
+    (missions/font_measure, compare_measurements.py):
+
+        width >= 600px   0% line-count disagreement
+        width >= 300px   6%
+        width  = 100px  68%
+
+    So block heights are trustworthy at realistic column widths and are NOT at
+    pathologically narrow ones (100px is ~10% of a 1024 wide screen -- about
+    three glyphs at gui-6, where exactly where the engine breaks a word starts
+    to dominate). If you are validating content sized rows inside a very narrow
+    column, confirm it in a real engine session rather than headlessly.
+    """
+    # Line SPACING, not line height -- see the note on _line_spacing.
+    line_height = _line_spacing(fontTag)
     if not textToMeasure or width <= 0:
         return line_height
     space_w = get_text_line_width(fontTag, " ")
@@ -315,13 +386,32 @@ def get_text_block_height(fontTag: str, textToMeasure: str, width: int) -> int:
         current_w = 0
         for word in words:
             word_w = get_text_line_width(fontTag, word)
-            if current_w == 0:
-                current_w = word_w
-            elif current_w + space_w + word_w > width:
+            sep = space_w if current_w > 0 else 0
+            if current_w + sep + word_w <= width:
+                current_w += sep + word_w
+                continue
+            # Does not fit on the current line -- start a new one.
+            if current_w > 0:
                 lines_in_para += 1
+                current_w = 0
+            if word_w <= width:
                 current_w = word_w
-            else:
-                current_w += space_w + word_w
+                continue
+            #
+            # The word is wider than a whole line, so the engine BREAKS IT
+            # MID WORD rather than letting it overhang. Verified against a real
+            # engine capture (missions/font_measure): the 7-word "longwords"
+            # paragraph at 100px in gui-6 is 26 engine lines, not 7. Without
+            # this branch the mock reported one line per over-long word and was
+            # never too tall, only too short -- and because the engine does not
+            # clip, too short means the text spills into whatever is below.
+            #
+            for ch in word:
+                cw = _char_pixel_width(ch, fontTag)
+                if current_w > 0 and current_w + cw > width:
+                    lines_in_para += 1
+                    current_w = 0
+                current_w += cw
         total_lines += lines_in_para
     return total_lines * line_height
 

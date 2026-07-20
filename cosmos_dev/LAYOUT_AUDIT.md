@@ -105,15 +105,33 @@ worst). Three classes:
 |---|---|
 | 1. mixed %/fixed-unit overflow | mock audit **+ resolution sweep** |
 | 2. listbox/text_area not re-adapting to bounds | mock audit **+ resolution sweep** |
-| 3. engine word-wrap ≠ the measure functions | **real engine only** (mock wrap == mock measure) — needs `dev_queue`/EngineDriver |
+| 3. engine word-wrap ≠ the measure functions | **mostly closed** — see below |
+
+**Class 3 update.** This used to read "real engine only (mock wrap == mock measure)".
+That is no longer the whole story: `missions/font_measure/` captures the engine's real
+metrics, and `compare_measurements.py` diffs the mock against them, so the mock's wrap is
+now *checkable* rather than self-confirming. Three real bugs fell out of the first capture:
+
+- `get_text_line_height` is the **ink extent**, not the height a line **occupies** (11px vs
+  18px at `smallest`; gui-1 and gui-2 share ink height 13 but occupy 22 and 24). The mock
+  conflated them, and anything sizing a row from line height comes out ~40% too short.
+- The mock's char widths were browser `canvas.measureText` values, ~20% oversized.
+- **The engine breaks words mid-word** when a word exceeds the line width; the mock put each
+  over-long word on its own line. At gui-6/100px the 7-word `longwords` paragraph is 26
+  engine lines, not 7.
+
+After fixing all three, line-count agreement is **100% at width ≥ 600px, 94% at ≥ 300px,
+32% at 100px**. Block heights are trustworthy at realistic column widths and are not at
+pathological ones. Re-capture whenever the game's fonts change.
 
 ## Roadmap / open items
 
 - [ ] **Resolution sweep** (the high-value buildable piece) — vary `FrameContext.
   aspect_ratios`, re-present, take the WORST-case overflow per widget. Turns "audit at one
   resolution" into "find the window size where fixed fonts break the %-layout" (classes 1 & 2).
-- [ ] **Real-engine measure-vs-render check** (class 3) — only the engine shows wrap ≠
-  measure; drive it via `dev_queue`/EngineDriver, compare actual text extent to `get_text_*`.
+- [x] **Real-engine measure capture** (class 3) — `missions/font_measure/` captures engine
+  metrics; `apply_capture.py` bakes a per-glyph table into the mock. Residual: wrap still
+  diverges below ~300px column width.
 - [ ] **Text-fit audit** stays deferred until the mock renders as tight as the engine
   (else browser-only false positives).
 - [ ] **Font-metric table unification** to `preferences.json` (maintainability; touches

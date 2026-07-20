@@ -280,3 +280,49 @@ def gui_text_escape(s):
     if not s:
         return ""
     return "`" + s + "`"
+
+
+def props_display_text(props, def_key="$text"):
+    """Extract the plain display text from a widget props string.
+
+    The inverse of the ``$text:`...`;`` quoting that ``gui_text_escape`` and
+    ``Text.update`` apply. Given ``"$text:`Hello`;font:gui-2;"`` this returns
+    ``"Hello"``. Handles the unquoted form, the bare ``text:`` spelling, and a
+    props string that is really just a bare label (no colon at all).
+
+    This is what a measurement needs: the glyphs the engine will actually draw,
+    with the style props stripped off. Returns ``""`` when there is no text.
+    """
+    if props is None:
+        return ""
+    props = str(props)
+    if not props:
+        return ""
+    parsed = split_props(props, def_key)
+    text = parsed.get(def_key)
+    if text is None:
+        text = parsed.get("text", parsed.get("$text"))
+    if text is None:
+        return ""
+    text = text.strip()
+    # split_props keeps the quoting delimiter; strip it to get the raw glyphs.
+    if len(text) >= 2 and text.startswith("`") and text.endswith("`"):
+        text = text[1:-1]
+    return text
+
+
+def props_font(props, default=None):
+    """Effective font for a widget props string.
+
+    A ``font:`` inside the widget's own props WINS over the cascaded font,
+    because ``present()`` appends the cascade props *after* the message, so the
+    engine sees the widget's own value last. Measurement has to agree with that
+    or it measures in a different font than it renders.
+    """
+    if props:
+        f = split_props(str(props), "$text").get("font")
+        if f is not None:
+            f = f.strip()
+            if f:
+                return f
+    return default

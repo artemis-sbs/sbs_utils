@@ -59,6 +59,12 @@ Single-click a row to browse (a reference selects the related entity; a red flag
 its node); **double-click** opens the source line. An empty "reached by" list is exactly
 why a node shows as an **orphan**.
 
+**Live overlay.** With a mission running under `sbs debug`, the Resolver shows each quest's
+**live state** — a badge reading *active / secret / complete / failed / idle*, or *not granted*
+for a quest the running mission hasn't created yet. The header flips from **○ static** to
+**● live** while state is streaming. (Dialogue/scene "fired" state isn't tracked by the engine,
+so the overlay is quest-focused.)
+
 ### Add a new entity
 
 Each section header (in the Outline, Graph, and Resolver) has a **"+ add"**. It inserts a

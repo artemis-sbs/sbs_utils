@@ -37,16 +37,21 @@ class LayoutAreaParser:
             match = False
             for token,rule in LayoutAreaParser.rules.items():
                 m = re.match(rule,source)
-                match = True
                 if m is not None:
+                    match = True
                     loc = m.span()
                     t = source[:loc[1]]
                     source = source[loc[1]:]
                     if token!= "ws":
                         tokens.append(LayoutAreaNode(token, t))
                     break
+            #
+            # `match` used to be set unconditionally above, which made this
+            # branch dead: a character no rule matches (e.g. '%') left `source`
+            # unchanged and the while loop spun forever -- a hang, not an error.
+            #
             if not match:
-                raise Exception(f"Invalid syntax on token {source}")        
+                raise Exception(f"Invalid syntax on token {source}")
 
         tokens.append(LayoutAreaNode("eof", None))
         return tokens
