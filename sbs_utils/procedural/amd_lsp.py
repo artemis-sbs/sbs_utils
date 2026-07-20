@@ -1011,6 +1011,15 @@ def _mission_resolve(index):
                 fields.append({"label": label.strip(), "value": value.strip()})
             arch = infer_archetype([f["label"] for f in fields], _section_of(n))
             inn = inbound.get(n.key, 0)
+            # A heading turns on one of two ways: it's REVEALED (an inbound
+            # choice/scene/reveal/parent edge) or it's TRIGGERED by a `When:`
+            # condition (signal / reach / scan / timer) or a fail-on-signal watch.
+            # Only something that is neither is a true orphan (nothing could ever
+            # bring it on screen). A dead trigger signal is a separate red flag
+            # (unfired-signal), so we don't double-count it here.
+            labels = {f["label"] for f in fields}
+            triggered = bool(labels & {"When", "Fail on signal"}) \
+                or any(r.kind in ("wait_signal", "reach") for r in n.refs)
             entities.append({
                 "key": n.key, "display": n.display or n.key,
                 "section": _section_of(n), "archetype": arch, "level": n.level,
@@ -1019,7 +1028,8 @@ def _mission_resolve(index):
                 "summary": getattr(n, "summary", "") or "",
                 "fields": fields, "problems": problems.get(n.key),
                 "inbound": inn, "outbound": outbound.get(n.key, 0),
-                "orphan": inn == 0 and (n.level or 0) >= 3,
+                "triggered": triggered,
+                "orphan": inn == 0 and (n.level or 0) >= 3 and not triggered,
             })
 
     _DANGLE = ("dangling", "signal-no-route", "unfired-signal", "reach-no-landmark")

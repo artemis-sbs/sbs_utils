@@ -499,7 +499,8 @@ class TestWorkspace(unittest.TestCase):
                 f.write("# [R](r)\n## [Dialogue](dialogue)\n"
                         "### [A](a)\n% hi\n- [to B](b)\n- [to gone](nowhere)\n"
                         "### [B](b)\n% b\n"
-                        "### [C](c)\n% c\n")
+                        "### [C](c)\n% c\n"
+                        "### [D](d)\n---\nWhen: reach 1, 1\n---\nd\n")
             uri = Path(os.path.join(root, "d.amd")).as_uri()
             out = self._drive([
                 {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
@@ -513,10 +514,15 @@ class TestWorkspace(unittest.TestCase):
             ents = {e["key"]: e for e in m["entities"]}
             self.assertTrue({"a", "b", "c"} <= set(ents))
             self.assertEqual(ents["a"]["section"], "dialogue")
-            # C is a level-3 heading nobody points at -> orphan; B is reached.
+            # C is a level-3 heading nobody points at and nothing triggers -> orphan;
+            # B is reached by a choice; D is unreferenced but `When:`-triggered, so
+            # it is reachable and must NOT be flagged.
             self.assertTrue(ents["c"]["orphan"])
             self.assertFalse(ents["b"]["orphan"])
             self.assertEqual(ents["b"]["inbound"], 1)
+            self.assertEqual(ents["d"]["inbound"], 0)
+            self.assertTrue(ents["d"]["triggered"])
+            self.assertFalse(ents["d"]["orphan"])
             # the good ref resolves; the dangling one is flagged with a lint code.
             good = next(r for r in m["refs"] if r["value"] == "b" and r["kind"] == "choice")
             gone = next(r for r in m["refs"] if r["value"] == "nowhere")
