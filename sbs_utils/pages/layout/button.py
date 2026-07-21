@@ -1,5 +1,5 @@
 from .column import Column
-from .measure import measure_props
+from .measure import measure_props, apply_overflow
 from ...helpers import FrameContext, merge_props, split_props
 from .bounds import Bounds
 
@@ -38,7 +38,16 @@ class Button(Column):
         ctx = FrameContext.context
         message = self.message
         message += self.get_cascade_props(True, True, True)
-        
+
+        # Only the TEXT forms have text to fit. In raw/icon mode the message is
+        # icon props, so there is nothing to shrink or truncate -- the same
+        # reason measure() returns None for a square button.
+        if self.overflow and not self.raw and not self.icon:
+            message, draw = apply_overflow(message, self.bounds, self.overflow,
+                                           self.get_font())
+            if not draw:
+                return
+
         if self.raw:
             ctx.sbs.send_gui_rawiconbutton(event.client_id, self.region_tag,
                 self.tag, message, 

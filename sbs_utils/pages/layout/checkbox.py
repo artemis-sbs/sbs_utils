@@ -1,5 +1,5 @@
 from .column import Column
-from .measure import measure_props
+from .measure import measure_props, apply_overflow
 from ...helpers import FrameContext, merge_props, split_props
 
 class Checkbox(Column):
@@ -16,6 +16,14 @@ class Checkbox(Column):
         message = f"state: {self._value};{self.message}"
         message += self.get_cascade_props(True, True, True)
         ctx = FrameContext.context
+
+        # Icon mode draws a glyph, not a label -- nothing to fit.
+        if self.overflow and not self.icon:
+            message, draw = apply_overflow(message, self.bounds, self.overflow,
+                                           self.get_font())
+            if not draw:
+                return
+
         if self.icon:
             if self._value:
                 

@@ -181,5 +181,94 @@ class TestUnmeasurableIsLeftAlone(_Base):
         self.assertTrue(draw, "must not hide text it could not measure")
 
 
+class _Recorder:
+    """Captures what each send_gui_* actually emitted."""
+
+    def __init__(self, sbs):
+        self._sbs = sbs
+        self.sent = []
+
+    def __getattr__(self, name):
+        def rec(cid, region, tag, msg, *a, **k):
+            if name.startswith("send_gui_"):
+                self.sent.append((name, tag, msg))
+        if name.startswith("send_gui_"):
+            return rec
+        return getattr(self._sbs, name)
+
+
+class TestButtonAndCheckbox(_Base):
+    """The same policy on the other two text-bearing widgets.
+
+    Their icon/raw modes must be skipped: the message there is icon props, not
+    text, so there is nothing to shrink or truncate -- the same reason
+    measure() returns None for a square button.
+    """
+
+    def _present(self, widget, w_pct=10.0, h_pct=2.0):
+        from sbs_utils.pages.layout.bounds import Bounds
+        rec = _Recorder(FrameContext.context.sbs)
+        FrameContext.context.sbs = rec
+        widget.bounds = Bounds(0, 0, w_pct, h_pct)
+        widget.region_tag = ""
+        widget.client_id = 0
+        widget._present(types.SimpleNamespace(client_id=0))
+        return rec.sent
+
+    def _button(self, text, policy):
+        from sbs_utils.pages.layout.button import Button
+        b = Button("b", f"$text:`{text}`;font:gui-3;")
+        b.overflow = policy
+        return b
+
+    def _checkbox(self, text, policy):
+        from sbs_utils.pages.layout.checkbox import Checkbox
+        c = Checkbox("c", f"$text:`{text}`;font:gui-3;", False)
+        c.overflow = policy
+        return c
+
+    def test_button_shrinks(self):
+        sent = self._present(self._button("X" * 20, "shrink"))
+        self.assertTrue(sent)
+        self.assertEqual(props_font(sent[0][2]), "smallest")
+
+    def test_button_ellipsis(self):
+        sent = self._present(self._button("ABCDEFGHIJKLMNOP", "ellipsis"),
+                             w_pct=10.0, h_pct=10.0)
+        self.assertTrue(props_display_text(sent[0][2]).endswith("..."))
+
+    def test_button_hide_emits_nothing(self):
+        sent = self._present(self._button("X" * 40, "hide"))
+        self.assertEqual(sent, [], "hidden button still emitted a widget")
+
+    def test_button_default_spills(self):
+        sent = self._present(self._button("X" * 40, None))
+        self.assertTrue(sent)
+        self.assertEqual(props_font(sent[0][2]), "gui-3")
+
+    def test_icon_button_is_left_alone(self):
+        b = self._button("X" * 40, "shrink")
+        b.icon = True
+        sent = self._present(b)
+        self.assertTrue(sent, "icon button must still be drawn")
+        self.assertEqual(props_font(sent[0][2]), "gui-3",
+                         "icon props are not text and must not be shrunk")
+
+    def test_checkbox_shrinks(self):
+        sent = self._present(self._checkbox("X" * 20, "shrink"))
+        self.assertTrue(sent)
+        self.assertEqual(props_font(sent[0][2]), "smallest")
+
+    def test_checkbox_hide_emits_nothing(self):
+        sent = self._present(self._checkbox("X" * 40, "hide"))
+        self.assertEqual(sent, [])
+
+    def test_icon_checkbox_is_left_alone(self):
+        c = self._checkbox("X" * 40, "shrink")
+        c.icon = True
+        sent = self._present(c)
+        self.assertTrue(sent, "icon checkbox must still be drawn")
+
+
 if __name__ == "__main__":
     unittest.main()
