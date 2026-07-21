@@ -338,10 +338,18 @@ class TextArea(Control):
         """
         return None
 
-    def calc_rich(self, client_id):
+    # Width the vertical scrollbar occupies, in PIXELS. Named because the
+    # measure pass and the draw pass must agree about it -- see calc_rich.
+    V_SCROLL_PX = 20
+
+    def calc_rich(self, client_id, _retry=True):
         if self.simple_text:
             return
-     
+
+        # What the scrollbar decision was BEFORE this pass, so we can tell
+        # whether measuring changed it (see the re-run at the end).
+        measured_with_scroll = self.need_v_scroll
+
         content_lines = self.content.copy()
         
         
@@ -412,7 +420,18 @@ class TextArea(Control):
         height = 20
         prepend = ""
         is_a_list = None
+        #
+        # Measure at the width the text will actually be DRAWN at, which is
+        # narrower when a scrollbar is present. Measuring at the full width and
+        # drawing 20px narrower makes the engine wrap a line we did not count,
+        # and since the engine does not clip, that line is drawn ON TOP of its
+        # neighbour. It showed up as overlapping text in LM's Library document
+        # at 1024x768 -- long enough to scroll, so the scrollbar was always
+        # there, and roughly one paragraph in eight wraps inside that 20px.
+        #
         pixel_width = (self.bounds.right-self.bounds.left)/100 * ar.x
+        if self.need_v_scroll:
+            pixel_width -= self.V_SCROLL_PX
         alpha = "_ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"
         roman = ["_", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", 
                 "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx"]
@@ -624,6 +643,18 @@ class TextArea(Control):
         # Calculate the right size for the scrollbar
         #
         self.need_v_scroll = calc_height > self.bounds.height
+
+        #
+        # The scrollbar decision depends on the wrapped height, and the wrapped
+        # height depends on whether the scrollbar is there -- a genuine cycle.
+        # Break it the same way the layout breaks the square/content cycle: one
+        # bounded re-run, never iterate to convergence. The measurements are
+        # memoized, so the second pass is nearly free.
+        #
+        if _retry and self.need_v_scroll != measured_with_scroll:
+            self.calc_rich(client_id, _retry=False)
+            return
+
         self.last_line = len(self.lines)
         self.scroll_line = self.last_line
         if not self.need_v_scroll:
@@ -760,7 +791,7 @@ class TextArea(Control):
         bounds = Bounds(self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
         # Room for scrollbar always
         if self.need_v_scroll:
-            bounds.right -= 20*100/ar.x
+            bounds.right -= self.V_SCROLL_PX*100/ar.x
         #TODO: calc line to start drawing
         text_line: TextLine
         for i, text_line in enumerate(self.lines):
@@ -819,7 +850,7 @@ class TextArea(Control):
             # print(f"TEXT AREA {cur} {max}")
 
             ctx.sbs.send_gui_slider(CID,self.local_region_tag, f"{self.tag}vbar", int(cur), f"low:0; high: {max}; show_number:no",
-                scroll_bounds.right-20*100/ar.x, scroll_bounds.top,
+                scroll_bounds.right-self.V_SCROLL_PX*100/ar.x, scroll_bounds.top,
                 scroll_bounds.right, scroll_bounds.bottom)
 
 
