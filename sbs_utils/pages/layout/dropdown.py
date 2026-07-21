@@ -10,6 +10,18 @@ class Dropdown(Column):
         #TODO: Prase out default ?
         self._value = ""
         
+    def measure(self, client_id, mode, avail_px, font, ar):
+        """Deliberately unmeasurable -- do not "fix" this to measure the list.
+
+        A dropdown's rendered width is its widest option PLUS engine-drawn
+        chrome (the arrow, the border) whose size we cannot ask for. Sizing to
+        the text alone would come out narrow, and because the engine does not
+        clip, a narrow dropdown draws its label over its neighbour rather than
+        truncating. Falling back to flex is the safe answer, and it is exactly
+        what happened before content sizing existed.
+        """
+        return None
+
     def _present(self, event):
         ctx = FrameContext.context
         ctx.sbs.send_gui_dropdown(event.client_id, self.region_tag,

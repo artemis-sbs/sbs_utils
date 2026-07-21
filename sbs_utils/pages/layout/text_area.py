@@ -322,6 +322,20 @@ class TextArea(Control):
             self.mark_layout_dirty()
 
 
+    def measure(self, client_id, mode, avail_px, font, ar):
+        """Deliberately unmeasurable, for two independent reasons.
+
+        A text area already handles its own overflow by scrolling -- it adds a
+        vertical slider when the content exceeds its bounds -- so it does not
+        need the row to grow around it the way a plain label does.
+
+        And measuring it would mean running the whole rich-text parse (images,
+        ship/face embeds, tables, wrapping) at a width the parent has not
+        committed to yet, then throwing that work away. Falling back to flex is
+        both cheaper and closer to what the widget is for.
+        """
+        return None
+
     def calc_rich(self, client_id):
         if self.simple_text:
             return

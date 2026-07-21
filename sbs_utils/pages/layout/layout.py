@@ -137,6 +137,12 @@ class Layout(Clickable):
         self.default_font = None
 
         self.square = False
+        # Layout duck-types Column (a sub-section IS a column), so it has to
+        # carry the content-sizing fields too -- a content-sized sub-section
+        # otherwise crashes when calc tries to record its measurement.
+        self.content_sized = False
+        self._measure_ctx = None
+        self._measured_size = None
 
         self.padding = None
         self.border = None
@@ -322,6 +328,62 @@ class Layout(Clickable):
         #self.representing = False
 
         
+
+    def note_measured(self, mode, avail_px, font, ar, size):
+        """Same contract as Column.note_measured -- see the duck-typing note in
+        __init__."""
+        self._measure_ctx = (mode, avail_px, font, ar)
+        self._measured_size = size
+
+    def measured_size_changed(self):
+        ctx = self._measure_ctx
+        if ctx is None or self._measured_size is None:
+            return True
+        mode, avail_px, font, ar = ctx
+        current = self.measure(self.client_id, mode, avail_px, font, ar)
+        if current is None:
+            return True
+        return (abs(current[0] - self._measured_size[0]) > 1e-6
+                or abs(current[1] - self._measured_size[1]) > 1e-6)
+
+    def measure(self, client_id, mode, avail_px, font, ar):
+        """Natural size of a nested section, by recursing into its children.
+
+        A sub-section is a Layout stored AS a column, so it has to answer the
+        same question its own columns do. Natural width is the widest row (the
+        sum of that row's columns); natural height is the sum of row heights.
+
+        Children are measured at their natural size (avail_px=None) rather than
+        at some assumed width -- the parent has not decided widths yet, and
+        guessing one here would bake in a wrap that never happens.
+
+        Returns None when nothing inside could be measured, so an unmeasurable
+        sub-section falls back to flex like any other unmeasurable column.
+        """
+        width = 0.0
+        height = 0.0
+        measured_any = False
+        for row in self.rows:
+            row_font = row.default_font
+            if row_font is None:
+                row_font = self.default_font
+            row_width = 0.0
+            row_height = 0.0
+            for col in row.columns:
+                if col.is_hidden:
+                    continue
+                natural = col.measure(client_id, mode, None,
+                                      effective_font(col, row_font), ar)
+                if natural is None:
+                    continue
+                measured_any = True
+                row_width += natural[0]
+                if natural[1] > row_height:
+                    row_height = natural[1]
+            if row_width > width:
+                width = row_width
+            height += row_height
+        return (width, height) if measured_any else None
 
     def _resolve_col_widths(self, row, row_bounds_area, aspect_ratio, row_font,
                             client_id=None):
