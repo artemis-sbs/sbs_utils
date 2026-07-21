@@ -2,9 +2,20 @@ from ...gui import get_client_aspect_ratio
 from ...helpers import FrameContext
 from ...mast.parsers import LayoutAreaParser, ContentSize, MIN_CONTENT, AUTO
 
+from enum import IntEnum
+from .bounds import Bounds
+from .hole import Hole
+from .measure import pct_to_px_x
+# for type hints
+from .row import Row 
+from .column import Column
+from .dirty import Dirty
+
+import weakref
+
 #
-# When True, a column with no col-width of its own behaves as `col-width: auto`:
-# still flex, but never squeezed below its own min-content. This is the LM
+# When True, a row or column with no explicit size behaves as `auto`:
+# still flex, but never squeezed below its own content. This is the LM
 # issue 672 request applied globally -- a long string beside short ones grows,
 # and its roomier neighbours give way, with nothing annotated.
 #
@@ -17,16 +28,7 @@ from ...mast.parsers import LayoutAreaParser, ContentSize, MIN_CONTENT, AUTO
 # plain flex, so the added work is proportional to how much TEXT is on screen.
 #
 AUTO_DEFAULT = True
-from enum import IntEnum
-from .bounds import Bounds
-from .hole import Hole
-from .measure import pct_to_px_x
-# for type hints
-from .row import Row 
-from .column import Column
-from .dirty import Dirty
 
-import weakref
         
 
 def calc_float_attribute(name, col, row, sec, aspect_ratio_axis, font_size):
@@ -801,6 +803,7 @@ class Layout(Clickable):
             # Heights measured for content rows, keyed by row, so the main loop
             # below reuses them instead of measuring a second time.
             content_heights = {}
+            auto_row_floor = {}   # id(row) -> content height, for `auto` rows
 
             if section_height is not None:
                 layout_row_height = section_height
@@ -813,22 +816,38 @@ class Layout(Clickable):
                     if row.default_font is not None:
                         row_font = row.default_font
 
-                    if row.default_height is not None:
-                        row_font_height  = get_font_size(row_font)
-                        raw = calc_float_attribute("default_height", None, row, self, aspect_ratio.y, row_font_height)
-                        value = resolved_size(raw)
+                    row_font_height  = get_font_size(row_font)
+                    raw = calc_float_attribute("default_height", None, row, self, aspect_ratio.y, row_font_height) \
+                        if row.default_height is not None else None
+                    if raw is None and AUTO_DEFAULT:
+                        raw = AUTO
+                    value = resolved_size(raw) if raw is not None else None
 
-                        if value is None and raw.__class__ is ContentSize:
-                            value = self._content_row_height(
-                                row, bounds_area, aspect_ratio, row_font, raw,
-                                client_id, layout_row_height / max(len(rows), 1))
-                            if value is not None:
-                                content_heights[id(row)] = value
+                    if (value is None and raw is not None
+                            and raw.__class__ is ContentSize and raw.is_auto):
+                        #
+                        # `auto` keeps the row in the FLEX pool -- it only
+                        # records a floor, so a row whose content genuinely
+                        # needs more than the even share can be raised below.
+                        #
+                        floor = self._content_row_height(
+                            row, bounds_area, aspect_ratio, row_font, raw,
+                            client_id, layout_row_height / max(len(rows), 1))
+                        if floor is not None and floor > 0:
+                            auto_row_floor[id(row)] = floor
+                        continue
 
+                    if value is None and raw is not None and raw.__class__ is ContentSize:
+                        value = self._content_row_height(
+                            row, bounds_area, aspect_ratio, row_font, raw,
+                            client_id, layout_row_height / max(len(rows), 1))
                         if value is not None:
-                            layout_row_height -= value
-                            fixed_total += value
-                            flex_rows -= 1
+                            content_heights[id(row)] = value
+
+                    if value is not None:
+                        layout_row_height -= value
+                        fixed_total += value
+                        flex_rows -= 1
 
                 #
                 # Content rows are requests, not reservations. If they and the
@@ -848,6 +867,38 @@ class Layout(Clickable):
 
                 if flex_rows>0:
                     layout_row_height /= flex_rows
+
+                #
+                # Raise `auto` rows to their content height, paid for by the
+                # flex rows that have slack. Same shape as the column side, but
+                # rows all share ONE flex height, so a raised row is moved into
+                # content_heights (a per-row override) and the remaining flex
+                # rows re-divide what is left.
+                #
+                if auto_row_floor:
+                    raised = {k: v for k, v in auto_row_floor.items()
+                              if v > layout_row_height}
+                    if raised:
+                        remaining_flex = flex_rows - len(raised)
+                        avail = bounds_area.height - fixed_total
+                        total_raised = sum(raised.values())
+                        #
+                        # The floors can exceed the section outright -- every
+                        # row wanting three lines in a section that holds four.
+                        # They are requests, so share what there is
+                        # proportionally rather than letting the rows sum past
+                        # the section and draw over each other.
+                        #
+                        if total_raised > avail and total_raised > 0:
+                            scale = max(0.0, avail) / total_raised
+                            raised = {k: v * scale for k, v in raised.items()}
+                            total_raised = sum(raised.values())
+                        if remaining_flex > 0:
+                            # Never hand the survivors a negative share; a row
+                            # at zero draws nothing, a negative one inverts.
+                            layout_row_height = max(
+                                0.0, (avail - total_raised) / remaining_flex)
+                        content_heights.update(raised)
             
             row : Row
             row_top = bounds_area.top

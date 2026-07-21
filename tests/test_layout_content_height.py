@@ -198,5 +198,72 @@ class TestOverflowingContentRows(_Base):
         self.assertAlmostEqual(h[1], 70.0, places=3)
 
 
+class TestRowHeightAuto(_Base):
+    """`row-height: auto` -- a row stays FLEX but is floored at its content.
+
+    The vertical twin of `col-width: auto`, and the fix for the TEXT_TALL
+    class: a row that would be given less than one line of its own text is
+    raised, and the roomier rows give way. Stub metrics: 20px per line == 2%
+    of a 1000px screen.
+    """
+
+    def _auto(self, n_rows, text="one line"):
+        rows = [_row([_text(text)], "auto")]
+        rows += [_row([_text("x")], "auto") for _ in range(n_rows - 1)]
+        return rows
+
+    def test_row_is_raised_to_one_line_paid_for_by_rows_with_slack(self):
+        # A 4% section over 4 rows gives 1% each, but a line needs 2%. Only the
+        # text row has a floor -- the other three are unmeasurable, so they can
+        # give. The text row must end up with a full line.
+        from sbs_utils.pages.layout.column import Column
+        rows = [_row([_text("hello")], "auto")]
+        rows += [_row([Column()], "auto") for _ in range(3)]
+        h = self.heights(rows, bottom=4)
+        self.assertAlmostEqual(h[0], 2.0, places=3,
+                               msg=f"text row was left under one line: {h}")
+        self.assertAlmostEqual(sum(h), 4.0, places=3)
+        for x in h[1:]:
+            self.assertLess(x, 1.0, "a roomier row did not give way")
+
+    def test_taller_row_takes_from_the_roomier_ones(self):
+        # Full width is 1000px == 100 chars per line, so this wraps to 4 lines
+        # (8%), well over the 5% even share of a 20% section.
+        tall = _row([_text(" ".join(["word"] * 70))], "auto")
+        rows = [tall] + [_row([_text("x")], "auto") for _ in range(3)]
+        h = self.heights(rows, bottom=20)
+        self.assertGreater(h[0], h[1], "the wrapping row did not grow")
+        self.assertAlmostEqual(sum(h), 20.0, places=2)
+
+    def test_auto_only_raises_never_lowers(self):
+        # Plenty of room: every row keeps its even share rather than shrinking
+        # to hug its text. That is what `content` is for.
+        rows = [_row([_text("hi")], "auto") for _ in range(4)]
+        h = self.heights(rows)
+        for x in h:
+            self.assertAlmostEqual(x, 25.0, places=2)
+
+    def test_fixed_rows_are_untouched(self):
+        rows = [_row([_text("hi")], 40), _row([_text("hello")], "auto")]
+        h = self.heights(rows)
+        self.assertAlmostEqual(h[0], 40.0, places=2)
+        self.assertAlmostEqual(sum(h), 100.0, places=2)
+
+    def test_unmeasurable_row_stays_plain_flex(self):
+        from sbs_utils.pages.layout.column import Column
+        rows = [_row([Column()], "auto"), _row([Column()], "auto")]
+        h = self.heights(rows)
+        for x in h:
+            self.assertAlmostEqual(x, 50.0, places=2)
+
+    def test_section_never_oversubscribed_by_raising(self):
+        # Every row wants 3 lines but there is only room for a few.
+        rows = [_row([_text(" ".join(["word"] * 30))], "auto") for _ in range(6)]
+        h = self.heights(rows, bottom=10)
+        self.assertLessEqual(sum(h), 10.0 + 1e-6, f"section overflows: {h}")
+        for x in h:
+            self.assertGreaterEqual(x, -1e-9, f"row went negative: {h}")
+
+
 if __name__ == "__main__":
     unittest.main()
