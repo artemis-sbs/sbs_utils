@@ -440,13 +440,38 @@ class Layout(Clickable):
         same question its own columns do. Natural width is the widest row (the
         sum of that row's columns); natural height is the sum of row heights.
 
-        Children are measured at their natural size (avail_px=None) rather than
-        at some assumed width -- the parent has not decided widths yet, and
-        guessing one here would bake in a wrap that never happens.
+        WIDTH-AWARE when the caller knows one. If `avail_px` is given, each row
+        is measured at that width, so text that will wrap is counted as the
+        several lines it will actually occupy. Reporting the UNWRAPPED height
+        here is what let a nested section ask its parent for less room than its
+        content needs -- the parent then had no reason to raise its row, and the
+        section's own rows fought over a box that was too small, drawing over
+        each other (LM issue672's green panel).
+
+        When `avail_px` is None the parent genuinely has not decided a width
+        yet, and the natural (unwrapped) size is the only honest answer --
+        guessing a width there would bake in a wrap that may never happen.
 
         Returns None when nothing inside could be measured, so an unmeasurable
         sub-section falls back to flex like any other unmeasurable column.
         """
+        if avail_px is not None and avail_px > 0:
+            area = Bounds(0.0, 0.0, px_to_pct_x(avail_px, ar), 0.0)
+            total_height = 0.0
+            measured_any = False
+            for row in self.rows:
+                row_font = row.default_font
+                if row_font is None:
+                    row_font = self.default_font
+                h = self._measure_row_height(row, area, ar, row_font,
+                                             mode, client_id)
+                if h is not None:
+                    total_height += h
+                    measured_any = True
+            if measured_any:
+                return (area.width, total_height)
+            return None
+
         width = 0.0
         height = 0.0
         measured_any = False
@@ -923,29 +948,68 @@ class Layout(Clickable):
                 # rows re-divide what is left.
                 #
                 if auto_row_floor:
-                    raised = {k: v for k, v in auto_row_floor.items()
-                              if v > layout_row_height}
-                    if raised:
-                        remaining_flex = flex_rows - len(raised)
-                        avail = bounds_area.height - fixed_total
-                        total_raised = sum(raised.values())
+                    #
+                    # Share the flex height so that NO ROW ENDS UP BELOW ITS
+                    # OWN FLOOR, and rows without a floor are unaffected.
+                    #
+                    # The old code raised the tall rows and gave the rest
+                    # whatever was left -- possibly nothing. Its comment claimed
+                    # "a row at zero draws nothing"; that is false, and it is
+                    # what made this a bug. A zero-height row still draws its
+                    # text, because the engine does not clip, so the content
+                    # lands on the row above (LM issue672's "New Row2" and
+                    # "New Row3" on top of a wrapped "New Row1").
+                    #
+                    # This is min-constrained water-filling, the same shape CSS
+                    # uses for flex items with a minimum size: share evenly,
+                    # freeze whatever cannot fit in its share at its floor, then
+                    # re-share what is left among the rest. It settles in at
+                    # most one pass per row, and a row whose floor is under the
+                    # even share is left exactly where it always was.
+                    #
+                    avail = bounds_area.height - fixed_total
+                    # A row is in the flex pool when it has no RESOLVED fixed
+                    # height. `row-height: auto` stores the AUTO sentinel rather
+                    # than None, so testing for None alone silently excluded
+                    # every explicitly-auto row -- and an empty pool gave every
+                    # row a share of zero.
+                    flex_ids = [id(r) for r in rows
+                                if id(r) not in content_heights
+                                and (r.default_height is None
+                                     or r.default_height.__class__ is ContentSize)]
+                    floors = {k: auto_row_floor.get(k, 0.0) for k in flex_ids}
+                    total_floor = sum(floors.values())
+
+                    if total_floor > avail and total_floor > 0:
                         #
-                        # The floors can exceed the section outright -- every
-                        # row wanting three lines in a section that holds four.
-                        # They are requests, so share what there is
-                        # proportionally rather than letting the rows sum past
-                        # the section and draw over each other.
+                        # The floors do not fit at all. They are requests, so
+                        # scale them TOGETHER: every row keeps its share of what
+                        # there is and none is starved to pay for another. Text
+                        # still overdraws here -- the section is genuinely too
+                        # small for its content, which is the author's to fix
+                        # and what the layout audit reports.
                         #
-                        if total_raised > avail and total_raised > 0:
-                            scale = max(0.0, avail) / total_raised
-                            raised = {k: v * scale for k, v in raised.items()}
-                            total_raised = sum(raised.values())
-                        if remaining_flex > 0:
-                            # Never hand the survivors a negative share; a row
-                            # at zero draws nothing, a negative one inverts.
-                            layout_row_height = max(
-                                0.0, (avail - total_raised) / remaining_flex)
-                        content_heights.update(raised)
+                        scale = max(0.0, avail) / total_floor
+                        for k in flex_ids:
+                            content_heights[k] = floors[k] * scale
+                        layout_row_height = 0.0
+                    else:
+                        frozen = {}
+                        pool = list(flex_ids)
+                        space = avail
+                        while pool:
+                            share = space / len(pool)
+                            over = [k for k in pool if floors[k] > share]
+                            if not over:
+                                break
+                            for k in over:
+                                frozen[k] = floors[k]
+                                space -= floors[k]
+                                pool.remove(k)
+                        share = (space / len(pool)) if pool else 0.0
+                        for k in frozen:
+                            content_heights[k] = frozen[k]
+                        layout_row_height = share
             
             row : Row
             row_top = bounds_area.top
