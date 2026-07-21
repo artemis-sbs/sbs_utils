@@ -5,7 +5,7 @@ from ...mast.parsers import LayoutAreaParser, ContentSize, MIN_CONTENT, AUTO
 from enum import IntEnum
 from .bounds import Bounds
 from .hole import Hole
-from .measure import pct_to_px_x, DEFAULT_FONT
+from .measure import pct_to_px_x, px_to_pct_x, DEFAULT_FONT
 # for type hints
 from .row import Row 
 from .column import Column
@@ -66,6 +66,23 @@ def effective_font(col, row_font):
     renderer would mis-size every cell.
     """
     return row_font if row_font is not None else col.default_font
+
+
+#
+# Slack added to a measured CONTENT width, in pixels.
+#
+# A content width is the exact width the text needs -- so a column sized to it
+# has ZERO room to spare, and anything that shaves a fraction off at the engine
+# boundary (percent -> pixel rounding, an inclusive-vs-exclusive wrap test, a
+# rect computed through one more nested section) tips the line into wrapping.
+# Because the engine does not clip, that wrapped line is drawn ON TOP of the row
+# below: LM issue672's "New Row1 is longer" overdrawing "New Row2".
+#
+# The costs are wildly asymmetric, which is what decides the default. Two pixels
+# too wide is invisible. One pixel too narrow is an extra line drawn over a
+# neighbour. So round the author's way.
+#
+CONTENT_WIDTH_SLACK_PX = 2
 
 
 def col_box_width(col, aspect_ratio, font_size):
@@ -537,7 +554,17 @@ class Layout(Clickable):
                                           col_font, aspect_ratio)
                     if natural is not None:
                         box = col_box_width(col, aspect_ratio, col_font_size)
+                        # A hair of slack, so rounding at the engine boundary
+                        # cannot turn an exact fit into a wrapped line drawn
+                        # over the next row -- see CONTENT_WIDTH_SLACK_PX.
+                        #
+                        # Only when there IS content: a column measuring zero
+                        # (empty text, a Blank) must collapse to nothing rather
+                        # than reserve two pixels of nothing.
                         default_width = natural[0] + box
+                        if natural[0] > 0:
+                            default_width += px_to_pct_x(CONTENT_WIDTH_SLACK_PX,
+                                                         aspect_ratio)
                         col.content_sized = True
                         col.note_measured(raw_width, None, col_font,
                                           aspect_ratio, natural)

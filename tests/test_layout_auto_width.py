@@ -30,6 +30,12 @@ from sbs_utils.pages.layout.text import Text
 from sbs_utils.pages.layout import measure
 
 
+# A content column carries CONTENT_WIDTH_SLACK_PX of slack (see layout.py):
+# measured-exactly leaves no room for rounding at the engine boundary, and one
+# pixel short means a wrapped line drawn over the row below (LM issue672).
+from sbs_utils.pages.layout.layout import CONTENT_WIDTH_SLACK_PX
+SLACK = CONTENT_WIDTH_SLACK_PX / 1000.0 * 100.0     # 0.2% at this file's 1000px width
+
 class StubSbs:
     """10px/char, 20px/line."""
 
@@ -182,8 +188,8 @@ class TestAutoWithBoxModel(_Base):
         plain = self.widths([_text("abcde", "col-width: content;"), _text("x")])
         boxed = self.widths(
             [_text("abcde", "col-width: content; margin: 4,0,4,0;"), _text("x")])
-        self.assertAlmostEqual(plain[0], 5.0, places=2)
-        self.assertAlmostEqual(boxed[0], 5.0, places=2,
+        self.assertAlmostEqual(plain[0], 5.0 + SLACK, places=2)
+        self.assertAlmostEqual(boxed[0], 5.0 + SLACK, places=2,
                                msg="margin was taken out of the text's width")
 
 
@@ -205,7 +211,7 @@ class TestAutoInteractions(_Base):
         # section says auto -- the column's own value wins the cascade.
         w = self.widths([_text("abcde", "col-width: content;"), _text("x")],
                         "col-width: auto;")
-        self.assertAlmostEqual(w[0], 5.0, places=2)
+        self.assertAlmostEqual(w[0], 5.0 + SLACK, places=2)
 
     def test_auto_parses_and_flags(self):
         self.assertIs(StyleDefinition.parse("col-width: auto;")["col-width"], AUTO)

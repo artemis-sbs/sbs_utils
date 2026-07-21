@@ -27,6 +27,12 @@ from sbs_utils.pages.layout.slider import Slider
 from sbs_utils.pages.layout import measure
 
 
+# A content column carries CONTENT_WIDTH_SLACK_PX of slack (see layout.py):
+# measured-exactly leaves no room for rounding at the engine boundary, and one
+# pixel short means a wrapped line drawn over the row below (LM issue672).
+from sbs_utils.pages.layout.layout import CONTENT_WIDTH_SLACK_PX
+SLACK = CONTENT_WIDTH_SLACK_PX / 1000.0 * 100.0     # 0.2% at this file's 1000px width
+
 class StubSbs:
     def get_text_line_width(self, font, text):
         return len(text) * 10
@@ -108,7 +114,7 @@ class TestNestedLayoutMeasure(_Base):
         inner.set_col_width(StyleDefinition.parse("col-width: content;")["col-width"])
         outer = Layout("outer", [_row([inner, _text("flex")])], 0, 0, 100, 100)
         outer.calc(0)
-        self.assertAlmostEqual(inner.bounds.width, 5.0, places=3)
+        self.assertAlmostEqual(inner.bounds.width, 5.0 + SLACK, places=3)
 
 
 class TestDeliberatelyUnmeasurable(_Base):

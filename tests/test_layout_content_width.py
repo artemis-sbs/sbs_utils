@@ -28,6 +28,16 @@ from sbs_utils.pages.layout.hole import Hole
 from sbs_utils.pages.layout import measure
 
 
+#
+# A content column carries CONTENT_WIDTH_SLACK_PX of deliberate slack: an
+# exactly-measured column has no room for rounding at the engine boundary, and
+# one pixel short means a wrapped line drawn over the row below (LM issue672).
+# SLACK is that constant in percent at this file's 1000px test width, so these
+# expectations follow the constant instead of pinning a number.
+#
+from sbs_utils.pages.layout.layout import CONTENT_WIDTH_SLACK_PX
+SLACK = CONTENT_WIDTH_SLACK_PX / 1000.0 * 100.0     # 0.2% at 1000px wide
+
 class StubSbs:
     """10px/char, 20px/line, breaks on whole words."""
 
@@ -81,42 +91,42 @@ class TestContentWidth(_Base):
     def test_content_column_takes_its_natural_width(self):
         # "HELLO" == 5 chars == 50px == 5% of a 1000px screen.
         w = self.widths([_text("HELLO", "content"), _text("other")])
-        self.assertAlmostEqual(w[0], 5.0, places=3)
-        self.assertAlmostEqual(w[1], 95.0, places=3)
+        self.assertAlmostEqual(w[0], 5.0 + SLACK, places=3)
+        self.assertAlmostEqual(w[1], 95.0 - SLACK, places=3)
 
     def test_longer_text_takes_more(self):
         w = self.widths([_text("HELLO WORLD!", "content"), _text("x")])
-        self.assertAlmostEqual(w[0], 12.0, places=3)
+        self.assertAlmostEqual(w[0], 12.0 + SLACK, places=3)
 
     def test_two_content_columns(self):
         w = self.widths([_text("ABCDE", "content"),
                          _text("ABCDEFGHIJ", "content"),
                          _text("flex")])
-        self.assertAlmostEqual(w[0], 5.0, places=3)
-        self.assertAlmostEqual(w[1], 10.0, places=3)
-        self.assertAlmostEqual(w[2], 85.0, places=3)
+        self.assertAlmostEqual(w[0], 5.0 + SLACK, places=3)
+        self.assertAlmostEqual(w[1], 10.0 + SLACK, places=3)
+        self.assertAlmostEqual(w[2], 85.0 - 2 * SLACK, places=3)
 
     def test_content_plus_fixed_plus_flex(self):
         w = self.widths([_text("ABCDE", "content"), _text("f", 25), _text("flex")])
-        self.assertAlmostEqual(w[0], 5.0, places=3)
+        self.assertAlmostEqual(w[0], 5.0 + SLACK, places=3)
         self.assertAlmostEqual(w[1], 25.0, places=3)
-        self.assertAlmostEqual(w[2], 70.0, places=3)
+        self.assertAlmostEqual(w[2], 70.0 - SLACK, places=3)
 
     def test_all_content_leaves_the_rest_unclaimed(self):
         # No flex column, so the row simply does not fill. Content is a
         # request for a natural size, not a demand for the whole row.
         w = self.widths([_text("ABCDE", "content"), _text("ABCDE", "content")])
-        self.assertAlmostEqual(w[0], 5.0, places=3)
-        self.assertAlmostEqual(w[1], 5.0, places=3)
+        self.assertAlmostEqual(w[0], 5.0 + SLACK, places=3)
+        self.assertAlmostEqual(w[1], 5.0 + SLACK, places=3)
 
     def test_max_content_ignores_available_width(self):
         w = self.widths([_text("ABCDEFGHIJ", "max-content"), _text("flex")])
-        self.assertAlmostEqual(w[0], 10.0, places=3)
+        self.assertAlmostEqual(w[0], 10.0 + SLACK, places=3)
 
     def test_min_content_is_the_widest_word(self):
         # "AB CDEFG H" -> widest token is CDEFG == 5 chars == 5%.
         w = self.widths([_text("AB CDEFG H", "min-content"), _text("flex")])
-        self.assertAlmostEqual(w[0], 5.0, places=3)
+        self.assertAlmostEqual(w[0], 5.0 + SLACK, places=3)
 
     def test_empty_text_collapses(self):
         w = self.widths([_text("", "content"), _text("flex")])
