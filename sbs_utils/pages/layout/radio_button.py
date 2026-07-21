@@ -1,5 +1,5 @@
 from .column import Column
-from .measure import measure_props
+from .measure import measure_props, apply_overflow
 from ...helpers import FrameContext
 
 
@@ -15,6 +15,16 @@ class RadioButton(Column):
     def _present(self, event):
         ctx = FrameContext.context
         props = f"state:{self._value==1};$text:{self.message};"
+
+        # NOTE self.message is PLAIN text here, not a props string -- it is
+        # wrapped above. apply_overflow reads the wrapped form, so it sees the
+        # same $text the engine will.
+        if self.overflow:
+            props, draw = apply_overflow(props, self.bounds, self.overflow,
+                                         self.get_font())
+            if not draw:
+                return
+
         ctx.sbs.send_gui_checkbox(event.client_id, self.region_tag,
             self.tag, props,
             # 1 if self._value else 0,

@@ -270,5 +270,73 @@ class TestButtonAndCheckbox(_Base):
         self.assertTrue(sent, "icon checkbox must still be drawn")
 
 
+class TestTextInputAndRadio(_Base):
+    """The last two text-bearing widgets.
+
+    RadioButton is the awkward one: its `message` is PLAIN text, not a props
+    string, and _present wraps it. apply_overflow reads the wrapped form, so it
+    sees the same $text the engine will.
+    """
+
+    def _present(self, widget, w_pct=10.0, h_pct=2.0):
+        from sbs_utils.pages.layout.bounds import Bounds
+        rec = _Recorder(FrameContext.context.sbs)
+        FrameContext.context.sbs = rec
+        widget.bounds = Bounds(0, 0, w_pct, h_pct)
+        widget.region_tag = ""
+        widget.client_id = 0
+        widget._present(types.SimpleNamespace(client_id=0))
+        return rec.sent
+
+    def _typein(self, value, policy):
+        from sbs_utils.pages.layout.text_input import TextInput
+        t = TextInput("i", "font:gui-3;")
+        t._value = value
+        t.overflow = policy
+        return t
+
+    def _radio(self, text, policy):
+        from sbs_utils.pages.layout.radio_button import RadioButton
+        # RadioButton takes its `group` from its parent, so a stand-in with an
+        # empty group is enough to construct one in isolation.
+        parent = types.SimpleNamespace(group=[])
+        r = RadioButton("r", text, parent)
+        r.default_font = "gui-3"
+        r.overflow = policy
+        return r
+
+    def test_typein_shrinks(self):
+        sent = self._present(self._typein("X" * 20, "shrink"))
+        self.assertTrue(sent)
+        self.assertEqual(props_font(sent[0][2]), "smallest")
+
+    def test_typein_default_spills(self):
+        sent = self._present(self._typein("X" * 20, None))
+        self.assertTrue(sent)
+        self.assertEqual(props_font(sent[0][2]), "gui-3")
+
+    def test_typein_short_value_untouched(self):
+        sent = self._present(self._typein("hi", "shrink"), w_pct=50.0, h_pct=10.0)
+        self.assertEqual(props_font(sent[0][2]), "gui-3")
+
+    def test_radio_shrinks(self):
+        sent = self._present(self._radio("X" * 20, "shrink"))
+        self.assertTrue(sent)
+        self.assertEqual(props_font(sent[0][2]), "smallest")
+
+    def test_radio_keeps_its_state_prop(self):
+        # Rewriting the props must not drop the state the checkbox needs.
+        sent = self._present(self._radio("X" * 20, "shrink"))
+        self.assertIn("state", sent[0][2])
+
+    def test_radio_hide_emits_nothing(self):
+        sent = self._present(self._radio("X" * 40, "hide"))
+        self.assertEqual(sent, [])
+
+    def test_radio_default_spills(self):
+        sent = self._present(self._radio("X" * 40, None))
+        self.assertTrue(sent)
+
+
 if __name__ == "__main__":
     unittest.main()

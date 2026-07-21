@@ -1,5 +1,5 @@
 from .column import Column
-from .measure import measure_props
+from .measure import measure_props, apply_overflow
 from ...helpers import FrameContext, gui_text_escape
 import re
 
@@ -54,6 +54,19 @@ class TextInput(Column):
         props = self._text_prop()
         props += self.props
         props += self.get_cascade_props(True, True, True)
+
+        # A typein is the one widget whose text the PLAYER controls, so a
+        # policy here reacts as they type. `shrink` is the sane choice --
+        # `ellipsis` would truncate what someone is still editing, and `hide`
+        # would make the box vanish mid-word. Both are still allowed, because
+        # the author may know better for a read-only field, but neither is a
+        # good default and this is why the widget stays opt-in.
+        if self.overflow:
+            props, draw = apply_overflow(props, self.bounds, self.overflow,
+                                         self.get_font())
+            if not draw:
+                return
+
         ctx.sbs.send_gui_typein(event.client_id, self.region_tag,
             self.tag, props,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
