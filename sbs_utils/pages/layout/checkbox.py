@@ -1,4 +1,5 @@
 from .column import Column
+from .measure import measure_props
 from ...helpers import FrameContext, merge_props, split_props
 
 class Checkbox(Column):
@@ -62,6 +63,13 @@ class Checkbox(Column):
                 self.mark_visual_dirty()
         super().on_message(event)
             #self.value = int(event.sub_float)
+
+    def measure(self, client_id, mode, avail_px, font, ar):
+        if self.square:
+            return None
+        # The rendered string carries the state prop too, matching _present.
+        return measure_props(f"state: {self._value};{self.message}",
+                             mode, avail_px, font, ar)
 
     def update(self, message):
         #

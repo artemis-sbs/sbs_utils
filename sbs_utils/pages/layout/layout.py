@@ -1,6 +1,6 @@
 from ...gui import get_client_aspect_ratio
 from ...helpers import FrameContext
-from ...mast.parsers import LayoutAreaParser, ContentSize
+from ...mast.parsers import LayoutAreaParser, ContentSize, MIN_CONTENT
 from enum import IntEnum
 from .bounds import Bounds
 from .hole import Hole
@@ -322,7 +322,8 @@ class Layout(Clickable):
 
         
 
-    def _resolve_col_widths(self, row, row_bounds_area, aspect_ratio, row_font):
+    def _resolve_col_widths(self, row, row_bounds_area, aspect_ratio, row_font,
+                            client_id=None):
         """Decide how wide each visible column in `row` gets to be.
 
         Returns (actual_cols, col_widths, square_width, square_height), where
@@ -348,17 +349,43 @@ class Layout(Clickable):
         squares = 0
         assigned_space = 0
         assigned_cols = 0
+        content_idx = []      # indices into actual_cols that sized to content
+        content_floor = []    # their min-content width, parallel to content_idx
 
         col: Column
         for col in row.columns:
             if col.is_hidden:
                 continue
             squares += 1 if col.square else 0
-            col_font_size = get_font_size(effective_font(col, row_font))
-            # A content width is not resolvable yet, so the column stays in the
-            # flex pool for now (S3 measures it).
-            default_width = resolved_size(calc_float_attribute(
-                "default_width", col, row, self, aspect_ratio.x, col_font_size))
+            col_font = effective_font(col, row_font)
+            col_font_size = get_font_size(col_font)
+            raw_width = calc_float_attribute(
+                "default_width", col, row, self, aspect_ratio.x, col_font_size)
+            default_width = resolved_size(raw_width)
+
+            if default_width is None and raw_width.__class__ is ContentSize:
+                #
+                # A content-sized column: ask the widget how wide it wants to
+                # be. A square ignores it (its size comes from the row height),
+                # and an unmeasurable widget returns None and simply stays
+                # flex -- never 0, since one `col-width: content` on a SECTION
+                # cascades to every column in it.
+                #
+                if not col.square:
+                    natural = col.measure(client_id, raw_width, None,
+                                          col_font, aspect_ratio)
+                    if natural is not None:
+                        default_width = natural[0]
+                        col.content_sized = True
+                        # Remember how far it may be squeezed. min-content is
+                        # the widest unbreakable word: below that the engine
+                        # breaks mid-word, and since it does not clip, glyphs
+                        # spill over the neighbouring column.
+                        floor = col.measure(client_id, MIN_CONTENT, None,
+                                            col_font, aspect_ratio)
+                        content_idx.append(len(actual_cols))
+                        content_floor.append(floor[0] if floor else default_width)
+
             if default_width is not None:
                 assigned_space += default_width
                 assigned_cols += 1
@@ -367,6 +394,32 @@ class Layout(Clickable):
 
         if len(actual_cols) == 0:
             return None
+
+        #
+        # Content columns are satisfied before flex (like CSS grid `auto` vs
+        # `1fr`), but they are REQUESTS, not reservations. When the row cannot
+        # hold everything, give way in a strict order:
+        #
+        #   1. flex columns shrink to 0   -- they draw nothing, so this is free
+        #   2. content columns shrink proportionally, down to min-content
+        #   3. below that, clamp and accept the overflow
+        #
+        # The order matters because the engine does not clip: a flex column at
+        # zero width is invisible, whereas a content column squeezed past
+        # min-content spills its glyphs across whatever is beside it.
+        #
+        if content_idx:
+            overflow = assigned_space - row_bounds_area.width
+            if overflow > 0:
+                shrinkable = sum(fixed_widths[i] - content_floor[k]
+                                 for k, i in enumerate(content_idx))
+                if shrinkable > 0:
+                    take = min(overflow, shrinkable)
+                    for k, i in enumerate(content_idx):
+                        room = fixed_widths[i] - content_floor[k]
+                        if room > 0:
+                            fixed_widths[i] -= take * (room / shrinkable)
+                    assigned_space = sum(w for w in fixed_widths if w is not None)
 
         # get the width and the height of a cell in pixels
         actual_width = row_bounds_area.width/len(actual_cols) * aspect_ratio.x / 100
@@ -527,7 +580,8 @@ class Layout(Clickable):
                     continue
 
                 resolved = self._resolve_col_widths(row, row_bounds_area,
-                                                    aspect_ratio, row_font)
+                                                    aspect_ratio, row_font,
+                                                    client_id)
                 if resolved is None:
                     continue
                 actual_cols, col_widths, square_width, square_height = resolved

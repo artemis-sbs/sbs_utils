@@ -161,6 +161,60 @@ def pct_to_px_x(pct, ar):
     return (pct / 100.0) * ar.x
 
 
+def measure_props(props, mode, avail_px, font, ar):
+    """Natural size of a widget whose text lives in a props string.
+
+    The shared body of Column.measure for every text-bearing widget (Text,
+    Button, Checkbox, TextInput, ...), so they cannot drift apart on how text
+    is extracted, which font wins, or how wrapping is asked for.
+
+    Returns (width_pct, height_pct), or None if it cannot be measured.
+    """
+    from ...helpers import props_display_text, props_font
+    from ...mast.parsers import ContentSize
+
+    text = props_display_text(props)
+    if not text:
+        # Nothing drawn -- genuinely zero, not unmeasurable.
+        return (0.0, 0.0)
+
+    # A font in the widget's own props beats the cascade: present() appends the
+    # cascade props AFTER the message, so the engine reads the widget's value
+    # last. Measuring in a different font than we render in would mis-size
+    # every cell.
+    font = props_font(props, font)
+
+    width_px = measure_line_width(font, text)
+    if width_px is None:
+        return None
+
+    if mode is not None and mode.is_min:
+        width_px = measure_min_word_width(font, text)
+        if width_px is None:
+            return None
+
+    # Height: ask the ENGINE how tall this text is at the width it will get.
+    # Never compute a line count here -- that is precisely how the mock's wrap
+    # and the mock's measure became the same code and stopped being able to
+    # disagree. `max-content` is one unbroken line by definition, so it does
+    # not wrap and does not need a width.
+    wrap_px = None
+    if avail_px is not None and not (mode is not None and mode.is_max):
+        wrap_px = int(avail_px)
+    if wrap_px is not None and wrap_px > 0:
+        height_px = measure_block_height(font, text, wrap_px)
+    else:
+        # One line's OCCUPIED height, which is NOT get_text_line_height -- that
+        # returns the ink extent (11px at 'smallest' where a line occupies 18).
+        # Sizing a row from the ink extent makes it ~40% too short, and the
+        # engine does not clip, so the text spills into whatever is below.
+        height_px = measure_block_height(font, text, 1 << 20)
+    if height_px is None:
+        return None
+
+    return (px_to_pct_x(width_px, ar), px_to_pct_y(height_px, ar))
+
+
 def measure_cache_clear():
     """Drop every cached measurement and reset the counters. For tests/bench."""
     _line_w.clear()

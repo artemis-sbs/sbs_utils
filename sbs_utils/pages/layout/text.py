@@ -1,4 +1,5 @@
 from .column import Column
+from .measure import measure_props
 from ...helpers import FrameContext, merge_props, split_props
 
 class Text(Column):
@@ -14,6 +15,9 @@ class Text(Column):
         ctx.sbs.send_gui_text(event.client_id, self.region_tag,
             self.tag, message,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+
+    def measure(self, client_id, mode, avail_px, font, ar):
+        return measure_props(self.message, mode, avail_px, font, ar)
 
     def update(self, message):
         props = split_props(message, "$text")

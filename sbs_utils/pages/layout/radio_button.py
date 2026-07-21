@@ -1,4 +1,5 @@
 from .column import Column
+from .measure import measure_props
 from ...helpers import FrameContext
 
 
@@ -31,6 +32,11 @@ class RadioButton(Column):
             #
             self.radio_parent.update_variable()
         super().on_message(event)
+
+    def measure(self, client_id, mode, avail_px, font, ar):
+        # NOTE: unlike the other widgets self.message here is PLAIN text, not a
+        # props string, so it is wrapped the same way _present wraps it.
+        return measure_props(f"$text:{self.message};", mode, avail_px, font, ar)
 
     @property
     def value(self):

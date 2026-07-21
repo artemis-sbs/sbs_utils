@@ -1,4 +1,5 @@
 from .column import Column
+from .measure import measure_props
 from ...helpers import FrameContext, gui_text_escape
 import re
 
@@ -39,6 +40,14 @@ class TextInput(Column):
         # gui_text_escape returns "" for an empty value, so the box stays blank
         # with no stray ` (#641).
         return f"$text:{gui_text_escape(self._value)};"
+
+    def measure(self, client_id, mode, avail_px, font, ar):
+        # Measured on the CURRENT value, exactly what _present sends. A typein
+        # sized to its content therefore grows and shrinks as the player types,
+        # which is why the dirty guard only escalates to a re-layout when the
+        # measured size actually changes.
+        return measure_props(self._text_prop() + self.props,
+                             mode, avail_px, font, ar)
 
     def _present(self, event):
         ctx = FrameContext.context

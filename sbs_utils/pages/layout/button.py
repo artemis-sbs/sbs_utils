@@ -1,4 +1,5 @@
 from .column import Column
+from .measure import measure_props
 from ...helpers import FrameContext, merge_props, split_props
 from .bounds import Bounds
 
@@ -65,6 +66,12 @@ class Button(Column):
                 self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
             
         
+
+    def measure(self, client_id, mode, avail_px, font, ar):
+        # An icon button is square -- its size comes from the row, not its text.
+        if self.square:
+            return None
+        return measure_props(self.message, mode, avail_px, font, ar)
 
     def update(self, message):
         self.value = message
