@@ -44,6 +44,35 @@ CACHE_CAP = 4096
 _stats = {"line_w": 0, "line_h": 0, "block_h": 0, "hits": 0}
 
 
+# Font used when a widget declares none and nothing cascades one.
+#
+# This is NOT cosmetic: the engine's get_text_line_width is a Pybind function
+# typed (fontTag: str, textToMeasure: str), and it REJECTS None outright --
+#
+#     TypeError: Invoked with: None, 'Select a mission. 8 types.'
+#
+# The mock accepts None via .get(fontTag, default), so this could never be
+# caught headlessly; it only appears in the engine, and only once measurement
+# runs on widgets that declare no font.
+#
+# The engine's real default font is not known. gui-3 sits closest to the
+# nominal 30 that get_font_size(None) has always implied (gui-3=28, gui-4=32),
+# so it is the least wrong available guess. It is used ONLY for measurement --
+# nothing is rendered in it -- and can be pinned properly once the capture
+# mission probes what the engine actually uses for an unset font.
+DEFAULT_FONT = "gui-3"
+
+
+def _font(font):
+    """Coerce to a font tag the engine will accept.
+
+    Every path into the engine's text metrics goes through here, so a None or
+    non-string font can never reach Pybind again regardless of which caller
+    forgot to resolve one.
+    """
+    return font if isinstance(font, str) and font else DEFAULT_FONT
+
+
 def _sbs():
     """The live sbs module, or None if there is no frame context.
 
@@ -66,6 +95,7 @@ def measure_line_width(font, text):
     """Width in PIXELS of one unwrapped line, or None if unmeasurable."""
     if not text:
         return 0
+    font = _font(font)
     key = (font, text)
     got = _line_w.get(key)
     if got is not None:
@@ -85,6 +115,7 @@ def measure_line_height(font, text):
     the glyphs present; the mock happens to ignore the argument, but encoding
     that belief here would bake a mock assumption into the library.
     """
+    font = _font(font)
     key = (font, text)
     got = _line_h.get(key)
     if got is not None:
@@ -109,6 +140,7 @@ def measure_block_height(font, text, px_width):
     px_width = int(px_width)
     if px_width <= 0:
         return None
+    font = _font(font)
     key = (font, text, px_width)
     got = _block_h.get(key)
     if got is not None:

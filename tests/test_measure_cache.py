@@ -135,5 +135,74 @@ class TestMeasureCache(unittest.TestCase):
         self.assertIsNone(measure.px_to_pct_x(100, Vec3(0, 768, 0)))
 
 
+
+class StrictSbs:
+    """Mimics the ENGINE's Pybind signature: fontTag must be a str.
+
+    The real get_text_line_width is typed (fontTag: str, textToMeasure: str)
+    and raises TypeError on None. The normal mock accepts None via
+    .get(fontTag, default), which is why a None font reached the engine and
+    crashed LegendaryMissions without any headless test noticing.
+    """
+
+    def _check(self, font):
+        if not isinstance(font, str):
+            raise TypeError(
+                "get_text_line_width(): incompatible function arguments. "
+                f"Invoked with: {font!r}")
+
+    def get_text_line_width(self, font, text):
+        self._check(font)
+        return len(text) * 10
+
+    def get_text_line_height(self, font, text):
+        self._check(font)
+        return 20
+
+    def get_text_block_height(self, font, text, px_width):
+        self._check(font)
+        return 20
+
+
+class TestFontIsAlwaysAStringForTheEngine(unittest.TestCase):
+    """Regression for the LM crash: no metric call may pass a non-str font."""
+
+    def setUp(self):
+        FrameContext.aspect_ratios[0] = Vec3(1024, 768, 0)
+        FrameContext.context = types.SimpleNamespace(
+            sbs=StrictSbs(), sim=None, event=FakeEvent())
+        measure.measure_cache_clear()
+
+    def tearDown(self):
+        FrameContext.context = None
+        measure.measure_cache_clear()
+
+    def test_none_font_line_width(self):
+        self.assertEqual(measure.measure_line_width(None, "Hello"), 50)
+
+    def test_none_font_line_height(self):
+        self.assertEqual(measure.measure_line_height(None, "Hello"), 20)
+
+    def test_none_font_block_height(self):
+        self.assertEqual(measure.measure_block_height(None, "Hello", 100), 20)
+
+    def test_none_font_min_word(self):
+        self.assertEqual(measure.measure_min_word_width(None, "a bbbb c"), 40)
+
+    def test_empty_font_falls_back(self):
+        self.assertEqual(measure.measure_line_width("", "Hello"), 50)
+
+    def test_measure_props_with_no_font_anywhere(self):
+        # The exact LM shape: a label with neither a font: prop nor a cascade.
+        from sbs_utils.mast.parsers import CONTENT
+        got = measure.measure_props("$text:`Select a mission. 8 types.`;",
+                                    CONTENT, None, None, Vec3(1024, 768, 0))
+        self.assertIsNotNone(got)
+
+    def test_declared_font_is_still_honoured(self):
+        measure.measure_line_width("gui-5", "Hello")
+        self.assertIn(("gui-5", "Hello"), measure._line_w)
+
+
 if __name__ == "__main__":
     unittest.main()
