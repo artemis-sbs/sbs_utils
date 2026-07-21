@@ -87,18 +87,32 @@ def get_dedicated_link(so, link_name: str):
 def set_dedicated_link(so, link_name: str, to):
     """Set a dedicated (1-to-1) link from a source agent to a single target.
 
-    Replaces any existing link under ``link_name`` with the new target.
+    Replaces any existing link under ``link_name`` with the new target. Pass
+    ``to=None`` to clear the link entirely, so that ``get_dedicated_link``
+    returns ``None`` again.
 
     Args:
         so (Agent | int): The source agent ID or object.
         link_name (str): The link key name.
-        to (Agent | int): The target agent ID or object.
+        to (Agent | int | None): The target agent ID or object, or ``None`` to clear.
     """
     so = to_object(so)
-    to = to_id(to)
-    if so is None or to is None:
+    if so is None:
         return
-    so.set_dedicated_link(link_name, to)
+    so.set_dedicated_link(link_name, to_id(to))
+
+
+def clear_dedicated_link(so, link_name: str):
+    """Clear a dedicated (1-to-1) link, leaving the source linked to nothing.
+
+    After this ``get_dedicated_link(so, link_name)`` returns ``None`` and the
+    source no longer appears in ``has_link(link_name)``.
+
+    Args:
+        so (Agent | int): The source agent ID or object.
+        link_name (str): The link key name.
+    """
+    set_dedicated_link(so, link_name, None)
 
 
 def unlink(set_holder, link_name: str, set_to):

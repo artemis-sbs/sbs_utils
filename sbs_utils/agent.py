@@ -292,13 +292,19 @@ class Agent():
     def set_dedicated_link(self, link_name: str, other: Agent | CloseData | int):
         """ set the a dedicated link. i.e. there can be only one
 
+        Pass ``other=None`` to clear the link.
+
         :param link_name: The link to add e.g. spy, pirate etc.
         :type id: id
         """
         link_name = link_name.strip().lower()
-        self.links.dedicated_collection(link_name, self.resolve_id(other))
-        if other is not None:
+        id = self.resolve_id(other)
+        self.links.dedicated_collection(link_name, id)
+        if id is not None:
             self.has_links.add_to_collection(link_name, self.id)
+        else:
+            # Clearing: this agent no longer holds a link of this name
+            self.has_links.remove_from_collection(link_name, self.id)
 
     def remove_link(self, link_name: str, other: Agent | CloseData | int):
         """ Remove a role from the space object

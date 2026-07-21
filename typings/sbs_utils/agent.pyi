@@ -177,7 +177,9 @@ class Agent(object):
         ...
     def set_dedicated_link (self, link_name: 'str', other: 'Agent | CloseData | int'):
         """set the a dedicated link. i.e. there can be only one
-        
+
+        Pass ``other=None`` to clear the link.
+
         :param link_name: The link to add e.g. spy, pirate etc.
         :type id: id"""
     def set_inventory_value (self, collection_name, value):

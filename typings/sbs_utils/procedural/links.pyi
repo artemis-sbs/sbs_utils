@@ -1,4 +1,13 @@
 from sbs_utils.agent import Agent
+def clear_dedicated_link (so, link_name: str):
+    """Clear a dedicated (1-to-1) link, leaving the source linked to nothing.
+
+    After this ``get_dedicated_link(so, link_name)`` returns ``None`` and the
+    source no longer appears in ``has_link(link_name)``.
+
+    Args:
+        so (Agent | int): The source agent ID or object.
+        link_name (str): The link key name."""
 def get_dedicated_link (so, link_name: str):
     """Return the single agent ID linked under a dedicated (1-to-1) link.
     
@@ -51,12 +60,14 @@ def linked_to (link_source, link_name: str):
 def set_dedicated_link (so, link_name: str, to):
     """Set a dedicated (1-to-1) link from a source agent to a single target.
     
-    Replaces any existing link under ``link_name`` with the new target.
-    
+    Replaces any existing link under ``link_name`` with the new target. Pass
+    ``to=None`` to clear the link entirely, so that ``get_dedicated_link``
+    returns ``None`` again.
+
     Args:
         so (Agent | int): The source agent ID or object.
         link_name (str): The link key name.
-        to (Agent | int): The target agent ID or object."""
+        to (Agent | int | None): The target agent ID or object, or ``None`` to clear."""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """Extract the integer ID from an agent, ``CloseData``, ``SpawnData``, or bare int.
     
