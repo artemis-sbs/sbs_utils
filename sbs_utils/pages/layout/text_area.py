@@ -608,8 +608,6 @@ class TextArea(Control):
                 ll = sub_line.strip().lower()
 
                 pixel_height = measure_block_height(font, sub_line, int(pixel_width))
-                pixel_line_height = measure_line_height(font, sub_line)
-                line_count = pixel_height / pixel_line_height
             
                 #buffer = 0.1
                 #percent_height = ((pixel_height + buffer*pixel_line_height) / ar.y) * 100

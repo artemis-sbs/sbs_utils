@@ -16,6 +16,14 @@ Primary metric is ENGINE TEXT-METRIC CALL COUNT, not wall time. Wall time in
 the mock is noisy (GC, a 30Hz physics thread, other work in the same process);
 call counts are deterministic and are what a measure pass actually inflates.
 
+CAVEAT -- the `w=` column OVER-COUNTS block-height work. In the real engine
+get_text_block_height is ONE Pybind call. The mock implements it in Python by
+measuring every word with get_text_line_width, so the tap here sees one width
+call PER WORD inside every block call. A change that converts line-height calls
+into block-height calls therefore looks like a large `w=` regression while
+costing the engine nothing. Compare `block=` when that is what moved, and treat
+a `w=` jump that tracks a `block=` jump as an artifact of this file, not a cost.
+
 Lives in <repo>/bench/, tracked in git but never packaged into an .sbslib
 (only sbs_utils/ and cosmos_dev/ are zipped), so it never ships and never
 shadows the runtime.
@@ -291,6 +299,8 @@ def _print(results):
     print()
     print("  Primary metric is ENGINE TEXT CALLS -- deterministic, and what a")
     print("  measure pass inflates. Wall time here is indicative only.")
+    print("  NOTE w= over-counts: the mock implements block height by measuring")
+    print("  every WORD, so each block call inflates w=. The engine does not.")
     print("=" * 72)
 
 
