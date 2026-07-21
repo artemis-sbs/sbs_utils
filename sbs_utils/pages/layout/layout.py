@@ -101,19 +101,29 @@ def calc_bounds(att, aspect_ratio, font_size):
             return Bounds(*values)
     return att
                 
+# NOMINAL font sizes for `em` arithmetic only. NOT a measurement -- these agree
+# with neither the engine nor the mock's real metrics, and must never be used to
+# size text (see pages/layout/measure.py, which asks the engine instead).
+_FONT_SIZES = {           # MIN  2k 4k
+    "smallest": 18,       # LB   -- --
+    "gui-1": 22,          # BD   LB --
+    "gui-2": 24,          # H3   BD LB
+    "gui-3": 28,          # H2   H3 BD
+    "gui-4": 32,          # H1   H2 H3
+    "gui-5": 36,          # TT   H1 H2
+    "gui-6": 52,          # __   TT H1/TT
+}
+
+
 def get_font_size(font):
-    if font is not None:
-        font = font.strip().lower()
-    sizes = {             # MIN  2k 4k
-        "smallest": 18,   # LB   -- -- 
-        "gui-1": 22,      # BD   LB -- 
-        "gui-2": 24,      # H3   BD LB 
-        "gui-3": 28,      # H2   H3 BD  
-        "gui-4": 32,      # H1   H2 H3
-        "gui-5": 36,      # TT   H1 H2
-        "gui-6": 52,      # __   TT H1/TT
-    }
-    return sizes.get(font, 30)
+    # Hot: called per section, per row and per column on every calc. The table
+    # used to be rebuilt as a dict literal on each of those calls.
+    if font is None:
+        return 30
+    size = _FONT_SIZES.get(font)
+    if size is not None:                  # already lower-cased and trimmed
+        return size
+    return _FONT_SIZES.get(font.strip().lower(), 30)
 
 class RegionType(IntEnum):
     SECTION_AREA_ABSOLUTE = 0,       # Not a window layout, Old school layout
@@ -412,8 +422,12 @@ class Layout(Clickable):
         squares = 0
         assigned_space = 0
         assigned_cols = 0
-        content_idx = []      # indices into actual_cols that sized to content
-        content_floor = []    # their min-content width, parallel to content_idx
+        # Allocated only if a content column is actually seen. calc runs on
+        # every repaint, so a layout using no content keywords should not pay
+        # two list allocations per row for the privilege of the feature
+        # existing.
+        content_idx = None    # indices into actual_cols that sized to content
+        content_floor = None  # their min-content width, parallel to content_idx
 
         col: Column
         for col in row.columns:
@@ -448,6 +462,9 @@ class Layout(Clickable):
                         # spill over the neighbouring column.
                         floor = col.measure(client_id, MIN_CONTENT, None,
                                             col_font, aspect_ratio)
+                        if content_idx is None:
+                            content_idx = []
+                            content_floor = []
                         content_idx.append(len(actual_cols))
                         content_floor.append(floor[0] if floor else default_width)
 
@@ -526,8 +543,11 @@ class Layout(Clickable):
         else:
             rect_col_width = square_width
 
-        col_widths = [rect_col_width if w is None else w for w in fixed_widths]
-        return actual_cols, col_widths, square_width, square_height
+        # Fill the flex slots in place rather than building a second list.
+        for i, w in enumerate(fixed_widths):
+            if w is None:
+                fixed_widths[i] = rect_col_width
+        return actual_cols, fixed_widths, square_width, square_height
 
     def _measure_row_height(self, row, row_bounds_area, aspect_ratio, row_font,
                             mode, client_id):
