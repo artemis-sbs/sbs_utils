@@ -216,12 +216,20 @@ def measure_props(props, mode, avail_px, font, ar):
     if text is None:
         text = parsed.get("text")
     if text is None:
-        return (0.0, 0.0)
+        #
+        # No text key at all -- we do not know what this widget draws, so it is
+        # UNMEASURABLE, not empty. Returning (0,0) here would collapse the
+        # column to nothing and the widget would simply vanish; None makes it
+        # fall back to flex, which is the safe direction under a cascading
+        # `col-width: content` that reaches widgets it was never aimed at.
+        #
+        return None
     text = text.strip()
     if len(text) >= 2 and text.startswith("`") and text.endswith("`"):
         text = text[1:-1]
     if not text:
-        # Nothing drawn -- genuinely zero, not unmeasurable.
+        # An explicitly EMPTY text is genuinely zero-sized, unlike the case
+        # above where we simply could not find one.
         return (0.0, 0.0)
 
     # A font in the widget's own props beats the cascade: present() appends the
