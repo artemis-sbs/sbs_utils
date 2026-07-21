@@ -264,6 +264,8 @@ class StyleDefinition:
                     ret[key]=StyleDefinition.parse_bounds(value)
                 case "border":
                     ret[key]=StyleDefinition.parse_bounds(value)
+                case "overflow":
+                    ret[key]=value
                 case "background":
                     ret[key]=value
                 case "background-color":

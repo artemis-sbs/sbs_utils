@@ -40,6 +40,9 @@ class Column:
         # what turns a text change into a LAYOUT change, and only for the
         # columns that opted in.
         self.content_sized = False
+        # Overflow policy: None/"spill" (draw anyway, the historical
+        # behaviour), "shrink", "ellipsis" or "hide". See measure.py.
+        self.overflow = None
         
         self.tag = None
         self.region_tag = ""

@@ -307,3 +307,152 @@ def measure_cache_stats():
     stats["engine_calls"] = stats["line_w"] + stats["line_h"] + stats["block_h"]
     stats["cached"] = len(_line_w) + len(_line_h) + len(_block_h)
     return stats
+
+
+# --- overflow policies ------------------------------------------------------
+#
+# The engine does not clip: text wider or taller than its rect is drawn anyway,
+# over whatever is beside or below it. The layout tries to size things so that
+# never happens, but some text cannot fit at any width -- one unbreakable word
+# wider than its row, or a paragraph in a band the author fixed the height of.
+#
+# `overflow:` lets the author say what should happen then. The default stays
+# SPILL, because it is what the library has always done and because a visible
+# failure gets fixed while a silent one does not.
+#
+# Ordered smallest-last: shrinking walks down this list.
+FONT_LADDER = ["gui-6", "gui-5", "gui-4", "gui-3", "gui-2", "gui-1", "smallest"]
+
+OVERFLOW_POLICIES = ("spill", "shrink", "ellipsis", "hide")
+
+ELLIPSIS = "..."          # ASCII only -- the engine renders nothing else
+
+
+def _fits(font, text, box_w, box_h):
+    """Does `text` fit `box_w` x `box_h` pixels in `font`?"""
+    w = measure_line_width(font, text)
+    if w is None:
+        return None                      # unmeasurable: caller should give up
+    if box_h is None:
+        return w <= box_w
+    h = measure_block_height(font, text, max(1, int(box_w)))
+    if h is None:
+        return None
+    return h <= box_h
+
+
+def shrink_font_to_fit(font, text, box_w, box_h):
+    """The largest ladder font at or below `font` that fits, or None.
+
+    Returns the ORIGINAL font when it already fits, so a caller can tell
+    "nothing to do" from "shrank". None means even the smallest font overflows,
+    which is a real answer -- the caller then falls back to spilling rather
+    than pretending.
+    """
+    if not text or box_w is None or box_w <= 0:
+        return font
+    start = FONT_LADDER.index(font) if font in FONT_LADDER else 0
+    for candidate in FONT_LADDER[start:]:
+        ok = _fits(candidate, text, box_w, box_h)
+        if ok is None:
+            return font                  # cannot measure; leave it alone
+        if ok:
+            return candidate
+    return None
+
+
+def truncate_to_fit(font, text, box_w):
+    """Longest prefix of `text` plus "..." that fits `box_w` pixels.
+
+    Returns text unchanged when it already fits, or None if not even the
+    ellipsis fits -- at which point truncating would show "..." and no content,
+    which is worse than spilling.
+    """
+    if not text or box_w is None or box_w <= 0:
+        return text
+    full = measure_line_width(font, text)
+    if full is None:
+        return text
+    if full <= box_w:
+        return text
+    if (measure_line_width(font, ELLIPSIS) or 0) > box_w:
+        return None
+    # Binary search the prefix length -- measurement is memoized, so this is
+    # a handful of cached lookups rather than a scan.
+    lo, hi, best = 0, len(text), None
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        candidate = text[:mid].rstrip() + ELLIPSIS
+        w = measure_line_width(font, candidate)
+        if w is None:
+            return text
+        if w <= box_w:
+            best, lo = candidate, mid + 1
+        else:
+            hi = mid - 1
+    return best
+
+
+def apply_overflow(props, bounds, policy, cascade_font=None):
+    """Adjust a props string so it honours `policy` inside `bounds`.
+
+    Returns (props, draw). `draw` is False only for `hide`, when the text
+    genuinely does not fit.
+
+    Called at PRESENT time, because that is the first moment the final rect is
+    known. Everything it does is expressible through send_gui_*: change the
+    font, change the string, or do not send. It cannot ask the engine to clip,
+    because the engine has no such thing.
+    """
+    from ...helpers import FrameContext, split_props, merge_props
+    from ...gui import get_client_aspect_ratio
+
+    if not policy or policy == "spill" or not props:
+        return props, True
+
+    parsed = split_props(props, "$text")
+    raw = parsed.get("$text", parsed.get("text"))
+    if raw is None:
+        return props, True
+    text = raw.strip()
+    quoted = len(text) >= 2 and text.startswith("`") and text.endswith("`")
+    if quoted:
+        text = text[1:-1]
+    if not text:
+        return props, True
+
+    ctx = FrameContext.context
+    if ctx is None:
+        return props, True
+    ar = get_client_aspect_ratio(FrameContext.client_id)
+    if ar is None or not ar.x:
+        return props, True
+    box_w = bounds.width / 100.0 * ar.x
+    box_h = bounds.height / 100.0 * ar.y
+    if box_w <= 0 or box_h <= 0:
+        return props, True
+
+    font = _font(parsed.get("font") or cascade_font)
+
+    if policy == "shrink":
+        fitted = shrink_font_to_fit(font, text, box_w, box_h)
+        if fitted is None or fitted == font:
+            # Even the smallest font overflows (or it already fitted): leave it
+            # alone and let it spill, rather than silently rendering illegibly.
+            return props, True
+        parsed["font"] = fitted
+        return merge_props(parsed), True
+
+    if policy == "ellipsis":
+        cut = truncate_to_fit(font, text, box_w)
+        if cut is None or cut == text:
+            return props, True
+        parsed["$text"] = f"`{cut}`" if quoted else cut
+        parsed.pop("text", None)
+        return merge_props(parsed), True
+
+    if policy == "hide":
+        ok = _fits(font, text, box_w, box_h)
+        return props, True if ok is None else bool(ok)
+
+    return props, True

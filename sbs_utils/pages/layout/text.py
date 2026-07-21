@@ -1,5 +1,5 @@
 from .column import Column
-from .measure import measure_props
+from .measure import measure_props, apply_overflow
 from ...helpers import FrameContext, merge_props, split_props
 
 class Text(Column):
@@ -12,6 +12,13 @@ class Text(Column):
     def _present(self, event):
         ctx = FrameContext.context
         message = self.message + self.get_cascade_props(True, True, True)
+        if self.overflow:
+            # Honour `overflow:` now that the final rect is known. Only widgets
+            # that declare a policy pay for this; the default is to spill.
+            message, draw = apply_overflow(message, self.bounds, self.overflow,
+                                           self.get_font())
+            if not draw:
+                return
         ctx.sbs.send_gui_text(event.client_id, self.region_tag,
             self.tag, message,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)

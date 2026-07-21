@@ -106,6 +106,13 @@ def apply_style_def(style_def, layout_item, task):
         font = task.format_string(st)
         layout_item.default_font = font.strip() if isinstance(font, str) else font
 
+    st = style_def.get("overflow")
+    if st is not None:
+        # What to do when the text cannot fit its rect. The engine does not
+        # clip, so the default (spill) draws over the neighbours -- visibly,
+        # which is deliberate: a silent failure never gets fixed.
+        layout_item.overflow = str(st).strip().lower()
+
     st = style_def.get("justify")
     if st is not None:
         st = compile_formatted_string(st)
