@@ -50,6 +50,28 @@ def effective_font(col, row_font):
     return row_font if row_font is not None else col.default_font
 
 
+def col_box_width(col, aspect_ratio, font_size):
+    """Horizontal margin + border + padding of a column, in percent.
+
+    A measured natural size is the size of the CONTENT. The column also has to
+    fit its own box model, so this is added before the width is used as a size
+    or as a floor. Miss it and a widget with `margin: 3,3,3,3` asks for exactly
+    its text width, then draws that text into what is left after 6% of margin
+    -- which is the shape of LM issue 672's first row.
+
+    Computed from the *_style values because col.margin/border/padding are not
+    filled in until the presentation pass, which runs after this.
+    """
+    total = 0.0
+    for style in (col.margin_style, col.border_style, col.padding_style):
+        if style is None:
+            continue
+        b = calc_bounds(style, aspect_ratio, font_size)
+        if b is not None:
+            total += b.left + b.right
+    return total
+
+
 def resolved_size(value):
     """A resolved size as a number, or None when it is not one yet.
 
@@ -428,6 +450,7 @@ class Layout(Clickable):
         # existing.
         content_idx = None    # indices into actual_cols that sized to content
         content_floor = None  # their min-content width, parallel to content_idx
+        auto_floor = None     # {index: min-content width} for `auto` columns
 
         col: Column
         for col in row.columns:
@@ -440,7 +463,28 @@ class Layout(Clickable):
                 "default_width", col, row, self, aspect_ratio.x, col_font_size)
             default_width = resolved_size(raw_width)
 
-            if default_width is None and raw_width.__class__ is ContentSize:
+            if (default_width is None and raw_width.__class__ is ContentSize
+                    and raw_width.is_auto):
+                #
+                # `auto` stays FLEX -- it is not given a width of its own here.
+                # It only records a FLOOR, so the even split below can be
+                # pushed up for a column whose content genuinely needs more.
+                # This is the LM issue 672 case: a long string next to short
+                # ones should grow while its roomier neighbours give way.
+                #
+                if not col.square:
+                    floor = col.measure(client_id, MIN_CONTENT, None,
+                                        col_font, aspect_ratio)
+                    if floor is not None:
+                        if auto_floor is None:
+                            auto_floor = {}
+                        auto_floor[len(actual_cols)] = floor[0] + col_box_width(
+                            col, aspect_ratio, col_font_size)
+                        col.content_sized = True
+                        col.note_measured(MIN_CONTENT, None, col_font,
+                                          aspect_ratio, floor)
+
+            elif default_width is None and raw_width.__class__ is ContentSize:
                 #
                 # A content-sized column: ask the widget how wide it wants to
                 # be. A square ignores it (its size comes from the row height),
@@ -452,7 +496,8 @@ class Layout(Clickable):
                     natural = col.measure(client_id, raw_width, None,
                                           col_font, aspect_ratio)
                     if natural is not None:
-                        default_width = natural[0]
+                        box = col_box_width(col, aspect_ratio, col_font_size)
+                        default_width = natural[0] + box
                         col.content_sized = True
                         col.note_measured(raw_width, None, col_font,
                                           aspect_ratio, natural)
@@ -466,7 +511,8 @@ class Layout(Clickable):
                             content_idx = []
                             content_floor = []
                         content_idx.append(len(actual_cols))
-                        content_floor.append(floor[0] if floor else default_width)
+                        content_floor.append(
+                            floor[0] + box if floor else default_width)
 
             if default_width is not None:
                 assigned_space += default_width
@@ -547,7 +593,64 @@ class Layout(Clickable):
         for i, w in enumerate(fixed_widths):
             if w is None:
                 fixed_widths[i] = rect_col_width
+
+        if auto_floor:
+            self._raise_flex_to_floors(actual_cols, fixed_widths, auto_floor,
+                                       rect_col_width)
+
         return actual_cols, fixed_widths, square_width, square_height
+
+    @staticmethod
+    def _raise_flex_to_floors(actual_cols, widths, auto_floor, flex_width):
+        """Push `auto` columns up to their min-content, paid for by the slack
+        in the other flex columns.
+
+        This is the LM issue 672 behaviour. Every flex column starts on the
+        even split; any `auto` column whose content needs more than that takes
+        it from the flex columns that have room to give, down to their own
+        floor (0 for a plain flex column, min-content for another `auto`).
+
+        Deliberately a single redistribution rather than an iteration to
+        convergence: it fixes the reported case (a long string beside short
+        ones) without turning every row into a solver. When there is not
+        enough slack to satisfy every floor, each `auto` column gets a
+        proportional share of what was available -- the issue's own "at some
+        point there just isn't enough room" case.
+        """
+        need = 0.0
+        for i, floor in auto_floor.items():
+            if floor > widths[i]:
+                need += floor - widths[i]
+        if need <= 0:
+            return
+
+        # Slack is what the OTHER flex columns can surrender. A plain flex
+        # column can go to 0 (it draws nothing); an auto column stops at its
+        # own floor.
+        donors = []
+        slack = 0.0
+        for i, w in enumerate(widths):
+            if i in auto_floor and auto_floor[i] >= w:
+                continue                      # already at or below its floor
+            if abs(w - flex_width) > 1e-9:
+                continue                      # not a flex column (fixed width)
+            floor = auto_floor.get(i, 0.0)
+            room = w - floor
+            if room > 1e-9:
+                donors.append((i, room))
+                slack += room
+        if slack <= 0:
+            return
+
+        take = min(need, slack)
+        for i, room in donors:
+            widths[i] -= take * (room / slack)
+
+        # Hand the reclaimed space out, proportionally if it was not enough.
+        share = take / need if need > take else 1.0
+        for i, floor in auto_floor.items():
+            if floor > widths[i]:
+                widths[i] += (floor - widths[i]) * share
 
     def _measure_row_height(self, row, row_bounds_area, aspect_ratio, row_font,
                             mode, client_id):

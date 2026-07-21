@@ -20,6 +20,15 @@ class ContentSize:
       max-content  the text on one unbroken line
       min-content  the widest unbreakable word
       content      fit-content -- the natural size, clamped to what is available
+      auto         still FLEX, but never squeezed below its min-content
+
+    `auto` is the odd one out and the one that answers LM issue 672. The other
+    three take a column OUT of the flex pool and give it a size of its own.
+    `auto` leaves it in the pool -- it still shares the leftover space -- but
+    puts a floor under it, so a column with a long string grows and its
+    roomier neighbours give way. Because col-width cascades col -> row ->
+    section, putting `auto` on a row or a section makes every column in it
+    minimum-aware without annotating any of them.
 
     On a ROW, `min-content` is an intentional alias of `content`: a true CSS
     row min-content (height when wrapped as narrow as possible) is expensive to
@@ -27,7 +36,7 @@ class ContentSize:
     """
     __slots__ = ("mode",)
 
-    MODES = ("content", "min-content", "max-content")
+    MODES = ("content", "min-content", "max-content", "auto")
 
     def __init__(self, mode="content"):
         self.mode = mode
@@ -39,6 +48,11 @@ class ContentSize:
     @property
     def is_max(self):
         return self.mode == "max-content"
+
+    @property
+    def is_auto(self):
+        """Flex, but floored at min-content. Stays in the flex pool."""
+        return self.mode == "auto"
 
     def __repr__(self):
         return f"ContentSize({self.mode})"
@@ -54,7 +68,8 @@ class ContentSize:
 CONTENT = ContentSize("content")
 MIN_CONTENT = ContentSize("min-content")
 MAX_CONTENT = ContentSize("max-content")
-_CONTENT_BY_NAME = {c.mode: c for c in (CONTENT, MIN_CONTENT, MAX_CONTENT)}
+AUTO = ContentSize("auto")
+_CONTENT_BY_NAME = {c.mode: c for c in (CONTENT, MIN_CONTENT, MAX_CONTENT, AUTO)}
 
 # based on https://github.com/gnebehay/parser/blob/master/parser.py
 class LayoutAreaParser:
@@ -76,7 +91,7 @@ class LayoutAreaParser:
         # HARMLESS elsewhere (e.g. inside area:), where it evaluates to 1 --
         # identical to today's fallback for any unknown identifier.
         #
-        "content": r"(min-|max-)?content\b",
+        "content": r"((min-|max-)?content|auto)\b",
         "max": r"max",
         "min": r"min",
         "id": r"[_a-zA-Z][_a-zA-Z0-9]*",
