@@ -82,6 +82,7 @@ nav:
     - Custom lists (gui_list): cosmos/gui_list.md
     - Tables (gui_table): cosmos/gui_table.md
     - Grids (gui_grid): cosmos/gui_grid.md
+    - Sizing to content: cosmos/gui_content_sizing.md
     - Comms: cosmos/comms.md
     - Science: cosmos/science.md
     - AI:

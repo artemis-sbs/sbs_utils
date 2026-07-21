@@ -214,6 +214,55 @@ the same pattern.
 - `gui_row("row-height: 2em;")`; `gui_blank()` spacer.
 - `content = gui_sub_section()` then `with content:` to fill it later; reuse styles
   with `gui_style_def(...)`.
+- **`col-width` / `row-height` are in the SAME units as the enclosing `area:`** —
+  screen percent, not a fraction of the panel. In a section spanning `51..99`,
+  `col-width: 26` is about half of it; `col-width: 55` runs off the right edge.
+
+## Sizing to content (v1.4.0)
+
+Rows and columns FILL by default — the section's height is split across rows, the
+row's width across columns. Add a keyword to size to the content instead:
+
+```
+gui_text("$text:`Shields:`;", "col-width: content;")   # hugs its own text
+gui_text("$text:`{value}`;")                           # takes the rest
+gui_row("row-height: content;")                        # as tall as its tallest cell
+```
+
+| keyword | on a **column** | on a **row** |
+|---|---|---|
+| `content` | natural width, clamped to what's available | tallest cell at its final width, wrapping included |
+| `min-content` | widest unbreakable word | **alias of `content`** |
+| `max-content` | the whole line, unbroken | tallest cell as one unwrapped line |
+
+**These are requests, not reservations.** When a row can't hold everything, flex
+columns shrink to 0 first, then content columns shrink toward `min-content`, then
+it clamps. Over-tall content rows scale down proportionally so flex rows aren't
+left negative. Fixed rows are never scaled.
+
+Things that bite:
+
+- **Content can't invent space.** Fill a section with fixed `em` rows and the
+  content rows are correctly squeezed to nothing. If a content row renders
+  zero-height, the section is oversubscribed — that's the layout, not a bug.
+- **Not everything is measurable.** `Dropdown`, `Slider`, `Ship` and console
+  widgets deliberately decline (their size includes engine-drawn chrome nobody
+  can measure), so they **fall back to flex, never to zero**. That's what makes a
+  section-level `col-width: content` safe — it cascades to every column in it.
+- **Squares ignore content width** and never drive a content row's height — a
+  square is sized *from* the row height, so that would be circular. A row of only
+  squares has no natural height and falls back to flex.
+- **`TextArea` declines too** — it already scrolls to handle its own overflow.
+- Row heights over **wrapping text in a narrow column** are the least certain
+  case: mock wrap matches the engine at ≥600px column width and 94% at ≥300px,
+  but diverges below that. The engine does not clip, so a row short by one line
+  spills into whatever is under it. Check narrow wrapping cases in a real
+  session — `missions/content_demo` exists for exactly this.
+
+Cost: a layout using none of these keywords pays one identity comparison per
+column and nothing else. Sizing to content does make a *value* change a *layout*
+change, but only when the measured size actually moves — same-width text stays on
+the cheap visual-only path.
 
 ## The engine compiler is stricter than the mock — VERIFY IN BROWSER
 
