@@ -1,4 +1,6 @@
 from .layout import Column, Bounds, get_font_size
+from .measure import (measure_line_width, measure_line_height,
+                      measure_block_height)
 from ...helpers import FrameContext, split_props, merge_props
 from ...gui import get_client_aspect_ratio
 from textwrap import TextWrapper
@@ -156,15 +158,15 @@ class TableLine:
             f = self.HDR_FONT if ri == 0 else self.BODY_FONT
             for c in range(ncols):
                 if r[c]:
-                    w = sbs.get_text_line_width(f, r[c])
+                    w = measure_line_width(f, r[c])
                     if w > col_px[c]:
                         col_px[c] = w
-        self.cell_pad_px = sbs.get_text_line_width(self.BODY_FONT, "MM")   # gutter
+        self.cell_pad_px = measure_line_width(self.BODY_FONT, "MM")        # gutter
         avail = max(1.0, pixel_width - self.cell_pad_px * (ncols - 1))
         natural = sum(col_px)
         if natural > avail and natural > 0:                                # fit-to-width
             col_px = [w * (avail / natural) for w in col_px]
-        floor = min(sbs.get_text_line_width(self.BODY_FONT, "MMM"), avail / ncols)
+        floor = min(measure_line_width(self.BODY_FONT, "MMM"), avail / ncols)
         col_px = [max(w, floor) for w in col_px]                           # min column
         self.col_px = col_px
 
@@ -174,8 +176,8 @@ class TableLine:
             h = 0
             for c in range(ncols):
                 cw = int(col_px[c])
-                bh = (sbs.get_text_block_height(f, r[c], cw) if (r[c] and cw > 0)
-                      else sbs.get_text_line_height(f, "M"))
+                bh = (measure_block_height(f, r[c], cw) if (r[c] and cw > 0)
+                      else measure_line_height(f, "M"))
                 if bh > h:
                     h = bh
             self.row_h_px.append(h)
@@ -229,7 +231,7 @@ class LinkLine:
         self.click_tag = click_tag
         self.font = font
         self.is_sec_end = False
-        self.height = (sbs.get_text_line_height(font, display) / ar.y) * 100
+        self.height = (measure_line_height(font, display) / ar.y) * 100
 
     def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
         SBS.send_gui_text(client_id, region_tag, tag,
@@ -594,7 +596,7 @@ class TextArea(Control):
             # available width. Same measure font, same call count.
             pixel_char_width = 20
             if len(line) > 0:
-                pixel_char_width = FrameContext.context.sbs.get_text_line_width(font, line) / len(line)
+                pixel_char_width = measure_line_width(font, line) / len(line)
             num_char = max(1, int(pixel_width / pixel_char_width))
             
             wrapper = TextWrapper(width=num_char)
@@ -605,8 +607,8 @@ class TextArea(Control):
             for sub_line in sub_lines:
                 ll = sub_line.strip().lower()
 
-                pixel_height = FrameContext.context.sbs.get_text_block_height(font, sub_line, int(pixel_width))
-                pixel_line_height = FrameContext.context.sbs.get_text_line_height(font, sub_line)
+                pixel_height = measure_block_height(font, sub_line, int(pixel_width))
+                pixel_line_height = measure_line_height(font, sub_line)
                 line_count = pixel_height / pixel_line_height
             
                 #buffer = 0.1
@@ -788,7 +790,7 @@ class TextArea(Control):
                 message = f"$text:`{text_line.text}`;{style}"
                 # if bounds.top < 900:
                 #     print(f"Sending line {message} {bounds} {self.local_region_tag}")
-                space_width = FrameContext.context.sbs.get_text_line_width("gui-2", "X") / ar.x *100
+                space_width = measure_line_width("gui-2", "X") / ar.x *100
                 if background:
                     props = f"image:smallwhite;color:{background};draw_layer:1000;"
                     ctx.sbs.send_gui_image(CID, self.local_region_tag,

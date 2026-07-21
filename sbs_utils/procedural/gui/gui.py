@@ -668,8 +668,9 @@ def gui_percent_from_ems(client_id, ems, font):
         pct = gui_percent_from_ems(CLIENT_ID, 2, "hud_font")
         gui_section(style="width:{pct.x}%;")
     """
-    h = FrameContext.context.sbs.get_text_line_height(font, "X")
-    w = FrameContext.context.sbs.get_text_line_width(font, "X")
+    from ...pages.layout.measure import measure_line_height, measure_line_width
+    h = measure_line_height(font, "X")
+    w = measure_line_width(font, "X")
     aspect_ratio = get_client_aspect_ratio(client_id)
     x = ((ems*w)/aspect_ratio.x)*100
     y = ((ems*h)/aspect_ratio.y)*100

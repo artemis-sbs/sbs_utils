@@ -1,4 +1,5 @@
 from ...helpers import FrameContext
+from ...pages.layout.measure import measure_line_width
 from .listbox import gui_list_box
 
 # Declarative table = a gui_list_box with a generated multi-column row template.
@@ -63,7 +64,7 @@ def _resolve_columns(items, columns, font):
 
     def measure(text):
         if sbs is not None:
-            return sbs.get_text_line_width(font, str(text))
+            return measure_line_width(font, str(text))
         return len(str(text)) * 10.0          # headless fallback estimate
 
     resolved, auto_idx, natural = [], [], []
