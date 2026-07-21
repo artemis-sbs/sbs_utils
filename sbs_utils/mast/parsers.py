@@ -210,13 +210,20 @@ class LayoutAreaParser:
         match node.token_type:
             case "digits":
                 return float(node.value)
+            #
+            # font_size is threaded through EVERY recursion below. It used to be
+            # dropped, so an `em` anywhere except at the top of an expression
+            # silently fell back to the default 20 -- `1em+10px` on a gui-3 row
+            # computed 20px+10px instead of 28px+10px. Same class of silent
+            # wrongness as the dropped `+` term itself.
+            #
             case "max":
-                x = float(LayoutAreaParser.compute(node.children[0], vars, aspect_ratio))
-                y = float(LayoutAreaParser.compute(node.children[1], vars, aspect_ratio))
+                x = float(LayoutAreaParser.compute(node.children[0], vars, aspect_ratio, font_size))
+                y = float(LayoutAreaParser.compute(node.children[1], vars, aspect_ratio, font_size))
                 return max(x,y)
             case "min":
-                x = float(LayoutAreaParser.compute(node.children[0], vars, aspect_ratio))
-                y = float(LayoutAreaParser.compute(node.children[1], vars, aspect_ratio))
+                x = float(LayoutAreaParser.compute(node.children[0], vars, aspect_ratio, font_size))
+                y = float(LayoutAreaParser.compute(node.children[1], vars, aspect_ratio, font_size))
                 return min(x,y)
             case "pixels":
                 return (float(node.value[:-2])/aspect_ratio)*100
@@ -233,8 +240,8 @@ class LayoutAreaParser:
                 # this stays a no-op rather than a new failure mode.
                 return 1
 
-        left_result = LayoutAreaParser.compute(node.children[0], vars, aspect_ratio)
-        right_result = LayoutAreaParser.compute(node.children[1], vars, aspect_ratio)
+        left_result = LayoutAreaParser.compute(node.children[0], vars, aspect_ratio, font_size)
+        right_result = LayoutAreaParser.compute(node.children[1], vars, aspect_ratio, font_size)
         operation = LayoutAreaParser.operations[node.token_type]
         return operation(left_result, right_result)
 
@@ -322,13 +329,26 @@ class StyleDefinition:
             return None
         return _CONTENT_BY_NAME.get(value.strip().lower())
 
+    #
+    # parse_e, NOT parse_e2. parse_e2 handles only * and /, so a `+` or `-` term
+    # was lexed and then SILENTLY DROPPED: `row-height: 1em+10px` computed to
+    # exactly `1em`, and `col-width: 62-25px` to exactly `62`. No error, no
+    # warning -- the author's arithmetic just evaporated, which is how
+    # LegendaryMissions' document screen has been running with a column 25px
+    # wider than it asked for.
+    #
+    # `area:` never had this problem because it parses through parse_list ->
+    # parse_e, which is why `area: 0, 50px, 100, 95-10px` works and the same
+    # expression in row-height does not. These two entry points were simply
+    # wired to the wrong level of the grammar.
+    #
     def parse_width(width):
         if width is not None:
             content = StyleDefinition._content_size(width)
             if content is not None:
                 return content
             tokens = LayoutAreaParser.lex(width)
-            return LayoutAreaParser.parse_e2(tokens)
+            return LayoutAreaParser.parse_e(tokens)
         return None
 
     def parse_height(height):
@@ -337,7 +357,7 @@ class StyleDefinition:
             if content is not None:
                 return content
             tokens = LayoutAreaParser.lex(height)
-            return LayoutAreaParser.parse_e2(tokens)
+            return LayoutAreaParser.parse_e(tokens)
         return None
 
 

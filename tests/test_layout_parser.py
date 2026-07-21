@@ -1,6 +1,6 @@
 from email import parser
 import unittest
-from sbs_utils.mast.parsers import LayoutAreaParser
+from sbs_utils.mast.parsers import LayoutAreaParser, StyleDefinition
 from sbs_utils.pages.layout.text_area import TextArea
 
 
@@ -69,3 +69,51 @@ class TestTextAreaParser(unittest.TestCase):
         
 
 
+
+
+class TestRowHeightColWidthArithmetic(unittest.TestCase):
+    """`row-height` / `col-width` must parse whole expressions.
+
+    They were wired to parse_e2, which handles only * and /, so a `+` or `-`
+    term was lexed and then SILENTLY DROPPED -- `1em+10px` computed to exactly
+    `1em`, and `col-width: 62-25px` to exactly `62`. No error, no warning.
+    LegendaryMissions' document screen had been running with a column 25px wider
+    than it asked for, and LM's mission-picker title could not be given room for
+    its own padding because the `+10px` evaporated.
+
+    `area:` was always fine -- it goes through parse_list -> parse_e. These two
+    entry points were simply wired to the wrong level of the grammar.
+    """
+
+    AR_Y = 768
+    FONT = 28          # gui-3
+
+    def _px(self, expr):
+        ast = StyleDefinition.parse_height(expr)
+        pct = LayoutAreaParser.compute(ast, None, self.AR_Y, self.FONT)
+        return round(pct / 100 * self.AR_Y, 1)
+
+    def test_addition_is_not_dropped(self):
+        self.assertEqual(self._px("1em"), 28.0)
+        self.assertEqual(self._px("1em+10px"), 38.0)
+
+    def test_subtraction_is_not_dropped(self):
+        self.assertEqual(self._px("100px-25px"), 75.0)
+
+    def test_em_keeps_its_font_size_inside_an_expression(self):
+        """font_size used to be dropped on recursion, so an `em` anywhere but at
+        the top of an expression fell back to the default 20."""
+        self.assertEqual(self._px("1em+10px"), 38.0)      # 28 + 10, not 20 + 10
+        self.assertEqual(self._px("min(2em,1000)"), 56.0)  # 2*28, not 2*20
+
+    def test_existing_forms_are_unchanged(self):
+        self.assertEqual(self._px("50"), 384.0)           # bare percent
+        self.assertEqual(self._px("10px"), 10.0)
+        self.assertEqual(self._px("2em"), 56.0)
+        self.assertEqual(self._px("2*3em"), 168.0)
+        self.assertEqual(self._px("min(10,20)"), 76.8)
+
+    def test_col_width_takes_the_same_path(self):
+        ast = StyleDefinition.parse_width("62-25px")
+        pct = LayoutAreaParser.compute(ast, None, 1024, self.FONT)
+        self.assertAlmostEqual(pct, 62 - (25 / 1024 * 100), places=4)
