@@ -333,9 +333,10 @@ automatically.
 - **[Rows and columns can size themselves](cosmos/gui_content_sizing.md).** Add
   `row-height: content` or `col-width: content` and a row is as tall as its text,
   a label as wide as its word — at every window size, with no percentages to
-  maintain. `min-content` and `max-content` give finer control, and **`auto` is
+  maintain. `min-content` and `max-content` give finer control, and **`1fr` is
   now the default**: a column still shares the leftover space but is never
-  squeezed below the widest word it has to show.
+  squeezed below the widest word it has to show. (`1fr` is what CSS calls an
+  equal share with a minimum; the older spelling `auto` still works.)
 
 - **[`overflow:` for text that cannot fit](cosmos/gui_overflow.md).** Because the
   engine never clips, text too big for its box is drawn over its neighbours. When
@@ -353,6 +354,13 @@ automatically.
 - **Sizes add up.** `row-height` and `col-width` accept full arithmetic —
   `1em+10px`, `62-25px`. A `+` or `-` term used to be **silently dropped**, so a
   layout could have been running with a size it never asked for.
+
+- **Text no longer draws on top of the row below it.** Three separate causes,
+  all now fixed: a content-sized column got the exact width its text needed and
+  no more, so rounding tipped it into an extra line; raising one row to fit its
+  text could starve its neighbours to zero height, and a zero-height row still
+  draws; and a nested panel measured its own rows unwrapped, so it asked for
+  less room than its content needed.
 
 - **A list box no longer shrinks around its tallest row.** Slot budgeting divided
   the available space by the largest item, so a single tall row could halve how
