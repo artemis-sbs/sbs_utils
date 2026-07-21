@@ -55,12 +55,24 @@ _stats = {"line_w": 0, "line_h": 0, "block_h": 0, "hits": 0}
 # caught headlessly; it only appears in the engine, and only once measurement
 # runs on widgets that declare no font.
 #
-# The engine's real default font is not known. gui-3 sits closest to the
-# nominal 30 that get_font_size(None) has always implied (gui-3=28, gui-4=32),
-# so it is the least wrong available guess. It is used ONLY for measurement --
-# nothing is rendered in it -- and can be pinned properly once the capture
-# mission probes what the engine actually uses for an unset font.
-DEFAULT_FONT = "gui-3"
+# PINNED BY RENDER, not assumed. The engine exposes no queryable "unset" tag --
+# every spelling of it measures -1 -- so this was settled by drawing an unfonted
+# string over each candidate in the same rect (missions/layout_probe, "Pin Font")
+# and taking the one that overlaid exactly. It is gui-2.
+#
+# It had been guessed as gui-3, reasoning from get_font_size(None) == 30. That
+# guess was WRONG BY ONE STEP and in the forgiving direction: gui-3 is the wider
+# font, so every unfonted widget was measured wider than it draws. Content
+# columns therefore asked for more width than they needed -- wasteful and
+# slightly off, but never overflowing, which is why nothing looked broken.
+#
+# NOTE the nominal em table still returns 30 for an unset font
+# (layout.get_font_size), which no longer agrees with gui-2 == 24. That
+# inconsistency is deliberate: get_font_size drives `em` arithmetic that
+# existing layouts are tuned against, and changing it would resize every
+# em-sized row in every mission. Measurement and em-nominal are separate
+# numbers on purpose -- see the header of this file.
+DEFAULT_FONT = "gui-2"
 
 
 def _font(font):

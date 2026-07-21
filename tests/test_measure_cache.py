@@ -287,5 +287,34 @@ class TestEngineFontQuirks(unittest.TestCase):
         self.assertIsNone(got, "unknown font must be unmeasurable, not sized")
 
 
+class TestDefaultFontPinned(unittest.TestCase):
+    """The default font is a RENDER-CONFIRMED constant, not a guess.
+
+    It was wrong for a while (gui-3), and nothing failed -- the error was in the
+    forgiving direction, so every unfonted widget was merely measured wider than
+    it drew. That is exactly the kind of mistake that survives a green suite, so
+    the pinned value gets a test of its own.
+
+    Re-confirm with missions/layout_probe -> "Pin Font" if this ever needs to
+    change; do not adjust it to make some other test pass.
+    """
+
+    def test_default_is_gui_2(self):
+        self.assertEqual(measure.DEFAULT_FONT, "gui-2")
+
+    def test_default_is_a_tag_the_engine_knows(self):
+        # An unknown tag measures -1 in the engine, which becomes a negative
+        # width and an inverted rect -- text vanishes. The default must never
+        # be a tag that can do that.
+        self.assertIn(measure.DEFAULT_FONT,
+                      {"smallest", "gui-1", "gui-2", "gui-3", "gui-4",
+                       "gui-5", "gui-6"})
+
+    def test_unset_font_measures_as_the_default(self):
+        for unset in (None, "", "   ", 0):
+            with self.subTest(unset=unset):
+                self.assertEqual(measure._font(unset), measure.DEFAULT_FONT)
+
+
 if __name__ == "__main__":
     unittest.main()
