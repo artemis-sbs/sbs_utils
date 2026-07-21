@@ -34,6 +34,15 @@ class Column:
         self.square = False
         self.default_width = None
         self.default_height = None
+        # Set by Layout.calc on any column it actually measured for content
+        # sizing. Defaults False so every existing layout keeps the cheap
+        # visual-only update path when its value changes -- content sizing is
+        # what turns a text change into a LAYOUT change, and only for the
+        # columns that opted in.
+        self.content_sized = False
+        # Overflow policy: None/"spill" (draw anyway, the historical
+        # behaviour), "shrink", "ellipsis" or "hide". See measure.py.
+        self.overflow = None
         
         self.tag = None
         self.region_tag = ""
@@ -275,6 +284,83 @@ class Column:
 
     def calc(self, client_id):
         pass # Unused but here to be compatible with sub sections
+
+    def note_measured(self, mode, avail_px, font, ar, size):
+        """Record what a content measurement was taken with, and what it gave.
+
+        Layout.calc calls this for any column it measured, so a later value
+        change can re-measure under identical conditions and tell whether the
+        size actually moved.
+        """
+        self._measure_ctx = (mode, avail_px, font, ar)
+        self._measured_size = size
+
+    def measured_size_changed(self):
+        """True if re-measuring now would give a different size.
+
+        Conservative: anything unknown returns True, so the layout is rebuilt
+        rather than left stale.
+        """
+        ctx = getattr(self, "_measure_ctx", None)
+        if ctx is None:
+            return True
+        previous = getattr(self, "_measured_size", None)
+        if previous is None:
+            return True
+        mode, avail_px, font, ar = ctx
+        current = self.measure(self.client_id, mode, avail_px, font, ar)
+        if current is None:
+            return True
+        return (abs(current[0] - previous[0]) > 1e-6
+                or abs(current[1] - previous[1]) > 1e-6)
+
+    def mark_value_dirty(self, force_layout=False):
+        """Dirty-mark after this widget's VALUE changed.
+
+        Content sizing is what turns a text change into a LAYOUT change, and
+        this is where that cost is contained. A full subtree re-calc happens
+        only when the column is content-sized AND its measured size actually
+        moved -- the common case (text changes, width does not) stays on the
+        cheap visual-only path, and a layout using no content keywords never
+        takes the expensive branch at all, since content_sized defaults False.
+
+        The re-measure it costs is memoized and far cheaper than the calc() it
+        avoids.
+        """
+        if force_layout or (self.content_sized and self.measured_size_changed()):
+            self.mark_layout_dirty()
+        else:
+            self.mark_visual_dirty()
+
+    def measure(self, client_id, mode, avail_px, font, ar):
+        """Natural size of this column's content, in PERCENT, or None.
+
+        Returns (width_pct, height_pct) for `col-width: content` and
+        `row-height: content` to size against, or None when the widget has no
+        measurable content.
+
+        None is the important default. Every existing subclass inherits it, so
+        adding content sizing changes NO existing layout until a subclass opts
+        in by overriding. A column that cannot be measured -- an engine-owned
+        console widget, a 3D ship, engine-drawn chrome -- falls back to flex,
+        which is exactly today's behaviour. It must never fall back to 0: a
+        section-level `col-width: content` cascades to every column in it, and
+        zero-width widgets would be a far worse failure than an unsized one.
+
+        Args:
+            client_id: the client being laid out.
+            mode:      a ContentSize -- content, min-content or max-content.
+            avail_px:  width available to this column in pixels, or None when
+                       it is not known yet. Needed because wrapped height
+                       depends on the width the text is given.
+            font:      the cascaded font, already resolved by the caller (see
+                       effective_font). A font in the widget's own props string
+                       overrides it, since present() appends the cascade AFTER
+                       the message and the engine takes the last value.
+            ar:        this client's aspect ratio, for the px -> percent
+                       conversion.
+        """
+        return None
 
     def on_end_presenting(self, client_id):
         pass

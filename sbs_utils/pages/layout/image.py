@@ -22,6 +22,20 @@ class Image(Column):
         self.atlas = gui_image_get_atlas(file)
         
         
+    def measure(self, client_id, mode, avail_px, font, ar):
+        # An image's natural size is its actual pixel size -- the one widget
+        # whose content is measurable without asking the text engine.
+        # gui_image_size checks the atlas, then the PNG header, and caches.
+        from ...procedural.gui.image import gui_image_size
+        from .measure import px_to_pct_x, px_to_pct_y
+
+        w, h = gui_image_size(self.file)
+        if w is None or w <= 0 or h <= 0:
+            # Unreadable file -- unmeasurable, so fall back to flex rather
+            # than collapsing the column to nothing.
+            return None
+        return (px_to_pct_x(w, ar), px_to_pct_y(h, ar))
+
     def _present(self, event):
         ctx = FrameContext.context
         if self.atlas is None or not self.atlas.is_valid():
