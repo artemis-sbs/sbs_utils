@@ -9,10 +9,10 @@
       
       
       
-        <link rel="prev" href="../gui/">
+        <link rel="prev" href="../gui_list/">
       
       
-        <link rel="next" href="../comms/">
+        <link rel="next" href="../gui_grid/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -1392,6 +1392,14 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1582,6 +1590,29 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../gui_list/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Custom lists (gui_list)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -1633,6 +1664,15 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#two-ways-to-write-one" class="md-nav__link">
+    <span class="md-ellipsis">
+      Two ways to write one
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#a-basic-table" class="md-nav__link">
@@ -1689,6 +1729,75 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gui_grid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Grids (gui_grid)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gui_content_sizing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sizing to content
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gui_overflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Text that does not fit
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -1771,7 +1880,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_11" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_15" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1788,14 +1897,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_11" id="__nav_5_11_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5_15" id="__nav_5_15_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_11_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_11">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_15">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -2211,6 +2320,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -2292,6 +2407,75 @@
   
   <span class="md-ellipsis">
     Run & debug
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tooling/mast-debugger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Debugging your mission
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tooling/amd-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AMD authoring tools
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tooling/gui-editor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    GUI Editor
     
   </span>
   
@@ -5305,6 +5489,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#two-ways-to-write-one" class="md-nav__link">
+    <span class="md-ellipsis">
+      Two ways to write one
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#a-basic-table" class="md-nav__link">
     <span class="md-ellipsis">
       A basic table
@@ -5384,6 +5577,18 @@ input, button).</p>
 you. The thing it does that a hand-written <code>item_template</code> can't is <strong>size columns
 across all the rows at once</strong> — a per-row template only ever sees one row, so it
 can't know how wide the "Name" column needs to be for the whole list.</p>
+<h2 id="two-ways-to-write-one">Two ways to write one</h2>
+<p><strong>Declarative</strong> (below) — describe the columns and it builds the rows. Best when
+each cell is a field of the row.</p>
+<p><strong>Block form</strong> — author the row yourself with a <code>with</code> block, like the other
+containers (<a href="../gui_list/"><code>gui_list</code></a>, <a href="../gui_grid/"><code>gui_grid</code></a>):</p>
+<div class="highlight"><pre><span></span><code>with gui_table(fleet, headers=[&quot;Ship&quot;, &quot;Hull&quot;], select=True) as ship:
+    gui_text(&quot;{ship.name}&quot;)
+    gui_text(&quot;{ship.hull}%&quot;)
+</code></pre></div>
+<p>Each widget in the block is a column; the <code>headers</code> line up above them. Reach for
+the block form when a cell needs more than a field value (a button, a face, mixed
+widgets). Pass <strong>no</strong> <code>columns</code> — that's what selects the block form.</p>
 <h2 id="a-basic-table">A basic table</h2>
 <div class="highlight"><pre><span></span><code>fleet = [
     {&quot;name&quot;: &quot;Artemis&quot;,  &quot;hull&quot;: 100, &quot;side&quot;: &quot;tsn&quot;},
