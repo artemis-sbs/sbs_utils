@@ -170,10 +170,24 @@ def measure_props(props, mode, avail_px, font, ar):
 
     Returns (width_pct, height_pct), or None if it cannot be measured.
     """
-    from ...helpers import props_display_text, props_font
-    from ...mast.parsers import ContentSize
+    from ...helpers import split_props
 
-    text = props_display_text(props)
+    #
+    # Parse the props string ONCE. This used to call props_display_text() and
+    # props_font(), each of which ran its own split_props scan -- and measured
+    # at ~4.4us each against ~0.2us for a cached metric lookup, so the parsing
+    # was roughly two thirds of the call. That cost is pure Python and is
+    # identical in the engine, so it matters more than the sbs call it wraps.
+    #
+    parsed = split_props(props, "$text") if props else {}
+    text = parsed.get("$text")
+    if text is None:
+        text = parsed.get("text")
+    if text is None:
+        return (0.0, 0.0)
+    text = text.strip()
+    if len(text) >= 2 and text.startswith("`") and text.endswith("`"):
+        text = text[1:-1]
     if not text:
         # Nothing drawn -- genuinely zero, not unmeasurable.
         return (0.0, 0.0)
@@ -182,7 +196,11 @@ def measure_props(props, mode, avail_px, font, ar):
     # cascade props AFTER the message, so the engine reads the widget's value
     # last. Measuring in a different font than we render in would mis-size
     # every cell.
-    font = props_font(props, font)
+    own_font = parsed.get("font")
+    if own_font:
+        own_font = own_font.strip()
+        if own_font:
+            font = own_font
 
     width_px = measure_line_width(font, text)
     if width_px is None:
