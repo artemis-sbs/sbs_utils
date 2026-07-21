@@ -79,6 +79,17 @@ through the same memo dropped LegendaryMissions from 105 engine text calls to
 get_text_line_width(BODY_FONT, "MM") on every TableLine construction. Rendered
 output is byte-identical. So the no-content baseline is now 52, not 105.
 
+ENGINE vs MOCK COST (measured 2026-07-21 via missions/font_measure):
+
+    get_text_line_width     engine 0.57us   mock 3.11us   -> mock is 5.5x SLOWER
+    get_text_block_height   engine 0.83us   mock 4.53us   -> mock is 5.5x SLOWER
+    get_text_line_height    engine 0.60us   mock 0.19us   -> mock is 3.1x faster
+
+So the mock OVERSTATES measurement cost for the two calls that matter. Wall-clock
+figures here are an upper bound on the engine, not an estimate of it. Call
+counts remain exact, since sbs_utils decides how many calls to make regardless
+of who implements them -- which is why they are the metric to gate on.
+
 Re-run after each stage. The no-content engine-text number must not move.
 """
 from __future__ import annotations
