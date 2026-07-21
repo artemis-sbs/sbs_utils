@@ -1,5 +1,5 @@
 from .layout import Column, Bounds, get_font_size
-from .measure import (measure_line_width, measure_line_height,
+from .measure import (measure_line_width, measure_line_height, wrap_to_width,
                       measure_block_height)
 from ...helpers import FrameContext, split_props, merge_props
 from ...gui import get_client_aspect_ratio
@@ -607,21 +607,15 @@ class TextArea(Control):
                 continue
             
 
-            # Use Python's text wrapper to break up lines. Estimate how many
-            # characters fit per line from THIS line's own average glyph width
-            # (measure the real line, divide by its length). The old estimate used
-            # 'M' — the widest glyph — as the per-char width, which under-counted
-            # capacity and wrapped early, leaving text using only ~60% of the
-            # available width. Same measure font, same call count.
-            pixel_char_width = 20
-            if len(line) > 0:
-                pixel_char_width = measure_line_width(font, line) / len(line)
-            num_char = max(1, int(pixel_width / pixel_char_width))
-            
-            wrapper = TextWrapper(width=num_char)
-            sub_lines = wrapper.wrap(line)
-            lll = len(line)
-            ls = len(sub_lines)
+            # Break lines on MEASURED word widths, not on a character count.
+            #
+            # This used to estimate "how many characters fit" from the line's
+            # average glyph width and hand that to TextWrapper. An average is
+            # wrong in both directions -- it breaks early on a run of narrow
+            # glyphs and late on wide ones -- so lines ended short of the edge
+            # for no visible reason ("...walks into / a bar" taking three lines
+            # where two fit). Measuring the words removes the estimate.
+            sub_lines = wrap_to_width(font, line, pixel_width)
 
             for sub_line in sub_lines:
                 ll = sub_line.strip().lower()

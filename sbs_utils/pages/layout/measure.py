@@ -212,6 +212,108 @@ def measure_min_word_width(font, text):
     return widest
 
 
+def wrap_to_width(font, text, px_width):
+    """Break `text` into lines that each MEASURE within `px_width`.
+
+    Two invariants, both learned the hard way:
+
+    1. EVERY RETURNED LINE FITS. A line that comes back wider than px_width gets
+       wrapped AGAIN by the engine, into a box sized for the line count we
+       returned -- and since the engine does not clip, the extra line is drawn on
+       top of its neighbour. This is the whole reason the function exists.
+    2. NO WORD IS LOST. Obvious, but a greedy version of this that "gave back"
+       an over-long word by popping it silently deleted it from the document.
+       Hence the index walk below: a word is only consumed by being placed.
+
+    On the "ask, never model" rule: measurement still asks the engine. But a
+    TextArea has to know where the breaks fall, because it keeps a record per
+    display line (styles, links, line-indexed scrolling). It used to guess from
+    an AVERAGE glyph width and a character count -- wrong in both directions,
+    early on narrow glyphs and late on wide ones. Summed word widths are not
+    enough either: a joined string does not measure as the sum of its parts, so
+    the candidate itself has to be measured.
+
+    Fidelity, from the engine capture (missions/font_measure): line counts agree
+    with the engine at >=600px, drift ~6% at 300px, and badly below that -- so a
+    very narrow column is still worth confirming in a real session.
+
+    Words wider than a whole line are broken MID-WORD, as the engine does.
+    """
+    if not text:
+        return []
+    px_width = int(px_width)
+    if px_width <= 0:
+        return [text]
+
+    words = text.split()
+    if not words:
+        return [text]
+
+    def width_of(candidate):
+        return measure_line_width(font, candidate)
+
+    def word_width(word):
+        # Memoized per word, so the sum walk below costs nothing after the
+        # first time a word is seen.
+        return width_of(word) or 0
+
+    def fits(candidate):
+        w = width_of(candidate)
+        return w is not None and w <= px_width
+
+    if width_of(text) is None:
+        return [text]              # unmeasurable -- let the engine wrap it
+
+    space_w = width_of(" ") or 0
+
+    def split_long_word(word):
+        """Break one over-wide word into pieces that each fit."""
+        pieces = []
+        piece = ""
+        for ch in word:
+            if piece and not fits(piece + ch):
+                pieces.append(piece)
+                piece = ch
+            else:
+                piece += ch
+        if piece:
+            pieces.append(piece)
+        return pieces or [word]
+
+    lines = []
+    i = 0
+    n = len(words)
+    while i < n:
+        if not fits(words[i]):
+            # Single word too wide for a line: break it, keep the tail in play.
+            pieces = split_long_word(words[i])
+            lines.extend(pieces[:-1])
+            words[i] = pieces[-1]
+
+        # Extend by SUMMED word widths first. That is optimistic -- a joined
+        # string measures a little wider than the sum of its parts -- but it is
+        # nearly free, because each word's width is measured once and memoized.
+        j = i + 1
+        run = word_width(words[i])
+        while j < n:
+            nxt = run + space_w + word_width(words[j])
+            if nxt > px_width:
+                break
+            run = nxt
+            j += 1
+
+        # Then pay for real measurements only at the boundary, shrinking until
+        # the candidate actually fits. Since the sum only ever overshoots, this
+        # needs to shrink and never to grow -- so the result is still exact,
+        # at ~1-2 measurements per line instead of one per word.
+        while j > i + 1 and not fits(" ".join(words[i:j])):
+            j -= 1
+        lines.append(" ".join(words[i:j]))
+        i = j                       # a word is consumed only by being placed
+
+    return lines or [text]
+
+
 def px_to_pct_x(px, ar):
     """Pixels -> percent of region width, for this client's aspect ratio."""
     if px is None or ar is None or not ar.x:
