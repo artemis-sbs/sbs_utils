@@ -92,7 +92,19 @@ def apply_style_def(style_def, layout_item, task):
     st = style_def.get("font")
     if st is not None:
         st = compile_formatted_string(st)
-        layout_item.default_font = task.format_string(st)
+        #
+        # STRIP. A style written `font: gui-3` yields " gui-3" with the leading
+        # space, and unlike the other style values a font tag is passed to the
+        # engine as a bare API argument (get_text_line_width(fontTag, ...)),
+        # not embedded in a props string the engine parses itself. The engine
+        # does not recognise " gui-3" and returns -1, which became a negative
+        # column width and an inverted rect -- the widget silently vanished.
+        #
+        # measure.py guards against this too, for fonts arriving by other
+        # routes, but normalising here fixes it for every consumer at once.
+        #
+        font = task.format_string(st)
+        layout_item.default_font = font.strip() if isinstance(font, str) else font
 
     st = style_def.get("justify")
     if st is not None:
@@ -132,7 +144,9 @@ def apply_style_def(style_def, layout_item, task):
     click_font = style_def.get("click_font")
     if click_font is not None:
         click_font = compile_formatted_string(click_font)
-        layout_item.click_font = task.format_string(click_font)
+        # Stripped for the same reason as `font` above.
+        cf = task.format_string(click_font)
+        layout_item.click_font = cf.strip() if isinstance(cf, str) else cf
 
     click_color = style_def.get("click_color")
     if click_color is not None:
