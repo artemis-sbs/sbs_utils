@@ -54,7 +54,7 @@
 1024x768 fixed_overflowing row0 l=0.0000 t=0.0000 w=100.0000 h=100.0000
 1024x768 fixed_overflowing row0col0 Column l=0.0000 t=0.0000 r=60.0000 b=100.0000
 1024x768 fixed_overflowing row0col1 Column l=60.0000 t=0.0000 r=120.0000 b=100.0000
-1024x768 fixed_overflowing row0col2 Column l=120.0000 t=0.0000 r=220.0000 b=100.0000
+1024x768 fixed_overflowing row0col2 Column l=120.0000 t=0.0000 r=120.0000 b=100.0000
 1024x768 fixed_expr_min section l=0.0000 t=0.0000 r=100.0000 b=100.0000
 1024x768 fixed_expr_min row0 l=0.0000 t=0.0000 w=100.0000 h=100.0000
 1024x768 fixed_expr_min row0col0 Column l=0.0000 t=0.0000 r=30.0000 b=100.0000
@@ -112,8 +112,8 @@
 1024x768 square_clamp section l=0.0000 t=0.0000 r=100.0000 b=100.0000
 1024x768 square_clamp row0 l=0.0000 t=0.0000 w=100.0000 h=90.0000
 1024x768 square_clamp row0col0 Column l=0.0000 t=0.0000 r=60.0000 b=90.0000
-1024x768 square_clamp row0col1 Column l=60.0000 t=0.0000 r=110.0000 b=90.0000
-1024x768 square_clamp row0col2 Column l=110.0000 t=0.0000 r=160.0000 b=90.0000
+1024x768 square_clamp row0col1 Column l=60.0000 t=0.0000 r=80.0000 b=90.0000
+1024x768 square_clamp row0col2 Column l=80.0000 t=0.0000 r=100.0000 b=90.0000
 1024x768 hole_lead section l=0.0000 t=0.0000 r=100.0000 b=100.0000
 1024x768 hole_lead row0 l=0.0000 t=0.0000 w=100.0000 h=100.0000
 1024x768 hole_lead row0col0 Hole l=0.0000 t=0.0000 r=0.0000 b=0.0000
@@ -249,7 +249,7 @@
 1920x1080 fixed_overflowing row0 l=0.0000 t=0.0000 w=100.0000 h=100.0000
 1920x1080 fixed_overflowing row0col0 Column l=0.0000 t=0.0000 r=60.0000 b=100.0000
 1920x1080 fixed_overflowing row0col1 Column l=60.0000 t=0.0000 r=120.0000 b=100.0000
-1920x1080 fixed_overflowing row0col2 Column l=120.0000 t=0.0000 r=220.0000 b=100.0000
+1920x1080 fixed_overflowing row0col2 Column l=120.0000 t=0.0000 r=120.0000 b=100.0000
 1920x1080 fixed_expr_min section l=0.0000 t=0.0000 r=100.0000 b=100.0000
 1920x1080 fixed_expr_min row0 l=0.0000 t=0.0000 w=100.0000 h=100.0000
 1920x1080 fixed_expr_min row0col0 Column l=0.0000 t=0.0000 r=30.0000 b=100.0000
@@ -307,8 +307,8 @@
 1920x1080 square_clamp section l=0.0000 t=0.0000 r=100.0000 b=100.0000
 1920x1080 square_clamp row0 l=0.0000 t=0.0000 w=100.0000 h=90.0000
 1920x1080 square_clamp row0col0 Column l=0.0000 t=0.0000 r=60.0000 b=90.0000
-1920x1080 square_clamp row0col1 Column l=60.0000 t=0.0000 r=110.0000 b=90.0000
-1920x1080 square_clamp row0col2 Column l=110.0000 t=0.0000 r=160.0000 b=90.0000
+1920x1080 square_clamp row0col1 Column l=60.0000 t=0.0000 r=80.0000 b=90.0000
+1920x1080 square_clamp row0col2 Column l=80.0000 t=0.0000 r=100.0000 b=90.0000
 1920x1080 hole_lead section l=0.0000 t=0.0000 r=100.0000 b=100.0000
 1920x1080 hole_lead row0 l=0.0000 t=0.0000 w=100.0000 h=100.0000
 1920x1080 hole_lead row0col0 Hole l=0.0000 t=0.0000 r=0.0000 b=0.0000
@@ -444,7 +444,7 @@
 3440x1440 fixed_overflowing row0 l=0.0000 t=0.0000 w=100.0000 h=100.0000
 3440x1440 fixed_overflowing row0col0 Column l=0.0000 t=0.0000 r=60.0000 b=100.0000
 3440x1440 fixed_overflowing row0col1 Column l=60.0000 t=0.0000 r=120.0000 b=100.0000
-3440x1440 fixed_overflowing row0col2 Column l=120.0000 t=0.0000 r=220.0000 b=100.0000
+3440x1440 fixed_overflowing row0col2 Column l=120.0000 t=0.0000 r=120.0000 b=100.0000
 3440x1440 fixed_expr_min section l=0.0000 t=0.0000 r=100.0000 b=100.0000
 3440x1440 fixed_expr_min row0 l=0.0000 t=0.0000 w=100.0000 h=100.0000
 3440x1440 fixed_expr_min row0col0 Column l=0.0000 t=0.0000 r=30.0000 b=100.0000
@@ -502,8 +502,8 @@
 3440x1440 square_clamp section l=0.0000 t=0.0000 r=100.0000 b=100.0000
 3440x1440 square_clamp row0 l=0.0000 t=0.0000 w=100.0000 h=90.0000
 3440x1440 square_clamp row0col0 Column l=0.0000 t=0.0000 r=60.0000 b=90.0000
-3440x1440 square_clamp row0col1 Column l=60.0000 t=0.0000 r=110.0000 b=90.0000
-3440x1440 square_clamp row0col2 Column l=110.0000 t=0.0000 r=160.0000 b=90.0000
+3440x1440 square_clamp row0col1 Column l=60.0000 t=0.0000 r=80.0000 b=90.0000
+3440x1440 square_clamp row0col2 Column l=80.0000 t=0.0000 r=100.0000 b=90.0000
 3440x1440 hole_lead section l=0.0000 t=0.0000 r=100.0000 b=100.0000
 3440x1440 hole_lead row0 l=0.0000 t=0.0000 w=100.0000 h=100.0000
 3440x1440 hole_lead row0col0 Hole l=0.0000 t=0.0000 r=0.0000 b=0.0000

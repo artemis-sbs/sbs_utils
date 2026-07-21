@@ -384,8 +384,27 @@ class Layout(Clickable):
             need_assigned = max(len(actual_cols)-squares-assigned_cols,1)
             rect_col_width = (row_bounds_area.width-assigned_space-(squares*square_width))/need_assigned
             if square_width> rect_col_width:
+                # Squares would be wider than a flex column, so shrink them to
+                # it and re-divide what is left.
+                #
+                # This recompute used to omit `assigned_space`, so columns with
+                # an explicit col-width stopped being deducted and the flex
+                # columns were handed width that was already spoken for. Three
+                # columns with one at 60% summed to 160%; two fixed at 35% plus
+                # one flex summed to 170%. The engine does not clip, so those
+                # columns were drawn over their neighbours.
+                #
+                # It fires more often than "a square edge case" implies:
+                # square_width is computed unconditionally and this branch is
+                # not guarded by `squares > 0`, so a row of plain columns with
+                # one fixed width hits it whenever the row is tall.
                 square_width= rect_col_width
-                rect_col_width = (row_bounds_area.width-(squares*square_width))/need_assigned
+                rect_col_width = (row_bounds_area.width-assigned_space-(squares*square_width))/need_assigned
+            # Fixed columns can already oversubscribe the row -- an authoring
+            # error, but flex columns must then get nothing rather than a
+            # negative width, which would invert the rect.
+            if rect_col_width < 0:
+                rect_col_width = 0
         else:
             rect_col_width = square_width
 
