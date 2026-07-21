@@ -133,27 +133,36 @@ def measure_line_width(font, text):
     return _store(_line_w, key, px)
 
 
-def measure_line_height(font, text):
-    """Height in PIXELS of one unwrapped line, or None if unmeasurable.
+# A single line, asked for as a "block" one line wide enough never to wrap.
+# 1<<20 px is far past any real screen, so the engine returns the height of the
+# text on one line -- which is the line ADVANCE, not the ink.
+_ONE_LINE_PX = 1 << 20
 
-    `text` is part of the key on purpose. The engine may vary line height with
-    the glyphs present; the mock happens to ignore the argument, but encoding
-    that belief here would bake a mock assumption into the library.
+
+def measure_line_height(font, text):
+    """Height in PIXELS one line OCCUPIES, or None if unmeasurable.
+
+    This deliberately does NOT call sbs.get_text_line_height. That function
+    returns the INK EXTENT -- how tall the glyphs themselves are -- not how much
+    vertical space a line consumes. For gui-2 it reports 13px where a drawn line
+    actually occupies 24px, so every row sized from it came out ~45% short.
+    Because the engine does not clip, short rows do not truncate, they overdraw
+    whatever is beneath them.
+
+    Measured in the engine with missions/layout_probe -> "Wrap Ruler": the same
+    sentence at shrinking widths drew 2/3/4 lines in exactly 48/72/96px, so the
+    advance is exactly block_height / lines with no constant term. Asking for a
+    single unwrapped line therefore gives the true advance, and it agrees with
+    the nominal _FONT_SIZES table for every font -- which is the second,
+    independent confirmation that that table is real line occupancy.
+
+    `text` stays part of the key on purpose: the engine may vary line height
+    with the glyphs present, and encoding the mock's belief that it does not
+    would bake a mock assumption into the library.
     """
-    font = _font(font)
-    key = (font, text)
-    got = _line_h.get(key)
-    if got is not None:
-        _stats["hits"] += 1
-        return got
-    sbs = _sbs()
-    if sbs is None:
-        return None
-    _stats["line_h"] += 1
-    px = sbs.get_text_line_height(font, text)
-    if px is None or px < 0:
-        return None
-    return _store(_line_h, key, px)
+    # An empty string has no block height (it is 0 by definition), but callers
+    # asking for a line height still want the height a line WOULD occupy.
+    return measure_block_height(font, text or "M", _ONE_LINE_PX)
 
 
 def measure_block_height(font, text, px_width):

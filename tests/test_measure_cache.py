@@ -64,11 +64,29 @@ class TestMeasureCache(unittest.TestCase):
     def test_line_height_is_keyed_by_text_not_just_font(self):
         # The mock ignores the text argument, but the engine may not. Encoding
         # the mock's behaviour here would bake a mock assumption into the lib.
+        # Counted as BLOCK calls because a line height is now asked for as a
+        # one-line block -- see test_line_height_is_the_line_advance.
         measure.measure_line_height("gui-2", "short")
         measure.measure_line_height("gui-2", "a much longer string")
-        self.assertEqual(self.sbs.line_h_calls, 2)
+        self.assertEqual(self.sbs.block_h_calls, 2)
         measure.measure_line_height("gui-2", "short")
-        self.assertEqual(self.sbs.line_h_calls, 2)
+        self.assertEqual(self.sbs.block_h_calls, 2)
+
+    def test_line_height_is_the_line_advance_not_the_ink(self):
+        """sbs.get_text_line_height is the INK extent, not line occupancy.
+
+        It reports 13px for gui-2 where a drawn line occupies 24px, so any row
+        sized from it came out ~45% short -- and short rows overdraw rather than
+        truncate, because the engine does not clip. Confirmed in the engine with
+        missions/layout_probe -> "Wrap Ruler": the same sentence drew 2/3/4
+        lines in exactly 48/72/96px.
+
+        So measure_line_height must NEVER reach get_text_line_height.
+        """
+        h = measure.measure_line_height("gui-2", "M")
+        self.assertEqual(self.sbs.line_h_calls, 0)
+        self.assertEqual(h, measure.measure_block_height("gui-2", "M", 1 << 20))
+
 
     def test_block_height_keyed_by_width(self):
         measure.measure_block_height("gui-2", "some words here", 100)
@@ -314,6 +332,42 @@ class TestDefaultFontPinned(unittest.TestCase):
         for unset in (None, "", "   ", 0):
             with self.subTest(unset=unset):
                 self.assertEqual(measure._font(unset), measure.DEFAULT_FONT)
+
+
+class TestLineAdvanceAgainstTheMock(unittest.TestCase):
+    """The one metric claim worth checking against real numbers.
+
+    Everything else in this file uses a fake so it tests the CACHE, not the
+    metrics. This case is different: it asserts that a measured line advance
+    equals the nominal _FONT_SIZES table for every font, which is the finding
+    that made get_text_line_height suspect in the first place. A fake returning
+    a constant cannot express that, so it runs against the mock -- whose numbers
+    were themselves confirmed in the engine by the Wrap Ruler probe.
+    """
+
+    def setUp(self):
+        from cosmos_dev.mock import sbs as mock_sbs
+        from sbs_utils.helpers import Context
+        mock_sbs.create_new_sim()
+        FrameContext.aspect_ratios[0] = Vec3(1024, 768, 0)
+        FrameContext.context = Context(mock_sbs.sim, mock_sbs, FakeEvent())
+        measure.measure_cache_clear()
+
+    def tearDown(self):
+        measure.measure_cache_clear()
+        FrameContext.context = None
+
+    def test_line_advance_matches_the_nominal_font_table(self):
+        from sbs_utils.pages.layout.layout import _FONT_SIZES
+        for font, nominal in _FONT_SIZES.items():
+            with self.subTest(font=font):
+                self.assertEqual(measure.measure_line_height(font, "M"), nominal)
+
+    def test_line_advance_is_taller_than_the_ink_extent(self):
+        # The bug in one assertion: what the engine calls "line height" is
+        # smaller than what a line actually occupies.
+        ink = FrameContext.context.sbs.get_text_line_height("gui-2", "M")
+        self.assertLess(ink, measure.measure_line_height("gui-2", "M"))
 
 
 if __name__ == "__main__":
