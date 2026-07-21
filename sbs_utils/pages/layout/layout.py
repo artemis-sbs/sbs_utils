@@ -4,6 +4,7 @@ from ...mast.parsers import LayoutAreaParser, ContentSize, MIN_CONTENT
 from enum import IntEnum
 from .bounds import Bounds
 from .hole import Hole
+from .measure import pct_to_px_x
 # for type hints
 from .row import Row 
 from .column import Column
@@ -464,6 +465,96 @@ class Layout(Clickable):
         col_widths = [rect_col_width if w is None else w for w in fixed_widths]
         return actual_cols, col_widths, square_width, square_height
 
+    def _measure_row_height(self, row, row_bounds_area, aspect_ratio, row_font,
+                            mode, client_id):
+        """Natural height of `row` in percent, or None if nothing measurable.
+
+        Height depends on WIDTH -- text wraps to the width it is given -- so the
+        columns are resolved first and each is measured at the width it will
+        actually get.
+
+        Squares are excluded from the maximum on purpose. A square's height
+        comes FROM the row height, so letting it contribute would be circular.
+        A row of nothing but squares (or unmeasurable widgets) therefore has no
+        natural height at all and returns None, falling back to flex.
+        """
+        resolved = self._resolve_col_widths(row, row_bounds_area, aspect_ratio,
+                                            row_font, client_id)
+        if resolved is None:
+            return None
+        actual_cols, col_widths, _sw, _sh = resolved
+
+        tallest = None
+        for i, col in enumerate(actual_cols):
+            if col.square:
+                continue
+            col_font = effective_font(col, row_font)
+            # Measure at this column's own width, minus its box model, since
+            # that is the space the text actually has to wrap inside.
+            avail_pct = col_widths[i]
+            col_font_size = get_font_size(col_font)
+            margin = Bounds(calc_bounds(col.margin_style, aspect_ratio, col_font_size))
+            border = Bounds(calc_bounds(col.border_style, aspect_ratio, col_font_size))
+            padding = Bounds(calc_bounds(col.padding_style, aspect_ratio, col_font_size))
+            avail_pct -= (margin.left + margin.right + border.left + border.right
+                          + padding.left + padding.right)
+            avail_px = pct_to_px_x(avail_pct, aspect_ratio) if avail_pct > 0 else None
+
+            natural = col.measure(client_id, mode, avail_px, col_font, aspect_ratio)
+            if natural is None:
+                continue
+            height = natural[1]
+            # Give the height back its vertical box model, or a bordered cell
+            # clips its own text.
+            height += (margin.top + margin.bottom + border.top + border.bottom
+                       + padding.top + padding.bottom)
+            if tallest is None or height > tallest:
+                tallest = height
+                col.content_sized = True
+
+        return tallest
+
+    def _content_row_height(self, row, bounds_area, aspect_ratio, row_font,
+                            mode, client_id, provisional_height):
+        """Height for a `row-height: content` row, breaking the square cycle.
+
+        Squares are sized from the ROW HEIGHT and they CONSUME WIDTH, while a
+        content height is measured at the column widths. So with a square in
+        the row: height <- content <- widths <- square_width <- height. A real
+        cycle, not just an ordering problem.
+
+        Resolved in a bounded, deterministic way:
+
+          * no squares (the overwhelmingly common case) -- widths do not depend
+            on the row height at all, so one pass is exact.
+          * squares present -- measure once at a PROVISIONAL height (what the
+            row would have got as a flex row), then once more at the height
+            that produced. Stop there. Column widths may shift slightly on the
+            second pass because square_width changed; converging further is not
+            worth the measurements. Documented, not silently approximate.
+        """
+        area = Bounds(bounds_area)
+        area.shrink(row.margin)
+        area.shrink(row.padding)
+        area.shrink(row.border)
+
+        has_square = any(c.square for c in row.columns if not c.is_hidden)
+
+        if not has_square:
+            area.height = bounds_area.height     # width is height-independent
+            return self._measure_row_height(row, area, aspect_ratio, row_font,
+                                            mode, client_id)
+
+        area.height = provisional_height
+        first = self._measure_row_height(row, area, aspect_ratio, row_font,
+                                         mode, client_id)
+        if first is None:
+            return None
+        area.height = first
+        second = self._measure_row_height(row, area, aspect_ratio, row_font,
+                                          mode, client_id)
+        return first if second is None else second
+
     def calc(self, client_id):
         aspect_ratio = get_client_aspect_ratio(client_id)
         self.client_id = client_id
@@ -501,11 +592,16 @@ class Layout(Clickable):
                 calc_float_attribute("default_height", None, None, self, aspect_ratio.y, 20)
             ) if self.default_height is not None else None
 
+            # Heights measured for content rows, keyed by row, so the main loop
+            # below reuses them instead of measuring a second time.
+            content_heights = {}
+
             if section_height is not None:
                 layout_row_height = section_height
             else:
                 layout_row_height = bounds_area.height
                 flex_rows = len(rows)
+                fixed_total = 0.0
                 for row in rows:
                     row_font = self.default_font
                     if row.default_font is not None:
@@ -513,12 +609,36 @@ class Layout(Clickable):
 
                     if row.default_height is not None:
                         row_font_height  = get_font_size(row_font)
-                        value = resolved_size(calc_float_attribute("default_height", None, row, self, aspect_ratio.y, row_font_height))
-                        # A content height is not resolvable yet, so the row
-                        # stays in the flex pool for now (S4 measures it).
+                        raw = calc_float_attribute("default_height", None, row, self, aspect_ratio.y, row_font_height)
+                        value = resolved_size(raw)
+
+                        if value is None and raw.__class__ is ContentSize:
+                            value = self._content_row_height(
+                                row, bounds_area, aspect_ratio, row_font, raw,
+                                client_id, layout_row_height / max(len(rows), 1))
+                            if value is not None:
+                                content_heights[id(row)] = value
+
                         if value is not None:
                             layout_row_height -= value
+                            fixed_total += value
                             flex_rows -= 1
+
+                #
+                # Content rows are requests, not reservations. If they and the
+                # fixed rows have oversubscribed the section, scale the CONTENT
+                # rows down proportionally so the flex rows are not left with a
+                # negative share. Fixed rows are never scaled -- an over-large
+                # fixed row already drove the remainder negative before content
+                # sizing existed, and that behaviour must not change.
+                #
+                if layout_row_height < 0 and content_heights:
+                    content_total = sum(content_heights.values())
+                    keep = max(0.0, content_total + layout_row_height)
+                    scale = (keep / content_total) if content_total > 0 else 0.0
+                    for key in content_heights:
+                        content_heights[key] *= scale
+                    layout_row_height = bounds_area.height - (fixed_total - content_total) - keep
 
                 if flex_rows>0:
                     layout_row_height /= flex_rows
@@ -543,8 +663,8 @@ class Layout(Clickable):
                 row.border =Bounds(calc_bounds(row.border_style, aspect_ratio, row_font_height))
 
                 # This is for drawing background and border?
-                row_height = None
-                if row.default_height is not None:
+                row_height = content_heights.get(id(row))
+                if row_height is None and row.default_height is not None:
                     row_height = resolved_size(calc_float_attribute("default_height", None, row, None,  aspect_ratio.y, row_font_height))
                 if row_height is None:
                     row_height = layout_row_height
