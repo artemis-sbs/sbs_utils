@@ -100,7 +100,15 @@ class TestAutoRedistributes(_Base):
             self.assertAlmostEqual(x, 20.0, places=2)
 
     def test_without_auto_nothing_moves(self):
-        w = self.widths([_text("A" * 40), _text("a"), _text("b"), _text("c")])
+        # Pins the historical FILL behaviour, so it keeps testing what it means
+        # regardless of what layout.AUTO_DEFAULT is set to.
+        from sbs_utils.pages.layout import layout as layout_mod
+        was = layout_mod.AUTO_DEFAULT
+        layout_mod.AUTO_DEFAULT = False
+        try:
+            w = self.widths([_text("A" * 40), _text("a"), _text("b"), _text("c")])
+        finally:
+            layout_mod.AUTO_DEFAULT = was
         for x in w:
             self.assertAlmostEqual(x, 25.0, places=2)
 

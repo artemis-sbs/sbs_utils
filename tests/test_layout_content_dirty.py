@@ -87,7 +87,23 @@ class _Base(unittest.TestCase):
 
 class TestNonContentStaysCheap(_Base):
     """The common case: a layout with no content keywords must behave exactly
-    as it did before this feature existed."""
+    as it did before this feature existed.
+
+    Pins layout.AUTO_DEFAULT off. With auto as the default an unsized text
+    column IS content-sized, so it goes through the measure-on-update guard --
+    which is correct, but it is not what these tests are about.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.pages.layout import layout as layout_mod
+        self._layout_mod = layout_mod
+        self._was_auto = layout_mod.AUTO_DEFAULT
+        layout_mod.AUTO_DEFAULT = False
+
+    def tearDown(self):
+        self._layout_mod.AUTO_DEFAULT = self._was_auto
+        super().tearDown()
 
     def test_plain_text_update_marks_only_the_widget(self):
         t = _text("HELLO")

@@ -1,6 +1,22 @@
 from ...gui import get_client_aspect_ratio
 from ...helpers import FrameContext
-from ...mast.parsers import LayoutAreaParser, ContentSize, MIN_CONTENT
+from ...mast.parsers import LayoutAreaParser, ContentSize, MIN_CONTENT, AUTO
+
+#
+# When True, a column with no col-width of its own behaves as `col-width: auto`:
+# still flex, but never squeezed below its own min-content. This is the LM
+# issue 672 request applied globally -- a long string beside short ones grows,
+# and its roomier neighbours give way, with nothing annotated.
+#
+# It is a BEHAVIOUR CHANGE for every existing layout, which is why it is a
+# single switch: set it False to restore the historical pure-FILL default.
+#
+# Cost, measured rather than assumed: the extra measurement is ~0.58ms per
+# repaint in the engine (1015 calls at 0.57us, from missions/font_measure)
+# against ~6ms of layout arithmetic. Unmeasurable widgets return None and stay
+# plain flex, so the added work is proportional to how much TEXT is on screen.
+#
+AUTO_DEFAULT = True
 from enum import IntEnum
 from .bounds import Bounds
 from .hole import Hole
@@ -461,6 +477,8 @@ class Layout(Clickable):
             col_font_size = get_font_size(col_font)
             raw_width = calc_float_attribute(
                 "default_width", col, row, self, aspect_ratio.x, col_font_size)
+            if raw_width is None and AUTO_DEFAULT:
+                raw_width = AUTO
             default_width = resolved_size(raw_width)
 
             if (default_width is None and raw_width.__class__ is ContentSize

@@ -209,8 +209,16 @@ class TestContentSizedFlag(_Base):
         self.assertTrue(c.content_sized)
 
     def test_flag_not_set_without_the_keyword(self):
-        c = _text("ABCDE")
-        self.widths([c, _text("flex")])
+        # With AUTO_DEFAULT on, an unsized text column IS measured (for its
+        # min-content floor), so this pins the pure-FILL default explicitly.
+        from sbs_utils.pages.layout import layout as layout_mod
+        was = layout_mod.AUTO_DEFAULT
+        layout_mod.AUTO_DEFAULT = False
+        try:
+            c = _text("ABCDE")
+            self.widths([c, _text("flex")])
+        finally:
+            layout_mod.AUTO_DEFAULT = was
         self.assertFalse(c.content_sized)
 
     def test_flag_not_set_on_unmeasurable(self):
