@@ -16,10 +16,17 @@ gui_text("$text:`{shield_pct}%`;")                     # takes the rest
 The label is now exactly as wide as the word `Shields:` — at every window size,
 with no percentages to maintain.
 
-## `auto` — and why you rarely have to type it
+## `1fr` — and why you rarely have to type it
 
-`auto` is the odd one out, and the one you are probably already getting:
-**it is the default.** A row or column that says nothing is `auto`.
+`1fr` is the odd one out, and the one you are probably already getting:
+**it is the default.** A row or column that says nothing is `1fr`.
+
+> **Naming.** This mode is an equal share of the leftover space, with a minimum
+> — which CSS spells `1fr` (grid) or `flex: 1` (flexbox). It used to be called
+> `auto`, and **`auto` still works**, but the name mispredicted the behaviour:
+> CSS's own `auto` means *size to your content and shrink under pressure*, which
+> is nearly the opposite. Prefer `1fr` in new work. If `auto` is ever given its
+> CSS meaning, only scripts that wrote `auto` explicitly will change.
 
 `auto` keeps a column in the flex pool — it still shares the leftover space —
 but puts a **floor** under it, so it is never squeezed below its `min-content`.
@@ -30,18 +37,18 @@ That is the difference in one line:
 
 | | in the flex pool? | floor |
 |---|---|---|
-| `auto` (default) | yes — shares leftover space | never below `min-content` |
+| `1fr` (default, was `auto`) | yes — shares leftover space | never below `min-content` |
 | `content` / `min-content` / `max-content` | no — sized from its content | n/a |
 
-Because `col-width` cascades column → row → section, putting `auto` on a section
+Because `col-width` cascades column → row → section, putting `1fr` on a section
 makes every column in it minimum-aware without annotating any of them.
 
 ## The four keywords
 
 | keyword | on a **column** | on a **row** |
 |---|---|---|
-| `auto` *(default)* | flex, but never below `min-content` | flex, but never below its content height |
-| `content` | natural width, clamped to what is available | as tall as the tallest cell **at its final width**, wrapping included |
+| `1fr` *(default; `auto` is an alias)* | flex, but never below `min-content` | flex, but never below its content height |
+| `content` *(`fit-content` is an alias)* | natural width, clamped to what is available | as tall as the tallest cell **at its final width**, wrapping included |
 | `min-content` | the widest unbreakable word | *alias of `content`* |
 | `max-content` | the whole line, unbroken | tallest cell measured as one unwrapped line |
 
@@ -181,6 +188,27 @@ the engine at column widths ≥600px, and 94% of the time at ≥300px, but diver
 below that. Since the engine does not clip, a row that is short by one line spills
 into whatever sits under it. The `content_demo` mission exists to make that
 visible.
+
+## What a row is guaranteed
+
+Two guarantees worth knowing, both of which used to be violated:
+
+**A row is never sized below its own content just to pay for another row.**
+Space is shared by min-constrained water-filling — the same shape CSS uses for
+flex items with a minimum: share evenly, freeze whatever cannot fit its share at
+its floor, re-share the rest. A row whose content fits inside the even share is
+completely unaffected.
+
+**A nested section asks for the height its content really needs.** When the
+width is known, a sub-section measures its rows *wrapped*, so it requests the
+several lines it will actually occupy rather than one unwrapped line.
+
+Both matter because the engine does not clip: a row squeezed below its content
+does not truncate, it draws over its neighbour.
+
+If the floors genuinely do not fit, they are all scaled together — nothing is
+starved to pay for something else — and `--audit-layout` reports it as
+`TEXT_TALL`. That is the section being too small, which is an authoring fix.
 
 ## Cost
 

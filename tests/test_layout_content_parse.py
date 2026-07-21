@@ -203,3 +203,55 @@ class TestContentFallsBackToFlexForNow(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCssSpellings(unittest.TestCase):
+    """`1fr` is canonical; `auto` is the alias that keeps working.
+
+    The mode formerly called `auto` is an equal share of the leftover space with
+    a minimum -- which CSS spells `1fr`. CSS's own `auto` means the opposite
+    (size to content, shrink under pressure), so the old name mispredicted the
+    behaviour for anyone arriving from CSS, and it is the DEFAULT mode.
+
+    Both spellings resolve to the SAME sentinel today. That is the point: if
+    `auto` is ever given its CSS meaning, only scripts that wrote `auto`
+    explicitly change behaviour.
+    """
+
+    def test_1fr_and_auto_are_the_same_mode(self):
+        self.assertIs(StyleDefinition.parse_width("1fr"),
+                      StyleDefinition.parse_width("auto"))
+        self.assertIs(StyleDefinition.parse_height("1fr"),
+                      StyleDefinition.parse_height("auto"))
+
+    def test_1fr_is_the_canonical_name(self):
+        self.assertEqual(StyleDefinition.parse_width("auto").mode, "1fr")
+
+    def test_fit_content_is_an_alias_of_content(self):
+        self.assertIs(StyleDefinition.parse_width("fit-content"),
+                      StyleDefinition.parse_width("content"))
+
+    def test_css_names_survive_whitespace_and_case(self):
+        for spelling in (" 1FR ", "Auto", " Fit-Content"):
+            with self.subTest(spelling=spelling):
+                self.assertIsInstance(StyleDefinition.parse_width(spelling),
+                                      ContentSize)
+
+    def test_the_new_spellings_are_harmless_in_an_expression(self):
+        # Unsupported positions fall back to 1, exactly like an unknown id --
+        # a no-op rather than a new failure mode.
+        tokens = LayoutAreaParser.lex("1fr")
+        self.assertEqual(tokens[0].token_type, "content")
+
+
+class TestOverflowSpellings(unittest.TestCase):
+    def test_visible_is_an_alias_of_spill(self):
+        from sbs_utils.pages.layout.measure import OVERFLOW_ALIASES
+        self.assertEqual(OVERFLOW_ALIASES["visible"], "spill")
+
+    def test_hidden_is_deliberately_NOT_an_alias_of_hide(self):
+        # CSS `hidden` means draw-and-clip; ours means do-not-draw. Borrowing
+        # the word would be more misleading, not less -- this engine cannot clip.
+        from sbs_utils.pages.layout.measure import OVERFLOW_ALIASES, OVERFLOW_POLICIES
+        self.assertNotIn("hidden", OVERFLOW_ALIASES)
+        self.assertNotIn("hidden", OVERFLOW_POLICIES)

@@ -20,7 +20,22 @@ class ContentSize:
       max-content  the text on one unbroken line
       min-content  the widest unbreakable word
       content      fit-content -- the natural size, clamped to what is available
-      auto         still FLEX, but never squeezed below its min-content
+      1fr          still FLEX, but never squeezed below its min-content
+
+    NAMES follow CSS, and `1fr` is deliberate. This mode is an equal share of
+    the leftover space with a minimum -- which CSS spells `1fr` (grid) or
+    `flex: 1` (flexbox). CSS's own `auto` means something DIFFERENT: size to
+    your content and shrink under pressure. Anyone arriving from CSS reads
+    `auto` and predicts the opposite of what happens, and since this is the
+    DEFAULT mode, its name is what people assume without looking.
+
+    `auto` is still accepted as an alias, and today the two are identical. The
+    point of introducing `1fr` while that is true is migration: if `auto` is
+    ever given its CSS meaning, only scripts that explicitly wrote `auto` change
+    behaviour, and they will be few.
+
+    `fit-content` is likewise accepted as an alias of `content`, since that is
+    what CSS calls it.
 
     `auto` is the odd one out and the one that answers LM issue 672. The other
     three take a column OUT of the flex pool and give it a size of its own.
@@ -36,7 +51,7 @@ class ContentSize:
     """
     __slots__ = ("mode",)
 
-    MODES = ("content", "min-content", "max-content", "auto")
+    MODES = ("content", "min-content", "max-content", "1fr")
 
     def __init__(self, mode="content"):
         self.mode = mode
@@ -51,8 +66,12 @@ class ContentSize:
 
     @property
     def is_auto(self):
-        """Flex, but floored at min-content. Stays in the flex pool."""
-        return self.mode == "auto"
+        """Flex, but floored at min-content. Stays in the flex pool.
+
+        Named `is_auto` for continuity with the `auto` alias; the canonical
+        author-facing spelling of this mode is `1fr`.
+        """
+        return self.mode == "1fr"
 
     def __repr__(self):
         return f"ContentSize({self.mode})"
@@ -68,30 +87,37 @@ class ContentSize:
 CONTENT = ContentSize("content")
 MIN_CONTENT = ContentSize("min-content")
 MAX_CONTENT = ContentSize("max-content")
-AUTO = ContentSize("auto")
+AUTO = ContentSize("1fr")          # canonical spelling: `1fr` (alias: `auto`)
 _CONTENT_BY_NAME = {c.mode: c for c in (CONTENT, MIN_CONTENT, MAX_CONTENT, AUTO)}
+#
+# CSS spellings accepted alongside ours. `auto` is the historical name for the
+# `1fr` mode and is kept working; `fit-content` is what CSS calls `content`.
+#
+_CONTENT_BY_NAME["auto"] = AUTO
+_CONTENT_BY_NAME["fit-content"] = CONTENT
 
 # based on https://github.com/gnebehay/parser/blob/master/parser.py
 class LayoutAreaParser:
     rules = {
         "ws": r"[ \t]+",
+        #
+        # MUST precede the NUMERIC rules: `1fr` begins with a digit, so "digits"
+        # would take the 1 and leave "fr" as an identifier. It must also precede
+        # "max"/"min", which are unanchored prefixes that would otherwise steal
+        # the front of "max-content"/"min-content" and leave `-content` behind
+        # -- which parse_func then rejects with "Invalid syntax on token minus".
+        #
+        # The \b keeps "contentious" and friends lexing as an id, exactly as
+        # before. Where these keywords are SUPPORTED (row-height / col-width)
+        # they never reach the lexer at all -- parse_width and parse_height
+        # short-circuit on the raw string. This rule only makes them HARMLESS
+        # elsewhere (inside area:, or mid-expression), where they evaluate to 1,
+        # identical to the long-standing fallback for an unknown identifier.
+        #
+        "content": r"(fit-content|(min-|max-)?content|auto|1fr)\b",
         "pixels": r"\d+px",
         "ems": r"\d+(\.\d+)?em",
         "digits": r"\d+(\.\d+)?",
-        #
-        # MUST precede "max"/"min": those rules are unanchored prefixes, so
-        # they would otherwise steal the front of "max-content"/"min-content"
-        # and leave `-content` behind -- which parse_func then rejects with
-        # "Invalid syntax on token minus".
-        #
-        # The \b keeps "contentious" and friends lexing as an id, exactly as
-        # before. In a position that supports it (row-height/col-width) the
-        # keyword never reaches the lexer at all -- parse_width/parse_height
-        # short-circuit on the raw string. This rule only makes the keyword
-        # HARMLESS elsewhere (e.g. inside area:), where it evaluates to 1 --
-        # identical to today's fallback for any unknown identifier.
-        #
-        "content": r"((min-|max-)?content|auto)\b",
         "max": r"max",
         "min": r"min",
         "id": r"[_a-zA-Z][_a-zA-Z0-9]*",

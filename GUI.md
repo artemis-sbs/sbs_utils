@@ -259,9 +259,17 @@ Things that bite:
   spills into whatever is under it. Check narrow wrapping cases in a real
   session — `missions/content_demo` exists for exactly this.
 
-**`auto` is the DEFAULT** (`layout.AUTO_DEFAULT`): a row/column that declares
+**`1fr` is the DEFAULT** (`layout.AUTO_DEFAULT`): a row/column that declares
 nothing still shares the leftover space but is never squeezed below its
 `min-content`. The other three take it out of the flex pool entirely.
+Names follow CSS: this mode is CSS's `1fr`/`flex: 1`, NOT CSS's `auto` (which
+means content-driven). `auto` still works as an alias; prefer `1fr` in new work.
+`fit-content` aliases `content`; `visible` aliases `overflow: spill`. `hidden`
+is deliberately NOT an alias of `hide` -- CSS `hidden` clips, ours does not draw.
+
+**No row is squeezed below its content to pay for another** (min-constrained
+water-filling), and a nested section measures its rows WRAPPED when the width
+is known, so it asks its parent for the height it really needs.
 
 **`em` is one line of the ROW's font, and an unfonted row is `gui-2` (24px).**
 A `row-height: 1em` row holding `font:gui-3` text is 4px short and overdraws.

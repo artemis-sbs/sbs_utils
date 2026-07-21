@@ -446,7 +446,14 @@ def measure_cache_stats():
 # Ordered smallest-last: shrinking walks down this list.
 FONT_LADDER = ["gui-6", "gui-5", "gui-4", "gui-3", "gui-2", "gui-1", "smallest"]
 
-OVERFLOW_POLICIES = ("spill", "shrink", "ellipsis", "hide")
+# `visible` is CSS's name for `spill` and is accepted as an alias.
+#
+# Note what is NOT aliased: CSS's `hidden` means "draw it and clip"; ours means
+# "do not draw it at all", which is closer to `display: none`. Borrowing the CSS
+# word there would be MORE misleading, not less -- precisely because this engine
+# cannot clip.
+OVERFLOW_POLICIES = ("spill", "visible", "shrink", "ellipsis", "hide")
+OVERFLOW_ALIASES = {"visible": "spill"}
 
 ELLIPSIS = "..."          # ASCII only -- the engine renders nothing else
 
@@ -530,6 +537,7 @@ def apply_overflow(props, bounds, policy, cascade_font=None):
     from ...helpers import FrameContext, split_props, merge_props
     from ...gui import get_client_aspect_ratio
 
+    policy = OVERFLOW_ALIASES.get(policy, policy)
     if not policy or policy == "spill" or not props:
         return props, True
 

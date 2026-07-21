@@ -17,7 +17,7 @@ gui_text("$text:`{ship_name}`;", "overflow: shrink;")
 
 | policy | what it does |
 |---|---|
-| `spill` *(default)* | draw it anyway — today's behaviour, and the historical one |
+| `spill` *(default; `visible` is an alias)* | draw it anyway — today's behaviour, and the historical one |
 | `shrink` | step the font down until it fits |
 | `ellipsis` | truncate and append `...` |
 | `hide` | do not draw it at all |
@@ -41,6 +41,15 @@ something was cut; with `shrink` they cannot.
 
 **`hide`** is for decoration that is not worth overlapping other text. Use it
 sparingly: silently dropping content is rarely what a player wants.
+
+## A note on CSS names
+
+`visible` is accepted as an alias of `spill`, since that is what CSS calls it.
+
+`hidden` is deliberately **not** an alias of `hide`. In CSS, `overflow: hidden`
+means *draw it and clip it*; ours means *do not draw it at all*, which is closer
+to `display: none`. Borrowing the CSS word would be more misleading, not less —
+precisely because this engine cannot clip.
 
 ## Gotchas
 
