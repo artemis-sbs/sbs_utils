@@ -335,7 +335,35 @@ def pct_to_px_x(pct, ar):
     return (pct / 100.0) * ar.x
 
 
+# Result memo for measure_props. The PIXEL metrics underneath are already
+# memoised, but the wrapper still re-parses the props string and redoes the
+# min/max/content arithmetic on every call -- and measure() is called several
+# times per column per calc(), then again on every repaint of an unchanged
+# tree. Caching the final (w, h) collapses all of that to a dict lookup.
+#
+# The key is the FULL set of inputs, so it is self-invalidating: change the
+# text, the mode, the available width, the font or the aspect ratio and the key
+# changes. Cleared by measure_cache_clear() alongside the pixel memos.
+_MISS = object()
+_props_cache = {}
+
+
 def measure_props(props, mode, avail_px, font, ar):
+    """Cached front end for the per-widget natural size. See
+    _measure_props_uncached for the real work and the reasoning."""
+    key = (props, mode, avail_px, font, ar.x, ar.y)
+    hit = _props_cache.get(key, _MISS)
+    if hit is not _MISS:
+        _stats["hits"] += 1
+        return hit
+    result = _measure_props_uncached(props, mode, avail_px, font, ar)
+    if len(_props_cache) >= CACHE_CAP:
+        _props_cache.clear()
+    _props_cache[key] = result
+    return result
+
+
+def _measure_props_uncached(props, mode, avail_px, font, ar):
     """Natural size of a widget whose text lives in a props string.
 
     The shared body of Column.measure for every text-bearing widget (Text,
@@ -420,6 +448,7 @@ def measure_cache_clear():
     _line_w.clear()
     _line_h.clear()
     _block_h.clear()
+    _props_cache.clear()
     for k in _stats:
         _stats[k] = 0
 

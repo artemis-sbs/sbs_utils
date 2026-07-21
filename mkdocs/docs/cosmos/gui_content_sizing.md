@@ -212,10 +212,41 @@ starved to pay for something else — and `--audit-layout` reports it as
 
 ## Cost
 
-A layout that uses none of these keywords pays **one identity comparison per
-column** and nothing else — no measuring, no allocation, no extra pass.
+**With the default (`1fr`), sizing is not free** — this is the important
+correction to make. `1fr` is a content mode: an unannotated column is measured
+to find its `min-content` floor, and an unannotated row is measured for its
+content height. So "using no keywords" no longer means "no measuring"; it means
+every column and row takes the measure path.
 
-Sizing to content does turn a *value* change into a *layout* change: if a column
-is as wide as its text, new text may mean a new width. That only triggers a
-re-layout when the measured size **actually moves**, so a status line cycling
-through same-width values stays on the cheap path.
+Measured on a full `calc()` of a text-heavy screen (mock, warm cache):
+
+| screen | `1fr` default | pure FILL (`AUTO_DEFAULT=False`) |
+|---|---|---|
+| all rows & columns unannotated | ~0.58 ms | ~0.26 ms |
+| fixed-height rows, columns `1fr` | ~0.35 ms | ~0.26 ms |
+
+So the default is **1.4–2.2× a full layout calc** on a screen that is mostly
+measurable text, and the cost falls as more of the layout is given fixed sizes.
+(Before the per-widget result cache described below these were ~1.2 ms and
+~0.6 ms — 2–5× — so most of that gap is now closed.)
+
+Two things keep this from mattering in practice:
+
+- **The engine boundary is free.** Text measurements are memoised in pixel
+  space, so a repainted screen makes **zero** `sbs.get_text_*` calls. The whole
+  cost above is Python arithmetic in the layout pass, not the Pybind boundary.
+- **Full `calc()` is rare.** The dirty system re-lays-out only on a page present
+  or a genuine layout change; a value cycling through same-width text stays
+  visual-only and never re-measures. The millisecond above is paid when a screen
+  is (re)built, not every frame.
+
+If a screen is genuinely hot and mostly fixed anyway, `AUTO_DEFAULT = False`
+restores pure FILL and the ~0.26 ms column — content keywords still work when
+named explicitly.
+
+Each widget's measured size is cached on its full inputs (text, mode, available
+width, font, aspect ratio), so a repaint of an unchanged tree resolves every
+measurement from a dict lookup rather than re-parsing props and re-measuring. The
+cache is self-invalidating — change any input and the key changes — and is
+cleared with the pixel memos. This is what closes most of the gap above; a screen
+whose text genuinely changes every frame pays the uncached cost.

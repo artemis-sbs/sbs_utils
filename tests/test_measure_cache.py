@@ -370,5 +370,65 @@ class TestLineAdvanceAgainstTheMock(unittest.TestCase):
         self.assertLess(ink, measure.measure_line_height("gui-2", "M"))
 
 
+class TestMeasurePropsResultCache(unittest.TestCase):
+    """measure_props caches its RESULT, keyed on all inputs.
+
+    The pixel metrics were already memoised, but the wrapper re-parsed the props
+    string and redid the content arithmetic every call -- and measure() runs
+    several times per column per calc, then again on every repaint. The result
+    cache collapses that to a dict lookup. It must stay CORRECT: change any input
+    and the answer must be recomputed, never served stale.
+    """
+
+    def setUp(self):
+        from cosmos_dev.mock import sbs as mock_sbs
+        from sbs_utils.helpers import Context
+        mock_sbs.create_new_sim()
+        FrameContext.aspect_ratios[0] = Vec3(1024, 768, 0)
+        FrameContext.context = Context(mock_sbs.sim, mock_sbs, FakeEvent())
+        measure.measure_cache_clear()
+
+    def tearDown(self):
+        measure.measure_cache_clear()
+        FrameContext.context = None
+
+    def _m(self, props, font="gui-2"):
+        from sbs_utils.mast.parsers import CONTENT
+        return measure.measure_props(props, CONTENT, None, font, Vec3(1024, 768, 0))
+
+    def test_same_inputs_hit_the_cache(self):
+        a = self._m("$text:`Shields`;")
+        before = measure.measure_cache_stats().get("hits", 0)
+        b = self._m("$text:`Shields`;")
+        self.assertEqual(a, b)
+        self.assertGreater(measure.measure_cache_stats().get("hits", 0), before)
+
+    def test_different_text_is_recomputed(self):
+        short = self._m("$text:`Hi`;")
+        long = self._m("$text:`A much longer label`;")
+        self.assertNotEqual(short, long)
+
+    def test_different_font_is_recomputed(self):
+        self.assertNotEqual(self._m("$text:`X`;", "gui-1"),
+                            self._m("$text:`X`;", "gui-6"))
+
+    def test_clear_drops_the_result_cache(self):
+        self._m("$text:`X`;")
+        measure.measure_cache_clear()
+        from sbs_utils.pages.layout.measure import _props_cache
+        self.assertEqual(len(_props_cache), 0)
+
+    def test_cached_matches_uncached(self):
+        from sbs_utils.pages.layout.measure import _measure_props_uncached
+        from sbs_utils.mast.parsers import CONTENT
+        ar = Vec3(1024, 768, 0)
+        for props in ("$text:`Set`;", "$text:`A really long string here`;",
+                      "$text:``;", "color:red;"):
+            with self.subTest(props=props):
+                self.assertEqual(
+                    measure.measure_props(props, CONTENT, None, "gui-3", ar),
+                    _measure_props_uncached(props, CONTENT, None, "gui-3", ar))
+
+
 if __name__ == "__main__":
     unittest.main()
