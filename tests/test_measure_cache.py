@@ -204,5 +204,88 @@ class TestFontIsAlwaysAStringForTheEngine(unittest.TestCase):
         self.assertIn(("gui-5", "Hello"), measure._line_w)
 
 
+class EngineLikeSbs:
+    """Behaves like the ENGINE, not like the mock.
+
+    Two behaviours the normal mock does not have, both of which caused real
+    invisible-text bugs in Cosmos:
+
+      * fontTag must be a str (Pybind rejects None)
+      * an UNRECOGNISED tag does not raise -- it returns -1
+
+    The mock instead falls back to a gui-3 bucket for anything unknown and
+    returns a positive number, so a malformed font tag looked fine headlessly
+    and drew nothing in the game.
+    """
+
+    KNOWN = {"smallest", "gui-1", "gui-2", "gui-3", "gui-4", "gui-5", "gui-6"}
+
+    def _w(self, font, text):
+        if not isinstance(font, str):
+            raise TypeError("incompatible function arguments")
+        if font not in self.KNOWN:
+            return -1
+        return len(text) * 10
+
+    def get_text_line_width(self, font, text):
+        return self._w(font, text)
+
+    def get_text_line_height(self, font, text):
+        return -1 if font not in self.KNOWN else 20
+
+    def get_text_block_height(self, font, text, px_width):
+        return -1 if font not in self.KNOWN else 20
+
+
+class TestEngineFontQuirks(unittest.TestCase):
+    """Regression for the issue672 invisible text.
+
+    `font: gui-3` in a style string stores " gui-3" with a leading space. The
+    engine returned -1 for it, which became a NEGATIVE column width and an
+    inverted rect, so the text vanished.
+    """
+
+    def setUp(self):
+        FrameContext.aspect_ratios[0] = Vec3(1024, 768, 0)
+        FrameContext.context = types.SimpleNamespace(
+            sbs=EngineLikeSbs(), sim=None, event=FakeEvent())
+        measure.measure_cache_clear()
+
+    def tearDown(self):
+        FrameContext.context = None
+        measure.measure_cache_clear()
+
+    def test_font_with_leading_space_is_normalised(self):
+        # The exact issue672 shape.
+        self.assertEqual(measure.measure_line_width(" gui-3", "Hello"), 50)
+
+    def test_font_with_trailing_space(self):
+        self.assertEqual(measure.measure_line_width("gui-3 ", "Hello"), 50)
+
+    def test_unknown_font_is_unmeasurable_not_negative(self):
+        # A genuinely unknown tag must yield None (-> flex), never a negative
+        # width, which would invert the rect and hide the widget.
+        self.assertIsNone(measure.measure_line_width("no-such-font", "Hello"))
+        self.assertIsNone(measure.measure_line_height("no-such-font", "Hello"))
+        self.assertIsNone(measure.measure_block_height("no-such-font", "Hi", 100))
+
+    def test_negative_is_never_cached(self):
+        measure.measure_line_width("no-such-font", "Hello")
+        self.assertNotIn(("no-such-font", "Hello"), measure._line_w)
+
+    def test_measure_props_survives_a_spaced_font(self):
+        from sbs_utils.mast.parsers import CONTENT
+        got = measure.measure_props("$text:`New Row1 is longer`;font: gui-3;",
+                                    CONTENT, None, " gui-3", Vec3(1024, 768, 0))
+        self.assertIsNotNone(got)
+        self.assertGreater(got[0], 0.0, "content width came out non-positive")
+
+    def test_measure_props_unknown_font_is_unmeasurable(self):
+        from sbs_utils.mast.parsers import CONTENT
+        got = measure.measure_props("$text:`Hi`;font:bogus;",
+                                    CONTENT, None, "bogus", Vec3(1024, 768, 0))
+        self.assertIsNone(got, "unknown font must be unmeasurable, not sized")
+
+
 if __name__ == "__main__":
     unittest.main()

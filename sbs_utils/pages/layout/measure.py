@@ -64,13 +64,23 @@ DEFAULT_FONT = "gui-3"
 
 
 def _font(font):
-    """Coerce to a font tag the engine will accept.
+    """Normalise to a font tag the engine will accept.
 
-    Every path into the engine's text metrics goes through here, so a None or
-    non-string font can never reach Pybind again regardless of which caller
-    forgot to resolve one.
+    Two engine behaviours make this load-bearing:
+
+      * the Pybind signature is (fontTag: str, ...) and REJECTS None outright
+      * an unrecognised tag does not raise -- it returns -1
+
+    A style written `font: gui-3` stores " gui-3" WITH THE LEADING SPACE, and
+    the engine does not recognise that, so it measured -1, which became a
+    negative column width and an inverted rect: the text simply vanished. The
+    mock never reproduced it because its lookup falls back to a gui-3 bucket
+    for anything unknown and returns a positive number.
     """
-    return font if isinstance(font, str) and font else DEFAULT_FONT
+    if not isinstance(font, str):
+        return DEFAULT_FONT
+    font = font.strip()
+    return font if font else DEFAULT_FONT
 
 
 def _sbs():
@@ -105,7 +115,10 @@ def measure_line_width(font, text):
     if sbs is None:
         return None
     _stats["line_w"] += 1
-    return _store(_line_w, key, sbs.get_text_line_width(font, text))
+    px = sbs.get_text_line_width(font, text)
+    if px is None or px < 0:
+        return None          # engine could not measure it -- see _valid()
+    return _store(_line_w, key, px)
 
 
 def measure_line_height(font, text):
@@ -125,7 +138,10 @@ def measure_line_height(font, text):
     if sbs is None:
         return None
     _stats["line_h"] += 1
-    return _store(_line_h, key, sbs.get_text_line_height(font, text))
+    px = sbs.get_text_line_height(font, text)
+    if px is None or px < 0:
+        return None
+    return _store(_line_h, key, px)
 
 
 def measure_block_height(font, text, px_width):
@@ -150,7 +166,10 @@ def measure_block_height(font, text, px_width):
     if sbs is None:
         return None
     _stats["block_h"] += 1
-    return _store(_block_h, key, sbs.get_text_block_height(font, text, px_width))
+    px = sbs.get_text_block_height(font, text, px_width)
+    if px is None or px < 0:
+        return None
+    return _store(_block_h, key, px)
 
 
 def measure_min_word_width(font, text):
