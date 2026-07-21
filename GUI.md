@@ -259,6 +259,32 @@ Things that bite:
   spills into whatever is under it. Check narrow wrapping cases in a real
   session — `missions/content_demo` exists for exactly this.
 
+**`auto` is the DEFAULT** (`layout.AUTO_DEFAULT`): a row/column that declares
+nothing still shares the leftover space but is never squeezed below its
+`min-content`. The other three take it out of the flex pool entirely.
+
+**`em` is one line of the ROW's font, and an unfonted row is `gui-2` (24px).**
+A `row-height: 1em` row holding `font:gui-3` text is 4px short and overdraws.
+Declare the font on the row, or use `content`. One line: smallest 18, gui-1 22,
+gui-2 24, gui-3 28, gui-4 32, gui-5 36, gui-6 52.
+
+**Padding is `left, top, right, bottom`; top/bottom come out of the row height.**
+A single value (`padding:13px`) is horizontal only and costs no height. A row
+needing one gui-3 line plus 10px top padding is `row-height: 1em+10px`.
+
+**Arithmetic works** in row-height/col-width (`1em+10px`, `62-25px`) — before
+v1.4.0 a `+`/`-` term was silently dropped.
+
+**In a listbox item template, size the ROWS — never return a height.** The
+listbox only calls `resize_to_content()` when the template returns `None`, and
+each item section starts at zero height; returning a size leaves it degenerate,
+which kills selection and the click region. Content keywords inside a listbox
+template still fall back to flex.
+
+**`overflow:` — `spill` (default) | `shrink` | `ellipsis` | `hide`** on any
+text-bearing widget, applied at present time against the final rect. For text
+that cannot fit at any size; not a substitute for sizing the row properly.
+
 Cost: a layout using none of these keywords pays one identity comparison per
 column and nothing else. Sizing to content does make a *value* change a *layout*
 change, but only when the measured size actually moves — same-width text stays on

@@ -330,6 +330,35 @@ automatically.
   `gui_text_area` wrap text at roughly **60%** of the available width; it now measures
   properly and fills the space.
 
+- **[Rows and columns can size themselves](cosmos/gui_content_sizing.md).** Add
+  `row-height: content` or `col-width: content` and a row is as tall as its text,
+  a label as wide as its word — at every window size, with no percentages to
+  maintain. `min-content` and `max-content` give finer control, and **`auto` is
+  now the default**: a column still shares the leftover space but is never
+  squeezed below the widest word it has to show.
+
+- **[`overflow:` for text that cannot fit](cosmos/gui_overflow.md).** Because the
+  engine never clips, text too big for its box is drawn over its neighbours. When
+  there is genuinely no space to give — a user-entered name, a fixed strip — a
+  widget can now say `shrink` (step the font down), `ellipsis` (truncate with
+  `...`) or `hide`. The default is unchanged, so nothing moves unless you ask.
+
+- **Text no longer overlaps itself in a scrolling text area.** A `gui_text_area`
+  measured its wrapping against the full width but drew 20px narrower to leave
+  room for its scrollbar, so roughly one paragraph in eight gained a line the
+  layout had not counted — and drew it on top of the next one. It also broke
+  lines by *estimating* characters from an average glyph width, which ended lines
+  short of the edge for no visible reason; it now wraps on measured words.
+
+- **Sizes add up.** `row-height` and `col-width` accept full arithmetic —
+  `1em+10px`, `62-25px`. A `+` or `-` term used to be **silently dropped**, so a
+  layout could have been running with a size it never asked for.
+
+- **A list box no longer shrinks around its tallest row.** Slot budgeting divided
+  the available space by the largest item, so a single tall row could halve how
+  many rows a list showed and leave half the box empty. Rows are now packed by
+  their real heights; a list with equal rows is unchanged.
+
 ---
 
 ## 🐞 Debug your mission — pause it and look inside
