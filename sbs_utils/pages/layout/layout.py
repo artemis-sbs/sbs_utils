@@ -5,7 +5,7 @@ from ...mast.parsers import LayoutAreaParser, ContentSize, MIN_CONTENT, AUTO
 from enum import IntEnum
 from .bounds import Bounds
 from .hole import Hole
-from .measure import pct_to_px_x
+from .measure import pct_to_px_x, DEFAULT_FONT
 # for type hints
 from .row import Row 
 from .column import Column
@@ -155,15 +155,35 @@ _FONT_SIZES = {           # MIN  2k 4k
 }
 
 
+# What an UNSET font is worth in em arithmetic, single-sourced from the
+# render-confirmed default font so the two cannot drift apart again.
+#
+# This was a hardcoded 30 while the default font is gui-2 (24) -- a real bug,
+# not a harmless inconsistency: `1em` on an unfonted row reserved 25% more
+# height than one line of that row's own font needs.
+#
+# Fixing it removes slack that some layouts were unknowingly relying on. The
+# shape that breaks is a row sized in ems whose CHILD declares a bigger font:
+#
+#     gui_row("row-height: 1em;")              # row: no font -> 24
+#     gui_text("$text:{name};font:gui-3;")     # text: draws at 28 -> spills
+#
+# That was always mis-authored -- the row was never asking for enough height,
+# the old 30 just happened to cover it. The fix at the call site is to declare
+# the font on the row, or to use `row-height: content` (or auto), which measures
+# the real text instead of approximating it in nominal ems.
+_DEFAULT_FONT_SIZE = _FONT_SIZES.get(DEFAULT_FONT, 30)
+
+
 def get_font_size(font):
     # Hot: called per section, per row and per column on every calc. The table
     # used to be rebuilt as a dict literal on each of those calls.
     if font is None:
-        return 30
+        return _DEFAULT_FONT_SIZE
     size = _FONT_SIZES.get(font)
     if size is not None:                  # already lower-cased and trimmed
         return size
-    return _FONT_SIZES.get(font.strip().lower(), 30)
+    return _FONT_SIZES.get(font.strip().lower(), _DEFAULT_FONT_SIZE)
 
 class RegionType(IntEnum):
     SECTION_AREA_ABSOLUTE = 0,       # Not a window layout, Old school layout
