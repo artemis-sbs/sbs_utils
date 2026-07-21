@@ -107,8 +107,7 @@ class Button(Column):
         # Quirk, this should just be a 
         # visual update, but when in a 
         # section/region it paints wrong.
-        if self.region_tag != "":
-            self.mark_layout_dirty()
-        else:
-            self.mark_visual_dirty()
+        # The region_tag quirk above forces a layout mark regardless; the
+        # content check still applies when it does not.
+        self.mark_value_dirty(force_layout=self.region_tag != "")
 

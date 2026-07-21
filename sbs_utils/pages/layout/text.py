@@ -31,7 +31,9 @@ class Text(Column):
         message = merge_props(props)
         self.message = message
         if not self.is_hidden:
-            self.mark_visual_dirty()
+            # Visual-only unless this column is content-sized AND its measured
+            # size actually moved -- see Column.mark_value_dirty.
+            self.mark_value_dirty()
 
     
     @property

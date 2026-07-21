@@ -378,6 +378,8 @@ class Layout(Clickable):
                     if natural is not None:
                         default_width = natural[0]
                         col.content_sized = True
+                        col.note_measured(raw_width, None, col_font,
+                                          aspect_ratio, natural)
                         # Remember how far it may be squeezed. min-content is
                         # the widest unbreakable word: below that the engine
                         # breaks mid-word, and since it does not clip, glyphs
@@ -503,6 +505,7 @@ class Layout(Clickable):
             natural = col.measure(client_id, mode, avail_px, col_font, aspect_ratio)
             if natural is None:
                 continue
+            col.note_measured(mode, avail_px, col_font, aspect_ratio, natural)
             height = natural[1]
             # Give the height back its vertical box model, or a bordered cell
             # clips its own text.

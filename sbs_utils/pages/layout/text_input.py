@@ -64,7 +64,7 @@ class TextInput(Column):
             if self.value != event.value_tag:
                 # A character had to be stripped (a backtick); push the
                 # corrected value back so the box matches what we stored.
-                self.mark_visual_dirty()
+                self.mark_value_dirty()
         super().on_message(event)
 
     @property
