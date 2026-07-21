@@ -244,6 +244,17 @@ class LinkLine:
 
 
 class TextArea(Control):
+    #
+    # NOTE the `height` in each style below is INERT. Line heights are measured
+    # from the style's own font (measure_block_height), which is the only number
+    # that matches what the engine draws -- these nominals disagree with it (h3
+    # says 24 where gui-3 occupies 28). The reads were removed rather than the
+    # keys, because a custom style dict may still carry one; it is ignored.
+    #
+    # It is the same shape of bug as get_font_size(None) and the old
+    # measure_line_height: a hardcoded number sitting next to a font, drifting
+    # away from what that font actually measures.
+    #
     styles = {
         "t": {"style": "font:gui-6;color:#bbb;", "prepend": "", "indent": 0, "height": 48},
         # `#`/`##`/`###` markdown headings map to h1/h2/h3. NON-numbered (like standard
@@ -417,7 +428,6 @@ class TextArea(Control):
 
         style = None
         style_key = "_"
-        height = 20
         prepend = ""
         is_a_list = None
         #
@@ -452,7 +462,6 @@ class TextArea(Control):
 
                 style = self.get_style("_")
                 # style = style_default
-                height = 20
                 # To simplify calculation these start with an item that will never be used
                 prepend = None
                 is_a_list = None
@@ -498,11 +507,9 @@ class TextArea(Control):
             
             if isinstance(style_key, str):
                 style = self.get_style(style_key)
-                height = style.get("height")
                 prepend = get_prepend(style_key)
             elif isinstance(style_key, dict):
                 style = style_key
-                height =  style_key.get("height")
                 prepend = style_key.get("prepend")
                 if prepend is None:
                     prepend = ""
