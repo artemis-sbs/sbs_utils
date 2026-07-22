@@ -62,6 +62,60 @@ class TestSides(unittest.TestCase):
     def test_to_side_id_unknown_returns_none(self):
         self.assertIsNone(to_side_id("no_such_side_xyz"))
 
+    def _spy_emitted(self):
+        """Capture the keys actually EMITTED as 'Side not found' — spying at the
+        single warning gate's log sink (the real message source), so a lookup
+        that merely *routes* to the gate but is suppressed counts as silent.
+        Clears the process-wide dedup set so each test starts fresh."""
+        from sbs_utils.procedural import sides as sides_mod
+        from sbs_utils.procedural import execution as exec_mod
+        sides_mod._missing_side_warned.clear()
+        emitted = []
+        orig = exec_mod.log
+        exec_mod.log = lambda msg, *a, **k: emitted.append(msg)
+        self.addCleanup(setattr, exec_mod, "log", orig)
+        return emitted
+
+    def test_to_side_id_hidden_or_empty_is_silent_none(self):
+        # A "#"-only / empty side means NO side (asteroids, cambots, hidden
+        # objects) — resolve to None WITHOUT emitting a 'Side not found' message.
+        emitted = self._spy_emitted()
+        for hidden in ("", "   ", "#", "##", "  #  "):
+            self.assertIsNone(to_side_id(hidden), hidden)
+        self.assertEqual(emitted, [], "a hidden/empty side must not warn")
+
+    def test_to_side_id_hash_prefixed_resolves_to_bare_side(self):
+        # "#raider" is the "raider" side with its display hidden — it must resolve.
+        raider = make_side("raider", "Raider")
+        self.assertEqual(to_side_id("#raider"), raider.id)
+
+    def test_to_side_id_literally_registered_hash_side_matches(self):
+        # A side genuinely registered as "#secret" still matches as-is.
+        secret = make_side("#secret", "Secret")
+        self.assertEqual(to_side_id("#secret"), secret.id)
+
+    def test_to_side_id_unknown_named_side_emits_once(self):
+        # A genuinely-named miss is a real problem (typo'd side): it emits, but
+        # only ONCE per distinct key even across a per-tick sweep.
+        emitted = self._spy_emitted()
+        for _ in range(3):
+            self.assertIsNone(to_side_id("wibble"))
+        self.assertEqual(len(emitted), 1, "should emit once per distinct key")
+        self.assertIn("wibble", emitted[0])
+
+    def test_warn_missing_side_stays_silent_for_monster(self):
+        # Feral monsters intentionally ride an unregistered 'monster' side.
+        emitted = self._spy_emitted()
+        self.assertIsNone(to_side_id("monster"))
+        self.assertEqual(emitted, [])
+
+    def test_to_side_id_warn_false_stays_silent(self):
+        # Existence probes (create-if-missing) pass warn=False: no message even
+        # for a genuinely-unknown side.
+        emitted = self._spy_emitted()
+        self.assertIsNone(to_side_id("nope_xyz", warn=False))
+        self.assertEqual(emitted, [])
+
     # ------------------------------------------------------------------
     # side_keys_set
     # ------------------------------------------------------------------

@@ -364,7 +364,10 @@ def modifier_add(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, durat
         # Check if the modifier exists
         mod_exists = modifier_exists(id, new_mod)
         if mod_exists:
-            debug_print("This modifier already exists:", mod_exists)
+            # Name WHICH modifier is being skipped (key/source/target) — a bare
+            # "already exists: True" says nothing, and this fires once per ship
+            # in ship_set, so identical lines were indistinguishable in multiples.
+            debug_print(f"Modifier already applied, skipping: key='{key}' source='{source}' on object {id}")
         
         # Add the new modifier
         if not mod_exists:

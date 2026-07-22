@@ -93,30 +93,82 @@ def side_enemy_members_set(side):
             enemy_members = enemy_members | side_members_set(a)
     return enemy_members
 
-def to_side_id(key_or_id_or_object):
+# Genuinely-unknown side keys already warned about, so a per-tick diplomacy sweep
+# reports each distinct typo ONCE instead of on every evaluation.
+_missing_side_warned = set()
+
+
+def _warn_missing_side(key):
+    """Emit "Side not found" AT MOST ONCE per genuinely-unknown NAMED side.
+
+    This is the SINGLE gate for the message: every unresolved side lookup routes
+    here, and this alone decides whether the miss is worth surfacing. A miss is
+    NOT worth reporting when it isn't really a missing side:
+
+    - ``""`` / an all-``#`` hidden marker -> the object has NO side (asteroids,
+      cambots, hidden objects). A legitimate state, not a lookup failure.
+    - a ``monster`` feral side -> monsters intentionally ride an unregistered
+      side; the brain drives their aggression, so this is expected.
+    - already reported -> deduped, so a per-tick diplomacy sweep over an unknown
+      side warns once, not on every evaluation.
+
+    Keeping the whole policy here means callers never have to special-case any of
+    it: ``to_side_id`` just hands every miss to this function.
+    """
+    bare = (key or "")
+    bare = bare.strip().lower().lstrip("#") if isinstance(bare, str) else ""
+    if bare == "" or "monster" in bare or bare in _missing_side_warned:
+        return
+    _missing_side_warned.add(bare)
+    try:
+        from .execution import log
+        log(f"Side not found: [{bare}]", "sides", "warning")
+    except Exception:
+        print(f"Side not found: [{bare}]")
+
+
+def to_side_id(key_or_id_or_object, warn=True):
     """Resolve any side reference to the side agent's ID.
 
     Accepts a side key string, a side agent ID, a side agent object, or any
     space object (in which case its side property is used).
 
+    A leading ``#`` on a side key is a display-hide marker only (it tells the
+    engine not to draw the side name); it is not part of the side identity, so
+    ``"#raider"`` resolves to the ``"raider"`` side. An empty or all-``#`` key
+    means the object has NO side (asteroids, cambots, hidden objects) and
+    resolves to ``None`` silently — that is a legitimate state, not a miss.
+
     Args:
         key_or_id_or_object (str | int | Agent): Side key, side agent ID, side
             agent, or a space object whose side should be resolved.
+        warn (bool): Warn (once per distinct key) when a genuinely-named side
+            can't be resolved. Pass ``False`` for existence probes (e.g. a
+            create-if-missing check) where a miss is expected, not an error.
 
     Returns:
         int | None: The side agent ID, or ``None`` if not found.
     """
     # Check if it's a key
     if isinstance(key_or_id_or_object, str):
-        # print(f"Side id: {key_or_id_or_object}")
-        key_or_id_or_object = key_or_id_or_object.strip().lower() # Get rid of leading/trailing whitespaces
-        for s in sides_set():
-            if get_inventory_value(s, "side_key").strip().lower() == key_or_id_or_object:
-                return s
-            if get_inventory_value(s, "side_name").strip().lower() == key_or_id_or_object:
-                return s
-        if not "monster" in key_or_id_or_object:
-            print(f"Side not found: {key_or_id_or_object}")
+        key = key_or_id_or_object.strip().lower()  # Get rid of leading/trailing whitespaces
+        # A leading "#" is a display-hide marker only; "" / all-"#" means NO side.
+        bare = key.lstrip("#")
+        if bare != "":
+            # Match the key as registered first (so a side genuinely registered as
+            # "#secret" still resolves), then retry the un-hashed identity so a
+            # "#"-hidden spawn like "#raider" resolves to the "raider" side.
+            candidates = (key, bare) if bare != key else (key,)
+            for candidate in candidates:
+                for s in sides_set():
+                    if get_inventory_value(s, "side_key").strip().lower() == candidate:
+                        return s
+                    if get_inventory_value(s, "side_name").strip().lower() == candidate:
+                        return s
+        # Unresolved. Hand it to the single warning gate, which decides whether
+        # it's a real miss worth reporting (a "" / "#" / monster side is not).
+        if warn:
+            _warn_missing_side(key)
         return None # If it's not in sides_set() then it's not a valid side key
     id = to_id(key_or_id_or_object) # Will return key_or_id_or_object if it's not an object
     if isinstance(id, int):
@@ -170,9 +222,8 @@ def side_set_object_side(id_or_obj, key)->None:
         key (str | int | Agent): The target side — a key string, side agent ID,
             or any object whose side will be used.
     """
-    id = to_side_id(key)
+    id = to_side_id(key)   # routes a real miss through the single warning gate
     if id is None:
-        print(f"WARNING: Side not found: {key}.")
         return
     key = get_inventory_value(id, "side_key")
     display = get_inventory_value(id, "side_name")
@@ -587,7 +638,7 @@ def side_ensure(key, name=None):
     Returns:
         int: The side agent's ID.
     """
-    existing = to_side_id(key)
+    existing = to_side_id(key, warn=False)   # a miss is expected — we create it below
     if existing is not None:
         return existing
     from ..agent import Agent, get_story_id
