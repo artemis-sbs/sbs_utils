@@ -1727,7 +1727,8 @@ class simulation(object): ### from pybind
         self.nav_points = {}          # keyed by name (str); navpoints only (not navareas)
         self.nav_points_by_id = {}    # keyed by int ID; holds both navpoints and navareas
         self.nav_point_counter = 0x1000000000000000
-        self.navproxies = {}
+        self.navproxies = {}          # keyed by the navproxy's own int id (to_id(add_navproxy(...)))
+        self.nav_proxy_counter = 0x1800000000000000   # distinct range from navpoints/grid/space objects
         self.hull_map_objects = {}
         self._time_tick_counter = 0
         self._tick_accum = 0.0        # fractional sim-ticks carried between physics ticks
@@ -1795,8 +1796,25 @@ class simulation(object): ### from pybind
         return self.nav_point_counter
 
     def add_navproxy(self: simulation, proxyID: int, name: str, shipType: str, colDesc: str) -> int:
-        """adds a new navproxy to space; returns integer ID"""
-        return 0
+        """adds a new navproxy to space; returns its integer ID.
+
+        Was a no-op stub (return 0) that never populated self.navproxies -
+        inconsistent with delete_navproxy_by_id / get_navproxy_by_id /
+        navproxy_exists, which all key off self.navproxies. That forced tests to
+        poke sim.navproxies directly, which THROWS in the engine (the real
+        sim has no navproxies attribute). Now it stores like the engine so the
+        public API works in both. proxyID is the ASSOCIATED object id (-> proxy_id);
+        the navproxy gets its own id, which is what get/delete/exists use."""
+        with self._lock:
+            self.nav_proxy_counter += 1
+            nid = self.nav_proxy_counter
+        np = navproxy()
+        np._proxy_id = proxyID
+        np._text = name
+        np._shiptype = shipType
+        np.SetColor(colDesc)
+        self.navproxies[nid] = np
+        return nid
 
     def create_space_object(self: simulation, aiTag: str, dataTag: str, abits: int) -> int:
         """creates a new spaceobject. abits is a 16-bit bitfield for further defining the object."""
