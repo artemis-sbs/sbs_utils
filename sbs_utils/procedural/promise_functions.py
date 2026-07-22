@@ -1,7 +1,7 @@
 from ..futures import Promise, awaitable
 from ..mast.pollresults import PollResults
 from ..helpers import FrameContext
-from .query import to_set, to_object, to_data_set, to_id
+from .query import to_set, to_object, to_data_set, to_id, object_exists
 from ..vec import Vec3
 from .grid import grid_pos_data
 from .roles import has_role
@@ -137,7 +137,10 @@ def destroyed_any(the_set, snapshot=False):
         the_set = set(the_set)
     def test():
         for id in the_set:
-            if not FrameContext.context.sim.space_object_exists(id):
+            # object_exists, not the raw engine call: a non-space id (fleet/side)
+            # in the watch set must not assert the engine, and a tombstoned object
+            # counts as destroyed the instant delete_object is called.
+            if not object_exists(id):
                 return True
         return False
     return TestPromise(test)
@@ -164,7 +167,8 @@ def destroyed_all(the_set, snapshot=False):
         the_set = set(the_set)
     def test():
         for id in the_set:
-            if FrameContext.context.sim.space_object_exists(id):
+            # object_exists, not the raw engine call (see destroyed_any).
+            if object_exists(id):
                 return False
         return True
     return TestPromise(test)

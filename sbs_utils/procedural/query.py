@@ -228,6 +228,15 @@ def object_exists(so_id):
     pending = DeleteQueue._pending
     if pending and so_id in pending:
         return False
+    # space_object_exists only validly answers for SPACE-object ids. The engine
+    # asserts (0 == uID || VALID_SPACE_OBJ(uID)) on an id it doesn't recognise as a
+    # space object: a Fleet / side / task / grid id is script-only - the engine never
+    # created it - so passing it would crash-to-desktop. Such an id is, by definition,
+    # not an existing space object, so answer False without asking the engine. (A
+    # dead-but-well-formed space id IS still a space-object id, so it still goes to the
+    # engine, which returns 0.)
+    if not is_space_object_id(so_id):
+        return False
     return FrameContext.context.sim.space_object_exists(so_id) != 0
     #return eo is not None
 
@@ -243,7 +252,9 @@ def all_objects_exists(the_set):
     """
     so_ids = to_id_list(the_set)
     for so_id in so_ids:
-        if not FrameContext.context.sim.space_object_exists(so_id):
+        # object_exists (not the raw engine call) so a non-space id in the set can't
+        # assert the engine (VALID_SPACE_OBJ) and a tombstoned object counts as gone.
+        if not object_exists(so_id):
             return False
     return True
 

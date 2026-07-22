@@ -30,10 +30,37 @@ class TestSpaceObject(unittest.TestCase):
         
         return super().setUp()
     
+    def test_object_exists_non_space_id_never_hits_engine(self):
+        """object_exists must NOT forward a non-space-object id (Fleet/side/task/grid -
+        script-only, the engine never created it) to sim.space_object_exists: the real
+        engine asserts (VALID_SPACE_OBJ) on such an id and crashes. It must answer False
+        by id-range alone. Proven by making space_object_exists raise (mimicking the
+        engine assert) and confirming a non-space id does NOT reach it, while a real
+        space object still does."""
+        from sbs_utils.procedural.query import object_exists
+        from sbs_utils.agent import get_task_id
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+
+        artemis = PlayerShip().spawn(0, 0, 0, "Artemis", "tsn", "Battle Cruiser")
+        self.assertTrue(object_exists(artemis.id))   # real space object -> True (via engine)
+
+        real = get_sim().space_object_exists
+        def boom(uid):
+            raise ValueError("VALID_SPACE_OBJ assert would fire here for a non-space id")
+        get_sim().space_object_exists = boom
+        try:
+            fleet_id = get_task_id()   # a script-only id (fleets use these); NOT a space id
+            self.assertFalse(object_exists(fleet_id),
+                             "a non-space id must resolve to False without touching the engine")
+            self.assertFalse(object_exists(0))   # server id, also not a space object
+        finally:
+            get_sim().space_object_exists = real
+
     def test_space_object(self):
         """ Test for the basic creation of SpaceObjects"""
         sbs.create_new_sim()
-        FrameContext.context = Context(sbs.sim, sbs, FakeEvent()) 
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
 
 
         artemis = PlayerShip().spawn(0,0,0, "Artemis", "tsn", "Battle Cruiser")
