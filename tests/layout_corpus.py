@@ -22,6 +22,9 @@ from sbs_utils.pages.layout.layout import Layout
 from sbs_utils.pages.layout.row import Row
 from sbs_utils.pages.layout.column import Column
 from sbs_utils.pages.layout.hole import Hole
+from sbs_utils.pages.layout.grid import Grid
+from sbs_utils.pages.layout.group import Group
+from sbs_utils.pages.layout.repeater import Repeater
 
 ASPECTS = [(1024, 768), (1920, 1080), (3440, 1440)]
 
@@ -134,6 +137,53 @@ def cases():
     inner2 = Layout("inner2", [_row([_col(30), _col()])], 0, 0, 100, 100)
     inner2.margin_style = StyleDefinition.parse("margin: 2,2,2,2;")["margin"]
     add("nested_box", [_row([inner2, _col()])])
+
+    # --- additive containers (Grid / Group / Repeater) ----------------------
+    # These emit only standard Row/Column into a Layout, so their geometry is
+    # produced by the same calc the cases above pin. Content sizing made
+    # col-width auto the (minimum-aware) DEFAULT -- a change that reaches every
+    # un-widthed grid/group cell -- so pin the containers too, not just the
+    # primitives they build on.
+    def add_layout(name, sec):
+        out.append((name, sec))
+
+    def _grid(name, columns, n_cells, col_width=None, row_height=None, **kw):
+        g = Grid(columns, col_width=col_width, row_height=row_height)
+        for _ in range(n_cells):
+            g.add(_col())
+        sec = Layout(name, None, kw.pop("left", 0), kw.pop("top", 0),
+                     kw.pop("right", 100), kw.pop("bottom", 100))
+        g.build(sec)
+        add_layout(name, sec)
+
+    # short final row is Hole-padded; exercises the default (1fr) cell width
+    _grid("grid_2col_flex", 2, 3)
+    _grid("grid_3col_fixed", 3, 5, col_width=20.0)
+    _grid("grid_2col_rowh", 2, 4, row_height=20.0)
+    _grid("grid_4col_short_last", 4, 6)
+
+    # Group: a titled/bordered Layout; the title row is fixed, content is flex.
+    # Default border ("4px") exercises the border box on the section.
+    grp = Group("grp_titled", title="Sensors", left=5, top=5, right=95, bottom=70)
+    grp.add(_row([_col(), _col()]))
+    grp.add(_row([_col(30), _col()]))
+    add_layout("group_titled", grp.build())
+
+    grp2 = Group("grp_plain", title=None, border_color=None)
+    grp2.add(_row([_col()]))
+    grp2.add(_row([_col(), _col()]))
+    add_layout("group_plain", grp2.build())
+
+    # Repeater: template-expanded cells over a data list (built on Grid)
+    rep1 = Repeater(1, factory=lambda item, i: _col())
+    sec = Layout("rep_1col", None, 0, 0, 100, 100)
+    rep1.build([0, 1, 2], sec)
+    add_layout("repeater_1col", sec)
+
+    rep2 = Repeater(2, factory=lambda item, i: _col(), row_height=15.0)
+    sec = Layout("rep_2col", None, 0, 0, 100, 100)
+    rep2.build([0, 1, 2, 3, 4], sec)
+    add_layout("repeater_2col", sec)
 
     return out
 

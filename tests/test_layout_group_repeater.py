@@ -32,7 +32,20 @@ class TestGroup(unittest.TestCase):
     def test_border_applied(self):
         g = Group("bord", title=None, border_color="#f80", border_style="2px")
         self.assertEqual(g.layout.border_color, "#f80")
-        self.assertEqual(g.layout.border_style, "2px")
+        # border_style is parsed to the node form the layout engine consumes at
+        # calc time -- a raw "2px" string crashes calc_bounds. (Regression guard
+        # for the parse-on-construct fix.)
+        self.assertNotIsInstance(g.layout.border_style, str)
+        import types
+        from sbs_utils.helpers import FrameContext
+        from sbs_utils.vec import Vec3
+        FrameContext.context = types.SimpleNamespace(
+            sbs=None, sim=None, event=types.SimpleNamespace(client_id=0))
+        FrameContext.aspect_ratios[0] = Vec3(1024, 768, 0)
+        try:
+            g.build().calc(0)  # must not raise
+        finally:
+            FrameContext.context = None
 
     def test_no_border_when_color_none(self):
         g = Group("nb", title=None, border_color=None)

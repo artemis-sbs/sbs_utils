@@ -17,6 +17,7 @@ Layout.
 from .layout import Layout
 from .row import Row
 from .text import Text
+from ...mast.parsers import StyleDefinition
 
 
 class Group:
@@ -27,6 +28,12 @@ class Group:
         self.layout = Layout(tag, None, left, top, right, bottom)
         if border_color is not None:
             self.layout.border_color = border_color
+            # calc() runs border_style through the layout-area parser, which needs
+            # the parsed node form (as StyleDefinition produces) -- a raw string
+            # like "4px" crashes at layout time. Parse a string here; a value that
+            # is already parsed (a caller passing a node) is passed through.
+            if isinstance(border_style, str):
+                border_style = StyleDefinition.parse(f"border: {border_style};")["border"]
             self.layout.border_style = border_style
         self.title_row = None
         if title is not None:
