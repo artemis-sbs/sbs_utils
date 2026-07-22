@@ -13,10 +13,6 @@
 			"path": "../LegendaryMissions"
 		},
 		{
-			"name": "LegndaryTNG",
-			"path": "../LegndaryTNG"
-		},
-		{
 			"name": "modding_tools",
 			"path": "../modding_tools"
 		},
@@ -45,6 +41,9 @@
 		},
 		{
 			"path": "../OpenUniverse"
+		},
+		{
+			"path": "../LM_TestRange"
 		}
 	],
 	"settings": {

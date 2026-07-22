@@ -16,3 +16,7 @@ overnight_*.json
 # Allow
 !.vscode/tasks.json
 debug.log
+test_range/mast.compile.log
+test_range/mast.runtime.log
+debug.log
+
