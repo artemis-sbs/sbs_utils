@@ -1,10 +1,13 @@
 """Engine-network culling by player proximity.
 
-`sbs.push_to_standby_list_id` removes an object from the engine sim + network
-replication while its py-side Agent (roles/links/inventory) persists - so
+`sbs.push_to_standby_list_id` suspends an object from the engine's active sim +
+network replication while its py-side Agent (roles/links/inventory) persists - so
 distant, irrelevant objects stop costing the network without losing script
 state. (physics/replication iterate sim.space_objects; standby pulls the object
-out of it.)
+out of it.) It is a SUSPENSION, not a deletion: a standby object is still
+existence-valid - `space_object_exists`/`object_exists` return True for it
+(engine-confirmed) - so use `sbs.in_standby_list_id`, not `object_exists`, to
+tell "docked/parked" from "destroyed".
 
 Brains are MAST tasks independent of the sim, so a parked NPC's brain would keep
 acting on a non-simulated object - so the culler pauses a parked object's brain

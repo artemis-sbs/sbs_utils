@@ -1935,8 +1935,17 @@ class simulation(object): ### from pybind
         return self.side_relations.get(frozenset({FirstSideTag, SecondSideTag}), int(DIPLOMACY.NEUTRAL))
 
     def space_object_exists(self: simulation, arg0: int) -> bool:
-        """returns true if the spaceobject exists, by ID"""
-        return arg0 in self.space_objects
+        """returns true if the spaceobject exists, by ID
+
+        A standby (docked) object is EXISTENCE-VALID in the engine: it is only
+        suspended from the active/physics arena, not removed from the object
+        table (confirmed against the real engine - a pushed-to-standby object
+        still reports space_object_exists True). The mock keeps standby objects
+        OUT of self.space_objects so the physics/collision/blast sweeps that
+        iterate space_objects skip them, but existence must still consult the
+        standby list so `object_exists` means "alive" (not "in the arena"),
+        matching the engine and the hangar's own object_exists liveness guards."""
+        return arg0 in self.space_objects or arg0 in self.standby_list
 
     @property
     def time_tick_counter(self: simulation) -> int:
