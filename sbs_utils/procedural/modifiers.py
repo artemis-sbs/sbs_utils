@@ -416,7 +416,14 @@ def modifier_remove(obj_or_id_or_set, key_or_modifier, source=None) -> None:
             removed_mods.append(key_or_modifier)
             signal_emit("modifier_removed", data={"obj_or_id_or_set": obj_or_id_or_set, "modifier": removed_mods})
             return
-        #print("Modifier not found:", key_or_modifier)
+        # Not in the target's modifier list. The target was DELETED and its inventory
+        # purged (get_inventory_value returned the [] default), yet the modifier can
+        # still linger in the global all_modifiers registry - so an expired modifier on
+        # a dead object would be re-swept every tick forever (a leak), never cleaned and
+        # never firing modifier_removed. Drop the orphan here. No recalculate: the object
+        # is gone, there is no blob to restore.
+        if key_or_modifier in ModifierHandler.all_modifiers:
+            ModifierHandler.all_modifiers.remove(key_or_modifier)
         return removed_mods
 
     # Check if the object is a side key, and if so, convert it to a side id.

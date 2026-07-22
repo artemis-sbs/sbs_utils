@@ -15,7 +15,9 @@ from sbs_utils.procedural.modifiers import (
     modifier_add, modifiers_get_for_object, modifier_is_expired, ModifierHandler,
 )
 from sbs_utils.procedural.inventory import get_inventory_value
-from sbs_utils.procedural.query import get_data_set_value
+from sbs_utils.procedural.query import get_data_set_value, to_object, object_exists
+from sbs_utils.procedural.spawn import npc_spawn
+from sbs_utils.procedural.space_objects import delete_object
 from sbs_utils.procedural.timers import TICK_PER_SECONDS
 from sbs_utils.procedural.objective import objectives_run_everything
 import unittest
@@ -174,6 +176,24 @@ class TestModifierExpiry(unittest.TestCase):
             self.fail(f"expired modifier on a dead grid host must not raise: {e}")
         self.assertEqual(len(ModifierHandler.all_modifiers), 0,
                          "the expired modifier must still be swept")
+
+    def test_expired_modifier_on_deleted_space_object_is_cleaned(self):
+        # A modifier on a SPACE object that is then deleted: the sweep must not leave it
+        # lingering in all_modifiers (re-swept every tick forever). The object's inventory
+        # is purged on delete, so modifier_remove can't find it there - it must still drop
+        # the orphan from the global registry.
+        o = to_object(npc_spawn(0, 0, 0, "Victim", "tsn", "tsn_scout", "behav_npcship"))
+        oid = o.id
+        modifier_add(oid, "shield_coeff", 2.0, "buff", duration=1)
+        self.assertEqual(len(ModifierHandler.all_modifiers), 1)
+
+        delete_object(oid)
+        self.assertFalse(object_exists(oid))
+
+        advance_sim(3)
+        ModifierHandler.remove_expired_modifiers()
+        self.assertEqual(len(ModifierHandler.all_modifiers), 0,
+                         "an expired modifier on a deleted object must be cleaned from all_modifiers, not leak")
 
     def test_multiple_modifiers_expiring_in_one_pass_all_swept(self):
         # modifier_remove() mutates all_modifiers; iterating the live list would skip the entry
