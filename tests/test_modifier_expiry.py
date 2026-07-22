@@ -15,6 +15,7 @@ from sbs_utils.procedural.modifiers import (
     modifier_add, modifiers_get_for_object, modifier_is_expired, ModifierHandler,
 )
 from sbs_utils.procedural.inventory import get_inventory_value
+from sbs_utils.procedural.query import get_data_set_value
 from sbs_utils.procedural.timers import TICK_PER_SECONDS
 from sbs_utils.procedural.objective import objectives_run_everything
 import unittest
@@ -38,6 +39,32 @@ class _FakeTick:
     """objectives_run_everything reads .state (%3 == 0 runs the modifier sweep) and bumps it."""
     def __init__(self, state=0):
         self.state = state
+
+
+class _ThrowingBlob:
+    """Mimics a grid object's engine blob AFTER its host ship is freed: reading it
+    raises the engine's ValueError ('invalid space object while accessing blob of
+    gridobject'); .set is a harmless no-op."""
+    def get(self, key, index=0):
+        raise ValueError("invalid space object while accessing blob of gridobject")
+
+    def set(self, key, value, index=0):
+        pass
+
+
+class _DeadHostGridObject(Agent):
+    """A grid-object agent whose host ship no longer exists - its Agent lingers but its
+    blob throws. (Grid-object ids carry the 0x2000... bit; the host id is a space-object
+    id that isn't registered, so object_exists(host) is False.)"""
+    host_id = 0x4000000000000999
+
+    @property
+    def is_grid_object(self):
+        return True
+
+    @property
+    def data_set(self):
+        return _ThrowingBlob()
 
 
 def sweep():
@@ -121,6 +148,45 @@ class TestModifierExpiry(unittest.TestCase):
         ModifierHandler.remove_expired_modifiers()
         self.assertEqual(len(modifiers_get_for_object(a.id, _K)), 0)
         self.assertEqual(get_inventory_value(a.id, _K, 0), 1.0)
+
+    def test_get_data_set_value_returns_none_for_freed_grid_host(self):
+        # A grid object whose host was freed throws when its blob is read; get_data_set_value
+        # must swallow that and honour its "None if not found" contract (real engine behavior;
+        # the mock blob does not throw, so we simulate the freed-host blob).
+        go = _DeadHostGridObject()
+        go.id = 0x2000000000000001
+        go.add()
+        self.assertIsNone(get_data_set_value(go.id, "move_speed"),
+                          "reading a freed-host grid blob must return None, not raise")
+
+    def test_expired_modifier_on_dead_grid_host_does_not_throw(self):
+        # THE reported engine crash: a timed modifier on a grid object (a damcon) whose host
+        # ship was destroyed. When it expires the sweep recalculates -> reads the grid blob ->
+        # ValueError in the engine. With the guard the sweep must complete cleanly.
+        go = _DeadHostGridObject()
+        go.id = 0x2000000000000002
+        go.add()
+        modifier_add(go.id, "move_speed", 0.25, "ripped", duration=1)
+        advance_sim(3)
+        try:
+            ModifierHandler.remove_expired_modifiers()   # must not raise
+        except ValueError as e:
+            self.fail(f"expired modifier on a dead grid host must not raise: {e}")
+        self.assertEqual(len(ModifierHandler.all_modifiers), 0,
+                         "the expired modifier must still be swept")
+
+    def test_multiple_modifiers_expiring_in_one_pass_all_swept(self):
+        # modifier_remove() mutates all_modifiers; iterating the live list would skip the entry
+        # after each removal. Two modifiers expiring together must BOTH be swept in one pass.
+        a = make_agent()
+        b = make_agent()
+        modifier_add(a.id, _K, 2.0, "s", duration=1)
+        modifier_add(b.id, _K, 2.0, "s", duration=1)
+        self.assertEqual(len(ModifierHandler.all_modifiers), 2)
+        advance_sim(3)
+        ModifierHandler.remove_expired_modifiers()
+        self.assertEqual(len(ModifierHandler.all_modifiers), 0,
+                         "both modifiers expiring in one pass must be swept (no mutate-while-iterate skip)")
 
 
 if __name__ == "__main__":

@@ -94,7 +94,11 @@ class ModifierHandler:
         """
         Remove all expired modifiers. This should be called regularly to ensure that modifiers are removed after their duration expires.
         """
-        for mod in ModifierHandler.all_modifiers:
+        # Snapshot the list: modifier_remove() removes the expired modifier from
+        # all_modifiers, so iterating the live list would skip the entry after each
+        # removal (or mis-iterate when several expire in one pass) - the same
+        # mutate-while-iterating trap fixed in brains_run_all.
+        for mod in list(ModifierHandler.all_modifiers):
             if mod.expired():
                 modifier_remove(mod.target, mod)
 

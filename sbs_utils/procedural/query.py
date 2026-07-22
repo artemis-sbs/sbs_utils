@@ -268,7 +268,16 @@ def get_data_set_value(id_or_obj, key, index=0):
     elif is_grid_object_id(id_or_obj):
         object = to_grid_object(id_or_obj)
     if object is not None:
-        return object.data_set.get(key, index)
+        try:
+            return object.data_set.get(key, index)
+        except ValueError:
+            # A grid object's Agent can OUTLIVE its host ship: to_grid_object still
+            # returns it, but its blob lives in the host's hull map. Once the host is
+            # freed, the engine raises ValueError ("invalid space object while accessing
+            # blob of gridobject"). Its data is gone, so honour this function's contract
+            # and report not-found rather than let the throw propagate. (A deleted SPACE
+            # object already resolves to None above, so only grid objects reach here.)
+            return None
     return None
 
 def set_data_set_value(to_update, key, value, index=0):
