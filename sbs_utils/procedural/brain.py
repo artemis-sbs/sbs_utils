@@ -3,7 +3,7 @@
 from sbs_utils.helpers import FrameContext
 from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value, has_inventory
 from sbs_utils.agent import Agent
-from sbs_utils.procedural.query import to_set, to_object
+from sbs_utils.procedural.query import to_set, to_object, object_exists, is_space_object_id, is_grid_object_id
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.mast.mast_node import MastNode
@@ -365,6 +365,12 @@ def brains_run_all(tick_task, pass_seconds=None):
     # pass_seconds None -> run all (original); else a rolling per-tick slice.
     seq = ids if pass_seconds is None else _brain_slicer.slice(ids, pass_seconds)
 
+    # Brains whose engine object is gone are unscheduled AFTER the loop, never
+    # during it: brain_clear mutates the live has_inventory("__BRAIN__") set, and
+    # clearing mid-iteration raises "Set changed size during iteration". Stays None
+    # (no allocation) on the common path where nothing needs clearing.
+    to_unschedule = None
+
     for agent in seq:
         try:
             # Paused brains are skipped (e.g. while parked on the standby
@@ -385,9 +391,33 @@ def brains_run_all(tick_task, pass_seconds=None):
             # "Exception in brain processing 'NoneType' object has no attribute 'run'").
             if agent_root is None:
                 continue
+            # Engine-validity guard: never run a brain whose underlying engine object
+            # is gone - it would hand a freed id to the C++ layer and trip the engine's
+            # VALID_SPACE_OBJ assertion (the mock silently tolerates a dangling id, so
+            # this only bites in a real session). A GRID-object brain also dies with its
+            # HOST ship: all its grid access goes through get_hull_map(host_id), so a
+            # freed host asserts. In either case UNSCHEDULE the brain (brain_clear) so it
+            # stops for good, then skip. A host on the standby list still EXISTS
+            # (object_exists True) and its brain is paused via __BRAIN_PAUSED__ above, so
+            # this never unschedules a merely-parked object.
+            if is_grid_object_id(agent):
+                host = getattr(agent_obj, "host_id", None)
+                if host is None or not object_exists(host):
+                    if to_unschedule is None:
+                        to_unschedule = []
+                    to_unschedule.append(agent)
+                    continue
+            elif is_space_object_id(agent) and not object_exists(agent):
+                if to_unschedule is None:
+                    to_unschedule = []
+                to_unschedule.append(agent)
+                continue
             agent_root.run()
         except Exception as e:
             print(f"Exception in brain processing {e}")
+    # Unschedule stale brains now the iteration is done (safe to mutate the set).
+    if to_unschedule:
+        brain_clear(to_unschedule)
     __brains_is_running = False
     
 
