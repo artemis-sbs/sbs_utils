@@ -74,6 +74,30 @@ class DapClient:
             time.sleep(0.01)
         return None
 
+    def wait_inspect(self, kind, timeout=4.0):
+        """Return the next ``mast/inspect`` event of a given ``kind`` (signal /
+        agents / brains / quests / widgets), cursor-based per kind.
+
+        The adapter installs ALL taps at once, so the poller taps (WorldTap /
+        BrainTap / QuestTap) stream ``agents`` / ``brains`` / ``quests``
+        snapshots under the same ``mast/inspect`` event name the instant
+        inspection starts — usually BEFORE the mission emits its first signal.
+        Waiting for the first ``mast/inspect`` event is therefore racy; a test
+        must filter by the kind it actually asserts on."""
+        cursor_key = ("mast/inspect", kind)
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            with self._lock:
+                evs = [m for m in self._messages
+                       if m.get("type") == "event" and m.get("event") == "mast/inspect"
+                       and m.get("body", {}).get("kind") == kind]
+            seen = self._cursor.get(cursor_key, 0)
+            if len(evs) > seen:
+                self._cursor[cursor_key] = seen + 1
+                return evs[seen]
+            time.sleep(0.01)
+        return None
+
 
 class TestMastDap(unittest.TestCase):
     def tearDown(self):
@@ -216,8 +240,10 @@ class TestAttachMode(unittest.TestCase):
             client.send("attach")
             client.send("setBreakpoints", source={"path": FILE}, breakpoints=[])
             client.send("configurationDone")          # starts live inspection
-            ev = client.wait_event("mast/inspect")
-            self.assertIsNotNone(ev, "no mast/inspect event streamed")
+            # Filter by kind: the poller taps (agents/brains/quests) also stream
+            # `mast/inspect`, and usually beat the first signal to the bus.
+            ev = client.wait_inspect("signal")
+            self.assertIsNotNone(ev, "no signal mast/inspect event streamed")
             self.assertEqual(ev["body"]["kind"], "signal")
             self.assertEqual(ev["body"]["payload"]["name"], "tick_sig")
             self.assertIn("n", ev["body"]["payload"]["data"])
