@@ -69,3 +69,4 @@ from .tabbed_panel import gui_tabbed_panel, gui_panel_widget_show, gui_panel_wid
 from .tabbed_panel import gui_panel_console_message, gui_panel_console_message_list,gui_panel_upgrade_list, gui_panel_console_message_tick
 from .tabbed_panel import gui_info_panel, gui_info_panel_send_message, gui_info_panel_add, gui_info_panel_remove
 from .overlay import overlay_show, overlay_clear, overlay_register, overlay_slot_define, overlay_hero, overlay_debug_log
+from .overlay import overlay_signal_show, overlay_signal_clear

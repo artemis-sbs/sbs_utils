@@ -21,10 +21,11 @@ and the AMD/quest bindings layer on top of this without changing it.
 """
 import traceback
 
-from ...helpers import FrameContext, FakeEvent
+from ...helpers import FrameContext, FakeEvent, FrameContextOverride
 from ...pages.layout import layout as layout
 from ...pages.widgets.layout_listbox import SubPage
 from .gui import gui_page_for_client
+from ..query import to_set
 
 
 # --- Slot registry -----------------------------------------------------------
@@ -275,17 +276,33 @@ class OverlayManager:
 
 
 # --- Procedural API ----------------------------------------------------------
-def _managers_for(to):
-    """Resolve the OverlayManager(s) for a ``to`` target.
+def _pages_for(to):
+    """Resolve a ``to`` target to a list of client pages that have an overlay
+    manager.
 
-    Phase 1: ``to=None`` → the current client's page. Multi-client ``to`` targeting
-    (role sets) is added with the signal layer in Phase 2.
+    - ``to is None`` → the current console (``FrameContext.page``).
+    - otherwise ``to`` is normalized with ``to_set`` (accepts an int client id, a
+      role set / query, an Agent, or a list) → each id's page via
+      ``gui_page_for_client``. Non-client ids resolve to no page and are skipped,
+      so a mixed role set is fine.
     """
-    page = FrameContext.page
-    if page is None:
-        return []
-    mgr = getattr(page, "overlays", None)
-    return [mgr] if mgr is not None else []
+    if to is None:
+        page = FrameContext.page
+        return [page] if page is not None and getattr(page, "overlays", None) else []
+    pages = []
+    for cid in to_set(to):
+        p = gui_page_for_client(cid)
+        if p is not None and getattr(p, "overlays", None) is not None:
+            pages.append(p)
+    return pages
+
+
+def _on_page(page, fn):
+    """Run ``fn(page.overlays)`` in ``page``'s FrameContext so the overlay builder's
+    page/task/event target that client (the gui_reroute_client template)."""
+    fe = FakeEvent(page.client_id, "overlay")
+    with FrameContextOverride(page.gui_task, page, fe):
+        fn(page.overlays)
 
 
 def overlay_show(slot, kind, to=None, **content):
@@ -295,17 +312,43 @@ def overlay_show(slot, kind, to=None, **content):
         slot (str): a slot name (see ``OVERLAY_SLOTS``); unknown names use a
             centered default rect.
         kind (str): a registered builder (see ``overlay_register``).
-        to: target — Phase 1 uses the current console; role-set targeting is Phase 2.
+        to: target consoles — ``None`` = the current console; an int client id; or a
+            role set / query (e.g. ``role("mainscreen")``). Non-console ids are ignored.
         **content: fields passed through to the builder.
     """
-    for mgr in _managers_for(to):
-        mgr.show(slot, kind, content)
+    for page in _pages_for(to):
+        _on_page(page, lambda ov: ov.show(slot, kind, content))
 
 
 def overlay_clear(slot=None, to=None):
-    """Clear one slot (or all slots if ``slot`` is None)."""
-    for mgr in _managers_for(to):
-        mgr.clear(slot)
+    """Clear one slot (or all slots if ``slot`` is None) on the ``to`` targets."""
+    for page in _pages_for(to):
+        _on_page(page, lambda ov: ov.clear(slot))
+
+
+# --- Signal bridge -----------------------------------------------------------
+# There is no Python signal-callback registry (a //signal route must be a MAST
+# label), so a mission authors a one-line route that forwards to these helpers.
+# Use //shared/signal so the dispatch runs ONCE on the server and fans out to the
+# `to` targets (a per-console //signal would run N times, each pushing to all
+# targets). Content travels as a nested ``fields`` dict so the route needs no **kw.
+#
+#   # emit from anywhere:
+#   signal_emit("overlay", {"to": role("mainscreen"), "slot": "center_hero",
+#                           "kind": "hero", "fields": {"title": "CHAPTER ONE"}})
+#   # forward once, on the server:
+#   //shared/signal/overlay
+#       overlay_signal_show(to, slot, kind, fields)
+#   //shared/signal/overlay_clear
+#       overlay_signal_clear(to, slot)
+def overlay_signal_show(to, slot, kind, fields=None):
+    """Signal-route forwarder: overlay_show with content supplied as a dict."""
+    overlay_show(slot, kind, to=to, **(fields or {}))
+
+
+def overlay_signal_clear(to=None, slot=None):
+    """Signal-route forwarder for clear."""
+    overlay_clear(slot, to=to)
 
 
 # --- Default builders + ergonomic wrappers -----------------------------------

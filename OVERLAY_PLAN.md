@@ -112,22 +112,44 @@ live HUD readouts (watch/repaint pattern, at the value level).
 
 ---
 
-## Signal contract (the trigger)
+## Signal contract (the trigger) — ✅ Phase 2
 
-Overlay display is **per-console** → `//signal` (runs once per connected console),
-per `SIGNAL_ROUTING`. The subsystem ships default routes; a mission just emits:
+**`to` targeting is the core, fully library-side capability** — server story logic can
+push straight to a set of consoles with no signal at all:
 
 ```
-signal_emit("overlay", {"slot":"center_hero", "kind":"hero",
-                        "title":"CHAPTER TWO", "subtitle":"The Long Dark",
-                        "image":"ch2", "seconds":4, "to": role("mainscreen")})
-
-signal_emit("overlay_clear", {"slot":"center_hero"})
+overlay_hero("CHAPTER TWO", subtitle="The Long Dark", to=role("mainscreen"))
+overlay_clear("center_hero", to=role("mainscreen"))
 ```
 
-- The **shipped** `//signal/overlay` route does the `to` membership check itself
-  (`->END if client_id not in to`) and calls the builder — mission authors never
-  write the "is this me?" gate; they just emit with a `to`.
+`to` is `None` (caller's console) | an int client id | a role set / query. Resolution:
+`to_set(to)` → `gui_page_for_client(id)` (non-console ids resolve to no page and are
+skipped), then each target page's `OverlayManager` runs under a `FrameContextOverride`
+so the builder targets that client. First show requests that page's repaint to
+**establish**; thereafter updates are out-of-band.
+
+**Signals are a thin bridge, NOT auto-wired.** There is no Python signal-callback
+registry (a `//signal` handler must be a MAST label), so a mission authors a **one-line
+`//shared/signal` forwarder** — `//shared/signal` so the dispatch runs **once on the
+server** and fans out to the `to` targets (a per-console `//signal` would run N times,
+each pushing to all targets). Content travels as a nested `fields` dict so the route
+needs no `**kwargs`:
+
+```
+# emit from anywhere:
+signal_emit("overlay", {"to": role("mainscreen"), "slot": "center_hero",
+                        "kind": "hero", "fields": {"title": "CHAPTER TWO"}})
+signal_emit("overlay_clear", {"to": role("mainscreen"), "slot": "center_hero"})
+
+# forward once, on the server (mission-authored, copy-paste):
+//shared/signal/overlay
+    overlay_signal_show(to, slot, kind, fields)
+//shared/signal/overlay_clear
+    overlay_signal_clear(to, slot)
+```
+
+`overlay_signal_show`/`overlay_signal_clear` are shipped helpers. (A future mastlib
+could ship the two routes so missions skip even that; deferred.)
 
 ---
 
@@ -251,8 +273,13 @@ redesign. Until then they run over non-interactive surfaces or beside the view.
    draw_layer, retain-on-repaint, off-the-full-repaint-path, clear, end-to-end hero
    build); full suite 1478 green. **Remaining:** browser-verify render + stacking in a
    mock session (user checkpoint).
-2. **Signal layer** — default `//signal/overlay` + `//signal/overlay_clear` routes;
-   `to` targeting; ergonomic `overlay_*` wrappers.
+2. **Signal layer + `to` targeting** — ✅ **DONE (headless; engine pending).**
+   `overlay_show`/`overlay_clear`/`overlay_hero` take `to` (None | client id | role
+   set), resolved via `to_set` → `gui_page_for_client` and driven under a
+   `FrameContextOverride` per target page. `overlay_signal_show`/`overlay_signal_clear`
+   forwarders + the mission-authored `//shared/signal/overlay(_clear)` pattern (no
+   Python signal registry exists). 7 new tests (`to` resolution, fan-out, clear
+   targeting); full suite 1487 green. Demo wires the signal path end-to-end.
 3. **Three proofs (one per family)** — `overlay_toast` (HUD/transient),
    `overlay_lower_third` + `overlay_hero`/`overlay_credits` (cinematic),
    `overlay_choice` (interactive/modal via `InfoButtonPromise`).
