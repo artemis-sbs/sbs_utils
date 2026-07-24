@@ -107,6 +107,53 @@ def overlay_register(kind, builder):
     return builder
 
 
+def overlay_register_label(kind, label):
+    """Register a MAST **label** as the builder for ``kind`` — the MAST-native way to
+    author a custom overlay card without a Python builder.
+
+    The label builds the card with the usual ``gui_*`` verbs and ends (``->END``);
+    the content fields passed to ``overlay_show`` arrive as task variables. It is
+    re-run on every repaint, so keep it **build-only** (no ``await``, no state
+    changes). Reference the label by name from top-level MAST::
+
+        === my_hero_card
+            gui_row("row-height: content;")
+            gui_text(f"$text:`{title}`;justify:center;font:gui-6")
+            ->END
+
+        overlay_register_label("my_hero", my_hero_card)
+        # then anywhere: overlay_show("center_hero", "my_hero", title="CHAPTER TWO")
+    """
+    def _label_builder(cid, content):
+        # We are inside OverlayRegion._build_content: FrameContext.page is the
+        # SubPage and its slot section is the active layout. Run the label as a
+        # one-shot sub-task, but redirect the scheduler's page at the SubPage so the
+        # label's gui_* build INTO the slot (a task ticks into `main.page`).
+        from .gui import gui_task_for_client
+        sub_page = FrameContext.page
+        gtask = gui_task_for_client(cid)
+        if gtask is None or sub_page is None:
+            return
+        scheduler = gtask.main
+        saved_page = scheduler.page
+        scheduler.page = sub_page
+        t = None
+        try:
+            data = {k: v for k, v in content.items() if k != "kind"}
+            t = gtask.start_sub_task(label, inputs=data, defer=True)
+            t.tick_in_context()          # build-only label completes in one tick
+        except Exception as e:
+            print(f"[overlay] label builder for '{kind}' failed: {e}")
+            print(traceback.format_exc())
+        finally:
+            scheduler.page = saved_page
+            if t is not None and t in gtask.sub_tasks:
+                gtask.sub_tasks.remove(t)   # don't let the finished builder linger
+
+    OVERLAY_KINDS[kind] = _label_builder
+    return label
+
+
 # --- OverlayRegion -----------------------------------------------------------
 class OverlayRegion:
     """One slot: an absolute sub-region rebuilt from ``content`` on present.

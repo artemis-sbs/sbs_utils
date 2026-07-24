@@ -516,6 +516,83 @@ class TestOverlayHeroVisuals(OverlayTestBase):
         self.assertTrue([a for a in self.calls("send_gui_text") if a[1] == self.HERO])
 
 
+class _FakeScheduler:
+    def __init__(self, page):
+        self.page = page
+
+
+class _FakeBuilderSubTask:
+    """Mimics a MAST sub-task: tick_in_context builds into main.page (the scheduler
+    page the overlay temporarily redirected at its SubPage)."""
+    def __init__(self, main, run):
+        self.main = main
+        self._run = run
+
+    def tick_in_context(self):
+        saved = FrameContext.page
+        FrameContext.page = self.main.page
+        self._run()
+        FrameContext.page = saved
+
+
+class _SchedGuiTask(_FakeGuiTask):
+    def __init__(self, page):
+        super().__init__(page)
+        self.main = _FakeScheduler(page)
+        self.sub_tasks = []
+
+    def start_sub_task(self, label, inputs=None, defer=False):
+        # in the test the "label" is a python build fn(inputs)
+        t = _FakeBuilderSubTask(self.main, lambda: label(inputs))
+        self.sub_tasks.append(t)
+        return t
+
+
+class TestOverlayLabelBuilder(unittest.TestCase):
+    """overlay_register_label: a MAST label runs as the builder (plumbing: page
+    redirect, content->inputs, one-shot tick, cleanup)."""
+
+    HERO = "ovl_center_hero$$"
+
+    def setUp(self):
+        from sbs_utils.spaceobject import SpaceObject
+        from sbs_utils.gui import GuiClient
+        sbs.create_new_sim()
+        SpaceObject.clear()
+        self.rec = []
+        FrameContext.context = Context(sbs.sim, RecordingSbs(sbs, self.rec), FakeEvent())
+        self.page = StoryPage()
+        self.page.pending_gui = False
+        self.page.client_id = 0
+        self.gtask = _SchedGuiTask(self.page)
+        self.page.gui_task = self.gtask
+        client = GuiClient(0)
+        client.page_stack.append(self.page)
+        FrameContext.page = self.page
+
+    def tearDown(self):
+        FrameContext.page = None
+        FrameContext.context = None
+
+    def test_label_runs_into_the_slot_and_cleans_up(self):
+        from sbs_utils.procedural.gui.overlay import overlay_register_label, overlay_show
+
+        def _label(inputs):   # stands in for a MAST build-only label
+            FrameContext.context.sbs.send_gui_text(
+                0, self.HERO, "lbl", f"$text:{inputs.get('title')}", 0, 0, 100, 10)
+
+        overlay_register_label("labelcard", _label)
+        overlay_show("center_hero", "labelcard", title="MAST BUILT")
+        self.rec.clear()
+        self.page.overlays.present_all(FakeEvent(0))   # establish -> runs the label
+
+        texts = [a for a in self.rec if a[0] == "send_gui_text"
+                 and a[1][1] == self.HERO and "MAST BUILT" in a[1][3]]
+        self.assertTrue(texts, "label built into the slot region")
+        self.assertIs(self.gtask.main.page, self.page, "scheduler page restored")
+        self.assertEqual(self.gtask.sub_tasks, [], "finished builder task removed")
+
+
 class TestOverlayToTargeting(unittest.TestCase):
     """`to` role-set / client-id targeting: push overlays to specific consoles."""
 
