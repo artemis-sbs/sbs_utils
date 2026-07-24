@@ -8,7 +8,7 @@ import cosmos_dev.mock.sbs as sbs
 from tests.reset_helper import reset_mock
 from sbs_utils.procedural.a2x.props import (
     set_object_property, object_property, object_property_mapped, object_property_key,
-    set_special, special_ability_mapped,
+    set_special, set_special_bits, special_ability_mapped,
     addto_object_property, copy_object_property, set_ship_text,
     set_relative_position, set_fleet_coeff, fleet_coeff_mapped, set_side_value,
 )
@@ -97,6 +97,14 @@ class A2xPropsMockTests(unittest.TestCase):
         self.assertTrue(set_object_property(self.so, "pushRadius", 250.0))
         self.assertEqual(to_object(self.so).exclusion_radius, 250.0)
         self.assertEqual(object_property(self.so, "pushRadius"), 250.0)
+
+    def test_set_special_bits(self):
+        from sbs_utils.procedural.roles import has_role
+        # eliteAbilityBits = Stealth(1) + Cloak(4) + Drones(128) = 133
+        self.assertEqual(set_special_bits(self.so, 133), 3)
+        self.assertEqual(get_data_set_value(to_id(self.so), "elite_main_scn_invis"), 1)  # Stealth
+        self.assertEqual(get_data_set_value(to_id(self.so), "elite_drone_launcher"), 1)  # Drones
+        self.assertTrue(has_role(to_id(self.so), "elite/cloak"))                          # Cloak
 
     def test_addto_obj_form(self):
         # addto on an obj-form prop (would IndexError before the "obj" branch)

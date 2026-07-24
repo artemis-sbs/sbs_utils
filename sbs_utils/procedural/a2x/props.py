@@ -264,6 +264,25 @@ _ELITE_SCRIPT = {
 }
 _ELITE_ABILITY = {**_ELITE_ENGINE, **_ELITE_SCRIPT}
 
+# 2.8 eliteAbilityBits / specialAbilityBits: a bit-sum of the ships' elite abilities.
+_ELITE_BITS = {
+    1: "Stealth", 2: "LowVis", 4: "Cloak", 8: "HET", 16: "Warp", 32: "Teleport",
+    64: "Tractor", 128: "Drones", 256: "AntiMine", 512: "AntiTorp",
+    1024: "ShldDrain", 2048: "ShldVamp", 4096: "TeleBack", 8192: "ShldReset",
+}
+
+
+def set_special_bits(obj, bits):
+    """2.8 ``eliteAbilityBits`` / ``specialAbilityBits`` (a bit-sum) -> enable each named
+    elite ability whose bit is set, via :func:`set_special`. Returns the count enabled."""
+    bits = int(bits)
+    n = 0
+    for bit, name in _ELITE_BITS.items():
+        if bits & bit:
+            set_special(obj, name, on=True)
+            n += 1
+    return n
+
 
 def special_ability_mapped(ability):
     """True if a 2.8 set_special ability maps to a Cosmos elite ability."""
