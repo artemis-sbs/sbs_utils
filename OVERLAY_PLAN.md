@@ -224,7 +224,24 @@ redesign. Until then they run over non-interactive surfaces or beside the view.
 
 ## Build phases
 
-1. **Core** — ✅ **DONE (headless).** `OverlayManager` + `OverlayRegion`
+### Engine-verified rendering rules (learned the hard way, Phase 1)
+
+- **A sub-region is only ESTABLISHED during a full page repaint** (root
+  `send_gui_clear("")`). Send `send_gui_sub_region` out-of-band and the engine
+  ignores it — child widgets then dangle up to **root** (visible, but not in the
+  slot, so clear can't reach them). So overlays **establish in `present_all`** (the
+  repaint hook); the first `show` requests a repaint, and only *after* establishment
+  do `show`/`clear` update out-of-band (`clear` → fill → `complete`, no `sub_region`).
+- **Region tag must be `"<prefix>$$"`** (suffix `$$`, no leading `$$`, no colon) —
+  the info-panel / listbox / `Layout.drawing_region_tag` convention. A malformed tag
+  also drops children to root.
+- **`complete` only swaps the back buffer forward when it holds something** — an
+  empty back buffer isn't swapped (stale content stays). So clearing a slot still
+  emits one invisible placeholder (a space).
+- Diagnose with `overlay_debug_log(path)` (command stream to a file) — the engine's
+  `get_debug_gui_tree` is painted, not copyable.
+
+1. **Core** — ✅ **DONE + engine-verified** (show + clear). `OverlayManager` + `OverlayRegion`
    ([procedural/gui/overlay.py](sbs_utils/procedural/gui/overlay.py)): slot registry,
    `draw_layer` stacking, `input:` flag (all `passthrough`), SubPage-built sub-regions,
    `overlay_show` / `overlay_clear` / `overlay_register` / `overlay_slot_define` +
