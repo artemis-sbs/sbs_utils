@@ -117,8 +117,19 @@ class TestOverlayShow(OverlayTestBase):
     def test_clear_empties_slot_and_drops_from_present_all(self):
         ov = self.page.overlays
         ov.show("center_hero", "test", {"slot": "center_hero", "title": "HI"})
+        self.rec.clear()
         ov.clear("center_hero")
         self.assertTrue(ov.slots["center_hero"].is_empty)
+
+        # clear emits the slot's sub-region repositioned OFF-screen (reliable hide),
+        # bracketed by clear/complete, with no content text built.
+        tag = "$$ovl:center_hero"
+        subs = [a for a in self.sub_regions() if a[2] == tag]
+        self.assertTrue(subs and subs[-1][4] <= -999, "clear moves the sub-region off-screen")
+        self.assertIn((0, tag), self.calls("send_gui_clear"))
+        self.assertIn((0, tag), self.calls("send_gui_complete"))
+        self.assertFalse([a for a in self.calls("send_gui_text") if a[1] == tag],
+                         "no content built on clear")
 
         # after clear, a repaint re-emit should NOT redraw the slot
         self.rec.clear()

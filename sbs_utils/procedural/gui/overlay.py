@@ -92,7 +92,15 @@ class OverlayRegion:
     def is_empty(self):
         return self.content is None
 
-    def _draw(self, event, build):
+    # The sub-region maps to the whole screen; content is positioned within it by
+    # the slot rect. To CLEAR, we both empty it and reposition it off-screen — a
+    # bare clear+complete that empties a sub-region is an under-tested renderer path
+    # (the info panel never fully-empties one), whereas off-screen bounds is the
+    # engine-blessed hide (same as gui_hide / Layout.show(False)).
+    ONSCREEN = (0.0, 0.0, 100.0, 100.0)
+    OFFSCREEN = (-1000.0, -1000.0, -999.0, -999.0)
+
+    def _draw(self, event, build, bounds=ONSCREEN):
         """Bracket the sub-region; optionally build content inside it."""
         cid = event.client_id
         SBS = FrameContext.context.sbs
@@ -101,7 +109,7 @@ class OverlayRegion:
         SBS.send_gui_sub_region(
             cid, "", self.local_region_tag,
             f"draggable:False;draw_layer:{self.draw_layer};",
-            0.0, 0.0, 100.0, 100.0)
+            *bounds)
         SBS.send_gui_clear(cid, self.local_region_tag)
         if build and self.content is not None:
             self._build_content(event)
@@ -147,9 +155,9 @@ class OverlayRegion:
         self._draw(event, build=True)
 
     def clear_region(self, event):
-        """Draw the slot empty (clears its sub-region), no content build."""
+        """Empty the slot and move its sub-region off-screen (reliable hide)."""
         self.client_id = event.client_id
-        self._draw(event, build=False)
+        self._draw(event, build=False, bounds=self.OFFSCREEN)
 
 
 # --- OverlayManager (one per page) -------------------------------------------
