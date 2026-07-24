@@ -121,15 +121,15 @@ class TestOverlayShow(OverlayTestBase):
         ov.clear("center_hero")
         self.assertTrue(ov.slots["center_hero"].is_empty)
 
-        # clear emits the slot's sub-region repositioned OFF-screen (reliable hide),
-        # bracketed by clear/complete, with no content text built.
+        # clear re-brackets the slot's sub-region and draws a single invisible
+        # placeholder into it, so the engine actually swaps the (now-empty-looking)
+        # back buffer forward instead of leaving stale content.
         tag = "$$ovl:center_hero"
-        subs = [a for a in self.sub_regions() if a[2] == tag]
-        self.assertTrue(subs and subs[-1][4] <= -999, "clear moves the sub-region off-screen")
         self.assertIn((0, tag), self.calls("send_gui_clear"))
         self.assertIn((0, tag), self.calls("send_gui_complete"))
-        self.assertFalse([a for a in self.calls("send_gui_text") if a[1] == tag],
-                         "no content built on clear")
+        texts = [a for a in self.calls("send_gui_text") if a[1] == tag]
+        self.assertEqual(len(texts), 1, "exactly the placeholder text on clear")
+        self.assertTrue(texts[0][2].endswith(":blank"), "placeholder tag")
 
         # after clear, a repaint re-emit should NOT redraw the slot
         self.rec.clear()
