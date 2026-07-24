@@ -287,6 +287,75 @@ class TestOverlayModalResolves(unittest.TestCase):
         self.assertEqual(prom.result().data, "Yes")
 
 
+class TestAmdOverlays(OverlayTestBase):
+    """Declarative overlays: amd_overlays(section) -> records; overlay_amd(key) fires."""
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.tickdispatcher import TickDispatcher
+        from sbs_utils.procedural.amd_overlay import OVERLAY_AMD
+        TickDispatcher.clear()
+        OVERLAY_AMD.clear()
+
+    def _section(self):
+        # what amd_records reads: children with key/display_text/description/data
+        return {"children": [
+            {"key": "ch2", "display_text": "Chapter Two", "description": "CHAPTER TWO",
+             "data": {"kind": "hero", "subtitle": "The Long Dark", "seconds": "4"}},
+            {"key": "obj", "display_text": "Objective", "description": "Objective updated",
+             "data": {"kind": "toast"}},
+            {"key": "named", "display_text": "Admiral", "description": "Hold the line.",
+             "data": {"kind": "lower_third", "name": "Admiral Harkin"}},
+        ]}
+
+    def test_loader_builds_records(self):
+        from sbs_utils.procedural.amd_overlay import amd_overlays
+        m = amd_overlays(self._section())
+        self.assertEqual(set(m), {"ch2", "obj", "named"})
+        ch2 = m["ch2"]
+        self.assertEqual(ch2["kind"], "hero")
+        self.assertEqual(ch2["slot"], "center_hero")            # per-kind default
+        self.assertEqual(ch2["fields"]["title"], "CHAPTER TWO")  # body -> primary
+        self.assertEqual(ch2["fields"]["subtitle"], "The Long Dark")
+        self.assertEqual(ch2["fields"]["seconds"], 4)            # coerced to int
+
+    def test_toast_body_maps_to_text_and_default_slot(self):
+        from sbs_utils.procedural.amd_overlay import amd_overlays
+        m = amd_overlays(self._section())
+        self.assertEqual(m["obj"]["slot"], "corner_toast")
+        self.assertEqual(m["obj"]["fields"]["text"], "Objective updated")
+
+    def test_lower_third_keeps_fence_name_and_body_line(self):
+        from sbs_utils.procedural.amd_overlay import amd_overlays
+        m = amd_overlays(self._section())
+        self.assertEqual(m["named"]["fields"]["name"], "Admiral Harkin")
+        self.assertEqual(m["named"]["fields"]["line"], "Hold the line.")
+
+    def test_overlay_amd_fires_by_key(self):
+        from sbs_utils.procedural.amd_overlay import amd_overlays, overlay_amd
+        amd_overlays(self._section())
+        overlay_amd("ch2")
+        slot = self.page.overlays.slots["center_hero"]
+        self.assertEqual(slot.content["kind"], "hero")
+        self.assertEqual(slot.content["title"], "CHAPTER TWO")
+        self.assertEqual(slot.content["subtitle"], "The Long Dark")
+        self.assertNotIn("seconds", slot.content)               # consumed by dismiss, not a field
+
+    def test_overlay_amd_seconds_schedules_dismiss(self):
+        from sbs_utils.tickdispatcher import TickDispatcher
+        from sbs_utils.procedural.amd_overlay import amd_overlays, overlay_amd
+        amd_overlays(self._section())
+        overlay_amd("ch2")                                       # Seconds: 4
+        self.assertEqual(len(TickDispatcher._new_this_tick), 1)
+
+    def test_overlay_amd_overrides_and_unknown_key(self):
+        from sbs_utils.procedural.amd_overlay import amd_overlays, overlay_amd
+        amd_overlays(self._section())
+        overlay_amd("ch2", subtitle="Overridden")
+        self.assertEqual(self.page.overlays.slots["center_hero"].content["subtitle"], "Overridden")
+        self.assertIsNone(overlay_amd("nope"))                  # unknown key -> no-op
+
+
 class TestOverlayHud(OverlayTestBase):
     """Phase 4 HUD: sticky rows + controls, cheap patch updates."""
 

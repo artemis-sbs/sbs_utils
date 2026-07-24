@@ -597,12 +597,16 @@ def overlay_hud(rows=None, controls=None, title=None, to=None, slot="hud"):
                  controls=controls or [], title=title)
 
 
-def overlay_hud_update(rows=None, to=None, slot="hud", **fields):
-    """Cheaply update a live HUD's values (and/or title/controls). Re-fills the
-    slot region out-of-band — no page repaint. Watchers call this only when a
-    displayed value actually changes."""
-    patch = dict(fields)
+def overlay_hud_update(rows=None, title=None, to=None, slot="hud"):
+    """Cheaply update a live HUD's rows (and/or title). Re-fills the slot region
+    out-of-band — no page repaint. Watchers call this only when a displayed value
+    actually changes."""
+    patch = {}
     if rows is not None:
         patch["rows"] = _normalize_rows(rows)
+    if title is not None:
+        patch["title"] = title
+    if not patch:
+        return
     for page in _pages_for(to):
         _on_page(page, lambda ov: ov.patch(slot, patch))

@@ -298,10 +298,16 @@ redesign. Until then they run over non-interactive surfaces or beside the view.
    optimization). 5 new tests; suite 1499 green. Demo: live HUD over `3dview` with a
    watcher sub-task + a Toggle Alert control. `2dview` controls still pending engine
    input-routing.
-5. **Declarative bindings** — `amd_overlays(section)` loader (projection of
-   `amd_records`, chained into `amd_mission_data`) + `overlay_amd(key)`; quest-driver
-   lifecycle directives (`On accept:` / `On complete:` / …) with participant-scoped
-   `to`. This is what makes it free for AMD/quest authors.
+5. **Declarative bindings** —
+   - **5A (sbs_utils) ✅ DONE (headless).** `amd_overlay.py`: `amd_overlays(section)`
+     (a projection of `amd_records` — registered via `MastGlobals.import_python_module`)
+     + `overlay_amd(key, to, **overrides)`. Fence fields → content; body → the kind's
+     primary field (title/text/line); `Seconds` coerced + auto-dismiss; per-kind default
+     slot. 6 new tests; suite 1509 green. Demo loads `overlays.amd` and fires `ch1`.
+   - **5B (LegendaryMissions) — pending.** Quest-driver lifecycle directives
+     (`On accept:` / `On complete:` / …) that fire overlays with participant-scoped
+     `to`. Lives in the LM `quests/quest_driver`, so it's a separate-repo follow-up on
+     top of 5A.
 6. **Polish** — transient timers, same-slot queue policy, letterbox/flash on
    `fullscreen`, browser-verify actual stacking + render (mock only approximates
    layout; `--test` can't confirm z-order or input).
