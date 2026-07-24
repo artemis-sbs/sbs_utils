@@ -68,7 +68,21 @@ def amd_trigger(value, aliases=None):
     target = " ".join(rest).strip()
     data = {}
     if kind == "sector":
-        data["sector"] = amd_coords(target)
+        # reach/travel is either a SECTOR (`reach 6, 4` - Open Universe) or a LANDMARK
+        # role with an optional radius (`reach relay 5000` - the 2.8 "fly within R of
+        # <object>" objective; absolute 2.8 coords do not map to sectors). A role form is
+        # completed by the quest_driver's quest_tick_reach proximity watcher.
+        toks = str(target).replace(",", " ").split()
+        nums = [int(t) for t in toks if t.lstrip("-").isdigit()]
+        words = [t for t in toks if not t.lstrip("-").isdigit()]
+        if words:
+            data["role"] = _resolve_role(" ".join(words), aliases)
+            if nums:
+                data["radius"] = nums[-1]
+        elif len(nums) >= 2:
+            data["sector"] = nums[:2]
+        else:
+            data["sector"] = amd_coords(target)
     elif kind == "name":
         # single-token signal name; lowercase + underscores so `signal Eliminated Foe`
         # and `signal eliminated_foe` agree (quest_on_signal matches exactly).

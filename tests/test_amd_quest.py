@@ -38,6 +38,16 @@ class AmdTriggerTests(unittest.TestCase):
         self.assertEqual(amd_trigger("reach 6, 4"),
                          ("on_reach", {"sector": [6, 4]}))
 
+    def test_reach_landmark_role(self):
+        # 2.8 "fly within R of <object>" -> a landmark reach (role + radius), not a sector
+        self.assertEqual(amd_trigger("reach relay 7000"),
+                         ("on_reach", {"role": "relay", "radius": 7000}))
+        self.assertEqual(amd_trigger("travel starbase"),
+                         ("on_reach", {"role": "starbase"}))
+        # alias resolution still applies to the role
+        self.assertEqual(amd_trigger("reach derelict", {"derelict": "universe_derelict"}),
+                         ("on_reach", {"role": "universe_derelict"}))
+
     def test_collect_key_count(self):
         self.assertEqual(amd_trigger("recover 3 provisions"),
                          ("on_collect", {"key": "provisions", "count": 3}))
