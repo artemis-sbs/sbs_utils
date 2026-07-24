@@ -13,9 +13,31 @@ from sbs_utils.procedural.prefab import prefab_spawn
 
 import math
 
+# Nebula object size. DEFAULT is unchanged (1500) - the "fewer, bigger objects"
+# optimization is OPT-IN via terrain_set_nebula_object_size() below, because it pairs
+# with the not-yet-official projection depth shader fix.
 NEB_MAX_SIZE = 1500
 NEB_SIZE_LARGE = 1500
 NEB_SIZE_SMALL = 1200
+
+
+def terrain_set_nebula_object_size(size=2500):
+    """OPT-IN (experimental): raise the per-object nebula size so clusters spawn
+    FEWER, BIGGER objects.
+
+    A cluster's object count is ``cluster_size // NEB_SIZE_LARGE``, so raising this
+    makes the existing generator produce fewer/bigger objects (a 10000 cluster:
+    ~36 -> ~16 at 2500 = ~55% less overdraw) while keeping all its scatter/drift/
+    jitter - no re-tuning. Default behavior is UNCHANGED unless a mission calls this.
+
+    Pairs with the projection depth shader fix (NEB_DEPTH_PROJECTION in
+    shader-emissivenebula.ps): sizes above ~3000 need it to avoid the "sphere at
+    origin" artifact. 2500 is clean even without it. Call once before spawning
+    nebulae; pass 1500 to restore the default.
+    """
+    global NEB_MAX_SIZE, NEB_SIZE_LARGE
+    NEB_MAX_SIZE = size
+    NEB_SIZE_LARGE = size
 
 
 def terrain_remove_points_near(all_points, test_points, radius):
