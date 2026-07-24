@@ -126,9 +126,11 @@ def overlay_register_label(kind, label):
     """
     def _label_builder(cid, content):
         # We are inside OverlayRegion._build_content: FrameContext.page is the
-        # SubPage and its slot section is the active layout. Run the label as a
-        # one-shot sub-task, but redirect the scheduler's page at the SubPage so the
-        # label's gui_* build INTO the slot (a task ticks into `main.page`).
+        # SubPage and its slot section is the active layout. Run the label the same
+        # way a signal route runs (start_task + tick_in_context), but redirect the
+        # scheduler's page at the SubPage first so the label's gui_* build INTO the
+        # slot (a task ticks into `main.page`). unscheduled=True -> the one-shot
+        # builder task is never added to the scheduler, so nothing lingers.
         from .gui import gui_task_for_client
         sub_page = FrameContext.page
         gtask = gui_task_for_client(cid)
@@ -137,18 +139,15 @@ def overlay_register_label(kind, label):
         scheduler = gtask.main
         saved_page = scheduler.page
         scheduler.page = sub_page
-        t = None
         try:
             data = {k: v for k, v in content.items() if k != "kind"}
-            t = gtask.start_sub_task(label, inputs=data, defer=True)
-            t.tick_in_context()          # build-only label completes in one tick
+            st = gtask.start_task(label, data, defer=True, inherit=False, unscheduled=True)
+            st.tick_in_context()         # build-only label completes in one tick
         except Exception as e:
             print(f"[overlay] label builder for '{kind}' failed: {e}")
             print(traceback.format_exc())
         finally:
             scheduler.page = saved_page
-            if t is not None and t in gtask.sub_tasks:
-                gtask.sub_tasks.remove(t)   # don't let the finished builder linger
 
     OVERLAY_KINDS[kind] = _label_builder
     return label

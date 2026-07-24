@@ -153,7 +153,18 @@ could ship the two routes so missions skip even that; deferred.)
 
 ---
 
-## Ergonomic API — one shape, three front doors
+## Builder front doors (Python and MAST)
+
+A `kind` maps to a builder. Two ways to author one:
+- **Python:** `overlay_register("hero", fn)` — for library builders / real logic.
+- **MAST label:** `overlay_register_label("hero", label)`, or the **sugar** route
+  **`//overlay/<kind>`** (a `story_nodes` node that auto-registers the label at load —
+  no registration call). The route/label builds the card with `gui_*` verbs; content
+  fields arrive as task vars; it's run as a one-shot task each repaint with the
+  scheduler's page redirected at the slot SubPage (same execution path as a `//signal`
+  route). Build-only (no `await`).
+
+## Content front doors — one shape, three
 
 Every overlay `kind` exposes the **same field set** whether it's called from Python,
 declared in AMD, or fired by a quest hook. AMD loading is then a dict→kwargs pass and

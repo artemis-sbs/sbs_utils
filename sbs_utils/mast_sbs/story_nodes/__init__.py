@@ -12,6 +12,7 @@ from .comms_message import CommsMessageStart, CommsMessageStartRuntimeNode
 from .media import MediaLabel
 from .text import Text, AppendText, TextRuntimeNode, AppendTextRuntimeNode
 from .button import Button
+from .overlay_route_label import OverlayRouteDecoratorLabel   # //overlay/<kind>; before generic route
 from .route_label import RouteDecoratorLabel
 # these need to be after route label
 from .gui_tab_decorator_label import GuiTabDecoratorLabel

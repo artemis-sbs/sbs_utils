@@ -539,13 +539,11 @@ class _SchedGuiTask(_FakeGuiTask):
     def __init__(self, page):
         super().__init__(page)
         self.main = _FakeScheduler(page)
-        self.sub_tasks = []
 
-    def start_sub_task(self, label, inputs=None, defer=False):
+    def start_task(self, label, inputs=None, task_name=None, defer=False,
+                   inherit=True, unscheduled=False):
         # in the test the "label" is a python build fn(inputs)
-        t = _FakeBuilderSubTask(self.main, lambda: label(inputs))
-        self.sub_tasks.append(t)
-        return t
+        return _FakeBuilderSubTask(self.main, lambda: label(inputs))
 
 
 class TestOverlayLabelBuilder(unittest.TestCase):
@@ -590,7 +588,26 @@ class TestOverlayLabelBuilder(unittest.TestCase):
                  and a[1][1] == self.HERO and "MAST BUILT" in a[1][3]]
         self.assertTrue(texts, "label built into the slot region")
         self.assertIs(self.gtask.main.page, self.page, "scheduler page restored")
-        self.assertEqual(self.gtask.sub_tasks, [], "finished builder task removed")
+
+
+class TestOverlayRouteNode(unittest.TestCase):
+    """//overlay/<kind> compiles to a hidden builder label + a main registration."""
+
+    def test_route_compiles_and_registers(self):
+        import sbs_utils.mast_sbs.story_nodes  # register the node
+        from sbs_utils.mast.mast import Mast
+        from sbs_utils.mast_sbs.story_nodes.overlay_route_label import OverlayRouteDecoratorLabel
+        code = "\n//overlay/mycard\n    gui_row(\"row-height: content;\")\n    gui_text(\"$text:`hi`;\")\n"
+        m = Mast()
+        errors = m.compile(code, "test", m)
+        self.assertEqual(errors, [])
+        hidden = [k for k in m.labels if k.startswith("__overlay__mycard__")]
+        self.assertTrue(hidden, "hidden builder label created")
+        self.assertIsInstance(m.labels[hidden[0]], OverlayRouteDecoratorLabel)
+        main = m.labels["main"]
+        inj = [c for c in main.cmds
+               if "overlay_register_label" in str(getattr(c, "line", ""))]
+        self.assertTrue(inj, "registration injected into main")
 
 
 class TestOverlayToTargeting(unittest.TestCase):
