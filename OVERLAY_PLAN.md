@@ -280,9 +280,14 @@ redesign. Until then they run over non-interactive surfaces or beside the view.
    forwarders + the mission-authored `//shared/signal/overlay(_clear)` pattern (no
    Python signal registry exists). 7 new tests (`to` resolution, fan-out, clear
    targeting); full suite 1487 green. Demo wires the signal path end-to-end.
-3. **Three proofs (one per family)** — `overlay_toast` (HUD/transient),
-   `overlay_lower_third` + `overlay_hero`/`overlay_credits` (cinematic),
-   `overlay_choice` (interactive/modal via `InfoButtonPromise`).
+3. **Three proofs (one per family)** — ✅ **DONE (headless; engine pending).**
+   `overlay_toast` (transient, auto-dismiss via `TickDispatcher.do_once`),
+   `overlay_banner` / `overlay_lower_third` / `overlay_credits` + `overlay_hero`
+   (cinematic; all support a `seconds` auto-dismiss), and `overlay_choice` (modal:
+   `gui_button(on_press=Promise)` → returns an awaitable resolving to the pressed
+   label; button clicks route via the merged `page.tag_map`, the proven info-panel
+   path). 7 new tests incl. the full click→promise resolve; suite 1494 green. Demo
+   drives each, with a background-task modal (`await overlay_choice(...)`).
 4. **HUD** — `hud` slot, sticky + live: watcher-driven value updates, `on_press=`
    control cluster, over `3dview` (works) with `2dview` controls flagged pending.
 5. **Declarative bindings** — `amd_overlays(section)` loader (projection of

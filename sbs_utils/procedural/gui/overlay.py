@@ -376,6 +376,158 @@ def _hero_builder(client_id, content):
 overlay_register("hero", _hero_builder)
 
 
+# --- Transient (auto-dismiss) ------------------------------------------------
+def _schedule_dismiss(slot, cids, seconds):
+    """Clear ``slot`` on the given client ids after ``seconds`` (one-shot tick)."""
+    if not seconds or seconds <= 0 or not cids:
+        return
+    from ...tickdispatcher import TickDispatcher
+
+    def _fire(t):
+        overlay_clear(t.overlay_dismiss[0], to=t.overlay_dismiss[1])
+
+    t = TickDispatcher.do_once(_fire, seconds)
+    t.overlay_dismiss = (slot, set(cids))
+    return t
+
+
+def _show_transient(slot, kind, to, seconds, content):
+    """Show an overlay and, if ``seconds`` is set, auto-clear it after that long.
+    The dismiss targets the resolved client ids (so it works even when the
+    scheduler tick has no current page)."""
+    overlay_show(slot, kind, to=to, **content)
+    if seconds and seconds > 0:
+        cids = [p.client_id for p in _pages_for(to)]
+        _schedule_dismiss(slot, cids, seconds)
+
+
 def overlay_hero(title, subtitle=None, image=None, slot="center_hero", to=None, seconds=None):
-    """Show a big centered hero / chapter card. (``seconds`` auto-dismiss is Phase 6.)"""
-    overlay_show(slot, "hero", to=to, title=title, subtitle=subtitle, image=image)
+    """Show a big centered hero / chapter card. Auto-dismiss after ``seconds`` if set."""
+    _show_transient(slot, "hero", to, seconds,
+                    {"title": title, "subtitle": subtitle, "image": image})
+
+
+# --- Toast (corner, transient) -----------------------------------------------
+def _toast_builder(client_id, content):
+    from .text import gui_text
+    from .row import gui_row
+    from .icon import gui_icon
+    from .section import gui_sub_section
+
+    text = content.get("text", "")
+    icon = content.get("icon")
+    gui_row("row-height: content;")
+    if icon is not None:
+        with gui_sub_section("col-width: content;"):
+            gui_icon(f"icon_index: {icon}; color: white;")
+        with gui_sub_section():
+            gui_text(f"$text:`{text}`;font:gui-2;color:#fff")
+    else:
+        gui_text(f"$text:`{text}`;justify:center;font:gui-2;color:#fff")
+
+
+overlay_register("toast", _toast_builder)
+
+
+def overlay_toast(text, icon=None, seconds=3, to=None, slot="corner_toast"):
+    """Small transient corner notification; auto-clears after ``seconds`` (default 3)."""
+    _show_transient(slot, "toast", to, seconds, {"text": text, "icon": icon})
+
+
+# --- Banner (full-width strip) -----------------------------------------------
+def _banner_builder(client_id, content):
+    from .text import gui_text
+    from .row import gui_row
+    text = content.get("text", "")
+    color = content.get("color", "#fd0")
+    gui_row("row-height: content;")
+    gui_text(f"$text:`{text}`;justify:center;font:gui-4;color:{color}")
+
+
+overlay_register("banner", _banner_builder)
+
+
+def overlay_banner(text, color="#fd0", slot="top_banner", to=None, seconds=None):
+    """Full-width top strip (alert / countdown). Auto-dismiss after ``seconds`` if set."""
+    _show_transient(slot, "banner", to, seconds, {"text": text, "color": color})
+
+
+# --- Lower third (name-plate + line) -----------------------------------------
+def _lower_third_builder(client_id, content):
+    from .text import gui_text
+    from .row import gui_row
+    name = content.get("name", "")
+    line = content.get("line", "")
+    if name:
+        gui_row("row-height: content;")
+        gui_text(f"$text:`{name}`;font:gui-4;color:#8cf")
+    gui_row("row-height: content;")
+    gui_text(f"$text:`{line}`;font:gui-3;color:#fff")
+
+
+overlay_register("lower_third", _lower_third_builder)
+
+
+def overlay_lower_third(name, line, slot="lower_third", to=None, seconds=None):
+    """Bottom name-plate + subtitle line (someone speaking over the live view)."""
+    _show_transient(slot, "lower_third", to, seconds, {"name": name, "line": line})
+
+
+# --- Credits (sequential list) -----------------------------------------------
+def _credits_builder(client_id, content):
+    from .text import gui_text
+    from .row import gui_row
+    title = content.get("title")
+    entries = content.get("entries", [])
+    if title:
+        gui_row("row-height: content;")
+        gui_text(f"$text:`{title}`;justify:center;font:gui-6;color:#fff")
+    for entry in entries:
+        gui_row("row-height: content;")
+        gui_text(f"$text:`{entry}`;justify:center;font:gui-3;color:#cde")
+
+
+overlay_register("credits", _credits_builder)
+
+
+def overlay_credits(entries, title=None, slot="fullscreen", to=None, seconds=None):
+    """Opening/closing credits: a title + a list of lines (static paged for now)."""
+    _show_transient(slot, "credits", to, seconds,
+                    {"title": title, "entries": list(entries)})
+
+
+# --- Choice (modal, returns an awaitable result) -----------------------------
+def _choice_builder(client_id, content):
+    from .text import gui_text
+    from .button import gui_button
+    from .row import gui_row
+
+    title = content.get("title", "")
+    buttons = content.get("buttons", [])
+    prom = content.get("_promise")
+    if title:
+        gui_row("row-height: content;")
+        gui_text(f"$text:`{title}`;justify:center;font:gui-5;color:#fff")
+    for label in buttons:
+        # each button on its own row; on_press=<Promise> resolves it on click,
+        # data=label -> ButtonResult.data. data/on_press is the for-loop-safe path.
+        gui_row("row-height: content;")
+        gui_button(f"$text:`{label}`;justify:center;", data=label, on_press=prom)
+
+
+overlay_register("choice", _choice_builder)
+
+
+def overlay_choice(title, buttons, to=None, slot="center_hero"):
+    """Show a modal choice card and return an awaitable that resolves when a button
+    is pressed. Await it from a story/background task (not the target console's own
+    gui task); the result's ``.data`` is the chosen label.
+
+        result = await overlay_choice("Fire on the ambassador?", ["Yes", "No"], to=player)
+        if result.data == "Yes":
+            ...
+    """
+    from ...futures import Promise
+    prom = Promise()
+    overlay_show(slot, "choice", to=to, title=title, buttons=list(buttons), _promise=prom)
+    return prom

@@ -192,6 +192,101 @@ class TestOverlayHeroBuilder(OverlayTestBase):
         self.assertGreaterEqual(len(texts), 2)
 
 
+class TestOverlayTransientAndBuilders(OverlayTestBase):
+    """Phase 3 display family: toast auto-dismiss + banner/lower_third/credits/choice
+    builders render into their slot region."""
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.tickdispatcher import TickDispatcher
+        TickDispatcher.clear()
+
+    def _establish(self, tag):
+        self.rec.clear()
+        self.page.overlays.present_all(FakeEvent(0))
+        return [a for a in self.calls("send_gui_text") if a[1] == tag]
+
+    def test_toast_schedules_one_shot_dismiss(self):
+        from sbs_utils.tickdispatcher import TickDispatcher
+        from sbs_utils.procedural.gui.overlay import overlay_toast
+        overlay_toast("Objective updated", seconds=3)
+        self.assertIn("corner_toast", self.page.overlays.slots)
+        self.assertEqual(len(TickDispatcher._new_this_tick), 1, "one auto-dismiss task")
+
+    def test_toast_no_dismiss_when_seconds_zero(self):
+        from sbs_utils.tickdispatcher import TickDispatcher
+        from sbs_utils.procedural.gui.overlay import overlay_toast
+        overlay_toast("no timer", seconds=0)
+        self.assertEqual(len(TickDispatcher._new_this_tick), 0)
+
+    def test_banner_builder_renders(self):
+        from sbs_utils.procedural.gui.overlay import overlay_banner
+        overlay_banner("RED ALERT")
+        self.assertTrue(self._establish("ovl_top_banner$$"))
+
+    def test_lower_third_builder_renders_name_and_line(self):
+        from sbs_utils.procedural.gui.overlay import overlay_lower_third
+        overlay_lower_third("Admiral Harkin", "Hold the line.")
+        texts = self._establish("ovl_lower_third$$")
+        self.assertGreaterEqual(len(texts), 2)      # name + line
+
+    def test_credits_builder_renders_all_entries(self):
+        from sbs_utils.procedural.gui.overlay import overlay_credits
+        overlay_credits(["Alice", "Bob", "Carol"], title="CREDITS")
+        texts = self._establish("ovl_fullscreen$$")
+        self.assertGreaterEqual(len(texts), 4)      # title + 3 entries
+
+    def test_choice_returns_promise_and_renders_buttons(self):
+        from sbs_utils.procedural.gui.overlay import overlay_choice
+        from sbs_utils.futures import Promise
+        prom = overlay_choice("Fire?", ["Yes", "No"])
+        self.assertIsInstance(prom, Promise)
+        self.assertIn("center_hero", self.page.overlays.slots)
+        self.rec.clear()
+        self.page.overlays.present_all(FakeEvent(0))
+        self.assertGreaterEqual(len(self.calls("send_gui_button")), 2)
+
+
+class TestOverlayModalResolves(unittest.TestCase):
+    """The modal choice promise resolves with the pressed button's label."""
+
+    def setUp(self):
+        from sbs_utils.spaceobject import SpaceObject
+        from sbs_utils.gui import GuiClient
+        sbs.create_new_sim()
+        SpaceObject.clear()
+        self.rec = []
+        FrameContext.context = Context(sbs.sim, RecordingSbs(sbs, self.rec), FakeEvent())
+        self.page = StoryPage()
+        self.page.pending_gui = False
+        self.page.client_id = 0
+        self.page.gui_task = _FakeGuiTask(self.page)
+        client = GuiClient(0)                     # so gui_page_for_client(0) merges tag_map
+        client.page_stack.append(self.page)
+        FrameContext.page = self.page
+
+    def tearDown(self):
+        FrameContext.page = None
+        FrameContext.context = None
+
+    def test_pressing_a_button_resolves_with_its_label(self):
+        from sbs_utils.procedural.gui.overlay import overlay_choice
+        prom = overlay_choice("Fire?", ["Yes", "No"])
+        self.page.overlays.present_all(FakeEvent(0))   # establish + merge tag_map
+
+        # find the "Yes" button's MessageHandler in the page tag_map and fire it
+        handler = btag = None
+        for tag, (li, rn) in self.page.tag_map.items():
+            if rn is not None and getattr(rn, "handler", None) is prom and getattr(li, "data", None) == "Yes":
+                handler, btag = rn, tag
+                break
+        self.assertIsNotNone(handler, "Yes button handler present in page.tag_map")
+
+        handler.on_message(FakeEvent(0, sub_tag=btag))
+        self.assertTrue(prom.done())
+        self.assertEqual(prom.result().data, "Yes")
+
+
 class TestOverlayToTargeting(unittest.TestCase):
     """`to` role-set / client-id targeting: push overlays to specific consoles."""
 
