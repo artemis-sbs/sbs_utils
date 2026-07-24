@@ -118,9 +118,10 @@ def amd_quest_facts(aliases=None):
     (consoles that may Engage) restrict a job to specific stations.
     End-game + mission-tree labels: Win / Lose (bare flag -> end_win/end_lose; prose ->
     also the win_text/lose_text reason), Parent, Required, Critical, and the fail
-    triggers Fail on signal / Fail on all dead / Fail after. These map to the data keys
-    the LM quest end-game driver reads (parent aggregation, end_win/end_lose game-over,
-    fail_on_signal/fail_on_all_dead/fail_after).
+    triggers Fail on signal / Fail on all dead / Fail after, plus the timed-completion
+    trigger Complete after (symmetric to Fail after; drives a reveal chain). These map to
+    the data keys the LM quest end-game driver reads (parent aggregation, end_win/end_lose
+    game-over, fail_on_signal/fail_on_all_dead/fail_after, complete_after).
 
     Unknown labels return None, so a mission with extra vocabulary chains its own
     handler after this one (or falls to amd_parse_facts's default coercion).
@@ -185,6 +186,15 @@ def amd_quest_facts(aliases=None):
             n = next((int(t) for t in str(value).split() if t.isdigit()), 0)
             unit = "seconds" if "second" in str(value).lower() else "minutes"
             data["fail_after"] = {unit: n}
+        elif label in ("complete after", "complete_after"):
+            # Symmetric to Fail after: COMPLETE the quest once a time elapses (anchored
+            # lazily on the first ACTIVE tick, same as fail_after). Lets a purely timed
+            # step - a narrative beat, a "hold for N seconds" objective - be a quest that
+            # advances a reveal chain (pair with Then: reveal) with no hand-written timer
+            # loop. Read by the LM quest_driver's quest_tick_complete_after watcher.
+            n = next((int(t) for t in str(value).split() if t.isdigit()), 0)
+            unit = "seconds" if "second" in str(value).lower() else "minutes"
+            data["complete_after"] = {unit: n}
         else:
             return None
         return True

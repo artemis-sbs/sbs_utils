@@ -7,7 +7,7 @@ test_set_exe_dir()
 import cosmos_dev.mock.sbs as sbs
 from tests.reset_helper import reset_mock
 from sbs_utils.procedural.a2x.props import (
-    set_object_property, object_property_mapped, object_property_key,
+    set_object_property, object_property, object_property_mapped, object_property_key,
     set_special, special_ability_mapped,
     addto_object_property, copy_object_property, set_ship_text,
     set_relative_position, set_fleet_coeff, fleet_coeff_mapped, set_side_value,
@@ -51,6 +51,23 @@ class A2xPropsMockTests(unittest.TestCase):
 
     def test_unmapped_returns_false(self):
         self.assertFalse(set_object_property(self.so, "surrenderChance", 50))
+
+    def test_object_property_reads_back(self):
+        # the read counterpart of set_object_property: data slot, array index, engine attr
+        set_object_property(self.so, "energy", 250)
+        self.assertEqual(object_property(self.so, "energy"), 250)
+        set_object_property(self.so, "shieldStateBack", 80)
+        self.assertEqual(object_property(self.so, "shieldStateBack"), 80)
+        set_object_property(self.so, "rollDelta", 0.003)
+        self.assertAlmostEqual(object_property(self.so, "rollDelta"), 0.003)
+
+    def test_object_property_pos_flip_roundtrips(self):
+        # positionX is coordinate-flipped on both set and read; a round-trip is identity
+        set_object_property(self.so, "positionX", 12345)
+        self.assertEqual(object_property(self.so, "positionX"), 12345)
+
+    def test_object_property_unmapped_is_none(self):
+        self.assertIsNone(object_property(self.so, "surrenderChance"))
 
     def test_set_special_ability_on(self):
         self.assertEqual(set_special(self.so, "LowVis", on=True), "elite_low_vis")

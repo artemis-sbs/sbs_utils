@@ -301,3 +301,28 @@ def set_object_property(obj, prop, value, index=None):
     else:
         o.data_set.set(m[1], value, m[2] if index is None else index)
     return True
+
+
+def object_property(obj, prop, index=None):
+    """Read a 2.8-named property from ``obj`` (id / object / a2x_create_* handle).
+
+    The read counterpart of :func:`set_object_property`, using the SAME 2.8->Cosmos
+    mapping (engine attr, coordinate-flipped ``pos``, or ``data_set`` slot). Lets a port
+    evaluate a 2.8 ``if_object_property`` / ``get_object_property`` for real instead of a
+    hand-check. Returns the current value, or ``None`` if the property has no confirmed
+    mapping or the object is gone (a caller comparing ``None`` fails safely / by hand).
+    """
+    from sbs_utils.procedural.query import to_space_object
+
+    m = _PROP.get(prop)
+    if m is None:
+        return None
+    o = to_space_object(obj)
+    if o is None:
+        return None
+    if m[0] == "engine":
+        return getattr(o.engine_object, m[1])
+    if m[0] == "pos":
+        raw = getattr(o.engine_object.pos, m[1])
+        return (_MAP_SIZE - raw) if m[2] else raw  # un-flip (flip is its own inverse)
+    return o.data_set.get(m[1], m[2] if index is None else index)
