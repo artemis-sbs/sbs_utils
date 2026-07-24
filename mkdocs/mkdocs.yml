@@ -84,6 +84,7 @@ nav:
     - Grids (gui_grid): cosmos/gui_grid.md
     - Sizing to content: cosmos/gui_content_sizing.md
     - Text that does not fit: cosmos/gui_overflow.md
+    - Overlays (cards, HUDs, cutscenes): cosmos/overlays.md
     - Comms: cosmos/comms.md
     - Science: cosmos/science.md
     - AI:

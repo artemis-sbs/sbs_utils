@@ -293,6 +293,36 @@ automatically.
 
 ---
 
+## 🎭 Overlays — cards, HUDs & cutscenes on top of the view
+
+A whole new **[overlay system](cosmos/overlays.md)** for drawing on top of a console's
+page **and** its live 3D view — chapter cards, notifications, a modal choice, a live
+HUD — that update **without repainting the page underneath**.
+
+- **One-liners for the whole toolkit.** `overlay_hero("CHAPTER TWO", subtitle="…")` for
+  a scene title (with a **face, ship, icon, or image**); `overlay_lower_third(name, line)`
+  for someone speaking over the action; `overlay_banner`, `overlay_toast` (**toasts
+  stack** — several coexist, each clearing on its own), `overlay_letterbox` and
+  `overlay_flash` for a cutscene, `overlay_credits(..., roll=)` for rolling credits.
+- **Aim it anywhere.** Every overlay takes `to` — the current console, one client, or a
+  role set: `overlay_hero("FLEET ALERT", to=role("mainscreen"))`. Server story logic
+  pushes straight to the players, or fires it with a one-line `//shared/signal` bridge.
+- **A modal that returns a value.** `result = await overlay_choice("Fire?", ["Yes","No"])`
+  — a full-screen card you can await, resolving to the button they pressed.
+- **A live HUD over the view.** `overlay_hud(rows=…, controls=…)` floats a sticky panel
+  over the 3D view; `overlay_hud_update` refreshes just its values, no repaint.
+- **Author overlays as data.** Declare them in an `.amd` file and fire by key
+  (`overlay_amd("ch2")`), and a **quest fires overlays on accept / complete / fail** to
+  its participants — `Complete Overlay: convoy_saved` or an inline `On complete: hero
+  CONVOY SAVED`, no wiring.
+- **Your own cards, in pure MAST.** A `//overlay/<kind>` route builds a custom card with
+  the usual `gui_*` verbs and registers itself — no Python:
+  ```
+  //overlay/briefing
+      gui_face(face)
+      gui_text(f"$text:`{name}`;font:gui-5")
+  ```
+
 ## 📋 Richer GUI — tables, and text that does more
 
 - **[`gui_table`](cosmos/gui_table.md).** Describe a table as **rows + column
