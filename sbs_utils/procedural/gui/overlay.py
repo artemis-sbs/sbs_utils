@@ -134,6 +134,10 @@ class OverlayRegion:
         # not in the slot, so clear can't reach it. So: establish in present_all
         # (full repaint), then out-of-band clear/complete updates the live region.
         self.established = False
+        # bumped on every content change; a pending transient dismiss captures it and
+        # only fires when it still matches, so re-showing a slot supersedes an older
+        # auto-dismiss instead of clearing the newer content.
+        self.generation = 0
 
     @property
     def is_empty(self):
@@ -241,6 +245,7 @@ class OverlayManager:
         data = {"kind": kind}
         data.update(content or {})
         r.content = data
+        r.generation += 1               # supersede any pending auto-dismiss
         _dbg(f"show slot={slot} kind={kind} established={r.established}")
         if r.established:
             r.update(self._event())       # out-of-band — no page repaint
@@ -257,6 +262,7 @@ class OverlayManager:
         if r is None:
             return
         r.content = None
+        r.generation += 1
         _dbg(f"clear slot={slot} established={r.established}")
         if r.established:
             r.update(self._event())       # out-of-band clear (region already live)
@@ -269,6 +275,7 @@ class OverlayManager:
         if r is None or r.content is None:
             return
         r.content.update(fields)
+        r.generation += 1
         if r.established:
             r.update(self._event())
         else:
@@ -390,28 +397,32 @@ overlay_register("hero", _hero_builder)
 
 
 # --- Transient (auto-dismiss) ------------------------------------------------
-def _schedule_dismiss(slot, cids, seconds):
-    """Clear ``slot`` on the given client ids after ``seconds`` (one-shot tick)."""
-    if not seconds or seconds <= 0 or not cids:
+def _schedule_dismiss(page, slot, gen, seconds):
+    """Auto-clear ``page``'s ``slot`` after ``seconds`` — but only if it still holds
+    generation ``gen`` (i.e. it wasn't re-shown / updated / already cleared in the
+    meantime). One-shot tick; runs in the target page's FrameContext."""
+    if not seconds or seconds <= 0:
         return
     from ...tickdispatcher import TickDispatcher
 
     def _fire(t):
-        overlay_clear(t.overlay_dismiss[0], to=t.overlay_dismiss[1])
+        r = page.overlays.slots.get(slot)
+        if r is not None and r.generation == gen and r.content is not None:
+            _on_page(page, lambda ov: ov.clear(slot))
 
-    t = TickDispatcher.do_once(_fire, seconds)
-    t.overlay_dismiss = (slot, set(cids))
-    return t
+    return TickDispatcher.do_once(_fire, seconds)
 
 
 def _show_transient(slot, kind, to, seconds, content):
     """Show an overlay and, if ``seconds`` is set, auto-clear it after that long.
-    The dismiss targets the resolved client ids (so it works even when the
-    scheduler tick has no current page)."""
+    The dismiss is generation-guarded per target page, so re-showing the slot before
+    the timer fires supersedes it instead of clearing the newer content."""
     overlay_show(slot, kind, to=to, **content)
     if seconds and seconds > 0:
-        cids = [p.client_id for p in _pages_for(to)]
-        _schedule_dismiss(slot, cids, seconds)
+        for page in _pages_for(to):
+            r = page.overlays.slots.get(slot)
+            if r is not None:
+                _schedule_dismiss(page, slot, r.generation, seconds)
 
 
 def overlay_hero(title, subtitle=None, image=None, slot="center_hero", to=None, seconds=None):
@@ -610,3 +621,48 @@ def overlay_hud_update(rows=None, title=None, to=None, slot="hud"):
         return
     for page in _pages_for(to):
         _on_page(page, lambda ov: ov.patch(slot, patch))
+
+
+# --- Fullscreen cinematic (letterbox, flash) ---------------------------------
+def _letterbox_builder(client_id, content):
+    from .text import gui_text
+    from .row import gui_row
+    from .blank import gui_blank
+
+    line = content.get("line")
+    bar = content.get("bar", 4)       # bar height in em (rows use em/px/fr, not %)
+    gui_row(f"row-height: {bar}em; background: #000;")   # top bar
+    gui_blank()
+    gui_row("")                        # flex middle fills between the bars
+    if line:
+        gui_text(f"$text:`{line}`;justify:center;font:gui-3;color:#fff")
+    else:
+        gui_blank()
+    gui_row(f"row-height: {bar}em; background: #000;")    # bottom bar
+    gui_blank()
+
+
+overlay_register("letterbox", _letterbox_builder)
+
+
+def overlay_letterbox(line=None, bar=4, to=None, slot="fullscreen", seconds=None):
+    """Cinematic letterbox: black bars top+bottom (``bar`` em each) with an optional
+    centered line. Sticky by default; pass ``seconds`` to auto-lift."""
+    _show_transient(slot, "letterbox", to, seconds, {"line": line, "bar": bar})
+
+
+def _flash_builder(client_id, content):
+    from .row import gui_row
+    from .blank import gui_blank
+    # A single flex row (fills the region) washed with a translucent color ("#f006").
+    color = content.get("color", "#f006")
+    gui_row(f"background: {color};")
+    gui_blank()
+
+
+overlay_register("flash", _flash_builder)
+
+
+def overlay_flash(color="#f006", to=None, slot="fullscreen", seconds=0.4):
+    """Full-screen color wash (hull hit, jump). Auto-dismisses fast (default 0.4s)."""
+    _show_transient(slot, "flash", to, seconds, {"color": color})

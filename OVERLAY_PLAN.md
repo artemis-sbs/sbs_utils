@@ -313,9 +313,15 @@ redesign. Until then they run over non-interactive surfaces or beside the view.
      45 quest tests still green. Demo grants a quest with both forms + a Complete Quest
      button. (sbs_utils `overlay_amd` took a `fields=` dict instead of `**overrides`
      to dodge the IDE-linter `**kwargs` false positive.)
-6. **Polish** — transient timers, same-slot queue policy, letterbox/flash on
-   `fullscreen`, browser-verify actual stacking + render (mock only approximates
-   layout; `--test` can't confirm z-order or input).
+6. **Polish** — ⏳ **in progress (headless).** Done: transient dismiss is now
+   **generation-guarded** (a re-show/update/clear bumps `region.generation`; a pending
+   auto-dismiss only fires if it still matches — so reusing a slot before the timer
+   can't clear the newer content); `overlay_letterbox` (em bars top/bottom + optional
+   line) and `overlay_flash` (full-region color wash, fast auto-dismiss) on the
+   `fullscreen` slot. 4 new tests; suite 1513 green; demo adds Letterbox + Flash.
+   Still open: same-slot **queue** policy (stacking multiple toasts), **credits
+   scroll** (needs tick-driven animation), and browser-verify of letterbox/flash
+   render (row backgrounds + translucent wash are layout-approximate in the mock).
 
 ---
 

@@ -57,6 +57,9 @@ class _FakeGuiTask:
     def compile_and_format_string(self, s):
         return s
 
+    def format_string(self, s):
+        return s
+
 
 def _emit_builder(cid, content):
     # Bypass the layout machinery — emit straight to sbs so the test asserts the
@@ -285,6 +288,54 @@ class TestOverlayModalResolves(unittest.TestCase):
         handler.on_message(FakeEvent(0, sub_tag=btag))
         self.assertTrue(prom.done())
         self.assertEqual(prom.result().data, "Yes")
+
+
+class TestOverlayPolish(OverlayTestBase):
+    """Phase 6: transient dismiss superseding + fullscreen cinematic builders."""
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.tickdispatcher import TickDispatcher
+        TickDispatcher.clear()
+
+    def test_reshow_supersedes_stale_dismiss(self):
+        from sbs_utils.tickdispatcher import TickDispatcher
+        from sbs_utils.procedural.gui.overlay import overlay_toast
+        overlay_toast("first", seconds=3)               # schedules dismiss @ gen 1
+        r = self.page.overlays.slots["corner_toast"]
+        stale = set(TickDispatcher._new_this_tick)      # the gen-1 dismiss
+        overlay_toast("second", seconds=3)              # gen 2 -> supersedes it
+        for t in stale:                                 # fire ONLY the stale dismiss
+            t.cb(t)
+        self.assertIsNotNone(r.content)                 # newer content survives
+        self.assertEqual(r.content["text"], "second")
+
+    def test_dismiss_fires_when_not_superseded(self):
+        from sbs_utils.procedural.gui.overlay import overlay_toast
+        overlay_toast("only", seconds=3)
+        r = self.page.overlays.slots["corner_toast"]
+        # only fire the FIRST scheduled dismiss (the show's), not any from clear()
+        from sbs_utils.tickdispatcher import TickDispatcher
+        t = next(iter(TickDispatcher._new_this_tick))
+        t.cb(t)
+        self.assertTrue(r.is_empty)
+
+    def test_letterbox_builder_renders_bars(self):
+        from sbs_utils.procedural.gui.overlay import overlay_letterbox
+        overlay_letterbox(line="Approaching the anomaly")
+        self.rec.clear()
+        self.page.overlays.present_all(FakeEvent(0))
+        # two black bar rows carry a background image; the line is a text
+        tag = "ovl_fullscreen$$"
+        self.assertTrue([a for a in self.calls("send_gui_image") if a[1] == tag])
+        self.assertTrue([a for a in self.calls("send_gui_text") if a[1] == tag])
+
+    def test_flash_builder_renders_and_auto_dismisses(self):
+        from sbs_utils.tickdispatcher import TickDispatcher
+        from sbs_utils.procedural.gui.overlay import overlay_flash
+        overlay_flash("#f006")
+        self.assertIn("fullscreen", self.page.overlays.slots)
+        self.assertEqual(len(TickDispatcher._new_this_tick), 1)   # fast auto-dismiss scheduled
 
 
 class TestAmdOverlays(OverlayTestBase):
