@@ -35,6 +35,8 @@ _PROP = {
     "topSpeed": ("data", "speed_coeff", 0),
     # current speed (read): a space_object attribute, physics-driven (effectively read-only).
     "currentRealSpeed": ("obj", "cur_speed"),
+    # 2.8 push radius = the object's exclusion (collision) radius (a space_object property).
+    "pushRadius": ("obj", "exclusion_radius"),
     # scalar data_set values
     "throttle": ("data", "throttle", 0),
     "artScale": ("data", "local_scale_coeff", 0),
@@ -55,6 +57,11 @@ _PROP = {
     "countHoming": ("data", "Homing_NUM", 0),
     "countMine": ("data", "Mine_NUM", 0),
     "countEMP": ("data", "EMP_NUM", 0),
+    # PShock (plasma shock) and Tag are first-class LM torpedo types now; ECM ~ EMP.
+    "missileStoresPShock": ("data", "PShock_NUM", 0),
+    "missileStoresTag": ("data", "Tag_NUM", 0),
+    "missileStoresECM": ("data", "EMP_NUM", 0),
+    "countShk": ("data", "PShock_NUM", 0),
 }
 
 
@@ -177,6 +184,8 @@ def addto_object_property(obj, prop, value, index=None):
         # a 2.8 delta on a mirrored axis is negated in Cosmos space
         delta = -value if m[2] else value
         setattr(o.engine_object.pos, m[1], getattr(o.engine_object.pos, m[1]) + delta)
+    elif m[0] == "obj":
+        setattr(o, m[1], (getattr(o, m[1], 0) or 0) + value)  # a space_object attr
     else:
         idx = m[2] if index is None else index
         o.data_set.set(m[1], (o.data_set.get(m[1], idx) or 0) + value, idx)
@@ -198,6 +207,8 @@ def copy_object_property(src, dst, prop):
     elif m[0] == "pos":
         # both already in Cosmos space -> copy the axis directly (no flip)
         setattr(do.engine_object.pos, m[1], getattr(so.engine_object.pos, m[1]))
+    elif m[0] == "obj":
+        setattr(do, m[1], getattr(so, m[1], 0))  # a space_object attr
     else:
         do.data_set.set(m[1], so.data_set.get(m[1], m[2]), m[2])
     return True

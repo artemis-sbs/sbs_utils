@@ -86,6 +86,24 @@ class A2xPropsMockTests(unittest.TestCase):
         to_object(self.so).cur_speed = 42.0
         self.assertEqual(object_property(self.so, "currentRealSpeed"), 42.0)
 
+    def test_torpedo_type_stores(self):
+        # PShock / Tag are LM torpedo types now; ECM ~ EMP; Shk = plasma shock
+        for prop, key in (("missileStoresPShock", "PShock_NUM"), ("missileStoresTag", "Tag_NUM"),
+                          ("missileStoresECM", "EMP_NUM"), ("countShk", "PShock_NUM")):
+            self.assertTrue(set_object_property(self.so, prop, 4))
+            self.assertEqual(get_data_set_value(to_id(self.so), key), 4)
+
+    def test_push_radius_maps_to_exclusion_radius(self):
+        self.assertTrue(set_object_property(self.so, "pushRadius", 250.0))
+        self.assertEqual(to_object(self.so).exclusion_radius, 250.0)
+        self.assertEqual(object_property(self.so, "pushRadius"), 250.0)
+
+    def test_addto_obj_form(self):
+        # addto on an obj-form prop (would IndexError before the "obj" branch)
+        to_object(self.so).exclusion_radius = 100.0
+        self.assertTrue(addto_object_property(self.so, "pushRadius", 50.0))
+        self.assertEqual(to_object(self.so).exclusion_radius, 150.0)
+
     def test_set_special_ability_on(self):
         self.assertEqual(set_special(self.so, "LowVis", on=True), "elite_low_vis")
         self.assertEqual(get_data_set_value(to_id(self.so), "elite_low_vis"), 1)
