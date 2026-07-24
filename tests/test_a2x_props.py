@@ -50,7 +50,7 @@ class A2xPropsMockTests(unittest.TestCase):
         self.assertAlmostEqual(to_object(self.so).engine_object.steer_roll, 0.003)
 
     def test_unmapped_returns_false(self):
-        self.assertFalse(set_object_property(self.so, "surrenderChance", 50))
+        self.assertFalse(set_object_property(self.so, "sensorSetting", 3))
 
     def test_object_property_reads_back(self):
         # the read counterpart of set_object_property: data slot, array index, engine attr
@@ -67,7 +67,7 @@ class A2xPropsMockTests(unittest.TestCase):
         self.assertEqual(object_property(self.so, "positionX"), 12345)
 
     def test_object_property_unmapped_is_none(self):
-        self.assertIsNone(object_property(self.so, "surrenderChance"))
+        self.assertIsNone(object_property(self.so, "sensorSetting"))
 
     def test_top_speed_maps_to_speed_coeff(self):
         # 2.8 topSpeed (already a 0-1 coeff) -> the NPC speed_coeff, 1:1
@@ -92,6 +92,30 @@ class A2xPropsMockTests(unittest.TestCase):
                           ("missileStoresECM", "EMP_NUM"), ("countShk", "PShock_NUM")):
             self.assertTrue(set_object_property(self.so, prop, 4))
             self.assertEqual(get_data_set_value(to_id(self.so), key), 4)
+
+    def test_system_heat_collapses_8_to_4(self):
+        # 2.8's 8 named systems -> Cosmos SHPSYS 4 heat slots (Tactical == SENSORS=2)
+        for prop, idx in (("systemCurHeatBeam", 0), ("systemCurHeatImpulse", 1),
+                          ("systemCurHeatTactical", 2), ("systemCurHeatBackShield", 3)):
+            self.assertTrue(set_object_property(self.so, prop, 0.75))
+            self.assertEqual(get_data_set_value(to_id(self.so), "system_cur_heat", idx), 0.75)
+        # systemDamage / systemCurEnergy use the same 8->4 collapse, different keys
+        self.assertTrue(set_object_property(self.so, "systemDamageImpulse", 2))
+        self.assertEqual(get_data_set_value(to_id(self.so), "system_damage", 1), 2)
+        self.assertTrue(set_object_property(self.so, "systemCurEnergyFrontShield", 0.5))
+        self.assertEqual(get_data_set_value(to_id(self.so), "eng_control_value", 3), 0.5)
+
+    def test_inventory_switches(self):
+        # surrenderChance / tauntImmunityIndex -> object inventory (LM reads them)
+        from sbs_utils.procedural.inventory import get_inventory_value
+        self.assertTrue(set_object_property(self.so, "surrenderChance", 40))
+        self.assertEqual(get_inventory_value(to_id(self.so), "a2x_surrender_chance"), 40)
+        self.assertEqual(object_property(self.so, "surrenderChance"), 40)
+        self.assertTrue(set_object_property(self.so, "tauntImmunityIndex", 2))
+        self.assertEqual(get_inventory_value(to_id(self.so), "a2x_taunt_immunity"), 2)
+        # addto works on an inventory switch too
+        self.assertTrue(addto_object_property(self.so, "surrenderChance", 10))
+        self.assertEqual(object_property(self.so, "surrenderChance"), 50)
 
     def test_push_radius_maps_to_exclusion_radius(self):
         self.assertTrue(set_object_property(self.so, "pushRadius", 250.0))

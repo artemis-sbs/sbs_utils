@@ -62,7 +62,29 @@ _PROP = {
     "missileStoresTag": ("data", "Tag_NUM", 0),
     "missileStoresECM": ("data", "EMP_NUM", 0),
     "countShk": ("data", "PShock_NUM", 0),
+    # behaviour switches read by the LM damage/comms addons off the object's inventory
+    # (a2x sets the value; LM decides what to do with it -- a2x carries no LM import).
+    "surrenderChance": ("inv", "a2x_surrender_chance"),   # 0-100
+    "tauntImmunityIndex": ("inv", "a2x_taunt_immunity"),  # 0 none / 1 temp / 2 perm
 }
+
+# 2.8 engineering exposes 8 named systems; Cosmos SHPSYS has 4 slots
+# (WEAPONS=0, ENGINES=1, SENSORS=2, SHIELDS=3). Collapse 8 -> 4. This is lossy:
+# systems that share a slot (Beam+Torpedo -> WEAPONS; Impulse+Warp+Turning -> ENGINES;
+# Front+Back shield -> SHIELDS) overwrite each other, later-write-wins. Tactical == the
+# sensor system. NOTE: these are usually set on NPCs; Cosmos NPCs don't run the player
+# engineering model, so systemCurEnergy on an NPC is a harmless no-op, and heat/damage
+# are approximate -- fine for a scaffold.
+_SHPSYS = {
+    "Beam": 0, "Torpedo": 0,                  # WEAPONS
+    "Turning": 1, "Impulse": 1, "Warp": 1,    # ENGINES (maneuver / impulse / jump)
+    "Tactical": 2,                            # SENSORS
+    "FrontShield": 3, "BackShield": 3,        # SHIELDS
+}
+for _sys, _idx in _SHPSYS.items():
+    _PROP[f"systemCurHeat{_sys}"] = ("data", "system_cur_heat", _idx)   # 0.0-1.0
+    _PROP[f"systemDamage{_sys}"] = ("data", "system_damage", _idx)      # damaged-node count
+    _PROP[f"systemCurEnergy{_sys}"] = ("data", "eng_control_value", _idx)  # 0.0-1.0 slider
 
 
 # 2.8 global difficulty knobs ("nonPlayer" = all NPC ships) -> per-ship Cosmos
@@ -186,6 +208,9 @@ def addto_object_property(obj, prop, value, index=None):
         setattr(o.engine_object.pos, m[1], getattr(o.engine_object.pos, m[1]) + delta)
     elif m[0] == "obj":
         setattr(o, m[1], (getattr(o, m[1], 0) or 0) + value)  # a space_object attr
+    elif m[0] == "inv":
+        from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
+        set_inventory_value(o, m[1], (get_inventory_value(o, m[1]) or 0) + value)
     else:
         idx = m[2] if index is None else index
         o.data_set.set(m[1], (o.data_set.get(m[1], idx) or 0) + value, idx)
@@ -209,6 +234,9 @@ def copy_object_property(src, dst, prop):
         setattr(do.engine_object.pos, m[1], getattr(so.engine_object.pos, m[1]))
     elif m[0] == "obj":
         setattr(do, m[1], getattr(so, m[1], 0))  # a space_object attr
+    elif m[0] == "inv":
+        from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
+        set_inventory_value(do, m[1], get_inventory_value(so, m[1]))
     else:
         do.data_set.set(m[1], so.data_set.get(m[1], m[2]), m[2])
     return True
@@ -340,6 +368,9 @@ def set_object_property(obj, prop, value, index=None):
         setattr(o.engine_object.pos, m[1], (_MAP_SIZE - value) if m[2] else value)
     elif m[0] == "obj":
         setattr(o, m[1], value)  # a physics-driven space_object attr; may be overwritten
+    elif m[0] == "inv":
+        from sbs_utils.procedural.inventory import set_inventory_value
+        set_inventory_value(o, m[1], value)  # LM addon reads this off the inventory
     else:
         o.data_set.set(m[1], value, m[2] if index is None else index)
     return True
@@ -369,4 +400,7 @@ def object_property(obj, prop, index=None):
         return (_MAP_SIZE - raw) if m[2] else raw  # un-flip (flip is its own inverse)
     if m[0] == "obj":
         return getattr(o, m[1], None)
+    if m[0] == "inv":
+        from sbs_utils.procedural.inventory import get_inventory_value
+        return get_inventory_value(o, m[1])
     return o.data_set.get(m[1], m[2] if index is None else index)
