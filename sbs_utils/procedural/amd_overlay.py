@@ -72,14 +72,16 @@ def amd_overlays(section):
     return dict(OVERLAY_AMD)
 
 
-def overlay_amd(key, to=None, **overrides):
-    """Fire a declared overlay by key. ``overrides`` merge over the record's fields;
-    a ``seconds`` field auto-dismisses. Returns the record, or None for an unknown key."""
+def overlay_amd(key, to=None, fields=None):
+    """Fire a declared overlay by key. ``fields`` (a dict) merge over the record's
+    fields; a ``seconds`` field auto-dismisses. Returns the record, or None for an
+    unknown key."""
     rec = OVERLAY_AMD.get(key)
     if rec is None:
         return None
-    fields = dict(rec["fields"])
-    fields.update(overrides)
-    seconds = fields.pop("seconds", None)
-    _show_transient(rec["slot"], rec["kind"], to, seconds, fields)
+    merged = dict(rec["fields"])
+    if fields:
+        merged.update(fields)
+    seconds = merged.pop("seconds", None)
+    _show_transient(rec["slot"], rec["kind"], to, seconds, merged)
     return rec

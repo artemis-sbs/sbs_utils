@@ -351,7 +351,7 @@ class TestAmdOverlays(OverlayTestBase):
     def test_overlay_amd_overrides_and_unknown_key(self):
         from sbs_utils.procedural.amd_overlay import amd_overlays, overlay_amd
         amd_overlays(self._section())
-        overlay_amd("ch2", subtitle="Overridden")
+        overlay_amd("ch2", fields={"subtitle": "Overridden"})
         self.assertEqual(self.page.overlays.slots["center_hero"].content["subtitle"], "Overridden")
         self.assertIsNone(overlay_amd("nope"))                  # unknown key -> no-op
 

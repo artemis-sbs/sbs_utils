@@ -304,10 +304,15 @@ redesign. Until then they run over non-interactive surfaces or beside the view.
      + `overlay_amd(key, to, **overrides)`. Fence fields → content; body → the kind's
      primary field (title/text/line); `Seconds` coerced + auto-dismiss; per-kind default
      slot. 6 new tests; suite 1509 green. Demo loads `overlays.amd` and fires `ch1`.
-   - **5B (LegendaryMissions) — pending.** Quest-driver lifecycle directives
-     (`On accept:` / `On complete:` / …) that fire overlays with participant-scoped
-     `to`. Lives in the LM `quests/quest_driver`, so it's a separate-repo follow-up on
-     top of 5A.
+   - **5B (LegendaryMissions) ✅ DONE (headless).** `quest_driver` fires overlays at
+     accept / complete / fail to the quest's **participant consoles**
+     (`_quest_audience` ships → `linked_to(ship,"consoles")`). BOTH directive forms:
+     a declared reference (`complete_overlay: key` → `overlay_amd`) and inline
+     (`on_complete: <kind> <text>`, or `on_complete: overlay <key>`); underscore or
+     space authoring both work. 8 LM tests (`quests/test_quest_overlay.py`); existing
+     45 quest tests still green. Demo grants a quest with both forms + a Complete Quest
+     button. (sbs_utils `overlay_amd` took a `fields=` dict instead of `**overrides`
+     to dodge the IDE-linter `**kwargs` false positive.)
 6. **Polish** — transient timers, same-slot queue policy, letterbox/flash on
    `fullscreen`, browser-verify actual stacking + render (mock only approximates
    layout; `--test` can't confirm z-order or input).
