@@ -15,6 +15,7 @@ _MAP_SIZE = 100_000  # 2.8/Cosmos map size; X and Z mirror about it
 #   ("engine", attr)        -> engine_object.<attr>
 #   ("data", key, index)    -> data_set slot
 #   ("pos", axis, flip)     -> engine_object.pos.<axis>; flip=True mirrors (X/Z)
+#   ("obj", attr)           -> a space_object attribute (e.g. cur_speed; physics-driven)
 _PROP = {
     # position -> engine_object.pos with the 2.8->Cosmos coordinate flip (X,Z mirror)
     "positionX": ("pos", "x", True),
@@ -24,8 +25,17 @@ _PROP = {
     "angleDelta": ("engine", "steer_yaw"),
     "rollDelta": ("engine", "steer_roll"),
     "pitchDelta": ("engine", "steer_pitch"),
+    # turn/steer rate -> the data_set key the engine steering ACTUALLY reads (turn_rate).
+    # (Was "turnRate", a dead key the engine never reads; drives NPC + player steering.)
+    "turnRate": ("data", "turn_rate", 0),
+    # NPC top-speed coefficient: cruise = throttle * 36 u/s * speed_coeff (0-1). 2.8
+    # topSpeed values are already 0-1 coeffs, so this is 1:1. NOTE: applies to NPC hulls
+    # only -- Cosmos player top speed is fixed (playerThrottle * 180, no speed_coeff), so
+    # setting this on a PLAYER is a no-op (players have no per-hull top-speed lever).
+    "topSpeed": ("data", "speed_coeff", 0),
+    # current speed (read): a space_object attribute, physics-driven (effectively read-only).
+    "currentRealSpeed": ("obj", "cur_speed"),
     # scalar data_set values
-    "turnRate": ("data", "turnRate", 0),
     "throttle": ("data", "throttle", 0),
     "artScale": ("data", "local_scale_coeff", 0),
     "energy": ("data", "energy", 0),
@@ -298,6 +308,8 @@ def set_object_property(obj, prop, value, index=None):
         setattr(o.engine_object, m[1], value)
     elif m[0] == "pos":
         setattr(o.engine_object.pos, m[1], (_MAP_SIZE - value) if m[2] else value)
+    elif m[0] == "obj":
+        setattr(o, m[1], value)  # a physics-driven space_object attr; may be overwritten
     else:
         o.data_set.set(m[1], value, m[2] if index is None else index)
     return True
@@ -325,4 +337,6 @@ def object_property(obj, prop, index=None):
     if m[0] == "pos":
         raw = getattr(o.engine_object.pos, m[1])
         return (_MAP_SIZE - raw) if m[2] else raw  # un-flip (flip is its own inverse)
+    if m[0] == "obj":
+        return getattr(o, m[1], None)
     return o.data_set.get(m[1], m[2] if index is None else index)

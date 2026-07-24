@@ -69,6 +69,23 @@ class A2xPropsMockTests(unittest.TestCase):
     def test_object_property_unmapped_is_none(self):
         self.assertIsNone(object_property(self.so, "surrenderChance"))
 
+    def test_top_speed_maps_to_speed_coeff(self):
+        # 2.8 topSpeed (already a 0-1 coeff) -> the NPC speed_coeff, 1:1
+        self.assertTrue(set_object_property(self.so, "topSpeed", 0.5))
+        self.assertEqual(get_data_set_value(to_id(self.so), "speed_coeff"), 0.5)
+        self.assertEqual(object_property(self.so, "topSpeed"), 0.5)
+
+    def test_turn_rate_uses_engine_key(self):
+        # regression: engine steering reads "turn_rate", NOT the old dead "turnRate" key
+        self.assertTrue(set_object_property(self.so, "turnRate", 0.3))
+        self.assertEqual(get_data_set_value(to_id(self.so), "turn_rate"), 0.3)
+        self.assertIn(get_data_set_value(to_id(self.so), "turnRate"), (None, 0, 0.0))
+
+    def test_current_real_speed_reads_object_speed(self):
+        # currentRealSpeed reads the physics-driven space_object.cur_speed (read side)
+        to_object(self.so).cur_speed = 42.0
+        self.assertEqual(object_property(self.so, "currentRealSpeed"), 42.0)
+
     def test_set_special_ability_on(self):
         self.assertEqual(set_special(self.so, "LowVis", on=True), "elite_low_vis")
         self.assertEqual(get_data_set_value(to_id(self.so), "elite_low_vis"), 1)
@@ -146,6 +163,36 @@ class A2xPropsMockTests(unittest.TestCase):
                                       ship_class="Cruiser"))
         self.assertEqual(get_data_set_value(to_id(self.so), "name_tag"), "Ghost")
         self.assertEqual(get_data_set_value(to_id(self.so), "hull_name"), "Cruiser")
+
+
+class A2xTopSpeedBehaviorTests(unittest.TestCase):
+    """Behavioral proof (against the reverse-engineered mock engine physics) that
+    ``speed_coeff`` -- the key a2x maps 2.8 ``topSpeed`` to (see
+    test_top_speed_maps_to_speed_coeff) -- actually scales an NPC's top speed:
+    cruise = throttle * BASE_TOP_SPEED(36) * speed_coeff. (The mock keeps physics
+    objects and a2x-queryable objects in separate worlds, so this drives a native
+    physics NPC and sets speed_coeff directly; the key test proves the a2x half.)"""
+
+    def setUp(self):
+        self.sim = reset_mock(sbs)
+
+    def _npc(self, speed_coeff):
+        oid = self.sim.create_space_object("behav_npcship", "", 0x10)  # 0x10 = NPC
+        o = self.sim.space_objects[oid]
+        o._pos = sbs.vec3(0.0, 0.0, 0.0)
+        ds = o.data_set
+        ds.set("target_pos_x", 0.0); ds.set("target_pos_y", 0.0); ds.set("target_pos_z", 1e7)
+        ds.set("throttle", 1.0); ds.set("turn_rate", 2.0)
+        ds.set("speed_coeff", speed_coeff)                     # topSpeed maps here
+        return o
+
+    def test_speed_coeff_scales_npc_cruise(self):
+        for coeff, expect in ((1.0, 36.0), (0.5, 18.0), (0.25, 9.0)):
+            o = self._npc(coeff)
+            for _ in range(3000):
+                sbs._npcship_steer(o, 1 / 60)                  # engine speed model
+            self.assertAlmostEqual(o.cur_speed, expect, delta=0.5,
+                                   msg=f"speed_coeff={coeff} -> cur_speed {o.cur_speed}")
 
 
 if __name__ == "__main__":
