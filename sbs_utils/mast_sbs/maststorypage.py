@@ -91,6 +91,10 @@ class StoryPage(Page):
         self.gui_promise = None
         self.info_panel = None
         self.pending_info_panel = None
+        # Overlay slots (drawn on top of the page, independent of the layout tree).
+        # Lazily imported to avoid a circular import with procedural.gui.
+        from ..procedural.gui.overlay import OverlayManager
+        self.overlays = OverlayManager(self)
 
         
         self.errors = []
@@ -665,6 +669,9 @@ class StoryPage(Page):
 
                 for layout_obj in self.layouts:
                     layout_obj.present(event)
+                # Overlays draw last (on top), re-emitted every repaint so they
+                # survive the page's root clear.
+                self.overlays.present_all(event)
                 if len(self.layouts)==0:
                     self.gui_state = "repaint"
                 else:
@@ -676,6 +683,7 @@ class StoryPage(Page):
                     #layout_obj.calc(self.client_id)
                     layout_obj.invalidate_all()
                     layout_obj.represent(event)
+                self.overlays.present_all(event)
                 my_sbs.send_gui_complete(event.client_id,"")
                 if len(self.layouts)==0:
                     self.gui_state = "repaint"

@@ -1,0 +1,263 @@
+# Overlay System — Plan
+
+A GUI **overlay** subsystem for the StoryPage framework: screen-anchored surfaces
+that draw *on top of* a console's page and its embedded engine views, updated
+independently of the page's build/present pass, and driven by signals.
+
+Covers three families under one framework:
+
+- **Cinematic** — lower thirds, hero/chapter cards, letterbox cutscenes, credits.
+- **Interactive (modal)** — full-screen choice cards, codex/lore panels, prompts
+  that own input and return a result. The "better than story dialog, with controls"
+  goal.
+- **HUD** — sticky readouts and control clusters floating over the live view
+  (fighter controls, status strips, objective trackers), replacing `comms_broadcast`
+  abuse and the tile-only layout.
+
+---
+
+## Why this is buildable cheaply
+
+The **info panel is already a proto-overlay** — we generalize its mechanism rather
+than invent one:
+
+| Existing mechanism | File | What we reuse |
+|---|---|---|
+| `TabbedPanel` draws into its **own** named sub-region (`tag+"$$"`) | `pages/widgets/tabbed_panel.py:197` | a slot = an independent absolute region, not a section in the page tree |
+| Panel is **retained on the page** and re-presented every `swap_layout` | `mast_sbs/maststorypage.py:216` | overlays survive page/tab/console rebuilds without the mission re-sending |
+| Fed by a **message-queue API** (`gui_info_panel_send_message`) | `procedural/gui/tabbed_panel.py:208` | `overlay_show(...)` pushes content out-of-band, no page repaint |
+| Attaching a button returns an **`InfoButtonPromise`** you `await` | `pages/widgets/tabbed_panel.py:285` | modal overlays reuse an existing awaitable — no new input machinery |
+| `draw_layer` style key on every `send_gui_*` (default `1001`; buttons use `10000`) | `cosmos_dev/mockgui/widget_stylestring_documentation.txt` | "draw on top" is a style value, not an emission-order trick |
+
+So an overlay is: **the info-panel's retained-region + queue + promise pattern,
+freed from the upper-left corner, multiplied into N slots, stacked by `draw_layer`.**
+
+---
+
+## Architecture
+
+**An overlay = a page-retained absolute sub-region ("slot") + a content-builder +
+signal-driven push + `draw_layer` stacking.**
+
+- `page.overlays`: `slot_name → retained Layout/PageRegion`, re-presented in
+  `swap_layout` alongside `info_panel` (`maststorypage.py:216`), so overlays persist
+  across page rebuilds.
+- Each slot has a default **rect** and default **`draw_layer`**.
+- Content builders reuse existing widgets (`gui_text`, `gui_image`, `gui_face`,
+  `gui_text_area`, `gui_button`). A custom overlay is `overlay_register(kind, builder_fn)`.
+- `OverlayManager` on the page owns the slot dict, retain-on-swap, and stacking.
+
+### How full page repaints are avoided
+
+The page's full repaint is the `gui_state == "repaint"` path (`send_gui_clear` →
+present *every* layout → `send_gui_complete`, `maststorypage.py:660`). Overlays stay
+off it:
+
+1. **Each slot is its own named sub-region**, not a section in the page's layout
+   tree. `region_begin` emits `send_gui_sub_region` + clears/redraws only its own tag
+   (`layout.py:1224`) — independent of the main content stream.
+2. **Updates ride the dirty/represent path, not `swap_layout`.** `overlay_show`
+   rebuilds one slot and calls `gui_represent(slot_region)` → `calc()` + `present()`
+   on that sub-tree only (`update.py:4`, `layout.py:393`). No `swap_layout`, so no
+   `Gui.dirty(client_id)` full-page trigger.
+3. **Overlays survive legitimate page repaints** because they're retained and
+   re-presented on `swap_layout`.
+
+Cost model: a hero card or toast = one region clear + one region present. A full page
+repaint only happens when the page changes for its own reasons — the overlay just
+re-attaches.
+
+---
+
+## Slots & layers
+
+| Slot | Default rect (%) | `draw_layer` | Default kinds |
+|---|---|---|---|
+| `objective` | top-right stack | 20000 | tracker, status pill (sticky) |
+| `hud` | anchored to view | 21000 | fighter controls, status strip (sticky + live) |
+| `corner_toast` | lower-right stack | 22000 | toast (transient) |
+| `top_banner` | full-width top strip | 24000 | banner, countdown |
+| `lower_third` | bottom, ~60% wide | 26000 | name-plate + line + portrait |
+| `center_hero` | centered card | 28000 | hero/chapter, choice-card (modal), codex |
+| `fullscreen` | full bleed | 30000 | letterbox bars, flash/vignette, credits |
+
+Higher slots sit above lower ones (and above the page's `10000` button layer) by
+`draw_layer`. Within a slot, same-slot pushes **replace or queue** (per-slot policy).
+
+---
+
+## Lifecycle → existing mechanisms
+
+| Lifecycle | Behavior | Rides on |
+|---|---|---|
+| **Transient** (`seconds=N`) | auto-clears after a timer | info-panel `time` arg (`tabbed_panel.py:208`) |
+| **Sticky** | stays until `overlay_clear`; re-presented across rebuilds | `info_panel` retain path |
+| **Modal** | builder attaches buttons, returns an awaitable | `InfoButtonPromise` (`tabbed_panel.py:285`) |
+| **Live** (HUD) | per-widget value updates from a watcher | `gui_update` / `.value` (`update.py:138`) |
+
+---
+
+## Value update vs. rebuild (the HUD rule)
+
+- **Value change** (speed, shields, ammo, alert lamp) → `gui_update(tag, props)` /
+  `.value` on that one widget. Cheapest path; because it's a value change not a
+  structural one, it **does not ghost**.
+- **Structural change** (toggle a control cluster in/out, swap modes, any cinematic
+  card show) → **rebuild the whole slot region**, never mutate a child in place —
+  the [gui_region ghosting caveat](sbs_utils/pages/layout/section.py#L151). A per-slot
+  rebuild is still tiny vs. a page repaint.
+
+A small watcher sub-task (`gui_sub_task_schedule`) polls state and pokes values for
+live HUD readouts (watch/repaint pattern, at the value level).
+
+---
+
+## Signal contract (the trigger)
+
+Overlay display is **per-console** → `//signal` (runs once per connected console),
+per `SIGNAL_ROUTING`. The subsystem ships default routes; a mission just emits:
+
+```
+signal_emit("overlay", {"slot":"center_hero", "kind":"hero",
+                        "title":"CHAPTER TWO", "subtitle":"The Long Dark",
+                        "image":"ch2", "seconds":4, "to": role("mainscreen")})
+
+signal_emit("overlay_clear", {"slot":"center_hero"})
+```
+
+- The **shipped** `//signal/overlay` route does the `to` membership check itself
+  (`->END if client_id not in to`) and calls the builder — mission authors never
+  write the "is this me?" gate; they just emit with a `to`.
+
+---
+
+## Ergonomic API — one shape, three front doors
+
+Every overlay `kind` exposes the **same field set** whether it's called from Python,
+declared in AMD, or fired by a quest hook. AMD loading is then a dict→kwargs pass and
+a quest field is `<kind> <inline text | amd-key>`. One builder underneath all three.
+
+### 1. Scripter wrappers (procedural / MAST)
+
+Thin wrappers over `overlay_show`; `to=None` means "all consoles", every timing/style
+arg defaulted:
+
+```
+overlay_hero(title, subtitle=None, image=None, to=None, seconds=None)
+overlay_toast(text, icon=None, to=None, seconds=3)
+overlay_banner(text, style=None, to=None, seconds=None)
+overlay_lower_third(name, line, face=None, to=None, seconds=None)
+overlay_credits(entries, to=None, scroll=True)
+overlay_codex(title, body, to=None)              # -> await dismiss
+overlay_choice(title, buttons, to=None)          # -> await result
+overlay_clear(slot=None, to=None)
+overlay_show(slot, kind, to=None, **content)     # low-level escape hatch
+```
+
+### 2. AMD — declare overlays as content
+
+An `amd_overlays(section)` loader is a **projection of `amd_records`** (like every
+other domain loader): `display` → title, body → the big text, fenced fields → wrapper
+kwargs. Author once, fire by key:
+
+```
+# overlays.amd
+# [Chapter Two](ch2)
+Kind: hero
+Subtitle: The Long Dark
+Image: ch2
+Seconds: 4
+---
+CHAPTER TWO
+```
+
+```
+overlay_amd("ch2", to=role("mainscreen"))        # fires the declared record
+```
+
+`amd_mission_data` chains the overlay vocabulary so overlays live in the same
+`.amd` file as quests/scans/landmarks.
+
+### 3. QUEST — lifecycle fields fire overlays automatically
+
+The quest driver's hooks (`on_accept`, `on_complete`, `on_fail`, `on_reach`,
+`on_scan`, `on_dock`, `on_kill`) each accept an optional overlay directive. `to` is
+**auto-scoped to the quest's participants** (per-player grant → that player's
+console; server quest → mainscreens), so authors never wire targeting:
+
+```
+# [Rescue the Convoy](rescue)
+On accept:   toast New job: Rescue the Convoy
+On complete: hero CONVOY SAVED
+On fail:     banner Convoy lost
+On complete: overlay ch2        # or reference a declared AMD overlay by key
+```
+
+A directive is `<kind> <rest>` where `<rest>` is inline text for the primary field,
+or `overlay <key>` to fire a declared `amd_overlays` record. Same builder, zero
+targeting code in the mission.
+
+---
+
+## Input routing (`input:` flag) — and the deferred engine dependency
+
+Every slot/overlay carries an **`input: passthrough | capture`** flag from day one.
+
+- **`passthrough`** (today's default): the overlay draws; input falls through to
+  whatever is underneath.
+- **`capture`**: the overlay's own controls take the input.
+
+**What works now:** overlays over **non-interactive** surfaces — the page itself,
+`3dview`, cutscenes, text/status readouts — plus all cinematic + modal cards and HUD
+*displays*. `on_press=` callbacks route to the page task by tag, so persistent HUD
+toggles need **no** dedicated `await gui()`.
+
+**Deferred to the engine (do not gate on it):** a button/clickregion drawn over an
+**interactive** engine widget (`2dview` selection) actually *capturing* the click.
+`draw_layer` controls drawing order; input routing over embedded engine widgets is
+the engine's job. HUD **controls** that must sit over the interactive tactical view
+are built anyway and marked "pending engine input-routing" — they light up as a
+one-line `input: capture` switch once the engine honors overlay-layer input, no
+redesign. Until then they run over non-interactive surfaces or beside the view.
+
+---
+
+## Build phases
+
+1. **Core** — ✅ **DONE (headless).** `OverlayManager` + `OverlayRegion`
+   ([procedural/gui/overlay.py](sbs_utils/procedural/gui/overlay.py)): slot registry,
+   `draw_layer` stacking, `input:` flag (all `passthrough`), SubPage-built sub-regions,
+   `overlay_show` / `overlay_clear` / `overlay_register` / `overlay_slot_define` +
+   `overlay_hero` wrapper. Wired into `StoryPage` (`__init__` + `present_all` in the
+   repaint/refresh loops, [maststorypage.py](sbs_utils/mast_sbs/maststorypage.py)).
+   Covered by [tests/test_overlay.py](tests/test_overlay.py) (6 tests: bracketing,
+   draw_layer, retain-on-repaint, off-the-full-repaint-path, clear, end-to-end hero
+   build); full suite 1478 green. **Remaining:** browser-verify render + stacking in a
+   mock session (user checkpoint).
+2. **Signal layer** — default `//signal/overlay` + `//signal/overlay_clear` routes;
+   `to` targeting; ergonomic `overlay_*` wrappers.
+3. **Three proofs (one per family)** — `overlay_toast` (HUD/transient),
+   `overlay_lower_third` + `overlay_hero`/`overlay_credits` (cinematic),
+   `overlay_choice` (interactive/modal via `InfoButtonPromise`).
+4. **HUD** — `hud` slot, sticky + live: watcher-driven value updates, `on_press=`
+   control cluster, over `3dview` (works) with `2dview` controls flagged pending.
+5. **Declarative bindings** — `amd_overlays(section)` loader (projection of
+   `amd_records`, chained into `amd_mission_data`) + `overlay_amd(key)`; quest-driver
+   lifecycle directives (`On accept:` / `On complete:` / …) with participant-scoped
+   `to`. This is what makes it free for AMD/quest authors.
+6. **Polish** — transient timers, same-slot queue policy, letterbox/flash on
+   `fullscreen`, browser-verify actual stacking + render (mock only approximates
+   layout; `--test` can't confirm z-order or input).
+
+---
+
+## Gotchas (already on the radar)
+
+- **Full-rebuild-per-show** for structural/cinematic overlays to avoid region
+  ghosting; value updates go per-tag.
+- **ASCII-only** engine text — no emoji / smart quotes / em-dashes.
+- **`draw_layer` must exceed 10000** (the page's button layer) to sit on top.
+- **Verify in the browser, not `--test`** — stacking and input routing are real only
+  in a session; the mock approximates layout.
+- **`--test` can silently PASS** on a broken multiline literal / global tab add;
+  confirm overlays actually render.
