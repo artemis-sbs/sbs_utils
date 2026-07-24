@@ -261,6 +261,19 @@ class OverlayManager:
         if r.established:
             r.update(self._event())       # out-of-band clear (region already live)
 
+    def patch(self, slot, fields):
+        """Merge ``fields`` into a live slot's content and redraw it — the cheap
+        update path for a sticky HUD (out-of-band if established, else a repaint).
+        No-op if the slot was never shown."""
+        r = self.slots.get(slot)
+        if r is None or r.content is None:
+            return
+        r.content.update(fields)
+        if r.established:
+            r.update(self._event())
+        else:
+            self._request_repaint()
+
     def present_all(self, event):
         """Called inside the page's repaint (after root clear("")), so this is
         where sub-regions get ESTABLISHED. Draw every slot that has content in
@@ -531,3 +544,65 @@ def overlay_choice(title, buttons, to=None, slot="center_hero"):
     prom = Promise()
     overlay_show(slot, "choice", to=to, title=title, buttons=list(buttons), _promise=prom)
     return prom
+
+
+# --- HUD (sticky, live) ------------------------------------------------------
+def _normalize_rows(rows):
+    """Accept a dict or a list of (label, value) pairs; return a list of pairs."""
+    if rows is None:
+        return []
+    if isinstance(rows, dict):
+        return list(rows.items())
+    return list(rows)
+
+
+def _hud_builder(client_id, content):
+    from .text import gui_text
+    from .button import gui_button
+    from .row import gui_row
+
+    title = content.get("title")
+    rows = content.get("rows", [])
+    controls = content.get("controls", [])
+
+    if title:
+        gui_row("row-height: content;")
+        gui_text(f"$text:`{title}`;font:gui-3;color:#8cf")
+    for label, value in rows:
+        # one text per row ("label: value") — reliable in the SubPage build
+        # and cheap to re-fill; value updates flow through OverlayManager.patch.
+        gui_row("row-height: content;")
+        gui_text(f"$text:`{label}: {value}`;font:gui-2;color:#cff")
+    for ctrl in controls:
+        # persistent control: on_press as a sub-task so a toggle doesn't hijack
+        # the console's own gui task. `action` is a MAST label or a callable.
+        gui_row("row-height: content;")
+        gui_button(f"$text:`{ctrl.get('label', '')}`;justify:center;",
+                   data=ctrl.get("data"), on_press=ctrl.get("action"), is_sub_task=True)
+
+
+overlay_register("hud", _hud_builder)
+
+
+def overlay_hud(rows=None, controls=None, title=None, to=None, slot="hud"):
+    """Show a sticky HUD (label/value rows + optional control buttons) over the
+    live view. Stays until cleared. Update values with ``overlay_hud_update``.
+
+    Args:
+        rows: a dict or list of (label, value) pairs.
+        controls: list of ``{"label":.., "action": <MAST label | callable>,
+            "data":..}`` — rendered as persistent sub-task buttons.
+    """
+    overlay_show(slot, "hud", to=to, rows=_normalize_rows(rows),
+                 controls=controls or [], title=title)
+
+
+def overlay_hud_update(rows=None, to=None, slot="hud", **fields):
+    """Cheaply update a live HUD's values (and/or title/controls). Re-fills the
+    slot region out-of-band — no page repaint. Watchers call this only when a
+    displayed value actually changes."""
+    patch = dict(fields)
+    if rows is not None:
+        patch["rows"] = _normalize_rows(rows)
+    for page in _pages_for(to):
+        _on_page(page, lambda ov: ov.patch(slot, patch))

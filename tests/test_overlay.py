@@ -287,6 +287,53 @@ class TestOverlayModalResolves(unittest.TestCase):
         self.assertEqual(prom.result().data, "Yes")
 
 
+class TestOverlayHud(OverlayTestBase):
+    """Phase 4 HUD: sticky rows + controls, cheap patch updates."""
+
+    HUD_TAG = "ovl_hud$$"
+
+    def _establish(self):
+        self.rec.clear()
+        self.page.overlays.present_all(FakeEvent(0))
+
+    def test_hud_renders_rows(self):
+        from sbs_utils.procedural.gui.overlay import overlay_hud
+        overlay_hud(rows={"Speed": 12, "Shields": 88}, title="STATUS")
+        self._establish()
+        texts = [a for a in self.calls("send_gui_text") if a[1] == self.HUD_TAG]
+        self.assertGreaterEqual(len(texts), 3)      # title + 2 rows
+
+    def test_hud_accepts_list_of_pairs(self):
+        from sbs_utils.procedural.gui.overlay import overlay_hud
+        overlay_hud(rows=[("A", 1), ("B", 2), ("C", 3)])
+        self._establish()
+        texts = [a for a in self.calls("send_gui_text") if a[1] == self.HUD_TAG]
+        self.assertGreaterEqual(len(texts), 3)
+
+    def test_hud_control_is_a_button(self):
+        from sbs_utils.procedural.gui.overlay import overlay_hud
+        overlay_hud(rows={"HP": 5}, controls=[{"label": "Toggle", "action": "some_label"}])
+        self._establish()
+        self.assertGreaterEqual(len(self.calls("send_gui_button")), 1)
+
+    def test_patch_updates_rows_without_new_sub_region(self):
+        from sbs_utils.procedural.gui.overlay import overlay_hud, overlay_hud_update
+        overlay_hud(rows={"Speed": 12})
+        self.page.overlays.present_all(FakeEvent(0))     # establish
+        self.rec.clear()
+        overlay_hud_update(rows={"Speed": 34})
+        # out-of-band: re-fills the region, no new sub_region, no root repaint
+        self.assertFalse(self.calls("send_gui_sub_region"))
+        self.assertNotIn((0, ""), self.calls("send_gui_clear"))
+        self.assertIn((0, self.HUD_TAG), self.calls("send_gui_clear"))
+        self.assertEqual(self.page.overlays.slots["hud"].content["rows"], [("Speed", 34)])
+
+    def test_patch_is_noop_when_slot_never_shown(self):
+        from sbs_utils.procedural.gui.overlay import overlay_hud_update
+        overlay_hud_update(rows={"Speed": 1})            # nothing shown yet
+        self.assertNotIn("hud", self.page.overlays.slots)
+
+
 class TestOverlayToTargeting(unittest.TestCase):
     """`to` role-set / client-id targeting: push overlays to specific consoles."""
 

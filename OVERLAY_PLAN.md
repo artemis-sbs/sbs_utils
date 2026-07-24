@@ -288,8 +288,16 @@ redesign. Until then they run over non-interactive surfaces or beside the view.
    label; button clicks route via the merged `page.tag_map`, the proven info-panel
    path). 7 new tests incl. the full click→promise resolve; suite 1494 green. Demo
    drives each, with a background-task modal (`await overlay_choice(...)`).
-4. **HUD** — `hud` slot, sticky + live: watcher-driven value updates, `on_press=`
-   control cluster, over `3dview` (works) with `2dview` controls flagged pending.
+4. **HUD** — ✅ **DONE (headless; engine pending).** `overlay_hud(rows, controls,
+   title)` sticky slot + `overlay_hud_update(rows=…)` via `OverlayManager.patch`
+   (merge fields → out-of-band re-fill, no page repaint). Rows are `label: value`
+   text (one per row); controls are `is_sub_task` buttons so a toggle doesn't hijack
+   the console gui. Live update is **watcher-throttled** (update only when a shown
+   value changes) — cheaper than per-widget `gui_update` and correct given overlays
+   rebuild on repaint anyway (per-widget gui_update by stable tag noted as a future
+   optimization). 5 new tests; suite 1499 green. Demo: live HUD over `3dview` with a
+   watcher sub-task + a Toggle Alert control. `2dview` controls still pending engine
+   input-routing.
 5. **Declarative bindings** — `amd_overlays(section)` loader (projection of
    `amd_records`, chained into `amd_mission_data`) + `overlay_amd(key)`; quest-driver
    lifecycle directives (`On accept:` / `On complete:` / …) with participant-scoped
