@@ -149,12 +149,12 @@ class OverlayRegion:
         The engine only swaps the back buffer forward on `complete` when it holds
         SOMETHING; an empty back buffer isn't swapped (stale content stays). So an
         empty slot still emits one placeholder (a space renders nothing)."""
-        if self.content is not None:
-            self._build_content(event)
-        else:
+        if self.content is None:
             FrameContext.context.sbs.send_gui_text(
                 event.client_id, self.local_region_tag, f"{self.tag_prefix}_blank",
                 "$text:` `;", 0.0, 0.0, 100.0, 100.0)
+        else:
+            self._build_content(event)
 
     def establish(self, event):
         """Full-repaint path: (re)register the sub-region under root, then fill it.
@@ -375,15 +375,31 @@ def overlay_signal_clear(to=None, slot=None):
 def _hero_builder(client_id, content):
     from .text import gui_text
     from .image import gui_image_keep_aspect_ratio_center
+    from .face import gui_face
+    from .ship import gui_ship
+    from .icon import gui_icon
     from .row import gui_row
     from .section import gui_sub_section
 
     title = content.get("title", "")
     subtitle = content.get("subtitle")
-    image = content.get("image")
 
-    if image:
-        gui_row("row-height: 60%;")
+    # Optional visual above the title (first one set wins).
+    face = content.get("face")     # a face string  (get_face(id) / a lifeform face)
+    ship = content.get("ship")     # a ship-type key (e.g. "tsn_battle_cruiser")
+    icon = content.get("icon")     # an icon index   (int)
+    image = content.get("image")   # an image key
+    if face:
+        gui_row("row-height: 8em;")
+        gui_face(face)
+    elif ship:
+        gui_row("row-height: 8em;")
+        gui_ship(ship)
+    elif icon is not None:
+        gui_row("row-height: 8em;")
+        gui_icon(f"icon_index: {icon}; color: white;")
+    elif image:
+        gui_row("row-height: 8em;")
         with gui_sub_section():
             gui_image_keep_aspect_ratio_center(image)
     gui_row("row-height: content;")
@@ -425,10 +441,15 @@ def _show_transient(slot, kind, to, seconds, content):
                 _schedule_dismiss(page, slot, r.generation, seconds)
 
 
-def overlay_hero(title, subtitle=None, image=None, slot="center_hero", to=None, seconds=None):
-    """Show a big centered hero / chapter card. Auto-dismiss after ``seconds`` if set."""
+def overlay_hero(title, subtitle=None, image=None, face=None, ship=None, icon=None,
+                 slot="center_hero", to=None, seconds=None):
+    """Show a big centered hero / chapter card with an optional visual above the
+    title (first set wins): ``face`` (a face string), ``ship`` (a ship-type key),
+    ``icon`` (an icon index), or ``image`` (an image key). Auto-dismiss after
+    ``seconds`` if set."""
     _show_transient(slot, "hero", to, seconds,
-                    {"title": title, "subtitle": subtitle, "image": image})
+                    {"title": title, "subtitle": subtitle,
+                     "image": image, "face": face, "ship": ship, "icon": icon})
 
 
 # --- Toast (corner, transient, STACKING) -------------------------------------

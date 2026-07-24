@@ -489,6 +489,33 @@ class TestOverlayHud(OverlayTestBase):
         self.assertNotIn("hud", self.page.overlays.slots)
 
 
+class TestOverlayHeroVisuals(OverlayTestBase):
+    HERO = "ovl_center_hero$$"
+
+    def _present(self, **kw):
+        from sbs_utils.procedural.gui.overlay import overlay_hero
+        overlay_hero("Admiral Harkin", subtitle="Hold the line", **kw)
+        self.rec.clear()
+        self.page.overlays.present_all(FakeEvent(0))
+
+    def test_hero_with_face(self):
+        self._present(face="ter #964b00 8 1;ter 0 0 0")
+        self.assertTrue([a for a in self.calls("send_gui_face") if a[1] == self.HERO])
+
+    def test_hero_with_ship(self):
+        self._present(ship="tsn_battle_cruiser")
+        self.assertTrue([a for a in self.calls("send_gui_3dship") if a[1] == self.HERO]
+                        or [a for a in self.calls("send_gui_ship") if a[1] == self.HERO])
+
+    def test_hero_with_icon(self):
+        self._present(icon=137)
+        self.assertTrue([a for a in self.calls("send_gui_icon") if a[1] == self.HERO])
+
+    def test_hero_plain_still_works(self):
+        self._present()
+        self.assertTrue([a for a in self.calls("send_gui_text") if a[1] == self.HERO])
+
+
 class TestOverlayToTargeting(unittest.TestCase):
     """`to` role-set / client-id targeting: push overlays to specific consoles."""
 
