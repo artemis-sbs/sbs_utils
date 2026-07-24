@@ -300,25 +300,60 @@ class TestOverlayPolish(OverlayTestBase):
 
     def test_reshow_supersedes_stale_dismiss(self):
         from sbs_utils.tickdispatcher import TickDispatcher
-        from sbs_utils.procedural.gui.overlay import overlay_toast
-        overlay_toast("first", seconds=3)               # schedules dismiss @ gen 1
-        r = self.page.overlays.slots["corner_toast"]
+        from sbs_utils.procedural.gui.overlay import overlay_banner
+        overlay_banner("first", seconds=3)              # schedules dismiss @ gen 1
+        r = self.page.overlays.slots["top_banner"]
         stale = set(TickDispatcher._new_this_tick)      # the gen-1 dismiss
-        overlay_toast("second", seconds=3)              # gen 2 -> supersedes it
+        overlay_banner("second", seconds=3)             # gen 2 -> supersedes it
         for t in stale:                                 # fire ONLY the stale dismiss
             t.cb(t)
         self.assertIsNotNone(r.content)                 # newer content survives
         self.assertEqual(r.content["text"], "second")
 
     def test_dismiss_fires_when_not_superseded(self):
-        from sbs_utils.procedural.gui.overlay import overlay_toast
-        overlay_toast("only", seconds=3)
-        r = self.page.overlays.slots["corner_toast"]
-        # only fire the FIRST scheduled dismiss (the show's), not any from clear()
         from sbs_utils.tickdispatcher import TickDispatcher
+        from sbs_utils.procedural.gui.overlay import overlay_banner
+        overlay_banner("only", seconds=3)
+        r = self.page.overlays.slots["top_banner"]
         t = next(iter(TickDispatcher._new_this_tick))
         t.cb(t)
         self.assertTrue(r.is_empty)
+
+    def test_toasts_stack(self):
+        from sbs_utils.procedural.gui.overlay import overlay_toast
+        overlay_toast("one", seconds=3)
+        overlay_toast("two", seconds=3)
+        items = self.page.overlays.slots["corner_toast"].content["items"]
+        self.assertEqual([it["text"] for it in items], ["one", "two"])
+
+    def test_toast_removal_drops_only_its_own(self):
+        from sbs_utils.tickdispatcher import TickDispatcher
+        from sbs_utils.procedural.gui.overlay import overlay_toast
+        overlay_toast("one", seconds=3)
+        first = set(TickDispatcher._new_this_tick)      # the "one" removal
+        overlay_toast("two", seconds=3)
+        for t in first:                                 # fire only the "one" removal
+            t.cb(t)
+        items = self.page.overlays.slots["corner_toast"].content["items"]
+        self.assertEqual([it["text"] for it in items], ["two"])
+
+    def test_toast_stack_capped(self):
+        from sbs_utils.procedural.gui.overlay import overlay_toast, TOAST_MAX
+        for i in range(TOAST_MAX + 3):
+            overlay_toast(f"t{i}", seconds=9)
+        items = self.page.overlays.slots["corner_toast"].content["items"]
+        self.assertEqual(len(items), TOAST_MAX)
+        self.assertEqual(items[-1]["text"], f"t{TOAST_MAX + 2}")   # newest kept
+
+    def test_credits_roll_pages_then_advances(self):
+        from sbs_utils.tickdispatcher import TickDispatcher
+        from sbs_utils.procedural.gui.overlay import overlay_credits
+        overlay_credits([f"L{i}" for i in range(10)], title="CREDITS", roll=1, window=4)
+        r = self.page.overlays.slots["fullscreen"]
+        self.assertEqual(r.content["entries"], ["L0", "L1", "L2", "L3"])
+        t = next(iter(TickDispatcher._new_this_tick))   # the roll interval
+        t.cb(t)                                         # advance one page
+        self.assertEqual(r.content["entries"], ["L4", "L5", "L6", "L7"])
 
     def test_letterbox_builder_renders_bars(self):
         from sbs_utils.procedural.gui.overlay import overlay_letterbox

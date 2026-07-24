@@ -431,31 +431,67 @@ def overlay_hero(title, subtitle=None, image=None, slot="center_hero", to=None, 
                     {"title": title, "subtitle": subtitle, "image": image})
 
 
-# --- Toast (corner, transient) -----------------------------------------------
+# --- Toast (corner, transient, STACKING) -------------------------------------
+# Toasts stack: each overlay_toast appends an entry (with a unique id) and schedules
+# its OWN removal, so several notifications coexist instead of clobbering each other.
+_TOAST_SEQ = [0]
+TOAST_MAX = 4
+
+
 def _toast_builder(client_id, content):
     from .text import gui_text
     from .row import gui_row
-    from .icon import gui_icon
-    from .section import gui_sub_section
-
-    text = content.get("text", "")
-    icon = content.get("icon")
-    gui_row("row-height: content;")
-    if icon is not None:
-        with gui_sub_section("col-width: content;"):
-            gui_icon(f"icon_index: {icon}; color: white;")
-        with gui_sub_section():
-            gui_text(f"$text:`{text}`;font:gui-2;color:#fff")
-    else:
-        gui_text(f"$text:`{text}`;justify:center;font:gui-2;color:#fff")
+    # `items` = the stack; fall back to a single {text} (amd / quest inline path).
+    items = content.get("items")
+    if items is None:
+        items = [{"text": content.get("text", "")}]
+    for it in items:
+        gui_row("row-height: content;")
+        gui_text(f"$text:`{it.get('text', '')}`;justify:center;font:gui-2;color:#fff")
 
 
 overlay_register("toast", _toast_builder)
 
 
+def _toast_push(ov, slot, item):
+    r = ov._region(slot)
+    items = (r.content or {}).get("items") if r.content else None
+    items = (list(items) if items else []) + [item]
+    if len(items) > TOAST_MAX:
+        items = items[-TOAST_MAX:]
+    ov.show(slot, "toast", {"items": items})
+
+
+def _schedule_toast_remove(page, slot, tid, seconds):
+    if not seconds or seconds <= 0:
+        return
+    from ...tickdispatcher import TickDispatcher
+
+    def _fire(t):
+        r = page.overlays.slots.get(slot)
+        items = (r.content or {}).get("items") if (r and r.content) else None
+        if not items:
+            return
+        remaining = [it for it in items if it.get("tid") != tid]
+        if len(remaining) == len(items):
+            return
+        if remaining:
+            _on_page(page, lambda ov: ov.show(slot, "toast", {"items": remaining}))
+        else:
+            _on_page(page, lambda ov: ov.clear(slot))
+
+    TickDispatcher.do_once(_fire, seconds)
+
+
 def overlay_toast(text, icon=None, seconds=3, to=None, slot="corner_toast"):
-    """Small transient corner notification; auto-clears after ``seconds`` (default 3)."""
-    _show_transient(slot, "toast", to, seconds, {"text": text, "icon": icon})
+    """Small transient corner notification. Toasts STACK — several coexist, each
+    auto-clearing after its own ``seconds`` (default 3), capped at TOAST_MAX."""
+    _TOAST_SEQ[0] += 1
+    tid = _TOAST_SEQ[0]
+    item = {"text": text, "icon": icon, "tid": tid}
+    for page in _pages_for(to):
+        _on_page(page, lambda ov: _toast_push(ov, slot, item))
+        _schedule_toast_remove(page, slot, tid, seconds)
 
 
 # --- Banner (full-width strip) -----------------------------------------------
@@ -514,10 +550,40 @@ def _credits_builder(client_id, content):
 overlay_register("credits", _credits_builder)
 
 
-def overlay_credits(entries, title=None, slot="fullscreen", to=None, seconds=None):
-    """Opening/closing credits: a title + a list of lines (static paged for now)."""
-    _show_transient(slot, "credits", to, seconds,
-                    {"title": title, "entries": list(entries)})
+def _start_credits_roll(page, slot, title, entries, window, interval):
+    """Page through ``entries`` a ``window`` at a time every ``interval`` seconds,
+    then clear (a tick-driven auto-advance; smooth per-pixel scroll would need an
+    engine animation channel the GUI layer doesn't expose)."""
+    from ...tickdispatcher import TickDispatcher
+    state = {"off": 0}
+
+    def _paint():
+        chunk = entries[state["off"]:state["off"] + window]
+        _on_page(page, lambda ov: ov.show(slot, "credits", {"title": title, "entries": chunk}))
+
+    def _advance(t):
+        state["off"] += window
+        if state["off"] >= len(entries):
+            _on_page(page, lambda ov: ov.clear(slot))
+            t.stop()
+            return
+        _paint()
+
+    _paint()
+    TickDispatcher.do_interval(_advance, interval)
+
+
+def overlay_credits(entries, title=None, slot="fullscreen", to=None, seconds=None,
+                    roll=None, window=8):
+    """Opening/closing credits: a title + a list of lines. Static by default; pass
+    ``roll`` (seconds per page) to auto-advance ``window`` lines at a time, clearing
+    at the end."""
+    entries = list(entries)
+    if not roll:
+        _show_transient(slot, "credits", to, seconds, {"title": title, "entries": entries})
+        return
+    for page in _pages_for(to):
+        _start_credits_roll(page, slot, title, entries, window, roll)
 
 
 # --- Choice (modal, returns an awaitable result) -----------------------------
