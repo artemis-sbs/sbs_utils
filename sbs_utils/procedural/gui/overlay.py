@@ -57,6 +57,42 @@ def overlay_slot_define(slot, rect, draw_layer=28000, input="passthrough"):
 OVERLAY_KINDS = {}
 
 
+# --- Debug logging (diagnose clear/redraw in-engine) -------------------------
+# When enabled, the overlay code appends its exact send_gui_* command stream to a
+# file — copyable, unlike the engine's painted get_debug_gui_tree.
+_DEBUG = {"path": None, "n": 0}
+
+
+def overlay_debug_log(path=None):
+    """Enable overlay command-stream logging to ``path`` (default: the mission's
+    overlay_debug.log). Truncates the file. Pass None-path to disable."""
+    if path is None:
+        try:
+            from ...fs import get_mission_dir_filename
+            path = get_mission_dir_filename("overlay_debug.log")
+        except Exception:
+            path = "overlay_debug.log"
+    _DEBUG["path"] = path
+    _DEBUG["n"] = 0
+    try:
+        open(path, "w").close()
+    except Exception:
+        pass
+    return path
+
+
+def _dbg(line):
+    p = _DEBUG["path"]
+    if not p:
+        return
+    try:
+        _DEBUG["n"] += 1
+        with open(p, "a") as f:
+            f.write(f"{_DEBUG['n']:04d} {line}\n")
+    except Exception:
+        pass
+
+
 def overlay_register(kind, builder):
     """Register a content builder for an overlay ``kind``.
 
@@ -83,36 +119,64 @@ class OverlayRegion:
         self.rect = spec["rect"]
         self.draw_layer = spec["draw_layer"]
         self.input = spec.get("input", "passthrough")
-        self.local_region_tag = f"$$ovl:{slot}"
-        self.tag_prefix = f"ovl:{slot}"
+        # Region tag follows the codebase convention: "<prefix>$$" (suffix, no
+        # leading $$, no colon) — same shape as the info panel / listbox local
+        # region tags and Layout.drawing_region_tag. A malformed region tag makes
+        # the engine drop child widgets to root.
+        self.tag_prefix = f"ovl_{slot}"
+        self.local_region_tag = f"{self.tag_prefix}$$"
         self.content = None            # None = empty slot
         self.client_id = None
+        # A sub-region can only be ESTABLISHED during a full page repaint (root
+        # send_gui_clear("")). Established out-of-band, the engine ignores the
+        # sub_region and the content's parent dangles up to root — visible, but
+        # not in the slot, so clear can't reach it. So: establish in present_all
+        # (full repaint), then out-of-band clear/complete updates the live region.
+        self.established = False
 
     @property
     def is_empty(self):
         return self.content is None
 
-    def _draw(self, event, build):
-        """Bracket the sub-region; build content inside it, or empty it."""
+    def _fill(self, event):
+        """Draw the slot's content, or an invisible placeholder when empty.
+
+        The engine only swaps the back buffer forward on `complete` when it holds
+        SOMETHING; an empty back buffer isn't swapped (stale content stays). So an
+        empty slot still emits one placeholder (a space renders nothing)."""
+        if self.content is not None:
+            self._build_content(event)
+        else:
+            FrameContext.context.sbs.send_gui_text(
+                event.client_id, self.local_region_tag, f"{self.tag_prefix}_blank",
+                "$text:` `;", 0.0, 0.0, 100.0, 100.0)
+
+    def establish(self, event):
+        """Full-repaint path: (re)register the sub-region under root, then fill it.
+        Only valid while the page's root region is being rebuilt."""
         cid = event.client_id
+        self.client_id = cid
         SBS = FrameContext.context.sbs
-        # A high draw_layer on the sub-region lifts the whole overlay above the
-        # page. draggable:False so overlays aren't user-movable like the info panel.
+        # draggable:False so overlays aren't user-movable like the info panel.
         SBS.send_gui_sub_region(
             cid, "", self.local_region_tag,
             f"draggable:False;draw_layer:{self.draw_layer};",
             0.0, 0.0, 100.0, 100.0)
+        _dbg(f"establish sub_region {self.local_region_tag} dl={self.draw_layer}")
         SBS.send_gui_clear(cid, self.local_region_tag)
-        if build and self.content is not None:
-            self._build_content(event)
-        else:
-            # The engine only swaps the back buffer forward on `complete` when it
-            # holds SOMETHING; an empty back buffer is not swapped, leaving stale
-            # content on screen. So to clear, draw a single invisible placeholder
-            # (a space renders nothing) — enough to force the swap to an empty view.
-            SBS.send_gui_text(
-                cid, self.local_region_tag, f"{self.tag_prefix}:blank",
-                "$text:` `;", 0.0, 0.0, 100.0, 100.0)
+        self._fill(event)
+        SBS.send_gui_complete(cid, self.local_region_tag)
+        self.established = True
+
+    def update(self, event):
+        """Out-of-band path: the region is already established, so just
+        clear -> fill -> complete (NO sub_region). No page repaint."""
+        cid = event.client_id
+        self.client_id = cid
+        SBS = FrameContext.context.sbs
+        _dbg(f"update (no sub_region) {self.local_region_tag} content={self.content and self.content.get('kind')}")
+        SBS.send_gui_clear(cid, self.local_region_tag)
+        self._fill(event)
         SBS.send_gui_complete(cid, self.local_region_tag)
 
     def _build_content(self, event):
@@ -143,23 +207,6 @@ class OverlayRegion:
         if page is not None:
             page.tag_map |= sub_page.tag_map
 
-    def present(self, event):
-        """Draw this slot fresh (called from the page present loop each repaint)."""
-        self.client_id = event.client_id
-        self._draw(event, build=True)
-
-    def represent(self, event):
-        """Out-of-band update: rebuild just this slot's sub-region. No page repaint."""
-        if self.client_id is None:
-            self.client_id = event.client_id
-        self._draw(event, build=True)
-
-    def clear_region(self, event):
-        """Empty the slot's sub-region (draws an invisible placeholder so the
-        engine actually swaps the buffer forward)."""
-        self.client_id = event.client_id
-        self._draw(event, build=False)
-
 
 # --- OverlayManager (one per page) -------------------------------------------
 class OverlayManager:
@@ -180,12 +227,24 @@ class OverlayManager:
     def _event(self):
         return FakeEvent(self.page.client_id)
 
+    def _request_repaint(self):
+        """Force a full page repaint so present_all can ESTABLISH the sub-region
+        (establishment is gated on the root clear("")). Used only the first time a
+        slot is shown; subsequent updates go out-of-band."""
+        from ...gui import Gui
+        self.page.gui_state = "repaint"
+        Gui.dirty(self.page.client_id)
+
     def show(self, slot, kind, content):
         r = self._region(slot)
         data = {"kind": kind}
         data.update(content or {})
         r.content = data
-        r.represent(self._event())     # immediate, out-of-band — no page repaint
+        _dbg(f"show slot={slot} kind={kind} established={r.established}")
+        if r.established:
+            r.update(self._event())       # out-of-band — no page repaint
+        else:
+            self._request_repaint()       # establish via present_all first
         return r
 
     def clear(self, slot=None):
@@ -197,15 +256,22 @@ class OverlayManager:
         if r is None:
             return
         r.content = None
-        r.clear_region(self._event())
+        _dbg(f"clear slot={slot} established={r.established}")
+        if r.established:
+            r.update(self._event())       # out-of-band clear (region already live)
 
     def present_all(self, event):
-        """Re-draw every non-empty slot after the page's layouts, in draw_layer
-        order (low → high so higher slots emit last). Called each page repaint so
-        overlays survive the page's root clear."""
+        """Called inside the page's repaint (after root clear("")), so this is
+        where sub-regions get ESTABLISHED. Draw every slot that has content in
+        draw_layer order (low → high so higher slots emit last). Empty slots are
+        dropped by the root clear and marked un-established so a later show
+        re-establishes them via a repaint."""
         for r in sorted(self.slots.values(), key=lambda r: r.draw_layer):
-            if not r.is_empty:
-                r.present(event)
+            if r.content is not None:
+                _dbg(f"present_all establish+draw slot={r.slot}")
+                r.establish(event)
+            else:
+                r.established = False
 
 
 # --- Procedural API ----------------------------------------------------------

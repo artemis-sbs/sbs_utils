@@ -59,9 +59,9 @@ class _FakeGuiTask:
 
 def _emit_builder(cid, content):
     # Bypass the layout machinery — emit straight to sbs so the test asserts the
-    # region bracketing, not widget rendering.
+    # region bracketing, not widget rendering. Parent = the slot's region tag.
     FrameContext.context.sbs.send_gui_text(
-        cid, f"$$ovl:{content['slot']}", "t", f"$text:{content['title']}", 0, 0, 100, 10)
+        cid, f"ovl_{content['slot']}$$", "t", f"$text:{content['title']}", 0, 0, 100, 10)
 
 
 overlay_register("test", _emit_builder)
@@ -94,57 +94,79 @@ class OverlayTestBase(unittest.TestCase):
         return [a[2] for a in self.sub_regions()]
 
 
-class TestOverlayShow(OverlayTestBase):
-    def test_show_brackets_only_its_subregion(self):
-        self.page.overlays.show("center_hero", "test", {"slot": "center_hero", "title": "HI"})
+HERO_TAG = "ovl_center_hero$$"      # region tag convention: "<prefix>$$"
+BANNER_TAG = "ovl_top_banner$$"
 
-        tag = "$$ovl:center_hero"
-        subs = [a for a in self.sub_regions() if a[2] == tag]
-        self.assertEqual(len(subs), 1, "exactly one sub_region for the slot")
-        # style carries the slot's draw_layer
+
+class TestOverlayEstablish(OverlayTestBase):
+    def test_first_show_requests_repaint_not_out_of_band_draw(self):
+        # The sub-region can only be established during a full repaint, so the
+        # first show requests one instead of drawing out-of-band.
+        ov = self.page.overlays
+        ov.show("center_hero", "test", {"slot": "center_hero", "title": "HI"})
+        self.assertEqual(self.page.gui_state, "repaint")
+        self.assertFalse(ov.slots["center_hero"].established)
+        self.assertFalse(self.sub_regions(), "no out-of-band sub_region before establish")
+
+    def test_present_all_establishes_and_draws_into_region(self):
+        ov = self.page.overlays
+        ov.show("center_hero", "test", {"slot": "center_hero", "title": "HI"})
+        self.rec.clear()
+        ov.present_all(FakeEvent(0))     # the full-repaint hook
+
+        subs = [a for a in self.sub_regions() if a[2] == HERO_TAG]
+        self.assertEqual(len(subs), 1, "one sub_region established for the slot")
         self.assertIn("draw_layer:28000", subs[0][3])
-        # its own region was cleared and completed
-        self.assertIn((0, tag), self.calls("send_gui_clear"))
-        self.assertIn((0, tag), self.calls("send_gui_complete"))
-        # content was built inside it
-        self.assertTrue(self.calls("send_gui_text"), "builder emitted content")
+        self.assertIn((0, HERO_TAG), self.calls("send_gui_clear"))
+        self.assertIn((0, HERO_TAG), self.calls("send_gui_complete"))
+        # content is parented to the SLOT region, not root
+        self.assertTrue([a for a in self.calls("send_gui_text") if a[1] == HERO_TAG],
+                        "content built inside the slot region")
+        self.assertTrue(ov.slots["center_hero"].established)
 
-    def test_show_does_not_repaint_the_page(self):
-        self.page.overlays.show("center_hero", "test", {"slot": "center_hero", "title": "HI"})
-        # The full page repaint clears the root region ""; a show must not.
+    def test_update_after_established_is_out_of_band_no_sub_region(self):
+        ov = self.page.overlays
+        ov.show("center_hero", "test", {"slot": "center_hero", "title": "A"})
+        ov.present_all(FakeEvent(0))         # establish
+        self.rec.clear()
+        ov.show("center_hero", "test", {"slot": "center_hero", "title": "B"})   # update
+
+        self.assertFalse(self.sub_regions(), "established slot updates without sub_region")
+        self.assertIn((0, HERO_TAG), self.calls("send_gui_clear"))
+        self.assertIn((0, HERO_TAG), self.calls("send_gui_complete"))
+        # crucially, no ROOT clear -> no full page repaint
         self.assertNotIn((0, ""), self.calls("send_gui_clear"))
 
-    def test_clear_empties_slot_and_drops_from_present_all(self):
+
+class TestOverlayClear(OverlayTestBase):
+    def test_clear_out_of_band_draws_placeholder(self):
         ov = self.page.overlays
         ov.show("center_hero", "test", {"slot": "center_hero", "title": "HI"})
+        ov.present_all(FakeEvent(0))         # establish
         self.rec.clear()
         ov.clear("center_hero")
+
         self.assertTrue(ov.slots["center_hero"].is_empty)
+        self.assertFalse(self.sub_regions(), "clear is out-of-band, no sub_region")
+        self.assertNotIn((0, ""), self.calls("send_gui_clear"), "no page repaint")
+        self.assertIn((0, HERO_TAG), self.calls("send_gui_clear"))
+        self.assertIn((0, HERO_TAG), self.calls("send_gui_complete"))
+        texts = [a for a in self.calls("send_gui_text") if a[1] == HERO_TAG]
+        self.assertEqual(len(texts), 1, "just the placeholder")
+        self.assertTrue(texts[0][2].endswith("_blank"), "placeholder tag")
 
-        # clear re-brackets the slot's sub-region and draws a single invisible
-        # placeholder into it, so the engine actually swaps the (now-empty-looking)
-        # back buffer forward instead of leaving stale content.
-        tag = "$$ovl:center_hero"
-        self.assertIn((0, tag), self.calls("send_gui_clear"))
-        self.assertIn((0, tag), self.calls("send_gui_complete"))
-        texts = [a for a in self.calls("send_gui_text") if a[1] == tag]
-        self.assertEqual(len(texts), 1, "exactly the placeholder text on clear")
-        self.assertTrue(texts[0][2].endswith(":blank"), "placeholder tag")
-
-        # after clear, a repaint re-emit should NOT redraw the slot
-        self.rec.clear()
-        ov.present_all(FakeEvent(0))
-        self.assertNotIn("$$ovl:center_hero", self.region_tags_in_order())
-
-
-class TestOverlayRetainAndOrder(OverlayTestBase):
-    def test_present_all_reemits_nonempty_slot(self):
+    def test_present_all_drops_empty_slot_and_unestablishes(self):
         ov = self.page.overlays
         ov.show("center_hero", "test", {"slot": "center_hero", "title": "HI"})
+        ov.present_all(FakeEvent(0))
+        ov.clear("center_hero")
         self.rec.clear()
-        ov.present_all(FakeEvent(0))     # what the page present loop calls each repaint
-        self.assertIn("$$ovl:center_hero", self.region_tags_in_order())
+        ov.present_all(FakeEvent(0))         # empty slot: not drawn, un-established
+        self.assertNotIn(HERO_TAG, self.region_tags_in_order())
+        self.assertFalse(ov.slots["center_hero"].established)
 
+
+class TestOverlayOrder(OverlayTestBase):
     def test_present_all_draw_layer_order_low_to_high(self):
         ov = self.page.overlays
         ov.show("center_hero", "test", {"slot": "center_hero", "title": "H"})   # 28000
@@ -152,8 +174,7 @@ class TestOverlayRetainAndOrder(OverlayTestBase):
         self.rec.clear()
         ov.present_all(FakeEvent(0))
         order = self.region_tags_in_order()
-        self.assertLess(order.index("$$ovl:top_banner"),
-                        order.index("$$ovl:center_hero"),
+        self.assertLess(order.index(BANNER_TAG), order.index(HERO_TAG),
                         "lower draw_layer emitted first (drawn under)")
 
 
@@ -161,10 +182,10 @@ class TestOverlayHeroBuilder(OverlayTestBase):
     def test_hero_wrapper_builds_through_layout(self):
         # Exercises the real _hero_builder via the SubPage layout path (no image).
         overlay_hero("CHAPTER TWO", subtitle="The Long Dark")
-        tag = "$$ovl:center_hero"
-        self.assertIn(tag, self.region_tags_in_order())
+        self.page.overlays.present_all(FakeEvent(0))     # establish + draw
+        self.assertIn(HERO_TAG, self.region_tags_in_order())
         # title + subtitle => at least two text widgets rendered into the region
-        texts = [a for a in self.calls("send_gui_text") if a[1] == tag]
+        texts = [a for a in self.calls("send_gui_text") if a[1] == HERO_TAG]
         self.assertGreaterEqual(len(texts), 2)
 
 
