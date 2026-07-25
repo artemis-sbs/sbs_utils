@@ -150,6 +150,29 @@ class TestGravTether(unittest.TestCase):
         self.assertNotIn((self.load, self.ship), gt._TETHERS)
         self.assertIsNone(gt.grav_tether_get(self.load, self.ship))
 
+    # --- mock physics simulation ---------------------------------------------
+
+    def _sep(self):
+        import math
+        s = to_object(self.ship).pos
+        l = to_object(self.load).pos
+        return math.dist((s.x, s.y, s.z), (l.x, l.y, l.z))
+
+    def test_mock_physics_pulls_the_target(self):
+        # The mock now simulates the pull (calibrated to engine data), so a live
+        # connection actually moves the target during physics_tick.
+        d0 = self._sep()                              # 2000
+        gt.grav_tether_lock(self.ship, self.load)     # offset 0 -> rigid snap
+        sbs.sim._paused = False
+        sbs.physics_tick(0.1)
+        self.assertLess(self._sep(), d0 - 500)        # target reeled toward the source
+
+    def test_mock_physics_no_move_without_connection(self):
+        d0 = self._sep()
+        sbs.sim._paused = False
+        sbs.physics_tick(0.1)
+        self.assertAlmostEqual(self._sep(), d0, delta=1.0)   # nothing pulls it
+
     # --- self-heal -----------------------------------------------------------
 
     def test_dead_target_self_heals(self):

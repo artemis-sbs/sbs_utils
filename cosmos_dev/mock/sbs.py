@@ -3751,6 +3751,50 @@ def _physics_collision(sim, active: list) -> None:
 # Physics tick
 # ---------------------------------------------------------------------------
 
+# Tractor pull lag: seconds of first-order time-constant per unit of connection .offset
+# (stiffness). Calibrated QUALITATIVELY to the engine data harness (LM_TestRange
+# test_grav_tether): with offset ~5 a static pull reeled a target 1500 -> ~1040 (3s) ->
+# ~430 (7s) -> floor, i.e. tau ~6s, so ~1.2s per offset unit. offset 0 = instant snap
+# (rigid lock). Not an exact fit - a controlled .offset sweep would refine it - but it
+# reproduces the qualitative behavior the grav_tether primitive relies on.
+_TRACTOR_TAU_PER_OFFSET = 1.2
+
+
+def _physics_tractors(sim, dt: float) -> None:
+    """Approximate the engine tractor beam: pull each connection's target toward
+    ``source.pos + offset_point`` with a first-order lag set by ``.offset``. A static
+    connection reels the target all the way to the point (floored at the source's
+    exclusion radius); ``pull_distance`` is NOT a rest-length so it's ignored - holding a
+    load AT a distance is the grav_tether primitive's own rope-toggle, which adds/removes
+    connections. Moves the target's _pos directly (works for NPC, player, or terrain
+    pickups), before collision so a reeled item can collide + be collected."""
+    cons = list(sim.tractor_connections.values())
+    if not cons:
+        return
+    space = sim.space_objects
+    for con in cons:
+        src = space.get(con._source_id)
+        tgt = space.get(con._target_id)
+        if src is None or tgt is None:
+            continue
+        dx = (src._pos.x + con._vec.x) - tgt._pos.x
+        dy = (src._pos.y + con._vec.y) - tgt._pos.y
+        dz = (src._pos.z + con._vec.z) - tgt._pos.z
+        dist = math.sqrt(dx * dx + dy * dy + dz * dz)
+        floor = getattr(src, "_exclusion_radius", 0.0) or 0.0
+        if dist <= floor or dist <= 1e-6:
+            continue
+        if con._offset <= 0.0:
+            frac = 1.0                       # rigid lock: snap to the point
+        else:
+            tau = con._offset * _TRACTOR_TAU_PER_OFFSET
+            frac = 1.0 - math.exp(-dt / tau) if tau > 1e-6 else 1.0
+        step = min(dist * frac, dist - floor)   # don't cross the exclusion floor
+        tgt._pos.x += (dx / dist) * step
+        tgt._pos.y += (dy / dist) * step
+        tgt._pos.z += (dz / dist) * step
+
+
 def physics_tick(dt: float = 1.0 / 60.0) -> None:
     """Integrate motion for active (NPC/PLAYER) objects and detect collisions.
 
@@ -3822,6 +3866,9 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
                 obj._pos.x += fwd.x * obj._cur_speed * dt
                 obj._pos.y += fwd.y * obj._cur_speed * dt
                 obj._pos.z += fwd.z * obj._cur_speed * dt
+
+        # 2b. Tractor beams — pull connected targets toward their source point.
+        _physics_tractors(sim, dt)
 
         # 3. Collision — spatial hash; active-active + active-terrain only.
         _physics_collision(sim, active)
