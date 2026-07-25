@@ -82,8 +82,12 @@ class A2xSpawnMockTests(unittest.TestCase):
         from sbs_utils.procedural.inventory import get_inventory_value
         self.assertEqual(get_inventory_value(to_id(so), "item_key"), "hidens_powercell")
 
-    def test_create_anomaly_beacon_returns_none(self):
-        self.assertIsNone(create_anomaly(0, 0, 0, 8))
+    def test_create_anomaly_beacon_spawns_recoverable_beacon(self):
+        # 2.8 pickupType 8 (beacon) now spawns an inert, recoverable Beacon: role "beacon"
+        # (the LM fabrication addon's fly-over route credits Beacon_NUM), not None.
+        so = create_anomaly(0, 0, 0, 8, name="Bea")
+        self.assertIsNotNone(to_object(so))
+        self.assertTrue(has_role(to_id(so), "beacon"))
 
 
 class CorePickupSpawnTests(unittest.TestCase):

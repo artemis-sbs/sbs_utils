@@ -117,6 +117,12 @@ class A2xPropsMockTests(unittest.TestCase):
         self.assertTrue(addto_object_property(self.so, "surrenderChance", 10))
         self.assertEqual(object_property(self.so, "surrenderChance"), 50)
 
+    def test_beacon_store_maps_to_beacon_num(self):
+        # Beacon is a first-class LM ordnance (fabricate-only); 2.8 stores -> Beacon_NUM
+        for prop in ("missileStoresBeacon", "countBea"):
+            self.assertTrue(set_object_property(self.so, prop, 3))
+            self.assertEqual(get_data_set_value(to_id(self.so), "Beacon_NUM"), 3)
+
     def test_push_radius_maps_to_exclusion_radius(self):
         self.assertTrue(set_object_property(self.so, "pushRadius", 250.0))
         self.assertEqual(to_object(self.so).exclusion_radius, 250.0)

@@ -62,6 +62,9 @@ _PROP = {
     "missileStoresTag": ("data", "Tag_NUM", 0),
     "missileStoresECM": ("data", "EMP_NUM", 0),
     "countShk": ("data", "PShock_NUM", 0),
+    # Beacon is now a first-class LM ordnance type (fabricate-only); map its 2.8 store.
+    "missileStoresBeacon": ("data", "Beacon_NUM", 0),
+    "countBea": ("data", "Beacon_NUM", 0),
     # behaviour switches read by the LM damage/comms addons off the object's inventory
     # (a2x sets the value; LM decides what to do with it -- a2x carries no LM import).
     "surrenderChance": ("inv", "a2x_surrender_chance"),   # 0-100

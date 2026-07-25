@@ -131,16 +131,21 @@ def create_anomaly(x, y, z, pickup_type, name=None):
     """2.8 ``create type="Anomaly"`` -> a Cosmos collectible pickup.
 
     Maps ``pickup_type`` (2.8 pickupType 0..7) to an upgrade key and spawns via the
-    core ``pickup_spawn``. Returns ``None`` for type 8 (beacon), which has no Cosmos
-    equivalent.
+    core ``pickup_spawn``. pickupType 8 (beacon) spawns an inert, recoverable Beacon
+    (role ``beacon`` + ``behav_pickup``): the LegendaryMissions fabrication addon's
+    fly-over route credits ``Beacon_NUM`` when a player collects it. a2x references LM
+    only by the ``beacon`` role name (feature-detected), never by import.
     """
     from sbs_utils.procedural.items import pickup_spawn
     from sbs_utils.procedural.query import to_id
 
+    v = pos(x, y, z)
+    if int(pickup_type) == 8:
+        from sbs_utils.procedural.spawn import terrain_spawn
+        return to_id(terrain_spawn(v.x, v.y, v.z, name or "Beacon", "#,beacon", "danger_4a", "behav_pickup"))
     key = pickup_key(pickup_type)
     if key is None:
         return None
-    v = pos(x, y, z)
     return to_id(pickup_spawn(v.x, v.y, v.z, key, name=name))
 
 
