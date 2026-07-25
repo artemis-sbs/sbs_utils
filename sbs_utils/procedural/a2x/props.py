@@ -170,6 +170,37 @@ def set_fleet_coeff(which, value):
 _SIDE_VALUE = {0: "neutral", 1: "enemy", 2: "friendly"}
 
 
+# 2.8 set_fleet_property -> the general LM fleet-formation keys the scatter-formation brain
+# reads off the fleet agent (brain_fleet.mast). Other 2.8 fleet properties are unmapped.
+_FLEET_PROP = {"fleetSpacing": "fleet_spacing", "fleetMaxRadius": "fleet_max_radius"}
+
+
+def set_fleet_property(index, prop, value):
+    """2.8 ``set_fleet_property`` on a fleet index -> configure that fleet's formation.
+
+    ``fleetSpacing`` / ``fleetMaxRadius`` map to the general ``fleet_spacing`` /
+    ``fleet_max_radius`` formation-ring keys on the fleet AGENT (the LM scatter-formation
+    brain reads them). The agent is found via any ``fleet_<index>`` ship's ``my_fleet_id``.
+    Returns the number of fleet agents updated (0 if that fleet has no agent yet, or the
+    property is unmapped).
+    """
+    key = _FLEET_PROP.get(prop)
+    if key is None:
+        return 0
+    from sbs_utils.procedural.roles import role
+    from sbs_utils.procedural.query import to_object_list
+    from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
+
+    agents = set()
+    for ship in to_object_list(role(f"fleet_{index}")):
+        fid = get_inventory_value(ship, "my_fleet_id", None)
+        if fid is not None:
+            agents.add(fid)
+    for fid in agents:
+        set_inventory_value(fid, key, value)
+    return len(agents)
+
+
 def set_side_value(obj, value):
     """2.8 ``set_side_value``: reassign an object's Cosmos side.
 
