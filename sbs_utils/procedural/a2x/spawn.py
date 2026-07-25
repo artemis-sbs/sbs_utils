@@ -234,6 +234,33 @@ def destroy_near(x, y, z, radius, kind="all"):
     return n
 
 
+def destroy_near_object(obj, radius, kind="all"):
+    """2.8 ``destroy_near`` centered on a NAMED object: delete objects of ``kind`` within
+    ``radius`` of that object's runtime position (excluding the object itself). Like
+    :func:`destroy_near` but the centre is a live Cosmos object, so its position is already
+    in Cosmos space (no coord flip). Returns the count deleted.
+    """
+    from sbs_utils.procedural.space_objects import closest_list
+    from sbs_utils.procedural.roles import role
+    from sbs_utils.procedural.query import to_space_object, to_id
+    from sbs_utils.vec import Vec3
+
+    o = to_space_object(obj)
+    if o is None:
+        return 0
+    oid = to_id(obj)
+    the_set = role(_NEAR_ROLE[kind]) if kind in _NEAR_ROLE else role("__SPACE_OBJECT__")
+    n = 0
+    for cd in closest_list(Vec3(o.pos), the_set, max_dist=radius):
+        if to_id(cd) == oid:
+            continue
+        t = to_space_object(cd)
+        if t is not None:
+            t.delete_object()
+            n += 1
+    return n
+
+
 def create_black_hole(x, y, z, gravity_radius=10000, gravity_strength=1.0,
                      turbulence_strength=1.0, collision_damage=200):
     """2.8 ``create type="blackHole"`` -> a Cosmos maelstrom terrain object."""
