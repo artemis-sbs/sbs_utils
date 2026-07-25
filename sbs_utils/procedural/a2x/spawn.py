@@ -164,6 +164,25 @@ def destroy(handle):
     return False
 
 
+def destroy_named(name):
+    """2.8 ``destroy`` by NAME for an object the converter could not statically capture --
+    the name has no ``create`` the tool saw (created some other way, or a dead reference the
+    2.8 mission left in). Deletes every current space object whose name matches; a no-op if
+    none exist -- which mirrors 2.8, where destroying a missing object does nothing. Returns
+    the count deleted.
+    """
+    from sbs_utils.procedural.roles import role
+    from sbs_utils.procedural.query import to_space_object
+
+    n = 0
+    for oid in role("__SPACE_OBJECT__"):
+        o = to_space_object(oid)
+        if o is not None and getattr(o, "name", None) == name:
+            o.delete_object()
+            n += 1
+    return n
+
+
 # 2.8 destroy_near type -> Cosmos role.
 _NEAR_ROLE = {
     "nebulas": "nebula", "asteroids": "asteroid", "mines": "mine",
