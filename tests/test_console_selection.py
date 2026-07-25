@@ -22,10 +22,16 @@ from sbs_utils.helpers import FrameContext, Context, FakeEvent
 from sbs_utils.procedural.query import (
     set_science_selection,
     get_science_selection,
+    get_comms_selection,
+    get_grid_selection,
+    get_weapons_selection,
+    to_blob,
     to_space_object,
     to_object,
     to_id,
+    object_exists,
 )
+from sbs_utils.delete_queue import DeleteQueue
 
 from sbs_utils.mast.mast import Mast
 from sbs_utils.mast.mastscheduler import MastScheduler
@@ -79,6 +85,49 @@ class TestConsoleSelectionStale(unittest.TestCase):
         # NEW pattern: resolve the stored id -> None, so the selection self-clears.
         self.assertIsNone(to_space_object(dock_id))
         self.assertIsNone(to_space_object(get_science_selection(self.ship)))
+
+
+class TestSelectionGetterExistenceGuard(unittest.TestCase):
+    """The selection getters must not read a deleted object's blob.
+
+    The engine crash (hangar.mast:206): get_science_selection(x) -> to_blob(x) ->
+    blob.get(...). When x is a SpawnData whose object has been deleted, to_blob
+    short-circuits to the cached SpawnData.blob - a DANGLING engine data-set in the
+    real engine - and blob.get(...) throws. The guard is object_exists(): a gone
+    object returns None instead of dereferencing the stale blob.
+
+    The mock cannot dangle a native pointer, so it stands in with a stale-but-
+    readable cached blob: without the guard the getter would return the stale value;
+    with it, None. Same contract, observable headlessly.
+    """
+    def setUp(self):
+        SpaceObject.clear()
+        DeleteQueue.clear()
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        self.ship = PlayerShip().spawn(0, 0, 0, "Console", "tsn", "Battle Cruiser")
+        self.dock = Npc().spawn(1000, 0, 0, "DS1", "tsn", "Starbase", "behav_spaceport")
+
+    def test_getters_return_none_for_deleted_spawndata(self):
+        # Give the ship real selections so a stale read would return a concrete id,
+        # not a coincidental None.
+        set_science_selection(self.ship, self.dock)
+        self.assertEqual(get_science_selection(self.ship), to_id(self.dock))
+
+        # Ship deleted while the hangar screen still holds its SpawnData wrapper.
+        self.ship.py_object.delete_object()
+        DeleteQueue.drain()
+
+        # The wrapper's cached blob is still non-None and readable (this is exactly
+        # the "blob is somehow valid" state), but the object is gone...
+        self.assertIsNotNone(to_blob(self.ship), "SpawnData keeps a cached blob")
+        self.assertFalse(object_exists(self.ship))
+
+        # ...so every getter must fail safe to None instead of reading it.
+        self.assertIsNone(get_science_selection(self.ship))
+        self.assertIsNone(get_comms_selection(self.ship))
+        self.assertIsNone(get_grid_selection(self.ship))
+        self.assertIsNone(get_weapons_selection(self.ship))
 
 
 class _AssertScheduler(MastScheduler):

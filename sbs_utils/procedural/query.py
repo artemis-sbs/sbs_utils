@@ -448,6 +448,12 @@ def get_comms_selection(id_or_not):
     Returns:
         int | None: The selected agent ID, or ``None`` if unavailable.
     """
+    # Guard existence first: to_blob can hand back a dangling engine data-set for a
+    # deleted/tombstoned object (to_object returns the still-registered Python Agent),
+    # and blob.get(...) then throws in the engine. object_exists consults the delete
+    # queue and the engine, so a gone ship returns None instead of crashing.
+    if not object_exists(id_or_not):
+        return None
     blob = to_blob(id_or_not)
     if blob is not None:
         return blob.get("comms_target_UID",0)
@@ -462,6 +468,8 @@ def get_science_selection(id_or_not):
     Returns:
         int | None: The selected agent ID, or ``None`` if unavailable.
     """
+    if not object_exists(id_or_not):
+        return None
     blob = to_blob(id_or_not)
     if blob is not None:
         return blob.get("science_target_UID",0)
@@ -476,6 +484,8 @@ def get_grid_selection(id_or_not):
     Returns:
         int | None: The selected agent ID, or ``None`` if unavailable.
     """
+    if not object_exists(id_or_not):
+        return None
     blob = to_blob(id_or_not)
     if blob is not None:
         return blob.get("grid_selected_UID",0)
@@ -490,6 +500,8 @@ def get_weapons_selection(id_or_not):
     Returns:
         int | None: The selected agent ID, or ``None`` if unavailable.
     """
+    if not object_exists(id_or_not):
+        return None
     blob = to_blob(id_or_not)
     if blob is not None:
         return blob.get("weapon_target_UID",0)
@@ -504,6 +516,8 @@ def set_console_selection(id_or_not, other_id_or_obj, console):
         other_id_or_obj (Agent | int): The object to select, or ``0`` to clear.
         console (str): The blob key for the console (e.g. ``"comms_target_UID"``).
     """
+    if not object_exists(id_or_not):
+        return
     blob = to_blob(id_or_not)
     other = to_id(other_id_or_obj)
     if not isinstance(other, int):
