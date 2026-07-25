@@ -187,11 +187,28 @@ def grav_tether_rope(source, target, rope_len, stiffness=DEFAULT_TOW_STIFFNESS, 
 
 
 def grav_tether_swing(anchor, ship, rope_len, stiffness=1.0, overspeed=None):
-    """Fighter swing (SECONDARY): a rope-hold with the ANCHOR as source and the SHIP as
-    target, so the ship is held at rope_len and swings on its own throttle. Engine-
-    confirmed: a player hull CAN be tractor-pulled and the rope-toggle holds it at
-    rope_len; the final feel is still a fly-it judgment."""
-    return grav_tether_rope(anchor, ship, rope_len, stiffness, overspeed)
+    """Fighter swing (SECONDARY): hold the ship on a CIRCLE of radius rope_len around the
+    anchor so it orbits on its own throttle. A plain rope-toggle pulls toward the anchor
+    *center*, which has no centrifugal balance and spirals the ship in (measured 758→663).
+    Instead each tick we aim the pull at the point on the circle at the ship's CURRENT
+    bearing — a purely radial correction that holds the radius without killing tangential
+    motion. Engine-confirmed a player hull can be tractor-pulled; final feel is a fly-it."""
+    src = to_id(anchor)
+    tgt = to_id(ship)
+    if src is None or tgt is None or src == 0 or tgt == 0:
+        return None
+    _TETHERS[(src, tgt)] = {
+        "offset": None,
+        "stiffness": float(stiffness),
+        "pull": float(rope_len),
+        "rope_len": float(rope_len),
+        "swing": True,
+        "overspeed": overspeed if overspeed is not None else _default_overspeed,
+        "reel_rate": 0.0,
+    }
+    _ensure_tick()
+    _tick_swing(src, tgt, _TETHERS[(src, tgt)])
+    return _sim().GetTractorConnection(src, tgt)
 
 
 def grav_tether_reel(source, target, rate=DEFAULT_REEL_RATE,
@@ -263,6 +280,29 @@ def _tick_rope(src, tgt, st):
         sim.DeleteTractorConnection(src, tgt)
 
 
+def _tick_swing(anchor, ship, st):
+    """Circle-point orbit: aim the pull at the point on the rope_len circle at the ship's
+    CURRENT bearing (in the XZ plane). That correction is radial-only, so it holds the
+    radius while the ship's own throttle carries it around — no spiral-in, no killed
+    tangential motion. Re-points every tick since the connection's offset isn't settable."""
+    ao = to_object(anchor)
+    so = to_object(ship)
+    if ao is None or so is None:
+        return
+    dx = so.pos.x - ao.pos.x
+    dz = so.pos.z - ao.pos.z
+    d = math.sqrt(dx * dx + dz * dz)
+    if d < 1e-6:
+        return                                       # on top of the anchor; nothing to aim
+    rope = st["rope_len"]
+    sbs = _sbs()
+    sim = _sim()
+    off = sbs.vec3((dx / d) * rope, 0.0, (dz / d) * rope)   # circle point at ship's bearing
+    sim.DeleteTractorConnection(anchor, ship)
+    con = sim.AddTractorConnection(anchor, ship, off, 0.0)
+    con.offset = st["stiffness"]
+
+
 def _advance_reel(src, tgt, st):
     new_pull = st["pull"] - st["reel_rate"]
     if new_pull <= 0.0:
@@ -290,8 +330,10 @@ def grav_tether_tick(t=None):
             continue
         if _enforce_impulse(src, tgt, st):
             continue                       # snapped -> gone this tick
-        if st.get("rope"):
-            _tick_rope(src, tgt, st)       # rope-hold (tow/swing) manages its connection
+        if st.get("swing"):
+            _tick_swing(src, tgt, st)      # circle-point orbit (holds radius)
+        elif st.get("rope"):
+            _tick_rope(src, tgt, st)       # trailing tow rope-hold
         elif st["reel_rate"] > 0.0:
             _advance_reel(src, tgt, st)
     _maybe_stop_tick()

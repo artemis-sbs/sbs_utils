@@ -127,22 +127,32 @@ class TestGravTether(unittest.TestCase):
         self.assertEqual(st["pull"], 0.0)
         self.assertEqual(st["reel_rate"], 0.0)
 
-    # --- swing (rope-toggle) -------------------------------------------------
+    # --- swing (circle-point orbit) ------------------------------------------
 
-    def test_swing_taut_engages_slack_releases(self):
-        # anchor = load @ (2000,0,0); ship (player) starts @ 0 -> dist 2000 > rope 800.
-        gt.grav_tether_swing(self.load, self.ship, 800)
-        self.assertIsNotNone(gt.grav_tether_get(self.load, self.ship))   # taut -> engaged
-        # fly inside the rope: dist 500 < 800 -> slack, released
-        to_object(self.ship).pos = sbs.vec3(1500, 0, 0)
-        gt.grav_tether_tick()
-        self.assertIsNone(gt.grav_tether_get(self.load, self.ship))      # slack -> free
-        # swing back out past the rope -> re-engages
-        to_object(self.ship).pos = sbs.vec3(0, 0, 0)
-        gt.grav_tether_tick()
-        self.assertIsNotNone(gt.grav_tether_get(self.load, self.ship))   # taut again
-        # the tether stays registered/managed across engage/release
-        self.assertIn((self.load, self.ship), gt._TETHERS)
+    def test_swing_holds_radius_while_orbiting(self):
+        # Drive a swinger tangentially around an anchor; the circle-point swing must hold
+        # the radius (~rope_len) instead of spiraling in (the old center-pull did 758->663).
+        import math
+        from sbs_utils.procedural.space_objects import target_pos
+        anchor = to_id(npc_spawn(0, 0, 0, "Anchor", "tsn", "starbase_command", "behav_station"))
+        swinger = to_id(npc_spawn(800, 0, 0, "Sw", "tsn", "tsn_light_cruiser", "behav_npcship"))
+
+        def rad():
+            a = to_object(anchor).pos
+            s = to_object(swinger).pos
+            return math.dist((a.x, a.y, a.z), (s.x, s.y, s.z))
+
+        gt.grav_tether_swing(anchor, swinger, 800)
+        target_pos(swinger, 800, 0, 9000, 1.0)        # drive tangentially (+Z)
+        sbs.sim._paused = False
+        radii = []
+        for _ in range(60):
+            gt.grav_tether_tick()
+            sbs.physics_tick(0.1)
+            radii.append(rad())
+        settled = radii[15:]
+        self.assertTrue(all(560 < r < 1040 for r in settled),
+                        "radius spiraled: " + str([int(r) for r in settled[::10]]))
 
     def test_swing_release_clears_registry(self):
         gt.grav_tether_swing(self.load, self.ship, 800)
