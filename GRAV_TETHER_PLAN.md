@@ -74,20 +74,28 @@ One primitive; the behavior comes from *who is source*, the *offset point*, and
 
 The source/target *flip* is what turns "I drag the load" into "the anchor swings me."
 
-**Confirmed in-engine (Phase 0 spike):** `pull_distance` is a **rope rest-length** —
-the target settles *at* that distance from the offset point. `.offset` (stiffness):
-`0` = rigid lock, `~5` = a good taut tow, `20` = noticeably looser. So the primary
-modes are pure native params:
+**Confirmed in-engine (data harness `LM_TestRange/test_grav_tether`):**
+- A **STATIC tether reels the target fully IN** regardless of `pull_distance`
+  (1500 → ~165, floored by exclusion radius). `pull_distance` is **NOT** a hold-at-
+  distance rest-length (this overturns the earlier spike guess).
+- A per-tick **ROPE-TOGGLE holds at distance** — 798/801/801 at rope_len 800 (engage a
+  stiff pull when beyond rope_len, release when inside).
+- `.offset` (stiffness): `0` = rigid, `~5` = good tow feel.
+- The offset point is **WORLD-fixed** (a static "behind" offset would pin to a compass
+  point) — so we don't use one; the drag makes a towed load trail for free.
+- A **player hull CAN be tractor-pulled** (3000 → 0) — swing is viable.
 
-| Mode | pull_distance | stiffness (`.offset`) |
-|---|---|---|
-| **Lock** | 0 | 0 |
-| **Tow** | hold distance (offset point behind hull) | ~5 |
-| **Reel** | ramp from current → 0 | ~5 → 0 |
+So the modes are:
 
-**Swing** is the only mode the native pull can't do alone (it pulls *radially*, killing
-the tangential motion an orbit needs) — it needs the rope-toggle assist (§7) and is now
-a **secondary** goal behind the general player-ship tether.
+| Mode | mechanism |
+|---|---|
+| **Lock** | static tether, stiffness 0 → reels in + holds tight (grab) |
+| **Reel** | static tether, ramp → 0 → draws in (collision then collects) |
+| **Tow** | **rope-toggle** at hold distance (a static tow would reel in) — load trails |
+| **Swing** | **rope-toggle**, roles flipped (anchor holds the ship) |
+
+**Tow and Swing are the same rope-hold** (`grav_tether_rope`), differing only in which
+end is the source. Lock/Reel stay static.
 
 ---
 
@@ -230,12 +238,27 @@ Two things the type stub / mock cannot answer, both requiring a real Cosmos sess
     any mission**. Registered as MAST globals (`mast_sbs_procedural.py`). Tests:
     `tests/test_grav_tether.py` — **13/13 pass** (registry/enforcer/reel logic; pull
     physics stays engine-verified). Committed-not-pushed pending.
-  - **LM addon: NEXT** — the popup wiring on Weapons.
+  - **LM addon: DONE** → `LegendaryMissions/grav_tether/` (`__init__.mast` +
+    `grav_tether.mast`), registered in LM `__lib__.json`, packaged to
+    `artemis-sbs.LegendaryMissions.grav_tether.v1.4.0.mastlib`. A **Weapons hold-click**
+    raises a role-gated hold-menu (item/upgrade→Reel; station/asteroid/__npc__→Tow;
+    else→Lock; Release when tethered). **Engine-verified**: the right-click popup shows
+    and toggles tether state in real Cosmos. Enforcer is automatic (primitive tick), so
+    the addon is UX-only. Uncommitted in the LM repo pending.
 - **Phase 2 — Tow/Reel derelict + salvage.** Tow-behind + the Fabrication tie-in.
 - **Phase 3 — Fighter grav-tether.** Nose-cone acquire → synthesized popup → Swing
   (native or assisted per Phase 0). Settle toggle-vs-hold and the override question.
 - **Phase 4 — Constraints layer.** Mass gating, tug-of-war, power/heat, plus fighter
   recovery → docking.
+- **Phase 3 — Fighter swing: ORBIT WORKS (mock-verified), UI still to build.**
+  `grav_tether_swing(anchor, ship, rope_len)` uses a **moving circle-point** pull: each
+  tick it aims at the point on the rope_len circle at the ship's current bearing (radial-
+  only correction), so it holds the radius and orbits instead of spiraling in. The first
+  rope-toggle version spiraled (data harness: 758→663); the circle-point fix holds radius
+  ~rope_len with the bearing advancing (verified in the mock now that it simulates the
+  pull). Player hull confirmed tractor-pullable. **Remaining:** the fighter one-button UI
+  (nose-cone acquire → synthesize popup), and a real-engine feel pass (now demoable in the
+  browser mock, not just the game).
 - **Phase 5 — Growth.** Enemy tethers, black-hole swing, rescue/escort quest hooks,
   admiral tug.
 
