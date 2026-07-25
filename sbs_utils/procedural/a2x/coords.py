@@ -65,6 +65,16 @@ def angle(deg):
 # 2.8 CW nudge (`addto angle += d`) becomes a Cosmos yaw of **-d**.
 
 
+def _rad(v):
+    """A 2.8 orientation value in radians -- but authors often entered DEGREES by mistake
+    (the scripting parser is degrees everywhere else). Documented radians are -pi..pi; the
+    degree mistakes in the corpus are all >= 10, so a magnitude beyond 2*pi (~6.28, safely
+    above any pi-rounding like 3.1416) is treated as degrees and converted."""
+    import math
+    v = float(v)
+    return math.radians(v) if abs(v) > 2 * math.pi else v
+
+
 def _yaw_quat(theta):
     """A pure-yaw rotation quaternion (about +Y) for ``theta`` radians."""
     import sbs
@@ -83,7 +93,7 @@ def _cosmos_yaw(o):
 def set_angle(o, a28):
     """Set object ``o``'s facing from a 2.8 ``angle`` (radians): Cosmos yaw = ``pi - a28``."""
     import math
-    o.engine_object.rot_quat = _yaw_quat(math.pi - float(a28))
+    o.engine_object.rot_quat = _yaw_quat(math.pi - _rad(a28))
 
 
 def get_angle(o):
@@ -125,7 +135,7 @@ def set_roll(o, r28):
     all the corpus uses: 180-degree warpgate flips)."""
     import sbs
     import math
-    h = -float(r28) / 2.0
+    h = -_rad(r28) / 2.0
     roll_q = sbs.quaternion(math.cos(h), 0.0, 0.0, math.sin(h))   # about local +Z (forward)
     o.engine_object.rot_quat = _quat_mul(o.engine_object.rot_quat, roll_q)
 
@@ -141,9 +151,6 @@ def set_pitch(o, p28):
     """
     import sbs
     import math
-    p = float(p28)
-    if abs(p) > math.pi:      # out of the documented radian range -> author used degrees
-        p = math.radians(p)
-    h = p / 2.0
+    h = _rad(p28) / 2.0
     pitch_q = sbs.quaternion(math.cos(h), math.sin(h), 0.0, 0.0)   # about local +X (right)
     o.engine_object.rot_quat = _quat_mul(o.engine_object.rot_quat, pitch_q)

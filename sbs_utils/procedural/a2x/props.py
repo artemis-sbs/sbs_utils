@@ -100,6 +100,11 @@ _PROP = {
     # whole map); N>0 = 100/(3N) km, i.e. 100000/(3N) Cosmos units (bigger N = smaller
     # range). -> the ship_base_scan_range data_set key. ("sensor" applies that progression.)
     "sensorSetting": ("sensor", "ship_base_scan_range", 0),
+    # 2.8 warpState is really the throttle: 0-4 maps to Cosmos throttle 1-5 (+1 offset).
+    "warpState": ("warp", "throttle", 0),
+    # 2.8 canBuild: toggle a station's ability to build. LM's build console reads
+    # a2x_can_build off the station inventory (0 = cannot build); a2x carries no LM import.
+    "canBuild": ("inv", "a2x_can_build"),
 }
 
 # 2.8 engineering exposes 8 named systems; Cosmos SHPSYS has 4 slots
@@ -581,6 +586,9 @@ def set_object_property(obj, prop, value, index=None):
     elif m[0] == "sensor":
         # 2.8 sensorSetting -> scan range (units): 0 = unlimited (map size); N>0 = 100000/(3N).
         o.data_set.set(m[1], sensor_range(value), 0)
+    elif m[0] == "warp":
+        # 2.8 warpState 0-4 -> throttle 1-5 (+1 offset)
+        o.data_set.set(m[1], int(round(float(value))) + 1, 0)
     elif m[0] == "engine":
         setattr(o.engine_object, m[1], value)
     elif m[0] == "pos":
