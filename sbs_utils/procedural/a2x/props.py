@@ -77,6 +77,11 @@ _PROP = {
     # Beacon is now a first-class LM ordnance type (fabricate-only); map its 2.8 store.
     "missileStoresBeacon": ("data", "Beacon_NUM", 0),
     "countBea": ("data", "Beacon_NUM", 0),
+    # 2.8 Probe has no Cosmos torpedo type -> treat it as a Sensor Beacon (the passive
+    # sensor-relay beacon kind). SET writes the loadable count (Beacon_NUM); ADDTO fabricates
+    # that many sensor beacons into cargo (beacon_built) -- adding stock, not loaded rounds.
+    "missileStoresProbe": ("probe", "Beacon_NUM", 0),
+    "countProbe": ("probe", "Beacon_NUM", 0),
     # behaviour switches read by the LM damage/comms addons off the object's inventory
     # (a2x sets the value; LM decides what to do with it -- a2x carries no LM import).
     "surrenderChance": ("inv", "a2x_surrender_chance"),   # 0-100
@@ -273,6 +278,9 @@ def addto_object_property(obj, prop, value, index=None):
     if m[0] == "quat":
         from . import coords
         coords.add_angle(o, value)
+    elif m[0] == "probe":
+        # 2.8 addto Probe -> ADD stock: fabricate that many Sensor Beacons into cargo.
+        _add_sensor_beacons_to_cargo(o, value)
     elif m[0] == "engine":
         setattr(o.engine_object, m[1], (getattr(o.engine_object, m[1], 0) or 0) + value)
     elif m[0] == "pos":
@@ -588,6 +596,26 @@ def set_sensor_setting_all(setting):
     return n
 
 
+def _add_sensor_beacons_to_cargo(o, count):
+    """Fabricate ``count`` Sensor Beacons into a ship's cargo (the ``beacon_built`` list the
+    LM fabrication uses), and signal the cargo UI to refresh. Returns the number added."""
+    from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
+    from sbs_utils.procedural.query import to_id
+
+    n_add = int(round(float(count)))
+    if n_add <= 0:
+        return 0
+    built = get_inventory_value(o, "beacon_built", []) or []
+    built.extend({"kind": "sensor"} for _ in range(n_add))
+    set_inventory_value(o, "beacon_built", built)
+    try:
+        from sbs_utils.procedural.signal import signal_emit
+        signal_emit("item_changed", {"holder_id": to_id(o)})
+    except Exception:
+        pass   # cargo is added even if the UI-refresh signal isn't wired
+    return n_add
+
+
 def set_object_property(obj, prop, value, index=None):
     """Set a 2.8-named property on ``obj`` (id / object / a2x_create_* handle).
 
@@ -617,6 +645,9 @@ def set_object_property(obj, prop, value, index=None):
     elif m[0] == "sensor":
         # 2.8 sensorSetting -> scan range (units): 0 = unlimited (map size); N>0 = 100000/(3N).
         o.data_set.set(m[1], sensor_range(value), 0)
+    elif m[0] == "probe":
+        # 2.8 Probe store == the loadable Sensor-Beacon count (Beacon_NUM data_set).
+        o.data_set.set(m[1], value, 0)
     elif m[0] == "warp":
         # 2.8 warpState 0-4 -> throttle 1-5 (+1 offset)
         o.data_set.set(m[1], int(round(float(value))) + 1, 0)
@@ -654,6 +685,8 @@ def object_property(obj, prop, index=None):
     if m[0] == "quat":
         from . import coords
         return coords.get_angle(o)
+    if m[0] in ("probe", "sensor", "warp"):
+        return o.data_set.get(m[1], m[2])   # the data_set count/value these kinds write
     if m[0] == "engine":
         return getattr(o.engine_object, m[1])
     if m[0] == "pos":
