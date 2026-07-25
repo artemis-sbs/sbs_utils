@@ -186,3 +186,17 @@ def set_skybox_index(index):
     label = _A2X_SKYBOXES[i % len(_A2X_SKYBOXES)]
     skybox_schedule(label)
     return label
+
+
+def set_nebula_opaque_all(opaque):
+    """2.8 global ``nebulaIsOpaque`` (a nameless set_object_property) -> set every nebula's
+    throttle limit. Non-zero (opaque) keeps the Cosmos default limit (2.0, which slows
+    ships); 0 = no limit. Returns the number of nebulae updated."""
+    from sbs_utils.procedural.roles import role
+    from sbs_utils.procedural.query import to_space_object_list
+    val = 2.0 if opaque else 0.0
+    n = 0
+    for o in to_space_object_list(role("nebula")):
+        o.data_set.set("max_throttle", val, 0)
+        n += 1
+    return n

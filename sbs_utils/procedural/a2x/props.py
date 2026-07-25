@@ -79,6 +79,15 @@ _PROP = {
     # plural corpus spelling and the singular doc spelling map to the same key.
     "pirateRepWithStations": ("inv", "a2x_pirate_rep"),
     "pirateRepWithStation": ("inv", "a2x_pirate_rep"),
+    # 2.8 age (on wrecks/objects): Cosmos has no object-age mechanic beyond the monster
+    # stage system, and these are plain objects (WRECKs were a monster type in 2.8, but in
+    # Cosmos they are ordinary objects). Keep the datum on the inventory so science flavor
+    # text can surface it later; nothing reads it yet.
+    "age": ("inv", "a2x_age"),
+    # 2.8 nebulaIsOpaque: whether the nebula slows ships. Cosmos nebulae throttle-limit via
+    # the max_throttle data_set key (default 2.0); 0 = no limit. Opaque -> keep the limit,
+    # not opaque -> 0. ("bool_data" sets the key to [scale] when truthy, else 0.)
+    "nebulaIsOpaque": ("bool_data", "max_throttle", 2.0),
 }
 
 # 2.8 engineering exposes 8 named systems; Cosmos SHPSYS has 4 slots
@@ -472,6 +481,10 @@ def set_object_property(obj, prop, value, index=None):
     if m[0] == "quat":
         from . import coords
         coords.set_angle(o, value)
+    elif m[0] == "bool_data":
+        # boolean 2.8 flag -> a data_set key: [scale] when truthy, else 0 (e.g. nebulaIsOpaque
+        # -> max_throttle 2.0/0). m[2] carries the truthy value.
+        o.data_set.set(m[1], m[2] if value else 0.0, 0)
     elif m[0] == "engine":
         setattr(o.engine_object, m[1], value)
     elif m[0] == "pos":

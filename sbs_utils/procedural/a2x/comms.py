@@ -61,15 +61,18 @@ def incoming_comms_text(message, from_name="", title=None, to=None, time=30):
 
 
 def big_message(title, subtitle1="", subtitle2="", to=None, time=30):
-    """2.8 ``big_message`` -> a chapter-title info-panel card.
+    """2.8 ``big_message`` -> a cinematic Hero overlay chapter card with letterbox bars.
 
-    (2.8 showed this as a main-screen chapter card; an info-panel card with a banner
-    is the closest scaffold equivalent.) Uses a long auto-dismiss ``time`` so the
-    chapter title stays up like the 2.8 main-screen card.
+    2.8 showed this as a big main-screen chapter card; the closest Cosmos equivalent is the
+    hero overlay (a large centered title + combined subtitles, on the ``center_hero`` slot)
+    dressed with cinematic ``letterbox`` bars (the ``fullscreen`` slot -- the two slots
+    coexist). Both auto-dismiss after ``time``. (Replaces the older info-panel card.)
     """
-    from sbs_utils.procedural.comms import comms_info_card
+    from sbs_utils.procedural.gui.overlay import overlay_hero, overlay_letterbox
+    tgt = _console_targets(to)
     sub = "\n".join(p for p in (subtitle1, subtitle2) if p)
-    comms_info_card(_console_targets(to), sub or None, title=title, banner=title, time=time)
+    overlay_letterbox(to=tgt, seconds=time)
+    overlay_hero(title, subtitle=sub or None, to=tgt, seconds=time)
 
 
 def warning_popup(message, consoles=None, ship=None, title="Warning", time=30):
