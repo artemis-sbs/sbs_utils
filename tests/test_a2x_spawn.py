@@ -89,6 +89,15 @@ class A2xSpawnMockTests(unittest.TestCase):
         self.assertIsNotNone(to_object(so))
         self.assertTrue(has_role(to_id(so), "beacon"))
 
+    def test_add_ai_proceed_to_exit_targets_spawn_point(self):
+        # 2.8 add_ai PROCEED_TO_EXIT -> head to the ship's spawn point (like a surrendered ship
+        # going home). create_enemy flips x: 100000 - 1000 = 99000.
+        from sbs_utils.procedural.a2x.ai import add_ai
+        from sbs_utils.procedural.query import get_data_set_value
+        so = create_enemy(1000, 0, 2000, "kralien_cruiser", name="Exit1")
+        self.assertEqual(add_ai(so, "PROCEED_TO_EXIT"), "PROCEED_TO_EXIT")
+        self.assertEqual(get_data_set_value(to_id(so), "target_pos_x"), 99000.0)
+
 
 class CorePickupSpawnTests(unittest.TestCase):
     def setUp(self):

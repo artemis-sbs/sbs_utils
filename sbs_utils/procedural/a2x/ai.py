@@ -41,11 +41,34 @@ def add_ai(agent, ai_type, data=None):
     """
     from sbs_utils.procedural.brain import brain_add
 
+    if (ai_type or "").strip().upper() == "PROCEED_TO_EXIT":
+        return _proceed_to_exit(agent)
+
     name = ai_brain_for(ai_type)
     if name is None:
         return None
     brain_add(agent, name, data=data)
     return name
+
+
+def _proceed_to_exit(agent):
+    """2.8 add_ai PROCEED_TO_EXIT: leave the sector -- head for the ship's spawn point (the
+    entry/exit edge), the same way a surrendered ship goes home (LM take_surrendered_home
+    drives it to ``spawn_pos`` and removes it near the edge). One-shot ``target_pos`` at speed;
+    a mission that wants the ship deleted on arrival can add that. Returns the type on success,
+    or ``None`` if the ship / its spawn point can't be resolved."""
+    from sbs_utils.procedural.query import to_id, to_object
+    from sbs_utils.procedural.space_objects import target_pos
+
+    sid = to_id(agent)
+    o = to_object(sid)
+    if o is None:
+        return None
+    sp = getattr(o, "spawn_pos", None)
+    if sp is None:
+        return None
+    target_pos(sid, sp.x, sp.y, sp.z, 1.5)
+    return "PROCEED_TO_EXIT"
 
 
 def clear_ai(agent):
