@@ -82,6 +82,18 @@ a2x_set_side_value(obj, value)
 a2x_set_fleet_coeff(which, value)
 ```
 
+The 2.8 `set`/`addto`-object-property names map onto Cosmos `data_set` / `engine_object`
+slots (position, angle, shields, throttle, ordnance stores, ...). Two ordnance notes
+worth calling out:
+
+- **Beacon** (`missileStoresBeacon`, `countBea`) maps to the Cosmos `Beacon_NUM` store.
+- **Probe** (`missileStoresProbe`, `countProbe`) has no Cosmos torpedo type, so it folds
+  into the **Sensor Beacon** (the passive sensor-relay beacon kind). **Set** writes the
+  loadable count `Beacon_NUM`; **add-to** fabricates that many Sensor Beacons into cargo
+  (`beacon_built`), so a stocked 2.8 Probe arrives as a beacon the crew can deliver and
+  fire &mdash; see the
+  [Fabrication & Beacons addon](https://artemis-sbs.github.io/LegendaryMissions/addons/fabrication/).
+
 ## The `arme2cosmos` tool
 
 `arme2cosmos` is a standalone (stdlib-only) tool that converts Artemis 2.8 XML

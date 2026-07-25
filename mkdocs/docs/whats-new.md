@@ -169,6 +169,30 @@ decide to shoot.
 Authors add a species by dropping in a prefab file over `behav_typhon`; the roster
 and mix live in one weight table.
 
+## 🛰️ Sensor Beacons & the Fabricator
+
+Engineering has a new job. A **Fabricate** tab turns materials into gear over a **build
+timer**, and its headline product is **Beacons** — a **fabricate-only** ordnance the
+crew builds, hands to the tube, fires, and later flies over to **recover**.
+
+- **A two-console loop, on purpose.** Beacons don't come pre-loaded — a ship spawns with
+  **zero rounds**. Weapons *tells* Engineering what to build, Engineering **fabricates**
+  it (spending inputs over a timer) and **delivers** it to the tube, and only then can
+  Weapons fire it. The coordination *is* the gameplay.
+- **Bio Beacons herd the [bestiary](#a-living-bestiary).** Program one to **attract** or
+  **repel** a chosen space monster, fire it, and it broadcasts across the sector —
+  baiting a Reaver into a minefield or shooing a Grazer off your six.
+- **Sensor Beacons — the old Probe, brought forward.** The passive sensor-relay
+  **Sensor Beacon** folds in Artemis 2.8's **Probe** concept. Ported 2.8 missions that
+  stocked Probes come across as Sensor Beacons the crew can build and deploy.
+- **Recover and reprogram.** Fly over a deployed beacon to add the round back and keep
+  its program; **Science** can scan any beacon to read what it's broadcasting.
+- **Recipes are data.** Every beacon (and any other craftable) is an **AMD recipe** —
+  inputs, build time, and program — so a mission adds its own without touching the addon.
+
+Authors: [Fabrication & Beacons addon](legendarymissions/addons/fabrication.md) ·
+Porting Probes: [Porting from Artemis 2.x](mast/porting-2x.md).
+
 ## 🏆 Game Results & Scorekeeping
 
 The end-of-game screen is now a **tabbed results board** with real scorekeeping —
