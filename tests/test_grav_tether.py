@@ -66,6 +66,17 @@ class TestGravTether(unittest.TestCase):
         self.assertEqual(con.offset, gt.DEFAULT_TOW_STIFFNESS)
         self.assertEqual(gt._TETHERS[(self.ship, self.load)]["pull"], 600.0)
 
+    def test_tow_is_a_rope_hold_not_static_reel_in(self):
+        # Engine data: a static tether reels the load fully in, so Tow uses the toggle.
+        gt.grav_tether_tow(self.ship, self.load, 600)   # load @2000 > 600 -> taut
+        self.assertTrue(gt._TETHERS[(self.ship, self.load)].get("rope"))
+        self.assertIsNotNone(gt.grav_tether_get(self.ship, self.load))
+        # inside the rope -> released (a static tow would keep pulling it in)
+        to_object(self.load).pos = sbs.vec3(300, 0, 0)   # dist 300 < 600
+        gt.grav_tether_tick()
+        self.assertIsNone(gt.grav_tether_get(self.ship, self.load))
+        self.assertIn((self.ship, self.load), gt._TETHERS)   # still managed
+
     # --- impulse-only enforcement -------------------------------------------
 
     def test_cap_clamps_throttle_and_keeps_tether(self):

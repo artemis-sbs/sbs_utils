@@ -152,37 +152,46 @@ def grav_tether_lock(source, target, offset=None, overspeed=None):
                               pull_distance=0.0, overspeed=overspeed)
 
 
-def grav_tether_tow(source, target, distance, offset=None,
-                    stiffness=DEFAULT_TOW_STIFFNESS, overspeed=None):
-    """Springy trailing tow: hold the load ``distance`` behind (rope rest-length)."""
-    return grav_tether_attach(source, target, offset=offset, stiffness=stiffness,
-                              pull_distance=float(distance), overspeed=overspeed)
+def grav_tether_tow(source, target, distance, stiffness=DEFAULT_TOW_STIFFNESS, overspeed=None):
+    """Trailing tow: hold the load at ~``distance`` from the source via the rope-toggle
+    (a static tether would reel it fully in). As the source moves, the load trails behind
+    at that distance — no offset needed (the offset point is WORLD-fixed, so a static
+    'behind' offset would pin to a compass point; the drag makes it trail for free)."""
+    return grav_tether_rope(source, target, distance, stiffness, overspeed)
 
 
-def grav_tether_swing(anchor, ship, rope_len, stiffness=1.0, offset=None, overspeed=None):
-    """Fighter swing (SECONDARY). Flip the roles: the ANCHOR is the source and the
-    SHIP is the target, so the ship gets pulled toward the anchor. The native pull is
-    radial (it yanks straight in), so this adds a **rope-toggle** managed by the tick:
-    beyond ``rope_len`` a stiff tether snaps the ship back to the circle; inside it the
-    tether is released so the pilot's own throttle carries them tangentially (momentum
-    preserved). NOTE: whether a player ship can be tractor-pulled at all, and the final
-    feel, are engine-judgments — only the toggle *logic* is unit-tested here."""
-    src = to_id(anchor)
-    tgt = to_id(ship)
+def grav_tether_rope(source, target, rope_len, stiffness=DEFAULT_TOW_STIFFNESS, overspeed=None):
+    """Hold the target at ~``rope_len`` from the source via a per-tick ROPE-TOGGLE:
+    beyond rope_len a stiff pull snaps it back to the circle; inside, the tether is
+    released so it moves free. Engine-confirmed (data harness): a STATIC tether reels
+    the target fully in regardless of pull_distance (1500 -> ~165), so holding a load
+    *at* a distance REQUIRES this toggle (which held 798/801/801 at rope_len=800). Both
+    Tow (source drags a trailing load) and Swing (anchor holds the ship) are this same
+    rope-hold — only the source/target roles differ."""
+    src = to_id(source)
+    tgt = to_id(target)
     if src is None or tgt is None or src == 0 or tgt == 0:
         return None
     _TETHERS[(src, tgt)] = {
-        "offset": offset,
+        "offset": None,
         "stiffness": float(stiffness),
         "pull": float(rope_len),
         "rope_len": float(rope_len),
-        "swing": True,
+        "rope": True,
         "overspeed": overspeed if overspeed is not None else _default_overspeed,
         "reel_rate": 0.0,
     }
     _ensure_tick()
-    _tick_swing(src, tgt, _TETHERS[(src, tgt)])   # engage now if already taut
+    _tick_rope(src, tgt, _TETHERS[(src, tgt)])   # engage now if already taut
     return _sim().GetTractorConnection(src, tgt)
+
+
+def grav_tether_swing(anchor, ship, rope_len, stiffness=1.0, overspeed=None):
+    """Fighter swing (SECONDARY): a rope-hold with the ANCHOR as source and the SHIP as
+    target, so the ship is held at rope_len and swings on its own throttle. Engine-
+    confirmed: a player hull CAN be tractor-pulled and the rope-toggle holds it at
+    rope_len; the final feel is still a fly-it judgment."""
+    return grav_tether_rope(anchor, ship, rope_len, stiffness, overspeed)
 
 
 def grav_tether_reel(source, target, rate=DEFAULT_REEL_RATE,
@@ -235,22 +244,23 @@ def _enforce_impulse(src, tgt, st):
     return False
 
 
-def _tick_swing(anchor, ship, st):
+def _tick_rope(src, tgt, st):
     """Rope-toggle: taut (beyond rope_len) -> engage a stiff pull back to the circle;
-    slack (inside) -> release the pull so the pilot flies free tangentially."""
-    ao = to_object(anchor)
-    so = to_object(ship)
-    if ao is None or so is None:
+    slack (inside) -> release the pull so the target moves free. Holds a load/ship at
+    rope_len (a static tether would reel it fully in)."""
+    so = to_object(src)
+    to = to_object(tgt)
+    if so is None or to is None:
         return
     sim = _sim()
-    con = sim.GetTractorConnection(anchor, ship)
-    if _distance(ao, so) > st["rope_len"]:
+    con = sim.GetTractorConnection(src, tgt)
+    if _distance(so, to) > st["rope_len"]:
         if con is None:
-            con = sim.AddTractorConnection(anchor, ship, _to_sbs_vec(st["offset"]),
+            con = sim.AddTractorConnection(src, tgt, _to_sbs_vec(st["offset"]),
                                            st["rope_len"])
         con.offset = st["stiffness"]
     elif con is not None:
-        sim.DeleteTractorConnection(anchor, ship)
+        sim.DeleteTractorConnection(src, tgt)
 
 
 def _advance_reel(src, tgt, st):
@@ -278,11 +288,10 @@ def grav_tether_tick(t=None):
         st = _TETHERS.get(key)
         if st is None:
             continue
-        if st.get("swing"):
-            _tick_swing(src, tgt, st)      # swing manages its own connection
-            continue
         if _enforce_impulse(src, tgt, st):
             continue                       # snapped -> gone this tick
-        if st["reel_rate"] > 0.0:
+        if st.get("rope"):
+            _tick_rope(src, tgt, st)       # rope-hold (tow/swing) manages its connection
+        elif st["reel_rate"] > 0.0:
             _advance_reel(src, tgt, st)
     _maybe_stop_tick()
