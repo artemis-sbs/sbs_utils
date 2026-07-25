@@ -188,6 +188,26 @@ def clear_station_carried(station):
     return n
 
 
+def named(name):
+    """Resolve a 2.8 object NAME to a live Cosmos object ID at runtime.
+
+    For a condition (or command) that references an object the converter could not statically
+    capture -- a forward reference, or a name mismatch in the 2.8 source. Returns the first
+    space object whose name matches, or ``None`` if none exists. ``None`` is SAFE to pass on:
+    ``object_exists(None)`` is False and ``distance_id(None, x)`` returns a huge distance, so
+    a guard built on it simply evaluates false instead of crashing (a bare ``role(name)`` set
+    would throw).
+    """
+    from sbs_utils.procedural.roles import role
+    from sbs_utils.procedural.query import to_space_object, to_id
+
+    for oid in role("__SPACE_OBJECT__"):
+        o = to_space_object(oid)
+        if o is not None and getattr(o, "name", None) == name:
+            return to_id(oid)
+    return None
+
+
 def destroy_named(name):
     """2.8 ``destroy`` by NAME for an object the converter could not statically capture --
     the name has no ``create`` the tool saw (created some other way, or a dead reference the
