@@ -146,6 +146,51 @@ def closest(the_ship, the_set, max_dist=None, filter_func=None) -> CloseData:
 
     return ret
 
+def closest_in_front(the_ship, the_set, max_dist=None, cone_deg=45.0, filter_func=None) -> CloseData:
+    """Closest object within a forward CONE of the ship's heading (nose-aim targeting).
+
+    There is no engine raycast/pick, so this is :func:`closest` restricted to candidates
+    whose bearing from the ship is within ``cone_deg`` of ``forward_vector()`` (a cone is
+    more forgiving to aim than a true ray). If the ship has no usable heading the cone
+    test is skipped (falls back to plain nearest).
+
+    Args:
+        the_ship: reference ship (id / Agent).
+        the_set: candidate ids.
+        max_dist (float, optional): max distance. Defaults to None.
+        cone_deg (float): half-angle of the forward cone in degrees. Defaults to 45.
+        filter_func (Callable, optional): extra ``f(agent) -> bool`` predicate.
+
+    Returns:
+        CloseData | None: nearest in-cone candidate, or None.
+    """
+    ship_obj = to_object(the_ship)
+    if ship_obj is None:
+        return None
+    try:
+        fwd = ship_obj.engine_object.forward_vector()
+        fx, fy, fz = fwd.x, fwd.y, fwd.z
+        flen = math.sqrt(fx * fx + fy * fy + fz * fz)
+    except Exception:
+        flen = 0.0
+    cos_cone = math.cos(math.radians(cone_deg))
+    sp = ship_obj.pos
+
+    def _in_cone(agent):
+        if filter_func is not None and not filter_func(agent):
+            return False
+        if flen <= 1e-6:
+            return True                       # no heading -> don't cone-filter
+        p = agent.pos
+        dx, dy, dz = p.x - sp.x, p.y - sp.y, p.z - sp.z
+        dlen = math.sqrt(dx * dx + dy * dy + dz * dz)
+        if dlen <= 1e-6:
+            return True
+        return (fx * dx + fy * dy + fz * dz) / (flen * dlen) >= cos_cone
+
+    return closest(the_ship, the_set, max_dist, _in_cone)
+
+
 def closest_to_point(point, the_set, max_dist=None, filter_func=None) -> CloseData:
     """Return the closest object to a Vec3 point from a candidate set.
 

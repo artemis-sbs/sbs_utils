@@ -193,6 +193,20 @@ class TestGravTether(unittest.TestCase):
         sbs.physics_tick(0.1)
         self.assertAlmostEqual(self._sep(), d0, delta=1.0)   # nothing pulls it
 
+    # --- nose-aim acquire (forward cone, no raycast in the API) ---------------
+
+    def test_closest_in_front_prefers_target_ahead(self):
+        from sbs_utils.procedural.space_objects import closest_in_front
+        from sbs_utils.procedural.roles import any_role
+        f = to_object(self.ship).engine_object.forward_vector()
+        ahead = to_id(npc_spawn(f.x * 1000, f.y * 1000, f.z * 1000,
+                                "Ahead", "raider", "tsn_light_cruiser", "behav_npcship"))
+        to_id(npc_spawn(-f.x * 400, -f.y * 400, -f.z * 400,
+                        "Behind", "raider", "tsn_light_cruiser", "behav_npcship"))
+        cd = closest_in_front(self.ship, any_role("raider"), max_dist=5000, cone_deg=45)
+        self.assertIsNotNone(cd)
+        self.assertEqual(cd.id, ahead)   # ahead wins even though 'Behind' is nearer
+
     # --- self-heal -----------------------------------------------------------
 
     def test_dead_target_self_heals(self):
