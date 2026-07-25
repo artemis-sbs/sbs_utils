@@ -116,6 +116,29 @@ class TestGravTether(unittest.TestCase):
         self.assertEqual(st["pull"], 0.0)
         self.assertEqual(st["reel_rate"], 0.0)
 
+    # --- swing (rope-toggle) -------------------------------------------------
+
+    def test_swing_taut_engages_slack_releases(self):
+        # anchor = load @ (2000,0,0); ship (player) starts @ 0 -> dist 2000 > rope 800.
+        gt.grav_tether_swing(self.load, self.ship, 800)
+        self.assertIsNotNone(gt.grav_tether_get(self.load, self.ship))   # taut -> engaged
+        # fly inside the rope: dist 500 < 800 -> slack, released
+        to_object(self.ship).pos = sbs.vec3(1500, 0, 0)
+        gt.grav_tether_tick()
+        self.assertIsNone(gt.grav_tether_get(self.load, self.ship))      # slack -> free
+        # swing back out past the rope -> re-engages
+        to_object(self.ship).pos = sbs.vec3(0, 0, 0)
+        gt.grav_tether_tick()
+        self.assertIsNotNone(gt.grav_tether_get(self.load, self.ship))   # taut again
+        # the tether stays registered/managed across engage/release
+        self.assertIn((self.load, self.ship), gt._TETHERS)
+
+    def test_swing_release_clears_registry(self):
+        gt.grav_tether_swing(self.load, self.ship, 800)
+        gt.grav_tether_release(self.load, self.ship)
+        self.assertNotIn((self.load, self.ship), gt._TETHERS)
+        self.assertIsNone(gt.grav_tether_get(self.load, self.ship))
+
     # --- self-heal -----------------------------------------------------------
 
     def test_dead_target_self_heals(self):

@@ -159,6 +159,32 @@ def grav_tether_tow(source, target, distance, offset=None,
                               pull_distance=float(distance), overspeed=overspeed)
 
 
+def grav_tether_swing(anchor, ship, rope_len, stiffness=1.0, offset=None, overspeed=None):
+    """Fighter swing (SECONDARY). Flip the roles: the ANCHOR is the source and the
+    SHIP is the target, so the ship gets pulled toward the anchor. The native pull is
+    radial (it yanks straight in), so this adds a **rope-toggle** managed by the tick:
+    beyond ``rope_len`` a stiff tether snaps the ship back to the circle; inside it the
+    tether is released so the pilot's own throttle carries them tangentially (momentum
+    preserved). NOTE: whether a player ship can be tractor-pulled at all, and the final
+    feel, are engine-judgments — only the toggle *logic* is unit-tested here."""
+    src = to_id(anchor)
+    tgt = to_id(ship)
+    if src is None or tgt is None or src == 0 or tgt == 0:
+        return None
+    _TETHERS[(src, tgt)] = {
+        "offset": offset,
+        "stiffness": float(stiffness),
+        "pull": float(rope_len),
+        "rope_len": float(rope_len),
+        "swing": True,
+        "overspeed": overspeed if overspeed is not None else _default_overspeed,
+        "reel_rate": 0.0,
+    }
+    _ensure_tick()
+    _tick_swing(src, tgt, _TETHERS[(src, tgt)])   # engage now if already taut
+    return _sim().GetTractorConnection(src, tgt)
+
+
 def grav_tether_reel(source, target, rate=DEFAULT_REEL_RATE,
                      stiffness=DEFAULT_TOW_STIFFNESS, offset=None, overspeed=None):
     """Reel the load in: start the rope at the current separation and ramp it to 0,
@@ -209,6 +235,24 @@ def _enforce_impulse(src, tgt, st):
     return False
 
 
+def _tick_swing(anchor, ship, st):
+    """Rope-toggle: taut (beyond rope_len) -> engage a stiff pull back to the circle;
+    slack (inside) -> release the pull so the pilot flies free tangentially."""
+    ao = to_object(anchor)
+    so = to_object(ship)
+    if ao is None or so is None:
+        return
+    sim = _sim()
+    con = sim.GetTractorConnection(anchor, ship)
+    if _distance(ao, so) > st["rope_len"]:
+        if con is None:
+            con = sim.AddTractorConnection(anchor, ship, _to_sbs_vec(st["offset"]),
+                                           st["rope_len"])
+        con.offset = st["stiffness"]
+    elif con is not None:
+        sim.DeleteTractorConnection(anchor, ship)
+
+
 def _advance_reel(src, tgt, st):
     new_pull = st["pull"] - st["reel_rate"]
     if new_pull <= 0.0:
@@ -233,6 +277,9 @@ def grav_tether_tick(t=None):
             continue
         st = _TETHERS.get(key)
         if st is None:
+            continue
+        if st.get("swing"):
+            _tick_swing(src, tgt, st)      # swing manages its own connection
             continue
         if _enforce_impulse(src, tgt, st):
             continue                       # snapped -> gone this tick
