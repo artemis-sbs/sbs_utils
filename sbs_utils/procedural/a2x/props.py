@@ -48,6 +48,8 @@ _PROP = {
     "hasSurrendered": ("data", "surrender_flag", 0),
     "shieldsOn": ("data", "shields_raised_flag", 0),
     # shields (array: 0 = front, 1 = back)
+    # a station has a SINGLE shield -> the first slot (same as a ship's front shield).
+    "shieldState": ("data", "shield_val", 0),
     "shieldStateFront": ("data", "shield_val", 0),
     "shieldStateBack": ("data", "shield_val", 1),
     "shieldMaxStateFront": ("data", "shield_max_val", 0),
