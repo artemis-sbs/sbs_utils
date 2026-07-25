@@ -19,6 +19,22 @@ go to the relevant docs.
 
 See the [LegendaryMissions addon reference](legendarymissions/addons/index.md).
 
+## 🪝 Grav-tether
+
+A tractor beam for Weapons and fighters — one system, scaled by hull.
+
+- **Weapons hold-click** any contact for a context menu: **Reel** cargo in (it's
+  collected on contact), **Tow** a ship or derelict at distance, **Lock** for a rigid
+  grab, or **Release**. The mode is chosen by what you grabbed.
+- **Fighters** get a cockpit button with **nose-aim** targeting (it grabs what you're
+  pointing at): reel salvage, or **swing** around an asteroid on a tether that holds
+  your radius while you orbit. The button glows cyan while tethered.
+- **Impulse only** (the canonical rule): a tether can't hold at warp — it caps you
+  back to impulse, or optionally snaps and drops the load.
+
+Built on the engine's native tractor, with the mock now simulating the pull so the
+behavior is testable outside the game. API: [grav_tether](api/procedural/grav_tether.md).
+
 ## 🎰 The Casino is open
 
 Dock in the hangar bay and step into the **Casino** — a self-contained hangout

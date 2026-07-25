@@ -140,6 +140,7 @@ nav:
       - docking: api/procedural/docking.md
       - execution: api/procedural/execution.md
       - extra_scan_sources: api/procedural/extra_scan_sources.md
+      - grav_tether: api/procedural/grav_tether.md
       - grid: api/procedural/grid.md
       - gui: api/procedural/gui.md
       - internal_damage: api/procedural/internal_damage.md
