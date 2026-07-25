@@ -128,3 +128,22 @@ def set_roll(o, r28):
     h = -float(r28) / 2.0
     roll_q = sbs.quaternion(math.cos(h), 0.0, 0.0, math.sin(h))   # about local +Z (forward)
     o.engine_object.rot_quat = _quat_mul(o.engine_object.rot_quat, roll_q)
+
+
+def set_pitch(o, p28):
+    """2.8 ``pitch`` (nose up/down) -> a pitch composed onto the orientation, about the
+    object's LOCAL right (X) axis, preserving facing.
+
+    Documented as radians (-pi..pi), but the corpus uses magnitudes beyond pi (10/20/90/120)
+    -- the scripting parser is degrees everywhere else, so a magnitude > pi is treated as
+    degrees. The X/Z map mirror preserves the vertical (Y is unchanged), so the pitch carries
+    over directly.
+    """
+    import sbs
+    import math
+    p = float(p28)
+    if abs(p) > math.pi:      # out of the documented radian range -> author used degrees
+        p = math.radians(p)
+    h = p / 2.0
+    pitch_q = sbs.quaternion(math.cos(h), math.sin(h), 0.0, 0.0)   # about local +X (right)
+    o.engine_object.rot_quat = _quat_mul(o.engine_object.rot_quat, pitch_q)

@@ -28,6 +28,9 @@ _PROP = {
     # 2.8 `roll` (radians about the forward axis) -> a roll composed onto the rotation
     # quaternion (a2x.coords.set_roll; the mirror flips the sense, pi is sign-invariant).
     "roll": ("roll", "roll", 0),
+    # 2.8 `pitch` (nose up/down) -> a pitch composed onto the quaternion (a2x.coords.set_pitch;
+    # radians, but corpus values > pi are treated as degrees).
+    "pitch": ("pitch", "pitch", 0),
     # spin rates -> engine_object steering (as the HTBM port does)
     "angleDelta": ("engine", "steer_yaw"),
     "rollDelta": ("engine", "steer_roll"),
@@ -568,6 +571,9 @@ def set_object_property(obj, prop, value, index=None):
     elif m[0] == "roll":
         from . import coords
         coords.set_roll(o, value)
+    elif m[0] == "pitch":
+        from . import coords
+        coords.set_pitch(o, value)
     elif m[0] == "bool_data":
         # boolean 2.8 flag -> a data_set key: [scale] when truthy, else 0 (e.g. nebulaIsOpaque
         # -> max_throttle 2.0/0). m[2] carries the truthy value.
