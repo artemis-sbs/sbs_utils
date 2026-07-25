@@ -157,3 +157,32 @@ def create_mines(count, start, end=None, radius=0, random_range=0, seed=None,
         return ret
 
     return _with_seed(seed, go)
+
+
+# The Cosmos skyboxes registered by the LM basic_random_skybox addon (@media/skybox/*).
+# 2.8 uses SB00..SB29; Cosmos ships these instead, so a 2.8 index is mapped across them
+# (stable per index). Referenced by name only -- a2x never imports LM.
+_A2X_SKYBOXES = ("sky1", "sky1-blue", "sky1-ds9", "sky1-rainbow", "sky-bored-alice",
+                 "sky-delight", "sky-neb2-rvb")
+
+
+def set_skybox_index(index):
+    """2.8 ``set_skybox_index`` (SB00..SB29) -> schedule a Cosmos skybox.
+
+    Cosmos has no SB## skyboxes; map the 2.8 index across the skyboxes the LM
+    ``basic_random_skybox`` addon registers (``@media/skybox/*``), so each 2.8 index picks a
+    stable Cosmos skybox. A negative / non-integer index schedules a random skybox. Returns
+    the scheduled skybox label, or ``None`` when a random one was scheduled.
+    """
+    from sbs_utils.procedural.media import skybox_schedule, skybox_schedule_random
+    try:
+        i = int(index)
+    except (TypeError, ValueError):
+        skybox_schedule_random()
+        return None
+    if i < 0:
+        skybox_schedule_random()
+        return None
+    label = _A2X_SKYBOXES[i % len(_A2X_SKYBOXES)]
+    skybox_schedule(label)
+    return label
