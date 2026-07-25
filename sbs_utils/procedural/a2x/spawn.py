@@ -164,6 +164,30 @@ def destroy(handle):
     return False
 
 
+def clear_station_carried(station):
+    """2.8 ``clear_player_station_carried name="X"``: remove a station's stored single-seat
+    craft.
+
+    Deletes the STANDBY (in-hangar, not launched) craft hosted by the station --
+    ``linked_to(station, "hangar_craft") & role("standby") & role("cockpit")`` -- leaving any
+    already-launched craft flying. Returns the count removed.
+    """
+    from sbs_utils.procedural.query import to_space_object
+    from sbs_utils.procedural.links import linked_to
+    from sbs_utils.procedural.roles import role
+
+    so = to_space_object(station)
+    if so is None:
+        return 0
+    n = 0
+    for craft in linked_to(so, "hangar_craft") & role("standby") & role("cockpit"):
+        c = to_space_object(craft)
+        if c is not None:
+            c.delete_object()
+            n += 1
+    return n
+
+
 def destroy_named(name):
     """2.8 ``destroy`` by NAME for an object the converter could not statically capture --
     the name has no ``create`` the tool saw (created some other way, or a dead reference the
