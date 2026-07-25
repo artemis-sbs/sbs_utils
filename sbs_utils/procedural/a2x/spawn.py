@@ -86,7 +86,7 @@ def create_enemy(x, y, z, art, name=None, side="enemy", behave="behav_npcship"):
     return _spawn_npc(x, y, z, name, side, art, behave)
 
 
-def create_neutral(x, y, z, art, name=None, side="civilian", behave="behav_npcship"):
+def create_neutral(x, y, z, art, name=None, side="civ", behave="behav_npcship"):
     """2.8 ``create type="neutral"`` -> an NPC ship."""
     return _spawn_npc(x, y, z, name, side, art, behave)
 
