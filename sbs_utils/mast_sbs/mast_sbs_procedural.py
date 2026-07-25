@@ -104,6 +104,7 @@ MastGlobals.import_python_module('sbs_utils.procedural.dmx')
 MastGlobals.import_python_module('sbs_utils.procedural.torpedoes')
 MastGlobals.import_python_module('sbs_utils.procedural.modifiers')
 MastGlobals.import_python_module('sbs_utils.procedural.web')
+MastGlobals.import_python_module('sbs_utils.procedural.grav_tether')
 
 # Load, but so far no functions to export
 from ..procedural import popup
