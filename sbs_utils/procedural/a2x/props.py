@@ -465,6 +465,40 @@ def set_ship_power(obj, tier):
     return coeff
 
 
+def set_damcon_members(ship, team_index, value):
+    """2.8 ``set_damcon_members(team_index, value)`` -> set a damcon team's HP.
+
+    Cosmos models each of the three damcon teams as a single grid lifeform named ``DC1``..
+    ``DC3`` with HP (max ``grid_get_max_hp()``, default 6). 2.8 ``value`` is the team's
+    strength/HP (0 = downed .. 4 = full in the corpus); it maps to the team's HP, clamped
+    to the Cosmos max. ``team_index`` 0..2 -> DC1..DC3. Ensures the ship's damcons exist
+    first (spawning the standard trio if needed). Returns True if the HP was set.
+    """
+    from sbs_utils.procedural.query import to_id
+    from sbs_utils.procedural.internal_damage import (
+        grid_restore_damcons, grid_set_hp, grid_get_max_hp)
+    from sbs_utils.helpers import FrameContext
+
+    idx = int(team_index)
+    if idx < 0 or idx > 2:
+        return False
+    ship_id = to_id(ship)
+    sbs = FrameContext.context.sbs
+    hm = sbs.get_hull_map(ship_id)
+    if hm is None:
+        return False
+    name = f"DC{idx + 1}"
+    go = hm.get_grid_object_by_name(name)
+    if go is None:
+        grid_restore_damcons(ship_id)   # create the standard DC1..DC3
+        go = hm.get_grid_object_by_name(name)
+    if go is None:
+        return False
+    hp = max(0, min(int(round(float(value))), grid_get_max_hp()))
+    grid_set_hp(ship_id, go.unique_ID, hp)
+    return True
+
+
 def set_object_property(obj, prop, value, index=None):
     """Set a 2.8-named property on ``obj`` (id / object / a2x_create_* handle).
 
