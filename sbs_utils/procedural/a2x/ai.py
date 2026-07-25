@@ -20,6 +20,7 @@ _AI_BRAIN = {
     "ATTACK": "ai_chase_current",
     "TARGET_THROTTLE": "ai_chase_current",
     "CHASE_FLEET": "ai_chase_npc",   # shadow/attack an enemy fleet ~ chase an NPC
+    "CHASE_ANGER": "ai_chase_current",  # retaliate against the current target ~ attack it
 }
 
 
