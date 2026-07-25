@@ -47,6 +47,16 @@ class TestGravTether(unittest.TestCase):
         self.assertIsNone(gt.grav_tether_get(self.ship, self.load))
         self.assertNotIn((self.ship, self.load), gt._TETHERS)
 
+    def test_involves_and_release_any_cover_both_ends(self):
+        # swing makes the SHIP the target (anchor is source) - a one-button toggle must
+        # still see it and release it from either end.
+        gt.grav_tether_swing(self.load, self.ship, 800)
+        self.assertTrue(gt.grav_tether_involves(self.ship))
+        self.assertTrue(gt.grav_tether_involves(self.load))
+        gt.grav_tether_release_any(self.ship)
+        self.assertFalse(gt.grav_tether_involves(self.ship))
+        self.assertNotIn((self.load, self.ship), gt._TETHERS)
+
     def test_release_all_drops_every_tether_from_source(self):
         load2 = to_id(npc_spawn(0, 0, 3000, "L2", "tsn", "tsn_light_cruiser", "behav_npcship"))
         gt.grav_tether_tow(self.ship, self.load, 500)

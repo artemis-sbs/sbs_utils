@@ -128,6 +128,22 @@ def grav_tether_release_all(source):
     _maybe_stop_tick()
 
 
+def grav_tether_involves(obj):
+    """True if obj is either end (source or target) of any live tether — for a one-button
+    toggle where the ship may be the puller (tow/reel) or the pulled (swing)."""
+    oid = to_id(obj)
+    return any(oid == k[0] or oid == k[1] for k in _TETHERS)
+
+
+def grav_tether_release_any(obj):
+    """Release every tether obj is part of, at either end."""
+    oid = to_id(obj)
+    for k in [k for k in _TETHERS if k[0] == oid or k[1] == oid]:
+        _sim().DeleteTractorConnection(k[0], k[1])
+        _TETHERS.pop(k, None)
+    _maybe_stop_tick()
+
+
 def grav_tether_get(source, target):
     """Return the live tractor_connection for the pair, or None."""
     src = to_id(source)
