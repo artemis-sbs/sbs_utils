@@ -103,3 +103,28 @@ def copy_angle(src, dst):
     """2.8 ``copy angle src->dst``: copy the (yaw) facing. Both are already in Cosmos space,
     so this copies the Cosmos yaw directly -- no 2.8 conversion."""
     dst.engine_object.rot_quat = _yaw_quat(_cosmos_yaw(src))
+
+
+def _quat_mul(a, b):
+    """Hamilton product a*b of two sbs.quaternions (a applied first in world, b in a's local
+    frame -- so post-multiplying by a local-axis rotation composes it onto the object)."""
+    import sbs
+    aw, ax, ay, az = a.w, a.x, a.y, a.z
+    bw, bx, by, bz = b.w, b.x, b.y, b.z
+    return sbs.quaternion(
+        aw * bw - ax * bx - ay * by - az * bz,
+        aw * bx + ax * bw + ay * bz - az * by,
+        aw * by - ax * bz + ay * bw + az * bx,
+        aw * bz + ax * by - ay * bx + az * bw)
+
+
+def set_roll(o, r28):
+    """2.8 ``roll`` (radians, about the forward/nose axis) -> add that roll to the object's
+    orientation, about its LOCAL forward (Z) axis, preserving its facing. The X/Z map mirror
+    flips the roll sense, so the applied roll is ``-r28`` (pi is sign-invariant -- which is
+    all the corpus uses: 180-degree warpgate flips)."""
+    import sbs
+    import math
+    h = -float(r28) / 2.0
+    roll_q = sbs.quaternion(math.cos(h), 0.0, 0.0, math.sin(h))   # about local +Z (forward)
+    o.engine_object.rot_quat = _quat_mul(o.engine_object.rot_quat, roll_q)
