@@ -201,3 +201,17 @@ def create_black_hole(x, y, z, gravity_radius=10000, gravity_strength=1.0,
                                           gravity_strength=gravity_strength,
                                           turbulence_strength=turbulence_strength,
                                           collision_damage=collision_damage))
+
+
+def player_ship(slot=0):
+    """2.8 references a player ship by name or slot; Cosmos references by ID. Resolve a
+    2.8 ``player_slot`` (0-based index into the game's player ships) to the Cosmos player
+    ship at that slot -- the ``slot``-th member of ``role("__player__")``. Returns its ID,
+    or ``None`` if that slot has no player ship."""
+    from sbs_utils.procedural.roles import role
+    from sbs_utils.procedural.query import to_id_list
+    ids = to_id_list(role("__player__"))
+    try:
+        return ids[int(slot)]
+    except (IndexError, ValueError, TypeError):
+        return None
