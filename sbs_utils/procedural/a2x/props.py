@@ -21,6 +21,10 @@ _PROP = {
     "positionX": ("pos", "x", True),
     "positionY": ("pos", "y", False),
     "positionZ": ("pos", "z", True),
+    # absolute facing: 2.8 `angle` (yaw, radians, CW-from-south) -> the engine rotation
+    # quaternion. Handled by the ("quat", ...) branch below via a2x.coords (Cosmos yaw =
+    # pi - angle; the mirror also reverses the turn sense for addto).
+    "angle": ("quat", "yaw", 0),
     # spin rates -> engine_object steering (as the HTBM port does)
     "angleDelta": ("engine", "steer_yaw"),
     "rollDelta": ("engine", "steer_roll"),
@@ -69,6 +73,12 @@ _PROP = {
     # (a2x sets the value; LM decides what to do with it -- a2x carries no LM import).
     "surrenderChance": ("inv", "a2x_surrender_chance"),   # 0-100
     "tauntImmunityIndex": ("inv", "a2x_taunt_immunity"),  # 0 none / 1 temp / 2 perm
+    # 2.8 pirate docking reputation (v2.7.1+): only meaningful if the player ship has the
+    # "pirate" role. 0 = stations refuse to let the pirate dock, >0 = they allow it. The LM
+    # docking addon reads this off the player inventory (a2x carries no LM import). Both the
+    # plural corpus spelling and the singular doc spelling map to the same key.
+    "pirateRepWithStations": ("inv", "a2x_pirate_rep"),
+    "pirateRepWithStation": ("inv", "a2x_pirate_rep"),
 }
 
 # 2.8 engineering exposes 8 named systems; Cosmos SHPSYS has 4 slots
@@ -203,7 +213,10 @@ def addto_object_property(obj, prop, value, index=None):
     o = to_space_object(obj)
     if o is None:
         return False
-    if m[0] == "engine":
+    if m[0] == "quat":
+        from . import coords
+        coords.add_angle(o, value)
+    elif m[0] == "engine":
         setattr(o.engine_object, m[1], (getattr(o.engine_object, m[1], 0) or 0) + value)
     elif m[0] == "pos":
         # a 2.8 delta on a mirrored axis is negated in Cosmos space
@@ -230,7 +243,10 @@ def copy_object_property(src, dst, prop):
     so, do = to_space_object(src), to_space_object(dst)
     if so is None or do is None:
         return False
-    if m[0] == "engine":
+    if m[0] == "quat":
+        from . import coords
+        coords.copy_angle(so, do)
+    elif m[0] == "engine":
         setattr(do.engine_object, m[1], getattr(so.engine_object, m[1], 0))
     elif m[0] == "pos":
         # both already in Cosmos space -> copy the axis directly (no flip)
@@ -352,6 +368,94 @@ def set_special(obj, ability=None, on=True):
     return key
 
 
+# --- 2.8 set_special ship/captain form (no `ability`): a power tier + a captain
+# personality, e.g. <set_special name="X" ship="2" captain="1"/>. Both are enumerated
+# ints, not ability names. a2x writes inventory/data values the LM comms + fleets
+# addons already read (surrender chance / captain trait) plus a ship power coeff; it
+# never imports LM. -1 means "leave unchanged" for both.
+
+# captain personality (2.8: -1 nothing / 0 cowardly / 1 brave / 2 bombastic /
+# 3 seething / 4 duplicitous / 5 exceptional) -> a trait name LM acts on.
+_CAPTAIN = {
+    0: "cowardly",     # readily surrenders
+    1: "brave",        # will not surrender
+    2: "bombastic",    # sends taunts to the players
+    3: "seething",     # too angry to surrender; starts enraged
+    4: "duplicitous",  # fake-surrenders, then re-engages
+    5: "exceptional",  # fights harder; resists surrender
+}
+# the a2x_surrender_chance (0-100, centered 50) a personality implies. Reuses the exact
+# key enemy_surrender.mast already reads (0 => never surrender / hide the button). None =
+# leave the surrender chance alone (bombastic/duplicitous still surrender normally).
+_CAPTAIN_SURRENDER = {
+    "cowardly": 90,     # much readier to give up
+    "brave": 0,         # never (existing "0 == never" path)
+    "seething": 0,      # never
+    "exceptional": 20,  # resists
+}
+
+# ship power tier. 2.8 v2.4+ scheme (these are 2.8 missions): 0 upgraded / 1 overpowered
+# / 2 underpowered; -1 = leave. -> a multiplier on the ship's shield + weapon upgrade
+# coeffs (same data_set keys set_fleet_coeff uses). (Pre-2.4 used a different 0..3 scheme;
+# not expected in 2.8 corpora.)
+_SHIP_POWER = {0: 1.25, 1: 1.6, 2: 0.7}
+_SHIP_POWER_KEYS = ["all_shield_upgrade_coeff", "all_beam_upgrade_coeff",
+                    "all_tube_upgrade_coeff"]
+
+
+def set_captain(obj, captain):
+    """2.8 ``set_special`` captain personality (int) -> Cosmos inventory traits.
+
+    Writes ``a2x_captain_trait`` (the personality name) and, where the personality
+    implies it, ``a2x_surrender_chance`` -- both keys the LM comms addons already read
+    (a2x carries no LM import; LM decides the behavior). ``-1`` leaves the ship as-is.
+    Returns the trait name, or ``None`` if unmapped / the object is gone.
+    """
+    trait = _CAPTAIN.get(int(captain))
+    if trait is None:
+        return None
+    from sbs_utils.procedural.query import to_space_object
+    from sbs_utils.procedural.inventory import set_inventory_value
+
+    o = to_space_object(obj)
+    if o is None:
+        return None
+    set_inventory_value(o, "a2x_captain_trait", trait)
+    sc = _CAPTAIN_SURRENDER.get(trait)
+    if sc is not None:
+        set_inventory_value(o, "a2x_surrender_chance", sc)
+    # bombastic (proactive taunts) and seething (starts enraged) need an active driver;
+    # cowardly/brave/exceptional are fully covered by the surrender chance above, and
+    # duplicitous acts at surrender time. Schedule the LM driver BY NAME so a2x stays
+    # LM-free (same feature-detection pattern as set_special -> handle_elite_abilities).
+    if trait in ("bombastic", "seething"):
+        from sbs_utils.procedural.query import to_id
+        from sbs_utils.procedural.execution import task_schedule
+        task_schedule("a2x_captain_driver", {"CAP_ID": to_id(o)})
+    return trait
+
+
+def set_ship_power(obj, tier):
+    """2.8 ``set_special`` ship power tier (int) -> scale the ship's shield + weapon
+    upgrade coeffs.
+
+    v2.4+ scheme: 0 upgraded (x1.25) / 1 overpowered (x1.6) / 2 underpowered (x0.7);
+    ``-1`` leaves the ship as-is. Sets the same data_set coeffs :func:`set_fleet_coeff`
+    uses, so it stacks with global difficulty. Returns the coeff applied, or ``None``.
+    """
+    coeff = _SHIP_POWER.get(int(tier))
+    if coeff is None:
+        return None
+    from sbs_utils.procedural.query import to_space_object
+
+    o = to_space_object(obj)
+    if o is None:
+        return None
+    for k in _SHIP_POWER_KEYS:
+        o.data_set.set(k, coeff, 0)
+    return coeff
+
+
 def set_object_property(obj, prop, value, index=None):
     """Set a 2.8-named property on ``obj`` (id / object / a2x_create_* handle).
 
@@ -365,7 +469,10 @@ def set_object_property(obj, prop, value, index=None):
     o = to_space_object(obj)
     if o is None:
         return False
-    if m[0] == "engine":
+    if m[0] == "quat":
+        from . import coords
+        coords.set_angle(o, value)
+    elif m[0] == "engine":
         setattr(o.engine_object, m[1], value)
     elif m[0] == "pos":
         setattr(o.engine_object.pos, m[1], (_MAP_SIZE - value) if m[2] else value)
@@ -396,6 +503,9 @@ def object_property(obj, prop, index=None):
     o = to_space_object(obj)
     if o is None:
         return None
+    if m[0] == "quat":
+        from . import coords
+        return coords.get_angle(o)
     if m[0] == "engine":
         return getattr(o.engine_object, m[1])
     if m[0] == "pos":

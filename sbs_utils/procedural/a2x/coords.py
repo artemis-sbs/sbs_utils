@@ -49,3 +49,57 @@ def angle(deg):
         float: the equivalent Cosmos heading in degrees, in [0, 360).
     """
     return (float(deg) + 180.0) % 360.0
+
+
+# --- the 2.8 `angle` object property (a ship's absolute facing) ---------------------
+#
+# 2.8 `angle` is the yaw of a ship in RADIANS, clockwise from south (0=south, +pi/2=west,
+# pi/-pi=north, -pi/2=east). Cosmos stores facing as the engine object's rotation
+# quaternion; a pure yaw of theta radians gives forward_vector (sin theta, 0, cos theta).
+#
+# The map's X/Z mirror (see `pos`) flips a facing the same way it flips a position. Working
+# it through against the CONFIRMED 2.8 axes (East=+X, North=-Z, from the dir_throttle
+# check): a 2.8 facing at angle a is (-sin a, 0, cos a) in 2.8 space, which mirrors to
+# (sin a, 0, -cos a) in Cosmos = a Cosmos yaw of **theta = pi - a**. Verified against the
+# engine forward_vector for all four cardinals. Because the mirror reverses handedness, a
+# 2.8 CW nudge (`addto angle += d`) becomes a Cosmos yaw of **-d**.
+
+
+def _yaw_quat(theta):
+    """A pure-yaw rotation quaternion (about +Y) for ``theta`` radians."""
+    import sbs
+    import math
+    h = theta / 2.0
+    return sbs.quaternion(math.cos(h), 0.0, math.sin(h), 0.0)
+
+
+def _cosmos_yaw(o):
+    """The object's current Cosmos yaw (radians) from its forward vector."""
+    import math
+    f = o.engine_object.forward_vector()
+    return math.atan2(f.x, f.z)
+
+
+def set_angle(o, a28):
+    """Set object ``o``'s facing from a 2.8 ``angle`` (radians): Cosmos yaw = ``pi - a28``."""
+    import math
+    o.engine_object.rot_quat = _yaw_quat(math.pi - float(a28))
+
+
+def get_angle(o):
+    """Read ``o``'s facing back as a 2.8 ``angle`` (radians), inverse of :func:`set_angle`."""
+    import math
+    a = math.pi - _cosmos_yaw(o)
+    return (a + math.pi) % (2 * math.pi) - math.pi   # normalize to (-pi, pi]
+
+
+def add_angle(o, d28):
+    """2.8 ``addto angle += d``: nudge the facing. The mirror reverses the turn sense, so a
+    2.8 clockwise delta ``d`` is a Cosmos yaw of ``-d``."""
+    o.engine_object.rot_quat = _yaw_quat(_cosmos_yaw(o) - float(d28))
+
+
+def copy_angle(src, dst):
+    """2.8 ``copy angle src->dst``: copy the (yaw) facing. Both are already in Cosmos space,
+    so this copies the Cosmos yaw directly -- no 2.8 conversion."""
+    dst.engine_object.rot_quat = _yaw_quat(_cosmos_yaw(src))
