@@ -72,6 +72,35 @@ def _proceed_to_exit(agent):
     return "PROCEED_TO_EXIT"
 
 
+def dir_throttle(agent, heading, throttle=1.0):
+    """2.8 ``add_ai DIR_THROTTLE``: fly a compass heading at a throttle. Compute a far point
+    along the heading from the ship and drive there with the ``goto_object_or_location`` brain
+    (via ``blackboard:target_point``).
+
+    HEADING CONVENTION -- VERIFY IN-ENGINE (same open question as the 2.8 ``angle`` property):
+    2.8 heading is in degrees (0=N, 90=E, ...), and Cosmos mirrors X and Z about the map centre,
+    so the 2.8 direction is negated here. If ships fly the wrong way, flip the ``dx``/``dz``
+    signs. Returns the brain name, or ``None`` if the ship can't be resolved."""
+    import math
+    from sbs_utils.procedural.query import to_id, to_object
+    from sbs_utils.procedural.brain import brain_add
+    from sbs_utils.procedural.inventory import set_inventory_value
+    from sbs_utils.vec import Vec3
+
+    sid = to_id(agent)
+    o = to_object(sid)
+    if o is None:
+        return None
+    rad = math.radians(float(heading))
+    # 2.8: heading 0 = north (-Z), 90 = east (+X) -> dir (sin, -cos); Cosmos mirrors X/Z -> negate.
+    dx = -math.sin(rad)
+    dz = math.cos(rad)
+    p = o.pos
+    set_inventory_value(sid, "blackboard:target_point", Vec3(p.x + dx * 200000.0, p.y, p.z + dz * 200000.0))
+    brain_add(sid, "goto_object_or_location", data={"throttle": float(throttle)})
+    return "goto_object_or_location"
+
+
 def clear_ai(agent):
     """2.8 ``clear_ai``: remove the agent's brain stack."""
     from sbs_utils.procedural.brain import brain_clear
