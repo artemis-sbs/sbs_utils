@@ -281,6 +281,26 @@ _SHIP_TEXT = {
 }
 
 
+def set_to_gm_position(obj, gm):
+    """2.8 ``set_to_gm_position``: move the GM-selected object to the GM's position.
+
+    The Cosmos GM position is the gamemaster console ship (``COMMS_ORIGIN`` in the GM comms
+    tree), which relocates to wherever the GM last clicked -- so copy its position onto
+    ``obj``. Both are already in Cosmos space (no coord flip). Returns True if both resolved.
+    """
+    from sbs_utils.procedural.query import to_space_object
+
+    o = to_space_object(obj)
+    g = to_space_object(gm)
+    if o is None or g is None:
+        return False
+    gp = g.engine_object.pos
+    o.engine_object.pos.x = gp.x
+    o.engine_object.pos.y = gp.y
+    o.engine_object.pos.z = gp.z
+    return True
+
+
 def set_ship_text(obj, name=None, race=None, ship_class=None, desc=None,
                  scan_desc=None, hail=None):
     """2.8 ``set_ship_text``: set scan / name text on a ship.
