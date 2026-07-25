@@ -75,6 +75,20 @@ def big_message(title, subtitle1="", subtitle2="", to=None, time=30):
     overlay_hero(title, subtitle=sub or None, to=tgt, seconds=time)
 
 
+def set_gm_instructions(title, text=""):
+    """2.8 ``gm_instructions`` -> the Cosmos GM console instruction panel.
+
+    Sets the shared ``GAMEMASTER_INSTRUCTIONS`` variable that ``gamemaster_panel_instructions``
+    renders (via ``gui_text_area``; ``^`` = line break). The 2.8 title becomes the first line.
+    Shared scope so the GM console's render task sees it.
+    """
+    from sbs_utils.procedural.execution import set_shared_variable
+    body = title or ""
+    if text:
+        body = f"{body}^{text}" if body else text
+    set_shared_variable("GAMEMASTER_INSTRUCTIONS", body)
+
+
 def warning_popup(message, consoles=None, ship=None, title="Warning", time=30):
     """2.8 ``warning_popup_message``: a short message to specific consoles.
 

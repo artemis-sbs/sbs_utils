@@ -88,6 +88,10 @@ _PROP = {
     # the max_throttle data_set key (default 2.0); 0 = no limit. Opaque -> keep the limit,
     # not opaque -> 0. ("bool_data" sets the key to [scale] when truthy, else 0.)
     "nebulaIsOpaque": ("bool_data", "max_throttle", 2.0),
+    # 2.8 sensorSetting (int): the ship's sensor/scan range. 0 = unlimited (100 km = the
+    # whole map); N>0 = 100/(3N) km, i.e. 100000/(3N) Cosmos units (bigger N = smaller
+    # range). -> the ship_base_scan_range data_set key. ("sensor" applies that progression.)
+    "sensorSetting": ("sensor", "ship_base_scan_range", 0),
 }
 
 # 2.8 engineering exposes 8 named systems; Cosmos SHPSYS has 4 slots
@@ -499,6 +503,27 @@ def set_damcon_members(ship, team_index, value):
     return True
 
 
+def sensor_range(setting):
+    """2.8 ``sensorSetting`` -> scan range in Cosmos units. 0 = unlimited (the whole map =
+    100 km = map size); N>0 = 100/(3N) km = 100000/(3N) units (bigger N = smaller range)."""
+    sv = int(setting)
+    return float(_MAP_SIZE) if sv <= 0 else _MAP_SIZE / (3.0 * sv)
+
+
+def set_sensor_setting_all(setting):
+    """2.8 global ``sensorSetting`` (a nameless set_object_property) -> set every player
+    ship's ``ship_base_scan_range`` to the corresponding range. Returns the count updated."""
+    from sbs_utils.procedural.roles import role
+    from sbs_utils.procedural.query import to_space_object_list
+
+    rng = sensor_range(setting)
+    n = 0
+    for o in to_space_object_list(role("__player__")):
+        o.data_set.set("ship_base_scan_range", rng, 0)
+        n += 1
+    return n
+
+
 def set_object_property(obj, prop, value, index=None):
     """Set a 2.8-named property on ``obj`` (id / object / a2x_create_* handle).
 
@@ -519,6 +544,9 @@ def set_object_property(obj, prop, value, index=None):
         # boolean 2.8 flag -> a data_set key: [scale] when truthy, else 0 (e.g. nebulaIsOpaque
         # -> max_throttle 2.0/0). m[2] carries the truthy value.
         o.data_set.set(m[1], m[2] if value else 0.0, 0)
+    elif m[0] == "sensor":
+        # 2.8 sensorSetting -> scan range (units): 0 = unlimited (map size); N>0 = 100000/(3N).
+        o.data_set.set(m[1], sensor_range(value), 0)
     elif m[0] == "engine":
         setattr(o.engine_object, m[1], value)
     elif m[0] == "pos":
