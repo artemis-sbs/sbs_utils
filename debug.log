@@ -8,6 +8,7 @@ DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.com
 DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.comms.v1.4.0.mastlib station_weapon_building.mast
 DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.comms.v1.4.0.mastlib enemy_taunt.mast
 DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.comms.v1.4.0.mastlib enemy_surrender.mast
+DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.comms.v1.4.0.mastlib a2x_captain.mast
 DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.comms.v1.4.0.mastlib priority_docking.mast
 DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.comms.v1.4.0.mastlib enemy_stations.mast
 DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.comms.v1.4.0.mastlib player_comms.mast
@@ -72,3 +73,6 @@ DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.pre
 DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.prefabs.v1.4.0.mastlib station_prefabs.mast
 DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.prefabs.v1.4.0.mastlib lifeform_prefabs.mast
 DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.prefabs.v1.4.0.mastlib torpedo_prefabs.mast
+DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.quests.v1.4.0.mastlib __init__.mast
+DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.quests.v1.4.0.mastlib quest_driver.mast
+DEBUG: F:\a\Cosmos-1-3-0/data/missions\__lib__\artemis-sbs.LegendaryMissions.quests.v1.4.0.mastlib bridge_story.mast

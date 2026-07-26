@@ -24,6 +24,24 @@ overlay_hero("Admiral Harkin", subtitle="Hold the line, commander.",
              face=get_face(admiral.id))
 ```
 
+## Legibility — scrims, fills and framing
+
+An overlay draws over a live 3D view, so white text on nothing is often unreadable.
+Two knobs, both translucent-friendly:
+
+- **`background`** lays a colour under the card (`overlay_hero`) or fills the strip
+  (`overlay_banner`, filled `#000a` by default — pass `None` for bare text).
+- **`letterbox=True`** on a hero also drops cinematic bars on the full-screen slot, so
+  one call gives a framed title card; pass a string to use it as the line between the
+  bars, and the bars lift with the card when `seconds` is set.
+
+```
+overlay_hero("CHAPTER TWO", subtitle="The Long Dark",
+             background="#000a", letterbox="Approaching the anomaly", seconds=6)
+overlay_banner("RED ALERT")                       # filled strip
+overlay_banner("SUBTLE", background=None)         # bare text on the view
+```
+
 ## The built-in overlays
 
 Each wrapper packs your arguments into content and draws the matching card. All the
@@ -32,7 +50,7 @@ see [Targeting](#targeting-which-consoles)).
 
 | Wrapper | Slot | Use |
 |---|---|---|
-| `overlay_hero(title, subtitle, face/ship/icon/image, seconds)` | centre | chapter / scene title, boss reveal |
+| `overlay_hero(title, subtitle, face/ship/icon/image, background, letterbox, seconds)` | centre | chapter / scene title, boss reveal |
 | `overlay_lower_third(name, line)` | bottom | someone speaking over the live view |
 | `overlay_banner(text, color)` | top strip | RED ALERT, a countdown |
 | `overlay_toast(text, seconds=3)` | lower-right | *Objective updated* — **toasts stack** |

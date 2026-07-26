@@ -515,6 +515,55 @@ class TestOverlayHeroVisuals(OverlayTestBase):
         self._present()
         self.assertTrue([a for a in self.calls("send_gui_text") if a[1] == self.HERO])
 
+    def test_hero_background_puts_a_scrim_under_the_rows(self):
+        # a row background renders as an image fill behind the text
+        self._present(background="#000a")
+        self.assertTrue([a for a in self.calls("send_gui_image") if a[1] == self.HERO],
+                        "background fills the card rows")
+
+    def test_hero_without_background_has_no_fill(self):
+        self._present()
+        self.assertFalse([a for a in self.calls("send_gui_image") if a[1] == self.HERO])
+
+    def test_hero_letterbox_also_drives_the_fullscreen_slot(self):
+        from sbs_utils.procedural.gui.overlay import overlay_hero
+        overlay_hero("CHAPTER ONE", letterbox=True)
+        slots = self.page.overlays.slots
+        self.assertIn("center_hero", slots)
+        self.assertIn("fullscreen", slots)
+        self.assertEqual(slots["fullscreen"].content["kind"], "letterbox")
+
+    def test_hero_letterbox_string_becomes_the_line(self):
+        from sbs_utils.procedural.gui.overlay import overlay_hero
+        overlay_hero("CHAPTER ONE", letterbox="Approaching the anomaly")
+        self.assertEqual(self.page.overlays.slots["fullscreen"].content["line"],
+                         "Approaching the anomaly")
+
+    def test_hero_without_letterbox_leaves_fullscreen_alone(self):
+        from sbs_utils.procedural.gui.overlay import overlay_hero
+        overlay_hero("CHAPTER ONE")
+        self.assertNotIn("fullscreen", self.page.overlays.slots)
+
+
+class TestOverlayBannerBackground(OverlayTestBase):
+    BANNER = "ovl_top_banner$$"
+
+    def _present(self, **kw):
+        from sbs_utils.procedural.gui.overlay import overlay_banner
+        overlay_banner("RED ALERT", **kw)
+        self.rec.clear()
+        self.page.overlays.present_all(FakeEvent(0))
+
+    def test_banner_fills_its_strip_by_default(self):
+        self._present()
+        self.assertTrue([a for a in self.calls("send_gui_image") if a[1] == self.BANNER],
+                        "banner strip is filled so the text reads over the view")
+
+    def test_banner_background_none_is_bare_text(self):
+        self._present(background=None)
+        self.assertFalse([a for a in self.calls("send_gui_image") if a[1] == self.BANNER])
+        self.assertTrue([a for a in self.calls("send_gui_text") if a[1] == self.BANNER])
+
 
 class _FakeScheduler:
     def __init__(self, page):

@@ -531,6 +531,10 @@ def _hero_builder(client_id, content):
 
     title = content.get("title", "")
     subtitle = content.get("subtitle")
+    # A scrim behind the card. Over a bright 3D view white-on-nothing is hard to
+    # read, so callers can lay a (usually translucent) colour under the rows.
+    bg = content.get("background")
+    row_bg = f"background: {bg};" if bg else ""
 
     # Optional visual above the title (first one set wins).
     face = content.get("face")     # a face string  (get_face(id) / a lifeform face)
@@ -538,22 +542,22 @@ def _hero_builder(client_id, content):
     icon = content.get("icon")     # an icon index   (int)
     image = content.get("image")   # an image key
     if face:
-        gui_row("row-height: 8em;")
+        gui_row(f"row-height: 8em;{row_bg}")
         gui_face(face)
     elif ship:
-        gui_row("row-height: 8em;")
+        gui_row(f"row-height: 8em;{row_bg}")
         gui_ship(ship)
     elif icon is not None:
-        gui_row("row-height: 8em;")
+        gui_row(f"row-height: 8em;{row_bg}")
         gui_icon(f"icon_index: {icon}; color: white;")
     elif image:
-        gui_row("row-height: 8em;")
+        gui_row(f"row-height: 8em;{row_bg}")
         with gui_sub_section():
             gui_image_keep_aspect_ratio_center(image)
-    gui_row("row-height: content;")
+    gui_row(f"row-height: content;{row_bg}")
     gui_text(f"$text:`{title}`;justify:center;font:gui-6;color:#fff")
     if subtitle:
-        gui_row("row-height: content;")
+        gui_row(f"row-height: content;{row_bg}")
         gui_text(f"$text:`{subtitle}`;justify:center;font:gui-3;color:#8cf")
 
 
@@ -600,13 +604,28 @@ def overlay_kind(kind, to=None, consoles=None, slot=None, seconds=None, **fields
 
 
 def overlay_hero(title, subtitle=None, image=None, face=None, ship=None, icon=None,
-                 slot="center_hero", to=None, consoles=None, seconds=None):
+                 slot="center_hero", to=None, consoles=None, seconds=None,
+                 background=None, letterbox=False, bar=4):
     """Show a big centered hero / chapter card with an optional visual above the
     title (first set wins): ``face`` (a face string), ``ship`` (a ship-type key),
     ``icon`` (an icon index), or ``image`` (an image key). Auto-dismiss after
-    ``seconds`` if set."""
+    ``seconds`` if set.
+
+    Args:
+        background (str, optional): a colour laid under the card's rows - a scrim,
+            so the text stays legible over a bright 3D view. Usually translucent
+            (``"#000a"``).
+        letterbox (bool | str): also drop cinematic bars on the full-screen slot,
+            so one call gives a framed title card. Pass a string to use it as the
+            line between the bars. Lifts together with the card when ``seconds``
+            is set.
+        bar (int): letterbox bar height in em.
+    """
+    if letterbox:
+        line = letterbox if isinstance(letterbox, str) else None
+        overlay_letterbox(line=line, bar=bar, to=to, consoles=consoles, seconds=seconds)
     _show_transient(slot, "hero", to, seconds,
-                    {"title": title, "subtitle": subtitle,
+                    {"title": title, "subtitle": subtitle, "background": background,
                      "image": image, "face": face, "ship": ship, "icon": icon},
                     consoles)
 
@@ -680,7 +699,11 @@ def _banner_builder(client_id, content):
     from .row import gui_row
     text = content.get("text", "")
     color = content.get("color", "#fd0")
-    gui_row("row-height: content;")
+    # A filled strip reads as a banner; without one the text floats on whatever
+    # the view happens to be showing. Translucent by default so the view survives.
+    bg = content.get("background", "#000a")
+    row_bg = f"background: {bg};" if bg else ""
+    gui_row(f"row-height: content;{row_bg}")
     gui_text(f"$text:`{text}`;justify:center;font:gui-4;color:{color}")
 
 
@@ -688,10 +711,14 @@ overlay_register("banner", _banner_builder)
 
 
 def overlay_banner(text, color="#fd0", slot="top_banner", to=None, consoles=None,
-                   seconds=None):
+                   seconds=None, background="#000a"):
     """Full-width top strip (alert / countdown). Auto-dismiss after ``seconds`` if set.
-    Re-call it to update in place (generation-guarded) - a countdown needs no new API."""
-    _show_transient(slot, "banner", to, seconds, {"text": text, "color": color}, consoles)
+    Re-call it to update in place (generation-guarded) - a countdown needs no new API.
+
+    ``background`` fills the strip (translucent black by default) so the text reads
+    over the live view; pass ``None`` for bare text on the view."""
+    _show_transient(slot, "banner", to, seconds,
+                    {"text": text, "color": color, "background": background}, consoles)
 
 
 # --- Lower third (name-plate + line) -----------------------------------------
