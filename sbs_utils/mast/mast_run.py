@@ -37,6 +37,7 @@ def mast_run(filename, compile_only=False):
     MastGlobals.import_python_module('sbs_utils.procedural.roles')
     MastGlobals.import_python_module('sbs_utils.procedural.signal')
     MastGlobals.import_python_module('sbs_utils.procedural.quest')
+    MastGlobals.import_python_module('sbs_utils.procedural.quest_driver')
     MastGlobals.import_python_module('sbs_utils.procedural.settings') #??
     MastGlobals.import_python_module('sbs_utils.procedural.timers') # Needs sim? Abstract it?
     from ..procedural.execution import mast_log
