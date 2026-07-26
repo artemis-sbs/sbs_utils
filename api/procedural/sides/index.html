@@ -1398,6 +1398,8 @@
       
         
       
+        
+      
     
     
     
@@ -1703,6 +1705,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../cosmos/overlays/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overlays (cards, HUDs, cutscenes)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../cosmos/comms/" class="md-nav__link">
         
   
@@ -1770,7 +1795,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_15" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_16" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1787,14 +1812,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_15" id="__nav_5_15_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_16" id="__nav_5_16_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_15_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_15">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_16">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -2868,6 +2893,8 @@
       
         
       
+        
+      
     
     
     
@@ -3159,6 +3186,29 @@
   
   <span class="md-ellipsis">
     extra_scan_sources
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../grav_tether/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    grav_tether
     
   </span>
   
@@ -4660,6 +4710,8 @@
       
         
       
+        
+      
     
     
     
@@ -4718,6 +4770,29 @@
   
   <span class="md-ellipsis">
     Game features
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../legendarymissions/playing/multiplayer-quests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Multiplayer jobs (co-op & competitive)
     
   </span>
   
@@ -4896,6 +4971,8 @@
       
         
       
+        
+      
     
     
     
@@ -4977,6 +5054,29 @@
   
   <span class="md-ellipsis">
     BioMech
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../legendarymissions/addons/fabrication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Fabrication & Beacons
     
   </span>
   
@@ -9265,7 +9365,7 @@ role-scoped queries stop counting it). Defaults to <code>"raider"</code>; pass
 
 
 <h2 id="sbs_utils.procedural.sides.to_side_id" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">to_side_id</span><span class="p">(</span><span class="n">key_or_id_or_object</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">to_side_id</span><span class="p">(</span><span class="n">key_or_id_or_object</span><span class="p">,</span> <span class="n">warn</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h2>
 
@@ -9275,6 +9375,11 @@ role-scoped queries stop counting it). Defaults to <code>"raider"</code>; pass
         <p>Resolve any side reference to the side agent's ID.</p>
 <p>Accepts a side key string, a side agent ID, a side agent object, or any
 space object (in which case its side property is used).</p>
+<p>A leading <code>#</code> on a side key is a display-hide marker only (it tells the
+engine not to draw the side name); it is not part of the side identity, so
+<code>"#raider"</code> resolves to the <code>"raider"</code> side. An empty or all-<code>#</code> key
+means the object has NO side (asteroids, cambots, hidden objects) and
+resolves to <code>None</code> silently — that is a legitimate state, not a miss.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -9303,6 +9408,24 @@ agent, or a space object whose side should be resolved.</p>
             </td>
             <td>
                 <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>warn</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Warn (once per distinct key) when a genuinely-named side
+can't be resolved. Pass <code>False</code> for existence probes (e.g. a
+create-if-missing check) where a miss is expected, not an error.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
             </td>
           </tr>
       </tbody>

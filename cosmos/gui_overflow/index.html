@@ -12,7 +12,7 @@
         <link rel="prev" href="../gui_content_sizing/">
       
       
-        <link rel="next" href="../comms/">
+        <link rel="next" href="../overlays/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -1400,6 +1400,8 @@
       
         
       
+        
+      
     
     
     
@@ -1753,6 +1755,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-note-on-css-names" class="md-nav__link">
+    <span class="md-ellipsis">
+      A note on CSS names
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#gotchas" class="md-nav__link">
     <span class="md-ellipsis">
       Gotchas
@@ -1765,6 +1776,29 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overlays/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overlays (cards, HUDs, cutscenes)
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -1847,7 +1881,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_15" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_16" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1864,14 +1898,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_15" id="__nav_5_15_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5_16" id="__nav_5_16_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_15_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_15">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_16">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -2932,6 +2966,8 @@
       
         
       
+        
+      
     
     
     
@@ -3220,6 +3256,29 @@
   
   <span class="md-ellipsis">
     extra_scan_sources
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/grav_tether/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    grav_tether
     
   </span>
   
@@ -4253,6 +4312,8 @@
       
         
       
+        
+      
     
     
     
@@ -4311,6 +4372,29 @@
   
   <span class="md-ellipsis">
     Game features
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legendarymissions/playing/multiplayer-quests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Multiplayer jobs (co-op & competitive)
     
   </span>
   
@@ -4489,6 +4573,8 @@
       
         
       
+        
+      
     
     
     
@@ -4570,6 +4656,29 @@
   
   <span class="md-ellipsis">
     BioMech
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legendarymissions/addons/fabrication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Fabrication & Beacons
     
   </span>
   
@@ -5474,6 +5583,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-note-on-css-names" class="md-nav__link">
+    <span class="md-ellipsis">
+      A note on CSS names
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#gotchas" class="md-nav__link">
     <span class="md-ellipsis">
       Gotchas
@@ -5521,7 +5639,7 @@ to sit in a fixed strip. <code>overflow:</code> says what to do then.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>spill</code> <em>(default)</em></td>
+<td><code>spill</code> <em>(default; <code>visible</code> is an alias)</em></td>
 <td>draw it anyway — today's behaviour, and the historical one</td>
 </tr>
 <tr>
@@ -5552,6 +5670,12 @@ is detail — a file path, a long mission title in a list. The reader can tell
 something was cut; with <code>shrink</code> they cannot.</p>
 <p><strong><code>hide</code></strong> is for decoration that is not worth overlapping other text. Use it
 sparingly: silently dropping content is rarely what a player wants.</p>
+<h2 id="a-note-on-css-names">A note on CSS names</h2>
+<p><code>visible</code> is accepted as an alias of <code>spill</code>, since that is what CSS calls it.</p>
+<p><code>hidden</code> is deliberately <strong>not</strong> an alias of <code>hide</code>. In CSS, <code>overflow: hidden</code>
+means <em>draw it and clip it</em>; ours means <em>do not draw it at all</em>, which is closer
+to <code>display: none</code>. Borrowing the CSS word would be more misleading, not less —
+precisely because this engine cannot clip.</p>
 <h2 id="gotchas">Gotchas</h2>
 <p><strong>It runs at present time, on the final rect.</strong> The policy cannot be applied
 until the layout is done, because until then the box is not known. That is also

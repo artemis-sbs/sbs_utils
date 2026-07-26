@@ -1398,6 +1398,8 @@
       
         
       
+        
+      
     
     
     
@@ -1703,6 +1705,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../cosmos/overlays/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overlays (cards, HUDs, cutscenes)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../cosmos/comms/" class="md-nav__link">
         
   
@@ -1770,7 +1795,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_15" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_16" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1787,14 +1812,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_15" id="__nav_5_15_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_16" id="__nav_5_16_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_15_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_15">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_16">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -2868,6 +2893,8 @@
       
         
       
+        
+      
     
     
     
@@ -3159,6 +3186,29 @@
   
   <span class="md-ellipsis">
     extra_scan_sources
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../grav_tether/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    grav_tether
     
   </span>
   
@@ -3965,6 +4015,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.terrain.terrain_set_nebula_object_size" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;terrain_set_nebula_object_size
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.terrain.terrain_setup_nebula" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;terrain_setup_nebula
@@ -4453,6 +4512,8 @@
       
         
       
+        
+      
     
     
     
@@ -4511,6 +4572,29 @@
   
   <span class="md-ellipsis">
     Game features
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../legendarymissions/playing/multiplayer-quests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Multiplayer jobs (co-op & competitive)
     
   </span>
   
@@ -4689,6 +4773,8 @@
       
         
       
+        
+      
     
     
     
@@ -4770,6 +4856,29 @@
   
   <span class="md-ellipsis">
     BioMech
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../legendarymissions/addons/fabrication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Fabrication & Beacons
     
   </span>
   
@@ -5728,6 +5837,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.terrain.terrain_set_nebula_object_size" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;terrain_set_nebula_object_size
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.terrain.terrain_setup_nebula" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;terrain_setup_nebula
@@ -6559,6 +6677,33 @@ test point.</p>
           </tr>
       </tbody>
     </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.terrain.terrain_set_nebula_object_size" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">terrain_set_nebula_object_size</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">2500</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>OPT-IN (experimental): raise the per-object nebula size so clusters spawn
+FEWER, BIGGER objects.</p>
+<p>A cluster's object count is <code>cluster_size // NEB_SIZE_LARGE</code>, so raising this
+makes the existing generator produce fewer/bigger objects (a 10000 cluster:
+~36 -&gt; ~16 at 2500 = ~55% less overdraw) while keeping all its scatter/drift/
+jitter - no re-tuning. Default behavior is UNCHANGED unless a mission calls this.</p>
+<p>Pairs with the projection depth shader fix (NEB_DEPTH_PROJECTION in
+shader-emissivenebula.ps): sizes above ~3000 need it to avoid the "sphere at
+origin" artifact. 2500 is clean even without it. Call once before spawning
+nebulae; pass 1500 to restore the default.</p>
 
 
     </div>

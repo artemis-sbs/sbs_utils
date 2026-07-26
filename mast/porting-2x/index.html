@@ -1484,6 +1484,8 @@
       
         
       
+        
+      
     
     
     
@@ -1789,6 +1791,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../cosmos/overlays/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overlays (cards, HUDs, cutscenes)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../cosmos/comms/" class="md-nav__link">
         
   
@@ -1856,7 +1881,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_15" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_16" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1873,14 +1898,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_15" id="__nav_5_15_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_16" id="__nav_5_16_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_15_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_15">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_16">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -2941,6 +2966,8 @@
       
         
       
+        
+      
     
     
     
@@ -3229,6 +3256,29 @@
   
   <span class="md-ellipsis">
     extra_scan_sources
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/grav_tether/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    grav_tether
     
   </span>
   
@@ -4262,6 +4312,8 @@
       
         
       
+        
+      
     
     
     
@@ -4320,6 +4372,29 @@
   
   <span class="md-ellipsis">
     Game features
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legendarymissions/playing/multiplayer-quests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Multiplayer jobs (co-op & competitive)
     
   </span>
   
@@ -4498,6 +4573,8 @@
       
         
       
+        
+      
     
     
     
@@ -4579,6 +4656,29 @@
   
   <span class="md-ellipsis">
     BioMech
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legendarymissions/addons/fabrication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Fabrication & Beacons
     
   </span>
   
@@ -5582,6 +5682,18 @@ a2x_set_special(obj, ability=None, on=True)    # elite/special abilities
 a2x_set_side_value(obj, value)
 a2x_set_fleet_coeff(which, value)
 </code></pre></div>
+<p>The 2.8 <code>set</code>/<code>addto</code>-object-property names map onto Cosmos <code>data_set</code> / <code>engine_object</code>
+slots (position, angle, shields, throttle, ordnance stores, ...). Two ordnance notes
+worth calling out:</p>
+<ul>
+<li><strong>Beacon</strong> (<code>missileStoresBeacon</code>, <code>countBea</code>) maps to the Cosmos <code>Beacon_NUM</code> store.</li>
+<li><strong>Probe</strong> (<code>missileStoresProbe</code>, <code>countProbe</code>) has no Cosmos torpedo type, so it folds
+  into the <strong>Sensor Beacon</strong> (the passive sensor-relay beacon kind). <strong>Set</strong> writes the
+  loadable count <code>Beacon_NUM</code>; <strong>add-to</strong> fabricates that many Sensor Beacons into cargo
+  (<code>beacon_built</code>), so a stocked 2.8 Probe arrives as a beacon the crew can deliver and
+  fire &mdash; see the
+  <a href="https://artemis-sbs.github.io/LegendaryMissions/addons/fabrication/">Fabrication &amp; Beacons addon</a>.</li>
+</ul>
 <h2 id="the-arme2cosmos-tool">The <code>arme2cosmos</code> tool</h2>
 <p><code>arme2cosmos</code> is a standalone (stdlib-only) tool that converts Artemis 2.8 XML
 missions into MAST, emitting <code>a2x_</code> calls so the output stays close to the source.
