@@ -492,7 +492,63 @@ def side_hostile_members(observer, scope_role=None):
     return foes
 
 
-def is_hostile_combatant(observer, target, scope_role="raider")->bool:
+# The class role every spawned space object carries. Used as the scope for the helpers
+# below so the result is positioned objects only -- safe to hand straight to closest() /
+# distance checks. (side_members_set already drops non-space agents by requiring a
+# matching .side; this states the requirement at the point of use rather than relying on
+# that as a side effect.)
+_SPACE_OBJECT_ROLE = "__SPACE_OBJECT__"
+
+# Classes that are on a side but are not fighting units. Diplomacy answers "whose side",
+# these answer "is it still in the fight" -- the job a faction tag like "raider" used to
+# do by proxy. Both are diplomacy-consistent: a surrendered ship has also been moved to
+# the neutral `surrendered` side, and a wreck is a dead hull.
+_OUT_OF_FIGHT_ROLES = ("wreck", "surrendered")
+
+
+def side_hostile_ships(observer):
+    """Space objects HOSTILE to ``observer`` that are still in the fight.
+
+    The diplomacy-only answer to "who may I fight" — the replacement for scoping a
+    hostile set by a faction tag such as ``role("raider")``. Allegiance comes from the
+    side relations alone, so a ceasefired or defected side drops out the moment its
+    diplomacy changes, with no tag to keep in sync; wrecks and surrendered ships are
+    excluded because they are not combatants, not because of who they belong to.
+
+    Includes hostile stations (they are on a hostile side like anything else). Intersect
+    with a CLASS role when you want a narrower kind, e.g.
+    ``side_hostile_ships(x) & role("station")`` or ``- role("station")``.
+
+    Args:
+        observer (str | int | Agent): Side key, side agent ID, or any object whose side
+            is the point of view.
+
+    Returns:
+        set[int]: IDs of hostile, in-the-fight space objects.
+    """
+    foes = side_hostile_members(observer, _SPACE_OBJECT_ROLE)
+    for r in _OUT_OF_FIGHT_ROLES:
+        foes = foes - role(r)
+    return foes
+
+
+def players_hostile_ships():
+    """Space objects hostile to at least one current PLAYER side and still in the fight.
+
+    Player-perspective form of :func:`side_hostile_ships` — for checks not tied to one
+    observer ("are there enemies left", "count the threat"). Replaces
+    ``players_hostile_members("raider")`` and the bare ``role("raider")`` sweeps.
+
+    Returns:
+        set[int]: IDs hostile to some player side.
+    """
+    foes = players_hostile_members(_SPACE_OBJECT_ROLE)
+    for r in _OUT_OF_FIGHT_ROLES:
+        foes = foes - role(r)
+    return foes
+
+
+def is_hostile_combatant(observer, target, scope_role=None)->bool:
     """Return whether ``target`` is a hostile combatant relative to ``observer``.
 
     The boolean single source of truth for "may I treat this as an enemy": ``target``
@@ -545,7 +601,7 @@ def players_hostile_members(scope_role=None):
     return foes
 
 
-def is_hostile_to_players(target, scope_role="raider")->bool:
+def is_hostile_to_players(target, scope_role=None)->bool:
     """Return whether ``target`` is a hostile combatant to at least one player side.
 
     The player-perspective boolean (see :func:`is_hostile_combatant`): ``target``
@@ -724,7 +780,51 @@ def side_set_hostile_to_players(faction_key, relation=None):
             side_set_relations(ps, faction_key, relation)
 
 
-def side_surrender(ship, combat_role="raider"):
+def players_ceasefire(relation=None):
+    """End the attack: make every side currently HOSTILE to a player side NEUTRAL.
+
+    The diplomacy expression of "call off the enemies" at the end of a game. The older
+    way to do this was to strip a shared combat tag from every ship
+    (``remove_role(role("raider"), "raider")``), which only stopped the consumers that
+    happened to scope by that tag -- the ships stayed diplomatically hostile, so brains
+    still shot and sensor contacts stayed red. Changing the RELATION stops all of them
+    at once, and is reversible (re-declare HOSTILE to resume).
+
+    Applies to whole sides, not individual ships; a single ship leaving the fight is
+    :func:`side_surrender`.
+
+    Args:
+        relation (sbs.DIPLOMACY, optional): Relation to set. Defaults to ``NEUTRAL``.
+
+    Returns:
+        int: The number of side pairs changed.
+    """
+    sbs = FrameContext.context.sbs
+    if sbs is None:
+        return 0
+    if relation is None:
+        relation = sbs.DIPLOMACY.NEUTRAL
+    pairs = set()
+    for p in to_object_list(role("__player__")):
+        pkey = getattr(p, "side", None)
+        if not pkey:
+            continue
+        pid = to_side_id(pkey, warn=False)
+        if pid is None:
+            continue
+        foes = linked_to(pid, "side_hostile")
+        if foes is None:
+            continue
+        for f in foes:
+            fkey = get_inventory_value(to_id(f), "side_key", None)
+            if fkey is not None:
+                pairs.add((pkey, fkey))
+    for a, b in pairs:
+        side_set_relations(a, b, relation)
+    return len(pairs)
+
+
+def side_surrender(ship, combat_role=None):
     """Move a ship to the neutral ``surrendered`` side (creating it if needed) and
     mark it surrendered, recording its origin side for a later
     :func:`side_unsurrender`.
@@ -737,9 +837,10 @@ def side_surrender(ship, combat_role="raider"):
 
     Args:
         ship (Agent | int): The surrendering ship.
-        combat_role (str, optional): Combat/hostile class role to drop (so
-            role-scoped queries stop counting it). Defaults to ``"raider"``; pass
-            ``None`` to leave roles untouched.
+        combat_role (str, optional): Legacy compat only -- a combat-class role to drop
+            as well, for a mission that still scopes its own queries by one. Defaults
+            to ``None``: the side change alone is what takes the ship out of the fight,
+            and the library's own consumers read diplomacy.
     """
     obj = to_object(ship)
     if obj is None:
@@ -754,13 +855,15 @@ def side_surrender(ship, combat_role="raider"):
     obj.data_set.set("surrender_flag", 1, 0)
 
 
-def side_unsurrender(ship, combat_role="raider"):
+def side_unsurrender(ship, combat_role=None):
     """Reverse :func:`side_surrender` — restore the ship's origin side and re-arm it
-    (drop ``surrendered``, restore the combat role, clear ``surrender_flag``).
+    (drop ``surrendered``, restore the origin side, clear ``surrender_flag``).
 
     Args:
         ship (Agent | int): The ship to re-arm.
-        combat_role (str, optional): Combat role to restore. Defaults to ``"raider"``.
+        combat_role (str, optional): Legacy compat only -- a combat-class role to
+            restore, matching whatever was passed to :func:`side_surrender`. Defaults
+            to ``None``; restoring the side is what puts the ship back in the fight.
     """
     obj = to_object(ship)
     if obj is None:

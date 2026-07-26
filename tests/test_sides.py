@@ -15,6 +15,7 @@ from sbs_utils.procedural.sides import (
     side_are_friendly, is_allied_to_players,
     side_ensure, side_set_hostile_to_players,
     side_surrender, side_unsurrender, side_capture,
+    side_hostile_ships, players_hostile_ships, players_ceasefire,
 )
 import unittest
 
@@ -283,13 +284,19 @@ class TestSides(unittest.TestCase):
 
     def test_is_hostile_combatant(self):
         tsn_ship, pirate_ship, civ_ship = self._hostile_setup()
-        self.assertTrue(is_hostile_combatant("tsn", pirate_ship))    # hostile + raider
+        self.assertTrue(is_hostile_combatant("tsn", pirate_ship))    # hostile by diplomacy
         self.assertFalse(is_hostile_combatant("tsn", civ_ship))      # neutral
-        # Surrender/defection removes the role -> no longer a combatant.
+        # DIPLOMACY decides by default: dropping a combat tag changes nothing, because
+        # the ship is still on a hostile side. (This is the whole point of the default -
+        # a stale or missing tag can no longer make a real enemy read as harmless.)
         pirate_ship.remove_role("raider")
+        self.assertTrue(is_hostile_combatant("tsn", pirate_ship))
+        # A mission that still keeps its own combat tag can opt back in explicitly.
+        self.assertFalse(is_hostile_combatant("tsn", pirate_ship, scope_role="raider"))
+        # The diplomacy way out of the fight: surrender moves it to the neutral
+        # "surrendered" side, so it stops being a combatant with no tag involved.
+        side_surrender(pirate_ship)
         self.assertFalse(is_hostile_combatant("tsn", pirate_ship))
-        # Pure diplomacy test (scope_role=None) ignores the role.
-        self.assertTrue(is_hostile_combatant("tsn", pirate_ship, scope_role=None))
 
     def test_players_hostile_members(self):
         # tsn_ship is the only player; pirate hostile, civ neutral.
@@ -307,8 +314,37 @@ class TestSides(unittest.TestCase):
         tsn_ship, pirate_ship, civ_ship = self._hostile_setup()
         self.assertTrue(is_hostile_to_players(pirate_ship))
         self.assertFalse(is_hostile_to_players(civ_ship))       # neutral
-        pirate_ship.remove_role("raider")                        # surrendered
+        # Diplomacy-driven by default: only a SIDE change takes it out of the fight.
+        pirate_ship.remove_role("raider")
+        self.assertTrue(is_hostile_to_players(pirate_ship))
+        side_surrender(pirate_ship)                              # -> "surrendered" side
         self.assertFalse(is_hostile_to_players(pirate_ship))
+
+    def test_hostile_ships_is_diplomacy_only(self):
+        """side_hostile_ships / players_hostile_ships: the tag-free "who may I fight"
+        sets that replaced scoping by role("raider")."""
+        tsn_ship, pirate_ship, civ_ship = self._hostile_setup()
+        foes = side_hostile_ships("tsn")
+        self.assertIn(pirate_ship.id, foes)
+        self.assertNotIn(civ_ship.id, foes)          # neutral by diplomacy
+        # An enemy carrying NO combat tag still counts - the case a tag-scoped set missed.
+        pirate_ship.remove_role("raider")
+        self.assertIn(pirate_ship.id, side_hostile_ships("tsn"))
+        self.assertIn(pirate_ship.id, players_hostile_ships())
+        # Surrendered ships drop out (they move to the neutral "surrendered" side).
+        side_surrender(pirate_ship)
+        self.assertNotIn(pirate_ship.id, side_hostile_ships("tsn"))
+        self.assertNotIn(pirate_ship.id, players_hostile_ships())
+
+    def test_players_ceasefire_ends_hostility(self):
+        """"End the attack" as a RELATION change - the replacement for stripping a
+        shared combat tag, which left the ships diplomatically hostile."""
+        tsn_ship, pirate_ship, civ_ship = self._hostile_setup()
+        self.assertTrue(side_are_enemies("tsn", "pirate"))
+        n = players_ceasefire()
+        self.assertGreater(n, 0)
+        self.assertFalse(side_are_enemies("tsn", "pirate"))
+        self.assertEqual(players_hostile_ships(), set())
 
     def _friendly_setup(self):
         """tsn (player) + uspf (ALLIED to tsn) + pirate (hostile). Returns
