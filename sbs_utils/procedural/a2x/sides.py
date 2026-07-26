@@ -75,7 +75,8 @@ def side_color(side_value):
     return _EXTRA_COLORS[(v - 3) % len(_EXTRA_COLORS)]
 
 
-def declare_sides(side_values, names=None, colors=None):
+def declare_sides(side_values, names=None, colors=None,
+                  hostile_color="#F00", neutral_color="#077"):
     """Declare one Cosmos side per 2.8 ``sideValue`` and apply 2.8's implicit diplomacy.
 
     Creates a side for every value in ``side_values`` (via ``side_create``, so each is
@@ -92,6 +93,10 @@ def declare_sides(side_values, names=None, colors=None):
             Order is irrelevant; duplicates are ignored.
         names (dict[int, str], optional): Per-value display name overrides.
         colors (dict[int, str], optional): Per-value icon color overrides.
+        hostile_color (str, optional): Map colour for HOSTILE contacts. Defaults to
+            LegendaryMissions' ``"#F00"``.
+        neutral_color (str, optional): Map colour for NEUTRAL contacts. Defaults to
+            LegendaryMissions' ``"#077"``.
 
     Returns:
         dict[int, int]: 2.8 sideValue -> the created side agent's ID.
@@ -129,4 +134,16 @@ def declare_sides(side_values, names=None, colors=None):
             relation = (sbs.DIPLOMACY.NEUTRAL if a == 0 or b == 0
                         else sbs.DIPLOMACY.HOSTILE)
             side_set_relations(side_key(a), side_key(b), relation)
+
+    # Contacts are drawn by RELATION, and those colours stay unset until a mission
+    # configures them -- so correctly-hostile ships still rendered in the neutral
+    # colour and "enemies looked neutral" on the map. LegendaryMissions sets these in
+    # maps/watch_for_end.mast, which is its own mission content and NOT one of the
+    # shipped mastlibs, so a converted mission never inherited them. Declaring the
+    # relations and not colouring them is exactly the half-done state that reads as a
+    # diplomacy bug, so it belongs here with the rest of the declaration.
+    sim = FrameContext.context.sim
+    if sim is not None:
+        sim.set_diplomacy_color(sbs.DIPLOMACY.HOSTILE, hostile_color)
+        sim.set_diplomacy_color(sbs.DIPLOMACY.NEUTRAL, neutral_color)
     return ids

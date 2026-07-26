@@ -61,18 +61,31 @@ def incoming_comms_text(message, from_name="", title=None, to=None, time=30):
 
 
 def big_message(title, subtitle1="", subtitle2="", to=None, time=30):
-    """2.8 ``big_message`` -> a cinematic Hero overlay chapter card with letterbox bars.
+    """2.8 ``big_message`` -> a cinematic Hero chapter card on every player MAIN SCREEN.
 
-    2.8 showed this as a big main-screen chapter card; the closest Cosmos equivalent is the
-    hero overlay (a large centered title + combined subtitles, on the ``center_hero`` slot)
-    dressed with cinematic ``letterbox`` bars (the ``fullscreen`` slot -- the two slots
-    coexist). Both auto-dismiss after ``time``. (Replaces the older info-panel card.)
+    2.8 showed this as a big main-screen chapter card, so the audience is the MAIN SCREEN
+    of every player ship -- not every console. ``to`` defaults to ``role("__player__")``;
+    the overlay layer expands each ship to its consoles, and ``consoles="mainscreen"``
+    narrows that to the main screen (the same narrowing is applied to the letterbox bars,
+    so the framing matches). Pass ``to`` explicitly to aim it somewhere else.
+
+    Drawn as a hero card (large centred title + combined subtitles on the ``center_hero``
+    slot) with cinematic ``letterbox`` bars, via the one-call ``letterbox=`` form. Both
+    auto-dismiss after ``time``.
+
+    NOTE ON TIMING: this resolves its audience WHEN CALLED, and an empty console set is
+    silently ignored by the overlay layer (a normal "nobody connected yet" case). A card
+    fired before the crew has taken consoles therefore goes nowhere without any error --
+    so a mission-opening card belongs on ``//shared/signal/game_started``, not in the map
+    task's start block.
     """
-    from sbs_utils.procedural.gui.overlay import overlay_hero, overlay_letterbox
-    tgt = _console_targets(to)
+    from sbs_utils.procedural.gui.overlay import overlay_hero
+    from sbs_utils.procedural.roles import role
+
+    tgt = to if to is not None else role("__player__")
     sub = "\n".join(p for p in (subtitle1, subtitle2) if p)
-    overlay_letterbox(to=tgt, seconds=time)
-    overlay_hero(title, subtitle=sub or None, to=tgt, seconds=time)
+    overlay_hero(title, subtitle=sub or None, to=tgt, consoles="mainscreen",
+                 seconds=time, letterbox=True)
 
 
 def set_gm_instructions(title, text=""):
