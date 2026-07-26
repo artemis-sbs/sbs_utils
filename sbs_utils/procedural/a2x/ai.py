@@ -29,6 +29,52 @@ def ai_brain_for(ai_type):
     return _AI_BRAIN.get((ai_type or "").strip().upper())
 
 
+# 2.8's IMPLICIT default enemy brain stack. A 2.8 mission does not write this out --
+# every enemy gets it from the engine, and `add_ai` only appears to OVERRIDE it. The
+# full 2.8 stack is:
+#
+#     TRY_TO_BECOME_LEADER / LEADER_LEADS / FOLLOW_LEADER   fleet leadership
+#     CHASE_PLAYER 0 0
+#     CHASE_STATION 0
+#     CHASE_AI_SHIP 3000 500
+#     CHASE_PLAYER 3000 500
+#     CHASE_ANGER
+#     LAUNCH_FIGHTERS 11000                                 (carriers only)
+#     SPCL_AI                                               elite abilities
+#
+# Cosmos keeps the parts that still mean something. The leader blocks are dropped
+# (Cosmos fleets need no leader), LAUNCH_FIGHTERS belongs to the hangar addon, and
+# SPCL_AI is already handled by set_special -> the LM elite-ability driver. What is
+# left is the target priority, and it is ordered to match the LegendaryMissions
+# `prefab_fleet_raider` tree -- retaliate first, then press the nearest station, then
+# hunt a player:
+_DEFAULT_ENEMY_BRAIN = ["ai_chase_current", "ai_chase_station", "ai_chase_player"]
+
+
+def default_enemy_ai(agent, enemies_only=True):
+    """Attach 2.8's implicit default enemy behaviour to a freshly spawned NPC.
+
+    ``brain_add``'s root is a Select: the children run in order and it stops at the
+    first success, so this is a priority list, exactly like a 2.8 brain stack.
+    ``ai_chase_current`` re-chases whatever last angered the ship (2.8 CHASE_ANGER) and
+    fails harmlessly on a fresh spawn with no target, falling through to the station and
+    then the player.
+
+    Firing is NOT decided here: every LM chase brain gates its trigger on
+    ``side_are_enemies(BRAIN_AGENT_ID, target)``, so a ship shoots only what diplomacy
+    says is hostile -- and a ceasefire silently stops it. ``enemies_only`` likewise
+    narrows target SELECTION to declared enemies, so an enemy will not shadow a neutral.
+
+    The brain labels live in the LegendaryMissions ``ai`` addon and are resolved by NAME
+    at runtime, so a2x keeps no import dependency on LM (the mission feature-detects the
+    addon). Returns the brain list attached.
+    """
+    from sbs_utils.procedural.brain import brain_add
+
+    brain_add(agent, _DEFAULT_ENEMY_BRAIN, data={"enemies_only": enemies_only})
+    return _DEFAULT_ENEMY_BRAIN
+
+
 def add_ai(agent, ai_type, data=None):
     """Attach a brain to ``agent`` matching a 2.8 ``add_ai`` block ``type``.
 
