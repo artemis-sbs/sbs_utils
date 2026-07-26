@@ -171,8 +171,9 @@ def set_fleet_coeff(which, value):
     return n
 
 
-# 2.8 sideValue -> Cosmos side key (0=no side, 1=enemy, 2+=player side).
-_SIDE_VALUE = {0: "neutral", 1: "enemy", 2: "friendly"}
+# 2.8 sideValue -> Cosmos side key. Lives in a2x.sides (one table, so a runtime
+# set_side_value can only land on a side a2x_declare_sides actually declared).
+from .sides import side_key
 
 
 # 2.8 set_fleet_property -> the general LM fleet-formation keys the scatter-formation brain
@@ -207,11 +208,17 @@ def set_fleet_property(index, prop, value):
 
 
 def set_side_value(obj, value):
-    """2.8 ``set_side_value``: reassign an object's Cosmos side.
+    """2.8 ``set_side_value``: reassign an object's Cosmos side (a mid-mission defection).
 
-    1 -> "enemy", 2(+) -> "friendly", 0 -> "neutral". Swaps the side role (so
-    ``role(side)`` queries stay correct) and sets ``.side``; does not require the side
-    to be a registered side entity.
+    Maps the sideValue through :func:`a2x.sides.side_key` -- the same table
+    ``a2x_declare_sides`` used -- so the object lands on a side whose diplomacy is
+    already declared. Swaps the side role (so ``role(side)`` queries stay correct) and
+    sets ``.side``.
+
+    Diplomacy follows the side, not the object: reassigning a ship is enough to flip who
+    shoots it. The combat-scope role (``raider``) is NOT touched -- a defector that
+    should stop being a valid target for enemies-near style checks needs that role
+    removed separately, the same way LegendaryMissions drops it on surrender.
     """
     from sbs_utils.procedural.roles import add_role, remove_role
     from sbs_utils.procedural.query import to_space_object, to_id
@@ -219,8 +226,7 @@ def set_side_value(obj, value):
     o = to_space_object(obj)
     if o is None:
         return False
-    v = int(value)
-    new_side = _SIDE_VALUE.get(v, "friendly" if v >= 2 else "neutral")
+    new_side = side_key(value)
     oid = to_id(obj)
     old = o.side
     if old and old != new_side:

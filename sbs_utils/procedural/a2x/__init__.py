@@ -17,6 +17,7 @@ Legacy semantics this layer assumes:
 """
 
 from .coords import *  # noqa: F401,F403
+from .sides import *  # noqa: F401,F403  (before props: props reuses side_key)
 from .terrain import *  # noqa: F401,F403
 from .spawn import *  # noqa: F401,F403
 from .comms import *  # noqa: F401,F403
