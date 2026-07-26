@@ -191,6 +191,31 @@ engine widgets. So:
   Card" send modes that still send the comms_message.
 - **Never** — debug broadcasts, dense combat feedback, the results page, the comms tree.
 
+### The info panel followed (v1.4.0, unreleased)
+
+Once overlays carried the attention job, the panel was left doing it badly and not
+doing the job only it can do. Two facts settled it:
+
+- **Every send stole the panel's tab** (`info_panel.set_tab(path)`) from whatever the
+  player was reading, and `tick_tab` yanked it back when the queue drained. It was a
+  popup wearing a tab strip.
+- **The history was vestigial.** `$MESSAGES` was capped at 9 and nothing rendered it -
+  `gui_panel_console_message_list` existed, but its registration sat commented out in
+  LM behind an `is_dev_build()` block.
+
+So the panel is now **log-first**: a card is filed and readable on the log tab, and
+interrupts only when it means to. The exception is load-bearing - **a card with a
+`button` always interrupts**, because it is a progression gate (HTBM awaits nine of
+them) and a missed one deadlocks rather than degrades. `notify=True` is the opt-in for
+everything else; `announce()` gets it right by construction.
+
+Done now rather than staged behind a flag because **1.4.0 is unreleased** - released
+missions pin the v1.3.0 sbslib in `story.json` and cannot see the change, so the only
+callers were in-repo. Every site that relied on the old interrupt and has no overlay
+pairing carries an explicit `notify=True` (LM dispatches, claim notices, the
+legendary_comms demo, OU chatter): nothing changed on screen, and the marker is
+greppable, so converting them to `announce()` is a follow-up, not archaeology.
+
 ### Found while executing
 
 - **`to=ship_id` used to raise, not no-op.** `gui_page_for_client` did
