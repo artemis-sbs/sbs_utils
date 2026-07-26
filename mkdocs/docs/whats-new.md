@@ -529,6 +529,8 @@ Docs: [The GUI Editor](tooling/gui-editor.md).
   sliders (unlike the extension's blind builder). Pick a race, tweak each feature,
   and the face is **copied to your clipboard** on every change — paste it straight
   into a `.amd` `Face:` field. → [Avatar Editor addon](legendarymissions/addons/avatar.md)
+- **`sbs swap`** — keep several mission sets side by side and switch between them
+  without copying anything (see below). → [The `sbs` CLI](tooling/cli.md)
 - **`signal_next`** — one-shot await of the next signal. → [Signals](api/procedural/signal.md)
 - **An Artemis 2.8 → Cosmos porting-comfort layer** to ease bringing older content
   forward. → [Porting from Artemis 2.x](mast/porting-2x.md)
@@ -539,6 +541,31 @@ Docs: [The GUI Editor](tooling/gui-editor.md).
   cross-addon contracts explicit and compile-checked (see below).
 - **Deterministic building blocks** — keyed terrain fields, position-keyed
   [scatter](api/utility/scatter.md), and reusable game-code encode/decode.
+
+!!! tip "✨ New — `sbs swap`, switch mission sets in place"
+    Cosmos loads exactly one `data/missions` folder. If you keep more than one set
+    — a converted 2.8 port, a work-in-progress copy, the stock missions — you have
+    been copying folders around. Instead, park each set beside it as
+    `data/missions_<name>` and let `data/missions` be a link:
+
+    ```
+    sbs swap            # which set is active, and what else is available
+    sbs swap amd        # load data/missions_amd
+    sbs swap mast       # load data/missions_mast
+    ```
+
+    Any folder named `missions_<name>` is a valid target, so adding a set is just
+    creating the folder. If your `data/missions` is a normal folder, the first swap
+    renames it to `missions_cos` rather than deleting it, so `sbs swap cos` puts you
+    back on the stock missions. Close Cosmos first — a running client holds files
+    open under the link. → [The `sbs` CLI](tooling/cli.md)
+
+    !!! warning "Back up your missions first"
+        This moves and re-creates the `data/missions` link, and renames a real
+        `data/missions` folder aside. It is written to never delete a mission
+        folder — only the link — but it is rearranging the folder that holds all
+        your work. **Take a backup of `data/missions` before your first swap**,
+        especially if you have edits in there that aren't in source control.
 
 !!! tip "✨ New — multiline expressions in MAST"
     Python dicts, lists, and function calls can now **span multiple lines**, just

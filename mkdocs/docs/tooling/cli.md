@@ -14,6 +14,7 @@ line. Run `sbs <command> --help` for full options.
 | `sbs compile <mission>` | Compile-check the MAST |
 | `sbs lint <mission>` | **Validate** the mission's `.amd` files (headings, references, signals) |
 | `sbs fmt <mission>` | **Format** the mission's `.amd` files (canonical, prose-safe) |
+| `sbs swap <name>` | Switch which `missions_*` set Cosmos loads |
 | `sbs fetch` / `sbs update` | Fetch missions / update the tool |
 
 ## Running a mission
@@ -27,6 +28,29 @@ sbs debug . --no-gui --map 0 --test 30    # headless, play ~30s, pass/fail verdi
 Handy flags: `--use-working-tree` (test local library edits against the packaged
 mission), `--seed N` (reproducible runs), and settings overrides that don't touch
 `settings.yaml` (`--auto-start`, `--players N`, `--set KEY=VALUE`).
+
+## Switching mission sets
+
+Cosmos loads exactly one `data/missions` folder. Keep several sets beside it as
+`data/missions_<name>` and let `data/missions` be a link to whichever you want:
+
+```
+sbs swap            # current target + available sets
+sbs swap amd        # point data/missions at data/missions_amd
+sbs swap cos        # back to the stock missions
+```
+
+The prefix is optional (`amd` and `missions_amd` are the same). Any
+`missions_<name>` folder is a target, so adding a set is just creating the folder.
+A real (non-link) `data/missions` is renamed to `missions_cos` on the first swap
+rather than deleted — nothing but the link is ever removed. Run it from anywhere
+under the install; it finds the data folder by walking up, or pass `--data`.
+
+!!! warning "Back up `data/missions` before your first swap"
+    The command rearranges the folder that holds all your missions. It will not
+    delete a mission folder, but take a backup anyway if you have edits that
+    aren't in source control. And close Cosmos first — a running client holds
+    files open under the link, and the swap will refuse rather than half-finish.
 
 ## Validating AMD
 
