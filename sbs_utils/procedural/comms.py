@@ -1540,7 +1540,7 @@ def comms_story_buttons(ids, sel_ids, buttons, path, nav_button=None) -> CommsCh
 
 def comms_info_card(client_id, message=None, title=None, color=None, face=None,
                     icon_index=None, banner=None, button=None, time=10,
-                    history=True, path=None):
+                    history=True, path=None, notify=None):
     """Send an "incoming comms" card to one or more clients' info panel.
 
     A reusable wrapper over ``gui_info_panel_send_message`` for narrative / ambient
@@ -1566,8 +1566,13 @@ def comms_info_card(client_id, message=None, title=None, color=None, face=None,
             an awaitable Promise that resolves on press.
         time (int, optional): Auto-dismiss after this many seconds (when there is
             no button). Defaults to 10.
-        history (bool, optional): Keep the card in panel history. Defaults to True.
+        history (bool, optional): Keep the card in the panel log. Defaults to True.
         path (str, optional): Info-panel tab path. Defaults to ``"message"``.
+        notify (bool, optional): Interrupt - show the card live and switch the
+            panel to its tab. Defaults to None ("only if it has a button"), so a
+            plain card is filed in the log and the attention half is left to an
+            overlay (see ``announce``). Pass True to keep the old always-interrupt
+            behaviour.
 
     Returns:
         Promise | None: Resolves on button press, or None if no button was given.
@@ -1580,7 +1585,7 @@ def comms_info_card(client_id, message=None, title=None, color=None, face=None,
     return gui_info_panel_send_message(
         client_id, message, message_color=color, title=title, title_color=color,
         banner=banner, face=face, icon_index=icon_index, button=button,
-        time=time, history=history, path=path)
+        time=time, history=history, path=path, notify=notify)
 
 
 def comms_info_clear(client_id, path=None):

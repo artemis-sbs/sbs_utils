@@ -154,8 +154,10 @@ class TestAnnouncePairs(AudienceBase):
         return self.pages[cid].overlays.slots
 
     def _cards(self, cid):
-        """The info-panel message queue for a console — the durable record half."""
-        return self.pages[cid].gui_task.get_variable("$MESSAGE", [])
+        """The info-panel LOG for a console - the durable record half. announce()
+        leaves the interrupting to the overlay, so its card is filed rather than
+        queued live (see tests/test_info_panel_log.py)."""
+        return self.pages[cid].gui_task.get_variable("$MESSAGES", [])
 
     def test_chapter_shows_hero_on_every_console_of_the_ship(self):
         announce("The long dark begins.", title="CHAPTER TWO",

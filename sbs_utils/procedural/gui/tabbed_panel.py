@@ -104,6 +104,11 @@ def gui_info_panel(tab=0, tab_location=0, icon_size=0, var=None):
     return tp
 
 
+# How many cards a tab's log keeps. This used to be 9, chosen when nothing ever
+# read the log back; a replay surface wants real depth.
+INFO_PANEL_LOG_MAX = 50
+
+
 def gui_info_panel_add(path, icon_index, show, hide=None, tick=None, var=None):
     """Add a tab to an existing info panel.
 
@@ -221,13 +226,19 @@ def gui_info_panel_send_message(
     # button_press=None, # label or promise
     history=True,
     time=-1,
+    notify=None,
 ):
     """Send a message card to a client's info panel.
 
-    The message is queued under the given ``path`` tab and displayed when that
-    tab is active. If a ``button`` label is provided the call suspends until the
-    player presses it. Messages are stored in history (up to 9 items) unless
-    ``history=False``.
+    Every card is filed in the tab's **log** (readable any time on the log tab)
+    unless ``history=False``. A card only *interrupts* - taking over the panel's
+    tab and auto-dismissing - when it needs an answer or the caller asks:
+
+    - a card with a ``button`` ALWAYS interrupts. It is a progression gate: a
+      mission awaiting the press deadlocks if the player never sees it.
+    - otherwise pass ``notify=True`` to interrupt. The default is ``False``:
+      the card goes to the log and does not steal the tab, because the attention
+      half of a notification belongs to an overlay now (see ``announce``).
 
     Args:
         client_id (int | set): Client(s) to receive the message.
@@ -244,9 +255,12 @@ def gui_info_panel_send_message(
         icon_color (str, optional): CSS color for the icon.
         button (str | list, optional): Button label(s) to show. When set the
             function returns an awaitable Promise that resolves on button press.
-        history (bool, optional): Append to message history. Defaults to True.
+        history (bool, optional): File the card in the tab's log. Defaults to True.
         time (int, optional): Auto-dismiss after this many seconds if no button
             is configured. Defaults to -1 (use panel default of 10 s).
+        notify (bool, optional): Interrupt - show the card live and switch the
+            panel to its tab. Defaults to None, meaning "only if it has a
+            button". Pass True for a card that must be seen now.
 
     Returns:
         Promise | None: Resolves when the button is pressed, or None if no
@@ -295,30 +309,35 @@ def gui_info_panel_send_message(
     if path is None:
         path = "message"
 
+    # A card with a button is a progression gate - a mission awaiting the press
+    # deadlocks if it is never seen - so those always interrupt regardless.
+    interrupt = bool(button) if notify is None else (bool(notify) or bool(button))
+
     var = f"${path.upper()}"
     for client_id in client_ids:
         task = gui_task_for_client(client_id)
         if task is None:
             return
-        
-        all = task.get_variable(var, [])
-        all.append(message_data)
-        task.set_variable(var, all)
 
-        
+        if interrupt:
+            # the LIVE queue: shown one at a time, consumed by press or timeout
+            all = task.get_variable(var, [])
+            all.append(message_data)
+            task.set_variable(var, all)
+
         if history:
-            # Only keep 10 items
+            # the LOG: everything, newest last, readable on the log tab
             all = task.get_variable(var + "S", [])
             all.append(message_data)
-            MAX_LINES = 9
-            if len(all) > MAX_LINES:
-                all = all[-MAX_LINES:]
+            if len(all) > INFO_PANEL_LOG_MAX:
+                all = all[-INFO_PANEL_LOG_MAX:]
             task.set_variable(var + "S", all)
 
-        info_panel = task.main.page.info_panel
-        if info_panel is not None:
-            info_panel.set_tab(path)
-        
+        if interrupt:
+            info_panel = task.main.page.info_panel
+            if info_panel is not None:
+                info_panel.set_tab(path)
+
     return button_press_promise
 
 def gui_panel_console_message_tick(info_panel):
@@ -576,6 +595,9 @@ def gui_panel_console_message_list(cid, left, top, width, height):
     messages_objs = task.get_variable(var)
     if messages_objs is None:
         return
+    # Newest first: a log is read from the top, and the card you want back is
+    # almost always the one that just went by.
+    messages_objs = list(reversed(messages_objs))
     gui_list_box(messages_objs, "", item_template=gui_panel_console_message_list_item, select=False)
     # avoid bleeding out 
     gui_blank(style="col-width:0.5em")

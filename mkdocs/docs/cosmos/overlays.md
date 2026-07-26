@@ -250,6 +250,31 @@ clamps it (engine text is ASCII-only, and a card is a glance). The full text goe
 the twin. `record=False` suppresses the twin when it is already being sent another way;
 `record=True` forces a card on a level that has none.
 
+## The info panel is the log, not the popup
+
+Overlays took the attention job, so the info panel leans into the one thing only it
+can do: **keep the record**. A card sent with `comms_info_card` /
+`gui_info_panel_send_message` is **filed in its tab's log** and readable any time on
+the log tab -- it does *not* take over the panel.
+
+A card interrupts (shows live, switches the panel to its tab, auto-dismisses) in
+exactly two cases:
+
+| | interrupts? |
+|---|---|
+| card with a `button` | **always** -- it is a progression gate; a mission awaiting the press deadlocks if it is never seen |
+| `notify=True` | yes -- for a card that genuinely must be read now |
+| anything else | no -- filed in the log; pair it with an overlay for the attention half |
+
+```
+comms_info_card(consoles, text, title="Command")                # filed, quiet
+comms_info_card(consoles, text, title="Command", notify=True)   # interrupts
+announce(text, title="Command", level="alert", to=ship)         # banner + filed card
+```
+
+`announce()` is the front door that gets this right by construction: the overlay
+interrupts, the card records. The log keeps 50 cards (`INFO_PANEL_LOG_MAX`).
+
 ## How it draws (the one rule)
 
 Overlays keep off the page's repaint path: each slot is its **own** sub-region,
