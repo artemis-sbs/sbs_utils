@@ -24,6 +24,33 @@ overlay_hero("Admiral Harkin", subtitle="Hold the line, commander.",
              face=get_face(admiral.id))
 ```
 
+## Text that doesn't fit — timed parts, not a clipped line
+
+A banner strip and a lower third are **one line wide**. Clamping a long message keeps
+it readable but throws away the tail, which for an alert is usually the part that
+matters. So text that will not fit is **measured, split into parts that each fit, and
+played in sequence**:
+
+```
+overlay_banner("Long range sensors report a raider wing crossing the neutral zone. "
+               "All ships to red alert; hold station until the escort arrives.")
+```
+
+- The measurement is the engine's (the same primitive content-sizing uses), and it is
+  done **per client** — whether it fits depends on that screen.
+- Dwell is paced by length (~2.6 words/second, clamped to 2.5–7s); override with
+  `dwell=`.
+- A **sticky** banner (no `seconds`) loops; one with a lifetime plays through once and
+  clears. A lower third never loops — a repeating subtitle reads as a stutter.
+- The cycle is **generation-guarded**: a newer banner, or a clear, stops it rather than
+  fighting for the strip.
+- `cycle=False` restores the old spill/clip behaviour, and if the engine cannot measure
+  (headless, no client yet) the text is left whole.
+
+`announce()` uses this: `alert` and `hail` hand their **full** text to the slot, because
+it can play the whole thing. Only a hero card and a toast still get a clamped headline —
+they are a glance, with nowhere for a paragraph to go.
+
 ## Legibility — scrims, fills and framing
 
 An overlay draws over a live 3D view, so white text on nothing is often unreadable.

@@ -133,15 +133,21 @@ def announce(text, title=None, level="status", to=None, ship=None, consoles=None
         seconds = _LEVEL_SECONDS.get(level)
 
     # --- the attention half ---------------------------------------------------
+    # A hero card and a toast get a HEADLINE - they are a glance, and there is
+    # nowhere for a paragraph to go. The banner and the lower third can measure
+    # the text and play it in timed parts, so they get it WHOLE: clamping there
+    # would throw away the tail for no reason.
     fields = {_KIND_PRIMARY_FIELD.get(kind, "title"): head}
     if kind == "hero":
         fields["subtitle"] = announce_headline(text) if title else None
         fields["face"] = face
     elif kind == "lower_third":
         fields["name"] = announce_headline(title, 40)
-        fields["line"] = announce_headline(text, 90)
-    elif kind == "banner" and color:
-        fields["color"] = color
+        fields["line"] = str(text or "")
+    elif kind == "banner":
+        fields["text"] = str(text or head)
+        if color:
+            fields["color"] = color
     overlay_kind(kind, to=audience, consoles=consoles, seconds=seconds, **fields)
 
     # --- the record half ------------------------------------------------------

@@ -64,6 +64,10 @@ _KIND_DEFAULT_SLOT = {
     "toast": "corner_toast", "banner": "top_banner", "lower_third": "lower_third",
     "letterbox": "fullscreen", "flash": "fullscreen", "hud": "hud",
 }
+# Kinds whose text lives on ONE line and can therefore be split into timed parts
+# when it does not fit: kind -> (field, font tag used by its builder).
+_CYCLE_KINDS = {"banner": ("text", "gui-4"), "lower_third": ("line", "gui-3")}
+
 # the field a bare line of text lands in for each kind
 _KIND_PRIMARY_FIELD = {
     "hero": "title", "credits": "title", "choice": "title",
@@ -600,6 +604,14 @@ def overlay_kind(kind, to=None, consoles=None, slot=None, seconds=None, **fields
     inline overlay directives, AMD records). Prefer the named wrappers when the
     kind is known at author time."""
     slot = slot or _KIND_DEFAULT_SLOT.get(kind, "center_hero")
+    # Single-line kinds route through the cycling path, so text that will not fit
+    # is played in timed parts here too - the quest/AMD front doors get the same
+    # behaviour as a direct overlay_banner() call rather than a clipped strip.
+    if kind in ("banner", "lower_third"):
+        field, font = _CYCLE_KINDS[kind]
+        return _show_maybe_cycled(slot, kind, to, consoles, seconds, fields, field,
+                                  font, True, None,
+                                  False if kind == "lower_third" else None)
     _show_transient(slot, kind, to, seconds, fields, consoles)
 
 
@@ -693,6 +705,130 @@ def overlay_toast(text, icon=None, seconds=3, to=None, consoles=None, slot="corn
         _schedule_toast_remove(page, slot, tid, seconds)
 
 
+# --- Text that does not fit: split it, and time the parts --------------------
+# A single-line slot (the banner strip, a lower third) has a hard width. Clamping
+# a long line keeps it readable but throws away the tail -- which for an alert is
+# usually the part that matters. So instead: measure, split into segments that
+# each FIT, and show them in sequence.
+#
+# Measurement is the engine's (pages/layout/measure.wrap_to_width), the same
+# primitive content-sizing uses, so a segment that comes back has really been
+# measured to fit rather than counted in characters. If the engine cannot measure
+# (headless, no client), the text is left whole and the slot behaves as before.
+WORDS_PER_SECOND = 2.6      # unhurried reading pace for the auto dwell
+DWELL_MIN = 2.5
+DWELL_MAX = 7.0
+
+
+def _slot_px_width(client_id, slot, pad=0.96):
+    """Pixel width available to a slot's text on this client's screen."""
+    from ...gui import get_client_aspect_ratio
+    spec = OVERLAY_SLOTS.get(slot, DEFAULT_SLOT)
+    left, _t, right, _b = spec["rect"]
+    ar = get_client_aspect_ratio(client_id)
+    if ar is None or not getattr(ar, "x", 0):
+        return None
+    return ((right - left) / 100.0) * ar.x * pad
+
+
+def _split_to_fit(client_id, slot, text, font):
+    """Segments of ``text`` that each fit the slot, or ``[text]`` when it already
+    fits (or cannot be measured)."""
+    text = " ".join(str(text or "").split())
+    if not text:
+        return [""]
+    px = _slot_px_width(client_id, slot)
+    if not px:
+        return [text]
+    try:
+        from ...pages.layout.measure import measure_line_width, wrap_to_width
+        w = measure_line_width(font, text)
+        if w is None:              # unmeasurable -> leave it to the engine
+            return [text]
+        if w <= px:
+            return [text]
+        segments = wrap_to_width(font, text, px)
+    except Exception:
+        return [text]
+    return [seg for seg in segments if seg.strip()] or [text]
+
+
+def _auto_dwell(segment):
+    """Seconds to hold one segment - long enough to read, short enough to move on."""
+    words = max(1, len(segment.split()))
+    return min(DWELL_MAX, max(DWELL_MIN, words / WORDS_PER_SECOND))
+
+
+def _start_text_cycle(page, slot, kind, fields, field, segments, dwell, loop):
+    """Show ``segments`` one at a time in ``slot``, advancing on a tick.
+
+    Generation-guarded: every show bumps the region's generation, so if anything
+    else claims the slot (a newer banner, a clear) the cycle notices its own
+    generation is stale and stops instead of fighting for the strip.
+    """
+    from ...tickdispatcher import TickDispatcher
+    state = {"i": 0, "gen": None, "task": None}
+
+    def _paint(index):
+        data = dict(fields)
+        data[field] = segments[index]
+        _on_page(page, lambda ov: ov.show(slot, kind, data))
+        r = page.overlays.slots.get(slot)
+        state["gen"] = r.generation if r is not None else None
+
+    def _advance(t):
+        r = page.overlays.slots.get(slot)
+        if r is None or r.generation != state["gen"]:
+            t.stop()                      # someone else owns the slot now
+            return
+        state["i"] += 1
+        if state["i"] >= len(segments):
+            if not loop:
+                t.stop()
+                _on_page(page, lambda ov: ov.clear(slot))
+                return
+            state["i"] = 0
+        _paint(state["i"])
+        t.delay = _dwell_for(state["i"])
+
+    def _dwell_for(index):
+        return dwell if dwell else _auto_dwell(segments[index])
+
+    _paint(0)
+    state["task"] = TickDispatcher.do_interval(_advance, _dwell_for(0))
+    return state["task"]
+
+
+def _show_maybe_cycled(slot, kind, to, consoles, seconds, fields, field, font,
+                       cycle, dwell, loop):
+    """Show a single-line overlay, splitting into timed parts when it will not fit.
+
+    The split is PER CLIENT, because "does it fit" depends on that screen's width.
+    """
+    text = fields.get(field, "")
+    pages = _pages_for(to, consoles)
+    cycled_any = False
+    for page in pages:
+        segments = _split_to_fit(page.client_id, slot, text, font) if cycle else [text]
+        if len(segments) <= 1:
+            data = dict(fields)
+            data[field] = segments[0] if segments else text
+            _on_page(page, lambda ov: ov.show(slot, kind, data))
+            if seconds and seconds > 0:
+                r = page.overlays.slots.get(slot)
+                if r is not None:
+                    _schedule_dismiss(page, slot, r.generation, seconds)
+            continue
+        cycled_any = True
+        do_loop = (seconds is None) if loop is None else loop
+        _start_text_cycle(page, slot, kind, fields, field, segments, dwell, do_loop)
+        if seconds and seconds > 0:
+            r = page.overlays.slots.get(slot)
+            if r is not None:
+                _schedule_dismiss(page, slot, r.generation, seconds)
+    return cycled_any
+
+
 # --- Banner (full-width strip) -----------------------------------------------
 def _banner_builder(client_id, content):
     from .text import gui_text
@@ -711,14 +847,30 @@ overlay_register("banner", _banner_builder)
 
 
 def overlay_banner(text, color="#fd0", slot="top_banner", to=None, consoles=None,
-                   seconds=None, background="#000a"):
+                   seconds=None, background="#000a", cycle=True, dwell=None,
+                   loop=None):
     """Full-width top strip (alert / countdown). Auto-dismiss after ``seconds`` if set.
     Re-call it to update in place (generation-guarded) - a countdown needs no new API.
 
     ``background`` fills the strip (translucent black by default) so the text reads
-    over the live view; pass ``None`` for bare text on the view."""
-    _show_transient(slot, "banner", to, seconds,
-                    {"text": text, "color": color, "background": background}, consoles)
+    over the live view; pass ``None`` for bare text on the view.
+
+    **Text too long for the strip is shown in timed parts** rather than clipped:
+    it is measured against that client's screen, split into segments that each fit,
+    and advanced on a tick.
+
+    Args:
+        cycle (bool): split-and-cycle when the text does not fit. Default True;
+            pass False to let a long line spill/clip as before.
+        dwell (float, optional): seconds per part. Default: paced by word count
+            (about 2.6 words/second, clamped to 2.5-7s).
+        loop (bool, optional): repeat the sequence. Default: loop while the banner
+            is sticky (no ``seconds``), play once when it has a lifetime.
+    """
+    return _show_maybe_cycled(
+        slot, "banner", to, consoles, seconds,
+        {"text": text, "color": color, "background": background}, "text",
+        "gui-4", cycle, dwell, loop)
 
 
 # --- Lower third (name-plate + line) -----------------------------------------
@@ -738,9 +890,19 @@ overlay_register("lower_third", _lower_third_builder)
 
 
 def overlay_lower_third(name, line, slot="lower_third", to=None, consoles=None,
-                        seconds=None):
-    """Bottom name-plate + subtitle line (someone speaking over the live view)."""
-    _show_transient(slot, "lower_third", to, seconds, {"name": name, "line": line}, consoles)
+                        seconds=None, cycle=True, dwell=None, loop=None):
+    """Bottom name-plate + subtitle line (someone speaking over the live view).
+
+    A line too long for the plate is shown in **timed parts** rather than clipped -
+    which is what subtitles want anyway: the speaker's line arrives in readable
+    chunks while their audio plays. See ``overlay_banner`` for ``cycle`` / ``dwell``
+    / ``loop``; a lower third defaults to playing through once (``loop=False``)
+    because a repeating subtitle reads as a stutter."""
+    if loop is None:
+        loop = False
+    return _show_maybe_cycled(
+        slot, "lower_third", to, consoles, seconds,
+        {"name": name, "line": line}, "line", "gui-3", cycle, dwell, loop)
 
 
 # --- Credits (sequential list) -----------------------------------------------
