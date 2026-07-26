@@ -32,16 +32,22 @@ def distance_less(obj_or_id1, obj_or_id2, distance):
         distance (float): Threshold distance in simulation units.
 
     Returns:
-        TestPromise: Resolves when ``dist(obj1, obj2) < distance``.
+        TestPromise: Resolves when ``dist(obj1, obj2) < distance``. Stays pending
+            while either object is missing or has been destroyed.
 
     Example:
         await distance_less(SHIP_ID, ENEMY_ID, 500)
         "Enemy in range!"
     """
     def test():
-        id1 = to_id(obj_or_id1)
-        id2 = to_id(obj_or_id2)
-        return FrameContext.context.sbs.distance_id(id1, id2) < distance
+        # to_object (not to_id) so a destroyed object's stale id is caught too --
+        # to_id passes None and dead ids straight through, and sbs.distance_id
+        # errors on them. Parity with distance_point_less below.
+        obj1 = to_object(obj_or_id1)
+        obj2 = to_object(obj_or_id2)
+        if obj1 is None or obj2 is None:
+            return False
+        return FrameContext.context.sbs.distance_id(obj1.id, obj2.id) < distance
     return TestPromise(test)
 
 @awaitable
@@ -54,16 +60,20 @@ def distance_greater(obj_or_id1, obj_or_id2, distance):
         distance (float): Threshold distance in simulation units.
 
     Returns:
-        TestPromise: Resolves when ``dist(obj1, obj2) > distance``.
+        TestPromise: Resolves when ``dist(obj1, obj2) > distance``. Stays pending
+            while either object is missing or has been destroyed -- a destroyed
+            object is not "far away", it is simply no longer testable.
 
     Example:
         await distance_greater(SHIP_ID, ENEMY_ID, 2000)
         "Enemy out of range."
     """
     def test():
-        id1 = to_id(obj_or_id1)
-        id2 = to_id(obj_or_id2)
-        return FrameContext.context.sbs.distance_id(id1, id2) > distance
+        obj1 = to_object(obj_or_id1)
+        obj2 = to_object(obj_or_id2)
+        if obj1 is None or obj2 is None:
+            return False
+        return FrameContext.context.sbs.distance_id(obj1.id, obj2.id) > distance
     return TestPromise(test)
 
 @awaitable

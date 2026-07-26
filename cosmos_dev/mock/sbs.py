@@ -286,6 +286,15 @@ def distance_between_navpoints(arg0: int, arg1: int) -> float:
 def distance_id(arg0: int, arg1: int) -> float:
     """returns the distance between two space objects; arguments are two IDs"""
     global sim
+    # Mirror the engine's validation: it errors with "sbs.distance_id was sent None"
+    # for a missing id. This used to fall through to distance(None, ...) -> a huge
+    # number, so a None guard read as "very far away" and silently passed headless
+    # tests -- which is where a2x.named's "None is safe here" claim came from. Raise
+    # like _require_space_object so the mock rejects what the engine rejects.
+    if arg0 is None or arg1 is None:
+        raise ValueError("sbs.distance_id was sent None")
+    if sim is None:
+        return 1000.0
     one = sim.space_objects.get(arg0)
     two = sim.space_objects.get(arg1)
     return distance(one, two)

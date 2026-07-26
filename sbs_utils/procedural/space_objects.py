@@ -72,6 +72,10 @@ def closest_list(source: int | CloseData | SpawnData | Agent | Vec3, the_set, ma
         source_id = -1
     else:
         source_id = Agent.resolve_id(source)
+        # resolve_id passes None through; sbs.distance_id errors on it ("was sent
+        # None"). No resolvable source -> nothing is near it.
+        if source_id is None:
+            return ret
 
     if max_dist is not None and max_dist < MAX_BROAD_TEST_DIST:
         the_set &= broad_test_around(source, max_dist, max_dist, 0xFFFF)
@@ -123,6 +127,10 @@ def closest(the_ship, the_set, max_dist=None, filter_func=None) -> CloseData:
     test = max_dist
     ret = None
     source_id = Agent.resolve_id(the_ship)
+    # resolve_id passes None through; sbs.distance_id errors on it ("was sent
+    # None"). No resolvable source -> nothing is closest to it.
+    if source_id is None:
+        return None
     the_set = to_set(the_set)
 
     for other_id in the_set:

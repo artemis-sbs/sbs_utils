@@ -193,10 +193,13 @@ def named(name):
 
     For a condition (or command) that references an object the converter could not statically
     capture -- a forward reference, or a name mismatch in the 2.8 source. Returns the first
-    space object whose name matches, or ``None`` if none exists. ``None`` is SAFE to pass on:
-    ``object_exists(None)`` is False and ``distance_id(None, x)`` returns a huge distance, so
-    a guard built on it simply evaluates false instead of crashing (a bare ``role(name)`` set
-    would throw).
+    space object whose name matches, or ``None`` if none exists.
+
+    Passing that ``None`` on is safe only through the guarded helpers: ``object_exists(None)``
+    is False, and ``a2x_distance_less`` / ``a2x_distance_greater`` (and the core
+    ``distance_less`` / ``distance_greater`` promises) treat a missing object as "condition
+    does not hold". It is NOT safe to hand to ``sbs.distance_id`` directly -- the engine
+    errors with "sbs.distance_id was sent None". (A bare ``role(name)`` set would throw too.)
     """
     from sbs_utils.procedural.roles import role
     from sbs_utils.procedural.query import to_space_object, to_id

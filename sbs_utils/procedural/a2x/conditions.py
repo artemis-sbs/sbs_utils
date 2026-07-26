@@ -1,10 +1,15 @@
 """Legacy-style condition helpers for 2.8 ``if_*`` tests that have no one-line core
 equivalent.
 
-Most 2.8 conditions map directly to existing core functions in the generated MAST
-(``if_distance`` -> ``distance_less``, ``if_inside_sphere`` -> ``distance_point_less``
-with ``a2x_pos`` on the centre, ``if_exists`` -> ``object_exists``), so they need no
-helper here. ``if_docked`` is the exception: it reads the ship's ``dock_state``.
+Many 2.8 conditions map directly to existing core functions in the generated MAST
+(``if_inside_sphere`` -> ``distance_point_less`` with ``a2x_pos`` on the centre,
+``if_exists`` -> ``object_exists``), so they need no helper here. The exceptions:
+
+  * ``if_docked`` -- reads the ship's ``dock_state``.
+  * ``if_distance`` in a *polling loop* -- the core ``distance_less``/``distance_greater``
+    are awaitable promises, not booleans, and a raw ``sbs.distance_id`` call errors when
+    an object has been destroyed. :func:`distance_less` / :func:`distance_greater` here
+    are the boolean, destroyed-object-safe form.
 """
 
 from .coords import pos  # noqa: F401  (re-exported convenience for callers)
@@ -37,6 +42,43 @@ def within(obj, x, y, z, radius):
     p = o.engine_object.pos
     c = pos(x, y, z)
     return ((p.x - c.x) ** 2 + (p.y - c.y) ** 2 + (p.z - c.z) ** 2) ** 0.5 <= radius
+
+
+def _distance_between(obj1, obj2):
+    """Distance between two objects, or ``None`` if either is missing/destroyed.
+
+    ``sbs.distance_id`` errors ("was sent None") for an id that is None or refers to
+    a deleted object, and ``to_id`` passes both straight through -- so resolve to live
+    objects first. Callers turn ``None`` into a False condition.
+    """
+    from sbs_utils.procedural.query import to_space_object
+    from sbs_utils.helpers import FrameContext
+
+    a = to_space_object(obj1)
+    b = to_space_object(obj2)
+    if a is None or b is None:
+        return None
+    return FrameContext.context.sbs.distance_id(a.id, b.id)
+
+
+def distance_less(obj1, obj2, radius):
+    """2.8 ``if_distance`` (LESS) as a live boolean for polling loops.
+
+    False when either object is missing or destroyed -- a 2.8 condition about an
+    object that does not exist simply never fires.
+    """
+    d = _distance_between(obj1, obj2)
+    return d is not None and d < radius
+
+
+def distance_greater(obj1, obj2, radius):
+    """2.8 ``if_distance`` (GREATER) as a live boolean for polling loops.
+
+    Also False when either object is missing or destroyed: a destroyed object is
+    not "infinitely far away", it is untestable, so the condition should not fire.
+    """
+    d = _distance_between(obj1, obj2)
+    return d is not None and d > radius
 
 
 def in_box(obj, least_x, least_z, most_x, most_z, inside=True):
