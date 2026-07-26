@@ -72,13 +72,51 @@ def monster_role(monster_type):
     return _MONSTER_ROLE.get(int(monster_type), "creature_unknown")
 
 
+def set_hull_side(handle, side):
+    """Force an object's ``hull_side`` blob field to match the side it was spawned on.
+
+    ``hull_side`` is SCAN information the engine seeds from the ``side`` field of the
+    hull's shipData entry -- so a ship on art ``tsn_light_cruiser`` reads "TSN" on the
+    Science object list no matter which side it actually belongs to. A converted 2.8
+    mission puts its crew on its own declared side (``friendly``), so the two disagreed:
+    diplomacy said one thing and the Science list showed another.
+
+    This overwrites the scan string with the spawned side, taking the side's display name
+    when it resolves to a registered side and the raw key otherwise. ``side`` may be the
+    full spawn string ("friendly, a2x_spare_player") -- only the first token is the side.
+
+    EXPEDIENT, not the final answer: the real fix is for the hull's shipData not to carry
+    a side at all, since side is a property of the ship, not of the hull.
+    """
+    from sbs_utils.procedural.query import to_id, set_data_set_value
+    from sbs_utils.procedural.sides import to_side_id
+    from sbs_utils.procedural.inventory import get_inventory_value
+
+    if not side:
+        return False
+    key = str(side).split(",")[0].strip()
+    if not key or key == "#":
+        return False
+    label = key
+    sid = to_side_id(key, warn=False)
+    if sid is not None:
+        label = get_inventory_value(sid, "side_name", None) or key
+    oid = to_id(handle)
+    if oid is None:
+        return False
+    set_data_set_value(oid, "hull_side", label, 0)
+    return True
+
+
 def _spawn_npc(x, y, z, name, side, art, behave):
     from sbs_utils.procedural.spawn import npc_spawn
     from sbs_utils.procedural.query import to_id
     v = pos(x, y, z)
     # Return the ID, not the object: it's the safe grounded handle (the engine can
     # delete the object later; callers re-validate with to_space_object(id)).
-    return to_id(npc_spawn(v.x, v.y, v.z, name, side, art, behave))
+    sid = to_id(npc_spawn(v.x, v.y, v.z, name, side, art, behave))
+    set_hull_side(sid, side)   # scan info follows the SIDE, not the hull's shipData entry
+    return sid
 
 
 def create_enemy(x, y, z, art, name=None, side="enemy", behave="behav_npcship"):
@@ -118,6 +156,7 @@ def create_player(x, y, z, art, name=None, side="tsn"):
     v = pos(x, y, z)
     sid = to_id(player_spawn(v.x, v.y, v.z, name, side, art))
     add_role(sid, "default_player_ship")
+    set_hull_side(sid, side)   # scan info follows the SIDE, not the hull's shipData entry
     return sid
 
 
