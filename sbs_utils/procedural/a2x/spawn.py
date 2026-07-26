@@ -103,11 +103,22 @@ def create_generic(x, y, z, art, name=None, side=None, behave="behav_do_nothing"
 
 
 def create_player(x, y, z, art, name=None, side="tsn"):
-    """2.8 ``create type="player"`` -> a player ship. Returns the ship ID."""
+    """2.8 ``create type="player"`` -> a player ship. Returns the ship ID.
+
+    Tags the ship ``default_player_ship`` as it spawns. That is the role the
+    LegendaryMissions crew-select / loadout machinery keys on, and it is normally added by
+    LM's own ``create_default_player_ships`` -- which a converted mission turns off, since
+    those ships are built on side "tsn" rather than the mission's declared player side.
+    Doing it HERE rather than in a later route means a ship created mid-mission (some 2.8
+    missions spawn players from an event, not ``<start>``) is tagged too.
+    """
     from sbs_utils.procedural.spawn import player_spawn
     from sbs_utils.procedural.query import to_id
+    from sbs_utils.procedural.roles import add_role
     v = pos(x, y, z)
-    return to_id(player_spawn(v.x, v.y, v.z, name, side, art))
+    sid = to_id(player_spawn(v.x, v.y, v.z, name, side, art))
+    add_role(sid, "default_player_ship")
+    return sid
 
 
 def create_monster(x, y, z, monster_type=0, art=None, name=None,
