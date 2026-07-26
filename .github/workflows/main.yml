@@ -53,3 +53,9 @@ jobs:
       with:
         artifacts: "${{ github.event.repository.owner.name }}.${{ github.event.repository.name }}.${{ github.ref_name }}.sbslib,${{ github.event.repository.owner.name }}.cosmos_dev.${{ github.ref_name }}.sbslib,${{ github.event.repository.name }}.${{ github.ref_name }}.types.zip"
         token: ${{ secrets.GITHUB_TOKEN }}
+        # A rolling tag (v1.4.0 is re-pointed as work lands) means the Release usually
+        # already exists. Without allowUpdates the action only ever tries to CREATE and
+        # dies with 422 already_exists, so every re-release after the first one failed
+        # and the published .sbslib silently stayed at the previous build.
+        allowUpdates: true
+        replacesArtifacts: true
