@@ -76,7 +76,7 @@ def side_color(side_value):
 
 
 def declare_sides(side_values, names=None, colors=None,
-                  hostile_color="#F00", neutral_color="#077"):
+                  hostile_color=None, neutral_color=None):
     """Declare one Cosmos side per 2.8 ``sideValue`` and apply 2.8's implicit diplomacy.
 
     Creates a side for every value in ``side_values`` (via ``side_create``, so each is
@@ -142,11 +142,21 @@ def declare_sides(side_values, names=None, colors=None,
     # shipped mastlibs, so a converted mission never inherited them. Declaring the
     # relations and not colouring them is exactly the half-done state that reads as a
     # diplomacy bug, so it belongs here with the rest of the declaration.
-    set_diplomacy_colors(hostile_color, neutral_color)
+    set_diplomacy_colors(hostile_color or _DIPLOMACY_HOSTILE_COLOR,
+                         neutral_color or _DIPLOMACY_NEUTRAL_COLOR)
     return ids
 
 
-def set_diplomacy_colors(hostile_color="#F00", neutral_color="#077"):
+# DIAGNOSTIC VALUES -- deliberately garish so it is obvious at a glance whether the
+# engine ever applied them. If contacts are magenta/green, the colours ARE landing and any
+# remaining problem is elsewhere; if they are the usual red/grey, this call never took
+# effect. Put these back to "#F00" / "#077" once that question is answered.
+_DIPLOMACY_HOSTILE_COLOR = "#F0F"   # magenta
+_DIPLOMACY_NEUTRAL_COLOR = "#0F0"   # bright green
+
+
+def set_diplomacy_colors(hostile_color=_DIPLOMACY_HOSTILE_COLOR,
+                         neutral_color=_DIPLOMACY_NEUTRAL_COLOR):
     """Set the map colours the engine draws contacts with, by RELATION.
 
     Split out of :func:`declare_sides` and callable on its own because ``sim`` is not

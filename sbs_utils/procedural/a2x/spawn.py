@@ -89,18 +89,16 @@ def set_hull_side(handle, side):
     a side at all, since side is a property of the ship, not of the hull.
     """
     from sbs_utils.procedural.query import to_id, set_data_set_value
-    from sbs_utils.procedural.sides import to_side_id
-    from sbs_utils.procedural.inventory import get_inventory_value
 
     if not side:
         return False
     key = str(side).split(",")[0].strip()
     if not key or key == "#":
         return False
+    # Use the side KEY verbatim (lowercase), not the registered display name: the field
+    # is what the Science list renders, and the key is what every other side-facing value
+    # on the object reads, so they now match character for character.
     label = key
-    sid = to_side_id(key, warn=False)
-    if sid is not None:
-        label = get_inventory_value(sid, "side_name", None) or key
     oid = to_id(handle)
     if oid is None:
         return False
