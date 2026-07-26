@@ -142,8 +142,28 @@ def declare_sides(side_values, names=None, colors=None,
     # shipped mastlibs, so a converted mission never inherited them. Declaring the
     # relations and not colouring them is exactly the half-done state that reads as a
     # diplomacy bug, so it belongs here with the rest of the declaration.
-    sim = FrameContext.context.sim
-    if sim is not None:
-        sim.set_diplomacy_color(sbs.DIPLOMACY.HOSTILE, hostile_color)
-        sim.set_diplomacy_color(sbs.DIPLOMACY.NEUTRAL, neutral_color)
+    set_diplomacy_colors(hostile_color, neutral_color)
     return ids
+
+
+def set_diplomacy_colors(hostile_color="#F00", neutral_color="#077"):
+    """Set the map colours the engine draws contacts with, by RELATION.
+
+    Split out of :func:`declare_sides` and callable on its own because ``sim`` is not
+    always live where the sides get declared: a converted mission declares them from
+    ``//shared/signal/create_sides``, which the server console fires during start_server.
+    If ``sim`` is missing there the colours were skipped SILENTLY, which looks exactly
+    like broken diplomacy -- correctly hostile ships drawn in the neutral colour. Call
+    this again later (e.g. from ``//shared/signal/game_started``) to be sure it lands.
+
+    Returns True if the colours were applied, False if there was no sim to apply them to.
+    """
+    from sbs_utils.helpers import FrameContext
+
+    sbs = FrameContext.context.sbs
+    sim = FrameContext.context.sim
+    if sbs is None or sim is None:
+        return False
+    sim.set_diplomacy_color(sbs.DIPLOMACY.HOSTILE, hostile_color)
+    sim.set_diplomacy_color(sbs.DIPLOMACY.NEUTRAL, neutral_color)
+    return True
