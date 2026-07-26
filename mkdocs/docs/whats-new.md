@@ -535,6 +535,8 @@ Docs: [The GUI Editor](tooling/gui-editor.md).
 - **A faster, friendlier MAST compiler** — quicker parsing, *all* errors reported at
   once, sturdier crash handling, more Python built-ins available in scripts, and now
   **multiline expressions** (see below). → [The MAST language](mast/overview.md)
+- **Declare addon dependencies** — `provides` / `requires` / `suggests` make
+  cross-addon contracts explicit and compile-checked (see below).
 - **Deterministic building blocks** — keyed terrain fields, position-keyed
   [scatter](api/utility/scatter.md), and reusable game-code encode/decode.
 
@@ -556,6 +558,23 @@ Docs: [The GUI Editor](tooling/gui-editor.md).
     Works for any bracketed expression — dict/list/call literals and multiline
     `if` conditions alike. Error line numbers stay accurate, and every existing
     script compiles exactly as before. → [The MAST language](mast/overview.md)
+
+!!! tip "✨ New — declare addon dependencies"
+    Addons share one global namespace and load in no fixed order, so "this addon
+    needs that one" used to be an unwritten rule that failed with a cryptic
+    `NameError`. Now an addon states its contract at the top of its `__init__.mast`,
+    checked at **compile time**:
+
+    ```mast
+    provides hangar.sortie_board
+    suggests hangar        # optional: warn if absent, never fail
+    requires gamemaster    # hard: fail the build if it's not loaded
+    ```
+
+    A `requires` not satisfied by some loaded addon's `provides` **fails the
+    compile** (caught by `sbs lint` / `--test`, and shown as a runtime error screen);
+    `suggests` only logs a warning. Checking is **order-independent** and fully
+    backward compatible. → [The MAST language](mast/overview.md)
 
 !!! tip "✨ New — colons inside quoted strings"
     A `:` inside a quoted string no longer confuses the parser, so you can write

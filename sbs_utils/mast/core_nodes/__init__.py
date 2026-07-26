@@ -1,4 +1,5 @@
 from .comment import Comment
+from .requires_cmd import Provides, Requires, Suggests
 from .label import Label
 from .inline_label import InlineLabel
 from .conditional import  IfStatements, MatchStatements

@@ -344,6 +344,42 @@ import terrain_prefabs.mast
 
 `import filename.mast` looks for that file relative to the addon folder.
 
+### Addon dependencies (`provides` / `requires` / `suggests`)
+
+Addons share one global MAST namespace and load in a **non-deterministic order**, so
+"addon A uses a global/route from addon B" is fragile. Three top-level directives make
+the contract explicit and checkable at **compile time**:
+
+- **`provides <token>`** — this addon supplies a capability. Tokens are opaque strings
+  (dotted by convention): `provides hangar`, `provides hangar.sortie_board`.
+- **`requires <token>`** — HARD dependency. If no loaded addon provides the token, the
+  story **fails to compile** (a clear error, surfaced by `sbs lint` / `--test` and as a
+  runtime error screen).
+- **`suggests <token>`** — SOFT dependency (optional augmentation). If unmet, a warning
+  is logged and compilation continues.
+
+Put them at the top of the addon's `__init__.mast` (column 0, like `import`); multiple
+per line is fine (`provides casino, casino.bar`).
+
+```
+# hangar_sorties/__init__.mast — augments the hangar, but works standalone
+provides hangar.sortie_board
+suggests hangar             # warn (never fail) if the hangar isn't loaded
+
+# gamemaster_comms/__init__.mast — meaningless without the GM console
+requires gamemaster
+```
+
+Collection is **order-independent**: the compiler gathers every `provides` into a
+story-level union as files compile, then validates `requires`/`suggests` once, after
+the whole set has compiled — so it never matters which order addons load in. Use
+`requires` for a hard coupling (you call the other addon's globals/routes, or your
+feature is meaningless without it); use `suggests` for an optional augmentation (the
+casino / hangar_sorties pattern, guarded with `default shared X = None` so it degrades
+gracefully). These are compile-time only — no runtime effect. **Backward compatible:** a
+line is a directive only when a token follows the keyword, so `requires = 5` is still an
+assignment.
+
 ---
 
 ## Decorator Labels (`@`)

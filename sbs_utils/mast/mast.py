@@ -251,7 +251,13 @@ class Mast():
         # created, so a second story loading a file a previous story already
         # imported would short-circuit and skip compiling it entirely.
         self.imported = {}
-                
+        # Addon dependency manifest (accumulated on the ROOT story as each file
+        # compiles - see the Provides/Requires/Suggests handling in compile()).
+        # provides: set of capability tokens; requires: list of
+        # (token, kind, file_name, line_no, line) where kind is "requires"|"suggests".
+        self.provides = set()
+        self.requires = []
+
 
         if cmds is None:
             self.clear("no_mast_file", self)
@@ -643,7 +649,10 @@ class Mast():
                     errors = self.import_content(name, root, None)
                     if len(errors)>0:
                         return errors
-                    
+
+                # Every addon has now compiled, so the `provides` union is complete.
+                # Validate declared `requires`/`suggests` (order-independent barrier).
+                errors.extend(self._validate_requirements())
 
         return errors
             
@@ -723,6 +732,39 @@ class Mast():
                 if label != "main":
                     self.labels[label] = node
         return errors
+
+    def get_manifest(self):
+        """The addon dependency manifest collected during compile: the set of
+        `provides` tokens and the list of `requires`/`suggests` declarations.
+        Exposed so an offline tool (e.g. `sbs lint`) can read the same data the
+        runtime validates - both go through the same collection in compile()."""
+        return {"provides": set(self.provides),
+                "requires": list(self.requires)}
+
+    def _validate_requirements(self):
+        """Order-independent dependency barrier. Run once after the whole story
+        (every addon) has compiled, so the `provides` union is complete. An unmet
+        `requires` is a hard compile error (blocks the story, surfaces in `sbs
+        lint` / `--test` and as a runtime error screen); an unmet `suggests` is a
+        logged warning (optional augmentation, keeps running). Runs on the ROOT
+        story, whose provides/requires hold the union across all files."""
+        errs = []
+        logger = logging.getLogger("mast.compile")
+        for token, kind, file_name, line_no, line in self.requires:
+            if token in self.provides:
+                continue
+            if kind == "requires":
+                # Same shape as compile()'s nested buildErrorMessage (which is not
+                # in scope here); the file_name/line pinpoint the declaration.
+                errs.append(
+                    f"\nError: Unmet dependency: requires '{token}', but no loaded "
+                    f"addon provides it. Load the addon that declares 'provides "
+                    f"{token}'.\nat {file_name} Line {line_no} - '{line}'\n\n")
+            else:  # suggests
+                logger.warning(
+                    f"{file_name}:{line_no}: suggests '{token}', not provided by any "
+                    f"loaded addon (optional - continuing).")
+        return errs
 
 
     def compile(self, lines, file_name, root):
@@ -1037,6 +1079,25 @@ class Mast():
                                     print("import error "+e)
                                     return errors
                         prev_node = None
+
+                    elif node_cls.__name__ in ("Provides", "Requires", "Suggests"):
+                        # Addon dependency directives. Collected onto the ROOT story
+                        # (order-independent union); validated once after the whole
+                        # set compiles (see _validate_requirements). No runtime cmd.
+                        if indent > 0:
+                            errors.append(buildErrorMessage(file_name, line_no, line,
+                                f"'{node_cls.__name__.lower()}' must be at top level (column 0)"))
+                            break
+                        toks = [t.strip() for t in data.get("tokens", "").split(",") if t.strip()]
+                        if node_cls.__name__ == "Provides":
+                            for t in toks:
+                                root.provides.add(t)
+                        else:
+                            kind = node_cls.__name__.lower()   # "requires" | "suggests"
+                            for t in toks:
+                                root.requires.append((t, kind, file_name, line_no, line))
+                        prev_node = None
+
                     else:
                         try:
                             loc = len(self.cmd_stack[-1].cmds)
