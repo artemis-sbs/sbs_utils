@@ -718,7 +718,9 @@ def gui_page_for_client(client_id):
     gui = Agent.get(client_id)
     if gui is None:
         return None
-    return gui.page
+    # `page` is a GuiClient property; a non-console agent (a ship id passed by
+    # mistake) has none. Return None rather than raising into the caller's task.
+    return getattr(gui, "page", None)
 
 
 def gui_client_id():

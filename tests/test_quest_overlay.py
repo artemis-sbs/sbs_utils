@@ -24,18 +24,18 @@ class QuestOverlayDirectiveTests(unittest.TestCase):
     def setUp(self):
         reset_mock(sbs)
         self.amd = []          # (key, to, overrides)
-        self.trans = []        # (slot, kind, content)
-        self._saved = (QD.overlay_amd, QD._show_transient, QD.signal_emit, QD.comms_broadcast)
+        self.trans = []        # (kind, fields)
+        self._saved = (QD.overlay_amd, QD.overlay_kind, QD.signal_emit, QD.comms_broadcast)
         QD.overlay_amd = lambda key, to=None, **kw: self.amd.append((key, to, kw))
-        QD._show_transient = lambda slot, kind, to, seconds, content: self.trans.append((slot, kind, content))
+        QD.overlay_kind = lambda kind, to=None, **fields: self.trans.append((kind, fields))
         QD.signal_emit = lambda name, data=None: None
         QD.comms_broadcast = lambda *a, **k: None
 
     def tearDown(self):
-        QD.overlay_amd, QD._show_transient, QD.signal_emit, QD.comms_broadcast = self._saved
+        QD.overlay_amd, QD.overlay_kind, QD.signal_emit, QD.comms_broadcast = self._saved
 
     def _kinds(self):
-        return [(k, c) for (s, k, c) in self.trans]
+        return list(self.trans)
 
     def test_complete_reference_form_fires_amd(self):
         quest_add(SH, "rescue", "Rescue", "", state=QuestState.ACTIVE,

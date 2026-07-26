@@ -57,6 +57,20 @@ def overlay_slot_define(slot, rect, draw_layer=28000, input="passthrough"):
 # FrameContext.page to a SubPage before calling it.
 OVERLAY_KINDS = {}
 
+# Per-kind conventions shared by every front door (wrappers, AMD records, quest
+# directives) so one kind means one slot and one "primary" text field everywhere.
+_KIND_DEFAULT_SLOT = {
+    "hero": "center_hero", "credits": "fullscreen", "choice": "center_hero",
+    "toast": "corner_toast", "banner": "top_banner", "lower_third": "lower_third",
+    "letterbox": "fullscreen", "flash": "fullscreen", "hud": "hud",
+}
+# the field a bare line of text lands in for each kind
+_KIND_PRIMARY_FIELD = {
+    "hero": "title", "credits": "title", "choice": "title",
+    "toast": "text", "banner": "text", "lower_third": "line",
+    "letterbox": "line",
+}
+
 
 # --- Debug logging (diagnose clear/redraw in-engine) -------------------------
 # When enabled, the overlay code appends its exact send_gui_* command stream to a
@@ -342,21 +356,106 @@ class OverlayManager:
 
 
 # --- Procedural API ----------------------------------------------------------
-def _pages_for(to):
-    """Resolve a ``to`` target to a list of client pages that have an overlay
-    manager.
+# --- Audience resolution ("to" is an audience EXPRESSION) --------------------
+# Overlays draw on CONSOLES, but authors naturally hold ships and sides (that is
+# what comms_broadcast takes). So `to` accepts any of them and this resolves down
+# to console client ids. Ids are bit-typed, so the dispatch is unambiguous:
+#
+#   None              -> the current console
+#   client id         -> that console
+#   space-object id   -> linked_to(ship, "consoles")     (that ship's consoles)
+#   side key / side id-> consoles of every ship on that side
+#   set / list        -> the union, elementwise (a mixed role set is fine)
+#   anything else     -> skipped
+#
+# `consoles=` narrows the result by console role ("mainscreen", "science, comms").
+_WARNED_EMPTY = set()
 
-    - ``to is None`` → the current console (``FrameContext.page``).
-    - otherwise ``to`` is normalized with ``to_set`` (accepts an int client id, a
-      role set / query, an Agent, or a list) → each id's page via
-      ``gui_page_for_client``. Non-client ids resolve to no page and are skipped,
-      so a mixed role set is fine.
+
+def _consoles_of_ship(ship_id):
+    from ..links import linked_to
+    return set(linked_to(ship_id, "consoles"))
+
+
+def _consoles_of_ships(ships):
+    out = set()
+    for ship in ships:
+        out |= _consoles_of_ship(ship)
+    return out
+
+
+def _expand_audience_item(item):
+    """Resolve ONE audience item to a set of console client ids."""
+    from ..query import to_id, is_client_id, is_space_object_id
+    from ..roles import has_role
+    from ..sides import to_side_id, side_members_set
+
+    # A bare string is a SIDE KEY. role(...) returns a set, so there is no clash.
+    if isinstance(item, str):
+        side_id = to_side_id(item, warn=False)
+        if side_id is None:
+            return set()
+        return _consoles_of_ships(side_members_set(side_id))
+
+    cid = to_id(item)
+    if not isinstance(cid, int):
+        return set()
+    if cid == 0:
+        return {0}                       # the server console — only when named explicitly
+    # Ship BEFORE side: to_side_id() happily maps a space object to its side, which
+    # would silently widen "this ship" into "everyone on its side".
+    if is_space_object_id(cid):
+        return _consoles_of_ship(cid)
+    if has_role(cid, "__side__"):
+        return _consoles_of_ships(side_members_set(cid))
+    # A console: the client bit, or (belt and braces) any agent that owns a page.
+    if is_client_id(cid) or gui_page_for_client(cid) is not None:
+        return {cid}
+    return set()
+
+
+def consoles_of(to, consoles=None):
+    """Resolve an audience expression to a set of console client ids.
+
+    Args:
+        to: ``None`` (the current console), a client id, a ship id/object, a side
+            key or side agent, or a set/list mixing any of those.
+        consoles (str, optional): narrow to consoles with these roles, e.g.
+            ``"mainscreen"`` or ``"science, comms"``.
+
+    Returns:
+        set[int]: console client ids (possibly empty).
     """
     if to is None:
         page = FrameContext.page
+        ids = {page.client_id} if page is not None else set()
+    else:
+        items = to if isinstance(to, (set, frozenset, list, tuple)) else [to]
+        ids = set()
+        for item in items:
+            ids |= _expand_audience_item(item)
+        # A scalar that resolves to nothing is the hard-to-see bug ("I passed a
+        # thing and saw no overlay"), so say so once. An empty SET is normal — no
+        # consoles connected, NPCs in the set — and stays quiet.
+        if not ids and not isinstance(to, (set, frozenset, list, tuple)):
+            key = str(to)
+            if key not in _WARNED_EMPTY:
+                _WARNED_EMPTY.add(key)
+                print(f"[overlay] to={key!r} resolved to no console; overlay not shown")
+    if consoles and ids:
+        from ..roles import any_role
+        ids &= any_role(consoles)
+    return ids
+
+
+def _pages_for(to, consoles=None):
+    """Resolve a ``to`` target to a list of client pages that have an overlay
+    manager (see ``consoles_of`` for what ``to`` accepts)."""
+    if to is None and not consoles:
+        page = FrameContext.page
         return [page] if page is not None and getattr(page, "overlays", None) else []
     pages = []
-    for cid in to_set(to):
+    for cid in consoles_of(to, consoles):
         p = gui_page_for_client(cid)
         if p is not None and getattr(p, "overlays", None) is not None:
             pages.append(p)
@@ -371,24 +470,27 @@ def _on_page(page, fn):
         fn(page.overlays)
 
 
-def overlay_show(slot, kind, to=None, **content):
+def overlay_show(slot, kind, to=None, consoles=None, **content):
     """Show an overlay in ``slot`` using content builder ``kind``.
 
     Args:
         slot (str): a slot name (see ``OVERLAY_SLOTS``); unknown names use a
             centered default rect.
         kind (str): a registered builder (see ``overlay_register``).
-        to: target consoles — ``None`` = the current console; an int client id; or a
-            role set / query (e.g. ``role("mainscreen")``). Non-console ids are ignored.
+        to: the audience — ``None`` = the current console; a client id; a **ship**
+            (its consoles); a **side** key/agent (that side's consoles); or a set /
+            role query mixing them. See ``consoles_of``.
+        consoles (str, optional): narrow the audience to consoles with these roles,
+            e.g. ``"mainscreen"``.
         **content: fields passed through to the builder.
     """
-    for page in _pages_for(to):
+    for page in _pages_for(to, consoles):
         _on_page(page, lambda ov: ov.show(slot, kind, content))
 
 
-def overlay_clear(slot=None, to=None):
+def overlay_clear(slot=None, to=None, consoles=None):
     """Clear one slot (or all slots if ``slot`` is None) on the ``to`` targets."""
-    for page in _pages_for(to):
+    for page in _pages_for(to, consoles):
         _on_page(page, lambda ov: ov.clear(slot))
 
 
@@ -475,27 +577,38 @@ def _schedule_dismiss(page, slot, gen, seconds):
     return TickDispatcher.do_once(_fire, seconds)
 
 
-def _show_transient(slot, kind, to, seconds, content):
+def _show_transient(slot, kind, to, seconds, content, consoles=None):
     """Show an overlay and, if ``seconds`` is set, auto-clear it after that long.
     The dismiss is generation-guarded per target page, so re-showing the slot before
     the timer fires supersedes it instead of clearing the newer content."""
-    overlay_show(slot, kind, to=to, **content)
+    overlay_show(slot, kind, to=to, consoles=consoles, **content)
     if seconds and seconds > 0:
-        for page in _pages_for(to):
+        for page in _pages_for(to, consoles):
             r = page.overlays.slots.get(slot)
             if r is not None:
                 _schedule_dismiss(page, slot, r.generation, seconds)
 
 
+def overlay_kind(kind, to=None, consoles=None, slot=None, seconds=None, **fields):
+    """Low-level front door: show any registered ``kind`` with its default slot.
+
+    The escape hatch for callers that pick the kind at runtime (the quest driver's
+    inline overlay directives, AMD records). Prefer the named wrappers when the
+    kind is known at author time."""
+    slot = slot or _KIND_DEFAULT_SLOT.get(kind, "center_hero")
+    _show_transient(slot, kind, to, seconds, fields, consoles)
+
+
 def overlay_hero(title, subtitle=None, image=None, face=None, ship=None, icon=None,
-                 slot="center_hero", to=None, seconds=None):
+                 slot="center_hero", to=None, consoles=None, seconds=None):
     """Show a big centered hero / chapter card with an optional visual above the
     title (first set wins): ``face`` (a face string), ``ship`` (a ship-type key),
     ``icon`` (an icon index), or ``image`` (an image key). Auto-dismiss after
     ``seconds`` if set."""
     _show_transient(slot, "hero", to, seconds,
                     {"title": title, "subtitle": subtitle,
-                     "image": image, "face": face, "ship": ship, "icon": icon})
+                     "image": image, "face": face, "ship": ship, "icon": icon},
+                    consoles)
 
 
 # --- Toast (corner, transient, STACKING) -------------------------------------
@@ -550,13 +663,13 @@ def _schedule_toast_remove(page, slot, tid, seconds):
     TickDispatcher.do_once(_fire, seconds)
 
 
-def overlay_toast(text, icon=None, seconds=3, to=None, slot="corner_toast"):
+def overlay_toast(text, icon=None, seconds=3, to=None, consoles=None, slot="corner_toast"):
     """Small transient corner notification. Toasts STACK — several coexist, each
     auto-clearing after its own ``seconds`` (default 3), capped at TOAST_MAX."""
     _TOAST_SEQ[0] += 1
     tid = _TOAST_SEQ[0]
     item = {"text": text, "icon": icon, "tid": tid}
-    for page in _pages_for(to):
+    for page in _pages_for(to, consoles):
         _on_page(page, lambda ov: _toast_push(ov, slot, item))
         _schedule_toast_remove(page, slot, tid, seconds)
 
@@ -574,9 +687,11 @@ def _banner_builder(client_id, content):
 overlay_register("banner", _banner_builder)
 
 
-def overlay_banner(text, color="#fd0", slot="top_banner", to=None, seconds=None):
-    """Full-width top strip (alert / countdown). Auto-dismiss after ``seconds`` if set."""
-    _show_transient(slot, "banner", to, seconds, {"text": text, "color": color})
+def overlay_banner(text, color="#fd0", slot="top_banner", to=None, consoles=None,
+                   seconds=None):
+    """Full-width top strip (alert / countdown). Auto-dismiss after ``seconds`` if set.
+    Re-call it to update in place (generation-guarded) - a countdown needs no new API."""
+    _show_transient(slot, "banner", to, seconds, {"text": text, "color": color}, consoles)
 
 
 # --- Lower third (name-plate + line) -----------------------------------------
@@ -595,9 +710,10 @@ def _lower_third_builder(client_id, content):
 overlay_register("lower_third", _lower_third_builder)
 
 
-def overlay_lower_third(name, line, slot="lower_third", to=None, seconds=None):
+def overlay_lower_third(name, line, slot="lower_third", to=None, consoles=None,
+                        seconds=None):
     """Bottom name-plate + subtitle line (someone speaking over the live view)."""
-    _show_transient(slot, "lower_third", to, seconds, {"name": name, "line": line})
+    _show_transient(slot, "lower_third", to, seconds, {"name": name, "line": line}, consoles)
 
 
 # --- Credits (sequential list) -----------------------------------------------
@@ -640,16 +756,17 @@ def _start_credits_roll(page, slot, title, entries, window, interval):
     TickDispatcher.do_interval(_advance, interval)
 
 
-def overlay_credits(entries, title=None, slot="fullscreen", to=None, seconds=None,
-                    roll=None, window=8):
+def overlay_credits(entries, title=None, slot="fullscreen", to=None, consoles=None,
+                    seconds=None, roll=None, window=8):
     """Opening/closing credits: a title + a list of lines. Static by default; pass
     ``roll`` (seconds per page) to auto-advance ``window`` lines at a time, clearing
     at the end."""
     entries = list(entries)
     if not roll:
-        _show_transient(slot, "credits", to, seconds, {"title": title, "entries": entries})
+        _show_transient(slot, "credits", to, seconds,
+                        {"title": title, "entries": entries}, consoles)
         return
-    for page in _pages_for(to):
+    for page in _pages_for(to, consoles):
         _start_credits_roll(page, slot, title, entries, window, roll)
 
 
@@ -675,7 +792,7 @@ def _choice_builder(client_id, content):
 overlay_register("choice", _choice_builder)
 
 
-def overlay_choice(title, buttons, to=None, slot="center_hero"):
+def overlay_choice(title, buttons, to=None, consoles=None, slot="center_hero"):
     """Show a modal choice card and return an awaitable that resolves when a button
     is pressed. Await it from a story/background task (not the target console's own
     gui task); the result's ``.data`` is the chosen label.
@@ -686,7 +803,8 @@ def overlay_choice(title, buttons, to=None, slot="center_hero"):
     """
     from ...futures import Promise
     prom = Promise()
-    overlay_show(slot, "choice", to=to, title=title, buttons=list(buttons), _promise=prom)
+    overlay_show(slot, "choice", to=to, consoles=consoles, title=title,
+                 buttons=list(buttons), _promise=prom)
     return prom
 
 
@@ -728,7 +846,7 @@ def _hud_builder(client_id, content):
 overlay_register("hud", _hud_builder)
 
 
-def overlay_hud(rows=None, controls=None, title=None, to=None, slot="hud"):
+def overlay_hud(rows=None, controls=None, title=None, to=None, consoles=None, slot="hud"):
     """Show a sticky HUD (label/value rows + optional control buttons) over the
     live view. Stays until cleared. Update values with ``overlay_hud_update``.
 
@@ -737,11 +855,11 @@ def overlay_hud(rows=None, controls=None, title=None, to=None, slot="hud"):
         controls: list of ``{"label":.., "action": <MAST label | callable>,
             "data":..}`` — rendered as persistent sub-task buttons.
     """
-    overlay_show(slot, "hud", to=to, rows=_normalize_rows(rows),
+    overlay_show(slot, "hud", to=to, consoles=consoles, rows=_normalize_rows(rows),
                  controls=controls or [], title=title)
 
 
-def overlay_hud_update(rows=None, title=None, to=None, slot="hud"):
+def overlay_hud_update(rows=None, title=None, to=None, consoles=None, slot="hud"):
     """Cheaply update a live HUD's rows (and/or title). Re-fills the slot region
     out-of-band — no page repaint. Watchers call this only when a displayed value
     actually changes."""
@@ -752,7 +870,7 @@ def overlay_hud_update(rows=None, title=None, to=None, slot="hud"):
         patch["title"] = title
     if not patch:
         return
-    for page in _pages_for(to):
+    for page in _pages_for(to, consoles):
         _on_page(page, lambda ov: ov.patch(slot, patch))
 
 
@@ -778,10 +896,11 @@ def _letterbox_builder(client_id, content):
 overlay_register("letterbox", _letterbox_builder)
 
 
-def overlay_letterbox(line=None, bar=4, to=None, slot="fullscreen", seconds=None):
+def overlay_letterbox(line=None, bar=4, to=None, consoles=None, slot="fullscreen",
+                      seconds=None):
     """Cinematic letterbox: black bars top+bottom (``bar`` em each) with an optional
     centered line. Sticky by default; pass ``seconds`` to auto-lift."""
-    _show_transient(slot, "letterbox", to, seconds, {"line": line, "bar": bar})
+    _show_transient(slot, "letterbox", to, seconds, {"line": line, "bar": bar}, consoles)
 
 
 def _flash_builder(client_id, content):
@@ -796,6 +915,6 @@ def _flash_builder(client_id, content):
 overlay_register("flash", _flash_builder)
 
 
-def overlay_flash(color="#f006", to=None, slot="fullscreen", seconds=0.4):
+def overlay_flash(color="#f006", to=None, consoles=None, slot="fullscreen", seconds=0.4):
     """Full-screen color wash (hull hit, jump). Auto-dismisses fast (default 0.4s)."""
-    _show_transient(slot, "flash", to, seconds, {"color": color})
+    _show_transient(slot, "flash", to, seconds, {"color": color}, consoles)

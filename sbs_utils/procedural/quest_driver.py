@@ -22,10 +22,10 @@ from sbs_utils.procedural.quest import (
     quest_get_key, quest_set_key, quest_get_display_name, quest_add, QuestState,
     quest_log_build_items)
 from sbs_utils.procedural.roles import has_role, role
-from sbs_utils.procedural.query import to_object, to_object_list, to_id, to_id_list, is_space_object_id
-from sbs_utils.procedural.links import linked_to
-from sbs_utils.procedural.gui.overlay import _show_transient
-from sbs_utils.procedural.amd_overlay import overlay_amd, _PRIMARY, _DEFAULT_SLOT
+from sbs_utils.procedural.query import (
+    to_object, to_object_list, to_id, to_id_list, to_set, is_space_object_id)
+from sbs_utils.procedural.gui.overlay import overlay_kind, consoles_of
+from sbs_utils.procedural.amd_overlay import overlay_amd, _PRIMARY
 from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
 from sbs_utils.procedural.sides import to_side_id, side_are_enemies, is_hostile_to_players
 from sbs_utils.procedural.timers import set_timer, is_timer_set, is_timer_finished
@@ -48,12 +48,8 @@ def _quest_audience(agent_id):
 
 def _quest_overlay_audience(agent_id):
     """The CONSOLE clients that should see a quest's overlays: the participant
-    ships' linked consoles (overlays target consoles, not ships). Falls back to the
-    audience itself if a target has no linked consoles."""
-    consoles = set()
-    for ship in to_id_list(_quest_audience(agent_id)):
-        consoles |= linked_to(ship, "consoles")
-    return consoles
+    ships' linked consoles (overlays target consoles, not ships)."""
+    return consoles_of(to_set(_quest_audience(agent_id)))
 
 
 def _fire_overlay_directive(directive, to):
@@ -69,9 +65,8 @@ def _fire_overlay_directive(directive, to):
     if kind == "overlay":
         overlay_amd(rest, to=to)
         return
-    slot = _DEFAULT_SLOT.get(kind, "center_hero")
     prim = _PRIMARY.get(kind, "title")
-    _show_transient(slot, kind, to, None, {prim: rest})
+    overlay_kind(kind, to=to, **{prim: rest})
 
 
 def _quest_fire_overlays(agent_id, data, ref_key, inline_key):

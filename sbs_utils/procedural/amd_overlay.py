@@ -20,22 +20,16 @@ quests / scans / landmarks. ``overlay_amd("ch2", to=role("mainscreen"))`` fires 
 a ``Seconds`` field auto-dismisses.
 """
 from sbs_utils.procedural.amd_doc import amd_records
-from sbs_utils.procedural.gui.overlay import _show_transient
+from sbs_utils.procedural.gui.overlay import (
+    _show_transient, _KIND_PRIMARY_FIELD, _KIND_DEFAULT_SLOT)
 
 # key -> {"key", "kind", "slot", "fields", "display"}
 OVERLAY_AMD = {}
 
-# the body / display maps to this field for each kind
-_PRIMARY = {
-    "hero": "title", "credits": "title", "choice": "title",
-    "toast": "text", "banner": "text", "lower_third": "line",
-}
-# slot to use when a record names no Slot
-_DEFAULT_SLOT = {
-    "hero": "center_hero", "credits": "fullscreen", "choice": "center_hero",
-    "toast": "corner_toast", "banner": "top_banner", "lower_third": "lower_third",
-    "hud": "hud",
-}
+# The per-kind conventions are owned by the overlay module so every front door
+# (wrappers, AMD, quest directives) agrees; kept under the old names for callers.
+_PRIMARY = _KIND_PRIMARY_FIELD          # body / display -> this field
+_DEFAULT_SLOT = _KIND_DEFAULT_SLOT      # slot when a record names no Slot
 
 
 def _num(v):
@@ -72,10 +66,11 @@ def amd_overlays(section):
     return dict(OVERLAY_AMD)
 
 
-def overlay_amd(key, to=None, fields=None):
+def overlay_amd(key, to=None, fields=None, consoles=None):
     """Fire a declared overlay by key. ``fields`` (a dict) merge over the record's
-    fields; a ``seconds`` field auto-dismisses. Returns the record, or None for an
-    unknown key."""
+    fields; a ``seconds`` field auto-dismisses. ``to`` accepts a console, ship, side
+    or set (see ``consoles_of``); ``consoles`` narrows by console role. Returns the
+    record, or None for an unknown key."""
     rec = OVERLAY_AMD.get(key)
     if rec is None:
         return None
@@ -83,5 +78,5 @@ def overlay_amd(key, to=None, fields=None):
     if fields:
         merged.update(fields)
     seconds = merged.pop("seconds", None)
-    _show_transient(rec["slot"], rec["kind"], to, seconds, merged)
+    _show_transient(rec["slot"], rec["kind"], to, seconds, merged, consoles)
     return rec

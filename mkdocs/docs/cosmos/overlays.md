@@ -45,21 +45,37 @@ see [Targeting](#targeting-which-consoles)).
 
 ## Targeting — which consoles
 
-Every wrapper takes `to`:
+Overlays draw on **consoles**, but you usually hold a ship or a side. `to` is an
+**audience expression** that accepts any of them:
 
 | `to` | goes to |
 |---|---|
 | *(omitted)* | the **current** console (the one whose task called it) |
 | a client id | that one console |
-| a role set — `role("mainscreen")` | every matching console |
-
-So server story logic pushes straight to a set of players:
+| a **ship** (id or object) | every console linked to that ship |
+| a **side** (key string or side agent) | every console of every ship on that side |
+| a role set / list | the union, elementwise |
 
 ```
 overlay_hero("FLEET ALERT", subtitle="Raiders inbound", to=role("mainscreen"))
+overlay_banner("WAR DECLARED", to=role("__player__"))      # ships -> their consoles
+overlay_toast("Cargo ejected", to=ship_id)                 # one crew
+overlay_banner("BLOCKADE LIFTED", to="tsn")                # a whole side
 ```
 
-Non-console ids in a role set are ignored, so a mixed set is fine.
+A mixed set is fine — ships and clients resolve side by side, and anything that isn't
+a console is skipped. Resolve it yourself with `consoles_of(to)`.
+
+**`consoles=` narrows by console role.** A ship has a whole bridge; often you mean one
+screen:
+
+```
+overlay_lower_third(name, line, to=ship_id, consoles="mainscreen")
+overlay_toast("Contact bearing 040", to=ship_id, consoles="science, comms")
+```
+
+Passing a scalar `to` that resolves to no console logs a one-off warning (that is the
+"I pushed an overlay and saw nothing" bug); an empty *set* is normal and stays quiet.
 
 ## Auto-dismiss & stacking toasts
 
@@ -185,6 +201,36 @@ overlay_register("briefing", _briefing)
 
 Either way, the builder decides *layout*; the content decides *what shows* — the same
 card can be driven from a wrapper, a signal, AMD, or a quest.
+
+## announce() — the overlay AND the record, in one call
+
+An overlay is an **attention** layer: it draws over the view, then it is gone. It keeps
+no history, and a console that connects a second later never saw it. So the house rule
+is that **an overlay never carries information alone** — anything a player may need to
+act on later gets a durable twin.
+
+`announce()` does both halves, picked by `level`:
+
+| `level` | overlay | durable twin |
+|---|---|---|
+| `chapter` | hero card | info-panel card (history) |
+| `hail` | lower third | `comms_message` from `sender` (else a card) |
+| `alert` | top banner | info-panel card (history) |
+| `status` | corner toast | none |
+| `minor` | corner toast | none |
+
+```
+announce("Raiders have crossed the line.", title="TSN Command",
+         level="alert", to="tsn")
+
+announce(line, title=admiral.name, face=get_face(admiral.id),
+         level="hail", sender=admiral.id, ship=artemis_id)
+```
+
+The overlay gets a **headline** — `announce_headline()` folds it to one ASCII line and
+clamps it (engine text is ASCII-only, and a card is a glance). The full text goes to
+the twin. `record=False` suppresses the twin when it is already being sent another way;
+`record=True` forces a card on a level that has none.
 
 ## How it draws (the one rule)
 

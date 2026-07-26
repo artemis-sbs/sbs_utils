@@ -144,8 +144,12 @@ class FrameContextOverride:
         self.restore_event = None
 
     def __enter__(self):
-        self.restore_task = FrameContext.task
-        self.restore_page = FrameContext.page
+        # Save the RAW overrides, not the properties: `task`/`page` fall back to
+        # the client's page / its gui_task when unset, so saving the derived value
+        # would restore a concrete override where there was none — pinning the
+        # context to one page for everything that runs afterwards.
+        self.restore_task = FrameContext._task
+        self.restore_page = FrameContext._page
         self.restore_event = FrameContext.context.event
 
         FrameContext.task = self.task
