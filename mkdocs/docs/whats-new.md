@@ -112,6 +112,26 @@ fall.
 
 Authoring reference: [Quests](build/quests.md) · [Sides, lifeforms & faces](build/sides-lifeforms.md).
 
+## 🤝 Peacetime, with more than one ship
+
+Bring a second ship to a peacetime patrol and a single **Quest Mode** (set on the map
+panel) decides whether you cooperate or compete for the same board of jobs:
+
+- **Co-op** — nothing is claimed. Deliver a barge and *every* ship holding that job is
+  paid, and the multi-step arcs run for the whole crew together.
+- **Protected** *(default)* — the moment you work a target it's **locked to you**. A rival's
+  grav-tether is refused (*"claimed by another ship"*) and only you are paid. Friendly by
+  default, nobody can spoil your job.
+- **Claim-jump** — claims are **stealable**: the [grav-tether](api/procedural/grav_tether.md)
+  becomes the competitive tool, letting you tow a rival's salvage out from under them.
+  Payment follows whoever delivers, and each ship banks its **own** earnings for a
+  top-earner readout.
+
+The ownership, per-ship credit, and kill-attribution rules are all locked down by headless
+conformance tests, so the guarantees hold without standing up five clients to check.
+
+Player guide: [Multiplayer jobs](legendarymissions/playing/multiplayer-quests.md).
+
 ## 🌐 Web pages, written in MAST
 
 - Author browser pages with `//web/<path>` routes using the same `gui_*` layout you
