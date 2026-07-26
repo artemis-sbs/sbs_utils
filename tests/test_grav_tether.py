@@ -21,6 +21,7 @@ class TestGravTether(unittest.TestCase):
         reset_mock(sbs)
         gt.grav_tether_clear_all()
         gt.grav_tether_set_overspeed_default(gt.OVERSPEED_CAP)
+        gt.grav_tether_set_attach_policy(None)
         self.ship = to_id(player_spawn(0, 0, 0, "Tug", "tsn", "tsn_light_cruiser"))
         self.load = to_id(npc_spawn(2000, 0, 0, "Load", "tsn", "tsn_light_cruiser", "behav_npcship"))
 
@@ -206,6 +207,19 @@ class TestGravTether(unittest.TestCase):
         cd = closest_in_front(self.ship, any_role("raider"), max_dist=5000, cone_deg=45)
         self.assertIsNotNone(cd)
         self.assertEqual(cd.id, ahead)   # ahead wins even though 'Behind' is nearer
+
+    # --- attach policy (ownership veto hook) ---------------------------------
+
+    def test_attach_policy_vetoes_every_entry_point(self):
+        # A policy denying any attach that involves self.load blocks lock/tow/swing.
+        gt.grav_tether_set_attach_policy(lambda src, tgt: self.load not in (src, tgt))
+        self.assertIsNone(gt.grav_tether_lock(self.ship, self.load))         # via attach
+        self.assertIsNone(gt.grav_tether_tow(self.ship, self.load, 500))     # via rope
+        self.assertIsNone(gt.grav_tether_swing(self.load, self.ship, 800))   # own body
+        self.assertIsNone(gt.grav_tether_get(self.ship, self.load))          # nothing opened
+        # a permitted pair still attaches
+        other = to_id(npc_spawn(0, 0, 3000, "Other", "tsn", "tsn_light_cruiser", "behav_npcship"))
+        self.assertIsNotNone(gt.grav_tether_tow(self.ship, other, 500))
 
     # --- self-heal -----------------------------------------------------------
 

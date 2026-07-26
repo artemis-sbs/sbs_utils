@@ -44,6 +44,22 @@ _default_overspeed = OVERSPEED_CAP
 _TETHERS = {}
 _tick_task = None
 
+# Optional veto checked before every NEW tether: fn(source_id, target_id) -> True to allow,
+# False to deny. Lets a mission enforce ownership (e.g. a non-owner can't tether an owned
+# quest target) without the library knowing anything about quests. None = allow all.
+_attach_policy = None
+
+
+def grav_tether_set_attach_policy(fn):
+    """Install (or clear with None) the attach veto callback. An attach whose
+    fn(source_id, target_id) returns False is refused (attach returns None)."""
+    global _attach_policy
+    _attach_policy = fn
+
+
+def _attach_allowed(src, tgt):
+    return _attach_policy is None or _attach_policy(src, tgt)
+
 
 def _sim():
     return FrameContext.sim
@@ -92,6 +108,8 @@ def grav_tether_attach(source, target, offset=None, stiffness=0.0, pull_distance
     src = to_id(source)
     tgt = to_id(target)
     if src is None or tgt is None or src == 0 or tgt == 0:
+        return None
+    if not _attach_allowed(src, tgt):
         return None
     sim = _sim()
     sim.DeleteTractorConnection(src, tgt)
@@ -188,6 +206,8 @@ def grav_tether_rope(source, target, rope_len, stiffness=DEFAULT_TOW_STIFFNESS, 
     tgt = to_id(target)
     if src is None or tgt is None or src == 0 or tgt == 0:
         return None
+    if not _attach_allowed(src, tgt):
+        return None
     _TETHERS[(src, tgt)] = {
         "offset": None,
         "stiffness": float(stiffness),
@@ -212,6 +232,8 @@ def grav_tether_swing(anchor, ship, rope_len, stiffness=1.0, overspeed=None):
     src = to_id(anchor)
     tgt = to_id(ship)
     if src is None or tgt is None or src == 0 or tgt == 0:
+        return None
+    if not _attach_allowed(src, tgt):
         return None
     _TETHERS[(src, tgt)] = {
         "offset": None,
