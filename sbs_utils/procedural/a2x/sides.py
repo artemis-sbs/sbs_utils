@@ -147,12 +147,10 @@ def declare_sides(side_values, names=None, colors=None,
     return ids
 
 
-# DIAGNOSTIC VALUES -- deliberately garish so it is obvious at a glance whether the
-# engine ever applied them. If contacts are magenta/green, the colours ARE landing and any
-# remaining problem is elsewhere; if they are the usual red/grey, this call never took
-# effect. Put these back to "#F00" / "#077" once that question is answered.
-_DIPLOMACY_HOSTILE_COLOR = "#F0F"   # magenta
-_DIPLOMACY_NEUTRAL_COLOR = "#0F0"   # bright green
+# Contact colours by DIPLOMACY relation, matching LegendaryMissions' own values. These
+# only take effect when applied AFTER the sim is up -- see set_diplomacy_colors.
+_DIPLOMACY_HOSTILE_COLOR = "#F00"
+_DIPLOMACY_NEUTRAL_COLOR = "#077"
 
 
 def set_diplomacy_colors(hostile_color=_DIPLOMACY_HOSTILE_COLOR,
@@ -162,9 +160,11 @@ def set_diplomacy_colors(hostile_color=_DIPLOMACY_HOSTILE_COLOR,
     Split out of :func:`declare_sides` and callable on its own because ``sim`` is not
     always live where the sides get declared: a converted mission declares them from
     ``//shared/signal/create_sides``, which the server console fires during start_server.
-    If ``sim`` is missing there the colours were skipped SILENTLY, which looks exactly
-    like broken diplomacy -- correctly hostile ships drawn in the neutral colour. Call
-    this again later (e.g. from ``//shared/signal/game_started``) to be sure it lands.
+    More importantly, the engine does not RETAIN colour/relationship writes made that
+    early: confirmed in-engine, contacts stayed grey until the identical calls were
+    re-issued a few seconds after game_started, at which point they took immediately.
+    So call this again after start -- the converted missions re-assert it on a short
+    loop, since a single re-apply at ~1s was still too early while ~3s worked.
 
     Returns True if the colours were applied, False if there was no sim to apply them to.
     """
