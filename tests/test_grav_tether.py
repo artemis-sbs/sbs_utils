@@ -208,6 +208,11 @@ class TestGravTether(unittest.TestCase):
         self.assertIsNotNone(cd)
         self.assertEqual(cd.id, ahead)   # ahead wins even though 'Behind' is nearer
 
+    def test_sources_of_lists_the_tetherers(self):
+        gt.grav_tether_tow(self.ship, self.load, 500)
+        self.assertEqual(gt.grav_tether_sources_of(self.load), [self.ship])
+        self.assertEqual(gt.grav_tether_sources_of(self.ship), [])
+
     # --- attach policy (ownership veto hook) ---------------------------------
 
     def test_attach_policy_vetoes_every_entry_point(self):

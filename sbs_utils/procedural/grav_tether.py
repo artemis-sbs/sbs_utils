@@ -146,6 +146,13 @@ def grav_tether_release_all(source):
     _maybe_stop_tick()
 
 
+def grav_tether_sources_of(target):
+    """List the source ids currently tethering ``target`` (a tow/lock source, or a swing
+    anchor). Lets a mission see who is working a shared quest target (claim-on-tether)."""
+    tid = to_id(target)
+    return [k[0] for k in _TETHERS if k[1] == tid]
+
+
 def grav_tether_involves(obj):
     """True if obj is either end (source or target) of any live tether — for a one-button
     toggle where the ship may be the puller (tow/reel) or the pulled (swing)."""
