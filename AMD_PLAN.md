@@ -153,7 +153,7 @@ Step 4 is the common path. Most files never write a kind line at all.
 | `Goal:` doing two jobs | split: **`Objective:`** (the sentence players read) + **`Done when:`** (the trigger) |
 | `When:` / `Goal:` / `Then:` | NOT redundant - three lifecycle slots. Rename for clarity: **`Starts when:`** (aka `when`), **`Done when:`** (aka `goal`), **`Then:`** |
 | `State: idle` | rename to **`State: available`** - the word the player already sees. `idle` stays as `aka` |
-| `signal` keyword | drop it - a bare token IS a signal (`Done when: 5 drone_down`); `reach 6, 4` keeps its verb because it is a different shape |
+| ~~`signal` keyword~~ | **REVERSED - keep it.** The plan said drop it and let a bare token mean a signal. The corpus says no: 15 dialogue records write `When: comms`, meaning "this scene opens on a station hail", and a bare token rule would silently reinterpret those as a signal named `comms`. The keyword is doing real disambiguation between "a signal name" and "a named condition this domain understands". `signal` stays; it is the honest escape hatch to the technical layer |
 | kind line spelling | bare noun, first line, `These are:` as long form |
 | Title Case labels | normative for authoring; normalised on read |
 

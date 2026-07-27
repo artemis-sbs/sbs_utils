@@ -127,6 +127,23 @@ def amd_console_list(value):
     return [t.strip().lower() for t in raw if t.strip()]
 
 
+def _norm(label):
+    return str(label).strip().lower().replace("-", "_").replace(" ", "_")
+
+
+# The renamed spellings, mapped back to the label this module's handler chain already
+# matches. Declared in amd_schema (which owns the vocabulary); repeated here as the
+# RUNTIME half, because the handler gets first refusal and matches literal labels.
+_CANONICAL_TO_LEGACY = {
+    "done_when": "goal",        # Goal: -> Done when:
+    "starts_when": "when",      # When: -> Starts when:
+}
+
+# `State: idle` -> the word the player already sees. QuestState.IDLE renders as
+# "Available", so `available` is what an author writes; `idle` keeps working.
+_STATE_ALIASES = {"available": "idle"}
+
+
 def amd_quest_facts(aliases=None):
     """Return an ``amd_parse_facts`` handler for the shared quest vocabulary.
 
@@ -144,7 +161,15 @@ def amd_quest_facts(aliases=None):
     handler after this one (or falls to amd_parse_facts's default coercion).
     ``aliases`` is forwarded to ``amd_trigger`` / role resolution."""
     def handler(data, label, value):
+        # Resolve the AUTHORED spelling to the one this chain matches on, so a
+        # renamed label works at RUNTIME and not only in the tooling. The registry
+        # owns which spellings mean what; this keeps the chain below unchanged.
+        label = _CANONICAL_TO_LEGACY.get(_norm(label), label)
         if label in ("scope", "state"):
+            # `State: idle` was renamed to `State: available` (the word the player
+            # already sees). Accept both; store what the driver reads.
+            if label == "state":
+                value = _STATE_ALIASES.get(str(value).strip().lower(), value)
             data[label] = value
         elif label == "display":
             data["display"] = value
