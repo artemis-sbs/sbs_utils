@@ -1,3 +1,4 @@
+from ..mast.mast_globals import debug_print
 # This file defines utilitiy functions that can be used to modify blob values of space objects.
 # TODO: This could be adapted to also work for inventory value modifiers as well.
 # TODO: This could also be adapted to work for blob values that use lists instead of floats.
@@ -261,8 +262,26 @@ class ModifierHandler:
                 return i-1
         #print("Warning: Reached max index of 100 when getting blob max index for", id, " for key:", key)
         return 100
+    
+    def update_modifier_value(id, key, value, source):
+        """
+        Change the value for the modifier and recalculate.
+        Args:
+           id (int): object ID
+            key (str): The blob key the modifier should affect.
+            value (float): The modifier amount.
+            source (str | int): Identifier for this modifier — used to overwrite or remove it later.
+        """
+        all_mods = ModifierHandler.all_modifiers
+        found = False
+        for mod in all_mods:
+            if mod.target == id and mod.key == key and mod.source == source:
+                mod.value = value
+                ModifierHandler.recalculate_value(id, key)
+                found = True
+        return found
 
-def modifier_add(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, duration=None, index=None) -> Modifier:
+def modifier_add(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, duration=None, index=None, replace_if_exists=False) -> Modifier:
     """Add and apply a modifier to a blob value on one or more objects.
 
     ``obj_or_id_or_set`` may be an agent, an ID, a set of IDs, or a side key
@@ -293,6 +312,7 @@ def modifier_add(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, durat
             automatically. Defaults to None (permanent).
         index (int, optional): Index into a list blob value. ``None`` applies
             to all indices. Ignored for inventory keys. Defaults to None.
+        replace_if_exists (bool): If the modifier exists on an object, and this is True, then the original modifier will be removed and the new one added. If this is False, then nothing will happen.
 
     Returns:
         Modifier | set[int]: The created ``Modifier`` when exactly one is
@@ -354,10 +374,14 @@ def modifier_add(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, durat
         # Check if the modifier exists
         mod_exists = modifier_exists(id, new_mod)
         if mod_exists:
-            print("This modifier already exists:", mod_exists)
-        
+            debug_print(f"Modifier already exists:\n    Key: {key}\n    Source: {source}\n    Make sure you're using this in a shared scope.")
+            if replace_if_exists:
+                ModifierHandler.update_modifier_value(id, key, value, source)
+                # TODO: Add a way to stack duration of modifiers. This should be optional, and maybe modifiers should use the prefab system in a similar way as torpedoes?
+                # TODO: Add a "decay" system for modifiers. E.g. a temporary extra bit of coolant that dissapates over time.
+            # We can't just return here because it could be looping over a list or set of objects. It's possible that some already have this modifier but others do not.
         # Add the new modifier
-        if not mod_exists:
+        else:
             all_mods.append(new_mod)
             ModifierHandler.all_modifiers.append(new_mod)
             # print("Adding modifier:", new_mod, " to object with id:", id)

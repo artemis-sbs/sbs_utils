@@ -96,7 +96,7 @@ def set_dedicated_link(so, link_name: str, to):
     """
     so = to_object(so)
     to = to_id(to)
-    if so is None or to is None:
+    if so is None:
         return
     so.set_dedicated_link(link_name, to)
 
