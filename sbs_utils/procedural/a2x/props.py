@@ -359,6 +359,41 @@ def set_to_gm_position(obj, gm):
     return True
 
 
+def gm_coords(gm=None):
+    """The GM's position expressed in **2.8 coordinates** -- an (x, y, z) tuple.
+
+    ``gm`` defaults to whichever agent holds the ``gamemaster`` role, so this works outside
+    a GM comms handler too -- 2.8 uses ``use_gm_position`` in ordinary events as well, where
+    there is no ``COMMS_ORIGIN`` to hand. Pass the origin explicitly inside a GM button if
+    a mission runs more than one GM console and you need the one that clicked.
+
+    2.8 lets a GM-button command spawn "where the GM is" (``use_gm_position="yes"``) rather
+    than at fixed coordinates; the Cosmos equivalent is the gamemaster console ship, which
+    relocates to wherever the GM last clicked (see :func:`set_to_gm_position`).
+
+    It hands back 2.8 coordinates, not Cosmos ones, so the result drops straight into the
+    ``a2x_create_*`` helpers -- which flip every position they are given. The flip mirrors
+    about the map centre and is its own inverse, so converting the live Cosmos position
+    "back" is the same operation, and the round trip lands exactly on the GM.
+
+    Returns ``(0, 0, 0)`` if the GM cannot be resolved, which spawns at the 2.8 origin
+    rather than raising inside a console handler.
+    """
+    from sbs_utils.procedural.query import to_space_object, to_id_list
+    from sbs_utils.procedural.roles import role
+    from .coords import pos
+
+    if gm is None:
+        ids = to_id_list(role("gamemaster"))
+        gm = ids[0] if ids else None
+    g = to_space_object(gm) if gm is not None else None
+    if g is None:
+        return (0, 0, 0)
+    p = g.engine_object.pos
+    v = pos(p.x, p.y, p.z)   # same mirror, applied the other way
+    return (v.x, v.y, v.z)
+
+
 def set_ship_text(obj, name=None, race=None, ship_class=None, desc=None,
                  scan_desc=None, hail=None):
     """2.8 ``set_ship_text``: set scan / name text on a ship.
