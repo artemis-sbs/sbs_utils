@@ -114,5 +114,100 @@ class TestRecordAndTemplate(unittest.TestCase):
         self.assertIsNone(S.enum_values("Parent", "quest"))
 
 
+class TestCoercion(unittest.TestCase):
+    """The declared TYPE parses the value - replacing the per-label elif chains."""
+
+    def test_boolean_false_is_really_false(self):
+        # the bug this fixes: `Required: false` used to coerce to the STRING
+        # "false", which is truthy, so a false flag read as true.
+        self.assertIs(S.amd_coerce(S.boolean(), "false"), False)
+        self.assertIs(S.amd_coerce(S.boolean(), "no"), False)
+        self.assertIs(S.amd_coerce(S.boolean(), "true"), True)
+        self.assertIs(S.amd_coerce(S.boolean(), ""), True)     # bare flag = on
+
+    def test_author_shaped_types(self):
+        self.assertEqual(S.amd_coerce(S.weighted(), "by-the-book 40, fearsome 30"),
+                         {"by_the_book": 40, "fearsome": 30})
+        self.assertEqual(S.amd_coerce(S.makeup(), "60% Kralien, 40% Arvonian"),
+                         {"Kralien": 60, "Arvonian": 40})
+        self.assertEqual(S.amd_coerce(S.counted(), "bio_sample x1, salvage x5"),
+                         {"bio_sample": 1, "salvage": 5})
+        self.assertEqual(S.amd_coerce(S.kv(), "kind=bio, range=medium"),
+                         {"kind": "bio", "range": "medium"})
+        self.assertEqual(S.amd_coerce(S.duration(), "6 minutes"), 360)
+        self.assertEqual(S.amd_coerce(S.duration(), "90 seconds"), 90)
+        self.assertEqual(S.amd_coerce(S.pct(), "40%"), 0.4)
+        self.assertEqual(S.amd_coerce(S.coord2(), "6, 4"), [6, 4])
+
+    def test_colour_keeps_its_hash(self):
+        # 27 authored values start with '#'; raw YAML would eat them as a comment.
+        self.assertEqual(S.amd_coerce(S.color(), "#07F"), "#07F")
+
+    def test_csv_ref_is_a_list_plain_ref_is_not(self):
+        self.assertEqual(S.amd_coerce(S.ref("side", csv=True), "tsn, civ"), ["tsn", "civ"])
+        self.assertEqual(S.amd_coerce(S.ref("node"), "job_sweep"), "job_sweep")
+
+    def test_enum_matches_case_insensitively_but_stores_declared_spelling(self):
+        d = S.enum("active", "secret")
+        self.assertEqual(S.amd_coerce(d, "Active"), "active")
+        # an unknown value passes through untouched, for the linter to flag
+        self.assertEqual(S.amd_coerce(d, "activ"), "activ")
+
+    def test_unknown_type_keeps_the_historical_default(self):
+        self.assertEqual(S.amd_coerce(S.text(), "  hello  "), "hello")
+        self.assertEqual(S.amd_coerce({}, "30"), 30)
+
+
+class TestAliasesAndRuntimeKeys(unittest.TestCase):
+    """`aka` is what makes every naming decision reversible after release."""
+
+    def test_alias_resolves_to_canonical(self):
+        S.amd_register_fields("aliastest", {"done when": S.field(S.trigger(),
+                                                                 key="on_signal",
+                                                                 aka=("goal",))})
+        # canonical labels come back NORMALISED (underscored), matching runtime keys
+        self.assertEqual(S.amd_canonical_label("Goal", "aliastest"), "done_when")
+        self.assertEqual(S.amd_field_key("Goal", "aliastest"), "on_signal")
+        self.assertEqual(S.amd_field_key("Done when", "aliastest"), "on_signal")
+
+    def test_label_normalisation_is_space_hyphen_underscore_tolerant(self):
+        self.assertEqual(S.amd_canonical_label("Fail on signal", "quest"), "fail_on_signal")
+        self.assertEqual(S.amd_canonical_label("fail_on_signal", "quest"), "fail_on_signal")
+        self.assertEqual(S.amd_canonical_label("fail-on-signal", "quest"), "fail_on_signal")
+
+    def test_read_field_returns_runtime_key_and_parsed_value(self):
+        key, value = S.amd_read_field("Required", "false", "quest")
+        self.assertEqual(key, "required")
+        self.assertIs(value, False)
+
+
+class TestExtensionRegistry(unittest.TestCase):
+    """A mission adds vocabulary and gets typing + lint + widgets for it."""
+
+    def test_register_then_resolve(self):
+        S.amd_register_fields("clan", {"Values": S.weighted(), "Flies": S.makeup()},
+                              domain="universe")
+        self.assertEqual(S.field_schema("Values", "clan")["type"], "weighted")
+        self.assertIn("values", S.template_fields("clan"))
+
+    def test_identical_reregistration_is_a_noop(self):
+        S.amd_register_fields("clan2", {"Values": S.weighted()})
+        S.amd_register_fields("clan2", {"Values": S.weighted()})   # must not raise
+
+    def test_collision_with_a_global_field_raises_loudly(self):
+        with self.assertRaises(ValueError) as ctx:
+            S.amd_register_fields("clan3", {"Color": S.text()}, domain="rogue")
+        self.assertIn("already declared", str(ctx.exception))
+
+    def test_section_name_table_is_extensible(self):
+        S.amd_register_section_names(("contracts", "bounties"), "quest", domain="universe")
+        self.assertEqual(S.archetype_for_section("Contracts"), "quest")
+        self.assertEqual(S.archetype_for_section("Bounties"), "quest")
+
+    def test_conflicting_section_name_raises(self):
+        with self.assertRaises(ValueError):
+            S.amd_register_section_names(("items",), "quest")
+
+
 if __name__ == "__main__":
     unittest.main()

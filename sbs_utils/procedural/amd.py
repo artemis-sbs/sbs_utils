@@ -119,6 +119,37 @@ def amd_coords(s, n=2):
             if x.lstrip("-").isdigit()][:n]
 
 
+def amd_counted(s):
+    """'bio_sample x1, salvage x5' -> {'bio_sample': 1, 'salvage': 5}; a bare key -> 1.
+
+    The shopping-list shape an author writes for costs and contents. Promoted here from
+    LegendaryMissions' `recipes.py:_parse_inputs` so the fabrication recipe fence reads
+    through the SAME declared type as everything else, instead of a private loader."""
+    out = {}
+    for part in amd_list(s):
+        bits = part.split()
+        count = 1
+        if len(bits) > 1:
+            c = bits[-1].lstrip("xX")
+            if c.isdigit():
+                count = int(c)
+        out[bits[0]] = count
+    return out
+
+
+def amd_kv(s):
+    """'kind=bio, range=medium' -> {'kind': 'bio', 'range': 'medium'}.
+
+    Promoted from `recipes.py:_parse_program`. Parts without an `=` are skipped."""
+    out = {}
+    for part in amd_list(s):
+        if "=" not in part:
+            continue
+        k, v = part.split("=", 1)
+        out[k.strip()] = v.strip()
+    return out
+
+
 # --- fence parsing ----------------------------------------------------------
 def amd_is_yaml_flow(text):
     """True when the fence should be parsed as YAML (contains '{' or '[')."""

@@ -46,7 +46,10 @@ def integer(hint=None):
     return _d("int", hint=hint)
 
 def boolean():
-    return _d("enum", values=["true", "false"])
+    """A yes/no flag. Stays `type: enum` so the editor keeps rendering a two-value
+    dropdown, but carries `bool` so `amd_coerce` returns a real bool - `Required: false`
+    used to coerce to the STRING "false", which is truthy."""
+    return _d("enum", values=["true", "false"], bool=True)
 
 def enum(*values, **kw):
     """A closed set of string values (dropdown). `open=True` lets the author type
@@ -85,6 +88,63 @@ def compound(verbs, hint=None):
     vs `When: signal X`. `verbs` maps verb -> operand descriptor. The editor may
     render a verb dropdown + a typed operand, or fall back to text."""
     return _d("compound", verbs=verbs, hint=hint)
+
+
+# --- author-shaped value types ----------------------------------------------
+# These name the little grammars authors were already writing by hand. Each had a
+# private parser somewhere (amd.py, amd_quest.py, LM's recipes.py); naming them as
+# TYPES is what lets the Inspector render a real widget and the linter check a real
+# value, instead of every one of them being an unvalidated text box.
+
+def duration(hint="6 minutes / 90 seconds"):
+    """`6 minutes` / `90 seconds` / a bare number (minutes)."""
+    return _d("duration", hint=hint)
+
+def pct(hint="40%"):
+    """`40%` -> 0.4 (a bare number passes through)."""
+    return _d("pct", hint=hint)
+
+def weighted(hint="by-the-book 40, fearsome 30"):
+    """A weighted vocabulary - `name N, name N` (a bare name weighs 0)."""
+    return _d("weighted", hint=hint)
+
+def makeup(hint="60% Kralien, 40% Arvonian"):
+    """A percentage mix, a plain list, or a single value - whichever was written."""
+    return _d("makeup", hint=hint)
+
+def counted(hint="salvage x5, bio_sample x1"):
+    """A shopping list - `key xN, key xM` (a bare key counts 1)."""
+    return _d("counted", hint=hint)
+
+def kv(hint="kind=bio, range=medium"):
+    """`k=v, k=v` settings stamped onto whatever the record produces."""
+    return _d("kv", hint=hint)
+
+def reward(hint="200 credits"):
+    """What a job pays."""
+    return _d("reward", hint=hint)
+
+def trigger(hint="5 drone_down  |  reach 6, 4  |  destroy 4 raiders"):
+    """A game event to wait for. A bare token IS a signal name; verb-led forms
+    (`reach`, `destroy`, `dock`, ...) name a different shape."""
+    return _d("trigger", hint=hint)
+
+
+# --- field descriptors: type + alias + runtime key ---------------------------
+def field(descriptor, key=None, aka=None):
+    """Wrap a type descriptor with the two things a table entry also has to own:
+    `key` - the name the RUNTIME stores it under, when that differs from the authored
+    label (`Pays:` -> `reward`), and `aka` - every other spelling that means this field.
+
+    Owning aliases here is what makes renaming safe forever: a rename is one line in
+    this table and no `.amd` file in the world has to change. Descriptors stay plain
+    JSON-able dicts, so they still cross the LSP boundary untouched."""
+    d = dict(descriptor)
+    if key:
+        d["key"] = key
+    if aka:
+        d["aka"] = [str(a).strip().lower() for a in aka]
+    return d
 
 
 def _d(kind, **kw):
@@ -256,13 +316,32 @@ def field_schema(label, archetype=None):
     """The descriptor for one field `label` within `archetype` (falling back to
     the GLOBAL type-stable fields, then plain text). Never returns None - an
     unknown field is `text`, so the editor always has a widget."""
-    key = str(label).strip().lower()
-    table = ARCHETYPES.get(archetype) if archetype else None
-    if table and key in table:
-        return table[key]
-    if key in GLOBAL:
-        return GLOBAL[key]
-    return text()
+    d = _declared(label, archetype)
+    return d if d is not None else text()
+
+
+def _declared(label, archetype=None):
+    """The declared descriptor for `label`, or None when nothing declares it.
+
+    Lookup is normalised on BOTH sides, so a table may spell a key `fail on signal`
+    while the author writes `Fail on signal` / `fail_on_signal` and all three land
+    together. Aliases are tried after canonical names."""
+    key = _norm_label(label)
+    tables = [t for t in (ARCHETYPES.get(archetype) if archetype else None, GLOBAL) if t]
+    canonical = _alias_index(archetype).get(key, key)
+    for want in (key, canonical):
+        for table in tables:
+            for declared_label, descriptor in table.items():
+                if _norm_label(declared_label) == want:
+                    return descriptor
+    return None
+
+
+def amd_is_declared(label, archetype=None):
+    """True when some table declares this field. The reader needs this to tell a
+    declared `text` field (stays a string) from an UNDECLARED one, which must keep
+    the historical `amd_num` default - else `Time: 30` silently becomes "30"."""
+    return _declared(label, archetype) is not None
 
 
 def record_schema(field_labels, section_key=None):
@@ -289,3 +368,176 @@ def template_fields(archetype):
     for an unknown archetype. Preserves the table's authoring order (dict order)."""
     table = ARCHETYPES.get(archetype)
     return list(table.keys()) if table else []
+
+
+# --- aliases: one field, many spellings -------------------------------------
+_ALIAS_CACHE = {}
+
+
+def _alias_index(archetype):
+    """`{alias -> canonical label}` for one archetype (plus GLOBAL), built on demand."""
+    cached = _ALIAS_CACHE.get(archetype)
+    if cached is not None:
+        return cached
+    index = {}
+    for table in (GLOBAL, ARCHETYPES.get(archetype) or {}):
+        for canonical, d in table.items():
+            for a in d.get("aka", ()):
+                index[_norm_label(a)] = _norm_label(canonical)
+    _ALIAS_CACHE[archetype] = index
+    return index
+
+
+def amd_canonical_label(label, archetype=None):
+    """The canonical spelling of `label` - itself when it is already canonical (or
+    unknown), else the field it is an alias of. Underscore/space/hyphen tolerant, so
+    `fail_on_signal`, `Fail on signal` and `fail-on-signal` all land together."""
+    key = _norm_label(label)
+    if _declared_under(key, archetype):
+        return key
+    return _alias_index(archetype).get(key, key)
+
+
+def _declared_under(norm_key, archetype):
+    """True when `norm_key` is itself a declared (canonical) label, alias aside."""
+    for table in (t for t in (ARCHETYPES.get(archetype) if archetype else None, GLOBAL) if t):
+        if any(_norm_label(l) == norm_key for l in table):
+            return True
+    return False
+
+
+def amd_field_key(label, archetype=None):
+    """The name the RUNTIME should store this field under: the descriptor's `key`
+    when it declares one, else the canonical label. This is the one place the
+    authored word and the stored word are allowed to differ."""
+    canonical = amd_canonical_label(label, archetype)
+    return field_schema(canonical, archetype).get("key", canonical)
+
+
+def _norm_label(label):
+    """Field labels normalise like `amd_norm`: lowercase, hyphens/spaces -> `_`.
+    Inlined (not imported) to keep this module's import graph empty."""
+    return str(label).strip().lower().replace("-", "_").replace(" ", "_")
+
+
+# --- coercion: the declared type parses the value ---------------------------
+# Parsers are keyed by descriptor `type` and held OUTSIDE the descriptors, so a
+# descriptor stays a plain JSON-able dict that crosses the LSP boundary untouched.
+# Domains register their own (`trigger`, `reward`) rather than this module reaching
+# up into them.
+_PARSERS = {}
+
+
+def amd_register_parser(type_name, fn):
+    """Register the parser for a value type. Domain types (`trigger`, `reward`) call
+    this at import time so `amd_schema` never has to depend on the domain module."""
+    _PARSERS[str(type_name)] = fn
+
+
+def _install_core_parsers():
+    """Wire the generic value grammars from `amd` (stdlib-only, no engine)."""
+    from sbs_utils.procedural.amd import (amd_num, amd_pct, amd_list, amd_weighted,
+                                          amd_makeup, amd_coords, amd_counted, amd_kv,
+                                          amd_signal_name, amd_duration_seconds)
+    for name, fn in (("int", amd_num), ("pct", amd_pct), ("csv", amd_list),
+                     ("weighted", amd_weighted), ("makeup", amd_makeup),
+                     ("coord2", amd_coords), ("counted", amd_counted), ("kv", amd_kv),
+                     ("signal", amd_signal_name), ("duration", amd_duration_seconds)):
+        _PARSERS.setdefault(name, fn)
+
+
+_TRUE = ("true", "yes", "on", "1", "")
+
+
+def amd_coerce(descriptor, value):
+    """Parse one authored value according to its declared type.
+
+    Replaces the per-label `elif` chains: the table says what the field IS, and this
+    turns the written text into it. Unknown types fall back to the historical default
+    (int -> float -> the trimmed string), so an undeclared field behaves exactly as
+    it does today."""
+    if not _PARSERS:
+        _install_core_parsers()
+    d = descriptor or {}
+    # NO default type: a descriptor that declares nothing falls through to amd_num,
+    # which is exactly what an undeclared field does today. A descriptor that DOES
+    # say `text` keeps its string.
+    kind = d.get("type")
+    raw = value
+    if d.get("bool"):
+        return str(raw).strip().lower() in _TRUE
+    if kind == "enum":
+        # match case-insensitively but STORE the declared spelling
+        s = str(raw).strip()
+        for v in d.get("values", ()):
+            if s.lower() == str(v).lower():
+                return v
+        return s
+    if kind == "ref":
+        # a csv ref (`Enemies: tsn, civ`) is a LIST of references, not one string
+        if d.get("csv") and isinstance(raw, str):
+            return _PARSERS["csv"](raw)
+        return str(raw).strip() if isinstance(raw, str) else raw
+    if kind in ("text", "multiline", "color", "face"):
+        return str(raw).strip() if isinstance(raw, str) else raw
+    fn = _PARSERS.get(kind)
+    if fn is not None and isinstance(raw, str):
+        return fn(raw)
+    if isinstance(raw, str):
+        return _PARSERS["int"](raw)      # historical default (amd_num)
+    return raw
+
+
+def amd_read_field(label, value, archetype=None):
+    """One authored `Label: value` -> `(runtime_key, parsed_value)`.
+
+    The whole point of the registry in one call: alias resolved, type coerced, stored
+    under the runtime key - so the reader, the linter and the editor cannot disagree
+    about what a line means."""
+    canonical = amd_canonical_label(label, archetype)
+    d = _declared(canonical, archetype)
+    if d is None:
+        # undeclared: keep today's behaviour exactly (amd_num), and let the linter
+        # be the one that says "I don't know this field".
+        return canonical, amd_coerce({}, value)
+    return d.get("key", canonical), amd_coerce(d, value)
+
+
+# --- extension: a mission/addon adds vocabulary ------------------------------
+def amd_register_fields(archetype, table, domain=None):
+    """Declare (or extend) an archetype's field table.
+
+    A mission or addon calls this so its own labels get the same typed widget, the same
+    lint and the same coercion as core fields - today OU's ~30 labels are invisible to
+    every tool because there is nowhere to say what they are.
+
+    Collisions are LOUD ON PURPOSE: re-declaring a core field with a different
+    descriptor raises at registration (startup), rather than silently shadowing it and
+    drifting. Re-registering an IDENTICAL descriptor is a no-op, so reloading is safe."""
+    who = f" (from {domain})" if domain else ""
+    existing = ARCHETYPES.setdefault(archetype, {})
+    for label, descriptor in (table or {}).items():
+        key = _norm_label(label)
+        prior = existing.get(key) or GLOBAL.get(key)
+        if prior is not None and prior != descriptor:
+            where = "a global type-stable field" if key in GLOBAL else f"archetype '{archetype}'"
+            raise ValueError(
+                f"AMD field '{label}'{who} is already declared by {where} with a different "
+                f"meaning. Pick another name, or register it on your own archetype.")
+        existing[key] = descriptor
+    _ALIAS_CACHE.clear()
+    return existing
+
+
+def amd_register_section_names(names, archetype, domain=None):
+    """Teach the section-name table that sections called any of `names` hold records of
+    `archetype` - so authors name a section the way their story names it (`Contracts`,
+    `Bounties`) and never have to write a kind line."""
+    for n in names:
+        key = str(n).strip().lower()
+        prior = _SECTION_ALIASES.get(key)
+        if prior is not None and prior != archetype:
+            who = f" (from {domain})" if domain else ""
+            raise ValueError(
+                f"AMD section name '{n}'{who} already means '{prior}', not '{archetype}'.")
+        _SECTION_ALIASES[key] = archetype
