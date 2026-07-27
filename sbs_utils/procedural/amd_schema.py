@@ -291,6 +291,8 @@ ARCHETYPES = {
 # Type-stable everywhere: if a field isn't in the resolved archetype, fall back
 # to these before defaulting to plain text.
 GLOBAL = {
+    "display": text(hint="the name shown in game, when it differs from the heading"),
+    "weight": integer(hint="relative chance when one of a set is picked"),
     "color": color(),
     "title color": color(),
     "face": face(),
@@ -338,6 +340,7 @@ _DISCRIMINATORS = (
     ("modifiers", "item"),
     ("center", "region"), ("radius", "region"),
     ("face", "lifeform"), ("scene", "lifeform"),
+    ("speaker", "dialogue"),
     ("at", "landmark"), ("kind", "landmark"),
     ("state", "quest"), ("when", "quest"), ("then", "quest"),
     ("parent", "quest"), ("fail on signal", "quest"),
