@@ -121,24 +121,9 @@ def gui_properties_set(p=None, tag=None):
         if props_lb is None:
             # print(f"No properties found {gui_page.client_id}")
             return
-        first_build = props_lb.client_id is None
         props_lb.items = _gui_properties_items(p)
         # Clear the on changes
-        #
-        # NOT on the build that creates the panel. gui_represent re-presents the
-        # whole widget: send_gui_sub_region + send_gui_clear + a full present +
-        # send_gui_complete. On a listbox that has never been presented, those go
-        # out at the widget's CONSTRUCTOR bounds (no layout pass has run yet) and
-        # land in the middle of the enclosing page's own build -- a clear/complete
-        # pair inside another clear/complete pair, at the wrong rect.
-        #
-        # The mock tolerates it; a real engine session did not (the server console
-        # came up but player ships were never created). It is also pointless here:
-        # a panel built this frame is about to be presented anyway, as part of the
-        # very build we are inside. gui_represent is deprecated for the same
-        # reason everywhere else -- the dirty system re-renders changed widgets.
-        if not first_build:
-            gui_represent(props_lb)
+        gui_represent(props_lb)
         
 
 
