@@ -2,6 +2,7 @@ from .vec import Vec3
 import time as time
 import traceback
 import sys
+import re
 from  .agent import Agent
 
 class Context:
@@ -197,6 +198,17 @@ class DictionaryToObject(object):
         return repr(self.__dict__)
 
 
+# A colon starts a style prop only when the text before it is a real style
+# key: an optional '$' then a lowercase identifier (word chars / hyphens).
+# Every engine and layout style key is lowercase or '$'-prefixed, so anything
+# else -- a capitalized word ("Score:", "Upgrades:"), a sentence ("Clicks: 0"),
+# punctuation -- is plain text, not a key. This can never reclassify a working
+# style string (no real key starts with a capital), so it only rescues text
+# that previously misparsed. Residual gap: all-lowercase text like "ready: go"
+# still reads as a key -- prefix it with "$text:" if needed.
+_STYLE_KEY_RE = re.compile(r"\$?[a-z][\w-]*")
+
+
 def split_props(s, def_key):
     ret = {}
     start = 0
@@ -205,15 +217,24 @@ def split_props(s, def_key):
         if colon == -1:
             ret[def_key] = s[start:]
             return ret
-        s_key = s[start:colon]
-        # Style keys are identifier-like (no whitespace). A colon inside plain
-        # text content (e.g. "Clicks: 0") would produce a key with spaces —
-        # treat everything from start onwards as the default-key value instead.
-        if ' ' in s_key or '\t' in s_key:
+        s_key = s[start:colon].strip()
+        if not _STYLE_KEY_RE.fullmatch(s_key):
             ret[def_key] = s[start:]
             return ret
         colon += 1
-        end = s.find(";", colon)
+        # A backtick-quoted value is opaque: the ':' and ';' inside it are
+        # literal text, not delimiters (issue #569). Read past the closing
+        # backtick before looking for the terminating ';'. Only values that
+        # actually start (after optional spaces) with a backtick take this
+        # path, so unquoted props parse exactly as before.
+        vstart = colon
+        while vstart < len(s) and s[vstart] == ' ':
+            vstart += 1
+        if vstart < len(s) and s[vstart] == '`':
+            close = s.find('`', vstart + 1)
+            end = s.find(";", close + 1) if close != -1 else -1
+        else:
+            end = s.find(";", colon)
         if end == -1:
             ret[s_key] = s[colon:]
             start = len(s)
