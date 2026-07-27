@@ -6,6 +6,9 @@
 /mkdocs/site/
 sbs_utils_dev.zip
 cosmos_dev/*.log
+debug.log
+test_range/mast.compile.log
+test_range/mast.runtime.log
 
 # overnight_runner soak artifacts (default --log / --state, written in the run cwd)
 overnight_run.log
@@ -15,8 +18,3 @@ overnight_*.json
 
 # Allow
 !.vscode/tasks.json
-debug.log
-test_range/mast.compile.log
-test_range/mast.runtime.log
-debug.log
-
