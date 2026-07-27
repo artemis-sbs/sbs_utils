@@ -1,10 +1,19 @@
 """Legacy-style scripted messages: 2.8 ``incoming_comms_text`` / ``big_message`` /
-``incoming_message``.
+``warning_popup_message``.
 
-These map onto the player text waterfall via the core ``comms_broadcast`` -- a
-pragmatic "close enough" for a scaffold (no sender object is needed, which suits 2.8's
-``from`` being just a name). For a richer presentation (portrait + comms dialog) a
-mission can upgrade to ``comms_override`` + ``comms_receive`` with a real sender object.
+Each maps onto the presentation Cosmos has for that KIND of message, rather than all
+three onto one text channel (they used to go to the player text waterfall via
+``comms_broadcast``, which lost the distinction between a chapter card and a warning):
+
+* ``big_message`` -> a ``hero`` card + letterbox bars: the cinematic chapter card.
+* ``incoming_comms_text`` -> a ``lower_third`` name-plate + subtitle, plus the durable
+  comms-log message.
+* ``warning_popup_message`` -> an info-panel card on the addressed consoles.
+
+The overlay-backed ones are MAIN SCREEN by default: a hero card and a lower third are
+both "over the live view" presentations. They also resolve their audience when called,
+so a message fired before the crew has taken consoles goes nowhere -- see the timing
+note on :func:`big_message`.
 
 2.8 text uses ``^`` for line breaks; :func:`_clean` converts it.
 """
@@ -28,36 +37,57 @@ def console_roles(letters):
     return ",".join(dict.fromkeys(names))
 
 
-def _console_targets(to):
-    """Default target for info-panel cards: all console clients."""
-    from sbs_utils.procedural.roles import role
-    return to if to is not None else role("console")
+def incoming_comms_text(message, from_name="", title=None, to=None, time=30,
+                        consoles="mainscreen"):
+    """2.8 ``incoming_comms_text`` -> a lower-third subtitle plus a comms message.
 
+    Two channels, deliberately, because 2.8's one message did two jobs:
 
-def incoming_comms_text(message, from_name="", title=None, to=None, time=30):
-    """2.8 ``incoming_comms_text`` -> an info-panel "hail" card plus a comms message.
+    * the **transient** one is an ``overlay_lower_third`` -- the broadcast-TV name-plate
+      and subtitle over the live view (speaker on top, line underneath). That is what a
+      hail reads as, and unlike the info card it does not cover the view or need
+      dismissing. A line too long for the plate is measured against the client's screen
+      and shown in timed parts rather than clipped, which is what subtitles want anyway.
+    * the **durable** one is a ``comms_message`` on each player ship, so the crew can
+      re-read it and Comms sees every message. The overlay shows only the LATEST line
+      (one slot); the comms log is what keeps the history.
 
-    Shows a ``comms_info_card`` (the promoted HTBM info-panel pattern: speaker name,
-    history, auto-dismiss) and also delivers the text as an incoming comms message via
-    ``comms_receive_internal`` (a ``comms_message`` whose sender/receiver are the player
-    ship). The 2.8 ``from`` is just the sender label, not an object reference, so it is
-    used purely as the message's ``from_name`` (the comms title) -- there is no sender
-    ship to attach.
+    The durable side uses ``comms_message`` rather than ``comms_receive_internal``: the
+    latter is the INTERNAL crew channel (a ship talking to itself, engineering to bridge)
+    and resolves its portrait from the ship's own ``face_<from_name>`` inventory key. A 2.8
+    ``from`` is an outside caller -- "TSN Command", a Kralien warship -- not a department,
+    so it is passed as the message's ``from_name`` label instead.
+
+    Audience follows :func:`big_message`: the player ships' MAIN SCREEN, since a lower
+    third only makes sense over the live view -- on a Science data page it would just be
+    text in the wrong place. Pass ``consoles=None`` to put it on every console instead,
+    or ``to`` to aim it somewhere else entirely.
+
+    Like every overlay this resolves its audience WHEN CALLED, and an empty console set is
+    ignored silently -- see the timing note on :func:`big_message`.
 
     Args:
         message (str): body text (``^`` line breaks are converted).
-        from_name (str, optional): sender label -> the card title and comms ``from_name``.
-        title (str, optional): overrides the card title (defaults to ``from_name``).
-        to (optional): target console client id/set for the card; defaults to all consoles.
-        time (int, optional): card auto-dismiss seconds. Defaults to 30.
+        from_name (str, optional): sender label -> the name plate and comms ``from_name``.
+            The 2.8 ``from`` is just a label, not an object, so there is no sender ship.
+        title (str, optional): overrides the name plate (defaults to ``from_name``).
+        to (optional): audience; defaults to every player ship.
+        time (int, optional): subtitle auto-dismiss seconds. Defaults to 30.
+        consoles (str, optional): console-role narrowing. Defaults to ``"mainscreen"``.
     """
-    from sbs_utils.procedural.comms import comms_info_card, comms_receive_internal
+    from sbs_utils.procedural.comms import comms_message
+    from sbs_utils.procedural.gui.overlay import overlay_lower_third
     from sbs_utils.procedural.roles import role
-    targets = _console_targets(to)
+
     text = _clean(message)
-    comms_info_card(targets, text, title=(title or from_name or None), time=time)
-    # incoming comms message on the player ship(s); the 2.8 `from` is the sender label.
-    comms_receive_internal(text, role("__PLAYER__"), from_name=(from_name or None))
+    tgt = to if to is not None else role("__player__")
+    overlay_lower_third(title or from_name or "", text, to=tgt, consoles=consoles,
+                        seconds=time)
+    # ...and the comms message itself. 2.8 gives a sender LABEL and no sender object, so
+    # the message is addressed to each player ship with from_name carrying the label.
+    players = role("__player__")
+    comms_message(text, players, players, title=title, is_receive=True,
+                  from_name=(from_name or None))
 
 
 def big_message(title, subtitle1="", subtitle2="", to=None, time=30):
