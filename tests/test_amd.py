@@ -42,9 +42,22 @@ class TestAmdPrimitives(unittest.TestCase):
 
 
 class TestAmdParse(unittest.TestCase):
-    def test_yaml_flow_delegates(self):
-        # a block with { or [ is parsed as YAML, not fact lines
-        self.assertEqual(amd_parse_facts("{a: 1, b: two}"), {"a": 1, "b": "two"})
+    def test_flow_is_per_value_not_per_fence(self):
+        # A flow VALUE is parsed as flow...
+        self.assertEqual(amd_parse_facts("Modifiers: {speed: 2}"),
+                         {"modifiers": {"speed": 2}})
+        # ...and it no longer drags the rest of the fence into YAML with it. Both of
+        # these used to break: '#86c' would be eaten as a comment, and the colon in
+        # the Reveals value would raise.
+        self.assertEqual(
+            amd_parse_facts("Modifiers: {speed: 2}\nColor: #86c\n"
+                            "Reveals: Survey logged: 3 crates"),
+            {"modifiers": {"speed": 2}, "color": "#86c",
+             "reveals": "Survey logged: 3 crates"})
+
+    def test_brace_mid_value_stays_text(self):
+        self.assertEqual(amd_parse_facts("Intel: Captain {name}\nColor: #07F"),
+                         {"intel": "Captain {name}", "color": "#07F"})
 
     def test_fact_lines_skips_noise(self):
         text = "Color: red\n// a comment\n\nno colon here\nSize: 3"
@@ -56,6 +69,60 @@ class TestAmdParse(unittest.TestCase):
         self.assertEqual(amd_parse_facts("Loot Max: 7\nName: scout"),
                          {"loot_max": 7, "name": "scout"})
 
+    # --- the grammar the redesign added -------------------------------------
+    def test_kind_line_is_the_bare_first_noun(self):
+        from sbs_utils.procedural.amd import KIND_KEY, amd_kind_line
+        d = amd_parse_facts("Characters\nColor: #07F")
+        self.assertEqual(d[KIND_KEY], "characters")
+        self.assertEqual(d["color"], "#07F")
+        # blanks and // comments may precede it
+        self.assertEqual(amd_kind_line("\n// who these are\nCharacters\nColor: #07F"),
+                         "Characters")
+        # a fence with no kind line is unaffected
+        self.assertNotIn(KIND_KEY, amd_parse_facts("Color: #07F"))
+
+    def test_kind_line_anywhere_else_is_reported(self):
+        errs = []
+        amd_parse_facts("Color: #07F\nCharacters", errors=errs)
+        self.assertEqual(len(errs), 1)
+        self.assertIn("first line", errs[0])
+
+    def test_empty_value_plus_indent_nests(self):
+        d = amd_parse_facts("Properties:\n  Monster: shark\n  Mode: attract")
+        self.assertEqual(d["properties"], {"Monster": "shark", "Mode": "attract"})
+
+    def test_empty_value_plus_dashes_is_a_list(self):
+        d = amd_parse_facts('Lines:\n  - "First bark."\n  - "Second bark."')
+        self.assertEqual(d["lines"], ["First bark.", "Second bark."])
+
+    def test_inline_value_plus_indent_continues_it(self):
+        # the 515-character Citation in stormsbeacon.amd finally wraps
+        d = amd_parse_facts("Citation: At the origin, with the guns lighting\n"
+                            "  the dark, she seated the last piece.")
+        self.assertEqual(d["citation"],
+                         "At the origin, with the guns lighting the dark, "
+                         "she seated the last piece.")
+
+    def test_nesting_and_continuation_are_told_apart_by_the_value(self):
+        d = amd_parse_facts("Wraps: one\n  two\nNests:\n  Inner: 3")
+        self.assertEqual(d["wraps"], "one two")
+        self.assertEqual(d["nests"], {"Inner": 3})
+
+    def test_a_colonless_line_is_an_error_not_a_silent_drop(self):
+        errs = []
+        d = amd_parse_facts("Color: #07F\nSize: 3\n  stray words", errors=errs)
+        # (indented under Size, so it continues it - the ERROR case is unindented)
+        self.assertEqual(d["size"], "3 stray words")
+        errs = []
+        amd_parse_facts("Colour red\nSize: 3", errors=errs)
+        self.assertTrue(errs and "Label: value" in errs[0])
+
+    def test_errors_never_raise(self):
+        # a mission must not die on a typo; the linter is what makes it loud
+        d = amd_parse_facts("Color: #07F\n}}} broken {{{\nSize: 3")
+        self.assertEqual(d["color"], "#07F")
+        self.assertEqual(d["size"], 3)
+
     def test_handler_consumes_and_falls_through(self):
         def handler(data, label, value):
             if label == "color":
@@ -66,8 +133,15 @@ class TestAmdParse(unittest.TestCase):
         self.assertEqual(out, {"colour": "red", "speed": 5})
 
     def test_is_yaml_flow(self):
-        self.assertTrue(amd_is_yaml_flow("a: [1,2]"))
-        self.assertFalse(amd_is_yaml_flow("a: 1"))
+        # PER-VALUE now, not per-fence: a value that OPENS with a bracket is flow.
+        # It used to scan the whole block, so one prose value carrying a brace
+        # (`Intel: Captain {name}`) silently reparsed every other line as YAML -
+        # where `Color: #07F` becomes None and a colon in a value raises.
+        self.assertTrue(amd_is_yaml_flow("[1, 2]"))
+        self.assertTrue(amd_is_yaml_flow("{a: 1}"))
+        self.assertTrue(amd_is_yaml_flow("  {a: 1}"))    # leading space is fine
+        self.assertFalse(amd_is_yaml_flow("1"))
+        self.assertFalse(amd_is_yaml_flow("Captain {name}"))   # brace mid-value: text
 
 
 if __name__ == "__main__":

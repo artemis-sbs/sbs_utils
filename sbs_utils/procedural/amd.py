@@ -151,20 +151,161 @@ def amd_kv(s):
 
 
 # --- fence parsing ----------------------------------------------------------
+# ONE reader. Before this there were four - the default `load_yaml_string`, this
+# friendly sheet, a whole-fence YAML flip triggered by a `{` ANYWHERE in the block,
+# and domain loaders that bypassed all of it - so the linter and the runtime could
+# read the same bytes differently. The grammar:
+#
+#     Characters                 first meaningful line, no colon: WHAT THESE ARE
+#     Color: #3399ff             a field
+#     Citation: a long line      non-empty value -> indented lines CONTINUE it
+#       that wraps
+#     Properties:                EMPTY value -> indented lines NEST
+#       Monster: 'gui_...'
+#     Lines:                     ...or become a list
+#       - "First bark."
+#     Modifiers: {speed: 2}      value starting { or [ is flow (that value only)
+#     // a comment
+#
+# One rule separates continuation from nesting: an inline value means indented
+# lines continue it; an empty value means they nest. That resolves every shape in
+# the corpus without asking the author to learn a second sigil.
+
+KIND_KEY = "__kind__"     # reserved: where the bare-noun kind line is stored
+
+
 def amd_is_yaml_flow(text):
-    """True when the fence should be parsed as YAML (contains '{' or '[')."""
-    return "{" in text or "[" in text
+    """True when a VALUE should be parsed as YAML flow - it starts with `{` or `[`.
+
+    This used to scan the whole fence, so one prose value carrying a brace
+    (`Intel: Captain {name}`) silently reparsed every other line under YAML rules,
+    where `Color: #07F` becomes None and `Reveals: Survey logged: 3` raises. The
+    flip is now per-value, which is strictly more permissive: nothing that parsed
+    before stops parsing, and `#` colours survive in the same fence as a flow value."""
+    s = str(text).lstrip()
+    return s.startswith("{") or s.startswith("[")
 
 
 def amd_fact_lines(text):
     """Yield (label, value) per `Label: value` line - label lowercased, both
-    stripped. Skips blanks, `//` comments, and lines without a colon."""
+    stripped. Skips blanks, `//` comments, and lines without a colon.
+
+    Kept for callers that want the flat view; `amd_parse_facts` no longer uses it."""
     for raw in text.splitlines():
         line = raw.strip()
         if not line or line.startswith("//") or ":" not in line:
             continue
         label, value = line.split(":", 1)
         yield label.strip().lower(), value.strip()
+
+
+def _meaningful(text):
+    """[(lineno, raw)] with blanks and `//` comments dropped, 1-based line numbers."""
+    out = []
+    for i, raw in enumerate(str(text).splitlines(), start=1):
+        s = raw.strip()
+        if s and not s.startswith("//"):
+            out.append((i, raw.rstrip()))
+    return out
+
+
+def _indent(raw):
+    return len(raw) - len(raw.lstrip())
+
+
+def _flow(value, lineno, errors):
+    """Parse a `{...}` / `[...]` value. On a syntax slip, say so in the author's
+    terms and keep the raw text rather than losing the line."""
+    try:
+        parsed = load_yaml_string(value)
+    except Exception:
+        parsed = None
+    if parsed is None:
+        _err(errors, lineno, f'could not read {value.lstrip()[:1]}...{value.rstrip()[-1:]} '
+                             f'- check the brackets match and quote any value with a colon in it')
+        return value
+    return parsed
+
+
+def _err(errors, lineno, message):
+    if errors is not None:
+        errors.append(f"line {lineno}: {message}")
+
+
+def _group(entries):
+    """Split [(lineno, raw)] into [(lineno, raw, children)] by indentation - each
+    entry owns the more-indented lines that follow it."""
+    out = []
+    if not entries:
+        return out
+    base = min(_indent(r) for _, r in entries)
+    i = 0
+    while i < len(entries):
+        lineno, raw = entries[i]
+        j = i + 1
+        while j < len(entries) and _indent(entries[j][1]) > base:
+            j += 1
+        out.append((lineno, raw, entries[i + 1:j]))
+        i = j
+    return out
+
+
+def _parse_entries(entries, errors):
+    """The recursive body: grouped lines -> a dict (or a list, for `- item` form).
+
+    SYNTAX ONLY. Leaves come back as the author's raw string, so the caller's handler
+    still gets first refusal on the text before any type touches it - a domain rule
+    like landmarks' "Loc needs three numbers" has to be able to see `1, 2` and reject
+    it. Flow values ARE parsed here, because a bracket is syntax, not meaning."""
+    grouped = _group(entries)
+    if grouped and all(g[1].lstrip().startswith("- ") or g[1].strip() == "-" for g in grouped):
+        return [_scalar(g[1].lstrip()[1:].strip(), g[0], errors) for g in grouped]
+
+    data = {}
+    for lineno, raw, children in grouped:
+        line = raw.strip()
+        if line.startswith("- "):
+            _err(errors, lineno, "a list item here needs a `Label:` above it to belong to")
+            continue
+        if ":" not in line:
+            if len(line.split()) == 1:
+                _err(errors, lineno, f'"{line}" looks like a kind, but a kind has to be '
+                                     f'the first line of the fence')
+            else:
+                _err(errors, lineno, 'expected "Label: value" - did you mean to put this '
+                                     'line in the body, below the --- ?')
+            continue
+        label, value = line.split(":", 1)
+        label, value = label.strip(), value.strip()
+        if value and children:
+            # non-empty value + indented lines = a value that WRAPS
+            value = " ".join([value] + [c[1].strip() for c in children])
+        elif children:
+            # empty value + indented lines = a nested block or a list
+            data[label] = _parse_entries(children, errors)
+            continue
+        data[label] = _flow(value, lineno, errors) if amd_is_yaml_flow(value) else value
+    return data
+
+
+def _coerce_nested(value, default):
+    """Apply `default` to every leaf of a nested block or list, so `Inner: 3` reads
+    as 3 wherever it sits. Inner KEYS keep the author's exact spelling - mission code
+    reads a Properties/Defaults block by the names it wrote."""
+    if isinstance(value, dict):
+        return {k: _coerce_nested(v, default) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_coerce_nested(v, default) for v in value]
+    return default(value) if isinstance(value, str) else value
+
+
+def _scalar(value, lineno, errors):
+    """A bare list item: flow if it opens with a bracket, else text with quotes shed."""
+    if amd_is_yaml_flow(value):
+        return _flow(value, lineno, errors)
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        return value[1:-1]
+    return value
 
 
 def amd_chain(*handlers):
@@ -183,28 +324,64 @@ def amd_chain(*handlers):
     return handler
 
 
-def amd_parse_facts(text, handler=None, default=amd_num):
-    """Parse a friendly fact-sheet fence into a dict.
+def amd_kind_line(text):
+    """The fence's bare-noun kind line (`Characters`) if it has one, else None.
 
-    If `amd_is_yaml_flow(text)`, delegate to `load_yaml_string`. Otherwise, for
-    each (label, value): call `handler(data, label, value)` when given, and if it
-    returns a truthy value the label is consumed; otherwise fall back to
-    `data[amd_norm(label)] = default(value)`. The handler receives the mutable
-    `data` dict so it can setdefault / nest / append freely. Returns `data`."""
-    if amd_is_yaml_flow(text):
-        y = load_yaml_string(text)
-        # Normalize TOP-LEVEL keys the same way the friendly path does (amd_norm), so a fence
-        # parses to the SAME keys whether it took the friendly path or YAML flow. A stray
-        # `{`/`[` (e.g. an `Intel: Captain {name}` value, or a `reputation: {...}` block)
-        # flips the whole fence to YAML, which otherwise preserves label CASE - the historical
-        # source of capitalized-vs-lowercase key drift. Nested structure is left as authored
-        # (mission code reads those inner keys by their exact names).
-        if isinstance(y, dict):
-            return {amd_norm(k): v for k, v in y.items()}
-        return y
+    Must be the FIRST meaningful line - blanks and `//` comments may precede it, so a
+    section can be commented without breaking. Singular or plural both work; the caller
+    resolves the noun against the section-name table."""
+    lines = _meaningful(text)
+    if not lines:
+        return None
+    first = lines[0][1].strip()
+    if ":" in first or first.startswith("-") or _indent(lines[0][1]):
+        return None
+    # A kind is ONE word. `Colour red` is a mistyped field, not a kind - without this
+    # a forgotten colon on the first line would be silently swallowed as a kind.
+    # (`These are: characters` is the long form and carries a colon, so it arrives
+    # here as an ordinary field; this is the bare-noun short form only.)
+    return first if len(first.split()) == 1 else None
+
+
+def amd_parse_facts(text, handler=None, default=amd_num, archetype=None, errors=None):
+    """Parse one fact-sheet fence into a dict.
+
+    Per label, in order: the caller's `handler` gets first refusal (returns truthy to
+    consume it); then the FIELD REGISTRY, when the field is declared for `archetype` -
+    which resolves the alias, coerces by the declared type and stores under the runtime
+    key; then `default` (historically `amd_num`) for anything undeclared, so an unknown
+    field behaves exactly as it does today.
+
+    `errors` may be a list - parse problems are appended to it in a writer's terms
+    rather than raised, so a typo never takes a mission down; the linter is what makes
+    them loud. Returns `data`, carrying the kind line (when present) under `KIND_KEY`."""
+    from sbs_utils.procedural.amd_schema import amd_is_declared, amd_read_field
+
+    lines = _meaningful(text)
+    kind = amd_kind_line(text)
+    if kind is not None:
+        lines = lines[1:]
+
+    raw_data = _parse_entries(lines, errors)
+    if not isinstance(raw_data, dict):
+        return raw_data
+
     data = {}
-    for label, value in amd_fact_lines(text):
-        if handler is not None and handler(data, label, value):
+    for label, value in raw_data.items():
+        # 1. the caller's handler, on the AUTHOR'S TEXT, before any type touches it.
+        #    The label reaches it exactly as `amd_fact_lines` used to yield it -
+        #    lowercased with SPACES INTACT - because handlers match spaced labels
+        #    (`"scan text"`, `"fail on signal"`).
+        if handler is not None and isinstance(value, str) \
+                and handler(data, label.strip().lower(), value):
             continue
-        data[amd_norm(label)] = default(value)
+        # 2. the field registry, when this field is declared for this kind of record
+        if amd_is_declared(label, archetype):
+            key, parsed = amd_read_field(label, value, archetype)
+            data[key] = parsed if isinstance(value, str) else value
+            continue
+        # 3. otherwise exactly what it does today
+        data[amd_norm(label)] = _coerce_nested(value, default)
+    if kind is not None:
+        data[KIND_KEY] = amd_norm(kind)
     return data

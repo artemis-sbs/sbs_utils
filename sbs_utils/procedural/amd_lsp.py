@@ -527,8 +527,11 @@ def _dget(data, *names):
 
 
 def _coord2(v):
-    toks = [int(t) for t in str(v).replace(",", " ").split() if t.lstrip("-").isdigit()]
-    return (toks[0], toks[1]) if len(toks) >= 2 else None
+    """A cell reference -> `(i, j)`. Delegates to `amd_core` so there is ONE
+    implementation - this was a second copy, and it silently stopped finding
+    landmarks the moment the field registry began handing it a typed list."""
+    from sbs_utils.procedural.amd_core import _coords
+    return _coords(v, 2)
 
 
 def _span_range(span):

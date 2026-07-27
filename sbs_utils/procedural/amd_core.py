@@ -153,7 +153,16 @@ def _di(data, *names):
 
 
 def _coords(value, n=2):
-    toks = [int(t) for t in str(value).replace(",", " ").split() if t.lstrip("-").isdigit()]
+    """The first `n` integers of a cell reference.
+
+    Accepts the AUTHORED text (`6, 4`) or an already-typed sequence - the field
+    registry now coerces `At:`/`Center:` to a list of ints before this sees them, and
+    `str([6, 4])` does not re-parse (the brackets stop the digit test)."""
+    if isinstance(value, (list, tuple)):
+        toks = [int(t) for t in value if isinstance(t, int) or str(t).lstrip("-").isdigit()]
+    else:
+        toks = [int(t) for t in str(value).replace(",", " ").split()
+                if t.lstrip("-").isdigit()]
     return tuple(toks[:n]) if len(toks) >= n else None
 
 
