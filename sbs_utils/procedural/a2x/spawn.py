@@ -158,6 +158,49 @@ def create_player(x, y, z, art, name=None, side="tsn"):
     return sid
 
 
+def place_player(x, y, z, slot=0, name=None, side=None):
+    """2.8 ``create type="player"`` OUTSIDE the ``<start>`` block: PLACE the ship, don't
+    make one. Returns the ship ID, or None if that slot has no ship.
+
+    In 2.8 the player ships already exist -- the crew picks one at the console -- and
+    ``create type="player"`` only positions and configures the ship in that slot. There are
+    exactly 8 slots, so the command can never produce a 9th ship. For the ``<start>`` block
+    that distinction does not matter (Cosmos has nothing yet, so we spawn, via
+    :func:`create_player`), but for a create in an EVENT it is the whole meaning: the crew
+    is already flying that ship.
+
+    Spawning there instead gave the mission a second, unmanned hull while the crew sat on
+    the original -- and for a mission whose only player create is in an event
+    (MISS_Medusa's_Maze picks one of eight maze entrances at random) it meant no ship
+    existed at ship-select time at all.
+
+    Repositioning uses the engine's own ``reposition_space_object``, the same call
+    ``respawn_player_ship`` uses, so the move is seen by physics rather than written behind
+    its back. ``name`` renames the ship in place (2.8 missions rename per entrance);
+    ``side`` moves it to another declared side, diplomacy following along.
+    """
+    from sbs_utils.procedural.query import to_space_object
+    from sbs_utils.helpers import FrameContext
+
+    sid = player_ship(slot)
+    if sid is None:
+        return None
+    so = to_space_object(sid)
+    if so is None:
+        return None
+    v = pos(x, y, z)
+    eo = so.engine_object
+    if eo is not None:
+        FrameContext.context.sim.reposition_space_object(eo, v.x, v.y, v.z)
+    if name:
+        so.name = name
+        so.data_set.set("name_tag", name, 0)
+    if side:
+        so.side = side
+        set_hull_side(sid, side)
+    return sid
+
+
 def create_monster(x, y, z, monster_type=0, art=None, name=None,
                    side="monster", behave="behav_do_nothing"):
     """2.8 ``create type="monster"`` -> a placeholder creature.
