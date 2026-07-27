@@ -256,6 +256,24 @@ class TestCrossFile(unittest.TestCase):
         mast = ['signal_emit("quest_signal", {"SIGNAL_NAME": "briefed"})\n']
         self.assertEqual(_by_code(amd_lint(content=doc, mast_sources=mast), "unfired-signal"), [])
 
+    def test_goal_signal_is_checked_like_when_signal(self):
+        # `Goal: signal [N] X` completes a job, so an X nothing emits is an
+        # unfinishable job - the same defect `When: signal X` already reported.
+        doc = ("# [Root](root)\n## [Jobs](jobs)\n### [Q](q)\n"
+               "---\nGoal: signal 4 never_emitted\n---\nbody\n")
+        f = _by_code(amd_lint(content=doc, mast_sources=["// empty mast\n"]), "unfired-signal")
+        self.assertEqual(len(f), 1)
+
+    def test_wait_signal_satisfied_by_quest_credit_signal(self):
+        # quest_credit_signal()/quest_on_signal() advance a quest DIRECTLY, without
+        # ever calling signal_emit - so they count as emitting the name.
+        doc = ("# [Root](root)\n## [Jobs](jobs)\n### [Q](q)\n"
+               "---\nGoal: signal 4 customs_cleared\n---\nbody\n")
+        mast = ['    quest_credit_signal(COMMS_ORIGIN_ID, "customs_cleared")\n']
+        self.assertEqual(_by_code(amd_lint(content=doc, mast_sources=mast), "unfired-signal"), [])
+        mast = ['    quest_on_signal("customs_cleared")\n']
+        self.assertEqual(_by_code(amd_lint(content=doc, mast_sources=mast), "unfired-signal"), [])
+
     def test_wait_signal_skipped_without_mast(self):
         doc = ("# [Root](root)\n## [N](narrative)\n### [Q](q)\n"
                "---\nWhen: signal x\n---\nbody\n")

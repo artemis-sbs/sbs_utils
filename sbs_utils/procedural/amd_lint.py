@@ -308,18 +308,24 @@ def _mast_routes(mast_sources):
     return routes
 
 
-# Signal names EMITTED from .mast/.py: literal signal_emit("x") and the quest-signal
-# `"SIGNAL_NAME": "x"` plumbing (what a quest `When: signal x` actually waits on).
+# Signal names EMITTED from .mast/.py: literal signal_emit("x"), the quest-signal
+# `"SIGNAL_NAME": "x"` plumbing (what a quest `When: signal x` actually waits on), and
+# the quest driver's DIRECT advance calls. `quest_credit_signal(ship, "x")` /
+# `quest_on_signal("x")` satisfy a quest's `When:`/`Goal: signal x` without ever going
+# through signal_emit - miss them and every owner-scoped job reads as "nothing emits
+# this" (peacetime credits its jobs entirely this way).
 _RE_EMIT = re.compile(r'signal_emit\s*\(\s*["\']([A-Za-z0-9_]+)["\']')
 _RE_SIGNAL_NAME = re.compile(r'["\']SIGNAL_NAME["\']\s*:\s*["\']([A-Za-z0-9_]+)["\']')
+_RE_CREDIT = re.compile(r'quest_credit_signal\s*\([^,()]*,\s*["\']([A-Za-z0-9_]+)["\']')
+_RE_QUEST_ON = re.compile(r'quest_on_signal\s*\(\s*["\']([A-Za-z0-9_]+)["\']')
 
 
 def _emitted_from_sources(mast_sources):
     """Signal names statically discoverable as emitted in the given source texts."""
     names = set()
     for src in mast_sources or []:
-        names.update(m.group(1) for m in _RE_EMIT.finditer(src))
-        names.update(m.group(1) for m in _RE_SIGNAL_NAME.finditer(src))
+        for rx in (_RE_EMIT, _RE_SIGNAL_NAME, _RE_CREDIT, _RE_QUEST_ON):
+            names.update(m.group(1) for m in rx.finditer(src))
     return names
 
 

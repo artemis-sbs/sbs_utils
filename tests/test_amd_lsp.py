@@ -453,6 +453,154 @@ class TestWorkspace(unittest.TestCase):
             self.assertEqual(lm["kindRange"]["start"]["line"], 13)
             self.assertGreaterEqual(lm["addLine"], 13)
 
+    def _mission_with(self, tmp, amd):
+        root = os.path.join(tmp, "m")
+        os.mkdir(root)
+        with open(os.path.join(root, "story.json"), "w") as f:
+            f.write("{}")
+        path = os.path.join(root, "d.amd")
+        with open(path, "w") as f:
+            f.write(amd)
+        return path
+
+    def _mission_request(self, amd, method):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._mission_with(tmp, amd)
+            uri = Path(path).as_uri()
+            out = self._drive([
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                 "params": {"textDocument": {"uri": uri, "text": Path(path).read_text()}}},
+                {"jsonrpc": "2.0", "id": 2, "method": method,
+                 "params": {"textDocument": {"uri": uri}}},
+                {"jsonrpc": "2.0", "method": "exit"},
+            ])
+            return next(x for x in out if x.get("id") == 2)["result"]
+
+    # `alarm` emits a signal `respond` waits on - the edge the Graph was blind to.
+    _SIGNAL_AMD = ("# [R](r)\n## [Quests](quests)\n"
+                   "### [Alarm](alarm)\n---\nState: active\nThen: signal breach\n---\nx\n"
+                   "### [Respond](respond)\n---\nState: secret\nWhen: signal breach\n---\ny\n")
+
+    def test_mission_graph_includes_signal_edges(self):
+        g = self._mission_request(self._SIGNAL_AMD, "amd/graph")
+        self.assertIn(("alarm", "respond", "signal"),
+                      {(e["from"], e["to"], e["kind"]) for e in g["edges"]})
+
+    def test_signal_reached_node_is_not_an_orphan(self):
+        """A signal is a real "reached by", so a node a signal turns on must stop
+        reporting as unreachable."""
+        r = self._mission_request(self._SIGNAL_AMD, "amd/resolve")
+        respond = next(e for e in r["entities"] if e["key"] == "respond")
+        self.assertEqual(respond["inbound"], 1)
+        self.assertFalse(respond["orphan"])
+
+    def test_mission_timeline(self):
+        amd = ("# [R](r)\n## [Quests](quests)\n"
+               "### [One](one)\n---\nState: active\nThen: reveal two\n---\nx\n"
+               "### [Two](two)\n---\nState: secret\nFail after: 6 minutes\n---\ny\n"
+               "## [Jobs](jobs)\n"
+               "### [Odd Job](odd)\n---\nState: idle\nGoal: signal never_fired\n---\nz\n")
+        tl = self._mission_request(amd, "amd/timeline")
+        by_key = {i["key"]: i for i in tl["items"]}
+        self.assertEqual((by_key["one"]["beat"], by_key["two"]["beat"]), (0, 1))
+        self.assertEqual(by_key["two"]["declared"]["seconds"], 360)
+        self.assertEqual(by_key["odd"]["track"], "pool")
+        self.assertEqual(by_key["one"]["archetype"], "quest")
+        self.assertEqual(tl["beats"], 2)
+        self.assertEqual(tl["lanes"]["section"], ["quests", "jobs"])
+
+    # Two jobs, each with a step called `scan`, plus a flat second file whose records
+    # are `#` headings (a per-section file handed straight to a loader).
+    _DUP_AMD = ("# [R](r)\n## [Jobs](jobs)\n"
+                "### [Ghost](job_ghost)\n---\nState: idle\n---\nx\n"
+                "#### [Scan the Derelict](scan)\n---\nState: secret\n---\na\n"
+                "### [Sweep](job_sweep)\n---\nState: idle\n---\ny\n"
+                "#### [Scan the Contact](scan)\n---\nState: secret\n---\nb\n")
+    _FLAT_AMD = ("# [Patrol Sweep](patrol)\n---\nState: idle\n---\np\n"
+                 "# [Standing Bounty](bounty)\n---\nState: idle\n---\nq\n")
+
+    def _dup_mission(self, method):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._mission_with(tmp, self._DUP_AMD)
+            with open(os.path.join(os.path.dirname(path), "flat.amd"), "w") as f:
+                f.write(self._FLAT_AMD)
+            uri = Path(path).as_uri()
+            out = self._drive([
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                 "params": {"textDocument": {"uri": uri, "text": Path(path).read_text()}}},
+                {"jsonrpc": "2.0", "id": 2, "method": method,
+                 "params": {"textDocument": {"uri": uri}}},
+                {"jsonrpc": "2.0", "method": "exit"},
+            ])
+            return next(x for x in out if x.get("id") == 2)["result"]
+
+    def test_graph_keeps_both_records_that_share_a_key(self):
+        """Keying on the bare key dropped one of them - and a record no panel can show
+        is the silent failure this tooling exists to end."""
+        g = self._dup_mission("amd/graph")
+        scans = [n for n in g["nodes"] if n["key"] == "scan"]
+        self.assertEqual(len(scans), 2)
+        self.assertEqual({n["path"] for n in scans},
+                         {"r/jobs/job_ghost/scan", "r/jobs/job_sweep/scan"})
+
+    def test_graph_reads_flat_single_section_files(self):
+        """A per-section file has no `#` root or `##` group; its records ARE the `#`
+        headings, and the old level filter read the whole file as zero records."""
+        keys = {n["key"] for n in self._dup_mission("amd/graph")["nodes"]}
+        self.assertTrue({"patrol", "bounty"} <= keys)
+
+    def test_resolver_sees_both_and_flat_files(self):
+        r = self._dup_mission("amd/resolve")
+        keys = [e["key"] for e in r["entities"]]
+        self.assertEqual(keys.count("scan"), 2)
+        self.assertIn("patrol", keys)
+        self.assertEqual(len({e["uid"] for e in r["entities"]}), len(r["entities"]))
+
+    def test_a_step_is_not_an_orphan(self):
+        """A record nested inside another is reached THROUGH its parent (often by a
+        MAST sequencer, not an AMD edge), so it must not read as unreachable."""
+        r = self._dup_mission("amd/resolve")
+        for e in r["entities"]:
+            if e["key"] == "scan":
+                self.assertFalse(e["orphan"], e["path"])
+
+    def test_node_detail_line_disambiguates_a_reused_key(self):
+        """Two jobs can each own a step called `scan`. Without a line, `amd/node` falls
+        back to a bare-key lookup and the inspector edits whichever namesake wins - so
+        the panel passes the heading's line and must get THAT record."""
+        amd = ("# [R](r)\n## [Jobs](jobs)\n"
+               "### [Ghost](job_ghost)\n---\nState: idle\n---\nx\n"
+               "#### [Scan the Derelict](scan)\n---\nState: secret\n---\na\n"
+               "### [Sweep](job_sweep)\n---\nState: idle\n---\ny\n"
+               "#### [Scan the Contact](scan)\n---\nState: secret\n---\nb\n")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._mission_with(tmp, amd)
+            uri = Path(path).as_uri()
+            tl_req = {"jsonrpc": "2.0", "id": 2, "method": "amd/timeline",
+                      "params": {"textDocument": {"uri": uri}}}
+            out = self._drive([
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                 "params": {"textDocument": {"uri": uri, "text": Path(path).read_text()}}},
+                tl_req,
+                {"jsonrpc": "2.0", "method": "exit"},
+            ])
+            tl = next(x for x in out if x.get("id") == 2)["result"]
+            wanted = next(i for i in tl["items"] if i["display"] == "Scan the Contact")
+
+            out = self._drive([
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+                 "params": {"textDocument": {"uri": uri, "text": Path(path).read_text()}}},
+                {"jsonrpc": "2.0", "id": 3, "method": "amd/node",
+                 "params": {"textDocument": {"uri": uri}, "key": "scan", "line": wanted["line"]}},
+                {"jsonrpc": "2.0", "method": "exit"},
+            ])
+            detail = next(x for x in out if x.get("id") == 3)["result"]
+            self.assertEqual(detail["display"], "Scan the Contact")
+
     def test_mission_graph(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = os.path.join(tmp, "m")

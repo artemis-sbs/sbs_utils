@@ -188,6 +188,195 @@ Each: **Problem → Panel → Seam → Effort.**
   cycle+center matches, Esc to clear — alongside its existing hover-spotlight,
   section filters, and right-click Focus. **§3.5.1 is now fully shipped.**
 
+### 3.5.2 AMD Story Timeline  ·  effort: **med** (static) / **med-high** (recorded)
+- **Problem:** the suite has three lenses on a mission — **list** (Outline), **topology**
+  (Graph), **space** (Map) — and none on **time**. A writer can see *what connects to
+  what* but not *when it happens, in what order, or whether anything is happening at all
+  during minute 14*. Pacing bugs (dead air, reveal-cascade pileups, a console with nothing
+  to do for half the mission, authored content a real run never reaches) are invisible in
+  every existing view.
+- **The honest constraint — AMD has no clock.** Nothing in the vocabulary is a timestamp,
+  so the view must be explicit about **three different time axes** and never silently blend
+  them:
+
+  | Axis | Source | Drawn as |
+  |---|---|---|
+  | **Beat time** (planned) | causal order: `Parent:` / `Then: reveal` / `Scene:` / choice edges, plus signal edges (below) | uniform-width bars, ranked in beats — act structure, *not* seconds |
+  | **Declared time** | `Fail after:` (the only real duration in the language) | a deadline gutter *over* the beat, not the bar itself |
+  | **Actual time** (recorded) | a real playthrough streamed from a session | a true Gantt — the only axis where bar width means seconds |
+
+  Drawing a Gantt off the static file alone would be a lie: most nodes have no knowable
+  duration (a fetch quest lasts however long the player takes). Beat time is the default
+  and is always available; real widths appear only where declared or recorded.
+- **Panel:** the **Outline's** shape, third lens. Left rail = lanes/node list (searchable,
+  section-filterable); centre = the time canvas; right = the **same `amd/schema`-driven
+  inline inspector form** the Outline already uses. Shared selection, the standard tool
+  top-bar, live refresh on edit.
+  - **Lanes are where the insight is** — one selector, four questions: **by section**
+    (matches the Graph's swimlanes; the familiar default) · **by arc** (`Parent:` chain —
+    "does act 3 have a middle, or does it jump from hook to payoff?") · **by side** ("the
+    Ashfang are absent for the whole second act") · **by console** (`Accept on:` /
+    `Engage on:` / scan `Tab:`) = **crew workload over time**, which nothing else in the
+    toolchain can show and which on its own probably justifies the view.
+  - **Spine vs. pool.** An idle-until-accepted job board (18 jobs, all available at t=0)
+    plots as 18 bars stacked at zero — correct and useless. Split the canvas: **spine**
+    (top) = the `Required:`/`Critical:` chain laid out in beats, critical path highlighted;
+    **pool** (bottom) = unordered optional content as an *availability band* (when it
+    becomes offerable, when it expires), not a sequence.
+  - A histogram strip under the canvas (active-content count per beat) reads as the
+    **pacing curve**.
+- **Direct manipulation, ranked by how defensible the write-back is:**
+  - **Safe:** drag a bar's right edge → rewrite `Fail after:`. A real edit of a real number.
+  - **Reasonable:** drag a bar onto another lane row → rewrite `Parent:` (the Graph already
+    does drag-to-add-edge for choices).
+  - **Don't:** free horizontal drag — there is no field it could write. Inventing a `Beat:`
+    ordering field to make the gesture work would push AMD toward a scheduling DSL; that's
+    the tail wagging the dog (see the "AMD dialogue is not a language" principle).
+- **Seam / plumbing:** a new LSP request **`amd/timeline`** in `amd_lsp.py`, layering done
+  **server-side** (stdlib-only, ships in `sbs.pyz`, unit-testable offline exactly like
+  `_mission_resolve`) so the webview stays dumb. Returns roughly
+  `{lanes, beats, items:[{key, beat, lane, kind, declaredDuration, required, sources}],
+  gaps, cycles}`. The recorded overlay rides the **existing** DAP `mast/inspect` channel —
+  the Resolver's `QuestTap` already streams `{quest key -> state}`; recording it with
+  timestamps is the whole of the live half.
+- **The one real prerequisite — signal edges.** `_mission_graph` only treats
+  `choice|scene|reveal|parent` as edges. Signal-mediated causality (`Then: signal X` → a
+  `//signal/X` MAST route → another node's `When: signal X`) is **not an edge today**, so a
+  signal-driven mission would render as disconnected confetti with everything at beat 0.
+  `amd_lint` already computes half that join (`signal-no-route`, `unfired-signal`); the
+  work is promoting it to a first-class edge kind — **worth doing regardless**, since it
+  also improves the Graph and the Resolver's orphan detection.
+- **Second-order problems** (decide, not blockers): **cycles** (A reveals B reveals A) need
+  a feedback-arc pass or an explicit "cycle" badge; a node reachable by two branches has two
+  beat ranks — take the earliest and label it *earliest possible*.
+- **The payoff is the recorded axis.** Record the `QuestTap` stream instead of only badging
+  it and every quest gets `granted → active → complete/failed` timestamps. Laid under the
+  planned beats, that answers what no static view can: **dead air** (a 90-second window with
+  nothing active — the most useful pacing bug there is), **pileup** (eleven jobs going active
+  in ten seconds off one reveal cascade), **never fired** (reachable but not reached — a
+  different failure from the Resolver's statically-unreachable *orphan*), and **drift**
+  (planned beat 7 actually happened before beat 4). It composes with the headless harness:
+  `--test 300` emits `timeline.json`, the extension opens it, and two runs can be
+  **diffed** — story-pacing regression testing in CI, which nothing else here provides.
+- **Phasing:** (a) signal edges promoted to first-class (prerequisite, standalone value);
+  (b) `amd/timeline` + beat lanes by section + spine/pool split + the existing inspector
+  form docked right — useful day one, pure static analysis, no tap; (c) lane-by-console /
+  side / arc + the pacing histogram; (d) recorded runs (timestamped `QuestTap`), gap/pileup
+  analysis, `timeline.json` from `--test`, run diff; (e) edge-drag → `Fail after:` /
+  `Parent:` write-back.
+- **STATUS — phases (a) + (b)/(c) DONE, server side.** The whole model lives in a new
+  **`procedural/amd_timeline.py`** (stdlib-only, ships in `sbs.pyz`, unit-tests offline
+  like `amd_lint`), served as **`amd/timeline`** by `amd_lsp` (`_mission_timeline`).
+  - **(a) Signal edges.** `signal_edges()` joins every `Then: signal X` / choice
+    `… signal X` emit to every `When:` / `Goal:` / `Fail on signal: X` wait across the
+    whole document set, anchored at the emit site. `amd/graph` now returns them as
+    `kind: "signal"` edges and `amd/resolve` counts them toward inbound/outbound — so a
+    node a signal turns on stops reporting as an **orphan** (it was a false positive).
+    Self-edges (emit + wait on one name = a deliberate repeatable loop) are dropped.
+  - **`Goal: signal [N] NAME` is now a reference** (`amd_core`, kind `wait_signal`) —
+    it wasn't one at all before, which is why every idle-until-accepted job on the
+    Peacetime board read as an orphan. The count is stripped exactly as
+    `amd_quest.amd_trigger` strips it. The linter checks it like `When: signal`, so an
+    unfinishable job (goal signal nothing emits) is now a warning.
+  - **Linter emit-scanner gap found + fixed.** `quest_credit_signal(ship, "x")` /
+    `quest_on_signal("x")` advance a quest DIRECTLY without ever calling `signal_emit`,
+    so the cross-file check read peacetime's owner-scoped jobs as "nothing emits this".
+    Both are now recognized emitters. Verified against LegendaryMissions / StormsBeacon /
+    OpenUniverse / LM_TestRange / overlay_demo: **no new findings vs. the baseline.**
+  - **(b)/(c) The model.** `timeline()` returns `{items, beats, lanes, edges, cycles}`:
+    longest-path **beat** rank over the causal graph (`Parent:` reversed into causal
+    order), DFS **cycle** detection so a dialogue hub can't hang the ranking (reported
+    per-item as a badge), the **spine/pool** split, `declared` durations parsed exactly
+    as the engine parses `Fail after:`/`Complete after:`, and all four **lane** modes
+    (section / arc / side / console) precomputed. Single-record arcs collapse to their
+    section so a job board isn't a dozen lanes of one; scan `Tab:` values are
+    deliberately *not* consoles.
+  - **Also found: flat `.amd` files were invisible.** A per-section file handed straight
+    to a loader (`jobs.amd`, `bridge_stories.amd`) has no `#` root or `##` group — its
+    records are the `#` headings, which the shared `level <= 2` filter drops. The
+    timeline detects the file shape and reads them (OU's 12 jobs went from 0 items to
+    12). **`amd/graph` and `amd/resolve` still have this blind spot** — a contained
+    follow-up, deliberately not folded in here so three shipped panels don't change
+    behaviour in the same pass.
+  - Tests: `tests/test_amd_timeline.py` (23 cases) + `amd/timeline`, graph signal-edge
+    and orphan cases in `test_amd_lsp.py`, goal/credit cases in `test_amd_lint.py`.
+    Full suite green (1709 tests; the 3 `test_a2x_props` failures are pre-existing and
+    unrelated).
+- **STATUS — the PANEL (phases b/c client side) DONE.** Command **`amd.showTimeline`**
+  ("Show Story Timeline") in `sbs_cli/editors/vscode` — title-bar icon at navigation@2
+  (between Outline and Graph) and in the shared cross-tool switcher. Lanes down / beats
+  across, a **lane-mode dropdown** (section · arc · side · console) whose choice survives
+  the live refresh, search, the **spine/pool** split, the per-beat **load** bar, and
+  `Fail after:` / `loop` / lint badges on each record. Selecting a record loads the
+  **same `inspectorForm.js`** the Outline uses into the docked detail pane, so the
+  timeline edits the file rather than only reporting on it. Auto-refreshes on `.amd`
+  edits, reuses `reuseToolPanel`/`registerToolPanel`, `tsc --noEmit` clean. Writer docs:
+  `tooling/amd-tools.md`.
+  - **Scope selector (this file | whole mission), defaulting to THIS FILE.** Every panel
+    here indexes the whole mission root (`_index_for` → `_mission_root` → glob
+    `**/*.amd`), which is right for the Graph but reads as *"I opened one file and it
+    gathered the others"* on a timeline. The analysis stays mission-wide — it has to be,
+    or the cross-file signal join collapses and everything ranks at beat 0 — so the fix
+    is **rank globally, draw locally**: a display filter on the item's `uri`, with the
+    true mission-wide beat numbers kept on the columns so both modes read the same. Only
+    beats that hold something are drawn (a scoped or searched view isn't a row of empty
+    columns), and the count reads `shown / in scope (mission: total)`. URI matching
+    normalizes VS Code's `file:///f%3A/…` against Python's `pathlib.as_uri()`
+    `file:///F:/…`, plus backslashes and percent-escaped spaces.
+  - **Cross-boundary marker.** The one thing scoping could hide is that a chain
+    *continues* past the file, so it doesn't: a record with causal neighbours elsewhere
+    shows `↗n`, and the detail pane lists them under "Continues outside this file" as
+    chips that widen the scope and select. Not a hypothetical — LM has 4 cross-file
+    edges (the `siege_quests.amd` mission tree parents each boss in its own file) and OU
+    has 6 (a lifeform's `Scene:` pointing into `officers.amd`).
+  - **NOTE:** the panel talks to the LSP inside the **packaged `sbs.pyz`**, so
+    `amd/timeline` only answers once `sbs.pyz` is rebuilt from this working tree.
+  - **Drill-down into a record's own steps — DONE.** A job has no *mission* beat (that's
+    the pool), but a multi-step job has its own timeline. Any container shows `⊞n`; the
+    drill opens its steps in their own columns with **t=0 = acceptance**, a breadcrumb
+    back, ⊞/◀ buttons in the detail pane, and a **lifecycle strip** (offered → on accept
+    → goal → fails/completes after → on complete) which *is* the drill for a single-step
+    job. Step order: declared references where they exist; otherwise **document order**,
+    because that is what the MAST sequencer replays (`pr_ghost_seq`, "Work the steps in
+    order") — labelled *"order assumed from file order"* with dotted connectors, never
+    silently asserted. A container with SOME declared order leaves its unconstrained
+    children at step 0 rather than appending them (Florbin's `alive` is a standing fail
+    condition, not the fifth step).
+  - **BUG FOUND + FIXED: records were being silently dropped.** Identity was the bare
+    key, but a key is only unique among SIBLINGS — nested records are addressed by path.
+    De-duplicating on the bare key lost **7 records in LegendaryMissions and 10 in Open
+    Universe**, including three of the very job steps the drill-down exists to show
+    (`job_sweep/scan`, `job_sweep/recover`, `job_cache/recover`, each shadowed by a
+    namesake under a different job). The timeline now keys on a **uid** (`<uri>#<path>`);
+    edges carry both bare keys (`from`/`to`, what the Graph indexes by) and uids
+    (`fromUid`/`toUid`, what the ranking uses); references resolve by **path suffix**, so
+    `Then: reveal job_sweep/scan` reaches that one, and an ambiguous bare key resolves to
+    **nothing** rather than a coin-flip (a wrong edge moves a beat, and a silently wrong
+    timeline is worse than a missing line). LM went 175 → 182 records, OU 124 → 134.
+  - **`amd/node` gained optional `uri` + `line`** so the inspector edits the record that
+    was clicked, not whichever namesake `by_key` happened to keep — the panels all have
+    the line already. Without it, drilling into `job_sweep/scan` and typing would have
+    edited `job_ghost/scan`.
+  - **ROLLED OUT to the Graph, Outline and Resolver — and the hole was much bigger than
+    the duplicate keys.** `amd_timeline.records()` is now the single definition of *what
+    a record is*, read by `_mission_graph` and `_mission_resolve` too, so all four views
+    agree. Measured against HEAD: **LegendaryMissions 118 → 182 records, OpenUniverse
+    70 → 134** — over a third of both missions was invisible to the Outline/Graph/
+    Resolver, mostly whole **flat single-section files** (`bridge_stories.amd`,
+    `jobs.amd`, the dialogue and lore files) that the `level <= 2` filter read as empty.
+    - **Orphans went DOWN, 44 → 32**, despite 64 more records: a record nested inside
+      another is reached *through its parent* (often by a MAST sequencer rather than an
+      AMD edge), so a step is no longer flagged unreachable on its own account. That
+      cleared a class of standing false positives (Florbin's steps, `beacon_arc`'s).
+    - The three panels index by key internally (layout maps, adjacency, selection), so
+      rather than rewrite that machinery, `disambiguateKeys()` makes the keys themselves
+      unique: a key used once is untouched, a key used twice becomes its **path**. The
+      Resolver keeps a separate key map for REFERENCE resolution (refs are written as
+      keys in the file; re-keying them would make every ref into a duplicated key read
+      as dangling) and selects by uid. Every panel now passes `line` when inspecting.
+  - **REMAINING:** phase (d) recorded runs (timestamped `QuestTap`, gap/pileup analysis,
+    `timeline.json` from `--test`, run diff) and (e) edge-drag write-back.
+
 ---
 
 ## 3.6 Status

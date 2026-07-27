@@ -207,6 +207,23 @@ def _extract_data_refs(node, fence_lines):
             if r:
                 node.refs.append(r)
 
+    # `Goal: signal [N] NAME` is a COMPLETION trigger - semantically the same wait as
+    # `When: signal`, so it carries the same ref kind (a goal signal nothing emits is a
+    # job that can never be finished, and a job whose goal a MAST route emits is NOT an
+    # orphan). The optional count (`signal 5 drone_down`) is stripped exactly as
+    # `amd_quest.amd_trigger` strips it, so tooling and the engine read the same name.
+    goal = _di(data, "Goal")
+    if goal:
+        toks = str(goal).split()
+        if toks and toks[0].lower() == "signal":
+            rest = toks[1:]
+            if rest and rest[0].isdigit():
+                rest = rest[1:]
+            if rest:
+                r = _token_span(fence_lines, "Goal", rest[0], key, "wait_signal")
+                if r:
+                    node.refs.append(r)
+
     fail = _di(data, "Fail on signal")
     if fail:
         r = _token_span(fence_lines, "Fail on signal", str(fail).strip(), key, "wait_signal")

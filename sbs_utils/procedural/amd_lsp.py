@@ -629,51 +629,77 @@ def _face_parse(face_string):
         return None
 
 
-def _node_detail(index, key):
+def _node_detail(index, key, uri=None, line=None):
     """A node's editable detail for the inspector: display + metadata fields +
-    body text, each with the exact range to rewrite. None if key not found."""
+    body text, each with the exact range to rewrite. None if key not found.
+
+    A bare key is NOT unique across a mission - nested records are addressed by path,
+    so `job_ghost/scan` and `job_sweep/scan` are different records that share the key
+    `scan` (and `by_key` keeps only one of them). Pass `uri` + `line` (which every
+    panel already has, from the model it rendered) to edit the record the author
+    clicked rather than whichever namesake happens to win the lookup."""
+    if uri is not None and line is not None:
+        exact = _node_at_exact(index, uri, line)
+        if exact is not None:
+            return _detail_for(index, *exact)
     for _p, u, d in index["docs"]:
         node = d.by_key.get(key)
-        if node is None:
-            continue
-        nodes = d.nodes
-        i = nodes.index(node)
-        nxt = nodes[i + 1] if i + 1 < len(nodes) else None
-        add_line = (nxt.span.line - 1) if (nxt and nxt.span) else getattr(d, "line_count", 0)
-
-        fields, fl = [], node.fence_lines
-        for _ln, raw in fl:
-            s = raw.strip()
-            if not s or s.startswith("//") or ":" not in raw:
-                continue
-            label, value = raw.split(":", 1)
-            fields.append({"label": label.strip(), "value": value.strip()})
-
-        # Type each field via the schema, so the Inspector renders a typed widget
-        # (enum -> dropdown, ref -> key-picker, colour -> swatch, ...). The mission
-        # symbol lists ride along once (candidates for the reference widgets).
-        from sbs_utils.procedural.amd_schema import infer_archetype, field_schema
-        arch = infer_archetype([f["label"] for f in fields], _section_of(node))
-        for f in fields:
-            f["schema"] = field_schema(f["label"], arch)
-
-        fence_range = None
-        if fl:
-            fence_range = {"start": {"line": fl[0][0] - 1, "character": 0},
-                           "end": {"line": fl[-1][0] - 1, "character": len(fl[-1][1])}}
-
-        body = [raw for (ln, raw) in node.body_lines if (ln - 1) >= node.body_start]
-        return {
-            "key": node.key, "display": node.display, "uri": u,
-            "archetype": arch,
-            "displayRange": _span_range(node.display_span) if node.display_span else None,
-            "fields": fields, "fenceRange": fence_range,
-            "options": _mission_symbols(index),
-            "bodyText": "\n".join(body),
-            "bodyRange": {"start": {"line": node.body_start, "character": 0},
-                          "end": {"line": add_line, "character": 0}},
-        }
+        if node is not None:
+            return _detail_for(index, u, d, node)
     return None
+
+
+def _node_at_exact(index, uri, line):
+    """(uri, doc, node) for the heading that STARTS at `line` (0-based) in `uri`."""
+    ap = os.path.normcase(os.path.abspath(_uri_to_path(uri)))
+    for p, u, d in index["docs"]:
+        if p != ap:
+            continue
+        for n in d.nodes:
+            if n.span is not None and (n.span.line - 1) == line:
+                return u, d, n
+        return None
+    return None
+
+
+def _detail_for(index, u, d, node):
+    nodes = d.nodes
+    i = nodes.index(node)
+    nxt = nodes[i + 1] if i + 1 < len(nodes) else None
+    add_line = (nxt.span.line - 1) if (nxt and nxt.span) else getattr(d, "line_count", 0)
+
+    fields, fl = [], node.fence_lines
+    for _ln, raw in fl:
+        s = raw.strip()
+        if not s or s.startswith("//") or ":" not in raw:
+            continue
+        label, value = raw.split(":", 1)
+        fields.append({"label": label.strip(), "value": value.strip()})
+
+    # Type each field via the schema, so the Inspector renders a typed widget
+    # (enum -> dropdown, ref -> key-picker, colour -> swatch, ...). The mission
+    # symbol lists ride along once (candidates for the reference widgets).
+    from sbs_utils.procedural.amd_schema import infer_archetype, field_schema
+    arch = infer_archetype([f["label"] for f in fields], _section_of(node))
+    for f in fields:
+        f["schema"] = field_schema(f["label"], arch)
+
+    fence_range = None
+    if fl:
+        fence_range = {"start": {"line": fl[0][0] - 1, "character": 0},
+                       "end": {"line": fl[-1][0] - 1, "character": len(fl[-1][1])}}
+
+    body = [raw for (ln, raw) in node.body_lines if (ln - 1) >= node.body_start]
+    return {
+        "key": node.key, "display": node.display, "uri": u,
+        "archetype": arch,
+        "displayRange": _span_range(node.display_span) if node.display_span else None,
+        "fields": fields, "fenceRange": fence_range,
+        "options": _mission_symbols(index),
+        "bodyText": "\n".join(body),
+        "bodyRange": {"start": {"line": node.body_start, "character": 0},
+                      "end": {"line": add_line, "character": 0}},
+    }
 
 
 def _record_labels(node):
@@ -977,35 +1003,61 @@ def _mission_graph(index):
     `addLine` = where to insert a new choice (end of the node's body), so the graph
     can add an edge by dragging one node to another."""
     problems = _problems_by_key(index)
-    nodes, seen = [], set()
-    for _p, u, d in index["docs"]:
-        line_count = getattr(d, "line_count", 0)
-        for i, n in enumerate(d.nodes):
-            if (n.level or 0) <= 2:      # `#`/`##` = mission root + section groups, not story nodes
-                continue
-            if n.key in seen:
-                continue
-            seen.add(n.key)
-            nxt = d.nodes[i + 1] if i + 1 < len(d.nodes) else None
-            add_line = (nxt.span.line - 1) if (nxt and nxt.span) else line_count
-            nodes.append({"key": n.key, "display": n.display or n.key,
-                          "section": _section_of(n), "uri": u,
-                          "line": (n.span.line - 1) if n.span else 0,
-                          "addLine": add_line, "problems": problems.get(n.key)})
-    known = {nd["key"] for nd in nodes}
+    recs, by_uid, by_key = _records(index)
+    nodes = []
+    for rec in recs:
+        d, n = rec["doc"], rec["node"]
+        i = d.nodes.index(n)
+        nxt = d.nodes[i + 1] if i + 1 < len(d.nodes) else None
+        add_line = (nxt.span.line - 1) if (nxt and nxt.span) else getattr(d, "line_count", 0)
+        nodes.append({"uid": rec["uid"], "path": rec["path"],
+                      "key": n.key, "display": n.display or n.key,
+                      "section": rec["section"], "uri": rec["uri"],
+                      "line": (n.span.line - 1) if n.span else 0,
+                      "addLine": add_line, "problems": problems.get(n.key)})
     edges, edge_seen = [], set()
-    for _p, u, d in index["docs"]:
-        for r in d.refs:
+    for rec in recs:
+        for r in rec["node"].refs:
             if r.kind not in ("choice", "scene", "reveal", "parent"):
                 continue
-            leaf = str(r.value).split("/")[-1]
-            key = (r.owner, leaf, r.kind)
-            if r.owner in known and leaf in known and r.owner != leaf and key not in edge_seen:
-                edge_seen.add(key)
-                edges.append({"from": r.owner, "to": leaf, "kind": r.kind,
-                              "uri": u, "line": r.span.line - 1,
-                              "targetRange": _span_range(r.span)})
+            target = _resolve_ref(r.value, by_key, by_uid, rec["uri"])
+            if target is None or target == rec["uid"]:
+                continue
+            key = (rec["uid"], target, r.kind)
+            if key in edge_seen:
+                continue
+            edge_seen.add(key)
+            edges.append({"from": rec["node"].key, "to": by_uid[target]["node"].key,
+                          "fromUid": rec["uid"], "toUid": target, "kind": r.kind,
+                          "uri": rec["uri"], "line": r.span.line - 1,
+                          "targetRange": _span_range(r.span)})
+    # Signal edges: `Then: signal X` here, `When:`/`Goal:`/`Fail on signal: X` there.
+    # The two halves usually sit in different files, so this is a mission-wide join
+    # (amd_timeline) rather than a per-document ref walk - without it a signal-driven
+    # story renders as disconnected nodes.
+    edges.extend(e for e in _signal_edges(index)
+                 if e["fromUid"] in by_uid and e["toUid"] in by_uid)
     return {"nodes": nodes, "edges": edges}
+
+
+def _records(index):
+    """The mission's records, via the ONE definition of what a record is
+    (`amd_timeline.records`): identified by path, not by bare key, and reading flat
+    single-section files as well as the table-of-contents shape. Every panel reads
+    this, so the Outline / Graph / Resolver / Timeline can't disagree about which
+    headings exist."""
+    from sbs_utils.procedural.amd_timeline import records
+    return records([(u, d) for _p, u, d in index["docs"]])
+
+
+def _resolve_ref(value, by_key, by_uid, prefer_uri=None):
+    from sbs_utils.procedural.amd_timeline import _resolve
+    return _resolve(value, by_key, by_uid, prefer_uri)
+
+
+def _signal_edges(index):
+    from sbs_utils.procedural.amd_timeline import signal_edges
+    return signal_edges([(u, d) for _p, u, d in index["docs"]])
 
 
 def _mission_resolve(index):
@@ -1019,19 +1071,28 @@ def _mission_resolve(index):
     from sbs_utils.procedural.amd_lint import amd_lint
     problems = _problems_by_key(index)
     known = set(index["known"])
+    recs, by_uid, by_key = _records(index)
 
-    # inbound/outbound story-edge counts (choice/scene/reveal/parent).
+    # inbound/outbound story-edge counts (choice/scene/reveal/parent), per RECORD -
+    # counted on uids so two records sharing a key don't pool each other's degree.
     EDGE = ("choice", "scene", "reveal", "parent")
     inbound, outbound = {}, {}
-    for _p, _u, d in index["docs"]:
-        for r in d.refs:
+    for rec in recs:
+        for r in rec["node"].refs:
             if r.kind not in EDGE:
                 continue
-            leaf = str(r.value).split("/")[-1]
-            if r.owner in known:
-                outbound[r.owner] = outbound.get(r.owner, 0) + 1
-            if leaf in known:
-                inbound[leaf] = inbound.get(leaf, 0) + 1
+            target = _resolve_ref(r.value, by_key, by_uid, rec["uri"])
+            if target is None:
+                continue
+            outbound[rec["uid"]] = outbound.get(rec["uid"], 0) + 1
+            inbound[target] = inbound.get(target, 0) + 1
+    # A signal is a real "reached by" - the emitter leads to the waiter - so it counts
+    # toward the same in/out degree the Outline shows as Leads to / Reached from.
+    for e in _signal_edges(index):
+        if e["fromUid"] in by_uid:
+            outbound[e["fromUid"]] = outbound.get(e["fromUid"], 0) + 1
+        if e["toUid"] in by_uid:
+            inbound[e["toUid"]] = inbound.get(e["toUid"], 0) + 1
 
     # lint findings indexed by (uri, line) so refs pick up their dangling code; the
     # flat list becomes the panel's jump-to-source issue list.
@@ -1047,48 +1108,50 @@ def _mission_resolve(index):
             issues.append({"uri": u, "line": f.line - 1, "col": max((f.col or 1) - 1, 0),
                            "severity": f.severity, "code": f.code, "message": f.message})
 
-    entities, seen = [], set()
-    for _p, u, d in index["docs"]:
-        for n in d.nodes:
-            if (n.level or 0) <= 2:      # `#`/`##` = mission root + section groups, not records
+    entities = []
+    for rec in recs:
+        u, n = rec["uri"], rec["node"]
+        fields = []
+        for _ln, raw in (n.fence_lines or []):
+            if ":" not in raw or raw.strip().startswith("//") or not raw.strip():
                 continue
-            if n.key in seen:
-                continue
-            seen.add(n.key)
-            fields = []
-            for _ln, raw in (n.fence_lines or []):
-                if ":" not in raw or raw.strip().startswith("//") or not raw.strip():
-                    continue
-                label, value = raw.split(":", 1)
-                fields.append({"label": label.strip(), "value": value.strip()})
-            arch = infer_archetype([f["label"] for f in fields], _section_of(n))
-            inn = inbound.get(n.key, 0)
-            # "orphan" = unreachable, and only meaningful for narrative FLOW records
-            # (quest/scan) — the things that must be *reached*. Data records
-            # (lifeform/landmark/region/side/item/...) are placed or matched by the
-            # engine, never reference-reached, so they are never orphans.
-            # A flow record turns on one of three ways: REVEALED (an inbound
-            # choice/scene/reveal/parent edge), TRIGGERED (a `When:`/`Accept on:`/
-            # `Engage on:`/`Fail on signal:` condition, i.e. signal/reach/scan/timer),
-            # or ACTIVE at start (`State: active`). Only one that is none of these is
-            # a true orphan. A dead trigger signal is a separate red flag
-            # (unfired-signal), so we don't double-count it here.
-            labels = {f["label"] for f in fields}
-            state = next((f["value"] for f in fields if f["label"] == "State"), "")
-            triggered = bool(labels & {"When", "Fail on signal", "Accept on", "Engage on"}) \
-                or state.strip().lower() == "active" \
-                or any(r.kind in ("wait_signal", "reach") for r in n.refs)
-            entities.append({
-                "key": n.key, "display": n.display or n.key,
-                "section": _section_of(n), "archetype": arch, "level": n.level,
-                "uri": u, "line": (n.span.line - 1) if n.span else 0,
-                "span": _span_range(n.span) if n.span else None,
-                "summary": getattr(n, "summary", "") or "",
-                "fields": fields, "problems": problems.get(n.key),
-                "inbound": inn, "outbound": outbound.get(n.key, 0),
-                "triggered": triggered,
-                "orphan": arch in ("quest", "scan") and inn == 0 and not triggered,
-            })
+            label, value = raw.split(":", 1)
+            fields.append({"label": label.strip(), "value": value.strip()})
+        arch = infer_archetype([f["label"] for f in fields], rec["section"])
+        inn = inbound.get(rec["uid"], 0)
+        # "orphan" = unreachable, and only meaningful for narrative FLOW records
+        # (quest/scan) — the things that must be *reached*. Data records
+        # (lifeform/landmark/region/side/item/...) are placed or matched by the
+        # engine, never reference-reached, so they are never orphans.
+        # A flow record turns on one of three ways: REVEALED (an inbound
+        # choice/scene/reveal/parent edge), TRIGGERED (a `When:`/`Accept on:`/
+        # `Engage on:`/`Fail on signal:` condition, i.e. signal/reach/scan/timer),
+        # or ACTIVE at start (`State: active`). Only one that is none of these is
+        # a true orphan. A dead trigger signal is a separate red flag
+        # (unfired-signal), so we don't double-count it here.
+        # A record nested INSIDE another record is a step of it, reached through its
+        # parent (often by a MAST sequencer rather than an AMD edge - the Peacetime job
+        # steps carry no `Then: reveal` at all). The parent is the entry point, so a
+        # step is never an orphan on its own account.
+        labels = {f["label"] for f in fields}
+        state = next((f["value"] for f in fields if f["label"] == "State"), "")
+        nested = n.parent is not None and (n.parent.level or 0) > 2
+        triggered = nested \
+            or bool(labels & {"When", "Fail on signal", "Accept on", "Engage on"}) \
+            or state.strip().lower() == "active" \
+            or any(r.kind in ("wait_signal", "reach") for r in n.refs)
+        entities.append({
+            "uid": rec["uid"], "path": rec["path"],
+            "key": n.key, "display": n.display or n.key,
+            "section": rec["section"], "archetype": arch, "level": n.level,
+            "uri": u, "line": (n.span.line - 1) if n.span else 0,
+            "span": _span_range(n.span) if n.span else None,
+            "summary": getattr(n, "summary", "") or "",
+            "fields": fields, "problems": problems.get(n.key),
+            "inbound": inn, "outbound": outbound.get(rec["uid"], 0),
+            "triggered": triggered,
+            "orphan": arch in ("quest", "scan") and inn == 0 and not triggered,
+        })
 
     _DANGLE = ("dangling", "signal-no-route", "unfired-signal", "reach-no-landmark")
     refs = []
@@ -1112,6 +1175,21 @@ def _mission_resolve(index):
                          "resolved": resolved, "code": code})
 
     return {"entities": entities, "refs": refs, "issues": issues}
+
+
+def _mission_timeline(index):
+    """The Story Timeline model: every record ranked into a causal **beat**, split
+    spine (the chained/critical path) vs pool (unordered optional content), tagged
+    with the four lane groupings and any declared duration.
+
+    A serialization pass over `amd_timeline.timeline` - the analysis lives there so it
+    unit-tests without an LSP session, the same way `amd_lint` does for diagnostics."""
+    from sbs_utils.procedural.amd_schema import infer_archetype
+    from sbs_utils.procedural.amd_timeline import timeline
+    return timeline([(u, d) for _p, u, d in index["docs"]],
+                    known=index["known"],
+                    archetype_of=infer_archetype,
+                    problems=_problems_by_key(index))
 
 
 # --- server loop ------------------------------------------------------------
@@ -1241,6 +1319,10 @@ def serve(stdin=None, stdout=None):
                 uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
                 _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                         "result": _mission_resolve(_index_for(uri, docs))})
+            elif method == "amd/timeline":
+                uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _mission_timeline(_index_for(uri, docs))})
             elif method == "amd/rename":
                 p = msg.get("params", {})
                 uri = p.get("textDocument", {}).get("uri", "")
@@ -1251,7 +1333,8 @@ def serve(stdin=None, stdout=None):
                 p = msg.get("params", {})
                 uri = p.get("textDocument", {}).get("uri", "")
                 _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
-                                        "result": _node_detail(_index_for(uri, docs), p.get("key", ""))})
+                                        "result": _node_detail(_index_for(uri, docs), p.get("key", ""),
+                                                               uri, p.get("line"))})
             elif method == "amd/schema":
                 p = msg.get("params", {})
                 uri = p.get("textDocument", {}).get("uri", "")
