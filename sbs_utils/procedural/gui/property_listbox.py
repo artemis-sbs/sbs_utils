@@ -89,9 +89,27 @@ def gui_properties_set(p=None, tag=None):
             return
         
     
+    tag = tag if tag is not None else "__PROPS_LB__"
+    props_lb = gui_task.get_inventory_value(tag)
+
     # This happens in a follow_route_select_comms
     # And it runs on the server not a true comms console
-    if event is None or event.tag == "gui_present":
+    #
+    # That bail used to be unconditional on "gui_present", which also blocked the
+    # build that CREATES a panel -- gui_property_list_box + gui_properties_set in
+    # one label body is a gui_present -- so a panel painted blank until something
+    # re-entered the label under a different event (LM's server mission picker:
+    # 0 rows on arrival, 13 after clicking next; fabrication's Program grid uses
+    # the same pair).
+    #
+    # Narrowed to the case that is provably safe: a panel that has NEVER been
+    # presented (client_id still None) can only be one this build just created,
+    # so filling it cannot overwrite what another console is showing. An
+    # already-drawn panel keeps exactly the old protection.
+    if event is None:
+        return
+    if event.tag == "gui_present" and (props_lb is None
+                                       or props_lb.client_id is not None):
         return
     #print(f"TAG {event.tag}")
     changes = set(gui_task.get_variable("__PROP_CHANGES__", []))
@@ -100,14 +118,27 @@ def gui_properties_set(p=None, tag=None):
 
 
     with FrameContextOverride(FrameContext.client_task, FrameContext.client_page):
-        tag = tag if tag is not None else "__PROPS_LB__"
-        props_lb = gui_task.get_inventory_value(tag)
         if props_lb is None:
             # print(f"No properties found {gui_page.client_id}")
             return
+        first_build = props_lb.client_id is None
         props_lb.items = _gui_properties_items(p)
         # Clear the on changes
-        gui_represent(props_lb)
+        #
+        # NOT on the build that creates the panel. gui_represent re-presents the
+        # whole widget: send_gui_sub_region + send_gui_clear + a full present +
+        # send_gui_complete. On a listbox that has never been presented, those go
+        # out at the widget's CONSTRUCTOR bounds (no layout pass has run yet) and
+        # land in the middle of the enclosing page's own build -- a clear/complete
+        # pair inside another clear/complete pair, at the wrong rect.
+        #
+        # The mock tolerates it; a real engine session did not (the server console
+        # came up but player ships were never created). It is also pointless here:
+        # a panel built this frame is about to be presented anyway, as part of the
+        # very build we are inside. gui_represent is deprecated for the same
+        # reason everywhere else -- the dirty system re-renders changed widgets.
+        if not first_build:
+            gui_represent(props_lb)
         
 
 
