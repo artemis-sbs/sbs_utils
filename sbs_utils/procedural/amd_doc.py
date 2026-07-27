@@ -48,10 +48,28 @@ def amd_root_node(doc):
 
 
 def amd_root_data(doc):
-    """The root heading's ``---`` data dict (``{}`` if none) - where document-wide config
-    blocks live (e.g. a ``reputation:`` block)."""
-    root = amd_root_node(doc)
-    return (root.get("data") if root is not None else None) or {}
+    """Document-wide config (``{}`` if none).
+
+    There are two places this can be written and they used to mean different things:
+    the FRONT-MATTER fence (before any heading, which the parser attaches to the
+    synthetic document root) and the first ``#`` heading's own fence. `amd_core`
+    called the first one "root"; this module called the second one "root".
+
+    Front matter now wins, because it is the only one that works for the flat files -
+    nine of the corpus's files are a bare list of records with no title heading to
+    hang config on. The title heading's fence is still merged underneath it, so every
+    existing file keeps working; front matter simply takes precedence on a clash."""
+    data = dict(doc.get("data") or {}) if doc else {}
+    kids = doc.get("children", []) if doc else []
+    # Merge the title heading's fence ONLY when there genuinely is a title: exactly
+    # one top-level heading, and it contains others. On a FLAT file (nine in the
+    # corpus - jobs.amd is 12 bare records) `children[0]` is a RECORD, and treating
+    # it as the root would publish one character's fields as document config.
+    if len(kids) == 1 and kids[0].get("children"):
+        merged = dict(kids[0].get("data") or {})
+        merged.update(data)         # front matter wins
+        data = merged
+    return {k: v for k, v in data.items() if not str(k).startswith("__")}
 
 
 def amd_section(doc, key):

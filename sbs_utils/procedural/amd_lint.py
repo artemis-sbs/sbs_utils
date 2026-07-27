@@ -255,10 +255,43 @@ def _resolves(doc, value, known_keys):
     """A bare key or `a/b/c` path resolves inside this doc, or (cross-file) its
     key/leaf is a known symbol elsewhere in the mission (another .amd node or a
     MAST label). Cross-file structure can't be verified from one file, so the leaf
-    check is intentionally soft."""
+    check is intentionally soft.
+
+    A key that names SEVERAL nodes still counts as resolving here - it exists, it is
+    just under-specified - so it is reported once by `amd_lint_keys` as ambiguous
+    rather than twice, and never as "points at nothing"."""
     if "/" in value:
         return doc.path_resolves(value) or value.split("/")[-1] in known_keys
     return value in doc.keys or value in known_keys
+
+
+def amd_lint_keys(doc):
+    """Flag key collisions and the references made unresolvable by them.
+
+    Nothing checked this before, and it matters: 40 of the corpus's 374 keys repeat,
+    three of them WITHIN one file (`recover` x3, `scan` x3 in peacetime_remastered).
+    Repeating a key is legitimate - short step names scoped to their job read well -
+    so a duplicate is a note, not an error. What IS a problem is a BARE reference to
+    a key that names several nodes, because nothing can tell which was meant.
+    Answer: write the path (`florbin/recover`). WARNING."""
+    from sbs_utils.procedural.amd_core import path_of
+    findings = []
+    for key, nodes in sorted(doc.duplicates.items()):
+        where = ", ".join(path_of(n) for n in nodes)
+        for n in nodes[1:]:
+            findings.append(AmdFinding.at(
+                n.key_span or n.span, WARNING, "duplicate-key",
+                f"`{key}` names {len(nodes)} records ({where}) - reference them by "
+                f"path, or rename so a bare `{key}` is unambiguous"))
+    for ref in doc.refs:
+        if ref.kind in ("scene", "parent", "reveal", "choice") and doc.is_ambiguous(ref.value):
+            owner = doc.by_key.get(ref.owner)
+            if doc.resolve_target(ref.value, from_node=owner) is None:
+                paths = ", ".join(path_of(n) for n in doc.nodes_for(str(ref.value)))
+                findings.append(AmdFinding.at(
+                    ref.span, WARNING, "ambiguous-reference",
+                    f"`{ref.value}` could mean {paths} - say which by writing the path"))
+    return findings
 
 
 def amd_lint_references(doc, known_keys=frozenset()):
@@ -507,6 +540,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         if source_index is not None:
             keys |= source_index["labels"]  # MAST labels are valid targets too
         findings += amd_lint_references(doc, keys)
+        findings += amd_lint_keys(doc)
         findings += amd_lint_field_values(doc)
         if cross_file is not False:
             findings += amd_lint_cross_file(doc, mast_sources, source_index)

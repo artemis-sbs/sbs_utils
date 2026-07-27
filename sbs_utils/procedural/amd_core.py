@@ -93,29 +93,89 @@ class AmdDocument:
         self.refs = refs              # every AmdRef, document order
         self.line_count = line_count  # source line count (for end-of-file inserts)
         self.keys = {n.key for n in nodes}
+        # `by_key` keeps ONE node per key, for the many callers that just want a
+        # lookup. It is lossy when a key repeats - use `nodes_for` / `by_path` when
+        # that matters, and `duplicates` to find out whether it does.
         self.by_key = {n.key: n for n in nodes}
+        self._by_key_all = {}
+        for n in nodes:
+            self._by_key_all.setdefault(n.key, []).append(n)
+        self.duplicates = {k: v for k, v in self._by_key_all.items() if len(v) > 1}
+        self.by_path = {path_of(n): n for n in nodes}
+        # Kept for compatibility. It is FLAT and therefore last-wins when a key
+        # repeats, which is exactly why path resolution no longer consults it.
         self.parent_of = {n.key: (n.parent.key if n.parent and n.parent.key != "__root__" else None)
                           for n in nodes}
         self.landmark_cells = {r.value for r in refs if r.kind == "at"}
 
-    def path_resolves(self, path):
-        """A slash path resolves iff every segment is a known key and each
-        segment's parent is the preceding segment; a bare key iff it exists."""
-        segs = [s for s in str(path).split("/") if s]
-        if not segs:
-            return True
-        if any(s not in self.keys for s in segs):
-            return False
-        return all(self.parent_of.get(b) == a for a, b in zip(segs, segs[1:]))
+    def nodes_for(self, key):
+        """Every node carrying `key` - 40 of the corpus's 374 keys repeat, and three
+        of those repeat WITHIN one file."""
+        return list(self._by_key_all.get(key, ()))
 
-    def resolve_target(self, value):
-        """The AmdNode a reference points at (bare key or `a/b/c` path), or None."""
+    def path_resolves(self, path):
+        """True when `path` names a real chain in the tree.
+
+        Walks actual parent pointers. It used to consult the flat `parent_of` map,
+        which keeps only the LAST node for a repeated key - so the correctly-written
+        `florbin/recover` in peacetime_remastered.amd resolved to nothing, and it was
+        the only reference `sbs lint` complained about in the whole file."""
+        return self._match_path([s for s in str(path).split("/") if s]) is not None
+
+    def _match_path(self, segs):
+        """The node a segment chain names, or None. Ambiguity is impossible here:
+        a full chain of keys is unique even when the leaf key is not."""
+        if not segs:
+            return None
+        found = []
+        for node in self._by_key_all.get(segs[-1], ()):
+            n, ok = node, True
+            for want in reversed(segs[:-1]):
+                n = n.parent
+                while n is not None and n.key != want and n.key != "__root__":
+                    n = n.parent           # allow skipping intermediate levels
+                if n is None or n.key != want:
+                    ok = False
+                    break
+            if ok:
+                found.append(node)
+        return found[0] if len(found) == 1 else None
+
+    def resolve_target(self, value, from_node=None):
+        """The node a reference points at, or None.
+
+        A slash path names a chain. A BARE key resolves RELATIVELY when `from_node`
+        is given - nearest scope first: the referring node's own subtree, then each
+        ancestor's, then the document. That matches what authors already write
+        (`recover` and `scan` are step names reused inside several jobs) and mirrors
+        MAST's `---inline` label scoping. Without `from_node` it is a document-wide
+        lookup, which returns None rather than guessing when the key is ambiguous."""
         segs = [s for s in str(value).split("/") if s]
         if not segs:
             return None
-        if len(segs) == 1:
-            return self.by_key.get(segs[0])
-        return self.by_key.get(segs[-1]) if self.path_resolves(value) else None
+        if len(segs) > 1:
+            return self._match_path(segs)
+        key = segs[0]
+        candidates = self._by_key_all.get(key, ())
+        if not candidates:
+            return None
+        if len(candidates) == 1:
+            return candidates[0]
+        if from_node is not None:
+            scope = from_node
+            while scope is not None:
+                inside = [c for c in candidates if _is_within(c, scope)]
+                if len(inside) == 1:
+                    return inside[0]
+                if len(inside) > 1:
+                    return None            # ambiguous even in the nearest scope
+                scope = scope.parent
+        return None                        # ambiguous document-wide: say so, don't guess
+
+    def is_ambiguous(self, value):
+        """True when a BARE key names more than one node (a path never is)."""
+        segs = [s for s in str(value).split("/") if s]
+        return len(segs) == 1 and len(self._by_key_all.get(segs[0], ())) > 1
 
 
 # --- shared queries over the parsed tree ------------------------------------
@@ -127,6 +187,30 @@ def span_range(span):
     both emit this shape into the same payloads."""
     return {"start": {"line": span.line - 1, "character": span.col},
             "end": {"line": span.end_line - 1, "character": span.end_col}}
+
+
+def path_of(node):
+    """A node's full slash path from the document root (`florbin/recover`).
+
+    This is the unambiguous name for a record. Bare keys are not unique - 40 of the
+    corpus's 374 keys repeat - so anything that needs to identify a node exactly
+    (an index, a rename, a cross-file reference) should use the path."""
+    parts = []
+    n = node
+    while n is not None and n.key and n.key != "__root__":
+        parts.append(n.key)
+        n = n.parent
+    return "/".join(reversed(parts))
+
+
+def _is_within(node, scope):
+    """True when `node` is `scope` or sits underneath it."""
+    n = node
+    while n is not None:
+        if n is scope:
+            return True
+        n = n.parent
+    return False
 
 
 def section_of(node):

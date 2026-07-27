@@ -65,5 +65,74 @@ class TestRefs(unittest.TestCase):
         self.assertIn((2, -1), doc.landmark_cells)
 
 
+class TestPathIndexAndAmbiguity(unittest.TestCase):
+    """Keys are not unique - 40 of the corpus's 374 repeat, three within one file.
+    The path is the unambiguous name."""
+
+    # two jobs, each with a step called `recover` - exactly the real shape in
+    # LegendaryMissions/maps/peacetime_remastered.amd
+    SRC = ("# [Doc](doc)\n"
+           "## [Jobs](jobs)\n"
+           "### [Florbin](florbin)\n---\nState: active\n---\np\n"
+           "#### [Recover Florbin](recover)\n---\nTier: 1\n---\np\n"
+           "### [Cache](job_cache)\n---\nState: active\n---\np\n"
+           "#### [Recover Cache](recover)\n---\nTier: 2\n---\np\n")
+
+    def setUp(self):
+        self.doc = parse(self.SRC)
+
+    def test_path_of_names_a_record_exactly(self):
+        from sbs_utils.procedural.amd_core import path_of
+        paths = sorted(path_of(n) for n in self.doc.nodes)
+        self.assertIn("doc/jobs/florbin/recover", paths)
+        self.assertIn("doc/jobs/job_cache/recover", paths)
+
+    def test_path_resolves_walks_real_parents(self):
+        # the regression that made `sbs lint` report a FALSE error: the flat
+        # parent_of map keeps only the LAST node for a repeated key
+        self.assertTrue(self.doc.path_resolves("florbin/recover"))
+        self.assertTrue(self.doc.path_resolves("job_cache/recover"))
+        self.assertFalse(self.doc.path_resolves("nosuch/recover"))
+        target = self.doc.resolve_target("florbin/recover")
+        self.assertEqual(target.parent.key, "florbin")
+        self.assertEqual(target.display, "Recover Florbin")
+
+    def test_duplicates_are_reported(self):
+        self.assertEqual(sorted(self.doc.duplicates), ["recover"])
+        self.assertEqual(len(self.doc.nodes_for("recover")), 2)
+
+    def test_bare_key_is_ambiguous_and_does_not_guess(self):
+        self.assertTrue(self.doc.is_ambiguous("recover"))
+        self.assertIsNone(self.doc.resolve_target("recover"))
+        self.assertFalse(self.doc.is_ambiguous("florbin"))
+
+    def test_bare_key_resolves_relatively_from_the_referring_node(self):
+        # nearest scope first, which is what makes short step names correct
+        florbin = self.doc.by_path["doc/jobs/florbin"]
+        cache = self.doc.by_path["doc/jobs/job_cache"]
+        self.assertEqual(self.doc.resolve_target("recover", from_node=florbin).display,
+                         "Recover Florbin")
+        self.assertEqual(self.doc.resolve_target("recover", from_node=cache).display,
+                         "Recover Cache")
+
+
+class TestKindResolution(unittest.TestCase):
+    def test_kind_line_inherits_from_the_section(self):
+        doc = parse("# [Doc](doc)\n## [Crew](crew)\n---\nCharacters\n---\n"
+                             "### [Ana](ana)\n---\nColor: #07F\n---\np\n")
+        self.assertEqual(doc.by_key["ana"].kind, "lifeform")
+
+    def test_section_name_resolves_without_any_kind_line(self):
+        # the common path: the section is already NAMED for what it holds
+        doc = parse("# [Doc](doc)\n## [Landmarks](landmarks)\n"
+                             "### [Ruin](ruin)\n---\nAt: 2, -1\n---\np\n")
+        self.assertEqual(doc.by_key["ruin"].kind, "landmark")
+
+    def test_a_record_may_override_its_section(self):
+        doc = parse("# [Doc](doc)\n## [Crew](crew)\n---\nCharacters\n---\n"
+                             "### [Ruin](ruin)\n---\nLandmark\nAt: 2, -1\n---\np\n")
+        self.assertEqual(doc.by_key["ruin"].kind, "landmark")
+
+
 if __name__ == "__main__":
     unittest.main()
