@@ -23,6 +23,35 @@ def amd_norm(name):
     return str(name).strip().lower().replace("-", "_").replace(" ", "_")
 
 
+def amd_signal_name(value):
+    """A signal name, lowercased with spaces -> underscores (matched exactly).
+
+    Lives here, not in a caller, because it IS the matching contract: the quest driver
+    matches on it at runtime and the editor's signal join matches on it statically. Two
+    copies held in agreement by a comment would silently stop agreeing the first time
+    the rule widened."""
+    return str(value).strip().lower().replace(" ", "_")
+
+
+def amd_duration_parts(value):
+    """`6 minutes` -> `(6, "minutes")`, `90 seconds` -> `(90, "seconds")`, `2` ->
+    `(2, "minutes")`. `(None, unit)` when there's no number.
+
+    The unit is MINUTES unless the text says "second" - the rule `Fail after:` and
+    `Complete after:` have always used. Shared so a view can't disagree with the clock
+    the engine actually runs. Returns the AUTHORED unit (not just seconds) because the
+    quest data keeps what was written."""
+    num = next((int(t) for t in str(value).split() if t.isdigit()), None)
+    unit = "seconds" if "second" in str(value).lower() else "minutes"
+    return num, unit
+
+
+def amd_duration_seconds(value):
+    """`amd_duration_parts` collapsed to seconds, or None if there's no number."""
+    num, unit = amd_duration_parts(value)
+    return None if num is None else (num if unit == "seconds" else num * 60)
+
+
 def amd_num(s):
     """int -> float -> the trimmed string, whichever parses first."""
     s = str(s).strip()

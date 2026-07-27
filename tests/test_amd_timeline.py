@@ -166,16 +166,16 @@ class TestTracks(unittest.TestCase):
 
 class TestDeclaredDuration(unittest.TestCase):
     def test_minutes_and_seconds(self):
-        self.assertEqual(declared_duration([("Fail after", "6 minutes")])["seconds"], 360)
-        self.assertEqual(declared_duration([("Fail after", "90 seconds")])["seconds"], 90)
+        self.assertEqual(declared_duration({"fail after": "6 minutes"})["seconds"], 360)
+        self.assertEqual(declared_duration({"fail after": "90 seconds"})["seconds"], 90)
 
     def test_bare_number_is_minutes_like_the_engine(self):
         """`amd_quest` defaults the unit to minutes; the view must not disagree with
         the clock the engine actually runs."""
-        self.assertEqual(declared_duration([("Complete after", "2")])["seconds"], 120)
+        self.assertEqual(declared_duration({"complete after": "2"})["seconds"], 120)
 
     def test_absent_is_none(self):
-        self.assertIsNone(declared_duration([("State", "idle")]))
+        self.assertIsNone(declared_duration({"state": "idle"}))
 
 
 class TestLanes(unittest.TestCase):

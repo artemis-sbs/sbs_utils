@@ -13,7 +13,8 @@ the trigger-verb table and the label->quest-data interpretation, exposed as an
 here - a richer mission (Open Universe) keeps its own labels and composes this
 handler underneath them.
 """
-from sbs_utils.procedural.amd import amd_parse_facts, amd_norm, amd_num, amd_coords
+from sbs_utils.procedural.amd import (amd_parse_facts, amd_norm, amd_num, amd_coords,
+                                      amd_signal_name, amd_duration_parts)
 
 # verb -> (quest-data trigger key, target field). The trigger keys are what the LM
 # quest_driver dispatchers read (quest_on_kill / on_collect / on_scan / on_dock /
@@ -43,8 +44,10 @@ def _resolve_role(target, aliases=None):
 
 
 def _signal_name(value):
-    """A signal name, lowercased with spaces -> underscores (matched exactly)."""
-    return str(value).strip().lower().replace(" ", "_")
+    """A signal name, lowercased with spaces -> underscores (matched exactly).
+    Kept as a local alias; the rule itself lives in `amd.amd_signal_name` so the
+    editor's signal join matches exactly what the driver matches."""
+    return amd_signal_name(value)
 
 
 def amd_trigger(value, aliases=None):
@@ -197,18 +200,16 @@ def amd_quest_facts(aliases=None):
         elif label in ("fail on all dead", "fail_on_all_dead"):
             data["fail_on_all_dead"] = {"role": _resolve_role(str(value).strip(), aliases)}
         elif label in ("fail after", "fail_after"):
-            n = next((int(t) for t in str(value).split() if t.isdigit()), 0)
-            unit = "seconds" if "second" in str(value).lower() else "minutes"
-            data["fail_after"] = {unit: n}
+            n, unit = amd_duration_parts(value)
+            data["fail_after"] = {unit: n or 0}
         elif label in ("complete after", "complete_after"):
             # Symmetric to Fail after: COMPLETE the quest once a time elapses (anchored
             # lazily on the first ACTIVE tick, same as fail_after). Lets a purely timed
             # step - a narrative beat, a "hold for N seconds" objective - be a quest that
             # advances a reveal chain (pair with Then: reveal) with no hand-written timer
             # loop. Read by the LM quest_driver's quest_tick_complete_after watcher.
-            n = next((int(t) for t in str(value).split() if t.isdigit()), 0)
-            unit = "seconds" if "second" in str(value).lower() else "minutes"
-            data["complete_after"] = {unit: n}
+            n, unit = amd_duration_parts(value)
+            data["complete_after"] = {unit: n or 0}
         else:
             return None
         return True

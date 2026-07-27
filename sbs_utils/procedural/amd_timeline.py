@@ -22,9 +22,13 @@ reference is written in: `Parent: X` is written child->parent but means parent-t
 child, so it is emitted reversed. `Scene:`/`Then: reveal`/choices/signals all already
 point the way time runs.
 
-Stdlib-only (like `amd_lint` / `amd_schema`) so it ships in `sbs.pyz`, unit-tests
-offline, and can't drag engine imports into the language server.
+Dependency-light like the rest of the AMD tooling: the shared vocabulary primitives
+(`amd.py`) and the parser (`amd_core`), nothing from the engine - so it ships in
+`sbs.pyz`, unit-tests offline, and can't drag engine imports into the language server.
 """
+from sbs_utils.procedural.amd import amd_signal_name, amd_duration_seconds
+from sbs_utils.procedural.amd_core import section_of, span_range
+from sbs_utils.procedural.amd_quest import amd_console_list
 
 # Reference kinds that carry story flow, and whether the written direction already
 # matches causal order (`Parent:` is the one that doesn't - see the module docstring).
@@ -37,11 +41,11 @@ _SPINE_FLAGS = ("Required", "Critical", "Win", "Lose")
 _FALSE = ("false", "no", "0")
 
 
-def _flag(fields, label):
+def _flag(lut, label):
     """A spine flag's truth, read the way `amd_quest` reads it: `Required:`/`Critical:`
     are bare flags (only an explicit true/yes/1/empty counts), while `Win:`/`Lose:`
     accept end-screen prose after them, so anything but an explicit false counts."""
-    value = _field(fields, label)
+    value = _field(lut, label)
     if value is None:
         return False
     low = str(value).strip().lower()
@@ -63,17 +67,14 @@ def _fields(node):
     return out
 
 
-def _field(fields, *names):
-    low = {l.lower(): v for l, v in fields}
-    for n in names:
-        if n.lower() in low:
-            return low[n.lower()]
-    return None
-
-
-def _signal_name(value):
-    """Match `amd_quest._signal_name` so the join agrees with what the engine matches."""
-    return str(value).strip().lower().replace(" ", "_")
+def _field(lut, label):
+    """A fence value by label, from the record's prebuilt lower-cased lookup. Tolerant
+    of the underscore spelling (`fail_after` == `Fail after`), so callers never have to
+    pass both - forgetting the variant used to fail silently as "field absent"."""
+    low = label.lower()
+    if low in lut:
+        return lut[low]
+    return lut.get(low.replace(" ", "_"), lut.get(low.replace("_", " ")))
 
 
 def _record_level(doc):
@@ -108,7 +109,7 @@ def _path_of(node):
 
 
 def _story_nodes(docs):
-    """Every story record across the set as `(uri, doc, node, section)`.
+    """Every story record across the set as `(uri, doc, node, section, path)`.
 
     De-duplicated by (uri, PATH), not by bare key. Keying on the bare key silently
     drops a record whose key is reused elsewhere - which is not a rare edge case: it
@@ -121,11 +122,13 @@ def _story_nodes(docs):
     for uri, doc in docs:
         level = _record_level(doc)
         for n in doc.nodes:
-            uid = (uri, _path_of(n))
-            if (n.level or 0) < level or uid in seen:
+            if (n.level or 0) < level:
                 continue
-            seen.add(uid)
-            out.append((uri, doc, n, _section_of(n) if level > 1 else _file_section(uri)))
+            path = _path_of(n)                 # walked once, reused by every later pass
+            if (uri, path) in seen:
+                continue
+            seen.add((uri, path))
+            out.append((uri, doc, n, section_of(n) if level > 1 else _file_section(uri), path))
     return out
 
 
@@ -135,18 +138,30 @@ def records(docs):
 
     Public because it is the single definition of *what a record is* - the language
     server's Graph and Resolver read it too, so all three views agree on which headings
-    exist (they each used to re-derive it, and each dropped the same records)."""
+    exist (they each used to re-derive it, and each dropped the same records).
+
+    Each record carries its fence `fields` parsed ONCE (with a lower-cased lookup
+    table): the item pass reads ~17 labels per record, and re-deriving that map per
+    lookup was the single largest cost in the profile."""
     recs = []
-    for uri, doc, node, section in _story_nodes(docs):
-        recs.append({"uid": uri + "#" + _path_of(node), "uri": uri, "doc": doc,
-                     "node": node, "section": section, "path": _path_of(node)})
+    for uri, doc, node, section, path in _story_nodes(docs):
+        fields = _fields(node)
+        recs.append({"uid": uri + "#" + path, "uri": uri, "doc": doc, "node": node,
+                     "section": section, "path": path,
+                     "fields": fields, "lut": {l.lower(): v for l, v in fields}})
     by_key = {}
     for r in recs:
         by_key.setdefault(r["node"].key, []).append(r["uid"])
     return recs, {r["uid"]: r for r in recs}, by_key
 
 
-def _resolve(value, by_key, by_uid, prefer_uri=None):
+def _uid_by_node(recs):
+    """`id(AmdNode) -> uid`, so a parent lookup is a dict hit rather than another walk
+    up the heading chain."""
+    return {id(r["node"]): r["uid"] for r in recs}
+
+
+def resolve_ref(value, by_key, by_uid, prefer_uri=None):
     """The record a reference points at, as a uid - or None if it can't be pinned down.
 
     A reference is written as a bare key (`trail`) or a path (`florbin/trail`). A path
@@ -185,11 +200,17 @@ def signal_edges(docs):
     Self-edges are dropped: a node that emits and waits on the same name is a loop the
     author wrote on purpose (a repeatable job), not a beat ordering.
     """
-    recs, _by_uid, _by_key = records(docs)
+    return signal_edges_for(records(docs)[0])
+
+
+def signal_edges_for(recs):
+    """`signal_edges` over an already-built record set - so one request walks the
+    mission once instead of once per public entry point. Public because the language
+    server's Graph and Resolver both need it over the record set they already hold."""
     emits, waits = {}, {}
     for rec in recs:
         for r in rec["node"].refs:
-            name = _signal_name(r.value)
+            name = amd_signal_name(r.value)
             if r.kind == "signal":
                 emits.setdefault(name, []).append((rec, r))
             elif r.kind == "wait_signal":
@@ -206,13 +227,8 @@ def signal_edges(docs):
                               "fromUid": rec["uid"], "toUid": wrec["uid"],
                               "kind": "signal", "name": name, "uri": rec["uri"],
                               "line": (r.span.line - 1) if r.span else 0,
-                              "targetRange": _range(r.span) if r.span else None})
+                              "targetRange": span_range(r.span) if r.span else None})
     return edges
-
-
-def _range(span):
-    return {"start": {"line": span.line - 1, "character": span.col},
-            "end": {"line": span.end_line - 1, "character": span.end_col}}
 
 
 def causal_edges(docs, known=None):
@@ -220,7 +236,11 @@ def causal_edges(docs, known=None):
     reveal / parent, the last one reversed) plus the mission-wide signal join.
 
     Each edge carries bare keys AND uids - see `signal_edges`."""
-    recs, by_uid, by_key = records(docs)
+    return _causal_edges(*records(docs), known=known)
+
+
+def _causal_edges(recs, by_uid, by_key, known=None):
+    """`causal_edges` over an already-built record set (see `_signal_edges`)."""
     known = set(known) if known is not None else set(by_key)
     edges, seen = [], set()
     for rec in recs:
@@ -228,7 +248,7 @@ def causal_edges(docs, known=None):
             forward = _FLOW_KINDS.get(r.kind)
             if forward is None:
                 continue
-            target = _resolve(r.value, by_key, by_uid, prefer_uri=rec["uri"])
+            target = resolve_ref(r.value, by_key, by_uid, prefer_uri=rec["uri"])
             if target is None or target == rec["uid"]:
                 continue
             if rec["node"].key not in known or by_uid[target]["node"].key not in known:
@@ -241,8 +261,8 @@ def causal_edges(docs, known=None):
             edges.append({"from": by_uid[src]["node"].key, "to": by_uid[dst]["node"].key,
                           "fromUid": src, "toUid": dst, "kind": r.kind, "uri": rec["uri"],
                           "line": (r.span.line - 1) if r.span else 0,
-                          "targetRange": _range(r.span) if r.span else None})
-    edges.extend(e for e in signal_edges(docs) if e["from"] in known and e["to"] in known)
+                          "targetRange": span_range(r.span) if r.span else None})
+    edges.extend(e for e in signal_edges_for(recs) if e["from"] in known and e["to"] in known)
     return edges
 
 
@@ -302,7 +322,7 @@ def _rank(keys, edges):
     return rank, cycles
 
 
-def declared_duration(fields):
+def declared_duration(lut):
     """Seconds declared by `Fail after:` / `Complete after:`, or None.
 
     Parsed EXACTLY as `amd_quest.amd_quest_facts` parses it (first integer token; the
@@ -310,20 +330,18 @@ def declared_duration(fields):
     with the clock the engine actually runs.
     """
     for label in ("Fail after", "Complete after"):
-        value = _field(fields, label, label.replace(" ", "_"))
+        value = _field(lut, label)
         if value is None:
             continue
-        num = next((int(t) for t in str(value).split() if t.isdigit()), None)
-        if num is None:
+        seconds = amd_duration_seconds(value)
+        if seconds is None:
             continue
-        unit = "seconds" if "second" in str(value).lower() else "minutes"
-        return {"seconds": num * (1 if unit == "seconds" else 60),
-                "label": str(value).strip(), "field": label,
+        return {"seconds": seconds, "label": str(value).strip(), "field": label,
                 "fail": label == "Fail after"}
     return None
 
 
-def _consoles(fields, archetype):
+def _consoles(lut, archetype):
     """Which console(s) this record gives work to - the lane that answers "is Science
     idle for the whole second act?". Declared consoles only (`Accept on:`/`Engage on:`),
     plus science for anything scan-shaped, because that IS where a scan happens. A scan
@@ -331,10 +349,10 @@ def _consoles(fields, archetype):
     intel), not consoles, and folding them in invents lanes nobody's sitting at."""
     out = []
     for label in ("Accept on", "Engage on"):
-        value = _field(fields, label, label.replace(" ", "_"))
+        value = _field(lut, label)
         if value:
-            out.extend(t.strip().lower() for t in str(value).split(",") if t.strip())
-    goal = str(_field(fields, "Goal") or "").split()
+            out.extend(amd_console_list(value))
+    goal = str(_field(lut, "Goal") or "").split()
     if goal and goal[0].lower() in ("scan", "survey"):
         out.append("science")
     if archetype == "scan":
@@ -345,15 +363,6 @@ def _consoles(fields, archetype):
             seen.add(c)
             uniq.append(c)
     return uniq
-
-
-def _section_of(node):
-    """The `##` section group a record lives under - matches `amd_lsp._section_of` so
-    the Timeline's section lanes line up with the Outline's grouping."""
-    n = node
-    while n.parent is not None and n.parent.key != "__root__" and n.level > 2:
-        n = n.parent
-    return n.key
 
 
 def _arcs(nodes, parents):
@@ -416,20 +425,23 @@ def _steps(nodes, edges):
     Returns `(kids, step, inferred)` - children per container in document order, each
     child's local rank, and the containers whose ranking is a document-order guess.
     """
-    uids = {rec["uid"] for rec in nodes}
-    kids = {}
+    uid_of = _uid_by_node(nodes)
+    kids, parent_of = {}, {}
     for rec in nodes:
-        parent = rec["node"].parent
-        if parent is None:
-            continue
-        puid = rec["uri"] + "#" + _path_of(parent)
-        if puid in uids:
+        puid = uid_of.get(id(rec["node"].parent))
+        if puid is not None:
             kids.setdefault(puid, []).append(rec["uid"])
+            parent_of[rec["uid"]] = puid
+    # Bucket the edges by the container they sit inside, once, rather than re-scanning
+    # the whole edge list per container.
+    local_edges = {}
+    for e in edges:
+        p = parent_of.get(e["fromUid"])
+        if p is not None and parent_of.get(e["toUid"]) == p:
+            local_edges.setdefault(p, []).append({"from": e["fromUid"], "to": e["toUid"]})
     step, inferred = {}, set()
     for parent, children in kids.items():
-        child_set = set(children)
-        local = [{"from": e["fromUid"], "to": e["toUid"]} for e in edges
-                 if e["fromUid"] in child_set and e["toUid"] in child_set]
+        local = local_edges.get(parent, ())
         if local:
             rank, _cycles = _rank(children, local)
             for k in children:
@@ -438,7 +450,7 @@ def _steps(nodes, edges):
             inferred.add(parent)
             for i, k in enumerate(children):
                 step[k] = i
-    return kids, step, inferred
+    return kids, step, inferred, parent_of
 
 
 # Fence labels that describe a record's own LIFECYCLE - what starts it, what finishes
@@ -448,10 +460,10 @@ _LIFECYCLE = (("goal", "Goal"), ("when", "When"), ("on_accept", "On accept"),
               ("on_complete", "On complete"), ("fail_signal", "Fail on signal"))
 
 
-def _lifecycle(fields):
+def _lifecycle(lut):
     out = {}
     for key, label in _LIFECYCLE:
-        value = _field(fields, label, label.replace(" ", "_"))
+        value = _field(lut, label)
         out[key] = str(value).strip() if value else None
     return out
 
@@ -474,7 +486,7 @@ def timeline(docs, known=None, archetype_of=None, problems=None):
     recs, by_uid, by_key = records(docs)
     uids = [r["uid"] for r in recs]
     known = set(known) if known is not None else set(by_key)
-    edges = causal_edges(docs, known)
+    edges = _causal_edges(recs, by_uid, by_key, known)
     # Rank on uids, not keys: two records that share a key are two beats.
     uid_edges = [{"from": e["fromUid"], "to": e["toUid"]} for e in edges]
     rank, cycles = _rank(uids, uid_edges)
@@ -492,25 +504,22 @@ def timeline(docs, known=None, archetype_of=None, problems=None):
 
     parents = {}
     for rec in recs:
-        value = _field(_fields(rec["node"]), "Parent")
+        value = _field(rec["lut"], "Parent")
         if value:
-            target = _resolve(value, by_key, by_uid, prefer_uri=rec["uri"])
+            target = resolve_ref(value, by_key, by_uid, prefer_uri=rec["uri"])
             if target:
                 parents[rec["uid"]] = target
-    nodes = [(r["uri"], r["node"], r["section"]) for r in recs]
     arcs = _arcs(recs, parents)
-    kids, step, step_inferred = _steps(recs, edges)
-    parent_of = {c: p for p, cs in kids.items() for c in cs}
+    kids, step, step_inferred, parent_of = _steps(recs, edges)
 
     items = []
     for rec in recs:
         uri, n, section = rec["uri"], rec["node"], rec["section"]
-        uid = rec["uid"]
-        fields = _fields(n)
-        labels = [l for l, _v in fields]
+        uid, lut = rec["uid"], rec["lut"]
+        labels = [l for l, _v in rec["fields"]]
         arch = archetype_of(labels, section) if archetype_of else None
-        state = (_field(fields, "State") or "").strip().lower()
-        required = any(_flag(fields, f) for f in _SPINE_FLAGS)
+        state = (_field(lut, "State") or "").strip().lower()
+        required = any(_flag(lut, f) for f in _SPINE_FLAGS)
         # SPINE vs POOL. A job board is a dozen `State: idle` records with no edges
         # between them - laying them out as a sequence would invent an order the author
         # never wrote. So only content that is on the critical path (flagged), live at
@@ -526,7 +535,7 @@ def timeline(docs, known=None, archetype_of=None, problems=None):
             "track": "spine" if spine else "pool",
             "state": state, "required": required,
             "cycle": uid in in_cycle,
-            "declared": declared_duration(fields),
+            "declared": declared_duration(lut),
             "problems": (problems or {}).get(n.key),
             # Drill-down: a container's own steps, and this record's place in its
             # parent's. `stepsInferred` says the order below is document order, not
@@ -536,10 +545,10 @@ def timeline(docs, known=None, archetype_of=None, problems=None):
             "parent": parent_of.get(uid),
             "step": step.get(uid),
             "stepInferred": parent_of.get(uid) in step_inferred,
-            "lifecycle": _lifecycle(fields),
+            "lifecycle": _lifecycle(lut),
             "groups": {"section": section, "arc": arcs.get(uid, section),
-                       "side": (_field(fields, "Side") or "").strip() or None,
-                       "console": _consoles(fields, arch)},
+                       "side": (_field(lut, "Side") or "").strip() or None,
+                       "console": _consoles(lut, arch)},
         })
 
     lanes = {}

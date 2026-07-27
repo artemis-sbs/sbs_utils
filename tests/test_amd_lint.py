@@ -256,6 +256,23 @@ class TestCrossFile(unittest.TestCase):
         mast = ['signal_emit("quest_signal", {"SIGNAL_NAME": "briefed"})\n']
         self.assertEqual(_by_code(amd_lint(content=doc, mast_sources=mast), "unfired-signal"), [])
 
+    def test_prebuilt_source_index_gives_identical_findings(self):
+        """A whole-mission run derives the MAST route/emit sets ONCE and passes them to
+        every file's lint. That shortcut must not change a single finding - it is the
+        difference between one scan of the mission's .mast and one scan per .amd."""
+        from sbs_utils.procedural.amd_lint import mast_source_index
+        doc = ("# [Root](root)\n## [Jobs](jobs)\n"
+               "### [Q](q)\n---\nGoal: signal never_emitted\nWhen: signal briefed\n---\nb\n"
+               "### [R](r)\n---\nThen: signal orphaned\n---\nb\n")
+        mast = ['signal_emit("quest_signal", {"SIGNAL_NAME": "briefed"})\n',
+                '//signal/orphaned\n    pass\n']
+        slow = amd_lint(content=doc, mast_sources=mast)
+        fast = amd_lint(content=doc, mast_sources=mast,
+                        source_index=mast_source_index(mast))
+        self.assertEqual([(f.line, f.code, f.message) for f in slow],
+                         [(f.line, f.code, f.message) for f in fast])
+        self.assertTrue(any(f.code == "unfired-signal" for f in fast))
+
     def test_goal_signal_is_checked_like_when_signal(self):
         # `Goal: signal [N] X` completes a job, so an X nothing emits is an
         # unfinishable job - the same defect `When: signal X` already reported.

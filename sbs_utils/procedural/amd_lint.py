@@ -350,12 +350,30 @@ def _declared_from_sources(mast_sources):
     return emits, handles
 
 
-def amd_lint_cross_file(doc, mast_sources=None):
+def mast_source_index(mast_sources):
+    """The source-derived sets the cross-file checks need: `routes`, `emitted` and
+    `labels`, scanned out of the mission's .mast/.py once.
+
+    Derived once and reused because these depend only on the SOURCES, not on the .amd
+    being linted: a whole-mission lint calls the cross-file phase once per .amd file,
+    and re-deriving these each time re-scans every MAST source once per document (on a
+    15-file mission with ~1.2 MB of MAST, the same megabyte 15 times over, which
+    dominated the language server's per-keystroke cost)."""
+    if mast_sources is None:
+        return None
+    decl_emits, decl_handles = _declared_from_sources(mast_sources)
+    return {"routes": _mast_routes(mast_sources) | decl_handles,
+            "emitted": _emitted_from_sources(mast_sources) | decl_emits | DRIVER_SIGNALS,
+            "labels": mast_labels(mast_sources)}
+
+
+def amd_lint_cross_file(doc, mast_sources=None, source_index=None):
     """Flag emitted `signal X` with no `//signal/X` route, a quest `When: signal X`
     that nothing emits, and `reach i,j` cells with no landmark `At: i,j`. WARNING.
 
     The signal checks need `mast_sources` (a list of .mast/.py source strings) to
-    know the mission's routes and emits; without it they are skipped."""
+    know the mission's routes and emits; without it they are skipped. Pass a
+    prebuilt `source_index` (`mast_source_index`) to skip re-scanning them."""
     findings = []
     routes = set()
 
@@ -363,14 +381,15 @@ def amd_lint_cross_file(doc, mast_sources=None):
     # signal_emit()/SIGNAL_NAME + declared `emits:` + the always-present driver
     # signals. Routes = `//signal/` handlers + declared `handles:`.
     emitted = None
-    if mast_sources is not None:
-        decl_emits, decl_handles = _declared_from_sources(mast_sources)
-        routes = _mast_routes(mast_sources) | decl_handles
+    if source_index is None and mast_sources is not None:
+        source_index = mast_source_index(mast_sources)
+    if source_index is not None:
+        routes = source_index["routes"]
         emitted = ({r.value for r in doc.refs if r.kind == "signal"}
-                   | _emitted_from_sources(mast_sources) | decl_emits | DRIVER_SIGNALS)
+                   | source_index["emitted"])
 
     for ref in doc.refs:
-        if ref.kind == "signal" and mast_sources is not None:
+        if ref.kind == "signal" and source_index is not None:
             if ref.value in routes or ref.value in DRIVER_SIGNALS:
                 continue
             findings.append(AmdFinding.at(
@@ -457,15 +476,19 @@ def mast_labels(mast_sources):
 
 
 def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
-             known_keys=None):
+             known_keys=None, source_index=None):
     """Run all passes and return a combined, position-sorted [AmdFinding].
 
     Phase 1 (structural, ERROR) always runs. Phases 2/3 run when the model parses.
     `known_keys` are symbols defined elsewhere in the mission (sibling .amd node
     keys + MAST labels) so cross-file / MAST-label references don't false-positive;
     the cross-file signal check additionally needs `mast_sources` (.mast/.py source
-    strings). Pass `cross_file=False` to skip Phase 3. Any parser exception is
+    strings). Pass `cross_file=False` to skip Phase 3. A whole-mission run should
+    build `source_index` once (`mast_source_index`) and pass it to every call, so the
+    MAST sources are scanned once instead of once per .amd. Any parser exception is
     downgraded to a single finding rather than raised."""
+    if source_index is None and mast_sources is not None:
+        source_index = mast_source_index(mast_sources)
     findings = list(amd_lint_structural(file_path, content))
     findings += amd_lint_ascii(file_path, content)
     findings += amd_lint_scan_labels(file_path, content)
@@ -481,11 +504,12 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         from sbs_utils.procedural.amd_core import parse
         doc = parse(content)
         keys = set(known_keys) if known_keys else set()
-        keys |= mast_labels(mast_sources)   # MAST labels are valid targets too
+        if source_index is not None:
+            keys |= source_index["labels"]  # MAST labels are valid targets too
         findings += amd_lint_references(doc, keys)
         findings += amd_lint_field_values(doc)
         if cross_file is not False:
-            findings += amd_lint_cross_file(doc, mast_sources)
+            findings += amd_lint_cross_file(doc, mast_sources, source_index)
     except Exception as e:
         findings.append(AmdFinding(0, WARNING, "parse-skipped",
                                    f"reference checks skipped - parse failed: {e}"))

@@ -21,6 +21,10 @@ import json
 import glob
 from urllib.parse import urlparse, unquote
 
+from sbs_utils.procedural.amd_lint import mast_source_index
+from sbs_utils.procedural.amd_timeline import (records, resolve_ref,
+                                               signal_edges_for)
+
 
 # --- mission context --------------------------------------------------------
 def _uri_to_path(uri):
@@ -104,6 +108,10 @@ def _mission_index(root, docs):
             if t is not None:
                 mast.append(t)
     index = {"known": known, "docs": amd_docs, "mast": mast or None}
+    # Derived once per index, not once per request: these depend only on the MAST
+    # sources, and the index is rebuilt wholesale on any edit, so the cache lifetime
+    # is exactly right.
+    index["mast_index"] = mast_source_index(index["mast"])
     _index_cache[root] = index
     return index
 
@@ -118,7 +126,8 @@ def _index_for(uri, docs):
     doc = parse(docs.get(uri, ""))
     doc.source = docs.get(uri, "")
     ap = os.path.normcase(os.path.abspath(path))
-    return {"known": set(doc.keys), "docs": [(ap, uri, doc)], "mast": None}
+    return {"known": set(doc.keys), "docs": [(ap, uri, doc)], "mast": None,
+            "mast_index": None}
 
 
 def _cur_doc(index, uri):
@@ -134,7 +143,8 @@ def _diagnostics(text, index):
     """amd_lint findings for `text` (mission-aware) -> LSP Diagnostic dicts."""
     from sbs_utils.procedural.amd_lint import amd_lint
     findings = amd_lint(content=text, mast_sources=index["mast"],
-                        known_keys=index["known"])
+                        known_keys=index["known"],
+                        source_index=index.get("mast_index"))
     lines = text.splitlines()
     diags = []
     for f in findings:
@@ -985,7 +995,9 @@ def _problems_by_key(index):
             nxt = nodes[i + 1] if i + 1 < len(nodes) else None
             end = (nxt.span.line - 1) if (nxt and nxt.span) else getattr(d, "line_count", 1 << 30)
             bounds.append((start, end, n.key))
-        for f in amd_lint(content=src, mast_sources=index["mast"], known_keys=index["known"]):
+        for f in amd_lint(content=src, mast_sources=index["mast"],
+                          known_keys=index["known"],
+                          source_index=index.get("mast_index")):
             if not f.line:
                 continue
             line0 = f.line - 1
@@ -1004,23 +1016,21 @@ def _mission_graph(index):
     can add an edge by dragging one node to another."""
     problems = _problems_by_key(index)
     recs, by_uid, by_key = _records(index)
+    add_lines = _add_lines(index)
     nodes = []
     for rec in recs:
-        d, n = rec["doc"], rec["node"]
-        i = d.nodes.index(n)
-        nxt = d.nodes[i + 1] if i + 1 < len(d.nodes) else None
-        add_line = (nxt.span.line - 1) if (nxt and nxt.span) else getattr(d, "line_count", 0)
+        n = rec["node"]
         nodes.append({"uid": rec["uid"], "path": rec["path"],
                       "key": n.key, "display": n.display or n.key,
                       "section": rec["section"], "uri": rec["uri"],
                       "line": (n.span.line - 1) if n.span else 0,
-                      "addLine": add_line, "problems": problems.get(n.key)})
+                      "addLine": add_lines[id(n)], "problems": problems.get(n.key)})
     edges, edge_seen = [], set()
     for rec in recs:
         for r in rec["node"].refs:
             if r.kind not in ("choice", "scene", "reveal", "parent"):
                 continue
-            target = _resolve_ref(r.value, by_key, by_uid, rec["uri"])
+            target = resolve_ref(r.value, by_key, by_uid, rec["uri"])
             if target is None or target == rec["uid"]:
                 continue
             key = (rec["uid"], target, r.kind)
@@ -1035,9 +1045,27 @@ def _mission_graph(index):
     # The two halves usually sit in different files, so this is a mission-wide join
     # (amd_timeline) rather than a per-document ref walk - without it a signal-driven
     # story renders as disconnected nodes.
-    edges.extend(e for e in _signal_edges(index)
-                 if e["fromUid"] in by_uid and e["toUid"] in by_uid)
+    edges.extend(_signal_edges(index))
     return {"nodes": nodes, "edges": edges}
+
+
+def _add_lines(index):
+    """`id(AmdNode) -> the line a new child would be inserted at` (the next heading's
+    line, else end of file). Walked once per document rather than searching the node
+    list per record, which was quadratic in a big file."""
+    out = {}
+    for _p, _u, d in index["docs"]:
+        nodes = d.nodes
+        end = getattr(d, "line_count", 0)
+        for i, n in enumerate(nodes):
+            nxt = nodes[i + 1] if i + 1 < len(nodes) else None
+            out[id(n)] = (nxt.span.line - 1) if (nxt and nxt.span) else end
+    return out
+
+
+def _doc_pairs(index):
+    """`[(uri, AmdDocument)]` - the shape the story-flow analysis takes."""
+    return [(u, d) for _p, u, d in index["docs"]]
 
 
 def _records(index):
@@ -1045,19 +1073,19 @@ def _records(index):
     (`amd_timeline.records`): identified by path, not by bare key, and reading flat
     single-section files as well as the table-of-contents shape. Every panel reads
     this, so the Outline / Graph / Resolver / Timeline can't disagree about which
-    headings exist."""
-    from sbs_utils.procedural.amd_timeline import records
-    return records([(u, d) for _p, u, d in index["docs"]])
+    headings exist.
 
-
-def _resolve_ref(value, by_key, by_uid, prefer_uri=None):
-    from sbs_utils.procedural.amd_timeline import _resolve
-    return _resolve(value, by_key, by_uid, prefer_uri)
+    Memoized on the index: Graph, Resolver and Timeline each want it (and each wants
+    the signal edges built from it), so one debounced refresh burst used to walk the
+    whole mission seven times over."""
+    cached = index.get("_records")
+    if cached is None:
+        cached = index["_records"] = records(_doc_pairs(index))
+    return cached
 
 
 def _signal_edges(index):
-    from sbs_utils.procedural.amd_timeline import signal_edges
-    return signal_edges([(u, d) for _p, u, d in index["docs"]])
+    return signal_edges_for(_records(index)[0])
 
 
 def _mission_resolve(index):
@@ -1081,7 +1109,7 @@ def _mission_resolve(index):
         for r in rec["node"].refs:
             if r.kind not in EDGE:
                 continue
-            target = _resolve_ref(r.value, by_key, by_uid, rec["uri"])
+            target = resolve_ref(r.value, by_key, by_uid, rec["uri"])
             if target is None:
                 continue
             outbound[rec["uid"]] = outbound.get(rec["uid"], 0) + 1
@@ -1089,10 +1117,8 @@ def _mission_resolve(index):
     # A signal is a real "reached by" - the emitter leads to the waiter - so it counts
     # toward the same in/out degree the Outline shows as Leads to / Reached from.
     for e in _signal_edges(index):
-        if e["fromUid"] in by_uid:
-            outbound[e["fromUid"]] = outbound.get(e["fromUid"], 0) + 1
-        if e["toUid"] in by_uid:
-            inbound[e["toUid"]] = inbound.get(e["toUid"], 0) + 1
+        outbound[e["fromUid"]] = outbound.get(e["fromUid"], 0) + 1
+        inbound[e["toUid"]] = inbound.get(e["toUid"], 0) + 1
 
     # lint findings indexed by (uri, line) so refs pick up their dangling code; the
     # flat list becomes the panel's jump-to-source issue list.
@@ -1101,7 +1127,8 @@ def _mission_resolve(index):
         src = getattr(d, "source", None)
         if src is None:
             continue
-        for f in amd_lint(content=src, mast_sources=index["mast"], known_keys=known):
+        for f in amd_lint(content=src, mast_sources=index["mast"], known_keys=known,
+                          source_index=index.get("mast_index")):
             if not f.line:
                 continue
             findings_by_uri.setdefault(u, {}).setdefault(f.line, []).append(f)

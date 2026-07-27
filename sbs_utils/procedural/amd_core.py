@@ -115,6 +115,29 @@ class AmdDocument:
         return self.by_key.get(segs[-1]) if self.path_resolves(value) else None
 
 
+# --- shared queries over the parsed tree ------------------------------------
+def span_range(span):
+    """An amd_core Span -> an LSP Range dict (0-based lines, end-exclusive).
+
+    Lives with `Span` so the one place that defines the 1-based convention also
+    defines the conversion off it - the language server and the story-flow analysis
+    both emit this shape into the same payloads."""
+    return {"start": {"line": span.line - 1, "character": span.col},
+            "end": {"line": span.end_line - 1, "character": span.end_col}}
+
+
+def section_of(node):
+    """The `##` section group a record lives under.
+
+    A pure walk over the parent pointers this module builds, so it belongs here rather
+    than being re-derived by each consumer - the language server, the linter and the
+    story-flow analysis all group by it and must agree."""
+    n = node
+    while n.parent is not None and n.parent.key != "__root__" and n.level > 2:
+        n = n.parent
+    return n.key
+
+
 # --- helpers ----------------------------------------------------------------
 def _di(data, *names):
     """First-present fetch from a fence data dict, tolerant of the fact reader's

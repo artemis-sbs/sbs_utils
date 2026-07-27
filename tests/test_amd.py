@@ -72,3 +72,32 @@ class TestAmdParse(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestSharedVocabulary(unittest.TestCase):
+    """The primitives the engine's quest parser and the editor's analysis BOTH read.
+    They live here so the two can't drift - a view that disagreed with the driver
+    about a signal name or a deadline would be silently wrong."""
+
+    def test_signal_name_matches_what_the_driver_matches(self):
+        from sbs_utils.procedural.amd import amd_signal_name
+        from sbs_utils.procedural.amd_quest import _signal_name
+        for raw in ("Eliminated Foe", "  drone_down ", "Barge Delivered"):
+            self.assertEqual(amd_signal_name(raw), _signal_name(raw))
+        self.assertEqual(amd_signal_name("Eliminated Foe"), "eliminated_foe")
+
+    def test_duration_keeps_the_authored_unit(self):
+        from sbs_utils.procedural.amd import amd_duration_parts, amd_duration_seconds
+        self.assertEqual(amd_duration_parts("6 minutes"), (6, "minutes"))
+        self.assertEqual(amd_duration_parts("90 seconds"), (90, "seconds"))
+        self.assertEqual(amd_duration_parts("2"), (2, "minutes"))   # bare = minutes
+        self.assertEqual(amd_duration_seconds("6 minutes"), 360)
+        self.assertIsNone(amd_duration_seconds("soon"))
+
+    def test_quest_data_still_carries_the_authored_unit(self):
+        """The driver sums seconds+minutes, but the stored shape is what was written."""
+        from sbs_utils.procedural.amd_quest import amd_quest_data
+        self.assertEqual(amd_quest_data("Fail after: 6 minutes")["fail_after"],
+                         {"minutes": 6})
+        self.assertEqual(amd_quest_data("Complete after: 30 seconds")["complete_after"],
+                         {"seconds": 30})
