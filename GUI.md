@@ -289,6 +289,13 @@ each item section starts at zero height; returning a size leaves it degenerate,
 which kills selection and the click region. Content keywords inside a listbox
 template still fall back to flex.
 
+**A `carousel=True` listbox is the exception: its item IS the panel**, so the
+item section is handed the box's remaining height (minus the prev/next nav
+band), and a **flex row in the template works normally**. Prefer that over a
+fixed height — a fixed `em`/`px` row does not shrink with the window, so a
+template tuned at 768 tall runs off the bottom of a 600-tall one. Stacked
+(non-carousel) items still start at zero and must use fixed rows.
+
 **`overflow:` — `spill` (default) | `shrink` | `ellipsis` | `hide`** on any
 text-bearing widget, applied at present time against the final rect. For text
 that cannot fit at any size; not a substitute for sizing the row properly.

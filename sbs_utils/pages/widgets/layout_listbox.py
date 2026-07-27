@@ -592,7 +592,26 @@ class LayoutListbox(layout.Column):
                 this_bottom = bottom
             else:
                 this_right = right
-                
+                if self.carousel:
+                    #
+                    # A carousel shows exactly ONE item, so that item IS the
+                    # panel -- give it the box's remaining height rather than
+                    # starting it at zero like a stacked item.
+                    #
+                    # A zero-height section means NOTHING in the template can be
+                    # sized against the panel: a flex row resolves to 0, so the
+                    # only thing that works is a FIXED height, and a fixed height
+                    # does not shrink with the window. That is how LM's mission
+                    # picker (a `15em` description row) ran its text to 108% of
+                    # the screen at 1024x600 -- correct at the resolution it was
+                    # tuned at, off the bottom at a shorter one.
+                    #
+                    # The nav band is held back so item content is never drawn
+                    # under the prev/next buttons, which are bottom-anchored
+                    # em2*4 tall (see the nav region above).
+                    #
+                    this_bottom = max(top, self.bounds.bottom - em2 * 4)
+
             
 
             sec = layout.Layout(tag+":sec", None, left+item_indent, top, this_right, this_bottom, 100)
