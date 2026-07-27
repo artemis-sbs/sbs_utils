@@ -16,11 +16,13 @@ metadata verbs) but not what any domain *means*; callers resolve keys/signals.
 """
 import re
 
-from sbs_utils.procedural.amd import amd_parse_facts
+from sbs_utils.procedural.amd import (amd_parse_facts, amd_kind_line, KIND_KEY,
+                                      FenceScanner, RE_HEADING, RE_FENCE)
 
-# Grammar - kept in agreement with quest.py `_document_get_amd_file`.
-_RE_SECTION = re.compile(r"(?P<hashes>#+)[ \t]+\[(?P<display>.*)\]\((?P<urn>.*)\)[ \t]*")
-_RE_DATA_FENCE = re.compile(r"\s*-{3,}\s*$")
+# Grammar - ONE definition, imported from `amd` and shared with the runtime reader
+# in quest.py. These aliases keep the existing local names working.
+_RE_SECTION = RE_HEADING
+_RE_DATA_FENCE = RE_FENCE
 _RE_CHOICE = re.compile(r"^(?P<pre>\s*-\s*\[(?P<label>[^\]]*)\]\()(?P<target>[^)]*)\)(?P<rest>.*)$")
 _RE_SIGNAL = re.compile(r"\bsignal\s+(?P<name>[A-Za-z0-9_]+)")
 
@@ -62,7 +64,7 @@ class AmdNode:
     merged `---` fence dict; `refs` are references sourced from this node."""
     __slots__ = ("key", "display", "level", "span", "key_span", "display_span",
                  "query", "data", "children", "parent", "refs", "summary",
-                 "fence_lines", "body_lines", "body_start")
+                 "fence_lines", "body_lines", "body_start", "kind")
 
     def __init__(self, key, display, level, span=None, parent=None):
         self.key = key
@@ -80,6 +82,7 @@ class AmdNode:
         self.fence_lines = []       # (lineno, raw) of the `---` metadata content
         self.body_lines = []        # (lineno, raw) of the prose/choice body
         self.body_start = 0         # 0-based line where the body begins
+        self.kind = None            # resolved archetype (own kind line, else inherited)
 
 
 class AmdDocument:
@@ -290,6 +293,26 @@ def _extract_data_refs(node, fence_lines):
             node.refs.append(r)
 
 
+def _resolve_node_kind(node, block):
+    """The archetype for one node, walking its own kind line then its ancestors.
+
+    Ancestors are collected NEAREST FIRST, so a record inside `## Jobs` inside a
+    document that declared `Characters` still resolves as a quest."""
+    from sbs_utils.procedural.amd_schema import amd_resolve_kind
+    kinds, sections = [], []
+    parent = node.parent
+    while parent is not None:
+        if getattr(parent, "kind", None):
+            kinds.append(parent.kind)
+        if parent.key and parent.key != "__root__":
+            sections.append(parent.key)
+        parent = parent.parent
+    labels = list(node.data.keys())
+    return amd_resolve_kind(own_kind=amd_kind_line(block), ancestor_kinds=kinds,
+                            section_key=node.key, field_labels=labels,
+                            ancestor_sections=sections)
+
+
 def _extract_choice_refs(node, lineno, raw):
     """A `- [label](target) ; ... signal X` line -> a choice-target ref plus any
     signal-outcome refs, each with an exact column span."""
@@ -320,36 +343,37 @@ def parse(content, file_path=None):
     stack = [root]           # stack[i] == current node at level i
     nodes, refs = [], []
 
-    in_data = False
+    scanner = FenceScanner()
     fence_lines = []
 
     for idx, raw in enumerate(lines, start=1):
-        if _RE_DATA_FENCE.match(raw):
-            if in_data:
-                block = "\n".join(t for _, t in fence_lines)
-                try:
-                    # The friendly AMD fact reader: YAML for flow (`{`/`[`), else a
-                    # `Label: value` sheet - so `Color: #86c` keeps its value (raw
-                    # YAML would read `#86c` as a comment).
-                    parsed = amd_parse_facts(block)
-                except Exception:
-                    parsed = None
-                if isinstance(parsed, dict):
-                    stack[-1].data.update(parsed)
-                    _extract_data_refs(stack[-1], fence_lines)
-                stack[-1].fence_lines = list(fence_lines)
-                stack[-1].body_start = idx      # 0-based line after the closing ---
-                in_data = False
-                fence_lines = []
-            else:
-                in_data = True
-                fence_lines = []
+        action = scanner.feed(raw, idx)
+        if action == "open":
+            fence_lines = []
             continue
-        if in_data:
+        if action == "data":
             fence_lines.append((idx, raw))
             continue
+        if action == "close":
+            node = stack[-1]
+            block = "\n".join(t for _, t in fence_lines)
+            # Resolve WHAT KIND of record this is before reading its fields, so the
+            # registry coerces by the right table. Nearest-first ancestors, then the
+            # section name, then the discriminating-field fallback.
+            node.kind = _resolve_node_kind(node, block)
+            try:
+                parsed = amd_parse_facts(block, archetype=node.kind)
+            except Exception:
+                parsed = None
+            if isinstance(parsed, dict):
+                node.data.update(parsed)
+                _extract_data_refs(node, fence_lines)
+            node.fence_lines = list(fence_lines)
+            node.body_start = idx           # 0-based line after the closing ---
+            fence_lines = []
+            continue
 
-        m = _RE_SECTION.match(raw)
+        m = _RE_SECTION.match(raw) if action == "heading" else None
         if m:
             level = len(m.group("hashes"))
             urn = m.group("urn").split("?", 1)

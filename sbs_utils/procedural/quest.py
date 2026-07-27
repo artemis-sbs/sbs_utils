@@ -646,9 +646,16 @@ def _amd_slug(text):
 
 
 def _document_get_amd_file(file_path, root_display_text="", strip_comments=True, content=None, data_parser=None, allow_bare_headings=False):
+    from sbs_utils.procedural.amd import (amd_parse_facts, amd_kind_line, KIND_KEY,
+                                          FenceScanner, RE_HEADING)
+    from sbs_utils.procedural.amd_schema import amd_resolve_kind
+
     toc = {"key": "__root__", "file_path": file_path, "children": [], "description":"", "display_text": root_display_text}
     toc_stack = [toc]
-    rule_section = re.compile(r"#+[ \t]+\[(?P<display_text>.*)\]\((?P<urn>.*)\)[ \t]*")
+    # ONE grammar, imported from `amd` and shared with amd_core (the linter/LSP
+    # model). Two copies of these rules is how the tooling and the game came to
+    # read the same file differently.
+    rule_section = RE_HEADING
     # Bare/simplified heading (only when allow_bare_headings): `# Display` or
     # `# Display (key)`. Default off, so markdown-in-prose files (LM documents/
     # doc_viewer that use `# Heading` as rendered text) are unaffected.
@@ -666,35 +673,45 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
         except Exception as e:
             print("no file")
 
-    in_data = False
+    scanner = FenceScanner()
     data_lines = []
     for i, line in enumerate(lines):
         #
-        # Data section: YAML between lines of 3+ dashes is merged into the
-        # current heading's "data" (script-accessible). Lines inside the
-        # fences are not added to the description.
+        # Data section: the `---` fence. The scanner enforces the non-toggling rule
+        # (a fence opens only right after a heading, closes only while open), so one
+        # stray rule in prose can no longer invert data-and-body for the whole file.
         #
-        if rule_data.match(line):
-            if in_data:
-                # Default data format is YAML; a caller may pass data_parser to use a
-                # different fenced-block format (e.g. a friendly Label: value sheet).
-                parsed = (data_parser or load_yaml_string)("".join(data_lines))
-                if isinstance(parsed, dict):
-                    section = toc_stack[-1]
-                    merged = section.get("data") or {}
-                    merged.update(parsed)
-                    section["data"] = merged
-                in_data = False
-                data_lines = []
-            else:
-                in_data = True
-                data_lines = []
+        action = scanner.feed(line, i + 1)
+        if action == "open":
+            data_lines = []
             continue
-        if in_data:
+        if action == "data":
             data_lines.append(line)
             continue
+        if action == "close":
+            section = toc_stack[-1]
+            block = "".join(data_lines)
+            if data_parser is not None:
+                parsed = data_parser(block)
+            else:
+                # ONE reader. This used to default to raw YAML, which is why the
+                # runtime and the linter could disagree about the same bytes - and
+                # why `Color: #86c` needed an opt-in parser to survive at all.
+                kinds = [s.get("kind") for s in reversed(toc_stack) if s.get("kind")]
+                sections = [s.get("key") for s in reversed(toc_stack)
+                            if s.get("key") and s.get("key") != "__root__"]
+                section["kind"] = amd_resolve_kind(
+                    own_kind=amd_kind_line(block), ancestor_kinds=kinds,
+                    section_key=section.get("key"), ancestor_sections=sections)
+                parsed = amd_parse_facts(block, archetype=section["kind"])
+            if isinstance(parsed, dict):
+                merged = section.get("data") or {}
+                merged.update(parsed)
+                section["data"] = merged
+            data_lines = []
+            continue
 
-        m = rule_section.match(line)
+        m = rule_section.match(line) if action == "heading" else None
 
         #
         # Heading: the `# [Display](key)` form, or (when enabled) a simplified
@@ -706,7 +723,7 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
         query = {}
         if m is not None:
             data = m.groupdict()
-            display_text = data.get("display_text")
+            display_text = data.get("display")
             urn = data.get("urn").split("?", 1)
             key = urn[0]
             if len(urn) == 2:

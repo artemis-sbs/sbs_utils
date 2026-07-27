@@ -91,6 +91,12 @@ New rules:
 - Unbalanced at EOF is an error. (Today it toggles, so one stray `---` inverts
   data-vs-body for the rest of the file. No file is unbalanced today - latent, not live.)
 
+**Removed with it: "multiple data sections on one heading merge".** That was a
+documented behaviour (`test_amd_parse_data_section_merges`) and it IS the toggle - a
+second fence after prose could only work by letting any `---` in prose open a block.
+Zero headings in the corpus (65 files, 1652 fences) carry more than one fence block,
+so nothing authored relies on it.
+
 ### 2.3 Field descriptors are the single source of truth
 
 One table entry owns alias + type + runtime key, replacing the eleven hand-maintained

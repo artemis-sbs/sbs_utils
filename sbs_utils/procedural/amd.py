@@ -14,7 +14,67 @@ for a worked example. This module stays content-agnostic: just parsing + coercio
 Dependency-light (only `load_yaml_string`) so it imports cleanly and is
 unit-testable outside the engine.
 """
+import re
+
 from sbs_utils.fs import load_yaml_string
+
+
+# --- document line grammar (ONE definition, shared by every AMD reader) ------
+# `amd_core` (the linter/LSP model) and `quest._document_get_amd_file` (the runtime)
+# each used to carry their own copy of these rules. Two copies of a grammar is how
+# the tooling and the game came to disagree about the same file, so they live here
+# once and both import them.
+
+RE_HEADING = re.compile(r"(?P<hashes>#+)[ \t]+\[(?P<display>[^\]]*)\]"
+                        r"\((?P<urn>[^)]*)\)[ \t]*$")
+RE_FENCE = re.compile(r"\s*-{3,}\s*$")
+
+
+class FenceScanner:
+    """Tracks whether we are inside a `---` data block, WITHOUT toggling.
+
+    A `---` used to flip a boolean, so one stray rule inverted data-and-body for the
+    rest of the file. The rules now:
+
+      * `---` OPENS only immediately after a heading (or at the very top of the file,
+        which is the document-level fence)
+      * `---` CLOSES only while a block is open
+      * a heading always closes an open block
+      * anywhere else `---` is just prose
+
+    `unterminated` reports a block still open at EOF, so the caller can say so."""
+
+    def __init__(self):
+        self.in_data = False
+        self._can_open = True      # doc start: a leading fence is front matter
+        self.unterminated = False
+        self.open_line = 0
+
+    def feed(self, line, lineno=0):
+        """Classify one line: 'open' | 'close' | 'data' | 'heading' | 'body'."""
+        if RE_FENCE.match(line):
+            if self.in_data:
+                self.in_data = False
+                self._can_open = False
+                return "close"
+            if self._can_open:
+                self.in_data = True
+                self.open_line = lineno
+                return "open"
+            return "body"          # a horizontal rule in prose
+        if self.in_data:
+            return "data"
+        if RE_HEADING.match(line):
+            self._can_open = True
+            return "heading"
+        if line.strip():
+            self._can_open = False
+        return "body"
+
+    def finish(self):
+        """Call at EOF. True when a block was left open."""
+        self.unterminated = self.in_data
+        return self.unterminated
 
 
 # --- value-coercion primitives ---------------------------------------------

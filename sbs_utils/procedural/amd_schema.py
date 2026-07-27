@@ -296,6 +296,51 @@ def archetype_for_section(section_key):
     return _SECTION_ALIASES.get(k) or _SECTION_ALIASES.get(k.rstrip("s"))
 
 
+def amd_resolve_kind(own_kind=None, ancestor_kinds=(), section_key=None,
+                     field_labels=(), ancestor_sections=()):
+    """Which kind of record this is, in the order the author would expect.
+
+    1. the record's OWN kind line (`Characters` at the top of its fence)
+    2. the nearest ancestor that declared one - sections inherit downward
+    3. a document-level kind line
+    4. the section-name table - `## Jobs` holds quests, and the table is
+       extensible so a story can call them `Contracts` or `Bounties`
+    5. the discriminating-field fallback
+
+    Step 4 is the common path: most files declare nothing, because the section is
+    already NAMED for what it holds. The kind line exists for the files where the
+    name does not say it.
+
+    `ancestor_kinds` / `ancestor_sections` are ordered NEAREST FIRST."""
+    for candidate in (own_kind,) + tuple(ancestor_kinds):
+        if candidate:
+            arch = _kind_to_archetype(candidate)
+            if arch:
+                return arch
+    for key in (section_key,) + tuple(ancestor_sections):
+        arch = archetype_for_section(key)
+        if arch:
+            return arch
+    return infer_archetype(field_labels)
+
+
+def _kind_to_archetype(noun):
+    """A bare-noun kind line -> an archetype. Singular or plural both work, so an
+    author writes `Character` over one record and `Characters` over a section
+    without being told there is a difference."""
+    if not noun:
+        return None
+    n = str(noun).strip().lower().replace("-", "_").replace(" ", "_")
+    return (_SECTION_ALIASES.get(n) or _SECTION_ALIASES.get(n.rstrip("s"))
+            or (n if n in ARCHETYPES else None))
+
+
+def amd_known_kinds():
+    """Every noun an author may legally write as a kind line - what the error
+    message offers when they write something else."""
+    return sorted(set(_SECTION_ALIASES) | set(ARCHETYPES))
+
+
 def infer_archetype(field_labels, section_key=None):
     """Resolve a record's archetype: its section key if conventionally named,
     else the first discriminating field it carries. `field_labels` is any

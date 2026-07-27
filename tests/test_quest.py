@@ -320,8 +320,12 @@ bad_quest:
         self.assertIn("The briefing prose.", child["description"])
         self.assertNotIn("cockpit", child["description"])
 
-    def test_amd_parse_data_section_merges(self):
-        # Multiple data sections on one heading merge
+    def test_a_fence_opens_only_after_a_heading(self):
+        # The `---` fence NO LONGER TOGGLES. It used to, so a single stray rule in
+        # prose inverted data-and-body for the rest of the file. Now a fence opens
+        # only right after a heading and closes only while open; anywhere else it is
+        # prose. Re-opening a second data block after prose therefore no longer
+        # merges - no file in the corpus (65 files, 1652 fences) did that.
         content = ("# [Quest](q/1)\n"
                    "---\n"
                    "a: 1\n"
@@ -331,9 +335,21 @@ bad_quest:
                    "b: 2\n"
                    "---\n")
         result = document_get_amd_file(None, content=content)
-        data = result["children"][0]["data"]
-        self.assertEqual(data["a"], 1)
-        self.assertEqual(data["b"], 2)
+        child = result["children"][0]
+        self.assertEqual(child["data"]["a"], 1)
+        self.assertNotIn("b", child["data"])
+        self.assertIn("b: 2", child["description"])
+
+    def test_a_stray_rule_in_prose_cannot_swallow_the_file(self):
+        content = ("# [One](q/1)\n---\na: 1\n---\n"
+                   "prose\n---\nmore prose\n"
+                   "# [Two](q/2)\n---\nb: 2\n---\n")
+        result = document_get_amd_file(None, content=content)
+        self.assertEqual(result["children"][0]["data"]["a"], 1)
+        # the second heading and ITS fence still parse - under the old toggle the
+        # stray rule inverted everything after it
+        self.assertEqual(result["children"][1]["key"], "q/2")
+        self.assertEqual(result["children"][1]["data"]["b"], 2)
 
     def test_amd_parse_no_data_section(self):
         # Headings without a data section have no "data" key
