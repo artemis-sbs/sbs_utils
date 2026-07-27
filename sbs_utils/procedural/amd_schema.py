@@ -53,8 +53,15 @@ def boolean():
 
 def enum(*values, **kw):
     """A closed set of string values (dropdown). `open=True` lets the author type
-    a value outside the set (the editor keeps it, the linter still warns)."""
-    return _d("enum", values=list(values), open=kw.get("open", False))
+    a value outside the set (the editor keeps it, the linter still warns).
+
+    `aka={old: new}` renames a VALUE without breaking existing files: the old
+    spelling still parses and coerces to the new one, but only the new one is
+    offered. This is the value-level twin of `field(aka=...)` - `State: idle`
+    keeps working while `available` (the word the player actually sees) becomes
+    the one an author is shown."""
+    return _d("enum", values=list(values), open=kw.get("open", False),
+              value_aka={str(k).lower(): v for k, v in (kw.get("aka") or {}).items()} or None)
 
 def ref(kind="node", csv=False, hint=None):
     """A reference to a named symbol: `node` (any AMD node key / MAST label),
@@ -137,7 +144,13 @@ def field(descriptor, key=None, aka=None):
     label (`Pays:` -> `reward`), and `aka` - every other spelling that means this field.
 
     Owning aliases here is what makes renaming safe forever: a rename is one line in
-    this table and no `.amd` file in the world has to change. Descriptors stay plain
+    this table and no `.amd` file in the world has to change.
+
+    RULE: renaming the AUTHORED name must not move the STORED key. When a canonical
+    label is introduced for an existing field (`When:` -> `Starts when:`), pin `key=`
+    to what the data was already stored under, so every reader keeps working. The two
+    are independent on purpose - one is what a writer types, the other is an
+    implementation detail. Descriptors stay plain
     JSON-able dicts, so they still cross the LSP boundary untouched."""
     d = dict(descriptor)
     if key:
@@ -160,21 +173,49 @@ def _d(kind, **kw):
 # the loaders in procedural.amd_* and the parser in amd_core._extract_data_refs.
 
 QUEST = {
-    "state": enum("active", "secret", "idle", "complete", "failed"),
-    "parent": ref("node"),
-    "when": compound({"reach": coord2(), "travel": coord2(), "signal": signal()},
-                     hint="reach i,j  |  signal NAME"),
+    # `available` is the word the PLAYER already sees - QuestState.IDLE renders as
+    # "Available" - so it is the word the author writes. `idle` stays as an alias.
+    "state": enum("available", "active", "secret", "posting", "complete", "failed",
+                  aka={"idle": "available"}),
+    "objective": text(hint="the sentence the player reads"),
+    # `Goal:` used to set BOTH the completion trigger and the objective TEXT, so a
+    # job's quest log read "Signal 5 drone_down". Split: Objective is the prose,
+    # Done when is the trigger.
+    "done when": field(trigger(), key="goal", aka=("goal",)),
+    "starts when": field(compound({"reach": coord2(), "travel": coord2(),
+                                   "signal": signal()},
+                                  hint="reach i, j  |  5 drone_down"),
+                         key="when", aka=("when",)),
     "then": compound({"reveal": ref("node"), "signal": signal()},
                      hint="reveal KEY  |  signal NAME"),
+    "parent": ref("node"),
+    "scope": enum("shared", "ship"),
+    "pays": field(reward(), key="pays", aka=("reward",)),
+    "earns": reward(),
+    "tier": integer(),
     "fail on signal": signal(),
+    "fail on all dead": ref("role"),
+    "fail after": duration(),
+    "complete after": duration(),
+    "on accept": text(hint="toast <message>"),
+    "on complete": text(hint="toast <message>"),
     "required": boolean(),
     "critical": boolean(),
     "win": boolean(),
     "lose": boolean(),
-    "fail after": text(hint="seconds, or mm:ss"),
-    "reward": text(),
+    "win text": text(hint="the end-screen line"),
+    "lose text": text(hint="the end-screen line"),
+    "citation": multiline(hint="the commendation read out at the end"),
+    "reveals": field(multiline(hint="what a scan of the target returns"),
+                     key="reveals", aka=("scan text",)),
     "accept on": csv(hint="comms, admiral"),
     "engage on": csv(hint="helm"),
+}
+
+DIALOGUE = {
+    "speaker": ref("node", hint="who says it"),
+    "when": text(hint="the condition this line plays under"),
+    "file": text(hint="a sibling .amd to pull lines from"),
 }
 
 LIFEFORM = {
@@ -244,6 +285,7 @@ MAP = {
 ARCHETYPES = {
     "quest": QUEST, "lifeform": LIFEFORM, "item": ITEM, "side": SIDE,
     "scan": SCAN, "landmark": LANDMARK, "region": REGION, "map": MAP,
+    "dialogue": DIALOGUE,
 }
 
 # Type-stable everywhere: if a field isn't in the resolved archetype, fall back
@@ -269,6 +311,13 @@ _SECTION_ALIASES = {
     "landmarks": "landmark", "landmark": "landmark",
     "regions": "region", "region": "region",
     "maps": "map", "map": "map",
+    "dialogue": "dialogue", "lines": "dialogue",
+    # Names real missions already use for a group of quests. Before these, 5108 of
+    # the corpus's 5273 field uses resolved to NO archetype, so the busiest part of
+    # the language had no typing, no lint and no widgets.
+    "jobs": "quest", "job": "quest", "goals": "quest", "goal": "quest",
+    "narrative": "quest", "missions": "quest", "mission": "quest",
+    "contracts": "quest", "bounties": "quest", "scenario": "map",
 }
 
 # When there's no conventional section key, the FIRST discriminating field a
@@ -277,6 +326,14 @@ _SECTION_ALIASES = {
 _DISCRIMINATORS = (
     ("scan of", "scan"),
     ("scan_of", "scan"),
+    # quest-only fields, checked early: the FLAT a2x files (1444 records directly
+    # under the document root) have no section to be named by, so a discriminating
+    # field is the only thing that can classify them.
+    ("goal", "quest"), ("done when", "quest"), ("done_when", "quest"),
+    ("objective", "quest"), ("pays", "quest"),
+    ("complete after", "quest"), ("complete_after", "quest"),
+    ("fail on all dead", "quest"), ("fail_on_all_dead", "quest"),
+    ("on accept", "quest"), ("on_accept", "quest"),
     ("enemies", "side"), ("allies", "side"), ("neutral", "side"),
     ("modifiers", "item"),
     ("center", "region"), ("radius", "region"),
@@ -408,6 +465,16 @@ def enum_values(label, archetype=None):
     return None
 
 
+def enum_accepts(label, archetype=None):
+    """Every value the linter should ACCEPT for an enum field - the current values
+    plus any retired spelling kept alive by `aka`. `enum_values` stays the list an
+    author is OFFERED, so a rename shows only the new word but never flags the old."""
+    d = field_schema(label, archetype)
+    if d.get("type") != "enum" or d.get("open"):
+        return None
+    return list(d.get("values", ())) + list(d.get("value_aka") or {})
+
+
 def template_fields(archetype):
     """The ordered field labels a 'new <archetype>' skeleton should offer, or []
     for an unknown archetype. Preserves the table's authoring order (dict order)."""
@@ -517,6 +584,9 @@ def amd_coerce(descriptor, value):
         for v in d.get("values", ()):
             if s.lower() == str(v).lower():
                 return v
+        renamed = (d.get("value_aka") or {}).get(s.lower())
+        if renamed is not None:
+            return renamed
         return s
     if kind == "ref":
         # a csv ref (`Enemies: tsn, civ`) is a LIST of references, not one string

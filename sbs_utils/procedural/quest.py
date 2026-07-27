@@ -700,9 +700,11 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
                 kinds = [s.get("kind") for s in reversed(toc_stack) if s.get("kind")]
                 sections = [s.get("key") for s in reversed(toc_stack)
                             if s.get("key") and s.get("key") != "__root__"]
+                from sbs_utils.procedural.amd import amd_fact_lines
                 section["kind"] = amd_resolve_kind(
                     own_kind=amd_kind_line(block), ancestor_kinds=kinds,
-                    section_key=section.get("key"), ancestor_sections=sections)
+                    section_key=section.get("key"), ancestor_sections=sections,
+                    field_labels=[lab for lab, _v in amd_fact_lines(block)])
                 parsed = amd_parse_facts(block, archetype=section["kind"])
             if isinstance(parsed, dict):
                 merged = section.get("data") or {}

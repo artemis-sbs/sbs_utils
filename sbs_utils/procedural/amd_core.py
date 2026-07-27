@@ -391,7 +391,11 @@ def _resolve_node_kind(node, block):
         if parent.key and parent.key != "__root__":
             sections.append(parent.key)
         parent = parent.parent
-    labels = list(node.data.keys())
+    # Read the labels out of the RAW block: this runs BEFORE the fence is parsed
+    # (the parse needs the kind to pick a table), so `node.data` is still empty and
+    # the discriminating-field fallback would never fire.
+    from sbs_utils.procedural.amd import amd_fact_lines
+    labels = [lab for lab, _v in amd_fact_lines(block)]
     return amd_resolve_kind(own_kind=amd_kind_line(block), ancestor_kinds=kinds,
                             section_key=node.key, field_labels=labels,
                             ancestor_sections=sections)

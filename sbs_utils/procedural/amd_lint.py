@@ -474,13 +474,15 @@ def amd_lint_field_values(doc):
     activ` (typo) otherwise does nothing, silently. Resolves each record's archetype
     via `amd_schema` (its `##` section, else its discriminating fields) and checks
     only genuinely closed enums; open enums and booleans are lenient. WARNING."""
-    from sbs_utils.procedural.amd_schema import infer_archetype, enum_values
+    from sbs_utils.procedural.amd_schema import infer_archetype, enum_accepts
     findings = []
     for node in doc.nodes:
         fields = _fence_fields(node)
         arch = infer_archetype([lab for _l, _r, lab, _v in fields], _section_key(node))
         for lineno, raw, label, value in fields:
-            vals = enum_values(label, arch)
+            # accepts = current values PLUS retired spellings kept alive by `aka`,
+            # so a value rename never flags files written before it.
+            vals = enum_accepts(label, arch)
             if not vals or set(vals) == {"true", "false"}:
                 continue                       # not closed, or a lenient boolean
             if value and value.lower() not in vals:

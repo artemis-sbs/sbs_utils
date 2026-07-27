@@ -106,8 +106,11 @@ class TestRecordAndTemplate(unittest.TestCase):
         self.assertEqual(S.template_fields("nope"), [])
 
     def test_enum_values_only_for_closed_enums(self):
+        # `available` replaced `idle` - the word the PLAYER already sees, since
+        # QuestState.IDLE renders as "Available".
         self.assertEqual(S.enum_values("State", "quest"),
-                         ["active", "secret", "idle", "complete", "failed"])
+                         ["available", "active", "secret", "posting",
+                          "complete", "failed"])
         # 'consoles' is an open enum -> suggestions, not a closed set to validate.
         self.assertIsNone(S.enum_values("Consoles", "item"))
         # a ref field is not an enum.
@@ -179,6 +182,57 @@ class TestAliasesAndRuntimeKeys(unittest.TestCase):
         key, value = S.amd_read_field("Required", "false", "quest")
         self.assertEqual(key, "required")
         self.assertIs(value, False)
+
+
+class TestRenamesStayCompatible(unittest.TestCase):
+    """Every naming decision has to be reversible after release. These are the
+    two mechanisms that make that true."""
+
+    def test_a_renamed_VALUE_still_parses(self):
+        # `State: idle` was the authored word; `available` is what the player sees.
+        self.assertEqual(S.amd_coerce(S.field_schema("State", "quest"), "idle"),
+                         "available")
+        self.assertEqual(S.amd_coerce(S.field_schema("State", "quest"), "available"),
+                         "available")
+
+    def test_a_retired_value_is_accepted_but_not_offered(self):
+        self.assertNotIn("idle", S.enum_values("State", "quest"))   # not offered
+        self.assertIn("idle", S.enum_accepts("State", "quest"))     # not flagged
+
+    def test_a_renamed_LABEL_still_resolves(self):
+        # Goal -> Done when, When -> Starts when
+        self.assertEqual(S.amd_canonical_label("Goal", "quest"), "done_when")
+        self.assertEqual(S.amd_canonical_label("When", "quest"), "starts_when")
+        self.assertEqual(S.field_schema("Goal", "quest")["type"], "trigger")
+
+    def test_renaming_the_authored_name_does_not_move_the_stored_key(self):
+        # the rule that keeps every existing reader working through a rename
+        self.assertEqual(S.amd_field_key("Goal", "quest"), "goal")
+        self.assertEqual(S.amd_field_key("Done when", "quest"), "goal")
+        self.assertEqual(S.amd_field_key("When", "quest"), "when")
+        self.assertEqual(S.amd_field_key("Starts when", "quest"), "when")
+
+
+class TestVocabularyCoverage(unittest.TestCase):
+    """The busiest part of the language used to have no schema at all."""
+
+    def test_quest_fields_are_declared(self):
+        for label in ("Pays", "Goal", "Done when", "Objective", "Complete after",
+                      "Fail on all dead", "On accept", "On complete", "Scope",
+                      "Tier", "Citation", "Win text"):
+            self.assertTrue(S.amd_is_declared(label, "quest"), f"{label} undeclared")
+
+    def test_sections_authors_actually_write_resolve(self):
+        for name, arch in (("Jobs", "quest"), ("Goals", "quest"),
+                           ("Narrative", "quest"), ("Contracts", "quest"),
+                           ("Dialogue", "dialogue"), ("Scenario", "map")):
+            self.assertEqual(S.archetype_for_section(name), arch, name)
+
+    def test_a_flat_record_is_classified_by_its_fields(self):
+        # the 1444 a2x records that sit directly under the document root have no
+        # section to be named by
+        self.assertEqual(S.infer_archetype(["Goal", "Pays"]), "quest")
+        self.assertEqual(S.infer_archetype(["Complete after"]), "quest")
 
 
 class TestExtensionRegistry(unittest.TestCase):

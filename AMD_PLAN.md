@@ -174,7 +174,16 @@ Step 4 is the common path. Most files never write a kind line at all.
 1. **Unknown fields warn, never fail, and are preserved.** An older sbslib must load a
    newer mission's `.amd`.
 2. **Renames are free forever via `aka=`.** This is why none of the naming decisions
-   above are high-stakes.
+   above are high-stakes. There are TWO levels, and they are different mechanisms:
+   - `field(..., aka=("goal",))` renames the **label** (`Goal:` -> `Done when:`)
+   - `enum(..., aka={"idle": "available"})` renames a **value** (`State: idle` ->
+     `State: available`). `enum_values` is what an author is OFFERED; `enum_accepts`
+     is what the linter TOLERATES, so a retired spelling never gets flagged.
+
+   **Renaming the authored name must not move the STORED key.** Pin `key=` to
+   whatever the data was already stored under, so every existing reader keeps
+   working. What a writer types and what the runtime stores are independent on
+   purpose.
 3. **Non-core vocabulary registers and collides loudly.** `amd_register_fields("universe",
    {...})` errors at registration on a clash with core - a startup failure, not silent
    drift. No `x-` sigil prefixes; ugly for a format writers read.
