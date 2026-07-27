@@ -89,27 +89,9 @@ def gui_properties_set(p=None, tag=None):
             return
         
     
-    tag = tag if tag is not None else "__PROPS_LB__"
-    props_lb = gui_task.get_inventory_value(tag)
-
     # This happens in a follow_route_select_comms
     # And it runs on the server not a true comms console
-    #
-    # That bail used to be unconditional on "gui_present", which also blocked the
-    # build that CREATES a panel -- gui_property_list_box + gui_properties_set in
-    # one label body is a gui_present -- so a panel painted blank until something
-    # re-entered the label under a different event (LM's server mission picker:
-    # 0 rows on arrival, 13 after clicking next; fabrication's Program grid uses
-    # the same pair).
-    #
-    # Narrowed to the case that is provably safe: a panel that has NEVER been
-    # presented (client_id still None) can only be one this build just created,
-    # so filling it cannot overwrite what another console is showing. An
-    # already-drawn panel keeps exactly the old protection.
-    if event is None:
-        return
-    if event.tag == "gui_present" and (props_lb is None
-                                       or props_lb.client_id is not None):
+    if event is None or event.tag == "gui_present":
         return
     #print(f"TAG {event.tag}")
     changes = set(gui_task.get_variable("__PROP_CHANGES__", []))
@@ -118,6 +100,8 @@ def gui_properties_set(p=None, tag=None):
 
 
     with FrameContextOverride(FrameContext.client_task, FrameContext.client_page):
+        tag = tag if tag is not None else "__PROPS_LB__"
+        props_lb = gui_task.get_inventory_value(tag)
         if props_lb is None:
             # print(f"No properties found {gui_page.client_id}")
             return
