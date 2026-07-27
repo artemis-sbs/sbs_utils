@@ -68,33 +68,6 @@ def maps_get_init():
     return init_label
 
 
-def map_path(map):
-    """The path of a map, tolerating every form a selected-map variable takes.
-
-    A mission's selected map is a Label once the picker has resolved it -- but it
-    starts life as the plain path STRING that settings.yaml supplies, and the
-    window between the two can span awaits. In LM, `start_server` sets
-    WORLD_SELECT to the settings string, then resolves it to the Label some sixty
-    lines and two awaits later; anything reading `.path` in between died with
-    "'str' object has no attribute 'path'". A `//damage/destroy` route can fire
-    in that window, so this is not a startup-only concern.
-
-    The guard has to live in Python: `getattr` is not in MAST's eval globals.
-
-    Args:
-        map (Label | str | None): A map label, a map path string, or None.
-
-    Returns:
-        str: The map's path, or ``""`` when there is nothing to read.
-    """
-    if map is None:
-        return ""
-    path = getattr(map, "path", None)
-    if path is None and isinstance(map, str):
-        path = map
-    return str(path) if path else ""
-
-
 def map_get_properties(map):
     """Return the ``Properties`` inventory value of a map label.
 

@@ -1,6 +1,6 @@
 from .layout import Column, Bounds, get_font_size
 from .measure import (measure_line_width, measure_line_height, wrap_to_width,
-                      measure_block_height, measure_props)
+                      measure_block_height)
 from ...helpers import FrameContext, split_props, merge_props
 from ...gui import get_client_aspect_ratio
 from textwrap import TextWrapper
@@ -757,77 +757,6 @@ class TextArea(Control):
             return previous, some_lines
         return style_key,some_lines
             
-    def _promote_if_overflowing(self, client_id):
-        """A one-line message that does not FIT is not a simple label.
-
-        The simple/rich choice is made in the `value` setter, before the widget
-        has bounds -- so "one line" there means "contains no newline", NOT
-        "draws as one line". Hand a whole paragraph to gui_text_area as
-        `$text:...` and it took the fast path: a single send_gui_text across the
-        widget's rect, with no wrap accounting, no line list and no scrollbar.
-        The engine wraps it anyway and, since it does not clip, draws the tail
-        below the widget. Reaching for gui_text_area to fix a spilling label
-        therefore changed nothing -- the widget quietly declined to be a text
-        area, which is what sent LM's mission picker down this path.
-
-        So ask the question again HERE, where the bounds exist: measure the text
-        at the width it will be drawn at, and if it is taller than the widget,
-        rewrite it as rich content so calc_rich wraps it and gives it a
-        scrollbar. Text that fits keeps the cheap path untouched, which is the
-        overwhelmingly common case (a one-line styled label).
-
-        The rewrite uses the `$$<props> <text>` line form DELIBERATELY. The
-        author wrote a styled label, not markdown, so a description that happens
-        to start with '-' or a digit must not silently become a bullet or a
-        numbered list item. `$$` names the style outright and skips the markdown
-        sniffing in get_line_style.
-
-        Promotion is one-way until the value is re-set. Re-deciding every frame
-        would oscillate: the rich form is exactly what makes the text fit.
-        """
-        if not self.content:
-            return False
-        ar = get_client_aspect_ratio(client_id)
-        avail_px = (self.bounds.right - self.bounds.left) / 100 * ar.x
-        if avail_px <= 0:
-            return False
-
-        message = self.content[0]
-        # mode=None: natural size wrapped to the width we will actually draw at.
-        size = measure_props(message, None, avail_px, self.get_font(), ar)
-        if size is None or size[1] <= self.bounds.height:
-            # Fits, or is unmeasurable (no engine metrics) -- leave it alone.
-            return False
-
-        props = split_props(message, "$text")
-        text = props.pop("$text", None)          # both spellings leave `props`,
-        alt = props.pop("text", None)            # which is now style-only
-        if text is None:
-            text = alt
-        if text is None:
-            return False
-        text = text.strip()
-        if len(text) >= 2 and text.startswith("`") and text.endswith("`"):
-            text = text[1:-1]
-        if not text:
-            return False
-
-        #
-        # The rich path builds its own message and does NOT append the cascade,
-        # so anything the row/section was contributing has to be folded in now.
-        # The widget's own props win, matching what the engine draws today.
-        #
-        for k, v in split_props(self.get_cascade_props(True, True, True), "font").items():
-            props.setdefault(k, v)
-        # Values are stripped because the `$$` form splits style from text on
-        # the FIRST space -- an authored `justify: left` would end it early.
-        style = merge_props({k: str(v).strip() for k, v in props.items()})
-
-        self.content = [f"$${style} {text}"]
-        self.simple_text = False
-        self.recalc = True
-        return True
-
     def _present_simple(self, event):
         ctx = FrameContext.context
         message = self.content[0]
@@ -845,14 +774,10 @@ class TextArea(Control):
 
     def _present(self, event):
         #
-        # Handle simple gui_text. This is the first point at which the widget
-        # knows its bounds, so it is also where a "simple" message that turns
-        # out to be a whole paragraph gets promoted to the rich path -- see
-        # _promote_if_overflowing.
+        # Handle simple gui_text
         #
         if self.simple_text:
-            if not self._promote_if_overflowing(event.client_id):
-                return self._present_simple(event)
+            return self._present_simple(event)
         ctx = FrameContext.context
         CID = event.client_id
         
