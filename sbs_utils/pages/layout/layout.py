@@ -480,9 +480,17 @@ class Layout(Clickable):
 
                     col_left = col_bounds_area.right
 
-                    col_bounds_area.shrink(col.margin)
-                    col_bounds_area.shrink(col.border)
-                    col_bounds_area.shrink(col.padding)
+                    #
+                    # A sub section is a Layout stored as a column, so it appears
+                    # in BOTH passes. It applies its own margin/border/padding in
+                    # its calc() below, so applying them here too insets its
+                    # content twice. Leaf columns have no pass of their own, so
+                    # the parent still applies the box model for them.
+                    #
+                    if not isinstance(col, Layout):
+                        col_bounds_area.shrink(col.margin)
+                        col_bounds_area.shrink(col.border)
+                        col_bounds_area.shrink(col.padding)
 
                     
 
