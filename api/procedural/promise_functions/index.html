@@ -6134,7 +6134,9 @@ False.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Resolves when <code>dist(obj1, obj2) &gt; distance</code>.</p>
+                <p>Resolves when <code>dist(obj1, obj2) &gt; distance</code>. Stays pending
+while either object is missing or has been destroyed -- a destroyed
+object is not "far away", it is simply no longer testable.</p>
               </div>
             </td>
           </tr>
@@ -6243,7 +6245,8 @@ False.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Resolves when <code>dist(obj1, obj2) &lt; distance</code>.</p>
+                <p>Resolves when <code>dist(obj1, obj2) &lt; distance</code>. Stays pending
+while either object is missing or has been destroyed.</p>
               </div>
             </td>
           </tr>

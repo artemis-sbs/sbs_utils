@@ -2435,6 +2435,30 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#story-timeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      Story Timeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Story Timeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#drilling-into-a-job" class="md-nav__link">
+    <span class="md-ellipsis">
+      Drilling into a job
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#story-graph" class="md-nav__link">
     <span class="md-ellipsis">
       Story Graph
@@ -5613,6 +5637,30 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#story-timeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      Story Timeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Story Timeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#drilling-into-a-job" class="md-nav__link">
+    <span class="md-ellipsis">
+      Drilling into a job
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#story-graph" class="md-nav__link">
     <span class="md-ellipsis">
       Story Graph
@@ -5689,7 +5737,11 @@ headings that graph is hard to hold in your head. The <strong>Artemis AMD</stron
 gives you a set of tools that read the same <code>.amd</code> and show it back to you — so you can
 navigate it, validate it, and edit it without scrolling the raw text.</p>
 <p>They all read the <strong>live</strong> file (they refresh as you type), and every row links back to
-its source line.</p>
+its source line. They also all read the <strong>same record set</strong>, so what one shows, the others
+show: every heading in every <code>.amd</code> under the mission root, including per-section files
+whose records are <code>#</code> headings, and including two records that happen to share a key
+(a record is identified by its <strong>path</strong> — <code>job_ghost/scan</code> and <code>job_sweep/scan</code> are two
+different steps, and where that matters a panel shows the path instead of the bare key).</p>
 <div class="admonition note">
 <p class="admonition-title">For mission writers</p>
 <p>These are <em>views over your <code>.amd</code></em> — open one on the mission you're editing. Nothing
@@ -5699,8 +5751,8 @@ here ships inside a mission; it's authoring help in the editor.</p>
 <p>With an <code>.amd</code> file focused, use the <strong>editor title-bar icons</strong> (top-right of the editor)
 or the Command Palette (<code>Ctrl/Cmd-Shift-P</code> → "Artemis AMD: …"). The icons are ordered for
 a document's life — <strong>authoring first, live testing last</strong>:</p>
-<p><strong>Story Outline · Story Graph · AMD Resolver · Mission Map · Preview · Preview-in-session ·
-Mission Inspector</strong></p>
+<p><strong>Story Outline · Story Timeline · Story Graph · AMD Resolver · Mission Map · Preview ·
+Preview-in-session · Mission Inspector</strong></p>
 <p>Once any tool is open, its <strong>top bar has buttons for the others</strong> — jump between Outline,
 Graph, Resolver, Map, and Inspector without going back to the text editor. Tools open in
 the <strong>same editor group</strong> (as tabs, not new splits), and opening one that's already showing
@@ -5711,6 +5763,91 @@ your mission just re-focuses it.</p>
 fields inline</strong>, a <strong>1-hop mini-graph</strong> of its immediate neighbours, and its <strong>Leads to /
 Reached from</strong> connections (each a chip that re-focuses on click). This is the default view
 for a large mission — it stays readable at any size because it never draws the whole graph.</p>
+<h2 id="story-timeline">Story Timeline</h2>
+<p>The Outline is a list, the Graph is topology, the Map is space — the Timeline is <strong>time</strong>.
+Lanes down the side, <strong>beats</strong> across the top, and the same editable inspector docked on
+the right, so you can fix what you find without leaving the view.</p>
+<p><strong>A beat is causal, not a clock.</strong> AMD has no timestamps, so beat <em>N</em> means "at least <em>N</em>
+things must happen first" — it's act structure, ranked from what reveals, parents, or
+signals what. The one real duration in the language is <code>Fail after:</code> / <code>Complete after:</code>,
+and that shows on the record itself (⏱ 6 minutes) rather than being faked as a bar width.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>What it shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Spine</strong></td>
+<td>Everything chained, flagged <code>Required:</code>/<code>Critical:</code>/<code>Win:</code>/<code>Lose:</code>, or <code>State: active</code> — laid out in beat columns. Flagged records carry a marker down the left edge.</td>
+</tr>
+<tr>
+<td><strong>Pool</strong></td>
+<td>Content with no authored order (an idle job board). Sequencing it would invent an order you never wrote, so it gets an availability band instead.</td>
+</tr>
+<tr>
+<td><strong>load</strong></td>
+<td>The pacing curve under the spine: how much is in play at each beat. A thin column is a lull.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Lanes answer four different questions</strong> — pick from the dropdown:</p>
+<ul>
+<li><strong>by section</strong> — matches the Outline's grouping (the familiar default)</li>
+<li><strong>by arc</strong> — the <code>Parent:</code>/nesting chain: <em>does act 3 have a middle, or does it jump
+  from hook to payoff?</em> (a one-record arc collapses into its section, so a job board
+  doesn't render as a dozen lanes of one)</li>
+<li><strong>by side</strong> — <em>this faction is absent for the whole second act</em></li>
+<li><strong>by console</strong> — <code>Accept on:</code> / <code>Engage on:</code> / anything scan-shaped, i.e. <strong>crew
+  workload</strong>: <em>is Science idle from beat 2 onward?</em></li>
+</ul>
+<p>A record can sit in several lanes at once (a job two consoles can accept) or in none
+(nothing declared) — it still appears, in an explicit <em>(no console)</em> / <em>(no side)</em> lane,
+rather than dropping out of the view.</p>
+<p><strong>Scope: this file / whole mission.</strong> Like every tool here, the Timeline <em>analyses</em> the
+whole mission — it has to, because a signal's emit and its wait usually live in different
+files, and ranking one file alone would flatten everything to beat 0. But opening one
+<code>.amd</code> and being shown the whole repo isn't useful either, so the default <strong>draws only the
+open file</strong> while still ranking against everything. Beat numbers are the true mission-wide
+ranks in both modes, and only the beats holding something are drawn — so a scoped view
+isn't a row of empty columns. The count reads <code>shown / in scope (mission: total)</code>.</p>
+<p>Scoping could hide one thing that matters — that a chain <strong>continues past this file</strong> — so
+it doesn't. A record whose causal neighbours live elsewhere is marked <code>↗n</code>, and its detail
+pane lists them under <strong>Continues outside this file</strong>; clicking one widens the scope to the
+whole mission and selects it. (LegendaryMissions' siege tree is the case in point: the
+parent quest is in <code>siege_quests.amd</code> and every boss it parents is in its own file.)</p>
+<p>Records in a <strong>loop</strong> (a dialogue hub you return to) are marked <code>loop</code>. A loop has no
+beat order by definition; the ranking breaks it, ranks the rest, and tells you where.</p>
+<h3 id="drilling-into-a-job">Drilling into a job</h3>
+<p>A job has no beat at <em>mission</em> level — that's the point of the pool — but a multi-step job
+has a timeline of its own. Any record with sub-steps shows <code>⊞n</code>; click it to open <strong>that
+record's own timeline</strong>, where <strong>t=0 is acceptance, not mission start</strong> (the frame in which
+a job's clock actually means something — <code>Fail after:</code> anchors the same way). A breadcrumb
+takes you back to the board, and the detail pane gains <strong>⊞ steps</strong> / <strong>◀ parent</strong> buttons.</p>
+<p>Inside the drill:</p>
+<ul>
+<li><strong>Steps</strong> are laid out in their own columns, ordered by declared references where the
+  author wrote them (<code>Then: reveal case/two</code>).</li>
+<li>Where the AMD declares <em>no</em> order, the steps fall back to the order they're <strong>written
+  in</strong> — because that's what the MAST sequencer replays. That's an inference, so it's
+  labelled <em>"order assumed from file order — not declared in the AMD"</em> and the connectors
+  are drawn dotted. The view never silently asserts an order the file didn't state.</li>
+<li>A container with <em>some</em> declared order leaves its unconstrained records at step 1 rather
+  than pushing them to the end — Florbin's <em>Keep Florbin Alive</em> is a standing fail
+  condition, not the fifth step.</li>
+<li><strong>Lifecycle</strong> runs above the steps: offered → on accept → goal → fails/completes after →
+  on complete. A single-step job has no sub-steps to draw, so this <em>is</em> its drill-down.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Steps with the same name</p>
+<p>A record's identity is its <strong>path</strong>, not its key — keys only have to be unique among
+siblings. <code>job_ghost/scan</code> and <code>job_sweep/scan</code> are two different records, and the
+Timeline keeps them apart (including when you edit one: it targets the record you
+clicked, not its namesake). Reference them by path — <code>Then: reveal job_sweep/scan</code> —
+since a bare <code>scan</code> that could mean either resolves to <em>neither</em>, on purpose.</p>
+</div>
 <h2 id="story-graph">Story Graph</h2>
 <p>The whole story as a node-link diagram, laid out in <strong>swimlanes by section</strong>. Good for
 seeing shape and flow. It has <strong>search</strong> (type to spotlight matching nodes; Enter cycles

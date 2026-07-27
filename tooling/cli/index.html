@@ -2357,6 +2357,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#switching-mission-sets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Switching mission sets
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#validating-amd" class="md-nav__link">
     <span class="md-ellipsis">
       Validating AMD
@@ -5586,6 +5595,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#switching-mission-sets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Switching mission sets
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#validating-amd" class="md-nav__link">
     <span class="md-ellipsis">
       Validating AMD
@@ -5694,6 +5712,10 @@ line. Run <code>sbs &lt;command&gt; --help</code> for full options.</p>
 <td><strong>Format</strong> the mission's <code>.amd</code> files (canonical, prose-safe)</td>
 </tr>
 <tr>
+<td><code>sbs swap &lt;name&gt;</code></td>
+<td>Switch which <code>missions_*</code> set Cosmos loads</td>
+</tr>
+<tr>
 <td><code>sbs fetch</code> / <code>sbs update</code></td>
 <td>Fetch missions / update the tool</td>
 </tr>
@@ -5707,6 +5729,25 @@ sbs debug . --no-gui --map 0 --test 30    # headless, play ~30s, pass/fail verdi
 <p>Handy flags: <code>--use-working-tree</code> (test local library edits against the packaged
 mission), <code>--seed N</code> (reproducible runs), and settings overrides that don't touch
 <code>settings.yaml</code> (<code>--auto-start</code>, <code>--players N</code>, <code>--set KEY=VALUE</code>).</p>
+<h2 id="switching-mission-sets">Switching mission sets</h2>
+<p>Cosmos loads exactly one <code>data/missions</code> folder. Keep several sets beside it as
+<code>data/missions_&lt;name&gt;</code> and let <code>data/missions</code> be a link to whichever you want:</p>
+<div class="highlight"><pre><span></span><code>sbs swap            # current target + available sets
+sbs swap amd        # point data/missions at data/missions_amd
+sbs swap cos        # back to the stock missions
+</code></pre></div>
+<p>The prefix is optional (<code>amd</code> and <code>missions_amd</code> are the same). Any
+<code>missions_&lt;name&gt;</code> folder is a target, so adding a set is just creating the folder.
+A real (non-link) <code>data/missions</code> is renamed to <code>missions_cos</code> on the first swap
+rather than deleted — nothing but the link is ever removed. Run it from anywhere
+under the install; it finds the data folder by walking up, or pass <code>--data</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Back up <code>data/missions</code> before your first swap</p>
+<p>The command rearranges the folder that holds all your missions. It will not
+delete a mission folder, but take a backup anyway if you have edits that
+aren't in source control. And close Cosmos first — a running client holds
+files open under the link, and the swap will refuse rather than half-finish.</p>
+</div>
 <h2 id="validating-amd">Validating AMD</h2>
 <p><code>compile</code> checks the MAST; <code>lint</code> checks the <code>.amd</code> content (quests, dialogue,
 cast, maps). AMD fails <em>silently</em> — a typo'd <code># [Display](key)</code> heading becomes body

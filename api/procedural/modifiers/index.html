@@ -3674,6 +3674,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.modifiers.ModifierHandler.update_modifier_value" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;update_modifier_value
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -5960,6 +5969,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.modifiers.ModifierHandler.update_modifier_value" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;update_modifier_value
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -6583,6 +6601,107 @@ Args:
 
 </div>
 
+<div class="doc doc-object doc-function">
+
+
+<h3 id="sbs_utils.procedural.modifiers.ModifierHandler.update_modifier_value" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">update_modifier_value</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">source</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Change the value of an existing modifier in place and recalculate, instead of
+removing and re-adding it.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>id</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>object ID</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>key</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The blob key the modifier affects.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>values</code>
+            </td>
+            <td>
+                  <code><span title="list">list</span>[<span title="float">float</span>] | <span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The new modifier amount. A scalar is broadcast
+across every index of the existing modifier's value list.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | <span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Identifier for this modifier - used to overwrite or remove it later.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+        <p>Returns:
+    bool: True if a matching modifier was found and updated.</p>
+
+
+    </div>
+
+</div>
+
 
 
   </div>
@@ -6596,7 +6715,7 @@ Args:
 
 
 <h2 id="sbs_utils.procedural.modifiers.modifier_add" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">modifier_add</span><span class="p">(</span><span class="n">obj_or_id_or_set</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">flat_add_or_mult</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">modifier_add</span><span class="p">(</span><span class="n">obj_or_id_or_set</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">flat_add_or_mult</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">replace_if_exists</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h2>
 
@@ -6744,6 +6863,24 @@ to all indices. Ignored for inventory keys. Defaults to None.</p>
             </td>
             <td>
                   <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>replace_if_exists</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>When a modifier with this key/source is already
+applied, update its value in place (and refresh its duration) instead
+of leaving the existing one untouched. Defaults to False.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
             </td>
           </tr>
       </tbody>

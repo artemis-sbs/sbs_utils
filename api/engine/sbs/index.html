@@ -12519,7 +12519,7 @@ the navproxy gets its own id, which is what get/delete/exists use.</p>
 
     <div class="doc doc-contents ">
 
-        <p>returns the diplomatic state between two sides (mock helper)</p>
+        <p>returns the diplomatic state between two sides, in THAT order (mock helper)</p>
 
 
     </div>
@@ -12724,6 +12724,12 @@ API parity - the projectile spawns from <code>source_ship</code> either way.</p>
     <div class="doc doc-contents ">
 
         <p>set the diplomatic state between two sides, for GUI color purposes.</p>
+<p>DIRECTIONAL, like the engine: this records First-&gt;Second and nothing else. The mock
+used to key the table by frozenset, i.e. symmetric, which quietly made a caller that
+wrote only one direction look correct here while drawing grey contacts in the engine
+(colouring is a lookup from the VIEWER's side to the contact's side, so the missing
+direction is the one that matters). Modelling the asymmetry is what lets a test catch
+that; see procedural.sides.side_set_relations, which writes both directions.</p>
 
 
     </div>

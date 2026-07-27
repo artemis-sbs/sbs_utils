@@ -6462,7 +6462,7 @@ the face registered for the selected object.</p>
 
 
 <h2 id="sbs_utils.procedural.comms.comms_info_card" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">comms_info_card</span><span class="p">(</span><span class="n">client_id</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">face</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">icon_index</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">banner</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">button</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">history</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">comms_info_card</span><span class="p">(</span><span class="n">client_id</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">face</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">icon_index</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">banner</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">button</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">history</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notify</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -6647,7 +6647,7 @@ no button). Defaults to 10.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Keep the card in panel history. Defaults to True.</p>
+                <p>Keep the card in the panel log. Defaults to True.</p>
               </div>
             </td>
             <td>
@@ -6664,6 +6664,26 @@ no button). Defaults to 10.</p>
             <td>
               <div class="doc-md-description">
                 <p>Info-panel tab path. Defaults to <code>"message"</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>notify</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Interrupt - show the card live and switch the
+panel to its tab. Defaults to None ("only if it has a button"), so a
+plain card is filed in the log and the attention half is left to an
+overlay (see <code>announce</code>). Pass True to keep the old always-interrupt
+behaviour.</p>
               </div>
             </td>
             <td>

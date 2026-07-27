@@ -3054,6 +3054,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_duration_parts" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_duration_parts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_duration_seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_duration_seconds
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.amd.amd_fact_lines" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_fact_lines
@@ -3120,6 +3138,15 @@
   <a href="#sbs_utils.procedural.amd.amd_pct" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_pct
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_signal_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_signal_name
     </span>
   </a>
   
@@ -5729,6 +5756,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_duration_parts" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_duration_parts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_duration_seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_duration_seconds
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.amd.amd_fact_lines" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_fact_lines
@@ -5795,6 +5840,15 @@
   <a href="#sbs_utils.procedural.amd.amd_pct" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_pct
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_signal_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_signal_name
     </span>
   </a>
   
@@ -5992,6 +6046,47 @@ same label; keep the most specific first.</p>
 <div class="doc doc-object doc-function">
 
 
+<h2 id="sbs_utils.procedural.amd.amd_duration_parts" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">amd_duration_parts</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p><code>6 minutes</code> -&gt; <code>(6, "minutes")</code>, <code>90 seconds</code> -&gt; <code>(90, "seconds")</code>, <code>2</code> -&gt;
+<code>(2, "minutes")</code>. <code>(None, unit)</code> when there's no number.</p>
+<p>The unit is MINUTES unless the text says "second" - the rule <code>Fail after:</code> and
+<code>Complete after:</code> have always used. Shared so a view can't disagree with the clock
+the engine actually runs. Returns the AUTHORED unit (not just seconds) because the
+quest data keeps what was written.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.amd.amd_duration_seconds" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">amd_duration_seconds</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p><code>amd_duration_parts</code> collapsed to seconds, or None if there's no number.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="sbs_utils.procedural.amd.amd_fact_lines" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">amd_fact_lines</span><span class="p">(</span><span class="n">text</span><span class="p">)</span></code>
 
@@ -6134,6 +6229,28 @@ returns a truthy value the label is consumed; otherwise fall back to
     <div class="doc doc-contents ">
 
         <p>'40%' -&gt; 0.4; '0.4' -&gt; 0.4; a bare number -&gt; float; else the string.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.amd.amd_signal_name" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">amd_signal_name</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>A signal name, lowercased with spaces -&gt; underscores (matched exactly).</p>
+<p>Lives here, not in a caller, because it IS the matching contract: the quest driver
+matches on it at runtime and the editor's signal join matches on it statically. Two
+copies held in agreement by a comment would silently stop agreeing the first time
+the rule widened.</p>
 
 
     </div>

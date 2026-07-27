@@ -16186,7 +16186,7 @@ the panel is re-represented immediately.</p>
 
 
 <h2 id="sbs_utils.procedural.gui.tabbed_panel.gui_info_panel_send_message" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">gui_info_panel_send_message</span><span class="p">(</span><span class="n">client_id</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">message_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">banner</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">banner_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">face</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">icon_index</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">icon_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">button</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">history</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">time</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">gui_info_panel_send_message</span><span class="p">(</span><span class="n">client_id</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">message_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">banner</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">banner_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">face</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">icon_index</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">icon_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">button</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">history</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">time</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">notify</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -16194,10 +16194,16 @@ the panel is re-represented immediately.</p>
     <div class="doc doc-contents ">
 
         <p>Send a message card to a client's info panel.</p>
-<p>The message is queued under the given <code>path</code> tab and displayed when that
-tab is active. If a <code>button</code> label is provided the call suspends until the
-player presses it. Messages are stored in history (up to 9 items) unless
-<code>history=False</code>.</p>
+<p>Every card is filed in the tab's <strong>log</strong> (readable any time on the log tab)
+unless <code>history=False</code>. A card only <em>interrupts</em> - taking over the panel's
+tab and auto-dismissing - when it needs an answer or the caller asks:</p>
+<ul>
+<li>a card with a <code>button</code> ALWAYS interrupts. It is a progression gate: a
+  mission awaiting the press deadlocks if the player never sees it.</li>
+<li>otherwise pass <code>notify=True</code> to interrupt. The default is <code>False</code>:
+  the card goes to the log and does not steal the tab, because the attention
+  half of a notification belongs to an overlay now (see <code>announce</code>).</li>
+</ul>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -16414,7 +16420,7 @@ function returns an awaitable Promise that resolves on button press.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Append to message history. Defaults to True.</p>
+                <p>File the card in the tab's log. Defaults to True.</p>
               </div>
             </td>
             <td>
@@ -16436,6 +16442,24 @@ is configured. Defaults to -1 (use panel default of 10 s).</p>
             </td>
             <td>
                   <code>-1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>notify</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Interrupt - show the card live and switch the
+panel to its tab. Defaults to None, meaning "only if it has a
+button". Pass True for a card that must be seen now.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
             </td>
           </tr>
       </tbody>

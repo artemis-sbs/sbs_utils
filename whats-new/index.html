@@ -768,6 +768,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-old-missions-fly-again" class="md-nav__link">
+    <span class="md-ellipsis">
+      🛸 The old missions fly again
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#for-mission-makers-tinkerers" class="md-nav__link">
     <span class="md-ellipsis">
       🛠️ For Mission Makers &amp; Tinkerers
@@ -5920,6 +5929,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-old-missions-fly-again" class="md-nav__link">
+    <span class="md-ellipsis">
+      🛸 The old missions fly again
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#for-mission-makers-tinkerers" class="md-nav__link">
     <span class="md-ellipsis">
       🛠️ For Mission Makers &amp; Tinkerers
@@ -6448,6 +6466,32 @@ one).</p>
 </ul>
 <p>Docs: <a href="../tooling/gui-editor/">The GUI Editor</a>.</p>
 <hr />
+<h2 id="the-old-missions-fly-again">🛸 The old missions fly again</h2>
+<p>Every mission your crew ever flew in <strong>Artemis 2.8</strong> can come back into service. Hand
+one over and it returns as a Cosmos mission you can host tonight: the same fleets
+waiting in the same corners of the map, the same enemies with the same tempers, the
+same voice cutting in over comms.</p>
+<p><strong>All 27 missions in our archive made the crossing</strong> — and not just far enough to
+load. They play: hostiles pick fights, stations answer hails, the timers still run
+out on you, and each mission still ends the way it always did.</p>
+<ul>
+<li><strong>The briefing is no longer a memory test.</strong> The mission's goals arrive as real
+  Cosmos <a href="../build/quests/">quests</a>, ticking over in the crew's quest log as you go —
+  or, if you'd rather have the original exactly as it was written, you can have that
+  instead.</li>
+<li><strong>Enemies remember they're enemies.</strong> Old missions never spelled out who hated
+  whom; that gets worked out and declared, so hostiles open fire, Science sorts
+  friend from foe, and contacts show in the right colours.</li>
+<li><strong>The Game Master keeps the con.</strong> Menus stay nested the way they were laid out,
+  shortcut actions survive, and a spawn lands <strong>where the GM is pointing</strong> rather
+  than in the corner of the map.</li>
+<li><strong>The details survive.</strong> Elite Skaraan tricks, captains with a temper, fighters
+  and shuttles in the hangar, science scans, hail text — the flavour comes with the
+  fleet, not just the ships.</li>
+</ul>
+<p>Anything the old script left genuinely ambiguous is written down for whoever finishes
+the port, rather than quietly guessed at.
+→ <a href="../mast/porting-2x/">Porting from Artemis 2.x</a></p>
 <h2 id="for-mission-makers-tinkerers">🛠️ For Mission Makers &amp; Tinkerers</h2>
 <div class="admonition warning">
 <p class="admonition-title">For testing only — not an engine replacement</p>
@@ -6475,15 +6519,47 @@ If something must behave exactly like the engine, verify it in Cosmos.</p>
   sliders (unlike the extension's blind builder). Pick a race, tweak each feature,
   and the face is <strong>copied to your clipboard</strong> on every change — paste it straight
   into a <code>.amd</code> <code>Face:</code> field. → <a href="../legendarymissions/addons/avatar/">Avatar Editor addon</a></li>
+<li><strong><code>sbs swap</code></strong> — keep several mission sets side by side and switch between them
+  without copying anything (see below). → <a href="../tooling/cli/">The <code>sbs</code> CLI</a></li>
 <li><strong><code>signal_next</code></strong> — one-shot await of the next signal. → <a href="../api/procedural/signal/">Signals</a></li>
-<li><strong>An Artemis 2.8 → Cosmos porting-comfort layer</strong> to ease bringing older content
-  forward. → <a href="../mast/porting-2x/">Porting from Artemis 2.x</a></li>
+<li><strong>Bring an old Artemis 2.8 mission forward.</strong> <code>pip install arme2cosmos</code>, point it at
+  the old XML, and it writes the Cosmos mission for you — as a quest tree, or as plain
+  MAST you can edit — plus a notes file listing anything worth a second look. It's
+  ordinary Python, so you don't need Cosmos to run it. Porting by hand instead? The
+  <code>a2x_*</code> helpers are waiting in MAST, no import needed. We tried it on 27 of the old
+  missions and they all run. → <a href="../mast/porting-2x/">Porting from Artemis 2.x</a></li>
 <li><strong>A faster, friendlier MAST compiler</strong> — quicker parsing, <em>all</em> errors reported at
   once, sturdier crash handling, more Python built-ins available in scripts, and now
   <strong>multiline expressions</strong> (see below). → <a href="../mast/overview/">The MAST language</a></li>
+<li><strong>Declare addon dependencies</strong> — <code>provides</code> / <code>requires</code> / <code>suggests</code> make
+  cross-addon contracts explicit and compile-checked (see below).</li>
 <li><strong>Deterministic building blocks</strong> — keyed terrain fields, position-keyed
   <a href="../api/utility/scatter/">scatter</a>, and reusable game-code encode/decode.</li>
 </ul>
+<div class="admonition tip">
+<p class="admonition-title">✨ New — <code>sbs swap</code>, switch mission sets in place</p>
+<p>Cosmos loads exactly one <code>data/missions</code> folder. If you keep more than one set
+— a converted 2.8 port, a work-in-progress copy, the stock missions — you have
+been copying folders around. Instead, park each set beside it as
+<code>data/missions_&lt;name&gt;</code> and let <code>data/missions</code> be a link:</p>
+<div class="highlight"><pre><span></span><code>sbs swap            # which set is active, and what else is available
+sbs swap amd        # load data/missions_amd
+sbs swap mast       # load data/missions_mast
+</code></pre></div>
+<p>Any folder named <code>missions_&lt;name&gt;</code> is a valid target, so adding a set is just
+creating the folder. If your <code>data/missions</code> is a normal folder, the first swap
+renames it to <code>missions_cos</code> rather than deleting it, so <code>sbs swap cos</code> puts you
+back on the stock missions. Close Cosmos first — a running client holds files
+open under the link. → <a href="../tooling/cli/">The <code>sbs</code> CLI</a></p>
+<div class="admonition warning">
+<p class="admonition-title">Back up your missions first</p>
+<p>This moves and re-creates the <code>data/missions</code> link, and renames a real
+<code>data/missions</code> folder aside. It is written to never delete a mission
+folder — only the link — but it is rearranging the folder that holds all
+your work. <strong>Take a backup of <code>data/missions</code> before your first swap</strong>,
+especially if you have edits in there that aren't in source control.</p>
+</div>
+</div>
 <div class="admonition tip">
 <p class="admonition-title">✨ New — multiline expressions in MAST</p>
 <p>Python dicts, lists, and function calls can now <strong>span multiple lines</strong>, just
@@ -6500,6 +6576,21 @@ like Python. No more cramming a spawn onto one giant line or reaching for
 <p>Works for any bracketed expression — dict/list/call literals and multiline
 <code>if</code> conditions alike. Error line numbers stay accurate, and every existing
 script compiles exactly as before. → <a href="../mast/overview/">The MAST language</a></p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">✨ New — declare addon dependencies</p>
+<p>Addons share one global namespace and load in no fixed order, so "this addon
+needs that one" used to be an unwritten rule that failed with a cryptic
+<code>NameError</code>. Now an addon states its contract at the top of its <code>__init__.mast</code>,
+checked at <strong>compile time</strong>:</p>
+<div class="highlight"><pre><span></span><code>provides hangar.sortie_board
+suggests hangar        # optional: warn if absent, never fail
+requires gamemaster    # hard: fail the build if it&#39;s not loaded
+</code></pre></div>
+<p>A <code>requires</code> not satisfied by some loaded addon's <code>provides</code> <strong>fails the
+compile</strong> (caught by <code>sbs lint</code> / <code>--test</code>, and shown as a runtime error screen);
+<code>suggests</code> only logs a warning. Checking is <strong>order-independent</strong> and fully
+backward compatible. → <a href="../mast/overview/">The MAST language</a></p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">✨ New — colons inside quoted strings</p>

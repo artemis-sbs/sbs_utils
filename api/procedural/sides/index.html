@@ -3886,9 +3886,27 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.sides.players_ceasefire" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;players_ceasefire
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.sides.players_hostile_members" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;players_hostile_members
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.sides.players_hostile_ships" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;players_hostile_ships
     </span>
   </a>
   
@@ -4078,6 +4096,15 @@
   <a href="#sbs_utils.procedural.sides.side_hostile_members" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;side_hostile_members
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.sides.side_hostile_ships" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;side_hostile_ships
     </span>
   </a>
   
@@ -6044,9 +6071,27 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.sides.players_ceasefire" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;players_ceasefire
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.sides.players_hostile_members" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;players_hostile_members
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.sides.players_hostile_ships" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;players_hostile_ships
     </span>
   </a>
   
@@ -6236,6 +6281,15 @@
   <a href="#sbs_utils.procedural.sides.side_hostile_members" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;side_hostile_members
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.sides.side_hostile_ships" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;side_hostile_ships
     </span>
   </a>
   
@@ -6618,7 +6672,7 @@ allied), optionally requiring a class role. The friend analog of
 
 
 <h2 id="sbs_utils.procedural.sides.is_hostile_combatant" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">is_hostile_combatant</span><span class="p">(</span><span class="n">observer</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">scope_role</span><span class="o">=</span><span class="s1">&#39;raider&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">is_hostile_combatant</span><span class="p">(</span><span class="n">observer</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">scope_role</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -6691,7 +6745,7 @@ Defaults to <code>"raider"</code>.</p>
               </div>
             </td>
             <td>
-                  <code>&#39;raider&#39;</code>
+                  <code>None</code>
             </td>
           </tr>
       </tbody>
@@ -6729,7 +6783,7 @@ Defaults to <code>"raider"</code>.</p>
 
 
 <h2 id="sbs_utils.procedural.sides.is_hostile_to_players" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">is_hostile_to_players</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">scope_role</span><span class="o">=</span><span class="s1">&#39;raider&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">is_hostile_to_players</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">scope_role</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -6784,7 +6838,7 @@ to <code>"raider"</code>.</p>
               </div>
             </td>
             <td>
-                  <code>&#39;raider&#39;</code>
+                  <code>None</code>
             </td>
           </tr>
       </tbody>
@@ -6899,6 +6953,85 @@ Defaults to None. Prefer a scope role (the raw set includes clients).</p>
 <div class="doc doc-object doc-function">
 
 
+<h2 id="sbs_utils.procedural.sides.players_ceasefire" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">players_ceasefire</span><span class="p">(</span><span class="n">relation</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>End the attack: make every side currently HOSTILE to a player side NEUTRAL.</p>
+<p>The diplomacy expression of "call off the enemies" at the end of a game. The older
+way to do this was to strip a shared combat tag from every ship
+(<code>remove_role(role("raider"), "raider")</code>), which only stopped the consumers that
+happened to scope by that tag -- the ships stayed diplomatically hostile, so brains
+still shot and sensor contacts stayed red. Changing the RELATION stops all of them
+at once, and is reversible (re-declare HOSTILE to resume).</p>
+<p>Applies to whole sides, not individual ships; a single ship leaving the fight is
+:func:<code>side_surrender</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>relation</code>
+            </td>
+            <td>
+                  <code><span title="sbs.DIPLOMACY">DIPLOMACY</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Relation to set. Defaults to <code>NEUTRAL</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>int</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The number of side pairs changed.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="sbs_utils.procedural.sides.players_hostile_members" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">players_hostile_members</span><span class="p">(</span><span class="n">scope_role</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
@@ -6963,6 +7096,49 @@ intersect the result with. Defaults to None.</p>
             <td>
               <div class="doc-md-description">
                 <p>set[int]: IDs hostile to some player side, optionally scoped to <code>scope_role</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.sides.players_hostile_ships" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">players_hostile_ships</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Space objects hostile to at least one current PLAYER side and still in the fight.</p>
+<p>Player-perspective form of :func:<code>side_hostile_ships</code> — for checks not tied to one
+observer ("are there enemies left", "count the threat"). Replaces
+<code>players_hostile_members("raider")</code> and the bare <code>role("raider")</code> sweeps.</p>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>set[int]: IDs hostile to some player side.</p>
               </div>
             </td>
           </tr>
@@ -7708,7 +7884,9 @@ sides exist, e.g. on load).</p>
 
     <div class="doc doc-contents ">
 
-        <p>Order-independent key for a side PAIR (relations are symmetric).</p>
+        <p>Order-independent key for a side PAIR.</p>
+<p>Safe because overrides are re-applied via <code>side_set_relations</code>, which writes both
+directions -- not because the engine treats a pair as unordered.</p>
 
 
     </div>
@@ -8462,6 +8640,86 @@ scope). Defaults to None (all hostile-side members).</p>
 <div class="doc doc-object doc-function">
 
 
+<h2 id="sbs_utils.procedural.sides.side_hostile_ships" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">side_hostile_ships</span><span class="p">(</span><span class="n">observer</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Space objects HOSTILE to <code>observer</code> that are still in the fight.</p>
+<p>The diplomacy-only answer to "who may I fight" — the replacement for scoping a
+hostile set by a faction tag such as <code>role("raider")</code>. Allegiance comes from the
+side relations alone, so a ceasefired or defected side drops out the moment its
+diplomacy changes, with no tag to keep in sync; wrecks and surrendered ships are
+excluded because they are not combatants, not because of who they belong to.</p>
+<p>Includes hostile stations (they are on a hostile side like anything else). Intersect
+with a CLASS role when you want a narrower kind, e.g.
+<code>side_hostile_ships(x) &amp; role("station")</code> or <code>- role("station")</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>observer</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | <span title="int">int</span> | <span title="Agent">Agent</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Side key, side agent ID, or any object whose side
+is the point of view.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>set[int]: IDs of hostile, in-the-fight space objects.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="sbs_utils.procedural.sides.side_is_color_used" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">side_is_color_used</span><span class="p">(</span><span class="n">color</span><span class="p">)</span></code>
 
@@ -9185,7 +9443,7 @@ engine's own side relationship table for 2D map rendering. Emits the
 
 
 <h2 id="sbs_utils.procedural.sides.side_surrender" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">side_surrender</span><span class="p">(</span><span class="n">ship</span><span class="p">,</span> <span class="n">combat_role</span><span class="o">=</span><span class="s1">&#39;raider&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">side_surrender</span><span class="p">(</span><span class="n">ship</span><span class="p">,</span> <span class="n">combat_role</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -9238,13 +9496,14 @@ race/clan role, so its faction identity is preserved.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Combat/hostile class role to drop (so
-role-scoped queries stop counting it). Defaults to <code>"raider"</code>; pass
-<code>None</code> to leave roles untouched.</p>
+                <p>Legacy compat only -- a combat-class role to drop
+as well, for a mission that still scopes its own queries by one. Defaults
+to <code>None</code>: the side change alone is what takes the ship out of the fight,
+and the library's own consumers read diplomacy.</p>
               </div>
             </td>
             <td>
-                  <code>&#39;raider&#39;</code>
+                  <code>None</code>
             </td>
           </tr>
       </tbody>
@@ -9259,7 +9518,7 @@ role-scoped queries stop counting it). Defaults to <code>"raider"</code>; pass
 
 
 <h2 id="sbs_utils.procedural.sides.side_unsurrender" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">side_unsurrender</span><span class="p">(</span><span class="n">ship</span><span class="p">,</span> <span class="n">combat_role</span><span class="o">=</span><span class="s1">&#39;raider&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">side_unsurrender</span><span class="p">(</span><span class="n">ship</span><span class="p">,</span> <span class="n">combat_role</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -9267,7 +9526,7 @@ role-scoped queries stop counting it). Defaults to <code>"raider"</code>; pass
     <div class="doc doc-contents ">
 
         <p>Reverse :func:<code>side_surrender</code> — restore the ship's origin side and re-arm it
-(drop <code>surrendered</code>, restore the combat role, clear <code>surrender_flag</code>).</p>
+(drop <code>surrendered</code>, restore the origin side, clear <code>surrender_flag</code>).</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -9306,11 +9565,13 @@ role-scoped queries stop counting it). Defaults to <code>"raider"</code>; pass
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Combat role to restore. Defaults to <code>"raider"</code>.</p>
+                <p>Legacy compat only -- a combat-class role to
+restore, matching whatever was passed to :func:<code>side_surrender</code>. Defaults
+to <code>None</code>; restoring the side is what puts the ship back in the fight.</p>
               </div>
             </td>
             <td>
-                  <code>&#39;raider&#39;</code>
+                  <code>None</code>
             </td>
           </tr>
       </tbody>

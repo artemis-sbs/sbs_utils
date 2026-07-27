@@ -1769,6 +1769,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#text-that-doesnt-fit-timed-parts-not-a-clipped-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      Text that doesn't fit — timed parts, not a clipped line
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#legibility-scrims-fills-and-framing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Legibility — scrims, fills and framing
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-built-in-overlays" class="md-nav__link">
     <span class="md-ellipsis">
       The built-in overlays
@@ -1844,6 +1862,24 @@
   <a href="#custom-cards-your-own-kind" class="md-nav__link">
     <span class="md-ellipsis">
       Custom cards — your own kind
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#announce-the-overlay-and-the-record-in-one-call" class="md-nav__link">
+    <span class="md-ellipsis">
+      announce() — the overlay AND the record, in one call
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-info-panel-is-the-log-not-the-popup" class="md-nav__link">
+    <span class="md-ellipsis">
+      The info panel is the log, not the popup
     </span>
   </a>
   
@@ -5637,6 +5673,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#text-that-doesnt-fit-timed-parts-not-a-clipped-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      Text that doesn't fit — timed parts, not a clipped line
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#legibility-scrims-fills-and-framing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Legibility — scrims, fills and framing
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-built-in-overlays" class="md-nav__link">
     <span class="md-ellipsis">
       The built-in overlays
@@ -5718,6 +5772,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#announce-the-overlay-and-the-record-in-one-call" class="md-nav__link">
+    <span class="md-ellipsis">
+      announce() — the overlay AND the record, in one call
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-info-panel-is-the-log-not-the-popup" class="md-nav__link">
+    <span class="md-ellipsis">
+      The info panel is the log, not the popup
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#how-it-draws-the-one-rule" class="md-nav__link">
     <span class="md-ellipsis">
       How it draws (the one rule)
@@ -5762,6 +5834,44 @@ title — a <strong>face</strong>, a <strong>ship</strong>, an <strong>icon</str
 <div class="highlight"><pre><span></span><code>overlay_hero(&quot;Admiral Harkin&quot;, subtitle=&quot;Hold the line, commander.&quot;,
              face=get_face(admiral.id))
 </code></pre></div>
+<h2 id="text-that-doesnt-fit-timed-parts-not-a-clipped-line">Text that doesn't fit — timed parts, not a clipped line</h2>
+<p>A banner strip and a lower third are <strong>one line wide</strong>. Clamping a long message keeps
+it readable but throws away the tail, which for an alert is usually the part that
+matters. So text that will not fit is <strong>measured, split into parts that each fit, and
+played in sequence</strong>:</p>
+<div class="highlight"><pre><span></span><code>overlay_banner(&quot;Long range sensors report a raider wing crossing the neutral zone. &quot;
+               &quot;All ships to red alert; hold station until the escort arrives.&quot;)
+</code></pre></div>
+<ul>
+<li>The measurement is the engine's (the same primitive content-sizing uses), and it is
+  done <strong>per client</strong> — whether it fits depends on that screen.</li>
+<li>Dwell is paced by length (~2.6 words/second, clamped to 2.5–7s); override with
+  <code>dwell=</code>.</li>
+<li>A <strong>sticky</strong> banner (no <code>seconds</code>) loops; one with a lifetime plays through once and
+  clears. A lower third never loops — a repeating subtitle reads as a stutter.</li>
+<li>The cycle is <strong>generation-guarded</strong>: a newer banner, or a clear, stops it rather than
+  fighting for the strip.</li>
+<li><code>cycle=False</code> restores the old spill/clip behaviour, and if the engine cannot measure
+  (headless, no client yet) the text is left whole.</li>
+</ul>
+<p><code>announce()</code> uses this: <code>alert</code> and <code>hail</code> hand their <strong>full</strong> text to the slot, because
+it can play the whole thing. Only a hero card and a toast still get a clamped headline —
+they are a glance, with nowhere for a paragraph to go.</p>
+<h2 id="legibility-scrims-fills-and-framing">Legibility — scrims, fills and framing</h2>
+<p>An overlay draws over a live 3D view, so white text on nothing is often unreadable.
+Two knobs, both translucent-friendly:</p>
+<ul>
+<li><strong><code>background</code></strong> lays a colour under the card (<code>overlay_hero</code>) or fills the strip
+  (<code>overlay_banner</code>, filled <code>#000a</code> by default — pass <code>None</code> for bare text).</li>
+<li><strong><code>letterbox=True</code></strong> on a hero also drops cinematic bars on the full-screen slot, so
+  one call gives a framed title card; pass a string to use it as the line between the
+  bars, and the bars lift with the card when <code>seconds</code> is set.</li>
+</ul>
+<div class="highlight"><pre><span></span><code>overlay_hero(&quot;CHAPTER TWO&quot;, subtitle=&quot;The Long Dark&quot;,
+             background=&quot;#000a&quot;, letterbox=&quot;Approaching the anomaly&quot;, seconds=6)
+overlay_banner(&quot;RED ALERT&quot;)                       # filled strip
+overlay_banner(&quot;SUBTLE&quot;, background=None)         # bare text on the view
+</code></pre></div>
 <h2 id="the-built-in-overlays">The built-in overlays</h2>
 <p>Each wrapper packs your arguments into content and draws the matching card. All the
 transient ones take an optional <code>seconds</code> (auto-dismiss) and a <code>to</code> (which consoles —
@@ -5776,7 +5886,7 @@ see <a href="#targeting-which-consoles">Targeting</a>).</p>
 </thead>
 <tbody>
 <tr>
-<td><code>overlay_hero(title, subtitle, face/ship/icon/image, seconds)</code></td>
+<td><code>overlay_hero(title, subtitle, face/ship/icon/image, background, letterbox, seconds)</code></td>
 <td>centre</td>
 <td>chapter / scene title, boss reveal</td>
 </tr>
@@ -5828,7 +5938,8 @@ see <a href="#targeting-which-consoles">Targeting</a>).</p>
 </tbody>
 </table>
 <h2 id="targeting-which-consoles">Targeting — which consoles</h2>
-<p>Every wrapper takes <code>to</code>:</p>
+<p>Overlays draw on <strong>consoles</strong>, but you usually hold a ship or a side. <code>to</code> is an
+<strong>audience expression</strong> that accepts any of them:</p>
 <table>
 <thead>
 <tr>
@@ -5846,15 +5957,33 @@ see <a href="#targeting-which-consoles">Targeting</a>).</p>
 <td>that one console</td>
 </tr>
 <tr>
-<td>a role set — <code>role("mainscreen")</code></td>
-<td>every matching console</td>
+<td>a <strong>ship</strong> (id or object)</td>
+<td>every console linked to that ship</td>
+</tr>
+<tr>
+<td>a <strong>side</strong> (key string or side agent)</td>
+<td>every console of every ship on that side</td>
+</tr>
+<tr>
+<td>a role set / list</td>
+<td>the union, elementwise</td>
 </tr>
 </tbody>
 </table>
-<p>So server story logic pushes straight to a set of players:</p>
 <div class="highlight"><pre><span></span><code>overlay_hero(&quot;FLEET ALERT&quot;, subtitle=&quot;Raiders inbound&quot;, to=role(&quot;mainscreen&quot;))
+overlay_banner(&quot;WAR DECLARED&quot;, to=role(&quot;__player__&quot;))      # ships -&gt; their consoles
+overlay_toast(&quot;Cargo ejected&quot;, to=ship_id)                 # one crew
+overlay_banner(&quot;BLOCKADE LIFTED&quot;, to=&quot;tsn&quot;)                # a whole side
 </code></pre></div>
-<p>Non-console ids in a role set are ignored, so a mixed set is fine.</p>
+<p>A mixed set is fine — ships and clients resolve side by side, and anything that isn't
+a console is skipped. Resolve it yourself with <code>consoles_of(to)</code>.</p>
+<p><strong><code>consoles=</code> narrows by console role.</strong> A ship has a whole bridge; often you mean one
+screen:</p>
+<div class="highlight"><pre><span></span><code>overlay_lower_third(name, line, to=ship_id, consoles=&quot;mainscreen&quot;)
+overlay_toast(&quot;Contact bearing 040&quot;, to=ship_id, consoles=&quot;science, comms&quot;)
+</code></pre></div>
+<p>Passing a scalar <code>to</code> that resolves to no console logs a one-off warning (that is the
+"I pushed an overlay and saw nothing" bug); an empty <em>set</em> is normal and stays quiet.</p>
 <h2 id="auto-dismiss-stacking-toasts">Auto-dismiss &amp; stacking toasts</h2>
 <p><code>seconds</code> schedules a <strong>generation-guarded</strong> auto-dismiss: if the slot is re-shown or
 updated before the timer fires, the old timer is superseded — it can never clear the
@@ -5943,6 +6072,93 @@ registration call:</p>
 </code></pre></div>
 <p>Either way, the builder decides <em>layout</em>; the content decides <em>what shows</em> — the same
 card can be driven from a wrapper, a signal, AMD, or a quest.</p>
+<h2 id="announce-the-overlay-and-the-record-in-one-call">announce() — the overlay AND the record, in one call</h2>
+<p>An overlay is an <strong>attention</strong> layer: it draws over the view, then it is gone. It keeps
+no history, and a console that connects a second later never saw it. So the house rule
+is that <strong>an overlay never carries information alone</strong> — anything a player may need to
+act on later gets a durable twin.</p>
+<p><code>announce()</code> does both halves, picked by <code>level</code>:</p>
+<table>
+<thead>
+<tr>
+<th><code>level</code></th>
+<th>overlay</th>
+<th>durable twin</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>chapter</code></td>
+<td>hero card</td>
+<td>info-panel card (history)</td>
+</tr>
+<tr>
+<td><code>hail</code></td>
+<td>lower third</td>
+<td><code>comms_message</code> from <code>sender</code> (else a card)</td>
+</tr>
+<tr>
+<td><code>alert</code></td>
+<td>top banner</td>
+<td>info-panel card (history)</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>corner toast</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>minor</code></td>
+<td>corner toast</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code>announce(&quot;Raiders have crossed the line.&quot;, title=&quot;TSN Command&quot;,
+         level=&quot;alert&quot;, to=&quot;tsn&quot;)
+
+announce(line, title=admiral.name, face=get_face(admiral.id),
+         level=&quot;hail&quot;, sender=admiral.id, ship=artemis_id)
+</code></pre></div>
+<p>The overlay gets a <strong>headline</strong> — <code>announce_headline()</code> folds it to one ASCII line and
+clamps it (engine text is ASCII-only, and a card is a glance). The full text goes to
+the twin. <code>record=False</code> suppresses the twin when it is already being sent another way;
+<code>record=True</code> forces a card on a level that has none.</p>
+<h2 id="the-info-panel-is-the-log-not-the-popup">The info panel is the log, not the popup</h2>
+<p>Overlays took the attention job, so the info panel leans into the one thing only it
+can do: <strong>keep the record</strong>. A card sent with <code>comms_info_card</code> /
+<code>gui_info_panel_send_message</code> is <strong>filed in its tab's log</strong> and readable any time on
+the log tab -- it does <em>not</em> take over the panel.</p>
+<p>A card interrupts (shows live, switches the panel to its tab, auto-dismisses) in
+exactly two cases:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>interrupts?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>card with a <code>button</code></td>
+<td><strong>always</strong> -- it is a progression gate; a mission awaiting the press deadlocks if it is never seen</td>
+</tr>
+<tr>
+<td><code>notify=True</code></td>
+<td>yes -- for a card that genuinely must be read now</td>
+</tr>
+<tr>
+<td>anything else</td>
+<td>no -- filed in the log; pair it with an overlay for the attention half</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code>comms_info_card(consoles, text, title=&quot;Command&quot;)                # filed, quiet
+comms_info_card(consoles, text, title=&quot;Command&quot;, notify=True)   # interrupts
+announce(text, title=&quot;Command&quot;, level=&quot;alert&quot;, to=ship)         # banner + filed card
+</code></pre></div>
+<p><code>announce()</code> is the front door that gets this right by construction: the overlay
+interrupts, the card records. The log keeps 50 cards (<code>INFO_PANEL_LOG_MAX</code>).</p>
 <h2 id="how-it-draws-the-one-rule">How it draws (the one rule)</h2>
 <p>Overlays keep off the page's repaint path: each slot is its <strong>own</strong> sub-region,
 established during the page's repaint and then updated out-of-band (clear → fill →
