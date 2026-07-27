@@ -503,37 +503,34 @@ Docs: [The GUI Editor](tooling/gui-editor.md).
 
 ---
 
-## 🚀 Artemis 2.8 missions — converted, and actually running
+## 🛸 The old missions fly again
 
-Point [`arme2cosmos`](https://github.com/artemis-sbs/arme2cosmos) at a legacy
-`MISS_*.xml` and it writes a Cosmos mission: spawns, sides and diplomacy, comms and
-GM buttons, objectives, win/lose — plus a `MIGRATION_NOTES.md` punch-list of the few
-things only a human can decide.
+Every mission your crew ever flew in **Artemis 2.8** can come back into service. Hand
+one over and it returns as a Cosmos mission you can host tonight: the same fleets
+waiting in the same corners of the map, the same enemies with the same tempers, the
+same voice cutting in over comms.
 
-**The whole reference corpus works.** All **27** convertible 2.8 missions convert,
-compile under the real MAST compiler, and **run in the headless runner with no
-runtime errors** — in *both* output styles, so that is 46 generated missions end to
-end. 26 of the 27 finish with **zero leftover TODOs**; the last one is a genuine
-source bug (the 2.8 mission sets a property on an object it never creates), not a
-gap in the tool.
+**All 27 missions in our archive made the crossing** — and not just far enough to
+load. They play: hostiles pick fights, stations answer hails, the timers still run
+out on you, and each mission still ends the way it always did.
 
-Pick the shape that suits the port:
+- **The briefing is no longer a memory test.** The mission's goals arrive as real
+  Cosmos [quests](build/quests.md), ticking over in the crew's quest log as you go —
+  or, if you'd rather have the original exactly as it was written, you can have that
+  instead.
+- **Enemies remember they're enemies.** Old missions never spelled out who hated
+  whom; that gets worked out and declared, so hostiles open fire, Science sorts
+  friend from foe, and contacts show in the right colours.
+- **The Game Master keeps the con.** Menus stay nested the way they were laid out,
+  shortcut actions survive, and a spawn lands **where the GM is pointing** rather
+  than in the corner of the map.
+- **The details survive.** Elite Skaraan tricks, captains with a temper, fighters
+  and shuttles in the hangar, science scans, hail text — the flavour comes with the
+  fleet, not just the ships.
 
-- **`--target amd`** — a **declarative quest tree** (`story.amd` + a thin
-  `story.mast`). 2.8 objectives, win/lose and story beats become real Cosmos
-  [quests](build/quests.md), with a live objectives log in the crew's quest tab.
-- **`--target mast`** — an idiomatic, hand-editable MAST scaffold that keeps the 2.8
-  event model recognisable (tunable with `--event-model`).
-
-Underneath, the **`a2x` comfort layer** does the awkward parts so the generated MAST
-still reads like the original mission: the 2.8↔Cosmos coordinate flip, property-name
-mapping, elite abilities, captain personalities, carried craft, and "spawn where the
-GM is pointing". Hand-porting? Use it directly — every function is available in MAST
-with an `a2x_` prefix, no import needed.
-
-The tool itself is **stdlib-only Python** (`pip install arme2cosmos`) and has no
-dependency on Cosmos or `sbs_utils` — only the missions it *generates* do, at run
-time. → [Porting from Artemis 2.x](mast/porting-2x.md)
+Anything the old script left genuinely ambiguous is written down for whoever finishes
+the port, rather than quietly guessed at.
+→ [Porting from Artemis 2.x](mast/porting-2x.md)
 
 ## 🛠️ For Mission Makers & Tinkerers
 
@@ -564,8 +561,13 @@ time. → [Porting from Artemis 2.x](mast/porting-2x.md)
 - **`sbs swap`** — keep several mission sets side by side and switch between them
   without copying anything (see below). → [The `sbs` CLI](tooling/cli.md)
 - **`signal_next`** — one-shot await of the next signal. → [Signals](api/procedural/signal.md)
-- **An Artemis 2.8 → Cosmos porting-comfort layer**, and a converter that uses it to
-  bring whole missions forward (see above). → [Porting from Artemis 2.x](mast/porting-2x.md)
+- **An Artemis 2.8 → Cosmos porting-comfort layer** (`a2x_*` in MAST, no import) plus
+  [`arme2cosmos`](https://github.com/artemis-sbs/arme2cosmos), the converter that uses
+  it — `pip install arme2cosmos`, stdlib-only, no Cosmos needed to *run the tool*.
+  Emits either a declarative quest tree (`--target amd`) or a hand-editable MAST
+  scaffold (`--target mast`), plus a `MIGRATION_NOTES.md` punch-list. The whole 27-mission
+  reference corpus compiles and runs headless in both styles, 26 of them with zero
+  leftover TODOs. → [Porting from Artemis 2.x](mast/porting-2x.md)
 - **A faster, friendlier MAST compiler** — quicker parsing, *all* errors reported at
   once, sturdier crash handling, more Python built-ins available in scripts, and now
   **multiline expressions** (see below). → [The MAST language](mast/overview.md)
