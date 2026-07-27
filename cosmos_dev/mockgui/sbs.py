@@ -997,9 +997,9 @@ def _push_colors() -> None:
     sides = dict(getattr(s, "side_icon_colors", {}) or {})
     diplo = {str(int(k)): v for k, v in (getattr(s, "diplomacy_colors", {}) or {}).items()}
     rels = []
-    for pair, dip in (getattr(s, "side_relations", {}) or {}).items():
-        p = list(pair)
-        a, b = p[0], (p[1] if len(p) > 1 else p[0])
+    # Keys are ordered (from, to) pairs -- the engine's table is directional, so send each
+    # entry as authored rather than collapsing it to an unordered pair.
+    for (a, b), dip in (getattr(s, "side_relations", {}) or {}).items():
         rels.append([a, b, int(dip)])
     snap = (tuple(sorted(sides.items())), tuple(sorted(diplo.items())),
             tuple(sorted((tuple(sorted((str(r[0]), str(r[1])))), r[2]) for r in rels)))

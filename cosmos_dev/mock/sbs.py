@@ -1747,7 +1747,7 @@ class simulation(object): ### from pybind
         self.client_ships = {}        # clientID -> shipID
         self.client_alt_ships = {}    # clientID -> altShipID (radar focus)
         self.client_types = {}        # clientID -> consoleType str
-        self.side_relations = {}      # frozenset({s1,s2}) -> DIPLOMACY int
+        self.side_relations = {}      # (from_tag, to_tag) -> DIPLOMACY int; DIRECTIONAL
         self.side_icon_colors = {}    # SideTag -> color string (side_set_icon_color)
         self.diplomacy_colors = {}    # DIPLOMACY int -> color string (set_diplomacy_color)
         self.shared_strings = {}      # key -> value (synced server→clients in real engine)
@@ -1954,12 +1954,20 @@ class simulation(object): ### from pybind
         """set the value of the icon of a SideTag (like TSN or Raider)"""
 
     def set_side_relationship(self: simulation, FirstSideTag: str, SecondSideTag: str, diplomacyEnumValue: int) -> None:
-        """set the diplomatic state between two sides, for GUI color purposes."""
-        self.side_relations[frozenset({FirstSideTag, SecondSideTag})] = diplomacyEnumValue
+        """set the diplomatic state between two sides, for GUI color purposes.
+
+        DIRECTIONAL, like the engine: this records First->Second and nothing else. The mock
+        used to key the table by frozenset, i.e. symmetric, which quietly made a caller that
+        wrote only one direction look correct here while drawing grey contacts in the engine
+        (colouring is a lookup from the VIEWER's side to the contact's side, so the missing
+        direction is the one that matters). Modelling the asymmetry is what lets a test catch
+        that; see procedural.sides.side_set_relations, which writes both directions.
+        """
+        self.side_relations[(FirstSideTag, SecondSideTag)] = diplomacyEnumValue
 
     def get_side_relationship(self: simulation, FirstSideTag: str, SecondSideTag: str) -> int:
-        """returns the diplomatic state between two sides (mock helper)"""
-        return self.side_relations.get(frozenset({FirstSideTag, SecondSideTag}), int(DIPLOMACY.NEUTRAL))
+        """returns the diplomatic state between two sides, in THAT order (mock helper)"""
+        return self.side_relations.get((FirstSideTag, SecondSideTag), int(DIPLOMACY.NEUTRAL))
 
     def space_object_exists(self: simulation, arg0: int) -> bool:
         """returns true if the spaceobject exists, by ID

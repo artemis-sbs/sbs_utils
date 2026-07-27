@@ -86,7 +86,10 @@ def declare_sides(side_values, names=None, colors=None,
     * either value is 0 ("no side") -> ``NEUTRAL``
 
     Idempotent -- ``side_create`` reconfigures an existing side in place, so calling it
-    twice (or alongside a mission that already declared a side) is safe.
+    twice (or alongside a mission that already declared a side) is safe. Re-declaring also
+    RE-ISSUES every engine-side write (icon colours, self-ally, pairwise relations,
+    diplomacy colours), so a second call fully repairs an engine table that lost the
+    first one; that is what a converted mission's re-assert loop relies on.
 
     Args:
         side_values (iterable[int]): The 2.8 sideValues the mission actually uses.
@@ -128,6 +131,16 @@ def declare_sides(side_values, names=None, colors=None,
         # DIPLOMACY constants aren't reachable, so skip the relation pass.
         return ids
 
+    # Re-assert the SELF-ally pair on every call, not just at creation. side_ensure seeds
+    # it, but only for a side it actually creates -- so on a re-declare (the whole point of
+    # the re-assert loop a converted mission runs) the same-side ALLIED relation is never
+    # re-issued to the engine. If the first declaration's writes were lost (they are, when
+    # anything issues them in the same frame as sim_create), the engine's table keeps
+    # same-side pairs at UNKNOWN for the rest of the mission and no amount of re-declaring
+    # repairs it. Cheap and idempotent, so just always send it.
+    for v in values:
+        side_set_relations(side_key(v), side_key(v), sbs.DIPLOMACY.ALLIED)
+
     for i, a in enumerate(values):
         for b in values[i + 1:]:
             # 2.8: sideValue 0 is "no side" -- present, but nobody's enemy.
@@ -147,8 +160,7 @@ def declare_sides(side_values, names=None, colors=None,
     return ids
 
 
-# Contact colours by DIPLOMACY relation, matching LegendaryMissions' own values. These
-# only take effect when applied AFTER the sim is up -- see set_diplomacy_colors.
+# Contact colours by DIPLOMACY relation, matching LegendaryMissions' own values.
 _DIPLOMACY_HOSTILE_COLOR = "#F00"
 _DIPLOMACY_NEUTRAL_COLOR = "#077"
 
@@ -157,14 +169,24 @@ def set_diplomacy_colors(hostile_color=_DIPLOMACY_HOSTILE_COLOR,
                          neutral_color=_DIPLOMACY_NEUTRAL_COLOR):
     """Set the map colours the engine draws contacts with, by RELATION.
 
-    Split out of :func:`declare_sides` and callable on its own because ``sim`` is not
-    always live where the sides get declared: a converted mission declares them from
-    ``//shared/signal/create_sides``, which the server console fires during start_server.
-    More importantly, the engine does not RETAIN colour/relationship writes made that
-    early: confirmed in-engine, contacts stayed grey until the identical calls were
-    re-issued a few seconds after game_started, at which point they took immediately.
-    So call this again after start -- the converted missions re-assert it on a short
-    loop, since a single re-apply at ~1s was still too early while ~3s worked.
+    Split out of :func:`declare_sides` and callable on its own, because these writes are
+    frame-sensitive. ``sim`` here is ``FrameContext.context.sim`` -- the handle the engine
+    passed into ``cosmos_event_handler`` at the top of the CURRENT event. ``sim_create()``
+    replaces the simulation but cannot refresh that handle (the engine's ``sbs`` module
+    exposes no module-level ``sim``), so anything calling this in the same frame as
+    ``sim_create()`` writes to the pre-``sim_create`` simulation and the colours are lost
+    silently -- contacts draw as UNKNOWN, i.e. grey.
+
+    That was the real cause of the long-standing "converted missions have no diplomacy
+    colours" bug: LegendaryMissions' server console ran ``sim_create()`` and
+    ``signal_emit("create_sides")`` in one frame, so the whole engine-facing half of
+    ``declare_sides`` went to a dead simulation. server_console now yields a frame between
+    the two. The earlier "the engine does not retain early writes, re-apply at ~3s"
+    reading was a misdiagnosis: the ~1s re-apply looked like it failed only because it
+    re-issued the COLOURS alone, leaving the relations still missing.
+
+    Safe to call repeatedly; converted missions still re-assert on a short loop so they
+    keep working against an older LegendaryMissions library that lacks the frame yield.
 
     Returns True if the colours were applied, False if there was no sim to apply them to.
     """

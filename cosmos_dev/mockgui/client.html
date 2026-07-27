@@ -940,7 +940,11 @@ function _sideColor(side) {
 let _radarColorMode = localStorage.getItem('radarColorMode') || 'side';   // 'side' | 'diplo'
 let _sideColors = {};                 // sideTag -> css colour (side_set_icon_color)
 let _dipColors  = {};                 // DIPLOMACY int (as string) -> css colour
-const _relations = new Map();         // "a|b" (sorted) -> DIPLOMACY int
+// "from|to" in the order the server sent it. NOT sorted: the engine's relationship table is
+// directional and colouring is a viewer-side -> contact-side lookup, so a sorted key would
+// make a half-declared pair (only one direction written) preview as correctly coloured here
+// while drawing grey in the engine. That is exactly how a real bug stayed hidden.
+const _relations = new Map();         // "from|to" -> DIPLOMACY int
 // Fallback colours if the script set none (UNKNOWN0 NEUTRAL1 ALLIED2 HOSTILE3).
 const _DIP_DEFAULT = { '0': '#888', '1': '#0aa', '2': '#3f6', '3': '#f44' };
 function _viewerSide() {
@@ -953,7 +957,8 @@ function _viewerSide() {
   return m ? m.side : null;
 }
 function _dipBetween(a, b) {
-  const key = [String(a), String(b)].sort().join('|');
+  // Directional on purpose - callers pass viewer first, matching the engine's lookup.
+  const key = String(a) + '|' + String(b);
   return _relations.has(key) ? _relations.get(key) : null;
 }
 function _objColor(side, tint) {
@@ -993,7 +998,7 @@ function cmdColors(msg) {
   if (msg.relations) {
     _relations.clear();
     for (const r of msg.relations)
-      _relations.set([String(r[0]), String(r[1])].sort().join('|'), r[2]);
+      _relations.set(String(r[0]) + '|' + String(r[1]), r[2]);
   }
   _recolorRadar();
 }

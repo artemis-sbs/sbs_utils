@@ -315,17 +315,41 @@ def side_set_relations(side1, side2, relation):
     o1_key = get_inventory_value(o1, "side_key")
     o2_key = get_inventory_value(o2, "side_key")
 
-    # Update the engine relationship for 2d map graphics
+    # Update the engine relationship for 2d map graphics -- BOTH directions.
+    #
+    # The link graph above is symmetric (every link is mirrored), but the engine's own table
+    # is not: set_side_relationship(a, b, ...) records a->b and nothing else. Colouring a
+    # contact is a lookup from the VIEWER's side to the contact's side, so writing only one
+    # direction leaves half the viewers seeing UNKNOWN -- grey contacts, correct diplomacy
+    # everywhere in script. Confirmed in-engine: a converted mission declaring the pair once
+    # as (enemy, friendly) drew every enemy grey for a player on "friendly", while
+    # LegendaryMissions looked right purely because maps/sides.amd happens to declare the
+    # hostility on BOTH sides (tsn "Enemies: raider" and raider "Enemies: tsn"), so it was
+    # writing both directions by accident of authoring rather than by design.
+    #
+    # Doing it here means callers keep treating relations as symmetric -- which is what
+    # every one of them already assumes -- instead of each having to remember the mirror.
     sim.set_side_relationship(o1_key, o2_key, relation)
+    if o1_key != o2_key:
+        sim.set_side_relationship(o2_key, o1_key, relation)
     signal_emit("side_relations_updated", {"side1": o1, "side2": o2, "relation": relation, "old_relation": old_relation})
 
 
 # --- Persisted per-pair diplomacy overrides ----------------------------------
 # Base relations come from side setup; when relations CHANGE at runtime (a ceasefire, a
 # defection) record the override in a plain dict and persist it, then re-apply after the
-# sides exist on load. Order-independent keys (relations are symmetric). Promoted from OU.
+# sides exist on load. Promoted from OU.
+#
+# These keys are order-independent, which is correct HERE and only here: an override is
+# re-applied through side_set_relations, which mirrors it into the engine's directional
+# table. One saved entry per unordered pair is therefore enough. Do not take this as
+# "relations are symmetric" -- the engine's table is not; see side_set_relations.
 def side_diplomacy_key(a, b):
-    """Order-independent key for a side PAIR (relations are symmetric)."""
+    """Order-independent key for a side PAIR.
+
+    Safe because overrides are re-applied via ``side_set_relations``, which writes both
+    directions -- not because the engine treats a pair as unordered.
+    """
     return "|".join(sorted([str(a), str(b)]))
 
 

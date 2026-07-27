@@ -152,11 +152,23 @@ class TestMockSbs(unittest.TestCase):
             int(sbs.DIPLOMACY.HOSTILE),
         )
 
-    def test_side_relationship_is_symmetric(self):
+    def test_side_relationship_is_directional(self):
+        """One write records ONE direction -- the engine does not mirror it.
+
+        This used to assert the opposite, because the mock keyed the table by frozenset.
+        That symmetry was a modelling error, and an expensive one: a caller writing a pair
+        only once looked correct in every headless test while drawing grey contacts in the
+        engine, since colouring looks up viewer-side -> contact-side and that was the
+        direction nobody had written. procedural.sides.side_set_relations now writes both.
+        """
         sbs.sim.set_side_relationship("tsn", "raider", int(sbs.DIPLOMACY.HOSTILE))
         self.assertEqual(
-            sbs.sim.get_side_relationship("raider", "tsn"),
+            sbs.sim.get_side_relationship("tsn", "raider"),
             int(sbs.DIPLOMACY.HOSTILE),
+        )
+        self.assertEqual(
+            sbs.sim.get_side_relationship("raider", "tsn"),
+            int(sbs.DIPLOMACY.NEUTRAL),   # unwritten direction = the default, not HOSTILE
         )
 
     def test_side_relationship_default_neutral(self):
