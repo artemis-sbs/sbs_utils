@@ -561,13 +561,12 @@ the port, rather than quietly guessed at.
 - **`sbs swap`** — keep several mission sets side by side and switch between them
   without copying anything (see below). → [The `sbs` CLI](tooling/cli.md)
 - **`signal_next`** — one-shot await of the next signal. → [Signals](api/procedural/signal.md)
-- **An Artemis 2.8 → Cosmos porting-comfort layer** (`a2x_*` in MAST, no import) plus
-  [`arme2cosmos`](https://github.com/artemis-sbs/arme2cosmos), the converter that uses
-  it — `pip install arme2cosmos`, stdlib-only, no Cosmos needed to *run the tool*.
-  Emits either a declarative quest tree (`--target amd`) or a hand-editable MAST
-  scaffold (`--target mast`), plus a `MIGRATION_NOTES.md` punch-list. The whole 27-mission
-  reference corpus compiles and runs headless in both styles, 26 of them with zero
-  leftover TODOs. → [Porting from Artemis 2.x](mast/porting-2x.md)
+- **Bring an old Artemis 2.8 mission forward.** `pip install arme2cosmos`, point it at
+  the old XML, and it writes the Cosmos mission for you — as a quest tree, or as plain
+  MAST you can edit — plus a notes file listing anything worth a second look. It's
+  ordinary Python, so you don't need Cosmos to run it. Porting by hand instead? The
+  `a2x_*` helpers are waiting in MAST, no import needed. We tried it on 27 of the old
+  missions and they all run. → [Porting from Artemis 2.x](mast/porting-2x.md)
 - **A faster, friendlier MAST compiler** — quicker parsing, *all* errors reported at
   once, sturdier crash handling, more Python built-ins available in scripts, and now
   **multiline expressions** (see below). → [The MAST language](mast/overview.md)
