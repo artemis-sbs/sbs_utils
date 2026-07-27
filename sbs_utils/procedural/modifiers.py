@@ -272,7 +272,35 @@ class ModifierHandler:
         #print("Warning: Reached max index of 100 when getting blob max index for", id, " for key:", key)
         return 100
 
-def modifier_add(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, duration=None, index=None) -> Modifier:
+    def update_modifier_value(id, key, values, source) -> bool:
+        """
+        Change the value of an existing modifier in place and recalculate, instead of
+        removing and re-adding it.
+
+        Args:
+            id (int): object ID
+            key (str): The blob key the modifier affects.
+            values (list[float] | float): The new modifier amount. A scalar is broadcast
+                across every index of the existing modifier's value list.
+            source (str | int): Identifier for this modifier - used to overwrite or remove it later.
+        Returns:
+            bool: True if a matching modifier was found and updated.
+        """
+        found = False
+        for mod in ModifierHandler.all_modifiers:
+            if mod.target == id and mod.key == key and mod.source == source:
+                # Modifier.value is a LIST (one entry per blob index) - calculate_modified_value
+                # subscripts it. Assigning a bare float here would TypeError on the next
+                # recalculate, so broadcast a scalar over the existing index count.
+                if isinstance(values, (list, tuple)):
+                    mod.value = list(values)
+                else:
+                    mod.value = [values] * max(1, len(mod.value))
+                ModifierHandler.recalculate_value(id, key)
+                found = True
+        return found
+
+def modifier_add(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, duration=None, index=None, replace_if_exists=False) -> Modifier:
     """Add and apply a modifier to a blob value on one or more objects.
 
     ``obj_or_id_or_set`` may be an agent, an ID, a set of IDs, or a side key
@@ -303,6 +331,9 @@ def modifier_add(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, durat
             automatically. Defaults to None (permanent).
         index (int, optional): Index into a list blob value. ``None`` applies
             to all indices. Ignored for inventory keys. Defaults to None.
+        replace_if_exists (bool): When a modifier with this key/source is already
+            applied, update its value in place (and refresh its duration) instead
+            of leaving the existing one untouched. Defaults to False.
 
     Returns:
         Modifier | set[int]: The created ``Modifier`` when exactly one is
@@ -364,13 +395,22 @@ def modifier_add(obj_or_id_or_set, key, value, source, flat_add_or_mult=1, durat
         # Check if the modifier exists
         mod_exists = modifier_exists(id, new_mod)
         if mod_exists:
-            # Name WHICH modifier is being skipped (key/source/target) — a bare
-            # "already exists: True" says nothing, and this fires once per ship
-            # in ship_set, so identical lines were indistinguishable in multiples.
-            debug_print(f"Modifier already applied, skipping: key='{key}' source='{source}' on object {id}")
-        
+            if replace_if_exists:
+                # Update in place: the duration timer was already refreshed above.
+                # TODO: Add a way to stack the duration of modifiers. This should be optional,
+                # and maybe modifiers should use the prefab system like torpedoes do.
+                # TODO: Add a "decay" system for modifiers. E.g. a temporary bit of extra
+                # coolant that dissipates over time.
+                ModifierHandler.update_modifier_value(id, key, values, source)
+            else:
+                # Name WHICH modifier is being skipped (key/source/target) — a bare
+                # "already exists: True" says nothing, and this fires once per ship
+                # in ship_set, so identical lines were indistinguishable in multiples.
+                debug_print(f"Modifier already applied, skipping: key='{key}' source='{source}' on object {id}")
+            # Don't return here - ship_set may hold objects that DON'T have it yet.
+
         # Add the new modifier
-        if not mod_exists:
+        else:
             all_mods.append(new_mod)
             ModifierHandler.all_modifiers.append(new_mod)
             # print("Adding modifier:", new_mod, " to object with id:", id)
