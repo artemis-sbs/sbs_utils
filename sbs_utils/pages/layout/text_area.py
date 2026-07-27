@@ -1,4 +1,6 @@
 from .layout import Column, Bounds, get_font_size
+from .measure import (measure_line_width, measure_line_height, wrap_to_width,
+                      measure_block_height)
 from ...helpers import FrameContext, split_props, merge_props
 from ...gui import get_client_aspect_ratio
 from textwrap import TextWrapper
@@ -122,16 +124,149 @@ class ImageLine:
             self.height = (height / ar.y) * 100 * scale
 
     def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
-        self.atlas.send_gui_image(SBS, client_id, region_tag, tag, self.fill,  
+        self.atlas.send_gui_image(SBS, client_id, region_tag, tag, self.fill,
                     left, top, right, bottom, self.color)
 
 
+class TableLine:
+    """A GFM pipe-table rendered as a grid of text cells — a block-line like
+    ImageLine/FaceLine (owns its rect via send_gui). Columns are sized to their
+    measured content then shrunk to fit the region width (never overflow — there's
+    no horizontal scroll); row height is the tallest wrapped cell. Per-column
+    alignment comes from the |:--|--:| separator row. Keep tables SMALL/static:
+    scrolling is line-indexed so a tall table clips at the block boundary."""
+    HDR_FONT = "gui-3"
+    BODY_FONT = "gui-2"
+
+    def __init__(self, rows, aligns, ar, pixel_width, sbs) -> None:
+        self.is_sec_end = False
+        self.ar = ar
+        self.aligns = aligns
+        ncols = max((len(r) for r in rows), default=0)
+        self.ncols = ncols
+        self.rows = [r + [""] * (ncols - len(r)) for r in rows]
+        self.col_px = []
+        self.row_h_px = []
+        self.cell_pad_px = 0
+        self.height = 0
+        if ncols == 0 or not self.rows:
+            return
+
+        # Natural column widths (px) — measure real glyphs (header in header font).
+        col_px = [0.0] * ncols
+        for ri, r in enumerate(self.rows):
+            f = self.HDR_FONT if ri == 0 else self.BODY_FONT
+            for c in range(ncols):
+                if r[c]:
+                    w = measure_line_width(f, r[c])
+                    if w > col_px[c]:
+                        col_px[c] = w
+        self.cell_pad_px = measure_line_width(self.BODY_FONT, "MM")        # gutter
+        avail = max(1.0, pixel_width - self.cell_pad_px * (ncols - 1))
+        natural = sum(col_px)
+        if natural > avail and natural > 0:                                # fit-to-width
+            col_px = [w * (avail / natural) for w in col_px]
+        floor = min(measure_line_width(self.BODY_FONT, "MMM"), avail / ncols)
+        col_px = [max(w, floor) for w in col_px]                           # min column
+        self.col_px = col_px
+
+        # Row heights (px) from the tallest wrapped cell in each row.
+        for ri, r in enumerate(self.rows):
+            f = self.HDR_FONT if ri == 0 else self.BODY_FONT
+            h = 0
+            for c in range(ncols):
+                cw = int(col_px[c])
+                bh = (measure_block_height(f, r[c], cw) if (r[c] and cw > 0)
+                      else measure_line_height(f, "M"))
+                if bh > h:
+                    h = bh
+            self.row_h_px.append(h)
+        self.height = (sum(self.row_h_px) / ar.y) * 100                    # percent
+
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+        if not self.rows or self.ncols == 0:
+            return
+        ar = self.ar
+        col_pct = [(w / ar.x) * 100 for w in self.col_px]
+        pad_pct = (self.cell_pad_px / ar.x) * 100
+        just_map = {"l": "left", "c": "center", "r": "right"}
+        y = top
+        for ri, r in enumerate(self.rows):
+            f = TableLine.HDR_FONT if ri == 0 else TableLine.BODY_FONT
+            row_h = (self.row_h_px[ri] / ar.y) * 100
+            color = "#bbb" if ri == 0 else "white"
+            x = left
+            for c in range(self.ncols):
+                a = self.aligns[c] if c < len(self.aligns) else "l"
+                style = f"font:{f};justify:{just_map.get(a, 'left')};color:{color}"
+                SBS.send_gui_text(client_id, region_tag, f"{tag}:r{ri}c{c}",
+                                  f"$text:`{r[c]}`;{style}",
+                                  x, y, x + col_pct[c], y + row_h)
+                x += col_pct[c] + pad_pct
+            y += row_h
+
+
+class HrLine:
+    """Horizontal rule (`<hr>` / `<hr/>`) — a thin full-width divider. Uses `<hr>`
+    rather than `---` so it never clashes with the table separator row."""
+    def __init__(self, ar) -> None:
+        self.is_sec_end = False
+        self._ar = ar
+        self.height = (12.0 / ar.y) * 100          # ~12px slot
+
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+        mid = top + (bottom - top) / 2.0
+        half = (1.0 / self._ar.y) * 100
+        SBS.send_gui_image(client_id, region_tag, tag,
+                           "image:smallwhite;color:#888;draw_layer:1000;",
+                           left, mid - half, right, mid + half)
+
+
+class LinkLine:
+    """A whole-line hyperlink `[Display](ref://key)`. Renders as styled clickable
+    text plus a transparent clickregion on top whose click_tag routes back to the
+    owning TextArea's on_message, which resolves the key (intra-document nav)."""
+    def __init__(self, display, click_tag, ar, sbs, font="gui-2") -> None:
+        self.display = display
+        self.click_tag = click_tag
+        self.font = font
+        self.is_sec_end = False
+        self.height = (measure_line_height(font, display) / ar.y) * 100
+
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+        SBS.send_gui_text(client_id, region_tag, tag,
+                          f"$text:`{self.display}`;color:#6cf;font:{self.font}",
+                          left, top, right, bottom)
+        # transparent hit area on top; its click_tag carries the target key
+        SBS.send_gui_clickregion(client_id, region_tag, self.click_tag,
+                                 "background_color:#00000000;",
+                                 left, top, right, bottom)
+
+
 class TextArea(Control):
+    #
+    # NOTE the `height` in each style below is INERT. Line heights are measured
+    # from the style's own font (measure_block_height), which is the only number
+    # that matches what the engine draws -- these nominals disagree with it (h3
+    # says 24 where gui-3 occupies 28). The reads were removed rather than the
+    # keys, because a custom style dict may still carry one; it is ignored.
+    #
+    # It is the same shape of bug as get_font_size(None) and the old
+    # measure_line_height: a hardcoded number sitting next to a font, drifting
+    # away from what that font actually measures.
+    #
     styles = {
         "t": {"style": "font:gui-6;color:#bbb;", "prepend": "", "indent": 0, "height": 48},
-        "h1":{"style":  "font:gui-5;color:#bbb;", "prepend": "1", "indent": 0, "height": 32},
-        "h2":{"style":  "font:gui-4;color:#bbb;", "prepend": "1", "indent": 0, "height": 28},
-        "h3":{"style":  "font:gui-3;color:#bbb;", "prepend": "1", "indent": 0, "height": 24},
+        # `#`/`##`/`###` markdown headings map to h1/h2/h3. NON-numbered (like standard
+        # markdown); use the numbered variants nh1/nh2/nh3 (`$nh1 ...`) if you want an
+        # auto-numbered outline. (Numbering used to be the h1-3 default; retired so `#`,
+        # now the canonical heading syntax, behaves like markdown.)
+        "h1":{"style":  "font:gui-5;color:#bbb;", "prepend": "", "indent": 0, "height": 32},
+        "h2":{"style":  "font:gui-4;color:#bbb;", "prepend": "", "indent": 0, "height": 28},
+        "h3":{"style":  "font:gui-3;color:#bbb;", "prepend": "", "indent": 0, "height": 24},
+        "nh1":{"style": "font:gui-5;color:#bbb;", "prepend": "1", "indent": 0, "height": 32},
+        "nh2":{"style": "font:gui-4;color:#bbb;", "prepend": "1", "indent": 0, "height": 28},
+        "nh3":{"style": "font:gui-3;color:#bbb;", "prepend": "1", "indent": 0, "height": 24},
         "p1":{"style":  "font:gui-2;color:#11f;", "prepend": "", "indent": 0, "height": 20},
         "ul":{"style":  "font:gui-2;color:#11f;", "prepend": "-", "indent": 2, "height": 20},
         "ol":{"style":  "font:gui-2;color:white;", "prepend": "1", "indent": 2, "height": 20},
@@ -140,7 +275,7 @@ class TextArea(Control):
     
     # Old style system
     rule_style_def = re.compile(r"=\$(?P<style_name>\w+)[ \t]*(?P<remainder>.*)")
-    rule_style_ref = re.compile(r"$(?P<style_name>\w+)[ \t]*(?P<remainder>.*)")
+    rule_style_ref = re.compile(r"\$(?P<style_name>\w+)[ \t]*(?P<remainder>.*)")
     # New markdown system style, image,face, ship
     rule_link_def = re.compile(r"!?\[(?P<link_name>\w*)\]:[ \t]+(?P<ns>\w+):(//)?(?P<urn>.*)")
     # The ! is optional
@@ -167,6 +302,9 @@ class TextArea(Control):
         self.error_line = ""
         self.error_line_num = 0
         self.styles = TextArea.styles.copy()
+        self.link_resolver = None   # fn(key) -> new text; drives [x](ref://key) nav
+        self.on_link_cb = None      # fn(key, self); notified on any link click
+        self._link_map = {}         # click_tag -> target key
         #self.region = None
         #self.local_region_tag = self.tag+"$$"
 
@@ -197,15 +335,38 @@ class TextArea(Control):
             self.mark_layout_dirty()
 
 
-    def calc_rich(self, client_id):
+    def measure(self, client_id, mode, avail_px, font, ar):
+        """Deliberately unmeasurable, for two independent reasons.
+
+        A text area already handles its own overflow by scrolling -- it adds a
+        vertical slider when the content exceeds its bounds -- so it does not
+        need the row to grow around it the way a plain label does.
+
+        And measuring it would mean running the whole rich-text parse (images,
+        ship/face embeds, tables, wrapping) at a width the parent has not
+        committed to yet, then throwing that work away. Falling back to flex is
+        both cheaper and closer to what the widget is for.
+        """
+        return None
+
+    # Width the vertical scrollbar occupies, in PIXELS. Named because the
+    # measure pass and the draw pass must agree about it -- see calc_rich.
+    V_SCROLL_PX = 20
+
+    def calc_rich(self, client_id, _retry=True):
         if self.simple_text:
             return
-     
+
+        # What the scrollbar decision was BEFORE this pass, so we can tell
+        # whether measuring changed it (see the re-run at the end).
+        measured_with_scroll = self.need_v_scroll
+
         content_lines = self.content.copy()
         
         
 
         self.lines = []
+        self._link_map = {}
         links = {}
         calc_height = 0
         self.scroll_line = 0
@@ -267,15 +428,28 @@ class TextArea(Control):
 
         style = None
         style_key = "_"
-        height = 20
         prepend = ""
         is_a_list = None
+        #
+        # Measure at the width the text will actually be DRAWN at, which is
+        # narrower when a scrollbar is present. Measuring at the full width and
+        # drawing 20px narrower makes the engine wrap a line we did not count,
+        # and since the engine does not clip, that line is drawn ON TOP of its
+        # neighbour. It showed up as overlapping text in LM's Library document
+        # at 1024x768 -- long enough to scroll, so the scrollbar was always
+        # there, and roughly one paragraph in eight wraps inside that 20px.
+        #
         pixel_width = (self.bounds.right-self.bounds.left)/100 * ar.x
+        if self.need_v_scroll:
+            pixel_width -= self.V_SCROLL_PX
         alpha = "_ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"
         roman = ["_", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", 
                 "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx"]
         
+        table_skip = 0
         for i, line in enumerate(content_lines):
+            if i < table_skip:                 # lines consumed by a table block
+                continue
             self.error_line = line
             self.error_line_num = i
             # EMPTY LINE reset style and prepend
@@ -288,22 +462,54 @@ class TextArea(Control):
 
                 style = self.get_style("_")
                 # style = style_default
-                height = 20
                 # To simplify calculation these start with an item that will never be used
                 prepend = None
                 is_a_list = None
                 if line_len == 0:
                     continue
 
+            # Horizontal rule: <hr> / <hr/> (not '---', which is a table separator)
+            if line.strip().lower() in ("<hr>", "<hr/>"):
+                hr = HrLine(ar)
+                self.lines.append(hr)
+                calc_height += hr.height
+                continue
+
+            # Whole-line hyperlink: [Display](ref://key) -> clickable LinkLine that
+            # navigates within the document via the TextArea's link_resolver.
+            m_link = TextArea._whole_link_re.match(line.strip())
+            if m_link is not None:
+                ctag = f"{self.tag}:lnk{len(self.lines)}"
+                self._link_map[ctag] = m_link.group("key").strip()
+                ln = LinkLine(m_link.group("disp").strip(), ctag, ar,
+                              FrameContext.context.sbs)
+                self.lines.append(ln)
+                calc_height += ln.height
+                continue
+
+            # GFM pipe table: 2+ consecutive lines starting with '|' become a
+            # TableLine block. A lone '|' line falls through to normal text.
+            if (line.strip().startswith("|") and i + 1 < len(content_lines)
+                    and content_lines[i + 1].strip().startswith("|")):
+                traw = []
+                j = i
+                while j < len(content_lines) and content_lines[j].strip().startswith("|"):
+                    traw.append(content_lines[j].strip())
+                    j += 1
+                table_skip = j
+                tbl = self._build_table(traw, ar, pixel_width)
+                if tbl is not None and tbl.height > 0:
+                    self.lines.append(tbl)
+                    calc_height += tbl.height
+                continue
+
             style_key, line = self.get_line_style(line, style)
             
             if isinstance(style_key, str):
                 style = self.get_style(style_key)
-                height = style.get("height")
                 prepend = get_prepend(style_key)
             elif isinstance(style_key, dict):
                 style = style_key
-                height =  style_key.get("height")
                 prepend = style_key.get("prepend")
                 if prepend is None:
                     prepend = ""
@@ -408,26 +614,20 @@ class TextArea(Control):
                 continue
             
 
-            # Use Python's text wrapper to break up lines
-            # pixel_char_width = get_font_size(font)
-            pixel_char_width = 20
-            if len(line)>0:
-                #pixel_char_width = FrameContext.context.sbs.get_text_line_width("gui-1", line) / len(line) 
-                pixel_char_width = FrameContext.context.sbs.get_text_line_width(font, "MMMM") / 4
-            # I'm not sure why divide by 2 works, but it seems to
-            num_char = int(pixel_width / pixel_char_width)
-            
-            wrapper = TextWrapper(width=num_char)
-            sub_lines = wrapper.wrap(line)
-            lll = len(line)
-            ls = len(sub_lines)
+            # Break lines on MEASURED word widths, not on a character count.
+            #
+            # This used to estimate "how many characters fit" from the line's
+            # average glyph width and hand that to TextWrapper. An average is
+            # wrong in both directions -- it breaks early on a run of narrow
+            # glyphs and late on wide ones -- so lines ended short of the edge
+            # for no visible reason ("...walks into / a bar" taking three lines
+            # where two fit). Measuring the words removes the estimate.
+            sub_lines = wrap_to_width(font, line, pixel_width)
 
             for sub_line in sub_lines:
                 ll = sub_line.strip().lower()
 
-                pixel_height = FrameContext.context.sbs.get_text_block_height(font, sub_line, int(pixel_width))
-                pixel_line_height = FrameContext.context.sbs.get_text_line_height(font, sub_line)
-                line_count = pixel_height / pixel_line_height
+                pixel_height = measure_block_height(font, sub_line, int(pixel_width))
             
                 #buffer = 0.1
                 #percent_height = ((pixel_height + buffer*pixel_line_height) / ar.y) * 100
@@ -444,6 +644,18 @@ class TextArea(Control):
         # Calculate the right size for the scrollbar
         #
         self.need_v_scroll = calc_height > self.bounds.height
+
+        #
+        # The scrollbar decision depends on the wrapped height, and the wrapped
+        # height depends on whether the scrollbar is there -- a genuine cycle.
+        # Break it the same way the layout breaks the square/content cycle: one
+        # bounded re-run, never iterate to convergence. The measurements are
+        # memoized, so the second pass is nearly free.
+        #
+        if _retry and self.need_v_scroll != measured_with_scroll:
+            self.calc_rich(client_id, _retry=False)
+            return
+
         self.last_line = len(self.lines)
         self.scroll_line = self.last_line
         if not self.need_v_scroll:
@@ -465,6 +677,29 @@ class TextArea(Control):
         self.last_line = min(self.last_line+1, len(self.lines))
         self.scroll_line = min(self.last_line+1,len(self.lines))
         
+
+    _table_sep_re = re.compile(r"^:?-{2,}:?$")
+    _whole_link_re = re.compile(r"^\[(?P<disp>[^\]]+)\]\((?:ref|link)://(?P<key>[^)]+)\)$")
+
+    def _build_table(self, raw_rows, ar, pixel_width):
+        """Parse GFM pipe rows into a TableLine. The |:--|--:| separator row (if
+        present) supplies per-column alignment and is dropped from the data; a
+        table with no separator row just renders all-left with row 0 as header."""
+        rows = []
+        aligns = []
+        for rr in raw_rows:
+            cells = [c.strip() for c in rr.strip().strip("|").split("|")]
+            non_empty = [c for c in cells if c != ""]
+            if non_empty and all(TextArea._table_sep_re.match(c) for c in non_empty):
+                aligns = []
+                for c in cells:
+                    lft, rgt = c.startswith(":"), c.endswith(":")
+                    aligns.append("c" if lft and rgt else "r" if rgt else "l")
+                continue
+            rows.append(cells)
+        if not rows:
+            return None
+        return TableLine(rows, aligns, ar, pixel_width, FrameContext.context.sbs)
 
     def get_line_style(self, some_lines, previous):
         style_key = None
@@ -557,7 +792,7 @@ class TextArea(Control):
         bounds = Bounds(self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
         # Room for scrollbar always
         if self.need_v_scroll:
-            bounds.right -= 20*100/ar.x
+            bounds.right -= self.V_SCROLL_PX*100/ar.x
         #TODO: calc line to start drawing
         text_line: TextLine
         for i, text_line in enumerate(self.lines):
@@ -585,7 +820,7 @@ class TextArea(Control):
                 message = f"$text:`{text_line.text}`;{style}"
                 # if bounds.top < 900:
                 #     print(f"Sending line {message} {bounds} {self.local_region_tag}")
-                space_width = FrameContext.context.sbs.get_text_line_width("gui-2", "X") / ar.x *100
+                space_width = measure_line_width("gui-2", "X") / ar.x *100
                 if background:
                     props = f"image:smallwhite;color:{background};draw_layer:1000;"
                     ctx.sbs.send_gui_image(CID, self.local_region_tag,
@@ -616,7 +851,7 @@ class TextArea(Control):
             # print(f"TEXT AREA {cur} {max}")
 
             ctx.sbs.send_gui_slider(CID,self.local_region_tag, f"{self.tag}vbar", int(cur), f"low:0; high: {max}; show_number:no",
-                scroll_bounds.right-20*100/ar.x, scroll_bounds.top,
+                scroll_bounds.right-self.V_SCROLL_PX*100/ar.x, scroll_bounds.top,
                 scroll_bounds.right, scroll_bounds.bottom)
 
 
@@ -639,10 +874,12 @@ class TextArea(Control):
             if "$text:" in message_list[0]:
                 self.simple_text = True
                 self.content = message_list
+                self.mark_visual_dirty()
                 return
             if not (message_list[0].startswith("=") or message_list[0].startswith("$")):
                 self.simple_text = True
                 self.content = message_list
+                self.mark_visual_dirty()
                 return
         # Make sure there is an end line
         self.simple_text = False
@@ -652,7 +889,7 @@ class TextArea(Control):
         self.content = message_list
 
         # self.styles = TextArea.styles.copy()
-        self.mark_visual_dirty() 
+        self.mark_visual_dirty()
 
 
     def parse_header(self, header):
@@ -716,6 +953,18 @@ class TextArea(Control):
 
 
     def on_message(self, event):
+        # Hyperlink click: resolve the key and navigate within the document.
+        if event.sub_tag in self._link_map:
+            key = self._link_map[event.sub_tag]
+            if self.on_link_cb is not None:
+                self.on_link_cb(key, self)
+            if self.link_resolver is not None:
+                new_text = self.link_resolver(key)
+                if new_text is not None:
+                    self.value = new_text        # triggers recalc on next present
+                    self.scroll_line = 0
+                    self.present(event)
+            return
         if event.sub_tag != f"{self.tag}vbar":
             return
         value = int(event.sub_float)

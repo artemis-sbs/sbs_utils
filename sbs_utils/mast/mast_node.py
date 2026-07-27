@@ -66,6 +66,35 @@ class MastNode:
         else:
             return None
         
+
+def compile_format_string(message):
+    """Compile a MAST format string into a code object (eval mode).
+
+    Text containing ``{`` is wrapped as an f-string and compiled so it can be
+    formatted later; other text is returned unchanged. A triple-quote delimiter
+    that does not occur in the text (and won't be escaped by a trailing quote)
+    is chosen so embedded quotes don't terminate the literal early. If the text
+    still cannot be wrapped safely, a clear error is raised rather than emitting
+    broken code (the old ``f\"\"\"{message}\"\"\"`` wrapping silently produced a
+    cryptic SyntaxError on any embedded triple-quote).
+
+    Cached (bounded) on `message`: pure template->code-object mapping; live
+    interpolation happens later in format_string(), so caching is dynamic-safe.
+    """
+    if message is None or "{" not in message:
+        return message
+    if '"""' not in message and not message.endswith('"'):
+        delim = '"""'
+    elif "'''" not in message and not message.endswith("'"):
+        delim = "'''"
+    else:
+        raise Exception(f"Cannot compile format string (mixed triple quotes): {message!r}")
+    try:
+        return compile(f'f{delim}{message}{delim}', "<string>", "eval")
+    except SyntaxError as e:
+        raise Exception(f"Invalid format string {message!r}: {e}")
+
+
 def mast_node(append=True):
     def dec_args(cls):
         if cls in MastNode.nodes:

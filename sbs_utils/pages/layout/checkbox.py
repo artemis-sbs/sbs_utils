@@ -1,4 +1,5 @@
 from .column import Column
+from .measure import measure_props, apply_overflow
 from ...helpers import FrameContext, merge_props, split_props
 
 class Checkbox(Column):
@@ -15,6 +16,14 @@ class Checkbox(Column):
         message = f"state: {self._value};{self.message}"
         message += self.get_cascade_props(True, True, True)
         ctx = FrameContext.context
+
+        # Icon mode draws a glyph, not a label -- nothing to fit.
+        if self.overflow and not self.icon:
+            message, draw = apply_overflow(message, self.bounds, self.overflow,
+                                           self.get_font())
+            if not draw:
+                return
+
         if self.icon:
             if self._value:
                 
@@ -56,12 +65,16 @@ class Checkbox(Column):
             # Quirk, this should just be a 
             # visual update, but when in a 
             # section/region it paints wrong.
-            if self.region_tag != "":
-                self.mark_layout_dirty()
-            else:
-                self.mark_visual_dirty()
+            self.mark_value_dirty(force_layout=self.region_tag != "")
         super().on_message(event)
             #self.value = int(event.sub_float)
+
+    def measure(self, client_id, mode, avail_px, font, ar):
+        if self.square:
+            return None
+        # The rendered string carries the state prop too, matching _present.
+        return measure_props(f"state: {self._value};{self.message}",
+                             mode, avail_px, font, ar)
 
     def update(self, message):
         #

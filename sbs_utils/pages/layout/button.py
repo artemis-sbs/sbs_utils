@@ -1,4 +1,5 @@
 from .column import Column
+from .measure import measure_props, apply_overflow
 from ...helpers import FrameContext, merge_props, split_props
 from .bounds import Bounds
 
@@ -37,7 +38,16 @@ class Button(Column):
         ctx = FrameContext.context
         message = self.message
         message += self.get_cascade_props(True, True, True)
-        
+
+        # Only the TEXT forms have text to fit. In raw/icon mode the message is
+        # icon props, so there is nothing to shrink or truncate -- the same
+        # reason measure() returns None for a square button.
+        if self.overflow and not self.raw and not self.icon:
+            message, draw = apply_overflow(message, self.bounds, self.overflow,
+                                           self.get_font())
+            if not draw:
+                return
+
         if self.raw:
             ctx.sbs.send_gui_rawiconbutton(event.client_id, self.region_tag,
                 self.tag, message, 
@@ -65,6 +75,12 @@ class Button(Column):
                 self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
             
         
+
+    def measure(self, client_id, mode, avail_px, font, ar):
+        # An icon button is square -- its size comes from the row, not its text.
+        if self.square:
+            return None
+        return measure_props(self.message, mode, avail_px, font, ar)
 
     def update(self, message):
         self.value = message
@@ -100,8 +116,7 @@ class Button(Column):
         # Quirk, this should just be a 
         # visual update, but when in a 
         # section/region it paints wrong.
-        if self.region_tag != "":
-            self.mark_layout_dirty()
-        else:
-            self.mark_visual_dirty()
+        # The region_tag quirk above forces a layout mark regardless; the
+        # content check still applies when it does not.
+        self.mark_value_dirty(force_layout=self.region_tag != "")
 

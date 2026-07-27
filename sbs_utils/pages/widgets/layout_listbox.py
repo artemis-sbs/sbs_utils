@@ -202,7 +202,7 @@ class LayoutListbox(layout.Column):
 
         self.title_section_style = title_section_style
         if title_section_style is None:
-            self.title_section_style = "row-height: 1.2em;padding: 2px,2px,2px,2px;"
+            self.title_section_style = "row-height: 1.0;padding: 2px,2px,2px,2px;"
 
         tokens = LayoutAreaParser.lex("1em")
         self.slider_style =  LayoutAreaParser.parse_e2(tokens)
@@ -231,7 +231,7 @@ class LayoutListbox(layout.Column):
 
     def default_item_template(self, item):
         from ...procedural.gui import gui_row, gui_text
-        gui_row("row-height: 1.2em;")
+        gui_row("row-height: 1.0;")
         task = FrameContext.task
         task.set_variable("LB_ITEM", item)
         if self.item_template is not None:
@@ -257,14 +257,32 @@ class LayoutListbox(layout.Column):
 
     def default_title_template(self):
         from ...procedural.gui import gui_row, gui_text
-        gui_row("row-height: 1.2em;padding:13px")
+        gui_row("row-height: 1em;padding:13px")
         task = FrameContext.task
         msg = task.compile_and_format_string(self.title_template)
         gui_text(msg)
 
+    # Per-item heights measured by calc_max, consumed by _present's packer.
+    _item_heights = {}
+
     def calc_max(self, CID):
+        """Measure the items. Returns (max_width, max_height, avg_height).
+
+        avg_height exists because slot budgeting used to divide the available
+        space by the TALLEST item, which silently assumes every row is the same
+        height. One tall row then shrank the whole list: eleven 48px consoles
+        with a single 96px one showed six rows and left half the box empty.
+
+        For a UNIFORM list avg == max, so every existing listbox budgets exactly
+        as it did before. Only a list with genuinely varying rows changes.
+        """
         max_width = 0
         max_height = 0
+        total_height = 0
+        counted = 0
+        # Per-item heights, keyed by identity. The draw loop uses these to pack
+        # exactly, instead of assuming every row is the tallest one.
+        self._item_heights = {}
 
         restore = FrameContext.page
         sub_page = SubPage(self.tag_prefix, self.local_region_tag, restore.gui_task, CID)
@@ -312,11 +330,21 @@ class LayoutListbox(layout.Column):
             max_height = max(max_height, 0.2)
             max_width = max(max_width, b.width)
 
+            # This item's own height, for the average.
+            this_height = b.height
+            if size is not None:
+                this_height = max(this_height, size)
+            this_height = max(this_height, 0.2)
+            self._item_heights[id(item)] = this_height
+            total_height += this_height
+            counted += 1
+
         FrameContext.page = restore
         # f = len(self._items)
         # uf = len(self.unfiltered_items)
         #print(f"LISTBOX  {self.collapsible} {uf} {f}")
-        return max_width, max_height
+        avg_height = (total_height / counted) if counted else max_height
+        return max_width, max_height, avg_height
 
 
     def _present(self, event):
@@ -392,22 +420,44 @@ class LayoutListbox(layout.Column):
             self.horizontal = False
 
 
-        max_item_width, max_item_height = self.calc_max(CID)
+        max_item_width, max_item_height, avg_item_height = self.calc_max(CID)
+        # Where the visible window starts -- packing depends on it.
+        cur_start = self.cur if self.cur and self.cur > 0 else 0
         
         max_item_width += item_width
         max_item_height += item_height
+        avg_item_height += item_height
         
         # This can be because len items == 0
         if max_item_width == 0:
             max_item_width = 1
         if max_item_height == 0:
             max_item_height = 1
+        if avg_item_height <= 0:
+            avg_item_height = max_item_height
 
 
         if self.horizontal:
             max_slots = (self.bounds.right - self.bounds.left) // max_item_width #max(item_width,5) 
         else:
-            max_slots = (self.bounds.bottom - top) // max_item_height #max(item_height,5) 
+            #
+            # PACK by each row's real height, rather than dividing the space by
+            # the tallest row. Budgeting on the tallest silently assumes every
+            # row is the same height: eleven 48px consoles with one 96px row
+            # showed six and left half the box empty.
+            #
+            # For a UNIFORM list this produces exactly floor(available / height)
+            # -- the same number as before -- so no existing listbox moves.
+            #
+            avail = self.bounds.bottom - top
+            used = 0.0
+            max_slots = 0
+            for pack_item in self.items[int(cur_start):]:
+                h = self._item_heights.get(id(pack_item), avg_item_height) + item_height
+                if used + h > avail and max_slots > 0:
+                    break
+                used += h
+                max_slots += 1
 
 
         max_slots = int(max_slots)
@@ -617,6 +667,7 @@ class LayoutListbox(layout.Column):
             slot += 1
             if slot >= max_slots or self.carousel:
                 break
+
             
 
             

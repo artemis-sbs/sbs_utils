@@ -1,4 +1,5 @@
 from .column import Column
+from .measure import measure_props, apply_overflow
 from ...helpers import FrameContext, merge_props, split_props
 
 class Text(Column):
@@ -11,9 +12,19 @@ class Text(Column):
     def _present(self, event):
         ctx = FrameContext.context
         message = self.message + self.get_cascade_props(True, True, True)
+        if self.overflow:
+            # Honour `overflow:` now that the final rect is known. Only widgets
+            # that declare a policy pay for this; the default is to spill.
+            message, draw = apply_overflow(message, self.bounds, self.overflow,
+                                           self.get_font())
+            if not draw:
+                return
         ctx.sbs.send_gui_text(event.client_id, self.region_tag,
             self.tag, message,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
+
+    def measure(self, client_id, mode, avail_px, font, ar):
+        return measure_props(self.message, mode, avail_px, font, ar)
 
     def update(self, message):
         props = split_props(message, "$text")
@@ -27,7 +38,9 @@ class Text(Column):
         message = merge_props(props)
         self.message = message
         if not self.is_hidden:
-            self.mark_visual_dirty()
+            # Visual-only unless this column is content-sized AND its measured
+            # size actually moved -- see Column.mark_value_dirty.
+            self.mark_value_dirty()
 
     
     @property
