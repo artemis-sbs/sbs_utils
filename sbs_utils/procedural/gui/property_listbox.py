@@ -89,9 +89,27 @@ def gui_properties_set(p=None, tag=None):
             return
         
     
-    # This happens in a follow_route_select_comms
-    # And it runs on the server not a true comms console
-    if event is None or event.tag == "gui_present":
+    #
+    # There used to be an `event.tag == "gui_present"` bail here, to stop a
+    # follow_route_select_comms running on the server from rewriting a panel it
+    # did not own. It tested the wrong proposition. The hazard is "this frame is
+    # not the panel's owner"; the tag only correlated with it, because a
+    # synthetic route inherited the ambient event instead of describing itself
+    # (now fixed in procedural/routes._follow_route_console).
+    #
+    # Testing the tag was wrong in BOTH directions. It blocked a GUI label
+    # building its own panel -- also a `gui_present` -- so the server mission
+    # picker and the fabrication Program grid painted blank until something
+    # re-entered them under a different event. And it did nothing at all for the
+    # callers that fire a synthetic route from a gui handler, where the tag is
+    # not "gui_present" to begin with.
+    #
+    # What is left is the honest question, asked below: does the client this
+    # frame belongs to actually have this panel? (`gui_task is None` above, and
+    # `props_lb is None` further down.) A frame with no GUI task, or one whose
+    # task never created this panel, writes nothing.
+    #
+    if event is None:
         return
     #print(f"TAG {event.tag}")
     changes = set(gui_task.get_variable("__PROP_CHANGES__", []))

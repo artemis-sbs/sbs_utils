@@ -6,7 +6,7 @@ from ..launchdispatcher import LaunchDispatcher
 from .query import to_id, to_object
 from .inventory import get_inventory_value
 
-from ..helpers import FrameContext, FakeEvent
+from ..helpers import FrameContext, FrameContextOverride, FakeEvent
 from .gui import ButtonPromise
 
 uids = {
@@ -799,12 +799,40 @@ def route_console_mainscreen_change(label):
 def _follow_route_console(origin_id, selected_id, console, widget, extra_tag):
     origin_id = to_id(origin_id)
     selected_id = to_id(selected_id )
-    event = FakeEvent(sub_tag=console, origin_id=origin_id, selected_id=selected_id, extra_tag=extra_tag,value_tag=widget)
+    #
+    # Run the synthetic selection ON A FRAME THAT DESCRIBES IT.
+    #
+    # The contract here is "as if the player made a selection", and a real
+    # engine selection arrives as the frame's event -- which is what anything
+    # reading FrameContext (client_id, client_task, client_page, EVENT) resolves
+    # through. This used to build the FakeEvent, hand it to the dispatcher, and
+    # leave FrameContext.context.event pointing at whatever was ambient. So the
+    # dispatched route ran describing itself as the OUTER event, typically the
+    # `gui_present` of whichever console happened to be painting.
+    #
+    # That is a real defect and not a cosmetic one: it is why gui_properties_set
+    # could not tell a synthetic route from a console building its own panel,
+    # and why it was given an `event.tag == "gui_present"` bail that ALSO
+    # blocked legitimate first-build population (the server mission picker and
+    # the fabrication Program grid both painted blank until something re-entered
+    # them). Fix the information rather than the symptom.
+    #
+    # client_id is carried over deliberately: every caller inside an @console
+    # label or a gui handler is already on the console it means, and a caller
+    # with no console (autoplay's background comms AI) stays on the server,
+    # where the GUI writers' own "does this client own that widget" checks are
+    # what should decide -- not a guess about the event tag.
+    #
+    event = FakeEvent(client_id=FrameContext.client_id,
+                      sub_tag=console, origin_id=origin_id,
+                      selected_id=selected_id, extra_tag=extra_tag,
+                      value_tag=widget)
     #
     # A bit of a hack directly using dispatchers data
     # forcing the default handlers
     #
-    ConsoleDispatcher.dispatch_select(event)
+    with FrameContextOverride(event=event):
+        ConsoleDispatcher.dispatch_select(event)
         
 def follow_route_select_comms(origin_id, selected_id):
     """Programmatically fire the comms selection route as if the player made a selection.
