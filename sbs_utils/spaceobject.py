@@ -84,7 +84,7 @@ class SpaceObject(Agent):
 
     def delete_object(self):
         """
-        Delete this SpaceObject.
+        Delete this SpaceObject **and the grid objects it hosts**.
 
         The native free is **deferred**: the agent is tombstoned now
         (``destroyed()`` drops it from ``Agent.all``/roles, so
@@ -93,10 +93,36 @@ class SpaceObject(Agent):
         queue, after every MAST task for this tick has yielded. This closes the
         use-after-free window where another task still references this object
         within the same tick. See ``delete_queue.DeleteQueue``.
+
+        The interior goes with the ship. A grid object is an independent agent
+        that only carries its host's id, so deleting the ship alone ORPHANED
+        them: they stayed live with a ``host_id`` pointing at nothing, and any
+        AI still walking them kept dereferencing the dead ship (LM's
+        ``damcon_ai`` re-enters every 3s and reads ``obj.host_id`` on the way
+        through). Nothing else owns that cleanup, so it belongs here.
         """
         from .delete_queue import DeleteQueue
+        self._delete_grid_objects()
         self.destroyed()
         DeleteQueue.queue(self.id)
+
+    def _delete_grid_objects(self):
+        """Tombstone + queue every grid object hosted on this ship.
+
+        Best-effort and deliberately quiet: a ship with no hull map (most
+        non-player objects) simply has no interior to clean up, and this runs
+        while something is already being torn down -- a failure here must not
+        stop the ship itself from being deleted.
+        """
+        try:
+            from .procedural.grid import grid_objects
+            from .procedural.query import to_object
+            for gid in grid_objects(self.id):
+                go = to_object(gid)
+                if go is not None:
+                    go.delete_object()
+        except Exception:
+            pass
 
         
     
