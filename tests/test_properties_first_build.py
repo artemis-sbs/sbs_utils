@@ -115,6 +115,32 @@ class TestPropertiesFirstBuild(unittest.TestCase):
             gui_properties_set(PROPS)
         self.assertEqual([], lb.items)
 
+    def test_the_build_that_creates_a_panel_does_not_re_present_it(self):
+        """gui_represent on a never-presented listbox emits sub_region + clear +
+        a full present + complete, at the widget's CONSTRUCTOR bounds (no layout
+        pass has run), nested inside the enclosing page's own build. The mock
+        tolerates that; a real engine session did not -- the server console came
+        up but player ships were never created.
+
+        It is redundant besides: a panel built this frame is presented anyway as
+        part of the build we are inside."""
+        from sbs_utils.procedural.gui import property_listbox as pl
+        calls = []
+        orig, pl.gui_represent = pl.gui_represent, lambda w: calls.append(w)
+        try:
+            lb = self._panel()
+            gui_properties_set(PROPS)
+            self.assertEqual(2, len(lb.items), "still populated")
+            self.assertEqual([], calls, "must not re-present a panel mid-build")
+
+            # An already-drawn panel is a genuine update and still re-presents.
+            lb.client_id = CID
+            FrameContext.context.event = FakeEvent(client_id=CID, tag="gui_message")
+            gui_properties_set(PROPS)
+            self.assertEqual([lb], calls)
+        finally:
+            pl.gui_represent = orig
+
     def test_an_already_drawn_panel_keeps_the_old_protection(self):
         """The half the guard exists for, and the reason it is narrowed rather
         than removed: a follow_route_select_comms can run a comms route on the
