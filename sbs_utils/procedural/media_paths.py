@@ -42,16 +42,31 @@ def _mission_dir():
 def _pinned_packs():
     """The pack zips this mission declared, in `story.json` order. A mission that
     declares none simply has none - that is not an error, it just means its art is its
-    own."""
+    own.
+
+    TWO WAYS TO DECLARE ONE, and the difference is who holds the copy:
+
+        "resources":    {"media": "...zip"}     the ENGINE unpacks it into this mission
+        "shared_media": ["...zip"]              nobody does; it is read from __lib__
+
+    `resources` is the engine's key: it copies the pack into `<mission>/media/` at load,
+    which is where the per-mission duplicates come from. A mission that only needs
+    GRAPHICS out of a pack (resolved here, through the image atlas) can declare it under
+    `shared_media` instead and read the one shared copy. A mission that needs
+    engine-resolved media from the pack - a `@media/skybox/...` label, music, audio -
+    still needs `resources`, because the engine resolves those itself and only looks in
+    the mission folder.
+    """
     story = get_mission_dir_filename("story.json")
     try:
         with open(story, "r", encoding="utf-8") as f:
             data = json.load(f) or {}
     except Exception:
         return []
-    resources = data.get("resources") or {}
+    declared = list((data.get("resources") or {}).values())
+    declared += list(data.get("shared_media") or [])
     out = []
-    for value in resources.values():
+    for value in declared:
         for v in (value if isinstance(value, list) else [value]):
             v = str(v).strip()
             if v.lower().endswith(".zip"):

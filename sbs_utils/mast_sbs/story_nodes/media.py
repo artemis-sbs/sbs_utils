@@ -64,49 +64,53 @@ class MediaLabel(DecoratorLabel):
                 ret.append(file)
         return ret
     
+    def _media_roots(self):
+        """Where a media label may find its file: this mission's own `media/` first, then
+        each media pack it declared - unpacked ONCE beside the libraries rather than
+        copied into every mission.
+
+        Skybox and music are resolved HERE, not by the engine, so a pack's skybox and
+        music are shareable exactly like its graphics. Only the mission-local folder was
+        searched before, which is why a pack had to be copied in to be usable."""
+        try:
+            from ...procedural.media_paths import media_roots
+            return media_roots()
+        except Exception:
+            return [path.join(get_script_dir(), "media")]
+
     def test_file(self):
-        data_folder = get_mod_dir("media")
-        media_folder = path.join(get_script_dir(), "media")
         if self.kind == "skybox":
-            data_folder = get_artemis_graphics_dir()
-            file_name = path.join(media_folder, self.kind, self.path)
-            if path.isfile(file_name+".png"):
-                return True
-            file_name = path.join(data_folder, self.path)
-            if path.isfile(file_name+".png"):
+            for root in self._media_roots():
+                if path.isfile(path.join(root, self.kind, self.path) + ".png"):
+                    return True
+            if path.isfile(path.join(get_artemis_graphics_dir(), self.path) + ".png"):
                 return True
         elif self.kind == "music":
-            data_folder = path.join(get_artemis_audio_dir(), "music")
-            file_name = path.join(media_folder, self.kind, self.path)
-            if path.isdir(file_name):
-                return True
-            file_name = path.join(data_folder, self.path)
-            if path.isdir(file_name):
+            for root in self._media_roots():
+                if path.isdir(path.join(root, self.kind, self.path)):
+                    return True
+            if path.isdir(path.join(get_artemis_audio_dir(), "music", self.path)):
                 return True
         return False
     
     def true_path(self):
-        data_folder = get_mod_dir("media")
-        media_folder = path.join(get_script_dir(), "media")
         if self.kind == "skybox":
-            data_folder = get_artemis_graphics_dir()
-            file_name = path.join(media_folder, self.kind, self.path)
-            if path.isfile(file_name+".png"):
-                return file_name
-            file_name = path.join(data_folder, self.path)
-            if path.isfile(file_name+".png"):
+            for root in self._media_roots():
+                file_name = path.join(root, self.kind, self.path)
+                if path.isfile(file_name+".png"):
+                    return file_name
+            if path.isfile(path.join(get_artemis_graphics_dir(), self.path) + ".png"):
                 return self.path
             return "sky1"
         #
         #
         #
         elif self.kind == "music":
-            data_folder = path.join(get_artemis_audio_dir(), "music")
-            file_name = path.join(media_folder, self.kind, self.path)
-            if path.isdir(file_name):
-                return file_name
-            file_name = path.join(data_folder, self.path)
-            if path.isdir(file_name):
+            for root in self._media_roots():
+                file_name = path.join(root, self.kind, self.path)
+                if path.isdir(file_name):
+                    return file_name
+            if path.isdir(path.join(get_artemis_audio_dir(), "music", self.path)):
                 return self.path
             return "default"
 
