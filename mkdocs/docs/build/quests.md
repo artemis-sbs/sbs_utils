@@ -16,20 +16,25 @@ fields, then prose:
 ---
 Scope: shared
 State: active
-Goal: destroy 6 raiders
+Objective: Drive the raiders off the freighters
+Done when: destroy 6 raiders
 Pays: 500 credits
 ---
 Escort the freighters through the belt - every raider you burn buys them time.
 ```
+
+The full file format — headings, the fence, nesting, lists and how a record says what
+it is — is in [The AMD file format](amd-format.md).
 
 ### Quest fields
 
 | Field | Meaning |
 |---|---|
 | `Scope:` | `shared` (one quest for the whole game) or per-ship. |
-| `State:` | Starting state — `active` (running immediately), or `idle` (shown on the log as **Available** for a player to **Accept**; omit for the same effect). A whole board of `idle` jobs is a pick-up-work board. |
-| `Goal:` | The completion **trigger** plus the objective text shown in the log (see [Triggers](#triggers)). |
-| `When:` | A trigger with no objective text (same grammar as `Goal:`). |
+| `State:` | Starting state — `active` (running immediately), or `available` (shown on the log for a player to **Accept**; omit for the same effect). A whole board of `available` jobs is a pick-up-work board. |
+| `Objective:` | The sentence the player reads in the quest log. |
+| `Done when:` | The completion **trigger** (see [Triggers](#triggers)). |
+| `Starts when:` | What activates the quest (same grammar). |
 | `Pays:` | Reward on completion — `500 credits`, an item key, … |
 | `Then:` | Follow-up on completion — `reveal <quest>` (unlock another) or `signal <name>`. |
 | `Display:` / `Tier:` | Optional label / ordering for the log. |
@@ -57,7 +62,7 @@ single quest override these lists for that job (a station-specific task).
 
 ### Triggers
 
-The verb in `Goal:` / `When:` (or a `fail_*` field) maps to the event the quest
+The verb in `Done when:` / `Starts when:` (or a `fail_*` field) maps to the event the quest
 listens for:
 
 | Verb(s) | Fires on | Argument |
@@ -90,7 +95,7 @@ objectives on.
 
 !!! tip "`Fail after:` starts counting when the quest goes ACTIVE"
     The deadline is anchored **lazily** — the clock starts on the first tick the
-    quest is **active**, not when it is granted. So an `idle` job's timer does not
+    quest is **active**, not when it is granted. So an `available` job's timer does not
     run until a player **Accepts** it: a timed rescue gives the crew the full window
     from the moment they take it on, instead of ticking down while it sits
     unaccepted on the board. (Pair it with **spawn-on-accept** — key the target

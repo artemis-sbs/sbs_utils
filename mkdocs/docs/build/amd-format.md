@@ -1,0 +1,200 @@
+# The AMD file format
+
+AMD is how you author mission **content as data** — quests, characters, places, items,
+scans — so the MAST holds only the logic that reacts to it. It is written to be read and
+written by people who write stories, not by programmers.
+
+A file is a tree of **records**. Each record is a heading, an optional block of facts,
+and prose.
+
+```amd
+# [Sweep the Belt](job_sweep)
+---
+State: available
+Objective: Clear the hazard asteroids from the shipping lane
+Pays: 150 credits
+---
+The freighters cannot run the lane until the rocks are gone.
+```
+
+Three parts, in order: the **heading** names it, the **fence** between the `---` lines
+holds its facts, and everything after is the **body** the player reads.
+
+---
+
+## Headings
+
+```amd
+# [Display Name](key)
+```
+
+The display name is what a player sees; the key is what other records point at. Deeper
+headings nest — a `##` sits inside the `#` above it, a `###` inside that.
+
+`#` is only a heading when it has the `[Display](key)` shape. A plain `# Heading` in a
+body is ordinary markdown text, which is why briefings can use markdown freely.
+
+### Naming a record from somewhere else
+
+A key does not have to be unique — short names like `recover` or `scan` read well inside
+several different jobs. When a name is used more than once, point at it by **path**:
+
+```amd
+Then: reveal florbin/recover
+```
+
+A bare key resolves **nearest first** — from the record making the reference, then
+outward — so a step can refer to a sibling by its short name. If a bare key really is
+ambiguous, the linter says so and names the candidates rather than guessing.
+
+---
+
+## The fence
+
+Everything between the `---` lines is the record's facts, one per line.
+
+```amd
+---
+Characters                   <- what these are (optional; see below)
+Color: #3399ff               <- a fact
+Home: 6, 4
+Citation: a long line that   <- an inline value: indented lines CONTINUE it
+  wraps onto the next line
+Properties:                  <- an EMPTY value: indented lines NEST under it
+  Monster: 'gui_drop_down(...)'
+Lines:                       <- ...or become a list
+  - "First bark."
+  - "Second bark."
+// a comment
+---
+```
+
+One rule tells wrapping from nesting: **if the label has a value on its own line, the
+indented lines continue it; if it does not, they nest underneath it.**
+
+A few details worth knowing:
+
+- **Colours and colons are safe.** `Color: #86c` keeps its `#`, and
+  `Reveals: Survey logged: 3 crates` keeps its colon. Values are text unless the format
+  says otherwise.
+- **Blank lines are free** — use them to group facts.
+- **A line that is not a fact is an error**, not a silent omission. If you write a line
+  with no colon, the linter tells you and suggests putting it in the body below the
+  `---`.
+- **The escape hatch:** a value starting with `{` or `[` is read as a structured value
+  (`Modifiers: {speed: 2}`). Anything the plain form cannot express can be written this
+  way, so the format never has to change to make room for it.
+
+### The `---` fence itself
+
+A fence opens **immediately after a heading** and closes at the next `---`. Anywhere
+else, `---` is just a horizontal rule in your prose. A heading always closes an open
+fence, and one left open at the end of the file is reported.
+
+---
+
+## Saying what a record is
+
+Most of the time you never say — the **section name** already does:
+
+```amd
+## [Jobs](jobs)
+### [Sweep the Belt](job_sweep)      <- a quest, because the section is called Jobs
+```
+
+`Jobs`, `Goals`, `Narrative`, `Characters`, `Cast`, `Crew`, `Landmarks`, `Regions`,
+`Items`, `Sides`, `Scans`, `Dialogue` and their singular forms are all understood, and a
+mission can teach the format its own names (`Contracts`, `Bounties`) so it never has to
+say this twice.
+
+When the name does not say it, write the word on the **first line of the fence**:
+
+```amd
+## [The Crew of the Meridian](meridian_crew)
+---
+Characters
+---
+```
+
+Singular or plural both work. It applies to everything underneath, and a single record
+can override it. `These are: characters` is the same declaration written out in full.
+
+A whole file can say it once, in a fence before the first heading:
+
+```amd
+---
+Characters
+---
+
+# [Ana Reyes](ana)
+```
+
+If you write a word the format does not know, it tells you and lists the ones it does.
+
+---
+
+## Quest fields
+
+The most-used vocabulary. Anything unrecognised is kept as-is and flagged by the linter,
+never dropped.
+
+| Field | Meaning |
+|---|---|
+| `State:` | `available` (on the board for a player to Accept), `active`, `secret`, `complete`, `failed` |
+| `Objective:` | The sentence the player reads in the quest log |
+| `Done when:` | What completes it — `destroy 6 raiders`, `reach 6, 4`, `signal drone_down` |
+| `Starts when:` | What activates it (same grammar) |
+| `Then:` | What happens next — `reveal <key>` or `signal <name>` |
+| `Pays:` | The reward — `500 credits` |
+| `Fail on signal:` / `Fail after:` / `Complete after:` | Failure and timed completion |
+| `Parent:` | The larger mission this is a step of |
+| `Win:` / `Lose:` | Ends the game, with optional end-screen text |
+
+### Older spellings still work
+
+Nothing you have written stops working. These are the same fields under their previous
+names, and a file may use either:
+
+| Older | Now |
+|---|---|
+| `Goal:` | `Done when:` (plus `Objective:` for the text it used to double as) |
+| `When:` | `Starts when:` |
+| `State: idle` | `State: available` — the word the player already sees |
+
+---
+
+## Writing values
+
+The format understands the shapes an author naturally writes:
+
+| Written | Read as |
+|---|---|
+| `Home: 6, 4` | a map cell |
+| `Pays: 200 credits` | a reward |
+| `Fail after: 6 minutes` | a duration |
+| `Offers: patrol, escort, strike` | a list |
+| `Values: by-the-book 40, fearsome 30` | weighted choices |
+| `Flies: 60% Kralien, 40% Arvonian` | a mix |
+| `Inputs: salvage x5, bio_sample x1` | a shopping list |
+| `Program: kind=bio, range=medium` | settings |
+| `Color: #3399ff` | a colour |
+
+---
+
+## Checking a file
+
+```
+sbs lint <mission>
+```
+
+reports the things that used to fail silently: a heading that will not parse, a fence
+line that is not a fact, a reference that points at nothing, an ambiguous name, a value
+outside a field's allowed set, a field no one declares, and non-ASCII text the engine
+cannot render.
+
+The VS Code extension shows the same findings as you type, and gives each field an
+editor suited to it — a dropdown for a fixed set of values, a picker for a reference, a
+swatch for a colour, the face builder for a face.
+
+See [AMD authoring tools](../tooling/amd-tools.md) for the outline, timeline, graph and
+map views over the same files.

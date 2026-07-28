@@ -133,7 +133,7 @@ points at nothing just… goes nowhere. The Resolver makes that visible. Two pan
   references **both ways**: **→ leads to** (what it reveals/reaches) and **← reached by**
   (what reveals it). Each reference is marked **✓ resolved** or **✗ dangling**.
 - **Red flags** (right) — everything that's broken: **dangling references**, **orphan
-  headings** (unreachable — nothing reveals them and they have no `When:`/signal trigger),
+  headings** (unreachable — nothing reveals them and they have no `Starts when:`/signal trigger),
   and structural / cross-file lint. Sorted worst-first, each jumps to source.
 
 Single-click a row to browse (a reference selects the related entity; a red flag highlights

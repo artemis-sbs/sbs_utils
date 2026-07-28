@@ -93,6 +93,7 @@ nav:
     - Damage: build/damage.md
     - Story & NPC messages: build/messages.md
     - Objectives: mast/objectives.md
+    - The AMD file format: build/amd-format.md
     - Quests: build/quests.md
     - Items & Upgrades: build/items-upgrades.md
     - Adding an item or upgrade: build/custom-upgrades.md
