@@ -84,6 +84,103 @@ def _open_by_path(docs):
     return out
 
 
+# Descriptor constructors a mission may use when it declares its own vocabulary. Only
+# these are evaluated, and only with literal arguments - the point is to LEARN what a
+# mission declares without RUNNING it.
+_DESCRIPTOR_FNS = (
+    "text", "multiline", "integer", "boolean", "enum", "ref", "coord2", "color", "face",
+    "signal", "csv", "compound", "duration", "pct", "weighted", "makeup", "counted",
+    "kv", "reward", "trigger", "field",
+)
+
+
+def _static_value(node, schema):
+    """One argument of a registration call, evaluated only if it is safe: a literal, or
+    a descriptor constructor from `_DESCRIPTOR_FNS` applied to literals."""
+    import ast
+    try:
+        return ast.literal_eval(node)
+    except Exception:
+        pass
+    if isinstance(node, ast.Dict):
+        # The field table itself - `{"flies": makeup(...), "home": coord2()}`: literal
+        # keys, descriptor values, which is why literal_eval alone could not read it.
+        out = {}
+        for k, v in zip(node.keys, node.values):
+            try:
+                key = ast.literal_eval(k)
+            except Exception:
+                return None
+            val = _static_value(v, schema)
+            if val is None:
+                return None
+            out[key] = val
+        return out
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)             and node.func.id in _DESCRIPTOR_FNS:
+        fn = getattr(schema, node.func.id, None)
+        if fn is None:
+            return None
+        args, kwargs = [], {}
+        for arg in node.args:
+            v = _static_value(arg, schema)
+            if v is None and not isinstance(arg, ast.Constant):
+                return None
+            args.append(v)
+        for kw in node.keywords:
+            if kw.arg is None:
+                return None
+            v = _static_value(kw.value, schema)
+            if v is None and not isinstance(kw.value, ast.Constant):
+                return None
+            kwargs[kw.arg] = v
+        try:
+            return fn(*args, **kwargs)
+        except Exception:
+            return None
+    return None
+
+
+def _learn_mission_vocabulary(sources):
+    """Register the vocabulary a mission declares in its OWN Python, by READING it.
+
+    A mission extends the schema at runtime (`amd_register_fields("clan", {...})`,
+    `amd_register_section_names(("clans",), "clan")`) - but the editor never imports
+    mission code, so none of it reached the Inspector, the linter or the completion.
+    Open Universe's ~30 clan/captain/worldlet labels and LegendaryMissions' recipes were
+    all untyped in the editor for exactly this reason, and a record whose section named a
+    mission archetype showed no type at all.
+
+    Parsed with `ast`, never executed: a call is honoured only when its archetype/labels
+    are literals and each descriptor is one of the known constructors."""
+    import ast
+    from sbs_utils.procedural import amd_schema as schema
+    for src in sources or ():
+        if "amd_register_" not in src:
+            continue
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)):
+                continue
+            name = node.func.id
+            if name not in ("amd_register_fields", "amd_register_section_names"):
+                continue
+            args = [_static_value(a, schema) for a in node.args]
+            if len(args) < 2 or not isinstance(args[0], (str, tuple, list)):
+                continue
+            try:
+                if name == "amd_register_fields" and isinstance(args[1], dict):
+                    schema.amd_register_fields(args[0], args[1], domain="mission")
+                elif name == "amd_register_section_names" and isinstance(args[1], str):
+                    schema.amd_register_section_names(args[0], args[1], domain="mission")
+            except Exception:
+                # A clash with a core field is the registration's own business to shout
+                # about at startup; the editor must not fall over for it.
+                pass
+
+
 def _mission_index(root, docs):
     if root in _index_cache:
         return _index_cache[root]
@@ -107,6 +204,8 @@ def _mission_index(root, docs):
             t = _read(p)
             if t is not None:
                 mast.append(t)
+    # Learn what this mission declares BEFORE anything is typed or linted.
+    _learn_mission_vocabulary(mast)
     index = {"known": known, "docs": amd_docs, "mast": mast or None}
     # Derived once per index, not once per request: these depend only on the MAST
     # sources, and the index is rebuilt wholesale on any edit, so the cache lifetime
