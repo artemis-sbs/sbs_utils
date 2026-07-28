@@ -685,12 +685,22 @@ def _detail_for(index, u, d, node):
     # and `  - item` list continuations all live here. `fenceLines` carries them verbatim
     # so an edit can put the fence back together instead of replacing it with the fields
     # alone - which silently deleted the record's own noun, its notes and its lists.
+    from sbs_utils.procedural.amd import amd_kind_line
     fields, fl = [], node.fence_lines
     fence_lines = []
+    # The record's OWN kind noun, if it wrote one, MARKED IN PLACE - so the editor can
+    # replace it without re-deriving which line it was (blanks and `//` comments may
+    # legally precede it).
+    own_kind = amd_kind_line(chr(10).join(r for _l, r in fl))
+    kind_seen = False
     for _ln, raw in fl:
         s = raw.strip()
         if not s or s.startswith("//") or ":" not in raw:
-            fence_lines.append({"raw": raw})
+            entry = {"raw": raw}
+            if own_kind and not kind_seen and s == own_kind:
+                entry["kind"] = True
+                kind_seen = True
+            fence_lines.append(entry)
             continue
         label, value = raw.split(":", 1)
         fields.append({"label": label.strip(), "value": value.strip()})
@@ -719,7 +729,10 @@ def _detail_for(index, u, d, node):
         "archetype": arch,
         "displayRange": _span_range(node.display_span) if node.display_span else None,
         "fields": fields, "fenceRange": fence_range, "fenceLines": fence_lines,
-        "kind": node.kind_noun if hasattr(node, "kind_noun") else None,
+        # What this record CALLS itself, the vocabulary it may pick from, and what
+        # each word implies - so `Beat` is a visible choice that says what choosing
+        # it does, instead of being invisible and unsettable.
+        "kind": own_kind, "kinds": _kind_choices(),
         "options": _mission_symbols(index),
         "bodyText": "\n".join(body),
         "bodyRange": {"start": {"line": node.body_start, "character": 0},
@@ -735,6 +748,21 @@ def _record_labels(node):
             lab = raw.split(":", 1)[0].strip()
             if lab:
                 out.append(lab)
+    return out
+
+
+def _kind_choices():
+    """Every noun an author may write as a kind line, with what it implies.
+
+    The implications are the point: `Beat` is not a label - it says the record is the
+    crew's, already running, and listed only once it has happened. Someone picking from
+    a list has to be able to see that."""
+    from sbs_utils.procedural.amd_schema import amd_known_kinds, amd_kind_defaults
+    out = []
+    for noun in amd_known_kinds():
+        implied = amd_kind_defaults(noun)
+        out.append({"noun": noun,
+                    "implies": ", ".join("%s: %s" % (k, v) for k, v in sorted(implied.items()))})
     return out
 
 
