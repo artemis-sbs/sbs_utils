@@ -1,0 +1,102 @@
+"""Tests for the AMD language server's authoring help: what completion offers WHERE,
+and what hover explains.
+
+    python -m unittest tests.test_amd_lsp_authoring
+"""
+import unittest
+
+from sbs_utils.fs import test_set_exe_dir
+test_set_exe_dir()
+
+from sbs_utils.procedural import amd_lsp as L
+from sbs_utils.procedural.amd_core import parse
+
+SRC = chr(10).join([
+    "# [The Coils Overheat](ramscoop/coils)",
+    "---",
+    "Beat",
+    "Starts when: revealed",
+    "",
+    "---",
+    "Engineering reports the coils running hot.",
+    "",
+])
+INDEX = {"known": {"ramscoop", "other_key"}}
+
+
+def _labels(line, char):
+    doc = parse(SRC, "x.amd")
+    r = L._completion(INDEX, doc, {"line": line, "character": char}, SRC)
+    return [i["label"] for i in r["items"]]
+
+
+def _hover(line, char=3):
+    doc = parse(SRC, "x.amd")
+    h = L._hover(INDEX, doc, {"line": line, "character": char}, SRC)
+    return (h or {}).get("contents", {}).get("value", "")
+
+
+class CompletionIsPositionAware(unittest.TestCase):
+    """It used to ignore position entirely and answer every request with the mission's
+    node keys - so typing a fence offered keys and never a field name or a noun."""
+
+    def test_the_kind_line_offers_nouns(self):
+        labels = _labels(2, 4)
+        self.assertIn("beat", labels)
+        self.assertIn("arc", labels)
+        self.assertNotIn("ramscoop", labels)
+
+    def test_a_noun_says_what_it_implies(self):
+        doc = parse(SRC, "x.amd")
+        r = L._completion(INDEX, doc, {"line": 2, "character": 4}, SRC)
+        beat = next(i for i in r["items"] if i["label"] == "beat")
+        self.assertIn("show: when done", beat.get("detail") or "")
+
+    def test_a_fence_line_offers_field_labels(self):
+        labels = _labels(4, 0)
+        self.assertIn("Done when:", labels)
+        self.assertIn("Fails when:", labels)
+
+    def test_field_labels_are_sentence_case(self):
+        self.assertNotIn("Done When:", _labels(4, 0))
+
+    def test_internal_fields_are_not_offered(self):
+        labels = _labels(4, 0)
+        for gone in ("Fail after:", "Fail on signal:", "On kill:", "Win text:"):
+            self.assertNotIn(gone, labels, gone)
+
+    def test_after_a_label_it_offers_that_field_s_values(self):
+        labels = _labels(3, 13)
+        self.assertIn("revealed", labels)
+        self.assertIn("accepted", labels)
+
+    def test_the_body_still_offers_node_keys(self):
+        self.assertIn("other_key", _labels(6, 5))
+
+
+class HoverExplainsTheFence(unittest.TestCase):
+    """Every field and noun carries an explanation in the schema; none of it used to
+    reach the one place someone wonders what a word means."""
+
+    def test_a_noun_hover_says_what_it_implies(self):
+        v = _hover(2)
+        self.assertIn("Beat", v)
+        self.assertIn("show: when done", v)
+
+    def test_a_field_hover_shows_the_schema_hint(self):
+        v = _hover(3)
+        self.assertIn("Starts when", v)
+        self.assertIn("revealed", v)
+
+    def test_the_canonical_spelling_is_readable(self):
+        self.assertNotIn("Starts_when", _hover(3))
+
+    def test_a_retired_field_says_so(self):
+        src = chr(10).join(["# [x](k)", "---", "Beat", "Fail after: 5 minutes", "---", "p", ""])
+        doc = parse(src, "x.amd")
+        v = (L._hover(INDEX, doc, {"line": 3, "character": 3}, src) or {})
+        self.assertIn("still parses", v.get("contents", {}).get("value", ""))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -256,10 +256,13 @@ def _definition(index, doc, pos):
     return None
 
 
-def _hover(index, doc, pos):
+def _hover(index, doc, pos, text=""):
     ref = _ref_at(doc, pos.get("line", 0), pos.get("character", 0))
     if not ref:
-        return None
+        # Not on a reference - but a fence line is exactly where someone wonders what a
+        # word means, and every field and noun already carries an explanation nobody
+        # could see. Show it there.
+        return _fence_hover(doc, pos, text)
     leaf = str(ref.value).split("/")[-1]
     _uri, target = _find_node(index, leaf)
     val = f"**{ref.kind}** → `{ref.value}`"
@@ -272,10 +275,123 @@ def _hover(index, doc, pos):
     return {"contents": {"kind": "markdown", "value": val}}
 
 
-def _completion(index):
-    # Offer every node key across the mission. kind 6 = Variable.
-    items = [{"label": k, "kind": 6} for k in sorted(index["known"])]
-    return {"isIncomplete": False, "items": items}
+def _node_for_line(doc, line0):
+    """The node whose fence/body contains this 0-based line - the last heading above it."""
+    best = None
+    for n in doc.nodes:
+        if n.span and n.span.line - 1 <= line0:
+            best = n
+        else:
+            break
+    return best
+
+
+def _fence_context(doc, line0, text_line, char):
+    """Where the cursor is, in fence terms: `kind` (the first meaningful fence line),
+    `label` (typing a field name), `value` (after a `Label:`), or None (body / heading).
+
+    Completion used to ignore position entirely and answer every request with the
+    mission's node keys - so typing a fence offered keys and never a field name or a
+    noun, which is the vocabulary an author is actually reaching for."""
+    node = _node_for_line(doc, line0)
+    if node is None or not node.fence_lines:
+        return None, None, None
+    lines = [ln for ln, _raw in node.fence_lines]
+    if line0 + 1 not in lines:
+        return None, None, node
+    before = text_line[:char]
+    if ":" in text_line:
+        return ("value" if ":" in before else "label"), text_line.split(":", 1)[0].strip(), node
+    # No colon: a bare word. The FIRST meaningful fence line may be the kind noun.
+    first = None
+    for ln, raw in node.fence_lines:
+        st = raw.strip()
+        if st and not st.startswith("//"):
+            first = ln
+            break
+    return ("kind" if first is None or line0 + 1 <= first else "label"), None, node
+
+
+def _fence_hover(doc, pos, text):
+    """What this fence line MEANS: the schema's own words for a field, or what a kind
+    noun already implies. All of it was written down and none of it was reachable."""
+    from sbs_utils.procedural.amd_schema import (
+        field_schema, enum_values, amd_kind_defaults, amd_canonical_label, amd_is_internal)
+    line0 = pos.get("line", 0)
+    src = str(text or "").split(chr(10))
+    if not (0 <= line0 < len(src)):
+        return None
+    raw = src[line0]
+    where, label, node = _fence_context(doc, line0, raw, pos.get("character", 0))
+    if where is None:
+        return None
+    arch = getattr(node, "kind", None) if node is not None else None
+    if where == "kind":
+        noun = raw.strip()
+        implied = amd_kind_defaults(noun)
+        if not noun:
+            return None
+        val = "**%s**" % noun
+        if implied:
+            val += "\n\nmeans " + ", ".join("`%s: %s`" % kv for kv in sorted(implied.items()))
+        else:
+            val += "\n\n*(names what this record is; implies nothing on its own)*"
+        return {"contents": {"kind": "markdown", "value": val}}
+    label = label or raw.split(":", 1)[0].strip()
+    if not label:
+        return None
+    # The registry normalises to `starts_when`; an author writes `Starts when`.
+    canonical = amd_canonical_label(label, arch).replace("_", " ")
+    d = field_schema(label, arch)
+    val = "**%s:**" % (canonical[:1].upper() + canonical[1:])
+    if canonical.lower() != label.strip().lower():
+        val += "  *(the canonical spelling of `%s:`)*" % label.strip()
+    if d.get("hint"):
+        val += "\n\n%s" % d["hint"]
+    vals = enum_values(label, arch)
+    if vals:
+        val += "\n\none of: " + ", ".join("`%s`" % v for v in vals)
+    if amd_is_internal(label, arch):
+        val += "\n\n*(still parses; a newer field says this now)*"
+    return {"contents": {"kind": "markdown", "value": val}}
+
+
+def _completion(index, doc=None, pos=None, text=""):
+    """What can be written HERE: a kind noun on the fence's first line, a field label on
+    a fence line, that field's values after the colon, else the mission's node keys."""
+    from sbs_utils.procedural.amd_schema import (
+        amd_known_kinds, amd_kind_defaults, template_fields, enum_values, field_schema)
+    items = None
+    if doc is not None and pos is not None:
+        line0 = pos.get("line", 0)
+        src = str(text or "").split(chr(10))
+        text_line = src[line0] if 0 <= line0 < len(src) else ""
+        where, label, node = _fence_context(doc, line0, text_line or "", pos.get("character", 0))
+        arch = getattr(node, "kind", None) if node is not None else None
+        if where == "kind":
+            items = []
+            for noun in amd_known_kinds():
+                implied = amd_kind_defaults(noun)
+                items.append({"label": noun, "kind": 7,      # 7 = Class
+                              "detail": ", ".join("%s: %s" % kv for kv in sorted(implied.items()))
+                                        or None})
+        elif where == "label":
+            # Sentence case, the way every field is written: `Done when:`, not
+            # `Done When:`.
+            items = [{"label": f[:1].upper() + f[1:] + ":", "kind": 10}   # 10 = Property
+                     for f in template_fields(arch or "quest")]
+        elif where == "value" and label:
+            vals = enum_values(label, arch) or []
+            d = field_schema(label, arch)
+            if not vals and d.get("type") == "trigger":
+                vals = ["signal ", "destroy ", "reach ", "dock ", "accepted", "revealed",
+                        "at once", "all dead ", "5 minutes"]
+            items = [{"label": v, "kind": 12} for v in vals]    # 12 = Value
+    if not items:
+        # Fall back to every node key across the mission. kind 6 = Variable.
+        items = [{"label": k, "kind": 6} for k in sorted(index["known"])]
+    return {"isIncomplete": False, "items": [i for i in items if i.get("label")]}
+
 
 
 # --- code actions (quick fixes) ---------------------------------------------
@@ -1372,9 +1488,9 @@ def serve(stdin=None, stdout=None):
                 elif method == "textDocument/documentSymbol":
                     result = _symbols(doc.root)
                 elif method == "textDocument/hover":
-                    result = _hover(index, doc, pos)
+                    result = _hover(index, doc, pos, docs.get(uri, ""))
                 elif method == "textDocument/completion":
-                    result = _completion(index)
+                    result = _completion(index, doc, pos, docs.get(uri, ""))
                 elif method == "textDocument/references":
                     include_decl = params.get("context", {}).get("includeDeclaration", True)
                     result = _references(index, doc, pos, include_decl)
