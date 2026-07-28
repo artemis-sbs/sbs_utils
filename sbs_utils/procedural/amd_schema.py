@@ -359,6 +359,8 @@ TRAITS = {
         "yields": text(hint="ore 12  (per minute, per extractor)"),
         "reserve": text(hint="4000, or `unlimited`"),
         "price": integer(),
+        "costs": counted(hint="ore 120, gas 40"),
+        "time": duration(),
     },
 }
 
@@ -424,6 +426,9 @@ _SECTION_ALIASES = {
     "regions": "region", "region": "region",
     "maps": "map", "map": "map",
     "dialogue": "dialogue", "lines": "dialogue",
+    # The ROOT record of a file names the whole document - a universe, a scenario, a
+    # siege. That is what a map record is, so these read as one without a new word.
+    "universe": "map", "scenario": "map", "siege": "map", "boss": "map",
     # Names real missions already use for a group of quests. Before these, 5108 of
     # the corpus's 5273 field uses resolved to NO archetype, so the busiest part of
     # the language had no typing, no lint and no widgets.
