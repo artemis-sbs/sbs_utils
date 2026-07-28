@@ -256,7 +256,7 @@ only when it differs. Five plain statements, no machine words.
 | `LegendaryMissions/**/*.amd` | 15 files | mostly untouched (aliases absorb renames); `recipes.py:amd_recipe_data`, `bar_content.py`, `siege_boss.py:_boss_data` bypass loaders deleted |
 | `OpenUniverse/universe_core/*.amd` | 12 files + `universe_amd.py` | ~30 OU labels registered via `amd_register_fields("universe", ...)` |
 | `StormsBeacon/stormsbeacon.amd` | 1 file (shipped mission) | alias-covered; verify |
-| `arme2cosmos/amd_emit.py` | **1028-line AMD producer** | emits the new vocabulary (`Objective:`/`Done when:`/`State: available`, no `signal` keyword) |
+| `missions/arme2cosmos/amd_emit.py` | **1028-line AMD producer** (own repo, inside the missions tree) | emits the new vocabulary (`Objective:`/`Done when:`/`State: available`, no `signal` keyword) |
 | `F:/a/Cosmos-a2x-test/data/missions_amd` | 34 generated `.amd`, 23 missions (NOT a git repo) | **regenerate** by re-running a2x - never hand-edit. Rebuild its `__lib__` sbslib too, or the new labels are silently dropped |
 | `overlay_demo`, `modding_tools/doc_viewer`, `LM_TestRange` | demos/harnesses | verify |
 | `mkdocs` | docs are already behind v1.4.0 | document the settled format (do NOT publish Open Universe) |

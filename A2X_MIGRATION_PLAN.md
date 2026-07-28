@@ -10,7 +10,9 @@
 
 ## 1. Two deliverables
 
-1. **`arme2cosmos`** — a standalone CLI tool in its own repo (`git init`), a migration *assistant/scaffolder*.
+1. **`arme2cosmos`** — a standalone CLI tool in its own repo, a migration *assistant/scaffolder*.
+   Checked out at `Cosmos-1-3-0/data/missions/arme2cosmos` (inside the missions tree, but
+   not a mission - no `description.yaml`, so the picker skips it).
 2. **`a2x`** — a new, optional, clearly-quarantined namespace inside `sbs_utils` providing
    legacy-shaped helper functions so generated (and hand-ported) MAST reads like the old XML.
 
