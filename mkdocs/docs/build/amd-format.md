@@ -10,9 +10,9 @@ and prose.
 ```amd
 # [Sweep the Belt](job_sweep)
 ---
-State: available
+At start: offered
 Objective: Clear the hazard asteroids from the shipping lane
-Pays: 150 credits
+Reward: 150 credits
 ---
 The freighters cannot run the lane until the rocks are gone.
 ```
@@ -145,8 +145,22 @@ Starts when: signal ramscoop_online
 Engineering reports the coils running hot.
 ```
 
-They add no new fields — a `Beat` is a quest in every other way. If one should read
-differently, `Show:` overrides the word (see [Quests](quests.md)).
+A **`Cue`** is the fourth: a stage direction. It happens — a flag set, an effect played
+— and is never listed at all.
+
+Two more say whose the work is. A **`Job`** is taken by a ship — it waits on the board
+until someone accepts it. An **`Objective`** is the crew's, and is live from the start.
+That difference *is* `Scope:` and the arming word, so neither needs writing.
+
+They add no new fields. What they do is save you writing what they already say: a story
+moment belongs to the whole crew and is already running, so a `Beat` needs neither
+`Scope:` nor `At start:`. Write a field only where the record **differs** — a beat that
+waits to be revealed says `At start: hidden`, one that should stay on screen says
+`Show: always`.
+
+!!! note "The word has to be on the record"
+    A kind line on a *section* says what its records **are**, but the field defaults come
+    from each record's own word. Write `Beat` on the beat.
 
 A whole file can say it once, in a fence before the first heading:
 
@@ -169,14 +183,15 @@ never dropped.
 
 | Field | Meaning |
 |---|---|
-| `State:` | `available` (on the board for a player to Accept), `active`, `secret`, `complete`, `failed` |
+| `At start:` | `running`, `offered` (on the board for a player to Accept), `hidden`, `done`, `failed` |
 | `Objective:` | The sentence the player reads in the quest log |
 | `Done when:` | What completes it — `destroy 6 raiders`, `reach 6, 4`, `signal drone_down` |
 | `Starts when:` | What activates it (same grammar) |
 | `Then:` | What happens next — `reveal <key>` or `signal <name>` |
-| `Pays:` | The reward — `500 credits` |
-| `Fail on signal:` / `Fail after:` / `Complete after:` | Failure and timed completion |
-| `Parent:` | The larger mission this is a step of |
+| `Reward:` | What completing it gives — `500 credits` |
+| `Penalty:` | What failing it costs |
+| `Fails when:` | What fails it — `signal base_lost`, `all dead convoy`, `5 minutes` |
+| `Part of:` | The larger mission this is a step of |
 | `Win:` / `Lose:` | Ends the game, with optional end-screen text |
 
 ### Older spellings still work
@@ -188,7 +203,14 @@ names, and a file may use either:
 |---|---|
 | `Goal:` | `Done when:` (plus `Objective:` for the text it used to double as) |
 | `When:` | `Starts when:` |
-| `State: idle` | `State: available` — the word the player already sees |
+| `State: idle` / `State: available` | `At start: offered` — the word the player already sees |
+| `State: active` / `secret` | `At start: running` / `hidden` |
+| `Parent:` | `Part of:` |
+| `Critical:` | `Fatal:` — it says what happens, not how much it matters |
+| `Pays:` | `Reward:` — the word the player reads in the log, and it leaves `Penalty:` free for the other side |
+| `Fail on signal:` / `Fail on all dead:` / `Fail after:` | `Fails when:` — one trigger grammar for all three |
+| `Complete after: 30 seconds` | `Done when: 30 seconds` — a time is a trigger |
+| `Reveals:` (a scan's text) | `Scan says:` — `Then: reveal` is a different thing |
 
 ---
 
@@ -199,7 +221,7 @@ The format understands the shapes an author naturally writes:
 | Written | Read as |
 |---|---|
 | `Home: 6, 4` | a map cell |
-| `Pays: 200 credits` | a reward |
+| `Reward: 200 credits` | what completing it gives |
 | `Fail after: 6 minutes` | a duration |
 | `Offers: patrol, escort, strike` | a list |
 | `Values: by-the-book 40, fearsome 30` | weighted choices |

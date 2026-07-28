@@ -138,7 +138,7 @@ def trigger(hint="5 drone_down  |  reach 6, 4  |  destroy 4 raiders"):
 
 
 # --- field descriptors: type + alias + runtime key ---------------------------
-def field(descriptor, key=None, aka=None):
+def field(descriptor, key=None, aka=None, internal=True if False else None):
     """Wrap a type descriptor with the two things a table entry also has to own:
     `key` - the name the RUNTIME stores it under, when that differs from the authored
     label (`Pays:` -> `reward`), and `aka` - every other spelling that means this field.
@@ -157,6 +157,11 @@ def field(descriptor, key=None, aka=None):
         d["key"] = key
     if aka:
         d["aka"] = [str(a).strip().lower() for a in aka]
+    if internal:
+        # Valid to write, never OFFERED. Either the implementation form of an author
+        # word (`on kill` under `Done when:`) or a shape a newer field absorbed - both
+        # have to keep parsing, and neither belongs in a picker or a new-record template.
+        d["internal"] = True
     return d
 
 
@@ -173,41 +178,73 @@ def _d(kind, **kw):
 # the loaders in procedural.amd_* and the parser in amd_core._extract_data_refs.
 
 QUEST = {
-    # `available` is the word the PLAYER already sees - QuestState.IDLE renders as
-    # "Available" - so it is the word the author writes. `idle` stays as an alias.
-    "state": enum("available", "active", "secret", "posting", "complete", "failed",
-                  aka={"idle": "available"}),
+    # What this record's condition is when the mission BEGINS - which is what the
+    # field always meant, said in words an author would use. `hidden` is a story
+    # word for "not revealed yet"; `offered` is what the player is shown for a job
+    # waiting to be accepted (QuestState.IDLE renders as "Available"). Every older
+    # spelling still parses.
+    # `Starts when: accepted` / `Starts when: revealed` say this for the pure cases, and
+    # are the better words. This field SURVIVES because 306 converted records need to say
+    # two things at once - "hidden until something reveals me" AND "then fire on gate 62"
+    # - and one `Starts when:` cannot carry both. The reason is that SECRET currently
+    # means BOTH "not listed" and "triggers off"; when `Show:` takes the listing half,
+    # this field can finally go.
+    "at start": field(enum("running", "offered", "hidden", "posting", "done", "failed",
+                           aka={"active": "running", "idle": "offered",
+                                "available": "offered", "secret": "hidden",
+                                "complete": "done"}),
+                      key="state", aka=("state",)),
     "objective": text(hint="the sentence the player reads"),
     # `Goal:` used to set BOTH the completion trigger and the objective TEXT, so a
     # job's quest log read "Signal 5 drone_down". Split: Objective is the prose,
     # Done when is the trigger.
+    # THE LIFE CYCLE - three questions, one trigger grammar:
+    #   `signal X` | `destroy 6 raiders` | `reach 6, 4` | `dock station` |
+    #   `5 minutes` | `all dead convoy` | `accepted` | `revealed`
+    # This replaces seven differently-shaped fields (At start / Complete after /
+    # Fail after / Fail on signal / Fail on all dead, and the two spellings of the
+    # first two). An author learns one grammar and can answer all three.
     "done when": field(trigger(), key="goal", aka=("goal",)),
-    "starts when": field(compound({"reach": coord2(), "travel": coord2(),
-                                   "signal": signal()},
-                                  hint="reach i, j  |  5 drone_down"),
+    "starts when": field(trigger(hint="signal X | accepted | revealed | destroy 6 raiders"),
                          key="when", aka=("when",)),
+    "fails when": field(trigger(hint="signal X | all dead convoy | 5 minutes"),
+                        key="fails_when"),
     "then": compound({"reveal": ref("node"), "signal": signal()},
                      hint="reveal KEY  |  signal NAME"),
-    "parent": ref("node"),
+    "part of": field(ref("node"), key="parent", aka=("parent",)),
     "scope": enum("shared", "ship"),
-    "pays": field(reward(), key="pays", aka=("reward",)),
-    "earns": reward(),
+    # `Reward:` over `Pays:`. Its partner is free - the failure side already exists in
+    # code (quest_grant_penalty) with no authored word yet, and `Reward:`/`Penalty:`
+    # mirrors the two functions, while `Pays:`/`Costs:` collides with what you spend to
+    # BUILD something in research and recipes. `Pays:` also presumes an employer, which
+    # is wrong for a rescue or a story beat that simply hands you salvage. `Pays:` still
+    # parses. (A record speaks in the JOB's voice - a job pays, a crew earns - so
+    # `Earns:` is the wrong voice whichever word wins.)
+    "reward": field(reward(), key="reward", aka=("pays",)),
+    # The failure side has had code since the beginning (quest_grant_penalty) and no
+    # word. `Reward:` / `Penalty:` is the pair.
+    "penalty": field(reward(hint="100 credits"), key="penalty"),
     "tier": integer(),
-    "fail on signal": signal(),
-    "fail on all dead": ref("role"),
-    "fail after": duration(),
-    "complete after": duration(),
+    "fail on signal": field(signal(), internal=True),
+    "fail on all dead": field(ref("role"), internal=True),
+    "fail after": field(duration(), internal=True),
+    "complete after": field(duration(), internal=True),
     "on accept": text(hint="toast <message>"),
     "on complete": text(hint="toast <message>"),
     "required": boolean(),
-    "critical": boolean(),
+    # Failing this ENDS the mission - "critical" said how much it mattered, not what
+    # happens.
+    "fatal": field(boolean(), key="critical", aka=("critical",)),
     "win": boolean(),
     "lose": boolean(),
-    "win text": text(hint="the end-screen line"),
-    "lose text": text(hint="the end-screen line"),
+    # `Win:` / `Lose:` carry their own prose; these are what that prose is STORED as.
+    "win text": field(text(hint="the end-screen line"), internal=True),
+    "lose text": field(text(hint="the end-screen line"), internal=True),
     "citation": multiline(hint="the commendation read out at the end"),
-    "reveals": field(multiline(hint="what a scan of the target returns"),
-                     key="reveals", aka=("scan text",)),
+    # `Then: reveal <quest>` UNLOCKS; this is what a scan READS OUT. Same word, two
+    # concepts - the author-facing one says which.
+    "scan says": field(multiline(hint="what a scan of the target returns"),
+                       key="reveals", aka=("reveals", "scan text")),
     # WHEN this quest is listed in the log. `when done` runs it unseen and shows it
     # once it resolves (complete OR failed) - a story beat is history, not a to-do.
     # `with children` is for a pure GROUPING heading: it earns a row only while
@@ -222,11 +259,13 @@ QUEST = {
     # The quest driver's own advancement triggers. Authored as a flow value
     # (`on_kill: { role: raider, count: 5 }`), so the reader has already parsed
     # them by the time anything reads the descriptor.
-    "on kill": text(hint="{ role: raider, count: 5 }"),
-    "on collect": text(hint="{ key: provisions, count: 3 }"),
-    "on scan": text(hint="{ role: derelict }"),
-    "on dock": text(hint="{ role: station }"),
-    "reveal": ref("node", hint="a node to reveal when this completes"),
+    # What `Done when:` COMPILES TO. Declared so a hand-written one still validates,
+    # never offered - an author should not be typing flow mappings into a form.
+    "on kill": field(text(), internal=True),
+    "on collect": field(text(), internal=True),
+    "on scan": field(text(), internal=True),
+    "on dock": field(text(), internal=True),
+    "reveal": field(ref("node"), internal=True),   # what `Then: reveal X` stores
     "cockpit": text(hint="the craft a sortie is flown in"),
 }
 
@@ -342,30 +381,50 @@ _SECTION_ALIASES = {
     # machinery playing different parts, and the part is what an author knows: a beat
     # is a moment the crew lives through, an arc is the heading over a run of them.
     # Nouns are vocabulary; ARCHETYPES are field schemas - these add no schema.
-    "beat": "quest", "beats": "quest",
+    "beat": "quest", "beats": "quest", "cue": "quest", "cues": "quest",
     "arc": "quest", "arcs": "quest", "chapter": "quest", "chapters": "quest",
     "act": "quest", "acts": "quest", "sequence": "quest", "sequences": "quest",
     "thread": "quest", "threads": "quest",
 }
 
-# What a KIND NOUN implies about `Show:` - the display half of what the word already
-# means. An explicit `Show:` always wins; this only fills the blank, so a `Beat` that
-# should stay on screen just says `Show: always`.
-_KIND_SHOW = {
-    "beat": "when done",
-    "arc": "with children", "chapter": "with children", "act": "with children",
-    "sequence": "with children", "thread": "with children",
+# What a KIND NOUN already implies. Over HALF of every field line in the converted
+# corpus (2574 of 4657) was a record restating what it had just called itself:
+# `Scope: shared` on all 1375, `State: active` on 988, `Show: never` on 211. A story
+# moment belongs to the whole crew and is already running - saying so again is
+# ceremony. An explicit field always wins, so a `Beat` that differs just says so.
+_KIND_DEFAULTS = {
+    # A JOB is taken by a ship; an OBJECTIVE is the crew's. That is the difference
+    # between the two words, and it is the whole of `Scope:` and `At start:` for them.
+    "job":       {"scope": "ship",   "state": "offered"},
+    "objective": {"scope": "shared", "state": "running"},
+    "beat":     {"show": "when done",     "scope": "shared", "state": "running"},
+    "cue":      {"show": "never",         "scope": "shared", "state": "running"},
+    "arc":      {"show": "with children", "scope": "shared", "state": "running"},
+    "chapter":  {"show": "with children", "scope": "shared", "state": "running"},
+    "act":      {"show": "with children", "scope": "shared", "state": "running"},
+    "sequence": {"show": "with children", "scope": "shared", "state": "running"},
+    "thread":   {"show": "with children", "scope": "shared", "state": "running"},
 }
 
 
-def amd_kind_show_default(noun):
-    """The `Show:` a kind noun implies, or None. Singular / plural both work, matching
-    `_kind_to_archetype` - an author writes `Beat` over one record and `Beats` over a
-    section without being told there is a difference."""
+def amd_kind_defaults(noun):
+    """Every field a kind noun implies, as {field: value}. Singular / plural both work,
+    matching `_kind_to_archetype` - an author writes `Beat` over one record and `Beats`
+    over a section without being told there is a difference.
+
+    `Quest` carries none - it is the neutral word, for a record that is neither a story
+    moment nor clearly one of the two. `Job` restates today's defaults (per ship, waiting
+    to be accepted) rather than changing them, so peacetime's board - which says none of
+    this - keeps working exactly as written."""
     if not noun:
-        return None
+        return {}
     n = str(noun).strip().lower().replace("-", "_").replace(" ", "_")
-    return _KIND_SHOW.get(n) or _KIND_SHOW.get(n.rstrip("s"))
+    return _KIND_DEFAULTS.get(n) or _KIND_DEFAULTS.get(n.rstrip("s")) or {}
+
+
+def amd_kind_show_default(noun):
+    """The `Show:` a kind noun implies, or None."""
+    return amd_kind_defaults(noun).get("show")
 
 # When there's no conventional section key, the FIRST discriminating field a
 # record carries identifies its archetype. Order = specificity (most telling
@@ -523,11 +582,26 @@ def enum_accepts(label, archetype=None):
     return list(d.get("values", ())) + list(d.get("value_aka") or {})
 
 
-def template_fields(archetype):
+def template_fields(archetype, include_internal=False):
     """The ordered field labels a 'new <archetype>' skeleton should offer, or []
-    for an unknown archetype. Preserves the table's authoring order (dict order)."""
+    for an unknown archetype. Preserves the table's authoring order (dict order).
+
+    `internal` fields are LEFT OUT: they are implementation forms (`on kill`, what
+    `Done when:` compiles to) or shapes a newer field absorbed (`Fail after:` ->
+    `Fails when:`). Both must keep parsing; neither should be offered to an author or
+    land in a new-record skeleton."""
     table = ARCHETYPES.get(archetype)
-    return list(table.keys()) if table else []
+    if not table:
+        return []
+    return [k for k, d in table.items()
+            if include_internal or not (isinstance(d, dict) and d.get("internal"))]
+
+
+def amd_is_internal(label, archetype=None):
+    """True when a field still parses but should not be OFFERED (picker, completion,
+    new-record template)."""
+    d = _declared(label, archetype)
+    return bool(d and d.get("internal"))
 
 
 # --- aliases: one field, many spellings -------------------------------------

@@ -451,6 +451,12 @@ class TestQuestLogShow(unittest.TestCase):
         self._add("a", "Plain Job", __kind__="job")
         self.assertIn("Plain Job", self._titles())
 
+    def test_Cue_is_never_listed(self):
+        self._add("a", "Play SPFX", __kind__="cue")
+        self.assertNotIn("Play SPFX", self._titles())
+        quest_mark_complete(self.aid, "a")
+        self.assertNotIn("Play SPFX", self._titles())
+
     def test_a_multi_step_JOB_stays_visible_with_secret_steps(self):
         """The regression that makes this a DECLARED value instead of a renderer
         heuristic: an available job also has children, and every step is secret

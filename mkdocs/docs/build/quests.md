@@ -15,10 +15,10 @@ fields, then prose:
 ## [Defend the Convoy](defend_convoy)
 ---
 Scope: shared
-State: active
+Starts when: at once
 Objective: Drive the raiders off the freighters
 Done when: destroy 6 raiders
-Pays: 500 credits
+Reward: 500 credits
 ---
 Escort the freighters through the belt - every raider you burn buys them time.
 ```
@@ -31,14 +31,16 @@ it is — is in [The AMD file format](amd-format.md).
 | Field | Meaning |
 |---|---|
 | `Scope:` | `shared` (one quest for the whole game) or per-ship. |
-| `State:` | Starting state — `active` (running immediately), or `available` (shown on the log for a player to **Accept**; omit for the same effect). A whole board of `available` jobs is a pick-up-work board. |
+| `At start:` | The older way of saying the same thing — `running` / `offered` / `hidden`, and `active` / `available` / `idle` / `secret` before that. All still parse. |
 | `Objective:` | The sentence the player reads in the quest log. |
 | `Done when:` | The completion **trigger** (see [Triggers](#triggers)). |
-| `Starts when:` | What activates the quest (same grammar). |
-| `Pays:` | Reward on completion — `500 credits`, an item key, … |
+| `Starts when:` | **When it arms** — `at once`, `accepted` (the player takes it off the board), `revealed` (another quest reveals it). |
+| `Fails when:` | What fails it — the same grammar, plus `all dead <role>` and a bare time (`5 minutes`). |
+| `Reward:` | What completing it gives — `500 credits`, an item key, … (`Pays:` also parses). |
+| `Penalty:` | What failing it costs — same grammar. Abandoning an accepted job fails it, so this is what walking away costs. |
 | `Then:` | Follow-up on completion — `reveal <quest>` (unlock another) or `signal <name>`. |
 | `Display:` / `Tier:` | Optional label / ordering for the log. |
-| `Show:` | **When** this quest is listed — `always` (default), `when done` (runs unseen, appears once it completes *or* fails, reading as history), `with children` (a grouping heading: a row only while something under it is listed), or `never` (drives its events invisibly). Not the same as `State: secret`, which also stops the triggers. |
+| `Show:` | **When** this quest is listed — `always` (default), `when done` (runs unseen, appears once it completes *or* fails, reading as history), `with children` (a grouping heading: a row only while something under it is listed), or `never` (drives its events invisibly). Not the same as `Starts when: revealed`, which also stops the triggers. |
 
 !!! tip "Say `Beat` or `Arc` instead"
     A record that calls itself a **`Beat`** (a moment the crew lives through) already
@@ -81,6 +83,9 @@ listens for:
 | `dock` | docking | role |
 | `reach`, `travel` | arriving at a sector | sector (e.g. `reach 6, 4`) |
 | `signal` | a named signal — the escape hatch for any game-state milestone | signal name |
+| `all dead` | every object of a role is gone | role |
+| *a time* | `5 minutes` / `30 seconds` — a time is a trigger like any other | — |
+| `accepted` / `revealed` | the player takes the job off the board / another quest reveals it | — |
 
 ### Mission tree & end-game
 
@@ -89,19 +94,17 @@ not hand-wired in script:
 
 | Field | Meaning |
 |---|---|
-| `Parent:` | Attach this quest to a parent quest (its `key`), aggregating into that mission. |
+| `Part of:` | Attach this quest to a parent quest (its `key`), aggregating into that mission. |
 | `Required:` | The parent isn't won until this child completes. |
-| `Critical:` | Failing this quest **loses** the game. |
+| `Fatal:` | Failing this quest **loses** the game. |
 | `Win:` | Completing this quest **wins** the game. Bare flag, or prose that becomes the end-screen reason. |
 | `Lose:` | Completing (or failing) it **loses** the game. Bare flag, or prose reason. |
-| `Fail on signal:` | Fail the quest when a signal fires. |
-| `Fail on all dead:` | Fail when every object of a role is gone. |
-| `Fail after:` | Fail after a time — `Fail after: 5 minutes`. |
+| `Fails when:` | Fail the quest — `signal base_lost`, `all dead convoy`, `5 minutes`. |
 
 This is the same vocabulary Open Universe uses and the Siege bosses hang their
 objectives on.
 
-!!! tip "`Fail after:` starts counting when the quest goes ACTIVE"
+!!! tip "A `Fails when:` time starts counting when the quest goes ACTIVE"
     The deadline is anchored **lazily** — the clock starts on the first tick the
     quest is **active**, not when it is granted. So an `available` job's timer does not
     run until a player **Accepts** it: a timed rescue gives the crew the full window
@@ -158,3 +161,9 @@ fails in total silence.
 See [Signals](../mast/routes/signals.md) and the
 [quest API](../api/procedural/quest.md) for the full surface (`quest_set_state`
 and friends).
+
+!!! tip "A trigger in `Starts when:` is a real gate"
+    `Starts when: signal relief_authorised` **opens** the quest; its `Done when:` then
+    decides what finishes it. The two are separate, so a gate can no longer complete the
+    job it was only meant to unlock. A quest with a start trigger is not advancing until
+    that trigger fires.

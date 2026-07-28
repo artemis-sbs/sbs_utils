@@ -64,19 +64,37 @@ class TestFieldSchema(unittest.TestCase):
         self.assertEqual(S.field_schema("Duration", "item")["type"], "int")
 
     def test_reference_fields_carry_ref_kind(self):
-        self.assertEqual(S.field_schema("Parent", "quest"),
-                         {"type": "ref", "ref": "node"})
+        # `Parent:` is authored `Part of:` now; both resolve to the same descriptor,
+        # and the STORED key stays `parent` so every reader is untouched.
+        for label in ("Part of", "Parent"):
+            d = S.field_schema(label, "quest")
+            self.assertEqual(d["type"], "ref")
+            self.assertEqual(d["ref"], "node")
+            self.assertEqual(d["key"], "parent")
         d = S.field_schema("Enemies", "side")
         self.assertEqual(d["type"], "ref")
         self.assertEqual(d["ref"], "side")
         self.assertTrue(d["csv"])
 
-    def test_compound_when_then(self):
-        when = S.field_schema("When", "quest")
-        self.assertEqual(when["type"], "compound")
-        self.assertIn("reach", when["verbs"])
-        self.assertEqual(when["verbs"]["reach"]["type"], "coord2")
-        self.assertEqual(when["verbs"]["signal"]["type"], "signal")
+    def test_internal_fields_parse_but_are_not_offered(self):
+        import sbs_utils.procedural.amd_schema as SS
+        offered = SS.template_fields("quest")
+        for gone in ("fail after", "fail on signal", "fail on all dead",
+                     "complete after", "on kill", "on collect", "win text", "reveal"):
+            self.assertNotIn(gone, offered, gone)
+            self.assertTrue(SS.amd_is_declared(gone, "quest"), gone + " must still parse")
+            self.assertTrue(SS.amd_is_internal(gone, "quest"), gone)
+        for kept in ("starts when", "done when", "fails when", "reward", "penalty",
+                     "at start"):   # survives: see the note on the field
+            self.assertIn(kept, offered, kept)
+
+    def test_the_life_cycle_is_one_grammar(self):
+        """Three questions, one trigger type - the point of the collapse. `Starts when:`
+        used to be a `compound` of its own while `Done when:` was a `trigger`, which is
+        exactly the kind of split an author has to memorise."""
+        for label in ("Starts when", "Done when", "Fails when", "When"):
+            self.assertEqual(S.field_schema(label, "quest")["type"], "trigger", label)
+        self.assertEqual(S.field_schema("Then", "quest")["type"], "compound")
 
     def test_global_fallback_when_archetype_lacks_field(self):
         # 'Color' isn't in QUEST, but it's a type-stable GLOBAL -> still a colour.
@@ -106,11 +124,13 @@ class TestRecordAndTemplate(unittest.TestCase):
         self.assertEqual(S.template_fields("nope"), [])
 
     def test_enum_values_only_for_closed_enums(self):
-        # `available` replaced `idle` - the word the PLAYER already sees, since
-        # QuestState.IDLE renders as "Available".
+        # `At start:` (was `State:`) in words an author would use - `hidden` for a
+        # record not revealed yet, `offered` for a job waiting to be accepted.
+        self.assertEqual(S.enum_values("At start", "quest"),
+                         ["running", "offered", "hidden", "posting",
+                          "done", "failed"])
         self.assertEqual(S.enum_values("State", "quest"),
-                         ["available", "active", "secret", "posting",
-                          "complete", "failed"])
+                         S.enum_values("At start", "quest"))
         # 'consoles' is an open enum -> suggestions, not a closed set to validate.
         self.assertIsNone(S.enum_values("Consoles", "item"))
         # a ref field is not an enum.
@@ -189,11 +209,14 @@ class TestRenamesStayCompatible(unittest.TestCase):
     two mechanisms that make that true."""
 
     def test_a_renamed_VALUE_still_parses(self):
-        # `State: idle` was the authored word; `available` is what the player sees.
-        self.assertEqual(S.amd_coerce(S.field_schema("State", "quest"), "idle"),
-                         "available")
-        self.assertEqual(S.amd_coerce(S.field_schema("State", "quest"), "available"),
-                         "available")
+        # Three generations of the same value all land on the word authors write now.
+        for old in ("idle", "available", "offered"):
+            self.assertEqual(S.amd_coerce(S.field_schema("At start", "quest"), old),
+                             "offered")
+        self.assertEqual(S.amd_coerce(S.field_schema("State", "quest"), "secret"),
+                         "hidden")
+        self.assertEqual(S.amd_coerce(S.field_schema("State", "quest"), "active"),
+                         "running")
 
     def test_a_retired_value_is_accepted_but_not_offered(self):
         self.assertNotIn("idle", S.enum_values("State", "quest"))   # not offered

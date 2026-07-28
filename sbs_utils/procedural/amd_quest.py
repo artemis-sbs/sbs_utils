@@ -31,6 +31,17 @@ TRIGGER_VERBS = {
 }
 
 
+# Triggers that read as an instruction to the crew, so they can stand in for a missing
+# `Objective:`. A signal or a timer is a mechanism, not something anyone can go and do.
+_INSTRUCTION_TRIGGERS = ("on_kill", "on_collect", "on_scan", "on_dock", "on_reach")
+
+
+def _is_duration(text):
+    """`5 minutes` / `30 seconds` - a time is a trigger like any other."""
+    t = str(text).lower()
+    return any(u in t for u in ("second", "minute", "min", "hour"))
+
+
 def _resolve_role(target, aliases=None):
     """A friendly role name -> its real role: apply an alias, else singularize
     ('raiders' -> 'raider') but keep 'ss' words ('boss' stays 'boss')."""
@@ -59,6 +70,21 @@ def amd_trigger(value, aliases=None):
     toks = str(value).split()
     if not toks:
         return None
+    # Forms that are not verb-led, so that ONE grammar answers all three life-cycle
+    # questions (`Starts when:` / `Done when:` / `Fails when:`) instead of the seven
+    # differently-shaped fields this replaces.
+    low = " ".join(toks).strip().lower()
+    if low in ("at once", "immediately", "now", "start", "at start"):
+        return "at_once", {}
+    if low in ("accepted", "on accept", "when accepted"):
+        return "accepted", {}
+    if low in ("revealed", "when revealed"):
+        return "revealed", {}
+    if toks[0].lower() == "all" and len(toks) > 2 and toks[1].lower() == "dead":
+        return "all_dead", {"role": _resolve_role(" ".join(toks[2:]), aliases)}
+    if toks[0].isdigit() and _is_duration(low):
+        n, unit = amd_duration_parts(low)
+        return "after", {unit: n or 0}
     spec = TRIGGER_VERBS.get(toks[0].lower())
     if spec is None:
         return None
@@ -137,11 +163,18 @@ def _norm(label):
 _CANONICAL_TO_LEGACY = {
     "done_when": "goal",        # Goal: -> Done when:
     "starts_when": "when",      # When: -> Starts when:
+    "part_of": "parent",        # Parent: -> Part of:
+    "at_start": "state",        # State: -> At start:
+    "fatal": "critical",        # Critical: -> Fatal:
+    "reward": "pays",           # Pays: -> Reward:
+    "fails_when": "fails_when",  # (matched directly; listed so the intent is visible)
 }
 
-# `State: idle` -> the word the player already sees. QuestState.IDLE renders as
-# "Available", so `available` is what an author writes; `idle` keeps working.
-_STATE_ALIASES = {"available": "idle"}
+# The authored word -> the word the DRIVER reads. `At start:` is written in story
+# words (`hidden` / `offered` / `running`); QuestState is unchanged underneath, so a
+# rename here never reaches the state machine.
+_STATE_ALIASES = {"available": "idle", "offered": "idle",
+                  "running": "active", "hidden": "secret", "done": "complete"}
 
 
 def amd_quest_facts(aliases=None):
@@ -175,14 +208,52 @@ def amd_quest_facts(aliases=None):
             data["display"] = value
         elif label == "tier":
             data["tier"] = amd_num(value)
-        elif label in ("goal", "when"):
+        elif label in ("goal", "when", "fails_when"):
+            # ONE grammar, three questions. `Starts when:` / `Done when:` / `Fails when:`
+            # all take the same trigger, and the label decides which of the driver's keys
+            # it lands in - instead of `Fail on signal:` / `Fail on all dead:` /
+            # `Fail after:` / `Complete after:` each having their own shape.
             trig = amd_trigger(value, aliases)
-            if trig is not None:
-                data[trig[0]] = trig[1]
-            if label == "goal":
-                data["objective"] = value[:1].upper() + value[1:]
-            elif label == "when" and trig is None:
-                data["when"] = value
+            kind, payload = trig if trig is not None else (None, None)
+            if label == "fails_when":
+                if kind == "on_signal":
+                    data["fail_on_signal"] = {"name": payload.get("name")}
+                elif kind == "all_dead":
+                    data["fail_on_all_dead"] = payload
+                elif kind == "after":
+                    data["fail_after"] = payload
+                # any other trigger has no failure watcher behind it; the linter says so
+            elif label == "when":
+                # A start is also WHEN THE PLAYER lets it start: an offered job starts
+                # on Accept, a hidden step starts when something reveals it. Those were
+                # `State: idle` / `State: secret` - a second field saying the same thing
+                # in a different vocabulary.
+                if kind == "at_once":
+                    data["state"] = "active"
+                elif kind == "accepted":
+                    data["state"] = "idle"
+                elif kind == "revealed":
+                    data["state"] = "secret"
+                elif trig is not None:
+                    # A real START trigger: the quest is granted armed with THIS, and
+                    # swaps in its own `Done when:` once it fires. It used to be stored
+                    # as an advancement trigger - the identical key `Done when:` writes -
+                    # so a quest with both completed on whichever fired first.
+                    data["start_trigger"] = {"trigger": kind, "data": payload}
+                else:
+                    data["when"] = value
+            else:                                   # goal / Done when
+                if kind == "after":
+                    data["complete_after"] = payload
+                elif trig is not None:
+                    data[kind] = payload
+                # The objective is the SENTENCE THE PLAYER READS, so only a doable verb
+                # can stand in for one - "Signal a2x_gate_11" never should have. And it
+                # only ever FILLS A BLANK: an explicit `Objective:` used to be clobbered
+                # when it happened to be written above `Done when:`, so the same two
+                # lines meant different things depending on their order.
+                if kind in _INSTRUCTION_TRIGGERS and not data.get("objective"):
+                    data["objective"] = value[:1].upper() + value[1:]
         elif label == "then":
             toks = str(value).split()
             if len(toks) >= 2 and toks[0].lower() in ("reveal", "signal"):
@@ -191,6 +262,10 @@ def amd_quest_facts(aliases=None):
                 data["reveal"] = value
         elif label == "pays":
             data["reward"] = amd_reward(value)
+        elif label == "penalty":
+            # Same grammar as the reward, and the driver wants the same shape - it was
+            # storing the raw string, which quest_grant_penalty silently ignores.
+            data["penalty"] = amd_reward(value)
         elif label in ("accept on", "accept_on", "manage on", "manage_on"):
             # Restrict WHICH consoles may Accept/Abandon this quest from the Quests tab
             # (else the mission default QUEST_ACCEPT_CONSOLES). A job specific to a station.

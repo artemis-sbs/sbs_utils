@@ -32,6 +32,8 @@ from sbs_utils.procedural.timers import set_timer, is_timer_set, is_timer_finish
 from sbs_utils.procedural.comms import comms_broadcast
 from sbs_utils.procedural.signal import signal_emit
 from sbs_utils.procedural.gui import gui_list_box_is_header
+from sbs_utils.procedural.amd_schema import amd_kind_defaults
+from sbs_utils.procedural.amd import KIND_KEY
 from sbs_utils.agent import Agent
 
 
@@ -213,11 +215,17 @@ def quest_mark_active(agent_id, quest_id):
 
 
 def quest_mark_complete(agent_id, quest_id):
-    """Complete a quest (idempotent): set state, grant reward, announce."""
+    """Complete a quest (idempotent): set state, grant reward, announce.
+
+    A quest waiting on a `Starts when:` trigger passes through here when that trigger
+    fires - it is armed with it - and STARTS instead: its real advancement trigger is
+    swapped in and nothing else happens (no reward, no announcement, no reveal)."""
     if quest_get_state(agent_id, quest_id) == QuestState.COMPLETE:
         return
-    quest_set_key(agent_id, quest_id, "state", QuestState.COMPLETE)
     data = quest_get_data(agent_id, quest_id) or {}
+    if _quest_swap_in_armed(agent_id, quest_id, data):
+        return
+    quest_set_key(agent_id, quest_id, "state", QuestState.COMPLETE)
     quest_grant_reward(agent_id, data.get("reward"))
     quest_reveal(agent_id, data.get("reveal"))
     # On-complete actions: emit an optional custom signal (e.g. to flip
@@ -242,10 +250,50 @@ def quest_mark_complete(agent_id, quest_id):
 _STATE_NAMES = {
     "idle": QuestState.IDLE, "active": QuestState.ACTIVE, "secret": QuestState.SECRET,
     "complete": QuestState.COMPLETE, "failed": QuestState.FAILED,
+    # `At start:` in the author's words. Accepted here as well as translated in
+    # amd_quest, so a doc read WITHOUT the quest fact-handler still grants correctly.
+    "offered": QuestState.IDLE, "available": QuestState.IDLE,
+    "running": QuestState.ACTIVE, "hidden": QuestState.SECRET,
+    "done": QuestState.COMPLETE,
 }
 
 # Goal keys whose `count` is a completion target a mission may want to scale by difficulty.
 _COUNT_GOAL_KEYS = ("on_signal", "on_kill", "on_scan", "on_reach", "on_dock", "on_collect")
+
+
+def _arm_start_trigger(data):
+    """A quest authored `Starts when: <trigger>` is granted armed with THAT trigger, its
+    real advancement trigger set aside under `armed_trigger`.
+
+    Doing it this way means a start trigger needs no matching code of its own: every
+    on_kill / on_scan / on_dock / on_reach / on_signal matcher already knows how to
+    recognise a trigger, so the start uses the same ones. `quest_mark_complete` swaps the
+    real trigger back in instead of completing (see `_quest_swap_in_armed`).
+
+    Before this, `Starts when:` wrote the SAME key `Done when:` writes, so a quest
+    carrying both completed on whichever fired first - the gate could finish the job."""
+    start = data.get("start_trigger")
+    if not isinstance(start, dict) or not start.get("trigger"):
+        return data
+    out = dict(data)
+    out["armed_trigger"] = {k: out.pop(k) for k in _COUNT_GOAL_KEYS if k in out}
+    out.pop("start_trigger", None)
+    out[start["trigger"]] = start.get("data") or {}
+    return out
+
+
+def _quest_swap_in_armed(agent_id, quest_id, data):
+    """The start trigger fired: arm the real one instead of completing. True when this
+    was a start (so the caller must not complete, reward or announce)."""
+    armed = data.get("armed_trigger")
+    if armed is None:
+        return False
+    for k in _COUNT_GOAL_KEYS:
+        data.pop(k, None)
+    data.update(armed)
+    data.pop("armed_trigger", None)
+    quest_set_key(agent_id, quest_id, "progress", 0)
+    return True
 
 
 def _scale_goal_counts(data, scale):
@@ -293,14 +341,20 @@ def quest_grant_amd(agent_id, doc, _prefix="", count_scale=1.0):
             continue
         qid = _prefix + key
         data = n.get("data") or {}
+        # A record that called itself `Beat` / `Arc` / `Cue` has already said it is the
+        # whole crew's and already running; only a record that DIFFERS writes the field.
+        implied = amd_kind_defaults(data.get(KIND_KEY) if hasattr(data, "get") else None)
         # scope: shared -> grant to the game (SHARED) agent, so the whole crew
         # shares the arc; otherwise to the given agent (ship).
-        target = Agent.SHARED_ID if data.get("scope") == "shared" else agent_id
+        scope = data.get("scope") or implied.get("scope")
+        target = Agent.SHARED_ID if scope == "shared" else agent_id
         if quest_get_state(target, qid) == QuestState.IDLE:  # skip already-granted
-            st = _STATE_NAMES.get(str(data.get("state", "idle")).lower(), QuestState.IDLE)
+            st = _STATE_NAMES.get(
+                str(data.get("state") or implied.get("state") or "idle").lower(),
+                QuestState.IDLE)
             quest_add(target, qid, n.get("display_text"),
                       (n.get("description") or "").strip(), state=st,
-                      data=_scale_goal_counts(data, count_scale))
+                      data=_arm_start_trigger(_scale_goal_counts(data, count_scale)))
         # Recurse into nested headings, building the child path key `<qid>/<childkey>`.
         if n.get("children"):
             quest_grant_amd(agent_id, n, _prefix=qid + "/", count_scale=count_scale)

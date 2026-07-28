@@ -328,5 +328,124 @@ class QuestGrantCountScaleTests(unittest.TestCase):
         self.assertEqual(quest_get_data(SH, "job_g")["on_signal"]["count"], 1)
 
 
+class QuestKindDefaultsTests(unittest.TestCase):
+    """A story noun already says the record is the crew's and already running - over
+    half of every field line in the converted corpus was saying it twice."""
+
+    def setUp(self):
+        reset_mock(sbs)
+
+    def _grant(self, fence, key="b"):
+        from sbs_utils.procedural.amd_doc import document_get_amd_file
+        from sbs_utils.procedural.amd_quest import amd_quest_data
+        content = "\n".join(["# [A Beat](%s)" % key, "---", fence, "---", "prose", ""])
+        doc = document_get_amd_file(None, content=content, data_parser=amd_quest_data)
+        QD.quest_grant_amd(SH, doc)
+
+    def test_Beat_is_shared_and_running_with_no_fields_at_all(self):
+        self._grant("Beat")
+        self.assertEqual(int(quest_get_state(SH, "b")), int(QuestState.ACTIVE),
+                         "a beat is already running - it drives its event")
+
+    def test_an_explicit_field_still_wins_over_the_noun(self):
+        self._grant("Beat\nAt start: hidden")
+        self.assertEqual(int(quest_get_state(SH, "b")), int(QuestState.SECRET))
+
+    def test_a_plain_quest_keeps_the_old_default(self):
+        self._grant("Quest", key="q")
+        self.assertEqual(int(quest_get_state(SH, "q")), int(QuestState.IDLE),
+                         "only STORY nouns imply - a job board must not start running")
+
+    def test_Reward_lands_where_the_driver_looks_either_way(self):
+        """It was declared under the key `pays` while the quest handler stored `reward`,
+        so the same line paid or did not pay depending on which reader parsed the file.
+        `Pays:` is still accepted - it was the authored word first."""
+        from sbs_utils.procedural.amd_doc import document_get_amd_file
+        from sbs_utils.procedural.amd_schema import amd_read_field
+        from sbs_utils.procedural.quest import quest_get_data
+        for label in ("Reward", "Pays"):
+            self.assertEqual(amd_read_field(label, "500 credits", "quest")[0], "reward")
+        # the plain reader (no quest fact-handler in the chain)
+        content = "\n".join(["# [Job](j)", "---", "Quest", "Pays: 500 credits",
+                             "---", "prose", ""])
+        doc = document_get_amd_file(None, content=content)
+        QD.quest_grant_amd(SH, doc)
+        self.assertIn("reward", quest_get_data(SH, "j") or {})
+
+    def test_every_older_spelling_still_grants_the_same_state(self):
+        """The rename is only safe if nothing already written changes behaviour."""
+        for word, want in (("active", QuestState.ACTIVE), ("secret", QuestState.SECRET),
+                           ("idle", QuestState.IDLE), ("available", QuestState.IDLE)):
+            reset_mock(sbs)
+            self._grant("State: %s" % word, key=word)
+            self.assertEqual(int(quest_get_state(SH, word)), int(want), word)
+
+    def test_the_authors_words_reach_the_state_machine(self):
+        for word, want in (("running", QuestState.ACTIVE), ("hidden", QuestState.SECRET),
+                           ("offered", QuestState.IDLE)):
+            reset_mock(sbs)
+            self._grant(f"At start: {word}", key=word)
+            self.assertEqual(int(quest_get_state(SH, word)), int(want), word)
+
+
+class QuestStartTriggerTests(unittest.TestCase):
+    """`Starts when: <trigger>` opens a quest; `Done when:` finishes it. They used to be
+    stored under the same key, so a quest carrying both finished on whichever fired
+    first - a gate signal could complete the job it was only meant to unlock."""
+
+    def setUp(self):
+        reset_mock(sbs)
+
+    def _grant(self, *lines):
+        from sbs_utils.procedural.amd_doc import document_get_amd_file
+        from sbs_utils.procedural.amd_quest import amd_quest_data
+        content = chr(10).join(["# [Job](j)", "---"] + list(lines) + ["---", "prose", ""])
+        QD.quest_grant_amd(SH, document_get_amd_file(None, content=content,
+                                                     data_parser=amd_quest_data))
+
+    def _raider(self):
+        rid = to_id(create_enemy(0, 0, 0, "kralien_cruiser", name="R"))
+        Agent.get(rid).add_role("raider")
+        return rid
+
+    def test_the_gate_starts_it_and_the_goal_finishes_it(self):
+        self._grant("Objective", "Starts when: signal gate_62",
+                    "Done when: destroy 1 raiders")
+        # before the gate: the kill must NOT count
+        QD.quest_on_kill_shared(self._raider())
+        self.assertEqual(int(quest_get_state(SH, "j")), int(QuestState.ACTIVE),
+                         "a quest waiting on its gate is not advancing yet")
+        QD.quest_on_signal("gate_62")                      # the gate opens it...
+        self.assertEqual(int(quest_get_state(SH, "j")), int(QuestState.ACTIVE),
+                         "the gate must not COMPLETE the quest")
+        QD.quest_on_kill_shared(self._raider())            # ...now the goal counts
+        self.assertEqual(int(quest_get_state(SH, "j")), int(QuestState.COMPLETE))
+
+    def test_a_start_trigger_alone_just_opens_it(self):
+        self._grant("Objective", "Starts when: signal gate_1")
+        QD.quest_on_signal("gate_1")
+        self.assertEqual(int(quest_get_state(SH, "j")), int(QuestState.ACTIVE),
+                         "nothing was authored to finish it")
+
+    def test_an_authored_Penalty_reaches_the_driver(self):
+        """`Penalty:` had working code and no word; when the word arrived it stored the
+        raw string, which quest_grant_penalty silently ignores."""
+        from sbs_utils.procedural.quest import quest_get_data
+        self._grant("Job", "Done when: signal x", "Reward: 250 credits",
+                    "Penalty: 100 credits")
+        self.assertEqual((quest_get_data(SH, "j") or {}).get("penalty"), {"credits": 100})
+
+    def test_starting_grants_no_reward_and_announces_nothing(self):
+        self._grant("Objective", "Starts when: signal gate_1",
+                    "Done when: destroy 1 raiders", "Reward: 500 credits")
+        seen = []
+        real, QD.signal_emit = QD.signal_emit, lambda n, d=None: seen.append(n)
+        try:
+            QD.quest_on_signal("gate_1")
+        finally:
+            QD.signal_emit = real
+        self.assertNotIn("quest_succeeded", seen)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -84,7 +84,8 @@ class AmdQuestFactsTests(unittest.TestCase):
         d = amd_quest_data(text)
         self.assertEqual(d["on_kill"], {"role": "raider", "count": 3})
         self.assertEqual(d["objective"], "Destroy 3 raiders")
-        self.assertEqual(d["on_signal"], {"name": "xorn_defected"})
+        self.assertEqual(d["start_trigger"],
+                         {"trigger": "on_signal", "data": {"name": "xorn_defected"}})
         self.assertEqual(d["reveal"], "step2")
         self.assertEqual(d["reward"], {"credits": 300})
         self.assertEqual(d["scope"], "shared")
@@ -152,6 +153,88 @@ class MissionTreeTests(unittest.TestCase):
     def test_fail_after_minutes_and_seconds(self):
         self.assertEqual(amd_quest_data("Fail after: 10 minutes")["fail_after"], {"minutes": 10})
         self.assertEqual(amd_quest_data("Fail after: 30 seconds")["fail_after"], {"seconds": 30})
+
+
+class TestOneTriggerGrammar(unittest.TestCase):
+    """`Starts when:` / `Done when:` / `Fails when:` take the SAME trigger. This
+    replaced seven differently-shaped fields; the point is that an author learns one
+    grammar, so every form is checked against every question that accepts it."""
+
+    def _data(self, line):
+        from sbs_utils.procedural.amd_doc import document_get_amd_file
+        doc = document_get_amd_file(
+            None,
+            content=chr(10).join(["# [J](j)", "---", line, "---", "prose", ""]),
+            data_parser=amd_quest_data)
+        return doc["children"][0].get("data") or {}
+
+    def _data_lines(self, lines):
+        from sbs_utils.procedural.amd_doc import document_get_amd_file
+        doc = document_get_amd_file(
+            None,
+            content=chr(10).join(["# [J](j)", "---"] + lines + ["---", "prose", ""]),
+            data_parser=amd_quest_data)
+        return doc["children"][0].get("data") or {}
+
+    def test_done_when_takes_a_duration(self):
+        self.assertEqual(self._data("Done when: 30 seconds")["complete_after"],
+                         {"seconds": 30})
+
+    def test_fails_when_reaches_all_three_failure_watchers(self):
+        self.assertEqual(self._data("Fails when: signal base_lost")["fail_on_signal"],
+                         {"name": "base_lost"})
+        self.assertEqual(self._data("Fails when: all dead convoy")["fail_on_all_dead"],
+                         {"role": "convoy"})
+        self.assertEqual(self._data("Fails when: 5 minutes")["fail_after"],
+                         {"minutes": 5})
+
+    def test_starts_when_says_what_At_start_used_to(self):
+        # an offered job starts when the player ACCEPTS it; a hidden step when
+        # something REVEALS it. Two vocabularies for one fact, now one.
+        self.assertEqual(self._data("Starts when: accepted")["state"], "idle")
+        self.assertEqual(self._data("Starts when: revealed")["state"], "secret")
+
+    def test_at_once_is_the_third_arming_word(self):
+        self.assertEqual(self._data("Starts when: at once")["state"], "active")
+
+    def test_an_explicit_Objective_wins_whatever_the_field_order(self):
+        """It used to depend on which line came first: `Done when:` filled the objective
+        from its own trigger text and overwrote whatever was above it."""
+        for order in (["Objective: Clear the lane", "Done when: destroy 6 raiders"],
+                      ["Done when: destroy 6 raiders", "Objective: Clear the lane"]):
+            d = self._data_lines(order)
+            self.assertEqual(d.get("objective"), "Clear the lane", order[0])
+
+    def test_only_a_doable_verb_stands_in_for_the_objective(self):
+        # a kill target reads as an instruction; a signal or a timer does not
+        self.assertEqual(self._data("Done when: destroy 6 raiders")["objective"],
+                         "Destroy 6 raiders")
+        self.assertIsNone(self._data("Done when: signal gate_11").get("objective"))
+        self.assertIsNone(self._data("Done when: 30 seconds").get("objective"))
+
+    def test_a_trigger_in_starts_when_is_a_REAL_start(self):
+        """It is kept apart from the advancement trigger. Stored under the same key,
+        a quest carrying both `Starts when:` and `Done when:` finished on whichever
+        fired first - the gate could complete the job it was supposed to open."""
+        self.assertEqual(self._data("Starts when: signal gate_1")["start_trigger"],
+                         {"trigger": "on_signal", "data": {"name": "gate_1"}})
+        d = self._data_lines(["Starts when: signal gate_1",
+                              "Done when: destroy 3 raiders"])
+        self.assertEqual(d["start_trigger"]["data"], {"name": "gate_1"})
+        self.assertEqual(d["on_kill"], {"role": "raider", "count": 3})
+
+    def test_the_old_shapes_still_parse_identically(self):
+        """Nothing written against the old fields may change meaning."""
+        pairs = [("Fail on signal: base_lost", "Fails when: signal base_lost",
+                  "fail_on_signal"),
+                 ("Fail on all dead: convoy", "Fails when: all dead convoy",
+                  "fail_on_all_dead"),
+                 ("Fail after: 5 minutes", "Fails when: 5 minutes", "fail_after"),
+                 ("Complete after: 30 seconds", "Done when: 30 seconds",
+                  "complete_after"),
+                 ("State: secret", "Starts when: revealed", "state")]
+        for old, new, key in pairs:
+            self.assertEqual(self._data(old).get(key), self._data(new).get(key), old)
 
 
 if __name__ == "__main__":
