@@ -866,6 +866,18 @@ def quest_log_state_icon_color(state):
 _QUEST_LOG_MAX_DEPTH = 5
 
 
+def _quest_show(q):
+    """A quest's `Show:` - WHEN it is listed in the log, normalised.
+
+    Fence fields live under the quest's `data`; only state / display_text / description
+    are promoted onto the quest itself, so reading `q["show"]` returns None and the
+    field silently does nothing. Both are checked here so there is one place to be
+    wrong."""
+    qd = q.get("data") or {}
+    raw = (qd.get("show") if hasattr(qd, "get") else None) or q.get("show", "")
+    return str(raw or "always").strip().lower().replace("_", " ")
+
+
 def _quest_log_rows(children, aid, group, depth):
     """One level of the quest tree. A quest that HAS visible children is emitted as a
     COLLAPSIBLE gui_list_box_header - so it folds its steps exactly like the Game/You/Ship
@@ -882,17 +894,15 @@ def _quest_log_rows(children, aid, group, depth):
         # running but is not a to-do, so `when done` keeps it out of the log until it
         # RESOLVES (complete or failed), where it reads as history. Distinct from
         # SECRET, which also stops the triggers; a beat has to keep running.
-        qd = q.get("data") or {}
-        show = str((qd.get("show") if hasattr(qd, "get") else None)
-                   or q.get("show", "") or "always").strip().lower().replace("_", " ")
+        show = _quest_show(q)
         if show == "never":
             continue
         if show == "when done" and st not in (int(QuestState.COMPLETE), int(QuestState.FAILED)):
             continue
-        entries.append((cid, q, st))
+        entries.append((cid, q, st, show))
     entries.sort(key=lambda e: _QUEST_LOG_STATE_ORDER.get(e[2], 9))
     out = []
-    for cid, q, st in entries:
+    for cid, q, st, show in entries:
         # `key` is the FULL path (q["id"], e.g. "arc/step1") so accept/abandon/Engage look
         # it up path-aware; falls back to the child segment for older quests.
         row = MastDataObject({
@@ -903,13 +913,20 @@ def _quest_log_rows(children, aid, group, depth):
             "desc": (q.get("description") or "").strip(),
         })
         kids = q.get("children")
-        has_visible_kids = kids and any(
-            int(c.get("state", 0) or 0) != int(QuestState.SECRET) for c in kids.values())
+        visible_kids = _quest_log_rows(kids, aid, group, depth + 1) if kids else []
+        has_visible_kids = bool(visible_kids)
+        # `with children`: a pure grouping heading, worth a row only while something
+        # under it is listed - otherwise it names a thread that has not started yet.
+        # Declared, never inferred: a multi-step JOB also has children but is a quest in
+        # its own right (it sits on the board to be accepted), and hiding it would make
+        # it unacceptable.
+        if show == "with children" and not has_visible_kids:
+            continue
         if has_visible_kids and depth < _QUEST_LOG_MAX_DEPTH:
             # Parent quest -> collapsible header carrying the quest's row data; its steps
             # follow one level deeper and fold under it.
             out.append(gui_list_box_header(row.get("title"), False, depth + 1, True, row, visual_indent=depth))
-            out.extend(_quest_log_rows(kids, aid, group, depth + 1))
+            out.extend(visible_kids)
         else:
             out.append(row)
     return out

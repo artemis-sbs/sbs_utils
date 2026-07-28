@@ -210,8 +210,13 @@ QUEST = {
                      key="reveals", aka=("scan text",)),
     # WHEN this quest is listed in the log. `when done` runs it unseen and shows it
     # once it resolves (complete OR failed) - a story beat is history, not a to-do.
+    # `with children` is for a pure GROUPING heading: it earns a row only while
+    # something under it is listed, so it never names a thread that has not started.
+    # A job that HAS steps but is a quest in its own right (accept it, it pays) stays
+    # `always` - which is why this is declared, not guessed from the shape of the tree.
     # NOT the same as State: secret, which also stops the triggers.
-    "show": enum("always", "when done", "never"),
+    "show": enum("always", "when done", "with children", "never",
+                 aka={"when children": "with children"}),
     "accept on": csv(hint="comms, admiral"),
     "engage on": csv(hint="helm"),
     # The quest driver's own advancement triggers. Authored as a flow value

@@ -7,11 +7,13 @@ from sbs_utils.procedural.quest import (
     quest_add, quest_get, quest_remove, quest_transfer,
     quest_get_state, quest_get_key, quest_set_key,
     quest_activate, quest_complete,
+    quest_log_build_items,
     quest_console_enable, quest_is_console_enabled,
     quest_add_yaml, quest_add_object, quest_agent_quests,
     document_get_amd_file,
     QuestState,
 )
+from sbs_utils.procedural.quest_driver import quest_mark_complete, quest_mark_failed
 import unittest
 
 test_set_exe_dir()
@@ -356,6 +358,78 @@ bad_quest:
         content = "# [Quest](q/1)\nplain prose\n"
         result = document_get_amd_file(None, content=content)
         self.assertNotIn("data", result["children"][0])
+
+
+class TestQuestLogShow(unittest.TestCase):
+    """`Show:` decides WHEN a quest is listed, separately from whether it runs."""
+
+    def setUp(self):
+        SpaceObject.clear()
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        self.aid = make_agent().id
+
+    def _add(self, key, title, show=None, state=QuestState.ACTIVE, **data):
+        if show:
+            data["show"] = show
+        quest_add(self.aid, key, title, "", state=state, data=data)
+
+    def _titles(self):
+        rows = quest_log_build_items([("Mission", self.aid)])
+        # a leaf row IS a MastDataObject; a group/section is a list-box header
+        # carrying its row (a MastDataObject too, for a group) in `.data`
+        out = []
+        for r in rows:
+            d = getattr(r, "data", None)
+            t = (d.get("title") if d is not None else None) or getattr(r, "title", None)
+            if t:
+                out.append(t)
+        return out
+
+    def test_always_is_the_default(self):
+        self._add("a", "Plain")
+        self.assertIn("Plain", self._titles())
+
+    def test_never_is_not_listed_in_any_state(self):
+        self._add("a", "Machinery", show="never")
+        self.assertNotIn("Machinery", self._titles())
+        quest_mark_complete(self.aid, "a")
+        self.assertNotIn("Machinery", self._titles())
+
+    def test_when_done_appears_only_once_it_resolves(self):
+        self._add("a", "Beat", show="when done")
+        self.assertNotIn("Beat", self._titles(), "a running beat is not a to-do")
+        quest_mark_complete(self.aid, "a")
+        self.assertIn("Beat", self._titles(), "a resolved beat is history")
+
+    def test_when_done_counts_FAILED_as_resolved(self):
+        self._add("a", "Beat", show="when done")
+        quest_mark_failed(self.aid, "a")
+        self.assertIn("Beat", self._titles())
+
+    def test_underscores_and_case_are_accepted(self):
+        self._add("a", "Beat", show="When_Done")
+        self.assertNotIn("Beat", self._titles())
+
+    # -- `with children`: a grouping heading, not a quest ---------------------
+
+    def test_with_children_hides_a_group_until_something_under_it_shows(self):
+        self._add("grp", "Ramscoop", show="with children")
+        self._add("grp/one", "Ramscoop Begin", show="when done")
+        self.assertNotIn("Ramscoop", self._titles(),
+                         "a group must not name a thread that has not happened")
+        quest_mark_complete(self.aid, "grp/one")
+        titles = self._titles()
+        self.assertIn("Ramscoop", titles)
+        self.assertIn("Ramscoop Begin", titles)
+
+    def test_a_multi_step_JOB_stays_visible_with_secret_steps(self):
+        """The regression that makes this a DECLARED value instead of a renderer
+        heuristic: an available job also has children, and every step is secret
+        until it is accepted. Hiding it would make the job unacceptable."""
+        self._add("job", "The Ghost Freighter", state=QuestState.IDLE, reward="400 credits")
+        self._add("job/hail", "Hail the Meridian", state=QuestState.SECRET)
+        self.assertIn("The Ghost Freighter", self._titles())
 
 
 if __name__ == '__main__':
