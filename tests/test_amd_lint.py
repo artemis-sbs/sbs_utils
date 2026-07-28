@@ -354,5 +354,68 @@ class TestScanLabels(unittest.TestCase):
         self.assertEqual(_by_code(amd_lint(content=doc, cross_file=False), "unknown-scan-label"), [])
 
 
+class TestFenceSyntaxDiagnostics(unittest.TestCase):
+    """The reader collects its complaints in a writer's terms; until this pass
+    existed nothing ever asked for them, so they were all thrown away."""
+
+    def test_a_colonless_fence_line_is_reported_at_its_real_line(self):
+        doc = ("# [A](a)\n"
+               "---\n"
+               "State: active\n"
+               "Colour red\n"          # line 4 - no colon
+               "---\n"
+               "body\n")
+        found = _by_code(amd_lint(content=doc), "fence-syntax")
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0].line, 4)          # FILE line, not block line
+        self.assertIn("Label: value", found[0].message)
+        self.assertTrue(found[0].is_error())
+
+    def test_a_misplaced_kind_line_says_where_it_belongs(self):
+        doc = "# [A](a)\n---\nState: active\nCharacters\n---\nbody\n"
+        found = _by_code(amd_lint(content=doc), "fence-syntax")
+        self.assertEqual(len(found), 1)
+        self.assertIn("first line", found[0].message)
+
+    def test_a_clean_fence_reports_nothing(self):
+        doc = "# [A](a)\n---\nCharacters\nColor: #07F\n---\nbody\n"
+        self.assertEqual(_by_code(amd_lint(content=doc), "fence-syntax"), [])
+
+
+class TestUnknownFieldDiagnostics(unittest.TestCase):
+    """Growth rule 1: an unknown field is kept and never fatal - but the author
+    is told, because silence is how a typo survives."""
+
+    def test_an_unknown_field_warns_when_the_kind_is_known(self):
+        doc = ("# [Doc](doc)\n## [Jobs](jobs)\n### [Sweep](sweep)\n"
+               "---\nState: active\nPayz: 200 credits\n---\nbody\n")
+        found = _by_code(amd_lint(content=doc), "unknown-field")
+        self.assertEqual(len(found), 1)
+        self.assertIn("Payz", found[0].message)
+        self.assertFalse(found[0].is_error())      # warning, never fatal
+
+    def test_a_declared_field_is_silent(self):
+        doc = ("# [Doc](doc)\n## [Jobs](jobs)\n### [Sweep](sweep)\n"
+               "---\nState: active\nPays: 200 credits\n---\nbody\n")
+        self.assertEqual(_by_code(amd_lint(content=doc), "unknown-field"), [])
+
+    def test_a_renamed_spelling_is_silent(self):
+        # `Goal:` is an alias of `Done when:` - a rename must not create warnings
+        doc = ("# [Doc](doc)\n## [Jobs](jobs)\n### [Sweep](sweep)\n"
+               "---\nGoal: signal x\nStarts when: signal y\n---\nbody\n")
+        self.assertEqual(_by_code(amd_lint(content=doc), "unknown-field"), [])
+
+    def test_nested_block_keys_are_not_fields(self):
+        # a recipe's Properties/Defaults inner names belong to the mission
+        doc = ("# [Doc](doc)\n## [Recipes](recipes)\n### [Bio](bio)\n"
+               "---\nOutput: Beacon\nProperties:\n  Monster: 'x'\n  Mode: 'y'\n---\nb\n")
+        self.assertEqual(_by_code(amd_lint(content=doc), "unknown-field"), [])
+
+    def test_nothing_is_flagged_when_the_kind_is_unknown(self):
+        # with no archetype there is nothing to be unknown against
+        doc = "# [A](a)\n---\nWibble: 3\n---\nbody\n"
+        self.assertEqual(_by_code(amd_lint(content=doc), "unknown-field"), [])
+
+
 if __name__ == "__main__":
     unittest.main()

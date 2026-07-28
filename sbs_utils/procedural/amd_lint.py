@@ -265,6 +265,47 @@ def _resolves(doc, value, known_keys):
     return value in doc.keys or value in known_keys
 
 
+def amd_lint_fence(doc):
+    """Surface what the fence READER already noticed.
+
+    The reader collects its complaints in a writer's terms rather than raising, so a
+    typo can never take a mission down - but until this pass nothing ever asked for
+    them, so every one of those messages was thrown away. ERROR: each is a line the
+    parser could not use."""
+    return [AmdFinding(line, ERROR, "fence-syntax", message)
+            for line, message in getattr(doc, "errors", ())]
+
+
+def amd_lint_unknown_fields(doc):
+    """Flag a field no archetype declares.
+
+    Growth rule 1: an unknown field is kept and never fatal, so a newer mission still
+    loads on an older library. But silence is how `Disposition:` typos survived - the
+    author gets told, and the fix is either a spelling or one line of
+    `amd_register_fields`. WARNING, and only where the record's kind is KNOWN: with no
+    archetype there is nothing to be unknown against."""
+    from sbs_utils.procedural.amd_schema import amd_is_declared, template_fields
+    findings = []
+    for node in doc.nodes:
+        if not node.kind:
+            continue
+        for lineno, raw, label, _value in _fence_fields(node):
+            # Only TOP-LEVEL labels are fields. An indented line is inside a nested
+            # block (a recipe's Properties/Defaults, a chatter Lines list) whose inner
+            # names the mission owns - the registry has no opinion on those.
+            if raw[:1] in (" ", "\t"):
+                continue
+            if amd_is_declared(label, node.kind):
+                continue
+            known = ", ".join(sorted(template_fields(node.kind))[:6])
+            col = 0 if ":" not in raw else len(raw) - len(raw.lstrip())
+            findings.append(AmdFinding(
+                lineno, WARNING, "unknown-field",
+                f"`{label}` is not a known {node.kind} field - check the spelling, or "
+                f"declare it with amd_register_fields. Known: {known}...", col=col))
+    return findings
+
+
 def amd_lint_keys(doc):
     """Flag key collisions and the references made unresolvable by them.
 
@@ -541,8 +582,10 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         keys = set(known_keys) if known_keys else set()
         if source_index is not None:
             keys |= source_index["labels"]  # MAST labels are valid targets too
+        findings += amd_lint_fence(doc)
         findings += amd_lint_references(doc, keys)
         findings += amd_lint_keys(doc)
+        findings += amd_lint_unknown_fields(doc)
         findings += amd_lint_field_values(doc)
         if cross_file is not False:
             findings += amd_lint_cross_file(doc, mast_sources, source_index)

@@ -210,6 +210,15 @@ QUEST = {
                      key="reveals", aka=("scan text",)),
     "accept on": csv(hint="comms, admiral"),
     "engage on": csv(hint="helm"),
+    # The quest driver's own advancement triggers. Authored as a flow value
+    # (`on_kill: { role: raider, count: 5 }`), so the reader has already parsed
+    # them by the time anything reads the descriptor.
+    "on kill": text(hint="{ role: raider, count: 5 }"),
+    "on collect": text(hint="{ key: provisions, count: 3 }"),
+    "on scan": text(hint="{ role: derelict }"),
+    "on dock": text(hint="{ role: station }"),
+    "reveal": ref("node", hint="a node to reveal when this completes"),
+    "cockpit": text(hint="the craft a sortie is flown in"),
 }
 
 DIALOGUE = {

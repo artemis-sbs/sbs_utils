@@ -17,7 +17,7 @@ metadata verbs) but not what any domain *means*; callers resolve keys/signals.
 import re
 
 from sbs_utils.procedural.amd import (amd_parse_facts, amd_kind_line, KIND_KEY,
-                                      FenceScanner, RE_HEADING, RE_FENCE)
+                                      FenceScanner, RE_HEADING, RE_FENCE, AmdErrors)
 
 # Grammar - ONE definition, imported from `amd` and shared with the runtime reader
 # in quest.py. These aliases keep the existing local names working.
@@ -107,6 +107,7 @@ class AmdDocument:
         self.parent_of = {n.key: (n.parent.key if n.parent and n.parent.key != "__root__" else None)
                           for n in nodes}
         self.landmark_cells = {r.value for r in refs if r.kind == "at"}
+        self.errors = []      # (line, message) fence parse problems
 
     def nodes_for(self, key):
         """Every node carrying `key` - 40 of the corpus's 374 keys repeat, and three
@@ -433,6 +434,7 @@ def parse(content, file_path=None):
 
     scanner = FenceScanner()
     fence_lines = []
+    errors = []          # (line, message) - fence problems, in a writer's terms
 
     for idx, raw in enumerate(lines, start=1):
         action = scanner.feed(raw, idx)
@@ -449,10 +451,16 @@ def parse(content, file_path=None):
             # registry coerces by the right table. Nearest-first ancestors, then the
             # section name, then the discriminating-field fallback.
             node.kind = _resolve_node_kind(node, block)
+            # Collect the reader's writer-facing complaints WITH their real file
+            # lines, so the linter and the editor can put a squiggle on them. The
+            # parser numbers lines within the block, so offset by the line the
+            # block's first content sits on.
+            block_errors = AmdErrors(line_offset=(fence_lines[0][0] - 1) if fence_lines else 0)
             try:
-                parsed = amd_parse_facts(block, archetype=node.kind)
+                parsed = amd_parse_facts(block, archetype=node.kind, errors=block_errors)
             except Exception:
                 parsed = None
+            errors.extend(block_errors.items)
             if isinstance(parsed, dict):
                 node.data.update(parsed)
                 _extract_data_refs(node, fence_lines)
@@ -500,4 +508,9 @@ def parse(content, file_path=None):
     for n in nodes:
         refs.extend(n.refs)
     refs.sort(key=lambda r: (r.span.line, r.span.col))
-    return AmdDocument(root, nodes, refs, line_count=len(lines))
+    if scanner.finish():
+        errors.append((scanner.open_line,
+                       'this --- was never closed, so the rest of the file is being read as data'))
+    doc = AmdDocument(root, nodes, refs, line_count=len(lines))
+    doc.errors = errors
+    return doc

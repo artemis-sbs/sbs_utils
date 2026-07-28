@@ -288,8 +288,36 @@ def _flow(value, lineno, errors):
 
 
 def _err(errors, lineno, message):
-    if errors is not None:
+    """Record a parse problem in a WRITER's terms.
+
+    `errors` may be a plain list (messages, for a caller that just wants to print
+    them) or an `AmdErrors` (which also keeps the line, so the linter and the editor
+    can put a squiggle on it)."""
+    if errors is None:
+        return
+    if isinstance(errors, AmdErrors):
+        errors.add(lineno, message)
+    else:
         errors.append(f"line {lineno}: {message}")
+
+
+class AmdErrors(list):
+    """Collected parse problems that remember WHERE they were.
+
+    Behaves as a list of `"line N: message"` strings (so existing callers are
+    unaffected), while `.items` keeps `(line, message)` pairs. `line_offset` maps
+    the fence-relative line the parser sees onto the real file line - without it a
+    diagnostic would point at line 3 of the block instead of line 147 of the file."""
+
+    def __init__(self, line_offset=0):
+        super().__init__()
+        self.items = []
+        self.line_offset = line_offset
+
+    def add(self, lineno, message):
+        line = lineno + self.line_offset
+        self.items.append((line, message))
+        self.append(f"line {line}: {message}")
 
 
 def _group(entries):
