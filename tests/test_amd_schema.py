@@ -88,6 +88,24 @@ class TestFieldSchema(unittest.TestCase):
                      "at start"):   # survives: see the note on the field
             self.assertIn(kept, offered, kept)
 
+    def test_a_new_record_starts_with_a_few_fields_not_the_table(self):
+        """`+ add` in an empty section emitted every key in the archetype - 33 blank
+        lines in front of someone writing their first quest, which reads as "all of
+        this is required"."""
+        import sbs_utils.procedural.amd_schema as SS
+        start = SS.starter_fields("quest")
+        self.assertLess(len(start), 6)
+        self.assertIn("objective", start)
+        self.assertIn("done when", start)
+        for arch in ("lifeform", "item", "side", "scan", "map"):
+            self.assertTrue(SS.starter_fields(arch), arch)
+            self.assertLessEqual(len(SS.starter_fields(arch)),
+                                 len(SS.template_fields(arch)), arch)
+        # an archetype with no opinion still gets something, never everything
+        SS.amd_register_fields("widget", {"a": SS.text(), "b": SS.text(),
+                                          "c": SS.text(), "d": SS.text(), "e": SS.text()})
+        self.assertEqual(len(SS.starter_fields("widget")), 4)
+
     def test_the_life_cycle_is_one_grammar(self):
         """Three questions, one trigger type - the point of the collapse. `Starts when:`
         used to be a `compound` of its own while `Done when:` was a `trigger`, which is

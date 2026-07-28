@@ -597,6 +597,31 @@ def template_fields(archetype, include_internal=False):
             if include_internal or not (isinstance(d, dict) and d.get("internal"))]
 
 
+# The handful of fields a NEW record of each kind actually starts with. Offering the
+# whole table instead put 33 blank lines in front of an author writing their first
+# quest, which reads as "all of this is required" - the opposite of what a fact sheet
+# should feel like. Everything else is still one `+ add field` away.
+STARTERS = {
+    "quest": ("objective", "done when", "reward"),
+    "lifeform": ("display", "face", "roles"),
+    "item": ("display", "mode", "price"),
+    "side": ("display", "color", "enemies"),
+    "scan": ("scan of", "tab"),
+    "landmark": ("at", "art", "roles"),
+    "region": ("at", "color"),
+    "map": ("display", "mode"),
+    "dialogue": ("speaker",),
+}
+
+
+def starter_fields(archetype):
+    """The short set a new record of this archetype opens with (see STARTERS), falling
+    back to the first few offered fields for an archetype with no opinion."""
+    known = [f for f in template_fields(archetype)]
+    picked = [f for f in STARTERS.get(archetype, ()) if f in known]
+    return picked or known[:4]
+
+
 def amd_is_internal(label, archetype=None):
     """True when a field still parses but should not be OFFERED (picker, completion,
     new-record template)."""

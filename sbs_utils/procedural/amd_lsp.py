@@ -1090,7 +1090,7 @@ def _new_in_section(index, uri, section):
     archetype's schema fields, with the insert line. When the section doesn't
     exist yet, the text is prefixed with its `##` header (`exists` is False).
     None if the doc can't be read. Backs the panels' per-section "+" add."""
-    from sbs_utils.procedural.amd_schema import archetype_for_section, template_fields
+    from sbs_utils.procedural.amd_schema import archetype_for_section, starter_fields
     d, _u = _cur_doc(index, uri)
     if d is None:
         return None
@@ -1105,7 +1105,8 @@ def _new_in_section(index, uri, section):
     if sib is not None:
         labels = _record_labels(sib)
     elif alias:
-        labels = [cap(l) for l in template_fields(alias)]
+        # A SHORT starter set, not the whole table - see STARTERS.
+        labels = [cap(l) for l in starter_fields(alias)]
     else:
         labels = []
     word = alias or (section.rstrip("s") or "node")
