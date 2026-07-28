@@ -262,7 +262,11 @@ def _resolves(doc, value, known_keys):
     just under-specified - so it is reported once by `amd_lint_keys` as ambiguous
     rather than twice, and never as "points at nothing"."""
     if "/" in value:
-        return doc.path_resolves(value) or value.split("/")[-1] in known_keys
+        # A slashed value may be a literal KEY (an AMD heading `](arc/step)`, which is how
+        # a nested quest is authored) as well as a heading PATH. Check the key first, or
+        # every nested reference reads as dangling.
+        return (value in doc.keys or doc.path_resolves(value)
+                or value.split("/")[-1] in known_keys)
     return value in doc.keys or value in known_keys
 
 

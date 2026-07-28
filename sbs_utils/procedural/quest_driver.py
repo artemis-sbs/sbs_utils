@@ -145,7 +145,18 @@ def quest_reeval_mission(agent_id, parent_qid):
     if tree is None:
         return
     required_done = []
-    for qid in tree.get("children", {}):
+    # Walk the WHOLE tree, not just the top level. A child nested under an arc
+    # (`group/step`) still declares `parent:` for the win/lose mission tree, and a
+    # top-level-only scan simply never sees it - the parent then waits forever on
+    # required children it cannot find.
+    all_ids = []
+    def _walk(children, prefix):
+        for cid, q in (children or {}).items():
+            path = f"{prefix}/{cid}" if prefix else cid
+            all_ids.append(path)
+            _walk(q.get("children"), path)
+    _walk(tree.get("children", {}), "")
+    for qid in all_ids:
         d = quest_get_data(agent_id, qid) or {}
         if d.get("parent") != parent_qid:
             continue
