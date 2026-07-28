@@ -693,7 +693,11 @@ def _detail_for(index, u, d, node):
     # (enum -> dropdown, ref -> key-picker, colour -> swatch, ...). The mission
     # symbol lists ride along once (candidates for the reference widgets).
     from sbs_utils.procedural.amd_schema import infer_archetype, field_schema
-    arch = infer_archetype([f["label"] for f in fields], _section_of(node))
+    # `node.kind` is what the PARSER resolved - the record's own kind line, else the
+    # nearest ancestor's, else the section-name table. Prefer it: re-deriving from the
+    # section key alone cannot see a kind line or inheritance, so the Inspector would
+    # type the very records the kind system exists to classify as plain text.
+    arch = node.kind or infer_archetype([f["label"] for f in fields], _section_of(node))
     for f in fields:
         f["schema"] = field_schema(f["label"], arch)
 
@@ -828,6 +832,10 @@ def _node_schema(index, key):
             label = raw.split(":", 1)[0].strip()
             if label:
                 labels.append(label)
+        if node.kind:
+            from sbs_utils.procedural.amd_schema import field_schema
+            return {"archetype": node.kind,
+                    "fields": {l: field_schema(l, node.kind) for l in labels}}
         return record_schema(labels, _section_of(node))
     return None
 
