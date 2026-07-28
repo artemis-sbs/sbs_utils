@@ -20,7 +20,7 @@
     
     
       
-        <title>2. Clans - who lives here - SBS Utils library Documentation</title>
+        <title>2. Sides - who lives here - SBS Utils library Documentation</title>
       
     
     
@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#clans-who-lives-here" class="md-skip">
+        <a href="#sides-who-lives-here" class="md-skip">
           Skip to content
         </a>
       
@@ -115,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              2. Clans - who lives here
+              2. Sides - who lives here
             
           </span>
         </div>
@@ -1400,6 +1400,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1659,6 +1665,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../cosmos/gui_icons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Icons (gui_icon_name)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../cosmos/gui_content_sizing/" class="md-nav__link">
         
   
@@ -1795,7 +1824,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_16" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_17" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1812,14 +1841,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_16" id="__nav_5_16_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_17" id="__nav_5_17_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_16_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_16">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_17">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -1934,6 +1963,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../build/amd-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The AMD file format
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../build/quests/" class="md-nav__link">
         
   
@@ -2009,6 +2061,29 @@
   
   <span class="md-ellipsis">
     Web pages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/shared-media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shared media (art that lives once)
     
   </span>
   
@@ -5029,7 +5104,7 @@
   
   
   <span class="md-ellipsis">
-    2. Clans - who lives here
+    2. Sides - who lives here
     
   </span>
   
@@ -5042,7 +5117,7 @@
   
   
   <span class="md-ellipsis">
-    2. Clans - who lives here
+    2. Sides - who lives here
     
   </span>
   
@@ -5576,17 +5651,24 @@
   
 
 
-<h1 id="clans-who-lives-here">Clans - who lives here</h1>
-<p>Clans are your factions - the recurring characters of the galaxy. Each one is
+<h1 id="sides-who-lives-here">Sides - who lives here</h1>
+<p>Sides are your factions - the recurring characters of the galaxy. Each one is
 a character sheet: what they look like on the map, where they live, what they
 value, and what kind of people they are.</p>
-<p>Add a <code>## Clans</code> chapter with two entries:</p>
-<div class="highlight"><pre><span></span><code>## [Clans](clans)
+<div class="admonition note">
+<p class="admonition-title">These used to be called clans</p>
+<p>They were always sides - the universe spawned them as sides from the first day.
+The private word bought us a private kind of record and a second vocabulary for
+standing and home systems, so it is gone. <code>## Clans</code> and <code>Clan:</code> still parse, and
+nothing you have written needs changing.</p>
+</div>
+<p>Add a <code>## Sides</code> chapter with two entries:</p>
+<div class="highlight"><pre><span></span><code>## [Sides](sides)
 
 ### [The Lantern Combine](lantern)
 ---
 Color: #ffcc44
-Archetype: trader
+Character: trader
 Disposition: neutral
 Home: -4, 2
 Values: honest 40, generous 30, peaceful 20
@@ -5598,7 +5680,7 @@ memories for a kept promise - and longer ones for a broken cargo contract.
 ### [The Red Veil](veil)
 ---
 Color: #cc2244
-Archetype: pirate
+Character: pirate
 Disposition: foe
 Home: 5, -4
 Values: violent 40, fearsome 30, selfish 20
@@ -5609,21 +5691,21 @@ respect exactly one thing: a captain more dangerous than they are.
 </code></pre></div>
 <h2 id="reading-the-fact-sheet-as-a-writer">Reading the fact sheet as a writer</h2>
 <ul>
-<li><strong>Color</strong> - the clan's color on the galaxy map. Any web color like
+<li><strong>Color</strong> - the side's color on the galaxy map. Any web color like
   <code>#cc2244</code>.</li>
-<li><strong>Archetype</strong> - the clan's genre role, one word: <code>military</code>, <code>trader</code>,
+<li><strong>Archetype</strong> - the side's genre role, one word: <code>military</code>, <code>trader</code>,
   <code>settler</code>, <code>mercenary</code>, <code>pirate</code>, or <code>cult</code>. This flavors their chatter,
   their stations, and their fleets.</li>
 <li><strong>Disposition</strong> - <code>neutral</code> (will talk) or <code>foe</code> (shoots first). A <code>foe</code>
-  clan can still be won over in play - through reputation, ceasefires, even
+  side can still be won over in play - through reputation, ceasefires, even
   alliance. You are writing their opening attitude, not their fate.</li>
 <li><strong>Home</strong> - their home system as map coordinates, <code>column, row</code>. The galaxy
   is a grid of systems centered on <code>0, 0</code>, where the players start; a home at
   <code>5, -4</code> is five columns and four rows away in the other direction. Give
-  clans some distance from each other (and from <code>0, 0</code>) so their territories
+  sides some distance from each other (and from <code>0, 0</code>) so their territories
   read on the map.</li>
 <li>
-<p><strong>Values</strong> - the clan's moral leanings, as traits with weights. These are
+<p><strong>Values</strong> - the side's moral leanings, as traits with weights. These are
   the seven built-in trait pairs a captain is measured on:</p>
 <table>
 <thead>
@@ -5651,8 +5733,8 @@ respect exactly one thing: a captain more dangerous than they are.
 </tr>
 </tbody>
 </table>
-<p>Pick two or three poles that define the clan and weight them (they need
-not add to 100). A clan warms to captains who act like it - the Veil
+<p>Pick two or three poles that define the side and weight them (they need
+not add to 100). A side warms to captains who act like it - the Veil
 respects <code>fearsome</code> deeds, the Combine respects <code>honest</code> ones. This one
 line is the engine of the whole reputation game, and it is pure
 characterization.</p>
@@ -5665,7 +5747,7 @@ characterization.</p>
 </ul>
 <div class="admonition success">
 <p class="admonition-title">In play</p>
-<p>Your clans now hold home systems, their colors mark the map, their fleets
+<p>Your sides now hold home systems, their colors mark the map, their fleets
 fly their colors, and every captain has a personal standing with each of
 them that moves with how the captain behaves.</p>
 </div>

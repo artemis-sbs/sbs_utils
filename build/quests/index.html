@@ -9,7 +9,7 @@
       
       
       
-        <link rel="prev" href="../../mast/objectives/">
+        <link rel="prev" href="../amd-format/">
       
       
         <link rel="next" href="../items-upgrades/">
@@ -1402,6 +1402,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1664,6 +1670,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../cosmos/gui_icons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Icons (gui_icon_name)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../cosmos/gui_content_sizing/" class="md-nav__link">
         
   
@@ -1803,7 +1832,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_16" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_17" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1820,14 +1849,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_16" id="__nav_5_16_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5_17" id="__nav_5_17_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_16_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_16">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_17">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -1925,6 +1954,29 @@
   
   <span class="md-ellipsis">
     Objectives
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../amd-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The AMD file format
     
   </span>
   
@@ -2119,6 +2171,29 @@
   
   <span class="md-ellipsis">
     Web pages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../shared-media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shared media (art that lives once)
     
   </span>
   
@@ -5112,12 +5187,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../openuniverse/writing/clans/" class="md-nav__link">
+      <a href="../../openuniverse/writing/sides/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    2. Clans - who lives here
+    2. Sides - who lives here
     
   </span>
   
@@ -5679,12 +5754,15 @@ fields, then prose:</p>
 <div class="highlight"><pre><span></span><code>## [Defend the Convoy](defend_convoy)
 ---
 Scope: shared
-State: active
-Goal: destroy 6 raiders
-Pays: 500 credits
+Starts when: at once
+Objective: Drive the raiders off the freighters
+Done when: destroy 6 raiders
+Reward: 500 credits
 ---
 Escort the freighters through the belt - every raider you burn buys them time.
 </code></pre></div>
+<p>The full file format — headings, the fence, nesting, lists and how a record says what
+it is — is in <a href="../amd-format/">The AMD file format</a>.</p>
 <h3 id="quest-fields">Quest fields</h3>
 <table>
 <thead>
@@ -5699,20 +5777,32 @@ Escort the freighters through the belt - every raider you burn buys them time.
 <td><code>shared</code> (one quest for the whole game) or per-ship.</td>
 </tr>
 <tr>
-<td><code>State:</code></td>
-<td>Starting state — <code>active</code> (running immediately), or <code>idle</code> (shown on the log as <strong>Available</strong> for a player to <strong>Accept</strong>; omit for the same effect). A whole board of <code>idle</code> jobs is a pick-up-work board.</td>
+<td><code>At start:</code></td>
+<td>The older way of saying the same thing — <code>running</code> / <code>offered</code> / <code>hidden</code>, and <code>active</code> / <code>available</code> / <code>idle</code> / <code>secret</code> before that. All still parse.</td>
 </tr>
 <tr>
-<td><code>Goal:</code></td>
-<td>The completion <strong>trigger</strong> plus the objective text shown in the log (see <a href="#triggers">Triggers</a>).</td>
+<td><code>Objective:</code></td>
+<td>The sentence the player reads in the quest log.</td>
 </tr>
 <tr>
-<td><code>When:</code></td>
-<td>A trigger with no objective text (same grammar as <code>Goal:</code>).</td>
+<td><code>Done when:</code></td>
+<td>The completion <strong>trigger</strong> (see <a href="#triggers">Triggers</a>).</td>
 </tr>
 <tr>
-<td><code>Pays:</code></td>
-<td>Reward on completion — <code>500 credits</code>, an item key, …</td>
+<td><code>Starts when:</code></td>
+<td><strong>When it arms</strong> — <code>at once</code>, <code>accepted</code> (the player takes it off the board), <code>revealed</code> (another quest reveals it).</td>
+</tr>
+<tr>
+<td><code>Fails when:</code></td>
+<td>What fails it — the same grammar, plus <code>all dead &lt;role&gt;</code> and a bare time (<code>5 minutes</code>).</td>
+</tr>
+<tr>
+<td><code>Reward:</code></td>
+<td>What completing it gives — <code>500 credits</code>, an item key, … (<code>Pays:</code> also parses).</td>
+</tr>
+<tr>
+<td><code>Penalty:</code></td>
+<td>What failing it costs — same grammar. Abandoning an accepted job fails it, so this is what walking away costs.</td>
 </tr>
 <tr>
 <td><code>Then:</code></td>
@@ -5723,15 +5813,20 @@ Escort the freighters through the belt - every raider you burn buys them time.
 <td>Optional label / ordering for the log.</td>
 </tr>
 <tr>
-<td><code>Accept On:</code></td>
-<td>Restrict which <strong>consoles</strong> may Accept/Abandon this job from the Quests tab — e.g. <code>comms</code>, or <code>comms, admiral</code>. Overrides the mission default (see <a href="#console-gating">Console gating</a>).</td>
-</tr>
-<tr>
-<td><code>Engage On:</code></td>
-<td>Restrict which consoles may <strong>Engage</strong> (travel to) this job — e.g. <code>helm</code>. Only meaningful when the mission enables the Engage button.</td>
+<td><code>Show:</code></td>
+<td><strong>When</strong> this quest is listed — <code>always</code> (default), <code>when done</code> (runs unseen, appears once it completes <em>or</em> fails, reading as history), <code>with children</code> (a grouping heading: a row only while something under it is listed), or <code>never</code> (drives its events invisibly). Not the same as <code>Starts when: revealed</code>, which also stops the triggers.</td>
 </tr>
 </tbody>
 </table>
+<div class="admonition tip">
+<p class="admonition-title">Say <code>Beat</code> or <code>Arc</code> instead</p>
+<p>A record that calls itself a <strong><code>Beat</code></strong> (a moment the crew lives through) already
+means <code>Show: when done</code>, and an <strong><code>Arc</code></strong> (the heading over a run of beats) already
+means <code>Show: with children</code> — see <a href="../amd-format/#screenplay-words">screenplay words</a>.
+Write <code>Show:</code> only to contradict the word.</p>
+</div>
+<p>| <code>Accept On:</code> | Restrict which <strong>consoles</strong> may Accept/Abandon this job from the Quests tab — e.g. <code>comms</code>, or <code>comms, admiral</code>. Overrides the mission default (see <a href="#console-gating">Console gating</a>). |
+| <code>Engage On:</code> | Restrict which consoles may <strong>Engage</strong> (travel to) this job — e.g. <code>helm</code>. Only meaningful when the mission enables the Engage button. |</p>
 <h3 id="console-gating">Console gating</h3>
 <p>The Quests tab <strong>displays</strong> on every enabled console, but <em>who may act</em> is gated per
 console. A mission sets the defaults (shared vars, e.g. in <code>settings.yaml</code>):</p>
@@ -5765,7 +5860,7 @@ engaging."</em> hint. On a console that can't act on an actionable job, the butt
 replaced with text naming the console(s) that can. <code>Accept On:</code> / <code>Engage On:</code> on a
 single quest override these lists for that job (a station-specific task).</p>
 <h3 id="triggers">Triggers</h3>
-<p>The verb in <code>Goal:</code> / <code>When:</code> (or a <code>fail_*</code> field) maps to the event the quest
+<p>The verb in <code>Done when:</code> / <code>Starts when:</code> (or a <code>fail_*</code> field) maps to the event the quest
 listens for:</p>
 <table>
 <thead>
@@ -5806,6 +5901,21 @@ listens for:</p>
 <td>a named signal — the escape hatch for any game-state milestone</td>
 <td>signal name</td>
 </tr>
+<tr>
+<td><code>all dead</code></td>
+<td>every object of a role is gone</td>
+<td>role</td>
+</tr>
+<tr>
+<td><em>a time</em></td>
+<td><code>5 minutes</code> / <code>30 seconds</code> — a time is a trigger like any other</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>accepted</code> / <code>revealed</code></td>
+<td>the player takes the job off the board / another quest reveals it</td>
+<td>—</td>
+</tr>
 </tbody>
 </table>
 <h3 id="mission-tree-end-game">Mission tree &amp; end-game</h3>
@@ -5820,7 +5930,7 @@ not hand-wired in script:</p>
 </thead>
 <tbody>
 <tr>
-<td><code>Parent:</code></td>
+<td><code>Part of:</code></td>
 <td>Attach this quest to a parent quest (its <code>key</code>), aggregating into that mission.</td>
 </tr>
 <tr>
@@ -5828,7 +5938,7 @@ not hand-wired in script:</p>
 <td>The parent isn't won until this child completes.</td>
 </tr>
 <tr>
-<td><code>Critical:</code></td>
+<td><code>Fatal:</code></td>
 <td>Failing this quest <strong>loses</strong> the game.</td>
 </tr>
 <tr>
@@ -5840,25 +5950,17 @@ not hand-wired in script:</p>
 <td>Completing (or failing) it <strong>loses</strong> the game. Bare flag, or prose reason.</td>
 </tr>
 <tr>
-<td><code>Fail on signal:</code></td>
-<td>Fail the quest when a signal fires.</td>
-</tr>
-<tr>
-<td><code>Fail on all dead:</code></td>
-<td>Fail when every object of a role is gone.</td>
-</tr>
-<tr>
-<td><code>Fail after:</code></td>
-<td>Fail after a time — <code>Fail after: 5 minutes</code>.</td>
+<td><code>Fails when:</code></td>
+<td>Fail the quest — <code>signal base_lost</code>, <code>all dead convoy</code>, <code>5 minutes</code>.</td>
 </tr>
 </tbody>
 </table>
 <p>This is the same vocabulary Open Universe uses and the Siege bosses hang their
 objectives on.</p>
 <div class="admonition tip">
-<p class="admonition-title"><code>Fail after:</code> starts counting when the quest goes ACTIVE</p>
+<p class="admonition-title">A <code>Fails when:</code> time starts counting when the quest goes ACTIVE</p>
 <p>The deadline is anchored <strong>lazily</strong> — the clock starts on the first tick the
-quest is <strong>active</strong>, not when it is granted. So an <code>idle</code> job's timer does not
+quest is <strong>active</strong>, not when it is granted. So an <code>available</code> job's timer does not
 run until a player <strong>Accepts</strong> it: a timed rescue gives the crew the full window
 from the moment they take it on, instead of ticking down while it sits
 unaccepted on the board. (Pair it with <strong>spawn-on-accept</strong> — key the target
@@ -5867,6 +5969,10 @@ objects also appear only once the job is taken.)</p>
 </div>
 <h2 id="signals">Signals</h2>
 <p>Quests emit signals you can react to from anywhere:</p>
+<p><strong>Signals go two ways, and the names are dangerously similar.</strong> Check the direction
+before you write a route — listening on an input waits for something nothing sends, and
+fails in total silence.</p>
+<p><strong>Driver → you</strong> (react to these):</p>
 <table>
 <thead>
 <tr>
@@ -5877,28 +5983,87 @@ objects also appear only once the job is taken.)</p>
 </thead>
 <tbody>
 <tr>
-<td><code>quest_activated</code></td>
-<td><code>AGENT_ID</code>, <code>QUEST_ID</code>, <code>QUEST</code></td>
-<td>a quest becomes active</td>
+<td><code>quest_started</code></td>
+<td><code>AGENT_ID</code>, <code>QUEST_ID</code>, <code>DATA</code></td>
+<td>a quest became active</td>
 </tr>
 <tr>
-<td><code>quest_completed</code></td>
-<td><code>AGENT_ID</code>, <code>QUEST_ID</code>, <code>QUEST</code></td>
-<td>a quest is finished</td>
+<td><code>quest_succeeded</code></td>
+<td><code>AGENT_ID</code>, <code>QUEST_ID</code>, <code>DATA</code></td>
+<td>a quest <strong>completed</strong> (rewards granted, reveals done)</td>
 </tr>
 <tr>
-<td><code>quest_failed</code></td>
-<td><code>AGENT_ID</code>, <code>QUEST_ID</code>, <code>QUEST</code></td>
-<td>a quest fails (a fail trigger fired)</td>
+<td><code>quest_failed_done</code></td>
+<td><code>AGENT_ID</code>, <code>QUEST_ID</code>, <code>DATA</code></td>
+<td>a quest <strong>failed</strong> (penalty applied)</td>
+</tr>
+<tr>
+<td>a quest's own <code>Signal:</code></td>
+<td><code>AGENT_ID</code>, <code>QUEST_ID</code></td>
+<td>that quest completed, if it declares one</td>
 </tr>
 </tbody>
 </table>
-<div class="highlight"><pre><span></span><code>//signal/quest_completed
+<p><strong>You → driver</strong> (emit these to <em>drive</em> a quest; the driver listens):</p>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Data keys</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>quest_activated</code></td>
+<td><code>AGENT_ID</code>, <code>QUEST_ID</code></td>
+<td>mark the quest active</td>
+</tr>
+<tr>
+<td><code>quest_completed</code></td>
+<td><code>AGENT_ID</code>, <code>QUEST_ID</code></td>
+<td>mark the quest complete</td>
+</tr>
+<tr>
+<td><code>quest_failed</code></td>
+<td><code>AGENT_ID</code>, <code>QUEST_ID</code></td>
+<td>mark the quest failed</td>
+</tr>
+<tr>
+<td><code>quest_signal</code></td>
+<td><code>SIGNAL_NAME</code></td>
+<td>advance any quest whose <code>Done when: signal &lt;name&gt;</code> matches</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title"><code>quest_completed</code> is a request, not a notification</p>
+<p>To <em>react</em> to a quest finishing, listen for <strong><code>quest_succeeded</code></strong>. <code>quest_completed</code>
+is what you emit to <em>ask</em> for a quest to be completed — the driver handles it and
+calls <code>quest_mark_complete</code>. Writing <code>//signal/quest_completed</code> to catch a
+completion is a route that never runs, and it fails in silence.</p>
+<p>Request → announcement: <code>quest_activated</code> → <code>quest_started</code>,
+<code>quest_completed</code> → <code>quest_succeeded</code>, <code>quest_failed</code> → <code>quest_failed_done</code>.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Put event bodies on <code>//shared/signal</code></p>
+<p>Every message verb addresses its own audience. On a plain <code>//signal</code> the route runs
+once per connected console <strong>plus</strong> the server, so a five-console bridge sends each
+message five times and performs each side effect five times.</p>
+</div>
+<div class="highlight"><pre><span></span><code>//shared/signal/quest_succeeded
     log(&quot;Quest complete!&quot;)
 </code></pre></div>
 <p>See <a href="../../mast/routes/signals/">Signals</a> and the
 <a href="../../api/procedural/quest/">quest API</a> for the full surface (<code>quest_set_state</code>
 and friends).</p>
+<div class="admonition tip">
+<p class="admonition-title">A trigger in <code>Starts when:</code> is a real gate</p>
+<p><code>Starts when: signal relief_authorised</code> <strong>opens</strong> the quest; its <code>Done when:</code> then
+decides what finishes it. The two are separate, so a gate can no longer complete the
+job it was only meant to unlock. A quest with a start trigger is not advancing until
+that trigger fires.</p>
+</div>
 
 
 

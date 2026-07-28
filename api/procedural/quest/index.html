@@ -1400,6 +1400,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1659,6 +1665,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../cosmos/gui_icons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Icons (gui_icon_name)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../cosmos/gui_content_sizing/" class="md-nav__link">
         
   
@@ -1795,7 +1824,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_16" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_17" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1812,14 +1841,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_16" id="__nav_5_16_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_17" id="__nav_5_17_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_16_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_16">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_17">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -1934,6 +1963,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../build/amd-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The AMD file format
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../build/quests/" class="md-nav__link">
         
   
@@ -2009,6 +2061,29 @@
   
   <span class="md-ellipsis">
     Web pages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/shared-media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shared media (art that lives once)
     
   </span>
   
@@ -5387,12 +5462,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/writing/clans/" class="md-nav__link">
+      <a href="../../../openuniverse/writing/sides/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    2. Clans - who lives here
+    2. Sides - who lives here
     
   </span>
   
@@ -6696,7 +6771,7 @@ quest_set_key(SHIP_ID, "patrol", "state", QuestState.ACTIVE)</p>
 
         <p>Add a quest to one or more agents.</p>
 <p>Creates a new quest entry in each agent's quest tree. If the agent has no
-quest tree yet, one is initialised automatically. The <code>quest_id</code> may use
+quest tree yet, one is initialized automatically. The <code>quest_id</code> may use
 <code>/</code> separators for nested quests (e.g. <code>"main/rescue"</code>), but all parent
 levels must already exist.</p>
 
@@ -7085,10 +7160,17 @@ if tree is not None:
     <div class="doc doc-contents ">
 
         <p>Emit a <code>quest_completed</code> signal for one or more agents.</p>
-<p>Fires <code>signal_emit("quest_completed", ...)</code> for each agent. To also
-update the stored state, call <code>quest_set_key(agent, quest_id, "state",
-QuestState.COMPLETE)</code> or handle the signal in a <code>//signal/quest_completed</code>
-route that sets the state.</p>
+<p><code>quest_completed</code> is an INPUT: you emit it to ASK for a quest to be completed.
+The LegendaryMissions quest driver listens for it and calls <code>quest_mark_complete</code>.</p>
+<p><strong>To REACT to a quest finishing, listen for <code>quest_succeeded</code></strong> - that is what the
+driver emits once it has finished processing a completion (<code>quest_failed_done</code> for
+a failure, <code>quest_started</code> for an activation). Do not write
+<code>//signal/quest_completed</code> to catch a completion: nothing emits it except callers
+like this one, so the route waits forever and fails silently. The two names are
+near-identical and point opposite ways; this bug killed every narrated beat in the
+2.8 converter's output.</p>
+<p>To also update the stored state without the driver, call
+<code>quest_set_key(agent, quest_id, "state", QuestState.COMPLETE)</code>.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -7160,7 +7242,7 @@ quest_set_key(SHIP_ID, "patrol", "state", QuestState.COMPLETE)</p>
 
         <p>Mark one or more console types as quest-panel-enabled.</p>
 <p>Controls which console types display the quest panel. Multiple console
-names can be passed as a comma-separated string. Names are normalised to
+names can be passed as a comma-separated string. Names are normalized to
 lowercase before storage.</p>
 
 

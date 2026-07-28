@@ -9,7 +9,7 @@
       
       
       
-        <link rel="prev" href="../clans/">
+        <link rel="prev" href="../sides/">
       
       
         <link rel="next" href="../story/">
@@ -1400,6 +1400,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1659,6 +1665,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../cosmos/gui_icons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Icons (gui_icon_name)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../cosmos/gui_content_sizing/" class="md-nav__link">
         
   
@@ -1795,7 +1824,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_16" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_17" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1812,14 +1841,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_16" id="__nav_5_16_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_17" id="__nav_5_17_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_16_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_16">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_17">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -1934,6 +1963,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../build/amd-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The AMD file format
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../build/quests/" class="md-nav__link">
         
   
@@ -2009,6 +2061,29 @@
   
   <span class="md-ellipsis">
     Web pages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/shared-media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shared media (art that lives once)
     
   </span>
   
@@ -5015,12 +5090,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../clans/" class="md-nav__link">
+      <a href="../sides/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    2. Clans - who lives here
+    2. Sides - who lives here
     
   </span>
   
@@ -5577,8 +5652,8 @@
 
 
 <h1 id="jobs-the-work-they-offer">Jobs - the work they offer</h1>
-<p>Jobs are the work a clan posts at its stations. Two steps: write the job, then
-put it in a clan's offer list.</p>
+<p>Jobs are the work a side posts at its stations. Two steps: write the job, then
+put it in a side's offer list.</p>
 <p>Add a <code>## Jobs</code> chapter:</p>
 <div class="highlight"><pre><span></span><code>## [Jobs](jobs)
 
@@ -5609,8 +5684,8 @@ Pays: 480 credits
 Sealed crates, no manifest, no questions. Bring them in quietly and be
 paid the same way.
 </code></pre></div>
-<p>Then give each clan its offerings - add an <code>Offers:</code> line to the clan fact
-sheets from the <a href="../clans/">Clans page</a>:</p>
+<p>Then give each side its offerings - add an <code>Offers:</code> line to the side fact
+sheets from the <a href="../sides/">Sides page</a>:</p>
 <div class="highlight"><pre><span></span><code>// in the Lantern Combine&#39;s fence:
 Offers: escort, bounty
 
@@ -5657,12 +5732,12 @@ that's how the two connect.</p>
 <p>The same line is shown to players as the objective, so write it well.</p>
 </li>
 <li>
-<p><strong>Tier</strong> is how trusted a captain must be before the clan offers this work:
-  <code>1</code> is offered to anyone the clan will talk to, <code>2</code> to captains in good
+<p><strong>Tier</strong> is how trusted a captain must be before the side offers this work:
+  <code>1</code> is offered to anyone the side will talk to, <code>2</code> to captains in good
   standing, <code>3</code> to proven friends. Higher-tier work should pay better and read
-  more sensitive - you are writing the clan's inner circle.</p>
+  more sensitive - you are writing the side's inner circle.</p>
 </li>
-<li><strong>Pays</strong> - the reward. Standing quietly scales it up for captains a clan
+<li><strong>Pays</strong> - the reward. Standing quietly scales it up for captains a side
   likes.</li>
 <li><strong>Accept On</strong> / <strong>Engage On</strong> (optional) - which bridge station may take on or
   travel to <em>this</em> job, e.g. <code>Accept On: comms</code>. Leave them off and the job uses
@@ -5677,8 +5752,8 @@ economy with a <code>## Goods</code> chapter later - see <a href="../dials/">The
 </div>
 <div class="admonition success">
 <p class="admonition-title">In play</p>
-<p>Hail a clan station and its work is on offer, gated by standing.
-Completing a clan's job earns standing along the traits that clan values -
+<p>Hail a side station and its work is on offer, gated by standing.
+Completing a side's job earns standing along the traits that side values -
 do the Combine's honest work and the Combine starts to love you.</p>
 </div>
 <p><strong>Next: <a href="../story/">Story and goals</a></strong> - give the sandbox a spine.</p>

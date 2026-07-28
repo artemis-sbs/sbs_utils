@@ -1400,6 +1400,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1659,6 +1665,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../cosmos/gui_icons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Icons (gui_icon_name)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../cosmos/gui_content_sizing/" class="md-nav__link">
         
   
@@ -1795,7 +1824,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_16" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_17" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1812,14 +1841,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_16" id="__nav_5_16_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_17" id="__nav_5_17_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_16_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_16">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_17">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -1934,6 +1963,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../build/amd-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The AMD file format
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../build/quests/" class="md-nav__link">
         
   
@@ -2009,6 +2061,29 @@
   
   <span class="md-ellipsis">
     Web pages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/shared-media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shared media (art that lives once)
     
   </span>
   
@@ -5015,12 +5090,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../clans/" class="md-nav__link">
+      <a href="../sides/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    2. Clans - who lives here
+    2. Sides - who lives here
     
   </span>
   
@@ -5845,11 +5920,18 @@ with a <code>(key)</code>, a <code>---</code> fence of facts, and a line of pros
 
 ### [Cinder World](cinder)
 ---
+Landmark
+Also: economy
 Yields: ore 8
 Reserve: 4000
 ---
 A cracked, mineral-rich ember of a world. Miners love it; nobody else does.
 </code></pre></div>
+<p>A worldlet is a <strong>Landmark</strong> - a place on the map - that <em>also</em> yields. <code>Also: economy</code>
+is where <code>Yields:</code> and <code>Reserve:</code> come from, and any other landmark that produces
+something can claim the same words. (Records in a <code>## Worldlets</code> chapter are read as
+landmarks whether or not they say so; writing it out is clearer once a file has more
+than one kind of thing in it.)</p>
 <ul>
 <li><strong>Yields</strong> is per minute, per Extractor: <code>ore 8</code> means one Extractor here pulls
   8 ore a minute.</li>
@@ -5900,7 +5982,7 @@ Reserve: unlimited
 A small settled world. People, modest industry, and somewhere to come from.
 </code></pre></div>
 <ul>
-<li><strong>Palette</strong> is optional - it paints the planet (base colour, cloud colour,
+<li><strong>Palette</strong> is optional - it paints the planet (base color, cloud color,
   and <code>bands</code> for a gas giant's stripes). Skip it and you get an engine default.</li>
 <li>The <strong>home system always gets one</strong> worldlet so the player can always start.
   Elsewhere they appear by chance (the <code>Worldlet chance</code> dial in step 6), or you
@@ -5908,7 +5990,7 @@ A small settled world. People, modest industry, and somewhere to come from.
 </ul>
 <h2 id="step-4-give-the-fleets-captains">Step 4 - give the fleets captains</h2>
 <p>Fleets need someone to command them. Add an <code>## Officers</code> chapter - the Academy
-roster. Their <strong>Values</strong> use the <strong>same reputation poles as your clans</strong>
+roster. Their <strong>Values</strong> use the <strong>same reputation poles as your sides</strong>
 (<a href="../people/">people</a>), and they shape the fleet: <code>by-the-book</code> burns less fuel,
 <code>resourceful</code> salvages richer, <code>fearsome</code> fights farther out.</p>
 <div class="highlight"><pre><span></span><code>## [Officers](officers)
