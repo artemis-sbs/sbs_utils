@@ -58,6 +58,39 @@ Everything below assumes answer 1 is "both draw". If it is not, stop and re-plan
 
 ---
 
+## The layout rule
+
+A media pack's zip **already carries its own namespace folder at the root**:
+
+```
+artemis-sbs.LegendaryMissions.media.v1.4.0.zip   root = LegendaryMissions/
+```
+
+So the unpack is a dumb extract into one shared root - no stripping, no per-pack folder,
+and **every existing media path keeps its suffix**:
+
+```
+<mission>/media/LegendaryMissions/casino/terran_back      today
+__lib__/media/LegendaryMissions/casino/terran_back        after
+```
+
+That level is not redundant once packs share a root: it is what stops two packs
+colliding, exactly as it does inside a mission's `media/` today. The rule that makes it
+dependable:
+
+> A media pack's zip MUST have exactly one folder at its root, and that folder is the
+> pack's namespace. On unpack: if the zip has exactly one root folder, extract as-is;
+> otherwise wrap the contents in the pack name, so a malformed pack cannot spill loose
+> files into the shared root.
+
+Addons should reach it through a helper rather than hardcoding the location, so the
+shared root can move without touching content:
+
+```python
+CASINO_MEDIA = "media/LegendaryMissions/casino"          # today
+CASINO_MEDIA = media_shared("LegendaryMissions/casino")  # after
+```
+
 ## Phase 1 — `sbs.pyz` owns the unpack
 
 The CLI builds the zip; it should place the unpacked copy too, so nothing depends on the
