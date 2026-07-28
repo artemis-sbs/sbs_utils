@@ -681,13 +681,20 @@ def _detail_for(index, u, d, node):
     nxt = nodes[i + 1] if i + 1 < len(nodes) else None
     add_line = (nxt.span.line - 1) if (nxt and nxt.span) else getattr(d, "line_count", 0)
 
+    # The fence is more than `Label: value` lines: the KIND LINE (`Beat`), `//` comments
+    # and `  - item` list continuations all live here. `fenceLines` carries them verbatim
+    # so an edit can put the fence back together instead of replacing it with the fields
+    # alone - which silently deleted the record's own noun, its notes and its lists.
     fields, fl = [], node.fence_lines
+    fence_lines = []
     for _ln, raw in fl:
         s = raw.strip()
         if not s or s.startswith("//") or ":" not in raw:
+            fence_lines.append({"raw": raw})
             continue
         label, value = raw.split(":", 1)
         fields.append({"label": label.strip(), "value": value.strip()})
+        fence_lines.append({"raw": raw, "label": label.strip()})
 
     # Type each field via the schema, so the Inspector renders a typed widget
     # (enum -> dropdown, ref -> key-picker, colour -> swatch, ...). The mission
@@ -711,7 +718,8 @@ def _detail_for(index, u, d, node):
         "key": node.key, "display": node.display, "uri": u,
         "archetype": arch,
         "displayRange": _span_range(node.display_span) if node.display_span else None,
-        "fields": fields, "fenceRange": fence_range,
+        "fields": fields, "fenceRange": fence_range, "fenceLines": fence_lines,
+        "kind": node.kind_noun if hasattr(node, "kind_noun") else None,
         "options": _mission_symbols(index),
         "bodyText": "\n".join(body),
         "bodyRange": {"start": {"line": node.body_start, "character": 0},
