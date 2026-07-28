@@ -114,7 +114,7 @@ Validate instead by:
 - Broaden to **simpler / more mechanical** a28 missions where the XML maps more directly — those are
   better automated-fidelity benchmarks than HTBM.
 
-### Test corpus (`f:/a/a28/dat/missions/`)
+### Test corpus (`F:/a/a28/dat/Missions/` - capital M)
 13 missions (the `missions/` and `Missions/` dirs are the same set under a case-insensitive FS — dedup
 case-insensitively). By size / suitability:
 
