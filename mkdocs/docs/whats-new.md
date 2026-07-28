@@ -59,6 +59,83 @@ their revered master computer.
 Play guide: [How to play the Casino](legendarymissions/playing/casino.md) ·
 Authors: [The Casino addon](legendarymissions/addons/casino.md).
 
+## ✍️ AMD, in the words an author would use
+
+The fact-sheet format had a pass over its whole vocabulary before it ships, and the
+theme is: **say what a thing is, and stop configuring it.**
+
+**A record says what it is, and that decides how it behaves.** A `Beat` is a moment the
+crew lives through — it runs unseen and appears in the log once it *has* happened, as
+history. A `Cue` is a stage direction: it fires and is never listed. An `Arc` is the
+heading over a run of beats. A `Job` is taken by a ship; an `Objective` is the crew's.
+Those words carry what used to be spelled out on every record:
+
+```amd
+# [The Coils Overheat](ramscoop/coils)
+---
+Beat
+Done when: signal ramscoop_online
+---
+Engineering reports the coils running hot.
+```
+
+**One trigger grammar, three questions.** `Starts when:` / `Done when:` / `Fails when:`
+all take the same thing — `signal X`, `destroy 6 raiders`, `reach 6, 4`, `5 minutes`,
+`all dead convoy`, `accepted`, `revealed`. That replaced seven differently-shaped
+fields, and `Starts when:` is now a **real gate**: it opens a quest, and `Done when:`
+decides what finishes it. (They used to write the same key, so a quest carrying both
+finished on whichever fired first.)
+
+**`Reward:` and `Penalty:`** — the failure side always had code and never had a word.
+A timed job that costs you something when the clock runs out is now two lines.
+
+**Traits — what a record ALSO does.** A worldlet is a *Landmark* that happens to yield
+ore; that second half is a trait, not a new kind of thing:
+
+```amd
+Landmark
+Also: economy
+Yields: ore 8
+Reserve: 4000
+```
+
+Everything already written still parses — every rename keeps its old spelling, and no
+stored key moved. See [The AMD file format](build/amd-format.md).
+
+## 🧹 Fewer special cases
+
+The same pass went through the missions themselves, where content written early had
+invented its own kinds of record for things the format already had a word for.
+
+| was its own kind | is | why |
+|---|---|---|
+| a **clan** | a **Side** | it was spawned as one all along |
+| a **captain** | a **Character** | its `Title:`/`Values:` were already declared on lifeform — twice |
+| a **worldlet** | a **Landmark** that yields | a place on the map |
+| the **admiralty** dials | the **scenario's** settings | not a kind of record at all |
+| a bar **patron** | a **Character** | they are people |
+| a **rumor** | **Dialogue** | a line someone says |
+
+Five private types gone, and nothing lost: the domain words (`Flies:`, `Roams:`,
+`Reliability:`, `Palette:`) hang off the core archetypes instead. The patron one matters
+beyond tidiness — a brain attaches to an **Agent**, and a patron used to be a dictionary.
+
+## 🧰 The AMD editor knows the format now
+
+The VS Code extension stopped being a text editor with colours:
+
+- **"This is a" picker** — a record's word is visible and settable, grouped Story / Work
+  / Content, and it tells you what choosing it means (*"scope: shared, show: when done"*).
+- **Completion answers where you are**: nouns on the fence's first line, field labels on
+  a fence line, that field's values after the colon.
+- **Hover explains the field** — the format's own words for it, its allowed values, and
+  whether it is a spelling something newer replaced.
+- **Your mission's own vocabulary is learned**, by reading the Python that declares it
+  (never running it), so a mission's private fields get the same widgets and lint as the
+  core ones.
+- **Editing a field no longer eats the rest of the fence** — the kind line, `//` notes
+  and list continuations survive an edit. They did not before.
+
 ## 🧭 Quests & Stories
 
 - **A signal-driven quest engine** with kill / collect / scan / dock / reach /
@@ -66,11 +143,15 @@ Authors: [The Casino addon](legendarymissions/addons/casino.md).
 - **A proper Quest Log** you can accept and abandon quests from.
 - **Multi-step bridge stories** that unfold a step at a time.
 - **Quest-driven end-game.** A mission is now a **tree of quests** — a parent mission
-  with children marked **required** (must finish to win) or **critical** (fail one and
-  the game is lost). Quests can carry an **end_win** / **end_lose** outcome and **fail
-  triggers** (a signal fires, a target dies, or a timer expires), so the whole win/lose
-  condition is **authored in AMD**, not hand-wired in script. The Siege bosses use this
-  to hang their objectives on the siege's mission tree.
+  with children marked **required** (must finish to win) or **fatal** (fail one and the
+  game is lost). Quests carry a **Win:** / **Lose:** outcome and a **`Fails when:`**
+  trigger (a signal fires, a target dies, a timer expires), so the whole win/lose
+  condition is **authored in AMD**, not hand-wired in script. The Siege bosses hang
+  their objectives on the siege's mission tree with **`Part of:`**.
+- **A quest log that isn't a spoiler.** `Show:` says *when* a quest is listed, apart
+  from when it runs — so a story beat can drive its event unseen and appear once it has
+  happened. A converted 2.8 mission went from **48 rows of story** to **9**: the six
+  things the crew can act on, and history accruing underneath.
 
 Docs: [Quests](build/quests.md).
 
