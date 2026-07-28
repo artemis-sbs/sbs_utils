@@ -44,6 +44,9 @@
 		},
 		{
 			"path": "../LM_TestRange"
+		},
+		{
+			"path": "../arme2cosmos"
 		}
 	],
 	"settings": {
