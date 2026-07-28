@@ -4,12 +4,12 @@ Art is copied once per consuming mission today. This is the plan to make it live
 to let `sbs.pyz` own the unpacking, and — on top of that — to give missions custom icon
 sheets that a non-programmer can declare.
 
-Status: **proved in the engine and landed for graphics.** `sbs.pyz` unpacks each pack
-once into `__lib__/media/<zip name>/`; `media_shared()` resolves a logical path against
-the mission then its declared packs; OpenUniverse runs with **no `media/` folder at
-all**. Remaining: skybox/music from a pack are resolved but unproven in the engine, and
-the other consumers have not been migrated. Phases 3-6 (icon sheets, the quest log) are
-untouched.
+Status: **PROVEN END TO END, for graphics.** A *fetched* LegendaryMissions - no `media/`
+of its own, `export-ignore`d out of the archive - draws its casino cards, cut from a
+sheet with a pixel `sub_rect`, out of the single shared copy in `__lib__`, in the engine.
+Ten missions migrated; 272 MB of 314 MB reclaimed. Remaining: skybox/music from a pack
+resolve but have never been opened by the engine, and phases 3-6 (icon sheets, the quest
+log) are untouched.
 
 ---
 
