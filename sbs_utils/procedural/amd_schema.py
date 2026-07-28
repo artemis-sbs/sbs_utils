@@ -208,6 +208,10 @@ QUEST = {
     "citation": multiline(hint="the commendation read out at the end"),
     "reveals": field(multiline(hint="what a scan of the target returns"),
                      key="reveals", aka=("scan text",)),
+    # WHEN this quest is listed in the log. `when done` runs it unseen and shows it
+    # once it resolves (complete OR failed) - a story beat is history, not a to-do.
+    # NOT the same as State: secret, which also stops the triggers.
+    "show": enum("always", "when done", "never"),
     "accept on": csv(hint="comms, admiral"),
     "engage on": csv(hint="helm"),
     # The quest driver's own advancement triggers. Authored as a flow value

@@ -878,6 +878,17 @@ def _quest_log_rows(children, aid, group, depth):
         st = int(q.get("state", QuestState.IDLE) or 0)
         if st == int(QuestState.SECRET):
             continue
+        # `Show:` - WHEN this quest is listed. A story beat drives its events while
+        # running but is not a to-do, so `when done` keeps it out of the log until it
+        # RESOLVES (complete or failed), where it reads as history. Distinct from
+        # SECRET, which also stops the triggers; a beat has to keep running.
+        qd = q.get("data") or {}
+        show = str((qd.get("show") if hasattr(qd, "get") else None)
+                   or q.get("show", "") or "always").strip().lower().replace("_", " ")
+        if show == "never":
+            continue
+        if show == "when done" and st not in (int(QuestState.COMPLETE), int(QuestState.FAILED)):
+            continue
         entries.append((cid, q, st))
     entries.sort(key=lambda e: _QUEST_LOG_STATE_ORDER.get(e[2], 9))
     out = []

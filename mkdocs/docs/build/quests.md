@@ -38,6 +38,7 @@ it is — is in [The AMD file format](amd-format.md).
 | `Pays:` | Reward on completion — `500 credits`, an item key, … |
 | `Then:` | Follow-up on completion — `reveal <quest>` (unlock another) or `signal <name>`. |
 | `Display:` / `Tier:` | Optional label / ordering for the log. |
+| `Show:` | **When** this quest is listed — `always` (default), `when done` (runs unseen, appears once it completes *or* fails, reading as history), or `never` (drives its events invisibly). Not the same as `State: secret`, which also stops the triggers. |
 | `Accept On:` | Restrict which **consoles** may Accept/Abandon this job from the Quests tab — e.g. `comms`, or `comms, admiral`. Overrides the mission default (see [Console gating](#console-gating)). |
 | `Engage On:` | Restrict which consoles may **Engage** (travel to) this job — e.g. `helm`. Only meaningful when the mission enables the Engage button. |
 
