@@ -42,14 +42,23 @@ class CompletionIsPositionAware(unittest.TestCase):
 
     def test_the_kind_line_offers_nouns(self):
         labels = _labels(2, 4)
-        self.assertIn("beat", labels)
-        self.assertIn("arc", labels)
+        self.assertIn("Beat", labels)
+        self.assertIn("Arc", labels)
         self.assertNotIn("ramscoop", labels)
+
+    def test_it_offers_a_MENU_not_the_validation_vocabulary(self):
+        """48 entries counting every plural and section alias is a wall, not a choice."""
+        labels = _labels(2, 4)
+        self.assertLess(len(labels), 20)
+        for noise in ("beats", "arcs", "cast", "crew", "bounties", "scenario", "lines"):
+            self.assertNotIn(noise, labels, noise)
+        self.assertNotIn("lifeform", labels)      # the author word is Character
+        self.assertIn("Character", labels)
 
     def test_a_noun_says_what_it_implies(self):
         doc = parse(SRC, "x.amd")
         r = L._completion(INDEX, doc, {"line": 2, "character": 4}, SRC)
-        beat = next(i for i in r["items"] if i["label"] == "beat")
+        beat = next(i for i in r["items"] if i["label"] == "Beat")
         self.assertIn("show: when done", beat.get("detail") or "")
 
     def test_a_fence_line_offers_field_labels(self):

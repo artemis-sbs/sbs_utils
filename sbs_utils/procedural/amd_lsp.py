@@ -360,7 +360,7 @@ def _completion(index, doc=None, pos=None, text=""):
     """What can be written HERE: a kind noun on the fence's first line, a field label on
     a fence line, that field's values after the colon, else the mission's node keys."""
     from sbs_utils.procedural.amd_schema import (
-        amd_known_kinds, amd_kind_defaults, template_fields, enum_values, field_schema)
+        amd_kind_menu, template_fields, enum_values, field_schema)
     items = None
     if doc is not None and pos is not None:
         line0 = pos.get("line", 0)
@@ -369,12 +369,10 @@ def _completion(index, doc=None, pos=None, text=""):
         where, label, node = _fence_context(doc, line0, text_line or "", pos.get("character", 0))
         arch = getattr(node, "kind", None) if node is not None else None
         if where == "kind":
-            items = []
-            for noun in amd_known_kinds():
-                implied = amd_kind_defaults(noun)
-                items.append({"label": noun, "kind": 7,      # 7 = Class
-                              "detail": ", ".join("%s: %s" % kv for kv in sorted(implied.items()))
-                                        or None})
+            # The curated menu, not the 48-entry validation vocabulary: every plural and
+            # every section alias in one list is a wall, not a choice.
+            items = [{"label": e["noun"], "kind": 7,          # 7 = Class
+                      "detail": e["implies"] or None} for e in amd_kind_menu()]
         elif where == "label":
             # Sentence case, the way every field is written: `Done when:`, not
             # `Done When:`.
@@ -873,13 +871,8 @@ def _kind_choices():
     The implications are the point: `Beat` is not a label - it says the record is the
     crew's, already running, and listed only once it has happened. Someone picking from
     a list has to be able to see that."""
-    from sbs_utils.procedural.amd_schema import amd_known_kinds, amd_kind_defaults
-    out = []
-    for noun in amd_known_kinds():
-        implied = amd_kind_defaults(noun)
-        out.append({"noun": noun,
-                    "implies": ", ".join("%s: %s" % (k, v) for k, v in sorted(implied.items()))})
-    return out
+    from sbs_utils.procedural.amd_schema import amd_kind_menu
+    return amd_kind_menu()
 
 
 def _mission_symbols(index):

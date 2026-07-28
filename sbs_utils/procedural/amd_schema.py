@@ -363,7 +363,7 @@ GLOBAL = {
 _SECTION_ALIASES = {
     "quests": "quest", "quest": "quest", "objectives": "quest",
     "lifeforms": "lifeform", "lifeform": "lifeform", "cast": "lifeform",
-    "characters": "lifeform", "crew": "lifeform",
+    "characters": "lifeform", "character": "lifeform", "crew": "lifeform",
     "items": "item", "item": "item",
     "sides": "side", "side": "side", "factions": "side",
     "scans": "scan", "scan": "scan", "science": "scan",
@@ -497,6 +497,33 @@ def _kind_to_archetype(noun):
     n = str(noun).strip().lower().replace("-", "_").replace(" ", "_")
     return (_SECTION_ALIASES.get(n) or _SECTION_ALIASES.get(n.rstrip("s"))
             or (n if n in ARCHETYPES else None))
+
+
+# What a picker OFFERS, which is not the same as what the reader ACCEPTS. `amd_known_kinds`
+# is the validation vocabulary - 48 entries counting every plural and every alias a mission
+# might use for a section (`cast`, `crew`, `bounties`, `scenario`). Handing that to an
+# author as a menu is not a choice, it is a wall. This is the curated list: canonical,
+# singular, one word per meaning, grouped the way an author thinks about them.
+KIND_MENU = (
+    ("Story", ("beat", "cue", "arc")),
+    ("Work", ("objective", "job", "quest")),
+    ("Content", ("character", "item", "side", "scan", "landmark", "region", "map",
+                 "dialogue")),
+)
+
+
+def amd_kind_menu():
+    """The nouns to OFFER, in order, with their group and what each implies.
+
+    Everything in `amd_known_kinds` still parses - this only decides what is put in
+    front of someone choosing."""
+    out = []
+    for group, nouns in KIND_MENU:
+        for n in nouns:
+            implied = amd_kind_defaults(n)
+            out.append({"noun": n[:1].upper() + n[1:], "group": group,
+                        "implies": ", ".join("%s: %s" % kv for kv in sorted(implied.items()))})
+    return out
 
 
 def amd_known_kinds():
