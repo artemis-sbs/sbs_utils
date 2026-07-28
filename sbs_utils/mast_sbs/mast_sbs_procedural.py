@@ -50,6 +50,9 @@ Mast.make_global_var("ASSERT", mast_assert)
 
 MastGlobals.import_python_module('sbs_utils.procedural.timers')
 MastGlobals.import_python_module('sbs_utils.procedural.query')
+# Art lives once now, in a folder named for the pack VERSION, so MAST asks for the
+# logical path (`media_shared("casino")`) and never writes the version itself.
+MastGlobals.import_python_module('sbs_utils.procedural.media_paths')
 MastGlobals.import_python_module('sbs_utils.procedural.execution')
 MastGlobals.import_python_module('sbs_utils.procedural.spawn')
 

@@ -259,7 +259,7 @@ The format understands the shapes an author naturally writes:
 | `Flies: 60% Kralien, 40% Arvonian` | a mix |
 | `Inputs: salvage x5, bio_sample x1` | a shopping list |
 | `Program: kind=bio, range=medium` | settings |
-| `Color: #3399ff` | a colour |
+| `Color: #3399ff` | a color |
 
 ---
 
@@ -276,7 +276,7 @@ cannot render.
 
 The VS Code extension shows the same findings as you type, and gives each field an
 editor suited to it — a dropdown for a fixed set of values, a picker for a reference, a
-swatch for a colour, the face builder for a face.
+swatch for a color, the face builder for a face.
 
 See [AMD authoring tools](../tooling/amd-tools.md) for the outline, timeline, graph and
 map views over the same files.

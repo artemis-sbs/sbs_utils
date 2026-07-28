@@ -267,7 +267,7 @@ def _arm_start_trigger(data):
 
     Doing it this way means a start trigger needs no matching code of its own: every
     on_kill / on_scan / on_dock / on_reach / on_signal matcher already knows how to
-    recognise a trigger, so the start uses the same ones. `quest_mark_complete` swaps the
+    recognize a trigger, so the start uses the same ones. `quest_mark_complete` swaps the
     real trigger back in instead of completing (see `_quest_swap_in_armed`).
 
     Before this, `Starts when:` wrote the SAME key `Done when:` writes, so a quest
@@ -453,7 +453,7 @@ def quest_on_kill(killer_id, destroyed_id):
                 killer, or of the players for a SHARED quest). This is the general,
                 faction-agnostic, ceasefire-safe way to score "destroy N enemies" -
                 prefer it over a hardcoded raider role.
-    Omitting all three counts any destruction (unchanged legacy behaviour)."""
+    Omitting all three counts any destruction (unchanged legacy behavior)."""
     if killer_id is None:
         return
     for qid, data in _active_quests(killer_id):

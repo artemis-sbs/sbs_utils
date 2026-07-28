@@ -1,8 +1,16 @@
 # sbs_utils — Library Reference for Claude
 
 @MAST_CLAUDE.md
-@MAST_MISSION_CLAUDE.md
-@GUI.md
+
+Two references load ON DEMAND as skills rather than every session - invoke them
+when the work is theirs:
+
+- **`writing-a-mission`** - writing a mission, an addon (`.mastlib`), or a `@map`
+  label: folder layout, `story.mast` structure, sides, spawning, fleets, terrain,
+  tile maps, consoles, prefabs, PyMAST.
+- **`cosmos-gui`** - any `gui_*` code, console or panel: the dirty system, style
+  strings, `gui_text_area` markdown, listboxes, the for-loop handler trap, layout
+  and content sizing.
 
 ## Environment
 
@@ -204,7 +212,7 @@ When `--map` is given, `_try_auto_start_map()` polls `maps_get_list()` each tick
 
 ### Browser URLs
 
-| URL | Behaviour |
+| URL | Behavior |
 |---|---|
 | `http://localhost:8765/server` | Connects as the server console (`clientID=0`). Replays the server frame. No `client_connect` event fired — server page is already running. |
 | `http://localhost:8765/client` | Connects as a new client with a unique `clientID`. Fires `client_connect` so the MAST client page starts. Replays server frame then client frame. |
@@ -250,31 +258,3 @@ Widgets mark themselves dirty when their value changes; the engine re-renders th
 Docs live in `mkdocs/` (Material theme). The **multirepo plugin** pulls sibling missions into the one site via `!import` nav lines — **LegendaryMissions** and **OpenUniverse** are both imported from their `origin/v1.4.0_dev` (so pushing a mission's docs publishes them into the combined site). GFM pipe **tables render by default** — no `tables` extension needed; use them for genuinely tabular content.
 
 ---
-
-## Folder Layout
-
-```
-sbs_utils/
-├── mast/           # MAST core (generic)
-│   └── core_nodes/ # Built-in node types
-├── mast_sbs/       # Cosmos MAST extensions
-│   └── story_nodes/# Cosmos node types
-├── pages/          # GUI page system
-│   ├── layout/     # Layout components
-│   └── widgets/    # Composite widgets
-├── procedural/     # Procedural API
-│   └── gui/        # GUI procedural helpers
-├── cards/          # Tilemap / ASCII map system
-├── yaml/           # Bundled pyyaml (no pip)
-└── typings/        # .pyi stubs (generated, not source)
-
-cosmos_dev/         # Dev-only tooling (NOT in .sbslib)
-├── mock/           # In-process sbs mock (no GUI) — used by unit tests
-└── mockgui/        # WebSocket GUI bridge
-    ├── sbs.py      # Extends mock with real send_gui_* → WebSocket
-    ├── server.py   # stdlib WebSocket server (no pip)
-    └── client.html # Browser renderer
-
-tests/              # Unit tests
-mkdocs/             # MkDocs documentation source
-```

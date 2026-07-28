@@ -1,4 +1,7 @@
-# MAST Mission Reference for Claude
+---
+name: writing-a-mission
+description: How to write a complete Artemis Cosmos mission in MAST: folder layout, story.mast structure, sides, spawning, fleets, terrain, tile maps, consoles, addons, prefabs and PyMAST. Use when creating or editing a mission, an addon (.mastlib), or a @map label.
+---
 
 How to write a complete Artemis Cosmos mission in MAST. Based on SecretMeeting, LegendaryMissions, and real missions: HereThereBeMonsters, Infinite_Cosmos, WalkTheLine, Lucky_13, theta_quadrant, MiningDays.
 
@@ -20,71 +23,6 @@ MyMission/
 ```
 
 Large missions (Infinite_Cosmos, Lucky_13, MiningDays) keep `story.mast` minimal and move `@map/` labels to `maps/` subfolders. The mission's Python import path includes the mission folder, so `.py` helper modules (e.g. `here_helpers.py`, `mission_helper_functions.py`, `terrain_DOUBLE.py`) are importable directly from MAST.
-
----
-
-## script.py
-
-Boilerplate — nearly identical for every mission:
-
-```python
-try:
-    import sbslibs
-    from sbs_utils.handlerhooks import *
-    from sbs_utils.gui import Gui
-    from sbs_utils.mast.maststorypage import StoryPage
-    from sbs_utils.mast.mast import Mast
-
-    class MyStoryPage(StoryPage):
-        story_file = "story.mast"
-
-    Mast.include_code = True   # shows MAST source in runtime errors; comment out to save memory
-
-    Gui.server_start_page_class(MyStoryPage)
-    Gui.client_start_page_class(MyStoryPage)
-except Exception as e:
-    message = e
-    def cosmos_event_handler(sim, event):
-        import sbs
-        sbs.send_gui_clear(event.client_id, "")
-        sbs.send_gui_text(event.client_id, "", "text",
-                          f"$text:sbs_utils runtime error^{message};", 0, 0, 80, 95)
-        sbs.send_gui_complete(event.client_id, "")
-```
-
-`import sbslibs` reads `story.json` and adds the listed `.sbslib`/`.mastlib` zip files to `sys.path`. It lives in `PyAddons/sbslibs.py` inside the Cosmos install.
-
----
-
-## story.json
-
-Lists every library the mission needs. The engine looks for these in a shared `__lib__/` folder next to the missions directory.
-
-```json
-{
-    "sbslib": [
-        "artemis-sbs.sbs_utils.v1.3.0.sbslib"
-    ],
-    "mastlib": [
-        "artemis-sbs.LegendaryMissions.ai.v1.3.0.mastlib",
-        "artemis-sbs.LegendaryMissions.comms.v1.3.0.mastlib",
-        "artemis-sbs.LegendaryMissions.consoles.v1.3.0.mastlib",
-        "artemis-sbs.LegendaryMissions.damage.v1.3.0.mastlib",
-        "artemis-sbs.LegendaryMissions.docking.v1.3.0.mastlib",
-        "artemis-sbs.LegendaryMissions.fleets.v1.3.0.mastlib",
-        "artemis-sbs.LegendaryMissions.prefabs.v1.3.0.mastlib",
-        "artemis-sbs.LegendaryMissions.science_scans.v1.3.0.mastlib",
-        "artemis-sbs.LegendaryMissions.upgrades.v1.3.0.mastlib",
-        "artemis-sbs.LegendaryMissions.gamemaster.v1.3.0.mastlib",
-        "artemis-sbs.LegendaryMissions.gamemaster_comms.v1.3.0.mastlib"
-    ],
-    "resources": {
-        "media": "artemis-sbs.LegendaryMissions.media.v1.3.0.zip"
-    }
-}
-```
-
-Add only the LegendaryMissions addons you actually use — each one loads MAST labels into the global namespace.
 
 ---
 
@@ -156,7 +94,7 @@ PLAYER_LIST:
 
 ## story.mast — Overall Structure
 
-Top-level code (before any labels) runs for every client and the server. However, **`shared` statements at the top level run only once** — after first execution they are converted to no-ops. The server client runs first, so top-level `shared` assignments are effectively server-initialised. Use `shared` for any state that all tasks need to see.
+Top-level code (before any labels) runs for every client and the server. However, **`shared` statements at the top level run only once** — after first execution they are converted to no-ops. The server client runs first, so top-level `shared` assignments are effectively server-initialized. Use `shared` for any state that all tasks need to see.
 
 **`@map/` labels are server-only.** Their body executes only on the server when a map is selected, never on connected client consoles.
 
@@ -1031,57 +969,6 @@ docking_set_docking_logic(player_id, role("tsn") & role("station"), docking_dock
 
 ---
 
-## Minimal Working Mission Skeleton
-
-```
-# story.mast
-
-shared my_station_id = None
-
-# Side setup
-tsn = await prefab_spawn(prefab_side_generic, data={"key":"tsn", "name":"TSN", "color":"#07F"})
-raider = await prefab_spawn(prefab_side_generic, data={"key":"raider", "name":"Raider", "color":"#F00"})
-side_set_relations(tsn, raider, sbs.DIPLOMACY.HOSTILE)
-
-@media/music/default "Cosmos Default Music"
-@media/skybox/sky-bored-alice "borealis"
-
-@map/my_mission "My Mission"
-" Fight off enemy raiders.
-metadata: ``` yaml
-Properties:
-    Player Ships: 'gui_int_slider("$text:int;low: 1.0;high:8.0;", var= "PLAYER_COUNT")'
-    Difficulty: 'gui_int_slider("$text:int;low: 1.0;high:11.0;", var= "DIFFICULTY")'
-```
-    my_station_id = to_id(npc_spawn(0,0,0, "Home Base", "tsn, station", "starbase_civil", "behav_station"))
-
-    await task_schedule(spawn_players)
-    await task_schedule(docking_standard_player_station)
-
-    game_end_condition_add(destroyed_all(role("__player__")), "All ships lost.", False)
-    game_end_condition_add(destroyed_any(my_station_id), "Station destroyed.", False)
-
-    task_schedule(spawn_wave)
-
---- game_loop
-    await delay_sim(120)
-    task_schedule(spawn_wave)
-    jump game_loop
-
-=== spawn_wave
-    fleet_pos = Vec3.rand_in_sphere(3000, 6000, False, True)
-    prefab_spawn("prefab_fleet_raider", {
-        "race": "skaraan",
-        "fleet_difficulty": int(DIFFICULTY - 1),
-        "START_X": fleet_pos.x,
-        "START_Y": fleet_pos.y,
-        "START_Z": fleet_pos.z
-    })
-    ->END
-```
-
----
-
 ## PyMAST Missions (Python-only, no .mast file)
 
 Some missions (e.g. `remote_mission_pick`) write all logic in Python using the `@label()` decorator. This is called **PyMAST**.
@@ -1091,60 +978,6 @@ Some missions (e.g. `remote_mission_pick`) write all logic in Python using the `
 - Tool-style missions: mission pickers, admin consoles, debug launchers
 - When Python logic would be awkward to express in MAST syntax
 - No `.mast` file needed — `story = MastStory()` is an empty placeholder
-
-### `script.py` pattern (all-in-one)
-
-```python
-from sbs_utils.mast.label import label
-from sbs_utils.mast.maststory import MastStory
-from sbs_utils.mast.mast_node import MastDataObject
-from sbs_utils.procedural.execution import AWAIT, jump, get_shared_variable, set_shared_variable
-from sbs_utils.procedural.timers import timeout
-from sbs_utils.procedural.cosmos import sim_create, sim_resume
-from sbs_utils.procedural.gui import gui_list_box, gui_message_callback, gui, gui_section, gui_text
-
-@label()
-def main_gui():
-    sim_create()
-    sim_resume()
-    items = build_item_list()
-    lb = gui_list_box(items, "", item_template=render_item, select=True)
-
-    def on_select(event, sender):
-        idx = lb.get_selected_index()
-        if idx is not None:
-            set_shared_variable("selected", items[idx])
-
-    gui_message_callback(lb, on_select)
-    yield AWAIT(gui({"confirm": confirm}))
-
-@label()
-def confirm():
-    selected = get_shared_variable("selected")
-    if selected is not None:
-        sbs.run_next_mission(selected.get("name"))
-    yield AWAIT(gui({"back": main_gui}, timeout=timeout(10)))
-    yield jump(main_gui)
-
-class SimpleAiPage(StoryPage):
-    story = MastStory()
-    main_server = main_gui
-    main_client = main_gui
-
-Gui.server_start_page_class(SimpleAiPage)
-Gui.client_start_page_class(SimpleAiPage)
-```
-
-### MAST vs PyMAST
-
-| MAST | PyMAST |
-|---|---|
-| `await gui({"btn": label})` | `yield AWAIT(gui({"btn": label_fn}))` |
-| `jump label_name` | `yield jump(label_fn)` |
-| `await delay_sim(5)` | `yield AWAIT(delay_sim(5))` |
-| `shared x = val` | `set_shared_variable("x", val)` |
-| Read shared | `get_shared_variable("x")` |
-| `on gui_message(widget):` | `gui_message_callback(widget, fn)` |
 
 ### `MastDataObject` — dict wrapper
 
@@ -1166,22 +999,3 @@ Typically only the sbslib is needed:
 }
 ```
 
-### Parsing `description.yaml` in Python
-
-When iterating mission folders in Python (e.g. to build a mission picker), check `description.yaml` first (current format), then fall back to `description.txt` (deprecated):
-
-```python
-from sbs_utils import yaml
-
-yaml_path = os.path.join(dir, file, "description.yaml")
-txt_path = os.path.join(dir, file, "description.txt")
-if os.path.isfile(yaml_path):
-    with open(yaml_path, 'r') as f:
-        data = yaml.safe_load(f) or {}
-    category = data.get("Category", "")
-    desc = data.get("Description", "")
-elif os.path.isfile(txt_path):
-    lines = open(txt_path).readlines()
-    category = lines[0] if lines else ""
-    desc = lines[1] if len(lines) > 1 else ""
-```

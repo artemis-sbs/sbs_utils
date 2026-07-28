@@ -80,7 +80,7 @@ def quest_console_enable(console, enable=True):
     """Mark one or more console types as quest-panel-enabled.
 
     Controls which console types display the quest panel. Multiple console
-    names can be passed as a comma-separated string. Names are normalised to
+    names can be passed as a comma-separated string. Names are normalized to
     lowercase before storage.
 
     Args:
@@ -244,7 +244,7 @@ def quest_add(agents, quest_id, display_text, description, state=QuestState.IDLE
     """Add a quest to one or more agents.
 
     Creates a new quest entry in each agent's quest tree. If the agent has no
-    quest tree yet, one is initialised automatically. The ``quest_id`` may use
+    quest tree yet, one is initialized automatically. The ``quest_id`` may use
     ``/`` separators for nested quests (e.g. ``"main/rescue"``), but all parent
     levels must already exist.
 
@@ -867,7 +867,7 @@ _QUEST_LOG_MAX_DEPTH = 5
 
 
 def _quest_show(q):
-    """A quest's `Show:` - WHEN it is listed in the log, normalised.
+    """A quest's `Show:` - WHEN it is listed in the log, normalized.
 
     Fence fields live under the quest's `data`; only state / display_text / description
     are promoted onto the quest itself, so reading `q["show"]` returns None and the

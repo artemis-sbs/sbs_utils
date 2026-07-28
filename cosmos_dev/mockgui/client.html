@@ -383,10 +383,19 @@ function _buildImageWidget(s) {
     const hasSub = s.sub_rect || s.sub_left !== undefined;
     if (hasSub) {
       const parts = s.sub_rect ? s.sub_rect.split(',').map(Number) : [0, 0, 1, 1];
-      const sl = s.sub_left   !== undefined ? +s.sub_left   : parts[0];
-      const st = s.sub_top    !== undefined ? +s.sub_top    : parts[1];
-      const sr = s.sub_right  !== undefined ? +s.sub_right  : parts[2];
-      const sb = s.sub_bottom !== undefined ? +s.sub_bottom : parts[3];
+      let sl = s.sub_left   !== undefined ? +s.sub_left   : parts[0];
+      let st = s.sub_top    !== undefined ? +s.sub_top    : parts[1];
+      let sr = s.sub_right  !== undefined ? +s.sub_right  : parts[2];
+      let sb = s.sub_bottom !== undefined ? +s.sub_bottom : parts[3];
+      // sub_rect is in PIXELS of the source image - confirmed against the engine with
+      // missions/media_probe, which draws the same card as pixels and as 0..1 and only
+      // the pixel one is right. This used to read them as texture coordinates, so every
+      // sheet cell (the casino's 190x280 cards) tiled instead of cropping.
+      const iw = (tex.image && tex.image.width) || 0;
+      const ih = (tex.image && tex.image.height) || 0;
+      if (iw && ih && (sr > 1 || sb > 1)) {
+        sl /= iw; sr /= iw; st /= ih; sb /= ih;
+      }
       tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
       tex.repeat.set(sr - sl || 1, sb - st || 1);
       tex.offset.set(sl, 1 - sb);   // three.js v is bottom-up; sub_rect is top-down

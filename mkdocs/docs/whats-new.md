@@ -127,7 +127,7 @@ beyond tidiness — a brain attaches to an **Agent**, and a patron used to be a 
 
 ## 🧰 The AMD editor knows the format now
 
-The VS Code extension stopped being a text editor with colours:
+The VS Code extension stopped being a text editor with colors:
 
 - **"This is a" picker** — a record's word is visible and settable, grouped Story / Work
   / Content, and it tells you what choosing it means (*"scope: shared, show: when done"*).
@@ -272,7 +272,7 @@ actually *help* you — and a Game Master can drop any of them from the spawn me
 **Scan** an unknown creature and its science readout tells you what it is before you
 decide to shoot.
 
-- **Seven new species over one behaviour:**
+- **Seven new species over one behavior:**
   **Reaver** (fast hunter that *enrages* — faster and redder with every wound),
   **Ravener** (an apex predator that **feeds on weapon fire** — beams and torpedoes
   only heal it; the one thing it can't eat is a black hole),
@@ -606,7 +606,7 @@ out on you, and each mission still ends the way it always did.
   instead.
 - **Enemies remember they're enemies.** Old missions never spelled out who hated
   whom; that gets worked out and declared, so hostiles open fire, Science sorts
-  friend from foe, and contacts show in the right colours.
+  friend from foe, and contacts show in the right colors.
 - **The Game Master keeps the con.** Menus stay nested the way they were laid out,
   shortcut actions survive, and a spawn lands **where the GM is pointing** rather
   than in the corner of the map.

@@ -6,7 +6,7 @@ field *means*, so three consumers stop each re-deriving it from scratch:
     doing nothing;
   * the **editor** (`amd_lsp` -> the VS Code Inspector) can render a typed widget
     per field - a dropdown for an enum, a key-picker for a node reference, a
-    swatch for a colour - instead of a plain text box; and
+    swatch for a color - instead of a plain text box; and
   * a **"new record" template** can emit the right empty fence skeleton for a
     given kind of record.
 
@@ -16,7 +16,7 @@ hardcodes the scan-tab vocabulary, and `inspectorForm.js` hardcodes its own
 `FIELD_ENUMS`. This module consolidates it.
 
 WHY ARCHETYPE-KEYED, NOT A FLAT LABEL MAP. Most field labels are globally
-unambiguous (`Color` is always a colour, `At` is always a cell), but at least one
+unambiguous (`Color` is always a color, `At` is always a cell), but at least one
 is NOT: `Mode` is `consumable|install|resource` on an ITEM and
 `story|sandbox|skirmish|war|campaign` on a MAP. So the schema is keyed by record
 *archetype* (quest / lifeform / item / side / scan / landmark / region / map),
@@ -73,7 +73,7 @@ def coord2(hint="i, j"):
     return _d("coord2", hint=hint)
 
 def color(hint="#rgb or #rrggbb"):
-    """A hex colour - the editor shows a swatch/picker (LSP already has one)."""
+    """A hex color - the editor shows a swatch/picker (LSP already has one)."""
     return _d("color", hint=hint)
 
 def face(hint="terran / male / female / <face string>"):
@@ -646,7 +646,7 @@ def _declared(label, archetype=None, traits=()):
     Order is archetype -> its TRAITS (as written) -> GLOBAL, so what a record IS always
     wins a name collision and a trait only fills in what the archetype left unsaid.
 
-    Lookup is normalised on BOTH sides, so a table may spell a key `fail on signal`
+    Lookup is normalized on BOTH sides, so a table may spell a key `fail on signal`
     while the author writes `Fail on signal` / `fail_on_signal` and all three land
     together. Aliases are tried after canonical names."""
     key = _norm_label(label)
@@ -794,7 +794,7 @@ def amd_field_key(label, archetype=None):
 
 
 def _norm_label(label):
-    """Field labels normalise like `amd_norm`: lowercase, hyphens/spaces -> `_`.
+    """Field labels normalize like `amd_norm`: lowercase, hyphens/spaces -> `_`.
     Inlined (not imported) to keep this module's import graph empty."""
     return str(label).strip().lower().replace("-", "_").replace(" ", "_")
 
@@ -879,7 +879,7 @@ def amd_read_field(label, value, archetype=None):
     canonical = amd_canonical_label(label, archetype)
     d = _declared(canonical, archetype)
     if d is None:
-        # undeclared: keep today's behaviour exactly (amd_num), and let the linter
+        # undeclared: keep today's behavior exactly (amd_num), and let the linter
         # be the one that says "I don't know this field".
         return canonical, amd_coerce({}, value)
     return d.get("key", canonical), amd_coerce(d, value)

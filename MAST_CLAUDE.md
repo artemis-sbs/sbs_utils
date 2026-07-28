@@ -176,7 +176,7 @@ shared game_stats = {"destroyed": 0}
 shared admiral = lifeform_spawn("Admiral Harkin", ...)
 ```
 
-**Top-level `shared` statements run only once.** After first execution they are converted to no-ops so subsequent clients don't re-run them. Because the server client runs first, top-level `shared` assignments are effectively server-initialised.
+**Top-level `shared` statements run only once.** After first execution they are converted to no-ops so subsequent clients don't re-run them. Because the server client runs first, top-level `shared` assignments are effectively server-initialized.
 
 ### `default shared`
 
@@ -518,10 +518,10 @@ comms_navigate_override(role("admiral_cam") & role(side), worldlet_id)
 
 ## GUI System
 
-> **See `GUI.md` for GUI best practices & gotchas** — the dirty system / live
+> **Invoke the `cosmos-gui` skill for GUI best practices & gotchas** — the dirty system / live
 > updates, `.update()` replacing the whole style, listbox+detail pattern, the
 > for-loop handler trap, engine-widget embedding, and the compiler-vs-mock traps.
-> This section is the quick syntax; `GUI.md` is how to build GUIs well.
+> This section is the quick syntax; the skill is how to build GUIs well.
 
 GUI display is through the GUI system — not standalone quoted strings. Quoted strings (`"text"`) are only valid in specific page contexts (comms pages, story pages).
 
@@ -985,16 +985,6 @@ class SimpleAiPage(StoryPage):
     main_server = main_gui
     main_client = main_gui
 ```
-
-### Translation table
-
-| MAST | PyMAST |
-|---|---|
-| `await gui(...)` | `yield AWAIT(gui(...))` |
-| `jump label_name` | `yield jump(label_fn)` |
-| `await delay_sim(5)` | `yield AWAIT(delay_sim(5))` |
-| `shared x = val` | `set_shared_variable("x", val)` |
-| Read shared var | `get_shared_variable("x")` |
 
 ### GUI callbacks
 

@@ -439,7 +439,7 @@ def _fence_hover(doc, pos, text):
     label = label or raw.split(":", 1)[0].strip()
     if not label:
         return None
-    # The registry normalises to `starts_when`; an author writes `Starts when`.
+    # The registry normalizes to `starts_when`; an author writes `Starts when`.
     canonical = amd_canonical_label(label, arch).replace("_", " ")
     d = field_schema(label, arch)
     val = "**%s:**" % (canonical[:1].upper() + canonical[1:])
@@ -924,7 +924,7 @@ def _detail_for(index, u, d, node):
         fence_lines.append({"raw": raw, "label": label.strip()})
 
     # Type each field via the schema, so the Inspector renders a typed widget
-    # (enum -> dropdown, ref -> key-picker, colour -> swatch, ...). The mission
+    # (enum -> dropdown, ref -> key-picker, color -> swatch, ...). The mission
     # symbol lists ride along once (candidates for the reference widgets).
     from sbs_utils.procedural.amd_schema import (
         infer_archetype, field_schema, amd_traits_of, amd_trait_names)
@@ -1071,7 +1071,7 @@ def _node_at_line(index, uri, line):
 
 def _node_schema(index, key):
     """The field SCHEMA for a node (via amd_schema): its resolved archetype plus a
-    per-field descriptor (enum / node-ref / coord2 / colour / face / ...), so the
+    per-field descriptor (enum / node-ref / coord2 / color / face / ...), so the
     Inspector can render a typed widget per field instead of a plain text box.
     None if the key isn't found."""
     from sbs_utils.procedural.amd_schema import record_schema

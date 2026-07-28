@@ -1,4 +1,7 @@
-# GUI patterns & gotchas (sbs_utils)
+---
+name: cosmos-gui
+description: Building GUIs and consoles in Cosmos: the dirty system, style strings, gui_text_area markdown, listboxes, the for-loop handler trap, engine widgets, console tabs, and layout/content sizing. Use when writing or debugging any gui_* code, console or panel.
+---
 
 The GUI is the `procedural/gui/` wrappers (`gui_text`, `gui_button`, `gui_list_box`,
 …) over the engine's `sbs.send_gui_*` commands. This file collects the patterns and
