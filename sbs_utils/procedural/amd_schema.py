@@ -345,9 +345,62 @@ ARCHETYPES = {
     "dialogue": DIALOGUE,
 }
 
+# TRAITS: a concern a record ALSO has, on top of what it is.
+#
+# A worldlet is a Landmark that yields ore; a captain is a Character with standing.
+# Neither is a new kind of thing, and inventing an archetype for the second half is
+# what produced `worldlet`, `clan` and `captain` as private types. A trait names that
+# second half once and lends its words to anything that says `Also:`.
+#
+# The archetype still answers "what IS this" and still WINS a name collision - traits
+# only fill in what it does not declare, in the order they are written.
+TRAITS = {
+    "economy": {
+        "yields": text(hint="ore 12  (per minute, per extractor)"),
+        "reserve": text(hint="4000, or `unlimited`"),
+        "price": integer(),
+    },
+}
+
+
+def amd_register_trait(name, table, domain=None):
+    """Declare (or extend) a trait's field table - the same contract as
+    `amd_register_fields`, for a concern rather than a kind of thing."""
+    key = str(name).strip().lower()
+    existing = TRAITS.setdefault(key, {})
+    for label, descriptor in (table or {}).items():
+        lk = _norm_label(label)
+        prior = existing.get(lk)
+        if prior is not None and prior != descriptor:
+            who = " (from %s)" % domain if domain else ""
+            raise ValueError("trait %r already declares %r differently%s" % (key, label, who))
+        existing[lk] = descriptor
+
+
+def amd_trait_names():
+    """Every trait a record may claim in `Also:`."""
+    return sorted(TRAITS)
+
+
+def amd_traits_of(data):
+    """The traits a record claims, from its `Also:` value (a comma list)."""
+    if not data:
+        return ()
+    raw = data.get("also") if hasattr(data, "get") else None
+    if not raw:
+        return ()
+    if isinstance(raw, (list, tuple)):
+        parts = raw
+    else:
+        parts = str(raw).replace(",", " ").split()
+    return tuple(p.strip().lower() for p in parts if str(p).strip())
+
+
 # Type-stable everywhere: if a field isn't in the resolved archetype, fall back
 # to these before defaulting to plain text.
 GLOBAL = {
+    # What this record ALSO does, beyond what it is (see TRAITS).
+    "also": csv(hint="economy"),
     "display": text(hint="the name shown in game, when it differs from the heading"),
     "weight": integer(hint="relative chance when one of a set is picked"),
     "color": color(),
@@ -548,22 +601,28 @@ def infer_archetype(field_labels, section_key=None):
 
 
 # --- lookup API (what the LSP / linter call) --------------------------------
-def field_schema(label, archetype=None):
+def field_schema(label, archetype=None, traits=()):
     """The descriptor for one field `label` within `archetype` (falling back to
     the GLOBAL type-stable fields, then plain text). Never returns None - an
     unknown field is `text`, so the editor always has a widget."""
-    d = _declared(label, archetype)
+    d = _declared(label, archetype, traits)
     return d if d is not None else text()
 
 
-def _declared(label, archetype=None):
+def _declared(label, archetype=None, traits=()):
     """The declared descriptor for `label`, or None when nothing declares it.
+
+    Order is archetype -> its TRAITS (as written) -> GLOBAL, so what a record IS always
+    wins a name collision and a trait only fills in what the archetype left unsaid.
 
     Lookup is normalised on BOTH sides, so a table may spell a key `fail on signal`
     while the author writes `Fail on signal` / `fail_on_signal` and all three land
     together. Aliases are tried after canonical names."""
     key = _norm_label(label)
-    tables = [t for t in (ARCHETYPES.get(archetype) if archetype else None, GLOBAL) if t]
+    tables = [ARCHETYPES.get(archetype) if archetype else None]
+    tables += [TRAITS.get(str(t).strip().lower()) for t in (traits or ())]
+    tables.append(GLOBAL)
+    tables = [t for t in tables if t]
     canonical = _alias_index(archetype).get(key, key)
     for want in (key, canonical):
         for table in tables:
@@ -573,11 +632,11 @@ def _declared(label, archetype=None):
     return None
 
 
-def amd_is_declared(label, archetype=None):
+def amd_is_declared(label, archetype=None, traits=()):
     """True when some table declares this field. The reader needs this to tell a
     declared `text` field (stays a string) from an UNDECLARED one, which must keep
     the historical `amd_num` default - else `Time: 30` silently becomes "30"."""
-    return _declared(label, archetype) is not None
+    return _declared(label, archetype, traits) is not None
 
 
 def record_schema(field_labels, section_key=None):

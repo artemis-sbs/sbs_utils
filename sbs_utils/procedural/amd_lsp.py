@@ -478,6 +478,10 @@ def _completion(index, doc=None, pos=None, text=""):
             items = [{"label": f[:1].upper() + f[1:] + ":", "kind": 10}   # 10 = Property
                      for f in template_fields(arch or "quest")]
         elif where == "value" and label:
+            if label.strip().lower() == "also":
+                from sbs_utils.procedural.amd_schema import amd_trait_names as _traits
+                items = [{"label": t, "kind": 12} for t in _traits()]
+                return {"isIncomplete": False, "items": items}
             vals = enum_values(label, arch) or []
             d = field_schema(label, arch)
             if not vals and d.get("type") == "trigger":
@@ -922,14 +926,19 @@ def _detail_for(index, u, d, node):
     # Type each field via the schema, so the Inspector renders a typed widget
     # (enum -> dropdown, ref -> key-picker, colour -> swatch, ...). The mission
     # symbol lists ride along once (candidates for the reference widgets).
-    from sbs_utils.procedural.amd_schema import infer_archetype, field_schema
+    from sbs_utils.procedural.amd_schema import (
+        infer_archetype, field_schema, amd_traits_of, amd_trait_names)
     # `node.kind` is what the PARSER resolved - the record's own kind line, else the
     # nearest ancestor's, else the section-name table. Prefer it: re-deriving from the
     # section key alone cannot see a kind line or inheritance, so the Inspector would
     # type the very records the kind system exists to classify as plain text.
     arch = node.kind or infer_archetype([f["label"] for f in fields], _section_of(node))
+    # ...and what it ALSO does. A trait lends its words to a record that claims it, so
+    # a Landmark with `Also: economy` types `Yields:` / `Reserve:` without anyone
+    # inventing a `worldlet` archetype for the half that is not a landmark.
+    traits = amd_traits_of({f["label"].strip().lower(): f["value"] for f in fields})
     for f in fields:
-        f["schema"] = field_schema(f["label"], arch)
+        f["schema"] = field_schema(f["label"], arch, traits)
 
     fence_range = None
     if fl:
@@ -946,6 +955,7 @@ def _detail_for(index, u, d, node):
         # each word implies - so `Beat` is a visible choice that says what choosing
         # it does, instead of being invisible and unsettable.
         "kind": own_kind, "kinds": _kind_choices(),
+        "traits": list(traits), "allTraits": amd_trait_names(),
         "options": _mission_symbols(index),
         "bodyText": "\n".join(body),
         "bodyRange": {"start": {"line": node.body_start, "character": 0},

@@ -158,6 +158,28 @@ moment belongs to the whole crew and is already running, so a `Beat` needs neith
 waits to be revealed says `At start: hidden`, one that should stay on screen says
 `Show: always`.
 
+### What it also does
+
+A record is one thing, but it can have more than one concern. A worldlet is a
+**Landmark** — a place on the map — that also happens to **yield** ore. That second half
+is a **trait**, and `Also:` claims it:
+
+```amd
+# [Cinder World](cinder)
+---
+Landmark
+Also: economy
+At: 6, 4
+Yields: ore 8
+Reserve: 4000
+---
+A cracked, mineral-rich ember of a world.
+```
+
+`Yields:` and `Reserve:` come from the `economy` trait, so nothing had to invent a
+"worldlet" kind for the half that isn't a landmark. What a record **is** always wins a
+name clash; a trait only fills in words the archetype never declared.
+
 !!! note "The word has to be on the record"
     A kind line on a *section* says what its records **are**, but the field defaults come
     from each record's own word. Write `Beat` on the beat.
