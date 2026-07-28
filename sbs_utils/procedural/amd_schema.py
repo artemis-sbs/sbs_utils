@@ -338,7 +338,34 @@ _SECTION_ALIASES = {
     "jobs": "quest", "job": "quest", "goals": "quest", "goal": "quest",
     "narrative": "quest", "missions": "quest", "mission": "quest",
     "contracts": "quest", "bounties": "quest", "scenario": "map",
+    # SCREENPLAY WORDS for the same archetype. A beat and an objective are the same
+    # machinery playing different parts, and the part is what an author knows: a beat
+    # is a moment the crew lives through, an arc is the heading over a run of them.
+    # Nouns are vocabulary; ARCHETYPES are field schemas - these add no schema.
+    "beat": "quest", "beats": "quest",
+    "arc": "quest", "arcs": "quest", "chapter": "quest", "chapters": "quest",
+    "act": "quest", "acts": "quest", "sequence": "quest", "sequences": "quest",
+    "thread": "quest", "threads": "quest",
 }
+
+# What a KIND NOUN implies about `Show:` - the display half of what the word already
+# means. An explicit `Show:` always wins; this only fills the blank, so a `Beat` that
+# should stay on screen just says `Show: always`.
+_KIND_SHOW = {
+    "beat": "when done",
+    "arc": "with children", "chapter": "with children", "act": "with children",
+    "sequence": "with children", "thread": "with children",
+}
+
+
+def amd_kind_show_default(noun):
+    """The `Show:` a kind noun implies, or None. Singular / plural both work, matching
+    `_kind_to_archetype` - an author writes `Beat` over one record and `Beats` over a
+    section without being told there is a difference."""
+    if not noun:
+        return None
+    n = str(noun).strip().lower().replace("-", "_").replace(" ", "_")
+    return _KIND_SHOW.get(n) or _KIND_SHOW.get(n.rstrip("s"))
 
 # When there's no conventional section key, the FIRST discriminating field a
 # record carries identifies its archetype. Order = specificity (most telling

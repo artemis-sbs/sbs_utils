@@ -119,6 +119,35 @@ Characters
 Singular or plural both work. It applies to everything underneath, and a single record
 can override it. `These are: characters` is the same declaration written out in full.
 
+### Screenplay words
+
+A story is not all to-do list. The same quest machinery plays three different parts, and
+the word you write is the part it plays:
+
+| word | what it is | where it shows in the quest log |
+|---|---|---|
+| `Quest` / `Job` / `Objective` | something the crew can go and do | listed from the start |
+| `Beat` | a moment they live through | appears once it has happened, as history |
+| `Arc` / `Chapter` / `Act` / `Sequence` | the heading over a run of beats | only once something under it shows |
+
+```amd
+# [Ramscoop](ramscoop)
+---
+Arc
+---
+The ramscoop thread.
+
+## [The Coils Overheat](ramscoop/coils)
+---
+Beat
+Starts when: signal ramscoop_online
+---
+Engineering reports the coils running hot.
+```
+
+They add no new fields — a `Beat` is a quest in every other way. If one should read
+differently, `Show:` overrides the word (see [Quests](quests.md)).
+
 A whole file can say it once, in a fence before the first heading:
 
 ```amd

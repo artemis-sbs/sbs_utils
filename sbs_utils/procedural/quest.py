@@ -873,8 +873,15 @@ def _quest_show(q):
     are promoted onto the quest itself, so reading `q["show"]` returns None and the
     field silently does nothing. Both are checked here so there is one place to be
     wrong."""
+    from sbs_utils.procedural.amd_schema import amd_kind_show_default
     qd = q.get("data") or {}
-    raw = (qd.get("show") if hasattr(qd, "get") else None) or q.get("show", "")
+    get = qd.get if hasattr(qd, "get") else (lambda k, d=None: d)
+    raw = get("show") or q.get("show", "")
+    if not raw:
+        # No explicit `Show:` - fall back to what the record CALLED itself. `Beat` and
+        # `Arc` say when they belong in the log as plainly as the field does, and an
+        # author reaching for a screenplay word should not also have to configure it.
+        raw = amd_kind_show_default(get("__kind__"))
     return str(raw or "always").strip().lower().replace("_", " ")
 
 

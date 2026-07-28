@@ -423,6 +423,34 @@ class TestQuestLogShow(unittest.TestCase):
         self.assertIn("Ramscoop", titles)
         self.assertIn("Ramscoop Begin", titles)
 
+    # -- the KIND NOUN implies the same thing, in screenplay words ------------
+
+    def test_Beat_implies_when_done(self):
+        self._add("a", "Ramscoop Begin", __kind__="beat")
+        self.assertNotIn("Ramscoop Begin", self._titles())
+        quest_mark_complete(self.aid, "a")
+        self.assertIn("Ramscoop Begin", self._titles())
+
+    def test_Arc_implies_with_children(self):
+        self._add("grp", "Ramscoop", __kind__="arc")
+        self._add("grp/one", "Ramscoop Begin", __kind__="beat")
+        self.assertNotIn("Ramscoop", self._titles())
+        quest_mark_complete(self.aid, "grp/one")
+        self.assertIn("Ramscoop", self._titles())
+
+    def test_plural_noun_reads_the_same(self):
+        self._add("a", "Beat", __kind__="Beats")
+        self.assertNotIn("Beat", self._titles())
+
+    def test_an_explicit_Show_beats_the_noun(self):
+        self._add("a", "Loud Beat", show="always", __kind__="beat")
+        self.assertIn("Loud Beat", self._titles(),
+                      "the field is the override; the noun only fills the blank")
+
+    def test_a_noun_with_no_display_meaning_is_just_a_quest(self):
+        self._add("a", "Plain Job", __kind__="job")
+        self.assertIn("Plain Job", self._titles())
+
     def test_a_multi_step_JOB_stays_visible_with_secret_steps(self):
         """The regression that makes this a DECLARED value instead of a renderer
         heuristic: an available job also has children, and every step is secret

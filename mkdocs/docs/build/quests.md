@@ -39,6 +39,13 @@ it is — is in [The AMD file format](amd-format.md).
 | `Then:` | Follow-up on completion — `reveal <quest>` (unlock another) or `signal <name>`. |
 | `Display:` / `Tier:` | Optional label / ordering for the log. |
 | `Show:` | **When** this quest is listed — `always` (default), `when done` (runs unseen, appears once it completes *or* fails, reading as history), `with children` (a grouping heading: a row only while something under it is listed), or `never` (drives its events invisibly). Not the same as `State: secret`, which also stops the triggers. |
+
+!!! tip "Say `Beat` or `Arc` instead"
+    A record that calls itself a **`Beat`** (a moment the crew lives through) already
+    means `Show: when done`, and an **`Arc`** (the heading over a run of beats) already
+    means `Show: with children` — see [screenplay words](amd-format.md#screenplay-words).
+    Write `Show:` only to contradict the word.
+
 | `Accept On:` | Restrict which **consoles** may Accept/Abandon this job from the Quests tab — e.g. `comms`, or `comms, admiral`. Overrides the mission default (see [Console gating](#console-gating)). |
 | `Engage On:` | Restrict which consoles may **Engage** (travel to) this job — e.g. `helm`. Only meaningful when the mission enables the Engage button. |
 
