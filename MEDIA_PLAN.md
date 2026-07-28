@@ -4,7 +4,12 @@ Art is copied once per consuming mission today. This is the plan to make it live
 to let `sbs.pyz` own the unpacking, and — on top of that — to give missions custom icon
 sheets that a non-programmer can declare.
 
-Status: **the probe is built; nothing else has started.**
+Status: **proved in the engine and landed for graphics.** `sbs.pyz` unpacks each pack
+once into `__lib__/media/<zip name>/`; `media_shared()` resolves a logical path against
+the mission then its declared packs; OpenUniverse runs with **no `media/` folder at
+all**. Remaining: skybox/music from a pack are resolved but unproven in the engine, and
+the other consumers have not been migrated. Phases 3-6 (icon sheets, the quest log) are
+untouched.
 
 ---
 
@@ -39,6 +44,20 @@ A shared copy is the same shape with a different folder name:
 `__lib__/` is the right home: already shared, already versioned, already gitignored, and
 already where dependencies land. It reads as a build product rather than source, which
 is what an unpacked pack is.
+
+## What the probe answered
+
+Both tiles drew, and the cell tile in PIXELS was the correct one:
+
+1. **Art may live in `__lib__`.** The shared path loads exactly like a mission-local one.
+2. **`sub_rect` is PIXELS**, as the casino writes it. The browser mock was reading those
+   numbers as texture coordinates, so every sheet cell tiled instead of cropping - fixed
+   in `client.html` with the probe cited.
+
+A third answer came from running a mission afterwards: **the ENGINE unpacks
+`resources.media` into the mission folder at load** - that is where the per-mission
+copies come from. A mission that declares the pack under `shared_media` instead gets no
+copy, which is how OpenUniverse now runs with none.
 
 ## The two things the probe answers
 
@@ -117,10 +136,14 @@ engine's behaviour and a developer working from source gets the same layout as a
    Nothing else changes: `CASINO_MEDIA` is one constant.
 3. Then the other consumers, one at a time.
 
-**Do not migrate audio, music or skyboxes with them.** Those are resolved by the ENGINE
-from mission-relative paths, not by `ImageAtlas`, and may not tolerate a shared root at
-all. Graphics first; the rest is a separate question with its own probe. If graphics
-prove out, that is the evidence to take to the engine team for the other types.
+**Skybox and music turned out to be resolvable here too.** `MediaLabel.test_file` /
+`true_path` compute the path and the engine loads it, so they now search the same roots
+as the images - a pack's `skybox/sky-local` resolves from a mission with no local media.
+What is NOT proven is whether the engine opens that path for a skybox or a music folder
+the way it does for an image; nothing depends on it yet (every skybox the random-skybox
+addon names is engine art, found by bare name as before), so it is safe in place and
+wants its own probe tile before anyone relies on it. Sounds are believed to accept a
+relative path; music is unknown.
 
 ## Phase 3 — the sheet provider
 
