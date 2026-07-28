@@ -193,8 +193,12 @@ def quest_mark_active(agent_id, quest_id):
     if quest_get_state(agent_id, quest_id) == QuestState.ACTIVE:
         return
     quest_set_key(agent_id, quest_id, "state", QuestState.ACTIVE)
-    _quest_fire_overlays(agent_id, quest_get_data(agent_id, quest_id) or {},
-                         "accept_overlay", "on_accept")
+    data = quest_get_data(agent_id, quest_id) or {}
+    _quest_fire_overlays(agent_id, data, "accept_overlay", "on_accept")
+    # Activation announcement, completing the set. The idempotence guard above runs
+    # BEFORE this, so the driver hearing its own signal back is a no-op.
+    signal_emit("quest_started", {"AGENT_ID": agent_id, "QUEST_ID": quest_id,
+                                  "DATA": data})
 
 
 def quest_mark_complete(agent_id, quest_id):
@@ -206,12 +210,12 @@ def quest_mark_complete(agent_id, quest_id):
     quest_grant_reward(agent_id, data.get("reward"))
     quest_reveal(agent_id, data.get("reveal"))
     # On-complete actions: emit an optional custom signal (e.g. to flip
-    # diplomacy), and a generic quest_finished carrying the data so addons can
-    # react (the universe applies the declarative rep: block from it).
+    # diplomacy), and the generic SUCCESS announcement carrying the data so addons
+    # can react (the universe applies the declarative rep: block from it).
     sig = data.get("signal")
     if sig:
         signal_emit(sig, {"AGENT_ID": agent_id, "QUEST_ID": quest_id})
-    signal_emit("quest_finished", {"AGENT_ID": agent_id, "QUEST_ID": quest_id, "DATA": data})
+    signal_emit("quest_succeeded", {"AGENT_ID": agent_id, "QUEST_ID": quest_id, "DATA": data})
     _quest_fire_overlays(agent_id, data, "complete_overlay", "on_complete")
     name = quest_get_display_name(agent_id, quest_id) or quest_id
     comms_broadcast(_quest_audience(agent_id), "Mission complete: " + str(name), "#0f0")
@@ -322,6 +326,10 @@ def quest_mark_failed(agent_id, quest_id):
     name = quest_get_display_name(agent_id, quest_id) or quest_id
     comms_broadcast(_quest_audience(agent_id), "Mission failed: " + str(name), "#f33")
     _quest_maybe_end_game(agent_id, quest_id, data, win=False)
+    # The FAILURE twin of quest_succeeded. There was no announcement for failure at
+    # all, so anything reacting to a lost objective had nothing to listen to.
+    signal_emit("quest_failed_done", {"AGENT_ID": agent_id, "QUEST_ID": quest_id,
+                                      "DATA": data})
     if data.get("parent"):
         quest_reeval_mission(agent_id, data.get("parent"))
 

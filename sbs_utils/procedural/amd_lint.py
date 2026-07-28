@@ -244,7 +244,8 @@ def amd_lint_scan_labels(file_path=None, content=None):
 # "emitted with no route" (source: schema map, quest_driver.mast + engine routes).
 DRIVER_SIGNALS = frozenset({
     "quest_activated", "quest_completed", "quest_failed", "quest_signal",
-    "quest_finished", "game_over", "game_started", "show_game_results",
+    "quest_succeeded", "quest_failed_done", "quest_started",
+    "game_over", "game_started", "show_game_results",
     "universe_arrived", "item_collected", "item_changed", "ship_docked",
     "quest_engage", "create_player_ships",
 })

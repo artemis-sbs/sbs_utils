@@ -302,10 +302,19 @@ def quest_activate(agents, quest_id):
 def quest_complete(agents, quest_id):
     """Emit a ``quest_completed`` signal for one or more agents.
 
-    Fires ``signal_emit("quest_completed", ...)`` for each agent. To also
-    update the stored state, call ``quest_set_key(agent, quest_id, "state",
-    QuestState.COMPLETE)`` or handle the signal in a ``//signal/quest_completed``
-    route that sets the state.
+    ``quest_completed`` is an INPUT: you emit it to ASK for a quest to be completed.
+    The LegendaryMissions quest driver listens for it and calls ``quest_mark_complete``.
+
+    **To REACT to a quest finishing, listen for ``quest_succeeded``** - that is what the
+    driver emits once it has finished processing a completion (``quest_failed_done`` for
+    a failure, ``quest_started`` for an activation). Do not write
+    ``//signal/quest_completed`` to catch a completion: nothing emits it except callers
+    like this one, so the route waits forever and fails silently. The two names are
+    near-identical and point opposite ways; this bug killed every narrated beat in the
+    2.8 converter's output.
+
+    To also update the stored state without the driver, call
+    ``quest_set_key(agent, quest_id, "state", QuestState.COMPLETE)``.
 
     Args:
         agents: Agent ID, object, or list/set of either.

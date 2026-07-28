@@ -445,10 +445,24 @@ def consoles_of(to, consoles=None):
             key = str(to)
             if key not in _WARNED_EMPTY:
                 _WARNED_EMPTY.add(key)
-                print(f"[overlay] to={key!r} resolved to no console; overlay not shown")
+                from ...mast.mast import DEBUG
+                DEBUG(f"[overlay] to={key!r} resolved to no console; overlay not shown")
     if consoles and ids:
         from ..roles import any_role
-        ids &= any_role(consoles)
+        narrowed = ids & any_role(consoles)
+        if not narrowed:
+            # The audience existed and the NARROWING emptied it: those consoles are
+            # not connected, or they carry CONSOLE_TYPE without the matching role.
+            # This is the silent one - a hero card addressed to "mainscreen" with no
+            # main screen up just never appears, with nothing logged anywhere. Say it
+            # once per console set so a missing card is findable.
+            key = f"consoles={consoles}"
+            if key not in _WARNED_EMPTY:
+                _WARNED_EMPTY.add(key)
+                from ...mast.mast import DEBUG
+                DEBUG(f"[overlay] no console matched {consoles!r} "
+                      f"({len(ids)} in the audience); overlay not shown")
+        ids = narrowed
     return ids
 
 

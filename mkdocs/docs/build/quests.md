@@ -106,14 +106,44 @@ objectives on.
 
 Quests emit signals you can react to from anywhere:
 
+**Signals go two ways, and the names are dangerously similar.** Check the direction
+before you write a route — listening on an input waits for something nothing sends, and
+fails in total silence.
+
+**Driver → you** (react to these):
+
 | Signal | Data keys | When |
 |---|---|---|
-| `quest_activated` | `AGENT_ID`, `QUEST_ID`, `QUEST` | a quest becomes active |
-| `quest_completed` | `AGENT_ID`, `QUEST_ID`, `QUEST` | a quest is finished |
-| `quest_failed` | `AGENT_ID`, `QUEST_ID`, `QUEST` | a quest fails (a fail trigger fired) |
+| `quest_started` | `AGENT_ID`, `QUEST_ID`, `DATA` | a quest became active |
+| `quest_succeeded` | `AGENT_ID`, `QUEST_ID`, `DATA` | a quest **completed** (rewards granted, reveals done) |
+| `quest_failed_done` | `AGENT_ID`, `QUEST_ID`, `DATA` | a quest **failed** (penalty applied) |
+| a quest's own `Signal:` | `AGENT_ID`, `QUEST_ID` | that quest completed, if it declares one |
+
+**You → driver** (emit these to *drive* a quest; the driver listens):
+
+| Signal | Data keys | Effect |
+|---|---|---|
+| `quest_activated` | `AGENT_ID`, `QUEST_ID` | mark the quest active |
+| `quest_completed` | `AGENT_ID`, `QUEST_ID` | mark the quest complete |
+| `quest_failed` | `AGENT_ID`, `QUEST_ID` | mark the quest failed |
+| `quest_signal` | `SIGNAL_NAME` | advance any quest whose `Done when: signal <name>` matches |
+
+!!! warning "`quest_completed` is a request, not a notification"
+    To *react* to a quest finishing, listen for **`quest_succeeded`**. `quest_completed`
+    is what you emit to *ask* for a quest to be completed — the driver handles it and
+    calls `quest_mark_complete`. Writing `//signal/quest_completed` to catch a
+    completion is a route that never runs, and it fails in silence.
+
+    Request → announcement: `quest_activated` → `quest_started`,
+    `quest_completed` → `quest_succeeded`, `quest_failed` → `quest_failed_done`.
+
+!!! tip "Put event bodies on `//shared/signal`"
+    Every message verb addresses its own audience. On a plain `//signal` the route runs
+    once per connected console **plus** the server, so a five-console bridge sends each
+    message five times and performs each side effect five times.
 
 ```
-//signal/quest_completed
+//shared/signal/quest_succeeded
     log("Quest complete!")
 ```
 

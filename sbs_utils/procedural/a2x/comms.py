@@ -6,14 +6,17 @@ three onto one text channel (they used to go to the player text waterfall via
 ``comms_broadcast``, which lost the distinction between a chapter card and a warning):
 
 * ``big_message`` -> a ``hero`` card + letterbox bars: the cinematic chapter card.
-* ``incoming_comms_text`` -> a ``lower_third`` name-plate + subtitle, plus the durable
-  comms-log message.
+* ``incoming_comms_text`` -> a comms message, and ONLY that. It briefly also drew a
+  lower-third subtitle; that was the wrong presentation for a message the crew reads
+  and answers on Comms, so it was removed.
 * ``warning_popup_message`` -> an info-panel card on the addressed consoles.
 
-The overlay-backed ones are MAIN SCREEN by default: a hero card and a lower third are
-both "over the live view" presentations. They also resolve their audience when called,
-so a message fired before the crew has taken consoles goes nowhere -- see the timing
-note on :func:`big_message`.
+``big_message`` is MAIN SCREEN by default -- a hero card is an "over the live view"
+presentation -- and it resolves its audience WHEN CALLED, so a card fired before the
+crew has taken consoles goes nowhere. See the timing note on :func:`big_message`.
+
+All three belong on a ``//shared/signal`` route: they address an audience themselves,
+so running them once per console just sends the same message several times over.
 
 2.8 text uses ``^`` for line breaks; :func:`_clean` converts it.
 """
@@ -37,60 +40,148 @@ def console_roles(letters):
     return ",".join(dict.fromkeys(names))
 
 
-def incoming_comms_text(message, from_name="", title=None, to=None, time=30,
-                        consoles="mainscreen"):
-    """2.8 ``incoming_comms_text`` -> a lower-third subtitle plus a comms message.
+# 2.8 `type` -> the colour of the comms title. The type is the only thing 2.8 tells us
+# about the CHARACTER of a hail, and without it every message is the same colour, so an
+# enemy threat and a friendly status read identically. Palette matches a2x.sides
+# (enemy #F00 / friendly #07F / neutral #FFF) so a hail agrees with the 2D map.
+_TYPE_COLOR = {
+    "ENEMY":   "#F00",
+    "ALERT":   "#F80",     # urgency, not a faction - amber
+    "FRIEND":  "#07F",
+    "STATION": "#0FF",
+    "STATUS":  "#FFF",
+}
+# 2.8 combines them ("ALERT FRIEND", "ALERT STATION"). Most urgent token wins.
+_TYPE_PRECEDENCE = ("ENEMY", "ALERT", "STATION", "FRIEND", "STATUS")
 
-    Two channels, deliberately, because 2.8's one message did two jobs:
 
-    * the **transient** one is an ``overlay_lower_third`` -- the broadcast-TV name-plate
-      and subtitle over the live view (speaker on top, line underneath). That is what a
-      hail reads as, and unlike the info card it does not cover the view or need
-      dismissing. A line too long for the plate is measured against the client's screen
-      and shown in timed parts rather than clipped, which is what subtitles want anyway.
-    * the **durable** one is a ``comms_message`` on each player ship, so the crew can
-      re-read it and Comms sees every message. The overlay shows only the LATEST line
-      (one slot); the comms log is what keeps the history.
+def type_title_color(kind):
+    """2.8 ``type`` -> a title colour, or None when it says nothing useful."""
+    toks = {t for t in str(kind or "").upper().replace(",", " ").split()}
+    for name in _TYPE_PRECEDENCE:
+        if name in toks:
+            return _TYPE_COLOR[name]
+    return None
 
-    The durable side uses ``comms_message`` rather than ``comms_receive_internal``: the
-    latter is the INTERNAL crew channel (a ship talking to itself, engineering to bridge)
-    and resolves its portrait from the ship's own ``face_<from_name>`` inventory key. A 2.8
-    ``from`` is an outside caller -- "TSN Command", a Kralien warship -- not a department,
-    so it is passed as the message's ``from_name`` label instead.
 
-    Audience follows :func:`big_message`: the player ships' MAIN SCREEN, since a lower
-    third only makes sense over the live view -- on a Science data page it would just be
-    text in the wrong place. Pass ``consoles=None`` to put it on every console instead,
-    or ``to`` to aim it somewhere else entirely.
+# A 2.8 `from` is a LABEL with no object behind it, so there is no face to look up. We
+# invent one and REMEMBER it, keyed by the label, so a recurring caller keeps the same
+# portrait for the run instead of changing appearance every hail.
+_CALLER_FACES = {}
 
-    Like every overlay this resolves its audience WHEN CALLED, and an empty console set is
-    ignored silently -- see the timing note on :func:`big_message`.
+# Race words that may appear in a 2.8 sender label; anything else reads as human.
+_RACE_WORDS = ("kralien", "torgoth", "arvonian", "skaraan", "ximni")
+
+
+def caller_face(from_name):
+    """A stable face for a 2.8 sender LABEL, or None if there is no label.
+
+    Prefers a real one: if the mission has a lifeform of that name, that character's
+    face wins. Otherwise a face is generated once and cached, picking the race from the
+    label when it names one ("Kralien Warship Zeta") and a terran otherwise - most 2.8
+    callers are command, stations and human captains.
+
+    The caller stores the result on each ship as ``face_<from_name>``, and only when that
+    key is unset, so a mission's own portrait always wins over this one.
+
+    Stable for the run, not across runs: it is a portrait for a name 2.8 never gave one
+    to, so consistency within a session is what matters.
+    """
+    name = (from_name or "").strip()
+    if not name:
+        return None
+    if name in _CALLER_FACES:
+        return _CALLER_FACES[name]
+
+    face = None
+    try:                                    # a real character of that name wins
+        from sbs_utils.procedural.query import to_object_list
+        from sbs_utils.procedural.roles import role
+        from sbs_utils.faces import get_face
+        for obj in to_object_list(role("lifeform")):
+            if str(getattr(obj, "name", "")).strip().lower() == name.lower():
+                face = get_face(obj.id)
+                break
+    except Exception:
+        face = None
+
+    if not face:
+        from sbs_utils.faces import random_face
+        low = name.lower()
+        race = next((r for r in _RACE_WORDS if r in low), "terran")
+        face = random_face(race)
+
+    _CALLER_FACES[name] = face
+    return face
+
+
+def incoming_comms_text(message, from_name="", title=None, to=None, time=8,
+                        consoles="mainscreen", side=None):
+    """2.8 ``incoming_comms_text`` -> a comms message on the addressed player ships.
+
+    JUST COMMS, JUST ONCE. It used to also throw a lower-third subtitle over the live
+    view. In practice that was the wrong presentation - a 2.8 comms text is a message
+    the crew reads and answers on Comms, not a film subtitle - and it arrived several
+    times over, because the converter hung these bodies on a per-console route. The
+    overlay is gone; the emitter now puts the body on a `//shared/signal` route so it
+    runs once on the server.
+
+    It goes out on the INTERNAL channel (``comms_receive_internal``). A 2.8 ``from`` is
+    a LABEL with no object behind it - "TSN Command", a Kralien warship - and internal
+    is exactly the channel built for a named sender that is not a ship you can select:
+    it resolves the portrait from the receiving ship's own ``face_<from_name>`` key. So
+    the label gets a face, which 2.8 never had.
+
+    We seed that key with a generated face the first time a caller speaks (see
+    :func:`caller_face`), and only if it is unset - so a mission that pre-registers
+    ``face_TSN Command`` on its ships keeps its own portrait.
+
+    ``comms_message`` renders the bar as ``<from>: <title>``, so a hail reads
+    ``Dragon Tooth Refuge: ALERT``, coloured by the type (see :func:`type_title_color`).
 
     Args:
         message (str): body text (``^`` line breaks are converted).
-        from_name (str, optional): sender label -> the name plate and comms ``from_name``.
-            The 2.8 ``from`` is just a label, not an object, so there is no sender ship.
-        title (str, optional): overrides the name plate (defaults to ``from_name``).
-        to (optional): audience; defaults to every player ship.
-        time (int, optional): subtitle auto-dismiss seconds. Defaults to 30.
-        consoles (str, optional): console-role narrowing. Defaults to ``"mainscreen"``.
+        from_name (str, optional): the 2.8 ``from`` label -> the sender name and the
+            key its portrait is stored under.
+        title (str, optional): the 2.8 ``type`` -> the title bar and its colour.
+        to (optional): audience; defaults to the player ships selected by ``side``.
+        side (optional): the 2.8 ``sideValue`` this hail is addressed to. Narrows the
+            audience to the player ships of that faction, which is what 2.8 meant by it -
+            3247 of the corpus's 4318 tags carry one, and without it a hail meant for one
+            team is read by everybody. Omitted / ``None`` = every player ship.
+        time, consoles: accepted and IGNORED. They sized the old subtitle overlay; kept
+            so an already-generated mission that passes them still loads.
     """
-    from sbs_utils.procedural.comms import comms_message
-    from sbs_utils.procedural.gui.overlay import overlay_lower_third
+    from sbs_utils.procedural.comms import comms_receive_internal
     from sbs_utils.procedural.roles import role
+    from sbs_utils.procedural.query import to_object_list
+    from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
+    from sbs_utils.procedural.a2x.sides import side_key
 
     text = _clean(message)
-    tgt = to if to is not None else role("__player__")
-    overlay_lower_third(title or from_name or "", text, to=tgt, consoles=consoles,
-                        seconds=time)
-    # ...and the comms message itself. 2.8 gives a sender LABEL and no sender object, so
-    # the message is addressed to each player ship with from_name carrying the label.
-    players = role("__player__")
-    comms_message(text, players, players, title=title, is_receive=True,
-                  from_name=(from_name or None))
+    # `to` used to aim only the overlay while the comms message always went to every
+    # player ship, so an aimed hail was logged fleet-wide.
+    if to is not None:
+        tgt = to
+    elif side is not None:
+        tgt = role("__player__") & role(side_key(side))
+    else:
+        tgt = role("__player__")
+
+    # Give the caller a portrait, once per ship, WITHOUT overwriting one the mission
+    # registered itself - then let the internal channel resolve it the normal way.
+    caller = (from_name or "").strip()
+    if caller:
+        face = caller_face(caller)
+        for ship in to_object_list(tgt):
+            if get_inventory_value(ship.id, f"face_{caller}", None) is None:
+                set_inventory_value(ship.id, f"face_{caller}", face)
+
+    comms_receive_internal(text, tgt, from_name=(caller or None), title=title,
+                           title_color=type_title_color(title))
 
 
-def big_message(title, subtitle1="", subtitle2="", to=None, time=30):
+def big_message(title, subtitle1="", subtitle2="", to=None, time=8):
     """2.8 ``big_message`` -> a cinematic Hero chapter card on every player MAIN SCREEN.
 
     2.8 showed this as a big main-screen chapter card, so the audience is the MAIN SCREEN
@@ -102,6 +193,13 @@ def big_message(title, subtitle1="", subtitle2="", to=None, time=30):
     Drawn as a hero card (large centred title + combined subtitles on the ``center_hero``
     slot) with cinematic ``letterbox`` bars, via the one-call ``letterbox=`` form. Both
     auto-dismiss after ``time``.
+
+    ``time`` defaults to **8 seconds**. This is a full-screen card WITH LETTERBOX BARS
+    over the main screen, so the default is the length of a chapter title, not of a
+    message you read at leisure - it was 30, which left the bridge letterboxed for half
+    a minute. The converter emits ``a2x_big_message(title, sub1, sub2)`` with no ``time``,
+    so this default is what every converted 2.8 mission actually gets. Pass ``time``
+    explicitly for a card that should linger.
 
     NOTE ON TIMING: this resolves its audience WHEN CALLED, and an empty console set is
     silently ignored by the overlay layer (a normal "nobody connected yet" case). A card
