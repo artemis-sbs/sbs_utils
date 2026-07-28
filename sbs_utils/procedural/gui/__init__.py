@@ -18,7 +18,7 @@ from .clickable import gui_click
 from .content import gui_content
 from .dropdown import gui_drop_down
 from .face import gui_face
-from .icon import gui_icon, gui_icon_button
+from .icon import gui_icon_name, gui_icon, gui_icon_button
 from .image import gui_image, gui_image_absolute, gui_image_keep_aspect_ratio, gui_image_keep_aspect_ratio_center, gui_image_stretch, gui_image_add_atlas,gui_image_size,gui_image_get_atlas
 from .input import gui_input
 from .radio import gui_radio, gui_vradio
@@ -73,3 +73,4 @@ from .overlay import overlay_kind, consoles_of
 from .overlay import overlay_signal_show, overlay_signal_clear
 from .overlay import overlay_toast, overlay_banner, overlay_lower_third, overlay_credits, overlay_choice
 from .overlay import overlay_hud, overlay_hud_update, overlay_letterbox, overlay_flash
+from .icon_sheet import icon_resolve, icon_names, ICON_INDEX, ICON_ALIAS

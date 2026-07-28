@@ -469,6 +469,58 @@ HUD — that update **without repainting the page underneath**.
       gui_text(f"$text:`{name}`;font:gui-5")
   ```
 
+## 🏷️ Icons have names now
+
+`gui_icon("icon_index:111;")` asked you to remember that 111 is a wanted poster. Every
+one of the built-in sheet's **176 glyphs now has a name**, and there is one call that
+takes one:
+
+```python
+gui_icon_name("quest.job", "#cc0")
+```
+
+Two kinds of name, and the difference is the point. A **look** — `square`, `bell`,
+`wanted` — is what a glyph *is*. A **meaning** — `quest.job`, `quest.state`,
+`list.expand` — is what it's *for*, and points at a look. Ask for the meaning, and
+re-pointing it changes every screen at once.
+
+The same names reach **your own art**. Register a cell of your sheet under a look and it
+wins over the built-in one:
+
+```python
+gui_image_add_atlas("wanted", media_shared("icons/quest-sheet"), 0, 0, 64, 64)
+```
+
+Every `gui_icon_name("quest.job")` in the game now draws your art — **with no edit to the
+code that draws it**. Screens can be written before their art exists, and an add-on can
+re-skin screens it doesn't own. An unknown name draws *nothing* rather than a plausible
+wrong glyph, because a wrong icon looks deliberate.
+
+The whole named set, with pictures: **[Icons by name](cosmos/gui_icons.md)**.
+
+## 🗂️ Art that lives once
+
+Shared art used to be copied into every mission that used it — LegendaryMissions' 27 MB
+of backdrops and card decks became **314 MB across twelve missions**, and a re-release
+left every copy stale. Now a media pack is unpacked **once** beside the libraries, and
+missions read it there.
+
+```json
+{ "shared_media": ["artemis-sbs.LegendaryMissions.media.v1.4.0.zip"] }
+```
+
+```python
+gui_image_add_atlas("card_back", media_shared("casino/terran_back"))
+```
+
+`media_shared()` looks in your mission's own `media/` **first**, then in each pack you
+declare — so overriding one file is dropping your own copy in, and nothing hardcodes the
+unpacked path (which carries the version). Publishing a pack is a `zip` entry in
+`__lib__.json`; `export-ignore` then keeps the art out of the source archive consumers
+download, so a fetch no longer drags along 27 MB nothing reads.
+
+**272 MB reclaimed.** Guide: **[Shared media](build/shared-media.md)**.
+
 ## 📋 Richer GUI — tables, and text that does more
 
 - **[`gui_table`](cosmos/gui_table.md).** Describe a table as **rows + column

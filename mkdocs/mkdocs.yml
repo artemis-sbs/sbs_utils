@@ -82,6 +82,7 @@ nav:
     - Custom lists (gui_list): cosmos/gui_list.md
     - Tables (gui_table): cosmos/gui_table.md
     - Grids (gui_grid): cosmos/gui_grid.md
+    - Icons (gui_icon_name): cosmos/gui_icons.md
     - Sizing to content: cosmos/gui_content_sizing.md
     - Text that does not fit: cosmos/gui_overflow.md
     - Overlays (cards, HUDs, cutscenes): cosmos/overlays.md
@@ -98,6 +99,7 @@ nav:
     - Items & Upgrades: build/items-upgrades.md
     - Adding an item or upgrade: build/custom-upgrades.md
     - Web pages: build/web-pages.md
+    - Shared media (art that lives once): build/shared-media.md
     - Making add-ons: build/addons.md
 
   - Tutorials:

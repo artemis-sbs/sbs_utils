@@ -80,7 +80,7 @@ def gui_image_keep_aspect_ratio_center(props, style=None):
     return gui_image(props, style=style, fit=3)
 
 
-def gui_image(props, style=None, fit=0):
+def gui_image(props, style=None, fit=0, color=None):
     """Add an image to the current GUI layout.
 
     Resolves the image via the atlas, mission directory, and engine graphics
@@ -95,6 +95,8 @@ def gui_image(props, style=None, fit=0):
         style (str, optional): CSS-like style overrides. Defaults to None.
         fit (int, optional): Scaling mode — 0=stretch, 1=absolute pixels,
             2=keep aspect ratio (top-left), 3=keep aspect ratio (centered).
+        color (str, optional): Tint for this use only, overriding the atlas's own
+            color. Lets one registered cell serve every state.
             Defaults to 0.
 
     Returns:
@@ -111,7 +113,7 @@ def gui_image(props, style=None, fit=0):
     #props = gui_image_get_props(props)
         
     tag = page.get_tag()
-    layout_item = Image(tag,props, fit)
+    layout_item = Image(tag,props, fit, color)
     apply_control_styles(".image", style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)

@@ -8,12 +8,15 @@ from ...helpers import FrameContext
 
 class Image(Column):
     #"image:icon-bad-bang; color:blue; sub_rect: 0,0,etc"
-    def __init__(self, tag, file, mode=1) -> None:
+    def __init__(self, tag, file, mode=1, color=None) -> None:
         super().__init__()
         self.tag = tag
         self.atlas = None
         self.update(file)
         self.mode = mode
+        # Per-USE tint, overriding the atlas's own. One registered cell can then serve
+        # every state (a state pip recolored per state) instead of needing a key each.
+        self.color = color
         
 
     def update(self, file):
@@ -50,7 +53,8 @@ class Image(Column):
         else:
             self.atlas.send_gui_image(ctx.sbs, event.client_id,
                     self.region_tag,  self.tag, self.mode,  
-                    self.bounds.left,self.bounds.top,self.bounds.right,self.bounds.bottom)
+                    self.bounds.left,self.bounds.top,self.bounds.right,self.bounds.bottom,
+                    self.color)
             
     @property
     def value(self):

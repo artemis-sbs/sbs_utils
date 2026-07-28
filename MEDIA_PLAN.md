@@ -155,9 +155,31 @@ With art living once, custom icon sheets become worth building.
   cannot silently claim the same key. (`ImageAtlas.all` is one process-wide dict today.)
 - `is_valid()` wired into `sbs lint`: a missing sheet or an out-of-range cell should be
   loud. Today it renders nothing, silently.
-- `gui_icon_named(name, color)` — an icon-shaped wrapper that takes a NAME and renders
-  whichever backing that name has: a built-in `icon_index` or an atlas cell. This is the
-  indirection that lets consumers be written before any art exists.
+- ~~`gui_icon_named(name, color)`~~ — **DONE**, as `gui_icon_name(name, color, style)`.
+  An icon-shaped wrapper that takes a NAME and renders whichever backing that name has: a
+  built-in `icon_index` or an atlas cell. This is the indirection that lets consumers be
+  written before any art exists.
+
+  With it, `procedural/gui/icon_sheet.py`: **every one of the built-in sheet's 176 drawn
+  glyphs now has a name** (verified glyph by glyph against renders of the sheet — several
+  first guesses were wrong: 17 is a ram, not a biohazard; 54 a molecule, not a sample;
+  125 a reactor). Two layers, deliberately:
+
+  - a **look** — `square`, `wanted`, `bell` — one per drawn cell;
+  - a **meaning** — `quest.job`, `quest.state`, `list.expand`, `check.on` — an alias onto
+    a look. Consumers ask for the meaning.
+
+  `icon_resolve(name)` follows aliases, then lets a **registered atlas key win over the
+  built-in index**. That single ordering is the whole point: a mission calls
+  `gui_image_add_atlas("wanted", ...)` and every screen drawing `quest.job` re-skins, with
+  no edit to the drawing code — and an unknown name draws *nothing* (and logs once) rather
+  than a plausible wrong glyph. Covered by `tests/test_icon_sheet.py`; drawn by name in
+  `missions/media_probe`.
+
+  Still numbers, awaiting phase 6: the quest log's state pip and the list box's fold/nav
+  arrows (`101`/`121`, `154`/`155`, `152`/`153` in `layout_listbox.py` and LM's
+  `document_screen.py`) — the names now exist for all of them (`quest.state`, `check.on`,
+  `list.expand`, `list.prev`).
 
 ## Phase 4 — icons declared in AMD
 

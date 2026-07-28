@@ -29,6 +29,7 @@
 ::: sbs_utils.procedural.gui.dropdown
 ::: sbs_utils.procedural.gui.face
 ::: sbs_utils.procedural.gui.icon
+::: sbs_utils.procedural.gui.icon_sheet
 ::: sbs_utils.procedural.gui.input
 ::: sbs_utils.procedural.gui.image
 ::: sbs_utils.procedural.gui.radio
