@@ -99,6 +99,11 @@ Yields: ore 8
 Reserve: 4000
 ```
 
+Two traits ship: **`economy`** (`Yields:` `Reserve:` `Price:` `Costs:` `Time:`) and
+**`reputation`** (`Values:` `Standing:` `Reliability:` `Rival when:`) — one concern that
+four different records had each spelled their own way. A side and a Character carry
+`reputation` without saying so; `Also:` is for the optional half.
+
 Everything already written still parses — every rename keeps its old spelling, and no
 stored key moved. See [The AMD file format](build/amd-format.md).
 

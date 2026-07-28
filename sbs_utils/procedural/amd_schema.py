@@ -362,7 +362,33 @@ TRAITS = {
         "costs": counted(hint="ore 120, gas 40"),
         "time": duration(),
     },
+    # How someone is REGARDED, and what they regard. One concern that four different
+    # records had each spelled their own way: a side's `Values`, a captain's `Values`
+    # and `Rival when`, a bar patron's `Reliability`, a quest's `Standing`.
+    "reputation": {
+        "values": weighted(hint="by-the-book 40, fearsome 30"),
+        "standing": text(hint="iron honest 20, iron fearsome 10"),
+        "reliability": pct(hint="0.55 - how often they are right"),
+        "rival when": text(hint="the standing that turns them against you"),
+    },
 }
+
+
+# Traits an archetype ALWAYS has, so no record has to say the obvious. A side is always
+# regarded some way; so is a person. `Also:` is for the concerns that are OPTIONAL - a
+# landmark that happens to yield - and writing `Also: reputation` on every side would be
+# ceremony, not clarity.
+ARCHETYPE_TRAITS = {
+    "side": ("reputation",),
+    "lifeform": ("reputation",),
+}
+
+
+def amd_register_archetype_traits(archetype, traits, domain=None):
+    """Give an archetype traits it always has (see ARCHETYPE_TRAITS)."""
+    key = str(archetype).strip().lower()
+    have = tuple(ARCHETYPE_TRAITS.get(key, ()))
+    ARCHETYPE_TRAITS[key] = have + tuple(t for t in traits if t not in have)
 
 
 def amd_register_trait(name, table, domain=None):
@@ -625,6 +651,9 @@ def _declared(label, archetype=None, traits=()):
     together. Aliases are tried after canonical names."""
     key = _norm_label(label)
     tables = [ARCHETYPES.get(archetype) if archetype else None]
+    # what it always is, then what this record says it ALSO does
+    implicit = ARCHETYPE_TRAITS.get(str(archetype).strip().lower(), ()) if archetype else ()
+    tables += [TRAITS.get(str(t).strip().lower()) for t in implicit]
     tables += [TRAITS.get(str(t).strip().lower()) for t in (traits or ())]
     tables.append(GLOBAL)
     tables = [t for t in tables if t]

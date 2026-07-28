@@ -180,6 +180,15 @@ A cracked, mineral-rich ember of a world.
 "worldlet" kind for the half that isn't a landmark. What a record **is** always wins a
 name clash; a trait only fills in words the archetype never declared.
 
+| trait | what it lends |
+|---|---|
+| `economy` | `Yields:` · `Reserve:` · `Price:` · `Costs:` · `Time:` |
+| `reputation` | `Values:` · `Standing:` · `Reliability:` · `Rival when:` |
+
+**Some traits you never have to write.** A side is always regarded some way, and so is a
+person — so `Side` and `Character` carry `reputation` already. `Also:` is for the
+concerns that are *optional*: a landmark that happens to yield.
+
 !!! note "The word has to be on the record"
     A kind line on a *section* says what its records **are**, but the field defaults come
     from each record's own word. Write `Beat` on the beat.

@@ -11,6 +11,30 @@ test_set_exe_dir()
 from sbs_utils.procedural import amd_schema as S
 
 
+class AnArchetypeCanAlwaysHaveOne(unittest.TestCase):
+    """`Also:` is for OPTIONAL concerns. A side is always regarded some way and so is a
+    person, so writing `Also: reputation` on every one of them would be ceremony - the
+    archetype carries it, and the trait stays the single declaration."""
+
+    def test_a_side_is_regarded_without_saying_so(self):
+        self.assertEqual(S.field_schema("values", "side")["type"], "weighted")
+        self.assertEqual(S.field_schema("reliability", "lifeform")["type"], "pct")
+
+    def test_an_archetype_that_does_NOT_carry_it_is_unaffected(self):
+        self.assertEqual(S.field_schema("reliability", "quest")["type"], "text")
+
+    def test_a_mission_can_add_one(self):
+        S.amd_register_trait("weather", {"forecast": S.text()})
+        S.amd_register_archetype_traits("region", ("weather",), domain="test")
+        self.assertTrue(S.amd_is_declared("forecast", "region"))
+        self.assertFalse(S.amd_is_declared("forecast", "item"))
+
+    def test_registering_the_same_trait_twice_is_a_no_op(self):
+        before = tuple(S.ARCHETYPE_TRAITS.get("side", ()))
+        S.amd_register_archetype_traits("side", ("reputation",))
+        self.assertEqual(tuple(S.ARCHETYPE_TRAITS.get("side", ())), before)
+
+
 class TraitsLendTheirWords(unittest.TestCase):
     """A worldlet is a Landmark that yields ore. Inventing an archetype for the second
     half is what produced `worldlet`, `clan` and `captain` as private types."""
