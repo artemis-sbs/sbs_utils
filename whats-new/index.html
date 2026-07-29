@@ -777,6 +777,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-quest-log-says-something-new" class="md-nav__link">
+    <span class="md-ellipsis">
+      📜 The Quest Log says something new
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#art-that-lives-once" class="md-nav__link">
     <span class="md-ellipsis">
       🗂️ Art that lives once
@@ -6058,6 +6067,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-quest-log-says-something-new" class="md-nav__link">
+    <span class="md-ellipsis">
+      📜 The Quest Log says something new
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#art-that-lives-once" class="md-nav__link">
     <span class="md-ellipsis">
       🗂️ Art that lives once
@@ -6620,13 +6638,47 @@ takes one:</p>
 re-pointing it changes every screen at once.</p>
 <p>The same names reach <strong>your own art</strong>. Register a cell of your sheet under a look and it
 wins over the built-in one:</p>
-<div class="highlight"><pre><span></span><code><span class="n">gui_image_add_atlas</span><span class="p">(</span><span class="s2">&quot;wanted&quot;</span><span class="p">,</span> <span class="n">media_shared</span><span class="p">(</span><span class="s2">&quot;icons/quest-sheet&quot;</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">gui_icon_add_atlas</span><span class="p">(</span><span class="s2">&quot;wanted&quot;</span><span class="p">,</span> <span class="n">media_shared</span><span class="p">(</span><span class="s2">&quot;icons/quest-sheet&quot;</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
 </code></pre></div>
 <p>Every <code>gui_icon_name("quest.job")</code> in the game now draws your art — <strong>with no edit to the
 code that draws it</strong>. Screens can be written before their art exists, and an add-on can
 re-skin screens it doesn't own. An unknown name draws <em>nothing</em> rather than a plausible
 wrong glyph, because a wrong icon looks deliberate.</p>
+<p>Claiming a look is deliberate: only the <strong>icon domain</strong> re-skins, so an ordinary image
+that happens to be called <code>square</code> or <code>flag</code> can't silently change every state pip in the
+game.</p>
+<p><strong>Or write the sheet as a fact sheet.</strong> An <code>## [Icons]</code> section registers the same keys
+with no Python — the sheet, the cell size and the domain are written once on the section,
+so an entry is a single line:</p>
+<div class="highlight"><pre><span></span><code>## [Icons](icons)
+---
+icons
+Sheet: icons/quest-sheet
+Cell: 64
+---
+
+### [Job](wanted)
+---
+At: 0, 0
+---
+</code></pre></div>
+<p>The same section type registers <strong>any</strong> atlas, not just icons — a card deck or a set of
+console backdrops is the same format with a different word (<code>images</code>, <code>art</code>) and its own
+<code>Domain:</code>. <code>sbs lint</code> checks them: a sheet that isn't on disk, an <code>At:</code> with no <code>Cell:</code>
+to measure against, a cell off the edge of the sheet. All three used to draw a blank
+widget with no error anywhere.</p>
 <p>The whole named set, with pictures: <strong><a href="../cosmos/gui_icons/">Icons by name</a></strong>.</p>
+<h2 id="the-quest-log-says-something-new">📜 The Quest Log says something new</h2>
+<p>Every row used to be the same square, over a caption repeating the state the square's
+color already showed. Now the <strong>shape is what the thing is</strong> — job, objective, beat, arc
+— and the <strong>color is what state it's in</strong>: two facts in one glyph.</p>
+<p>The second line has to earn its place. It says how far along you are (<code>2 of 6</code>), what a
+job pays while it's still a choice (<code>Reward: 120 credits</code>), or how long is left
+(<code>1:30 left</code>) — and falls back to the state only for <strong>Done</strong> and <strong>Failed</strong>, where the
+state <em>is</em> the news.</p>
+<p>Quests written before kinds existed still render; they just say less. And because every
+glyph is asked for by name, a mission that ships its own icon sheet re-skins the whole
+log without touching a line of it.</p>
 <h2 id="art-that-lives-once">🗂️ Art that lives once</h2>
 <p>Shared art used to be copied into every mission that used it — LegendaryMissions' 27 MB
 of backdrops and card decks became <strong>314 MB across twelve missions</strong>, and a re-release

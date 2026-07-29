@@ -1747,6 +1747,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#icons-written-as-a-fact-sheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      Icons written as a fact sheet
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sub-rects-are-pixels" class="md-nav__link">
     <span class="md-ellipsis">
       Sub-rects are pixels
@@ -5781,6 +5790,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#icons-written-as-a-fact-sheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      Icons written as a fact sheet
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sub-rects-are-pixels" class="md-nav__link">
     <span class="md-ellipsis">
       Sub-rects are pixels
@@ -6024,17 +6042,73 @@ the color at the point of drawing:</p>
     <span class="n">gui_icon_name</span><span class="p">(</span><span class="s2">&quot;quest.state&quot;</span><span class="p">,</span> <span class="s2">&quot;#6d6&quot;</span> <span class="k">if</span> <span class="n">quest</span><span class="o">.</span><span class="n">done</span> <span class="k">else</span> <span class="s2">&quot;#888&quot;</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="bring-your-own-sheet">Bring your own sheet</h2>
-<p>A name is not tied to the built-in sheet. Register the <strong>look</strong> as an image atlas key and
+<p>A name is not tied to the built-in sheet. Claim the <strong>look</strong> for a cell of your own and
 it wins over the built-in index:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">sbs_utils.procedural.gui</span><span class="w"> </span><span class="kn">import</span> <span class="n">gui_image_add_atlas</span>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">sbs_utils.procedural.gui</span><span class="w"> </span><span class="kn">import</span> <span class="n">gui_icon_add_atlas</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sbs_utils.procedural.media_paths</span><span class="w"> </span><span class="kn">import</span> <span class="n">media_shared</span>
 
 <span class="c1"># One 64px cell out of your own sheet, claiming the name &quot;wanted&quot;.</span>
-<span class="n">gui_image_add_atlas</span><span class="p">(</span><span class="s2">&quot;wanted&quot;</span><span class="p">,</span> <span class="n">media_shared</span><span class="p">(</span><span class="s2">&quot;icons/quest-sheet&quot;</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+<span class="n">gui_icon_add_atlas</span><span class="p">(</span><span class="s2">&quot;wanted&quot;</span><span class="p">,</span> <span class="n">media_shared</span><span class="p">(</span><span class="s2">&quot;icons/quest-sheet&quot;</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
 </code></pre></div>
 <p>From then on every <code>gui_icon_name("quest.job")</code> in the game draws <em>your</em> art — <strong>with no
 edit to the code that draws it</strong>. That is what lets a screen be written before its art
 exists, and lets an add-on re-skin screens it doesn't own.</p>
+<p>Or claim a whole sheet at once, laid out row-major:</p>
+<div class="highlight"><pre><span></span><code><span class="n">gui_icon_add_atlas_grid</span><span class="p">(</span><span class="n">media_shared</span><span class="p">(</span><span class="s2">&quot;icons/quest-sheet&quot;</span><span class="p">),</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span>
+                        <span class="p">[</span><span class="s2">&quot;wanted&quot;</span><span class="p">,</span> <span class="s2">&quot;flag&quot;</span><span class="p">,</span> <span class="s2">&quot;talks&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;bell&quot;</span><span class="p">],</span> <span class="n">cell</span><span class="o">=</span><span class="mi">64</span><span class="p">)</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Claiming a look has to be deliberate</p>
+<p><code>gui_icon_add_atlas</code> is <code>gui_image_add_atlas(..., domain="icon")</code>, and only the icon
+domain re-skins. A plain <code>gui_image_add_atlas("square", ...)</code> — a perfectly ordinary
+thing to call an image — does <strong>not</strong> become the icon <code>square</code>. Without that scope
+one image registration could silently re-skin every state pip in the game, and the
+author would have no way to know why.</p>
+</div>
+<h2 id="icons-written-as-a-fact-sheet">Icons written as a fact sheet</h2>
+<p>A sheet is a catalog, and a catalog is what AMD is for. An
+<a href="../../build/amd-format/">image section</a> registers the same keys with no Python at all —
+<code>Sheet</code>, <code>Cell</code> and the domain are written once on the section, so an entry is one line:</p>
+<div class="highlight"><pre><span></span><code>## [Icons](icons)
+---
+icons
+Sheet: icons/quest-sheet
+Cell: 64
+---
+The quest log&#39;s glyphs. White silhouettes - color is applied per use.
+
+### [Job](wanted)
+---
+At: 0, 0
+---
+
+### [Beat](talks)
+---
+At: 1, 0
+Color: #888
+---
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="n">images_load_amd</span><span class="p">(</span><span class="s2">&quot;icons.amd&quot;</span><span class="p">)</span>     <span class="c1"># or images_declare_document(doc) for a section of a bigger file</span>
+</code></pre></div>
+<p>A section whose kind noun is <code>icons</code> registers in the icon domain — so those keys are
+looks. Any other word (<code>images</code>, <code>art</code>, <code>atlas</code>) registers ordinary atlas keys, which is
+what a card deck or a set of console backdrops wants:</p>
+<div class="highlight"><pre><span></span><code>## [Cards](cards)
+---
+images
+Sheet: casino/terran_deck
+Cell: 190, 280
+Domain: casino
+---
+
+### [Back](card_back)
+---
+At: 0, 0
+---
+</code></pre></div>
+<p><code>sbs lint</code> checks these: a sheet that is not on disk, an <code>At:</code> with no <code>Cell:</code> to measure
+against, and a cell that falls off the edge of the sheet. All three draw a blank widget
+today with no error anywhere.</p>
 <div class="admonition tip">
 <p class="admonition-title">Where a custom sheet should live</p>
 <p>Put it in a <strong><a href="../../build/shared-media/">shared media pack</a></strong> rather than in each

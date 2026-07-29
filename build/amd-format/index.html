@@ -2126,6 +2126,30 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#art-sheets-cells-and-icons" class="md-nav__link">
+    <span class="md-ellipsis">
+      Art: sheets, cells and icons
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Art: sheets, cells and icons">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#icons-are-the-same-thing-in-the-icon-domain" class="md-nav__link">
+    <span class="md-ellipsis">
+      Icons are the same thing, in the icon domain
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#writing-values" class="md-nav__link">
     <span class="md-ellipsis">
       Writing values
@@ -5832,6 +5856,30 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#art-sheets-cells-and-icons" class="md-nav__link">
+    <span class="md-ellipsis">
+      Art: sheets, cells and icons
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Art: sheets, cells and icons">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#icons-are-the-same-thing-in-the-icon-domain" class="md-nav__link">
+    <span class="md-ellipsis">
+      Icons are the same thing, in the icon domain
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#writing-values" class="md-nav__link">
     <span class="md-ellipsis">
       Writing values
@@ -6165,6 +6213,94 @@ names, and a file may use either:</p>
 </tbody>
 </table>
 <hr />
+<h2 id="art-sheets-cells-and-icons">Art: sheets, cells and icons</h2>
+<p>A sheet of art is a catalog, so it is authored like one. An image section registers atlas
+keys - the names <code>gui_image</code>, <code>gui_text_area</code> and <code>gui_icon_name</code> draw by - with no Python
+at all. What every cell shares is written ONCE on the section, so an entry is one line:</p>
+<div class="highlight"><pre><span></span><code>## [Cards](cards)
+---
+images
+Sheet: casino/terran_deck
+Cell: 190, 280
+Domain: casino
+---
+
+### [Back](card_back)
+---
+At: 0, 0
+---
+
+### [Console backdrop](console_bg)
+---
+Sheet: helm/consoles0001
+---
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>field</th>
+<th>means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Sheet:</code></td>
+<td>the file, without the extension. Looked up in a <a href="../shared-media/">shared media pack</a> first, so it resolves the same in a clone and in a fetched copy. On the section, or overridden per entry.</td>
+</tr>
+<tr>
+<td><code>Cell:</code></td>
+<td>cell size in <strong>pixels</strong> - <code>64</code>, or <code>190, 280</code></td>
+</tr>
+<tr>
+<td><code>Grid:</code></td>
+<td>cells across and down (<code>8, 8</code>) - measures the cell off the sheet instead</td>
+</tr>
+<tr>
+<td><code>At:</code></td>
+<td>which cell, as <code>col, row</code></td>
+</tr>
+<tr>
+<td><code>Rect:</code></td>
+<td>explicit pixels (<code>left, top, right, bottom</code>) for an irregular cell</td>
+</tr>
+<tr>
+<td><code>Color:</code></td>
+<td>a default tint; a drawing call may override it</td>
+</tr>
+<tr>
+<td><code>Domain:</code></td>
+<td>a namespace, so two add-ons can't silently claim one key</td>
+</tr>
+</tbody>
+</table>
+<p>An entry with neither <code>At:</code> nor <code>Rect:</code> takes the <strong>whole file</strong> - which is why <code>Sheet:</code>
+can be overridden per entry, for one loose image among cells.</p>
+<p>Load it with <code>images_load_amd("art.amd")</code>, or <code>images_declare_document(doc)</code> when the
+section lives in a bigger file.</p>
+<h3 id="icons-are-the-same-thing-in-the-icon-domain">Icons are the same thing, in the icon domain</h3>
+<p>A section whose kind noun is <code>icons</code> registers into the <strong>icon domain</strong>, which is what
+<code>gui_icon_name</code> resolves against - so its keys are the <em>looks</em> the game draws by name, and
+naming one re-skins every screen that draws it:</p>
+<div class="highlight"><pre><span></span><code>## [Icons](icons)
+---
+icons
+Sheet: icons/quest-sheet
+Cell: 64
+---
+
+### [Job](wanted)
+---
+At: 0, 0
+---
+</code></pre></div>
+<p>That scoping is deliberate: an ordinary image called <code>square</code> or <code>flag</code> must not change
+every state pip in the game. See <a href="../../cosmos/gui_icons/">Icons by name</a>.</p>
+<div class="admonition tip">
+<p class="admonition-title"><code>sbs lint</code> checks these</p>
+<p>A sheet that is not on disk, an <code>At:</code> with no <code>Cell:</code> or <code>Grid:</code> to measure against,
+and a cell that falls off the edge of the sheet. All three draw a blank widget with no
+error anywhere otherwise.</p>
+</div>
 <h2 id="writing-values">Writing values</h2>
 <p>The format understands the shapes an author naturally writes:</p>
 <table>

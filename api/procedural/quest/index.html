@@ -3994,6 +3994,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.quest.quest_log_detail" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;quest_log_detail
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.quest.quest_log_icon" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;quest_log_icon
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.quest.quest_log_state_icon_color" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;quest_log_state_icon_color
@@ -6191,6 +6209,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.quest.quest_log_detail" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;quest_log_detail
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.quest.quest_log_icon" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;quest_log_icon
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.quest.quest_log_state_icon_color" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;quest_log_state_icon_color
@@ -8367,6 +8403,50 @@ parent as a TREE (see _quest_log_rows); empty sections are skipped. Rows are
 MastDataObject with agent_id / key / group / depth / title / state /
 state_label / progress / desc, so quest_log_template renders them the same
 everywhere. The ONLY thing the two callers vary is <code>sources</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.quest.quest_log_detail" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">quest_log_detail</span><span class="p">(</span><span class="n">row</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The second line of a row - the most useful thing known about it.</p>
+<p>It used to repeat the state, which the icon's COLOR already says; a line that says
+what the reader can already see is a line they stop reading. In order: how far along,
+what it pays while it is still a choice, how long is left, and only then the state
+(which for <code>Done</code> / <code>Failed</code> IS the news).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.quest.quest_log_icon" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">quest_log_icon</span><span class="p">(</span><span class="n">row</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The icon NAME for a row: its kind if it has one, else the plain state pip.</p>
+<p>Shape says what KIND of thing it is, color says what STATE it is in - two facts in
+one glyph, where before every row was the same square and the kind was invisible. The
+name resolves through the icon sheet, so a mission that ships its own art re-skins
+every quest log without touching this.</p>
 
 
     </div>
