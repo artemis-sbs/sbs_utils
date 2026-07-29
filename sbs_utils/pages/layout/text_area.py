@@ -282,10 +282,23 @@ class TextArea(Control):
     rule_link_ref = re.compile(r"!?\[(?P<link_name>\w+)?\](\((?P<ns>\w+):(//)?(?P<urn>.+)\))?(?P<remainder>.+)?")
     
     
-    def __init__(self, tag, message) -> None:
+    def __init__(self, tag, message, markdown=True, line_styles=None) -> None:
         super().__init__(0,0,0,0)
         
         self.content = []
+        # markdown=False: do not INTERPRET the markup -- no headings, bullets,
+        # lists, style defs, links, images or tables. The text is still styled,
+        # wrapped and indented, so this is a parse mode, not a "literal" one
+        # (`^` still breaks a line either way -- that is the engine). For source
+        # code and anything else where the markup characters are content. Must
+        # be set before self.value, which the setter reads.
+        self.markdown = markdown
+        # B: one style per CONTENT line, supplied by the caller. A style already
+        # carries colour, font, background AND indent, and the render loop
+        # already accepts a style dict per line (the `$$font:...;` path), so the
+        # caller -- which is the thing that knows a line is a comment and knows
+        # its depth -- supplies them and this stays a renderer.
+        self.line_styles = list(line_styles) if line_styles else None
         # This needs to be before self.value=
         self.simple_text = False
         self.value = message
@@ -489,7 +502,8 @@ class TextArea(Control):
 
             # GFM pipe table: 2+ consecutive lines starting with '|' become a
             # TableLine block. A lone '|' line falls through to normal text.
-            if (line.strip().startswith("|") and i + 1 < len(content_lines)
+            if (self.markdown
+                    and line.strip().startswith("|") and i + 1 < len(content_lines)
                     and content_lines[i + 1].strip().startswith("|")):
                 traw = []
                 j = i
@@ -503,7 +517,13 @@ class TextArea(Control):
                     calc_height += tbl.height
                 continue
 
-            style_key, line = self.get_line_style(line, style)
+            if not self.markdown:
+                # No markdown sniffing. A caller-supplied style wins; otherwise
+                # the widget's default.
+                per_line = self.line_style_for(i)
+                style_key = per_line if per_line is not None else "_"
+            else:
+                style_key, line = self.get_line_style(line, style)
             
             if isinstance(style_key, str):
                 style = self.get_style(style_key)
@@ -534,7 +554,11 @@ class TextArea(Control):
             
             ns = None
 
-            if m := TextArea.rule_style_def.match(line):
+            if not self.markdown:
+                # No rule matching at all: '=$', '[name]: ns://urn' and any
+                # '[...]' in a line are CONTENT here, not markup.
+                pass
+            elif m := TextArea.rule_style_def.match(line):
                 """Parse a old style style definitions """
                 g = m.groupdict()
                 style_name = g.get("style_name")
@@ -622,12 +646,23 @@ class TextArea(Control):
             # glyphs and late on wide ones -- so lines ended short of the edge
             # for no visible reason ("...walks into / a bar" taking three lines
             # where two fit). Measuring the words removes the estimate.
-            sub_lines = wrap_to_width(font, line, pixel_width)
+            # C: the send rect is shifted right by indent*space_width, so wrap
+            # against what is LEFT. Measuring at the full width and drawing
+            # narrower makes the engine wrap a line we did not count, and since
+            # it does not clip, that line lands on top of its neighbour -- the
+            # same failure as the scrollbar width above. Invisible at ul/ol's
+            # indent of 2; at code indents it runs off the panel.
+            line_indent = 0
+            if isinstance(style, dict):
+                line_indent = style.get("indent", 0) or 0
+            indent_px = line_indent * (measure_line_width("gui-2", "X") or 0)
+            wrap_width = max(1, pixel_width - indent_px)
+            sub_lines = wrap_to_width(font, line, wrap_width)
 
             for sub_line in sub_lines:
                 ll = sub_line.strip().lower()
 
-                pixel_height = measure_block_height(font, sub_line, int(pixel_width))
+                pixel_height = measure_block_height(font, sub_line, int(wrap_width))
             
                 #buffer = 0.1
                 #percent_height = ((pixel_height + buffer*pixel_line_height) / ar.y) * 100
@@ -700,6 +735,26 @@ class TextArea(Control):
         if not rows:
             return None
         return TableLine(rows, aligns, ar, pixel_width, FrameContext.context.sbs)
+
+    def line_style_for(self, index):
+        """The caller-supplied style for content line `index`, or None.
+
+        Normalised so a caller can pass just the parts it cares about --
+        `{"style": "font:gui-1;color:#6a8;", "indent": 4}` is enough.
+        """
+        if not self.line_styles or index >= len(self.line_styles):
+            return None
+        st = self.line_styles[index]
+        if st is None:
+            return None
+        if not isinstance(st, dict):
+            return self.get_style(str(st))
+        out = dict(st)
+        out.setdefault("style", "font:gui-2;color:white;")
+        out.setdefault("prepend", "")
+        out.setdefault("indent", 0)
+        out.setdefault("background", None)
+        return out
 
     def get_line_style(self, some_lines, previous):
         style_key = None

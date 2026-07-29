@@ -48,7 +48,7 @@ def text_sanitize(text):
     #text = text.replace(":", "_")
     return text
 
-def gui_text_area(props, style=None):
+def gui_text_area(props, style=None, markdown=True, line_styles=None):
     """Add a rich text area to the current GUI layout.
 
     Supports Markdown-style formatting and inline image references
@@ -69,7 +69,9 @@ def gui_text_area(props, style=None):
     page = FrameContext.page
     task = FrameContext.task
 
-    props = task.compile_and_format_string(props)
+    # Literal text is not a template: '{' in code is a brace, not a format field.
+    if markdown:
+        props = task.compile_and_format_string(props)
 
     if page is None:
         return
@@ -78,7 +80,8 @@ def gui_text_area(props, style=None):
     else:
         style = task.compile_and_format_string(style)
 
-    layout_item = TextArea(page.get_tag(), text_sanitize(props))
+    layout_item = TextArea(page.get_tag(), text_sanitize(props),
+                           markdown=markdown, line_styles=line_styles)
     apply_control_styles(".textarea", style, layout_item, task)
 
     page.add_content(layout_item, None)
