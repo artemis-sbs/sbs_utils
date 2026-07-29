@@ -110,7 +110,7 @@ gui_code_block(lines) -> None        # renders them as GUI rows
 | Risk | Finding | Decision |
 |---|---|---|
 | Rendering source in `gui_text_area` | Its mini-markdown eats code: `#` (a MAST comment!) becomes an h1, `-` a bullet, `$`/`=$` style directives | **Do not use `gui_text_area` for code.** A listbox of per-line `gui_text` |
-| `{` in a snippet | `compile_and_format_string` f-string-formats any props containing `{` | Brace-double (`{` -> `{{`) in the slicer |
+| `{` in **any** dynamic text | `compile_and_format_string` f-string-formats any props containing `{`, so a blurb reading "use `data={}`" is an empty format field and raises at present time | Brace-double (`{` -> `{{`). Applies to prose as much as to code -- one `gallery_label()` for both |
 | `:` / `;` in a snippet | Would inject style properties | `gui_text_escape()` per line (backtick quoting) |
 | Line indentation | Backtick-quoted leading spaces may be trimmed by the engine | Render indent as a per-row `padding`, not as spaces. Verify in browser |
 | No monospace font | Fonts are `gui-1..gui-6` + `smallest` | Accept. Color-code instead: comments dim, strings amber, keywords light |
@@ -133,8 +133,18 @@ Traps, from the skill's gotcha list, each runnable:
 - `row-height: 1em` under `font:gui-3` overdrawing by 4px
 - `padding` top/bottom eating row height
 - a content row starved by fixed `em` siblings
-- a multi-line dict literal collapsing the parse
-- `gui_represent()` (deprecated) vs. letting the dirty system work
+Built: `update()` dropping the style, the for-loop handler, `1em` under a bigger font,
+padding eating row height, the starved content row. Each opens a BROKEN and a FIXED
+frame of identical size, captions outside the marked spans, and both snippets below the
+panel that drew them. Only the fix gets a Copy button.
+
+Two candidates deliberately left out, because a gallery entry has to *run*:
+
+- **the multi-line dict literal.** Its whole point is that it does not compile, so it
+  cannot live in a file the mission loads. It would have to be quoted text, which is a
+  doc page, not a specimen.
+- **`gui_represent()`** (deprecated). Correct code and dead code look identical on
+  screen; there is nothing to watch.
 
 ## Second and third jobs
 
@@ -152,7 +162,7 @@ Traps, from the skill's gotcha list, each runnable:
 |---|---|---|
 | **1** | Shell + code view + 7 Controls specimens | selecting an entry shows a live control and the real source that built it; browser-verified |
 | **2** | Controls complete (all widgets), `gallery.amd` prose, Copy button | every `gui_*` layout widget has an entry |
-| **3** | Traps | each trap runs broken and fixed side by side |
+| **3** | Traps | each trap runs broken and fixed side by side -- **built**, 5 traps |
 | **4** | Layout playground | row/column sizing modes driven live from dropdowns |
 | **5** | Recipes, incl. the `item_template` shelf | a new author can copy a working listbox + detail |
 | **6** | Guided tour narrated through the overlay lower third; README rewrite | the gallery introduces itself |
