@@ -126,80 +126,6 @@ class LayoutListBoxHeader:
 
 
 
-
-def pack_slots(heights, avail, item_height=0.0, start=0):
-    """How many rows fit starting at `start`, packing REAL heights."""
-    used = 0.0
-    slots = 0
-    for h in heights[int(start):]:
-        h = h + item_height
-        if used + h > avail and slots > 0:
-            break
-        used += h
-        slots += 1
-    return slots
-
-
-def reveal_cur(sel, cur, heights, avail, item_height=0.0):
-    """Where the view must start so `sel` is visible, moving the LEAST.
-
-    A selection the viewer cannot see is not a state anything wants, and the
-    only lever the widget had was set_selected_index(i, True), which slams it to
-    the top on every repaint. This is the smallest move instead:
-
-      * above the window  -> scroll up to it
-      * below the window  -> back-pack UPWARD from it until the next row would
-                             not fit, putting it at the BOTTOM
-      * never past the end, which would leave blank space below the last row
-
-    Pure so it can be asserted on directly -- presenting a listbox needs a whole
-    page context, and the packing is the part worth pinning. Heights are per
-    row, because they are not uniform: `max_slots` depends on where you start.
-    """
-    count = len(heights)
-    if count == 0:
-        return 0
-    cur = max(0, min(int(cur or 0), count - 1))
-    if sel is None:
-        return cur
-    # Defensive: `sel` must be an index into THESE heights -- the displayed
-    # rows. A collapsible list also has an unfiltered index space, and handing
-    # one of those in points past the end and makes the back-pack meaningless.
-    # Clamping turns a caller's mistake into a mild wrong position instead of a
-    # scrollbar that thinks the list is the length of the visible slots.
-    sel = max(0, min(int(sel), count - 1))
-
-    slots = pack_slots(heights, avail, item_height, cur)
-    if sel < cur:
-        cur = sel
-    elif sel >= cur + slots:
-        used = 0.0
-        first = sel
-        for back in range(sel, -1, -1):
-            h = heights[back] + item_height
-            if used + h > avail and back != sel:
-                break
-            used += h
-            first = back
-        cur = first
-
-    cur = max(0, cur)
-
-    # Don't leave blank space below the last row. `cur + slots` can never exceed
-    # the count (pack_slots stops at the end), so the real waste is a view
-    # parked low in a box big enough for more: five rows drawn and half the box
-    # empty, with rows sitting unseen ABOVE. Pull back while another row fits.
-    used = sum(heights[i] + item_height
-               for i in range(cur, min(count, cur + pack_slots(heights, avail, item_height, cur))))
-    while cur > 0:
-        h = heights[cur - 1] + item_height
-        if used + h > avail:
-            break
-        used += h
-        cur -= 1
-    return cur
-
-
 class LayoutListbox(layout.Column):
     """
       A widget to list things passing function/lamdas to get the data needed for option display of
@@ -209,8 +135,7 @@ class LayoutListbox(layout.Column):
     def __init__(self, left, top, tag_prefix, items, 
                  item_template=None, title_template=None, 
                  section_style=None, title_section_style=None,
-                 select=False, multi=False, carousel=False, collapsible=False, read_only=False,
-                 hint=None) -> None:
+                 select=False, multi=False, carousel=False, collapsible=False, read_only=False) -> None:
         super().__init__(left,top,33,44)
 
         self.tag_prefix = tag_prefix
@@ -235,13 +160,6 @@ class LayoutListbox(layout.Column):
         self.default_item_height = None
         self.select = select
         self.multi= multi
-        # A repaint builds a DIFFERENT listbox -- new object, new tag, no
-        # sections until it presents. `hint` is how the caller carries the view
-        # across that break: get_selection_hint() on the old one, hand it to the
-        # new one. Opaque on purpose, so what it carries can grow without
-        # breaking a caller that only ever passes it along.
-        self._hint = hint
-        self._hint_applied = False
         self.square_width_percent = 0
         #self.sections = []
         self.title_height = 2
@@ -503,14 +421,6 @@ class LayoutListbox(layout.Column):
 
 
         max_item_width, max_item_height, avg_item_height = self.calc_max(CID)
-        # Apply the caller's hint once, on the first pass that has items --
-        # not in __init__, because a collapsible list filters its items after
-        # construction and an index applied too early would point at the wrong
-        # row.
-        if self._hint is not None and not self._hint_applied:
-            self._hint_applied = True
-            self.apply_selection_hint(self._hint)
-
         # Where the visible window starts -- packing depends on it.
         cur_start = self.cur if self.cur and self.cur > 0 else 0
         
@@ -540,22 +450,14 @@ class LayoutListbox(layout.Column):
             # -- the same number as before -- so no existing listbox moves.
             #
             avail = self.bounds.bottom - top
-
-            heights = [self._item_heights.get(id(it), avg_item_height)
-                       for it in self.items]
-            max_slots = pack_slots(heights, avail, item_height, cur_start)
-
-            # REVEAL -- see reveal_cur(). Skipped for a carousel, whose window
-            # is one item by definition.
-            if self.select and not self.carousel:
-                # DISPLAY index: heights, cur and max_slots are all in the
-                # filtered space, and a collapsible list's unfiltered index can
-                # point past the end of it.
-                sel = self._selected_display_index()
-                if sel is not None:
-                    cur_start = reveal_cur(sel, cur_start, heights, avail, item_height)
-                    max_slots = pack_slots(heights, avail, item_height, cur_start)
-                    self.cur = cur_start
+            used = 0.0
+            max_slots = 0
+            for pack_item in self.items[int(cur_start):]:
+                h = self._item_heights.get(id(pack_item), avg_item_height) + item_height
+                if used + h > avail and max_slots > 0:
+                    break
+                used += h
+                max_slots += 1
 
 
         max_slots = int(max_slots)
@@ -1003,88 +905,6 @@ class LayoutListbox(layout.Column):
         return None
 
     
-    def _selected_index(self):
-        """Index of the selection in the UNFILTERED list, or None.
-
-        THERE ARE TWO COORDINATE SYSTEMS and they are not interchangeable:
-        `unfiltered_items` is everything, `_items` is what is actually on show
-        (a collapsible list rebuilds it each present, skipping collapsed rows).
-        `set_selected_index` takes an UNFILTERED index, so that is what a hint
-        carries -- but `cur`, the packing and `sections[].item_index` are all in
-        DISPLAY coordinates. Feeding one to the other gives an index past the end
-        of the shorter list and a nonsense scroll position.
-        """
-        if not self.selected:
-            return None
-        try:
-            return self.unfiltered_items.index(self.selected[0])
-        except ValueError:
-            return None
-
-    def _selected_display_index(self):
-        """Index of the selection among the rows actually SHOWN, or None -- the
-        space `cur` and the packer work in."""
-        if not self.selected or not self._items:
-            return None
-        try:
-            return self._items.index(self.selected[0])
-        except ValueError:
-            return None
-
-    def _selected_slot(self):
-        """Which visible SLOT the selection occupies, or None.
-
-        Read from `sections[].item_index` -- the same table `on_click` resolves
-        against -- rather than computed as `selected - cur`. That arithmetic is
-        wrong the moment a list has collapsible headers, a filter, or rows of
-        different heights.
-        """
-        sel = self._selected_display_index()
-        if sel is None:
-            return None
-        for slot, sec in enumerate(getattr(self, "sections", []) or []):
-            if getattr(sec, "item_index", None) == sel:
-                return slot
-        return None
-
-    def get_selection_hint(self):
-        """An OPAQUE token describing where this listbox is looking.
-
-        Hand it to the next clone of this listbox after a repaint:
-
-            on change lb.value:
-                saved = lb.get_selection_hint()
-                jump repaint
-            ...
-            lb = gui_list_box(items, style, select=True, hint=saved)
-
-        Do not inspect it. The contents are free to grow -- an item fingerprint,
-        the bounds it was measured at -- and a caller that only passes it along
-        keeps working.
-        """
-        return {
-            "cur": self.cur,
-            "selected_index": self._selected_index(),
-            "slot": self._selected_slot(),
-            "count": len(self.unfiltered_items) if self.unfiltered_items else 0,
-            "bounds": (self.bounds.left, self.bounds.top,
-                       self.bounds.right, self.bounds.bottom)
-                      if getattr(self, "bounds", None) else None,
-        }
-
-    def apply_selection_hint(self, hint):
-        """Apply a hint. Always a HINT: stale is the normal case -- a shorter
-        list, a collapsed section, a different screen -- so everything is
-        clamped, and the reveal pass at present time has the final word."""
-        if not isinstance(hint, dict):
-            return
-        count = len(self.unfiltered_items) if self.unfiltered_items else 0
-        sel = hint.get("selected_index")
-        if sel is not None and 0 <= sel < count:
-            self.set_selected_index(sel, False)
-        cur = hint.get("cur") or 0
-        self.cur = max(0, min(int(cur), max(0, count - 1)))
-
     def set_selected_index(self, i, set_cur=True):
         self.selected = []
         if i is not None and i < len(self.unfiltered_items):
