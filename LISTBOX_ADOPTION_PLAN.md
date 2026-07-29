@@ -37,13 +37,13 @@ cursor.
 | # | repo | file:line | listbox | notes |
 |---|---|---|---|---|
 | 1 | LM | `documents/quest_tab.mast:47` | `qbox` | **DONE, ENGINE-VERIFIED** (scrolling confirmed after the repaint, which is the regression that matters). Hint captured at all four repaint sites |
-| 2 | LM | `items/item_gui.mast:58` | `ubox` | **DONE, awaiting engine check.** Hardest repaint in either repo: self-ticks ONCE A SECOND while an item is counting down, so the list snapped to the top every second |
-| 3 | LM | `casino/casino.mast:68` | `game_box` | **DONE, awaiting engine check.** 5 rebuild paths |
-| 4 | LM | `casino/bar.mast:125` | `patron_box` | **DONE, awaiting engine check.** Busiest rebuilder in either repo -- every conversation line |
-| 5 | LM | `fabrication/beacon_tabs.mast:63` | `fab_box` | **DONE, awaiting engine check.** 1-second self-tick while a build runs |
-| 6 | LM | `fabrication/beacon_tabs.mast:164` | `car_box` | **DONE, awaiting engine check.** Rebuilt by `item_changed`, which fires constantly |
+| 2 | LM | `items/item_gui.mast:58` | `ubox` | **DONE, ENGINE-VERIFIED.** Hardest repaint in either repo: self-ticks ONCE A SECOND while an item is counting down, so the list snapped to the top every second |
+| 3 | LM | `casino/casino.mast:68` | `game_box` | **DONE, ENGINE-VERIFIED.** 5 rebuild paths |
+| 4 | LM | `casino/bar.mast:125` | `patron_box` | **DONE, ENGINE-VERIFIED.** Busiest rebuilder in either repo -- every conversation line |
+| 5 | LM | `fabrication/beacon_tabs.mast:63` | `fab_box` | **DONE, ENGINE-VERIFIED.** 1-second self-tick while a build runs |
+| 6 | LM | `fabrication/beacon_tabs.mast:164` | `car_box` | **DONE, ENGINE-VERIFIED.** Rebuilt by `item_changed`, which fires constantly |
 
-**All six PRIME items are done.** #1 engine-verified; #2-#6 await one engine pass.
+**All six PRIME items are done and ENGINE-VERIFIED.**
 #1 It also turned up a latent bug next door:
 `get_selected_index()` returns `None` when nothing is selected, and the restore
 read `quest_sel_index >= 0` — `None >= 0` raises. Guarded.
@@ -60,8 +60,8 @@ the view to move.
 | LM | `hangar/hangar.mast:156` | `dock_picker` | **DONE, ENGINE-VERIFIED.** The page is a LOOP: `await gui()` falls through to `jump show_hangar`, so every interaction rebuilds all three lists |
 | LM | `hangar/hangar.mast:157` | `ride_picker` | same page, same commit, verified |
 | LM | `hangar/hangar.mast:188` | `quest_box` | same page, same commit (sortie board), verified |
-| LM | `consoles/common_console_select.mast:205` | `ship_select_lb` | restores a selection; 7 jumps to `select_console` |
-| LM | `consoles/common_console_select.mast:233` | `console_select_lb` | same page |
+| LM | `consoles/common_console_select.mast:205` | `ship_select_lb` | **NOT AN ADOPTER** -- see below. Ranked here by a flawed signal |
+| LM | `consoles/common_console_select.mast:233` | `console_select_lb` | **NOT AN ADOPTER** -- same |
 
 The hangar is the single biggest win: three selectable lists on a page rebuilt
 from a dozen places.
@@ -164,11 +164,11 @@ is a thing you see. For each adopted site:
   `--exercise` to click top tabs would unblock the quest tab, the airwing tab, and
   the fabrication beacon tabs.
 
-## One engine pass for #2-#6
+## Engine pass for #2-#6 — DONE
 
 Batched deliberately: these five are the same shape and a round trip each was
-costing more than it was worth. Check them in this order -- each has a distinctive
-rebuild trigger, and the trigger is the thing most likely to be wrong:
+costing more than it was worth. All verified in one engine run. The triggers that
+were checked, kept for the record:
 
 | screen | how to reach it | the distinctive trigger to exercise |
 |---|---|---|
@@ -182,10 +182,33 @@ In every case: scroll past the first screenful first (or nothing is observable),
 then confirm scrolling STILL WORKS afterwards -- reveal firing every present made
 the gallery unscrollable, and that regression reads as "the list is stuck".
 
-## Deliberately NOT batched: the console-select screen
+## The console-select screen is NOT an adopter — and the ranking was wrong
 
-`consoles/common_console_select.mast:205,233` are ranked high value and left alone
-on purpose. It is the screen every player meets first, LM's history has a
-"Revert this session's server-console changes" commit in it, and a regression there
-locks people out of the game rather than annoying them. Worth its own pass, with
-its own engine check, once the five above are confirmed.
+Read before changing it, and the change should not be made. Two reasons, and the
+second one is a flaw in this document's own ranking:
+
+**1. The bug does not exist there.** `ship_select_lb.set_selected_index(i)` is
+called with NO second argument, so `set_cur=True`: the view is moved to put the
+selection at the top on every build. That is the "always jumps" behavior — never
+the "selected but invisible" one, which is what `reveal` fixes. There is nothing to
+reveal. Adding `hint` would only stop the rare rebuild from jumping, and would
+override the deliberate `set_cur=True` (verified: `apply_selection_hint` runs at
+present time and sets `cur` unconditionally, so it wins over the constructor).
+
+**2. The page does not repaint on interaction.** Its `await gui()` has NO
+fall-through `jump`, and every handler updates widgets IN PLACE — `gui_show`,
+`gui_hide`, `.value =`, `gui_update`, even `ship_select_lb.items = ...`. It rebuilds
+only when a ship is destroyed, when ready is cleared, or when the game starts —
+moments where nobody's scroll position is precious.
+
+**The ranking flaw:** this screen reached "high value" because the scan counted
+**7 jumps to `select_console`**. Those are other labels ENTERING the page, not the
+page repainting itself. The hangar scored 11 the same way and was genuine — but
+only because its `await gui()` falls through to `jump show_hangar`, which is a real
+loop. So: **count the page's own fall-through and its handlers' jumps, not inbound
+jumps to its label.** Everything in the "Review" bucket below was ranked with the
+same flawed signal and should be re-checked that way before adoption, not trusted.
+
+The risk was the other reason to leave it alone and still stands: it is the first
+screen every player meets, LM's history already carries a revert of server-console
+changes, and a regression there locks people out rather than annoying them.
