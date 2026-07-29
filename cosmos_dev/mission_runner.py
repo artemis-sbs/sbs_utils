@@ -1206,6 +1206,16 @@ def _run(
                 _cov.uninstall()
             if _verdict is not None:
                 _verdict.uninstall()
+                # Last word to the log. The seams miss library code that catches
+                # its own exception and only logs it, so a run could print
+                # "PASS - no runtime errors" with errors sitting in
+                # mast.runtime.log. Swept AFTER uninstall, so nothing else can
+                # write between the sweep and the report.
+                # Same path Mast() opened the handler on, so this reads the file
+                # that was actually written rather than a same-named one in CWD.
+                from sbs_utils import fs as _fs
+                _verdict.sweep_runtime_log(
+                    _fs.get_mission_dir_filename("mast.runtime.log"))
             _test_exit = _emit_test_report(mission_folder, map_arg, sbs,
                                            _cov, _verdict, junit_path, _exerciser,
                                            game_end=_game_end)

@@ -76,6 +76,42 @@ class MastVerdict:
         self.errors.append({"source": "python", "message": f"{type(exc).__name__}: {exc}",
                             "label": where})
 
+    def sweep_runtime_log(self, path="mast.runtime.log") -> int:
+        """Count anything in ``mast.runtime.log`` that did not reach a seam, and
+        record ONE error if the log has content the verdict does not.
+
+        The seams above cover the paths that call them, and library code that
+        catches its own exception and only logs it does not. That is the gap this
+        closes: the log is written by ``logger.error`` exclusively, so a non-empty
+        log means at least one error happened, whatever route it took.
+
+        Cheap and blunt on purpose -- it makes the log the source of truth rather
+        than a place to remember to look. `Mast()` opens the handler with mode "w",
+        so the file is empty at the start of a run.
+
+        LIMITATION: a ``run_next_mission`` reload re-opens the handler in "w" mode
+        and TRUNCATES it, so errors from a previous mission in the same process are
+        lost to this check. The seams still catch those as they happen.
+
+        Returns the number of bytes found (0 when clean or unreadable).
+        """
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                text = f.read()
+        except OSError:
+            return 0
+        if not text.strip():
+            return 0
+        # Already-recorded errors log here too, so only complain when the log is
+        # the ONLY witness -- otherwise every failing run reports twice.
+        if not self.errors:
+            first = next((l.strip() for l in text.splitlines() if l.strip()), "")
+            self.errors.append({
+                "source": "log",
+                "message": f"{first}  (see {path} -- logged but not raised)",
+                "label": None})
+        return len(text)
+
     # -- result ------------------------------------------------------------
     @property
     def ok(self) -> bool:
