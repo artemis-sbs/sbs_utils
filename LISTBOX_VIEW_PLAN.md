@@ -9,9 +9,8 @@ A repaint rebuilds the listbox, the caller restores the selection with
 held but may be **below the fold** — selected and invisible.
 
 The caller's only alternative today is `set_selected_index(i, True)`, which sets
-`self.cur = i` — scrolling the selection to the **top** of the box. That is
-visible but jarring: the list jumps on every repaint, and an item near the end
-cannot be at the top anyway.
+`self.cur = i` — scrolling the selection to the **top** of the box. Visible, but
+it jumps on every repaint, and an item near the end cannot be at the top anyway.
 
 So the two available behaviours are "maybe invisible" and "always jumps".
 
@@ -30,12 +29,13 @@ Two consequences that shape everything below:
   `items[cur:]` accumulating heights until the box is full. So "is the selection
   visible" cannot be answered without knowing where the view starts, and moving
   the view changes the answer.
-- **`cur` is never exposed.** A caller cannot save it before a rebuild or restore
-  it after, which is why a repaint always starts at the top.
+- **A repaint builds a DIFFERENT listbox.** It shares nothing with the one before
+  it — not the object, not the tag (`page.get_tag()` regenerates), not `sections`,
+  which do not exist until it first presents.
 
-## The fix, in three parts
+## The fix, in two parts
 
-### 1. Reveal the selection at present time
+### 1. Reveal the selection at present time (automatic)
 
 Not in `set_selected_index` — `max_slots` is not known until the rows have been
 measured. During present, after packing:
@@ -43,100 +43,64 @@ measured. During present, after packing:
 - selection **above** the window (`sel < cur`) → `cur = sel`
 - selection **below** (`sel >= cur + max_slots`) → back-pack: walk upward from
   `sel` accumulating row heights until the next row would not fit; the last index
-  that fits becomes `cur`. This puts the selection at the BOTTOM of the window,
-  which is the smallest move that reveals it.
+  that fits becomes `cur`. That puts the selection at the BOTTOM of the window —
+  the smallest move that reveals it.
 - then clamp: `cur` never exceeds `len(items) - max_slots`, so the list cannot
   scroll past the end and leave blank space.
 
 Moving `cur` changes `max_slots`, so pack once more after the adjustment. Once,
-not to convergence — a second pass cannot make the selection invisible again,
-because the back-pack was computed against the row heights it will use.
+not to convergence — a second pass cannot hide the selection again, because the
+back-pack was computed against the row heights it will use.
 
-This alone fixes the reported bug: the selection is always on screen, and the
-view moves the minimum needed rather than jumping to the top.
+**This alone fixes the reported bug**, for every existing screen, with no caller
+change: the selection is always on screen and the view moves the minimum needed.
 
-### 2. Keeping the slot across a repaint
+### 2. An opaque hint, passed to the next clone (opt-in)
 
-**A repaint builds a DIFFERENT listbox.** It shares nothing with the one before
-it — not the object, not the tag (`page.get_tag()` regenerates), not `sections`,
-which are empty until it first presents. So there is no continuity to lean on:
-whatever carries `cur` across has to be stored outside the widget and found again
-by something stable.
-
-The thread cannot be the tag. It has two candidates:
-
-**a. Build ordinal (the default).** Within one page build, listboxes are created
-in a deterministic order, so "the Nth listbox built on this client's page" is
-stable across repaints of the same screen. That means the fix costs callers
-NOTHING — the gallery, and every existing screen, gets it without a line
-changing.
-
-It mis-maps only when a page conditionally builds a *different number* of
-listboxes before the one in question, so the Nth is a different list than last
-time. That is real but rare, and it degrades to "restored a position from another
-list", which the clamp and the reveal pass immediately correct.
-
-**b. `view_key="…"` (the override).** For pages that do vary, and for anything
-that wants to be explicit:
+Revealing is not the same as *not moving*. To hold the selection in the same
+slot, something has to cross the rebuild — and since the new listbox shares
+nothing with the old, that something must be carried by the caller.
 
 ```python
-gui_list_box(items, style, select=True, view_key="gallery_nav")
+lb = gui_list_box(items, style, select=True, hint=saved_hint)
+...
+on change lb.value:
+    saved_hint = lb.get_selection_hint()
+    jump repaint
 ```
 
-Storage is `{cur, selected_index}` per client, under the ordinal or the key.
+`get_selection_hint()` returns an **opaque token**. The caller never inspects it;
+it just hands it to the next clone. That is the whole contract.
 
-**Stale state is expected, not exceptional.** Same key, different list; item
-count changed; a section collapsed. So restoring is a HINT, always followed by:
-clamp `cur` into `0..len(items)-max_slots`, drop a `selected_index` past the end,
-then the reveal pass. Every one of those is needed by resize anyway, so this adds
-no new machinery.
+Why opaque matters: the contents can then change without an API break. Today it
+would carry `cur`, the selected index, the slot from `sections`, and the bounds
+it was measured at. Tomorrow it can carry an item fingerprint so a shifted list
+re-finds its selection. No caller is affected, because no caller ever looked
+inside.
 
-Selection is restored **by index**, not item identity: items are rebuilt each
-repaint, so object identity does not survive. Index is right for a stable list
-and an approximation when contents shift. A caller needing better can pass a key
-function later; nothing needs it today.
+**What this design avoids**, all of which an earlier draft of this plan had:
 
-### 3. Expose the view state
+- no widget registry, no per-client store, and so nothing to prune when a console
+  changes screens
+- no identity guessing (a build ordinal, a `view_key` string) and so no
+  collisions between two lists that happen to share a key
+- **no multi-client hazard.** The hint lives in a task variable, and tasks are
+  already per client — where an ordinal counter would have had two consoles
+  building the same screen in one frame swapping each other's scroll positions,
+  intermittently, by tick order.
 
-For callers that want to drive it directly — and because "the slot is internal"
-is the actual complaint:
+The cost is two lines in the caller. That is the right trade: it is explicit,
+it has no hidden lifetime, and the screens that care are exactly the screens that
+will write them.
 
-```python
-lb.get_scroll_index()        # cur
-lb.set_scroll_index(i)
-lb.get_view_state()          # {"cur": n, "selected_index": m}
-lb.set_view_state(state)
-```
+**A hint is always a HINT.** Stale is the normal case — a shorter list, a
+collapsed section, a different screen entirely. So applying one is followed by:
+clamp `cur` into range, drop a selection past the end, then the reveal pass.
+Every one of those is needed for resize anyway, so it is no extra machinery, and
+a hint from an unrelated list degrades to a harmless wrong scroll position that
+the reveal immediately corrects.
 
-The ordinal/`view_key` mechanism is these two plus storage; a caller doing
-something unusual can use them directly.
-
-Note `get_view_state()` on a FRESHLY BUILT listbox returns the restored hint, not
-a measured slot -- `sections` do not exist until it has presented once.
-
-## Multiple clients
-
-Verified rather than assumed: `Gui.clients[client_id]` each hold their own
-`page_stack` with their own `Page`, and each page builds its own widgets. So the
-**listbox instance is already per client**, `self.cur` is already per client, and
-two consoles on the same screen do not scroll each other today. The server (client
-0) showing the gallery and a console showing it are two pages, two listboxes, two
-scroll positions — correctly.
-
-That means the storage must be keyed by **(client, key)**, which per-client
-inventory gives for free.
-
-**But the build ordinal is a real hazard.** If the counter were module-level,
-two clients building the same screen in the same frame would interleave and each
-would get the other's slot number — scroll positions swapping between consoles,
-intermittently, depending on tick order. The counter must live on the **page**
-(which is per client, and distinct per entry in a `page_stack`, so a pushed page
-cannot collide with the one beneath it) and reset at the start of each build,
-where the tag counter already resets.
-
-This is the one place where "it works on my single console" would hide a bug, so
-it wants a test with two client ids building the same screen and scrolling
-differently.
+## When the repaint is triggered BY the selection
 
 The common case, and the Control Gallery's: `on change lb.value: jump screen`.
 The user clicks a visible row, that fires the repaint, and the page is rebuilt.
@@ -144,72 +108,72 @@ The user clicks a visible row, that fires the repaint, and the page is rebuilt.
 Two things make this work, both verified rather than assumed:
 
 - **A click does not move the view.** `on_click` only resolves an index; nothing
-  assigns `self.cur`. So at click time the scroll position is exactly what was
-  last presented.
+  assigns `self.cur`. So at click time the scroll position is still exactly what
+  was last presented, and a hint taken in the handler is accurate.
 - **The widget that captured the click is the OLD one, and it will never present
-  again.** So the view state cannot be saved "on the way out" — by the time the
-  new listbox exists, the old object is gone. Save it **at the end of present**
-  (and on `on_scroll`, which does move `cur`). Because a click leaves `cur`
-  alone, the last presented value is still correct when the rebuild reads it.
+  again** — so the hint must be taken in the handler, before the jump. It cannot
+  be collected later, and there is nothing to collect it from.
 
-Done this way the gallery case needs nothing from the caller: the clicked row
-stays exactly where it was clicked, and the reveal pass does not fire at all —
-the selection was visible by definition, since the user just clicked it.
+Done this way the clicked row stays exactly where it was clicked, and the reveal
+pass never fires — the selection was visible by definition, since the user just
+clicked it.
 
 ## The slot is recoverable — use it, don't compute it
 
 `on_click` resolves `index = self.sections[slot_index].item_index`, so the widget
 already records **slot -> item index** for every visible row, every present.
 
-That is the honest slot, and `get_view_state` should read it rather than
-computing `selected_index - cur`. The arithmetic is wrong as soon as the list has
-collapsible headers, a filter, or non-uniform rows — all three of which the
-gallery's own index has. Restoring a slot then means choosing the `cur` that puts
-the selection back at that section position, which is the same back-pack the
-reveal already needs.
+The hint should carry that, not `selected_index - cur`. The arithmetic is wrong
+as soon as a list has collapsible headers, a filter, or non-uniform rows — all
+three of which the gallery's own index has. Restoring a slot then means choosing
+the `cur` that puts the selection back at that section position, which is the
+same back-pack the reveal already needs.
 
 ## Resize
 
-The plan is that **resize needs no special case** — which is the point of doing
-the reveal at present time rather than at selection time.
+**Resize needs no special case** — the point of doing the reveal at present time
+rather than at selection time.
 
-A resize is just a present with different bounds, so:
+A resize is a present with different bounds, so: the hint's `cur` is applied,
+`max_slots` is packed against the new height, the reveal clamps `cur` so the
+selection is inside the new window, and the end-clamp stops a shrunken list
+scrolling past its end. Three cases fall out, none detected explicitly:
 
-1. the saved `cur` is restored as a **hint**,
-2. `max_slots` is packed against the new height,
-3. the reveal pass clamps `cur` so the selection is inside the new window,
-4. the end-clamp stops a shrunken list scrolling past its end.
-
-Three cases fall out, and none needs to be detected explicitly:
-
-- **Box grew** — more slots; the saved `cur` is still valid; more items become
-  visible below. Nothing moves.
+- **Box grew** — the saved `cur` is still valid; more items visible below.
 - **Box shrank, selection still fits** — `cur` unchanged, fewer rows below.
-- **Box shrank past the selection** — the reveal pass pulls `cur` down until the
-  selection is visible again.
+- **Box shrank past the selection** — the reveal pulls `cur` down until it shows.
 
-The one thing NOT preserved across a resize is the exact slot number: if the
-selection sat in slot 8 and only 5 rows now fit, slot 8 does not exist. Slot
-position is a preference, visibility is the invariant — the reveal pass encodes
-that ordering deliberately.
+The hint carries the bounds it was measured at, so a future version could tell a
+resize from a plain repaint and prefer the slot ratio. Not needed for the
+reported bug; recorded because the opaque token makes it addable later.
+
+What is NOT preserved across a resize is the exact slot number: if the selection
+sat in slot 8 and only 5 rows now fit, slot 8 does not exist. **Slot is a
+preference, visibility is the invariant** — the reveal encodes that ordering.
+
+## Multiple clients
+
+Verified: `Gui.clients[client_id]` each hold their own `page_stack` with their
+own `Page`, which builds its own widgets. So the listbox instance is **already
+per client**, `self.cur` is already per client, and two consoles on one screen do
+not scroll each other today. The server (client 0) showing the gallery and a
+console showing it are two pages, two listboxes, two scroll positions.
+
+With the hint carried in a task variable, that stays true for free — there is no
+shared state to key correctly.
 
 ## Backward compatibility
 
-- **The accessors are additive.**
-- **The ordinal default is the behaviour change worth arguing about**: every
-  existing listbox starts remembering its scroll position across repaints. That
-  is the fix, and for the screens this was reported against it is exactly what is
-  wanted -- but it does mean a screen that relied on "a repaint returns me to the
-  top" no longer does. `view_key` cannot opt out of that; if an opt-out is
-  needed it wants its own flag.
-- **The reveal pass is a behaviour change** and I would default it ON: a
-  selection the user cannot see is not a state anything wants, and today's
-  alternative is a jump to the top. The one screen it could surprise is a list
-  deliberately showing the top while something far down is selected — worth a
-  flag (`reveal=False`) if such a screen turns up, but I would not add the flag
-  before it does.
-- `set_selected_index(i, True)` keeps its current meaning (selection to the top),
-  since callers use it deliberately for "scroll here".
+- **`hint` and `get_selection_hint()` are additive.** A listbox that ignores them
+  behaves as now.
+- **The reveal pass is a behaviour change**, default ON: a selection the user
+  cannot see is not a state anything wants, and today's alternative is a jump to
+  the top. It moves the view only when the selection would otherwise be invisible.
+  The one screen it could surprise is a list deliberately showing the top with
+  something far down selected — worth a flag if such a screen turns up, not
+  before.
+- `set_selected_index(i, True)` keeps its meaning (selection to the top); callers
+  use it deliberately for "scroll here".
 
 ## Tests
 
@@ -219,31 +183,20 @@ The packing is per-row, so the cases that matter use **non-uniform heights**:
   (smallest move), not the top
 - selection above the window scrolls up to it
 - `cur` never exceeds `len(items) - max_slots` (no scrolling past the end)
-- slot preserved across a rebuild at the same size (`view_key`)
-- **selection-triggered repaint**: click a row that is NOT slot 0, rebuild, and
-  that row is still in the same slot -- the gallery's own flow, and the one a
-  naive "restore selection" gets wrong
-- the slot is read from `sections[].item_index`, so a list WITH headers still
-  reports the slot the user actually clicked
-- box shrinks past the selection → selection visible again, slot not preserved
+- **hint round-trip**: take a hint, build a new listbox with it, the selection is
+  in the same slot
+- **selection-triggered repaint**: click a row that is not slot 0, rebuild with
+  the hint, that row is still in the same slot — the gallery's flow, and the one
+  a naive "restore selection" gets wrong
+- the slot comes from `sections[].item_index`, so a list WITH headers reports the
+  slot the user actually clicked
+- **stale hint**: apply one from a list that has since shrunk — `cur` clamped, an
+  out-of-range selection dropped, nothing raises
+- box shrinks past the selection → visible again, slot not preserved
 - box grows → nothing moves
 - a list with no selection is unaffected
-- **stale state**: restore a position from a list that has since shrunk -- `cur`
-  is clamped, a `selected_index` past the end is dropped, nothing raises
-- **ordinal identity**: two listboxes on one page keep separate positions, and
-  the second page build maps each to the same one as the first
-- **two clients, same screen**: each keeps its own scroll position; building both
-  in one frame does not swap them (the ordinal counter is per page, not global)
-- **a pushed page** over another does not collide with the page beneath it
-- uniform-height list produces the same numbers as today (no existing listbox moves)
+- uniform-height list produces the same numbers as today (no existing listbox
+  moves)
 
 Mutation-check each: remove the reveal, remove the clamp — the relevant test must
 fail, or it is asserting nothing.
-
-## Open question
-
-**Where does `view_key` storage live?** Per client (`set_inventory_value` on
-`client_id`) is the obvious home and matches how console tabs already persist.
-It leaks one small dict per key per client for the session, which nothing cleans
-up when a console changes screens. Acceptable, but worth a decision rather than
-a default.
