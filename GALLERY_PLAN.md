@@ -206,11 +206,11 @@ Two candidates deliberately left out, because a gallery entry has to *run*:
 | # | Deliverable | Done when |
 |---|---|---|
 | **1** | Shell + code view + 7 Controls specimens | selecting an entry shows a live control and the real source that built it; browser-verified |
-| **2** | Controls complete (all widgets), `gallery.amd` prose, Copy button | every `gui_*` layout widget has an entry |
+| **2** | Controls complete (all widgets), `gallery.amd` prose, Copy button | **done** -- 19 controls, prose authored in AMD, index cross-checkable as text |
 | **3** | Traps | each trap runs broken and fixed side by side -- **built**, 5 traps |
 | **4** | Layout playground | row/column sizing modes driven live from dropdowns -- **built** |
 | **5** | Recipes, incl. the `item_template` shelf | a new author can copy a working listbox + detail -- **built** |
-| **6** | Guided tour narrated through the overlay lower third; README rewrite | the gallery introduces itself |
+| **6** | Guided tour narrated through the overlay lower third; README rewrite | **done** -- and the tour doubles as the test driver |
 
 Later, not now: folding in `content_demo`, `layout_probe` and `font_measure`. They are
 measurement rigs with their own output formats and would distort the shell before it has
