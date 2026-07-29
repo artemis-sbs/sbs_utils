@@ -364,8 +364,20 @@ consoles use, and it survives the client id being whatever the engine assigned.
 2. **Does `assign_client_to_ship` on the Viewer disturb the browser?** They are
    different clients, so it should not — but the server screen is assigned to the
    same ship, and the audience specimens depend on that.
-3. **Do overlay slots survive a morph?** A slot establishes a sub-region on first
-   show; rerouting the page underneath it may leave the region stale. This is the
-   overlay layer's known failure mode, so it wants an explicit check.
+3. **RESOLVED — overlay slots should NOT survive a morph, so do not rely on it.**
+   A morph changes what the screen IS; a hero card left from the gallery page has
+   no business on a mainscreen. So the morph CLEARS overlays for that client
+   (`overlay_clear(to=...)`) before rerouting, while the region still belongs to
+   the page that established it.
+
+   That deletes the risk rather than testing it: the overlay layer's known
+   failure mode is a stale sub-region after the page underneath changes, and this
+   never asks a region to outlive its page. It also matches how the rest of the
+   system treats a new GUI -- `gui_sub_task_schedule` tasks are tagged
+   `end_on_new_gui` and cancel themselves for the same reason.
+
+   Leaves a broader question for the overlay system, NOT for this phase: should a
+   page reroute clear overlays generally? Today it does not, which is why the demo
+   needs explicit "Clear All" buttons. Worth asking once the fold is done.
 4. **Does the Viewer keep its own page state** (the hint, the picked full-page
    example) across a morph and back? Task variables, so probably — worth a look.
