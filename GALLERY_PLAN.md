@@ -257,6 +257,60 @@ an entry is now a visible gap. That is good discipline, but it is discipline.
 
 # Phase 7 — fold Overlays in, and morph the Viewer
 
+**BUILT.** Two consoles and 31 buttons became 17 specimens in an **Overlays**
+category, and the Gallery Viewer morphs into any of seven consoles. The mission
+now offers exactly two consoles -- verified by calling
+`gui_get_console_type_list()` (which applies each label's `if` gate) rather than
+counting `@console` labels: `offered=['gallery', 'gallery_viewer']`.
+
+Five things the build changed or found:
+
+- **A role outlives the page that added it.** The Viewer adds
+  `gallery_viewer` to itself, and nothing took it off -- so a client that visited
+  the Viewer and came back to the gallery still answered to
+  `role("gallery_viewer")`, and "Morph the viewer" would have morphed the gallery
+  you clicked it on. `gallery_screen` now clears the role it is not. Engine-
+  reachable by simply switching consoles; the plan did not have it.
+- **`has_role(0, ...)` is ALWAYS False**, for the server client specifically:
+  `to_object()` has an explicit `elif other==0: return None`, so it resolves no
+  agent and `has_role` returns False without looking. The roles ARE set -- checked
+  with `role()` set membership. This first showed up as a proof harness reporting
+  `role_mainscreen=False` three times while the morph was working correctly, which
+  is the shape of an assertion that passes while measuring nothing.
+- **Turning a console off does not unregister it.** `HELM_CONSOLE_ENABLED = False`
+  only removes it from the selection screen; `gui_console("helm")` still works.
+  That is what lets the mission offer two consoles and still morph into seven.
+  The flags are set with a PLAIN assignment, not `default` -- LM's addon declares
+  them `default ... = True` and addon load order is not deterministic, so plain
+  assignment is the only form that wins either way round.
+- **`--exercise` clicks nothing on these screens** (`clicks 0`), so a green run
+  proved only that the specimens DREW. The overlay handlers needed every button
+  label passed to `--exercise-click` explicitly (724 clicks, empty
+  `mast.runtime.log`). One button had to be renamed: that flag is comma-separated,
+  so a label containing a comma cannot be driven.
+- **The morph cannot be reached with one client**, because the button is on the
+  gallery and the role is on the Viewer. Proved instead with a temporary harness
+  that faked the role on client 0 and fired the label: reroute lands,
+  `CONSOLE_TYPE=mainscreen`, and `mainscreen` / `console` / `gallery_viewer` are
+  all on the client; the restore puts `CONSOLE_TYPE` back and drops `mainscreen`
+  while keeping `gallery_viewer`.
+
+Answers to the plan's open questions, now that it is built:
+
+1. **The restore is clean**, but it does need `gui_widget_list_clear()` -- a
+   console leaves an engine widget list behind and the gallery page would draw
+   through it.
+2. Not yet checked in the engine: the mock has no second browser client, so
+   `assign_client_to_ship` on the Viewer while the server screen rides the same
+   ship is an ENGINE-only observation.
+4. **Page state partly survives.** The picked full-page example does (module-level
+   Python), the listbox hint does not (a task variable, and the reroute starts a
+   new task). Not worth carrying; the reveal puts the selection back on screen.
+
+Still engine-only, unchanged from below: **which screen reacted**. No headless run
+can tell a hero drawn on the Viewer from one drawn on the browser.
+
+
 **Goal:** the Overlays consoles become a gallery CATEGORY, and the Gallery Viewer
 becomes a second surface that can morph into any console. Then the Viewer is the
 only console the mission needs, and all seven `*_CONSOLE_ENABLED` defaults go off.
