@@ -36,6 +36,17 @@ Every one verified in `pages/layout/text_area.py`, not recalled.
 | 13 | `<br>` / `<br/>` → line break | render loop | rare |
 | 14 | `{...}` f-string interpolated | `gui_text_area` wrapper | f-strings, dict literals |
 | 15 | **`text.split()` collapses ALL whitespace** | `measure.wrap_to_width` | leading spaces (see B -- not the mechanism we need anyway) |
+| 16 | **a backtick in the content ends the `$text:` quoting** | the send path | any `` `code span` `` in prose, any MAST style string in code |
+
+16 was found in an engine session AFTER A and B shipped, and it is not specific
+to code: a line is sent as ``$text:`<text>`;<style>``, the backtick is the props
+delimiter, and `split_props` has no escape for it. So a backtick in the CONTENT
+closes the quote early and the rest is parsed as style -- the content's own
+`font:`/`color:` becomes the line's style. WRAPPING makes it far more likely,
+because a fragment can carry an unbalanced backtick: the same line broke at
+1024x768 and was fine at 1920. Every AMD note using `code spans` was affected.
+Fixed by dropping backticks before wrapping, which is what `gui_text_escape`
+already does for the same reason.
 
 Failure mode is not graceful: any parse error replaces the whole area with
 `Document syntax issue line number N`.

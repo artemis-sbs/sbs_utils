@@ -121,5 +121,56 @@ class TestTextAreaCode(unittest.TestCase):
         self.assertEqual(counts, sorted(counts), counts)
 
 
+class TestTextAreaBacktick(unittest.TestCase):
+    """A backtick in the CONTENT used to break out of the quoting.
+
+    A line is sent as ``$text:`<text>`;<style>`` and the backtick is the props
+    delimiter, with no escape in split_props. So a backtick in the text closed
+    the quote early and the rest was parsed as STYLE -- the content's own
+    `font:`/`color:` became the line's style. Wrapping made it far more likely,
+    because a fragment can carry an unbalanced backtick: the same line broke at
+    1024x768 and was fine at 1920.
+
+    Prose is affected as much as code -- any AMD note using `code spans`.
+    """
+    def setUp(self):
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+
+    def _sends(self, src, area=(0, 0, 26, 60), **kw):
+        out = []
+        orig = sbs.send_gui_text
+        sbs.send_gui_text = lambda c, p, t, m, l, tp, r, b: (
+            out.append(m), orig(c, p, t, m, l, tp, r, b))[1]
+        try:
+            ta = TextArea("t", src, **kw)
+            ta.bounds = Bounds(*area)
+            ta.calc_rich(0)
+            ta.present(FakeEvent())
+        finally:
+            sbs.send_gui_text = orig
+        return out
+
+    def test_code_style_is_not_hijacked_when_wrapping(self):
+        from sbs_utils.helpers import split_props
+        # Deliberately narrow, so it wraps -- the case that broke.
+        src = ('gui_text("$text:`Shields nominal`;font:gui-3;color:#8f8;")'
+               + NL + "tail")
+        mine = {"style": "font:gui-1;color:#cde;", "indent": 0}
+        for msg in self._sends(src, markdown=False, line_styles=[mine, mine]):
+            d = split_props(msg, "$text")
+            # The content's font/color must NOT have become the line's style.
+            self.assertEqual(d.get("font"), "gui-1", msg)
+            self.assertEqual(d.get("color"), "#cde", msg)
+
+    def test_prose_style_is_not_hijacked_when_wrapping(self):
+        from sbs_utils.helpers import split_props
+        src = ("The keys are `low` and `high`. There is no `min`/`max` here."
+               + NL + "second")
+        for msg in self._sends(src):
+            d = split_props(msg, "$text")
+            self.assertEqual(d.get("color"), "white", msg)
+
+
 if __name__ == "__main__":
     unittest.main()

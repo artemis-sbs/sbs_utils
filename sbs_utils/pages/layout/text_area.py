@@ -652,6 +652,21 @@ class TextArea(Control):
             # it does not clip, that line lands on top of its neighbour -- the
             # same failure as the scrollbar width above. Invisible at ul/ol's
             # indent of 2; at code indents it runs off the panel.
+            # A line is sent as `$text:` + backtick + text + backtick + `;style`,
+            # and the backtick is the props delimiter with NO escape in
+            # split_props -- so a backtick in the CONTENT closes the quote early
+            # and everything after it is parsed as style properties. Wrapping
+            # makes it far more likely, because a fragment can carry an
+            # unbalanced one: at 1024x768 a line wraps and breaks, at 1920 the
+            # same line does not. Prose is affected as much as code -- any AMD
+            # note using `code spans` hits it.
+            #
+            # Dropping them is what gui_text_escape already does for the same
+            # reason. It also reads correctly either way: prose loses only the
+            # emphasis marks, and MAST's own `$text:`x`;` degrades to the valid
+            # unquoted `$text:x;` rather than to something malformed.
+            line = line.replace("`", "")
+
             line_indent = 0
             if isinstance(style, dict):
                 line_indent = style.get("indent", 0) or 0
