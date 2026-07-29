@@ -252,3 +252,120 @@ Engine-only verification grows with every specimen. Source slicing needs the `.m
 readable at runtime, which is fine for a loose mission file and awkward if this ever
 becomes a packaged addon. And a gallery is a maintenance surface: a widget added without
 an entry is now a visible gap. That is good discipline, but it is discipline.
+
+---
+
+# Phase 7 — fold Overlays in, and morph the Viewer
+
+**Goal:** the Overlays consoles become a gallery CATEGORY, and the Gallery Viewer
+becomes a second surface that can morph into any console. Then the Viewer is the
+only console the mission needs, and all seven `*_CONSOLE_ENABLED` defaults go off.
+
+## Why fold
+
+The two overlay consoles are 31 buttons that **do not show the code that fired
+them** — the exact complaint the gallery was built to answer. As specimens they
+get a source panel and a notes panel for free, and `to=` stops being something
+you infer from 12 near-identical buttons.
+
+They are also the only reason the mission needs `MAINSCREEN` plus a crew console:
+the audience checklist wants two or more surfaces, one of them a main screen.
+
+## The morph
+
+The pattern already exists — LM's **director** addon, `director/__init__.mast`:
+
+```
+=== cv_show
+    default cv_ship_id = None
+    default cv_console = "mainscreen"
+    if cv_ship_id is not None:
+        assign_client_to_ship(client_id, cv_ship_id)
+    gui_console(cv_console)
+    await gui()
+```
+
+driven by `gui_reroute_client(target, cv_show, {"cv_ship_id": .., "cv_console": ..})`.
+
+**Do not copy it as-is.** LM's own `show_main_game_screen` does three things and
+`cv_show` does one:
+
+```python
+gui_console("mainscreen")
+set_inventory_value(client_id, "CONSOLE_TYPE", "mainscreen")
+add_role(client_id, "console, mainscreen")
+```
+
+The comment on that third line explains why: anything narrowing an audience —
+overlays, `announce()`, comms targeting — uses `any_role(...)`, so a screen with
+`CONSOLE_TYPE` and no role is **invisible to all of them and the message is
+dropped in silence.** Since the point of this phase is testing
+`consoles="mainscreen"`, a morph that skips the role would make the specimen
+report a false negative. Ours sets all three, and clears the previous console
+role on the way (`common_console_select` removes every console role before adding
+one — same reason, or a stale role leaves a phantom mainscreen behind).
+
+`cv_show` therefore has a latent limitation for overlay-targeted use. Worth
+raising with whoever owns the director addon; not fixing in passing.
+
+## Addressing the Viewer
+
+The gallery needs the Viewer's client id without knowing it. The Viewer adds a
+role to itself on entry:
+
+```
+add_role(client_id, "gallery_viewer")
+```
+
+and the gallery targets `role("gallery_viewer")`. Same trick the GM/admiral
+consoles use, and it survives the client id being whatever the engine assigned.
+
+## What the category holds
+
+- **One specimen per overlay KIND** (~13): hero, banner, toast, lower third,
+  modal choice, HUD + watcher, letterbox, flash, credits, an AMD-declared
+  overlay, a `//overlay` route, a signal-driven show, clear.
+- **A target selector**, shared: this screen · Gallery Viewer · my ship (every
+  console) · my side · all players · a station (expect nothing, plus one
+  `resolved to no console` log line). The resolved audience is echoed next to it,
+  because that is the thing being taught.
+- **Four `announce()` specimens** (chapter / alert / hail / status), each pairing
+  the overlay with its durable record — the point of that category.
+- **A "morph the Viewer" specimen**: the dropdown that drives it, plus its
+  source. A genuinely useful pattern in its own right; the director is the
+  reference.
+
+## What this does NOT solve
+
+- **Draw-layer stacking over a live engine view** is the one thing the current
+  console tests that a server screen cannot: the gallery browser has no 3dview.
+  Covered by morphing the Viewer to `mainscreen` (or helm) and firing at it —
+  which is a better test than today's, because the overlay and the engine view
+  are then on a screen that is not the one you clicked.
+- **Two consoles of the same ship** (button 1: "banner on EVERY console of your
+  ship") still needs two, and the server screen is one of them only because LM
+  assigns client 0 to the first player ship. Worth asserting rather than assuming.
+
+## Verification
+
+- headless: `--exercise-console gallery,gallery_viewer`, and the `--walk` tour
+  covers every new specimen the moment it has an AMD record.
+- engine only: **which screen reacted.** No headless run can tell a hero drawn on
+  the Viewer from one drawn on the browser, so the audience specimens are checked
+  by looking, with two surfaces up.
+- the morph needs an engine pass per target console, because `gui_console()` sets
+  an engine widget list and the mock approximates it.
+
+## Open questions
+
+1. **Does a morph back to the gallery page restore cleanly?** The Viewer would
+   reroute to `gallery_viewer_screen`; a console widget list set by
+   `gui_console()` may need clearing first (`gui_widget_list_clear`).
+2. **Does `assign_client_to_ship` on the Viewer disturb the browser?** They are
+   different clients, so it should not — but the server screen is assigned to the
+   same ship, and the audience specimens depend on that.
+3. **Do overlay slots survive a morph?** A slot establishes a sub-region on first
+   show; rerouting the page underneath it may leave the region stale. This is the
+   overlay layer's known failure mode, so it wants an explicit check.
+4. **Does the Viewer keep its own page state** (the hint, the picked full-page
+   example) across a morph and back? Task variables, so probably — worth a look.
