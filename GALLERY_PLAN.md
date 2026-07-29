@@ -69,6 +69,51 @@ overlay_demo/
   gallery.amd             prose per entry: blurb, when to use, do/don't, see-also
 ```
 
+## Where it is shown (three surfaces)
+
+The gallery is a **tool**, so it should not require a ship, a console assignment, or a
+running crew to read.
+
+1. **The server screen** is the browser's home. The map IS the gallery
+   (`@map/control_gallery`): starting it reroutes the server to `gallery_screen`, so the
+   browser is there the moment the mission starts.
+   The cost is honest: it replaces LM's server main-screen and the pause/resume region
+   that lives on it, so the header carries a **"Main screen"** button that hands it
+   back. (The LM server console has no tab or extension hook, so a reroute is the only
+   way in.)
+2. **A console** (`@console/gallery`) carries the same browser, for anyone who wants it
+   on a crew station or on a second screen.
+3. **The Gallery Viewer console** (`gallery_pages.mast`) draws the **full-page**
+   examples -- an embedded engine view, an absolutely-positioned region, a master/detail
+   console. A whole screen squeezed into the browser's detail pane teaches the wrong
+   thing about proportion. Picking a "Full page" entry in the browser records it for
+   that client; the viewer shows whatever you last picked.
+
+Demos that need a real crew station say so and let the reader open that console, rather
+than trying to reproduce one inside the gallery.
+
+### Does the gallery need LegendaryMissions?
+
+Traced, not guessed. The teaching material needs **none** of LM's content -- Controls
+and Traps are pure `gui_*` from sbs_utils. But two things do:
+
+| Needs LM | Why |
+|---|---|
+| the console picker (`show_console_selected`) | it is how you reach `@console/gallery` and the Viewer at all |
+| the Overlays category | `spawn_players`, `docking_standard_player_station`, `prefab_side_generic` -- ships, sides, docking, mainscreen fan-out |
+
+So LM stays. The real cost of keeping it is not runtime, it is **iteration**: ~70s per
+headless specimen check, nearly all of it mastlib compile. That is fixed by running
+checks in parallel against disposable copies of the mission
+(`scratchpad/verify_gallery.py`) rather than by trimming the mission -- copies must sit
+under the missions root, since the runner refuses to start anywhere it cannot find
+`__lib__/`.
+
+Trimming to a tool mission (no LM, `content_demo`-style) and splitting into two missions
+were both considered and rejected: the first loses the Overlays harness and forces a
+hand-rolled console switcher, the second buys the same thing at the price of a second
+repo.
+
 ## Architecture
 
 **Shell** (`gallery.mast`). One `@console/gallery`, laid out as the pattern the skill

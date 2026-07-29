@@ -15,8 +15,14 @@ from sbs_utils.helpers import FrameContext
 
 
 class Exerciser:
-    def __init__(self, sbs, extra_consoles=None):
+    def __init__(self, sbs, extra_consoles=None, console_dwell=None):
         self._sbs = sbs
+        # Steps to sit on each console. The default is brisk, which means a
+        # console is swapped away in well under a sim-second -- so `on change`
+        # and watcher logic keyed to a 1s tick NEVER RUNS. Raise it when the
+        # thing under test has live panels (--exercise-dwell).
+        if console_dwell:
+            self._CONSOLE_DWELL = int(console_dwell)
         # Mission-defined consoles to fold into the cycle (--exercise-console).
         # Opt-in: the default set is core gameplay only, because a demo/admin
         # console usually has context needs of its own.
@@ -195,7 +201,7 @@ class Exerciser:
             except Exception:
                 self.errors += 1
 
-    _CONSOLE_DWELL = 3   # steps to sit on a console (let its watch/on-change run)
+    _CONSOLE_DWELL = 3   # steps to sit on a console; see --exercise-dwell
     # Core gameplay consoles to cycle. mainscreen is intentionally omitted: switching
     # to it fires a main_screen_change reroute cascade onto other linked consoles,
     # which (driven synthetically) presents an uncompiled page -> spurious noise.

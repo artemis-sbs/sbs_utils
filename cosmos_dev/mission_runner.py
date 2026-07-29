@@ -443,6 +443,7 @@ def _run(
     junit_path: str | None = None,
     exercise: bool = False,
     exercise_console: str | None = None,
+    exercise_dwell: int | None = None,
     use_working_tree: bool = False,
     seed: int | None = None,
     audit_layout: bool = False,
@@ -814,7 +815,8 @@ def _run(
         if exercise:
             from cosmos_dev.exerciser import Exerciser
             _extra_consoles = [c.strip() for c in (exercise_console or "").split(",") if c.strip()]
-            _exerciser = Exerciser(sbs, extra_consoles=_extra_consoles)
+            _exerciser = Exerciser(sbs, extra_consoles=_extra_consoles,
+                                   console_dwell=exercise_dwell)
         print(f"[runner] TEST mode: run ~{test_seconds:g}s sim time, map={map_arg}"
               f"{', exercising' if exercise else ''}")
 
@@ -1263,6 +1265,11 @@ if __name__ == "__main__":
                     help="With --exercise, also cycle these mission-defined consoles "
                          "(e.g. gallery). The default cycle is core gameplay consoles "
                          "only, so a custom console is otherwise never entered.")
+    ap.add_argument("--exercise-dwell", type=int, default=None, metavar="N",
+                    help="With --exercise, steps to sit on each console before "
+                         "moving on (default 3). Raise it (e.g. 25) to give "
+                         "`on change` / watcher logic time to fire at all -- at "
+                         "the default a console is swapped in under a sim-second.")
     ap.add_argument("--use-working-tree", action="store_true",
                     help="Run the working-tree sbs_utils instead of the packaged "
                          ".sbslib (smoke-test local library edits against a mission)")
@@ -1301,6 +1308,7 @@ if __name__ == "__main__":
         junit_path=args.junit,
         exercise=args.exercise,
         exercise_console=args.exercise_console,
+        exercise_dwell=args.exercise_dwell,
         use_working_tree=args.use_working_tree,
         seed=args.seed,
         audit_layout=args.audit_layout,

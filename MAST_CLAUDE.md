@@ -781,6 +781,19 @@ empty** — the mission then runs with **0 labels executed, no output, and still
 reports "PASS - no runtime errors"** (a headless `--test` shows `labels 0/N`). If a
 mission mysteriously does nothing, suspect a multi-line literal first.
 
+**`~~ … ~~` is a STATEMENT form, not a sub-expression.** Inline in a call argument
+it is a compile error — `invalid syntax (<string>, line 1)`, reported against the
+whole line:
+
+```
+# BROKEN:
+gui_properties_set(~~{"Heading": "gui_text(str(h))"}~~)
+
+# Bind it first:
+props = ~~{"Heading": "gui_text(str(h))"}~~
+gui_properties_set(props)
+```
+
 Two fixes — keep it on **one line**, or wrap the multi-line literal in `~~ … ~~`
 (as the `avatar_widgets` example above; multi-line *is* fine inside `~~`):
 
