@@ -442,6 +442,7 @@ def _run(
     test_seconds: float | None = None,
     junit_path: str | None = None,
     exercise: bool = False,
+    exercise_console: str | None = None,
     use_working_tree: bool = False,
     seed: int | None = None,
     audit_layout: bool = False,
@@ -812,7 +813,8 @@ def _run(
         _verdict = MastVerdict().install()
         if exercise:
             from cosmos_dev.exerciser import Exerciser
-            _exerciser = Exerciser(sbs)
+            _extra_consoles = [c.strip() for c in (exercise_console or "").split(",") if c.strip()]
+            _exerciser = Exerciser(sbs, extra_consoles=_extra_consoles)
         print(f"[runner] TEST mode: run ~{test_seconds:g}s sim time, map={map_arg}"
               f"{', exercising' if exercise else ''}")
 
@@ -1257,6 +1259,10 @@ if __name__ == "__main__":
     ap.add_argument("--exercise", action="store_true",
                     help="With --test, actively drive selections/comms each tick to "
                          "push route coverage (vs only the mission's own autoplay)")
+    ap.add_argument("--exercise-console", default=None, metavar="NAME[,NAME]",
+                    help="With --exercise, also cycle these mission-defined consoles "
+                         "(e.g. gallery). The default cycle is core gameplay consoles "
+                         "only, so a custom console is otherwise never entered.")
     ap.add_argument("--use-working-tree", action="store_true",
                     help="Run the working-tree sbs_utils instead of the packaged "
                          ".sbslib (smoke-test local library edits against a mission)")
@@ -1294,6 +1300,7 @@ if __name__ == "__main__":
         test_seconds=args.test,
         junit_path=args.junit,
         exercise=args.exercise,
+        exercise_console=args.exercise_console,
         use_working_tree=args.use_working_tree,
         seed=args.seed,
         audit_layout=args.audit_layout,

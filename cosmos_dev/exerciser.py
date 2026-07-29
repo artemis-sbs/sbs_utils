@@ -15,8 +15,12 @@ from sbs_utils.helpers import FrameContext
 
 
 class Exerciser:
-    def __init__(self, sbs):
+    def __init__(self, sbs, extra_consoles=None):
         self._sbs = sbs
+        # Mission-defined consoles to fold into the cycle (--exercise-console).
+        # Opt-in: the default set is core gameplay only, because a demo/admin
+        # console usually has context needs of its own.
+        self._extra_consoles = tuple(extra_consoles or ())
         self._offset = 0
         self.steps = 0
         self.errors = 0
@@ -31,6 +35,7 @@ class Exerciser:
         self._dock_budget = 3    # times to force a dock (cover dock routes), then stop
         self._console_step = 0   # rotates the synthetic client through each console
         self._console_dwell = 0  # steps spent on the current console before cycling on
+        self._warned_consoles = False   # print an unknown --exercise-console name once
 
     def _server_ctx(self):
         """Return the server task, or None if not ready."""
@@ -219,7 +224,13 @@ class Exerciser:
         # director, gamemaster, admin, hangar, admiral) have their own context
         # needs and aren't the coverage target here.
         registered = gui_get_console_types()
-        keys = [k for k in self._GAMEPLAY_CONSOLES if k in registered]
+        wanted = self._GAMEPLAY_CONSOLES + self._extra_consoles
+        keys = [k for k in wanted if k in registered]
+        missing = [k for k in self._extra_consoles if k not in registered]
+        if missing and not self._warned_consoles:
+            self._warned_consoles = True
+            print(f"exercise: no such console(s): {', '.join(missing)}; "
+                  f"registered: {', '.join(sorted(registered))}")
         if not keys:
             return
         self._console_dwell += 1

@@ -1,0 +1,199 @@
+# Control Gallery
+
+Grow the Overlay Demo into a **Control Gallery**: a browsable, runnable catalog of the
+Cosmos GUI, in the shape of Material Design's component gallery or Storybook, but built
+for a system whose docs are a skill file and whose widgets are `send_gui_*` commands.
+
+- Overlay system it grows out of: `OVERLAY_PLAN.md`, `OVERLAY_ADOPTION_PLAN.md`
+- The knowledge it makes runnable: `.claude/skills/cosmos-gui/SKILL.md`
+- API docs it should replace the "what exists?" half of: `mkdocs/docs/cosmos/gui*.md`
+
+---
+
+## The problem
+
+Today a mission author learning the GUI has three bad options: grep `procedural/gui/`
+for `def gui_`, read a skill file written for an agent, or copy a fragment out of
+LegendaryMissions and hope the surrounding context isn't load-bearing. There is no place
+to *see* a `gui_property_list_box` before deciding to use one.
+
+The existing `overlay_demo` is a **verification harness**, not a teacher: twenty buttons
+that each fire one effect. The button says "Hero + Letterbox" and the code that produced
+it is in a file you are not looking at.
+
+## The one idea
+
+> **The gallery renders the exact lines of its own source that built the specimen you are
+> looking at.**
+
+Every specimen is wrapped in markers in the `.mast` file:
+
+```
+# >>gallery: list_box_basic
+    lb = gui_list_box(items, "row-height: 2.2em;", item_template=row_fn, select=True)
+# <<gallery
+```
+
+At runtime the mission reads its own source, slices between the markers, dedents, and
+renders it beside the live control. The snippet cannot drift from the demo, because it
+**is** the demo. `gui_clipboard_put` exists, so "Copy" is a real button: see a control,
+copy working MAST, paste it into your mission.
+
+Doc-rot is the failure mode every gallery-shaped thing eventually dies of. This design
+makes it unrepresentable.
+
+---
+
+## Where it lives
+
+Grow `missions/overlay_demo` in place. It already carries the LM stack, a map, players,
+a station and a docking setup that the Overlays category needs, and it is already a
+published repo (`artemis-sbs/overlay_demo`).
+
+- Folder name stays `overlay_demo` (so `sbs debug overlay_demo` keeps working, and the
+  git remote is untouched).
+- `description.yaml` display name becomes **Control Gallery**.
+- The two existing consoles survive unchanged as the **Overlays** category.
+- Renaming the GitHub repo later is a one-click redirect; not a blocker, and the user's
+  call.
+
+```
+overlay_demo/
+  story.mast              map + the existing overlay consoles; imports the gallery
+  gallery.mast            the shell: @console/gallery, nav, detail pane, dispatch
+  gallery_controls.mast   Controls specimens          (marked spans)
+  gallery_layout.mast     Layout playground           (marked spans)
+  gallery_recipes.mast    Recipes                     (marked spans)
+  gallery_traps.mast      Traps: BROKEN / FIXED pairs (marked spans)
+  gallery_code.py         source slicer + the code-view renderer
+  gallery.amd             prose per entry: blurb, when to use, do/don't, see-also
+```
+
+## Architecture
+
+**Shell** (`gallery.mast`). One `@console/gallery`, laid out as the pattern the skill
+mandates so that reading the gallery's own source is the second lesson:
+
+```
++----------------+--------------------------------------------+
+| category +     |  SPECIMEN      (live, on a labeled surface) |
+| entry listbox  +--------------------------------------------+
+| (collapsible   |  KNOBS         (rewrite the style string)   |
+|  headers)      +--------------------------------------------+
+|                |  SOURCE        (sliced from this file)      |
+|                |  [Copy]                                     |
+|                +--------------------------------------------+
+|                |  NOTES         (from gallery.amd)           |
++----------------+--------------------------------------------+
+```
+
+`gui_list_box(..., collapsible=True)` with `gui_list_box_header` gives the two-level nav
+in one widget, titled with `title_template` (not a label row above it).
+
+**Entry registry.** `gallery.amd` is the index and the prose; the `.mast` marker key is
+the join. One entry = one AMD record + one marked span. `sbs lint` can then catch a
+record whose marker does not exist, and the nav is data, not a hand-maintained list.
+
+**Dispatch.** The detail pane is a `match SPEC:` in a per-category label, one `case` per
+specimen, the marked span inside it. Selection sets `SPEC` and repaints. This keeps the
+specimen code inline and copyable rather than hidden behind a Python builder.
+
+**Source slicer** (`gallery_code.py`):
+
+```python
+gallery_source(key)   -> list[str]   # dedented lines between the markers, cached
+gui_code_block(lines) -> None        # renders them as GUI rows
+```
+
+## Resolved technical risks
+
+| Risk | Finding | Decision |
+|---|---|---|
+| Rendering source in `gui_text_area` | Its mini-markdown eats code: `#` (a MAST comment!) becomes an h1, `-` a bullet, `$`/`=$` style directives | **Do not use `gui_text_area` for code.** A listbox of per-line `gui_text` |
+| `{` in a snippet | `compile_and_format_string` f-string-formats any props containing `{` | Brace-double (`{` -> `{{`) in the slicer |
+| `:` / `;` in a snippet | Would inject style properties | `gui_text_escape()` per line (backtick quoting) |
+| Line indentation | Backtick-quoted leading spaces may be trimmed by the engine | Render indent as a per-row `padding`, not as spaces. Verify in browser |
+| No monospace font | Fonts are `gui-1..gui-6` + `smallest` | Accept. Color-code instead: comments dim, strings amber, keywords light |
+| Specimen code cost | Every specimen is layout built each repaint | Build one specimen at a time (the selected one), not all |
+
+## The five categories
+
+| Category | Contents | Why it earns a place |
+|---|---|---|
+| **Controls** | one entry per widget: text, text_area, button, icon_button, checkbox, radio/vradio, drop_down, slider, int_slider, icon (+ atlas, named), image, face, ship, grid, table, list_box, property_list_box, input, region, hole, blank | the catalog. "What exists at all" is currently only discoverable by grepping |
+| **Layout** | live playground: dropdowns set `1fr / content / min-content / max-content / fixed em / px` per row and column, plus padding, `overflow:`, nesting -- boxes resize under you | the hardest part of the system and unteachable in prose. Absorbs what `content_demo` demonstrates by hand |
+| **Recipes** | composed patterns: listbox + detail, watch/repaint, `on change` handle update, modal choice, top tabs, engine-widget embedding, a station panel, a shelf of `item_template`s | this is what `HelloWorld/simple_gui.py` already is -- a scrappy row template someone learned from. Ship a curated shelf |
+| **Traps** | each trap is **two buttons side by side, BROKEN and FIXED**, with the diff between the two snippets underneath | teaching by contrast. Nothing in a doc page beats watching the broken one misbehave |
+| **Overlays** | the two existing consoles, unchanged | screen-anchored surfaces are part of the control surface, and multi-console fan-out is an axis no web gallery has |
+
+Traps, from the skill's gotcha list, each runnable:
+
+- `.update("text:X")` dropping the rest of the style vs. carrying it whole
+- `on gui_message` registered in a `for` loop vs. `on_press=` / `data=`
+- `row-height: 1em` under `font:gui-3` overdrawing by 4px
+- `padding` top/bottom eating row height
+- a content row starved by fixed `em` siblings
+- a multi-line dict literal collapsing the parse
+- `gui_represent()` (deprecated) vs. letting the dirty system work
+
+## Second and third jobs
+
+- **`--exercise` walks every specimen**, making the gallery a broad GUI smoke corpus:
+  MAST-layer errors across the whole widget surface in one headless run.
+- **The Layout category is a regression corpus** for the sizing-accuracy work:
+  `--audit-layout` over the gallery gives mock-vs-engine deltas across the full widget
+  set instead of hand-picked cases.
+- **`gui_screenshot`** can generate the images for `mkdocs/docs/cosmos/gui*.md`, so doc
+  images stop drifting too.
+
+## Phases
+
+| # | Deliverable | Done when |
+|---|---|---|
+| **1** | Shell + code view + 7 Controls specimens | selecting an entry shows a live control and the real source that built it; browser-verified |
+| **2** | Controls complete (all widgets), `gallery.amd` prose, Copy button | every `gui_*` layout widget has an entry |
+| **3** | Traps | each trap runs broken and fixed side by side |
+| **4** | Layout playground | row/column sizing modes driven live from dropdowns |
+| **5** | Recipes, incl. the `item_template` shelf | a new author can copy a working listbox + detail |
+| **6** | Guided tour narrated through the overlay lower third; README rewrite | the gallery introduces itself |
+
+Later, not now: folding in `content_demo`, `layout_probe` and `font_measure`. They are
+measurement rigs with their own output formats and would distort the shell before it has
+settled. Promote `gui_code_block` into `sbs_utils` only once it has proven out here.
+
+## Phase 1 status (built)
+
+`gallery.mast` (shell + 7 Controls specimens), `gallery_code.py` (slicer, code view,
+index), `gallery_specimens.py` (the Python row templates one specimen references),
+imported from `story.mast`.
+
+Confirmed working: span slicing, dedent, and **cross-file concatenation** -- the
+`list_box_basic` snippet shows the `.mast` listbox line *and* the Python
+`item_template` / `title_template` it points at, under one key. All 7 specimens build
+without a runtime error (one headless run each, `--exercise-console gallery`).
+Outstanding: the browser pass.
+
+Two things found while building it, both worth keeping:
+
+- **`--exercise` never entered a mission-defined console.** The cycle was hardcoded to
+  the five core gameplay consoles, so the gallery -- and the existing overlay consoles,
+  and every custom console in every mission -- had zero headless coverage. Added
+  `--exercise-console NAME[,NAME]` (opt-in; unchanged by default) in
+  `cosmos_dev/exerciser.py` + `mission_runner.py`. It found a real bug on first run.
+- **A hook-level error inside a listbox `item_template` still reports `PASS`.** The
+  template raised a `TypeError` on every repaint, printed a full traceback, and the
+  verdict said "PASS - no runtime errors". Same family as the compile-error gap that
+  `--test` already closed; `MastVerdict` should count these. Not fixed here.
+
+## Verification
+
+Per the standing tiers: `--test` (compiles) -> `--exercise` (drives the GUI) -> **browser**
+(the only place layout and render are real) -> engine session for anything overlay- or
+draw-order-shaped. A gallery is never done off `--test` alone.
+
+## Costs, honestly
+
+Engine-only verification grows with every specimen. Source slicing needs the `.mast`
+readable at runtime, which is fine for a loose mission file and awkward if this ever
+becomes a packaged addon. And a gallery is a maintenance surface: a widget added without
+an entry is now a visible gap. That is good discipline, but it is discipline.
