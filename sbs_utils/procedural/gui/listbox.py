@@ -80,7 +80,8 @@ def gui_list_box_header(label, collapse=False, indent=0, selectable=False, data=
 def gui_list_box(items, style,
                  item_template=None, title_template=None,
                  section_style=None, title_section_style=None,
-                 select=False, multi=False, carousel=False,  collapsible=False,read_only=False):
+                 select=False, multi=False, carousel=False,  collapsible=False,read_only=False,
+                 hint=None):
     """Add a listbox to the current GUI layout.
 
     Args:
@@ -106,6 +107,10 @@ def gui_list_box(items, style,
             the next header. Defaults to ``False``.
         read_only (bool, optional): Prevent item modification. Defaults to
             ``False``.
+        hint (object, optional): An opaque token from a previous listbox's
+            ``get_selection_hint()``, carrying where it was looking. A repaint
+            builds a DIFFERENT listbox, so this is how the scroll position and
+            selection survive one. Do not inspect it; just pass it along.
 
     Returns:
         LayoutListbox: The layout object created.
@@ -122,7 +127,7 @@ def gui_list_box(items, style,
     layout_item = LayoutListbox(0, 0, tag, items,
                  item_template, title_template, 
                  section_style, title_section_style,
-                 select,multi, carousel,  collapsible, read_only)
+                 select,multi, carousel,  collapsible, read_only, hint)
     # #layout_item.data = data
     # if var is not None:
     #     layout_item.var_name = var
