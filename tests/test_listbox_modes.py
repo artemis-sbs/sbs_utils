@@ -221,6 +221,54 @@ class TestRevealOptIn(ListboxModeBase):
         self.assertIn(len(lb._items) - 1, self._shown(lb))
 
 
+class TestSetValueRestorePath(ListboxModeBase):
+    """set_value() + reveal -- the restore path the CONSOLE SELECT screen uses.
+
+    Added when that screen was adopted. It matters because set_value() is NOT
+    set_selected_index(): it assigns `selected` and never touches `cur`, so a
+    caller restoring by VALUE gets no view movement at all. That is a different
+    failure from the "slams to the top" one, and the reveal has to cover both --
+    I initially argued the screen did not have the bug because I looked at the
+    listbox next to it, which restores by index.
+    """
+
+    def test_set_value_alone_leaves_the_selection_off_screen(self):
+        """Pinned as the reason reveal is needed here: no view movement at all."""
+        items = [f"item {i}" for i in range(40)]
+        lb = self._lb(items, select=True)
+        lb.set_value(items[35])
+        lb._present(FakeEvent())
+        self.assertEqual(lb.cur, 0, "set_value must not move the view by itself")
+        self.assertNotIn(35, self._shown(lb))
+
+    def test_set_value_selection_is_revealed_when_asked(self):
+        items = [f"item {i}" for i in range(40)]
+        lb = self._lb(items, select=True, reveal=True)
+        lb.set_value(items[35])
+        lb._present(FakeEvent())
+        self.assertIn(35, self._shown(lb),
+                      "reveal is armed in the constructor, so a restore by VALUE "
+                      "before the first present is revealed too")
+
+    def test_read_only_list_still_reveals(self):
+        """The console list is read_only while the game is running, and a
+        selection you cannot change is still one you need to SEE."""
+        items = [f"item {i}" for i in range(40)]
+        lb = self._lb(items, select=True, reveal=True, read_only=True)
+        lb.set_value(items[35])
+        lb._present(FakeEvent())
+        self.assertIn(35, self._shown(lb))
+
+    def test_set_value_none_clears_without_moving_the_view(self):
+        items = [f"item {i}" for i in range(40)]
+        lb = self._lb(items, select=True, reveal=True)
+        lb.cur = 12
+        lb.set_value(None)
+        lb._present(FakeEvent())
+        self.assertEqual(self._shown(lb)[0], 12,
+                         "no selection to reveal, so the view must stay put")
+
+
 class TestScrolling(ListboxModeBase):
     """Driven through on_scroll -- the REAL path a scrollbar drag takes.
 

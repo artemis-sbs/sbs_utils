@@ -60,8 +60,8 @@ the view to move.
 | LM | `hangar/hangar.mast:156` | `dock_picker` | **DONE, ENGINE-VERIFIED.** The page is a LOOP: `await gui()` falls through to `jump show_hangar`, so every interaction rebuilds all three lists |
 | LM | `hangar/hangar.mast:157` | `ride_picker` | same page, same commit, verified |
 | LM | `hangar/hangar.mast:188` | `quest_box` | same page, same commit (sortie board), verified |
-| LM | `consoles/common_console_select.mast:205` | `ship_select_lb` | **NOT AN ADOPTER** -- see below. Ranked here by a flawed signal |
-| LM | `consoles/common_console_select.mast:233` | `console_select_lb` | **NOT AN ADOPTER** -- same |
+| LM | `consoles/common_console_select.mast:205` | `ship_select_lb` | **DONE, awaiting engine check.** 8 player ships overflow the box; it slammed to the TOP every rebuild |
+| LM | `consoles/common_console_select.mast:233` | `console_select_lb` | **DONE, awaiting engine check.** Restores with `set_value()`, which never touches `cur` -- the selected console sat below the fold |
 
 The hangar is the single biggest win: three selectable lists on a page rebuilt
 from a dozen places.
@@ -182,33 +182,55 @@ In every case: scroll past the first screenful first (or nothing is observable),
 then confirm scrolling STILL WORKS afterwards -- reveal firing every present made
 the gallery unscrollable, and that regression reads as "the list is stuck".
 
-## The console-select screen is NOT an adopter — and the ranking was wrong
+## The console-select screen — I got this wrong first
 
-Read before changing it, and the change should not be made. Two reasons, and the
-second one is a flaw in this document's own ranking:
+**It is an adopter, and one of the most valuable.** With 8 player ships and a
+dozen-plus consoles both lists overflow their boxes. Recorded because the mistake is
+repeatable:
 
-**1. The bug does not exist there.** `ship_select_lb.set_selected_index(i)` is
-called with NO second argument, so `set_cur=True`: the view is moved to put the
-selection at the top on every build. That is the "always jumps" behavior — never
-the "selected but invisible" one, which is what `reveal` fixes. There is nothing to
-reveal. Adding `hint` would only stop the rare rebuild from jumping, and would
-override the deliberate `set_cur=True` (verified: `apply_selection_hint` runs at
-present time and sets `cur` unconditionally, so it wins over the constructor).
+I checked `ship_select_lb`, saw `set_selected_index(i)` with no second argument
+(`set_cur=True`, so the selection is scrolled to the top and therefore never
+invisible), concluded there was nothing to reveal — and generalised that to the
+whole screen. **The listbox beside it fails the opposite way:** `console_select_lb`
+restores with `set_value()`, which assigns `selected` and **never touches `cur`**, so
+nothing moves the view and the selected console really does sit below the fold.
 
-**2. The page does not repaint on interaction.** Its `await gui()` has NO
-fall-through `jump`, and every handler updates widgets IN PLACE — `gui_show`,
-`gui_hide`, `.value =`, `gui_update`, even `ship_select_lb.items = ...`. It rebuilds
-only when a ship is destroyed, when ready is cleared, or when the game starts —
-moments where nobody's scroll position is precious.
+Two listboxes, two different restore APIs, two different failures, one screen. The
+lesson: **classify per listbox by which restore API it calls**, never per screen.
 
-**The ranking flaw:** this screen reached "high value" because the scan counted
-**7 jumps to `select_console`**. Those are other labels ENTERING the page, not the
-page repainting itself. The hangar scored 11 the same way and was genuine — but
-only because its `await gui()` falls through to `jump show_hangar`, which is a real
-loop. So: **count the page's own fall-through and its handlers' jumps, not inbound
-jumps to its label.** Everything in the "Review" bucket below was ranked with the
-same flawed signal and should be re-checked that way before adoption, not trusted.
+| restore call | what it does to the view | needs |
+|---|---|---|
+| `set_selected_index(i)` (set_cur default True) | slams the selection to the TOP every build | `hint` (stop the jump); `reveal` is redundant for visibility |
+| `set_selected_index(i, False)` | nothing — selection held, possibly off screen | `reveal` **and** `hint` |
+| `set_value(obj)` | nothing at all, ever | `reveal` **and** `hint` |
 
-The risk was the other reason to leave it alone and still stands: it is the first
-screen every player meets, LM's history already carries a revert of server-console
-changes, and a regression there locks people out rather than annoying them.
+Both calls here now pass `False` so the view is governed by reveal/hint — the
+smallest move that makes the selection visible — rather than by a slam to the top.
+
+Covered by `tests/test_listbox_modes.py::TestSetValueRestorePath`, added with this
+adoption because `set_value()` + `reveal` had no test before and is now load-bearing.
+Mutation-checked: disabling the reveal branch fails both of its positive tests.
+
+**Also fixed here:** the `on change PLAYER_COUNT` path clamped with
+`min(client_selected_index, len(ship_list))`. `set_selected_index` ignores an index
+that is not `< len`, so shrinking the ship count past the selection silently
+**cleared** it. Now `len(ship_list)-1`, matching the clamp the line above already
+uses.
+
+**Only one of its rebuilds can carry a hint.** `select_console_clear_ready` and
+`game_started_console` are entered from other consoles and from game start — a
+different task, with no presented widget to read a hint from. Only the
+`player_ship_destroyed` handler is on the live page. So `reveal` is the load-bearing
+half here and the hint is the bonus, which is the reverse of the tab screens.
+
+**The risk framing still holds** (first screen every player meets; LM history has a
+revert of server-console changes), so this one wants its own engine check rather than
+riding along with a batch.
+
+**The ranking flaw is still real**, separately from the wrong verdict: this screen
+scored "high value" because the scan counted **7 jumps to `select_console`**, and
+those are other labels ENTERING the page, not the page repainting itself. The hangar
+scored 11 the same way and was genuine — only because its `await gui()` falls through
+to `jump show_hangar`. Count the page's own fall-through and its handlers' jumps.
+Everything in the Review bucket was ranked the same flawed way and needs that
+re-check before anyone trusts it.
