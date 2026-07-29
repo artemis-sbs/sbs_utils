@@ -1,7 +1,8 @@
 # Listbox: keeping the selection on screen across a repaint
 
-**Part 1 is BUILT and engine-verified** (`gui_list_box(reveal=True)`, opt-in).
-Part 2, the opaque hint, is not. Three things the build changed in this plan:
+**BOTH PARTS BUILT and engine-verified**: `gui_list_box(reveal=True, hint=...)`,
+opt-in, with the Control Gallery's index as the first caller. Four things the
+build changed in this plan:
 
 - **Reveal ONCE, not at every present.** The plan said "at present time" and I
   read that as every frame -- which drags the view back and makes the list
@@ -11,6 +12,16 @@ Part 2, the opaque hint, is not. Three things the build changed in this plan:
   diverge once a header collapses. This broke the gallery twice.
 - **Opt-in, not default-on.** The plan argued for default-on. Two regressions in
   a load-bearing widget say otherwise; default-on is a later conversation.
+- **An EXPLICIT selection beats the hint's.** Not in the plan at all. The caller
+  sets the selection after construction while the hint applies at present time,
+  so applying it unconditionally lets a stale hint override a deliberate choice --
+  which would have broken the tour, that moves the selection itself every step.
+  The hint's job is the VIEW; its selection is a fallback.
+
+**And the reveal alone was not enough**, which the plan did say and I still had
+to be told: it promises VISIBLE, not UNMOVED. A repaint starts at cur=0, so the
+clicked row landed at the bottom of the window. Part 2 is what keeps it under the
+mouse -- the two are not alternatives.
 
 Also: testing it means driving `_present` and `on_scroll`, and keeping the window
 SMALLER than the list -- three tests here were vacuous because everything fitted
