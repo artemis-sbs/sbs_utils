@@ -166,8 +166,8 @@ gui_code_block(lines) -> None        # renders them as GUI rows
 | Category | Contents | Why it earns a place |
 |---|---|---|
 | **Controls** | one entry per widget: text, text_area, button, icon_button, checkbox, radio/vradio, drop_down, slider, int_slider, icon (+ atlas, named), image, face, ship, grid, table, list_box, property_list_box, input, region, hole, blank | the catalog. "What exists at all" is currently only discoverable by grepping |
-| **Layout** | live playground: dropdowns set `1fr / content / min-content / max-content / fixed em / px` per row and column, plus padding, `overflow:`, nesting -- boxes resize under you | the hardest part of the system and unteachable in prose. Absorbs what `content_demo` demonstrates by hand |
-| **Recipes** | composed patterns: listbox + detail, watch/repaint, `on change` handle update, modal choice, top tabs, engine-widget embedding, a station panel, a shelf of `item_template`s | this is what `HelloWorld/simple_gui.py` already is -- a scrappy row template someone learned from. Ship a curated shelf |
+| **Layout** | four inline specimens (row-height modes, col-width modes, size arithmetic, `overflow:`) plus a full-page **playground** on the Viewer: dropdowns set row-height, col-width and font, and the boxes move under you | the hardest part of the system and unteachable in prose. Absorbs what `content_demo` demonstrates by hand |
+| **Recipes** | watch/repaint (state changed by another task), a status line, a reusable `gui_style_def`, and a **shelf of four `item_template`s** switched live by a dropdown | this is what `HelloWorld/simple_gui.py` already is -- a scrappy row template someone learned from. Ship a curated shelf. (Listbox + detail and engine-widget embedding live in **Full page**, where they have room.) |
 | **Traps** | each trap is **two buttons side by side, BROKEN and FIXED**, with the diff between the two snippets underneath | teaching by contrast. Nothing in a doc page beats watching the broken one misbehave |
 | **Overlays** | the two existing consoles, unchanged | screen-anchored surfaces are part of the control surface, and multi-console fan-out is an axis no web gallery has |
 
@@ -208,8 +208,8 @@ Two candidates deliberately left out, because a gallery entry has to *run*:
 | **1** | Shell + code view + 7 Controls specimens | selecting an entry shows a live control and the real source that built it; browser-verified |
 | **2** | Controls complete (all widgets), `gallery.amd` prose, Copy button | every `gui_*` layout widget has an entry |
 | **3** | Traps | each trap runs broken and fixed side by side -- **built**, 5 traps |
-| **4** | Layout playground | row/column sizing modes driven live from dropdowns |
-| **5** | Recipes, incl. the `item_template` shelf | a new author can copy a working listbox + detail |
+| **4** | Layout playground | row/column sizing modes driven live from dropdowns -- **built** |
+| **5** | Recipes, incl. the `item_template` shelf | a new author can copy a working listbox + detail -- **built** |
 | **6** | Guided tour narrated through the overlay lower third; README rewrite | the gallery introduces itself |
 
 Later, not now: folding in `content_demo`, `layout_probe` and `font_measure`. They are
