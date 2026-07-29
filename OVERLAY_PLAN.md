@@ -351,3 +351,39 @@ redesign. Until then they run over non-interactive surfaces or beside the view.
   in a session; the mock approximates layout.
 - **`--test` can silently PASS** on a broken multiline literal / global tab add;
   confirm overlays actually render.
+
+---
+
+# Open: should a page reroute clear that client's overlays?
+
+Raised 2026-07-29 while folding the overlay demo into the Control Gallery. The
+demo needs explicit "Clear All" buttons because overlays survive a page change,
+and the instinct is that they should not. **PARKED, and the reason is specific: in
+this engine "the page changed" and "the page repainted" are the same signal.**
+
+`StoryPage.on_new_gui()` fires from `add_tag()` on the **first tagged widget of any
+new build** -- that is how `end_on_new_gui` sub-tasks get cancelled, and it is what
+made the options button reset itself until `gui_options_button()` recorded intent.
+So hanging an overlay clear off it means:
+
+1. **Every repaint clears.** The gallery rebuilds on every listbox click, so the
+   tour's lower-third narration would vanish when you clicked a nav row. A
+   watch/repaint panel that rebuilds once a second would cut a 12-second lower
+   third to one tick. Overlay lifetime would stop being a function of `seconds`
+   and start being a function of how busy the page is.
+2. **The audience is usually not the console that repainted.** An overlay fired at
+   a ship or a side gets destroyed because ONE console in the set happened to
+   rebuild -- intermittent, and attributed to the wrong thing ("it vanished
+   because someone opened a tab").
+3. **It inverts the sticky HUD**, whose whole purpose is to persist across screens.
+   The most common sticky case would need an opt-out flag immediately.
+
+The blast radius is small today -- 30 overlay/announce call sites in LM, 5 in
+HTBM, 0 in OU -- so this is not "someone depends on it". It is that the trigger is
+too low-level to mean what we want.
+
+**The signal we actually want is "this screen changed what it IS"**, not "the page
+rebuilt": a console change (`//console/change`, or `CONSOLE_TYPE` changing), or an
+explicit morph. That is exactly what the gallery's `gallery_viewer_morph` does by
+hand, and it is cheap to do precisely. If this is picked up, hook it there -- not
+to `on_new_gui`.
