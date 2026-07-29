@@ -37,7 +37,7 @@ cursor.
 | # | repo | file:line | listbox | notes |
 |---|---|---|---|---|
 | 1 | LM | `documents/quest_tab.mast:47` | `qbox` | **DONE, ENGINE-VERIFIED** (scrolling confirmed after the repaint, which is the regression that matters). Hint captured at all four repaint sites |
-| 2 | LM | `items/item_gui.mast:58` | `ubox` | |
+| 2 | LM | `items/item_gui.mast:58` | `ubox` | **DONE, awaiting engine check.** Hardest repaint in either repo: self-ticks ONCE A SECOND while an item is counting down, so the list snapped to the top every second |
 | 3 | LM | `casino/casino.mast:68` | `game_box` | |
 | 4 | LM | `casino/bar.mast:125` | `patron_box` | |
 | 5 | LM | `fabrication/beacon_tabs.mast:63` | `fab_box` | |
@@ -56,9 +56,9 @@ the view to move.
 
 | repo | file:line | listbox | why |
 |---|---|---|---|
-| LM | `hangar/hangar.mast:156` | `dock_picker` | **DONE, awaiting engine check.** The page is a LOOP: `await gui()` falls through to `jump show_hangar`, so every interaction rebuilds all three lists |
-| LM | `hangar/hangar.mast:157` | `ride_picker` | same page, same commit |
-| LM | `hangar/hangar.mast:188` | `quest_box` | same page, same commit (sortie board) |
+| LM | `hangar/hangar.mast:156` | `dock_picker` | **DONE, ENGINE-VERIFIED.** The page is a LOOP: `await gui()` falls through to `jump show_hangar`, so every interaction rebuilds all three lists |
+| LM | `hangar/hangar.mast:157` | `ride_picker` | same page, same commit, verified |
+| LM | `hangar/hangar.mast:188` | `quest_box` | same page, same commit (sortie board), verified |
 | LM | `consoles/common_console_select.mast:205` | `ship_select_lb` | restores a selection; 7 jumps to `select_console` |
 | LM | `consoles/common_console_select.mast:233` | `console_select_lb` | same page |
 
