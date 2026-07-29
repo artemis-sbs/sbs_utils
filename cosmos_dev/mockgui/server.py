@@ -444,7 +444,15 @@ async def _serve_static(writer: asyncio.StreamWriter, url_path: str) -> None:
     So each root is tried in turn, and the traversal guard is applied PER ROOT --
     a path is served only if it genuinely resolves inside the root it matched.
     """
-    roots = [os.path.normpath(os.path.join(_cosmos_dir, "data", "graphics"))]
+    graphics = os.path.normpath(os.path.join(_cosmos_dir, "data", "graphics"))
+    roots = [graphics]
+    # Engine art paths are relative to data/graphics, so a mission's media is
+    # addressed as `../missions/__lib__/media/<pack>/...`. The BROWSER collapses
+    # that `../` against the document root before sending, so what arrives is
+    # `/missions/__lib__/media/...` with the "go up one" already lost -- and it
+    # matches neither the graphics root nor the mission. Serving data/ as well
+    # puts those paths back within reach.
+    roots.append(os.path.dirname(graphics))
     roots += [os.path.normpath(r) for r in (_static_roots or []) if r]
 
     rel = url_path.lstrip("/").replace("/", os.sep)
