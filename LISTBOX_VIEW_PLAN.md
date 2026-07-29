@@ -1,6 +1,24 @@
 # Listbox: keeping the selection on screen across a repaint
 
-A plan, not a change. Pre-existing behaviour, reported 2026-07-29.
+**Part 1 is BUILT and engine-verified** (`gui_list_box(reveal=True)`, opt-in).
+Part 2, the opaque hint, is not. Three things the build changed in this plan:
+
+- **Reveal ONCE, not at every present.** The plan said "at present time" and I
+  read that as every frame -- which drags the view back and makes the list
+  unscrollable. Armed on view-(re)establish and selection change; disarmed by the
+  reveal and by a deliberate scroll, which is the later instruction and wins.
+- **DISPLAY indices, not unfiltered.** A collapsible list has two spaces and they
+  diverge once a header collapses. This broke the gallery twice.
+- **Opt-in, not default-on.** The plan argued for default-on. Two regressions in
+  a load-bearing widget say otherwise; default-on is a later conversation.
+
+Also: testing it means driving `_present` and `on_scroll`, and keeping the window
+SMALLER than the list -- three tests here were vacuous because everything fitted
+on screen. See tests/test_listbox_modes.py.
+
+---
+
+Pre-existing behaviour, reported 2026-07-29.
 
 ## The bug
 
