@@ -38,12 +38,13 @@ cursor.
 |---|---|---|---|---|
 | 1 | LM | `documents/quest_tab.mast:47` | `qbox` | **DONE, ENGINE-VERIFIED** (scrolling confirmed after the repaint, which is the regression that matters). Hint captured at all four repaint sites |
 | 2 | LM | `items/item_gui.mast:58` | `ubox` | **DONE, awaiting engine check.** Hardest repaint in either repo: self-ticks ONCE A SECOND while an item is counting down, so the list snapped to the top every second |
-| 3 | LM | `casino/casino.mast:68` | `game_box` | |
-| 4 | LM | `casino/bar.mast:125` | `patron_box` | |
-| 5 | LM | `fabrication/beacon_tabs.mast:63` | `fab_box` | |
-| 6 | LM | `fabrication/beacon_tabs.mast:164` | `car_box` | |
+| 3 | LM | `casino/casino.mast:68` | `game_box` | **DONE, awaiting engine check.** 5 rebuild paths |
+| 4 | LM | `casino/bar.mast:125` | `patron_box` | **DONE, awaiting engine check.** Busiest rebuilder in either repo -- every conversation line |
+| 5 | LM | `fabrication/beacon_tabs.mast:63` | `fab_box` | **DONE, awaiting engine check.** 1-second self-tick while a build runs |
+| 6 | LM | `fabrication/beacon_tabs.mast:164` | `car_box` | **DONE, awaiting engine check.** Rebuilt by `item_changed`, which fires constantly |
 
-**#1 is done and engine-verified.** It also turned up a latent bug next door:
+**All six PRIME items are done.** #1 engine-verified; #2-#6 await one engine pass.
+#1 It also turned up a latent bug next door:
 `get_selected_index()` returns `None` when nothing is selected, and the restore
 read `quest_sel_index >= 0` — `None >= 0` raises. Guarded.
 
@@ -162,3 +163,29 @@ is a thing you see. For each adopted site:
   wiring on these two is engine-only until the harness can reach them. Teaching
   `--exercise` to click top tabs would unblock the quest tab, the airwing tab, and
   the fabrication beacon tabs.
+
+## One engine pass for #2-#6
+
+Batched deliberately: these five are the same shape and a round trip each was
+costing more than it was worth. Check them in this order -- each has a distinctive
+rebuild trigger, and the trigger is the thing most likely to be wrong:
+
+| screen | how to reach it | the distinctive trigger to exercise |
+|---|---|---|
+| Upgrades tab | any bridge console, `upgrade` top tab | **activate an item** so a cooldown starts, then watch a second or two with a low row selected -- this is the 1-second self-tick |
+| Casino | casino console | **Buy 10 / Cash Out** with a low game selected (a rebuild from a button, not from the list) |
+| Bar | casino, enter the bar | **let somebody talk**, or send a toast -- the list rebuilt on every conversation line |
+| Fabricate tab | engineering, `fabricate` top tab | **start a build** and watch it tick with a low recipe selected |
+| Cargo tab | engineering, `cargo` top tab | **pick up salvage or eject something** while a low row is selected |
+
+In every case: scroll past the first screenful first (or nothing is observable),
+then confirm scrolling STILL WORKS afterwards -- reveal firing every present made
+the gallery unscrollable, and that regression reads as "the list is stuck".
+
+## Deliberately NOT batched: the console-select screen
+
+`consoles/common_console_select.mast:205,233` are ranked high value and left alone
+on purpose. It is the screen every player meets first, LM's history has a
+"Revert this session's server-console changes" commit in it, and a regression there
+locks people out of the game rather than annoying them. Worth its own pass, with
+its own engine check, once the five above are confirmed.
