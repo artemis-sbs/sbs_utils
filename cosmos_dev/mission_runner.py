@@ -514,7 +514,13 @@ def _run(
     if gui:
         import cosmos_dev.mockgui.sbs as sbs
         _cosmos_dir = cosmos_dir or os.path.dirname(os.path.dirname(missions_root))
-        _server_proc = sbs.start_server(port=port, cosmos_dir=_cosmos_dir)
+        # Serve art from the mission and from the missions root: a mission's own
+        # media/ and any pack it pins under shared_media: live outside
+        # data/graphics, and a shared pack is addressed `../__lib__/media/<pack>/`
+        # which the browser normalises to `/__lib__/media/...`.
+        _server_proc = sbs.start_server(
+            port=port, cosmos_dir=_cosmos_dir,
+            static_roots=[mission_folder, missions_root])
         print(f"[runner] GUI server started — open http://localhost:{port}/")
         _orig_stdout, _orig_stderr = sys.stdout, sys.stderr
         sys.stdout = _TeeWriter(sys.__stdout__, "info",  sbs.gui_queue)

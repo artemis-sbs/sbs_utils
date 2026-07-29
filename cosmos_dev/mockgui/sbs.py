@@ -94,6 +94,7 @@ def start_server(
     host: str = "0.0.0.0",
     port: int = 8765,
     cosmos_dir: "str | None" = None,
+    static_roots: "list | None" = None,
 ) -> multiprocessing.Process:
     """Start the WebSocket bridge server in a child process.
 
@@ -104,6 +105,13 @@ def start_server(
 
     cosmos_dir: Cosmos install root (e.g. /path/to/Cosmos-1-3-0). Images are
     served from <cosmos_dir>/data/graphics/. Defaults to sbs_utils.fs.exe_dir.
+
+    static_roots: extra directories the browser may fetch art from. Engine art
+    lives under data/graphics, but a mission's OWN media/ and any pack it pins
+    under shared_media: do not -- so without these, mission art 404s in the
+    browser while drawing correctly in the engine. Defaults to the mission dir
+    and the missions root (a shared pack is `../__lib__/media/<pack>/...`, which
+    the browser normalises to `/__lib__/media/...`).
 
     Requires only Python stdlib — no pip packages needed.
     """
@@ -116,6 +124,12 @@ def start_server(
         except Exception:
             pass
 
+    # Deliberately NOT derived from fs.get_script_dir(): that is sys.path[0],
+    # which _load_libs has just filled with the last-inserted mastlib, so it
+    # points into __lib__/<some>.mastlib rather than at the mission. The caller
+    # knows the real paths; it passes them.
+    static_roots = list(static_roots or [])
+
     gui_queue          = multiprocessing.Queue()
     client_event_queue = multiprocessing.Queue()
     gui_event_queue    = multiprocessing.Queue()
@@ -125,7 +139,8 @@ def start_server(
 
     p = multiprocessing.Process(
         target=server_mod.run_server,
-        args=(gui_queue, client_event_queue, gui_event_queue, ready, host, port, cosmos_dir),
+        args=(gui_queue, client_event_queue, gui_event_queue, ready, host, port,
+              cosmos_dir, static_roots),
         daemon=True,
         name="sbs-server",
     )

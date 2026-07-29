@@ -63,6 +63,7 @@ _client_event_queue: Optional[multiprocessing.Queue] = None
 _gui_event_queue:    Optional[multiprocessing.Queue] = None
 _ready_event:        Optional[multiprocessing.Event] = None
 _cosmos_dir:         Optional[str] = None   # Cosmos install root; images served from <cosmos_dir>/data/graphics/
+_static_roots:       list = []              # extra roots for mission media / shared media packs
 
 # ---------------------------------------------------------------------------
 # Frame state
@@ -431,23 +432,35 @@ async def _handle_websocket(client_id: int,
 # Raw TCP connection handler (HTTP + WebSocket upgrade)
 # ---------------------------------------------------------------------------
 async def _serve_static(writer: asyncio.StreamWriter, url_path: str) -> None:
-    """Serve a file from <cosmos_dir>/data/graphics/ given a URL path."""
-    graphics_root = os.path.normpath(os.path.join(_cosmos_dir, "data", "graphics"))
-    # Strip leading slash and normalise
+    """Serve a file from any allowed static root, given a URL path.
+
+    Engine art lives under <cosmos_dir>/data/graphics/, but a mission's own
+    `media/` and any pack it pins under `shared_media:` do NOT -- a shared pack
+    is addressed as `../__lib__/media/<pack>/...`, which the browser normalises
+    to `/__lib__/media/...` before it ever reaches us. With only the graphics
+    root allowed, every one of those was a 403/404 and mission art simply did not
+    appear in the browser, though it drew correctly in the engine.
+
+    So each root is tried in turn, and the traversal guard is applied PER ROOT --
+    a path is served only if it genuinely resolves inside the root it matched.
+    """
+    roots = [os.path.normpath(os.path.join(_cosmos_dir, "data", "graphics"))]
+    roots += [os.path.normpath(r) for r in (_static_roots or []) if r]
+
     rel = url_path.lstrip("/").replace("/", os.sep)
-    abs_path = os.path.normpath(os.path.join(graphics_root, rel))
-    # Prevent path traversal outside the graphics root
-    if not abs_path.startswith(graphics_root + os.sep) and abs_path != graphics_root:
-        await _http_send(writer, "403 Forbidden", "text/plain", "Forbidden")
+    for root in roots:
+        abs_path = os.path.normpath(os.path.join(root, rel))
+        if not abs_path.startswith(root + os.sep) and abs_path != root:
+            continue                      # escapes THIS root; try the next
+        if not os.path.isfile(abs_path):
+            continue
+        mime, _ = mimetypes.guess_type(abs_path)
+        mime = mime or "application/octet-stream"
+        with open(abs_path, "rb") as f:
+            data = f.read()
+        await _http_send(writer, "200 OK", mime, data)
         return
-    if not os.path.isfile(abs_path):
-        await _http_send(writer, "404 Not Found", "text/plain", f"Not found: {url_path}")
-        return
-    mime, _ = mimetypes.guess_type(abs_path)
-    mime = mime or "application/octet-stream"
-    with open(abs_path, "rb") as f:
-        data = f.read()
-    await _http_send(writer, "200 OK", mime, data)
+    await _http_send(writer, "404 Not Found", "text/plain", f"Not found: {url_path}")
 
 
 async def _handle_connection(reader: asyncio.StreamReader,
@@ -641,14 +654,17 @@ def run_server(
     host: str = "0.0.0.0",
     port: int = 8765,
     cosmos_dir: Optional[str] = None,
+    static_roots: Optional[list] = None,
 ) -> None:
     """Inject shared queues, then start the asyncio event loop. Runs in a child process."""
     global _gui_queue, _client_event_queue, _gui_event_queue, _ready_event, _cosmos_dir
+    global _static_roots
     _gui_queue          = gui_q
     _client_event_queue = client_event_q
     _gui_event_queue    = gui_event_q
     _ready_event        = ready_event
     _cosmos_dir         = cosmos_dir
+    _static_roots       = list(static_roots or [])
     _watch_parent_and_exit()
     asyncio.run(_serve(host, port))
 
@@ -660,6 +676,7 @@ if __name__ == "__main__":
     host        = sys.argv[1] if len(sys.argv) > 1 else "0.0.0.0"
     port        = int(sys.argv[2]) if len(sys.argv) > 2 else 8765
     _cosmos_dir = sys.argv[3] if len(sys.argv) > 3 else None
+    _static_roots = [a for a in sys.argv[4:] if a]
     _gui_queue          = multiprocessing.Queue()
     _client_event_queue = multiprocessing.Queue()
     _gui_event_queue    = multiprocessing.Queue()
