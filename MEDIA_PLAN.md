@@ -149,12 +149,20 @@ relative path; music is unknown.
 
 With art living once, custom icon sheets become worth building.
 
-- `gui_image_add_atlas_grid(sheet, cols, rows, names, cell=None)` — the casino hand-loops
-  cell arithmetic in `casino_media.py`; this replaces it with one call.
-- `domain=` namespacing on registration, the way the AMD schema does it, so two addons
-  cannot silently claim the same key. (`ImageAtlas.all` is one process-wide dict today.)
-- `is_valid()` wired into `sbs lint`: a missing sheet or an out-of-range cell should be
-  loud. Today it renders nothing, silently.
+- ~~`gui_image_add_atlas_grid(...)`~~ — **DONE**. Names laid out row-major (a `None`
+  entry skips a cell), or a dict for a sparse sheet; the cell size is MEASURED off the
+  file when not given, so the art is not repeated in the code.
+- ~~`domain=` namespacing~~ — **DONE**, and it turned out to be a guard rather than
+  tidying. Icons resolve through the `icon` domain, so a mission registering an ordinary
+  image called `square` or `flag` — words nobody would think twice about — no longer
+  silently re-skins every state pip in the game. `gui_icon_add_atlas` is the deliberate
+  spelling. (Nothing collides in LM/OU today: five keys, all prefixed. That was luck.)
+- ~~`is_valid()` wired into `sbs lint`~~ — **DONE**, as `amd_lint_images`. Four ways an
+  atlas entry draws a blank widget silently today: no sheet, a sheet not on disk, an
+  `At:` with nothing to measure a cell against, a cell off the edge. The linter has no
+  engine paths, so it resolves art from the FILE it was handed (mission `media/`, the
+  mission root, the .amd's folder, each unpacked shared pack) and stays quiet when it
+  cannot find a mission root at all, rather than calling every sheet missing.
 - ~~`gui_icon_named(name, color)`~~ — **DONE**, as `gui_icon_name(name, color, style)`.
   An icon-shaped wrapper that takes a NAME and renders whichever backing that name has: a
   built-in `icon_index` or an atlas cell. This is the indirection that lets consumers be
@@ -181,10 +189,18 @@ With art living once, custom icon sheets become worth building.
   `document_screen.py`) — the names now exist for all of them (`quest.state`, `check.on`,
   `list.expand`, `list.prev`).
 
-## Phase 4 — icons declared in AMD
+## Phase 4 — icons declared in AMD — **DONE**
 
-An icon is a catalog entry: not an Agent, not dialogue. It earns a small `icon`
-archetype, the way `recipe` did.
+Landed as ONE `image` archetype covering **any** atlas, not just icons — an icon is
+simply an atlas cell that resolves in the icon domain, so a mission's card deck and its
+icon sheet are authored the same way. `Sheet` / `Cell` / `Grid` / `Domain` / `Color` are
+written once on the SECTION and inherited, so an entry is a single `At:` line, and
+`Rect:` covers an irregular cell. Reader: `procedural/amd_images.py` -
+`images_load_amd(file)` / `images_declare_document(doc)`. Two node models (the runtime's
+`amd_document`, the linter's `amd_core`) share one record builder, so a fact cannot mean
+one thing to the linter and another to the game.
+
+The original sketch, for the record:
 
 ```amd
 ## [Icons](icons)
@@ -223,12 +239,27 @@ silhouettes**. Color is applied per use, so one glyph serves every state and a s
 sheet goes a long way. Ships in LM's media pack, so every mission that already declares
 it gets the icons free.
 
-## Phase 6 — the consumers
+## Phase 6 — the consumers — **quest log DONE**
 
-The quest log is the first: shape per kind (Job / Objective / Beat / Arc), and the
-redundant state sub-line replaced by progress, pays, or time remaining. **Parked until
-the media work lands** — deliberately, so the log is written once against names rather
-than twice against glyphs.
+The quest log now draws **shape from the kind, color from the state** - two facts in one
+glyph, where every row used to be the same square. `quest_log_icon(row)` returns
+`quest.job` / `quest.beat` / `quest.arc` / ..., falling back to the plain pip for a quest
+with no kind (every quest written before kinds existed still renders; it just says less)
+and for a kind noun nobody defined, since `quest.wombat` would draw nothing.
+
+The second line **earns its place**: it repeated the state, which the icon's color
+already said. `quest_log_detail(row)` now says, in order - how far along (`2 of 6`), what
+it pays while it is still a choice (`Reward: 120 credits`), how long is left (`1:30
+left`), and only then the state, which for Done/Failed IS the news.
+
+Both read fence fields from `data` AND from the quest itself, the trap `_quest_show`
+documents: authored quests keep them in one place, driven ones in the other.
+
+Also converted: the list box's carousel arrows (`152`/`153` -> `list.prev`/`list.next`),
+via `icon_props()` for renderers that send to the engine directly. Left alone: the
+checkbox's `121`, which is a button FRAME rather than a state icon.
+
+Still numbers, and fine there: LM's `document_screen.py` (a different log, same idea).
 
 ---
 

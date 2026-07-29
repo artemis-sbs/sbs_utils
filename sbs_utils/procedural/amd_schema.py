@@ -339,10 +339,25 @@ MAP = {
     "scope": enum("shared", "ship"),
 }
 
+# A cell of a sheet: where the art is, and which key names it. `Sheet`/`Cell`/`Grid`/
+# `Domain` are usually written ONCE on the section and inherited, so an entry is one
+# `At:` line - which is what makes moving a glyph an edit rather than an arithmetic
+# exercise. An `icons` section registers into the icon domain, so its keys are the LOOKS
+# `gui_icon_name` resolves; anything else registers ordinary atlas keys.
+IMAGE = {
+    "sheet": text(hint="icons/quest-sheet - inside a media pack, or a mission path"),
+    "at": coord2(hint="col, row"),
+    "cell": text(hint="64, or 190, 280 - the cell size in PIXELS"),
+    "grid": coord2(hint="8, 8 - cells across and down, to measure a cell instead"),
+    "rect": text(hint="left, top, right, bottom in pixels - for an irregular cell"),
+    "color": color(),
+    "domain": text(hint="a namespace, so two addons cannot claim one key"),
+}
+
 ARCHETYPES = {
     "quest": QUEST, "lifeform": LIFEFORM, "item": ITEM, "side": SIDE,
     "scan": SCAN, "landmark": LANDMARK, "region": REGION, "map": MAP,
-    "dialogue": DIALOGUE,
+    "dialogue": DIALOGUE, "image": IMAGE,
 }
 
 # TRAITS: a concern a record ALSO has, on top of what it is.
@@ -452,6 +467,10 @@ _SECTION_ALIASES = {
     "regions": "region", "region": "region",
     "maps": "map", "map": "map",
     "dialogue": "dialogue", "lines": "dialogue",
+    # An icon IS an atlas cell that resolves in the icon domain - one archetype, two
+    # section words, so a mission's card deck and its icon sheet read the same way.
+    "images": "image", "image": "image", "art": "image", "atlas": "image",
+    "icons": "image", "icon": "image", "sheet": "image", "sheets": "image",
     # The ROOT record of a file names the whole document - a universe, a scenario, a
     # siege. That is what a map record is, so these read as one without a new word.
     "universe": "map", "scenario": "map", "siege": "map", "boss": "map",

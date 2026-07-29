@@ -470,13 +470,18 @@ class LayoutListbox(layout.Column):
             self.cur = 0
         
 
-# region Draw Carousel Nav Buttons        
+# region Draw Carousel Nav Buttons
+        from ...procedural.gui.icon_sheet import icon_props
         em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
         if self.carousel and not self.horizontal:
             icon_size = em2*2
             if self.cur>0:
-                SBS.send_gui_icon(event.client_id, self.local_region_tag, f"{self.tag_prefix}idec",
-                    "icon_index:152;color:#aaa;draw_layer:1000;",
+                # By NAME, so a mission that ships its own icon sheet re-skins the
+                # carousel arrows too - see procedural/gui/icon_sheet.py.
+                kind, props = icon_props("list.prev", "#aaa", "draw_layer:1000")
+                send = SBS.send_gui_image if kind == "image" else SBS.send_gui_icon
+                send(event.client_id, self.local_region_tag, f"{self.tag_prefix}idec",
+                    props,
                     self.bounds.left, self.bounds.bottom-icon_size*2, self.bounds.left+icon_size, self.bounds.bottom)
                     #self.bounds.left, self.bounds.top, self.bounds.left+icon_size, self.bounds.bottom)
 
@@ -492,8 +497,10 @@ class LayoutListbox(layout.Column):
                     self.bounds.left, self.bounds.top, self.bounds.left+em2*5, self.bounds.bottom)
             max_item = len(self._items)-1
             if self.cur<max_item:
-                SBS.send_gui_icon(event.client_id, self.local_region_tag, f"{self.tag_prefix}iinc",
-                    "icon_index:153;color:#aaa;draw_layer:1000;",
+                kind, props = icon_props("list.next", "#aaa", "draw_layer:1000")
+                send = SBS.send_gui_image if kind == "image" else SBS.send_gui_icon
+                send(event.client_id, self.local_region_tag, f"{self.tag_prefix}iinc",
+                    props,
                     self.bounds.right-icon_size , self.bounds.bottom-icon_size*2, self.bounds.right, self.bounds.bottom)
                     #self.bounds.right-icon_size , self.bounds.top, self.bounds.right, self.bounds.bottom)
                 SBS.send_gui_text(event.client_id, self.local_region_tag, 

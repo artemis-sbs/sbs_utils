@@ -53,12 +53,23 @@ class NamesInsteadOfNumbers(unittest.TestCase):
         changes, with no edit to the code that draws it."""
         from sbs_utils.procedural.gui.image import ImageAtlas
         try:
-            ImageAtlas.all["wanted"] = object()
+            ImageAtlas.all["icon:wanted"] = object()
             index, key = IN.icon_resolve("quest.job")
             self.assertIsNone(index)
-            self.assertEqual(key, "wanted")
+            self.assertEqual(key, "icon:wanted")
         finally:
-            ImageAtlas.all.pop("wanted", None)
+            ImageAtlas.all.pop("icon:wanted", None)
+
+    def test_an_ordinary_image_named_square_does_NOT_re_skin_icons(self):
+        """The guard. `ImageAtlas.all` is one process-wide dict, and `square` or `flag`
+        are words any mission might use for an unrelated image - without the domain that
+        would silently re-skin every icon meaning pointing there."""
+        from sbs_utils.procedural.gui.image import ImageAtlas
+        try:
+            ImageAtlas.all["square"] = object()
+            self.assertEqual(IN.icon_resolve("quest.state"), (101, None))
+        finally:
+            ImageAtlas.all.pop("square", None)
 
 
 class TheAtlasBackedPath(unittest.TestCase):

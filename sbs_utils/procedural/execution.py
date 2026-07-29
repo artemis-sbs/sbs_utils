@@ -113,8 +113,15 @@ def log(message: str, name: str=None, level: str=None, use_mast_scope=False) -> 
     _logger = logging.getLogger(name)
 
     if isinstance(level, str):
+        # getLevelNamesMapping is a FUNCTION - calling `.get` on the function itself
+        # raised AttributeError, so every `log(msg, name, "warning")` in the library
+        # crashed its caller instead of logging. (3.11+ has the mapping; older builds
+        # fall back to the module attribute.)
         level = level.upper()
-        level = logging.getLevelNamesMapping.get(level)
+        mapping = getattr(logging, "getLevelNamesMapping", None)
+        level = (mapping() if callable(mapping) else {}).get(level)
+        if level is None:
+            level = getattr(logging, str(level or ""), None)
     if level is None:
         level = logging.DEBUG
     _logger.log(level, message)

@@ -58,20 +58,88 @@ for quest in quests:
 
 ## Bring your own sheet
 
-A name is not tied to the built-in sheet. Register the **look** as an image atlas key and
+A name is not tied to the built-in sheet. Claim the **look** for a cell of your own and
 it wins over the built-in index:
 
 ```python
-from sbs_utils.procedural.gui import gui_image_add_atlas
+from sbs_utils.procedural.gui import gui_icon_add_atlas
 from sbs_utils.procedural.media_paths import media_shared
 
 # One 64px cell out of your own sheet, claiming the name "wanted".
-gui_image_add_atlas("wanted", media_shared("icons/quest-sheet"), 0, 0, 64, 64)
+gui_icon_add_atlas("wanted", media_shared("icons/quest-sheet"), 0, 0, 64, 64)
 ```
 
 From then on every `gui_icon_name("quest.job")` in the game draws *your* art — **with no
 edit to the code that draws it**. That is what lets a screen be written before its art
 exists, and lets an add-on re-skin screens it doesn't own.
+
+Or claim a whole sheet at once, laid out row-major:
+
+```python
+gui_icon_add_atlas_grid(media_shared("icons/quest-sheet"), 8, 8,
+                        ["wanted", "flag", "talks", None, "bell"], cell=64)
+```
+
+!!! warning "Claiming a look has to be deliberate"
+    `gui_icon_add_atlas` is `gui_image_add_atlas(..., domain="icon")`, and only the icon
+    domain re-skins. A plain `gui_image_add_atlas("square", ...)` — a perfectly ordinary
+    thing to call an image — does **not** become the icon `square`. Without that scope
+    one image registration could silently re-skin every state pip in the game, and the
+    author would have no way to know why.
+
+## Icons written as a fact sheet
+
+A sheet is a catalog, and a catalog is what AMD is for. An
+[image section](../build/amd-format.md) registers the same keys with no Python at all —
+`Sheet`, `Cell` and the domain are written once on the section, so an entry is one line:
+
+```amd
+## [Icons](icons)
+---
+icons
+Sheet: icons/quest-sheet
+Cell: 64
+---
+The quest log's glyphs. White silhouettes - color is applied per use.
+
+### [Job](wanted)
+---
+At: 0, 0
+---
+
+### [Beat](talks)
+---
+At: 1, 0
+Color: #888
+---
+```
+
+```python
+images_load_amd("icons.amd")     # or images_declare_document(doc) for a section of a bigger file
+```
+
+A section whose kind noun is `icons` registers in the icon domain — so those keys are
+looks. Any other word (`images`, `art`, `atlas`) registers ordinary atlas keys, which is
+what a card deck or a set of console backdrops wants:
+
+```amd
+## [Cards](cards)
+---
+images
+Sheet: casino/terran_deck
+Cell: 190, 280
+Domain: casino
+---
+
+### [Back](card_back)
+---
+At: 0, 0
+---
+```
+
+`sbs lint` checks these: a sheet that is not on disk, an `At:` with no `Cell:` to measure
+against, and a cell that falls off the edge of the sheet. All three draw a blank widget
+today with no error anywhere.
 
 !!! tip "Where a custom sheet should live"
     Put it in a **[shared media pack](../build/shared-media.md)** rather than in each

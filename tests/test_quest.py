@@ -7,7 +7,7 @@ from sbs_utils.procedural.quest import (
     quest_add, quest_get, quest_remove, quest_transfer,
     quest_get_state, quest_get_key, quest_set_key,
     quest_activate, quest_complete,
-    quest_log_build_items,
+    quest_log_build_items, quest_log_icon, quest_log_detail, quest_log_template,
     quest_console_enable, quest_is_console_enabled,
     quest_add_yaml, quest_add_object, quest_agent_quests,
     document_get_amd_file,
@@ -464,6 +464,151 @@ class TestQuestLogShow(unittest.TestCase):
         self._add("job", "The Ghost Freighter", state=QuestState.IDLE, reward="400 credits")
         self._add("job/hail", "Hail the Meridian", state=QuestState.SECRET)
         self.assertIn("The Ghost Freighter", self._titles())
+
+
+class TestQuestLogRowLook(unittest.TestCase):
+    """A row used to be a square that said only its state, twice - the same glyph for a
+    job, a beat and an arc, over a caption repeating what the color already said."""
+
+    def setUp(self):
+        SpaceObject.clear()
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        self.aid = make_agent().id
+
+    def _row(self, key="q", title="A quest", state=QuestState.ACTIVE, **data):
+        quest_add(self.aid, key, title, "", state=state, data=data)
+        for r in quest_log_build_items([("Mission", self.aid)]):
+            if getattr(r, "get", None) and r.get("key") == key:
+                return r
+        self.fail("no row for %r" % key)
+
+    # --- the glyph: shape says WHAT it is, color says WHICH STATE it is in -----
+    def test_the_kind_picks_the_shape(self):
+        self.assertEqual(quest_log_icon(self._row("j", "Haul ore", __kind__="job")),
+                         "quest.job")
+
+    def test_a_kind_noun_may_be_plural(self):
+        """`Beats` and `beat` are the same word to an author. (Complete, because a beat's
+        kind default is `Show: when done` - it is history, not a to-do.)"""
+        row = self._row("b", "A moment", state=QuestState.COMPLETE, __kind__="Beats")
+        self.assertEqual(quest_log_icon(row), "quest.beat")
+
+    def test_an_untyped_quest_keeps_the_plain_pip(self):
+        """Every quest written before kinds existed still renders - it just says less."""
+        self.assertEqual(quest_log_icon(self._row("p", "Plain")), "quest.state")
+
+    def test_an_unknown_noun_is_not_invented_into_an_icon_name(self):
+        """`quest.wombat` would resolve to nothing and draw nothing; the pip is right."""
+        self.assertEqual(quest_log_icon(self._row("w", "Odd", __kind__="wombat")),
+                         "quest.state")
+
+    # --- the second line has to earn its place --------------------------------
+    def test_progress_beats_repeating_the_state(self):
+        row = self._row("k", "Destroy 6 raiders", goal={"count": 6})
+        row.__dict__["progress"] = 2
+        self.assertEqual(quest_log_detail(row), "2 of 6")
+
+    def test_progress_cannot_read_past_its_target(self):
+        row = self._row("k2", "Destroy 6", goal={"count": 6})
+        row.__dict__["progress"] = 9
+        self.assertEqual(quest_log_detail(row), "6 of 6")
+
+    def test_an_offered_job_shows_what_it_pays(self):
+        """While it is still a CHOICE, the pay is the fact the reader is deciding on."""
+        row = self._row("o", "Escort", state=QuestState.IDLE, reward={"credits": 120})
+        self.assertEqual(quest_log_detail(row), "Reward: 120 credits")
+
+    def test_an_accepted_job_stops_advertising_the_reward(self):
+        row = self._row("a", "Escort", state=QuestState.ACTIVE, reward={"credits": 120})
+        self.assertEqual(quest_log_detail(row), "Active")
+
+    def test_a_deadline_shows_the_time_left(self):
+        row = self._row("d", "Beat the clock")
+        row.__dict__["remaining"] = "1:30"
+        self.assertEqual(quest_log_detail(row), "1:30 left")
+
+    def test_a_resolved_quest_says_its_state_because_that_IS_the_news(self):
+        self.assertEqual(quest_log_detail(self._row("c", "Done", state=QuestState.COMPLETE)),
+                         "Done")
+        self.assertEqual(quest_log_detail(self._row("f", "Lost", state=QuestState.FAILED)),
+                         "Failed")
+
+    def test_a_field_written_ON_the_quest_is_found_too(self):
+        """Fence fields live under `data` (every other test here), but code that sets one
+        directly writes it on TOP - so both places have to be read or the log is right
+        for authored quests and silently blank for driven ones."""
+        quest_add(self.aid, "top", "Escort", "", state=QuestState.IDLE)
+        quest_set_key(self.aid, "top", "reward", {"credits": 90})
+        row = [r for r in quest_log_build_items([("Mission", self.aid)])
+               if getattr(r, "get", None) and r.get("key") == "top"][0]
+        self.assertEqual(quest_log_detail(row), "Reward: 90 credits")
+
+    def test_a_plain_active_quest_still_says_something(self):
+        self.assertEqual(quest_log_detail(self._row("s", "Simple")), "Active")
+
+
+class TestQuestLogTemplateDraws(unittest.TestCase):
+    """The template itself, through the real widget calls - a unit test of the row DATA
+    would have missed that a named icon can legitimately return None (an unknown name
+    draws nothing), which the header path then hangs a click handler on."""
+
+    def setUp(self):
+        SpaceObject.clear()
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        self.aid = make_agent().id
+        import types
+        from sbs_utils.mast_sbs.maststorypage import StoryPage
+        self.page = StoryPage()
+        self.page.pending_gui = False
+        self.page.client_id = 0
+        FrameContext.page = self.page
+        # The smallest task the widget calls need: a style resolves an aspect ratio
+        # through `task.main.page.client_id`, and text/image props are formatted through
+        # the task. A whole scheduler would test the scheduler, not this template.
+        FrameContext.task = types.SimpleNamespace(
+            main=types.SimpleNamespace(page=self.page),
+            compile_and_format_string=lambda value: value,
+            format_string=lambda value: value)
+
+    def tearDown(self):
+        FrameContext.page = None
+        FrameContext.task = None
+
+    def _draw_all(self):
+        """Draw every row the log would build, and return how many widgets came out."""
+        quest_add(self.aid, "arc", "The Long Haul", "", state=QuestState.ACTIVE,
+                  data={"__kind__": "arc"})
+        quest_add(self.aid, "arc/one", "Reach the depot", "", state=QuestState.ACTIVE,
+                  data={"__kind__": "objective", "goal": {"count": 3}})
+        quest_add(self.aid, "job", "Escort", "", state=QuestState.IDLE,
+                  data={"__kind__": "job", "reward": {"credits": 120}})
+        items = quest_log_build_items([("Mission", self.aid)])
+        before = len(self.page.pending_row.columns) if self.page.pending_row else 0
+        for item in items:
+            quest_log_template(item)
+        return items, before
+
+    def test_every_row_kind_draws_without_raising(self):
+        items, _ = self._draw_all()
+        self.assertTrue(items)                       # a section, an arc header, rows
+
+    def test_the_widgets_actually_reach_the_page(self):
+        self._draw_all()
+        rows = self.page.pending_layouts[-1].rows if self.page.pending_layouts else []
+        self.assertTrue(rows, "the template drew nothing")
+
+    def test_a_missing_icon_does_not_break_the_fold_arrow(self):
+        """`gui_icon_name` returns None for a name it cannot resolve, and the header path
+        sets click properties on what it gets back."""
+        from sbs_utils.procedural.gui import icon_sheet
+        real = icon_sheet.ICON_ALIAS.get("list.collapse")
+        icon_sheet.ICON_ALIAS["list.collapse"] = "no-such-look"
+        try:
+            self._draw_all()                          # must not raise
+        finally:
+            icon_sheet.ICON_ALIAS["list.collapse"] = real
 
 
 if __name__ == '__main__':

@@ -83,6 +83,33 @@ def gui_icon_name(name, color=None, style=None, props=None):
     return gui_icon(";".join(parts) + ";", style)
 
 
+def gui_icon_add_atlas(name, image, left=None, top=None, right=None, bottom=None,
+                       color=None):
+    """Claim an icon NAME for a cell of your own sheet.
+
+        gui_icon_add_atlas("wanted", media_shared("icons/quest-sheet"), 0, 0, 64, 64)
+
+    From then on every `gui_icon_name("quest.job")` draws your art - the meaning points
+    at the look `wanted`, and this claims that look. Nothing that draws it changes.
+
+    This is `gui_image_add_atlas(..., domain="icon")`. The domain is what separates a
+    deliberate re-skin from an image that happens to be called `square`.
+    """
+    from .image import gui_image_add_atlas
+    from .icon_sheet import ICON_DOMAIN
+    return gui_image_add_atlas(name, image, left, top, right, bottom, color, ICON_DOMAIN)
+
+
+def gui_icon_add_atlas_grid(image, cols, rows=None, names=None, cell=None, color=None,
+                            start=0):
+    """Claim a whole sheet of icon names at once - `gui_image_add_atlas_grid` in the icon
+    domain. Names are laid out row-major; a `None` entry skips a cell."""
+    from .image import gui_image_add_atlas_grid
+    from .icon_sheet import ICON_DOMAIN
+    return gui_image_add_atlas_grid(image, cols, rows, names, cell, color, ICON_DOMAIN,
+                                    start)
+
+
 from ...pages.layout.icon_button import IconButton
 def gui_icon_button(props, style=None):
     """Add a clickable icon button to the current GUI layout.

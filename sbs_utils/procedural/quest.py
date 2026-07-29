@@ -885,6 +885,106 @@ def _quest_show(q):
     return str(raw or "always").strip().lower().replace("_", " ")
 
 
+_QUEST_LOG_KINDS = ("job", "objective", "beat", "arc", "cue", "chapter", "act",
+                   "sequence", "thread")
+
+
+def _quest_kind(q):
+    """The record's kind noun (`job` / `beat` / `arc` / ...), or None.
+
+    Lives in the fence data like `Show:` does - only state / display_text / description
+    are promoted onto the quest itself - so both places are checked here rather than in
+    every caller."""
+    for src in (q, q.get("data") if hasattr(q, "get") else None):
+        if not hasattr(src, "get"):
+            continue
+        kind = src.get("__kind__") or src.get("kind")
+        if kind:
+            kind = str(kind).strip().lower().rstrip("s")
+            if kind in _QUEST_LOG_KINDS:
+                return kind
+    return None
+
+
+def quest_log_icon(row):
+    """The icon NAME for a row: its kind if it has one, else the plain state pip.
+
+    Shape says what KIND of thing it is, color says what STATE it is in - two facts in
+    one glyph, where before every row was the same square and the kind was invisible. The
+    name resolves through the icon sheet, so a mission that ships its own art re-skins
+    every quest log without touching this."""
+    kind = row.get("kind") if hasattr(row, "get") else None
+    return f"quest.{kind}" if kind else "quest.state"
+
+
+def quest_log_detail(row):
+    """The second line of a row - the most useful thing known about it.
+
+    It used to repeat the state, which the icon's COLOR already says; a line that says
+    what the reader can already see is a line they stop reading. In order: how far along,
+    what it pays while it is still a choice, how long is left, and only then the state
+    (which for `Done` / `Failed` IS the news)."""
+    if not hasattr(row, "get"):
+        return ""
+    need = row.get("need") or 0
+    progress = row.get("progress") or 0
+    state = int(row.get("state") or 0)
+    if need and state == int(QuestState.ACTIVE):
+        return f"{min(progress, need)} of {need}"
+    if state in (int(QuestState.IDLE), int(QuestState.POSTING)) and row.get("reward"):
+        return f"Reward: {row.get('reward')}"
+    if state == int(QuestState.ACTIVE) and row.get("remaining"):
+        return f"{row.get('remaining')} left"
+    if state == int(QuestState.ACTIVE) and progress:
+        return f"{progress} so far"
+    return row.get("state_label") or quest_log_state_label(state)
+
+
+def _quest_field(q, label):
+    """A fence field, wherever it ended up. Only state / display_text / description are
+    promoted onto the quest itself, so an AMD-authored `Reward:` is under `data` while a
+    hand-built one may be on top - the same trap `_quest_show` documents."""
+    if not hasattr(q, "get"):
+        return None
+    qd = q.get("data") or {}
+    value = qd.get(label) if hasattr(qd, "get") else None
+    return value if value is not None else q.get(label)
+
+
+def _quest_reward_text(q):
+    """A reward as an author would read it back: `120 credits`."""
+    reward = _quest_field(q, "reward")
+    if not reward:
+        return None
+    if isinstance(reward, dict):
+        return ", ".join(f"{v} {k}" for k, v in reward.items() if v)
+    return str(reward).strip() or None
+
+
+def _quest_need(q):
+    """How many the goal counts, when it counts - `destroy 6 raiders` -> 6."""
+    goal = _quest_field(q, "goal")
+    if isinstance(goal, dict):
+        for label in ("count", "need", "amount"):
+            value = goal.get(label)
+            if value:
+                try:
+                    return int(value)
+                except (TypeError, ValueError):
+                    return 0
+    return 0
+
+
+def _quest_remaining(aid, qid):
+    """Time left on a quest's fail deadline, `M:SS`, or "" when there is none. The driver
+    anchors that timer lazily, so this is also how the log learns a deadline exists."""
+    try:
+        from sbs_utils.procedural.timers import format_time_remaining
+        return format_time_remaining(aid, "qfail:" + str(qid)) or ""
+    except Exception:
+        return ""
+
+
 def _quest_log_rows(children, aid, group, depth):
     """One level of the quest tree. A quest that HAS visible children is emitted as a
     COLLAPSIBLE gui_list_box_header - so it folds its steps exactly like the Game/You/Ship
@@ -912,12 +1012,18 @@ def _quest_log_rows(children, aid, group, depth):
     for cid, q, st, show in entries:
         # `key` is the FULL path (q["id"], e.g. "arc/step1") so accept/abandon/Engage look
         # it up path-aware; falls back to the child segment for older quests.
+        qid = q.get("id") or cid
         row = MastDataObject({
-            "agent_id": aid, "key": q.get("id") or cid, "group": group, "indent": depth,
+            "agent_id": aid, "key": qid, "group": group, "indent": depth,
             "title": str(q.get("display_text", cid)), "state": st,
             "state_label": quest_log_state_label(st),
             "progress": q.get("progress", 0),
             "desc": (q.get("description") or "").strip(),
+            # What it IS, and what is worth reading under its title.
+            "kind": _quest_kind(q),
+            "need": _quest_need(q),
+            "reward": _quest_reward_text(q),
+            "remaining": _quest_remaining(aid, qid) if st == int(QuestState.ACTIVE) else "",
         })
         kids = q.get("children")
         visible_kids = _quest_log_rows(kids, aid, group, depth + 1) if kids else []
@@ -972,36 +1078,38 @@ def quest_log_title():
 def quest_log_template(item):
     """Canonical quest-log row renderer (section headers + quest rows), shared by
     the in-game and end-game logs. Fix the look here and both update."""
-    from sbs_utils.procedural.gui import gui_row, gui_text, gui_icon
+    from sbs_utils.procedural.gui import gui_row, gui_text, gui_icon_name
     # A header row. Two kinds: a source group (Game / You / Ship) is a bare label + fold
     # arrow; a PARENT QUEST (its data carries a quest `key`) folds its steps and renders
     # like a quest row - state icon + title - with the fold arrow. The list box handles the
     # indent (by header level); this template does not pad.
     if gui_list_box_is_header(item):
-        icon_index = 155 if not item.collapse else 154   # fold arrow: open / collapsed
+        fold = "list.collapse" if not item.collapse else "list.expand"
         hdata = getattr(item, "data", None) or {}
         if hdata.get("key") is not None:
             gui_row("row-height: 1.2em;padding:6px;")
-            gui_icon(f"icon_index:{QUEST_LOG_STATE_ICON};color:{quest_log_state_icon_color(hdata.get('state'))};", "padding:5px,0,5px,0;")
+            gui_icon_name(quest_log_icon(hdata),
+                          quest_log_state_icon_color(hdata.get("state")),
+                          "padding:5px,0,5px,0;")
             gui_text(f"$text:{item.label};justify: left;", "padding:5px,6px,0,0;")
-            arrow = gui_icon(f"icon_index:{icon_index};color:#fff;", "padding:0,0,5px,0;")
+            arrow = gui_icon_name(fold, "#fff", "padding:0,0,5px,0;")
             gui_row("row-height: 1.0em;padding:6px;")
-            gui_text(f"$text:{quest_log_state_label(hdata.get('state'))};justify: left;font:gui-1")
+            gui_text(f"$text:{quest_log_detail(hdata)};justify: left;font:gui-1")
         else:
             gui_row("row-height: 1.4em;padding:6px;")
             gui_text(f"$text:{item.label};justify: left;color:#fff;", "padding:5px,6px,0,0;background:#1578")
-            arrow = gui_icon(f"icon_index:{icon_index};color:#fff;", "padding:0,0,5px,0;background:#1578;")
-        if item.selectable:
+            arrow = gui_icon_name(fold, "#fff", "padding:0,0,5px,0;background:#1578;")
+        if item.selectable and arrow is not None:
             arrow.click_text = ""
             arrow.click_tag = item.collapse_tag
             arrow.click_background = "#aaaa"
             arrow.click_color = "black"
         return
-    # Leaf quest row: state icon (recolored) + title, then the state label on a second row.
-    # The list box indents it by its `indent` level (no manual padding).
-    icon_color = quest_log_state_icon_color(item.get("state"))
+    # Leaf quest row: the kind's glyph recolored by state + title, then the one fact worth
+    # reading under it. The list box indents it by its `indent` level (no manual padding).
     gui_row("row-height: 1.2em;padding:6px;")
-    gui_icon(f"icon_index:{QUEST_LOG_STATE_ICON};color:{icon_color};", "padding:5px,0,5px,0;")
+    gui_icon_name(quest_log_icon(item), quest_log_state_icon_color(item.get("state")),
+                  "padding:5px,0,5px,0;")
     gui_text(f"$text:{item.get('title')};justify: left;", "padding:5px,6px,0,0;")
     gui_row("row-height: 1.0em;padding:6px;")
-    gui_text(f"$text:{quest_log_state_label(item.get('state'))};justify: left;font:gui-1")
+    gui_text(f"$text:{quest_log_detail(item)};justify: left;font:gui-1")

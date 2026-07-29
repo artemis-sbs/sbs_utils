@@ -119,8 +119,66 @@ def gui_image(props, style=None, fit=0, color=None):
     page.add_content(layout_item, None)
     return layout_item
 
-def gui_image_get_atlas(text):
-    test = ImageAtlas.all.get(text)
+def gui_image_add_atlas_grid(image, cols, rows=None, names=None, cell=None,
+                             color=None, domain=None, start=0):
+    """Register a whole sheet of evenly spaced cells in one call.
+
+    Cutting a sheet up by hand is the same four lines of arithmetic every time, and
+    getting one of them wrong shows up as art that is off by a cell rather than as an
+    error (`casino_media.py` hand-loops exactly this).
+
+        gui_image_add_atlas_grid("media/icons/quest-sheet", 8, 8,
+                                 ["job", "beat", "arc"], cell=64, domain="icon")
+
+    Args:
+        image (str): the sheet, without the extension.
+        cols (int): cells across.
+        rows (int, optional): cells down. Needed only to measure a cell from the file.
+        names (list | dict, optional): a list is laid out ROW-MAJOR from `start`, and a
+            `None` entry skips that cell; a dict is `{name: (col, row)}` for a sparse
+            sheet. Omit to register nothing and just get the cell size back.
+        cell (int | tuple, optional): cell size in PIXELS. Measured from the file
+            (`width / cols`) when omitted, which requires the file to be readable.
+        color (str, optional): default tint for every cell.
+        domain (str, optional): namespace for the keys - see ``gui_image_add_atlas``.
+        start (int, optional): index of the first name in row-major order.
+
+    Returns:
+        dict: {name: ImageAtlas} for everything registered.
+    """
+    if cell is None:
+        # Measure it: a sheet knows its own cell size, and asking the author to repeat
+        # it is one more thing that can disagree with the art.
+        probe = ImageAtlas(None, image)
+        width, height = probe.get_size()
+        if not width or not height:
+            raise ValueError(f"cannot measure {image!r} - pass cell=")
+        cell = (width / cols, height / rows if rows else width / cols)
+    if not isinstance(cell, (tuple, list)):
+        cell = (cell, cell)
+    cw, ch = cell
+
+    if isinstance(names, dict):
+        placed = names.items()
+    else:
+        placed = ((name, divmod(n + start, cols)[::-1])
+                  for n, name in enumerate(names or []) if name is not None)
+
+    out = {}
+    for name, (col, row) in placed:
+        out[name] = ImageAtlas(name, image, int(col * cw), int(row * ch),
+                               int((col + 1) * cw), int((row + 1) * ch), color, domain)
+    return out
+
+
+def gui_image_get_atlas(text, domain=None):
+    """The atlas registered under a key, or one built from the text as a file name.
+
+    Args:
+        text (str): a registered key, or an image path / property string.
+        domain (str, optional): look only in this domain (see ``gui_image_add_atlas``).
+    """
+    test = ImageAtlas.all.get(ImageAtlas.qualify(text, domain))
     if test is None:
         return ImageAtlas(text, text)
     return test
@@ -134,7 +192,18 @@ IMAGE_KEEP_ASPECT_CENTER = 3
 from ...helpers import split_props
 class ImageAtlas:
     all = {}
-    def __init__(self, key, image, left=None, top=None, right=None, bottom=None, color=None):
+
+    @staticmethod
+    def qualify(key, domain=None):
+        """The key a registration is stored under. `ImageAtlas.all` is one process-wide
+        dict, so without a domain two addons can claim the same word and the last one
+        loaded silently wins. A domain makes the claim explicit and scoped."""
+        if key is None or not domain:
+            return key
+        return f"{domain}:{key}"
+
+    def __init__(self, key, image, left=None, top=None, right=None, bottom=None, color=None,
+                 domain=None):
         file = get_mission_dir_filename(image)
 
         color = color
@@ -173,8 +242,10 @@ class ImageAtlas:
         self.top = top
         self.bottom = bottom
         self.color = color 
-        if key is not None:
-            ImageAtlas.all[key] = self
+        self.key = ImageAtlas.qualify(key, domain)
+        self.domain = domain
+        if self.key is not None:
+            ImageAtlas.all[self.key] = self
 
     def __str__(self):
         return self.get_props()
@@ -270,7 +341,8 @@ class ImageAtlas:
 
 
 
-def gui_image_add_atlas(key, image, left=None, top=None, right=None, bottom=None):
+def gui_image_add_atlas(key, image, left=None, top=None, right=None, bottom=None,
+                        color=None, domain=None):
     """The image atlas allows a key name to be used to assign to a set of image properties.
 This key can be used instead of image properties in any command that expect image properties.
 
@@ -321,11 +393,16 @@ Args:
     top (float, optional): The pixel location of the top. Defaults to None.
     right (float, optional): The pixel location of the right. Defaults to None.
     bottom (float, optional): The pixel location of the bottom. Defaults to None.
+    color (str, optional): default tint for this key. A drawing call may override it.
+    domain (str, optional): a namespace for the key. `ImageAtlas.all` is one
+        process-wide dict, so two addons registering `card_back` collide silently and
+        the last one loaded wins. A domain scopes the claim - and something that
+        RESOLVES through a domain (icons do) will only honor a deliberate registration.
 
 Returns:
     ImageAtlas: The image Atlas object. This is a low level object typically used by the system 
 """
-    return ImageAtlas(key, image, left, top, right, bottom)
+    return ImageAtlas(key, image, left, top, right, bottom, color, domain)
     
 
 _image_sizes = {}

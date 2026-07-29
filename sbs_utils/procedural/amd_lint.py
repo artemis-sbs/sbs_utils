@@ -26,6 +26,7 @@ Dependency-light: the structural pass needs only the standard library, so it is
 unit-testable outside the engine. The tree passes reuse the same parser the
 engine uses (`document_get_amd_file`).
 """
+import os
 import re
 
 ERROR = "error"
@@ -543,6 +544,75 @@ def amd_lint_field_values(doc):
     return findings
 
 
+def _png_size(path):
+    """(width, height) from a PNG header, or (None, None). Read here rather than through
+    the image atlas so the linter needs no engine paths and no image library."""
+    import struct
+    try:
+        with open(path, "rb") as f:
+            head = f.read(26)
+        return struct.unpack(">LL", head[16:24])
+    except Exception:
+        return (None, None)
+
+
+def _sheet_resolver(file_path):
+    """A `sheet -> (exists, size)` lookup rooted at the FILE being linted.
+
+    The runtime resolves art through the engine's mission paths, which a static linter
+    does not have - so it looks where the author would put it: the mission's `media/`,
+    the mission root, the .amd's own folder, and each unpacked shared pack beside the
+    libraries. Returns (None, False) when even the mission root cannot be found, so the
+    caller reports what it knows instead of calling every sheet missing.
+    """
+    import glob
+    if not file_path:
+        return None, False
+    here = os.path.dirname(os.path.abspath(file_path))
+    root = here
+    while True:
+        if os.path.exists(os.path.join(root, "story.json")):
+            break
+        parent = os.path.dirname(root)
+        if parent == root:
+            return None, False              # not inside a mission - cannot check
+        root = parent
+    roots = [os.path.join(root, "media"), root, here]
+    roots += sorted(glob.glob(os.path.join(os.path.dirname(root), "__lib__", "media", "*")))
+
+    def resolve(sheet):
+        for base in roots:
+            candidate = os.path.join(base, str(sheet).replace("/", os.sep))
+            if os.path.exists(candidate + ".png"):
+                return True, _png_size(candidate + ".png")
+        return False, (None, None)
+
+    return resolve, True
+
+
+def amd_lint_images(doc, file_path=None):
+    """Flag an atlas entry that cannot draw: no sheet, a sheet that is not on disk, an
+    `At:` with nothing to measure a cell against, or a cell off the edge of the sheet.
+
+    All four render as a BLANK WIDGET today, with no error anywhere - the failure mode
+    the whole AMD validator exists to remove. ERROR, except off-the-edge (WARNING: a
+    sheet may legitimately be about to grow)."""
+    from sbs_utils.procedural.amd_images import images_from_core, images_validate
+    resolve, check_files = _sheet_resolver(file_path)
+    findings = []
+    for node in doc.nodes:
+        if node.kind != "image":
+            continue
+        if getattr(node.parent, "kind", None) == "image":
+            continue                        # an entry; handled with its section
+        for child, record in images_from_core(node):
+            for _key, severity, code, message in images_validate([record], resolve,
+                                                                 check_files):
+                findings.append(AmdFinding.at(
+                    child.span, ERROR if severity == "error" else WARNING, code, message))
+    return findings
+
+
 def mast_labels(mast_sources):
     """Top-level MAST label names (`== name ==`) across the given sources - valid
     jump/handler targets an AMD reference may point at."""
@@ -592,6 +662,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_keys(doc)
         findings += amd_lint_unknown_fields(doc)
         findings += amd_lint_field_values(doc)
+        findings += amd_lint_images(doc, file_path)
         if cross_file is not False:
             findings += amd_lint_cross_file(doc, mast_sources, source_index)
     except Exception as e:
