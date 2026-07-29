@@ -177,7 +177,14 @@ reading older code that used it. Names in italics are meanings that point at tha
 .icon-grid figure { margin: 0; padding: .45rem .2rem; border-radius: .35rem;
                     background: #23272e; text-align: center; }
 .icon-grid i { display: block; width: 40px; height: 40px; margin: 0 auto .3rem;
-               background-image: url(../media/icon-sheet.png);
+               /* TWO levels up, and it has to be counted from the built URL rather
+                  than from this file. MkDocs rewrites relative links in MARKDOWN but not
+                  inside a style block, and with directory URLs the page is served at
+                  /cosmos/gui_icons/ - so `../media` resolved to /cosmos/media and every
+                  tile was blank on the site. (`fix_url` computes from the SOURCE depth,
+                  which is the same off-by-one.) Relative, not /media, so it still works
+                  where the site is served under a subpath, as GitHub Pages does. */
+               background-image: url(../../media/icon-sheet.png);
                background-size: 2000% 900%; background-repeat: no-repeat; }
 .icon-grid figcaption { font-size: .68rem; line-height: 1.25; color: #dfe4ec;
                         word-break: break-word; }
