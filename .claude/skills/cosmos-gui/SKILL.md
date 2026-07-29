@@ -15,6 +15,18 @@ gotchas that **bite repeatedly** — read it before building a console or panel.
 
 ## Best practices (do this)
 
+- **Use the CONTAINER, don't rebuild it.** `gui_list_box`, `gui_text_area`,
+  `gui_table`, `gui_grid`, `gui_region`, `gui_sub_section` already handle
+  wrapping, scrolling, measurement and overflow. Assembling a substitute out of
+  `gui_text`/`gui_row` gets a worse version of one of them — and hides the real
+  gap. **If a container lacks a feature, or a layout looks wrong, raise it and
+  discuss changing the container**; escaping content to sneak it past a parser is
+  the same mistake in disguise. (A code view built as a listbox of per-line
+  `gui_text` needed its own escaping, indent-as-padding and one-line rows, then
+  `overflow:ellipsis` that truncated 42% of what it showed. Adding
+  `gui_text_area(markdown=False, line_styles=…)` was less work and fixed a
+  backtick bug affecting every mission's prose.)
+
 - **Build the layout once, update the data.** Lean on the dirty system (below):
   set `.value` / `.update()` or drive an `on change`, rather than tearing down and
   rebuilding the whole page every time one number moves.
