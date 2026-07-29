@@ -186,7 +186,7 @@ class LayoutListbox(layout.Column):
                  item_template=None, title_template=None, 
                  section_style=None, title_section_style=None,
                  select=False, multi=False, carousel=False, collapsible=False, read_only=False,
-                 reveal=False) -> None:
+                 reveal=False, hint=None) -> None:
         super().__init__(left,top,33,44)
 
         self.tag_prefix = tag_prefix
@@ -221,6 +221,13 @@ class LayoutListbox(layout.Column):
         # Armed when the view is (re)established or the selection changes;
         # disarmed by the reveal itself, and by a deliberate scroll, which wins.
         self._reveal_pending = bool(reveal)
+        # A repaint builds a DIFFERENT listbox, so `cur` starts at 0 and the
+        # reveal -- which only guarantees VISIBILITY -- lands the selection at the
+        # bottom of the window instead of where the user's mouse is. The hint is
+        # how the caller carries the view across that break. Opaque: what it
+        # holds can grow without breaking a caller that only passes it along.
+        self._hint = hint
+        self._hint_applied = False
         self.square_width_percent = 0
         #self.sections = []
         self.title_height = 2
@@ -482,6 +489,13 @@ class LayoutListbox(layout.Column):
 
 
         max_item_width, max_item_height, avg_item_height = self.calc_max(CID)
+        # Apply the hint once, here rather than in __init__: a collapsible list
+        # rebuilds its shown items during present, and an index applied before
+        # that points into the wrong list.
+        if self._hint is not None and not self._hint_applied:
+            self._hint_applied = True
+            self.apply_selection_hint(self._hint)
+
         # Where the visible window starts -- packing depends on it.
         cur_start = self.cur if self.cur and self.cur > 0 else 0
         
@@ -980,6 +994,62 @@ class LayoutListbox(layout.Column):
         return None
 
     
+    def get_selection_hint(self):
+        """An OPAQUE token describing where this listbox is looking.
+
+        Hand it to the next clone after a repaint, so the row under the user's
+        mouse stays under it:
+
+            on change lb.value:
+                saved = lb.get_selection_hint()
+                jump repaint
+            ...
+            lb = gui_list_box(items, style, select=True, reveal=True, hint=saved)
+
+        Do not inspect it. `selected_index` is in UNFILTERED space because that
+        is what set_selected_index takes; `slot` is a DISPLAY position, recorded
+        for a future resize policy and not used to restore today. Mixing those
+        two spaces is what broke this twice.
+        """
+        sel = None
+        if self.selected:
+            try:
+                sel = self.unfiltered_items.index(self.selected[0])
+            except ValueError:
+                sel = None
+        slot = None
+        for i, sec in enumerate(getattr(self, "sections", []) or []):
+            if getattr(sec, "item_index", None) is not None and self._items:
+                try:
+                    if self._items[sec.item_index] is (self.selected or [None])[0]:
+                        slot = i
+                        break
+                except (IndexError, TypeError):
+                    pass
+        return {"cur": self.cur, "selected_index": sel, "slot": slot,
+                "count": len(self.unfiltered_items) if self.unfiltered_items else 0}
+
+    def apply_selection_hint(self, hint):
+        """Apply a hint. Always a HINT -- stale is the normal case (a shorter
+        list, a collapsed section, another screen entirely), so everything is
+        clamped and the reveal has the final word."""
+        if not isinstance(hint, dict):
+            return
+        count = len(self.unfiltered_items) if self.unfiltered_items else 0
+        # An EXPLICIT selection wins over the hint's. The caller sets it after
+        # construction, while the hint is applied at present time -- so applying
+        # it unconditionally would let a stale hint override a deliberate choice,
+        # which is exactly what the tour does when it moves the selection itself.
+        # The hint's job is the VIEW; the selection is only a fallback.
+        sel = hint.get("selected_index")
+        if not self.selected and sel is not None and 0 <= sel < count:
+            self.set_selected_index(sel, False)
+        try:
+            cur = int(hint.get("cur") or 0)
+        except (TypeError, ValueError):
+            cur = 0
+        self.cur = max(0, min(cur, max(0, count - 1)))
+
     def set_selected_index(self, i, set_cur=True):
         # A new selection is worth showing; a scroll is not undone by it.
         self._reveal_pending = bool(getattr(self, "reveal", False))

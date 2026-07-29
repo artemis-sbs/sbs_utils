@@ -298,6 +298,98 @@ class TestScrolling(ListboxModeBase):
         self.assertEqual(lb.cur, 15)
 
 
+class TestHintKeepsTheRowUnderTheMouse(ListboxModeBase):
+    """Reveal guarantees VISIBILITY; the hint guarantees POSITION.
+
+    Reported after reveal shipped: on a same-size repaint the content still moved
+    under the mouse. A repaint builds a different listbox with cur=0, so the
+    reveal lands the selection at the BOTTOM of the window rather than where the
+    user clicked. The hint carries the view across.
+    """
+    SMALL = Bounds(2.0, 10.0, 30.0, 26.0)
+
+    def _slot_of(self, lb, item):
+        for i, sec in enumerate(lb.sections or []):
+            if sec.item_index is not None and lb._items[sec.item_index] is item:
+                return i
+        return None
+
+    def _repaint(self, items, hint=None):
+        lb = self._lb(items, bounds=self.SMALL, select=True, reveal=True, hint=hint)
+        lb._present(FakeEvent())
+        return lb
+
+    def test_same_size_repaint_keeps_the_slot(self):
+        items = [f"item {i}" for i in range(40)]
+        old = self._repaint(items)
+        old.cur = 12
+        old._present(FakeEvent())
+        clicked = old._items[old.sections[1].item_index]     # 2nd visible row
+        old.selected = [clicked]
+        old._present(FakeEvent())
+        slot_before = self._slot_of(old, clicked)
+        self.assertIsNotNone(slot_before)
+
+        new = self._repaint(items, hint=old.get_selection_hint())
+        self.assertEqual(self._slot_of(new, clicked), slot_before)
+
+    def test_without_the_hint_the_row_moves(self):
+        """The complaint, pinned: this is what the hint is for."""
+        items = [f"item {i}" for i in range(40)]
+        old = self._repaint(items)
+        old.cur = 12
+        old._present(FakeEvent())
+        clicked = old._items[old.sections[1].item_index]
+        old.selected = [clicked]
+        old._present(FakeEvent())
+        slot_before = self._slot_of(old, clicked)
+
+        new = self._repaint(items)                            # no hint
+        self.assertNotEqual(self._slot_of(new, clicked), slot_before)
+
+    def test_hint_keeps_it_visible_too(self):
+        items = [f"item {i}" for i in range(40)]
+        old = self._repaint(items)
+        old.cur = 20
+        old._present(FakeEvent())
+        old.selected = [old._items[old.sections[0].item_index]]
+        old._present(FakeEvent())
+        new = self._repaint(items, hint=old.get_selection_hint())
+        self.assertIn(new._items.index(new.selected[0]), self._shown(new))
+
+    def test_an_explicit_selection_beats_the_hint(self):
+        """The caller sets the selection after construction; the hint is applied
+        at present time. A stale hint must not override a deliberate choice --
+        the gallery's tour moves the selection itself on every step."""
+        items = [f"item {i}" for i in range(40)]
+        old = self._repaint(items)
+        old.set_selected_index(3, False)
+        old._present(FakeEvent())
+        hint = old.get_selection_hint()
+
+        new = self._lb(items, bounds=self.SMALL, select=True, reveal=True, hint=hint)
+        new.set_selected_index(30, False)          # what the caller asked for
+        new._present(FakeEvent())
+        self.assertEqual(new.unfiltered_items.index(new.selected[0]), 30)
+        self.assertIn(30, self._shown(new))        # and revealed
+
+    def test_stale_hint_from_a_shorter_list(self):
+        old = self._repaint([f"item {i}" for i in range(40)])
+        old.cur = 30
+        old.set_selected_index(35, False)
+        old._present(FakeEvent())
+        new = self._repaint([f"item {i}" for i in range(5)],
+                            hint=old.get_selection_hint())
+        self.assertLess(new.cur, 5)
+        self.assertTrue(self._shown(new))
+
+    def test_garbage_hint_does_not_raise(self):
+        items = [f"item {i}" for i in range(40)]
+        for junk in (None, "nonsense", 42, {}, {"cur": "x", "selected_index": 999}):
+            lb = self._repaint(items, hint=junk)
+            self.assertTrue(self._shown(lb))
+
+
 class TestCollapsible(ListboxModeBase):
     """Two index spaces. `unfiltered_items` is everything; `_items` is what is
     shown, rebuilt each present with collapsed rows skipped. This is the mode
