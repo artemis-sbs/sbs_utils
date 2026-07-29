@@ -255,8 +255,15 @@ class StoryPage(Page):
         self.pending_gui = False
         from ..procedural.gui.property_listbox import gui_reset_variables
         gui_reset_variables(self.gui_task)
-        # Restore the options button
-        FrameContext.context.sbs.transparent_options_button(self.client_id,0)
+        # Restore the options button to what the MISSION asked for, not to a
+        # hardcoded 0. This fires on every new GUI (from add_tag, on the first
+        # tagged widget of a build), so a hardcoded restore made it impossible
+        # for a story page to hold the button transparent -- the setting was
+        # always taken away a moment after it was made. Defaults to 0, so a
+        # mission that never calls gui_options_button() is unaffected.
+        from ..procedural.gui.options_button import gui_options_button_flag
+        FrameContext.context.sbs.transparent_options_button(
+            self.client_id, gui_options_button_flag(self.client_id))
         for sub_task in self.gui_task.sub_tasks:
             if sub_task.has_role("end_on_new_gui"):
                 sub_task.end()

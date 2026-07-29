@@ -21,6 +21,7 @@ from .face import gui_face
 from .icon import gui_icon_name, gui_icon_add_atlas, gui_icon_add_atlas_grid, gui_icon, gui_icon_button
 from .image import gui_image_add_atlas_grid, gui_image, gui_image_absolute, gui_image_keep_aspect_ratio, gui_image_keep_aspect_ratio_center, gui_image_stretch, gui_image_add_atlas,gui_image_size,gui_image_get_atlas
 from .input import gui_input
+from .options_button import gui_options_button, gui_options_button_flag, gui_options_button_clear
 from .radio import gui_radio, gui_vradio
 from .ship import gui_ship
 from .slider import gui_int_slider, gui_slider
