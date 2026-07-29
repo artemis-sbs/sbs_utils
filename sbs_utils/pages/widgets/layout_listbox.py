@@ -215,6 +215,12 @@ class LayoutListbox(layout.Column):
         # widget is load-bearing and multi-modal, and defaulting it on moves
         # every list in every mission. One caller at a time.
         self.reveal = reveal
+        # ONCE, not continuously. Revealing on every present means the user
+        # cannot scroll away from the selection at all -- the next frame drags
+        # the view back and the list appears stuck on its first screenful.
+        # Armed when the view is (re)established or the selection changes;
+        # disarmed by the reveal itself, and by a deliberate scroll, which wins.
+        self._reveal_pending = bool(reveal)
         self.square_width_percent = 0
         #self.sections = []
         self.title_height = 2
@@ -512,7 +518,8 @@ class LayoutListbox(layout.Column):
             # Opt-in, vertical only, never a carousel (whose window is one item
             # by definition), and never horizontal (a separate packing path with
             # known problems -- left alone deliberately).
-            if self.reveal and self.select and not self.carousel:
+            if (self.reveal and self._reveal_pending
+                    and self.select and not self.carousel):
                 sel = None
                 if self.selected and self._items:
                     try:
@@ -523,6 +530,7 @@ class LayoutListbox(layout.Column):
                     cur_start = reveal_cur(sel, cur_start, heights, avail, item_height)
                     max_slots = pack_slots(heights, avail, item_height, cur_start)
                     self.cur = cur_start
+                self._reveal_pending = False
 
 
         max_slots = int(max_slots)
@@ -834,6 +842,8 @@ class LayoutListbox(layout.Column):
             else:
                 value = int(-event.sub_float+self.extra_slot_count+0.5)
             if value != self.cur:
+                # The user took control of the view. Do not drag it back.
+                self._reveal_pending = False
                 self.cur = value
                 self.gui_state = "redraw"
                 self.represent(event)
@@ -971,6 +981,8 @@ class LayoutListbox(layout.Column):
 
     
     def set_selected_index(self, i, set_cur=True):
+        # A new selection is worth showing; a scroll is not undone by it.
+        self._reveal_pending = bool(getattr(self, "reveal", False))
         self.selected = []
         if i is not None and i < len(self.unfiltered_items):
             self.selected.append(self.unfiltered_items[i])

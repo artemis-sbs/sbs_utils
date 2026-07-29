@@ -221,6 +221,83 @@ class TestRevealOptIn(ListboxModeBase):
         self.assertIn(len(lb._items) - 1, self._shown(lb))
 
 
+class TestScrolling(ListboxModeBase):
+    """Driven through on_scroll -- the REAL path a scrollbar drag takes.
+
+    Every other test here sets `lb.cur` directly, which is not scrolling: it
+    skips on_scroll entirely. That gap is why "reveal on every present" shipped
+    and made the list unscrollable -- the view snapped back to the selection on
+    the very next frame, so it appeared stuck on its first screenful.
+    """
+
+    SMALL = Bounds(2.0, 10.0, 30.0, 26.0)   # window MUCH shorter than the list
+
+    def _scroll_to(self, lb, index):
+        """What the engine sends when the scrollbar moves. The slider value is
+        inverted about extra_slot_count for a vertical list -- see on_scroll."""
+        ev = FakeEvent()
+        ev.sub_tag = f"{lb.tag_prefix}cur"
+        ev.sub_float = float(-index + lb.extra_slot_count + 0.5)
+        lb.on_message(ev)
+        return lb.cur
+
+    def test_scrolling_moves_the_view(self):
+        lb = self._lb([f"item {i}" for i in range(40)])
+        lb._present(FakeEvent())
+        self.assertEqual(self._scroll_to(lb, 12), 12)
+
+    def test_scrolling_away_from_the_selection_STICKS(self):
+        """The reported bug: with reveal on, the view was dragged back to the
+        selection on the next present, so the list could not be scrolled past
+        its first screenful."""
+        lb = self._lb([f"item {i}" for i in range(40)], select=True, reveal=True)
+        lb.set_selected_index(0, False)
+        lb._present(FakeEvent())            # reveal fires once, view at the top
+
+        self._scroll_to(lb, 20)
+        lb._present(FakeEvent())            # must NOT snap back
+        self.assertEqual(lb.cur, 20)
+        self.assertNotIn(0, self._shown(lb))
+
+    def test_a_new_selection_re_arms_the_reveal(self):
+        """Scrolling wins over the reveal, but choosing something new does not
+        leave you looking at the wrong place.
+
+        SMALL panel deliberately: with a window big enough to hold both the
+        scrolled-to position and the new selection, this passes whether or not
+        the re-arm exists. (It did, first time round.)"""
+        lb = self._lb([f"item {i}" for i in range(40)], bounds=self.SMALL,
+                      select=True, reveal=True)
+        lb._present(FakeEvent())
+        self._scroll_to(lb, 5)
+        lb._present(FakeEvent())
+        self.assertNotIn(35, self._shown(lb), "must start out of view")
+
+        lb.set_selected_index(35, False)
+        lb._present(FakeEvent())
+        self.assertIn(35, self._shown(lb))
+
+    def test_scrolling_before_the_frame_renders_still_wins(self):
+        """The ordering the disarm exists for: a selection arms the reveal, the
+        user scrolls, and the frame has not been drawn yet. The scroll is the
+        later instruction, so it wins."""
+        lb = self._lb([f"item {i}" for i in range(40)], bounds=self.SMALL,
+                      select=True, reveal=True)
+        lb._present(FakeEvent())
+        lb.set_selected_index(35, False)        # arms the reveal
+        self._scroll_to(lb, 2)                  # ...then the user scrolls
+        lb._present(FakeEvent())
+        self.assertEqual(lb.cur, 2)
+        self.assertNotIn(35, self._shown(lb))
+
+    def test_scrolling_without_reveal_is_unchanged(self):
+        lb = self._lb([f"item {i}" for i in range(40)], select=True)
+        lb._present(FakeEvent())
+        self._scroll_to(lb, 15)
+        lb._present(FakeEvent())
+        self.assertEqual(lb.cur, 15)
+
+
 class TestCollapsible(ListboxModeBase):
     """Two index spaces. `unfiltered_items` is everything; `_items` is what is
     shown, rebuilt each present with collapsed rows skipped. This is the mode
