@@ -19,7 +19,12 @@ from sbs_utils.procedural.query import to_object, get_data_set_value, to_id
 class A2xPropsPureTests(unittest.TestCase):
     def test_mapped_lookup(self):
         self.assertTrue(object_property_mapped("hasSurrendered"))
-        self.assertFalse(object_property_mapped("pirateRepWithStations"))
+        self.assertTrue(object_property_mapped("pirateRepWithStations"))
+        # A SYNTHETIC name for the negative case. This used to name a real 2.8
+        # property, which made it a time bomb: the test failed the day someone
+        # implemented it, though the code had only got more complete. A name
+        # that is not in the 2.8 vocabulary cannot be implemented later.
+        self.assertFalse(object_property_mapped("notARealProp"))
 
     def test_key_for_data_props(self):
         self.assertEqual(object_property_key("shieldStateBack"), ("shield_val", 1))
@@ -50,7 +55,7 @@ class A2xPropsMockTests(unittest.TestCase):
         self.assertAlmostEqual(to_object(self.so).engine_object.steer_roll, 0.003)
 
     def test_unmapped_returns_false(self):
-        self.assertFalse(set_object_property(self.so, "sensorSetting", 3))
+        self.assertFalse(set_object_property(self.so, "notARealProp", 3))
 
     def test_object_property_reads_back(self):
         # the read counterpart of set_object_property: data slot, array index, engine attr
@@ -67,7 +72,17 @@ class A2xPropsMockTests(unittest.TestCase):
         self.assertEqual(object_property(self.so, "positionX"), 12345)
 
     def test_object_property_unmapped_is_none(self):
-        self.assertIsNone(object_property(self.so, "sensorSetting"))
+        self.assertIsNone(object_property(self.so, "notARealProp"))
+
+    def test_sensor_setting_sets_scan_range(self):
+        """sensorSetting was only ever named as a NEGATIVE here, so implementing
+        it went untested. 0 = unlimited (map size); N>0 = map/(3N)."""
+        from sbs_utils.procedural.a2x.props import sensor_range
+        self.assertTrue(set_object_property(self.so, "sensorSetting", 3))
+        self.assertAlmostEqual(
+            get_data_set_value(to_id(self.so), "ship_base_scan_range"),
+            sensor_range(3), places=3)
+        self.assertGreater(sensor_range(0), sensor_range(3))
 
     def test_top_speed_maps_to_speed_coeff(self):
         # 2.8 topSpeed (already a 0-1 coeff) -> the NPC speed_coeff, 1:1
