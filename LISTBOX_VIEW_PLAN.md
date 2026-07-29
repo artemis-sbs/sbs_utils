@@ -114,7 +114,29 @@ something unusual can use them directly.
 Note `get_view_state()` on a FRESHLY BUILT listbox returns the restored hint, not
 a measured slot -- `sections` do not exist until it has presented once.
 
-## When the repaint is triggered BY the selection
+## Multiple clients
+
+Verified rather than assumed: `Gui.clients[client_id]` each hold their own
+`page_stack` with their own `Page`, and each page builds its own widgets. So the
+**listbox instance is already per client**, `self.cur` is already per client, and
+two consoles on the same screen do not scroll each other today. The server (client
+0) showing the gallery and a console showing it are two pages, two listboxes, two
+scroll positions — correctly.
+
+That means the storage must be keyed by **(client, key)**, which per-client
+inventory gives for free.
+
+**But the build ordinal is a real hazard.** If the counter were module-level,
+two clients building the same screen in the same frame would interleave and each
+would get the other's slot number — scroll positions swapping between consoles,
+intermittently, depending on tick order. The counter must live on the **page**
+(which is per client, and distinct per entry in a `page_stack`, so a pushed page
+cannot collide with the one beneath it) and reset at the start of each build,
+where the tag counter already resets.
+
+This is the one place where "it works on my single console" would hide a bug, so
+it wants a test with two client ids building the same screen and scrolling
+differently.
 
 The common case, and the Control Gallery's: `on change lb.value: jump screen`.
 The user clicks a visible row, that fires the repaint, and the page is rebuilt.
@@ -210,6 +232,9 @@ The packing is per-row, so the cases that matter use **non-uniform heights**:
   is clamped, a `selected_index` past the end is dropped, nothing raises
 - **ordinal identity**: two listboxes on one page keep separate positions, and
   the second page build maps each to the same one as the first
+- **two clients, same screen**: each keeps its own scroll position; building both
+  in one frame does not swap them (the ordinal counter is per page, not global)
+- **a pushed page** over another does not collide with the page beneath it
 - uniform-height list produces the same numbers as today (no existing listbox moves)
 
 Mutation-check each: remove the reveal, remove the clamp — the relevant test must
