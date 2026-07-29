@@ -351,7 +351,8 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
         for k, hd in (summ.get("by_kind") or {}).items():
             print(f"   {k:16} {hd[0]}/{hd[1]}")
     if exerciser is not None:
-        print(f"exercise: steps {exerciser.steps}, enemies(last) {exerciser.enemies_last}, "
+        print(f"exercise: steps {exerciser.steps}, clicks {getattr(exerciser, 'clicked', 0)}, "
+              f"enemies(last) {exerciser.enemies_last}, "
               f"combats forced {exerciser.forced}, beam-damage hits {getattr(sbs, '_apply_damage_calls', '?')}")
     # Combat-readiness diagnostic: do ships actually have beams, and how close?
     try:
@@ -444,6 +445,8 @@ def _run(
     exercise: bool = False,
     exercise_console: str | None = None,
     exercise_dwell: int | None = None,
+    exercise_click: str | None = None,
+    exercise_click_every: int = 3,
     use_working_tree: bool = False,
     seed: int | None = None,
     audit_layout: bool = False,
@@ -472,7 +475,17 @@ def _run(
     # Be a singleton per port: stop any previous runner we launched on this port
     # (and its child GUI server) so a re-launch never leaves zombies / port
     # conflicts for the user to clean up. Scoped to the debug port when present.
-    _ensure_single_runner(dap_port or port)
+    #
+    # ONLY when we actually own a port. This used to run for every invocation,
+    # including headless --test runs that bind nothing -- so any second runner
+    # force-killed the first via the shared cosmos_dev_runner_<port>.pid, and the
+    # victim died before emitting a single line (rc=1, empty stdout AND stderr).
+    # That made concurrent headless runs impossible and looked like random
+    # flakiness; it also killed --gui sessions that were minding their own
+    # business. A run with no GUI and no debugger has nothing to be singleton
+    # about.
+    if gui or dap_port:
+        _ensure_single_runner(dap_port or port)
 
     # Opt-in MAST source debugger (dev-only). Off by default: with dap_port unset
     # nothing here runs and the mission behaves exactly as before. Started HERE —
@@ -815,8 +828,11 @@ def _run(
         if exercise:
             from cosmos_dev.exerciser import Exerciser
             _extra_consoles = [c.strip() for c in (exercise_console or "").split(",") if c.strip()]
+            _clicks = [c.strip() for c in (exercise_click or "").split(",") if c.strip()]
             _exerciser = Exerciser(sbs, extra_consoles=_extra_consoles,
-                                   console_dwell=exercise_dwell)
+                                   console_dwell=exercise_dwell,
+                                   click_labels=_clicks,
+                                   click_every=exercise_click_every)
         print(f"[runner] TEST mode: run ~{test_seconds:g}s sim time, map={map_arg}"
               f"{', exercising' if exercise else ''}")
 
@@ -1270,6 +1286,13 @@ if __name__ == "__main__":
                          "moving on (default 3). Raise it (e.g. 25) to give "
                          "`on change` / watcher logic time to fire at all -- at "
                          "the default a console is swapped in under a sim-second.")
+    ap.add_argument("--exercise-click", default=None, metavar="LABEL[,LABEL]",
+                    help="With --exercise, press any live button whose DISPLAYED "
+                         "label matches, every --exercise-click-every steps. Lets "
+                         "one boot walk a mission's own paging control (a tour, a "
+                         "wizard) instead of booting once per state.")
+    ap.add_argument("--exercise-click-every", type=int, default=3, metavar="N",
+                    help="Steps between --exercise-click presses (default 3).")
     ap.add_argument("--use-working-tree", action="store_true",
                     help="Run the working-tree sbs_utils instead of the packaged "
                          ".sbslib (smoke-test local library edits against a mission)")
@@ -1309,6 +1332,8 @@ if __name__ == "__main__":
         exercise=args.exercise,
         exercise_console=args.exercise_console,
         exercise_dwell=args.exercise_dwell,
+        exercise_click=args.exercise_click,
+        exercise_click_every=args.exercise_click_every,
         use_working_tree=args.use_working_tree,
         seed=args.seed,
         audit_layout=args.audit_layout,

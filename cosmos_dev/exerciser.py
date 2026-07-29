@@ -15,7 +15,8 @@ from sbs_utils.helpers import FrameContext
 
 
 class Exerciser:
-    def __init__(self, sbs, extra_consoles=None, console_dwell=None):
+    def __init__(self, sbs, extra_consoles=None, console_dwell=None,
+                 click_labels=None, click_every=3):
         self._sbs = sbs
         # Steps to sit on each console. The default is brisk, which means a
         # console is swapped away in well under a sim-second -- so `on change`
@@ -42,6 +43,15 @@ class Exerciser:
         self._console_step = 0   # rotates the synthetic client through each console
         self._console_dwell = 0  # steps spent on the current console before cycling on
         self._warned_consoles = False   # print an unknown --exercise-console name once
+        # Buttons to press BY LABEL (--exercise-click). Lets one boot walk a
+        # mission's own paging control -- a gallery tour, a wizard, a next-page
+        # button -- instead of booting once per state. The mastlib compile is
+        # most of a run's cost, so walking N states in one session is ~N times
+        # cheaper than N sessions.
+        self._click_labels = tuple(click_labels or ())
+        self._click_every = max(1, int(click_every or 1))
+        self.clicked = 0
+        self._warned_click = False
 
     def _server_ctx(self):
         """Return the server task, or None if not ready."""
@@ -132,6 +142,10 @@ class Exerciser:
             # Cycle the synthetic console client through every console so each
             # @console body + watcher executes (deterministic console coverage).
             self._cycle_consoles()
+            # Deliberate clicks by label, before the random fuzz so a fuzz click
+            # cannot steal the step from a driver the caller asked for.
+            if self._click_labels and self._offset % self._click_every == 0:
+                self._click_by_label()
             # Monkey/fuzz: a random valid in-console GUI click every few steps (kept
             # sparse so it doesn't constantly yank a console off its AI loop).
             if self._offset % 3 == 0:
@@ -172,6 +186,50 @@ class Exerciser:
                 # Route errors flow to the verdict via the scheduler seam; count
                 # Python-level failures here.
                 self.errors += 1
+
+    def _click_by_label(self):
+        """Press every live widget whose DISPLAYED text matches a wanted label.
+
+        Matches on what the engine would draw (props_display_text strips the
+        style props off), case-insensitively, so the caller names the button the
+        way a player sees it -- `--exercise-click "Next"` -- rather than by a tag
+        that is regenerated on every rebuild.
+
+        Server page included, unlike the fuzz: this is a click the caller asked
+        for by name, not a random one, and a mission's own driver may well live
+        on the server screen.
+        """
+        from sbs_utils.gui import Gui
+        from sbs_utils.helpers import FakeEvent, props_display_text
+        wanted = {w.strip().lower() for w in self._click_labels if w.strip()}
+        seen = []
+        for cid, gc in list(Gui.clients.items()):
+            page = getattr(gc, "page", None)
+            tag_map = getattr(page, "tag_map", None) if page is not None else None
+            if not tag_map:
+                continue
+            for tag, entry in list(tag_map.items()):
+                # tag_map holds (layout_item, runtime_node) tuples, not the item.
+                item = entry[0] if isinstance(entry, tuple) and entry else entry
+                text = props_display_text(getattr(item, "value", None))
+                if text:
+                    seen.append(f"{cid}:{text.strip()}")
+                if not text or text.strip().lower() not in wanted:
+                    continue
+                try:
+                    Gui.on_message(FakeEvent(client_id=cid, tag="gui_message",
+                                             sub_tag=tag))
+                    self.clicked += 1
+                except Exception:
+                    self.errors += 1
+        # A label that never matches makes a --exercise-click run silently
+        # vacuous: it passes while driving nothing. Say so once, with what WAS
+        # on screen, so the caller can see whether it is a typo or a page that
+        # was never reached.
+        if not self.clicked and not self._warned_click:
+            self._warned_click = True
+            print(f"exercise-click: no match for {list(self._click_labels)}; "
+                  f"visible labels so far: {sorted(set(seen))[:25]}")
 
     def _fuzz_gui(self):
         """Monkey/fuzz: fire a random *valid* widget click on each client's live
