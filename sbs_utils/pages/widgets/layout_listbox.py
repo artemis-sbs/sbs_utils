@@ -162,6 +162,12 @@ def reveal_cur(sel, cur, heights, avail, item_height=0.0):
     cur = max(0, min(int(cur or 0), count - 1))
     if sel is None:
         return cur
+    # Defensive: `sel` must be an index into THESE heights -- the displayed
+    # rows. A collapsible list also has an unfiltered index space, and handing
+    # one of those in points past the end and makes the back-pack meaningless.
+    # Clamping turns a caller's mistake into a mild wrong position instead of a
+    # scrollbar that thinks the list is the length of the visible slots.
+    sel = max(0, min(int(sel), count - 1))
 
     slots = pack_slots(heights, avail, item_height, cur)
     if sel < cur:
@@ -542,7 +548,10 @@ class LayoutListbox(layout.Column):
             # REVEAL -- see reveal_cur(). Skipped for a carousel, whose window
             # is one item by definition.
             if self.select and not self.carousel:
-                sel = self._selected_index()
+                # DISPLAY index: heights, cur and max_slots are all in the
+                # filtered space, and a collapsible list's unfiltered index can
+                # point past the end of it.
+                sel = self._selected_display_index()
                 if sel is not None:
                     cur_start = reveal_cur(sel, cur_start, heights, avail, item_height)
                     max_slots = pack_slots(heights, avail, item_height, cur_start)
@@ -995,11 +1004,30 @@ class LayoutListbox(layout.Column):
 
     
     def _selected_index(self):
-        """Index of the selection in the UNFILTERED list, or None."""
+        """Index of the selection in the UNFILTERED list, or None.
+
+        THERE ARE TWO COORDINATE SYSTEMS and they are not interchangeable:
+        `unfiltered_items` is everything, `_items` is what is actually on show
+        (a collapsible list rebuilds it each present, skipping collapsed rows).
+        `set_selected_index` takes an UNFILTERED index, so that is what a hint
+        carries -- but `cur`, the packing and `sections[].item_index` are all in
+        DISPLAY coordinates. Feeding one to the other gives an index past the end
+        of the shorter list and a nonsense scroll position.
+        """
         if not self.selected:
             return None
         try:
             return self.unfiltered_items.index(self.selected[0])
+        except ValueError:
+            return None
+
+    def _selected_display_index(self):
+        """Index of the selection among the rows actually SHOWN, or None -- the
+        space `cur` and the packer work in."""
+        if not self.selected or not self._items:
+            return None
+        try:
+            return self._items.index(self.selected[0])
         except ValueError:
             return None
 
@@ -1011,7 +1039,7 @@ class LayoutListbox(layout.Column):
         wrong the moment a list has collapsible headers, a filter, or rows of
         different heights.
         """
-        sel = self._selected_index()
+        sel = self._selected_display_index()
         if sel is None:
             return None
         for slot, sec in enumerate(getattr(self, "sections", []) or []):
