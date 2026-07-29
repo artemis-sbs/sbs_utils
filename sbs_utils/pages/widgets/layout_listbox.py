@@ -126,6 +126,56 @@ class LayoutListBoxHeader:
 
 
 
+
+def pack_slots(heights, avail, item_height=0.0, start=0):
+    """How many rows fit starting at `start`, packing REAL heights."""
+    used = 0.0
+    slots = 0
+    for h in heights[int(start):]:
+        h = h + item_height
+        if used + h > avail and slots > 0:
+            break
+        used += h
+        slots += 1
+    return slots
+
+
+def reveal_cur(sel, cur, heights, avail, item_height=0.0):
+    """Where the view must start so row `sel` is visible, moving the LEAST.
+
+    `sel`, `cur` and `heights` are all in DISPLAY space -- the rows actually on
+    show. A collapsible list also has an unfiltered index space; passing one of
+    those in points past the end of the shorter list, which is how this broke the
+    Control Gallery's index. Clamped rather than trusted.
+
+    Above the window, scroll up to it. Below, back-pack UPWARD from it so it
+    lands at the BOTTOM -- the smallest move that reveals it, where
+    set_selected_index(i, True) would slam it to the top on every repaint.
+    """
+    count = len(heights)
+    if count == 0:
+        return 0
+    cur = max(0, min(int(cur or 0), count - 1))
+    if sel is None:
+        return cur
+    sel = max(0, min(int(sel), count - 1))
+
+    slots = pack_slots(heights, avail, item_height, cur)
+    if sel < cur:
+        return sel
+    if sel < cur + slots:
+        return cur                      # already visible: do not move
+    used = 0.0
+    first = sel
+    for back in range(sel, -1, -1):
+        h = heights[back] + item_height
+        if used + h > avail and back != sel:
+            break
+        used += h
+        first = back
+    return max(0, first)
+
+
 class LayoutListbox(layout.Column):
     """
       A widget to list things passing function/lamdas to get the data needed for option display of
@@ -135,7 +185,8 @@ class LayoutListbox(layout.Column):
     def __init__(self, left, top, tag_prefix, items, 
                  item_template=None, title_template=None, 
                  section_style=None, title_section_style=None,
-                 select=False, multi=False, carousel=False, collapsible=False, read_only=False) -> None:
+                 select=False, multi=False, carousel=False, collapsible=False, read_only=False,
+                 reveal=False) -> None:
         super().__init__(left,top,33,44)
 
         self.tag_prefix = tag_prefix
@@ -160,6 +211,10 @@ class LayoutListbox(layout.Column):
         self.default_item_height = None
         self.select = select
         self.multi= multi
+        # OPT-IN. A selection scrolled out of view is a real problem, but this
+        # widget is load-bearing and multi-modal, and defaulting it on moves
+        # every list in every mission. One caller at a time.
+        self.reveal = reveal
         self.square_width_percent = 0
         #self.sections = []
         self.title_height = 2
@@ -450,14 +505,24 @@ class LayoutListbox(layout.Column):
             # -- the same number as before -- so no existing listbox moves.
             #
             avail = self.bounds.bottom - top
-            used = 0.0
-            max_slots = 0
-            for pack_item in self.items[int(cur_start):]:
-                h = self._item_heights.get(id(pack_item), avg_item_height) + item_height
-                if used + h > avail and max_slots > 0:
-                    break
-                used += h
-                max_slots += 1
+            heights = [self._item_heights.get(id(it), avg_item_height)
+                       for it in self.items]
+            max_slots = pack_slots(heights, avail, item_height, cur_start)
+
+            # Opt-in, vertical only, never a carousel (whose window is one item
+            # by definition), and never horizontal (a separate packing path with
+            # known problems -- left alone deliberately).
+            if self.reveal and self.select and not self.carousel:
+                sel = None
+                if self.selected and self._items:
+                    try:
+                        sel = self._items.index(self.selected[0])   # DISPLAY space
+                    except ValueError:
+                        sel = None
+                if sel is not None:
+                    cur_start = reveal_cur(sel, cur_start, heights, avail, item_height)
+                    max_slots = pack_slots(heights, avail, item_height, cur_start)
+                    self.cur = cur_start
 
 
         max_slots = int(max_slots)

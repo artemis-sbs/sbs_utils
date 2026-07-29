@@ -80,7 +80,8 @@ def gui_list_box_header(label, collapse=False, indent=0, selectable=False, data=
 def gui_list_box(items, style,
                  item_template=None, title_template=None,
                  section_style=None, title_section_style=None,
-                 select=False, multi=False, carousel=False,  collapsible=False,read_only=False):
+                 select=False, multi=False, carousel=False,  collapsible=False,read_only=False,
+                 reveal=False):
     """Add a listbox to the current GUI layout.
 
     Args:
@@ -106,6 +107,11 @@ def gui_list_box(items, style,
             the next header. Defaults to ``False``.
         read_only (bool, optional): Prevent item modification. Defaults to
             ``False``.
+        reveal (bool, optional): Scroll so the selected row is visible. A
+            repaint rebuilds the listbox and the view starts at the top, so a
+            restored selection can be held but off screen. Opt-in: this widget
+            is load-bearing, and defaulting it on would move every list in every
+            mission. Defaults to ``False``.
 
     Returns:
         LayoutListbox: The layout object created.
@@ -122,7 +128,7 @@ def gui_list_box(items, style,
     layout_item = LayoutListbox(0, 0, tag, items,
                  item_template, title_template, 
                  section_style, title_section_style,
-                 select,multi, carousel,  collapsible, read_only)
+                 select,multi, carousel,  collapsible, read_only, reveal)
     # #layout_item.data = data
     # if var is not None:
     #     layout_item.var_name = var

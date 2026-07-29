@@ -125,6 +125,102 @@ class TestPlainVertical(ListboxModeBase):
         self.assertNotIn(35, self._shown(lb))
 
 
+class TestRevealOptIn(ListboxModeBase):
+    """The fix, driven through the real _present -- the gap that let two
+    regressions through when the tests exercised a pure helper instead."""
+
+    def test_off_screen_selection_is_revealed_when_asked(self):
+        lb = self._lb([f"item {i}" for i in range(40)], select=True, reveal=True)
+        lb.set_selected_index(35, False)
+        lb._present(FakeEvent())
+        self.assertIn(35, self._shown(lb))
+
+    def test_revealed_at_the_bottom_not_the_top(self):
+        """Smallest move. Slamming it to the top is what
+        set_selected_index(i, True) already does, and it jumps every repaint."""
+        lb = self._lb([f"item {i}" for i in range(40)], select=True, reveal=True)
+        lb.set_selected_index(35, False)
+        lb._present(FakeEvent())
+        self.assertEqual(self._shown(lb)[-1], 35)
+        self.assertNotEqual(lb.cur, 35)
+
+    def test_a_visible_selection_does_not_move_the_view(self):
+        """The gallery's flow: the user clicked a visible row. If this moved,
+        every click would shift the list under the cursor."""
+        lb = self._lb([f"item {i}" for i in range(40)], select=True, reveal=True)
+        lb.cur = 5
+        lb._present(FakeEvent())
+        target = self._shown(lb)[1]
+        lb.set_selected_index(target, False)
+        lb._present(FakeEvent())
+        self.assertEqual(lb.cur, 5)
+
+    def test_selection_above_the_window_scrolls_up(self):
+        lb = self._lb([f"item {i}" for i in range(40)], select=True, reveal=True)
+        lb.cur = 20
+        lb.set_selected_index(2, False)
+        lb._present(FakeEvent())
+        self.assertIn(2, self._shown(lb))
+
+    def test_last_item_is_reachable(self):
+        lb = self._lb([f"item {i}" for i in range(40)], select=True, reveal=True)
+        lb.set_selected_index(39, False)
+        lb._present(FakeEvent())
+        self.assertIn(39, self._shown(lb))
+
+    def test_collapsible_reveal_uses_the_DISPLAY_index(self):
+        """The regression, isolated.
+
+        Collapse the FIRST group and a row near the top of the shown list has a
+        much larger UNFILTERED index. It is already visible, so the view must not
+        move -- but handed the unfiltered index the reveal believes it is far
+        below the fold and scrolls to it.
+
+        Needs a SMALL panel: with a window big enough for the whole shown list
+        nothing ever scrolls, and both indices give the same answer. That is why
+        the first version of this test passed under mutation.
+        """
+        items = [LayoutListBoxHeader("head 0", True)]           # collapsed
+        items += [f"h0 item {i}" for i in range(12)]
+        items += [LayoutListBoxHeader("head 1", False)]
+        items += [f"h1 item {i}" for i in range(12)]
+        lb = self._lb(items, bounds=Bounds(2.0, 10.0, 30.0, 30.0),
+                      collapsible=True, select=True, reveal=True)
+        lb._present(FakeEvent())
+
+        shown = self._shown(lb)
+        self.assertLess(len(shown), len(lb._items),
+                        "the window must be smaller than the shown list")
+
+        target = lb._items[2]                                   # first h1 row
+        d = lb._items.index(target)
+        u = lb.unfiltered_items.index(target)
+        self.assertGreater(u, max(shown), "unfiltered index must fall outside "
+                                          "the window, or nothing distinguishes")
+        self.assertIn(d, shown, "display index is inside the window")
+
+        lb.selected = [target]
+        lb.cur = 0
+        lb._present(FakeEvent())
+        self.assertEqual(lb.cur, 0, "a visible row must not move the view")
+
+    def test_collapsible_reveal_stays_in_the_shown_list(self):
+        """The regression that broke the gallery: the reveal was handed an
+        UNFILTERED index, which points past the end of the shown list once a
+        header is collapsed."""
+        items = []
+        for h in range(3):
+            items.append(LayoutListBoxHeader(f"head {h}", h == 0))
+            for i in range(6):
+                items.append(f"h{h} item {i}")
+        lb = self._lb(items, collapsible=True, select=True, reveal=True)
+        lb._present(FakeEvent())
+        lb.selected = [lb._items[-1]]          # last SHOWN row
+        lb._present(FakeEvent())
+        self.assertLess(lb.cur, len(lb._items))
+        self.assertIn(len(lb._items) - 1, self._shown(lb))
+
+
 class TestCollapsible(ListboxModeBase):
     """Two index spaces. `unfiltered_items` is everything; `_items` is what is
     shown, rebuilt each present with collapsed rows skipped. This is the mode
