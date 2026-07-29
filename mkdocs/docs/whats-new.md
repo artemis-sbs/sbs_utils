@@ -488,7 +488,7 @@ The same names reach **your own art**. Register a cell of your sheet under a loo
 wins over the built-in one:
 
 ```python
-gui_image_add_atlas("wanted", media_shared("icons/quest-sheet"), 0, 0, 64, 64)
+gui_icon_add_atlas("wanted", media_shared("icons/quest-sheet"), 0, 0, 64, 64)
 ```
 
 Every `gui_icon_name("quest.job")` in the game now draws your art — **with no edit to the
@@ -496,7 +496,50 @@ code that draws it**. Screens can be written before their art exists, and an add
 re-skin screens it doesn't own. An unknown name draws *nothing* rather than a plausible
 wrong glyph, because a wrong icon looks deliberate.
 
+Claiming a look is deliberate: only the **icon domain** re-skins, so an ordinary image
+that happens to be called `square` or `flag` can't silently change every state pip in the
+game.
+
+**Or write the sheet as a fact sheet.** An `## [Icons]` section registers the same keys
+with no Python — the sheet, the cell size and the domain are written once on the section,
+so an entry is a single line:
+
+```amd
+## [Icons](icons)
+---
+icons
+Sheet: icons/quest-sheet
+Cell: 64
+---
+
+### [Job](wanted)
+---
+At: 0, 0
+---
+```
+
+The same section type registers **any** atlas, not just icons — a card deck or a set of
+console backdrops is the same format with a different word (`images`, `art`) and its own
+`Domain:`. `sbs lint` checks them: a sheet that isn't on disk, an `At:` with no `Cell:`
+to measure against, a cell off the edge of the sheet. All three used to draw a blank
+widget with no error anywhere.
+
 The whole named set, with pictures: **[Icons by name](cosmos/gui_icons.md)**.
+
+## 📜 The Quest Log says something new
+
+Every row used to be the same square, over a caption repeating the state the square's
+color already showed. Now the **shape is what the thing is** — job, objective, beat, arc
+— and the **color is what state it's in**: two facts in one glyph.
+
+The second line has to earn its place. It says how far along you are (`2 of 6`), what a
+job pays while it's still a choice (`Reward: 120 credits`), or how long is left
+(`1:30 left`) — and falls back to the state only for **Done** and **Failed**, where the
+state *is* the news.
+
+Quests written before kinds existed still render; they just say less. And because every
+glyph is asked for by name, a mission that ships its own icon sheet re-skins the whole
+log without touching a line of it.
 
 ## 🗂️ Art that lives once
 

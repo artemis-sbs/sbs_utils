@@ -245,6 +245,76 @@ names, and a file may use either:
 
 ---
 
+## Art: sheets, cells and icons
+
+A sheet of art is a catalog, so it is authored like one. An image section registers atlas
+keys - the names `gui_image`, `gui_text_area` and `gui_icon_name` draw by - with no Python
+at all. What every cell shares is written ONCE on the section, so an entry is one line:
+
+```amd
+## [Cards](cards)
+---
+images
+Sheet: casino/terran_deck
+Cell: 190, 280
+Domain: casino
+---
+
+### [Back](card_back)
+---
+At: 0, 0
+---
+
+### [Console backdrop](console_bg)
+---
+Sheet: helm/consoles0001
+---
+```
+
+| field | means |
+|---|---|
+| `Sheet:` | the file, without the extension. Looked up in a [shared media pack](shared-media.md) first, so it resolves the same in a clone and in a fetched copy. On the section, or overridden per entry. |
+| `Cell:` | cell size in **pixels** - `64`, or `190, 280` |
+| `Grid:` | cells across and down (`8, 8`) - measures the cell off the sheet instead |
+| `At:` | which cell, as `col, row` |
+| `Rect:` | explicit pixels (`left, top, right, bottom`) for an irregular cell |
+| `Color:` | a default tint; a drawing call may override it |
+| `Domain:` | a namespace, so two add-ons can't silently claim one key |
+
+An entry with neither `At:` nor `Rect:` takes the **whole file** - which is why `Sheet:`
+can be overridden per entry, for one loose image among cells.
+
+Load it with `images_load_amd("art.amd")`, or `images_declare_document(doc)` when the
+section lives in a bigger file.
+
+### Icons are the same thing, in the icon domain
+
+A section whose kind noun is `icons` registers into the **icon domain**, which is what
+`gui_icon_name` resolves against - so its keys are the *looks* the game draws by name, and
+naming one re-skins every screen that draws it:
+
+```amd
+## [Icons](icons)
+---
+icons
+Sheet: icons/quest-sheet
+Cell: 64
+---
+
+### [Job](wanted)
+---
+At: 0, 0
+---
+```
+
+That scoping is deliberate: an ordinary image called `square` or `flag` must not change
+every state pip in the game. See [Icons by name](../cosmos/gui_icons.md).
+
+!!! tip "`sbs lint` checks these"
+    A sheet that is not on disk, an `At:` with no `Cell:` or `Grid:` to measure against,
+    and a cell that falls off the edge of the sheet. All three draw a blank widget with no
+    error anywhere otherwise.
+
 ## Writing values
 
 The format understands the shapes an author naturally writes:
