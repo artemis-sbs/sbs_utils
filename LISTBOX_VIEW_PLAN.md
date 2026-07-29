@@ -55,26 +55,46 @@ because the back-pack was computed against the row heights it will use.
 This alone fixes the reported bug: the selection is always on screen, and the
 view moves the minimum needed rather than jumping to the top.
 
-### 2. `view_key` — keep the slot across a repaint
+### 2. Keeping the slot across a repaint
 
-Revealing is not the same as *not moving*. To hold the selection in the same
-visual slot, `cur` has to survive the rebuild, and the widget is a different
-object each time with regenerated tags — so it cannot be stored on the widget.
+**A repaint builds a DIFFERENT listbox.** It shares nothing with the one before
+it — not the object, not the tag (`page.get_tag()` regenerates), not `sections`,
+which are empty until it first presents. So there is no continuity to lean on:
+whatever carries `cur` across has to be stored outside the widget and found again
+by something stable.
 
-Opt-in, by analogy with `var=` on the other widgets:
+The thread cannot be the tag. It has two candidates:
+
+**a. Build ordinal (the default).** Within one page build, listboxes are created
+in a deterministic order, so "the Nth listbox built on this client's page" is
+stable across repaints of the same screen. That means the fix costs callers
+NOTHING — the gallery, and every existing screen, gets it without a line
+changing.
+
+It mis-maps only when a page conditionally builds a *different number* of
+listboxes before the one in question, so the Nth is a different list than last
+time. That is real but rare, and it degrades to "restored a position from another
+list", which the clamp and the reveal pass immediately correct.
+
+**b. `view_key="…"` (the override).** For pages that do vary, and for anything
+that wants to be explicit:
 
 ```python
 gui_list_box(items, style, select=True, view_key="gallery_nav")
 ```
 
-The listbox saves `{cur, selected_index}` per client under that key, and restores
-it when a listbox with the same key is built. No caller bookkeeping, and lists
-that do not ask for it behave exactly as now.
+Storage is `{cur, selected_index}` per client, under the ordinal or the key.
 
-Selection is restored **by index**, not by item identity: items are rebuilt each
+**Stale state is expected, not exceptional.** Same key, different list; item
+count changed; a section collapsed. So restoring is a HINT, always followed by:
+clamp `cur` into `0..len(items)-max_slots`, drop a `selected_index` past the end,
+then the reveal pass. Every one of those is needed by resize anyway, so this adds
+no new machinery.
+
+Selection is restored **by index**, not item identity: items are rebuilt each
 repaint, so object identity does not survive. Index is right for a stable list
-and a reasonable approximation when the contents shift. A caller that needs
-better can pass its own key function later; not needed for anything today.
+and an approximation when contents shift. A caller needing better can pass a key
+function later; nothing needs it today.
 
 ### 3. Expose the view state
 
@@ -88,8 +108,11 @@ lb.get_view_state()          # {"cur": n, "selected_index": m}
 lb.set_view_state(state)
 ```
 
-`view_key` is these two plus storage; a caller doing something unusual can use
-them directly.
+The ordinal/`view_key` mechanism is these two plus storage; a caller doing
+something unusual can use them directly.
+
+Note `get_view_state()` on a FRESHLY BUILT listbox returns the restored hint, not
+a measured slot -- `sections` do not exist until it has presented once.
 
 ## When the repaint is triggered BY the selection
 
@@ -150,8 +173,13 @@ that ordering deliberately.
 
 ## Backward compatibility
 
-- **`view_key` and the accessors are additive.** A listbox that does not use them
-  is untouched.
+- **The accessors are additive.**
+- **The ordinal default is the behaviour change worth arguing about**: every
+  existing listbox starts remembering its scroll position across repaints. That
+  is the fix, and for the screens this was reported against it is exactly what is
+  wanted -- but it does mean a screen that relied on "a repaint returns me to the
+  top" no longer does. `view_key` cannot opt out of that; if an opt-out is
+  needed it wants its own flag.
 - **The reveal pass is a behaviour change** and I would default it ON: a
   selection the user cannot see is not a state anything wants, and today's
   alternative is a jump to the top. The one screen it could surprise is a list
@@ -178,6 +206,10 @@ The packing is per-row, so the cases that matter use **non-uniform heights**:
 - box shrinks past the selection → selection visible again, slot not preserved
 - box grows → nothing moves
 - a list with no selection is unaffected
+- **stale state**: restore a position from a list that has since shrunk -- `cur`
+  is clamped, a `selected_index` past the end is dropped, nothing raises
+- **ordinal identity**: two listboxes on one page keep separate positions, and
+  the second page build maps each to the same one as the first
 - uniform-height list produces the same numbers as today (no existing listbox moves)
 
 Mutation-check each: remove the reveal, remove the clamp — the relevant test must
