@@ -332,6 +332,27 @@ Cosmos. Confirmed gotchas:
 The user verifies the **actual render in the browser** at each checkpoint — the
 mock approximates layout, it doesn't guarantee it.
 
+## The Options button
+
+`gui_options_button(transparent=True, client_id=None)` — makes the engine Options
+button transparent **and keeps it that way**.
+
+Do NOT call `sbs.transparent_options_button()` directly from a story page: it is a
+one-shot, and `StoryPage.on_new_gui()` restores the button on **every** new GUI —
+which fires from `add_tag`, on the first tagged widget of a build. So anything set
+at the top of a screen label is taken back a moment later, on every rebuild. The
+same raw call works fine in a **cinematic**, because no story page is being built,
+which makes this look like a wrong flag value when it is an ordering problem.
+
+`1` is transparent (the library's own restore is `0`). `gui_options_button` records
+the intent per client and the page restores to *that*, so where you call it stops
+mattering. Absent intent defaults to `0` — a mission that never calls it is
+unaffected.
+
+Pair with `sbs.suppress_client_connect_dialog(0)` (the flag is the DIALOG's state:
+`0` hides the connect nag, `1` brings it back) when a mission owns the server
+screen. That one is a genuine one-shot and is fine from the `@map` body.
+
 ## Don't
 
 - Don't add `gui_represent(...)` — deprecated (the dirty system handles re-render).
