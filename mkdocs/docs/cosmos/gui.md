@@ -6,6 +6,12 @@ react to changes and clicks.
 
 <video controls loop width="640" height="480" src="../../media/gui_layout.mp4"></video>
 
+!!! tip "Every control on this page is also running, in the Control Gallery"
+    The [Control Gallery](control-gallery.md) is a mission that shows each widget live
+    with **the source that built it** sliced out of its own file underneath — plus a
+    Layout category for sizing, and a Traps category for the mistakes that produce a
+    plausible-looking screen. Run it with `sbs debug overlay_demo --map 0`.
+
 ## The shape of a GUI task
 
 A console or screen is a label that builds a layout and then awaits input:

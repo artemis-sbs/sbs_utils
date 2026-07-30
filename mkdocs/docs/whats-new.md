@@ -564,6 +564,39 @@ download, so a fetch no longer drags along 27 MB nothing reads.
 
 **272 MB reclaimed.** Guide: **[Shared media](build/shared-media.md)**.
 
+## 🎛️ The Control Gallery — every widget, running, with its source
+
+Stop guessing what a widget looks like. The **[Control Gallery](cosmos/control-gallery.md)**
+is a mission you start: **54 entries in six categories**, each one live on screen with
+**the code that built it directly underneath**.
+
+- **The snippet cannot be out of date**, because it is not a copy. It is sliced out of
+  the mission's own file at runtime between two comment markers — so what you read is
+  literally what drew the thing above it. **Copy** puts the real line on your clipboard.
+- **It opens on the server screen.** No console to pick, no ship needed. Start the map
+  and browse.
+- **A Traps category**, which may be the most useful part: mistakes that produce a
+  *plausible* screen and therefore survive review — a `1em` row under a bigger font,
+  padding eaten out of the row height, a starved `content` row, `update()` quietly
+  dropping the rest of your style string, a handler built in a `for` loop that captures
+  the wrong item. Each runs **broken and fixed side by side**.
+- **A layout playground** where dropdowns set `row-height`, `col-width` and the font and
+  the boxes move under you — sizing is one of those things you have to push around
+  rather than read about.
+- **"Take the tour"** walks all 54 entries, narrating each through the overlay system's
+  own lower third — the gallery introducing itself with the feature it was originally
+  built to demo.
+
+One entry is a record in a `.amd` file plus a marked span in the code, joined by a key,
+so adding to it costs nothing.
+
+```
+sbs debug overlay_demo --map 0        # then http://localhost:8765/server
+```
+
+Docs: [The Control Gallery](cosmos/control-gallery.md) ·
+Repo: [artemis-sbs/control_gallery](https://github.com/artemis-sbs/control_gallery).
+
 ## 📋 Richer GUI — tables, and text that does more
 
 - **[`gui_table`](cosmos/gui_table.md).** Describe a table as **rows + column
