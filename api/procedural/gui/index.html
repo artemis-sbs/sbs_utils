@@ -1406,6 +1406,8 @@
       
         
       
+        
+      
     
     
     
@@ -1556,6 +1558,29 @@
   
   <span class="md-ellipsis">
     Player ships & consoles
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../cosmos/control-gallery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Control Gallery (browse every control)
     
   </span>
   
@@ -1824,7 +1849,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_17" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_18" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1841,14 +1866,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_17" id="__nav_5_17_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_18" id="__nav_5_18_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_17_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_17">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_18">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -13951,7 +13976,7 @@ or <code>"$type:cruiser;angle:45;"</code>.</p>
             <td>
               <div class="doc-md-description">
                 <p>Property string defining the slider range and label, e.g.
-<code>"min:1;max:10;label:Count;"</code></p>
+<code>"low:1;high:10;text:int;"</code></p>
               </div>
             </td>
             <td>
@@ -14036,7 +14061,7 @@ Defaults to None.</p>
 
 <details class="example" open>
   <summary>Example</summary>
-  <p>gui_int_slider("min:1;max:5;label:Torpedo Count;", var="torp_count")</p>
+  <p>gui_int_slider("low:1;high:5;text:int;", var="torp_count")</p>
 </details>
 
     </div>
@@ -14080,7 +14105,7 @@ the player adjusts the slider, <code>var</code> is updated.</p>
             <td>
               <div class="doc-md-description">
                 <p>Property string defining the slider range and label, e.g.
-<code>"min:0;max:100;label:Energy;"</code></p>
+<code>"low:0;high:100;text:float;"</code></p>
               </div>
             </td>
             <td>
@@ -14182,7 +14207,7 @@ Defaults to None.</p>
 
 <details class="example" open>
   <summary>Example</summary>
-  <p>gui_slider("min:0;max:100;label:Speed;", var="speed_pct")</p>
+  <p>gui_slider("low:0;high:100;text:float;", var="speed_pct")</p>
 </details>
 
     </div>
@@ -14322,7 +14347,7 @@ gui_text("$text:WARNING;color:red;")</p>
 
 
 <h2 id="sbs_utils.procedural.gui.text.gui_text_area" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">gui_text_area</span><span class="p">(</span><span class="n">props</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">gui_text_area</span><span class="p">(</span><span class="n">props</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">markdown</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">line_styles</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -14480,7 +14505,7 @@ styling is left untouched.</p>
 
 
 <h2 id="sbs_utils.procedural.gui.listbox.gui_list_box" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">gui_list_box</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">item_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">section_style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_section_style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">multi</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">carousel</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">collapsible</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">read_only</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">gui_list_box</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">item_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">section_style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_section_style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">multi</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">carousel</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">collapsible</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">read_only</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">reveal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">hint</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -14686,6 +14711,45 @@ the next header. Defaults to <code>False</code>.</p>
             </td>
             <td>
                   <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>reveal</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Scroll so the selected row is visible. A
+repaint rebuilds the listbox and the view starts at the top, so a
+restored selection can be held but off screen. Opt-in: this widget
+is load-bearing, and defaulting it on would move every list in every
+mission. Defaults to <code>False</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>hint</code>
+            </td>
+            <td>
+                  <code><span title="object">object</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>An opaque token from the previous listbox's
+<code>get_selection_hint()</code>. A repaint builds a DIFFERENT listbox whose
+view starts at the top, so without this the row under the user's
+mouse moves. Do not inspect it; pass it along.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
             </td>
           </tr>
       </tbody>

@@ -795,6 +795,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-control-gallery-every-widget-running-with-its-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      🎛️ The Control Gallery — every widget, running, with its source
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#richer-gui-tables-and-text-that-does-more" class="md-nav__link">
     <span class="md-ellipsis">
       📋 Richer GUI — tables, and text that does more
@@ -1715,6 +1724,8 @@
       
         
       
+        
+      
     
     
     
@@ -1865,6 +1876,29 @@
   
   <span class="md-ellipsis">
     Player ships & consoles
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cosmos/control-gallery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Control Gallery (browse every control)
     
   </span>
   
@@ -2133,7 +2167,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_17" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_18" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2150,14 +2184,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_17" id="__nav_5_17_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_18" id="__nav_5_18_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_17_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_17">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_18">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -6085,6 +6119,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-control-gallery-every-widget-running-with-its-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      🎛️ The Control Gallery — every widget, running, with its source
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#richer-gui-tables-and-text-that-does-more" class="md-nav__link">
     <span class="md-ellipsis">
       📋 Richer GUI — tables, and text that does more
@@ -6694,6 +6737,34 @@ unpacked path (which carries the version). Publishing a pack is a <code>zip</cod
 <code>__lib__.json</code>; <code>export-ignore</code> then keeps the art out of the source archive consumers
 download, so a fetch no longer drags along 27 MB nothing reads.</p>
 <p><strong>272 MB reclaimed.</strong> Guide: <strong><a href="../build/shared-media/">Shared media</a></strong>.</p>
+<h2 id="the-control-gallery-every-widget-running-with-its-source">🎛️ The Control Gallery — every widget, running, with its source</h2>
+<p>Stop guessing what a widget looks like. The <strong><a href="../cosmos/control-gallery/">Control Gallery</a></strong>
+is a mission you start: <strong>54 entries in six categories</strong>, each one live on screen with
+<strong>the code that built it directly underneath</strong>.</p>
+<ul>
+<li><strong>The snippet cannot be out of date</strong>, because it is not a copy. It is sliced out of
+  the mission's own file at runtime between two comment markers — so what you read is
+  literally what drew the thing above it. <strong>Copy</strong> puts the real line on your clipboard.</li>
+<li><strong>It opens on the server screen.</strong> No console to pick, no ship needed. Start the map
+  and browse.</li>
+<li><strong>A Traps category</strong>, which may be the most useful part: mistakes that produce a
+  <em>plausible</em> screen and therefore survive review — a <code>1em</code> row under a bigger font,
+  padding eaten out of the row height, a starved <code>content</code> row, <code>update()</code> quietly
+  dropping the rest of your style string, a handler built in a <code>for</code> loop that captures
+  the wrong item. Each runs <strong>broken and fixed side by side</strong>.</li>
+<li><strong>A layout playground</strong> where dropdowns set <code>row-height</code>, <code>col-width</code> and the font and
+  the boxes move under you — sizing is one of those things you have to push around
+  rather than read about.</li>
+<li><strong>"Take the tour"</strong> walks all 54 entries, narrating each through the overlay system's
+  own lower third — the gallery introducing itself with the feature it was originally
+  built to demo.</li>
+</ul>
+<p>One entry is a record in a <code>.amd</code> file plus a marked span in the code, joined by a key,
+so adding to it costs nothing.</p>
+<div class="highlight"><pre><span></span><code>sbs debug control_gallery --map 0     # then http://localhost:8765/server
+</code></pre></div>
+<p>Docs: <a href="../cosmos/control-gallery/">The Control Gallery</a> ·
+Repo: <a href="https://github.com/artemis-sbs/control_gallery">artemis-sbs/control_gallery</a>.</p>
 <h2 id="richer-gui-tables-and-text-that-does-more">📋 Richer GUI — tables, and text that does more</h2>
 <ul>
 <li>

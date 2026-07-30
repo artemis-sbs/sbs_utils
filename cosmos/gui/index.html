@@ -9,7 +9,7 @@
       
       
       
-        <link rel="prev" href="../../build/players-consoles/">
+        <link rel="prev" href="../control-gallery/">
       
       
         <link rel="next" href="../gui_list/">
@@ -1408,6 +1408,8 @@
       
         
       
+        
+      
     
     
     
@@ -1561,6 +1563,29 @@
   
   <span class="md-ellipsis">
     Player ships & consoles
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../control-gallery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Control Gallery (browse every control)
     
   </span>
   
@@ -1955,7 +1980,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_17" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_18" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1972,14 +1997,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_17" id="__nav_5_17_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5_18" id="__nav_5_18_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_17_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_17">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_18">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -5790,6 +5815,13 @@ widgets, then suspends on <code>await gui()</code> until the player interacts; <
 react to changes and clicks.</p>
 <video controls loop width="640" height="480" src="../../media/gui_layout.mp4"></video>
 
+<div class="admonition tip">
+<p class="admonition-title">Every control on this page is also running, in the Control Gallery</p>
+<p>The <a href="../control-gallery/">Control Gallery</a> is a mission that shows each widget live
+with <strong>the source that built it</strong> sliced out of its own file underneath — plus a
+Layout category for sizing, and a Traps category for the mistakes that produce a
+plausible-looking screen. Run it with <code>sbs debug control_gallery --map 0</code>.</p>
+</div>
 <h2 id="the-shape-of-a-gui-task">The shape of a GUI task</h2>
 <p>A console or screen is a label that builds a layout and then awaits input:</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:1"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
