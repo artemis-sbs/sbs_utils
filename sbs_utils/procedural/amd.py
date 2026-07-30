@@ -78,6 +78,12 @@ class FenceScanner:
 
 
 # --- value-coercion primitives ---------------------------------------------
+# Every collection grammar below starts with `str(s)`, so handing one its OWN output
+# is silent corruption rather than an error: `amd_counted({'salvage': 5})` stringifies
+# the dict and comma-splits it back into `{"{'salvage':": 1}` -- a plausible-looking
+# dict of garbage keys. That is easy to hit now that a declared field type (amd_schema's
+# `counted`/`kv`/...) already coerces on the way out of the reader, so a loader that
+# also parses is parsing twice. Each grammar passes an already-parsed value through.
 def amd_norm(name):
     """Canonicalize a token: lowercase, hyphens/spaces -> underscores."""
     return str(name).strip().lower().replace("-", "_").replace(" ", "_")
@@ -141,12 +147,16 @@ def amd_pct(s):
 
 def amd_list(s):
     """Comma-split, trimmed, empties dropped."""
+    if isinstance(s, (list, tuple)):
+        return [str(x).strip() for x in s if str(x).strip()]
     return [x.strip() for x in str(s).split(",") if x.strip()]
 
 
 def amd_weighted(s):
     """'by-the-book 40, fearsome 30' -> {by_the_book: 40, fearsome: 30}
     (trailing integer is the weight; a bare name gets weight 0)."""
+    if isinstance(s, dict):
+        return dict(s)
     out = {}
     for item in amd_list(s):
         toks = item.split()
@@ -160,6 +170,8 @@ def amd_weighted(s):
 def amd_makeup(s):
     """'60% X, 40% Y' -> {X:60, Y:40}; 'X, Y' -> list; 'X' -> str.
     (Three shapes; the percent form keeps the original display casing of the key.)"""
+    if isinstance(s, dict):
+        return dict(s)
     items = amd_list(s)
     if any("%" in it for it in items):
         out = {}
@@ -175,6 +187,8 @@ def amd_makeup(s):
 
 def amd_coords(s, n=2):
     """'6, 4' -> [6, 4] (the first `n` signed-integer tokens)."""
+    if isinstance(s, (list, tuple)):
+        return [int(x) for x in s][:n]
     return [int(x) for x in str(s).replace(",", " ").split()
             if x.lstrip("-").isdigit()][:n]
 
@@ -185,6 +199,8 @@ def amd_counted(s):
     The shopping-list shape an author writes for costs and contents. Promoted here from
     LegendaryMissions' `recipes.py:_parse_inputs` so the fabrication recipe fence reads
     through the SAME declared type as everything else, instead of a private loader."""
+    if isinstance(s, dict):
+        return dict(s)
     out = {}
     for part in amd_list(s):
         bits = part.split()
@@ -201,6 +217,8 @@ def amd_kv(s):
     """'kind=bio, range=medium' -> {'kind': 'bio', 'range': 'medium'}.
 
     Promoted from `recipes.py:_parse_program`. Parts without an `=` are skipped."""
+    if isinstance(s, dict):
+        return dict(s)
     out = {}
     for part in amd_list(s):
         if "=" not in part:

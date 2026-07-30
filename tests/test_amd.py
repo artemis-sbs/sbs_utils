@@ -5,7 +5,8 @@ test_set_exe_dir()
 import unittest
 from sbs_utils.procedural.amd import (
     amd_norm, amd_num, amd_pct, amd_list, amd_weighted, amd_makeup,
-    amd_coords, amd_is_yaml_flow, amd_fact_lines, amd_parse_facts)
+    amd_coords, amd_counted, amd_kv, amd_is_yaml_flow, amd_fact_lines,
+    amd_parse_facts)
 
 
 class TestAmdPrimitives(unittest.TestCase):
@@ -39,6 +40,59 @@ class TestAmdPrimitives(unittest.TestCase):
     def test_coords(self):
         self.assertEqual(amd_coords("6, 4"), [6, 4])
         self.assertEqual(amd_coords("6 4 9"), [6, 4])   # first n=2
+
+    def test_counted(self):
+        self.assertEqual(amd_counted("bio_sample x1, salvage x5"),
+                         {"bio_sample": 1, "salvage": 5})
+        self.assertEqual(amd_counted("salvage"), {"salvage": 1})
+
+    def test_kv(self):
+        self.assertEqual(amd_kv("kind=sensor, range=medium"),
+                         {"kind": "sensor", "range": "medium"})
+
+
+class TestGrammarsAreIdempotent(unittest.TestCase):
+    """A grammar handed its OWN output must return it unchanged.
+
+    Not a nicety: a declared field type (amd_schema `counted`/`kv`/...) coerces on the
+    way out of the reader, so any loader that also parses is parsing twice. These all
+    start with `str(s)`, so the second pass used to stringify a dict and comma-split it
+    back into plausible garbage -- `{'salvage': 5}` became `{"{'salvage':": 1}`. That
+    reached a GUI as `Cost: {'bio_sample': x1` and crashed the MAST assignment, because
+    an Assign re-formats a string value as an f-string and the stray `{` never closes."""
+
+    def test_counted(self):
+        once = amd_counted("bio_sample x1, salvage x5")
+        self.assertEqual(amd_counted(once), once)
+
+    def test_kv(self):
+        once = amd_kv("kind=sensor, range=medium")
+        self.assertEqual(amd_kv(once), once)
+
+    def test_weighted(self):
+        once = amd_weighted("by-the-book 40, fearsome 30")
+        self.assertEqual(amd_weighted(once), once)
+
+    def test_makeup(self):
+        once = amd_makeup("60% Kralien, 40% Arvonian")
+        self.assertEqual(amd_makeup(once), once)
+        as_list = amd_makeup("Kralien, Torgoth")
+        self.assertEqual(amd_makeup(as_list), as_list)
+
+    def test_coords(self):
+        once = amd_coords("6, 4")
+        self.assertEqual(amd_coords(once), once)
+
+    def test_list(self):
+        once = amd_list("a, b, c")
+        self.assertEqual(amd_list(once), once)
+
+    def test_empty_collections_stay_empty(self):
+        # `{}`/`[]` are falsy, so a pass-through must not fall back to str() of them.
+        self.assertEqual(amd_counted({}), {})
+        self.assertEqual(amd_kv({}), {})
+        self.assertEqual(amd_list([]), [])
+        self.assertEqual(amd_coords([]), [])
 
 
 class TestAmdParse(unittest.TestCase):
