@@ -544,22 +544,27 @@ class Mast():
                     imports.append(p)
         return imports
     
-    def find_add_ons(self, folder):
+    def find_add_ons(self):
+        """The addons to compile into this story: the mastlibs its story.json declares.
+
+        Dependencies are DECLARED, never discovered. This used to also walk the mission
+        tree adopting any `.mastlib`/`.zip` it found, from before story.json + __lib__
+        managed dependencies; that walk is obsolete and was actively harmful:
+
+          * A stray archive in a mission SUBFOLDER (an art pack, a backup, an old build)
+            was treated as an addon. A `.zip` has no `__init__.mast`, so the read failed
+            and the story compiled to ZERO labels - and reported PASS, because the error
+            only ever surfaced on the engine's on-screen error page.
+          * A stale `.mastlib` was worse: it loaded fine and merged its labels in, so a
+            mission silently ran content its story.json never declared.
+
+        It could not even see the mission ROOT (the walk root was `<mission>/.`, whose
+        basename tripped its own skip-hidden-directories rule), so only SUBfolders were
+        ever adopted - and it walked the whole tree on every compile to produce a list
+        that __lib__ had already made unnecessary.
+        """
         import os
         addons = []
-        for root, dirs, files in os.walk(os.path.join(self.basedir, folder)):
-            # Avoids dev .git or .build, .add_ons etc.
-            if os.path.basename(root).startswith("."):
-                continue
-
-            for name in files:
-                if name.endswith(".mastlib") or name.endswith(".zip"):
-                    p = os.path.join(root, name)
-                    #DEBUG(p)
-                    addons.append(p)
-        #
-        # look in the story.json
-        #
         is_test = sys.modules.get('script')
         if is_test is None or isinstance(is_test, str):
             return []
@@ -629,8 +634,19 @@ class Mast():
 
 
         content, errors = self.content_from_lib_or_file(file_name)
-      
+
         if errors is not None:
+            # Same dev seam compile() uses, one stage earlier. A file that cannot be READ
+            # returns here and never reaches compile(), so the harness never saw it: a
+            # mastlib whose __init__.mast is missing (e.g. an archive that nests the addon
+            # folder) loaded nothing, and a headless --test still reported PASS because the
+            # only visible surface was the on-screen error page. Hook defaults to None, so
+            # this is a no-op in the shipped engine.
+            if Mast.on_compile_error is not None:
+                try:
+                    Mast.on_compile_error(errors, file_name)
+                except Exception:
+                    pass
             return errors
         if content is not None:
             content = content.replace("\r","")
@@ -638,7 +654,7 @@ class Mast():
 
                 
             if len(errors) == 0 and not self.is_import:
-                addons = self.find_add_ons(".")
+                addons = self.find_add_ons()
                 for name in addons:
                     errors = self.import_content("__init__.mast", root, name)
                     if len(errors)>0:
