@@ -166,7 +166,7 @@ engine-real, not mock-real: overlay stacking, the first-show repaint, and input 
 engine widgets. So:
 
 - **P0 — engine-verify each kind** in a browser mock session, then a real engine
-  session, via `LM_TestRange` (or `overlay_demo`). ⏳ **OPEN — the user checkpoint.**
+  session, via `LM_TestRange` (or `control_gallery`). ⏳ **OPEN — the user checkpoint.**
   Everything below is headless-green but unproven on screen.
 - **P1 — HTBM** ✅ **DONE.** `here_helpers.py`: a lower third on both message helpers
   (subtitles while the audio plays), plus `here_scene` / `here_system_break`; 7 scene

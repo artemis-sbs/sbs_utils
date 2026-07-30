@@ -8,7 +8,7 @@ mission's own file at runtime, so it cannot drift from what you are looking at.
 It is a mission you run, not a page you read. Start it and browse.
 
 - Repo: [artemis-sbs/control_gallery](https://github.com/artemis-sbs/control_gallery)
-- Folder: `data/missions/overlay_demo` (the folder name predates the gallery)
+- Folder: `data/missions/control_gallery`
 
 ## Running it
 
@@ -20,7 +20,7 @@ the screen back to LegendaryMissions' own view.
 **In the browser mock** — cheaper for a first look at layout:
 
 ```
-sbs debug overlay_demo --map 0
+sbs debug control_gallery --map 0
 ```
 
 then open `http://localhost:8765/server`.

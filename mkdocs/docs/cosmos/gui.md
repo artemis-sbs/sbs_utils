@@ -10,7 +10,7 @@ react to changes and clicks.
     The [Control Gallery](control-gallery.md) is a mission that shows each widget live
     with **the source that built it** sliced out of its own file underneath — plus a
     Layout category for sizing, and a Traps category for the mistakes that produce a
-    plausible-looking screen. Run it with `sbs debug overlay_demo --map 0`.
+    plausible-looking screen. Run it with `sbs debug control_gallery --map 0`.
 
 ## The shape of a GUI task
 

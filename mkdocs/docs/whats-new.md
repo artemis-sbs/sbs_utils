@@ -591,7 +591,7 @@ One entry is a record in a `.amd` file plus a marked span in the code, joined by
 so adding to it costs nothing.
 
 ```
-sbs debug overlay_demo --map 0        # then http://localhost:8765/server
+sbs debug control_gallery --map 0     # then http://localhost:8765/server
 ```
 
 Docs: [The Control Gallery](cosmos/control-gallery.md) ·

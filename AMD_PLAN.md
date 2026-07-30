@@ -258,7 +258,7 @@ only when it differs. Five plain statements, no machine words.
 | `StormsBeacon/stormsbeacon.amd` | 1 file (shipped mission) | alias-covered; verify |
 | `missions/arme2cosmos/amd_emit.py` | **1028-line AMD producer** (own repo, inside the missions tree) | emits the new vocabulary (`Objective:`/`Done when:`/`State: available`, no `signal` keyword) |
 | `F:/a/Cosmos-a2x-test/data/missions_amd` | 34 generated `.amd`, 23 missions (NOT a git repo) | **regenerate** by re-running a2x - never hand-edit. Rebuild its `__lib__` sbslib too, or the new labels are silently dropped |
-| `overlay_demo`, `modding_tools/doc_viewer`, `LM_TestRange` | demos/harnesses | verify |
+| `control_gallery`, `modding_tools/doc_viewer`, `LM_TestRange` | demos/harnesses | verify |
 | `mkdocs` | docs are already behind v1.4.0 | document the settled format (do NOT publish Open Universe) |
 
 ---

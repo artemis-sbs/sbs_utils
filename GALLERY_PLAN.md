@@ -46,21 +46,22 @@ makes it unrepresentable.
 
 ## Where it lives
 
-Grow `missions/overlay_demo` in place. It already carries the LM stack, a map, players,
+Grow the mission that was `missions/overlay_demo` in place. It already carries the LM stack, a map, players,
 a station and a docking setup that the Overlays category needs, and it is already a
 published repo (renamed to `artemis-sbs/control_gallery` once the fold landed;
-the FOLDER stays `overlay_demo`, so `sbs debug overlay_demo` and the launch config
-keep working, and GitHub redirects the old URL).
+the FOLDER was renamed to match afterwards, so it is now
+`missions/control_gallery` and `sbs debug control_gallery`; GitHub redirects the old
+repo URL).
 
-- Folder name stays `overlay_demo` (so `sbs debug overlay_demo` keeps working, and the
-  git remote is untouched).
+- Folder name initially stayed `overlay_demo` to keep `sbs debug` and the launch
+  config working; it was renamed to `control_gallery` once the fold had landed.
 - `description.yaml` display name becomes **Control Gallery**.
 - The two existing consoles survive unchanged as the **Overlays** category.
 - The GitHub repo was renamed `control_gallery` after Phase 7, with the About text
   rewritten to match. The local folder was deliberately NOT renamed.
 
 ```
-overlay_demo/
+control_gallery/
   story.mast              map + the existing overlay consoles; imports the gallery
   gallery.mast            the shell: @console/gallery, nav, detail pane, dispatch
   gallery_controls.mast   Controls specimens          (marked spans)
