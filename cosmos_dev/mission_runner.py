@@ -159,6 +159,112 @@ def _preview_story_args(payload: dict):
     return (p.get("display") or key, p.get("body") or "", "", "#888")
 
 
+def _merge_cosmos_settings(extra: dict) -> None:
+    """Merge keys into the ``COSMOS_SETTINGS`` override env var.
+
+    Uses setdefault so an explicit ``sbs debug --set KEY=...`` already in the var
+    keeps priority over anything the runner infers.
+    """
+    import json
+    try:
+        current = json.loads(os.environ.get("COSMOS_SETTINGS") or "{}")
+        if not isinstance(current, dict):
+            current = {}
+    except Exception:
+        current = {}
+    for key, value in extra.items():
+        current.setdefault(key, value)
+    os.environ["COSMOS_SETTINGS"] = json.dumps(current)
+
+
+def map_label_name(sched, label):
+    """The label's canonical name if it is a ``@map`` entry point, else None.
+
+    Accepts a name or a Label, matching ``start_task``, and always answers with the
+    Label's own ``name`` so the two never disagree.
+    """
+    if isinstance(label, str):
+        label = sched.mast.labels.get(label, None)
+    name = getattr(label, "name", None)
+    if isinstance(name, str) and name.startswith("map/"):
+        return name
+    return None
+
+
+def live_map_task(sched, map_name):
+    """The live task running the named ``@map`` label on this scheduler, or None.
+
+    Liveness is membership in ``sched.tasks`` - the scheduler drops finished tasks
+    from it - so a map whose task has ended can be launched again (mission restart).
+    Deliberately does NOT consult ``task.done``: that is a Promise METHOD until
+    do_jump overwrites it with a bool, so its truthiness says nothing about whether
+    the task finished. Identity comparison because tasks are Agents and may define
+    __eq__.
+    """
+    running = getattr(sched, "_map_tasks", {}).get(map_name)
+    if running is None:
+        return None
+    return running if any(t is running for t in sched.tasks) else None
+
+
+def install_map_launch_guard():
+    """Make launching a ``@map`` label idempotent for this mock session.
+
+    A map is a mission entry point and must run exactly once, but the mock has TWO
+    ways to launch one: this runner's ``--map`` auto-start, and the operator pressing
+    "Start Mission" on the server console's picker - which stays live and clickable
+    after an auto-start, and which EVERY ``/server`` browser tab gets its own copy of
+    (they all attach as clientID 0). Launch it twice and the whole map body re-runs,
+    duplicating every spawn; because map seeds are fixed the duplicates land on
+    IDENTICAL positions, so it reads as a mission content bug and silently invalidates
+    any measurement taken on that session. Measured on the a2x hamaksector conversion:
+    1392 terrain objects (461 nebulae + 931 asteroids) became 2784.
+
+    Patched in HERE rather than shipped in sbs_utils on purpose. Neither launcher
+    exists in the engine - it has exactly one server console and no --map auto-start -
+    so this is a harness-only condition and the library keeps its exact production
+    behaviour. ``--map <name>`` avoids the situation entirely by handing the launch to
+    the console (see _run); this covers ``--map <int>``, which cannot resolve an index
+    to a path before the console reads AUTO_START and so keeps runner-side scheduling.
+    """
+    from sbs_utils.mast.mastscheduler import MastScheduler
+    if getattr(MastScheduler, "_map_launch_guarded", False):
+        return
+    _orig_start_task = MastScheduler.start_task
+
+    def start_task(self, label="main", inputs=None, task_name=None, defer=False,
+                   unscheduled=False, loc=0):
+        name = map_label_name(self, label)
+        if name is not None:
+            running = live_map_task(self, name)
+            if running is not None:
+                print(f'[runner] map "{name}" is already running; '
+                      f'ignoring duplicate launch')
+                return running
+        t = _orig_start_task(self, label, inputs, task_name, defer, unscheduled, loc)
+        # unscheduled tasks are not in sched.tasks, so they have no liveness to track.
+        if name is not None and not unscheduled:
+            if getattr(self, "_map_tasks", None) is None:
+                self._map_tasks = {}
+            self._map_tasks[name] = t
+        return t
+
+    MastScheduler.start_task = start_task
+    MastScheduler._map_launch_guarded = True
+
+
+def _console_started_map() -> bool:
+    """True once the story itself has started a map (server console `start` path).
+
+    The console sets the shared ``GAME_STARTED`` when it launches WORLD_SELECT.
+    """
+    from sbs_utils.procedural.execution import get_shared_variable
+    try:
+        return bool(get_shared_variable("GAME_STARTED"))
+    except Exception:
+        return False
+
+
 def _try_auto_start_map(map_arg, sbs) -> bool:
     """Try to schedule the target map. Returns True once done, False if maps not ready yet.
 
@@ -509,6 +615,26 @@ def _run(
     # Communicate map choice to the debug .mast via environment variable
     os.environ["COSMOS_DEBUG_MAP"] = str(map_arg)
 
+    # Map auto-start: prefer the launcher the real engine uses. LM's server console
+    # reaches its `start` label via `jump start if AUTO_START` and launches
+    # WORLD_SELECT itself (also doing sim_resume, map_apply_defaults and the
+    # game_started emit), so hand a NAMED --map over as settings and let the console
+    # start it - one launcher, so the map body cannot run twice.
+    #
+    # An INDEX cannot be turned into a path until the story has compiled and
+    # registered its @map labels, which is after the console's AUTO_START check, so
+    # `--map <int>` keeps the runner-side scheduling path below. Either way
+    # MastScheduler.start_task makes a map launch idempotent.
+    # Dev-only safety net: a map body must never run twice (see the docstring).
+    # Installed after _load_libs so it patches whichever sbs_utils actually loaded
+    # (packaged .sbslib, or the working tree under --use-working-tree).
+    install_map_launch_guard()
+
+    _console_launch = isinstance(map_arg, str)
+    if _console_launch:
+        _merge_cosmos_settings({"WORLD_SELECT": map_arg, "AUTO_START": True})
+        print(f"[runner] map '{map_arg}' handed to the server console (AUTO_START)")
+
     _server_proc = None
     _orig_stdout = _orig_stderr = None
     if gui:
@@ -603,6 +729,11 @@ def _run(
     _mast_interval = max(1, round(tick_rate / 5))   # MAST at 5 Hz
     _mast_counter  = 0
     _map_started   = map_arg is None  # skip auto-start when no map was requested
+    # Watchdog on the console-launch handover above: a mission without the LM
+    # consoles addon has nothing to act on AUTO_START, so take the launch back
+    # rather than sitting on a paused sim forever.
+    _CONSOLE_LAUNCH_GRACE = 30.0
+    _console_deadline = None
 
     # Physics runs in a background daemon thread, decoupled from MAST.
     # The main loop drains physics events each iteration via queue.Queue.get_nowait().
@@ -1160,7 +1291,19 @@ def _run(
                         print("[runner] --dap-wait timed out; auto-starting without a debugger")
                         _hold = False
                 if not _hold:
-                    _map_started = _try_auto_start_map(map_arg, sbs)
+                    if _console_launch:
+                        # The server console owns the launch (AUTO_START handover).
+                        if _console_deadline is None:
+                            _console_deadline = time.time() + _CONSOLE_LAUNCH_GRACE
+                        if _console_started_map():
+                            print("[runner] map started by the server console")
+                            _map_started = True
+                        elif time.time() > _console_deadline:
+                            print("[runner] server console did not start the map "
+                                  "in time; falling back to runner auto-start")
+                            _console_launch = False
+                    else:
+                        _map_started = _try_auto_start_map(map_arg, sbs)
 
             # Resolution sweep: pin every client's screen size each tick so layouts
             # (re)build at the forced aspect instead of the 1024x768 default.
