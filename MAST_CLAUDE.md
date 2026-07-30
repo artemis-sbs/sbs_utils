@@ -200,6 +200,23 @@ default shared SETTINGS = settings_get_defaults()
 - `shared` variables are accessible from any task in the story.
 - Scope is more nuanced than this — treat as a topic to expand.
 
+### Assigning a string re-formats it as an f-string
+
+Every assignment whose value is a **string** gets run through f-string formatting
+(`core_nodes/assign.py` → `compile_and_format_string`). That is the feature behind
+`greeting = "Hello {name}"`, but it applies to a **function's return value** too:
+
+```
+cost = recipe_inputs_text(recipe)   # returns "{'salvage': 5}" -> RUNTIME ERROR
+```
+
+A `{` in returned text the author never sees is a `SyntaxError: f-string: expecting
+'}'` at the assignment line, reported against your code, not the function's. So a
+helper that formats text for display must not emit braces — and if data *might*
+contain them, hold it somewhere other than a bare MAST assignment (pass it straight
+to the widget, or keep it in a dict/list). Applies only to strings: a dict, list, or
+number assigns untouched.
+
 ---
 
 ## `await`
