@@ -32,12 +32,42 @@ Data passed to `signal_emit` becomes task variables in the handler. Use snake_ca
 
 ## Shared signals
 
-A `//shared/signal/<name>` route fires for all clients and tasks, not just the one that emitted it:
+A `//shared/signal/<name>` route runs on the **server only**, once. A plain
+`//signal/<name>` route runs once per **connected console**, plus the server — so with
+five consoles its body runs six times.
+
+That is the single most common multiplayer bug in mission code. Ask: *"with five consoles,
+do I want this five times?"* Anything that spawns, saves, rewards, counts, ends the game or
+rolls random belongs in `//shared/signal`; only per-console **display** stays in `//signal`.
 
 ```
 //shared/signal/quest_completed
     log("Mission complete! Well done, crew.")
 ```
+
+## Running setup only once
+
+`//shared/signal` fixes **where** a route runs. It does not limit **how many times the
+signal is emitted** — emit setup twice and its body runs twice.
+
+Where what you create has a natural name, prefer making the work idempotent
+(`player_ensure`, `side_ensure`, AMD records keyed by their own `(key)`). Where it does
+not, mark the route `once`:
+
+```
+//shared/signal/give_starting_cash once
+```
+
+| Function | Does |
+|---|---|
+| `signal_once_reset(name)` | Re-arm the `once` routes for a signal, so they can run again |
+| `signal_once_reset()` | Re-arm every `once` route |
+
+Starting a new mission re-arms everything, so `signal_once_reset` is only for re-running
+setup **within** a mission — resetting scenario conditions without reloading.
+
+Full guidance, and the routes you must *not* mark `once`, are in
+[Signal routes](../../mast/routes/signals.md#running-setup-only-once).
 
 ## Awaiting a signal
 

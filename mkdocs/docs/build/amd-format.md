@@ -47,6 +47,20 @@ A bare key resolves **nearest first** — from the record making the reference, 
 outward — so a step can refer to a sibling by its short name. If a bare key really is
 ambiguous, the linter says so and names the candidates rather than guessing.
 
+### The key is an identity, so records don't duplicate
+
+Because a record is named, loading one **twice** does not make two of it. Landmarks and
+characters are created against their key, so a section that gets loaded again — a map
+label that runs twice, a setup signal emitted more than once — gives you back the station
+or the person you already have, not a second one sitting on top of it.
+
+It's checked against the live game rather than a "have I loaded this?" flag, so it still
+does the right thing when you *mean* to load again: if the station was destroyed or the
+cast was cleared, loading the section re-creates it.
+
+Characters are keyed by their record **and their host**, so casting the same crew onto two
+different stations gives each station its own people.
+
 ---
 
 ## The fence

@@ -775,6 +775,14 @@ the port, rather than quietly guessed at.
 - **`sbs swap`** — keep several mission sets side by side and switch between them
   without copying anything (see below). → [The `sbs` CLI](tooling/cli.md)
 - **`signal_next`** — one-shot await of the next signal. → [Signals](api/procedural/signal.md)
+- **`once` routes, and creates that can't duplicate.** `//shared/signal` runs a route
+  server-once *per emit* — it never promised the signal is only emitted once, so setup
+  that got emitted twice used to build everything twice. Now mark a route
+  **`//shared/signal/give_starting_cash once`** and it runs at most once a mission. Better
+  still, where the thing being made has a natural name, creating is **idempotent**:
+  `player_ensure(slot, …)` and AMD landmarks and characters key off the slot or the
+  record's own key, so asking twice gets you the same ship, station or person — while a
+  deliberate rebuild after a reset still works. → [Signals](mast/routes/signals.md)
 - **Bring an old Artemis 2.8 mission forward.** `pip install arme2cosmos`, point it at
   the old XML, and it writes the Cosmos mission for you — as a quest tree, or as plain
   MAST you can edit — plus a notes file listing anything worth a second look. It's

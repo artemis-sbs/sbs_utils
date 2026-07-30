@@ -50,6 +50,27 @@ Key helpers:
 | `grid_spawn` | Engineering-grid object on a ship |
 | `delete_object` | Removes any space object |
 
+## Creating player ships more than once
+
+Every `spawn_*` call makes a **new** object, so setup that runs twice builds everything
+twice. Player ships have a natural name — their **slot** — so they can be created safely:
+
+| Function | Does |
+|---|---|
+| `player_ensure(slot, x, y, z, ship_key, name, side)` | The ship for that slot, creating one only if the slot is empty |
+| `player_slot_id(slot)` | The live ship holding a slot, or `None` |
+| `player_slots()` | Every filled slot, as `{slot: id}` |
+| `players_reset()` | Delete all player ships, freeing every slot |
+
+`player_ensure` compares against the **live game**, not a "have I run before" flag, which
+is what keeps deliberate re-runs working: after `players_reset()` or a new simulation the
+ships are gone and the next call rebuilds them, a destroyed ship can be remade, and a
+late-joining crew's slot is filled without disturbing the others. An existing ship is
+returned untouched — use `a2x_place_player` to move or rename one in place.
+
+See [Signal routes](../../mast/routes/signals.md#running-setup-only-once) for when to
+reach for this instead of a `once` route.
+
 ## API
 
 ::: sbs_utils.procedural.spawn

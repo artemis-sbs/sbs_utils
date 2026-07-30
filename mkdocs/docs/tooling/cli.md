@@ -71,6 +71,22 @@ heading-level jumps. **Warnings**: dangling choice / `Scene:` / `Then: reveal` /
 non-ASCII author text (the engine renders ASCII only). Backed by `sbs_utils.procedural.amd_lint` — also callable
 directly on a single file: `python -m sbs_utils.procedural.amd_lint <file.amd>`.
 
+`lint` also reads the mission's `.mast` for two signal problems that are easy to write and
+hard to see. First, work that runs **once per console** when it should run once on the
+server (`signal-side-effect-*` — a `//signal` route that spawns, rewards, saves, counts or
+rolls random). Second, setup that can run **more than once** because its signal gets
+emitted more than once:
+
+| Code | Fires on |
+|---|---|
+| `signal-init-unkeyed-spawn` | a `//shared/signal/create_*` route that spawns without a key and isn't marked `once` |
+| `signal-emit-in-loop` | a setup `signal_emit` inside a `for` / `while` |
+| `signal-multi-emit` | such a signal emitted from more than one place in the mission |
+
+All are warnings — the fix is usually a keyed create (`player_ensure`) or a `once` route.
+See [Signal routes](../mast/routes/signals.md#running-setup-only-once). Skip them with
+`--no-signals`.
+
 References resolve across **all of the mission's `.amd` files** and against MAST
 `== labels ==`, so a `Scene:` / choice / `reveal` that targets a node in a sibling
 file (or a MAST handler label) isn't wrongly flagged. To vouch for a signal the
