@@ -436,6 +436,13 @@ def _detect_game_end(sbs):
     return (msg, is_win)
 
 
+_NOTHING_RAN = (
+    "FAIL - mission executed 0 labels\n"
+    "  Nothing ran, not even the story's own main. Usually the story or one of its\n"
+    "  story.json mastlibs failed to load, or a parse error desynced the compiler.\n"
+    "  Check mast.compile.log and that every declared lib is in __lib__.")
+
+
 def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
                       exerciser=None, game_end=None) -> int:
     """Print the coverage + verdict report for a --test run; optionally write
@@ -446,7 +453,17 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
     if gc is not None and gc.page is not None:
         mast = getattr(gc.page, "story", None)
     summ = cov.summary(mast) if cov is not None else {}
-    ok = verdict.ok if verdict is not None else True
+    # A run that executed NOTHING is a failure even though nothing raised. `ok` only ever
+    # meant "no error was reported to the verdict", and the errors that kill a story
+    # loudest are the ones nobody reports: an addon whose archive cannot be read, a parse
+    # desync from a multi-line literal, a story.json lib that never loaded. Each compiles
+    # to zero labels and used to print PASS - which is how a broken mastlib shipped
+    # unnoticed across every release.
+    #
+    # No map needed to judge this: the story's own top-level `main` runs regardless, so
+    # zero means even that never happened.
+    ran_nothing = bool(summ) and not summ.get("labels_hit") and not summ.get("nodes_entered")
+    ok = (verdict.ok if verdict is not None else True) and not ran_nothing
     name = os.path.basename(os.path.abspath(mission_folder))
 
     print("\n==== mission test report ====")
@@ -503,18 +520,22 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
         verdict_word = "WIN" if is_win else ("LOSE" if is_win is not None else "ENDED")
         print(f"game end: {verdict_word} - {msg!r}")
     print(verdict.report() if verdict is not None else "no verdict")
+    # Its own line, not folded into the verdict: "no errors" and "nothing ran" are
+    # different diagnoses and want different next steps.
+    if ran_nothing:
+        print(_NOTHING_RAN)
     print("=============================")
 
     if junit_path:
         try:
-            _write_junit(junit_path, name, ok, verdict, summ)
+            _write_junit(junit_path, name, ok, verdict, summ, ran_nothing)
             print(f"[runner] junit written: {junit_path}")
         except Exception as e:
             print(f"[runner] junit write failed: {e}")
     return 0 if ok else 1
 
 
-def _write_junit(path, name, ok, verdict, summ) -> None:
+def _write_junit(path, name, ok, verdict, summ, ran_nothing=False) -> None:
     """Minimal JUnit XML: one testsuite, one testcase (the mission run)."""
     from xml.sax.saxutils import escape
     failures = 0 if ok else 1
@@ -523,7 +544,11 @@ def _write_junit(path, name, ok, verdict, summ) -> None:
         cov_txt = (f"coverage labels {summ.get('labels_hit')}/{summ.get('labels_defined','?')} "
                    f"({summ.get('labels_pct','?')}%), nodes {summ.get('nodes_entered')}")
     body = ""
-    if not ok and verdict is not None:
+    # Distinct message so a CI run can tell "the mission errored" from "the mission never
+    # ran at all" without reading the log.
+    if ran_nothing:
+        body = f'      <failure message="mission executed 0 labels">{escape(_NOTHING_RAN)}</failure>\n'
+    elif not ok and verdict is not None:
         body = f'      <failure message="runtime errors">{escape(verdict.report())}</failure>\n'
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
