@@ -817,6 +817,13 @@ def players_ceasefire(relation=None):
     Applies to whole sides, not individual ships; a single ship leaving the fight is
     :func:`side_surrender`.
 
+    NOT self-inverse, and not idempotent in the useful direction: it reads the CURRENT
+    hostile pairs and neutralizes them, so a second call finds nothing hostile and
+    changes nothing. It does not remember what was hostile, so "undo" means
+    re-declaring HOSTILE (``side_set_relations`` / re-running your side declaration),
+    not calling this again. Unlike :func:`side_ensure` / :func:`side_create`, replaying
+    it is therefore not a repair.
+
     Args:
         relation (sbs.DIPLOMACY, optional): Relation to set. Defaults to ``NEUTRAL``.
 
@@ -1000,7 +1007,10 @@ def side_is_color_used(color)->bool:
         bool: ``True`` if at least one side uses that color.
     """
     for side in sides_set():
-        if side_get_side_color(side, color):
+        # COMPARE the color. The second arg of side_get_side_color is the DEFAULT,
+        # so passing `color` there returned a truthy string for every side and this
+        # answered True whenever any side existed at all.
+        if side_get_side_color(side) == color:
             return True
     return False
 
@@ -1052,7 +1062,11 @@ def side_set_display_name(key_or_id, name)->None:
     """
     id = to_side_id(key_or_id)
     if id is not None:
-        set_inventory_value(key_or_id, "side_name", name)
+        # Write to the RESOLVED side agent. Writing to key_or_id sent the rename to
+        # the key string itself when called by key (side_set_display_name("tsn", ...)),
+        # so the rename was silently dropped and side_set_object_side below then
+        # re-stamped every ship with the OLD name.
+        set_inventory_value(id, "side_name", name)
         ships = side_members_set(id)
         side_set_object_side(ships, id)
 

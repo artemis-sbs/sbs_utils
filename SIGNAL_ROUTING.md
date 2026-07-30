@@ -112,3 +112,82 @@ Confirmed duplication bugs found and being converted:
 already expresses server-once; a new `signal_emit` variant would not change *where routes
 run*. The fixes are (1) this rule, (2) the split pattern, and (3) the linter that makes
 violations loud.
+
+---
+
+# The second axis: how many times is it EMITTED?
+
+Everything above is about **where** a route runs. `//shared/signal` guarantees the body
+runs on the server, **once per emit** — it says nothing about how often the signal is
+emitted. Emit an init signal twice and its route body runs twice, `shared` or not.
+
+That is not hypothetical. `create_default_player_ships` emitted from inside its own loop
+(8 emits, not 1), and a re-entered `start_server` took a live session from **8 player
+ships to 33**.
+
+## Why an init signal gets emitted again
+
+**By accident:** two addons emitting the same one (they share a global namespace and load
+in non-deterministic order) · a copy-pasted emit in both the console start and a map body ·
+an emit inside a loop · a repair loop that re-emits deliberately, safe until someone adds a
+spawn to the route · a per-console route emitting a server signal · a double-clicked or
+laggy Start button · a mission reload that did not fully reset · a route that failed
+halfway and gets re-emitted "to fix it" · a dynamic emit name produced twice.
+
+**On purpose:** respawning a destroyed ship · resetting the scenario without reloading ·
+**re-declaring sides after `sim_create()`** · a late-joining crew needing one more ship ·
+a mid-mission diplomacy change · PvP side rebalance · campaign chapter transitions.
+
+Both columns matter. A did-I-run flag is wrong for every entry in the second one.
+
+## Prefer identity: make the work idempotent
+
+Give the created thing a stable key and create it only if it is missing. Idempotency is
+then against the **current world**, not against "have I run before" — so an accidental
+re-emit is a no-op *and* a deliberate one still does the right thing.
+
+```
+# 8 ships, however many times this is emitted - and rebuilt if they are ever gone
+for slot, data in enumerate(SETTINGS.get("PLAYER_LIST")):
+    player_ensure(slot, 0,0,0, data["ship"], data["name"], data["side"])
+```
+
+`player_ensure` / `player_slot_id` / `players_reset` (`procedural/spawn.py`) and
+`side_ensure` / `side_create` (`procedural/sides.py`) all work this way. `players_reset()`
+is the explicit wipe for a deliberate re-init.
+
+## `once` for work with no natural key
+
+When there is nothing to key on — award starting cash, play an intro — mark the route:
+
+```
+//shared/signal/give_starting_cash once
+//signal/show_intro once if IS_HOST
+```
+
+At most one run per mission. The `if` is tested first, so a route whose condition is false
+keeps its shot. `signal_once_reset("name")` re-arms it; a mission reload re-arms
+automatically (the flag lives in `Agent.SHARED`, which `reset_mission_state` clears).
+
+## Never `once` a route that REPAIRS engine state
+
+`create_sides` must stay re-runnable. `sim_create()` leaves `FrameContext.context.sim`
+stale for the rest of the frame, so relations and colors written in that frame land on a
+discarded simulation — silently, because the link graph survives and every scripting check
+still passes while contacts render grey. The only cure is re-declaring in a later frame,
+which is why a2x ships a re-assert loop. Marking that route `once` would reintroduce the
+bug. Same for any route that converges toward a desired state rather than creating
+something.
+
+## What the linter catches
+
+`sbs lint` adds three codes for this axis:
+
+| Code | Fires on |
+|---|---|
+| `signal-init-unkeyed-spawn` | a `//shared/signal/create_*` route spawning without a key and not `once`-guarded |
+| `signal-emit-in-loop` | `signal_emit` inside a `for`/`while` |
+| `signal-multi-emit` | such a route's signal emitted from more than one place (whole-mission pass) |
+
+A keyed create (`*_ensure`) or a `once` route silences them, because in both cases a second
+emit genuinely cannot duplicate anything.

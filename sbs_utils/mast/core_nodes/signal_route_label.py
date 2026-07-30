@@ -8,17 +8,24 @@ import ast
 
 @mast_node(append=False)
 class SignalRouteDecoratorLabel(DecoratorLabel):
-    rule = re.compile(r'//(?P<shared>shared/)?signal/(?P<path>(\w[\w\/]*))'+IF_EXP_REGEX)
-    def __init__(self, path, shared=None, if_exp=None, loc=None, compile_info=None):
+    # `once` sits between the path and the `if` suffix:
+    #     //shared/signal/create_player_ships once
+    #     //signal/show_intro once if IS_HOST
+    # Backward compatible: the group needs leading whitespace, so `//signal/once` is
+    # still a route NAMED once, and a trailing ` once` does not match the old rule at
+    # all (it is a compile error today), so no existing script can change meaning.
+    rule = re.compile(r'//(?P<shared>shared/)?signal/(?P<path>(\w[\w\/]*))(?P<once>[ \t]+once\b)?'+IF_EXP_REGEX)
+    def __init__(self, path, shared=None, once=None, if_exp=None, loc=None, compile_info=None):
         # Label stuff
         id = DecoratorLabel.next_label_id()
         path = path.strip('/')
-        name = f"__route__{path}__{id}__" 
+        name = f"__route__{path}__{id}__"
         super().__init__(name, loc)
 
         self.label_weight = id
         self.path= path
         self.shared = shared
+        self.once = once is not None
         self.if_exp = if_exp
         # need to negate if
         if self.if_exp is not None:
@@ -46,7 +53,19 @@ class SignalRouteDecoratorLabel(DecoratorLabel):
             cmd.line = f"yield fail {self.path} entry test {self.if_exp}"
             front_cmds.append(cmd)
 
-        if self.shared: 
+        if self.once:
+            # AFTER the entry test on purpose: a route whose `if` is false did not run,
+            # so it must not burn its one shot. signal_once_enter is test-and-set,
+            # returning True only the first time through.
+            cmd = Yield('fail',
+                        if_exp=f'not signal_once_enter("{self.name}", "{self.path}")',
+                        loc=0, compile_info=compile_info)
+            cmd.file_num = self.file_num
+            cmd.line_num = self.line_num
+            cmd.line = f"yield fail {self.path} already ran (once)"
+            front_cmds.append(cmd)
+
+        if self.shared:
             #
             # This needs to run 
             # on the first run of main

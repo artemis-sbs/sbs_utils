@@ -697,6 +697,20 @@ match menu:
 > signal a `//signal` route paints. Full rule + the split pattern: **`SIGNAL_ROUTING.md`**.
 > `sbs lint` flags side-effects in a `//signal` route.
 
+> **Second axis: how many times is it EMITTED?** `//shared/signal` is server-once **per
+> emit** — it says nothing about how often the signal fires. Emit an init signal twice and
+> the body runs twice (`create_default_player_ships` emitted from inside its own loop; a
+> re-entered `start_server` took a session from 8 player ships to 33). **Prefer identity:**
+> `player_ensure(slot, ...)` / `side_ensure(key)` create only what is missing, so an
+> accidental re-emit is a no-op *and* a deliberate one (respawn, reset, late joiner,
+> post-`sim_create` rebuild) still works. With no natural key, mark the route
+> **`once`** — `//shared/signal/give_starting_cash once`, `//signal/show_intro once if X`
+> — at most one run per mission; the `if` is tested first so a false condition keeps the
+> shot; `signal_once_reset("name")` re-arms, and a mission reload re-arms automatically.
+> **Never `once` a route that REPAIRS engine state** — `create_sides` must stay re-runnable
+> because `sim_create()` leaves the sim handle stale for the rest of the frame. `sbs lint`
+> adds `signal-init-unkeyed-spawn`, `signal-emit-in-loop`, `signal-multi-emit`.
+
 | Route | Triggered by |
 |---|---|
 | `//spawn` | Object spawned |

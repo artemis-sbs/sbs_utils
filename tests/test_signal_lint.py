@@ -52,5 +52,107 @@ class SignalLintTests(unittest.TestCase):
         self.assertEqual(codes(src), [])
 
 
+class ReEmissionLintTests(unittest.TestCase):
+    """The second axis: //shared/signal fixes WHERE a route runs, not HOW MANY TIMES
+    the signal is emitted. See SIGNAL_ROUTING.md."""
+
+    def test_flags_unkeyed_spawn_in_a_shared_init_route(self):
+        src = ("//shared/signal/create_player_ships\n"
+               "    player_spawn(0, 0, 0, \"A\", \"tsn\", \"hull\")\n")
+        self.assertEqual(codes(src), ["signal-init-unkeyed-spawn"])
+
+    def test_keyed_create_is_the_fix_not_the_bug(self):
+        src = ("//shared/signal/create_player_ships\n"
+               "    player_ensure(0, 0, 0, 0, \"hull\")\n")
+        self.assertEqual(codes(src), [])
+
+    def test_side_prefab_counts_as_a_keyed_create(self):
+        # A side is keyed by definition (one agent per key) and re-declaring is a REPAIR,
+        # so create_sides spawning side prefabs is correct, not a duplication risk.
+        src = ("//shared/signal/create_sides\n"
+               "    prefab_spawn(prefab_side_generic, data={\"key\":\"tsn\"})\n")
+        self.assertEqual(codes(src), [])
+
+    def test_a_ship_prefab_in_an_init_route_is_still_flagged(self):
+        src = ("//shared/signal/create_fleet\n"
+               "    prefab_spawn(prefab_fleet_raider, {})\n")
+        self.assertEqual(codes(src), ["signal-init-unkeyed-spawn"])
+
+    def test_per_item_emit_in_a_loop_is_normal(self):
+        # Emitting a per-item signal from a loop is a correct pattern; only INIT-shaped
+        # names are flagged.
+        src = ("=== award\n"
+               "    for q in quests:\n"
+               "        signal_emit(\"quest_signal\", q)\n")
+        self.assertEqual(codes(src), [])
+
+    def test_once_guarded_init_route_is_not_flagged(self):
+        src = ("//shared/signal/create_player_ships once\n"
+               "    player_spawn(0, 0, 0, \"A\", \"tsn\", \"hull\")\n")
+        self.assertEqual(codes(src), [])
+
+    def test_non_init_shared_route_is_not_flagged(self):
+        # Only init-shaped names; a shared route that spawns on purpose is normal.
+        src = ("//shared/signal/wave_incoming\n"
+               "    npc_spawn(0, 0, 0, \"x\", \"r\", \"a\", \"behav_npcship\")\n")
+        self.assertEqual(codes(src), [])
+
+    def test_flags_emit_inside_a_loop(self):
+        src = ("=== create_default_player_ships\n"
+               "    for d in SETTINGS.get(\"PLAYER_LIST\"):\n"
+               "        signal_emit(\"create_player_ships\", None)\n")
+        self.assertEqual(codes(src), ["signal-emit-in-loop"])
+
+    def test_emit_after_the_loop_is_clean(self):
+        src = ("=== create_default_player_ships\n"
+               "    for d in SETTINGS.get(\"PLAYER_LIST\"):\n"
+               "        player_ensure(0, 0, 0, 0, \"hull\")\n"
+               "    signal_emit(\"create_player_ships\", None)\n")
+        self.assertEqual(codes(src), [])
+
+    def test_loop_state_does_not_leak_past_a_route_boundary(self):
+        src = ("=== setup\n"
+               "    for d in xs:\n"
+               "        log(\"x\")\n"
+               "//signal/ping\n"
+               "    signal_emit(\"other\")\n")
+        self.assertEqual(codes(src), [])
+
+
+class SignalLintProjectTests(unittest.TestCase):
+    """Whole-mission checks a single file cannot see."""
+
+    ROUTE = ("//shared/signal/create_player_ships\n"
+             "    player_spawn(0, 0, 0, \"A\", \"tsn\", \"hull\")\n")
+
+    def test_flags_a_risky_init_signal_emitted_from_two_files(self):
+        from sbs_utils.procedural.signal_lint import signal_lint_project
+        found = signal_lint_project([
+            ("routes.mast", self.ROUTE),
+            ("a.mast", "== go ==\n    signal_emit(\"create_player_ships\")\n"),
+            ("b.mast", "== go2 ==\n    signal_emit(\"create_player_ships\")\n"),
+        ])
+        self.assertEqual({f.code for _, f in found}, {"signal-multi-emit"})
+        self.assertEqual({path for path, _ in found}, {"a.mast", "b.mast"})
+
+    def test_single_emit_is_clean(self):
+        from sbs_utils.procedural.signal_lint import signal_lint_project
+        found = signal_lint_project([
+            ("routes.mast", self.ROUTE),
+            ("a.mast", "== go ==\n    signal_emit(\"create_player_ships\")\n"),
+        ])
+        self.assertEqual(found, [])
+
+    def test_idempotent_handler_makes_multiple_emits_fine(self):
+        from sbs_utils.procedural.signal_lint import signal_lint_project
+        found = signal_lint_project([
+            ("routes.mast", "//shared/signal/create_player_ships\n"
+                            "    player_ensure(0, 0, 0, 0, \"hull\")\n"),
+            ("a.mast", "== go ==\n    signal_emit(\"create_player_ships\")\n"),
+            ("b.mast", "== go2 ==\n    signal_emit(\"create_player_ships\")\n"),
+        ])
+        self.assertEqual(found, [])
+
+
 if __name__ == "__main__":
     unittest.main()

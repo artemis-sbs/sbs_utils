@@ -25,7 +25,7 @@ from sbs_utils.procedural.amd import amd_parse_facts
 from sbs_utils.faces import face_resolve
 from sbs_utils.procedural.lifeform import lifeform_spawn
 from sbs_utils.procedural.inventory import set_inventory_value, get_inventory_value
-from sbs_utils.procedural.query import to_object
+from sbs_utils.procedural.query import to_object, to_id
 from sbs_utils.mast.mast_node import MastDataObject
 
 
@@ -57,11 +57,45 @@ def lifeforms_from_section(section):
     return out
 
 
+def lifeform_key_role(key, host_id=None):
+    """The role marking the lifeform spawned for AMD ``key`` on ``host_id``.
+
+    Keyed on key AND host: `lifeforms_spawn(section, host_id)` legitimately casts the same
+    section onto several hosts (one crew roster, many stations), and keying on the record
+    alone would make the second host silently resolve to the first host's character.
+    """
+    suffix = "" if host_id is None else f"@{to_id(host_id)}"
+    return f"amd_lifeform:{str(key).strip()}{suffix}"
+
+
+def lifeform_of_key(key, host_id=None):
+    """The live lifeform already spawned for ``key`` on ``host_id``, or None."""
+    from sbs_utils.procedural.roles import role
+    from sbs_utils.procedural.query import to_id_list
+    if not key:
+        return None
+    for agent_id in to_id_list(role(lifeform_key_role(key, host_id))):
+        agent = to_object(agent_id)
+        if agent is not None:
+            return agent
+    return None
+
+
 def lifeform_from_record(record, host_id=None):
     """Spawn one authored lifeform: name + ``face_resolve(Face)`` + Roles, optionally hosted on
     ``host_id``, with the record's ``Path`` as its comms voice and ``Color`` as its card colour.
     A ``Scene`` (if any) and the record ``key`` are stored on the lifeform for a dialogue bridge.
-    Returns the spawned lifeform Agent."""
+    Returns the spawned lifeform Agent.
+
+    Idempotent on (record ``key``, ``host_id``): a character already cast on that host is
+    returned as-is, so re-running a section - a map body that runs twice, a re-emitted
+    setup signal - does not create a second copy of the same person. The same section cast
+    onto a DIFFERENT host still produces its own character.
+    """
+    key = record.get("key")
+    existing = lifeform_of_key(key, host_id)
+    if existing is not None:
+        return existing
     agent = lifeform_spawn(record.get("name"), face_resolve(record.get("face")),
                            record.get("roles") or "", host_id,
                            path=record.get("path"), title_color=record.get("color") or "green")
@@ -71,6 +105,9 @@ def lifeform_from_record(record, host_id=None):
     # Store the card colour + key on the lifeform so a comms-cast route can resolve its speaker
     # from the hailed lifeform itself (lifeform_speaker_of), with no separate records source.
     set_inventory_value(agent, "lf_color", record.get("color") or "green")
+    if key:
+        from sbs_utils.procedural.roles import add_role
+        add_role(agent, lifeform_key_role(key, host_id))
     return agent
 
 

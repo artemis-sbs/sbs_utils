@@ -122,18 +122,56 @@ def _role_csv(record):
     return side + (", " + roles if roles else "")
 
 
+def landmark_key_role(key):
+    """The role marking the object spawned for AMD landmark ``key``.
+
+    A role, because role sets are the only O(1) keyed lookup and they self-clean when the
+    object is deleted, so a landmark that is destroyed can be re-placed by re-running the
+    section with no bookkeeping.
+    """
+    return f"amd_landmark:{str(key).strip()}"
+
+
+def landmark_object(key):
+    """The live object already spawned for landmark ``key``, or None."""
+    from sbs_utils.procedural.roles import role
+    from sbs_utils.procedural.query import to_id_list, object_exists, to_object
+    if not key:
+        return None
+    for so_id in to_id_list(role(landmark_key_role(key))):
+        if object_exists(so_id):
+            return to_object(so_id)
+    return None
+
+
 def landmark_spawn(record):
     """Spawn one landmark; returns the spawned object (None if it has no Art, or an unknown
-    kind maps to no spawner). Kind picks npc_spawn vs terrain_spawn + a behavior default."""
+    kind maps to no spawner). Kind picks npc_spawn vs terrain_spawn + a behavior default.
+
+    Idempotent on the record's ``key``: a landmark already placed is returned as-is, so
+    re-running a section (a map body that runs twice, a re-emitted setup signal) does not
+    litter the map with duplicates at the same coordinates. Because the check is against
+    the live world rather than a did-I-run flag, a landmark that was destroyed or cleared
+    IS re-placed - which is what makes a deliberate reset work.
+    """
     art = record.get("art")
     if not art:
         return None
+    key = record.get("key")
+    existing = landmark_object(key)
+    if existing is not None:
+        return existing
     kind = record.get("kind") or "station"
     behavior = record.get("behavior") or _KIND_BEHAVIOR.get(kind, "behav_npcship")
     x, y, z = landmark_pos(record)
     csv = _role_csv(record)
     spawn = terrain_spawn if kind in _TERRAIN_KINDS else npc_spawn
-    return spawn(x, y, z, record.get("name"), csv, art, behavior)
+    obj = spawn(x, y, z, record.get("name"), csv, art, behavior)
+    if key and obj is not None:
+        from sbs_utils.procedural.roles import add_role
+        from sbs_utils.procedural.query import to_id
+        add_role(to_id(obj), landmark_key_role(key))
+    return obj
 
 
 def landmarks_spawn(section):

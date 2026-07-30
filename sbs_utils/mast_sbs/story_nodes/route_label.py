@@ -8,16 +8,23 @@ import ast
 
 @mast_node(append=False)
 class RouteDecoratorLabel(DecoratorLabel):
-    rule = re.compile(r'//(?P<path>(\w[\w\/]*))'+IF_EXP_REGEX)
-    def __init__(self, path, if_exp=None, loc=None, compile_info=None):
+    # `once` sits between the path and the `if` suffix:
+    #     //shared/signal/create_player_ships once
+    #     //signal/show_intro once if IS_HOST
+    # Backward compatible: the group needs leading whitespace, so `//signal/once` is
+    # still a route NAMED once, and a trailing ` once` did not match the old rule at
+    # all (it was a compile error), so no existing script can change meaning.
+    rule = re.compile(r'//(?P<path>(\w[\w\/]*))(?P<once>[ \t]+once\b)?'+IF_EXP_REGEX)
+    def __init__(self, path, once=None, if_exp=None, loc=None, compile_info=None):
         # Label stuff
         id = DecoratorLabel.next_label_id()
         path = path.strip('/')
-        name = f"__route__{path}__{id}__" 
+        name = f"__route__{path}__{id}__"
         super().__init__(name, loc)
 
         self.label_weight = id
         self.path= path
+        self.once = once is not None
         self.if_exp = if_exp
         # need to negate if
         if self.if_exp is not None:
@@ -51,6 +58,27 @@ class RouteDecoratorLabel(DecoratorLabel):
             cmd.file_num = self.file_num
             cmd.line_num = self.line_num
             cmd.line = f"yield fail {self.path} entry test {self.if_exp}"
+            front_cmds.append(cmd)
+
+        if self.once:
+            # The re-arm key is the SIGNAL NAME so `signal_once_reset("boot")` matches
+            # `//signal/boot once`; other route kinds re-arm by their full path.
+            if paths[:1] == ["signal"] and len(paths) > 1:
+                once_key = paths[1]
+            elif paths[:2] == ["shared", "signal"] and len(paths) > 2:
+                once_key = paths[2]
+            else:
+                once_key = path
+            # AFTER the entry test on purpose: a route whose `if` is false did not run,
+            # so it must not burn its one shot. signal_once_enter is test-and-set,
+            # returning True only the first time through. Keyed on this label, so two
+            # routes handling the same signal each get their own shot.
+            cmd = Yield('fail',
+                        if_exp=f'not signal_once_enter("{self.name}", "{once_key}")',
+                        loc=0, compile_info=compile_info)
+            cmd.file_num = self.file_num
+            cmd.line_num = self.line_num
+            cmd.line = f"yield fail {self.path} already ran (once)"
             front_cmds.append(cmd)
 
         match paths:

@@ -138,7 +138,7 @@ def create_generic(x, y, z, art, name=None, side=None, behave="behav_do_nothing"
     return _spawn_npc(x, y, z, name, side, art, behave)
 
 
-def create_player(x, y, z, art, name=None, side="tsn"):
+def create_player(x, y, z, art, name=None, side="tsn", slot=None):
     """2.8 ``create type="player"`` -> a player ship. Returns the ship ID.
 
     Tags the ship ``default_player_ship`` as it spawns. That is the role the
@@ -147,12 +147,21 @@ def create_player(x, y, z, art, name=None, side="tsn"):
     those ships are built on side "tsn" rather than the mission's declared player side.
     Doing it HERE rather than in a later route means a ship created mid-mission (some 2.8
     missions spawn players from an event, not ``<start>``) is tagged too.
+
+    Pass ``slot`` (the 2.8 ``player_slot``) to make creation IDEMPOTENT: the ship is
+    spawned only if that slot is empty, so a ``//shared/signal/create_player_ships``
+    route emitted twice does not duplicate the roster. It also makes
+    :func:`player_ship` resolve the slot by identity rather than by position. Without
+    a slot this behaves exactly as before and every call mints a new hull.
     """
-    from sbs_utils.procedural.spawn import player_spawn
+    from sbs_utils.procedural.spawn import player_spawn, player_ensure
     from sbs_utils.procedural.query import to_id
     from sbs_utils.procedural.roles import add_role
     v = pos(x, y, z)
-    sid = to_id(player_spawn(v.x, v.y, v.z, name, side, art))
+    if slot is None:
+        sid = to_id(player_spawn(v.x, v.y, v.z, name, side, art))
+    else:
+        sid = player_ensure(slot, v.x, v.y, v.z, art, name, side)
     add_role(sid, "default_player_ship")
     set_hull_side(sid, side)   # scan info follows the SIDE, not the hull's shipData entry
     return sid
@@ -389,13 +398,31 @@ def create_black_hole(x, y, z, gravity_radius=10000, gravity_strength=1.0,
 
 def player_ship(slot=0):
     """2.8 references a player ship by name or slot; Cosmos references by ID. Resolve a
-    2.8 ``player_slot`` (0-based index into the game's player ships) to the Cosmos player
-    ship at that slot -- the ``slot``-th member of ``role("__player__")``. Returns its ID,
-    or ``None`` if that slot has no player ship."""
+    2.8 ``player_slot`` (0-based) to the Cosmos player ship at that slot. Returns its ID,
+    or ``None`` if that slot has no player ship.
+
+    Prefers a ship STAMPED with the slot (``create_player(..., slot=N)`` /
+    ``player_ensure``), which is stable no matter what else spawns or respawns.
+
+    Falls back to position in the player set for ships with no stamp. That fallback
+    sorts by id: ``role()`` returns an unordered set, so the historical unsorted index
+    made "slot N" mean hash order rather than creation order, and it could silently
+    change as ships were added or removed. Sorting matches how every other consumer
+    re-derives slot order (``sorted(..., key=lambda p: p.id)``), and is identical to
+    the old behavior for the single-player-ship case.
+    """
     from sbs_utils.procedural.roles import role
     from sbs_utils.procedural.query import to_id_list
-    ids = to_id_list(role("__player__"))
+    from sbs_utils.procedural.spawn import player_slot_id
     try:
-        return ids[int(slot)]
-    except (IndexError, ValueError, TypeError):
+        slot = int(slot)
+    except (ValueError, TypeError):
+        return None
+    stamped = player_slot_id(slot)
+    if stamped is not None:
+        return stamped
+    ids = sorted(to_id_list(role("__player__")))
+    try:
+        return ids[slot]
+    except IndexError:
         return None

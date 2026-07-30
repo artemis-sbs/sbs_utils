@@ -34,6 +34,86 @@ def signal_emit(name, data=None):
 
     
 
+# ---------------------------------------------------------------------------
+# `once` routes
+#
+# `//shared/signal/x` guarantees the body runs on the SERVER only - once per EMIT.
+# It says nothing about how often the signal is emitted, and initialization signals
+# get re-emitted for all sorts of reasons (two addons emitting the same one, a
+# copy-pasted emit, an emit inside a loop, a double-clicked Start button, a route
+# that failed halfway and was re-emitted "to fix it"). `once` closes that second
+# axis declaratively:  //shared/signal/create_player_ships once
+#
+# NEVER put `once` on a route that REPAIRS engine state. `create_sides` must stay
+# re-runnable: sim_create() leaves FrameContext.context.sim stale for the rest of
+# the frame, so side writes issued in that frame land on a dead simulation and the
+# only cure is re-declaring later. Prefer identity-based idempotency
+# (`player_ensure`, `side_ensure`) wherever the work has a natural key - it is a
+# no-op on an accidental re-emit AND still correct on a deliberate one.
+#
+# The flag lives in Agent.SHARED, the same store `shared` variables use, so
+# clear_shared() in reset_mission_state re-arms every `once` route on a mission
+# reload for free. Deliberately NOT a module-level set: the `just_once` sets in
+# procedural/routes.py are precedent for that leaking across missions.
+# ---------------------------------------------------------------------------
+_SIGNAL_ONCE_KEY = "__signal_once__"
+
+
+def _signal_once_fired():
+    """The label -> path map of `once` routes that have already run."""
+    from .inventory import get_shared_inventory_value, set_shared_inventory_value
+    fired = get_shared_inventory_value(_SIGNAL_ONCE_KEY, None)
+    if fired is None:
+        fired = {}
+        set_shared_inventory_value(_SIGNAL_ONCE_KEY, fired)
+    return fired
+
+
+def signal_once_enter(label, path=None):
+    """Test-and-set the one-shot flag for a ``once`` route body.
+
+    Compiled into the route by ``SignalRouteDecoratorLabel`` - scripts do not call
+    this directly. Keyed on the generated LABEL name, not the signal path, so two
+    routes handling the same signal each get their own shot.
+
+    Args:
+        label (str): The route's generated label name.
+        path (str, optional): The signal name, so ``signal_once_reset`` can find it.
+
+    Returns:
+        bool: True the first time (run the body), False afterwards.
+    """
+    fired = _signal_once_fired()
+    if label in fired:
+        return False
+    fired[label] = path
+    return True
+
+
+def signal_once_reset(name=None):
+    """Re-arm ``once`` routes so they will run again.
+
+    The explicit path for an INTENTIONAL re-initialization - resetting scenario
+    conditions without reloading the mission. A mission reload needs no call: the
+    flags live in Agent.SHARED and ``reset_mission_state`` clears it.
+
+    Args:
+        name (str, optional): Signal name to re-arm. Defaults to all of them.
+
+    Returns:
+        int: How many routes were re-armed.
+    """
+    fired = _signal_once_fired()
+    if name is None:
+        count = len(fired)
+        fired.clear()
+        return count
+    stale = [label for label, path in fired.items() if path == name]
+    for label in stale:
+        del fired[label]
+    return len(stale)
+
+
 def signal_register(name, label, server=False, task=None, loc=0, is_jump=True, is_temporary=False):
     """Register a label as a handler for a named signal.
 
