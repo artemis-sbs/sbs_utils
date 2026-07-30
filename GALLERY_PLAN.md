@@ -48,14 +48,16 @@ makes it unrepresentable.
 
 Grow `missions/overlay_demo` in place. It already carries the LM stack, a map, players,
 a station and a docking setup that the Overlays category needs, and it is already a
-published repo (`artemis-sbs/overlay_demo`).
+published repo (renamed to `artemis-sbs/control_gallery` once the fold landed;
+the FOLDER stays `overlay_demo`, so `sbs debug overlay_demo` and the launch config
+keep working, and GitHub redirects the old URL).
 
 - Folder name stays `overlay_demo` (so `sbs debug overlay_demo` keeps working, and the
   git remote is untouched).
 - `description.yaml` display name becomes **Control Gallery**.
 - The two existing consoles survive unchanged as the **Overlays** category.
-- Renaming the GitHub repo later is a one-click redirect; not a blocker, and the user's
-  call.
+- The GitHub repo was renamed `control_gallery` after Phase 7, with the About text
+  rewritten to match. The local folder was deliberately NOT renamed.
 
 ```
 overlay_demo/
