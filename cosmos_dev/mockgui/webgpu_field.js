@@ -68,8 +68,22 @@ async function start(){
     return col; }
   struct VO2 { @builtin(position) pos:vec4f, @location(0) uv:vec2f };
   @vertex fn vbg(@builtin(vertex_index) vi:u32)->VO2{ var q=array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3)); var o:VO2; o.pos=vec4f(q[vi],1.0,1.0); o.uv=q[vi]; return o; }
+  @group(0) @binding(2) var skyTex: texture_2d<f32>;
+  @group(0) @binding(3) var skySamp: sampler;
+  fn rotuv(uv:vec2f, deg:f32)->vec2f{ let a=deg*0.017453293; let c=cos(a); let s=sin(a); let p=uv-0.5; return vec2f(p.x*c-p.y*s, p.x*s+p.y*c)+0.5; }
+  fn skyboxUV(dir:vec3f)->vec2f{           // engine 4x3 cube cross (matches client.html _applySkyboxFaces)
+    let ax=abs(dir.x); let ay=abs(dir.y); let az=abs(dir.z);
+    var u=0.0; var v=0.0; var col=1.0; var row=1.0; var rot=0.0;
+    if(ax>=ay && ax>=az){ if(dir.x>0.0){ u=-dir.z/ax; v=-dir.y/ax; col=2.0; row=1.0; rot=90.0; } else { u=dir.z/ax; v=-dir.y/ax; col=0.0; row=1.0; rot=270.0; } }
+    else if(ay>=az){ if(dir.y>0.0){ u=dir.x/ay; v=dir.z/ay; col=1.0; row=1.0; rot=0.0; } else { u=dir.x/ay; v=-dir.z/ay; col=3.0; row=1.0; rot=180.0; } }
+    else { if(dir.z>0.0){ u=dir.x/az; v=-dir.y/az; col=1.0; row=2.0; rot=0.0; } else { u=-dir.x/az; v=-dir.y/az; col=1.0; row=0.0; rot=180.0; } }
+    var luv=rotuv(vec2f(u*0.5+0.5, v*0.5+0.5), -rot);
+    luv=clamp(luv, vec2f(0.002), vec2f(0.998));
+    return vec2f((col+luv.x)/4.0, (row+luv.y)/3.0);
+  }
   @fragment fn fbg(in:VO2)->@location(0) vec4f{ let th=u.camDir.w; let aspect=u.camRight.w;
     let dir=normalize(u.camDir.xyz + u.camRight.xyz*(in.uv.x*th*aspect) + u.camUp.xyz*(in.uv.y*th));
+    if(u.camUp.w>0.5){ return vec4f(textureSampleLevel(skyTex,skySamp,skyboxUV(dir),0.0).rgb, 1.0); }
     return vec4f(skyd(dir),1.0); }
   // ---- volumetric nebulae (procedural, additive; per-instance density/seed/swirl/warp) ----
   fn permute4n(x:vec4f)->vec4f{ return ((x*34.0+1.0)*x)%vec4f(289.0); }
@@ -156,6 +170,20 @@ async function start(){
   const grayTex=device.createTexture({size:[1,1],format:"rgba8unorm-srgb",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
   device.queue.writeTexture({texture:grayTex},new Uint8Array([130,120,110,255]),{bytesPerRow:4},[1,1]);
 
+  // real engine cube-cross skybox, loaded by name (falls back to procedural stars until ready)
+  let skyTex=device.createTexture({size:[1,1],format:"rgba8unorm-srgb",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
+  device.queue.writeTexture({texture:skyTex},new Uint8Array([2,3,8,255]),{bytesPerRow:4},[1,1]);
+  let skyView=skyTex.createView(), skyReady=false, lastSky=null;
+  const skySamp=device.createSampler({magFilter:"linear",minFilter:"linear",addressModeU:"clamp-to-edge",addressModeV:"clamp-to-edge"});
+  async function loadSky(name){
+    const base=String(name).split(/[\\/]/).pop();
+    try{ const img=new Image(); img.src='/'+base+'.png'; await img.decode(); const bmp=await createImageBitmap(img);
+      const t=device.createTexture({size:[bmp.width,bmp.height],format:"rgba8unorm-srgb",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
+      device.queue.copyExternalImageToTexture({source:bmp},{texture:t},[bmp.width,bmp.height]);
+      const old=skyTex; skyTex=t; skyView=t.createView(); skyReady=true; if(old) old.destroy(); wlog("skybox loaded: "+base+" ("+bmp.width+"x"+bmp.height+")");
+    }catch(e){ skyReady=false; wlog("skybox load failed: "+base+" — "+(e&&e.message||e)); }
+  }
+
   // ---- real-art loader (cached by art root), self-contained fetch of the mock's /ships/ files ----
   const artCache=new Map();   // art -> {status:'loading'|'ready'|'failed', vb, ib, count, bind}
   function loadArt(art){
@@ -230,6 +258,9 @@ async function start(){
     const g=gather();
     if(g.n>0){ cx=g.cx; cz=g.cz; if(!framed){ dist=g.meanR*2.5+2000; framed=true; } }
     const b2=bridge(); const player=findPlayer(b2);
+    const skyName=b2?b2.skyName:null;
+    if(skyName && skyName!==lastSky){ lastSky=skyName; loadSky(skyName); }
+    else if(!skyName && lastSky){ lastSky=null; skyReady=false; }
     let want=MODES[modeIx];
     if(want==="chase" && !player) want="orbit";
     if(want==="cinematic" && !(b2 && Array.isArray(b2.cam) && Array.isArray(b2.tgt))) want="orbit";
@@ -253,14 +284,14 @@ async function start(){
     const aspect=W/H, th=Math.tan(FOVY/2);
     const fwd=norml(sub(TGT,EYE),[0,0,1]), right=norml(cr(fwd,[0,1,0]),[1,0,0]), up=cr(right,fwd);
     const vp=mul(perspective(FOVY,aspect,NEAR,FAR), lookAt(EYE,TGT,[0,1,0]));
-    const uf=new Float32Array(32); uf.set(vp,0); uf.set([fwd[0],fwd[1],fwd[2],th],16); uf.set([right[0],right[1],right[2],aspect],20); uf.set([up[0],up[1],up[2],0],24); uf.set([EYE[0],EYE[1],EYE[2],0],28);
+    const uf=new Float32Array(32); uf.set(vp,0); uf.set([fwd[0],fwd[1],fwd[2],th],16); uf.set([right[0],right[1],right[2],aspect],20); uf.set([up[0],up[1],up[2], skyReady?1:0],24); uf.set([EYE[0],EYE[1],EYE[2],0],28);
     device.queue.writeBuffer(ubuf,0,uf);
 
     const enc=device.createCommandEncoder();
     const p=enc.beginRenderPass({colorAttachments:[{view:ctx.getCurrentTexture().createView(),clearValue:{r:0.02,g:0.03,b:0.05,a:1},loadOp:"clear",storeOp:"store"}],
       depthStencilAttachment:{view:depthView,depthClearValue:1.0,depthLoadOp:"clear",depthStoreOp:"store"}});
-    const bindBg=device.createBindGroup({layout:bgPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}}]});
-    p.setPipeline(bgPipe); p.setBindGroup(0,bindBg); p.draw(3);   // starfield behind everything
+    const bindBg=device.createBindGroup({layout:bgPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:2,resource:skyView},{binding:3,resource:skySamp}]});
+    p.setPipeline(bgPipe); p.setBindGroup(0,bindBg); p.draw(3);   // real skybox if loaded, else procedural starfield
     p.setPipeline(pipe);
     let draws=0, drawn=0, arts=0, loading=0;
     for(const [art,list] of byArt){
