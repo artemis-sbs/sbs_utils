@@ -20,7 +20,7 @@ async function start(){
   canvas.id="webgpu-field";
   canvas.style.cssText="position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:0;background:#05070c;display:none";   // background layer (like the WebGL 3dview at z-1); HUDs/GUI at higher z draw on top
   document.body.appendChild(canvas);
-  let visible=true; const MODES=["chase","orbit","cinematic"]; let modeIx=0, shipSel=0, showGrid=true;
+  let visible=true; const MODES=["chase","orbit","cinematic"]; let modeIx=0, shipSel=0, npcSel=0, focusNpc=false, showGrid=true;
   let fps=60, fpsFrames=0, fpsT=performance.now();
   const hud=document.createElement("div");
   hud.style.cssText="position:fixed;top:10px;right:12px;z-index:2147483001;font:12px/1.5 ui-monospace,Consolas,monospace;color:#e7ebf2;background:rgba(10,12,17,.62);border:1px solid #232833;border-radius:8px;padding:8px 11px;pointer-events:none;white-space:pre;text-align:right";
@@ -28,7 +28,8 @@ async function start(){
   window.addEventListener("keydown",e=>{
     if(e.key==="g"){ visible=!visible; canvas.style.display=visible?"block":"none"; hud.style.display=visible?"block":"none"; }
     if(e.key==="c"){ modeIx=(modeIx+1)%MODES.length; }   // cycle chase -> orbit -> cinematic
-    if(e.key==="v"){ shipSel++; }                        // cycle which player ship the chase follows
+    if(e.key==="v"){ focusNpc=false; shipSel++; }        // cycle which PLAYER ship the chase follows
+    if(e.key==="n"){ focusNpc=true; npcSel++; }          // cycle NON-player ships (find a far / cloaked NPC)
     if(e.key==="b"){ showGrid=!showGrid; }               // toggle the reference grid
   });
 
@@ -45,18 +46,31 @@ async function start(){
   @group(0) @binding(1) var<storage,read> insts:array<Inst>;
   @group(1) @binding(0) var tex:texture_2d<f32>;
   @group(1) @binding(1) var samp:sampler;
+  @group(1) @binding(2) var emisTex:texture_2d<f32>;    // emissive glow (black when the art has none)
+  @group(1) @binding(3) var specTex:texture_2d<f32>;    // specular intensity (black when none)
+  @group(1) @binding(4) var normTex:texture_2d<f32>;    // tangent-space normal (flat 0,0,1 when none)
   fn qrot(q:vec4f,v:vec3f)->vec3f{ let t=2.0*cross(q.xyz,v); return v+q.w*t+cross(q.xyz,t); }
-  struct VO { @builtin(position) pos:vec4f, @location(0) nrm:vec3f, @location(1) uv:vec2f };
-  @vertex fn vs(@location(0) inPos:vec3f, @location(1) inNrm:vec3f, @location(2) inUv:vec2f, @builtin(instance_index) ii:u32)->VO{
+  struct VO { @builtin(position) pos:vec4f, @location(0) nrm:vec3f, @location(1) uv:vec2f, @location(2) wpos:vec3f, @location(3) tan:vec4f };
+  @vertex fn vs(@location(0) inPos:vec3f, @location(1) inNrm:vec3f, @location(2) inUv:vec2f, @location(3) inTan:vec4f, @builtin(instance_index) ii:u32)->VO{
     let it=insts[ii];
     let world=it.pr.xyz + qrot(it.q, inPos*it.pr.w);
-    var o:VO; o.pos=u.vp*vec4f(world,1.0); o.nrm=normalize(qrot(it.q, inNrm)); o.uv=inUv; return o;
+    var o:VO; o.pos=u.vp*vec4f(world,1.0); o.nrm=normalize(qrot(it.q, inNrm)); o.uv=inUv; o.wpos=world;
+    o.tan=vec4f(qrot(it.q, inTan.xyz), inTan.w); return o;
   }
   @fragment fn fs(in:VO)->@location(0) vec4f{
-    let n=normalize(in.nrm); let L=normalize(vec3f(0.5,0.7,0.4)); let nl=max(dot(n,L),0.0);
+    let Nn=normalize(in.nrm);                                          // TBN normal mapping
+    let Tn=normalize(in.tan.xyz - Nn*dot(Nn,in.tan.xyz));
+    let Bn=cross(Nn,Tn)*in.tan.w;
+    let nm=textureSample(normTex,samp,in.uv).xyz*2.0-1.0;
+    let n=normalize(Tn*nm.x + Bn*nm.y + Nn*nm.z);
+    let L=normalize(vec3f(0.5,0.7,0.4)); let nl=max(dot(n,L),0.0);
     let fill=max(dot(n,normalize(vec3f(-0.4,-0.2,0.6))),0.0)*0.25;
     let alb=textureSample(tex,samp,in.uv).rgb;
-    return vec4f(pow(alb*(0.22+nl*0.95+fill), vec3f(1.0/2.2)), 1.0);
+    var col=alb*(0.22+nl*0.95+fill);                                        // diffuse: ambient + lambert key + fill
+    let view=normalize(u.camPos.xyz-in.wpos); let hlf=normalize(L+view);    // Blinn-Phong spec, gated by the spec map
+    col=col+vec3f(pow(max(dot(n,hlf),0.0),22.0)*textureSample(specTex,samp,in.uv).r*0.5);
+    col=col+textureSample(emisTex,samp,in.uv).rgb*2.0;                      // emissive glow (unlit)
+    return vec4f(pow(col, vec3f(1.0/2.2)), 1.0);
   }
   // ---- procedural starfield background (drawn behind, camera-relative) ----
   fn hash13(p3in:vec3f)->f32{ var p3=fract(p3in*0.1031); p3=p3+dot(p3,p3.zyx+31.32); return fract((p3.x+p3.y)*p3.z); }
@@ -275,8 +289,8 @@ async function start(){
   const ubuf=device.createBuffer({size:8*16, usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
   const samp=device.createSampler({magFilter:"linear",minFilter:"linear",addressModeU:"repeat",addressModeV:"repeat"});
   const pipe=device.createRenderPipeline({layout:"auto",
-    vertex:{module:mod,entryPoint:"vs", buffers:[{arrayStride:32, attributes:[
-      {shaderLocation:0,offset:0,format:"float32x3"},{shaderLocation:1,offset:12,format:"float32x3"},{shaderLocation:2,offset:24,format:"float32x2"}]}]},
+    vertex:{module:mod,entryPoint:"vs", buffers:[{arrayStride:48, attributes:[
+      {shaderLocation:0,offset:0,format:"float32x3"},{shaderLocation:1,offset:12,format:"float32x3"},{shaderLocation:2,offset:24,format:"float32x2"},{shaderLocation:3,offset:32,format:"float32x4"}]}]},
     fragment:{module:mod,entryPoint:"fs",targets:[{format}]}, primitive:{topology:"triangle-list",cullMode:"none"},
     depthStencil:{format:"depth24plus",depthWriteEnabled:true,depthCompare:"less"}});
   const bgPipe=device.createRenderPipeline({layout:"auto",
@@ -302,6 +316,10 @@ async function start(){
   // fallback gray texture (art without a diffuse map)
   const grayTex=device.createTexture({size:[1,1],format:"rgba8unorm-srgb",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
   device.queue.writeTexture({texture:grayTex},new Uint8Array([130,120,110,255]),{bytesPerRow:4},[1,1]);
+  const blackTex=device.createTexture({size:[1,1],format:"rgba8unorm",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
+  device.queue.writeTexture({texture:blackTex},new Uint8Array([0,0,0,255]),{bytesPerRow:4},[1,1]);   // emissive/specular fallback = none
+  const flatNormalTex=device.createTexture({size:[1,1],format:"rgba8unorm",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
+  device.queue.writeTexture({texture:flatNormalTex},new Uint8Array([128,128,255,255]),{bytesPerRow:4},[1,1]);   // normal fallback = flat (0,0,1)
 
   // real engine cube-cross skybox, loaded by name (falls back to procedural stars until ready)
   let skyTex=device.createTexture({size:[1,1],format:"rgba8unorm",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
@@ -329,12 +347,17 @@ async function start(){
         rec.vb=device.createBuffer({size:mesh.v.byteLength,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST}); device.queue.writeBuffer(rec.vb,0,mesh.v);
         rec.ib=device.createBuffer({size:mesh.i.byteLength,usage:GPUBufferUsage.INDEX|GPUBufferUsage.COPY_DST}); device.queue.writeBuffer(rec.ib,0,mesh.i);
         rec.count=mesh.i.length; rec.maxDim=mesh.maxDim||60; rec.center=mesh.center||[0,0,0];
-        let view=grayTex.createView();
-        try{ const img=new Image(); img.src='/ships/'+art+'_diffuse.png'; await img.decode(); const bmp=await createImageBitmap(img);
-          const t=device.createTexture({size:[bmp.width,bmp.height],format:"rgba8unorm-srgb",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
-          device.queue.copyExternalImageToTexture({source:bmp},{texture:t},[bmp.width,bmp.height]); view=t.createView();
-        }catch(e){}
-        rec.bind=device.createBindGroup({layout:pipe.getBindGroupLayout(1),entries:[{binding:0,resource:view},{binding:1,resource:samp}]});
+        const loadTex=async(suffix,srgb,fallback)=>{
+          try{ const img=new Image(); img.src='/ships/'+art+suffix; await img.decode(); const bmp=await createImageBitmap(img);
+            const t=device.createTexture({size:[bmp.width,bmp.height],format:srgb?"rgba8unorm-srgb":"rgba8unorm",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
+            device.queue.copyExternalImageToTexture({source:bmp},{texture:t},[bmp.width,bmp.height]); return t.createView();
+          }catch(e){ return fallback.createView(); }
+        };
+        const view=await loadTex('_diffuse.png',true,grayTex);         // albedo (sRGB)
+        const emisView=await loadTex('_emissive.png',true,blackTex);   // glow (sRGB), none when missing
+        const specView=await loadTex('_specular.png',false,blackTex);  // spec intensity (linear), none when missing
+        const normView=await loadTex('_normal.png',false,flatNormalTex); // tangent-space normal (linear), flat when missing
+        rec.bind=device.createBindGroup({layout:pipe.getBindGroupLayout(1),entries:[{binding:0,resource:view},{binding:1,resource:samp},{binding:2,resource:emisView},{binding:3,resource:specView},{binding:4,resource:normView}]});
         rec.instBuf=null; rec.instCap=0; rec.status="ready";
       }catch(e){ rec.status="failed"; wlog("art load failed: "+art+" — "+(e&&e.message||e)); }
     })();
@@ -436,12 +459,19 @@ async function start(){
     return n;
   }
   // the client's own ship (by _myShipId, else first PLAYER-type) — for the chase camera
-  let playerCount=0;
+  let playerCount=0, npcCount=0;
   function findPlayer(b){
     if(!b||!b.dynPos||!b.dynMeta) return null;
     const pick=(id)=>{ if(id==null) return null; const idx=b.dynMap&&b.dynMap.get?b.dynMap.get(id):undefined; if(idx===undefined||idx>=(b.dynCount|0)) return null;
       const mm=b.dynMeta.get(id); if(!mm) return null; const s=smDyn.get(id);   // dead-reckoned pos so the chase cam doesn't jitter
       return {x:s?s.r[0]:b.dynPos[idx*3], y:s?s.r[1]:(mm.y||0), z:s?s.r[2]:b.dynPos[idx*3+1], fx:mm.fx||0, fz:mm.fz||0, art:mm.art||"", sc:mm.meshscale||1}; };
+    if(focusNpc){   // 'n': cycle NON-player ships (enemies / allies / monsters) — to hunt a far or cloaked NPC
+      const npcs=[];
+      for(const [id,mm] of b.dynMeta){ if(mm.art && mm.icon_index==null && mm.tick_type && mm.tick_type.indexOf("player")<0) npcs.push(id); }
+      npcCount=npcs.length;
+      if(npcs.length){ const p=pick(npcs[((npcSel%npcs.length)+npcs.length)%npcs.length]); if(p) return p; }
+      focusNpc=false;   // none renderable -> fall back to players
+    }
     // cycle RENDERABLE player ships (tick_type is the behavior tag, e.g. "behav_player")
     const ships=[];
     for(const [id,mm] of b.dynMeta){ if(mm.art && mm.icon_index==null && mm.tick_type && mm.tick_type.indexOf("player")>=0) ships.push(id); }
@@ -582,11 +612,12 @@ async function start(){
       const pd=device.createBindGroup({layout:projPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:7,resource:{buffer:projBuf}}]}); p.setPipeline(projPipe); p.setBindGroup(0,pd); p.draw(6,npr); }
     p.end(); device.queue.submit([enc.finish()]);
     fpsFrames++; { const now=performance.now(); if(now-fpsT>250){ fps=fps*0.6+(fpsFrames*1000/(now-fpsT))*0.4; fpsFrames=0; fpsT=now; } }
-    const shipNote=(mode==="chase")?`  ship ${playerCount?(((shipSel%playerCount)+playerCount)%playerCount+1):0}/${playerCount}`:"";
+    const _fc=focusNpc?npcCount:playerCount, _fs=focusNpc?npcSel:shipSel, _fl=focusNpc?"npc":"ship";
+    const shipNote=(mode==="chase")?`  ${_fl} ${_fc?(((_fs%_fc)+_fc)%_fc+1):0}/${_fc}`:"";
     hud.textContent=`${fps.toFixed(0)} fps  ·  cam: ${mode}${note?"  "+note:""}${shipNote}`
       +`\n${g.n} objects · ${arts} art types · ${nebCount} nebulae`
       +`\n${draws} draws (terrain static)${loading?` · ${loading} art loading…`:``}`
-      +`\n'c' cam · 'v' ship · 'b' grid · 'g' hide`;
+      +`\n'c' cam · 'v' ship · 'n' npc · 'b' grid · 'g' hide`;
   }
   function frame(){ try{ frameInner(); }catch(e){ wlog("frame error: "+(e&&e.message||e)); } requestAnimationFrame(frame); }   // one bad frame logs and retries, never black-screens
   requestAnimationFrame(frame);
@@ -605,23 +636,44 @@ async function start(){
 
 // ---- OBJ parse (v/vt/vn/triangulated f) -> interleaved pos,nrm,uv; CENTERED, native scale ----
 function parseOBJ(text){
-  const pos=[], uv=[], nrm=[], verts=[], idx=[], map=new Map();
+  const pos=[], uv=[], nrm=[], P=[], N=[], UV=[], idx=[], map=new Map(); let hadVN=false;
   for(const line of text.split("\n")){ const t=line.trim(); if(!t||t[0]==="#") continue; const s=t.split(/\s+/);
     if(s[0]==="v") pos.push([+s[1],+s[2],+s[3]]);
     else if(s[0]==="vt") uv.push([+s[1], 1-(+s[2])]);
-    else if(s[0]==="vn") nrm.push([+s[1],+s[2],+s[3]]);
+    else if(s[0]==="vn"){ nrm.push([+s[1],+s[2],+s[3]]); hadVN=true; }
     else if(s[0]==="f"){ const f=[];
       for(let i=1;i<s.length;i++){ const tok=s[i]; let id=map.get(tok);
         if(id===undefined){ const a=tok.split("/"); const vi=(+a[0])-1, ti=a[1]?(+a[1])-1:-1, ni=a[2]?(+a[2])-1:-1;
-          const P=pos[vi]||[0,0,0], T=(ti>=0&&uv[ti])?uv[ti]:[0,0], Nn=(ni>=0&&nrm[ni])?nrm[ni]:[0,1,0];
-          id=verts.length/8; verts.push(P[0],P[1],P[2],Nn[0],Nn[1],Nn[2],T[0],T[1]); map.set(tok,id); }
+          const p=pos[vi]||[0,0,0], tv=(ti>=0&&uv[ti])?uv[ti]:[0,0], nn=(ni>=0&&nrm[ni])?nrm[ni]:[0,0,0];
+          id=P.length; P.push([p[0],p[1],p[2]]); N.push([nn[0],nn[1],nn[2]]); UV.push([tv[0],tv[1]]); map.set(tok,id); }
         f.push(id); }
       for(let k=1;k+1<f.length;k++){ idx.push(f[0],f[k],f[k+1]); } } }
-  const v=new Float32Array(verts); const n=v.length/8;
-  let cx=0,cy=0,cz=0; for(let i=0;i<n;i++){ cx+=v[i*8];cy+=v[i*8+1];cz+=v[i*8+2]; } cx/=n||1;cy/=n||1;cz/=n||1;
-  for(let i=0;i<n;i++){ v[i*8]-=cx; v[i*8+1]-=cy; v[i*8+2]-=cz; }   // center only (keep native scale for meshscale)
-  let md=1; for(let i=0;i<n;i++){ md=Math.max(md, Math.hypot(v[i*8],v[i*8+1],v[i*8+2])); }   // native radius (for chase-cam sizing)
-  return {v, i:new Uint32Array(idx), maxDim:md, center:[cx,cy,cz]};   // center: subtract from shipData ports so they align with the centered mesh
+  const nv=P.length;
+  // Geometric normals when the OBJ has none (accumulate face normals) — else normal-mapping has no basis.
+  if(!hadVN){ for(let i=0;i<nv;i++) N[i]=[0,0,0];
+    for(let i=0;i<idx.length;i+=3){ const a=idx[i],b=idx[i+1],c=idx[i+2]; const fn=cr(sub(P[b],P[a]),sub(P[c],P[a]));
+      for(const k of [a,b,c]){ N[k][0]+=fn[0]; N[k][1]+=fn[1]; N[k][2]+=fn[2]; } }
+    for(let i=0;i<nv;i++){ const l=Math.hypot(N[i][0],N[i][1],N[i][2])||1; N[i]=[N[i][0]/l,N[i][1]/l,N[i][2]/l]; } }
+  // Per-vertex tangents from UV gradients (accumulate T and bitangent B per triangle).
+  const T=[], B=[]; for(let i=0;i<nv;i++){ T[i]=[0,0,0]; B[i]=[0,0,0]; }
+  for(let i=0;i<idx.length;i+=3){ const a=idx[i],b=idx[i+1],c=idx[i+2]; const e1=sub(P[b],P[a]), e2=sub(P[c],P[a]);
+    const du1=UV[b][0]-UV[a][0], dv1=UV[b][1]-UV[a][1], du2=UV[c][0]-UV[a][0], dv2=UV[c][1]-UV[a][1];
+    const den=du1*dv2-du2*dv1, r=Math.abs(den)>1e-9?1/den:0;
+    const t=[(e1[0]*dv2-e2[0]*dv1)*r,(e1[1]*dv2-e2[1]*dv1)*r,(e1[2]*dv2-e2[2]*dv1)*r];
+    const bt=[(e2[0]*du1-e1[0]*du2)*r,(e2[1]*du1-e1[1]*du2)*r,(e2[2]*du1-e1[2]*du2)*r];
+    for(const k of [a,b,c]){ T[k][0]+=t[0];T[k][1]+=t[1];T[k][2]+=t[2]; B[k][0]+=bt[0];B[k][1]+=bt[1];B[k][2]+=bt[2]; } }
+  // Assemble stride-12 verts: pos3, nrm3, uv2, tan4 (Gram-Schmidt orthonormal T + handedness in .w).
+  const v=new Float32Array(nv*12);
+  for(let i=0;i<nv;i++){ const o=i*12, n=N[i]; let tx=T[i][0],ty=T[i][1],tz=T[i][2];
+    const nd=n[0]*tx+n[1]*ty+n[2]*tz; tx-=n[0]*nd; ty-=n[1]*nd; tz-=n[2]*nd;
+    const tl=Math.hypot(tx,ty,tz); if(tl>1e-6){ tx/=tl;ty/=tl;tz/=tl; } else { tx=1;ty=0;tz=0; }
+    const hand=(dt(cr(n,[tx,ty,tz]),B[i])<0)?-1:1;
+    v[o]=P[i][0];v[o+1]=P[i][1];v[o+2]=P[i][2]; v[o+3]=n[0];v[o+4]=n[1];v[o+5]=n[2];
+    v[o+6]=UV[i][0];v[o+7]=UV[i][1]; v[o+8]=tx;v[o+9]=ty;v[o+10]=tz;v[o+11]=hand; }
+  let cx=0,cy=0,cz=0; for(let i=0;i<nv;i++){ cx+=v[i*12];cy+=v[i*12+1];cz+=v[i*12+2]; } cx/=nv||1;cy/=nv||1;cz/=nv||1;
+  for(let i=0;i<nv;i++){ v[i*12]-=cx; v[i*12+1]-=cy; v[i*12+2]-=cz; }   // center (keep native scale for meshscale)
+  let md=1; for(let i=0;i<nv;i++){ md=Math.max(md, Math.hypot(v[i*12],v[i*12+1],v[i*12+2])); }
+  return {v, i:new Uint32Array(idx), maxDim:md, center:[cx,cy,cz]};
 }
 function norml(v,fb){ const l=Math.hypot(v[0],v[1],v[2]); return l>1e-6?[v[0]/l,v[1]/l,v[2]/l]:fb; }
 // flat annulus on the XZ plane (unit radius), interleaved (x,z) — for the ship/shield rings
