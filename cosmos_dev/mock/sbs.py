@@ -3408,6 +3408,8 @@ def _physics_projectiles(sim, dt: float) -> None:
     for p in _projectiles:
         p["life"] -= dt
         if p["life"] <= 0:
+            if p.get("kind") == "mine":
+                delete_object(p.get("obj_id"))   # mine timed out untriggered -> remove its mesh
             continue
         pos = p["pos"]
         if p.get("kind") == "mine":
@@ -3416,6 +3418,7 @@ def _physics_projectiles(sim, dt: float) -> None:
             if _nearest_hittable(space, pos, p["trigger_radius"], p["source_id"]):
                 _register_blast(pos, p["damage"], p["blast_radius"], p["source_id"],
                                 p.get("blast_life", _TORP_BLAST_LIFETIME), p.get("torp_kind", ""))
+                delete_object(p.get("obj_id"))   # remove the mine mesh on detonation
                 continue  # consumed on detonation
             remaining.append(p)
             continue
@@ -3450,9 +3453,15 @@ def _physics_projectiles(sim, dt: float) -> None:
             mr = p.get("max_range", 0.0)
 
             if p.get("is_mine"):
-                # Inert in flight; on reaching its distance it stops and DEPLOYS as a
-                # stationary, armed proximity mine (sticks around until triggered).
+                # Inert in flight; on reaching its distance it stops and DEPLOYS. The deployed mine
+                # becomes a REAL space object (renders as the mine1_a mesh through the normal object
+                # pipeline); a lightweight projectile record is kept only for proximity detonation,
+                # linked to the object by obj_id so both go away together.
                 if mr > 0.0 and traveled2 >= mr * mr:
+                    mid = sim.create_space_object("behav_mine", "mine1_a", 0)   # abits 0 -> terrain: static, not damageable
+                    mobj = sim.space_objects.get(mid)
+                    if mobj is not None:
+                        mobj._pos = vec3(pos.x, pos.y, pos.z)
                     remaining.append({
                         "pos": vec3(pos.x, pos.y, pos.z),
                         "source_id": p["source_id"], "kind": "mine",
@@ -3460,9 +3469,9 @@ def _physics_projectiles(sim, dt: float) -> None:
                         "damage": p["damage"], "blast_radius": p["blast_radius"],
                         "blast_life": p.get("blast_life", _TORP_BLAST_LIFETIME),
                         "trigger_radius": p.get("trigger_radius", _TORP_MINE_TRIGGER),
-                        "life": _TORP_MINE_LIFE,
+                        "life": _TORP_MINE_LIFE, "obj_id": mid,
                     })
-                    continue  # the flyer becomes the deployed mine
+                    continue  # the flyer becomes the deployed mine object
                 remaining.append(p)
                 continue
 

@@ -1257,6 +1257,8 @@ def _push_fx() -> None:
                           round(t._pos.x, 1), round(t._pos.z, 1), round(inten, 2), str(fid), str(tid)])
     projectiles = []
     for p in getattr(_base_mock, "_projectiles", ()):
+        if p.get("kind") == "mine":
+            continue   # a deployed mine is a real space object now (renders as the mine mesh), not an fx dot
         pos = p["pos"]
         d = p.get("dir") or (0.0, 0.0, 0.0)   # travel heading -> 3dview draws an oriented missile + exhaust
         projectiles.append([round(pos.x, 1), round(pos.z, 1), p.get("kind", "missile"),
