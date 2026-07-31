@@ -20,7 +20,7 @@ async function start(){
   canvas.id="webgpu-field";
   canvas.style.cssText="position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483000;background:#05070c;display:block";
   document.body.appendChild(canvas);
-  let visible=true; const MODES=["chase","orbit","cinematic"]; let modeIx=0, shipSel=0;
+  let visible=true; const MODES=["chase","orbit","cinematic"]; let modeIx=0, shipSel=0, showGrid=true;
   let fps=60, fpsFrames=0, fpsT=performance.now();
   const hud=document.createElement("div");
   hud.style.cssText="position:fixed;top:10px;left:12px;z-index:2147483001;font:12px/1.5 ui-monospace,Consolas,monospace;color:#e7ebf2;background:rgba(10,12,17,.62);border:1px solid #232833;border-radius:8px;padding:8px 11px;pointer-events:none;white-space:pre";
@@ -29,6 +29,7 @@ async function start(){
     if(e.key==="g"){ visible=!visible; canvas.style.display=visible?"block":"none"; hud.style.display=visible?"block":"none"; }
     if(e.key==="c"){ modeIx=(modeIx+1)%MODES.length; }   // cycle chase -> orbit -> cinematic
     if(e.key==="v"){ shipSel++; }                        // cycle which player ship the chase follows
+    if(e.key==="b"){ showGrid=!showGrid; }               // toggle the reference grid
   });
 
   const adapter=await navigator.gpu.requestAdapter({powerPreference:"high-performance"});
@@ -200,14 +201,14 @@ async function start(){
   device.queue.writeTexture({texture:grayTex},new Uint8Array([130,120,110,255]),{bytesPerRow:4},[1,1]);
 
   // real engine cube-cross skybox, loaded by name (falls back to procedural stars until ready)
-  let skyTex=device.createTexture({size:[1,1],format:"rgba8unorm-srgb",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
-  device.queue.writeTexture({texture:skyTex},new Uint8Array([2,3,8,255]),{bytesPerRow:4},[1,1]);
+  let skyTex=device.createTexture({size:[1,1],format:"rgba8unorm",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
+  device.queue.writeTexture({texture:skyTex},new Uint8Array([6,9,20,255]),{bytesPerRow:4},[1,1]);
   let skyView=skyTex.createView(), skyReady=false, lastSky=null;
   const skySamp=device.createSampler({magFilter:"linear",minFilter:"linear",addressModeU:"clamp-to-edge",addressModeV:"clamp-to-edge"});
   async function loadSky(name){
     const base=String(name).split(/[\\/]/).pop();
     try{ const img=new Image(); img.src='/'+base+'.png'; await img.decode(); const bmp=await createImageBitmap(img);
-      const t=device.createTexture({size:[bmp.width,bmp.height],format:"rgba8unorm-srgb",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
+      const t=device.createTexture({size:[bmp.width,bmp.height],format:"rgba8unorm",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
       device.queue.copyExternalImageToTexture({source:bmp},{texture:t},[bmp.width,bmp.height]);
       const old=skyTex; skyTex=t; skyView=t.createView(); skyReady=true; if(old) old.destroy(); wlog("skybox loaded: "+base+" ("+bmp.width+"x"+bmp.height+")");
     }catch(e){ skyReady=false; wlog("skybox load failed: "+base+" — "+(e&&e.message||e)); }
@@ -304,11 +305,12 @@ async function start(){
     const pick=(id)=>{ if(id==null) return null; const idx=b.dynMap&&b.dynMap.get?b.dynMap.get(id):undefined; if(idx===undefined||idx>=(b.dynCount|0)) return null;
       const mm=b.dynMeta.get(id); if(!mm) return null; const s=smDyn.get(id);   // dead-reckoned pos so the chase cam doesn't jitter
       return {x:s?s.r[0]:b.dynPos[idx*3], y:s?s.r[1]:(mm.y||0), z:s?s.r[2]:b.dynPos[idx*3+1], fx:mm.fx||0, fz:mm.fz||0, art:mm.art||"", sc:mm.meshscale||1}; };
-    const players=[];   // only RENDERABLE player ships (has a mesh, not an icon/invisible cam)
-    for(const [id,mm] of b.dynMeta){ if((mm.tick_type==="PLAYER"||mm.tick_type==="player") && mm.art && mm.icon_index==null) players.push(id); }
-    if(b.myShipId!=null){ const i=players.indexOf(b.myShipId); if(i>0){ players.splice(i,1); players.unshift(b.myShipId); } }   // prefer own ship as index 0
-    playerCount=players.length;
-    let id = players.length ? players[((shipSel%players.length)+players.length)%players.length] : b.myShipId;
+    // cycle all RENDERABLE ships in the active set (players + NPCs); tick_type strings aren't reliable
+    const ships=[];
+    for(const [id,mm] of b.dynMeta){ if(mm.art && mm.icon_index==null) ships.push(id); }
+    if(b.myShipId!=null){ const i=ships.indexOf(b.myShipId); if(i>0){ ships.splice(i,1); ships.unshift(b.myShipId); } }   // prefer own ship as index 0
+    playerCount=ships.length;
+    let id = ships.length ? ships[((shipSel%ships.length)+ships.length)%ships.length] : b.myShipId;
     let p=pick(id);
     if(!p && b.myShipId!=null) p=pick(b.myShipId);
     return p;
@@ -384,7 +386,7 @@ async function start(){
       if(dc>0){ const b0=device.createBindGroup({layout:pipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:1,resource:{buffer:rec.dInst}}]}); p.setBindGroup(0,b0); p.drawIndexed(rec.count,dc,0,0,0); draws++; drawn+=dc; }
     }
     // reference grid + flat rings (own-ship highlight / shield fraction), depth-tested transparents
-    { const gb=device.createBindGroup({layout:gridPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}}]}); p.setPipeline(gridPipe); p.setBindGroup(0,gb); p.draw(6); }
+    if(showGrid){ const gb=device.createBindGroup({layout:gridPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}}]}); p.setPipeline(gridPipe); p.setBindGroup(0,gb); p.draw(6); }
     const nr=ringList.length/8;
     if(nr>0){ if(nr>ringCap){ ringCap=Math.max(16,nr*2); if(ringBuf) ringBuf.destroy(); ringBuf=device.createBuffer({size:ringCap*32,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); }
       device.queue.writeBuffer(ringBuf,0,new Float32Array(ringList));
@@ -395,11 +397,11 @@ async function start(){
       p.setPipeline(nebPipe); p.setBindGroup(0,nb); p.draw(6,nebCount); draws++; }
     p.end(); device.queue.submit([enc.finish()]);
     fpsFrames++; { const now=performance.now(); if(now-fpsT>250){ fps=fps*0.6+(fpsFrames*1000/(now-fpsT))*0.4; fpsFrames=0; fpsT=now; } }
-    const shipNote=(mode==="chase"&&playerCount>1)?`  ship ${((shipSel%playerCount)+playerCount)%playerCount+1}/${playerCount}`:"";
+    const shipNote=(mode==="chase")?`  ship ${playerCount?(((shipSel%playerCount)+playerCount)%playerCount+1):0}/${playerCount}`:"";
     hud.textContent=`${fps.toFixed(0)} fps  ·  cam: ${mode}${note?"  "+note:""}${shipNote}`
       +`\n${g.n} objects · ${arts} art types · ${nebCount} nebulae`
       +`\n${draws} draws (terrain static)${loading?` · ${loading} art loading…`:``}`
-      +`\n'c' cam · 'v' ship · drag+wheel · 'g' hide`;
+      +`\n'c' cam · 'v' ship · 'b' grid · 'g' hide`;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
