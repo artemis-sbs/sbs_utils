@@ -149,7 +149,29 @@ async function start(){
       if(d>0.02){ acc=acc+emis*d*trans*0.03; trans=trans*exp(-d*dS/R*4.0); if(trans<0.02){ break; } }
       t=t+dS; }
     return vec4f(acc, 0.0);
-  }`;
+  }
+  // ---- reference grid on the y=0 plane (camera-centered, distance-faded) ----
+  struct GVO { @builtin(position) pos:vec4f, @location(0) wxz:vec2f };
+  @vertex fn vgrid(@builtin(vertex_index) vi:u32)->GVO{
+    var q=array<vec2f,6>(vec2f(-1,-1),vec2f(1,-1),vec2f(-1,1),vec2f(-1,1),vec2f(1,-1),vec2f(1,1));
+    let S=250000.0; let wx=u.camPos.x+q[vi].x*S; let wz=u.camPos.z+q[vi].y*S;
+    var o:GVO; o.pos=u.vp*vec4f(wx,0.0,wz,1.0); o.wxz=vec2f(wx,wz); return o;
+  }
+  @fragment fn fgrid(in:GVO)->@location(0) vec4f{
+    let cell=5000.0; let uv=in.wxz/cell; let gr=abs(fract(uv-0.5)-0.5)/fwidth(uv);
+    let line=1.0-min(min(gr.x,gr.y),1.0);
+    let d=length(in.wxz-u.camPos.xz); let fade=clamp(1.0-d/240000.0,0.0,1.0);
+    return vec4f(vec3f(0.12,0.34,0.48), line*0.35*fade);
+  }
+  // ---- flat rings (own-ship highlight + shield-fraction rings) ----
+  struct Ring { c:vec4f, col:vec4f };     // center.xyz,radius | rgb,-
+  @group(0) @binding(5) var<storage,read> rings:array<Ring>;
+  struct RVO { @builtin(position) pos:vec4f, @location(0) col:vec3f };
+  @vertex fn vring(@location(0) rp:vec2f, @builtin(instance_index) ii:u32)->RVO{
+    let rg=rings[ii]; let world=rg.c.xyz + vec3f(rp.x,0.0,rp.y)*rg.c.w;
+    var o:RVO; o.pos=u.vp*vec4f(world,1.0); o.col=rg.col.rgb; return o;
+  }
+  @fragment fn fring(in:RVO)->@location(0) vec4f{ return vec4f(in.col, 0.7); }`;
   const mod=device.createShaderModule({code:WGSL});
   const info=await mod.getCompilationInfo(); const es=info.messages.filter(m=>m.type==="error");
   if(es.length){ wlog("WGSL: "+es.map(x=>`[${x.lineNum}] ${x.message}`).join(" | ")); return; }
@@ -167,6 +189,11 @@ async function start(){
     vertex:{module:mod,entryPoint:"nvs"}, fragment:{module:mod,entryPoint:"nfs",targets:[{format, blend:{color:{srcFactor:"one",dstFactor:"one",operation:"add"},alpha:{srcFactor:"one",dstFactor:"one",operation:"add"}}}]},
     primitive:{topology:"triangle-list"}, depthStencil:{format:"depth24plus",depthWriteEnabled:false,depthCompare:"less"}});
   let nebBuf=null, nebCap=0;
+  const ALPHA={color:{srcFactor:"src-alpha",dstFactor:"one-minus-src-alpha"},alpha:{srcFactor:"one",dstFactor:"one-minus-src-alpha"}};
+  const gridPipe=device.createRenderPipeline({layout:"auto", vertex:{module:mod,entryPoint:"vgrid"}, fragment:{module:mod,entryPoint:"fgrid",targets:[{format,blend:ALPHA}]}, primitive:{topology:"triangle-list"}, depthStencil:{format:"depth24plus",depthWriteEnabled:false,depthCompare:"less"}});
+  const ringPipe=device.createRenderPipeline({layout:"auto", vertex:{module:mod,entryPoint:"vring", buffers:[{arrayStride:8, attributes:[{shaderLocation:0,offset:0,format:"float32x2"}]}]}, fragment:{module:mod,entryPoint:"fring",targets:[{format,blend:ALPHA}]}, primitive:{topology:"triangle-list"}, depthStencil:{format:"depth24plus",depthWriteEnabled:false,depthCompare:"less"}});
+  const ringGeo=buildRing(0.82,1.0,48); const ringVb=device.createBuffer({size:ringGeo.byteLength,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST}); device.queue.writeBuffer(ringVb,0,ringGeo); const ringVerts=ringGeo.length/2;
+  let ringBuf=null, ringCap=0; const ringList=[];
 
   // fallback gray texture (art without a diffuse map)
   const grayTex=device.createTexture({size:[1,1],format:"rgba8unorm-srgb",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
@@ -261,6 +288,9 @@ async function start(){
         s.r[0]+=((s.b[0]+s.v[0]*st)-s.r[0])*k; s.r[1]+=((s.b[1]+s.v[1]*st)-s.r[1])*k; s.r[2]+=((s.b[2]+s.v[2]*st)-s.r[2])*k;
       }
       let arr=lists.get(m.art); if(!arr){ arr=[]; lists.set(m.art,arr); } packObj(arr,s.r[0],s.r[1],s.r[2],m); n++;
+      if(m.shp>=0){ const rc=artCache.get(m.art); const sz=(m.meshscale||1)*((rc&&rc.maxDim)?rc.maxDim:60);
+        const c=m.shp>0.66?[0.2,1.0,0.4]:(m.shp>0.33?[1.0,0.85,0.35]:[1.0,0.33,0.33]);
+        ringList.push(s.r[0], s.r[1], s.r[2], sz*0.9, c[0],c[1],c[2], 0); }   // shield-fraction ring
     }
     for(const id of smDyn.keys()) if(!seen.has(id)) smDyn.delete(id);
     for(const rec of artCache.values()) rec.dCount=0;
@@ -274,7 +304,9 @@ async function start(){
     const pick=(id)=>{ if(id==null) return null; const idx=b.dynMap&&b.dynMap.get?b.dynMap.get(id):undefined; if(idx===undefined||idx>=(b.dynCount|0)) return null;
       const mm=b.dynMeta.get(id); if(!mm) return null; const s=smDyn.get(id);   // dead-reckoned pos so the chase cam doesn't jitter
       return {x:s?s.r[0]:b.dynPos[idx*3], y:s?s.r[1]:(mm.y||0), z:s?s.r[2]:b.dynPos[idx*3+1], fx:mm.fx||0, fz:mm.fz||0, art:mm.art||"", sc:mm.meshscale||1}; };
-    const players=[]; for(const [id,mm] of b.dynMeta){ if(mm.tick_type==="PLAYER"||mm.tick_type==="player") players.push(id); }
+    const players=[];   // only RENDERABLE player ships (has a mesh, not an icon/invisible cam)
+    for(const [id,mm] of b.dynMeta){ if((mm.tick_type==="PLAYER"||mm.tick_type==="player") && mm.art && mm.icon_index==null) players.push(id); }
+    if(b.myShipId!=null){ const i=players.indexOf(b.myShipId); if(i>0){ players.splice(i,1); players.unshift(b.myShipId); } }   // prefer own ship as index 0
     playerCount=players.length;
     let id = players.length ? players[((shipSel%players.length)+players.length)%players.length] : b.myShipId;
     let p=pick(id);
@@ -297,12 +329,15 @@ async function start(){
     const skyName=b2?b2.skyName:null;
     if(skyName && skyName!==lastSky){ lastSky=skyName; loadSky(skyName); }
     else if(!skyName && lastSky){ lastSky=null; skyReady=false; }
+    ringList.length=0;
     let dynN=0;
     if(b2){ const tv=b2.terrainVersion|0; if(tv!==terrainVer){ terrainVer=tv; gatherTerrain(b2); } dynN=gatherDyn(b2); }
     let tObjs=0; for(const rec of artCache.values()) tObjs+=(rec.tCount||0);
     const g={ n:tObjs+dynN, meanR:fmeanR };
     if(g.n>0){ cx=fcx; cz=fcz; if(!framed){ dist=g.meanR*2.5+2000; framed=true; } }
     const player=findPlayer(b2);
+    if(player){ const rc=player.art?artCache.get(player.art):null; const sz=Math.max(1,(player.sc||1)*((rc&&rc.maxDim)?rc.maxDim:60));
+      ringList.push(player.x, player.y, player.z, Math.max(460,sz*1.5), 0.0,0.9,1.0, 0); }   // own-ship highlight
     let want=MODES[modeIx];
     if(want==="chase" && !player) want="orbit";
     if(want==="cinematic" && !(b2 && Array.isArray(b2.cam) && Array.isArray(b2.tgt))) want="orbit";
@@ -348,6 +383,13 @@ async function start(){
       if(tc>0){ const b0=device.createBindGroup({layout:pipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:1,resource:{buffer:rec.tInst}}]}); p.setBindGroup(0,b0); p.drawIndexed(rec.count,tc,0,0,0); draws++; drawn+=tc; }
       if(dc>0){ const b0=device.createBindGroup({layout:pipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:1,resource:{buffer:rec.dInst}}]}); p.setBindGroup(0,b0); p.drawIndexed(rec.count,dc,0,0,0); draws++; drawn+=dc; }
     }
+    // reference grid + flat rings (own-ship highlight / shield fraction), depth-tested transparents
+    { const gb=device.createBindGroup({layout:gridPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}}]}); p.setPipeline(gridPipe); p.setBindGroup(0,gb); p.draw(6); }
+    const nr=ringList.length/8;
+    if(nr>0){ if(nr>ringCap){ ringCap=Math.max(16,nr*2); if(ringBuf) ringBuf.destroy(); ringBuf=device.createBuffer({size:ringCap*32,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); }
+      device.queue.writeBuffer(ringBuf,0,new Float32Array(ringList));
+      const rb=device.createBindGroup({layout:ringPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:5,resource:{buffer:ringBuf}}]});
+      p.setPipeline(ringPipe); p.setBindGroup(0,rb); p.setVertexBuffer(0,ringVb); p.draw(ringVerts,nr); }
     // volumetric nebulae (additive, depth-tested so meshes occlude them) — persistent buffer
     if(nebCount>0){ const nb=device.createBindGroup({layout:nebPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:4,resource:{buffer:nebBuf}}]});
       p.setPipeline(nebPipe); p.setBindGroup(0,nb); p.draw(6,nebCount); draws++; }
@@ -393,6 +435,15 @@ function parseOBJ(text){
   return {v, i:new Uint32Array(idx), maxDim:md};
 }
 function norml(v,fb){ const l=Math.hypot(v[0],v[1],v[2]); return l>1e-6?[v[0]/l,v[1]/l,v[2]/l]:fb; }
+// flat annulus on the XZ plane (unit radius), interleaved (x,z) — for the ship/shield rings
+function buildRing(inner, outer, seg){
+  const v=[];
+  for(let i=0;i<seg;i++){ const a0=i/seg*Math.PI*2, a1=(i+1)/seg*Math.PI*2;
+    const c0=Math.cos(a0),s0=Math.sin(a0),c1=Math.cos(a1),s1=Math.sin(a1);
+    v.push(c0*inner,s0*inner, c0*outer,s0*outer, c1*outer,s1*outer);
+    v.push(c0*inner,s0*inner, c1*outer,s1*outer, c1*inner,s1*inner); }
+  return new Float32Array(v);
+}
 
 // ---- mat4 (column-major, WebGPU z in [0,1]) ----
 function perspective(fovy,aspect,near,far){ const f=1/Math.tan(fovy/2),nf=1/(near-far); return new Float32Array([f/aspect,0,0,0, 0,f,0,0, 0,0,far*nf,-1, 0,0,far*near*nf,0]); }
