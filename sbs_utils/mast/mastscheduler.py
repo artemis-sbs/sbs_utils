@@ -796,6 +796,34 @@ class MastAsyncTask(Agent, Promise):
         self._canceled = True
 
     
+    def dispose(self):
+        """Drop a FINISHED task from the Agent registries.
+
+        A task is an Agent: __init__ calls self.add(), which registers it in
+        Agent.all, in Agent.roles under __MAST_TASK__, and in Agent._has_inventory
+        under EVERY variable name it holds (start_task(inherit=True) copies the
+        whole parent scope, so that is a lot of names).  Dropping the task from the
+        scheduler's `tasks` list left all of that behind, so a busy mission grew
+        Agent.all without bound -- ~150 dead tasks a sim-second on LM, 47k agents
+        of which 92% were finished tasks.
+
+        Idempotent, and safe to call while the task object is still referenced:
+        this only unregisters the id, it does not invalidate live references
+        (`mast_task`, an awaited promise's result).  A task that is later revived
+        via jump_restart_task re-registers itself there.
+        """
+        for st in list(self.sub_tasks):
+            st.dispose()          # sub-tasks share the parent's lifecycle
+        self.sub_tasks = []
+        self.remove()
+
+    # NOTE on reclamation: unregistering is enough for the OBJECT to die too, but
+    # only via Python's CYCLIC collector - a task references itself four ways (the
+    # "mast_task" inventory value, mast_ticker, py_ticker, root_task), so refcounting
+    # alone never frees it. One task per scheduler also stays pinned by
+    # `scheduler.active_task` until the next task ticks; that pointer is deliberately
+    # NOT cleared here, because callers read it after a run to fetch results.
+
     def end(self):
         # if self.name is not None:
         #     print(f"Task {self.name} called end")
@@ -1168,6 +1196,7 @@ class MastAsyncTask(Agent, Promise):
             for rem in done:
                 if rem in self.sub_tasks:
                     self.sub_tasks.remove(rem)
+                    rem.dispose()   # finished: unregister it from the Agent registries
             done = []
 
     def jump_restart_task(self, label = "main", activate_cmd=0):
@@ -1176,6 +1205,10 @@ class MastAsyncTask(Agent, Promise):
         """
         self.set_result(None)
         self.active_ticker.done = False
+        # Revive: if this task already finished it was disposed out of Agent.all,
+        # so re-register before it runs again (add() is keyed by id, so a task
+        # that was never disposed just re-registers itself harmlessly).
+        self.add()
         self.jump(label, activate_cmd)
         self.tick_in_context()
 
@@ -1231,6 +1264,32 @@ class MastAsyncTask(Agent, Promise):
         self.active_ticker.runtime_error(msg)
 
         
+    @classmethod
+    def sweep_finished(cls):
+        """Backstop: dispose any FINISHED task still sitting in the registries.
+
+        Disposing at the two points where a task leaves `tasks` / `sub_tasks`
+        catches the common case, but tasks are started from a dozen places
+        (routes, comms, science, overlays) and some run to completion outside
+        those lists -- notably a sub-task whose parent never ticks again, which
+        leaves it done-but-registered forever. This sweep is creation-site
+        agnostic: if it is done, it does not belong in the registries.
+
+        Cheap: it walks the __mast_task__ role set, not all of Agent.all, and
+        runs on the GarbageCollector cadence rather than every frame. dispose()
+        is idempotent, and a task revived later by jump_restart_task re-registers.
+        """
+        ids = Agent.roles.collection_set("__mast_task__")
+        if not ids:
+            return 0
+        swept = 0
+        for tid in list(ids):
+            t = Agent.all.get(tid)
+            if t is not None and t.done():
+                t.dispose()
+                swept += 1
+        return swept
+
     @classmethod
     def add_dependency(cls, id, task):
         the_set = MastAsyncTask.dependent_tasks.get(id, set())
@@ -1423,6 +1482,7 @@ class MastScheduler(Agent):
             for rem in self.done:
                 if rem in self.tasks:
                     self.tasks.remove(rem)
+                    rem.dispose()   # finished: unregister it from the Agent registries
             self.done = []
 
         for task in self.tasks:

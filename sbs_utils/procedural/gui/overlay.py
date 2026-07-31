@@ -161,6 +161,10 @@ def overlay_register_label(kind, label):
             data = {k: v for k, v in content.items() if k != "kind"}
             st = gtask.start_task(label, data, defer=True, inherit=False, unscheduled=True)
             st.tick_in_context()         # build-only label completes in one tick
+            # unscheduled -> never enters scheduler.tasks, so the normal done-task
+            # disposal never sees it. Unregister it here or every overlay rebuild
+            # leaks one task into Agent.all.
+            st.dispose()
         except Exception as e:
             print(f"[overlay] label builder for '{kind}' failed: {e}")
             print(traceback.format_exc())

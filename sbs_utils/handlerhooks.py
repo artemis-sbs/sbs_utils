@@ -17,6 +17,7 @@ from .fs import get_mission_name, get_startup_mission_name
 from .vec import Vec3
 
 from .agent import Agent, clear_shared
+from .mast.mastscheduler import MastAsyncTask
 from .helpers import FrameContext, Context, format_exception
 import time
 import gc
@@ -464,6 +465,11 @@ def cosmos_event_handler(sim, event):
         # with IDs and a callback
         # When the ID is no longer valid the callback is called
         _phase(phase_ms, "gc", GarbageCollector.collect)
+        # Backstop for finished MAST tasks that never passed through the
+        # scheduler's done-list (sub-tasks of a parent that stopped ticking,
+        # route/comms tasks run to completion in place). Without this they stay
+        # in Agent.all + the role/inventory registries for the whole mission.
+        _phase(phase_ms, "task_sweep", MastAsyncTask.sweep_finished)
         from .pages.layout.dirty import Dirty
         _phase(phase_ms, "dirty", Dirty.represent_dirty)
 

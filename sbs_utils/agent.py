@@ -76,8 +76,16 @@ class Stuff:
         return False
 
     def remove_every_collection(self, id):
-        for role in self.collections:
-            self.remove_from_collection(role, id)
+        # Discard straight from each set. This used to route through
+        # remove_from_collection(), which splits the collection NAME on commas and
+        # strips it - wasted work here, since these names come from the dict's own
+        # keys and are already single. Now that finished MAST tasks are disposed
+        # (~150 a sim-second on a busy mission) this runs hot.
+        for the_set in self.collections.values():
+            if isinstance(the_set, set):
+                the_set.discard(id)
+            elif the_set == id:
+                pass   # scalar entry: left to remove_collection, as before
 
     def get_collections_in(self, id):
         roles = []

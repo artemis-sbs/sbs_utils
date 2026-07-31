@@ -584,6 +584,7 @@ def _run(
     aspect: str | None = None,
     dap_port: int | None = None,
     dap_wait: bool = False,
+    probe_leak: float | None = None,
 ) -> int:
     mission_folder = os.path.abspath(mission_folder)
     missions_root  = _find_missions_root(mission_folder)
@@ -766,14 +767,34 @@ def _run(
     _PHYSICS_DT = 1.0 / _PHYSICS_HZ      # sim-seconds advanced per physics tick
     _stop_physics = threading.Event()
 
+    # Physics timing, sampled by --probe-leak: how long a tick actually takes and
+    # what rate the thread achieves. `busy` is work time, `ticks` completed ticks.
+    _phys_stats = {"ticks": 0, "busy": 0.0, "wall0": time.perf_counter()}
+    _mast_stats = {"ticks": 0, "busy": 0.0}   # main-thread MAST cost (same sampler)
+
     def _physics_worker(sbs_mod, stop_ev):
+        # FIXED-RATE, not fixed-delay.  This used to tick and then wait a FULL
+        # _PHYSICS_DT, so the period was (work + dt) and sim time advanced at
+        # dt/(work+dt) of wall clock -- a heavy mission (~27ms of physics work
+        # against a 33ms budget) ran the sim at ~0.55x and looked "frozen" in the
+        # browser.  Track an absolute deadline and sleep only the remainder; when
+        # a tick overruns the budget, resync instead of spiral-of-death catching up.
+        _next = time.perf_counter()
         while not stop_ev.is_set():
             if sbs_mod.sim is not None and not sbs_mod.sim._paused:
+                _t0 = time.perf_counter()
                 try:
                     sbs_mod.physics_tick(dt=_PHYSICS_DT)
                 except Exception as e:
                     _log_exc(f"physics worker error: {e}")
-            stop_ev.wait(timeout=_PHYSICS_DT)   # exits promptly on stop signal
+                _phys_stats["busy"] += time.perf_counter() - _t0
+                _phys_stats["ticks"] += 1
+            _next += _PHYSICS_DT
+            _sleep = _next - time.perf_counter()
+            if _sleep <= 0:
+                _next = time.perf_counter()   # overran the budget - resync, don't chase
+                _sleep = 0
+            stop_ev.wait(timeout=_sleep)      # exits promptly on stop signal
 
     _physics_thread = threading.Thread(
         target=_physics_worker,
@@ -883,7 +904,10 @@ def _run(
         if sbs.sim is not None:
             for obj in list(sbs.sim.space_objects.values()):
                 ab   = getattr(obj, "_abits", 0)
-                side = getattr(obj, "_side", "") or "-"
+                # Spell the empty side out. It renders next to real side names, and a
+                # bare "-" next to "monster" read as "2004 monsters" when it is really
+                # 2004 SIDELESS TERRAIN - the biggest bucket on any map.
+                side = getattr(obj, "_side", "") or "(no side)"
                 row  = by_side.setdefault(side, {"players": 0, "npcs": 0, "terrain": 0})
                 if ab & 0x20:
                     row["players"] += 1; players += 1
@@ -911,6 +935,137 @@ def _run(
             "agent_types": agent_types, # Agent.all by class - to spot what's leaking
             "tick_rate": tick_rate,
         }
+
+    def _leak_probe(wall0: float) -> None:
+        """One periodic leak sample (--probe-leak).
+
+        The question this answers: when the sim "crawls", is Agent.all GROWING,
+        and are the extra agents ENDED MAST tasks (corpses that nothing purges)
+        rather than live work?  `rate` is sim-seconds gained per wall-second —
+        the actual throughput number behind the "frozen mission" symptom.
+        """
+        from sbs_utils.helpers import _TPS
+        from sbs_utils.mast.mastscheduler import MastAsyncTask
+        sim_s  = sbs.sim.time_tick_counter / _TPS if sbs.sim else 0.0
+        wall_s = max(time.time() - wall0, 1e-6)
+        objs   = len(sbs.sim.space_objects) if sbs.sim else 0
+        agents = list(Agent.all.values())
+        tasks  = [a for a in agents if isinstance(a, MastAsyncTask)]
+        ended  = sum(1 for t in tasks if t.done())
+        types: dict = {}
+        for a in agents:
+            tn = type(a).__name__
+            types[tn] = types.get(tn, 0) + 1
+        # Are the players actually being DRIVEN?  A mock player ship moves ONLY when
+        # something writes playerThrottle (a helm console, or the mission's autoplay) -
+        # so "the whole mission is frozen" is often just N parked ships nobody is
+        # flying, which is a completely different fault from a slow sim.  Same for
+        # NPCs, whose brains write target_pos_*.
+        pl = pl_thr = pl_mov = pl_dead = npc_mov = 0
+        for obj in (list(sbs.sim.space_objects.values()) if sbs.sim else []):
+            ab = getattr(obj, "_abits", 0)
+            spd = abs(getattr(obj, "_cur_speed", 0.0) or 0.0)
+            if ab & 0x20:
+                pl += 1
+                try:
+                    if (obj.data_set.get("playerThrottle") or 0.0) > 0.0:
+                        pl_thr += 1
+                    # A dead ship is zeroed by _playership_drive, so "stopped"
+                    # means destroyed here, NOT "autoplay quit driving it".
+                    if (obj.data_set.get("deathState") or 0) > 0:
+                        pl_dead += 1
+                except Exception:
+                    pass
+                if spd > 0.01:
+                    pl_mov += 1
+            elif ab & 0x10 and spd > 0.01:
+                npc_mov += 1
+
+        # Grid objects are a ship's INTERIOR map (rooms/systems/damcons), so a big
+        # count is only alarming if the objects outlive their host. Split them by
+        # whether host_id is still a live space object: orphaned == leaked.
+        from sbs_utils.gridobject import GridObject
+        live_ids = set(sbs.sim.space_objects.keys()) if sbs.sim else set()
+        g_hosts: dict = {}
+        g_orphan = 0
+        for a in agents:
+            if not isinstance(a, GridObject):
+                continue
+            h = getattr(a, "host_id", 0)
+            if h in live_ids:
+                g_hosts[h] = g_hosts.get(h, 0) + 1
+            else:
+                g_orphan += 1
+
+        # Any ENDED task still registered escaped disposal. Group them by label so
+        # the leaking spawn site is named rather than guessed.
+        stale: dict = {}
+        for t in tasks:
+            if not t.done():
+                continue
+            try:
+                lbl = t.active_label
+                lbl = getattr(lbl, "name", lbl)
+            except Exception:
+                lbl = "?"
+            kind = "sub" if getattr(t, "is_sub_task", False) else "top"
+            try:
+                sched = t.main
+                where = "in-sched" if t in getattr(sched, "tasks", []) else "orphan"
+            except Exception:
+                where = "?"
+            stale[f"{lbl}[{kind},{where}]"] = stale.get(f"{lbl}[{kind},{where}]", 0) + 1
+        stale_top = " ".join(f"{k}={v}" for k, v in
+                             sorted(stale.items(), key=lambda kv: -kv[1])[:4])
+
+        top = " ".join(f"{k}={v}" for k, v in
+                       sorted(types.items(), key=lambda kv: -kv[1])[:5])
+        # Report costs for THIS interval, not cumulative averages - a cumulative mean
+        # smears the degradation that is the whole point of sampling.
+        now = time.perf_counter()
+        d_wall = max(now - _probe_last["wall"], 1e-6)
+        d_pt   = max(_phys_stats["ticks"] - _probe_last["p_ticks"], 1)
+        d_pb   = _phys_stats["busy"] - _probe_last["p_busy"]
+        d_mt   = max(_mast_stats["ticks"] - _probe_last["m_ticks"], 1)
+        d_mb   = _mast_stats["busy"] - _probe_last["m_busy"]
+        _probe_last.update(wall=now, p_ticks=_phys_stats["ticks"], p_busy=_phys_stats["busy"],
+                           m_ticks=_mast_stats["ticks"], m_busy=_mast_stats["busy"])
+        print(f"[probe] sim={sim_s:7.1f}s wall={wall_s:6.1f}s "
+              f"rate={sim_s / wall_s:5.2f}x objs={objs:5d} "
+              f"agents={len(agents):6d} tasks={len(tasks):6d} ended={ended:6d} | "
+              f"phys {d_pb / d_pt * 1000:5.1f}ms/tick {d_pt / d_wall:5.1f}Hz  "
+              f"mast {d_mb / d_mt * 1000:6.1f}ms/tick | "
+              f"players {pl_thr}/{pl} throttled {pl_mov}/{pl} moving "
+              f"{pl_dead} dead, npcs moving {npc_mov} | "
+              f"grids {len(g_hosts)} hosts/{g_orphan} orphaned | {top}")
+        if stale_top:
+            print(f"[probe]   undisposed ended tasks by label: {stale_top}")
+
+        # Name WHY each stopped player is stopped. LM autoplay records its decision in
+        # the ship's `ap_helm_mode` inventory value, so the stop reason (dock latch vs
+        # "cannot turn" hold vs standoff) is readable rather than guessable.
+        if pl_mov < pl:
+            for obj in list(sbs.sim.space_objects.values()):
+                if not (getattr(obj, "_abits", 0) & 0x20):
+                    continue
+                if abs(getattr(obj, "_cur_speed", 0.0) or 0.0) > 0.01:
+                    continue
+                ds = obj.data_set
+                try:
+                    a = Agent.get(getattr(obj, "_id", 0))
+                    mode = a.get_inventory_value("ap_helm_mode", "?") if a else "?"
+                except Exception:
+                    mode = "?"
+                def _g(k, i=0, d=0):
+                    try:
+                        return ds.get(k, i) or d
+                    except Exception:
+                        return d
+                print(f"[probe]   stopped {getattr(obj, '_name', '?')!r:>22} "
+                      f"mode={mode!s:<10} dock={_g('dock_state', 0, '')!s:<10} "
+                      f"thr={_g('playerThrottle'):<4} energy={_g('energy'):<7.0f} "
+                      f"shield={_g('shield_val'):.0f}/{_g('shield_max_val', 0, 1):.0f} "
+                      f"turn_coeff={_g('turn_damage_coeff', 0, 1):.2f}")
 
     def _handle_debug_command(cev: dict) -> None:
         nonlocal map_arg
@@ -1015,6 +1170,11 @@ def _run(
               f"{', exercising' if exercise else ''}")
 
     _dap_wait_deadline = None   # set on first auto-start attempt so we don't wait forever
+
+    _probe_wall0 = time.time()
+    _probe_next = 0.0
+    _probe_last = {"wall": time.perf_counter(), "p_ticks": 0, "p_busy": 0.0,
+                   "m_ticks": 0, "m_busy": 0.0}
 
     try:
         while True:
@@ -1233,6 +1393,7 @@ def _run(
                 # Server MAST tick at 5 Hz.
                 # Use sbs.sim (not the captured sim) so that sim_create() in a script
                 # replaces the active simulation without breaking the tick loop.
+                _mast_t0 = time.perf_counter()
                 try:
                     cosmos_event_handler(sbs.sim, tick_event)
                 except Exception as e:
@@ -1244,6 +1405,12 @@ def _run(
                         # and keep ticking, like the engine logs to mast.runtime.log
                         # and carries on. (--test re-raises via the verdict path above.)
                         _log_exc(f"mission_tick error: {e}")
+                # Main-thread MAST cost, sampled by --probe-leak.  Read it NEXT TO the
+                # physics ms/tick: the physics thread contends with this one for the
+                # GIL and sim._lock, so MAST getting heavier shows up as physics
+                # "work" getting slower even when object count is flat.
+                _mast_stats["ticks"] += 1
+                _mast_stats["busy"] += time.perf_counter() - _mast_t0
                 # NOTE: sim time (time_tick_counter) is advanced by the physics
                 # tick, not the MAST tick — the physics thread is the sim-time
                 # source, matching the engine.  See cosmos_dev/mock/sbs.py.
@@ -1263,6 +1430,13 @@ def _run(
                         print(f"[runner] deferred web_connect: {cid} -> /web/{path}")
                         _fire_web_connect(cid, path, query)
                     _pending_web_connects.clear()
+
+            if probe_leak:
+                from sbs_utils.helpers import _TPS as _PROBE_TPS
+                _probe_sim = sbs.sim.time_tick_counter / _PROBE_TPS if sbs.sim else 0.0
+                if _probe_sim >= _probe_next:
+                    _probe_next = _probe_sim + probe_leak
+                    _leak_probe(_probe_wall0)
 
             # Drain physics events queued by the background physics thread.
             _drain_physics_events(sbs.sim, cosmos_event_handler, FakeEvent)
@@ -1509,6 +1683,10 @@ if __name__ == "__main__":
     ap.add_argument("--dap-wait", action="store_true",
                     help="With --dap-port, hold map auto-start until a debugger "
                          "attaches (so early breakpoints aren't missed)")
+    ap.add_argument("--probe-leak", type=float, default=None, metavar="SECONDS",
+                    help="Every N sim-seconds print a leak sample: sim/wall rate, "
+                         "live space objects, Agent.all size, MAST task count and "
+                         "how many of those tasks have ENDED (leaked corpses)")
     args = ap.parse_args()
 
     if args.map is None:
@@ -1540,5 +1718,6 @@ if __name__ == "__main__":
         aspect=args.aspect,
         dap_port=args.dap_port,
         dap_wait=args.dap_wait,
+        probe_leak=args.probe_leak,
     )
     sys.exit(_exit or 0)
