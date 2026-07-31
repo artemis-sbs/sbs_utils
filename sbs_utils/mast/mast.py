@@ -581,11 +581,51 @@ class Mast():
             if data is None:
                 return addons
             mastlibs = data.get("mastlib", [])
+            skipped = []
             for file in mastlibs:
+                # SOURCE WINS. A repo that packages its own addons declares them like any
+                # consumer, but a CLONE still has the folders - and the two loaders are
+                # additive, so loading both compiles every label twice and dies on the
+                # process-global name registry with "Label conflicts with shared name",
+                # which says nothing about the real cause. Preferring the source lets one
+                # story.json serve both: a clone edits its addons in place, a fetched copy
+                # (folders stripped by export-ignore) uses __lib__.
+                src = self.addon_source_folder(script_dir, file)
+                if src is not None:
+                    skipped.append(os.path.basename(src))
+                    continue
                 f = os.path.join(lib_dir, file)
                 addons.append(f)
-            
+            if skipped:
+                # Announced, not silent: normal for a repo running from its own clone, but
+                # for a CONSUMER it means an addon folder it probably did not mean to ship
+                # is overriding the declared lib - and that used to be a hard error. One
+                # summary line rather than one per addon, so a 34-addon clone is not noise.
+                shown = ", ".join(skipped[:6])
+                if len(skipped) > 6:
+                    shown += f", +{len(skipped) - 6} more"
+                print(f"Using mission SOURCE for {len(skipped)} declared addon(s) "
+                      f"instead of __lib__: {shown}")
+
         return addons
+
+    @staticmethod
+    def addon_source_folder(mission_dir, lib_name):
+        """The mission-local source folder for a declared mastlib, or None.
+
+        A lib is named ``{user}.{repo}.{folder}.{version}.{ext}``, so the addon folder is
+        the third dot-segment. Answers None unless that folder holds an ``__init__.mast`` -
+        the same test find_imports uses to call something an addon, so a mission that
+        merely happens to have a same-named folder cannot suppress a lib it needs.
+        """
+        import os
+        parts = str(lib_name).split(".", 3)
+        if len(parts) < 4:
+            return None
+        folder = os.path.join(mission_dir, parts[2])
+        if os.path.isfile(os.path.join(folder, "__init__.mast")):
+            return folder
+        return None
     
 
     def expand_resources(self):
