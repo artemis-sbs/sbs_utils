@@ -431,6 +431,20 @@ async def _handle_websocket(client_id: int,
 # ---------------------------------------------------------------------------
 # Raw TCP connection handler (HTTP + WebSocket upgrade)
 # ---------------------------------------------------------------------------
+def _ci_match(abs_path: str):
+    """Case-insensitive fallback for a missing file: return the real path if the
+    parent dir holds a basename that differs only in case, else None. Stays in the
+    same directory, so the caller's per-root traversal guard still holds."""
+    d, base = os.path.dirname(abs_path), os.path.basename(abs_path).lower()
+    try:
+        for name in os.listdir(d):
+            if name.lower() == base:
+                return os.path.join(d, name)
+    except OSError:
+        return None
+    return None
+
+
 async def _serve_static(writer: asyncio.StreamWriter, url_path: str) -> None:
     """Serve a file from any allowed static root, given a URL path.
 
@@ -461,7 +475,9 @@ async def _serve_static(writer: asyncio.StreamWriter, url_path: str) -> None:
         if not abs_path.startswith(root + os.sep) and abs_path != root:
             continue                      # escapes THIS root; try the next
         if not os.path.isfile(abs_path):
-            continue
+            abs_path = _ci_match(abs_path)   # shipData 'Asteroid_N' vs on-disk 'asteroid_n.obj' on case-sensitive FS
+            if abs_path is None:
+                continue
         mime, _ = mimetypes.guess_type(abs_path)
         mime = mime or "application/octet-stream"
         with open(abs_path, "rb") as f:

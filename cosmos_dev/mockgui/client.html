@@ -1222,9 +1222,9 @@ function cmdRadarTerrain(msg) {
     _terrainMap.set(o.id, i);
     _terrainRevMap.set(i, o.id);
     _terrainMeta.set(o.id, {
-      art: o.art || '', meshscale: o.meshscale ?? 1, y: o.y ?? 0, q: o.q || null,
+      art: o.art || '', meshscale: o.meshscale ?? 1, y: o.y ?? 0, q: o.q || null, tick_type: o.tick_type || '',
       name: o.name || '', tint: o.tint || null, nosel: !!o.nosel, side: o.side,
-      icon_index: (o.icon_index != null ? +o.icon_index : null),
+      icon_index: (o.icon_index ? +o.icon_index : null),   // 0 = blank glyph = "no icon"; normalize to null so mesh objects aren't misread as 2D markers
       icon_scale: (o.icon_scale != null ? +o.icon_scale : null),
       nebula: !!o.nebula, radius: o.radius || 0, density: o.density || 0, seed: o.seed || 1,
       color: o.color || null, color2: o.color2 || null, swirl: o.swirl || 0, warp: o.warp || 0,

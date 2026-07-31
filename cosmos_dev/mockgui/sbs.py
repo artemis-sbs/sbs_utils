@@ -1126,16 +1126,34 @@ def _quat_of(obj) -> list:
 
 def _mesh_scale_for(obj) -> float:
     """Resolve the engine meshscale (OBJ→world size factor) for a space object,
-    so the 3dview sizes hull meshes correctly. Mirrors send_gui_3dship."""
+    so the 3dview sizes hull meshes correctly. Mirrors send_gui_3dship.
+
+    Terrain (asteroids) also carry a per-OBJECT ``local_scale_{x,y,z}_coeff`` (set
+    in terrain.py, range ~2.5-15) that the engine multiplies into the mesh size.
+    shipData meshscale alone is 0.5, so without this asteroids draw 5-30x too
+    small and read as invisible while ships (no local_scale) look right. Fold the
+    average of the per-axis coeffs into the scalar meshscale (uniform approximation;
+    per-axis stretch would need a vec3 in the instance stream)."""
     tag = getattr(obj, "_data_tag", "") or ""
-    if not tag:
-        return 1.0
+    base = 1.0
+    if tag:
+        try:
+            from sbs_utils.procedural.ship_data import get_ship_data_for
+            info = get_ship_data_for(tag) or {}
+            base = float(info.get("meshscale", 1.0))
+        except Exception:
+            base = 1.0
     try:
-        from sbs_utils.procedural.ship_data import get_ship_data_for
-        info = get_ship_data_for(tag) or {}
-        return float(info.get("meshscale", 1.0))
+        ds = obj.data_set
+        sx = ds.get("local_scale_x_coeff", 0) or 0.0
+        sy = ds.get("local_scale_y_coeff", 0) or 0.0
+        sz = ds.get("local_scale_z_coeff", 0) or 0.0
+        avg = (sx + sy + sz) / 3.0
+        if avg > 0.0:
+            base *= avg
     except Exception:
-        return 1.0
+        pass
+    return base
 
 
 def _exhaust_ports_for(obj) -> list:
@@ -1343,6 +1361,9 @@ def _push_radar() -> None:
                 "side": obj._side,
                 "y":    round(obj._pos.y, 1),
                 "q":    _quat_of(obj),
+                # Behavior tag; the 3dview skips behav_selection (2D-only markers) so they
+                # don't render as stray 3D spheres alongside real terrain meshes.
+                "tick_type": obj._tick_type,
                 # name_tag is the on-radar label (galaxy-board markers/icons carry one).
                 "name": obj.data_set.get("name_tag") or obj.data_set.get("display_text") or "",
                 # Per-object radar colour (map markers set radar_color_override instead of a
