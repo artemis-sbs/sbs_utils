@@ -754,6 +754,24 @@ def _shield_frac(obj) -> float:
     return round(max(0.0, min(1.0, cur / mx)), 3)
 
 
+def _shield_fracs(obj):
+    """(front, aft) shield fractions 0..1 for the split shield ring (facing 0 = fore,
+    1 = aft). Falls back to the fore value on a single-facing ship; (-1, -1) with no shields."""
+    ds = obj.data_set
+    n = int(ds.get("shield_count", 0) or 0)
+    if n <= 0:
+        return (-1.0, -1.0)
+
+    def frac(i):
+        mx = ds.get("shield_max_val", i) or 0.0
+        if mx <= 0:
+            return 0.0
+        return round(max(0.0, min(1.0, (ds.get("shield_val", i) or 0.0) / mx)), 3)
+
+    f = frac(0)
+    return (f, frac(1) if n >= 2 else f)
+
+
 def _ship_stat_payload(o, space) -> dict:
     """Common vitals (vitals + systems + torpedoes) for a ship object - shared by
     the ship_data and target_data HUDs."""
@@ -1120,6 +1138,82 @@ def _mesh_scale_for(obj) -> float:
         return 1.0
 
 
+def _exhaust_ports_for(obj) -> list:
+    """Engine-port (exhaust) local positions from shipData's ``hull_port_sets.exhaust``,
+    so the 3dview vents engine smoke from the REAL ports rather than the hull center.
+    Positions are in mesh-local coords (same frame as the OBJ verts); the browser
+    subtracts the mesh centroid and scales by meshscale. Empty when the art defines none."""
+    tag = getattr(obj, "_data_tag", "") or ""
+    if not tag:
+        return []
+    try:
+        from sbs_utils.procedural.ship_data import get_ship_data_for
+        info = get_ship_data_for(tag) or {}
+        ex = (info.get("hull_port_sets") or {}).get("exhaust") or []
+        out = []
+        for e in ex:
+            p = e.get("position")
+            if p and len(p) == 3:
+                out.append([round(float(p[0]), 2), round(float(p[1]), 2), round(float(p[2]), 2)])
+        return out
+    except Exception:
+        return []
+
+
+_COLOR_NAMES = {
+    "green": (0.2, 1.0, 0.3), "red": (1.0, 0.25, 0.2), "blue": (0.35, 0.6, 1.0),
+    "cyan": (0.4, 0.9, 1.0), "yellow": (1.0, 0.9, 0.3), "orange": (1.0, 0.6, 0.2),
+    "white": (1.0, 1.0, 1.0), "purple": (0.7, 0.4, 1.0), "magenta": (1.0, 0.3, 0.9),
+    "pink": (1.0, 0.5, 0.8),
+}
+
+
+def _parse_color(s, default=(0.549, 0.863, 1.0)):
+    """Parse a shipData color (name like 'green' or hex like '#090'/'#00ff33') to (r,g,b) 0..1."""
+    if not s:
+        return default
+    s = str(s).strip().lower()
+    if s in _COLOR_NAMES:
+        return _COLOR_NAMES[s]
+    if s.startswith("#"):
+        h = s[1:]
+        try:
+            if len(h) == 3:
+                return (int(h[0], 16) / 15.0, int(h[1], 16) / 15.0, int(h[2], 16) / 15.0)
+            if len(h) >= 6:
+                return (int(h[0:2], 16) / 255.0, int(h[2:4], 16) / 255.0, int(h[4:6], 16) / 255.0)
+        except Exception:
+            pass
+    return default
+
+
+def _beam_ports_for(obj) -> list:
+    """Beam-emitter local positions + color from shipData ``hull_port_sets`` (any ``beam*`` set),
+    so the 3dview fires beams from the REAL emitters in the ship's beam color. Each entry is
+    ``[x, y, z, r, g, b]``; mesh-local coords (browser subtracts the centroid + scales by meshscale).
+    Empty when the art defines none."""
+    tag = getattr(obj, "_data_tag", "") or ""
+    if not tag:
+        return []
+    try:
+        from sbs_utils.procedural.ship_data import get_ship_data_for
+        info = get_ship_data_for(tag) or {}
+        hps = info.get("hull_port_sets") or {}
+        out = []
+        for name, ports in hps.items():
+            if not str(name).lower().startswith("beam"):
+                continue
+            for e in ports or []:
+                p = e.get("position")
+                if p and len(p) == 3:
+                    r, g, b = _parse_color(e.get("color"))
+                    out.append([round(float(p[0]), 2), round(float(p[1]), 2), round(float(p[2]), 2),
+                                round(r, 3), round(g, 3), round(b, 3)])
+        return out
+    except Exception:
+        return []
+
+
 # Last skybox name broadcast to browsers; reset on connect so late joiners get it.
 _last_skybox_sent = "\0"   # sentinel != any real name (incl. None)
 
@@ -1151,16 +1245,20 @@ def _push_fx() -> None:
         return
     space = s.space_objects
     beams = []
-    for fid, tid in getattr(_base_mock, "_beam_fires", ()):
+    for entry in getattr(_base_mock, "_beam_fires", ()):
+        fid, tid = entry[0], entry[1]
+        inten = entry[2] if len(entry) > 2 else 1.0   # beam "lit" intensity (fades as it expires)
         f = space.get(fid)
         t = space.get(tid)
         if f is not None and t is not None:
             beams.append([round(f._pos.x, 1), round(f._pos.z, 1),
-                          round(t._pos.x, 1), round(t._pos.z, 1)])
+                          round(t._pos.x, 1), round(t._pos.z, 1), round(inten, 2), str(fid), str(tid)])
     projectiles = []
     for p in getattr(_base_mock, "_projectiles", ()):
         pos = p["pos"]
-        projectiles.append([round(pos.x, 1), round(pos.z, 1), p.get("kind", "missile")])
+        d = p.get("dir") or (0.0, 0.0, 0.0)   # travel heading -> 3dview draws an oriented missile + exhaust
+        projectiles.append([round(pos.x, 1), round(pos.z, 1), p.get("kind", "missile"),
+                            round(d[0], 3), round(d[2], 3)])
     if not beams and not projectiles and not _last_fx_nonempty:
         return
     _last_fx_nonempty = bool(beams or projectiles)
@@ -1282,6 +1380,10 @@ def _push_radar() -> None:
     active_ids = {id_ for id_ in active_all
                   if not _is_hidden_marker(objs[id_]) and not _drop_from_radar(objs[id_])}
     r2 = CULL_RADIUS * CULL_RADIUS
+    # Player ships are NEVER culled — the 3dview cycles/tracks all of them, so a varying player
+    # count (6 ships showing as 1 when some fall outside CULL_RADIUS) would break the 'v' key.
+    player_ids = {id_ for id_ in active_ids
+                  if "player" in str(getattr(objs[id_], "_tick_type", "")).lower()}
 
     # Build navpoints + navareas + client_focus (sent in every per-ship message).
     navpts: list = []
@@ -1342,6 +1444,7 @@ def _push_radar() -> None:
                 dz  = obj._pos.z - sz
                 if dx * dx + dz * dz <= r2:
                     in_view.add(id_)
+            in_view |= player_ids            # players are always visible (never culled)
         else:
             in_view = set(active_ids)   # GM sees everything
 
@@ -1357,7 +1460,8 @@ def _push_radar() -> None:
             y   = round(obj._pos.y, 1)           # altitude - must be streamed too, or
             fx  = round(fwd.x, 3)                 # the 3D view renders ships at spawn Y
             fz  = round(fwd.z, 3)
-            shp = _shield_frac(obj)              # shield fraction for the ring color
+            shp = _shield_frac(obj)              # total shield fraction (change detection + ring color)
+            shpf, shpa = _shield_fracs(obj)      # front / aft fractions for the split shield ring
             new_snap[id_] = (x, z, fx, fz, shp, y)
 
             prev = last.get(id_)
@@ -1372,7 +1476,10 @@ def _push_radar() -> None:
                     "y":         y,
                     "meshscale": _mesh_scale_for(obj),
                     "q":         _quat_of(obj),
+                    "exhaust":   _exhaust_ports_for(obj),   # engine-port local positions (static per art)
+                    "beamports": _beam_ports_for(obj),      # beam-emitter local positions (static per art)
                     "shp":       shp,
+                    "shpf":      shpf, "shpa": shpa,        # front/aft shield fractions (split ring)
                     "nosel":     _not_hittable(obj),
                     "new":       True,
                 })
@@ -1387,7 +1494,7 @@ def _push_radar() -> None:
                         or dhdg >= _DYNAMIC_HDG_THRESHOLD
                         or abs(shp - lshp) >= 0.05):
                     changed.append({"id": str(id_), "x": x, "z": z, "y": y, "fx": fx, "fz": fz,
-                                    "q": _quat_of(obj), "shp": shp})
+                                    "q": _quat_of(obj), "shp": shp, "shpf": shpf, "shpa": shpa})
 
         _last_per_ship[sid_str] = new_snap
 

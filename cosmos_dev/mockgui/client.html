@@ -2031,13 +2031,17 @@ function cmdRadar(msg) {
           side: o.side, tick_type: o.tick_type,
           fx: o.fx ?? 0, fz: o.fz ?? 0, name: o.name || '', art: o.art || '',
           y: o.y ?? 0, meshscale: o.meshscale ?? 1, q: o.q || null,
-          shp: o.shp ?? -1, nosel: !!o.nosel,
+          exhaust: o.exhaust || null,   // engine-port local positions (for the 3dview smoke trail)
+          beamports: o.beamports || null,   // beam-emitter local positions (for 3dview beam origins)
+          shp: o.shp ?? -1, shpf: o.shpf ?? -1, shpa: o.shpa ?? -1, nosel: !!o.nosel,
         });
       } else {
         const meta = _dynamicMeta.get(o.id);
         if (meta && o.fx !== undefined) { meta.fx = o.fx; meta.fz = o.fz; }
         if (meta && o.q) meta.q = o.q;
         if (meta && o.shp !== undefined) meta.shp = o.shp;
+        if (meta && o.shpf !== undefined) meta.shpf = o.shpf;
+        if (meta && o.shpa !== undefined) meta.shpa = o.shpa;
         if (meta && o.y !== undefined) meta.y = o.y;   // altitude (3D view height)
       }
       const pb = idx * 3;
@@ -3036,6 +3040,7 @@ function _view3dSyncShieldRings() {
 }
 
 function _renderView3d() {
+  if (window.__webgpu3dview) return;   // WebGPU owns the 3dview (Prong 2); Three.js is the fallback only
   if (!_view3dActive || !_view3dRenderer) return;
   // Render at the canvas's actual on-screen size (set by its rect), not the whole
   // window — so a script-sized 3dview has correct resolution and aspect.
@@ -3652,12 +3657,16 @@ window.__mockField = () => ({
   terrainPos:_terrainPosBuf, terrainCount:_terrainCount, terrainRev:_terrainRevMap, terrainMeta:_terrainMeta,
   dynPos:_dynamicPosBuf, dynCount:_dynamicCount, dynRev:_dynamicRevMap, dynMeta:_dynamicMeta, dynMap:_dynamicMap, myShipId:_myShipId,
   cam:_v3dCam, tgt:_v3dTgt, active:_view3dActive, skyName:_skyboxName, terrainVersion:_terrainVersion,
+  beams:_radarBeams, projectiles:_radarProjectiles,
+  view3dEl:_view3dCanvas,   // dock target: WebGPU sizes itself to the 3dview canvas rect
 });
 
 </script>
 <script>
-  // Optional WebGPU field overlay — loads ONLY with ?webgpu=1; the default Three.js path is untouched.
-  if ((location.search+location.hash).includes('webgpu')) { const s=document.createElement('script'); s.type='module'; s.src='/webgpu_field.js'; document.body.appendChild(s); }
+  // WebGPU 3dview (Prong 2): now the DEFAULT 3D renderer. It sets window.__webgpu3dview on a successful
+  // device, docks over the 3dview rect, and _renderView3d below no-ops. The Three.js path stays as the
+  // fallback — used when WebGPU is unavailable or ?webgl is passed.
+  if (!(location.search+location.hash).includes('webgl')) { const s=document.createElement('script'); s.type='module'; s.src='/webgpu_field.js'; document.body.appendChild(s); }
 </script>
 </body>
 </html>

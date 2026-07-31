@@ -42,10 +42,16 @@ _projectiles: list = []
 # expires: {pos, per_ripple, radius, source_id, life, since_ripple}.
 _blasts: list = []
 
-# Beam fires THIS tick: (firer_id, target_id) pairs. Cleared at the start of each
-# physics_tick and appended to by _physics_beams; the mockgui reads it after the
-# tick to draw transient beam lines. (Beams are instantaneous, so it's per-tick.)
+# Beam fires THIS tick: (firer_id, target_id, intensity) tuples. Rebuilt each physics
+# tick from _beam_active; the mockgui reads it after the tick to draw beam lines
+# (endpoints recomputed from live positions, so a lit beam tracks a moving target).
 _beam_fires: list = []
+# A fired beam stays visibly "lit" for _BEAM_LIT seconds (not a one-tick flash), so the
+# mockgui renders a sustained beam that fades as its ttl runs out. Source of truth for
+# _beam_fires. Entries: [firer_id, target_id, ttl].
+_beam_active: list = []
+_BEAM_LIT = 2.0       # a fired beam stays lit ~2s (a sustained phaser pulse; refreshed on each re-fire)
+_BEAM_FADE = 0.4      # only fades over the last _BEAM_FADE seconds; full brightness before that
 
 # Base per-shot beam damage by firer category, from set_beam_damages(). None until
 # the script calls it; then _physics_beams uses these (player/npc/station) instead
@@ -221,6 +227,7 @@ def create_new_sim() -> None:
     _projectiles.clear()
     _blasts.clear()
     _beam_fires.clear()
+    _beam_active.clear()
     _broad_hash = {"key": None, "grid": None}   # drop the old mission's spatial hash
     # Drop every ship's hull map too. hull_map_objects is a MODULE global keyed by ship id;
     # sim.__init__ recycles space-object ids, so without this a new ship reuses an old id and
@@ -2861,6 +2868,12 @@ def _physics_beams(sim, active: list, dt: float) -> None:
     of 0 is treated as omnidirectional (360).
     """
     space = sim.space_objects
+    # Age currently-lit beams; drop expired or ones whose firer/target vanished.
+    if _beam_active:
+        for e in _beam_active:
+            e[2] -= dt
+        _beam_active[:] = [e for e in _beam_active
+                           if e[2] > 0.0 and e[0] in space and e[1] in space]
     for aid, a in active:
         if aid not in space:
             continue  # destroyed earlier this tick
@@ -2912,9 +2925,18 @@ def _physics_beams(sim, active: list, dt: float) -> None:
                     break                      # target destroyed by an earlier beam
                 apply_damage(tid, dmg, aid, kind="beam")
         a._beam_cooldown = ds.get("beamCycleTime") or 6.0
-        _beam_fires.append((aid, tid))                    # transient, for the mockgui
+        for e in _beam_active:                             # keep this beam lit for _BEAM_LIT seconds
+            if e[0] == aid and e[1] == tid:
+                e[2] = _BEAM_LIT
+                break
+        else:
+            _beam_active.append([aid, tid, _BEAM_LIT])
         _bump_exciting(a, _EXCITE_COMBAT)                 # combat is camera-worthy
         _bump_exciting(space.get(tid), _EXCITE_COMBAT)
+    # Rebuild the per-tick beam list from every lit beam (mockgui reads this after the tick).
+    # Intensity holds at 1.0, then fades only over the final _BEAM_FADE seconds.
+    for e in _beam_active:
+        _beam_fires.append((e[0], e[1], max(0.0, min(1.0, e[2] / _BEAM_FADE))))
 
 
 # Projectile defaults (mock approximations).

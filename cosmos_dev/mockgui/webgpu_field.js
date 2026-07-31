@@ -18,12 +18,12 @@ else { start().catch(e=>wlog("init error: "+(e&&e.message||e))); }
 async function start(){
   const canvas=document.createElement("canvas");
   canvas.id="webgpu-field";
-  canvas.style.cssText="position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483000;background:#05070c;display:block";
+  canvas.style.cssText="position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:0;background:#05070c;display:none";   // background layer (like the WebGL 3dview at z-1); HUDs/GUI at higher z draw on top
   document.body.appendChild(canvas);
   let visible=true; const MODES=["chase","orbit","cinematic"]; let modeIx=0, shipSel=0, showGrid=true;
   let fps=60, fpsFrames=0, fpsT=performance.now();
   const hud=document.createElement("div");
-  hud.style.cssText="position:fixed;top:10px;left:12px;z-index:2147483001;font:12px/1.5 ui-monospace,Consolas,monospace;color:#e7ebf2;background:rgba(10,12,17,.62);border:1px solid #232833;border-radius:8px;padding:8px 11px;pointer-events:none;white-space:pre";
+  hud.style.cssText="position:fixed;top:10px;right:12px;z-index:2147483001;font:12px/1.5 ui-monospace,Consolas,monospace;color:#e7ebf2;background:rgba(10,12,17,.62);border:1px solid #232833;border-radius:8px;padding:8px 11px;pointer-events:none;white-space:pre;text-align:right";
   document.body.appendChild(hud);
   window.addEventListener("keydown",e=>{
     if(e.key==="g"){ visible=!visible; canvas.style.display=visible?"block":"none"; hud.style.display=visible?"block":"none"; }
@@ -165,17 +165,113 @@ async function start(){
     return vec4f(vec3f(0.12,0.34,0.48), line*0.35*fade);
   }
   // ---- flat rings (own-ship highlight + shield-fraction rings) ----
-  struct Ring { c:vec4f, col:vec4f };     // center.xyz,radius | rgb,-
+  struct Ring { c:vec4f, col:vec4f, e:vec4f };     // center.xyz,radius | rgb,alpha | thickness,arcCenter,arcHalf,-
   @group(0) @binding(5) var<storage,read> rings:array<Ring>;
-  struct RVO { @builtin(position) pos:vec4f, @location(0) col:vec3f };
+  struct RVO { @builtin(position) pos:vec4f, @location(0) col:vec3f, @location(1) @interpolate(flat) a:f32, @location(2) ang:f32, @location(3) @interpolate(flat) ac:f32, @location(4) @interpolate(flat) ah:f32 };
   @vertex fn vring(@location(0) rp:vec2f, @builtin(instance_index) ii:u32)->RVO{
-    let rg=rings[ii]; let world=rg.c.xyz + vec3f(rp.x,0.0,rp.y)*rg.c.w;
-    var o:RVO; o.pos=u.vp*vec4f(world,1.0); o.col=rg.col.rgb; return o;
+    let rg=rings[ii]; let rl=max(length(rp),1e-4); let nl=1.0-((1.0-rl)/0.05)*rg.e.x;   // remap the base 5% band to this ring's thickness
+    let world=rg.c.xyz + vec3f(rp.x/rl,0.0,rp.y/rl)*nl*rg.c.w;
+    var o:RVO; o.pos=u.vp*vec4f(world,1.0); o.col=rg.col.rgb; o.a=rg.col.w;
+    o.ang=atan2(rp.y,rp.x); o.ac=rg.e.y; o.ah=rg.e.z; return o;   // vertex angle + arc (front/aft half rings)
   }
-  @fragment fn fring(in:RVO)->@location(0) vec4f{ return vec4f(in.col, 0.7); }`;
+  @fragment fn fring(in:RVO)->@location(0) vec4f{
+    let dif=abs(atan2(sin(in.ang-in.ac), cos(in.ang-in.ac)));   // wrapped angular distance from the arc center
+    if(dif>in.ah){ discard; }                                   // outside this ring's arc (aft/front half) -> skip
+    return vec4f(in.col, in.a);
+  }
+  // ---- combat FX: sustained glowing beam pipe + skittering hull-impact glow + missile/projectile bloom (additive) ----
+  @group(0) @binding(6) var<storage,read> beams:array<vec4f>;    // stride 3: [x1,z1,x2,z2] , [life,y1,y2,_] , [r,g,b,_]
+  @group(0) @binding(7) var<storage,read> projs:array<vec4f>;    // x,y,z,kind
+  struct BVO { @builtin(position) pos:vec4f, @location(0) across:f32, @location(1) alng:f32, @location(2) @interpolate(flat) life:f32, @location(3) @interpolate(flat) col:vec3f };
+  @vertex fn vbeam(@builtin(vertex_index) vi:u32, @builtin(instance_index) ii:u32)->BVO{
+    let bm=beams[ii*3u]; let ex=beams[ii*3u+1u]; let cl=beams[ii*3u+2u].xyz;   // ex.y/ex.z = firer/target altitude; cl = shipData beam color
+    let A=vec3f(bm.x,ex.y,bm.y); let B=vec3f(bm.z,ex.z,bm.w); let life=ex.x;
+    var q=array<vec2f,6>(vec2f(0.0,-1.0),vec2f(1.0,-1.0),vec2f(0.0,1.0),vec2f(0.0,1.0),vec2f(1.0,-1.0),vec2f(1.0,1.0));
+    let cv=q[vi]; let P=mix(A,B,cv.x); let dir=normalize(B-A+vec3f(0.0001,0.0,0.0));
+    let toCam=normalize(u.camPos.xyz-P); let side=normalize(cross(dir,toCam)); let t=u.camPos.w;
+    let sh=(sin(cv.x*36.0+t*16.0)*0.5+0.5)*0.06;             // barely-there shimmer -> a steady solid pipe
+    let world=P+side*(cv.y*12.0*(1.0+sh));                    // very thin beam
+    var o:BVO; o.pos=u.vp*vec4f(world,1.0); o.across=cv.y; o.alng=cv.x; o.life=life; o.col=cl; return o;
+  }
+  @fragment fn fbeam(in:BVO)->@location(0) vec4f{
+    let halo=pow(1.0-abs(in.across),2.2);                    // colored outer glow
+    let hot=pow(1.0-abs(in.across),13.0);                    // white-hot center line
+    let ends=1.0-pow(abs(in.alng*2.0-1.0),8.0);
+    let col=in.col*halo*1.7 + vec3f(1.0)*hot*1.4;            // glowing phaser pipe, tinted by the ship's beam color
+    return vec4f(col*ends*clamp(in.life,0.0,1.0), 0.0);
+  }
+  // impact at the target end: a soft HULL GLOW disc + sparks that skitter from point to point across the hull
+  struct IVO { @builtin(position) pos:vec4f, @location(0) uv:vec2f, @location(1) @interpolate(flat) k:f32, @location(2) @interpolate(flat) life:f32, @location(3) @interpolate(flat) col:vec3f };
+  @vertex fn vimp(@builtin(vertex_index) vi:u32, @builtin(instance_index) ii:u32)->IVO{
+    let bm=beams[ii*3u]; let ex=beams[ii*3u+1u]; let cl=beams[ii*3u+2u].xyz; let B=vec3f(bm.z,ex.z,bm.w); let life=ex.x;   // impact at the target's altitude, beam color
+    let quad=vi/6u; let corner=vi%6u; let t=u.camPos.w;
+    var q=array<vec2f,6>(vec2f(-1.0,-1.0),vec2f(1.0,-1.0),vec2f(-1.0,1.0),vec2f(-1.0,1.0),vec2f(1.0,-1.0),vec2f(1.0,1.0));
+    let uv=q[corner];
+    var center=B; var rad=130.0;
+    if(quad>0u){                                             // spark: jump to a new hull point every ~0.08s
+      let seed=floor(t/0.08)+f32(quad)*17.0;
+      let a=hash13(vec3f(seed,seed*1.7,3.0))*6.2832; let rr=hash13(vec3f(seed*2.3,5.0,seed))*72.0;
+      center=B + u.camRight.xyz*(cos(a)*rr) + u.camUp.xyz*(sin(a)*rr); rad=22.0;
+    }
+    let world=center + u.camRight.xyz*(uv.x*rad) + u.camUp.xyz*(uv.y*rad);
+    var o:IVO; o.pos=u.vp*vec4f(world,1.0); o.uv=uv; o.k=f32(quad); o.life=life; o.col=cl; return o;
+  }
+  @fragment fn fimp(in:IVO)->@location(0) vec4f{
+    let d=length(in.uv); let la=clamp(in.life,0.0,1.0); let t=u.camPos.w;
+    if(in.k<0.5){                                            // hull glow: soft, pulsing, beam-colored
+      let g=smoothstep(1.0,0.0,d);
+      return vec4f(in.col*g*g*0.85*(0.6+0.4*sin(t*11.0))*la, 0.0);
+    }
+    let glow=smoothstep(1.0,0.0,d); let core=smoothstep(0.5,0.0,d);   // spark: beam color + white-hot, flickering
+    return vec4f((in.col*glow*1.0 + vec3f(1.0)*core*1.6)*(0.7+0.3*sin(t*60.0+in.k*11.0))*la, 0.0);
+  }
+  struct PVO2 { @builtin(position) pos:vec4f, @location(0) uv:vec2f, @location(1) @interpolate(flat) kind:f32, @location(2) @interpolate(flat) missile:f32 };
+  @vertex fn vproj(@builtin(vertex_index) vi:u32, @builtin(instance_index) ii:u32)->PVO2{
+    let pr=projs[ii*2u]; let dv=projs[ii*2u+1u];   // stride 2: [x,y,z,kind] , [dirx,dirz,_,_]
+    var q=array<vec2f,6>(vec2f(-1.0,-1.0),vec2f(1.0,-1.0),vec2f(-1.0,1.0),vec2f(-1.0,1.0),vec2f(1.0,-1.0),vec2f(1.0,1.0));
+    let al=q[vi].x; let ac=q[vi].y; let pos=pr.xyz; let toCam=normalize(u.camPos.xyz-pos);
+    let dir2=vec3f(dv.x,0.0,dv.y); let dl=length(dir2);
+    var world:vec3f; var mis:f32;
+    if(dl>0.01 && pr.w<0.5){                        // warhead with a heading -> oriented missile (drones stay round)
+      let axis=dir2/dl; let wside=normalize(cross(axis,toCam));
+      let prof=min(smoothstep(1.0,0.5,al), smoothstep(-1.0,-0.2,al));   // pointed nose + tapered exhaust
+      world=pos + axis*(al*60.0) + wside*(ac*16.0*prof); mis=1.0;
+    } else {
+      world=pos + u.camRight.xyz*(al*55.0) + u.camUp.xyz*(ac*55.0); mis=0.0;   // round bloom (drone / no heading)
+    }
+    var o:PVO2; o.pos=u.vp*vec4f(world,1.0); o.uv=vec2f(al,ac); o.kind=pr.w; o.missile=mis; return o;
+  }
+  @fragment fn fproj(in:PVO2)->@location(0) vec4f{
+    if(in.missile>0.5){
+      let al=in.uv.x; let wac=1.0-abs(in.uv.y);
+      if(al>=-0.15){                               // warhead body: orange-red with a hot nose
+        return vec4f(vec3f(1.0,0.5,0.18)*pow(wac,1.4)*1.7 + vec3f(1.0,0.95,0.85)*pow(wac,5.0)*0.8, 0.0);
+      }
+      let flick=0.65+0.35*sin(u.camPos.w*45.0+al*22.0);   // flame flicker
+      let plume=pow(wac,1.1)*smoothstep(-1.0,-0.15,al);   // brightest at the nozzle, fades down the tail
+      return vec4f(vec3f(1.0,0.82,0.4)*plume*flick*1.5, 0.0);   // exhaust: yellow-white (distinct from the body)
+    }
+    let d=length(in.uv); let glow=smoothstep(1.0,0.0,d); let core=smoothstep(0.35,0.0,d);
+    let col=select(vec3f(1.0,0.604,0.235), vec3f(0.486,0.988,0.0), in.kind>0.5);   // missile 0xff9a3c / drone 0x7CFC00
+    return vec4f((col*glow*glow*1.8 + vec3f(1.0)*core*1.2), 0.0);
+  }
+  // ---- engine exhaust smoke: soft additive puffs, speed-driven (built on the CPU per ship) ----
+  @group(0) @binding(8) var<storage,read> smoke:array<vec4f>;    // [pos.xyz,size],[alpha,_,_,_] per puff (stride 2)
+  struct SVO { @builtin(position) pos:vec4f, @location(0) uv:vec2f, @location(1) @interpolate(flat) a:f32 };
+  @vertex fn vsmoke(@builtin(vertex_index) vi:u32, @builtin(instance_index) ii:u32)->SVO{
+    let ps=smoke[ii*2u]; let ex=smoke[ii*2u+1u];
+    var q=array<vec2f,6>(vec2f(-1.0,-1.0),vec2f(1.0,-1.0),vec2f(-1.0,1.0),vec2f(-1.0,1.0),vec2f(1.0,-1.0),vec2f(1.0,1.0));
+    let world=ps.xyz + u.camRight.xyz*(q[vi].x*ps.w) + u.camUp.xyz*(q[vi].y*ps.w);
+    var o:SVO; o.pos=u.vp*vec4f(world,1.0); o.uv=q[vi]; o.a=ex.x; return o;
+  }
+  @fragment fn fsmoke(in:SVO)->@location(0) vec4f{
+    let d=length(in.uv); let soft=smoothstep(1.0,0.0,d);
+    return vec4f(vec3f(0.34,0.56,1.0)*soft*in.a*1.15, 0.0);   // richer ion-exhaust blue
+  }`;
   const mod=device.createShaderModule({code:WGSL});
   const info=await mod.getCompilationInfo(); const es=info.messages.filter(m=>m.type==="error");
-  if(es.length){ wlog("WGSL: "+es.map(x=>`[${x.lineNum}] ${x.message}`).join(" | ")); return; }
+  if(es.length){ wlog("WGSL: "+es.map(x=>`[${x.lineNum}] ${x.message}`).join(" | ")); return; }   // WGSL failed -> bail BEFORE taking over, so WebGL keeps rendering (no black screen)
+  window.__webgpu3dview=true;   // WGSL compiled OK -> take over the 3dview; client.html's _renderView3d now no-ops
   const ubuf=device.createBuffer({size:8*16, usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
   const samp=device.createSampler({magFilter:"linear",minFilter:"linear",addressModeU:"repeat",addressModeV:"repeat"});
   const pipe=device.createRenderPipeline({layout:"auto",
@@ -193,8 +289,15 @@ async function start(){
   const ALPHA={color:{srcFactor:"src-alpha",dstFactor:"one-minus-src-alpha"},alpha:{srcFactor:"one",dstFactor:"one-minus-src-alpha"}};
   const gridPipe=device.createRenderPipeline({layout:"auto", vertex:{module:mod,entryPoint:"vgrid"}, fragment:{module:mod,entryPoint:"fgrid",targets:[{format,blend:ALPHA}]}, primitive:{topology:"triangle-list"}, depthStencil:{format:"depth24plus",depthWriteEnabled:false,depthCompare:"less"}});
   const ringPipe=device.createRenderPipeline({layout:"auto", vertex:{module:mod,entryPoint:"vring", buffers:[{arrayStride:8, attributes:[{shaderLocation:0,offset:0,format:"float32x2"}]}]}, fragment:{module:mod,entryPoint:"fring",targets:[{format,blend:ALPHA}]}, primitive:{topology:"triangle-list"}, depthStencil:{format:"depth24plus",depthWriteEnabled:false,depthCompare:"less"}});
-  const ringGeo=buildRing(0.82,1.0,48); const ringVb=device.createBuffer({size:ringGeo.byteLength,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST}); device.queue.writeBuffer(ringVb,0,ringGeo); const ringVerts=ringGeo.length/2;
+  const ringGeo=buildRing(0.95,1.0,64);   // thin band (5% of radius) -> subtle rings
+  const ringVb=device.createBuffer({size:ringGeo.byteLength,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST}); device.queue.writeBuffer(ringVb,0,ringGeo); const ringVerts=ringGeo.length/2;
   let ringBuf=null, ringCap=0; const ringList=[];
+  const ADD={color:{srcFactor:"one",dstFactor:"one",operation:"add"},alpha:{srcFactor:"one",dstFactor:"one",operation:"add"}};
+  const beamPipe=device.createRenderPipeline({layout:"auto", vertex:{module:mod,entryPoint:"vbeam"}, fragment:{module:mod,entryPoint:"fbeam",targets:[{format,blend:ADD}]}, primitive:{topology:"triangle-list"}, depthStencil:{format:"depth24plus",depthWriteEnabled:false,depthCompare:"less"}});
+  const projPipe=device.createRenderPipeline({layout:"auto", vertex:{module:mod,entryPoint:"vproj"}, fragment:{module:mod,entryPoint:"fproj",targets:[{format,blend:ADD}]}, primitive:{topology:"triangle-list"}, depthStencil:{format:"depth24plus",depthWriteEnabled:false,depthCompare:"less"}});
+  const smokePipe=device.createRenderPipeline({layout:"auto", vertex:{module:mod,entryPoint:"vsmoke"}, fragment:{module:mod,entryPoint:"fsmoke",targets:[{format,blend:ADD}]}, primitive:{topology:"triangle-list"}, depthStencil:{format:"depth24plus",depthWriteEnabled:false,depthCompare:"less"}});
+  const impPipe=device.createRenderPipeline({layout:"auto", vertex:{module:mod,entryPoint:"vimp"}, fragment:{module:mod,entryPoint:"fimp",targets:[{format,blend:ADD}]}, primitive:{topology:"triangle-list"}, depthStencil:{format:"depth24plus",depthWriteEnabled:false,depthCompare:"less"}});
+  let beamBuf=null, beamCap=0, projBuf=null, projCap=0, smokeBuf=null, smokeCap=0;
 
   // fallback gray texture (art without a diffuse map)
   const grayTex=device.createTexture({size:[1,1],format:"rgba8unorm-srgb",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
@@ -225,7 +328,7 @@ async function start(){
         const mesh=parseOBJ(await r.text());
         rec.vb=device.createBuffer({size:mesh.v.byteLength,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST}); device.queue.writeBuffer(rec.vb,0,mesh.v);
         rec.ib=device.createBuffer({size:mesh.i.byteLength,usage:GPUBufferUsage.INDEX|GPUBufferUsage.COPY_DST}); device.queue.writeBuffer(rec.ib,0,mesh.i);
-        rec.count=mesh.i.length; rec.maxDim=mesh.maxDim||60;
+        rec.count=mesh.i.length; rec.maxDim=mesh.maxDim||60; rec.center=mesh.center||[0,0,0];
         let view=grayTex.createView();
         try{ const img=new Image(); img.src='/ships/'+art+'_diffuse.png'; await img.decode(); const bmp=await createImageBitmap(img);
           const t=device.createTexture({size:[bmp.width,bmp.height],format:"rgba8unorm-srgb",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
@@ -256,6 +359,10 @@ async function start(){
     else { const a=Math.atan2(m.fx||0, m.fz||0)*0.5; q=[0, Math.sin(a), 0, Math.cos(a)]; }
     arr.push(x,y,z,(m.meshscale||1), q[0],q[1],q[2],q[3]);
   };
+  // rotate a mesh-local vector by q=[x,y,z,w] — matches the WGSL qrot exactly (for engine-port smoke)
+  const qrotJS=(q,vx,vy,vz)=>{ const tx=2*(q[1]*vz-q[2]*vy), ty=2*(q[2]*vx-q[0]*vz), tz=2*(q[0]*vy-q[1]*vx);
+    return [vx+q[3]*tx+(q[1]*tz-q[2]*ty), vy+q[3]*ty+(q[2]*tx-q[0]*tz), vz+q[3]*tz+(q[0]*ty-q[1]*tx)]; };
+  const qOf=(m)=>{ if(m.q&&m.q.length===4) return [m.q[1],m.q[2],m.q[3],m.q[0]]; const a=Math.atan2(m.fx||0,m.fz||0)*0.5; return [0,Math.sin(a),0,Math.cos(a)]; };
   function gatherTerrain(b){                    // STATIC — only re-run when terrainVersion changes
     const lists=new Map(); nebArr.length=0; let sx=0,sz=0,cnt=0;
     if(b.terrainPos) for(let i=0;i<(b.terrainCount|0);i++){
@@ -272,9 +379,12 @@ async function start(){
     if(nebCount>0){ if(nebCount>nebCap){ nebCap=Math.max(16,nebCount*2); if(nebBuf) nebBuf.destroy(); nebBuf=device.createBuffer({size:nebCap*48,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); } device.queue.writeBuffer(nebBuf,0,new Float32Array(nebArr)); }
     fcx=cnt?sx/cnt:0; fcz=cnt?sz/cnt:0; let sr=0,mm=0; for(const arr of lists.values()){ for(let i=0;i<arr.length;i+=8){ sr+=Math.hypot(arr[i]-fcx, arr[i+2]-fcz); mm++; } } fmeanR=Math.max(1, mm?sr/mm:1);
   }
-  const smDyn=new Map();   // id -> [x,y,z] smoothed dynamic position (60fps ease over the mock's 30Hz push -> no jitter)
+  const HALFPI=Math.PI/2;
+  const shieldCol=(f)=> f>0.66?[0.2,1.0,0.4]:(f>0.33?[1.0,0.85,0.35]:[1.0,0.33,0.33]);   // green / yellow / red by fraction
+  const smDyn=new Map();   // id -> {r:[x,y,z] smoothed pos, spd, pr, pf:[puffs]} (60fps ease over the mock's 30Hz push -> no jitter)
+  let smokeArr=[];         // engine exhaust puffs this frame: [x,y,z,size, alpha,0,0,0] per puff
   function gatherDyn(b){                        // DYNAMIC — every frame (few, moving)
-    const lists=new Map(); let n=0; const seen=new Set();
+    const lists=new Map(); let n=0; const seen=new Set(); smokeArr.length=0;
     if(b.dynPos) for(let i=0;i<(b.dynCount|0);i++){
       const id=b.dynRev&&b.dynRev.get?b.dynRev.get(i):undefined; if(id===undefined) continue;
       const m=b.dynMeta.get(id); if(!m||!m.art||m.nebula||m.icon_index!=null) continue;
@@ -284,9 +394,41 @@ async function start(){
       if(!s){ s={r:[tx,ty,tz]}; smDyn.set(id,s); }
       else { const PL=0.12; s.r[0]+=(tx-s.r[0])*PL; s.r[1]+=(ty-s.r[1])*PL; s.r[2]+=(tz-s.r[2])*PL; }   // mock's dispBuf easing
       let arr=lists.get(m.art); if(!arr){ arr=[]; lists.set(m.art,arr); } packObj(arr,s.r[0],s.r[1],s.r[2],m); n++;
+      // engine exhaust: constant-LENGTH trail whose DENSITY tracks speed (thick/dense fast, thin slow).
+      // Emit by DISTANCE traveled (fixed world spacing) so a slow ship never piles puffs and a fast ship
+      // never leaves gaps; particle COUNT + jitter per node scale with speed; a distance-cull holds the
+      // trail to a fixed length behind the ship (so it stays ~the same length, just denser when faster).
+      const segx=s.pr?s.r[0]-s.pr[0]:0, segy=s.pr?s.r[1]-s.pr[1]:0, segz=s.pr?s.r[2]-s.pr[2]:0;
+      const seg=Math.hypot(segx,segy,segz);
+      s.spd=(s.spd||0)+(seg-(s.spd||0))*0.15;               // EMA speed (units/frame)
+      if(!s.pf) s.pf=[];
+      const rc2=artCache.get(m.art); const psz=(m.meshscale||1)*((rc2&&rc2.maxDim)?rc2.maxDim:60);
+      const spdN=Math.min(1, (s.spd||0)/2.5);               // ~2.5 u/frame = cruising -> full density
+      const L=psz*3.2, L2=L*L;                              // constant trail length
+      if(s.pf.length){ const sx=s.r[0],sy=s.r[1],sz2=s.r[2];   // age (stopped trails fade) + distance-cull (constant length)
+        s.pf=s.pf.filter(p=>{ p[3]-=0.02; if(p[3]<=0) return false; const ax=p[0]-sx,ay=p[1]-sy,az=p[2]-sz2; return ax*ax+ay*ay+az*az<L2; }); }
+      if(spdN>0.03 && seg>1e-4){
+        const ms=(m.meshscale||1), ctr=(rc2&&rc2.center)?rc2.center:[0,0,0], q=qOf(m);
+        const ports=(m.exhaust&&m.exhaust.length)?m.exhaust:null;
+        const off=[];   // rotated engine-port offsets (mesh-local -> world basis)
+        if(ports){ for(const e of ports) off.push(qrotJS(q,(e[0]-ctr[0])*ms,(e[1]-ctr[1])*ms,(e[2]-ctr[2])*ms)); }
+        else { const fn=Math.hypot(m.fx||0,m.fz||0)||1; off.push([-(m.fx||0)/fn*psz*0.6,0,-(m.fz||0)/fn*psz*0.6]); }   // fallback: stern
+        const spacing=Math.max(1,psz*0.12), cnt=1+Math.round(spdN*2), jr=psz*0.035*(0.25+0.75*spdN);   // tight spacing (overlapping -> gapless), still thin via low alpha
+        s.acc=(s.acc||0)+seg; let guard=0;
+        while(s.acc>=spacing && guard<48){ s.acc-=spacing; guard++;
+          const f=Math.max(0,Math.min(1,1-s.acc/seg)), bx=s.pr[0]+segx*f, by=s.pr[1]+segy*f, bz=s.pr[2]+segz*f;
+          for(const o of off){ for(let c=0;c<cnt;c++){ const jx=c?(Math.random()*2-1)*jr:0, jy=c?(Math.random()*2-1)*jr:0, jz=c?(Math.random()*2-1)*jr:0;
+            s.pf.push([bx+o[0]+jx, by+o[1]+jy, bz+o[2]+jz, 1.0, spdN]); } } }
+      } else s.acc=0;
+      s.pr=[s.r[0],s.r[1],s.r[2]];
+      for(let k=0;k<s.pf.length;k++){ const p=s.pf[k], a=p[3]*(0.35+0.65*p[4]); if(a<=0.01) continue;
+        smokeArr.push(p[0],p[1],p[2], psz*0.16*(1.0+(1.0-p[3])*0.7), a*0.28,0,0,0); }   // overlapping puffs at low alpha -> gapless but thin
       if(m.shp>=0){ const rc=artCache.get(m.art); const sz=(m.meshscale||1)*((rc&&rc.maxDim)?rc.maxDim:60);
-        const c=m.shp>0.66?[0.2,1.0,0.4]:(m.shp>0.33?[1.0,0.85,0.35]:[1.0,0.33,0.33]);
-        ringList.push(s.r[0], s.r[1], s.r[2], sz*0.9, c[0],c[1],c[2], 0); }   // shield-fraction ring
+        const hd=Math.atan2(m.fz||0, m.fx||0);                       // ship heading -> front half faces forward
+        const sf=(m.shpf!=null&&m.shpf>=0)?m.shpf:m.shp, sa=(m.shpa!=null&&m.shpa>=0)?m.shpa:m.shp;
+        const cf=shieldCol(sf), ca=shieldCol(sa);
+        ringList.push(s.r[0],s.r[1],s.r[2], sz*1.25, cf[0],cf[1],cf[2], 0.32, 0.05, hd, HALFPI-0.14, 0);            // fore shield -> nose arc (mock facing 0 = front)
+        ringList.push(s.r[0],s.r[1],s.r[2], sz*1.25, ca[0],ca[1],ca[2], 0.32, 0.05, hd+Math.PI, HALFPI-0.14, 0); }  // aft shield -> tail arc; the 0.14 gap makes the split visible even at equal charge
     }
     for(const id of smDyn.keys()) if(!seen.has(id)) smDyn.delete(id);
     for(const rec of artCache.values()) rec.dCount=0;
@@ -312,7 +454,7 @@ async function start(){
   }
 
   let W=1,H=1,depthTex=null,depthView=null;
-  let yaw=0.6, pitch=0.4, dist=1, cx=0,cz=0, framed=false;
+  let yaw=0.6, pitch=0.4, dist=1, cx=0,cz=0, framed=false, chaseDist=0, recenterChase=false, chaseLocked=true;
   let smEye=null, smTgt=null, smMode=null, smFwd=null;   // smoothed camera + chase heading
   let fnum=0;
   bindOrbit();
@@ -320,10 +462,17 @@ async function start(){
     if(w===W&&h===H&&depthTex) return; W=w;H=h; canvas.width=W; canvas.height=H;
     if(depthTex) depthTex.destroy(); depthTex=device.createTexture({size:[W,H],format:"depth24plus",usage:GPUTextureUsage.RENDER_ATTACHMENT}); depthView=depthTex.createView(); }
 
-  function frame(){
-    if(!visible){ requestAnimationFrame(frame); return; }
-    ensure(); fnum++;
+  function frameInner(){
     const b2=bridge();
+    // Dock as the mock's 3dview: visible only while the cinematic 3dview is active, sized to its canvas rect
+    // (the ship_data/target HUDs and the GUI sit at higher z-index, so they draw on top). 'g' still force-hides.
+    const el=b2&&b2.view3dEl, r=el?el.getBoundingClientRect():null;
+    const show=!!(b2&&b2.active&&visible&&r&&r.width>2&&r.height>2);
+    if(!show){ if(canvas.style.display!=="none"){ canvas.style.display="none"; hud.style.display="none"; } return; }
+    if(canvas.style.display!=="block") canvas.style.display="block";
+    hud.style.display="block";
+    canvas.style.left=r.left+"px"; canvas.style.top=r.top+"px"; canvas.style.width=r.width+"px"; canvas.style.height=r.height+"px";
+    ensure(); fnum++;
     const skyName=b2?b2.skyName:null;
     if(skyName && skyName!==lastSky){ lastSky=skyName; loadSky(skyName); }
     else if(!skyName && lastSky){ lastSky=null; skyReady=false; }
@@ -335,21 +484,21 @@ async function start(){
     if(g.n>0){ cx=fcx; cz=fcz; if(!framed){ dist=g.meanR*2.5+2000; framed=true; } }
     const player=findPlayer(b2);
     if(player){ const rc=player.art?artCache.get(player.art):null; const sz=Math.max(1,(player.sc||1)*((rc&&rc.maxDim)?rc.maxDim:60));
-      ringList.push(player.x, player.y, player.z, Math.max(460,sz*1.5), 0.0,0.9,1.0, 0); }   // own-ship highlight
+      ringList.push(player.x, player.y, player.z, Math.max(460,sz*1.5), 0.0,0.9,1.0, 0.35, 0.0125, 0.0, 4.0, 0); }   // own-ship highlight (thin 1/4 band, 2x more transparent, full ring)
     let want=MODES[modeIx];
     if(want==="chase" && !player) want="orbit";
     if(want==="cinematic" && !(b2 && Array.isArray(b2.cam) && Array.isArray(b2.tgt))) want="orbit";
     let mode=want, note="", EYE,TGT,FOVY,NEAR,FAR;
-    if(want==="chase"){                          // behind the player ship, sized to the ship — a real scale reference
-      const rawFwd=norml([player.fx,0,player.fz],[0,0,1]);
-      if(!smFwd) smFwd=rawFwd.slice(); for(let i=0;i<3;i++) smFwd[i]+=(rawFwd[i]-smFwd[i])*0.1;   // smooth heading so the cam doesn't swing
-      const fwd=norml(smFwd,[0,0,1]);
+    if(want==="chase"){                          // orbit around the followed ship — drag to orbit, wheel to zoom (like WebGL)
       const rec=player.art?artCache.get(player.art):null; const md=(rec&&rec.status==="ready"&&rec.maxDim)?rec.maxDim:60;
-      const size=Math.max(1, md*(player.sc||1)); note=`ship ~${(size*2)|0}u`;
-      const back=size*7, up=size*2.5, ahead=size*3, sp=[player.x,player.y,player.z];
-      EYE=[sp[0]-fwd[0]*back, sp[1]+up, sp[2]-fwd[2]*back];
-      TGT=[sp[0]+fwd[0]*ahead, sp[1], sp[2]+fwd[2]*ahead];
-      FOVY=50*Math.PI/180; NEAR=Math.max(2,size*0.2); FAR=size*500+g.meanR*4+1e5;
+      const size=Math.max(1, md*(player.sc||1)); note=`ship ~${(size*2)|0}u ${chaseLocked?'[lock]':'[free]'}`;
+      if(chaseDist<=0) chaseDist=size*5;         // first frame: frame the ship; wheel adjusts thereafter
+      if(recenterChase){ yaw=Math.atan2(-player.fx,-player.fz); pitch=0.22; recenterChase=false; }  // dbl-click: snap behind now
+      else if(chaseLocked){ const ty=Math.atan2(-player.fx,-player.fz); const dy=((ty-yaw+Math.PI*3)%(Math.PI*2))-Math.PI; yaw+=dy*0.12; }  // locked: auto-follow behind the heading as the ship turns
+      const cp=Math.cos(pitch),sy=Math.sin(pitch),cyw=Math.cos(yaw),syw=Math.sin(yaw), sp=[player.x,player.y,player.z];
+      EYE=[sp[0]+cp*syw*chaseDist, sp[1]+sy*chaseDist, sp[2]+cp*cyw*chaseDist];
+      TGT=[sp[0],sp[1],sp[2]];
+      FOVY=50*Math.PI/180; NEAR=Math.max(1,Math.min(size*0.2, chaseDist*0.08)); FAR=chaseDist*4+g.meanR*4+1e5;
     } else if(want==="cinematic"){               // the mock's own cinematic camera (55deg, _v3dCam -> _v3dTgt)
       EYE=b2.cam.slice(); TGT=b2.tgt.slice(); const d=Math.max(1,Math.hypot(EYE[0]-TGT[0],EYE[1]-TGT[1],EYE[2]-TGT[2]));
       FOVY=55*Math.PI/180; NEAR=Math.max(5,d*0.02); FAR=d*6+g.meanR*6+1e5;
@@ -365,7 +514,7 @@ async function start(){
     const aspect=W/H, th=Math.tan(FOVY/2);
     const fwd=norml(sub(TGT,EYE),[0,0,1]), right=norml(cr(fwd,[0,1,0]),[1,0,0]), up=cr(right,fwd);
     const vp=mul(perspective(FOVY,aspect,NEAR,FAR), lookAt(EYE,TGT,[0,1,0]));
-    const uf=new Float32Array(32); uf.set(vp,0); uf.set([fwd[0],fwd[1],fwd[2],th],16); uf.set([right[0],right[1],right[2],aspect],20); uf.set([up[0],up[1],up[2], skyReady?1:0],24); uf.set([EYE[0],EYE[1],EYE[2],0],28);
+    const uf=new Float32Array(32); uf.set(vp,0); uf.set([fwd[0],fwd[1],fwd[2],th],16); uf.set([right[0],right[1],right[2],aspect],20); uf.set([up[0],up[1],up[2], skyReady?1:0],24); uf.set([EYE[0],EYE[1],EYE[2],(performance.now()*0.001)%1000],28);
     device.queue.writeBuffer(ubuf,0,uf);
 
     const enc=device.createCommandEncoder();
@@ -384,14 +533,47 @@ async function start(){
     }
     // reference grid + flat rings (own-ship highlight / shield fraction), depth-tested transparents
     if(showGrid){ const gb=device.createBindGroup({layout:gridPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}}]}); p.setPipeline(gridPipe); p.setBindGroup(0,gb); p.draw(6); }
-    const nr=ringList.length/8;
-    if(nr>0){ if(nr>ringCap){ ringCap=Math.max(16,nr*2); if(ringBuf) ringBuf.destroy(); ringBuf=device.createBuffer({size:ringCap*32,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); }
+    const nr=ringList.length/12;
+    if(nr>0){ if(nr>ringCap){ ringCap=Math.max(16,nr*2); if(ringBuf) ringBuf.destroy(); ringBuf=device.createBuffer({size:ringCap*48,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); }
       device.queue.writeBuffer(ringBuf,0,new Float32Array(ringList));
       const rb=device.createBindGroup({layout:ringPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:5,resource:{buffer:ringBuf}}]});
       p.setPipeline(ringPipe); p.setBindGroup(0,rb); p.setVertexBuffer(0,ringVb); p.draw(ringVerts,nr); }
     // volumetric nebulae (additive, depth-tested so meshes occlude them) — persistent buffer
     if(nebCount>0){ const nb=device.createBindGroup({layout:nebPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:4,resource:{buffer:nebBuf}}]});
       p.setPipeline(nebPipe); p.setBindGroup(0,nb); p.draw(6,nebCount); draws++; }
+    // engine exhaust smoke (additive, behind the combat glow) — built per ship in gatherDyn
+    const nsm=(smokeArr.length/8)|0;
+    if(nsm>0){ if(nsm>smokeCap){ smokeCap=Math.max(64,nsm*2); if(smokeBuf) smokeBuf.destroy(); smokeBuf=device.createBuffer({size:smokeCap*32,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); }
+      device.queue.writeBuffer(smokeBuf,0,new Float32Array(smokeArr));
+      const sd=device.createBindGroup({layout:smokePipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:8,resource:{buffer:smokeBuf}}]}); p.setPipeline(smokePipe); p.setBindGroup(0,sd); p.draw(6,nsm); draws++; }
+    // combat FX (additive glow): expand each beam to one ribbon per shipData beam-emitter (converging on the target)
+    let beamOut=null;
+    if(b2&&b2.beams&&b2.beams.length){ beamOut=[];
+      for(const bb of b2.beams){ const it=(bb[4]==null?1:bb[4]), fid=bb[5], tid=bb[6];
+        const mm=(fid!=null&&b2.dynMeta)?b2.dynMeta.get(fid):null;
+        const ports=(mm&&mm.beamports&&mm.beamports.length)?mm.beamports:null;
+        if(!ports) continue;   // no beam-port set -> no beam weapons -> draw nothing (never fabricate a center beam)
+        const sf=smDyn.get(fid), st=tid!=null?smDyn.get(tid):null;      // smoothed ends so the beam lines up with the drawn meshes
+        const ox=sf?sf.r[0]:bb[0], oy=sf?sf.r[1]:0, oz=sf?sf.r[2]:bb[1];   // use the SHIP's altitude (ignore the port's Y) so the beam doesn't float
+        const x2=st?st.r[0]:bb[2], ty=st?st.r[1]:0, z2=st?st.r[2]:bb[3];
+        const rc=artCache.get(mm.art), ctr=(rc&&rc.center)?rc.center:[0,0,0], ms=(mm.meshscale||1), q=qOf(mm);
+        for(const e of ports){ const w=qrotJS(q,(e[0]-ctr[0])*ms,(e[1]-ctr[1])*ms,(e[2]-ctr[2])*ms);
+          const cr=(e[3]!=null?e[3]:0.549), cg=(e[4]!=null?e[4]:0.863), cb=(e[5]!=null?e[5]:1.0);   // shipData beam color (fallback engine cyan)
+          beamOut.push(ox+w[0], oz+w[2], x2, z2, it, oy, ty, cr, cg, cb); }   // emitter -> target: x1,z1,x2,z2, life, y1,y2, r,g,b
+      }
+    }
+    const nbm=beamOut?Math.min((beamOut.length/10)|0,2048):0;
+    if(nbm>0){ if(nbm>beamCap){ beamCap=Math.max(32,nbm*2); if(beamBuf) beamBuf.destroy(); beamBuf=device.createBuffer({size:beamCap*48,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); }
+      const arr=new Float32Array(nbm*12); for(let i=0;i<nbm;i++){ const o=i*12, j=i*10;
+        arr[o]=beamOut[j]; arr[o+1]=beamOut[j+1]; arr[o+2]=beamOut[j+2]; arr[o+3]=beamOut[j+3];
+        arr[o+4]=beamOut[j+4]; arr[o+5]=beamOut[j+5]; arr[o+6]=beamOut[j+6];
+        arr[o+8]=beamOut[j+7]; arr[o+9]=beamOut[j+8]; arr[o+10]=beamOut[j+9]; } device.queue.writeBuffer(beamBuf,0,arr);
+      const bd=device.createBindGroup({layout:beamPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:6,resource:{buffer:beamBuf}}]}); p.setPipeline(beamPipe); p.setBindGroup(0,bd); p.draw(6,nbm);
+      const td=device.createBindGroup({layout:impPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:6,resource:{buffer:beamBuf}}]}); p.setPipeline(impPipe); p.setBindGroup(0,td); p.draw(30,nbm); draws++; }
+    const prj=b2&&b2.projectiles?b2.projectiles:null, npr=prj?Math.min(prj.length,1024):0;
+    if(npr>0){ if(npr>projCap){ projCap=Math.max(32,npr*2); if(projBuf) projBuf.destroy(); projBuf=device.createBuffer({size:projCap*32,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); }
+      const arr=new Float32Array(npr*8); for(let i=0;i<npr;i++){ const pp=prj[i], o=i*8; arr[o]=pp[0]; arr[o+1]=0; arr[o+2]=pp[1]; arr[o+3]=(pp[2]==='drone')?1.0:0.0; arr[o+4]=(pp[3]==null?0:pp[3]); arr[o+5]=(pp[4]==null?0:pp[4]); } device.queue.writeBuffer(projBuf,0,arr);
+      const pd=device.createBindGroup({layout:projPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:7,resource:{buffer:projBuf}}]}); p.setPipeline(projPipe); p.setBindGroup(0,pd); p.draw(6,npr); }
     p.end(); device.queue.submit([enc.finish()]);
     fpsFrames++; { const now=performance.now(); if(now-fpsT>250){ fps=fps*0.6+(fpsFrames*1000/(now-fpsT))*0.4; fpsFrames=0; fpsT=now; } }
     const shipNote=(mode==="chase")?`  ship ${playerCount?(((shipSel%playerCount)+playerCount)%playerCount+1):0}/${playerCount}`:"";
@@ -399,8 +581,8 @@ async function start(){
       +`\n${g.n} objects · ${arts} art types · ${nebCount} nebulae`
       +`\n${draws} draws (terrain static)${loading?` · ${loading} art loading…`:``}`
       +`\n'c' cam · 'v' ship · 'b' grid · 'g' hide`;
-    requestAnimationFrame(frame);
   }
+  function frame(){ try{ frameInner(); }catch(e){ wlog("frame error: "+(e&&e.message||e)); } requestAnimationFrame(frame); }   // one bad frame logs and retries, never black-screens
   requestAnimationFrame(frame);
   wlog("overlay active — real-mesh instancing by art; press 'g' to toggle");
 
@@ -408,8 +590,10 @@ async function start(){
     let drag=false,px=0,py=0;
     canvas.addEventListener("pointerdown",e=>{drag=true;px=e.clientX;py=e.clientY;canvas.setPointerCapture(e.pointerId);});
     canvas.addEventListener("pointerup",()=>drag=false);
-    canvas.addEventListener("pointermove",e=>{ if(!drag)return; yaw+=(e.clientX-px)*0.006; pitch=Math.max(-1.4,Math.min(1.4,pitch+(e.clientY-py)*0.006)); px=e.clientX;py=e.clientY; });
-    canvas.addEventListener("wheel",e=>{ e.preventDefault(); dist=Math.max(200, dist*(1+Math.sign(e.deltaY)*0.08)); },{passive:false});
+    canvas.addEventListener("pointermove",e=>{ if(!drag)return; yaw+=(e.clientX-px)*0.006; pitch=Math.max(-1.4,Math.min(1.4,pitch+(e.clientY-py)*0.006)); px=e.clientX;py=e.clientY; chaseLocked=false; });   // dragging breaks the chase lock -> free orbit
+    canvas.addEventListener("wheel",e=>{ e.preventDefault(); const f=1+Math.sign(e.deltaY)*0.08;
+      if(MODES[modeIx]==="chase"){ chaseDist=Math.max(20, chaseDist*f); } else { dist=Math.max(200, dist*f); } },{passive:false});
+    canvas.addEventListener("dblclick",e=>{ e.preventDefault(); if(MODES[modeIx]==="chase"){ recenterChase=true; chaseLocked=true; } });   // re-lock: snap behind + auto-follow the heading
   }
 }
 
@@ -431,7 +615,7 @@ function parseOBJ(text){
   let cx=0,cy=0,cz=0; for(let i=0;i<n;i++){ cx+=v[i*8];cy+=v[i*8+1];cz+=v[i*8+2]; } cx/=n||1;cy/=n||1;cz/=n||1;
   for(let i=0;i<n;i++){ v[i*8]-=cx; v[i*8+1]-=cy; v[i*8+2]-=cz; }   // center only (keep native scale for meshscale)
   let md=1; for(let i=0;i<n;i++){ md=Math.max(md, Math.hypot(v[i*8],v[i*8+1],v[i*8+2])); }   // native radius (for chase-cam sizing)
-  return {v, i:new Uint32Array(idx), maxDim:md};
+  return {v, i:new Uint32Array(idx), maxDim:md, center:[cx,cy,cz]};   // center: subtract from shipData ports so they align with the centered mesh
 }
 function norml(v,fb){ const l=Math.hypot(v[0],v[1],v[2]); return l>1e-6?[v[0]/l,v[1]/l,v[2]/l]:fb; }
 // flat annulus on the XZ plane (unit radius), interleaved (x,z) — for the ship/shield rings
