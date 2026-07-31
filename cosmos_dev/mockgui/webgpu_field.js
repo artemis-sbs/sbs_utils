@@ -281,13 +281,8 @@ async function start(){
       seen.add(id);
       const tx=b.dynPos[i*3], tz=b.dynPos[i*3+1], ty=m.y||0;
       let s=smDyn.get(id);
-      if(!s){ s={r:[tx,ty,tz], b:[tx,ty,tz], v:[0,0,0], still:0}; smDyn.set(id,s); }
-      else {                                  // dead-reckoning: estimate velocity per push, extrapolate between them
-        if(tx!==s.b[0]||ty!==s.b[1]||tz!==s.b[2]){ const dt=Math.max(1,s.still); s.v[0]=(tx-s.b[0])/dt; s.v[1]=(ty-s.b[1])/dt; s.v[2]=(tz-s.b[2])/dt; s.b[0]=tx; s.b[1]=ty; s.b[2]=tz; s.still=0; }
-        else s.still++;
-        const st=Math.min(s.still,20), k=0.5;   // ease toward the *extrapolated* (smoothly-moving) target -> smooth + no lag
-        s.r[0]+=((s.b[0]+s.v[0]*st)-s.r[0])*k; s.r[1]+=((s.b[1]+s.v[1]*st)-s.r[1])*k; s.r[2]+=((s.b[2]+s.v[2]*st)-s.r[2])*k;
-      }
+      if(!s){ s={r:[tx,ty,tz]}; smDyn.set(id,s); }
+      else { const PL=0.12; s.r[0]+=(tx-s.r[0])*PL; s.r[1]+=(ty-s.r[1])*PL; s.r[2]+=(tz-s.r[2])*PL; }   // mock's dispBuf easing
       let arr=lists.get(m.art); if(!arr){ arr=[]; lists.set(m.art,arr); } packObj(arr,s.r[0],s.r[1],s.r[2],m); n++;
       if(m.shp>=0){ const rc=artCache.get(m.art); const sz=(m.meshscale||1)*((rc&&rc.maxDim)?rc.maxDim:60);
         const c=m.shp>0.66?[0.2,1.0,0.4]:(m.shp>0.33?[1.0,0.85,0.35]:[1.0,0.33,0.33]);
@@ -305,9 +300,9 @@ async function start(){
     const pick=(id)=>{ if(id==null) return null; const idx=b.dynMap&&b.dynMap.get?b.dynMap.get(id):undefined; if(idx===undefined||idx>=(b.dynCount|0)) return null;
       const mm=b.dynMeta.get(id); if(!mm) return null; const s=smDyn.get(id);   // dead-reckoned pos so the chase cam doesn't jitter
       return {x:s?s.r[0]:b.dynPos[idx*3], y:s?s.r[1]:(mm.y||0), z:s?s.r[2]:b.dynPos[idx*3+1], fx:mm.fx||0, fz:mm.fz||0, art:mm.art||"", sc:mm.meshscale||1}; };
-    // cycle all RENDERABLE ships in the active set (players + NPCs); tick_type strings aren't reliable
+    // cycle RENDERABLE player ships (tick_type is the behavior tag, e.g. "behav_player")
     const ships=[];
-    for(const [id,mm] of b.dynMeta){ if(mm.art && mm.icon_index==null) ships.push(id); }
+    for(const [id,mm] of b.dynMeta){ if(mm.art && mm.icon_index==null && mm.tick_type && mm.tick_type.indexOf("player")>=0) ships.push(id); }
     if(b.myShipId!=null){ const i=ships.indexOf(b.myShipId); if(i>0){ ships.splice(i,1); ships.unshift(b.myShipId); } }   // prefer own ship as index 0
     playerCount=ships.length;
     let id = ships.length ? ships[((shipSel%ships.length)+ships.length)%ships.length] : b.myShipId;
@@ -318,7 +313,8 @@ async function start(){
 
   let W=1,H=1,depthTex=null,depthView=null;
   let yaw=0.6, pitch=0.4, dist=1, cx=0,cz=0, framed=false;
-  let smEye=null, smTgt=null, smMode=null;   // smoothed following camera (glue-follow through 30Hz jumps)
+  let smEye=null, smTgt=null, smMode=null, smFwd=null;   // smoothed camera + chase heading
+  let fnum=0;
   bindOrbit();
   function ensure(){ const dpr=Math.min(devicePixelRatio||1,2); const w=Math.max(1,(canvas.clientWidth*dpr)|0), h=Math.max(1,(canvas.clientHeight*dpr)|0);
     if(w===W&&h===H&&depthTex) return; W=w;H=h; canvas.width=W; canvas.height=H;
@@ -326,7 +322,7 @@ async function start(){
 
   function frame(){
     if(!visible){ requestAnimationFrame(frame); return; }
-    ensure();
+    ensure(); fnum++;
     const b2=bridge();
     const skyName=b2?b2.skyName:null;
     if(skyName && skyName!==lastSky){ lastSky=skyName; loadSky(skyName); }
@@ -345,7 +341,9 @@ async function start(){
     if(want==="cinematic" && !(b2 && Array.isArray(b2.cam) && Array.isArray(b2.tgt))) want="orbit";
     let mode=want, note="", EYE,TGT,FOVY,NEAR,FAR;
     if(want==="chase"){                          // behind the player ship, sized to the ship — a real scale reference
-      const fwd=norml([player.fx,0,player.fz],[0,0,1]);
+      const rawFwd=norml([player.fx,0,player.fz],[0,0,1]);
+      if(!smFwd) smFwd=rawFwd.slice(); for(let i=0;i<3;i++) smFwd[i]+=(rawFwd[i]-smFwd[i])*0.1;   // smooth heading so the cam doesn't swing
+      const fwd=norml(smFwd,[0,0,1]);
       const rec=player.art?artCache.get(player.art):null; const md=(rec&&rec.status==="ready"&&rec.maxDim)?rec.maxDim:60;
       const size=Math.max(1, md*(player.sc||1)); note=`ship ~${(size*2)|0}u`;
       const back=size*7, up=size*2.5, ahead=size*3, sp=[player.x,player.y,player.z];
@@ -360,11 +358,10 @@ async function start(){
       EYE=[cx+cp*syw*dist, sp*dist, cz+cp*cyw*dist]; TGT=[cx,0,cz];
       FOVY=50*Math.PI/180; NEAR=Math.max(10,dist*0.02); FAR=dist*4+g.meanR*6+1e5;
     }
-    // smooth the following cameras (chase/cinematic) so they glue to the ship through 30Hz jumps + heading swings; orbit snaps (user-driven)
+    // chase is already rigid off the smoothed ship (stays perfectly framed); only ease the raw cinematic server cam. orbit snaps.
     if(smMode!==want || !smEye){ smMode=want; smEye=EYE.slice(); smTgt=TGT.slice(); }
-    if(want==="orbit"){ smEye=EYE.slice(); smTgt=TGT.slice(); }
-    else { const L=0.3; for(let i=0;i<3;i++){ smEye[i]+=(EYE[i]-smEye[i])*L; smTgt[i]+=(TGT[i]-smTgt[i])*L; } }
-    EYE=smEye; TGT=smTgt;
+    if(want==="cinematic"){ const L=0.12; for(let i=0;i<3;i++){ smEye[i]+=(EYE[i]-smEye[i])*L; smTgt[i]+=(TGT[i]-smTgt[i])*L; } EYE=smEye; TGT=smTgt; }
+    else { smEye=EYE.slice(); smTgt=TGT.slice(); }
     const aspect=W/H, th=Math.tan(FOVY/2);
     const fwd=norml(sub(TGT,EYE),[0,0,1]), right=norml(cr(fwd,[0,1,0]),[1,0,0]), up=cr(right,fwd);
     const vp=mul(perspective(FOVY,aspect,NEAR,FAR), lookAt(EYE,TGT,[0,1,0]));
