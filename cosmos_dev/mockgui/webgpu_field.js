@@ -20,13 +20,15 @@ async function start(){
   canvas.id="webgpu-field";
   canvas.style.cssText="position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483000;background:#05070c;display:block";
   document.body.appendChild(canvas);
-  let visible=true; const MODES=["chase","orbit","cinematic"]; let modeIx=0;
+  let visible=true; const MODES=["chase","orbit","cinematic"]; let modeIx=0, shipSel=0;
+  let fps=60, fpsFrames=0, fpsT=performance.now();
   const hud=document.createElement("div");
   hud.style.cssText="position:fixed;top:10px;left:12px;z-index:2147483001;font:12px/1.5 ui-monospace,Consolas,monospace;color:#e7ebf2;background:rgba(10,12,17,.62);border:1px solid #232833;border-radius:8px;padding:8px 11px;pointer-events:none;white-space:pre";
   document.body.appendChild(hud);
   window.addEventListener("keydown",e=>{
     if(e.key==="g"){ visible=!visible; canvas.style.display=visible?"block":"none"; hud.style.display=visible?"block":"none"; }
     if(e.key==="c"){ modeIx=(modeIx+1)%MODES.length; }   // cycle chase -> orbit -> cinematic
+    if(e.key==="v"){ shipSel++; }                        // cycle which player ship the chase follows
   });
 
   const adapter=await navigator.gpu.requestAdapter({powerPreference:"high-performance"});
@@ -209,44 +211,80 @@ async function start(){
   }
 
   // ---- gather live objects (terrain + dynamic) grouped by art, matching the mock's transform ----
-  const byArt=new Map();   // art -> [x,y,z,scale, qx,qy,qz,qw]*
-  const nebList=[];        // [x,y,z,R, r,g,b,density, seed,swirl,warp,0]*
-  function gather(){
-    byArt.clear(); nebList.length=0; const b=bridge(); if(!b) return {n:0, cx:0,cz:0, meanR:1};
-    let sx=0,sz=0,cnt=0;
-    const add=(pos,idx,rev,meta)=>{
-      const id=rev&&rev.get?rev.get(idx):undefined; if(id===undefined) return;
-      const m=meta&&meta.get?meta.get(id):null; if(!m) return;
-      const x=pos[idx*3], z=pos[idx*3+1], y=m.y||0;
-      if(m.nebula){ const c=m.color||[0.55,0.5,0.85]; nebList.push(x,y,z, Math.max(200,m.radius||2000), c[0],c[1],c[2], m.density||7, m.seed||1, m.swirl||0, m.warp||0, 0); return; }
-      if(m.icon_index!=null) return;               // marker icons (nebula markers etc.) — not real meshes
-      if(!m.art) return;
-      const sc=(m.meshscale||1);
-      let arr=byArt.get(m.art); if(!arr){ arr=[]; byArt.set(m.art,arr); }
-      // engine sends q as [w,x,y,z]; our shader wants [x,y,z,w]
-      const q=(m.q&&m.q.length===4)?[m.q[1],m.q[2],m.q[3],m.q[0]]:[0,0,0,1];
-      arr.push(x,y,z,sc, q[0],q[1],q[2],q[3]);
-      sx+=x; sz+=z; cnt++;
-    };
-    if(b.terrainPos) for(let i=0;i<(b.terrainCount|0);i++) add(b.terrainPos,i,b.terrainRev,b.terrainMeta);
-    if(b.dynPos)     for(let i=0;i<(b.dynCount|0);i++)     add(b.dynPos,i,b.dynRev,b.dynMeta);
-    const cx2=cnt?sx/cnt:0, cz2=cnt?sz/cnt:0;
-    // mean distance from centroid = the object BULK, robust to a few far outliers (frames much closer)
-    let sr=0,m=0; for(const arr of byArt.values()){ for(let i=0;i<arr.length;i+=8){ sr+=Math.hypot(arr[i]-cx2, arr[i+2]-cz2); m++; } }
-    return {n:cnt, cx:cx2, cz:cz2, meanR:Math.max(1, m?sr/m:1)};
+  // Per-art instance data lives on each artCache rec: rec.tInst/tCount (terrain=STATIC, uploaded only
+  // when terrainVersion changes) + rec.dInst/dCount (dynamic=per-frame). This is the delta win: the
+  // bulk (asteroid/nebula field) is sent once, not every frame — only the few moving ships re-upload.
+  let terrainVer=-1; const nebArr=[]; let nebCount=0; let fcx=0,fcz=0,fmeanR=1;
+  function ensureInst(rec, which, list){
+    const n=list.length/8; rec[which+"Count"]=n; if(n===0) return;
+    const ck=which+"Cap"; if(!rec[ck]) rec[ck]=0;
+    if(n>rec[ck]){ rec[ck]=Math.max(64,n*2); if(rec[which+"Inst"]) rec[which+"Inst"].destroy(); rec[which+"Inst"]=device.createBuffer({size:rec[ck]*32,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); }
+    device.queue.writeBuffer(rec[which+"Inst"],0,new Float32Array(list));
+  }
+  // orientation: engine q is [w,x,y,z] -> shader wants [x,y,z,w]; if no q, yaw from the fx/fz heading (like the mock)
+  const packObj=(arr,x,y,z,m)=>{
+    let q;
+    if(m.q&&m.q.length===4){ q=[m.q[1],m.q[2],m.q[3],m.q[0]]; }
+    else { const a=Math.atan2(m.fx||0, m.fz||0)*0.5; q=[0, Math.sin(a), 0, Math.cos(a)]; }
+    arr.push(x,y,z,(m.meshscale||1), q[0],q[1],q[2],q[3]);
+  };
+  function gatherTerrain(b){                    // STATIC — only re-run when terrainVersion changes
+    const lists=new Map(); nebArr.length=0; let sx=0,sz=0,cnt=0;
+    if(b.terrainPos) for(let i=0;i<(b.terrainCount|0);i++){
+      const id=b.terrainRev&&b.terrainRev.get?b.terrainRev.get(i):undefined; if(id===undefined) continue;
+      const m=b.terrainMeta.get(id); if(!m) continue;
+      const x=b.terrainPos[i*3], z=b.terrainPos[i*3+1], y=m.y||0;
+      if(m.nebula){ const c=m.color||[0.55,0.5,0.85]; nebArr.push(x,y,z, Math.max(200,m.radius||2000), c[0],c[1],c[2], m.density||7, m.seed||1, m.swirl||0, m.warp||0, 0); continue; }
+      if(m.icon_index!=null || !m.art) continue;
+      let arr=lists.get(m.art); if(!arr){ arr=[]; lists.set(m.art,arr); } packObj(arr,x,y,z,m); sx+=x; sz+=z; cnt++;
+    }
+    for(const rec of artCache.values()) rec.tCount=0;
+    for(const [art,arr] of lists){ ensureInst(loadArt(art),"t",arr); }
+    nebCount=nebArr.length/12;
+    if(nebCount>0){ if(nebCount>nebCap){ nebCap=Math.max(16,nebCount*2); if(nebBuf) nebBuf.destroy(); nebBuf=device.createBuffer({size:nebCap*48,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); } device.queue.writeBuffer(nebBuf,0,new Float32Array(nebArr)); }
+    fcx=cnt?sx/cnt:0; fcz=cnt?sz/cnt:0; let sr=0,mm=0; for(const arr of lists.values()){ for(let i=0;i<arr.length;i+=8){ sr+=Math.hypot(arr[i]-fcx, arr[i+2]-fcz); mm++; } } fmeanR=Math.max(1, mm?sr/mm:1);
+  }
+  const smDyn=new Map();   // id -> [x,y,z] smoothed dynamic position (60fps ease over the mock's 30Hz push -> no jitter)
+  function gatherDyn(b){                        // DYNAMIC — every frame (few, moving)
+    const lists=new Map(); let n=0; const seen=new Set();
+    if(b.dynPos) for(let i=0;i<(b.dynCount|0);i++){
+      const id=b.dynRev&&b.dynRev.get?b.dynRev.get(i):undefined; if(id===undefined) continue;
+      const m=b.dynMeta.get(id); if(!m||!m.art||m.nebula||m.icon_index!=null) continue;
+      seen.add(id);
+      const tx=b.dynPos[i*3], tz=b.dynPos[i*3+1], ty=m.y||0;
+      let s=smDyn.get(id);
+      if(!s){ s={r:[tx,ty,tz], b:[tx,ty,tz], v:[0,0,0], still:0}; smDyn.set(id,s); }
+      else {                                  // dead-reckoning: estimate velocity per push, extrapolate between them
+        if(tx!==s.b[0]||ty!==s.b[1]||tz!==s.b[2]){ const dt=Math.max(1,s.still); s.v[0]=(tx-s.b[0])/dt; s.v[1]=(ty-s.b[1])/dt; s.v[2]=(tz-s.b[2])/dt; s.b[0]=tx; s.b[1]=ty; s.b[2]=tz; s.still=0; }
+        else s.still++;
+        const st=Math.min(s.still,20), k=0.5;   // ease toward the *extrapolated* (smoothly-moving) target -> smooth + no lag
+        s.r[0]+=((s.b[0]+s.v[0]*st)-s.r[0])*k; s.r[1]+=((s.b[1]+s.v[1]*st)-s.r[1])*k; s.r[2]+=((s.b[2]+s.v[2]*st)-s.r[2])*k;
+      }
+      let arr=lists.get(m.art); if(!arr){ arr=[]; lists.set(m.art,arr); } packObj(arr,s.r[0],s.r[1],s.r[2],m); n++;
+    }
+    for(const id of smDyn.keys()) if(!seen.has(id)) smDyn.delete(id);
+    for(const rec of artCache.values()) rec.dCount=0;
+    for(const [art,arr] of lists){ ensureInst(loadArt(art),"d",arr); }
+    return n;
   }
   // the client's own ship (by _myShipId, else first PLAYER-type) — for the chase camera
+  let playerCount=0;
   function findPlayer(b){
     if(!b||!b.dynPos||!b.dynMeta) return null;
     const pick=(id)=>{ if(id==null) return null; const idx=b.dynMap&&b.dynMap.get?b.dynMap.get(id):undefined; if(idx===undefined||idx>=(b.dynCount|0)) return null;
-      const mm=b.dynMeta.get(id); if(!mm) return null; return {x:b.dynPos[idx*3], y:mm.y||0, z:b.dynPos[idx*3+1], fx:mm.fx||0, fz:mm.fz||0, art:mm.art||"", sc:mm.meshscale||1}; };
-    let p=pick(b.myShipId);
-    if(!p){ for(const [id,mm] of b.dynMeta){ if(mm.tick_type==="PLAYER"||mm.tick_type==="player"){ p=pick(id); if(p) break; } } }
+      const mm=b.dynMeta.get(id); if(!mm) return null; const s=smDyn.get(id);   // dead-reckoned pos so the chase cam doesn't jitter
+      return {x:s?s.r[0]:b.dynPos[idx*3], y:s?s.r[1]:(mm.y||0), z:s?s.r[2]:b.dynPos[idx*3+1], fx:mm.fx||0, fz:mm.fz||0, art:mm.art||"", sc:mm.meshscale||1}; };
+    const players=[]; for(const [id,mm] of b.dynMeta){ if(mm.tick_type==="PLAYER"||mm.tick_type==="player") players.push(id); }
+    playerCount=players.length;
+    let id = players.length ? players[((shipSel%players.length)+players.length)%players.length] : b.myShipId;
+    let p=pick(id);
+    if(!p && b.myShipId!=null) p=pick(b.myShipId);
     return p;
   }
 
   let W=1,H=1,depthTex=null,depthView=null;
   let yaw=0.6, pitch=0.4, dist=1, cx=0,cz=0, framed=false;
+  let smEye=null, smTgt=null, smMode=null;   // smoothed following camera (glue-follow through 30Hz jumps)
   bindOrbit();
   function ensure(){ const dpr=Math.min(devicePixelRatio||1,2); const w=Math.max(1,(canvas.clientWidth*dpr)|0), h=Math.max(1,(canvas.clientHeight*dpr)|0);
     if(w===W&&h===H&&depthTex) return; W=w;H=h; canvas.width=W; canvas.height=H;
@@ -255,12 +293,16 @@ async function start(){
   function frame(){
     if(!visible){ requestAnimationFrame(frame); return; }
     ensure();
-    const g=gather();
-    if(g.n>0){ cx=g.cx; cz=g.cz; if(!framed){ dist=g.meanR*2.5+2000; framed=true; } }
-    const b2=bridge(); const player=findPlayer(b2);
+    const b2=bridge();
     const skyName=b2?b2.skyName:null;
     if(skyName && skyName!==lastSky){ lastSky=skyName; loadSky(skyName); }
     else if(!skyName && lastSky){ lastSky=null; skyReady=false; }
+    let dynN=0;
+    if(b2){ const tv=b2.terrainVersion|0; if(tv!==terrainVer){ terrainVer=tv; gatherTerrain(b2); } dynN=gatherDyn(b2); }
+    let tObjs=0; for(const rec of artCache.values()) tObjs+=(rec.tCount||0);
+    const g={ n:tObjs+dynN, meanR:fmeanR };
+    if(g.n>0){ cx=fcx; cz=fcz; if(!framed){ dist=g.meanR*2.5+2000; framed=true; } }
+    const player=findPlayer(b2);
     let want=MODES[modeIx];
     if(want==="chase" && !player) want="orbit";
     if(want==="cinematic" && !(b2 && Array.isArray(b2.cam) && Array.isArray(b2.tgt))) want="orbit";
@@ -281,6 +323,11 @@ async function start(){
       EYE=[cx+cp*syw*dist, sp*dist, cz+cp*cyw*dist]; TGT=[cx,0,cz];
       FOVY=50*Math.PI/180; NEAR=Math.max(10,dist*0.02); FAR=dist*4+g.meanR*6+1e5;
     }
+    // smooth the following cameras (chase/cinematic) so they glue to the ship through 30Hz jumps + heading swings; orbit snaps (user-driven)
+    if(smMode!==want || !smEye){ smMode=want; smEye=EYE.slice(); smTgt=TGT.slice(); }
+    if(want==="orbit"){ smEye=EYE.slice(); smTgt=TGT.slice(); }
+    else { const L=0.3; for(let i=0;i<3;i++){ smEye[i]+=(EYE[i]-smEye[i])*L; smTgt[i]+=(TGT[i]-smTgt[i])*L; } }
+    EYE=smEye; TGT=smTgt;
     const aspect=W/H, th=Math.tan(FOVY/2);
     const fwd=norml(sub(TGT,EYE),[0,0,1]), right=norml(cr(fwd,[0,1,0]),[1,0,0]), up=cr(right,fwd);
     const vp=mul(perspective(FOVY,aspect,NEAR,FAR), lookAt(EYE,TGT,[0,1,0]));
@@ -294,28 +341,23 @@ async function start(){
     p.setPipeline(bgPipe); p.setBindGroup(0,bindBg); p.draw(3);   // real skybox if loaded, else procedural starfield
     p.setPipeline(pipe);
     let draws=0, drawn=0, arts=0, loading=0;
-    for(const [art,list] of byArt){
-      arts++;
-      const rec=loadArt(art);
+    for(const [art,rec] of artCache){
       if(rec.status!=="ready"){ if(rec.status==="loading") loading++; continue; }
-      const n=list.length/8; if(n===0) continue;
-      if(n>rec.instCap){ rec.instCap=Math.max(64,n*2); if(rec.instBuf) rec.instBuf.destroy(); rec.instBuf=device.createBuffer({size:rec.instCap*32,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); }
-      device.queue.writeBuffer(rec.instBuf,0,new Float32Array(list));
-      const b0=device.createBindGroup({layout:pipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:1,resource:{buffer:rec.instBuf}}]});
-      p.setBindGroup(0,b0); p.setBindGroup(1,rec.bind); p.setVertexBuffer(0,rec.vb); p.setIndexBuffer(rec.ib,"uint32"); p.drawIndexed(rec.count,n,0,0,0);
-      draws++; drawn+=n;
+      const tc=rec.tCount||0, dc=rec.dCount||0; if(tc+dc===0) continue; arts++;
+      p.setBindGroup(1,rec.bind); p.setVertexBuffer(0,rec.vb); p.setIndexBuffer(rec.ib,"uint32");
+      if(tc>0){ const b0=device.createBindGroup({layout:pipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:1,resource:{buffer:rec.tInst}}]}); p.setBindGroup(0,b0); p.drawIndexed(rec.count,tc,0,0,0); draws++; drawn+=tc; }
+      if(dc>0){ const b0=device.createBindGroup({layout:pipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:1,resource:{buffer:rec.dInst}}]}); p.setBindGroup(0,b0); p.drawIndexed(rec.count,dc,0,0,0); draws++; drawn+=dc; }
     }
-    // volumetric nebulae (additive, depth-tested so meshes occlude them)
-    const nn=nebList.length/12;
-    if(nn>0){ if(nn>nebCap){ nebCap=Math.max(16,nn*2); if(nebBuf) nebBuf.destroy(); nebBuf=device.createBuffer({size:nebCap*48,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); }
-      device.queue.writeBuffer(nebBuf,0,new Float32Array(nebList));
-      const nb=device.createBindGroup({layout:nebPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:4,resource:{buffer:nebBuf}}]});
-      p.setPipeline(nebPipe); p.setBindGroup(0,nb); p.draw(6,nn); draws++; }
+    // volumetric nebulae (additive, depth-tested so meshes occlude them) — persistent buffer
+    if(nebCount>0){ const nb=device.createBindGroup({layout:nebPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:4,resource:{buffer:nebBuf}}]});
+      p.setPipeline(nebPipe); p.setBindGroup(0,nb); p.draw(6,nebCount); draws++; }
     p.end(); device.queue.submit([enc.finish()]);
-    hud.textContent=`WebGPU field overlay  ·  cam: ${mode}${note?"  "+note:""}`
-      +`\n${g.n} objects · ${arts} art types · ${nn} nebulae`
-      +`\n${draws} draws${loading?` · ${loading} art loading…`:``}`
-      +`\n'c' cam (chase/orbit/cinematic) · drag+wheel · 'g' hide`;
+    fpsFrames++; { const now=performance.now(); if(now-fpsT>250){ fps=fps*0.6+(fpsFrames*1000/(now-fpsT))*0.4; fpsFrames=0; fpsT=now; } }
+    const shipNote=(mode==="chase"&&playerCount>1)?`  ship ${((shipSel%playerCount)+playerCount)%playerCount+1}/${playerCount}`:"";
+    hud.textContent=`${fps.toFixed(0)} fps  ·  cam: ${mode}${note?"  "+note:""}${shipNote}`
+      +`\n${g.n} objects · ${arts} art types · ${nebCount} nebulae`
+      +`\n${draws} draws (terrain static)${loading?` · ${loading} art loading…`:``}`
+      +`\n'c' cam · 'v' ship · drag+wheel · 'g' hide`;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

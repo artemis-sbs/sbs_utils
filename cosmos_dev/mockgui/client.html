@@ -1115,7 +1115,7 @@ let _dynamicPosBuf = null, _dynamicColBuf = null;
 let _dynamicDispBuf = null;
 
 // Delta state: id → index for O(1) update; reverse map for O(1) swap-with-last removals.
-let _terrainCount = 0, _dynamicCount = 0;
+let _terrainCount = 0, _dynamicCount = 0, _terrainVersion = 0;
 const _terrainMap    = new Map();  // id (string) → Float32Array index
 const _terrainRevMap = new Map();  // Float32Array index → id (string)
 const _terrainMeta   = new Map();  // id (string) → {art, meshscale, y}
@@ -1231,6 +1231,7 @@ function cmdRadarTerrain(msg) {
     });
   }
   _terrainCount = Math.min(objects.length, _MAX_TERRAIN);
+  _terrainVersion++;   // bump so the WebGPU overlay re-uploads terrain instances only on change
   _terrainPoints.geometry.setDrawRange(0, _terrainCount);
   _terrainPoints.geometry.attributes.position.needsUpdate = true;
   _terrainPoints.geometry.attributes.color.needsUpdate    = true;
@@ -3649,8 +3650,8 @@ function buildWidget(msg, s) {
 // Prong 2: expose live field state to an optional WebGPU overlay (webgpu_field.js). No-op unless it's loaded.
 window.__mockField = () => ({
   terrainPos:_terrainPosBuf, terrainCount:_terrainCount, terrainRev:_terrainRevMap, terrainMeta:_terrainMeta,
-  dynPos:_dynamicDispBuf, dynCount:_dynamicCount, dynRev:_dynamicRevMap, dynMeta:_dynamicMeta, dynMap:_dynamicMap, myShipId:_myShipId,
-  cam:_v3dCam, tgt:_v3dTgt, active:_view3dActive, skyName:_skyboxName,
+  dynPos:_dynamicPosBuf, dynCount:_dynamicCount, dynRev:_dynamicRevMap, dynMeta:_dynamicMeta, dynMap:_dynamicMap, myShipId:_myShipId,
+  cam:_v3dCam, tgt:_v3dTgt, active:_view3dActive, skyName:_skyboxName, terrainVersion:_terrainVersion,
 });
 
 </script>
