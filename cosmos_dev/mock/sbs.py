@@ -50,8 +50,9 @@ _beam_fires: list = []
 # mockgui renders a sustained beam that fades as its ttl runs out. Source of truth for
 # _beam_fires. Entries: [firer_id, target_id, ttl].
 _beam_active: list = []
-_BEAM_LIT = 2.0       # a fired beam stays lit ~2s (a sustained phaser pulse; refreshed on each re-fire)
-_BEAM_FADE = 0.4      # only fades over the last _BEAM_FADE seconds; full brightness before that
+_BEAM_LIT = 0.75      # a fired beam stays lit ~0.75s on screen — FIXED (does not scale with cycle time), so
+                      # speeding up beamCycleTime fires more often without lengthening each pulse
+_BEAM_FADE = 0.2      # only fades over the last _BEAM_FADE seconds; full brightness before that
 
 # Base per-shot beam damage by firer category, from set_beam_damages(). None until
 # the script calls it; then _physics_beams uses these (player/npc/station) instead
@@ -2964,6 +2965,7 @@ _TORP_EMP_SHIELD_MULT = 0.5     # EMP reduce_shields: halve each ship's CURRENT 
 # until triggered or its life expires.
 _TORP_MINE_TRIGGER = 400.0      # proximity radius that sets a placed mine off
 _TORP_MINE_LIFE = 120.0         # sim-seconds a placed mine stays armed if untriggered
+_TORP_ORPHAN_LIFE = 1.5         # sim-seconds a homing torp lingers after losing its target (then fizzles)
 # Drone fallbacks when the engine-set fields are absent. drone_launch_timer comes
 # from shipData (Torgoth + Ximni hulls); elite_drone_launcher / drone_damage /
 # drone_launch_max_range are set by the engine at runtime (not in shipData), so the
@@ -3429,6 +3431,10 @@ def _physics_projectiles(sim, dt: float) -> None:
                 if nid:
                     p["target_id"] = nid
                     tgt = space.get(nid)
+            if tgt is None and p.get("homing"):
+                # Orphaned warhead (target dead, nothing to re-acquire): fizzle fast instead of
+                # wandering across space for its full ~6000u range - those drifters cluttered the view.
+                p["life"] = min(p.get("life", 30.0), _TORP_ORPHAN_LIFE)
             if tgt is not None and not p.get("is_mine"):
                 dx = tgt._pos.x - pos.x; dy = tgt._pos.y - pos.y; dz = tgt._pos.z - pos.z
                 n = math.sqrt(dx * dx + dy * dy + dz * dz)

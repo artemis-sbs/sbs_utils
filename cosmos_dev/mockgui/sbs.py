@@ -1207,8 +1207,10 @@ def _beam_ports_for(obj) -> list:
                 p = e.get("position")
                 if p and len(p) == 3:
                     r, g, b = _parse_color(e.get("color"))
+                    ba = float(e.get("barrel_angle", 0.0) or 0.0)   # emitter facing (deg, 0=fore, +=starboard)
+                    aw = float(e.get("arcwidth", 360.0) or 360.0)   # emitter arc width (deg)
                     out.append([round(float(p[0]), 2), round(float(p[1]), 2), round(float(p[2]), 2),
-                                round(r, 3), round(g, 3), round(b, 3)])
+                                round(r, 3), round(g, 3), round(b, 3), round(ba, 1), round(aw, 1)])
         return out
     except Exception:
         return []

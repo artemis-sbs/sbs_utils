@@ -557,9 +557,15 @@ async function start(){
         const ox=sf?sf.r[0]:bb[0], oy=sf?sf.r[1]:0, oz=sf?sf.r[2]:bb[1];   // use the SHIP's altitude (ignore the port's Y) so the beam doesn't float
         const x2=st?st.r[0]:bb[2], ty=st?st.r[1]:0, z2=st?st.r[2]:bb[3];
         const rc=artCache.get(mm.art), ctr=(rc&&rc.center)?rc.center:[0,0,0], ms=(mm.meshscale||1), q=qOf(mm);
-        for(const e of ports){ const w=qrotJS(q,(e[0]-ctr[0])*ms,(e[1]-ctr[1])*ms,(e[2]-ctr[2])*ms);
+        // target bearing relative to the firer's heading (deg, + = starboard) — for per-emitter arc gating
+        const dgx=x2-ox, dgz=z2-oz, fwx=mm.fx||0, fwz=mm.fz||0;
+        const bearing=Math.atan2(fwz*dgx-fwx*dgz, fwx*dgx+fwz*dgz)*180/Math.PI;
+        for(const e of ports){
+          const aw=(e[7]!=null?e[7]:360);
+          if(aw<359){ const ba=e[6]||0; let d=((bearing-ba+540)%360)-180; if(Math.abs(d)>aw*0.5) continue; }   // target outside THIS emitter's arc -> it doesn't fire
+          const w=qrotJS(q,(e[0]-ctr[0])*ms,(e[1]-ctr[1])*ms,(e[2]-ctr[2])*ms);
           const cr=(e[3]!=null?e[3]:0.549), cg=(e[4]!=null?e[4]:0.863), cb=(e[5]!=null?e[5]:1.0);   // shipData beam color (fallback engine cyan)
-          beamOut.push(ox+w[0], oz+w[2], x2, z2, it, oy, ty, cr, cg, cb); }   // emitter -> target: x1,z1,x2,z2, life, y1,y2, r,g,b
+          beamOut.push(ox+w[0], oz+w[2], x2, z2, it, oy+w[1], ty, cr, cg, cb); }   // emitter (full 3D incl. its Y) -> target: x1,z1,x2,z2, life, y1,y2, r,g,b
       }
     }
     const nbm=beamOut?Math.min((beamOut.length/10)|0,2048):0;
