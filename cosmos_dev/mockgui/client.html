@@ -3646,6 +3646,17 @@ function buildWidget(msg, s) {
   return el;
 }
 
+// Prong 2: expose live field state to an optional WebGPU overlay (webgpu_field.js). No-op unless it's loaded.
+window.__mockField = () => ({
+  terrainPos:_terrainPosBuf, terrainCount:_terrainCount, terrainRev:_terrainRevMap, terrainMeta:_terrainMeta,
+  dynPos:_dynamicDispBuf, dynCount:_dynamicCount, dynRev:_dynamicRevMap, dynMeta:_dynamicMeta, dynMap:_dynamicMap, myShipId:_myShipId,
+  cam:_v3dCam, tgt:_v3dTgt, active:_view3dActive,
+});
+
+</script>
+<script>
+  // Optional WebGPU field overlay — loads ONLY with ?webgpu=1; the default Three.js path is untouched.
+  if ((location.search+location.hash).includes('webgpu')) { const s=document.createElement('script'); s.type='module'; s.src='/webgpu_field.js'; document.body.appendChild(s); }
 </script>
 </body>
 </html>
