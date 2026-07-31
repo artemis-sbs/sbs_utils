@@ -131,21 +131,112 @@ class TestTaskDisposal(unittest.TestCase):
         gc.collect()
         self.assertIsNone(ref(), "a finished task must be reclaimable, not just unregistered")
 
-    def test_dispose_purges_role_and_inventory_registries(self):
-        """Agent.all is one of THREE registries; the id must leave all of them."""
+    def test_dispose_purges_the_role_registry(self):
+        """Agent.all is one of THREE registries; the id must leave the role one too."""
         errors, runner = _build('some_task_var = 42\n->END\n')
         self.assertEqual(errors, [])
         task = runner.start_task("main")
         tid = task.id
-        # add_role() lowercases; set_inventory_value() only strips. Assert the
-        # registries as they are actually keyed, not as the source spells them.
+        # add_role() lowercases, so assert the registry as it is actually keyed.
         self.assertIn(tid, Agent.roles.collection_set("__mast_task__"))
-        self.assertIn(tid, Agent._has_inventory.collection_set("some_task_var"))
         _run_out(runner)
         self.assertNotIn(tid, Agent.roles.collection_set("__mast_task__"),
                          "__MAST_TASK__ role entry must be purged")
-        self.assertNotIn(tid, Agent._has_inventory.collection_set("some_task_var"),
-                         "inventory-key registry entry must be purged")
+
+    def test_task_vars_never_enter_the_global_inventory_index(self):
+        """A task's variables are local scope, not searchable game state.
+
+        has_inventory(key) exists to find OBJECTS. Tasks used to register every
+        variable they held, which made that index thousands of collections wide
+        and let a query like has_inventory("ship_id") return task ids next to
+        real ships. Reads and writes of the task's own scope are unaffected.
+        """
+        errors, runner = _build('some_task_var = 42\n->END\n')
+        self.assertEqual(errors, [])
+        task = runner.start_task("main")
+        self.assertNotIn(task.id, Agent._has_inventory.collection_set("some_task_var"),
+                         "a task variable must not appear in the global inventory index")
+        # ...but the value itself still reads back normally.
+        task.set_inventory_value("local_thing", 7)
+        self.assertEqual(task.get_inventory_value("local_thing"), 7)
+        self.assertNotIn(task.id, Agent._has_inventory.collection_set("local_thing"))
+
+    def test_real_agents_still_populate_the_inventory_index(self):
+        """The opt-out is tasks only — ordinary agents must keep working."""
+        a = Agent()
+        a.id = 4242
+        a.add()
+        a.set_inventory_value("__BRAIN__", object())
+        self.assertIn(a.id, Agent._has_inventory.collection_set("__BRAIN__"),
+                      "a normal agent must still be findable by inventory key")
+        a.remove()
+        self.assertNotIn(a.id, Agent._has_inventory.collection_set("__BRAIN__"),
+                         "and must be purged on remove")
+
+
+class TestRoleIndex(unittest.TestCase):
+    """The per-object role index is an index for REMOVAL only.
+
+    Agent.roles stays the authority for every role query, so set operations
+    (role("a") & role("b"), has_role, subtraction) must behave exactly as before.
+    """
+
+    def setUp(self):
+        Agent.clear()
+        gc.collect()
+
+    def _agent(self, aid, roles):
+        a = Agent()
+        a.id = aid
+        a.add()
+        a.add_role(roles)
+        return a
+
+    def test_set_queries_are_unchanged(self):
+        self._agent(1, "enemy, ship")
+        self._agent(2, "friendly, ship")
+        self._agent(3, "enemy")
+        self.assertEqual(Agent.roles.collection_set("ship"), {1, 2})
+        self.assertEqual(Agent.roles.collection_set("enemy"), {1, 3})
+        # intersection / subtraction, the shapes missions actually use
+        self.assertEqual(Agent.roles.collection_set("enemy")
+                         & Agent.roles.collection_set("ship"), {1})
+        self.assertEqual(Agent.roles.collection_set("ship")
+                         - Agent.roles.collection_set("enemy"), {2})
+
+    def test_comma_list_indexes_every_role(self):
+        a = self._agent(7, "alpha, beta,gamma")
+        self.assertEqual(a._own_roles, {"alpha", "beta", "gamma"})
+        for r in ("alpha", "beta", "gamma"):
+            self.assertIn(7, Agent.roles.collection_set(r))
+
+    def test_remove_role_keeps_index_in_step(self):
+        a = self._agent(8, "alpha, beta")
+        a.remove_role("alpha")
+        self.assertEqual(a._own_roles, {"beta"})
+        self.assertNotIn(8, Agent.roles.collection_set("alpha"))
+        self.assertIn(8, Agent.roles.collection_set("beta"))
+        self.assertTrue(a.has_role("beta"))
+        self.assertFalse(a.has_role("alpha"))
+
+    def test_remove_purges_every_role_the_agent_held(self):
+        a = self._agent(9, "alpha, beta, gamma")
+        a.remove()
+        for r in ("alpha", "beta", "gamma"):
+            self.assertNotIn(9, Agent.roles.collection_set(r),
+                             f"role {r} must be purged on remove")
+
+    def test_index_matches_registry_after_churn(self):
+        """Drift between the index and the registry is the failure mode to catch."""
+        a = self._agent(11, "a1, a2")
+        a.add_role("a3")
+        a.remove_role("a2")
+        a.add_role("a2")
+        a.remove_role("nonexistent")
+        in_registry = {r for r in Agent.roles.collections
+                       if 11 in Agent.roles.collection_set(r)}
+        self.assertEqual(a._own_roles, in_registry,
+                         "per-object role index drifted from Agent.roles")
 
     def test_dispose_is_idempotent(self):
         errors, runner = _build('x = 1\n->END\n')

@@ -156,12 +156,26 @@ class Agent():
     SHARED = None
 
 
+    # Does this agent's inventory get mirrored into the class-level
+    # Agent._has_inventory index (what has_inventory(key) queries)? True for real
+    # game objects. MAST tasks turn it OFF: nothing ever looks a TASK up by
+    # inventory key, every task registering its whole variable scope made that
+    # index thousands of collections wide, and it polluted object queries --
+    # has_inventory("ship_id") would hand back MAST task ids alongside ships.
+    _mirror_inventory = True
+
     def __init__(self):
         super().__init__()
         self.links = Stuff()
         self.inventory = Stuff(True)
         self._data_set = None
         self._engine_object = None
+        # Reverse index of THIS agent's own roles. Purely an index for removal:
+        # Agent.roles stays the authority for every role QUERY (role("enemy"),
+        # set intersections, has_role), and is written exactly as before. This
+        # only records which collections we must discard from, so deletion does
+        # not have to scan every collection in the registry.
+        self._own_roles = set()
 
 
     def __getitem__(self, index):
@@ -253,6 +267,9 @@ class Agent():
             return
         role = role.strip().lower()
         self.roles.add_to_collection(role, self.id)
+        # Mirror into the per-object index. add_to_collection() treats the string
+        # as comma-separated, so split the same way or the index drifts.
+        self._index_own_roles(role, True)
 
     def remove_role(self, role: str):
         """ Remove a role from the space object
@@ -262,6 +279,21 @@ class Agent():
         """
         role = role.strip().lower()
         self.roles.remove_from_collection(role, self.id)
+        self._index_own_roles(role, False)
+
+    def _index_own_roles(self, role: str, add: bool):
+        """Keep _own_roles in step with what add/remove_role did to Agent.roles."""
+        own = getattr(self, "_own_roles", None)
+        if own is None:
+            own = self._own_roles = set()
+        for r in role.split(","):
+            r = r.strip()
+            if not r:
+                continue
+            if add:
+                own.add(r)
+            else:
+                own.discard(r)
 
     def has_role(self, role):
         """ check if the object has a role
@@ -529,6 +561,11 @@ class Agent():
     def set_inventory_value(self, collection_name, value):
         collection_name = collection_name.strip()
         self.inventory.collections[collection_name]=value
+        # Agents that opt out (MAST tasks) keep their values in the per-object
+        # dict only -- reads/writes are unaffected, they just do not appear in
+        # the global has_inventory(key) index. See Agent._mirror_inventory.
+        if not self._mirror_inventory:
+            return
         if value is not None:
             self._has_inventory.add_to_collection(collection_name, self.id)
         else:
@@ -599,11 +636,13 @@ class Agent():
         """
         id = self.id
         Agent.all.pop(id, None)
-        for key in list(self.inventory.collections.keys()):
-            Agent._has_inventory.discard_from_collection(key, id)
+        if self._mirror_inventory:
+            for key in list(self.inventory.collections.keys()):
+                Agent._has_inventory.discard_from_collection(key, id)
         for key in list(self.links.collections.keys()):
             Agent.has_links.discard_from_collection(key, id)
-        Agent.roles.remove_every_collection(id)
+        for role in list(getattr(self, "_own_roles", ())):
+            Agent.roles.discard_from_collection(role, id)
 
     # def update_engine_data(self, data):
     #     blob = self.get_engine_data_set()

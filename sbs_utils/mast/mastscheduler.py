@@ -684,6 +684,12 @@ class PyTicker():
 class MastAsyncTask(Agent, Promise):
     main: 'MastScheduler'
     dependent_tasks = {}
+    # A task's variables are its local scope, not searchable game state. Keeping
+    # them out of the global has_inventory() index avoids registering AND
+    # unregistering every variable name on every task (the single biggest source
+    # of registry traffic), keeps that index narrow for everyone else, and stops
+    # a query like has_inventory("ship_id") returning task ids next to ships.
+    _mirror_inventory = False
     
     def __init__(self, main: 'MastScheduler', inputs=None, name= None):
         super().__init__()
@@ -1112,6 +1118,7 @@ class MastAsyncTask(Agent, Promise):
             else:
                 inputs = self.inventory.collections | {}
         return self.main.start_task(label, inputs, task_name, defer, unscheduled)
+
             
       
     
