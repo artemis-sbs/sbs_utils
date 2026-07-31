@@ -875,24 +875,40 @@ def _run(
 
     def _debug_status() -> dict:
         from sbs_utils.helpers import _TPS
+        # Count LIVE objects from the sim itself (ground truth), NOT Agent.all - which also
+        # holds brains/objectives/the shared agent (and can retain stale entries), so it reads
+        # high and "accumulates". Break the live count down PER SIDE so it's obvious what's left.
         players = npcs = terrain = 0
+        by_side: dict = {}
+        if sbs.sim is not None:
+            for obj in list(sbs.sim.space_objects.values()):
+                ab   = getattr(obj, "_abits", 0)
+                side = getattr(obj, "_side", "") or "-"
+                row  = by_side.setdefault(side, {"players": 0, "npcs": 0, "terrain": 0})
+                if ab & 0x20:
+                    row["players"] += 1; players += 1
+                elif ab & 0x10:
+                    row["npcs"] += 1; npcs += 1
+                else:
+                    row["terrain"] += 1; terrain += 1
+        # Break Agent.all down by class so a leak is obvious (which kind is piling up).
+        agent_types: dict = {}
         for a in list(Agent.all.values()):
-            if getattr(a, "is_player", False):
-                players += 1
-            elif getattr(a, "is_npc", False):
-                npcs += 1
-            elif getattr(a, "is_terrain", False):
-                terrain += 1
+            tn = type(a).__name__
+            agent_types[tn] = agent_types.get(tn, 0) + 1
+        agent_types = dict(sorted(agent_types.items(), key=lambda kv: -kv[1])[:8])
         return {
             "mission": os.path.basename(mission_folder),
             "map": str(map_arg) if map_arg is not None else "(picker)",
             "sim_seconds": round(sbs.sim.time_tick_counter / _TPS, 1) if sbs.sim else 0.0,
             "paused": bool(sbs.sim._paused) if sbs.sim else True,
             "clients": [f"{c:#x}" for c in Gui.clients if c != 0],
-            "agents": len(Agent.all),
+            "agents": len(Agent.all),   # NOTE: all agents (incl. brains/objectives/shared) - NOT a ship count
             "players": players,
             "npcs": npcs,
             "terrain": terrain,
+            "by_side": by_side,         # accurate LIVE per-side breakdown (from sim.space_objects)
+            "agent_types": agent_types, # Agent.all by class - to spot what's leaking
             "tick_rate": tick_rate,
         }
 

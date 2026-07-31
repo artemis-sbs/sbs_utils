@@ -132,7 +132,24 @@ function renderStatus(st) {
     const tr = document.createElement("tr");
     const kd = document.createElement("td"); kd.className = "k"; kd.textContent = k;
     const vd = document.createElement("td");
-    vd.textContent = Array.isArray(v) ? (v.length ? v.join(", ") : "(none)") : String(v);
+    let text;
+    if (Array.isArray(v)) {
+      text = v.length ? v.join(", ") : "(none)";
+    } else if (v && typeof v === "object") {
+      // by_side: nested {players,npcs,terrain}; agent_types: flat {Class: count}
+      const parts = Object.entries(v).map(([kk, vv]) => {
+        if (vv && typeof vv === "object") {
+          const segs = [`${vv.players}p`, `${vv.npcs}n`];
+          if (vv.terrain) segs.push(`${vv.terrain}t`);
+          return `${kk}: ${segs.join(" / ")}`;
+        }
+        return `${kk}: ${vv}`;
+      });
+      text = parts.length ? parts.join("     ") : "(none)";
+    } else {
+      text = String(v);
+    }
+    vd.textContent = text;
     tr.appendChild(kd); tr.appendChild(vd);
     tbl.appendChild(tr);
   }
