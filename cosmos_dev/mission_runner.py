@@ -1037,7 +1037,12 @@ def _run(
               f"mast {d_mb / d_mt * 1000:6.1f}ms/tick | "
               f"players {pl_thr}/{pl} throttled {pl_mov}/{pl} moving "
               f"{pl_dead} dead, npcs moving {npc_mov} | "
-              f"grids {len(g_hosts)} hosts/{g_orphan} orphaned | {top}")
+              f"grids {len(g_hosts)} hosts/{g_orphan} orphaned | "
+              # Registry WIDTH (number of distinct collections), not membership.
+              # Any purge that scans all collections costs O(these) per delete.
+              f"regs role={len(Agent.roles.collections)} "
+              f"inv={len(Agent._has_inventory.collections)} "
+              f"link={len(Agent.has_links.collections)} | {top}")
         if stale_top:
             print(f"[probe]   undisposed ended tasks by label: {stale_top}")
 

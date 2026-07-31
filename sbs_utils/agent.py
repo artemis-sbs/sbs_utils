@@ -75,6 +75,18 @@ class Stuff:
             return False
         return False
 
+    def discard_from_collection(self, collection, id):
+        """Discard by EXACT collection name (no comma splitting).
+
+        remove_from_collection() treats its argument as a comma-separated list,
+        which is right for caller-supplied role strings but wrong when the name
+        came from a dict key that may legitimately contain a comma. Used by the
+        targeted purge in Agent.remove().
+        """
+        the_set = self.collections.get(collection)
+        if isinstance(the_set, set):
+            the_set.discard(id)
+
     def remove_every_collection(self, id):
         # Discard straight from each set. This used to route through
         # remove_from_collection(), which splits the collection NAME on commas and
@@ -573,8 +585,25 @@ class Agent():
 
     def remove(self):
         """ remove the object to the system, called by destroyed normally
+
+        Targeted purge. An object's OWN inventory/link dicts are a superset of the
+        collections it can appear in inside the class-level mirrors, so purging
+        just those keys is exact AND cheap. The generic _remove() scans EVERY
+        collection instead, which is fine for a rare object delete but not for MAST
+        task disposal: _has_inventory runs ~1500 collections wide on a real mission
+        and tasks are disposed thousands of times a minute, so that scan measured as
+        the single largest self-time in the whole runner (25s of 106s).
+
+        Roles keep the full scan - an Agent has no per-object record of its own
+        roles - but that registry is ~100 collections wide, not thousands.
         """
-        self._remove(self.id)
+        id = self.id
+        Agent.all.pop(id, None)
+        for key in list(self.inventory.collections.keys()):
+            Agent._has_inventory.discard_from_collection(key, id)
+        for key in list(self.links.collections.keys()):
+            Agent.has_links.discard_from_collection(key, id)
+        Agent.roles.remove_every_collection(id)
 
     # def update_engine_data(self, data):
     #     blob = self.get_engine_data_set()
