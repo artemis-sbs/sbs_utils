@@ -37,6 +37,7 @@ async function start(){
     if(e.key==="r"){ nebResIx=(nebResIx+1)%NEB_RES_OPTS.length; rebake(); }  // bake resolution knob (VRAM vs fidelity)
     if(e.key==="f"){ nebStepMode=nebStepMode?0:1; }      // stepping: fixed count-48 vs field-style fixed size (~11)
     if(e.key==="s"){ nebShare=!nebShare; rebake(); }     // share: N nebulae ← K templates (data-reduction) vs N unique slabs
+    if(e.key==="x"){ const o=[0.3,0.18,0.12,0.06]; nebCover=o[(o.indexOf(nebCover)+1)%o.length]; rebake(); }  // cloud coverage: lower cutoff = cloud fills more of the sphere
   });
 
   const adapter=await navigator.gpu.requestAdapter({powerPreference:"high-performance"});
@@ -135,10 +136,10 @@ async function start(){
   // Faithful port of the Nebula-tab sampleVolume (engine-matched). posIn is normalized to [-1,1].
   // Per-color freq/amp vary in the tab; this bakes the default preset + shared structural constants
   // (numOct=3, detailFreq 1.3055, detailLac 2.43) since the Neb struct carries no room for them.
-  fn nebDensity(posIn:vec3f, density:f32, seed:f32, swirl:f32, warp:f32)->f32{
-    let baseFreq=1.4; let baseAmp=1.87; let detailFreq=1.3055; let detailAmp=1.6; let detailLac=2.43;
+  fn nebDensity(posIn:vec3f, density:f32, seed:f32, swirl:f32, warp:f32, cover:f32, baseFreq:f32, baseAmp:f32, detailFreq:f32, detailAmp:f32)->f32{
+    let detailLac=2.43;   // shared by all 7 color presets; baseFreq/baseAmp/detailFreq/detailAmp are per-color (passed in)
     var pos=posIn; let rr=length(pos); let f=exp(-rr); let ff=f*f; var p=ff*density;
-    if(p<=0.3*density){ return -1.0; }
+    if(p<=cover*density){ return -1.0; }   // cover = base cutoff; lower cutoff -> cloud fills more of the sphere radius
     p=p+spiral(vec3f(512.0+seed)+pos*(8.0*baseFreq))*0.75*baseAmp;
     if(swirl!=0.0){ pos=rotY(pos, pos.y*spiral(pos*4.0)*swirl); }
     p=p+spiral(vec3f(200.0+seed)+pos*(3.0*detailLac))*1.5*baseAmp/detailLac;
@@ -170,8 +171,8 @@ async function start(){
     let v=i32(gid.z)/RES; let lz=i32(gid.z)-v*RES;
     let uvw=(vec3f(f32(gid.x),f32(gid.y),f32(lz))+0.5)/f32(RES);
     let pos=uvw*2.0-1.0;
-    let vp=slotPar[v];
-    textureStore(densOut, vec3i(gid), vec4f(nebDensity(pos, vp.w, vp.x, vp.y, vp.z), 0.0, 0.0, 0.0));
+    let vp=slotPar[v*2]; let vp2=slotPar[v*2+1];   // vp=seed,swirl,warp,density ; vp2=baseFreq,baseAmp,detailFreq,detailAmp (per color)
+    textureStore(densOut, vec3i(gid), vec4f(nebDensity(pos, vp.w, vp.x, vp.y, vp.z, bp.cfg.z, vp2.x, vp2.y, vp2.z, vp2.w), 0.0, 0.0, 0.0));
   }
   fn sampleBaked(nrm:vec3f, variety:i32, K:i32)->f32{
     let uvw=clamp(nrm*0.5+0.5, vec3f(0.0), vec3f(1.0));
@@ -202,7 +203,7 @@ async function start(){
   @fragment fn nfs(in:NVO)->@location(0) vec4f{
     let real=u32(max(nebU.cfg.w,1.0)); let ri=in.inst%real; let copy=in.inst/real;
     let nb=nebs[ri]; let R=nb.c.w; let cen=nb.c.xyz+nebOffset(copy,R); let rd=normalize(in.rd);
-    let ro=u.camPos.xyz-cen; let bb=dot(rd,ro); let cc=dot(ro,ro)-(R*0.98)*(R*0.98); let disc=bb*bb-cc;
+    let ro=u.camPos.xyz-cen; let bb=dot(rd,ro); let cc=dot(ro,ro)-(R*1.2)*(R*1.2); let disc=bb*bb-cc;  // march past R so the fuller cloud fades softly instead of hard-clipping at the sphere
     if(disc<0.0){ return vec4f(0.0); }
     let sq=sqrt(disc); let t0=max(-bb-sq,0.0); let t1=-bb+sq; if(t1<=t0){ return vec4f(0.0); }
     let STEPS=i32(max(nebU.cfg.y,1.0));
@@ -218,7 +219,7 @@ async function start(){
       if(t>=t1){ break; }                            // size mode exits the sphere early (fewer steps)
       let n=(ro+rd*t)/R;
       var d:f32;
-      if(baked){ d=sampleBaked(rotY(n,ang), variety, P); } else { d=nebDensity(n, density, seed, nb.sd.y, nb.sd.z); }
+      if(baked){ d=sampleBaked(rotY(n,ang), variety, P); } else { d=nebDensity(n, density, seed, nb.sd.y, nb.sd.z, nebU.cfg2.w, 1.4, 1.87, 1.3055, 1.6); }  // live-debug uses default preset; baked path is true per-color
       if(d>0.02){ acc=acc+emis*d*trans*(dS/R)*0.5; trans=trans*exp(-d*dS/R*3.0); if(trans<0.02){ break; } }  // emission ∝ path so brightness holds across step modes
       t=t+dS; }
     return vec4f(acc, 0.0);
@@ -365,13 +366,24 @@ async function start(){
   let slotParBuf=null, slotParCap=0;                     // per-slab bake params (storage) — sized to slab count
   const densSampler=device.createSampler({magFilter:"linear",minFilter:"linear",addressModeU:"clamp-to-edge",addressModeV:"clamp-to-edge",addressModeW:"clamp-to-edge"});
   const nebArr=[]; let nebCount=0;                       // hoisted: rebake() reads per-instance params in unique mode
-  let nebBaked=true, nebSteps=48, nebStress=1, nebStepMode=0, nebShare=true; // toggled live from the keyboard
+  let nebBaked=true, nebSteps=48, nebStress=1, nebStepMode=0, nebShare=true, nebCover=0.12; // toggled live from the keyboard
   const NEB_STEP_FRAC=0.18;                              // field-style fixed step size (0.18·R ≈ 11 steps/sphere)
-  const NEB_K=6;                                          // SHARED templates (4-10/color in the field) — the data-reduction pool
+  // 7 COLOR templates (emission + per-color shape) — matches the sandbox field presets; each nebula maps to its nearest color.
+  const NEB_PRESETS=[
+    {emis:[0.63,0.0,0.9], bf:1.0,  ba:0.87, df:1.3055, da:1.6, sw:5.0},  // purple
+    {emis:[1.0,0.3,0.1],  bf:0.56, ba:0.87, df:1.3055, da:0.9, sw:5.0},  // red
+    {emis:[0.01,1.0,1.0], bf:3.5,  ba:1.87, df:1.3055, da:0.9, sw:5.0},  // blue
+    {emis:[0.8,2.0,0.6],  bf:1.4,  ba:1.87, df:1.3055, da:1.6, sw:6.0},  // yellow
+    {emis:[0.4,0.8,0.4],  bf:0.72, ba:1.0,  df:1.3055, da:1.6, sw:5.0},  // green
+    {emis:[1.8,0.5,0.1],  bf:1.4,  ba:1.87, df:1.3055, da:1.6, sw:6.0},  // orange
+    {emis:[1.2,1.2,1.2],  bf:2.4,  ba:0.7,  df:1.3055, da:0.8, sw:4.0},  // white
+  ];
+  const NEB_K=NEB_PRESETS.length;                        // SHARED templates = the color palette (the data-reduction pool)
+  const nebColorToPreset=(c)=>{ let best=0,bd=1e9; for(let i=0;i<NEB_K;i++){ const e=NEB_PRESETS[i].emis; const d=(e[0]-c[0])**2+(e[1]-c[1])**2+(e[2]-c[2])**2; if(d<bd){bd=d;best=i;} } return best; };
   const NEB_SLAB_CAP=48;                                 // max physical slabs (WebGPU 3D-depth limited; field capped similarly)
   const NEB_RES_OPTS=[32,48,64,96]; let nebResIx=1;      // bake resolution knob (VRAM vs shape fidelity)
-  // shared template palette (seed/swirl/warp/density) — baked once, referenced by every instance of that template
-  const nebVarieties=[]; for(let v=0;v<NEB_K;v++) nebVarieties.push([v*137+7, 4, 0.35, 7]);
+  // per-template bake params: [seed, swirl, warp, density, baseFreq, baseAmp, detailFreq, detailAmp] (2 vec4f/slab)
+  const nebVarieties=[]; for(let v=0;v<NEB_K;v++){ const P=NEB_PRESETS[v]; nebVarieties.push([v*137+7, P.sw, 0.5, 7, P.bf, P.ba, P.df, P.da]); }
   let densTex=null, densView=null, nebBakedRES=0, physicalSlots=0, logicalSlots=0;
   function makeDensTex(RES,P){ if(densTex) densTex.destroy();
     densTex=device.createTexture({size:[RES,RES,RES*P], dimension:"3d", format:"rgba16float",
@@ -382,15 +394,16 @@ async function start(){
     logicalSlots = nebShare ? NEB_K : Math.max(1, nebCount);
     physicalSlots = Math.min(logicalSlots, Math.floor(2048/RES), NEB_SLAB_CAP);
     makeDensTex(RES, physicalSlots);
-    const par=new Float32Array(physicalSlots*4);
+    const par=new Float32Array(physicalSlots*8);   // 2 vec4f/slab: seed,swirl,warp,density + baseFreq,baseAmp,detailFreq,detailAmp
     for(let s=0;s<physicalSlots;s++){
-      if(nebShare){ par.set(nebVarieties[s], s*4); }
-      else { const o=s*12; par.set([nebArr[o+8]||1, nebArr[o+9]||0, nebArr[o+10]||0, nebArr[o+7]||7], s*4); }  // this slab = that nebula's own seed/swirl/warp/density
+      if(nebShare){ par.set(nebVarieties[s], s*8); }
+      else { const o=s*12; const pv=NEB_PRESETS[nebArr[o+11]|0]||NEB_PRESETS[0];   // unique slab = this nebula's own seed/warp + its color's shape
+        par.set([nebArr[o+8]||1, pv.sw, nebArr[o+10]||0.5, nebArr[o+7]||7, pv.bf, pv.ba, pv.df, pv.da], s*8); }
     }
-    if(physicalSlots>slotParCap){ slotParCap=Math.max(8,physicalSlots*2); if(slotParBuf) slotParBuf.destroy();
+    if(physicalSlots*2>slotParCap){ slotParCap=Math.max(16,physicalSlots*4); if(slotParBuf) slotParBuf.destroy();
       slotParBuf=device.createBuffer({size:slotParCap*16, usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); }
     device.queue.writeBuffer(slotParBuf,0,par);
-    device.queue.writeBuffer(bakeUBuf,0,new Float32Array([RES,physicalSlots,0,0]));
+    device.queue.writeBuffer(bakeUBuf,0,new Float32Array([RES,physicalSlots,nebCover,0]));
     const enc=device.createCommandEncoder(); const cp=enc.beginComputePass();
     cp.setPipeline(bakePipe);
     cp.setBindGroup(0,device.createBindGroup({layout:bakePipe.getBindGroupLayout(0),entries:[
@@ -499,7 +512,7 @@ async function start(){
       const m=b.terrainMeta.get(id); if(!m) continue;
       _cN++;
       const x=b.terrainPos[i*3], z=b.terrainPos[i*3+1], y=m.y||0;
-      if(m.nebula){ _cNeb++; const c=m.color||[0.55,0.5,0.85]; const vv=(((Math.floor(m.seed||1))%NEB_K)+NEB_K)%NEB_K; nebArr.push(x,y,z, Math.max(200,m.radius||2000), c[0],c[1],c[2], m.density||7, m.seed||1, m.swirl||0, m.warp||0, vv); continue; }
+      if(m.nebula){ _cNeb++; const c=m.color||[0.55,0.5,0.85]; const vv=nebColorToPreset(c); nebArr.push(x,y,z, Math.max(200,m.radius||2000), c[0],c[1],c[2], m.density||7, m.seed||1, m.swirl||0, m.warp||0, vv); continue; }
       if(m.tick_type==="behav_selection"){ _cMark++; continue; }   // selection markers (nebula/map/galaxy-board glyphs) are 2D-only, not 3D meshes
       if(m.icon_index){ _cIcon++; continue; }   // icon_index 0 = blank glyph (a real 3D mesh object); only a truthy (>0) index is a 2D-only marker
       if(!m.art){ _cNoart++; continue; }
@@ -683,7 +696,7 @@ async function start(){
       p.setPipeline(ringPipe); p.setBindGroup(0,rb); p.setVertexBuffer(0,ringVb); p.draw(ringVerts,nr); }
     // volumetric nebulae (additive, depth-tested) — drawn BEFORE the combat FX so exhaust/beams/torpedoes stay ON TOP of the haze
     if(nebCount>0){
-      device.queue.writeBuffer(nebUBuf,0,new Float32Array([nebBaked?1:0, nebSteps, physicalSlots, nebCount, nebStepMode, NEB_STEP_FRAC, nebShare?1:0, 0]));
+      device.queue.writeBuffer(nebUBuf,0,new Float32Array([nebBaked?1:0, nebSteps, physicalSlots, nebCount, nebStepMode, NEB_STEP_FRAC, nebShare?1:0, nebCover]));
       const nb=device.createBindGroup({layout:nebPipe.getBindGroupLayout(0),entries:[
         {binding:0,resource:{buffer:ubuf}},{binding:4,resource:{buffer:nebBuf}},
         {binding:5,resource:densView},{binding:6,resource:densSampler},{binding:7,resource:{buffer:nebUBuf}}]});
@@ -747,9 +760,9 @@ async function start(){
       +`\nterrain rec ${terrainCensus.n}: ${terrainCensus.neb}neb ${terrainCensus.mark}mark ${terrainCensus.icon}icon ${terrainCensus.noart}noart · mesh[${terrainCensus.wanted.length}] ${terrainCensus.wanted.map(a=>{const r=artCache.get(a);return a+":"+(r?(r.status||"?")+(r.tCount?"/"+r.tCount:""):"none");}).slice(0,6).join(" ")||"(none)"}`
       +`\n${draws} draws${loading?` · ${loading} art loading…`:``}`
       +`\nSHARE ${nebShare?"ON ":"OFF"} · ${logicalSlots}→${physicalSlots} slab${physicalSlots<logicalSlots?" ⚠cap":""} · ${nebBaked?"BAKED":"live"} · ${nebStepMode?`~${Math.round(1.9/NEB_STEP_FRAC)}`:nebSteps} steps · ${canTS?nebGpuMs.toFixed(2)+"ms/3D":"gpu n/a"}`
-      +`\n data ${fmtB(shareB)} shared vs ${fmtB(uniqB)} unique = ${(uniqB/shareB).toFixed(1)}× less · N=${effN}${nebStress>1?` ×${nebStress}`:``}`
+      +`\n data ${fmtB(shareB)} shared vs ${fmtB(uniqB)} unique = ${(uniqB/shareB).toFixed(1)}× less · N=${effN}${nebStress>1?` ×${nebStress}`:``} · cover ${nebCover}`
       +`\n vram ${physicalSlots}×${nebBakedRES}³=${(physicalSlots*slabMB).toFixed(1)}MB vs unique N=${effN}→${(effN*slabMB).toFixed(0)}MB (r16f ½)`
-      +`\n'c'cam 'v'ship 'n'npc 'b'grid · neb: 's'share 'k'bake 'f'step 't'steps 'm'stress 'r'res · 'g'hide`;
+      +`\n'c'cam 'v'ship 'n'npc 'b'grid · neb: 's'share 'k'bake 'f'step 't'steps 'm'stress 'r'res 'x'cover · 'g'hide`;
   }
   function frame(){ try{ frameInner(); }catch(e){ wlog("frame error: "+(e&&e.message||e)); } requestAnimationFrame(frame); }   // one bad frame logs and retries, never black-screens
   requestAnimationFrame(frame);
