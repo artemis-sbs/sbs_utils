@@ -2641,27 +2641,24 @@ const _V3D_LOD_NEAR = 50000;
 // Target (from server) and smoothed display camera/look-at, lerped each frame.
 let _v3dCam = [0, 150, -500], _v3dTgt = [0, 0, 0];
 let _v3dDispCam = null, _v3dDispTgt = null;
-let _view3dStars = null, _view3dHighlight = null;
+let _view3dHighlight = null;
 // Manual orbit camera (debug look-around): drag = orbit, wheel = zoom,
 // double-click = back to the server-driven cinematic camera.
 let _v3dManual = false, _v3dYaw = 0, _v3dPitch = 0.3, _v3dDist = 1500;
 let _v3dDrag = false, _v3dDragX = 0, _v3dDragY = 0;
 
-// Procedural starfield backdrop: points on a large sphere, translated with the
-// camera each frame so they read as fixed at infinity (a cheap, asset-free
-// stand-in for the engine cube-cross skybox).
-function _makeStarfield() {
-  const N = 1500, R = 2_000_000;
-  const pos = new Float32Array(N * 3);
-  for (let i = 0; i < N; i++) {
-    const u = Math.random() * 2 - 1, t = Math.random() * Math.PI * 2;
-    const s = Math.sqrt(1 - u * u);
-    pos[i*3] = R * s * Math.cos(t); pos[i*3+1] = R * u; pos[i*3+2] = R * s * Math.sin(t);
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  return new THREE.Points(g, new THREE.PointsMaterial({ color: 0xcfe6ff, size: 2, sizeAttenuation: false }));
-}
+// Backdrop, in order of preference: the engine's own cube-cross skybox when the
+// mission sets one (below), otherwise this flat neutral fill.
+//
+// It used to fall back to a procedural starfield - 1500 points on a large sphere,
+// every one the same size and the same near-white. At a distance that reads as
+// static rather than as sky, and it was the highest-contrast thing on screen, so
+// dark hulls and terrain art disappeared into it. A backdrop the eye can ignore is
+// worth more here than a fake one it cannot, and the real skyboxes ship with the
+// game anyway - so use those, and a flat neutral when there is none.
+//
+// Deliberately lifted off black: a dark hull against pure black shows no silhouette.
+const _V3D_NO_SKY = 0x15171b;
 
 // ── Skybox (engine cube-cross PNG) ────────────────────────────────────────────
 // The engine ships a 4x3 cube cross (e.g. 8192x6144, six 2048 faces). Cross
@@ -2723,10 +2720,9 @@ function _buildSkybox(name) {
     if (_skyboxName !== name) return;   // a newer skybox arrived while loading
     _skyboxImg = img;
     _applySkyboxFaces();
-    if (_view3dStars) _view3dStars.visible = false;   // real sky replaces the procedural stars
     log(`[skybox] ${base}.png loaded — calibrate: , / . rotate faced wall, \\ flip`, 'dbg');
   };
-  img.onerror = () => log(`[skybox] failed: /${base}.png (keeping starfield)`, 'dbg');
+  img.onerror = () => log(`[skybox] failed: /${base}.png (neutral backdrop)`, 'dbg');
   img.src = '/' + base + '.png';
 }
 
@@ -2759,9 +2755,8 @@ function cmdSkybox(msg) {
   const name = msg.name || null;
   if (name === _skyboxName) return;
   _skyboxName = name;
-  if (!name) {   // cleared → restore the starfield
+  if (!name) {   // cleared → back to the flat neutral fill
     if (_skyboxMesh && _view3dScene) { _view3dScene.remove(_skyboxMesh); _skyboxMesh = null; }
-    if (_view3dStars) _view3dStars.visible = true;
     return;
   }
   _buildSkybox(name);
@@ -2863,7 +2858,7 @@ function _initView3d() {
   try {
     _view3dRenderer = new THREE.WebGLRenderer({ canvas: _view3dCanvas, antialias: true });
   } catch (e) { log(`[3dview] no WebGL: ${e}`, 'err'); return; }
-  _view3dRenderer.setClearColor(0x01030a, 1);
+  _view3dRenderer.setClearColor(_V3D_NO_SKY, 1);
   _view3dScene  = new THREE.Scene();
   _view3dCamera = new THREE.PerspectiveCamera(55, 1, 1, 5e7);
   _m4 = new THREE.Matrix4(); _qrot = new THREE.Quaternion(); _qTarget = new THREE.Quaternion();
@@ -2886,10 +2881,6 @@ function _initView3d() {
   _view3dScene.add(_view3dPoints);
   // Reference ground grid on the y=0 plane.
   _view3dScene.add(new THREE.GridHelper(400000, 80, 0x0f3a55, 0x08202e));
-
-  // Starfield backdrop (follows the camera each frame).
-  _view3dStars = _makeStarfield();
-  _view3dScene.add(_view3dStars);
 
   // Nebula particle cloud (one Points/draw call for all nebulae).
   _nebPosBuf   = new Float32Array(_NEB_MAX * 3);
@@ -3181,8 +3172,7 @@ function _renderView3d() {
   _view3dCamera.position.set(_v3dDispCam[0], _v3dDispCam[1], _v3dDispCam[2]);
   _view3dCamera.lookAt(_v3dDispTgt[0], _v3dDispTgt[1], _v3dDispTgt[2]);
 
-  // Keep the starfield / skybox centred on the camera so they read as at infinity.
-  if (_view3dStars)  _view3dStars.position.set(_v3dDispCam[0], _v3dDispCam[1], _v3dDispCam[2]);
+  // Keep the skybox centred on the camera so it reads as at infinity.
   if (_skyboxMesh)   _skyboxMesh.position.set(_v3dDispCam[0], _v3dDispCam[1], _v3dDispCam[2]);
 
   // Highlight the viewer's own ship with the flat ring.

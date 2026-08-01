@@ -82,17 +82,17 @@ async function start(){
     col=col+textureSample(emisTex,samp,in.uv).rgb*2.0;                      // emissive glow (unlit)
     return vec4f(pow(col, vec3f(1.0/2.2)), 1.0);
   }
-  // ---- procedural starfield background (drawn behind, camera-relative) ----
+  // ---- background (drawn behind, camera-relative) ----
+  // The engine's own cube-cross skybox when the mission set one; otherwise a flat
+  // neutral fill. This used to fall back to a procedural starfield - two hashed
+  // point layers, the dense one at 320 cells per unit direction - which at a
+  // distance read as static rather than as sky and was the brightest thing on
+  // screen, so dark hulls and terrain art vanished into it. The real skyboxes
+  // ship with the game, so use those; a backdrop the eye can ignore beats a fake
+  // one it cannot. Deliberately off pure black: a dark hull on black has no
+  // silhouette. Keep in step with client.html's _V3D_NO_SKY.
+  const NO_SKY = vec3f(0.0824, 0.0902, 0.1059);   // 0x15171b
   fn hash13(p3in:vec3f)->f32{ var p3=fract(p3in*0.1031); p3=p3+dot(p3,p3.zyx+31.32); return fract((p3.x+p3.y)*p3.z); }
-  fn skyd(rd:vec3f)->vec3f{
-    var col=vec3f(0.0);
-    let p=rd*320.0; let id=floor(p); let f=fract(p)-0.5; let h=hash13(id);
-    if(h>0.94){ col=col+vec3f(smoothstep(0.5,0.0,length(f))*(h-0.94)/0.06)*mix(vec3f(0.7,0.8,1.0),vec3f(1.0,0.9,0.75),hash13(id+7.0))*2.8; }
-    let p2=rd*90.0; let id2=floor(p2); let f2=fract(p2)-0.5; let h2=hash13(id2+3.0);
-    if(h2>0.985){ col=col+vec3f(smoothstep(0.5,0.0,length(f2)))*mix(vec3f(0.9,0.95,1.0),vec3f(1.0,0.85,0.7),hash13(id2))*3.2; }
-    let up=rd.y*0.5+0.5; let band=exp(-abs(rd.y)*3.0)*0.05;
-    col=col+mix(vec3f(0.02,0.024,0.04),vec3f(0.032,0.03,0.052),up)+vec3f(0.05,0.04,0.07)*band;
-    return col; }
   struct VO2 { @builtin(position) pos:vec4f, @location(0) uv:vec2f };
   @vertex fn vbg(@builtin(vertex_index) vi:u32)->VO2{ var q=array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3)); var o:VO2; o.pos=vec4f(q[vi],1.0,1.0); o.uv=q[vi]; return o; }
   @group(0) @binding(2) var skyTex: texture_2d<f32>;
@@ -111,7 +111,7 @@ async function start(){
   @fragment fn fbg(in:VO2)->@location(0) vec4f{ let th=u.camDir.w; let aspect=u.camRight.w;
     let dir=normalize(u.camDir.xyz + u.camRight.xyz*(in.uv.x*th*aspect) + u.camUp.xyz*(in.uv.y*th));
     if(u.camUp.w>0.5){ return vec4f(textureSampleLevel(skyTex,skySamp,skyboxUV(dir),0.0).rgb, 1.0); }
-    return vec4f(skyd(dir),1.0); }
+    return vec4f(NO_SKY,1.0); }
   // ---- volumetric nebulae (procedural, additive; per-instance density/seed/swirl/warp) ----
   fn permute4n(x:vec4f)->vec4f{ return ((x*34.0+1.0)*x)%vec4f(289.0); }
   fn tinv4n(r:vec4f)->vec4f{ return 1.79284291400159-0.85373472095314*r; }
@@ -607,7 +607,7 @@ async function start(){
   const flatNormalTex=device.createTexture({size:[1,1],format:"rgba8unorm",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
   device.queue.writeTexture({texture:flatNormalTex},new Uint8Array([128,128,255,255]),{bytesPerRow:4},[1,1]);   // normal fallback = flat (0,0,1)
 
-  // real engine cube-cross skybox, loaded by name (falls back to procedural stars until ready)
+  // real engine cube-cross skybox, loaded by name (flat neutral until ready / when none)
   let skyTex=device.createTexture({size:[1,1],format:"rgba8unorm",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
   device.queue.writeTexture({texture:skyTex},new Uint8Array([6,9,20,255]),{bytesPerRow:4},[1,1]);
   let skyView=skyTex.createView(), skyReady=false, lastSky=null;
@@ -908,7 +908,7 @@ async function start(){
     const p=enc.beginRenderPass({colorAttachments:[{view:curView,clearValue:{r:0.02,g:0.03,b:0.05,a:1},loadOp:"clear",storeOp:"store"}],
       depthStencilAttachment:{view:depthView,depthClearValue:1.0,depthLoadOp:"clear",depthStoreOp:"store"}, timestampWrites:tsw});
     const bindBg=device.createBindGroup({layout:bgPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:2,resource:skyView},{binding:3,resource:skySamp}]});
-    p.setPipeline(bgPipe); p.setBindGroup(0,bindBg); p.draw(3);   // real skybox if loaded, else procedural starfield
+    p.setPipeline(bgPipe); p.setBindGroup(0,bindBg); p.draw(3);   // real skybox if loaded, else flat neutral
     p.setPipeline(pipe);
     let draws=0, drawn=0, arts=0, loading=0;
     for(const [art,rec] of artCache){
