@@ -28,9 +28,9 @@ from sbs_utils.procedural.gui import blank as BLANK
 from sbs_utils.procedural.gui import row as ROW
 from sbs_utils.procedural.gui import section as SECTION
 from sbs_utils.procedural.gui.overlay import (
-    overlay_lower_third_portrait, _lower_third_portrait_builder, PORTRAIT_COL,
-    OVERLAY_KINDS, _KIND_DEFAULT_SLOT, _KIND_PRIMARY_FIELD, _CYCLE_KINDS,
-    _KIND_TEXT_WIDTH)
+    overlay_lower_third_portrait, _lower_third_portrait_builder, PORTRAIT_EM,
+    PORTRAIT_GUTTER_EM, _portrait_text_frac, OVERLAY_KINDS, _KIND_DEFAULT_SLOT,
+    _KIND_PRIMARY_FIELD, _CYCLE_KINDS, _KIND_TEXT_WIDTH)
 
 
 class _FakeMain:
@@ -85,7 +85,8 @@ class PortraitBuilderBase(unittest.TestCase):
         patch(ROW, "gui_row", lambda style=None: t.append(("row", style)))
         patch(TEXT, "gui_text", lambda s, *a, **k: t.append(("text", s)))
         patch(FACE, "gui_face", lambda f, *a, **k: t.append(("face", f)))
-        patch(BLANK, "gui_blank", lambda *a, **k: t.append(("blank", None)))
+        patch(BLANK, "gui_blank",
+              lambda count=1, style=None: t.append(("blank", style)))
 
         def _sub(style=None):
             t.append(("sub_section", style))
@@ -151,22 +152,52 @@ class TestPortraitSide(PortraitBuilderBase):
 
 
 class TestPortraitColumns(PortraitBuilderBase):
-    def test_columns_split_the_strip(self):
+    """A face is a SQUARE column - it sizes itself from the row height. Giving it
+    a col-width is not a tuning choice but a bug: a bare number is an ABSOLUTE
+    percent of the region, so two of them oversubscribe a strip that is not full
+    width, and the engine does not clip - the text draws outside its box and over
+    whatever is beside it. That is exactly what an explicit 22/78 split did."""
+
+    def test_the_face_is_given_no_width(self):
         self.build(face="F1")
-        widths = [v for (k, v) in self.trace if k == "sub_section"]
-        self.assertEqual(len(widths), 2, "a face column and a text column")
-        # WEIGHTS, not percents - the layout lexer has no '%' token, so a style
-        # carrying one raises instead of laying out.
-        self.assertIn(f"col-width: {PORTRAIT_COL};", widths[0])
-        self.assertIn(f"col-width: {100.0 - PORTRAIT_COL};", widths[1])
-        self.assertNotIn("%", " ".join(widths))
+        faces = [v for (k, v) in self.trace if k == "face"]
+        self.assertEqual(faces, ["F1"], "gui_face called with no style/width")
+
+    def test_the_text_column_is_flex(self):
+        self.build(face="F1")
+        subs = [v for (k, v) in self.trace if k == "sub_section"]
+        self.assertEqual(len(subs), 1, "only the text is a sub-section now")
+        self.assertIsNone(subs[0], "no col-width: flex takes what is left")
+
+    def test_a_thin_gutter_separates_face_from_text(self):
+        self.build(face="F1")
+        blanks = [v for (k, v) in self.trace if k == "blank"]
+        self.assertEqual(len(blanks), 1, "one separator column")
+        self.assertIn(f"col-width: {PORTRAIT_GUTTER_EM}em", blanks[0])
+
+    def test_the_gutter_sits_between_them_on_both_sides(self):
+        # The text column emits a name row AND a line row, so assert the gutter
+        # separates the two COLUMNS rather than counting emissions.
+        for align in ("left", "right"):
+            self.trace.clear()
+            self.build(face="F1", align=align)
+            kinds = self.kinds()
+            gutter = kinds.index("blank")
+            faces = [i for i, k in enumerate(kinds) if k == "face"]
+            texts = [i for i, k in enumerate(kinds) if k == "text"]
+            if align == "left":
+                self.assertTrue(all(i < gutter for i in faces), align)
+                self.assertTrue(all(i > gutter for i in texts), align)
+            else:
+                self.assertTrue(all(i > gutter for i in faces), align)
+                self.assertTrue(all(i < gutter for i in texts), align)
 
     def test_missing_face_still_reserves_the_column(self):
         # Otherwise a run of beats jumps sideways whenever a speaker has no face.
         self.build(face=None)
-        widths = [v for (k, v) in self.trace if k == "sub_section"]
-        self.assertEqual(len(widths), 2)
-        self.assertIn("blank", self.kinds())
+        blanks = [v for (k, v) in self.trace if k == "blank"]
+        self.assertEqual(len(blanks), 2, "placeholder + gutter")
+        self.assertIn(f"col-width: {PORTRAIT_EM}em", blanks[0])
         self.assertNotIn("face", self.kinds())
 
     def test_no_name_drops_the_plate_row_only(self):
@@ -178,8 +209,19 @@ class TestPortraitColumns(PortraitBuilderBase):
         # A '%' anywhere in a row/col style is an exception at render time, and
         # only an integration run catches it - so pin it here.
         self.build(face="F1")
-        styles = [v for (k, v) in self.trace if k in ("row", "sub_section") and v]
-        self.assertFalse([s for s in styles if "%" in s], styles)
+        styles = [v for (k, v) in self.trace
+                  if k in ("row", "sub_section", "blank") and v]
+        self.assertFalse([st for st in styles if "%" in st], styles)
+
+    def test_no_bare_number_widths(self):
+        # A bare col-width number is an ABSOLUTE percent of the region, not a
+        # weight - which is how the first cut drew outside its box.
+        self.build(face="F1")
+        widths = [v for (k, v) in self.trace
+                  if k in ("sub_section", "blank") and v and "col-width" in v]
+        for w in widths:
+            self.assertTrue("em" in w or "px" in w or "content" in w,
+                            f"{w} is an absolute region percent")
 
     def test_background_fills_the_strip_and_can_be_turned_off(self):
         self.build(face="F1")
@@ -202,9 +244,9 @@ class TestPortraitRegistration(unittest.TestCase):
         self.assertEqual(_KIND_PRIMARY_FIELD["lower_third_portrait"], "line")
         self.assertEqual(_CYCLE_KINDS["lower_third_portrait"], ("line", "gui-3"))
 
-    def test_text_width_excludes_the_portrait(self):
-        self.assertAlmostEqual(_KIND_TEXT_WIDTH["lower_third_portrait"],
-                               (100.0 - PORTRAIT_COL) / 100.0)
+    def test_text_width_is_measured_per_client_not_fixed(self):
+        # The face is square, so its bite depends on the screen's aspect ratio.
+        self.assertTrue(callable(_KIND_TEXT_WIDTH["lower_third_portrait"]))
 
 
 class TestPortraitCycling(unittest.TestCase):
@@ -241,7 +283,32 @@ class TestPortraitCycling(unittest.TestCase):
     def test_line_is_measured_against_the_remaining_width(self):
         overlay_lower_third_portrait("Harkin", "Hold position.", face="F1")
         self.assertTrue(self.fracs)
-        self.assertAlmostEqual(self.fracs[0], (100.0 - PORTRAIT_COL) / 100.0)
+        self.assertLess(self.fracs[0], 1.0, "the portrait takes a bite")
+        self.assertGreater(self.fracs[0], 0.3)
+
+    def test_the_bite_tracks_the_slot_geometry(self):
+        # A taller slot holds a bigger square, so less is left for the line.
+        import sbs_utils.procedural.gui.overlay as O
+        w, h = [1920.0], [200.0]
+        rw, rh = O._slot_px_width, O._slot_px_height
+        O._slot_px_width = lambda cid, slot, pad=0.96: w[0]
+        O._slot_px_height = lambda cid, slot: h[0]
+        try:
+            narrow = _portrait_text_frac(0, "lower_third")
+            h[0] = 600.0
+            wide = _portrait_text_frac(0, "lower_third")
+        finally:
+            O._slot_px_width, O._slot_px_height = rw, rh
+        self.assertGreater(narrow, wide)
+
+    def test_unmeasurable_screen_still_leaves_room_for_the_face(self):
+        import sbs_utils.procedural.gui.overlay as O
+        rw = O._slot_px_width
+        O._slot_px_width = lambda cid, slot, pad=0.96: None
+        try:
+            self.assertLess(_portrait_text_frac(0, "lower_third"), 1.0)
+        finally:
+            O._slot_px_width = rw
 
     def test_plain_lower_third_still_measures_the_whole_strip(self):
         from sbs_utils.procedural.gui.overlay import overlay_lower_third

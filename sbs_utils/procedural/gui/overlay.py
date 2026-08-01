@@ -758,6 +758,18 @@ def _slot_px_width(client_id, slot, pad=0.96):
     return ((right - left) / 100.0) * ar.x * pad
 
 
+def _slot_px_height(client_id, slot):
+    """Pixel height of a slot on this client's screen - the ceiling on how wide
+    a SQUARE widget inside it can be."""
+    from ...gui import get_client_aspect_ratio
+    spec = OVERLAY_SLOTS.get(slot, DEFAULT_SLOT)
+    _l, top, _r, bottom = spec["rect"]
+    ar = get_client_aspect_ratio(client_id)
+    if ar is None or not getattr(ar, "y", 0):
+        return None
+    return ((bottom - top) / 100.0) * ar.y
+
+
 def _split_to_fit(client_id, slot, text, font, width_frac=1.0):
     """Segments of ``text`` that each fit the slot, or ``[text]`` when it already
     fits (or cannot be measured).
@@ -838,12 +850,18 @@ def _show_maybe_cycled(slot, kind, to, consoles, seconds, fields, field, font,
     The split is PER CLIENT, because "does it fit" depends on that screen's width.
     """
     text = fields.get(field, "")
-    if width_frac is None:
-        width_frac = _KIND_TEXT_WIDTH.get(kind, 1.0)
     pages = _pages_for(to, consoles)
     cycled_any = False
     for page in pages:
-        segments = (_split_to_fit(page.client_id, slot, text, font, width_frac)
+        # PER CLIENT too: a kind whose share depends on a square widget depends
+        # on that screen's aspect ratio, so the fraction is resolved here rather
+        # than once for everybody.
+        frac = width_frac
+        if frac is None:
+            frac = _KIND_TEXT_WIDTH.get(kind, 1.0)
+            if callable(frac):
+                frac = frac(page.client_id, slot)
+        segments = (_split_to_fit(page.client_id, slot, text, font, frac)
                     if cycle else [text])
         if len(segments) <= 1:
             data = dict(fields)
@@ -945,11 +963,15 @@ def overlay_lower_third(name, line, slot="lower_third", to=None, consoles=None,
 # not two portraits on screen at once. One face keeps the width for the line,
 # and it still reads for a monologue or a three-hander, which a fixed two-face
 # layout does not.
-# Column WEIGHTS, not percents: the layout lexer has no '%' token at all, so a
-# style of "col-width: 22%" raises rather than laying out. 22 against 78 is the
-# same split, expressed the way the parser reads it.
-PORTRAIT_COL = 22.0     # the face column's share of the strip
-PORTRAIT_EM = 6.0       # strip height - a portrait needs more than a name plate
+# A face is a SQUARE column (Face.square = True): it takes its size from the row
+# HEIGHT and must be given no col-width at all. Assigning one is not a tuning
+# choice, it is a bug - a bare `col-width: 22` is an absolute percent of the
+# region, so 22 + 78 oversubscribes a strip that is not the full width, and the
+# engine DOES NOT CLIP: the text is drawn outside the box and over its
+# neighbours. This is the pattern LM's bar templates already use - face, then
+# text, no widths.
+PORTRAIT_EM = 6.0            # strip height - the square face sizes itself from it
+PORTRAIT_GUTTER_EM = 0.6     # thin separator column between the face and the text
 
 
 def _lower_third_portrait_builder(client_id, content):
@@ -970,15 +992,20 @@ def _lower_third_portrait_builder(client_id, content):
     just = "right" if right else "left"
 
     def _face_col():
-        with gui_sub_section(f"col-width: {PORTRAIT_COL};"):
-            gui_row(f"row-height: {PORTRAIT_EM}em;")
-            if face:
-                gui_face(face)
-            else:
-                gui_blank()
+        if face:
+            gui_face(face)          # square: sized from the row height, no width
+        else:
+            # Hold the same bite of the strip so a run of beats does not slide
+            # sideways when a speaker has no portrait. A square in this row is
+            # about as wide as the row is tall, so ask for that.
+            gui_blank(style=f"col-width: {PORTRAIT_EM}em;")
+
+    def _gutter():
+        gui_blank(style=f"col-width: {PORTRAIT_GUTTER_EM}em;")
 
     def _text_col():
-        with gui_sub_section(f"col-width: {100.0 - PORTRAIT_COL};"):
+        # No col-width: flex takes exactly what the face and gutter leave.
+        with gui_sub_section():
             if name:
                 gui_row("row-height: content;")
                 gui_text(f"$text:`{name}`;justify:{just};font:gui-4;color:{color}")
@@ -989,14 +1016,35 @@ def _lower_third_portrait_builder(client_id, content):
     # The text hangs off the portrait, so the columns swap with the face.
     if right:
         _text_col()
+        _gutter()
         _face_col()
     else:
         _face_col()
+        _gutter()
         _text_col()
 
 
 overlay_register("lower_third_portrait", _lower_third_portrait_builder)
-_KIND_TEXT_WIDTH["lower_third_portrait"] = (100.0 - PORTRAIT_COL) / 100.0
+
+
+def _portrait_text_frac(client_id, slot):
+    """Share of the strip left for the line once the square face has taken its
+    bite.
+
+    Not a constant: a square is sized from the row HEIGHT, so how much of the
+    strip a portrait eats depends on the client's aspect ratio. Measuring the
+    line against the full strip is how it ends up drawn across the portrait -
+    the engine does not clip. The slot's height is the square's ceiling, so it
+    is the safe estimate; erring wide only splits the line a beat early.
+    """
+    w = _slot_px_width(client_id, slot)
+    h = _slot_px_height(client_id, slot)
+    if not w or not h:
+        return 0.75
+    return max(0.3, (w - h) / w - PORTRAIT_GUTTER_EM / 40.0)
+
+
+_KIND_TEXT_WIDTH["lower_third_portrait"] = _portrait_text_frac
 
 
 def overlay_lower_third_portrait(name, line, face=None, align="left",
