@@ -79,6 +79,20 @@ def reset_mission_state():
     Gui.web_client_ids.clear()  # drop web-page sessions from the old mission
     from .procedural.web import web_living_clear
     web_living_clear()  # drop living/persistent web-page registrations
+    # Per-client pages LAST. A page holds a live gui_task whose label_stack and
+    # active_label point at Label OBJECTS from the OLD compile. Agent.clear()
+    # above drops the agents but not Gui.clients, so without this a surviving
+    # page keeps ticking into a stale label after the recompile and dies with
+    # `Jump to label "__route__gui/normal_sci__86__" command 23 not found` - the
+    # command index is valid for the label it was compiled against, not the one
+    # still being ticked. The caller re-fires client_connect, which rebuilds each
+    # page against the fresh story.
+    #
+    # NOTE deliberately NOT resetting DecoratorLabel's id counter: distinct ids
+    # across compiles are what make a stale reference fail LOUDLY. Reuse the ids
+    # and a stale reference silently resolves to a DIFFERENT label of the same
+    # name, which is far worse to debug than this error.
+    Gui.clients.clear()
 
 
 #	client_id"

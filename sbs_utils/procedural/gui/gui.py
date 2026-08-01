@@ -46,20 +46,65 @@ from ...agent import Agent
 import re
 
 
+# z value the engine/library uses to mean "this client has not reported its
+# screen size yet" - the x/y alongside it are a 1024x768 PLACEHOLDER, not a
+# measurement. See get_client_aspect_ratio().
+GUI_SCREEN_SIZE_UNKNOWN_Z = 99
+
+
 def gui_screen_size(client_id):
     """Return the pixel dimensions of a client's screen.
+
+    CAUTION: when the client has not reported its size yet, this returns a
+    1024x768 PLACEHOLDER with ``z == 99`` rather than a real measurement, and a
+    client that reconnects goes back to the placeholder until its next resize
+    event. Branching on the width without checking validity silently builds the
+    small-screen layout on a large display:
+
+        ss = gui_screen_size(client_id)
+        if ss.x < 1600:          # WRONG - 1024 placeholder also lands here
+            ...
+
+    Use ``gui_screen_size_known`` to tell "small" from "unknown".
 
     Args:
         client_id (int): The client whose screen to query.
 
     Returns:
-        Vec3: Screen dimensions in pixels (x=width, y=height, z=0).
+        Vec3: Screen dimensions in pixels (x=width, y=height); z is
+        ``GUI_SCREEN_SIZE_UNKNOWN_Z`` (99) when the size is not yet known.
 
     Example:
         size = gui_screen_size(CLIENT_ID)
         ~~ print(size.x, size.y) ~~
     """
     return get_client_aspect_ratio(client_id)
+
+
+def gui_screen_size_known(client_id):
+    """True when the client has actually reported its screen size.
+
+    Pair with ``gui_screen_size`` before branching on the dimensions, so an
+    unknown size can be handled deliberately (usually: assume the LARGER layout,
+    which degrades better than cramming a wide screen into the narrow one).
+
+    Args:
+        client_id (int): The client whose screen to query.
+
+    Returns:
+        bool: False while the size is still the 1024x768 placeholder.
+
+    Example:
+        ss = gui_screen_size(client_id)
+        if not gui_screen_size_known(client_id) or ss.x >= 1600:
+            gui_row("row-height: 35px;col-width:45px;")
+        else:
+            gui_row("row-height: 35px;col-width:25px;")
+    """
+    size = get_client_aspect_ratio(client_id)
+    if size is None:
+        return False
+    return getattr(size, "z", GUI_SCREEN_SIZE_UNKNOWN_Z) != GUI_SCREEN_SIZE_UNKNOWN_Z
 
 
 class ChoiceButtonRuntimeNode:
