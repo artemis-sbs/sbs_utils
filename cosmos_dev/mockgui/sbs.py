@@ -1264,6 +1264,30 @@ def _push_fx() -> None:
     if s is None or gui_queue is None:
         return
     space = s.space_objects
+    # Cull to what SOME client could actually render. _push_radar culls objects to
+    # CULL_RADIUS per ship, but this channel is a single broadcast (clientID 0) and had no
+    # distance test at all - so a browser was streamed beams and torpedoes from 47km away,
+    # fired by ships that were never in its object stream. A beam like that is undrawable by
+    # construction (the renderer needs the firer's meta, which the cull already withheld -
+    # that was the `nometa` count), and a 120u warhead at that range is a fraction of a pixel.
+    # Tested against EVERY client ship rather than per-client, so nothing one console can see
+    # is dropped because another console is elsewhere.
+    eyes = []
+    for cid, ship_id in s.client_ships.items():
+        o = space.get(s.client_alt_ships.get(cid, ship_id)) or space.get(ship_id)
+        if o is not None:
+            eyes.append((o._pos.x, o._pos.z))
+
+    def _near_any_client(px: float, pz: float) -> bool:
+        if not eyes:
+            return True            # no assigned ships (GM / lobby) -> no basis to cull
+        r2 = CULL_RADIUS * CULL_RADIUS
+        for ex, ez in eyes:
+            dx, dz = px - ex, pz - ez
+            if dx * dx + dz * dz <= r2:
+                return True
+        return False
+
     beams = []
     for entry in getattr(_base_mock, "_beam_fires", ()):
         fid, tid = entry[0], entry[1]
@@ -1271,6 +1295,10 @@ def _push_fx() -> None:
         f = space.get(fid)
         t = space.get(tid)
         if f is not None and t is not None:
+            # EITHER end near a client keeps it: a beam fired at you from just past the cull
+            # is still drawn (its target is you), and the far end is only a line endpoint.
+            if not (_near_any_client(f._pos.x, f._pos.z) or _near_any_client(t._pos.x, t._pos.z)):
+                continue
             beams.append([round(f._pos.x, 1), round(f._pos.z, 1),
                           round(t._pos.x, 1), round(t._pos.z, 1), round(inten, 2), str(fid), str(tid)])
     projectiles = []
@@ -1278,6 +1306,8 @@ def _push_fx() -> None:
         if p.get("kind") == "mine":
             continue   # a deployed mine is a real space object now (renders as the mine mesh), not an fx dot
         pos = p["pos"]
+        if not _near_any_client(pos.x, pos.z):
+            continue
         d = p.get("dir") or (0.0, 0.0, 0.0)   # travel heading -> 3dview draws an oriented missile + exhaust
         # y/dy are APPENDED (indices 5,6) so the existing [x, z, kind, dx, dz] prefix stays
         # valid for the 2D radar, which is top-down and ignores altitude. The 3D view needs

@@ -31,7 +31,7 @@ async function start(){
     if(e.key==="v"){ focusNpc=false; shipSel++; }        // cycle which PLAYER ship the chase follows
     if(e.key==="n"){ focusNpc=true; npcSel++; }          // cycle NON-player ships (find a far / cloaked NPC)
     if(e.key==="B"){ beamCensus={in:0,nometa:0,noports:0,arccull:0,drawn:0,peak:0};
-                     projCensus={in:0,missile:0,drone:0,other:0,peak:0,now:0,ynone:false}; }   // zero the censuses for a fresh measurement
+                     projCensus={launches:0,peak:0,now:0,prev:0,frames:0,ynone:false}; }   // zero the censuses for a fresh measurement
     if(e.key==="b"){ showGrid=!showGrid; }               // toggle the reference grid
     if(e.key==="k"){ nebBaked=!nebBaked; }               // nebula: baked (sample resident 3D pool) vs live (recompute noise)
     if(e.key==="t"){ nebSteps=({24:48,48:96,96:24})[nebSteps]||48; }  // raymarch steps knob
@@ -309,8 +309,13 @@ async function start(){
     var world:vec3f; var mis:f32;
     if(dl>0.01 && pr.w<0.5){                        // warhead with a heading -> oriented missile (drones stay round)
       let axis=dir2/dl; let wside=normalize(cross(axis,toCam));
-      let prof=min(smoothstep(1.0,0.5,al), smoothstep(-1.0,-0.2,al));   // pointed nose + tapered exhaust
-      world=pos + axis*(al*60.0) + wside*(ac*16.0*prof); mis=1.0;
+      // Constant half-width. The taper lives in fproj (wac = 1-|uv.y| shapes the body, and
+      // the plume fades with smoothstep on uv.x) - doing it here as well collapsed the quad:
+      // its vertices only exist at al=+-1, and the old profile term evaluated to 0 at BOTH
+      // ends, so every corner had zero width, the triangles degenerated to a line and nothing
+      // rasterised. Torpedoes were invisible while drones (which take the round-bloom branch
+      // below) drew fine - the reported "green orbs but never an orange one".
+      world=pos + axis*(al*60.0) + wside*(ac*16.0); mis=1.0;
     } else {
       world=pos + u.camRight.xyz*(al*55.0) + u.camUp.xyz*(ac*55.0); mis=0.0;   // round bloom (drone / no heading)
     }
@@ -442,7 +447,7 @@ async function start(){
   // as [x, z, kind, dirx, dirz] with NO Y, so everything here is drawn on the y=0 plane.
   // An in-flight mine is still kind "missile" (it only becomes "mine" once deployed, and a
   // deployed mine is skipped by _push_fx because it is a real space object by then).
-  let projCensus={in:0,missile:0,drone:0,other:0,peak:0,now:0,ynone:false};
+  let projCensus={launches:0,peak:0,now:0,prev:0,frames:0,ynone:false};
 
   // fallback gray texture (art without a diffuse map)
   const grayTex=device.createTexture({size:[1,1],format:"rgba8unorm-srgb",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
@@ -781,9 +786,18 @@ async function start(){
     const prj=b2&&b2.projectiles?b2.projectiles:null, npr=prj?Math.min(prj.length,1024):0;
     projCensus.now=npr;
     if(npr>projCensus.peak) projCensus.peak=npr;
-    if(prj) for(const pp of prj){ projCensus.in++;
-      if(pp[5]==null) projCensus.ynone=true;   // server predates the streamed altitude -> y=0 plane
-      const k=pp[2]; if(k==='drone') projCensus.drone++; else if(k==='missile') projCensus.missile++; else projCensus.other++; }
+    // Count LAUNCHES, not frame-samples: a torpedo alive 3s at 60fps would otherwise add ~180
+    // to the total on its own, which makes the number unreadable. Rises in the in-flight count
+    // are new launches (the stream carries no projectile id, so this is the honest approximation).
+    if(npr>projCensus.prev) projCensus.launches+=(npr-projCensus.prev);
+    projCensus.prev=npr;
+    if(npr>0) projCensus.frames++;
+    if(prj) for(const pp of prj){ if(pp[5]==null) projCensus.ynone=true; }
+    if(prj && prj.length){ const q=prj[0], qy=(q[5]==null?0:q[5]);
+      const _e=smEye||EYE||[0,0,0];   // the eye actually used for this frame's view matrix
+      const ex=_e[0]-q[0], ey=_e[1]-qy, ez=_e[2]-q[1];
+      projCensus.p0=`proj[0] ${q[2]} at ${q[0]|0},${qy|0},${q[1]|0} · ${Math.hypot(ex,ey,ez)|0}u from cam`;
+    } else projCensus.p0="proj pos: (none in flight)";
     if(npr>0){ if(npr>projCap){ projCap=Math.max(32,npr*2); if(projBuf) projBuf.destroy(); projBuf=device.createBuffer({size:projCap*32,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); }
       // pp = [x, z, kind, dx, dz, y, dy]; y/dy are appended so older servers (5-element
       // records) still work -- they fall back to the y=0 plane rather than drawing nothing.
@@ -808,7 +822,11 @@ async function start(){
       // terrain + beam censuses still tracked (terrainCensus / beamCensus) -- re-add their
       // lines here when hunting those; kept off-screen so the HUD stays readable.
       +`\n${draws} draws${loading?` · ${loading} art loading…`:``}`
-      +`\nproj ${projCensus.now} now (peak ${projCensus.peak}) · total ${projCensus.in}: ${projCensus.missile}missile ${projCensus.drone}drone${projCensus.other?` ${projCensus.other}other`:``} · y ${projCensus.ynone?"MISSING":"streamed"}  ['B'=zero]`
+      +`\nproj ${projCensus.now} in flight (peak ${projCensus.peak}) · ~${projCensus.launches} launched · y ${projCensus.ynone?"MISSING":"streamed"}  ['B'=zero]`
+      // Where the first in-flight projectile actually IS, relative to the camera. If they are
+      // streaming but unseen, this says whether they are off-screen / behind / miles away
+      // rather than leaving it to guesswork.
+      +`\n${projCensus.p0||"proj pos: -"}`
       +`\nfailed art[${artFailed.length}] ${artFailed.slice(0,4).map(a=>a===""?"(empty)":a).join(" ")||"(none)"}`
       +`\nSHARE ${nebShare?"ON ":"OFF"} · ${logicalSlots}→${physicalSlots} slab${physicalSlots<logicalSlots?" ⚠cap":""} · ${nebBaked?"BAKED":"live"} · ${nebStepMode?`~${Math.round(1.9/NEB_STEP_FRAC)}`:nebSteps} steps · ${canTS?nebGpuMs.toFixed(2)+"ms/3D":"gpu n/a"}`
       +`\n data ${fmtB(shareB)} shared vs ${fmtB(uniqB)} unique = ${(uniqB/shareB).toFixed(1)}× less · N=${effN}${nebStress>1?` ×${nebStress}`:``} · cover ${nebCover}`

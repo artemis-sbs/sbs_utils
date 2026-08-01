@@ -611,5 +611,61 @@ class TestMockguiFullRecordAfterReset(unittest.TestCase):
                          "an object the browser just wiped must never arrive as a delta only")
 
 
+class TestMockguiFxCulling(unittest.TestCase):
+    """_push_fx is a single broadcast and had no distance test, while _push_radar culls
+    objects to CULL_RADIUS per ship. So a browser was streamed beams and torpedoes from
+    tens of km away, fired by ships it had never been sent - the beams were undrawable by
+    construction (no meta for the firer) and the projectiles were sub-pixel."""
+
+    def setUp(self):
+        mockgui.gui_queue = _queue.Queue()
+        mockgui.create_new_sim()
+        mockgui.gui_queue = _queue.Queue()
+        mockgui._last_per_ship.clear()
+        self.sim = mockgui.sim
+        self.me = self.sim.create_space_object("behav_playership", "tsn_battle_cruiser", 0x20)
+        self.sim.space_objects[self.me]._pos = mockgui.vec3(0, 0, 0)
+        self.sim.client_ships[1] = self.me
+
+    def _fx(self):
+        mockgui._push_fx()
+        out = {"beams": [], "projectiles": []}
+        while not mockgui.gui_queue.empty():
+            m = mockgui.gui_queue.get_nowait()
+            if m.get("cmd") == "fx":
+                out = m
+        return out
+
+    def _npc(self, z):
+        oid = self.sim.create_space_object("behav_npcship", "torgoth_destroyer", 0x10)
+        self.sim.space_objects[oid]._pos = mockgui.vec3(0, 0, float(z))
+        return oid
+
+    def test_distant_projectiles_are_not_streamed(self):
+        near, far = self._npc(5000), self._npc(47000)
+        _base_mock._projectiles.clear()
+        _base_mock.launch_missile(near, self.me, "Homing")
+        _base_mock.launch_missile(far, far, "Homing")
+        self.assertEqual(len(_base_mock._projectiles), 2)
+        self.assertEqual(len(self._fx().get("projectiles") or []), 1,
+                         "only the projectile near a client ship should be streamed")
+
+    def test_beam_fired_at_you_from_beyond_the_cull_is_kept(self):
+        """Either endpoint near a client keeps the record - a beam shot AT you from just
+        past the cull is still drawn, since its target end is right on top of you."""
+        shooter = self._npc(int(mockgui.CULL_RADIUS) + 5000)
+        _base_mock._beam_fires.clear()
+        _base_mock._beam_fires.append((shooter, self.me, 1.0))
+        self.assertEqual(len(self._fx().get("beams") or []), 1)
+
+    def test_beam_between_two_distant_ships_is_dropped(self):
+        a = self._npc(int(mockgui.CULL_RADIUS) + 5000)
+        b = self._npc(int(mockgui.CULL_RADIUS) + 6000)
+        _base_mock._beam_fires.clear()
+        _base_mock._beam_fires.append((a, b, 1.0))
+        self.assertEqual(len(self._fx().get("beams") or []), 0,
+                         "a beam neither end of which is near a client cannot be drawn")
+
+
 if __name__ == "__main__":
     unittest.main()
