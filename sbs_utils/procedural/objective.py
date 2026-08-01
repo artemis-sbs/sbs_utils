@@ -43,6 +43,40 @@ def objective_schedule():
         __brain_tick_task = TickDispatcher.do_interval(_brains_tick, 0)
         __objectives_slice_task = TickDispatcher.do_interval(_objectives_tick, 0)
 
+
+def objective_reset():
+    """Forget the scheduled tick tasks so the next mission re-registers them.
+
+    These three module globals are "already scheduled" latches. A mission restart
+    calls TickDispatcher.clear(), which throws the tasks away - but the latches
+    stayed set, so objective_schedule() decided there was nothing to do and NOTHING
+    EVER DROVE BRAINS OR OBJECTIVES AGAIN. NPCs still spawn and still get brains
+    attached; they simply never think, never move, and never report an error.
+
+    The engine forks a fresh process per mission and so never hits this. The dev
+    runner reuses the interpreter, so there it means every mission after the first
+    plays with dead AI - which is how it turned up: a --runs soak showed `moving`
+    dropping 41 -> 6 while `npcs` and `brains` stayed put.
+    """
+    global __objective_tick_task, __brain_tick_task, __objectives_slice_task
+    __objective_tick_task = None
+    __brain_tick_task = None
+    __objectives_slice_task = None
+
+
+def objective_ticks_stale() -> bool:
+    """True if we think the tick tasks are scheduled but the dispatcher has lost them.
+
+    Exactly the state above: latched but not running. Registered with the reset
+    ledger so a restart soak names it instead of leaving an AI-less mission.
+    """
+    if __objective_tick_task is None:
+        return False
+    # A freshly scheduled task waits in _new_this_tick until the next dispatch, so
+    # both sets count as "the dispatcher still has it".
+    return (__objective_tick_task not in TickDispatcher._dispatch_tick
+            and __objective_tick_task not in TickDispatcher._new_this_tick)
+
 from .brain import brains_run_all
 from .extra_scan_sources import extra_scan_sources_run_all
 import time

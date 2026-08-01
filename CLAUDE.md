@@ -186,6 +186,59 @@ python -m cosmos_dev.mission_runner <mission_path> --test 30 --map 0     # headl
 - `--test <seconds>` — headless conformance run: play ~N sim-seconds, print MAST coverage + a pass/fail verdict, exit 0/1 (`--junit <path>` also writes JUnit XML)
 - `--exercise` — with `--test`, actively drive selections/comms/console-cycling each tick to push route coverage (vs the mission's own autoplay)
 - `--use-working-tree` — run the working-tree `sbs_utils` instead of the packaged `.sbslib` (smoke-test local library edits; see the smoke-run memory)
+- `--runs <N>` — restart soak (with `--test`): play the mission N times back to back through the in-process reload, fingerprint each run, diff them
+- `--fresh-process` — with `--runs`, give each run a NEW interpreter (engine semantics). **The discriminator** for mock-only bugs
+- `--fingerprint-json <path>` — write each run's fingerprint as JSON
+
+### Second-run bugs (the reused-interpreter trap)
+
+Cosmos **forks a fresh Python process per mission**; `cosmos_dev` **reuses one
+interpreter** across `run_next_mission`. So any module-level container or "already
+done" latch that nothing resets survives into the next mission — and the bug only
+appears from **run 2 onward**. A single run always looks fine, which is why these get
+reported as "it works, then later it doesn't" and look unreproducible.
+
+**Reproduce in ~90s, not 20 minutes:**
+
+```
+python -m cosmos_dev.mission_runner . --test 15 --runs 3 --map 0 --seed 7 --use-working-tree
+```
+
+Prints a per-run table (players/npcs/terrain/agents/tasks/**brains**/**moving**/labels/errors,
+plus radar-stream and browser health) and fails with a named divergence. `--seed` is
+re-applied per run so runs are actually comparable. Key columns: **`brains`** = agents
+with a brain attached, **`moving`** = objects under way. `npcs` steady while `moving`
+collapses is the frozen-NPC signature, measured server-side — no browser needed.
+
+**Then classify it:**
+
+```
+... --runs 3 --fresh-process      # each run in a NEW interpreter
+```
+
+| plain `--runs` | `--fresh-process` | verdict |
+|---|---|---|
+| fails | passes | **MOCK** reset bug — state the reset missed |
+| fails | fails | **REAL** mission/library bug |
+| passes | passes | stable |
+
+A MOCK verdict still matters (it breaks autoplay loops) but it is not an engine bug —
+do not chase it as one.
+
+**Reset ledger.** `reset_mission_state()` is the single source of truth for the reset;
+`register_reset_state(name, probe)` / `reset_mission_audit()` (both in `handlerhooks.py`)
+are how a container declares it takes part. Anything still holding data after a reset is
+reported by name, per run, in the soak. **Register every new module-level per-mission
+container** — an unregistered one is invisible to this. Latches count too
+(`brain.stalled`, `objective.ticks_stale`): "already scheduled" flags that outlive
+`TickDispatcher.clear()` are how brains stopped ticking on every run after the first.
+Covered by `tests/test_restart_reset.py`, `test_restart_ai_ticks.py`,
+`test_restart_stream.py` — all sub-second.
+
+**Run identity.** The runner prints `===== RUN n =====`, `/debug` reports `run`, and the
+browser topbar shows a `run n` badge. `mast.runtime.log` is truncated by each reload, so
+each run is archived to `mast.runtime.run<N>.log` first. Always report the run index — a
+bug report without it is unactionable.
 
 ### How it works
 

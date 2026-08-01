@@ -239,6 +239,34 @@ def create_new_sim() -> None:
     return sim
 
 
+def _register_reset_probes() -> None:
+    """Declare the mock's own per-mission globals with the library reset ledger.
+
+    Every one of these caused (or would cause) a "works on run 1, broken on run 2"
+    bug: the engine forks a fresh process per mission and never carries them over,
+    the dev runner reuses the interpreter and does. Registering them makes a
+    forgotten clear a TEST FAILURE (see tests/test_restart_reset.py) instead of a
+    symptom someone has to notice three runs later.
+    """
+    try:
+        from sbs_utils.handlerhooks import register_reset_state
+    except Exception:
+        return
+    register_reset_state("mock.hull_map_objects", lambda: len(hull_map_objects))
+    register_reset_state("mock.projectiles",      lambda: len(_projectiles))
+    register_reset_state("mock.blasts",           lambda: len(_blasts))
+    register_reset_state("mock.beam_fires",       lambda: len(_beam_fires))
+    register_reset_state("mock.beam_active",      lambda: len(_beam_active))
+    register_reset_state("mock.contact_pairs",    lambda: len(_contact_pairs))
+    register_reset_state("mock.space_objects",    lambda: len(sim.space_objects) if sim else 0)
+    register_reset_state("mock.active_ids",       lambda: len(sim._active_ids) if sim else 0)
+    register_reset_state("mock.terrain_ids",      lambda: len(sim._terrain_ids) if sim else 0)
+    register_reset_state("mock.nav_points",       lambda: len(sim.nav_points) if sim else 0)
+
+
+_register_reset_probes()
+
+
 def delete_all_navpoints() -> None:
     """deletes all navpoints on server, and notifies all clients of the change"""
     global sim

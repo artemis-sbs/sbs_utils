@@ -147,6 +147,7 @@
   <span id="status-text">disconnected</span>
   <span id="msg-counter">msgs: <span id="msg-count">0</span></span>
   <span id="cid-badge"><span id="mode-label">—</span> #<span id="cid-val">—</span></span>
+  <span id="run-badge" style="display:none;font-weight:700;" title="Mission run index — 1 is the first run, every restart bumps it">run 1</span>
   <button id="script-log-btn" class="log-btn" title="Toggle MAST/sbs_utils stdout+stderr">LOG</button>
   <button id="dbg-log-btn"    class="log-btn" title="Toggle browser WS/widget debug">DBG</button>
   <button id="corner-radar-btn" class="log-btn" title="Toggle the fallback corner radar (when no console 2D view is active)">RADAR</button>
@@ -684,6 +685,41 @@ function sendEvent(type, tag, clientID, detail = {}) {
   log(`TX ${type} tag=${tag} clientID=${clientID}`, 'ev');
 }
 
+// ── Field health heartbeat ────────────────────────────────────────────────────
+// Once a second, tell the runner what this browser is ACTUALLY rendering. The
+// numbers that matter across a mission restart: how many dynamic objects the
+// client knows about, and how many of them MOVED since the last sample. A run
+// where npcs > 0 but moving == 0 is the "enemies frozen on run 2" bug, caught as
+// a number instead of by eye. Also flushes any pending resync requests.
+const _fieldLastPos = new Map();   // id → [x, z] at the previous sample
+function _fieldHealthTick() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (_resyncWanted.size) {
+    sendEvent('radar_resync', '', CLIENT_ID ?? 0, { ids: [..._resyncWanted].slice(0, 200) });
+    _resyncWanted.clear();
+  }
+  let moving = 0, npcs = 0, players = 0;
+  const seen = new Set();
+  for (const [id, idx] of _dynamicMap) {
+    seen.add(id);
+    const m = _dynamicMeta.get(id) || {};
+    const tt = String(m.tick_type || '');
+    if (tt.includes('player')) players++; else npcs++;
+    const x = _dynamicPosBuf ? _dynamicPosBuf[idx * 3]     : 0;
+    const z = _dynamicPosBuf ? _dynamicPosBuf[idx * 3 + 1] : 0;
+    const p = _fieldLastPos.get(id);
+    if (p && (Math.abs(p[0] - x) > 0.5 || Math.abs(p[1] - z) > 0.5)) moving++;
+    _fieldLastPos.set(id, [x, z]);
+  }
+  for (const id of [..._fieldLastPos.keys()]) if (!seen.has(id)) _fieldLastPos.delete(id);
+  sendEvent('field_stats', '', CLIENT_ID ?? 0, {
+    run: _runIndex, dyn: _dynamicCount, terrain: _terrainCount,
+    npcs, players, moving, orphans: _deltaOrphans,
+    view3d: !!_view3dActive, wgpu: !!window.__webgpu3dview,
+  });
+}
+setInterval(_fieldHealthTick, 1000);
+
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 function dispatch(msg) {
   // In client mode, ignore GUI commands addressed to the server (clientID "0") or any
@@ -695,7 +731,8 @@ function dispatch(msg) {
       msg.cmd !== 'widget_rect' && msg.cmd !== 'cinematic' &&
       msg.cmd !== 'skybox' && msg.cmd !== 'colors' && msg.cmd !== 'fx' && msg.cmd !== 'batch' &&
       msg.cmd !== 'ship_data' && msg.cmd !== 'target_data' &&
-      msg.cmd !== 'text_msg' && msg.cmd !== 'text_active' && msg.cmd !== 'world_reset') {
+      msg.cmd !== 'text_msg' && msg.cmd !== 'text_active' && msg.cmd !== 'world_reset' &&
+    msg.cmd !== 'run_marker') {
     if (msg.clientID !== CLIENT_ID) return;
   }
   switch (msg.cmd) {
@@ -706,6 +743,7 @@ function dispatch(msg) {
     case 'radar':        cmdRadar(msg);       break;
     case 'radar_terrain':cmdRadarTerrain(msg);break;
     case 'world_reset':  cmdWorldReset(msg);   break;
+    case 'run_marker':   cmdRunMarker(msg);    break;
     case 'widget_rect':  cmdWidgetRect(msg);  break;
     case 'cinematic':    cmdCinematic(msg);   break;
     case 'skybox':       cmdSkybox(msg);      break;
@@ -1120,6 +1158,13 @@ let _terrainCount = 0, _dynamicCount = 0, _terrainVersion = 0;
 // for. Should stay 0; anything else means a full record was lost (historically: a radar
 // push racing world_reset on a mission restart) and objects would be missing.
 let _deltaOrphans = 0;
+// Ids the server must re-send a full record for (see cmdRadar). Drained once a second
+// by _fieldHealthTick below.
+const _resyncWanted = new Set();
+// Mission run index, from the server's run_marker. Run 1 is the first mission this
+// process started; every restart bumps it. Shown in the topbar so a bug report can
+// name the run it happened on instead of "a later run".
+let _runIndex = 1;
 const _terrainMap    = new Map();  // id (string) → Float32Array index
 const _terrainRevMap = new Map();  // Float32Array index → id (string)
 const _terrainMeta   = new Map();  // id (string) → {art, meshscale, y}
@@ -1254,7 +1299,26 @@ function cmdRadarTerrain(msg) {
 // Sent by create_new_sim(): the previous mission's radar objects, terrain,
 // navpoints, combat FX and cinematic 3D view should not bleed into the next
 // mission. The new sim then streams fresh state on the following physics ticks.
+// The runner announces which mission run this is (1 = first, bumped by every
+// restart). Shown in the topbar, echoed in field_stats, and logged - so "it broke
+// on a later run" becomes "it broke on run 3".
+function cmdRunMarker(msg) {
+  _runIndex = msg.run || 1;
+  const el = document.getElementById('run-badge');
+  if (el) {
+    el.textContent = 'run ' + _runIndex;
+    el.style.display = '';
+    el.style.color = _runIndex > 1 ? 'var(--accent)' : '';
+  }
+  log(`===== RUN ${_runIndex} =====`, 'ev');
+}
+
 function cmdWorldReset(msg) {
+  // Per-run stream health: orphans and movement baselines belong to the run that
+  // produced them, or run 1's numbers would follow us into run 2.
+  _deltaOrphans = 0;
+  _resyncWanted.clear();
+  _fieldLastPos.clear();
   // Dynamic objects (ships/NPCs).
   _dynamicMap.clear(); _dynamicRevMap.clear(); _dynamicMeta.clear();
   _dynamicCount = 0;
@@ -2045,6 +2109,12 @@ function cmdRadar(msg) {
           if (_deltaOrphans === 1)
             console.warn('[radar] delta for unknown id ' + o.id +
                          ' - skipped rather than synthesising blank meta (server should re-send a full record)');
+          // Self-heal: ask the server to drop this id from its delta baseline so the
+          // next push carries a FULL record. Without this a full record lost to a
+          // reload race or a dropped send means the object is missing for the whole
+          // run - the "enemies stop moving on run 2" symptom. Batched + sent at most
+          // once a second so a persistent fault cannot flood the socket.
+          _resyncWanted.add(o.id);
           continue;
         }
         if (_dynamicCount >= _MAX_DYNAMIC) continue;

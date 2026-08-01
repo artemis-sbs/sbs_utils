@@ -60,6 +60,42 @@ def _phase(store, name, fn, *args):
 # run_next_mission) does - otherwise the previous mission's routes/labels/globals/
 # agents linger and the recompile fails or stale routes fire. Single source of truth so
 # the reset can't drift across the runner, tests, and any future in-process reload.
+#
+# RESET LEDGER. The list below is hand-maintained, and every module-level container
+# that is NOT on it becomes a "works on run 1, broken on run 2" bug - the engine's
+# fresh process hides them, the dev runner's reused interpreter does not. Modules that
+# own per-mission state register a size probe here; reset_mission_audit() then reports
+# anything still holding data after a reset, so a forgotten clear FAILS A TEST instead
+# of turning into a mystery three runs later. Probes must be cheap (a len()).
+_RESET_PROBES: dict = {}
+
+
+def register_reset_state(name: str, probe) -> None:
+    """Declare a per-mission container that must be empty after reset_mission_state().
+
+    `probe` returns its current size (an int). Registration is idempotent by name, so
+    re-importing a module does not duplicate it.
+    """
+    _RESET_PROBES[name] = probe
+
+
+def reset_mission_audit() -> dict:
+    """Sizes of every registered container. Non-zero entries after a reset are leaks.
+
+    Returns {name: size} for the NON-EMPTY ones only - an empty dict means clean.
+    """
+    out = {}
+    for name, probe in _RESET_PROBES.items():
+        try:
+            n = int(probe())
+        except Exception as e:            # a broken probe is itself worth reporting
+            out[name] = f"probe error: {e}"
+            continue
+        if n:
+            out[name] = n
+    return out
+
+
 def reset_mission_state():
     """Reset all per-mission runtime state for a fresh mission / in-process recompile."""
     for d in (GridDispatcher, DamageDispatcher, CollisionDispatcher, ConsoleDispatcher,
@@ -76,6 +112,13 @@ def reset_mission_state():
     clear_shared()      # rebuild the SHARED agent (drops label names / console types)
     from .procedural.signal import signal_waiters_clear
     signal_waiters_clear()  # drop pending signal_next() awaiters from the old mission
+    from .procedural import brain as _brain
+    _brain.brains_reset()   # release the brain re-entrancy guard + rolling slicer
+    from .procedural.objective import objective_reset
+    # MUST come after TickDispatcher.clear() above: it drops the tick tasks, and
+    # this drops the "already scheduled" latches that would otherwise stop them
+    # being re-registered - leaving the next mission with brains that never think.
+    objective_reset()
     Gui.web_client_ids.clear()  # drop web-page sessions from the old mission
     from .procedural.web import web_living_clear
     web_living_clear()  # drop living/persistent web-page registrations
@@ -93,6 +136,32 @@ def reset_mission_state():
     # and a stale reference silently resolves to a DIFFERENT label of the same
     # name, which is far worse to debug than this error.
     Gui.clients.clear()
+
+
+# Library-side probes. Each returns the count that MUST be zero once a reset has run.
+# Agent.all keeps exactly one entry - the rebuilt SHARED agent - so it reports the
+# excess over that rather than its raw size.
+def _probe_agents() -> int:
+    return max(0, len(Agent.all) - 1)
+
+
+register_reset_state("Agent.all", _probe_agents)
+register_reset_state("Gui.clients",       lambda: len(Gui.clients))
+register_reset_state("Gui.web_client_ids", lambda: len(Gui.web_client_ids))
+register_reset_state("TickDispatcher",    lambda: len(TickDispatcher._dispatch_tick))
+register_reset_state("DeleteQueue",       lambda: len(DeleteQueue._pending) + len(DeleteQueue._pending_grid))
+register_reset_state("Agent.roles",       lambda: len(Agent.roles.collections))
+register_reset_state("Agent.has_links",   lambda: len(Agent.has_links.collections))
+register_reset_state("Agent._has_inventory", lambda: len(Agent._has_inventory.collections))
+# Not a container - a latch. Stuck on means NO brain will ever run again, so every
+# NPC stops thinking with no error. Worth a ledger entry precisely because it is
+# silent.
+register_reset_state("brain.stalled",
+                     lambda: 1 if __import__("sbs_utils.procedural.brain", fromlist=["x"]).brains_is_stalled() else 0)
+# Also a latch, not a container: "scheduled" but the dispatcher no longer holds the
+# task means brains and objectives are dead for the rest of the process.
+register_reset_state("objective.ticks_stale",
+                     lambda: 1 if __import__("sbs_utils.procedural.objective", fromlist=["x"]).objective_ticks_stale() else 0)
 
 
 #	client_id"

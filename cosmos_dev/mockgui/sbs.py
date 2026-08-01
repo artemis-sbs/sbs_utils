@@ -31,9 +31,13 @@ sys.modules["sbs"] = sys.modules[__name__]
 
 def create_new_sim():
     """Creates a new simulation and syncs the local sim reference."""
-    global sim, _last_fx_nonempty, _cinematic_tick
+    global sim, _last_fx_nonempty, _cinematic_tick, _reset_gen
     result = _base_mock.create_new_sim()
     sim = _base_mock.sim
+    # New world: invalidate any push already in flight on the physics thread (see
+    # _reset_gen). Bumped FIRST so nothing built against the old world can commit
+    # a baseline or enqueue a message after the clears below.
+    _reset_gen += 1
     # Push the camera on the FIRST tick after a (re)start (then ~15 Hz) so the 3D view
     # frames immediately instead of waiting a couple ticks.
     _cinematic_tick = _CINEMATIC_INTERVAL - 1
@@ -57,6 +61,11 @@ def create_new_sim():
         # The new console's widget list repopulates this when the next mission loads.
         _view2d_widget_clients.clear()
         _explicit_2d_rects.clear()
+        # Same contract for the 3D view: the browser's world_reset hides the 3dview
+        # canvas and waits for the next console to re-register, so holding the old
+        # mission's registration here only streams cameras nobody is showing.
+        _view3d_widget_clients.clear()
+        _view3d_rects.clear()
         _view_shipdata_clients.clear()
         _view_target_clients.clear()
         _view_text_clients.clear()
@@ -486,6 +495,55 @@ CULL_RADIUS: float = 35_000.0  # only objects within this distance of a ship are
 # Delta-radar state: reset by _force_terrain_push() when a new client connects.
 _last_terrain_snapshot: frozenset = frozenset()  # frozenset of terrain IDs currently sent
 _last_per_ship: dict = {}                        # ship_id_str → {obj_id → (x, z, fx, fz)}
+# World generation — bumped by create_new_sim(). The pushes below run on the 30 Hz
+# PHYSICS thread while create_new_sim() clears the delta baselines from the MAIN
+# thread, so a push that started before a mission reload could write its old-world
+# snapshot back into the freshly-cleared baseline. Space-object ids RECYCLE across
+# sim.__init__(), so a new NPC inheriting a stale baseline entry looks "already
+# known": it is streamed as a delta only, never as a full record, and the browser
+# (which will not invent identity from a delta) never draws it. That is the classic
+# "enemies stop moving on the second run" bug. Each push captures the generation on
+# entry and discards its writes if a reload landed mid-build.
+_reset_gen: int = 0
+
+# Stream health, sampled by the runner (--runs soak, /debug). `full` and `delta` are
+# records ISSUED; `resync` counts full records re-issued because a browser reported a
+# delta it could not place; `dropped_gen` counts pushes discarded by the generation
+# guard. A healthy restart shows full > 0 in every run and resync ~0.
+_stream_stats: dict = {"full": 0, "delta": 0, "resync": 0, "dropped_gen": 0}
+
+
+def stream_stats() -> dict:
+    """Snapshot of radar-stream health (see _stream_stats)."""
+    return dict(_stream_stats)
+
+
+def stream_stats_reset() -> None:
+    for k in _stream_stats:
+        _stream_stats[k] = 0
+
+
+def _register_gui_reset_probes() -> None:
+    """Declare the GUI push layer's per-mission snapshots with the reset ledger.
+
+    These are the delta baselines and per-client view registrations. A stale entry
+    here does not crash - it silently withholds the FULL record a browser needs to
+    draw an object, which is exactly the "enemies frozen from run 2" symptom.
+    """
+    try:
+        from sbs_utils.handlerhooks import register_reset_state
+    except Exception:
+        return
+    register_reset_state("mockgui.last_per_ship",
+                         lambda: sum(len(v) for v in _last_per_ship.values()))
+    register_reset_state("mockgui.last_terrain_snapshot", lambda: len(_last_terrain_snapshot))
+    register_reset_state("mockgui.hud_cache",            lambda: len(_hud_cache))
+    register_reset_state("mockgui.view2d_widget_clients", lambda: len(_view2d_widget_clients))
+    register_reset_state("mockgui.view3d_widget_clients", lambda: len(_view3d_widget_clients))
+    register_reset_state("mockgui.explicit_2d_rects",     lambda: len(_explicit_2d_rects))
+
+
+_register_gui_reset_probes()
 _DYNAMIC_POS_THRESHOLD_SQ: float = 25.0          # 5 units²  — skip tiny drift
 _DYNAMIC_HDG_THRESHOLD:    float = 0.05          # radians   — skip tiny rotations
 
@@ -1353,6 +1411,30 @@ def _force_terrain_push() -> None:
     _last_colors_sent = None   # force the colour config to re-broadcast to the new client
 
 
+def radar_resync_ids(ids) -> int:
+    """Drop `ids` from every per-ship delta baseline so the next push re-sends a
+    FULL record for them.
+
+    The browser refuses to build an object out of a delta record (a delta carries
+    pose only - no art/side/tick_type - so a slot built from one stays invisible
+    for the object's whole life), and instead counts it as a "delta orphan" and
+    asks us for a resync. That request lands here. Any lost full record - a push
+    racing a mission reload, a dropped queue put - becomes self-healing rather
+    than a permanently missing ship.
+    """
+    n = 0
+    for snap in _last_per_ship.values():
+        for id_ in ids:
+            try:
+                id_i = int(id_)
+            except (TypeError, ValueError):
+                continue
+            if snap.pop(id_i, None) is not None:
+                n += 1
+    _stream_stats["resync"] += n
+    return n
+
+
 _last_fx_nonempty = False
 
 
@@ -1458,6 +1540,7 @@ def _push_radar() -> None:
     if _base_mock.sim is None or gui_queue is None:
         return
     s = _base_mock.sim
+    gen = _reset_gen         # world generation this push is built against
 
     # This runs on the 30 Hz physics thread while the MAST/main thread spawns and
     # deletes objects under s._lock. Take ONE locked snapshot of the registries up
@@ -1490,7 +1573,7 @@ def _push_radar() -> None:
         (tid, round(objs[tid]._pos.x, 1), round(objs[tid]._pos.z, 1),
          repr(_render_payload(objs[tid])))
         for tid in visible_terrain_ids)
-    if current_terrain_sig != _last_terrain_snapshot:
+    if current_terrain_sig != _last_terrain_snapshot and gen == _reset_gen:
         _last_terrain_snapshot = current_terrain_sig
         terrain_objects = []
         for tid in visible_terrain_ids:
@@ -1636,6 +1719,7 @@ def _push_radar() -> None:
             prev = last.get(id_)
             if prev is None:
                 new_snap[id_] = cur
+                _stream_stats["full"] += 1
                 changed.append({
                     "id":        str(id_),
                     "x": x, "z": z, "fx": fx, "fz": fz,
@@ -1666,6 +1750,7 @@ def _push_radar() -> None:
                     changed.append({"id": str(id_), "x": x, "z": z, "y": y, "fx": fx, "fz": fz,
                                     "q": _quat_of(obj), "shp": shp, "shpf": shpf, "shpa": shpa})
                     new_snap[id_] = cur
+                    _stream_stats["delta"] += 1
                 else:
                     # NOT sent -- the baseline must stay at the last value the browser
                     # actually RECEIVED, not this tick's true position.  Advancing it
@@ -1676,6 +1761,13 @@ def _push_radar() -> None:
                     # drift accumulate until it is worth a packet.
                     new_snap[id_] = prev
 
+        # A mission reload landed while this push was being built: everything above
+        # describes the PREVIOUS world. Committing new_snap would re-poison the
+        # freshly-cleared baseline with recycled ids (see _reset_gen), and the
+        # message would arrive after world_reset as phantom objects. Drop both.
+        if gen != _reset_gen:
+            _stream_stats["dropped_gen"] += 1
+            return
         _last_per_ship[sid_str] = new_snap
 
         if removed or changed or navpts or navareas or client_focus:

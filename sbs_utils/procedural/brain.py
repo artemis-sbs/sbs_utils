@@ -360,7 +360,36 @@ def brains_run_all(tick_task, pass_seconds=None):
     if __brains_is_running:
         return
     __brains_is_running = True
+    try:
+        _brains_run_all(tick_task, pass_seconds)
+    finally:
+        # ALWAYS release the re-entrancy guard. Anything that escapes the body
+        # (has_inventory, the slicer, brain_clear) used to leave this stuck True,
+        # and then brains_run_all returned immediately FOREVER: every NPC in the
+        # game stops thinking, permanently, with no error after the first one.
+        # The engine forks a fresh process per mission so it self-heals on the next
+        # restart; the dev runner reuses the interpreter, so there it is terminal
+        # and reads as "enemies stopped moving after a while / on a later run".
+        __brains_is_running = False
 
+
+def brains_reset() -> None:
+    """Drop cross-mission brain scheduler state (called by reset_mission_state)."""
+    global __brains_is_running
+    __brains_is_running = False
+    _brain_slicer.reset() if hasattr(_brain_slicer, "reset") else None
+
+
+def brains_is_stalled() -> bool:
+    """True if the re-entrancy guard is stuck on (no brain will ever run again).
+
+    Registered with the reset ledger so a restart soak reports it instead of
+    leaving a silently AI-less mission.
+    """
+    return bool(__brains_is_running)
+
+
+def _brains_run_all(tick_task, pass_seconds=None):
     ids = has_inventory("__BRAIN__")
     # pass_seconds None -> run all (original); else a rolling per-tick slice.
     seq = ids if pass_seconds is None else _brain_slicer.slice(ids, pass_seconds)
@@ -418,6 +447,5 @@ def brains_run_all(tick_task, pass_seconds=None):
     # Unschedule stale brains now the iteration is done (safe to mutate the set).
     if to_unschedule:
         brain_clear(to_unschedule)
-    __brains_is_running = False
     
 

@@ -17,6 +17,9 @@ CLI (run from inside missions/sbs_utils/ or pass the full path):
 import json
 import os
 import queue as _queue_mod
+import re
+import shutil
+import subprocess
 import sys
 import threading
 import time
@@ -535,6 +538,153 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
     return 0 if ok else 1
 
 
+def _emit_soak_report(fingerprints: list, fp_json: str | None = None) -> int:
+    """Compare every run against run 1 and judge the restart.
+
+    The whole point of --runs: the mock REUSES the Python interpreter across a
+    mission reload where the engine forks a fresh process, so per-mission state that
+    nothing resets survives into the next run. That never shows up in a single run,
+    which is why a bug can look fixed and keep being reported. Here it is a table
+    and an exit code.
+
+    Returns 0 (clean) or 1 (diverged).
+    """
+    if not fingerprints:
+        print("[runner] soak: no runs recorded")
+        return 1
+    base = fingerprints[0]
+    cols = ["players", "npcs", "terrain", "agents", "tasks", "brains", "moving",
+            "labels", "errors"]
+    print("\n==== restart soak ====")
+    hdr = "run  " + "".join(f"{c:>9}" for c in cols) + "   stream(full/delta/resync/drop)  browser(dyn/moving/orphan)"
+    print(hdr)
+    for fp in fingerprints:
+        st = fp.get("stream") or {}
+        row = f"{fp['run']:<5}" + "".join(f"{fp.get(c, 0):>9}" for c in cols)
+        row += (f"   {st.get('full', 0):>5}/{st.get('delta', 0):<6}"
+                f"{st.get('resync', 0):>3}/{st.get('dropped_gen', 0):<4}")
+        if fp.get("b_dyn") is not None:
+            row += f"        {fp.get('b_dyn')}/{fp.get('b_moving')}/{fp.get('b_orphans')}"
+        print(row)
+
+    failures: list = []
+    for fp in fingerprints:
+        n = fp["run"]
+        if fp.get("errors"):
+            failures.append(f"run {n}: {fp['errors']} runtime error(s)")
+        if fp.get("reset_leaks"):
+            failures.append(f"run {n}: state survived the reset -> {fp['reset_leaks']}")
+        if fp.get("b_orphans"):
+            failures.append(f"run {n}: browser could not place {fp['b_orphans']} object(s) "
+                            f"(delta with no full record)")
+        # Something was in the world but the browser was never told how to draw it.
+        st = fp.get("stream") or {}
+        if fp.get("npcs", 0) > 0 and st and not st.get("full"):
+            failures.append(f"run {n}: {fp['npcs']} npc(s) alive but 0 full radar records issued "
+                            f"- nothing to draw them from")
+        if fp.get("b_dyn") and not fp.get("b_moving"):
+            failures.append(f"run {n}: browser shows {fp['b_dyn']} object(s), none of them moving")
+        # The frozen-NPC symptom at the source: objects exist, nothing thinks or moves.
+        if fp.get("npcs", 0) > 0 and fp.get("brains") == 0:
+            failures.append(f"run {n}: {fp['npcs']} npc(s) and NOT ONE has a brain attached "
+                            f"- nothing will ever move")
+        if fp.get("npcs", 0) > 0 and fp.get("moving") == 0:
+            failures.append(f"run {n}: {fp['npcs']} npc(s) alive, none of them under way")
+        # Divergence from run 1. Counts are compared, not asserted equal: a mission
+        # with randomness moves a little, a leak moves a lot. Use --seed to tighten.
+        #
+        # World counts are checked in BOTH directions - the world a mission builds
+        # should be the world it builds. Accumulators (agents, live tasks) are checked
+        # for GROWTH only: they are a snapshot of whatever is mid-flight at the sample
+        # instant, so a dip is timing and only a climb is a leak.
+        for c in ("players", "npcs", "terrain", "brains", "moving"):
+            b, v = base.get(c, 0), fp.get(c, 0)
+            if b and abs(v - b) > max(2, 0.25 * b):
+                failures.append(f"run {n}: {c} {v} vs run 1's {b} "
+                                f"({'+' if v > b else ''}{v - b})")
+        for c in ("agents", "tasks"):
+            b, v = base.get(c, 0), fp.get(c, 0)
+            if b and v - b > max(20, 0.25 * b):
+                failures.append(f"run {n}: {c} grew to {v} from run 1's {b} (+{v - b}) "
+                                f"- state accumulating across restarts")
+        if base.get("labels") and fp.get("labels", 0) < 0.75 * base["labels"]:
+            # Route labels are named __route__<path>__<id>__ and the id counter is
+            # deliberately NOT reset across compiles (so a stale reference fails
+            # loudly). Strip it, or every route looks "missing" on every restart
+            # purely from renumbering.
+            def _norm(names):
+                return {re.sub(r"__\d+__$", "", s) for s in (names or ())}
+            gone = sorted(_norm(base.get("labels_hit")) - _norm(fp.get("labels_hit")))
+            failures.append(f"run {n}: only {fp['labels']} labels ran vs run 1's {base['labels']} "
+                            f"- the mission is doing less than it did")
+            if gone:
+                shown = ", ".join(gone[:12])
+                failures.append(f"run {n}: {len(gone)} label(s) that ran on run 1 never ran: "
+                                f"{shown}{' ...' if len(gone) > 12 else ''}")
+
+    if failures:
+        print("\nDIVERGED across restarts:")
+        for f in failures:
+            print(f"  - {f}")
+        print("\nRe-run with --fresh-process to tell a MOCK reset bug from a REAL one:")
+        print("  same failure with a fresh interpreter per run -> REAL (mission/library)")
+        print("  clean with a fresh interpreter per run        -> MOCK (state the reset missed)")
+    else:
+        print(f"\nSTABLE across {len(fingerprints)} run(s) - no divergence from run 1")
+    print("======================")
+    if fp_json:
+        try:
+            with open(fp_json, "w", encoding="utf-8") as f:
+                json.dump(fingerprints, f, indent=2)
+            print(f"[runner] fingerprints written: {fp_json}")
+        except Exception as e:
+            print(f"[runner] fingerprint write failed: {e}")
+    return 1 if failures else 0
+
+
+def _run_soak_fresh(argv: list, runs: int) -> int:
+    """--fresh-process: run the soak with a NEW interpreter per run.
+
+    This is the discriminator. The mock reuses one Python interpreter across a
+    mission reload; the engine forks a fresh process per mission. So:
+
+        --runs N                  fails, --fresh-process passes  -> MOCK reset bug
+        --runs N and --fresh-process both fail                    -> REAL bug
+        both pass                                                 -> stable
+
+    Without it, a mock-only artifact and a genuine mission bug look identical from
+    the outside, and chasing the first costs the same as fixing the second.
+
+    `argv` is this process's own argument list minus the soak flags; each leg is
+    re-invoked with --runs 1 and its own fingerprint file.
+    """
+    import tempfile
+    fps: list = []
+    tmpdir = tempfile.mkdtemp(prefix="cosmos_soak_")
+    for i in range(1, runs + 1):
+        out = os.path.join(tmpdir, f"run{i}.json")
+        cmd = [sys.executable, "-m", "cosmos_dev.mission_runner", *argv,
+               "--runs", "1", "--fingerprint-json", out]
+        print(f"[runner] {'=' * 20} FRESH RUN {i}/{runs} {'=' * 20}")
+        print(f"[runner] {' '.join(cmd)}")
+        subprocess.run(cmd, cwd=_PROJECT_ROOT)
+        try:
+            with open(out, "r", encoding="utf-8") as f:
+                leg = json.load(f)
+            for fp in leg:
+                fp["run"] = i          # renumber: each leg thinks it is run 1
+                fps.append(fp)
+        except Exception as e:
+            print(f"[runner] fresh run {i} produced no fingerprint ({e})")
+            fps.append({"run": i, "errors": 1, "reset_leaks": {},
+                        "note": "no fingerprint - the run died"})
+    print(f"\n[runner] fresh-process soak: {len(fps)}/{runs} run(s) reported")
+    rc = _emit_soak_report(fps)
+    print("NOTE: this leg ran a FRESH interpreter per run (engine semantics). A failure "
+          "here is a REAL bug; a failure only under plain --runs is a MOCK reset bug.")
+    return rc
+
+
 def _write_junit(path, name, ok, verdict, summ, ran_nothing=False) -> None:
     """Minimal JUnit XML: one testsuite, one testcase (the mission run)."""
     from xml.sax.saxutils import escape
@@ -585,6 +735,8 @@ def _run(
     dap_port: int | None = None,
     dap_wait: bool = False,
     probe_leak: float | None = None,
+    runs: int = 1,
+    fingerprint_json: str | None = None,
 ) -> int:
     mission_folder = os.path.abspath(mission_folder)
     missions_root  = _find_missions_root(mission_folder)
@@ -597,6 +749,13 @@ def _run(
         gui = False
         if map_arg is None:
             map_arg = 0
+    # --runs N: play the mission N times back to back through the in-process reload,
+    # fingerprint each run and diff them. Only meaningful under --test (which owns
+    # the "this run is over" trigger).
+    runs = max(1, int(runs or 1))
+    if runs > 1 and not _test:
+        print("[runner] --runs needs --test SECONDS (it defines when a run ends); ignoring")
+        runs = 1
 
     # Source project takes precedence over any packaged sbslib on the path
     if _PROJECT_ROOT not in sys.path:
@@ -924,6 +1083,15 @@ def _run(
         return {
             "mission": os.path.basename(mission_folder),
             "map": str(map_arg) if map_arg is not None else "(picker)",
+            # Which run this is (1 = first; every restart bumps it) and what the
+            # browsers actually report rendering. `moving == 0` with npcs > 0 is the
+            # frozen-NPC symptom, visible here without opening the JS console.
+            "run": _run_index,
+            "stream": sbs.stream_stats() if hasattr(sbs, "stream_stats") else {},
+            "browsers": {f"{c:#x}": {k: v for k, v in s.items()
+                                     if k in ("run", "dyn", "npcs", "players",
+                                              "moving", "orphans", "view3d", "wgpu")}
+                         for c, s in _field_stats.items()},
             "sim_seconds": round(sbs.sim.time_tick_counter / _TPS, 1) if sbs.sim else 0.0,
             "paused": bool(sbs.sim._paused) if sbs.sim else True,
             "clients": [f"{c:#x}" for c in Gui.clients if c != 0],
@@ -935,6 +1103,57 @@ def _run(
             "agent_types": agent_types, # Agent.all by class - to spot what's leaking
             "tick_rate": tick_rate,
         }
+
+    def _run_fingerprint(errors_before: int) -> dict:
+        """One run's measurable shape — the thing --runs compares across restarts.
+
+        Everything here is cheap and deterministic given a fixed --seed. A metric
+        that drifts run-over-run is the signature of state the reset missed; the
+        engine forks a fresh process per mission and would never show it, which is
+        exactly why it has to be measured HERE.
+        """
+        from sbs_utils.helpers import _TPS
+        from sbs_utils.mast.mastscheduler import MastAsyncTask
+        from sbs_utils.procedural.inventory import has_inventory
+        st = _debug_status()
+        browsers = list(_field_stats.values())
+        # The two numbers that answer "are the enemies alive?" without a browser:
+        # how many agents have a brain attached at all, and how many objects are
+        # actually under way. Either dropping to 0 while npcs > 0 is the frozen-NPC
+        # symptom, measured at the source rather than through the render path.
+        try:
+            brains = len(has_inventory("__BRAIN__"))
+        except Exception:
+            brains = -1
+        moving = 0
+        if sbs.sim is not None:
+            for o in list(sbs.sim.space_objects.values()):
+                if abs(getattr(o, "_cur_speed", 0.0) or 0.0) > 0.01:
+                    moving += 1
+        fp = {
+            "run":        _run_index,
+            "sim_s":      st["sim_seconds"],
+            "players":    st["players"],
+            "npcs":       st["npcs"],
+            "terrain":    st["terrain"],
+            "agents":     st["agents"],
+            "tasks":      sum(1 for a in Agent.all.values() if isinstance(a, MastAsyncTask)),
+            "brains":     brains,
+            "moving":     moving,
+            "labels":     len(_cov.labels_hit) if _cov is not None else 0,
+            # The label NAMES, not just the count: "run 2 ran fewer labels" is a
+            # symptom, "run 2 never entered these 83 labels" is a lead.
+            "labels_hit": sorted(_cov.labels_hit) if _cov is not None else [],
+            "errors":     (len(_verdict.errors) - errors_before) if _verdict is not None else 0,
+            "stream":     sbs.stream_stats() if hasattr(sbs, "stream_stats") else {},
+            # Browser-reported render health (GUI runs only). npcs > 0 with moving == 0
+            # is the frozen-NPC symptom as a number.
+            "b_moving":   max((b.get("moving", 0) for b in browsers), default=None),
+            "b_dyn":      max((b.get("dyn", 0) for b in browsers), default=None),
+            "b_orphans":  max((b.get("orphans", 0) for b in browsers), default=None),
+            "reset_leaks": {},     # filled in after this run's reset (see the reload block)
+        }
+        return fp
 
     def _leak_probe(wall0: float) -> None:
         """One periodic leak sample (--probe-leak).
@@ -1150,13 +1369,54 @@ def _run(
         else:
             _debug_reply(cid, {"error": f"unknown action {action!r}"})
 
+    # Which mission run this is. 1 = the first mission this process started; every
+    # run_next_mission reload bumps it. The mock REUSES the Python interpreter across
+    # a reload where the engine gets a fresh one, so a whole class of bug only shows
+    # up from run 2 onward. Naming the run in the banner, the log, /debug and the
+    # browser topbar is what turns "it breaks on a later run" into a reproducible
+    # report. See _run_fingerprint / the --runs soak.
+    _run_index = 1
+    _field_stats: dict = {}      # client_id → last 1 Hz browser render-health report
+    _fingerprints: list = []     # one _run_fingerprint() per completed run (--runs)
+    _soak_finishing = False      # the reload now in flight is the soak's last
+    _soak_done = False           # break at the next loop top
+    _errors_before = 0           # verdict error count at the start of the current run
+
+    def _announce_run() -> None:
+        """Banner + browser badge + a marker line in the runtime log."""
+        bar = "=" * 22
+        print(f"[runner] {bar} RUN {_run_index} {bar}")
+        if gui and hasattr(sbs, "_send"):
+            try:
+                sbs._send(0, "run_marker", run=_run_index)
+            except Exception:
+                pass
+    def _archive_runtime_log() -> None:
+        """Copy mast.runtime.log aside before a reload truncates it.
+
+        Mast() re-opens the handler in "w" mode on every recompile, so run N wipes
+        run N-1's errors - the log a user sends after a bad run 3 only ever holds
+        run 3. Archiving keeps each run's copy as mast.runtime.run<N>.log. (Nothing
+        is written INTO the live log here: sweep_runtime_log treats any content as
+        an error, so a marker line would fail every run.)
+        """
+        try:
+            from sbs_utils import fs as _fs
+            src = _fs.get_mission_dir_filename("mast.runtime.log")
+            if os.path.isfile(src) and os.path.getsize(src) > 0:
+                dst = _fs.get_mission_dir_filename(f"mast.runtime.run{_run_index}.log")
+                shutil.copyfile(src, dst)
+                print(f"[runner] archived run {_run_index} runtime log -> {os.path.basename(dst)}")
+        except Exception as e:
+            print(f"[runner] could not archive runtime log: {e}")
+
     _cov = _verdict = _exerciser = None
     _test_exit = 0
     _game_end = None
     _test_client_connected = False
     _TEST_CLIENT_ID = 0x8080000000000001   # synthetic console client for --test --exercise
     _test_wall0 = time.time()
-    _test_wall_cap = (test_seconds * 2 + 30) if _test else 0
+    _test_wall_cap = (test_seconds * 2 + 30) if _test else 0   # per RUN, not per soak
     if _test:
         from cosmos_dev.coverage import MastCoverage
         from cosmos_dev.verdict import MastVerdict
@@ -1184,15 +1444,38 @@ def _run(
     try:
         while True:
             if _test:
+                if _soak_done:
+                    break
                 _sim_s = sbs.sim.time_tick_counter / _TEST_TPS
                 if _sim_s >= test_seconds or (time.time() - _test_wall0) >= _test_wall_cap:
-                    break
+                    if runs <= 1:
+                        break
+                    # --- restart soak: end this run, measure it, reload, repeat ----
+                    _fingerprints.append(_run_fingerprint(_errors_before))
+                    _fp = _fingerprints[-1]
+                    print(f"[runner] run {_fp['run']} done: "
+                          f"players={_fp['players']} npcs={_fp['npcs']} terrain={_fp['terrain']} "
+                          f"labels={_fp['labels']} errors={_fp['errors']} "
+                          f"stream={_fp['stream']}")
+                    _errors_before = len(_verdict.errors) if _verdict is not None else 0
+                    if _cov is not None:
+                        _cov.reset()          # per-run label coverage
+                    if hasattr(sbs, "stream_stats_reset"):
+                        sbs.stream_stats_reset()
+                    _test_wall0 = time.time()
+                    # Always reload once more, even after the LAST run: the reset is
+                    # what exposes the leaks, so run N gets a leak measurement too.
+                    # The reload block below sets _soak_done and the next loop top
+                    # breaks before any of run N+1 is ticked.
+                    _soak_finishing = _run_index >= runs
+                    sbs.run_next_mission("")
             # run_next_mission(): restart the current mission or switch to another.
             # The engine swaps missions at the process level; here we rebuild the
             # mission in-process between ticks. Polls the mock's pending request.
             _next_mission = sbs.pop_next_mission() if hasattr(sbs, "pop_next_mission") else None
             if _next_mission is not None:
                 try:
+                    _archive_runtime_log()
                     # run_next_mission(name) passes a mission *folder name* relative
                     # to the missions dir (like the engine), not a CWD-relative path.
                     # Resolve against missions_root; abspath(name) vs CWD pointed at a
@@ -1242,13 +1525,44 @@ def _run(
                     # Fresh sim — in GUI mode create_new_sim also broadcasts
                     # world_reset so browsers wipe the old mission's 2D/3D views.
                     sbs.create_new_sim()
+                    # Audit HERE - after the reset, before anything re-seeds state.
+                    # Whatever is still registered is what the run that just ended
+                    # leaked into the next one. (The ledger is newer than some
+                    # packaged .sbslib builds, so a missing audit is "no data", never
+                    # a crash - use --use-working-tree to get the numbers.)
+                    if _fingerprints:
+                        try:
+                            from sbs_utils.handlerhooks import reset_mission_audit
+                            _fingerprints[-1]["reset_leaks"] = reset_mission_audit()
+                        except ImportError:
+                            _fingerprints[-1]["reset_leaks"] = {}
+                            if _run_index == 1:
+                                print("[runner] this sbs_utils has no reset ledger - "
+                                      "leak detection off (try --use-working-tree)")
+                    # Re-apply the seed so every run of a soak draws the same random
+                    # stream. Without this run 2 continues run 1's stream and every
+                    # count differs for reasons that have nothing to do with a leak.
+                    if seed is not None:
+                        from sbs_utils.procedural.settings import settings_seed_apply
+                        settings_seed_apply(seed)
                     Agent.SHARED.set_inventory_value("sim", sbs.sim)
                     FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
                     _server_initialized = False
                     _map_started = (map_arg is None)
                     _pending_client_connects = list(prev_clients)
+                    _run_index += 1
+                    _announce_run()
+                    if _soak_finishing:
+                        _soak_done = True
                 except Exception as e:
                     _log_exc(f"run_next_mission reload failed: {e}")
+                    # A soak that cannot reload has nothing left to compare; stop
+                    # instead of spinning on the same broken restart forever.
+                    if runs > 1:
+                        if _fingerprints:
+                            _fingerprints[-1]["errors"] = _fingerprints[-1].get("errors", 0) + 1
+                            _fingerprints[-1]["note"] = f"reload failed: {e}"
+                        _soak_done = True
 
             sim_state = "sim_paused" if sbs.sim._paused else "sim_running"
             tick_event = FakeEvent(client_id=0, tag="mission_tick", sub_tag=sim_state)
@@ -1267,6 +1581,20 @@ def _run(
                         gev    = sbs.gui_event_queue.get_nowait()
                         cid    = gev.get("clientID", 0)
                         etype  = gev.get("type", "")
+                        if etype == "radar_resync":
+                            # The browser got a delta record for an object it has no
+                            # full record for and cannot draw. Drop those ids from the
+                            # delta baseline so the next push re-sends full records.
+                            ids = gev.get("ids") or []
+                            n = sbs.radar_resync_ids(ids) if hasattr(sbs, "radar_resync_ids") else 0
+                            print(f"[runner] radar resync: {len(ids)} orphan id(s) from "
+                                  f"client {cid} - re-sending {n} full record(s)")
+                            continue
+                        if etype == "field_stats":
+                            # 1 Hz browser render health (see _field_stats).
+                            _field_stats[cid] = dict(gev)
+                            _field_stats[cid]["wall"] = time.time()
+                            continue
                         if etype == "screen_size":
                             gev_ev = FakeEvent(client_id=cid, tag="screen_size")
                             gev_ev.source_point = Vec3(gev.get("width", 1024),
@@ -1452,6 +1780,14 @@ def _run(
                 while not sbs.client_event_queue.empty():
                     try:
                         cev = sbs.client_event_queue.get_nowait()
+                        if cev.get("event") in ("connect", "resync"):
+                            # Tell the freshly-connected browser which run it joined,
+                            # so its topbar badge and field_stats are labelled from
+                            # the first frame (not only after the next restart).
+                            try:
+                                sbs._send(0, "run_marker", run=_run_index)
+                            except Exception:
+                                pass
                         if cev.get("event") == "connect":
                             cid = cev["clientID"]
                             if not _server_initialized:
@@ -1582,6 +1918,11 @@ def _run(
             _test_exit = _emit_test_report(mission_folder, map_arg, sbs,
                                            _cov, _verdict, junit_path, _exerciser,
                                            game_end=_game_end)
+            if runs > 1 or fingerprint_json:
+                if not _fingerprints:      # single-run --fresh-process leg
+                    _fingerprints.append(_run_fingerprint(_errors_before))
+                _soak_exit = _emit_soak_report(_fingerprints, fingerprint_json)
+                _test_exit = _test_exit or _soak_exit
         if audit_layout:
             from cosmos_dev import layout_audit
             print(layout_audit.report())
@@ -1692,6 +2033,20 @@ if __name__ == "__main__":
                     help="Every N sim-seconds print a leak sample: sim/wall rate, "
                          "live space objects, Agent.all size, MAST task count and "
                          "how many of those tasks have ENDED (leaked corpses)")
+    ap.add_argument("--runs", type=int, default=1, metavar="N",
+                    help="Restart soak: with --test, play the mission N times back to "
+                         "back through the in-process reload, fingerprint each run and "
+                         "diff them. Catches 'works on run 1, broken on run 2' state "
+                         "the reset missed - the class the engine's fresh-process-per-"
+                         "mission hides and the mock's reused interpreter exposes")
+    ap.add_argument("--fresh-process", action="store_true",
+                    help="With --runs, give each run a NEW interpreter (engine "
+                         "semantics). THE DISCRIMINATOR: a failure that only happens "
+                         "without this flag is a MOCK reset bug; one that survives it "
+                         "is a REAL mission/library bug")
+    ap.add_argument("--fingerprint-json", default=None, metavar="PATH",
+                    help="Write each run's fingerprint (counts, stream health, reset "
+                         "leaks) as JSON - used by --fresh-process to compare legs")
     args = ap.parse_args()
 
     if args.map is None:
@@ -1701,6 +2056,25 @@ if __name__ == "__main__":
             map_val = int(args.map)
         except ValueError:
             map_val = args.map
+
+    if args.fresh_process and args.runs > 1:
+        # Re-invoke ourselves once per run, minus the flags that drive the in-process
+        # soak (each leg is a plain single run that writes a fingerprint).
+        _drop = {"--runs", "--fingerprint-json"}
+        _argv, _skip = [], False
+        for a in sys.argv[1:]:
+            if _skip:
+                _skip = False
+                continue
+            if a == "--fresh-process":
+                continue
+            if a in _drop:
+                _skip = True
+                continue
+            if any(a.startswith(d + "=") for d in _drop):
+                continue
+            _argv.append(a)
+        sys.exit(_run_soak_fresh(_argv, args.runs) or 0)
 
     _exit = _run(
         mission_folder=args.mission,
@@ -1724,5 +2098,7 @@ if __name__ == "__main__":
         dap_port=args.dap_port,
         dap_wait=args.dap_wait,
         probe_leak=args.probe_leak,
+        runs=args.runs,
+        fingerprint_json=args.fingerprint_json,
     )
     sys.exit(_exit or 0)
