@@ -1,3 +1,4 @@
+from ...mast.mast_globals import debug_print
 from .column import Column
 from .measure import measure_props, apply_overflow
 from ...helpers import FrameContext, merge_props, split_props
@@ -27,7 +28,7 @@ class Button(Column):
             # What we're doing is swapping out any existing `color` attributes and adding a new one, with the value for self.background_color.
             import re
             button_message = re.sub(r"(?<!-)color:.*?(?:;|$)","",self.message, flags=re.M) # This removes any existing color tag, which is used for text color, but in this case we need it for the background color
-            button_message = f"color:{self.background_color};{button_message}" # Prepend instead of append so we don't need to depend on user to include a tailing semicolon
+            button_message = f"color:{self.background_color};draw_layer:1000;{button_message}" # Prepend instead of append so we don't need to depend on user to include a tailing semicolon
             # This color button is now effectively the background.
             ctx.sbs.send_gui_colorbutton(event.client_id, self.region_tag,
                 self.tag, button_message, 
@@ -67,8 +68,7 @@ class Button(Column):
             # So to have a colored backgound and text, we need to couple sbs.send_gui_colorbutton() with sbs.send_gui_text()
             
             if message.find("draw_layer") == -1:
-                message = "draw_layer:10000;" + message # draw layer has to be high or the button covers the text
-
+                message = "draw_layer:1001;" + message # draw layer has to be high or the button covers the text
             # TODO: Find a way to use padding so the text isn't righ up close to the edge of the button's border.
             ctx.sbs.send_gui_text(event.client_id, self.region_tag,
                 self.tag+"_text", message, 
