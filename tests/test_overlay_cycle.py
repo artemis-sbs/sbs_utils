@@ -69,11 +69,13 @@ class CycleBase(unittest.TestCase):
         OV._slot_px_width = lambda cid, slot, pad=0.96: self.SLOT_PX
         self._real_split = OV._split_to_fit
 
-        def _fake_split(cid, slot, text, font):
+        def _fake_split(cid, slot, text, font, width_frac=1.0):
             words = " ".join(str(text or "").split()).split()
             if not words:
                 return [""]
-            per = max(1, int(self.SLOT_PX // 10))
+            # width_frac: a kind that spends part of the strip on something else
+            # (a portrait) measures against what is LEFT.
+            per = max(1, int((self.SLOT_PX * width_frac) // 10))
             return [" ".join(words[i:i + per]) for i in range(0, len(words), per)]
 
         OV._split_to_fit = _fake_split

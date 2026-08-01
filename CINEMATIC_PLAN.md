@@ -273,13 +273,18 @@ Proposed kinds — each is a builder plus a slot, all reusing the machinery that
 | Kind | Layout | Use |
 |---|---|---|
 | `lower_third` *(today)* | name plate + cycling line | keep exactly as-is; the workhorse |
-| `lower_third_portrait` | fixed-width portrait at the strip's left, name + line right | one speaker with a face, line still cycles in the remainder |
-| **`two_shot`** | face LEFT + face RIGHT, active speaker lit and the other dimmed, name plate under the active one, line across the bottom | **the conversation layout** — the one to build first |
-| `interview` | one face left, name plate, wide text column right | longer reads where cycling would annoy |
+| **`lower_third_portrait`** ✅ | **ONE face, on the LEFT or the RIGHT** (`align`), name + line beside it | BUILT - `overlay_lower_third_portrait()` |
+| `interview` | one face, name plate, wide text column | longer reads where cycling would annoy |
 | `caption` | centered line, no plate | narration / VO subtitles |
 | `speaker_badge` | tiny corner chip: face + name, no line | pairs with audio that carries the words |
 | `chyron_stack` | stacked lines that push upward | objectives / mission log for a stream sidebar |
 | `ticker` | plate + one scrolling line | telemetry or status for a stream |
+
+**A conversation is one face that changes sides**, not two faces on screen at once. Each beat
+shows a single speaker with `side="left"` or `side="right"`; alternating the side across beats
+is what reads as a back-and-forth, and it keeps the strip's width for the line rather than
+spending it on a second portrait that is not talking. It also degrades correctly for a
+three-hander or a monologue, which a fixed two-face layout does not.
 
 Shared modifiers all kinds should take: `align` (left/right), `scrim` (translucent backing so
 text survives a bright 3D view — `overlay_hero` already has `background`), `accent` (per-speaker
@@ -299,123 +304,29 @@ Open: whether the two faces can be rendered side by side in one region cheaply
 (`gui_face` per side) or whether they need separate slots for independent update. Answer with
 a Control Gallery specimen before committing the kind.
 
-### Phase 6 — `gui_flat_button` (and why not a `gui_button` option)
+### Phase 6 — flat button ❌ DROPPED (it already exists)
 
-**The requirement is the look.** The engine button draws **image chrome** — a bitmap skin
-around the label. That is what "flat" is defined against, and no style key removes it: a
-button's keys are only
+`gui_button(background_color=…)` is the flat button. `send_gui_colorbutton` draws a flat fill
+with no chrome (confirmed in-engine), and `Button.background_color` already pairs it with a
+text widget - so there was never anything to build, only something to notice. Its one in-tree
+user is LM's `document_screen.py`.
 
-```
-send_gui_button       color, draw_layer, font, pixel_aligned, text
-send_gui_clickregion  background_color, color, draw_layer, font, pixel_aligned, text
-```
-
-`color` and `font` tint the *label inside* the chrome; the chrome stays. So a flat control
-cannot be a styled button — it has to be a different widget. The clickregion is that widget:
-a filled rectangle plus text, no skin. sbs_utils already emits clickregions internally (row
-and column hit zones, `text_area` click, listbox rows, tabbed panel) but exposes none to
-missions.
-
-**Implementation shape** — follow the pattern already proven in the codebase rather than
-clickregion's own `text` key. Every internal usage pairs a `send_gui_text` with a clickregion
-laid over it ([text_area.py:236](sbs_utils/pages/layout/text_area.py#L236) uses a fully
-transparent region; [layout_listbox.py:582](sbs_utils/pages/widgets/layout_listbox.py#L582)
-uses a `#6663` tint under a separately-styled centered label). So:
-
-```
-gui_flat_button(text, style=None, data=None, on_press=None)
-    -> clickregion  (background_color + click_tag, draw_layer N)
-     + text widget  (full styling: justify, color, font, draw_layer N+1)
-```
-
-bundled as **one** mission-facing widget. The author writes one call; ordering is explicit via
-`draw_layer` rather than emission order, so an opaque background never eats its own label.
-Same event and handler shape as `gui_button` (`on gui_message` / `on gui_click`, `data={}` +
-`__ITEM__`).
-
-**Draw layers — follow [PR #57](https://github.com/artemis-sbs/sbs_utils/pull/57), not the old
-numbers.** That PR (open, `v1.4.0_dev`, astrolamb-gaming) retunes the composite button: the
-colorbutton background gets `draw_layer:1000` and the label drops from **10000 to 1001**, to
-match the engine default (1001) — because at 10000 the label was **drawing over the engine's
-F7 debug view**. A flat button should adopt the same band: background 1000, label 1001, and
-climb only when it is sitting on an overlay. Keeping the label above the region also puts the
-region's hover highlight behind the text, which is the right stacking for a highlight.
-
-**That finding is bigger than buttons.** If a label at 10000 occluded the F7 debug view, then
-the overlay slots at **20000–30000** ([OVERLAY_PLAN.md](OVERLAY_PLAN.md) slot table) occlude it
-far harder — every hero card, letterbox and lower third would sit over the engine's own debug
-surface. Worth an engine check and, if confirmed, a re-based overlay band. Raised here because
-it came out of #57; it belongs to the overlay plan to fix.
-
-**The region gives us hover for free.** A clickregion carries a **pseudo-hover** affordance of
-its own — the client highlights the rect under the pointer. That is what makes a chrome-free
-control still read as clickable, and it is why a fully transparent region works as a link hit
-zone in `text_area`. It is a client-side visual, not a script event: there is no hover
-callback, and none is needed.
-
-So only the states that carry *meaning* are ours:
-
-| State | How | Note |
-|---|---|---|
-| hover | **the engine's clickregion highlight** | free; do not draw a competing one |
-| selected / tally | background swap | exactly what a rundown's live-shot marker needs |
-| disabled | background + text colour swap, handler not registered | no engine disabled state exists |
-| pressed | optional brief background swap on the click event | the hover highlight may already be enough |
-
-**Open (gallery specimen):** how the hover highlight composites over a custom
-`background_color` — a tint over an opaque fill may be invisible, in which case flat buttons
-want a deliberately mid-tone background so the highlight has somewhere to go. Worth one
-specimen with a light, mid and dark fill side by side before the palette is fixed.
-
-**A background button already exists — check it before building a second one.**
-`Button.background_color` ([pages/layout/button.py:20](sbs_utils/pages/layout/button.py#L20))
-already emits `send_gui_colorbutton` as a background plus `send_gui_text` as the label, with
-its own code comments recording the same constraint: *"send_gui_button() can only change the
-color of the text, not the background. send_gui_colorbutton() doesn't show any text at all,
-but the background color can be shown."* So the two-widget composite is the house pattern for
-buttons already, not something the flat button invents. Its only in-tree user is LM's
-`document_screen.py`.
-
-**ANSWERED (Doug, 2026-08-01): `send_gui_colorbutton` is a FLAT FILL — no chrome.**
-
-So the flat button already exists as `gui_button(background_color=…)`, and this phase is not a
-new widget. What is left is the part that makes it usable:
-
-- **A name.** `gui_flat_button(text, background=…)` as a thin wrapper, so the intent is
-  discoverable instead of being an attribute nobody knows to set (its only in-tree user today
-  is LM's `document_screen.py`).
-- **The states**, which are ours because we drew it: selected/tally and disabled are background
-  swaps. Hover is free — the region carries a pseudo-hover highlight.
-- **A palette default.** `visual_button_chrome` shows the same control at five background tones
-  over a live 3D view; the open question is which fills the hover highlight still reads over,
-  since a tint on a bright fill may vanish.
-- **A gallery entry**, so the next person finds it.
-
-The clickregion path is no longer needed *for flatness*. It stays relevant for one thing the
-button cannot do: a **hot zone** over an image or a face (click a portrait to talk to that
-character). That is a separate widget and can wait until something needs it.
-
-**Rejected either way:** a `background` option that draws a plain region *behind* a chromed
-`send_gui_button` — that leaves the chrome on screen, which is the thing being designed away.
-
-**Open:** does clickregion's own `text` key support `justify`? Undocumented and unused in this
-codebase. If it does, the widget collapses to a single emission. One gallery specimen answers it.
-
-Ships with a Control Gallery specimen and a VisualTestRange specimen (draw order over an
-overlay is a visual claim, not a unit-testable one).
-
----
+Nothing further is needed here. If a control ever wants to be a **hot zone** over an image or a
+face - click a portrait to talk to that character - that is a clickregion and a separate,
+un-asked-for widget; `visual_button_chrome` in the Visual Test Range remains useful as a
+reference for how the background tones read over a live view.
 
 ## 3. Sequencing
 
 | Order | What | Why now |
 |---|---|---|
-| 1 | **Phase 0 spikes** | Everything downstream is shaped by Q1–Q5, and they cost half a session |
-| 2 | **Phase 1 primitives** + **Phase 6 `gui_flat_button`** | Both are cheap, independently useful, and unblock the rest. The flat button pays for itself in the gallery alone |
-| 3 | **Phase 5 `two_shot`** | The conversation layout is wanted regardless of cutscenes, and it exercises the overlay kind mechanism |
-| 4 | **Phase 2 mover** | Only after Q3 says how motion must be driven |
-| 5 | **Phase 3 cutscenes** | Sequencing on top of proven parts |
-| 6 | **Phase 4 rundowns** | The payoff, and the part most worth getting design feedback on before building |
+| ~~1~~ | ~~Phase 0 spikes~~ | ✅ done - and section 0 above is what they found |
+| ~~2~~ | ~~Phase 1 primitives~~ | ✅ done - `procedural/gui/camera.py`, 17 tests |
+| ~~-~~ | ~~Phase 6 flat button~~ | ❌ dropped - `gui_button(background_color=…)` already is one |
+| **1** | **Phase 5 `two_shot`** | the conversation lower third. Wanted regardless of cutscenes, and it exercises the overlay-kind mechanism the rest of the furniture will use |
+| 2 | Phase 2 mover | needs re-sketching against the one-object rule: a move is now "recompute the subject-relative offset", not "animate an anchor the camera rides" |
+| 3 | Phase 3 cutscenes | sequencing on top of proven parts |
+| 4 | Phase 4 rundowns | the payoff. A shot is a *(subject, lens position)* pair now, not a camera object - arguably a better model |
 
 ## 4. Standing constraints
 

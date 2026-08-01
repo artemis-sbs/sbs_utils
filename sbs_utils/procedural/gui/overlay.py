@@ -62,17 +62,27 @@ OVERLAY_KINDS = {}
 _KIND_DEFAULT_SLOT = {
     "hero": "center_hero", "credits": "fullscreen", "choice": "center_hero",
     "toast": "corner_toast", "banner": "top_banner", "lower_third": "lower_third",
+    "lower_third_portrait": "lower_third",
     "letterbox": "fullscreen", "flash": "fullscreen", "hud": "hud",
 }
 # Kinds whose text lives on ONE line and can therefore be split into timed parts
 # when it does not fit: kind -> (field, font tag used by its builder).
-_CYCLE_KINDS = {"banner": ("text", "gui-4"), "lower_third": ("line", "gui-3")}
+_CYCLE_KINDS = {"banner": ("text", "gui-4"), "lower_third": ("line", "gui-3"),
+                "lower_third_portrait": ("line", "gui-3")}
+
+# Fraction of the slot's width the cycled line actually gets. A kind that spends
+# part of the strip on something else (a portrait) must measure against what is
+# LEFT, or it splits into segments that still do not fit.
+_KIND_TEXT_WIDTH = {}
+
+# A subtitle plays through once - a repeating one reads as a stutter.
+_KIND_LOOP_DEFAULT = {"lower_third": False, "lower_third_portrait": False}
 
 # the field a bare line of text lands in for each kind
 _KIND_PRIMARY_FIELD = {
     "hero": "title", "credits": "title", "choice": "title",
     "toast": "text", "banner": "text", "lower_third": "line",
-    "letterbox": "line",
+    "lower_third_portrait": "line", "letterbox": "line",
 }
 
 
@@ -625,11 +635,10 @@ def overlay_kind(kind, to=None, consoles=None, slot=None, seconds=None, **fields
     # Single-line kinds route through the cycling path, so text that will not fit
     # is played in timed parts here too - the quest/AMD front doors get the same
     # behaviour as a direct overlay_banner() call rather than a clipped strip.
-    if kind in ("banner", "lower_third"):
+    if kind in _CYCLE_KINDS:
         field, font = _CYCLE_KINDS[kind]
         return _show_maybe_cycled(slot, kind, to, consoles, seconds, fields, field,
-                                  font, True, None,
-                                  False if kind == "lower_third" else None)
+                                  font, True, None, _KIND_LOOP_DEFAULT.get(kind))
     _show_transient(slot, kind, to, seconds, fields, consoles)
 
 
@@ -749,15 +758,20 @@ def _slot_px_width(client_id, slot, pad=0.96):
     return ((right - left) / 100.0) * ar.x * pad
 
 
-def _split_to_fit(client_id, slot, text, font):
+def _split_to_fit(client_id, slot, text, font, width_frac=1.0):
     """Segments of ``text`` that each fit the slot, or ``[text]`` when it already
-    fits (or cannot be measured)."""
+    fits (or cannot be measured).
+
+    ``width_frac`` is the share of the slot the text actually gets - a portrait
+    lower third leaves the line only part of the strip.
+    """
     text = " ".join(str(text or "").split())
     if not text:
         return [""]
     px = _slot_px_width(client_id, slot)
     if not px:
         return [text]
+    px = px * max(0.05, min(1.0, width_frac))
     try:
         from ...pages.layout.measure import measure_line_width, wrap_to_width
         w = measure_line_width(font, text)
@@ -818,16 +832,19 @@ def _start_text_cycle(page, slot, kind, fields, field, segments, dwell, loop):
 
 
 def _show_maybe_cycled(slot, kind, to, consoles, seconds, fields, field, font,
-                       cycle, dwell, loop):
+                       cycle, dwell, loop, width_frac=None):
     """Show a single-line overlay, splitting into timed parts when it will not fit.
 
     The split is PER CLIENT, because "does it fit" depends on that screen's width.
     """
     text = fields.get(field, "")
+    if width_frac is None:
+        width_frac = _KIND_TEXT_WIDTH.get(kind, 1.0)
     pages = _pages_for(to, consoles)
     cycled_any = False
     for page in pages:
-        segments = _split_to_fit(page.client_id, slot, text, font) if cycle else [text]
+        segments = (_split_to_fit(page.client_id, slot, text, font, width_frac)
+                    if cycle else [text])
         if len(segments) <= 1:
             data = dict(fields)
             data[field] = segments[0] if segments else text
@@ -921,6 +938,101 @@ def overlay_lower_third(name, line, slot="lower_third", to=None, consoles=None,
     return _show_maybe_cycled(
         slot, "lower_third", to, consoles, seconds,
         {"name": name, "line": line}, "line", "gui-3", cycle, dwell, loop)
+
+
+# --- Lower third with a portrait (ONE face, on either side) ------------------
+# A conversation is this strip with the face ALTERNATING sides between beats -
+# not two portraits on screen at once. One face keeps the width for the line,
+# and it still reads for a monologue or a three-hander, which a fixed two-face
+# layout does not.
+# Column WEIGHTS, not percents: the layout lexer has no '%' token at all, so a
+# style of "col-width: 22%" raises rather than laying out. 22 against 78 is the
+# same split, expressed the way the parser reads it.
+PORTRAIT_COL = 22.0     # the face column's share of the strip
+PORTRAIT_EM = 6.0       # strip height - a portrait needs more than a name plate
+
+
+def _lower_third_portrait_builder(client_id, content):
+    from .text import gui_text
+    from .face import gui_face
+    from .blank import gui_blank
+    from .row import gui_row
+    from .section import gui_sub_section
+
+    name = content.get("name", "")
+    line = content.get("line", "")
+    face = content.get("face")
+    # "align" (not "side"): in Cosmos a side is a FACTION, and this is a layout.
+    align = str(content.get("align", "left")).lower()
+    right = align in ("right", "r", "end")
+    color = content.get("color", "#8cf")
+    bg = content.get("background", "#000a")
+    just = "right" if right else "left"
+
+    def _face_col():
+        with gui_sub_section(f"col-width: {PORTRAIT_COL};"):
+            gui_row(f"row-height: {PORTRAIT_EM}em;")
+            if face:
+                gui_face(face)
+            else:
+                gui_blank()
+
+    def _text_col():
+        with gui_sub_section(f"col-width: {100.0 - PORTRAIT_COL};"):
+            if name:
+                gui_row("row-height: content;")
+                gui_text(f"$text:`{name}`;justify:{just};font:gui-4;color:{color}")
+            gui_row("row-height: content;")
+            gui_text(f"$text:`{line}`;justify:{just};font:gui-3;color:#fff")
+
+    gui_row(f"row-height: {PORTRAIT_EM}em;" + (f"background: {bg};" if bg else ""))
+    # The text hangs off the portrait, so the columns swap with the face.
+    if right:
+        _text_col()
+        _face_col()
+    else:
+        _face_col()
+        _text_col()
+
+
+overlay_register("lower_third_portrait", _lower_third_portrait_builder)
+_KIND_TEXT_WIDTH["lower_third_portrait"] = (100.0 - PORTRAIT_COL) / 100.0
+
+
+def overlay_lower_third_portrait(name, line, face=None, align="left",
+                                 slot="lower_third", to=None, consoles=None,
+                                 seconds=None, color="#8cf", background="#000a",
+                                 cycle=True, dwell=None, loop=None):
+    """Lower third carrying ONE face, on the left or the right of the line.
+
+    Same strip as ``overlay_lower_third``, plus a portrait. **A conversation is
+    this called repeatedly with ``align`` alternating** - the face moving side to
+    side is what reads as a back-and-forth, and only the speaker is on screen.
+
+    Args:
+        name (str): the speaker's name plate.
+        line (str): what they say. Too long for the remaining width and it is
+            played in **timed parts** (measured against the strip MINUS the
+            portrait), like ``overlay_lower_third``.
+        face (str, optional): a face string - ``get_face(id)`` or a lifeform face.
+            Omitted, the portrait column is left blank so a run of beats does not
+            jump sideways when one speaker has no face.
+        align (str): ``"left"`` (default) or ``"right"`` - which side the face
+            sits on. Named ``align`` and not ``side`` because a *side* in Cosmos
+            is a faction; this is layout only.
+        color (str): the name-plate color.
+        background (str): fill behind the strip so it reads over the live view;
+            pass ``None`` for bare content.
+
+    See ``overlay_banner`` for ``cycle`` / ``dwell`` / ``loop``.
+    """
+    if loop is None:
+        loop = False
+    return _show_maybe_cycled(
+        slot, "lower_third_portrait", to, consoles, seconds,
+        {"name": name, "line": line, "face": face, "align": align,
+         "color": color, "background": background},
+        "line", "gui-3", cycle, dwell, loop)
 
 
 # --- Credits (sequential list) -----------------------------------------------
