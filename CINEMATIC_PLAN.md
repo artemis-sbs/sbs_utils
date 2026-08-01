@@ -281,7 +281,7 @@ Proposed kinds — each is a builder plus a slot, all reusing the machinery that
 | `ticker` | plate + one scrolling line | telemetry or status for a stream |
 
 **A conversation is one face that changes sides**, not two faces on screen at once. Each beat
-shows a single speaker with `side="left"` or `side="right"`; alternating the side across beats
+shows a single speaker with `align="left"` or `align="right"`; alternating that across beats
 is what reads as a back-and-forth, and it keeps the strip's width for the line rather than
 spending it on a second portrait that is not talking. It also degrades correctly for a
 three-hander or a monologue, which a fixed two-face layout does not.
@@ -294,15 +294,85 @@ only** until we know the engine can animate alpha.
 Conversation API, one call per beat:
 
 ```
-dialogue_two_shot(left_face, right_face, speaker="left", name=..., line=..., to=...)
+overlay_lower_third_portrait(name, line, face=..., align="left"|"right", to=...)
 ```
 
-with a helper that walks an AMD dialogue block so a movie-script drives faces, lines and
-shots together. **The AMD stays declarative** — no control flow creeping into dialogue.
+with a helper that walks an AMD dialogue block so a movie-script drives the face, the side and
+the line together. **The AMD stays declarative** — no control flow creeping into dialogue.
 
-Open: whether the two faces can be rendered side by side in one region cheaply
-(`gui_face` per side) or whether they need separate slots for independent update. Answer with
-a Control Gallery specimen before committing the kind.
+**Settled**: its own kind, and the parameter is **`align`**, never `side` — a *side* in Cosmos
+is a FACTION, and this is layout. The separate kind earns itself: the strip is taller (a
+portrait needs more than a name plate), and the line cycles in timed parts when it is too long,
+so it must be measured against the strip MINUS the square or the segments still do not fit.
+
+Built with it: an empty visual still **reserves** the column, so a run of beats does not slide
+sideways when a speaker has no portrait; the name and line **justify toward** the visual;
+`tests/test_overlay_portrait.py` and the `visual_lower_third_portrait` specimen.
+
+**Two layout traps this turned up**, both of which draw OUTSIDE the box because the engine does
+not clip:
+
+- the layout lexer has **no `%` token at all** — `col-width: 22%` raises at *render* time, and
+  the overlay try/except swallows it into a silently empty slot. Widths take `em`/`px`/weights,
+  heights take `em`/`content`.
+- a bare `col-width` number is an **absolute percent of the region**, not a weight. `22 + 78`
+  oversubscribes a strip that is only 60% of the screen.
+
+The fix for both was to stop sizing the visual at all: a face is a **square** column, so it
+takes its size from the row height. LM's `bar_helpers.py` templates already did exactly this.
+
+### Phase 5b — the square slot takes an icon, a ship or an image (PLANNED)
+
+Same strip, same geometry, four things that can sit in the square. **Square is REQUIRED**, and
+that requirement is the design: it makes the bite out of the strip, the gutter, the empty
+placeholder and the cycling width IDENTICAL for all four, so the layout work is already done
+and a variant costs one branch. An image is laid out **square and keeps its aspect ratio** —
+a square BOX with aspect-preserved content, so a non-square source letterboxes rather than
+distorting (`gui_image_keep_aspect_ratio_center`, which `overlay_hero` already uses).
+
+**The four are not equally ready.** Only two are square today:
+
+| visual | layout class | square today | note |
+|---|---|---|---|
+| `face` | `pages/layout/face.py` | **yes** (`square = True`) | shipped |
+| `icon` | `pages/layout/icon.py` | **yes** (`square = True`) | drops straight in |
+| `ship` | `pages/layout/ship.py` | **NO** — `#self.square = False`, inherits Column's False | must be forced |
+| `image` | `pages/layout/image.py` | **NO** — never sets it; has its own `measure()` | must be forced |
+
+A ship or an image left unsquared is a **flex** column: it takes half the strip and pushes the
+text out of the box — the exact failure the 22/78 split produced. So forcing it is not cosmetic.
+
+**There is no `square` style keyword.** Nothing in `style.py` or `parsers.py` parses one, so
+"make this square" cannot be said in a style string today. Two ways to get it:
+
+- **(a) the builder sets `item.square = True`** on the returned layout item. `gui_ship`,
+  `gui_icon` and `gui_image` all return theirs. One line, contained, no language change.
+- **(b) add `square` to the style system** — general, and the thing that would let a MISSION
+  author square a ship on their own screen, which is a real want. But it is a shared-language
+  change: parser, style docs, AMD schema, lint.
+
+**Recommendation: (a) now, (b) only as its own item if squaring is wanted generally.** Phase 5b
+should not carry a style-language change.
+
+**One kind, not four.** `lower_third_portrait` keeps its name (it is the *portrait slot*) and
+grows `icon=` / `ship=` / `image=` beside `face=`, **first set wins, in `overlay_hero`'s
+existing order** (face, ship, icon, image) so the two cards agree. Four kinds would quadruple
+the registry, `_KIND_DEFAULT_SLOT`, `_CYCLE_KINDS`, `_KIND_LOOP_DEFAULT` and
+`_KIND_PRIMARY_FIELD` for zero behavioral difference — and would need four AMD record types
+where one takes four fields.
+
+Work:
+
+1. the builder branches on the four sources, forcing `square = True` on the two that need it;
+2. `overlay_lower_third_portrait(..., icon=None, ship=None, image=None)`;
+3. tests: a variant matrix asserting each source is square, carries no `col-width`, keeps the
+   gutter, and works on both aligns — plus that an unsquared ship/image cannot regress in;
+4. the specimen cycles all four so the eye can compare them at one row height.
+
+**Open, and only an eye can answer**: a ship is a LIVE 3D render (`send_gui_3dship`). At a 6em
+square it may read as a smudge, and it costs a render per frame. If it does not read, the answer
+is probably a taller strip when the visual is a ship — the one place the four would stop being
+identical.
 
 ### Phase 6 — flat button ❌ DROPPED (it already exists)
 
