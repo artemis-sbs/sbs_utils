@@ -1083,6 +1083,18 @@ def _art_root_for(obj) -> str:
         return tag
 
 
+def _is_body_kind(obj, behavior: str, tag: str) -> bool:
+    """True if the object is an engine-drawn body of this kind.
+
+    The BEHAVIOR decides: ``behav_maelstrom`` IS the black hole and ``behav_planet`` IS the
+    gas giant, each with its own engine renderer. The art/data tag is only a convention a
+    mission is free to change (and for these bodies it isn't even a shipData key), so it is
+    kept as a fallback, not the test.
+    """
+    return (getattr(obj, "_tick_type", "") == behavior
+            or getattr(obj, "_data_tag", "") == tag)
+
+
 def _nebula_info(obj):
     """If the object is a nebula, return its visual params for the 3dview's GPU
     point-sprite cloud, else None. Nebulae are volumetric (no OBJ mesh):
@@ -1095,7 +1107,7 @@ def _nebula_info(obj):
         swirl    – animated swirl rotation amount
         warp     – per-particle positional wobble amount
     """
-    if getattr(obj, "_data_tag", "") != "nebula":
+    if not _is_body_kind(obj, "behav_nebula", "nebula"):
         return None
     ds = obj.data_set
     def _f(key, default):
@@ -1114,6 +1126,96 @@ def _nebula_info(obj):
         "swirl":   round(_f("swirl", 0.0), 3),
         "warp":    round(_f("domain_warp", 0.0), 3),
     }
+
+
+def _planet_info(obj):
+    """If the object is a planet, return its gas-giant surface params for the 3dview,
+    else None.
+
+    A planet runs ``behav_planet`` and there is NO "planet" key in shipData at all — the
+    engine draws it with shader-gasgiant.ps, not an OBJ. So _art_root_for falls back to the
+    raw tag, the browser fetches /ships/planet.obj, 404s, and the body is silently ABSENT
+    from the 3D view (the "worldlets don't show in 3D" symptom). Stream the shader levers
+    instead, exactly as nebulae are streamed as volume params.
+
+    Field names are the engine planet-editor labels with a ``planet_`` prefix (see
+    nebula_shader_optimization/GASGIANT_OPTIMIZATION.md). One name mismatch the engine
+    handles internally: ``planet_fresnel`` is the shader's ``fresnelPow``.
+    """
+    if not _is_body_kind(obj, "behav_planet", "planet"):
+        return None
+    ds = obj.data_set
+
+    def _f(key, default):
+        v = ds.get(key)
+        return float(v) if v is not None else default
+
+    def _rgb(prefix, default):
+        return [round(_f(prefix + "R", default[0]), 3),
+                round(_f(prefix + "G", default[1]), 3),
+                round(_f(prefix + "B", default[2]), 3)]
+
+    # planet_radius IS the drawn size. Fall back to the exclusion radius (what a caller
+    # that only set the collision size would expect) and finally to a visible default.
+    radius = _f("planet_radius", 0.0)
+    if radius <= 0.0:
+        radius = float(getattr(obj, "exclusion_radius", 0) or 0) or 500.0
+    return {
+        "pradius": round(radius, 1),
+        "pbase":   _rgb("planet_baseColor",       (0.55, 0.16, 0.28)),
+        "pemis":   _rgb("planet_emissiveColor",   (0.06, 0.04, 0.03)),
+        "pcloud":  _rgb("planet_upperCloudColor", (1.0, 1.0, 1.0)),
+        "pband":   round(_f("planet_bandScale", 3.72), 3),
+        "pcstr":   round(_f("planet_upperCloudStrength", 3.12), 3),
+        "pcexp":   round(_f("planet_upperCloudExponent", 3.96), 3),
+        "pfpow":   round(_f("planet_fresnel", 11.96), 3),      # -> shader fresnelPow
+        "pfbias":  round(_f("planet_fresnelBias", 0.42), 3),
+        # windSpeed1/2 drive no ANIMATION (the engine hardcodes iTime=timeScale=1), but they
+        # are still added to the noise seed, so they shift the pattern. Stream them or the
+        # mock's surface would not match the engine's for a planet that sets them.
+        "pws1":    round(_f("planet_windSpeed1", 0.0), 3),
+        "pws2":    round(_f("planet_windSpeed2", 0.0), 3),
+    }
+
+
+def _blackhole_info(obj):
+    """If the object is a black hole (maelstrom), return its 3dview params, else None.
+
+    Same shape of problem as the planet: a black hole is its own behavior
+    (``behav_maelstrom``, spawned by terrain.py terrain_spawn_black_hole) with no shipData
+    entry and no OBJ, so it 404s and vanishes from the 3D view. The browser draws the event
+    horizon as a black sphere with a hot rim plus accretion rings out at the gravity radius.
+    """
+    if not _is_body_kind(obj, "behav_maelstrom", "maelstrom"):
+        return None
+    horizon = float(getattr(obj, "exclusion_radius", 0) or 0) or 100.0
+    grav = obj.data_set.get("gravity_radius")
+    return {
+        "bhr":    round(horizon, 1),
+        "bhgrav": round(float(grav) if grav is not None else horizon * 12.0, 1),
+    }
+
+
+def _render_payload(obj):
+    """Render params for an object the 3dview draws PROCEDURALLY instead of from an OBJ
+    (nebula / planet / black hole), as ``(flag_key, params)`` — or None for ordinary art.
+
+    Kept as one helper because the terrain change-detection signature has to include these
+    params, not just the position: a mission sets the knobs on the tick AFTER the spawn
+    (see LM prefab_planetoid / OU worldlet_spawn), and the physics thread can push the
+    terrain snapshot in between. Without the params in the signature the body would be
+    streamed once with defaults and never corrected.
+    """
+    neb = _nebula_info(obj)
+    if neb is not None:
+        return ("nebula", neb)
+    pl = _planet_info(obj)
+    if pl is not None:
+        return ("planet", pl)
+    bh = _blackhole_info(obj)
+    if bh is not None:
+        return ("blackhole", bh)
+    return None
 
 
 def _quat_of(obj) -> list:
@@ -1381,8 +1483,12 @@ def _push_radar() -> None:
     visible_terrain_ids = [tid for tid in terrain_ids
                            if not _is_hidden_marker(objs[tid])
                            and not _drop_from_radar(objs[tid])]
+    # Position identifies an ordinary rock; a procedurally-drawn body (nebula / planet /
+    # black hole) also carries its shader params, which arrive a tick or more AFTER the
+    # spawn — see _render_payload.
     current_terrain_sig = frozenset(
-        (tid, round(objs[tid]._pos.x, 1), round(objs[tid]._pos.z, 1))
+        (tid, round(objs[tid]._pos.x, 1), round(objs[tid]._pos.z, 1),
+         repr(_render_payload(objs[tid])))
         for tid in visible_terrain_ids)
     if current_terrain_sig != _last_terrain_snapshot:
         _last_terrain_snapshot = current_terrain_sig
@@ -1413,12 +1519,15 @@ def _push_radar() -> None:
                 # Not hit-testable (selectable==0 asteroids/nebula, or invisible cambots).
                 "nosel": _not_hittable(obj),
             }
-            neb = _nebula_info(obj)
-            if neb is not None:
-                rec["nebula"]    = True
-                rec["art"]       = ""        # volumetric — drawn as a particle cloud, no OBJ
+            payload = _render_payload(obj)
+            if payload is not None:
+                # Procedurally drawn (nebula volume / gas-giant surface / black hole) —
+                # these have no OBJ at all, so send an empty art and the shader params.
+                kind, params = payload
+                rec[kind]        = True
+                rec["art"]       = ""
                 rec["meshscale"] = 1.0
-                rec.update(neb)
+                rec.update(params)
             else:
                 rec["art"]       = _art_root_for(obj)
                 rec["meshscale"] = _mesh_scale_for(obj)

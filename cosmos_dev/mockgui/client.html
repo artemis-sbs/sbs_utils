@@ -1232,6 +1232,13 @@ function cmdRadarTerrain(msg) {
       icon_scale: (o.icon_scale != null ? +o.icon_scale : null),
       nebula: !!o.nebula, radius: o.radius || 0, density: o.density || 0, seed: o.seed || 1,
       color: o.color || null, color2: o.color2 || null, swirl: o.swirl || 0, warp: o.warp || 0,
+      // Gas giant / black hole: engine-drawn bodies with NO OBJ art, so the WebGPU 3dview
+      // renders them analytically from these shader levers (see mockgui/sbs.py _planet_info).
+      planet: !!o.planet, pradius: o.pradius || 0,
+      pbase: o.pbase || null, pemis: o.pemis || null, pcloud: o.pcloud || null,
+      pband: o.pband ?? 0, pcstr: o.pcstr ?? 0, pcexp: o.pcexp ?? 0,
+      pfpow: o.pfpow ?? 0, pfbias: o.pfbias ?? 0, pws1: o.pws1 ?? 0, pws2: o.pws2 ?? 0,
+      blackhole: !!o.blackhole, bhr: o.bhr || 0, bhgrav: o.bhgrav || 0,
     });
   }
   _terrainCount = Math.min(objects.length, _MAX_TERRAIN);
@@ -1255,6 +1262,10 @@ function cmdWorldReset(msg) {
   // Terrain (asteroids, nebulae, …).
   _terrainMap.clear(); _terrainRevMap.clear(); _terrainMeta.clear();
   _terrainCount = 0;
+  _terrainVersion++;   // force the WebGPU overlay to re-gather: it caches terrain (incl. the
+                       // planet / black-hole bodies) until the version moves, so without this a
+                       // gas giant from the previous mission hangs in the view until the next
+                       // terrain push happens to differ.
   if (_terrainPoints) _terrainPoints.geometry.setDrawRange(0, 0);
   if (typeof _buildNebula === 'function') _buildNebula();   // empties the nebula cloud
   // Navigation overlays + transient combat FX.

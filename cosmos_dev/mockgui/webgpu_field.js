@@ -226,6 +226,143 @@ async function start(){
       t=t+dS; }
     return vec4f(acc, 0.0);
   }
+  // ---- camera-facing billboard sized to a world sphere (shared by the planet + black-hole passes) ----
+  // Same construction as the nebula quad: project the center, expand by the radius in NDC, and
+  // hand the fragment a per-pixel ray so the body itself is intersected analytically.
+  struct BB { ndc:vec2f, rd:vec3f, z:f32, ok:f32 };
+  fn billboard(center:vec3f, R:f32, vi:u32)->BB{
+    var o:BB; o.ndc=vec2f(0.0); o.rd=u.camDir.xyz; o.z=0.5; o.ok=0.0;
+    let rel=center-u.camPos.xyz; let vz=dot(rel,u.camDir.xyz);
+    if(vz<=0.05){ return o; }                       // center behind the camera
+    let vx=dot(rel,u.camRight.xyz); let vy=dot(rel,u.camUp.xyz);
+    let th=u.camDir.w; let aspect=u.camRight.w;
+    let ndcx=vx/(vz*th*aspect); let ndcy=vy/(vz*th); let rx=R/(vz*th*aspect); let ry=R/(vz*th);
+    var q=array<vec2f,6>(vec2f(-1,-1),vec2f(1,-1),vec2f(-1,1),vec2f(-1,1),vec2f(1,-1),vec2f(1,1));
+    let cn=q[vi]; let ndc=vec2f(ndcx+cn.x*rx, ndcy+cn.y*ry);
+    let clip=u.vp*vec4f(center,1.0);
+    o.ndc=ndc; o.z=clamp(clip.z/clip.w, 0.0, 0.999999); o.ok=1.0;
+    o.rd=normalize(u.camDir.xyz + u.camRight.xyz*(ndc.x*th*aspect) + u.camUp.xyz*(ndc.y*th));
+    return o;
+  }
+  struct BodyVO { @builtin(position) pos:vec4f, @location(0) @interpolate(flat) inst:u32, @location(1) rd:vec3f };
+  struct BodyFO { @location(0) col:vec4f, @builtin(frag_depth) depth:f32 };   // real per-pixel depth: ships pass in front of / behind the body
+  // ---- gas-giant planets (analytic surface — there is no planet mesh) ----
+  // A planet is spawned as terrain_spawn(..., "planet", "behav_planet") and has NO shipData
+  // entry, so it has no artfileroot and no OBJ; the engine draws it with shader-gasgiant.ps.
+  // This is a port of that shader's renderSurface(), fed by the same planet_* data_set levers
+  // the mock streams (see _planet_info). iTime/timeScale are hardcoded to 1 in the engine (the
+  // animation is disabled), so windSpeed1/2 act as fixed per-planet offsets and the surface is
+  // STATIC — matching what the engine actually draws, not the tunable studio tab.
+  struct Planet { c:vec4f, base:vec4f, emis:vec4f, cloud:vec4f, atm:vec4f };
+  // c=center.xyz,radius | base=baseColor.rgb,bandScale | emis=emissive.rgb,cloudStrength
+  // cloud=cloudColor.rgb,cloudExponent | atm=fresnelPow,fresnelBias,windSpeed1,windSpeed2
+  @group(0) @binding(11) var<storage,read> planets:array<Planet>;
+  fn ridgedn(p:vec3f, freq:f32, amp:f32)->f32{ return ((1.0-abs(snoisen(p*freq)))*2.0-1.0)*amp; }
+  fn renderGas(pl:Planet, N:vec3f, vd:vec3f, h:f32)->vec4f{
+    let cBase=pl.base.rgb; let bandScale=pl.base.w;
+    let cEmis=pl.emis.rgb;  let cStr=pl.emis.w;
+    let cCloud=pl.cloud.rgb; let cExp=pl.cloud.w;
+    let fPow=pl.atm.x; let fBias=pl.atm.y; let ws1=pl.atm.z; let ws2=pl.atm.w;
+    let fade=0.0;   // engine: min(0.5, max(1-dist/24,0)) with dist in WORLD units -> always 0
+    // Per-planet LONGITUDE rotation seeded from the colors, so two planets sharing the shader
+    // don't share a face (the engine's GG_SEED_FROM_EXPONENT trick; the band seed below is the
+    // other half of it).
+    let pa=dot(cBase+cEmis, vec3f(9.7,6.3,4.1)); let pc=cos(pa); let ps=sin(pa);
+    let wn=vec3f(N.x*pc-N.z*ps, N.y, N.x*ps+N.z*pc);
+    var seed=wn; seed.x=seed.x+ws1;
+    let n1=ridgedn(seed,12.0,1.0);
+    let n2=snoisen(seed*24.0)+n1;
+    let n3=snoisen(seed*64.0)+n2;
+    let n4=min(0.25, ridgedn(seed,16.0,n3)-n3);
+    var offset=mix(n1+n2, n4, fade);
+    seed=wn*(-0.5); seed.x=seed.x+ws2;                       // contra-rotating band layer
+    let n12=ridgedn(seed,12.0,1.0);
+    let n22=snoisen(seed*24.0);
+    let n32=snoisen(seed*64.0);
+    let n42=ridgedn(seed,32.0,n32);
+    offset=offset+mix(n12+n22, n42, fade)*0.9;
+    offset=offset*(1.0-cos(h*4.0)*0.7);                      // modulate the bands by latitude
+    let uu=abs(h*bandScale + offset/150.0);
+    var texCol=cBase*smoothstep(-1.0,2.0, 0.2+abs(snoisen(vec3f(cExp*0.7,(16.0+wn.y)*uu,0.0))));
+    let cloudScale=10.0/max(pl.c.w,1.0);
+    let skewed=vec3f(wn.x, wn.y*3.0+ws1, wn.z);
+    let uCloud=clamp(max(snoisen(N*2.0)+snoisen(skewed*cloudScale)+snoisen(skewed*8.0)+snoisen(skewed*32.0)+n4, 0.0)*cStr, 0.0, 1.0);
+    texCol=mix(texCol, cCloud, pow(uCloud, cExp));
+    let L=normalize(vec3f(0.5,0.7,0.4));                     // same key light as the mesh pass
+    let NdotL=clamp(dot(N,L),0.0,1.0);
+    var col=texCol*NdotL+cEmis;
+    let fres=clamp(fBias+40.0*pow(max(1.0+dot(vd,N),0.0), fPow), 0.0, 1.0);   // fresnel atmosphere rim
+    col=vec3f(col.r*(1.0-fres*1.44), col.g*(1.0-fres*0.9), col.b*(1.0-fres*0.7));
+    col=col+(vec3f(fres)+cEmis)*NdotL;
+    return vec4f(col, smoothstep(0.0,0.5, smoothstep(0.0,0.9,1.0-fres)));
+  }
+  @vertex fn pvs(@builtin(vertex_index) vi:u32, @builtin(instance_index) ii:u32)->BodyVO{
+    let pl=planets[ii]; let bb=billboard(pl.c.xyz, pl.c.w*1.08, vi);   // 8% margin for the atmosphere rim
+    var o:BodyVO; o.inst=ii; o.rd=bb.rd;
+    o.pos=select(vec4f(0.0,0.0,-2.0,1.0), vec4f(bb.ndc, bb.z, 1.0), bb.ok>0.5);
+    return o;
+  }
+  @fragment fn pfs(in:BodyVO)->BodyFO{
+    let pl=planets[in.inst]; let R=pl.c.w; let cen=pl.c.xyz; let rd=normalize(in.rd);
+    let ro=u.camPos.xyz-cen; let b=dot(rd,ro); let cq=dot(ro,ro)-R*R; let disc=b*b-cq;
+    if(disc<0.0){ discard; }                                 // ray misses the body
+    let t=-b-sqrt(max(disc,0.0));                            // max(): discard doesn't stop execution in WGSL
+    if(t<=0.0){ discard; }                                   // behind the camera / camera inside
+    let hit=u.camPos.xyz+rd*t; let N=normalize(hit-cen);
+    var col:vec4f;
+    // Skip the ~13 noise evals on the unlit hemisphere (they are multiplied by NdotL~0 anyway);
+    // the night side is the planet's EMISSIVE color, opaque so it still occludes. Engine parity.
+    if(dot(normalize(vec3f(0.5,0.7,0.4)),N) > -0.05){ col=renderGas(pl,N,rd,N.y); }
+    else { col=vec4f(pl.emis.rgb, 1.0); }
+    let clip=u.vp*vec4f(hit,1.0);
+    var o:BodyFO; o.col=vec4f(pow(max(col.rgb,vec3f(0.0)), vec3f(1.0/2.2)), clamp(col.a,0.0,1.0));
+    o.depth=clamp(clip.z/clip.w, 0.0, 1.0); return o;
+  }
+  // ---- black holes (maelstrom): event horizon + accretion disc ----
+  // The engine has NO maelstrom shader (the 18 DX11PAXShader* classes have no black hole, and
+  // the only "maelstrom" string in the binary sits in Render2D.cpp next to icon-blackhole), so
+  // there is nothing to port wholesale. What IS ported is the SHADING: shader-point-ring.ps
+  //     percent    = abs(dist(worldPos, centerPoint) - distCenter) / distRadius
+  //     finalColor = saturate(ambientColor * texture * (1 - percent))
+  // i.e. a radial band that peaks at the mid-radius between minMaxDistance.x/.y and fades to
+  // nothing at both edges — an annulus glow around a center point, which is exactly the shape
+  // a gravity well wants. min/max map to the two radii a maelstrom actually has: the event
+  // horizon (exclusion_radius) and the gravity radius.
+  // GUESSED, because the engine keeps it internal: the GEOMETRY (a flat disc in the object's
+  // y-plane — the reading that matches disk.obj / gas-ring.png / starRing1.png), the texture
+  // (taken as 1.0, none), and the tint when the mission sets no radar_color_override.
+  struct Hole { c:vec4f, g:vec4f };   // c=center.xyz,horizonR(min) | g=gravityR(max),tint.rgb
+  @group(0) @binding(12) var<storage,read> holes:array<Hole>;
+  @vertex fn hvs(@builtin(vertex_index) vi:u32, @builtin(instance_index) ii:u32)->BodyVO{
+    let hl=holes[ii]; let bb=billboard(hl.c.xyz, hl.g.x*1.02, vi);   // gravity radius bounds the whole disc
+    var o:BodyVO; o.inst=ii; o.rd=bb.rd;
+    o.pos=select(vec4f(0.0,0.0,-2.0,1.0), vec4f(bb.ndc, bb.z, 1.0), bb.ok>0.5);
+    return o;
+  }
+  @fragment fn hfs(in:BodyVO)->BodyFO{
+    let hl=holes[in.inst]; let cen=hl.c.xyz; let Rh=max(hl.c.w,1.0); let Rg=max(hl.g.x,Rh*2.0);
+    let rd=normalize(in.rd); let ro=u.camPos.xyz-cen; let b=dot(rd,ro);
+    var o:BodyFO;
+    // Event horizon: an opaque black sphere. Nothing in the engine says how (or whether) this
+    // draws in 3D; a black disc is the least-invented way to show the object is THERE.
+    let dsc=b*b-(dot(ro,ro)-Rh*Rh); let th=-b-sqrt(max(dsc,0.0));
+    if(dsc>=0.0 && th>0.0){
+      let clip=u.vp*vec4f(u.camPos.xyz+rd*th, 1.0);
+      o.col=vec4f(0.0,0.0,0.0,1.0); o.depth=clamp(clip.z/clip.w,0.0,1.0); return o;
+    }
+    // Accretion disc: hit the object's y-plane, then shade by point-ring's radial band.
+    if(abs(rd.y)<1e-6){ discard; }                       // ray parallel to the disc (edge-on)
+    let tp=(cen.y-u.camPos.y)/rd.y;
+    if(tp<=0.0){ discard; }                              // plane is behind the camera
+    let hit=u.camPos.xyz+rd*tp; let d=length(hit-cen);
+    if(d<Rh || d>Rg){ discard; }                         // outside minMaxDistance -> percent>1 -> black
+    let distCenter=(Rg+Rh)*0.5; let distRadius=(Rg-Rh)*0.5;
+    let percent=abs(d-distCenter)/distRadius;
+    let lit=clamp(1.0-percent, 0.0, 1.0);                // saturate(ambient * tex * (1-percent))
+    let clip=u.vp*vec4f(hit,1.0);
+    o.col=vec4f(pow(hl.g.yzw*lit, vec3f(1.0/2.2)), lit); // engine multiplies alpha by the same term
+    o.depth=clamp(clip.z/clip.w, 0.0, 1.0); return o;
+  }
   // ---- reference grid on the y=0 plane (camera-centered, distance-faded) ----
   struct GVO { @builtin(position) pos:vec4f, @location(0) wxz:vec2f };
   @vertex fn vgrid(@builtin(vertex_index) vi:u32)->GVO{
@@ -366,6 +503,19 @@ async function start(){
     vertex:{module:mod,entryPoint:"nvs"}, fragment:{module:mod,entryPoint:"nfs",targets:[{format, blend:{color:{srcFactor:"one",dstFactor:"one",operation:"add"},alpha:{srcFactor:"one",dstFactor:"one",operation:"add"}}}]},
     primitive:{topology:"triangle-list"}, depthStencil:{format:"depth24plus",depthWriteEnabled:false,depthCompare:"less"}});
   let nebBuf=null, nebCap=0;
+  // Planets / black holes: analytic bodies, opaque with real per-pixel depth (a ship can pass
+  // in front of or behind one), alpha-blended so the planet's fresnel atmosphere rim fades out.
+  const ALPHA_BLEND={color:{srcFactor:"src-alpha",dstFactor:"one-minus-src-alpha",operation:"add"},alpha:{srcFactor:"one",dstFactor:"one-minus-src-alpha",operation:"add"}};
+  const planetPipe=device.createRenderPipeline({layout:"auto",
+    vertex:{module:mod,entryPoint:"pvs"}, fragment:{module:mod,entryPoint:"pfs",targets:[{format, blend:ALPHA_BLEND}]},
+    primitive:{topology:"triangle-list"}, depthStencil:{format:"depth24plus",depthWriteEnabled:true,depthCompare:"less"}});
+  // The black hole does NOT write depth: most of its area is the semi-transparent accretion
+  // disc, and a huge translucent plane in the depth buffer would swallow the additive FX drawn
+  // after it. Ships are drawn before this pass, so they still occlude correctly.
+  const holePipe=device.createRenderPipeline({layout:"auto",
+    vertex:{module:mod,entryPoint:"hvs"}, fragment:{module:mod,entryPoint:"hfs",targets:[{format, blend:ALPHA_BLEND}]},
+    primitive:{topology:"triangle-list"}, depthStencil:{format:"depth24plus",depthWriteEnabled:false,depthCompare:"less"}});
+  let planetBuf=null, planetCap=0, holeBuf=null, holeCap=0;
   // ---- Prong-3 PoC: bake nebula density into a resident 3D texture; raymarch samples it instead of recomputing noise ----
   const bakePipe=device.createComputePipeline({layout:"auto", compute:{module:mod, entryPoint:"bakeDensity"}});
   const nebUBuf=device.createBuffer({size:32, usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
@@ -477,6 +627,11 @@ async function start(){
   // is simply absent from the 3D view with no other symptom, so surface it on the HUD rather
   // than only in the console (this is how a missing wreck/hull mesh shows itself).
   const artFailed=[];
+  // ...and draw it as a placeholder sphere rather than nothing, so a missing mesh reads as
+  // "wrong shape here" instead of "object doesn't exist". Engine-drawn bodies with no OBJ at
+  // all (planet, maelstrom) have their own passes; this catches everything else — e.g. LM's
+  // typhon monsters, spawned with the art id "-".
+  const PLACEHOLDER_ART="sphere"; let phRec=null;
   function loadArt(art){
     if(artCache.has(art)) return artCache.get(art);
     const rec={status:"loading"}; artCache.set(art,rec);
@@ -500,6 +655,7 @@ async function start(){
         rec.bind=device.createBindGroup({layout:pipe.getBindGroupLayout(1),entries:[{binding:0,resource:view},{binding:1,resource:samp},{binding:2,resource:emisView},{binding:3,resource:specView},{binding:4,resource:normView}]});
         rec.instBuf=null; rec.instCap=0; rec.status="ready";
       }catch(e){ rec.status="failed"; if(artFailed.indexOf(art)<0) artFailed.push(art);
+        if(art!==PLACEHOLDER_ART && !phRec) phRec=loadArt(PLACEHOLDER_ART);   // lazy: only fetched once something is missing
         wlog("art load failed: "+art+" — "+(e&&e.message||e)); }
     })();
     return rec;
@@ -517,6 +673,14 @@ async function start(){
   // spread. On a wide belt that parks the camera far outside the play area. Rendering terrain
   // and framing on terrain are separate concerns; these track the dynamic objects instead.
   let dcx=0,dcz=0,dmeanR=1;
+  // Analytic bodies, gathered with the terrain (static): 20 floats per planet (5 vec4, matching
+  // the WGSL Planet struct), 8 per black hole (2 vec4, matching Hole). holeList keeps a CPU-side
+  // copy so the far plane can be fitted to the gravity radius.
+  const planetArr=[], holeArr=[], holeList=[]; let planetCount=0, holeCount=0;
+  // "#rgb" / "#rrggbb" -> linear-ish 0..1 rgb, for a mission-set radar_color_override.
+  const cssRGB=(s)=>{ if(typeof s!=="string") return null; const m=/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(s.trim()); if(!m) return null;
+    const h=m[1].length===3?m[1].replace(/./g,c=>c+c):m[1]; const n=parseInt(h,16);
+    return [((n>>16)&255)/255, ((n>>8)&255)/255, (n&255)/255]; };
   let terrainCensus={n:0,neb:0,icon:0,noart:0,wanted:[]};   // diagnostic: where terrain records go (asteroid hunt)
   function ensureInst(rec, which, list){
     const n=list.length/8; rec[which+"Count"]=n; if(n===0) return;
@@ -536,7 +700,7 @@ async function start(){
     return [vx+q[3]*tx+(q[1]*tz-q[2]*ty), vy+q[3]*ty+(q[2]*tx-q[0]*tz), vz+q[3]*tz+(q[0]*ty-q[1]*tx)]; };
   const qOf=(m)=>{ if(m.q&&m.q.length===4) return [m.q[1],m.q[2],m.q[3],m.q[0]]; const a=Math.atan2(m.fx||0,m.fz||0)*0.5; return [0,Math.sin(a),0,Math.cos(a)]; };
   function gatherTerrain(b){                    // STATIC — only re-run when terrainVersion changes
-    const lists=new Map(); nebArr.length=0; let sx=0,sz=0,cnt=0;
+    const lists=new Map(); nebArr.length=0; planetArr.length=0; holeArr.length=0; holeList.length=0; let sx=0,sz=0,cnt=0;
     let _cN=0,_cNeb=0,_cIcon=0,_cNoart=0,_cMark=0;   // census: where terrain records go
     if(b.terrainPos) for(let i=0;i<(b.terrainCount|0);i++){
       const id=b.terrainRev&&b.terrainRev.get?b.terrainRev.get(i):undefined; if(id===undefined) continue;
@@ -544,6 +708,23 @@ async function start(){
       _cN++;
       const x=b.terrainPos[i*3], z=b.terrainPos[i*3+1], y=m.y||0;
       if(m.nebula){ _cNeb++; const c=m.color||[0.55,0.5,0.85]; const vv=nebColorToPreset(c); nebArr.push(x,y,z, Math.max(200,m.radius||2000), c[0],c[1],c[2], m.density||7, m.seed||1, m.swirl||0, m.warp||0, vv); continue; }
+      // Engine-drawn bodies (no OBJ): the gas-giant surface and the black hole get their own
+      // analytic passes. They DO count toward the terrain centroid — a worldlet is the biggest
+      // thing on the map, so orbit framing that ignored it would park the camera off in space.
+      if(m.planet){ const bs=m.pbase||[0.55,0.16,0.28], em=m.pemis||[0.06,0.04,0.03], cl=m.pcloud||[1,1,1];
+        planetArr.push(x,y,z, Math.max(10,m.pradius||500),
+                       bs[0],bs[1],bs[2], m.pband||3.72,
+                       em[0],em[1],em[2], m.pcstr||3.12,
+                       cl[0],cl[1],cl[2], m.pcexp||3.96,
+                       m.pfpow||11.96, m.pfbias||0.42, m.pws1||0, m.pws2||0);
+        sx+=x; sz+=z; cnt++; continue; }
+      if(m.blackhole){ const R=Math.max(10,m.bhr||100), G=Math.max(R*2,m.bhgrav||R*12);
+        // point-ring's ambientColor: the mission's radar_color_override if it set one, else a
+        // hot amber (a guess — the engine keeps the maelstrom's tint internal).
+        const c=cssRGB(m.tint)||[1.0,0.55,0.2];
+        holeArr.push(x,y,z,R, G,c[0],c[1],c[2]);
+        holeList.push([x,y,z,R,G]);                              // CPU copy, for the far-plane fit
+        sx+=x; sz+=z; cnt++; continue; }
       if(m.tick_type==="behav_selection"){ _cMark++; continue; }   // selection markers (nebula/map/galaxy-board glyphs) are 2D-only, not 3D meshes
       if(m.icon_index){ _cIcon++; continue; }   // icon_index 0 = blank glyph (a real 3D mesh object); only a truthy (>0) index is a 2D-only marker
       if(!m.art){ _cNoart++; continue; }
@@ -554,8 +735,16 @@ async function start(){
     for(const [art,arr] of lists){ ensureInst(loadArt(art),"t",arr); }
     nebCount=nebArr.length/12;
     if(nebCount>0){ if(nebCount>nebCap){ nebCap=Math.max(16,nebCount*2); if(nebBuf) nebBuf.destroy(); nebBuf=device.createBuffer({size:nebCap*48,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); } device.queue.writeBuffer(nebBuf,0,new Float32Array(nebArr)); }
+    planetCount=planetArr.length/20;
+    if(planetCount>0){ if(planetCount>planetCap){ planetCap=Math.max(8,planetCount*2); if(planetBuf) planetBuf.destroy(); planetBuf=device.createBuffer({size:planetCap*80,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); } device.queue.writeBuffer(planetBuf,0,new Float32Array(planetArr)); }
+    holeCount=holeArr.length/8;
+    if(holeCount>0){ if(holeCount>holeCap){ holeCap=Math.max(8,holeCount*2); if(holeBuf) holeBuf.destroy(); holeBuf=device.createBuffer({size:holeCap*32,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); } device.queue.writeBuffer(holeBuf,0,new Float32Array(holeArr)); }
     rebake();   // scene's nebulae changed — refresh slabs (unique mode bakes from these params)
     fcx=cnt?sx/cnt:0; fcz=cnt?sz/cnt:0; let sr=0,mm=0; for(const arr of lists.values()){ for(let i=0;i<arr.length;i+=8){ sr+=Math.hypot(arr[i]-fcx, arr[i+2]-fcz); mm++; } } fmeanR=Math.max(1, mm?sr/mm:1);
+    // A planet / black hole is a BODY, not a point: its own radius has to reach the far plane
+    // too, or a system whose only terrain is one worldlet gets clipped away.
+    for(let i=0;i<planetArr.length;i+=20) fmeanR=Math.max(fmeanR, Math.hypot(planetArr[i]-fcx, planetArr[i+2]-fcz)+planetArr[i+3]*2);
+    for(const h of holeList) fmeanR=Math.max(fmeanR, Math.hypot(h[0]-fcx, h[2]-fcz)+h[4]);
   }
   const HALFPI=Math.PI/2;
   const shieldCol=(f)=> f>0.66?[0.2,1.0,0.4]:(f>0.33?[1.0,0.85,0.35]:[1.0,0.33,0.33]);   // green / yellow / red by fraction
@@ -723,12 +912,22 @@ async function start(){
     p.setPipeline(pipe);
     let draws=0, drawn=0, arts=0, loading=0;
     for(const [art,rec] of artCache){
-      if(rec.status!=="ready"){ if(rec.status==="loading") loading++; continue; }
+      // A failed art borrows the placeholder mesh (its own instance buffers still apply), so a
+      // missing OBJ shows up as an obviously-wrong sphere instead of an invisible object.
+      const geo = rec.status==="ready" ? rec : (rec.status==="failed" && phRec && phRec.status==="ready" ? phRec : null);
+      if(!geo){ if(rec.status==="loading") loading++; continue; }
       const tc=rec.tCount||0, dc=rec.dCount||0; if(tc+dc===0) continue; arts++;
-      p.setBindGroup(1,rec.bind); p.setVertexBuffer(0,rec.vb); p.setIndexBuffer(rec.ib,"uint32");
-      if(tc>0){ const b0=device.createBindGroup({layout:pipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:1,resource:{buffer:rec.tInst}}]}); p.setBindGroup(0,b0); p.drawIndexed(rec.count,tc,0,0,0); draws++; drawn+=tc; }
-      if(dc>0){ const b0=device.createBindGroup({layout:pipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:1,resource:{buffer:rec.dInst}}]}); p.setBindGroup(0,b0); p.drawIndexed(rec.count,dc,0,0,0); draws++; drawn+=dc; }
+      p.setBindGroup(1,geo.bind); p.setVertexBuffer(0,geo.vb); p.setIndexBuffer(geo.ib,"uint32");
+      if(tc>0){ const b0=device.createBindGroup({layout:pipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:1,resource:{buffer:rec.tInst}}]}); p.setBindGroup(0,b0); p.drawIndexed(geo.count,tc,0,0,0); draws++; drawn+=tc; }
+      if(dc>0){ const b0=device.createBindGroup({layout:pipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:1,resource:{buffer:rec.dInst}}]}); p.setBindGroup(0,b0); p.drawIndexed(geo.count,dc,0,0,0); draws++; drawn+=dc; }
     }
+    // analytic bodies: gas-giant surfaces + black-hole horizons (opaque, own per-pixel depth)
+    if(planetCount>0 && planetBuf){
+      const pb=device.createBindGroup({layout:planetPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:11,resource:{buffer:planetBuf}}]});
+      p.setPipeline(planetPipe); p.setBindGroup(0,pb); p.draw(6,planetCount); draws++; }
+    if(holeCount>0 && holeBuf){
+      const hb=device.createBindGroup({layout:holePipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:12,resource:{buffer:holeBuf}}]});
+      p.setPipeline(holePipe); p.setBindGroup(0,hb); p.draw(6,holeCount); draws++; }
     // reference grid + flat rings (own-ship highlight / shield fraction), depth-tested transparents
     if(showGrid){ const gb=device.createBindGroup({layout:gridPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}}]}); p.setPipeline(gridPipe); p.setBindGroup(0,gb); p.draw(6); }
     const nr=ringList.length/12;
@@ -827,7 +1026,8 @@ async function start(){
       // streaming but unseen, this says whether they are off-screen / behind / miles away
       // rather than leaving it to guesswork.
       +`\n${projCensus.p0||"proj pos: -"}`
-      +`\nfailed art[${artFailed.length}] ${artFailed.slice(0,4).map(a=>a===""?"(empty)":a).join(" ")||"(none)"}`
+      +`\nfailed art[${artFailed.length}] ${artFailed.slice(0,4).map(a=>a===""?"(empty)":a).join(" ")||"(none)"}${artFailed.length?" -> placeholder":""}`
+      +(planetCount||holeCount?`\nbodies: ${planetCount} planet${planetCount===1?"":"s"} · ${holeCount} black hole${holeCount===1?"":"s"}`:``)
       +`\nSHARE ${nebShare?"ON ":"OFF"} · ${logicalSlots}→${physicalSlots} slab${physicalSlots<logicalSlots?" ⚠cap":""} · ${nebBaked?"BAKED":"live"} · ${nebStepMode?`~${Math.round(1.9/NEB_STEP_FRAC)}`:nebSteps} steps · ${canTS?nebGpuMs.toFixed(2)+"ms/3D":"gpu n/a"}`
       +`\n data ${fmtB(shareB)} shared vs ${fmtB(uniqB)} unique = ${(uniqB/shareB).toFixed(1)}× less · N=${effN}${nebStress>1?` ×${nebStress}`:``} · cover ${nebCover}`
       +`\n vram ${physicalSlots}×${nebBakedRES}³=${(physicalSlots*slabMB).toFixed(1)}MB vs unique N=${effN}→${(effN*slabMB).toFixed(0)}MB (r16f ½)`
