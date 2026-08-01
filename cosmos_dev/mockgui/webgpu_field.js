@@ -20,14 +20,14 @@ async function start(){
   canvas.id="webgpu-field";
   canvas.style.cssText="position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:0;background:#05070c;display:none";   // background layer (like the WebGL 3dview at z-1); HUDs/GUI at higher z draw on top
   document.body.appendChild(canvas);
-  let visible=true; const MODES=["chase","orbit","cinematic"]; let modeIx=0, shipSel=0, npcSel=0, focusNpc=false, showGrid=true;
+  let visible=true; const MODES=["chase","orbit","cinematic"]; let modeUserSet=false; let modeIx=0, shipSel=0, npcSel=0, focusNpc=false, showGrid=true;
   let fps=60, fpsFrames=0, fpsT=performance.now();
   const hud=document.createElement("div");
   hud.style.cssText="position:fixed;top:10px;right:12px;z-index:2147483001;font:12px/1.5 ui-monospace,Consolas,monospace;color:#e7ebf2;background:rgba(10,12,17,.62);border:1px solid #232833;border-radius:8px;padding:8px 11px;pointer-events:none;white-space:pre;text-align:right";
   document.body.appendChild(hud);
   window.addEventListener("keydown",e=>{
     if(e.key==="g"){ visible=!visible; canvas.style.display=visible?"block":"none"; hud.style.display=visible?"block":"none"; }
-    if(e.key==="c"){ modeIx=(modeIx+1)%MODES.length; }   // cycle chase -> orbit -> cinematic
+    if(e.key==="c"){ modeIx=(modeIx+1)%MODES.length; modeUserSet=true; }   // cycle chase -> orbit -> cinematic (and stop auto-picking)
     if(e.key==="v"){ focusNpc=false; shipSel++; }        // cycle which PLAYER ship the chase follows
     if(e.key==="n"){ focusNpc=true; npcSel++; }          // cycle NON-player ships (find a far / cloaked NPC)
     if(e.key==="B"){ beamCensus={in:0,nometa:0,noports:0,arccull:0,drawn:0,peak:0};
@@ -871,6 +871,11 @@ async function start(){
     if(player){ const rc=player.art?artCache.get(player.art):null; const sz=Math.max(1,(player.sc||1)*((rc&&rc.maxDim)?rc.maxDim:60));
       ringList.push(player.x, player.y, player.z, Math.max(460,sz*1.5), 0.0,0.9,1.0, 0.35, 0.0125, 0.0, 4.0, 0); }   // own-ship highlight (thin 1/4 band, 2x more transparent, full ring)
     let want=MODES[modeIx];
+    // A mission that is DRIVING the camera should be believed by default. The viewer used to
+    // open in chase (falling back to orbit with no player ship), so a scripted camera was
+    // streamed and ignored until you pressed 'c' twice - which meant every camera test began
+    // by looking at the wrong camera. Pressing 'c' still takes over for good.
+    if(!modeUserSet && b2 && Array.isArray(b2.cam) && Array.isArray(b2.tgt)) want="cinematic";
     if(want==="chase" && !player) want="orbit";
     if(want==="cinematic" && !(b2 && Array.isArray(b2.cam) && Array.isArray(b2.tgt))) want="orbit";
     let mode=want, note="", EYE,TGT,FOVY,NEAR,FAR;
@@ -894,7 +899,17 @@ async function start(){
     }
     // chase is already rigid off the smoothed ship (stays perfectly framed); only ease the raw cinematic server cam. orbit snaps.
     if(smMode!==want || !smEye){ smMode=want; smEye=EYE.slice(); smTgt=TGT.slice(); }
-    if(want==="cinematic"){ const L=0.12; for(let i=0;i<3;i++){ smEye[i]+=(EYE[i]-smEye[i])*L; smTgt[i]+=(TGT[i]-smTgt[i])*L; } EYE=smEye; TGT=smTgt; }
+    if(want==="cinematic"){
+      // Ease the 15Hz camera stream so continuous motion is smooth - but a CUT is a
+      // discontinuity, not motion, and easing across it invents a swoop the engine never
+      // performs. Cuts read as slides in the mock purely because of this, which would have
+      // answered the cut-vs-blend spike wrongly from the wrong renderer. Snap when the jump
+      // is large relative to the shot itself; ease otherwise.
+      const span=Math.max(1, Math.hypot(EYE[0]-TGT[0], EYE[1]-TGT[1], EYE[2]-TGT[2]));
+      const jump=Math.hypot(EYE[0]-smEye[0], EYE[1]-smEye[1], EYE[2]-smEye[2]);
+      if(jump > span*0.5){ smEye=EYE.slice(); smTgt=TGT.slice(); }
+      else { const L=0.12; for(let i=0;i<3;i++){ smEye[i]+=(EYE[i]-smEye[i])*L; smTgt[i]+=(TGT[i]-smTgt[i])*L; } }
+      EYE=smEye; TGT=smTgt; }
     else { smEye=EYE.slice(); smTgt=TGT.slice(); }
     const aspect=W/H, th=Math.tan(FOVY/2);
     const fwd=norml(sub(TGT,EYE),[0,0,1]), right=norml(cr(fwd,[0,1,0]),[1,0,0]), up=cr(right,fwd);

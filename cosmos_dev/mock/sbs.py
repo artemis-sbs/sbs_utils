@@ -3979,8 +3979,20 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
                 except Exception:
                     pass
 
-        # 2. Rotation and translation — active objects only.
-        for _id, obj in active:
+        # 1b. Terrain rotation. The engine spins TERRAIN from steer_yaw/pitch/roll - it is how
+        # LM tumbles its asteroid fields (gamemaster/move_to_lib.py sets all three on every
+        # rock it scatters). The mock stored those rates and never applied them, so a tumbling
+        # field was motionless here and anything relying on a spinning terrain object silently
+        # did nothing. Only objects with a rate set are touched, so a static field costs three
+        # attribute reads per rock.
+        spin_terrain = []
+        for _id in sim._terrain_ids:
+            t = space.get(_id)
+            if t is not None and (t._steer_yaw or t._steer_pitch or t._steer_roll):
+                spin_terrain.append((_id, t))
+
+        # 2. Rotation and translation — active objects, plus terrain that is spinning.
+        for _id, obj in list(active) + spin_terrain:
             if obj.data_set.get("deathState") > 0:
                 continue
             q = obj._rot_quat
