@@ -1116,6 +1116,10 @@ let _dynamicDispBuf = null;
 
 // Delta state: id → index for O(1) update; reverse map for O(1) swap-with-last removals.
 let _terrainCount = 0, _dynamicCount = 0, _terrainVersion = 0;
+// Count of delta records that arrived for an id the client has never seen a full record
+// for. Should stay 0; anything else means a full record was lost (historically: a radar
+// push racing world_reset on a mission restart) and objects would be missing.
+let _deltaOrphans = 0;
 const _terrainMap    = new Map();  // id (string) → Float32Array index
 const _terrainRevMap = new Map();  // Float32Array index → id (string)
 const _terrainMeta   = new Map();  // id (string) → {art, meshscale, y}
@@ -2019,6 +2023,19 @@ function cmdRadar(msg) {
       let idx = _dynamicMap.get(o.id);
       const isNew = idx === undefined;   // client is allocating a fresh slot
       if (idx === undefined) {
+        // Never invent identity from a DELTA record. A delta carries only pose
+        // (x/z/y/fx/fz/q/shields) -- no art, meshscale, side, tick_type, exhaust or
+        // beamports -- and those ride the `new` record ONLY, so a slot built from a
+        // delta keeps art:'' and beamports:null for the object's whole life: invisible
+        // in the 3D view, no beams, wrong radar colour. Skipping instead leaves the
+        // object absent until the server re-sends a full record, which is recoverable.
+        if (!o.new && o.art === undefined) {
+          _deltaOrphans++;
+          if (_deltaOrphans === 1)
+            console.warn('[radar] delta for unknown id ' + o.id +
+                         ' - skipped rather than synthesising blank meta (server should re-send a full record)');
+          continue;
+        }
         if (_dynamicCount >= _MAX_DYNAMIC) continue;
         idx = _dynamicCount++;
         _dynamicMap.set(o.id, idx);

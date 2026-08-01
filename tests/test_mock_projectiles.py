@@ -405,5 +405,189 @@ class TestMockProjectiles(unittest.TestCase):
         self.assertEqual(len(sbs._projectiles), 3)          # every call fired
 
 
+class TestTorpedoOrphanFizzle(unittest.TestCase):
+    """_TORP_ORPHAN_LIFE kills a warhead whose TARGET died (the "orange torp sitting in
+    space"). It must not kill a torpedo that never had a target - an unaimed shot flies
+    straight for its full life. Both branches key off `had_target`, exactly like the
+    re-acquire beside them; without that guard every unaimed torpedo died 1.5s after
+    launch and torpedoes read as not firing at all."""
+
+    def setUp(self):
+        self.sim = reset_mock(sbs)
+        _drain()
+
+    def _fire(self, with_target):
+        s = self.sim.create_space_object("behav_playership", "tsn_battle_cruiser", 0x20)
+        self.sim.space_objects[s]._pos = sbs.vec3(0.0, 0.0, 0.0)
+        tid = 0
+        if with_target:
+            t = self.sim.create_space_object("behav_npcship", "torgoth_destroyer", 0x10)
+            self.sim.space_objects[t]._pos = sbs.vec3(0.0, 0.0, 5000.0)
+            tid = t
+        sbs.resume_sim()
+        sbs.launch_missile(s, tid, "Homing")
+        if with_target:
+            sbs.delete_object(tid)      # target dies right after launch -> a true orphan
+        return s
+
+    def _alive_after(self, seconds):
+        for _ in range(int(30 * seconds)):
+            sbs.physics_tick(1.0 / 30.0)
+        return len(sbs._projectiles)
+
+    def test_unaimed_torpedo_keeps_flying(self):
+        self._fire(with_target=False)
+        self.assertGreater(self._alive_after(4.0), 0,
+                           "a torpedo fired with no selection must fly straight, not fizzle")
+
+    def test_orphaned_torpedo_still_fizzles(self):
+        self._fire(with_target=True)
+        self.assertEqual(self._alive_after(3.0), 0,
+                         "a warhead whose target died must still fizzle (_TORP_ORPHAN_LIFE)")
+
+
+class TestTorpedoOutrunsFirer(unittest.TestCase):
+    """A warhead must always pull ahead of the ship that fired it.
+
+    Torpedo speed is a flat 600 u/s and does not inherit launcher velocity, while a
+    player does 180 u/s on impulse and 180 + (pt-1)*450 on warp. From warp 2 (630 u/s)
+    the ship outran its own torpedo immediately: the torp fell behind the chase cam and
+    was never seen, which reads as torpedoes not firing.
+    """
+
+    def setUp(self):
+        self.sim = reset_mock(sbs)
+        _drain()
+
+    def _ship_at(self, throttle):
+        s = self.sim.create_space_object("behav_playership", "tsn_battle_cruiser", 0x20)
+        o = self.sim.space_objects[s]
+        o._pos = sbs.vec3(0.0, 0.0, 0.0)
+        o.data_set.set("playerThrottle", throttle, 0)
+        sbs.resume_sim()
+        for _ in range(30 * 30):          # ramp to steady state
+            sbs.physics_tick(1.0 / 30.0)
+        return s, abs(o._cur_speed)
+
+    def _launch_speed(self, sid, kind="Homing"):
+        sbs._projectiles.clear()
+        sbs.launch_missile(sid, 0, kind)
+        return sbs._projectiles[0]["speed"]
+
+    def test_torpedo_outpaces_ship_at_warp(self):
+        for throttle in (2.0, 3.0, 5.0):
+            with self.subTest(throttle=throttle):
+                sid, ship_speed = self._ship_at(throttle)
+                torp = self._launch_speed(sid)
+                self.assertGreater(torp, ship_speed,
+                                   f"at throttle {throttle} the ship ({ship_speed:.0f} u/s) "
+                                   f"outruns its torpedo ({torp:.0f} u/s)")
+                self.setUp()
+
+    def test_impulse_keeps_the_flat_speed(self):
+        """Below the floor nothing changes - a slow ship must not slow its torpedo."""
+        sid, ship_speed = self._ship_at(1.0)
+        self.assertEqual(self._launch_speed(sid), 600.0)
+
+    def test_mine_is_exempt(self):
+        """Mines coast out the stern by design; the floor must not accelerate them."""
+        sid, _ = self._ship_at(3.0)
+        self.assertEqual(self._launch_speed(sid, kind="Mine"), 600.0)
+
+
+class TestWarheadArmingAndSelfBlast(unittest.TestCase):
+    """A warhead spawns AT the launcher with a 300u contact radius, so without an arming
+    distance it detonated on the first physics tick against anything alongside the firing
+    ship - the intended target then took nothing. Conversely a blast is indiscriminate:
+    detonate a nuke close enough and the firer is inside its own blast."""
+
+    def setUp(self):
+        self.sim = reset_mock(sbs)
+        _drain()
+        self.firer = self.sim.create_space_object("behav_playership", "tsn_battle_cruiser", 0x20)
+        fo = self.sim.space_objects[self.firer]
+        fo._pos = sbs.vec3(0.0, 0.0, 0.0); fo._side = "tsn"
+
+    def _shields(self, oid):
+        ds = self.sim.space_objects[oid].data_set
+        n = int(ds.get("shield_count", 0) or 0)
+        return sum((ds.get("shield_val", i) or 0.0) for i in range(n))
+
+    def _add(self, x, z, side, tick="behav_npcship", hull="torgoth_destroyer", abits=0x10):
+        oid = self.sim.create_space_object(tick, hull, abits)
+        o = self.sim.space_objects[oid]
+        o._pos = sbs.vec3(float(x), 0.0, float(z)); o._side = side
+        return oid
+
+    def _fire(self, kind, target, seconds=30):
+        sbs.resume_sim()
+        sbs.launch_missile(self.firer, target, kind)
+        for _ in range(int(30 * seconds)):
+            sbs.physics_tick(1.0 / 30.0)
+
+    def test_point_blank_shot_at_a_real_target_still_detonates(self):
+        """The fuse is inert against BYSTANDERS only - never against the aimed-at ship,
+        so close-range torpedoing keeps working."""
+        target = self._add(0, 200, "torgoth")
+        t0 = self._shields(target)
+        self._fire("Homing", target)
+        self.assertLess(self._shields(target), t0,
+                        "a torpedo must still detonate on the ship it was aimed at, at any range")
+
+    def test_warhead_is_inert_until_it_clears_the_launcher(self):
+        wingman = self._add(200, 0, "tsn", "behav_playership", "tsn_battle_cruiser", 0x20)
+        target = self._add(0, 5000, "torgoth")
+        w0, t0 = self._shields(wingman), self._shields(target)
+        self._fire("Homing", target)
+        self.assertAlmostEqual(self._shields(wingman), w0, places=1,
+                               msg="a torp must not detonate on a ship hugging the launcher")
+        self.assertLess(self._shields(target), t0, "it should reach the intended target instead")
+
+    def test_projectile_spawns_clear_of_the_hull(self):
+        """Born at the ship's centre, a projectile starts inside its own launcher and any
+        blast it triggers is centred on the firer. It must leave from outside the hull."""
+        import math
+        target = self._add(0, 5000, "torgoth")
+        sbs._projectiles.clear()
+        sbs.launch_missile(self.firer, target, "Homing")
+        p = sbs._projectiles[0]["pos"]
+        fo = self.sim.space_objects[self.firer]._pos
+        off = math.dist((p.x, p.y, p.z), (fo.x, fo.y, fo.z))
+        self.assertGreater(off, sbs._TORP_LAUNCH_CLEARANCE,
+                           "projectile must spawn beyond the hull, not at the ship centre")
+        # ...and ABOVE it: the directional clearance is near-horizontal for a same-altitude
+        # target, so only the vertical rise reliably keeps the torp off its own hull.
+        self.assertAlmostEqual(p.y - fo.y, sbs._TORP_LAUNCH_RISE, places=1,
+                               msg="projectile must launch above the firer, not through it")
+
+    def test_homing_never_damages_its_firer_at_any_range(self):
+        """Single-hit warheads have no blast, so the firer must be untouched however
+        close the target is."""
+        for dist in (400, 800, 1500, 3000):
+            with self.subTest(dist=dist):
+                self.setUp()
+                target = self._add(0, dist, "torgoth")
+                f0 = self._shields(self.firer)
+                self._fire("Homing", target)
+                self.assertAlmostEqual(self._shields(self.firer), f0, places=1)
+
+    def test_nuke_never_catches_its_own_firer(self):
+        """A blast excludes the ship that fired it. Making blasts indiscriminate was tried
+        and reverted: self-damage was reported BEFORE that change, so it was never the
+        cause, and the change turned every close-range nuke into a self-hit."""
+        target = self._add(0, 600, "torgoth")
+        f0 = self._shields(self.firer)
+        self._fire("Nuke", target)
+        self.assertAlmostEqual(self._shields(self.firer), f0, places=1,
+                               msg="a nuke must not damage the ship that launched it")
+
+    def test_distant_nuke_spares_the_firer(self):
+        target = self._add(0, 5000, "torgoth")
+        f0 = self._shields(self.firer)
+        self._fire("Nuke", target)
+        self.assertAlmostEqual(self._shields(self.firer), f0, places=1,
+                               msg="a nuke well outside blast radius must not touch the firer")
+
+
 if __name__ == '__main__':
     unittest.main()

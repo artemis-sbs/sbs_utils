@@ -1279,8 +1279,13 @@ def _push_fx() -> None:
             continue   # a deployed mine is a real space object now (renders as the mine mesh), not an fx dot
         pos = p["pos"]
         d = p.get("dir") or (0.0, 0.0, 0.0)   # travel heading -> 3dview draws an oriented missile + exhaust
+        # y/dy are APPENDED (indices 5,6) so the existing [x, z, kind, dx, dz] prefix stays
+        # valid for the 2D radar, which is top-down and ignores altitude. The 3D view needs
+        # them: without a streamed y it drew every torpedo, mine and drone on the y=0 plane,
+        # so anything launched at altitude flew visibly below or above the ships that fired it.
         projectiles.append([round(pos.x, 1), round(pos.z, 1), p.get("kind", "missile"),
-                            round(d[0], 3), round(d[2], 3)])
+                            round(d[0], 3), round(d[2], 3),
+                            round(pos.y, 1), round(d[1], 3)])
     if not beams and not projectiles and not _last_fx_nonempty:
         return
     _last_fx_nonempty = bool(beams or projectiles)
@@ -1487,10 +1492,11 @@ def _push_radar() -> None:
             fz  = round(fwd.z, 3)
             shp = _shield_frac(obj)              # total shield fraction (change detection + ring color)
             shpf, shpa = _shield_fracs(obj)      # front / aft fractions for the split shield ring
-            new_snap[id_] = (x, z, fx, fz, shp, y)
+            cur = (x, z, fx, fz, shp, y)
 
             prev = last.get(id_)
             if prev is None:
+                new_snap[id_] = cur
                 changed.append({
                     "id":        str(id_),
                     "x": x, "z": z, "fx": fx, "fz": fz,
@@ -1520,6 +1526,16 @@ def _push_radar() -> None:
                         or abs(shp - lshp) >= 0.05):
                     changed.append({"id": str(id_), "x": x, "z": z, "y": y, "fx": fx, "fz": fz,
                                     "q": _quat_of(obj), "shp": shp, "shpf": shpf, "shpa": shpa})
+                    new_snap[id_] = cur
+                else:
+                    # NOT sent -- the baseline must stay at the last value the browser
+                    # actually RECEIVED, not this tick's true position.  Advancing it
+                    # here would compare only ONE tick of motion against the threshold,
+                    # so anything slower than 5 units/tick (150 u/s -- i.e. every NPC,
+                    # whose top speed is 36 u/s) never crosses it and stays frozen at
+                    # its spawn point in the browser forever.  Carrying `prev` lets the
+                    # drift accumulate until it is worth a packet.
+                    new_snap[id_] = prev
 
         _last_per_ship[sid_str] = new_snap
 

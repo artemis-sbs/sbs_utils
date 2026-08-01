@@ -300,6 +300,14 @@ def target(set_or_object, target_id, shoot: bool = True, throttle: float = 1.0, 
                 if diff.length() < stop_dist:
                     t = 0
             chaser.data_set.set("throttle", t,0)
+            # Persist the stand-off distance as well as acting on it here. The check
+            # above is sampled once, when the brain calls target(), so how far a ship
+            # overshoots depends on the brain's tick rate rather than on the distance.
+            # Storing it lets a physics layer hold the ship at the right range every
+            # tick (cosmos_dev's mock reads data_set "stop_dist"; it had been falling
+            # back to 20u -- ramming range -- because nothing ever wrote the key).
+            # Harmless on the real engine, which steers in C++ and ignores unknown keys.
+            chaser.data_set.set("stop_dist", stop_dist or 0, 0)
 
 
 
@@ -339,6 +347,9 @@ def target_pos(chasers: set | int | CloseData|SpawnData, x: float, y: float, z: 
             if diff.length() < stop_dist:
                 t = 0
         chaser.data_set.set("throttle", t, 0)
+        # Persist it too -- see target() above: the check here is sampled only when the
+        # brain calls, so a physics layer needs the value to hold station every tick.
+        chaser.data_set.set("stop_dist", stop_dist or 0, 0)
     
 
 def target_shoot(chasers: set | int | CloseData|SpawnData, target_id=None):

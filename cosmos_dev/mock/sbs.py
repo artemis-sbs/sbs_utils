@@ -2966,6 +2966,27 @@ _TORP_EMP_SHIELD_MULT = 0.5     # EMP reduce_shields: halve each ship's CURRENT 
 _TORP_MINE_TRIGGER = 400.0      # proximity radius that sets a placed mine off
 _TORP_MINE_LIFE = 120.0         # sim-seconds a placed mine stays armed if untriggered
 _TORP_ORPHAN_LIFE = 1.5         # sim-seconds a homing torp lingers after losing its target (then fizzles)
+_TORP_MIN_SPEED_OVER_FIRER = 1.25   # a warhead always travels at least this multiple of the
+                                    # firing ship's current speed, so it can never be outrun
+                                    # (mines are exempt - they coast out the stern by design)
+_TORP_LAUNCH_RISE = 120.0       # ...and this far ABOVE it (+y). The directional clearance below is
+                                # near-horizontal for a same-altitude target, so it alone still lets
+                                # the projectile skim the hull; rising clears the launcher on an axis
+                                # the flight path does not use. Homing pulls it back down to the
+                                # target, so the arc costs nothing in accuracy.
+_TORP_LAUNCH_CLEARANCE = 250.0  # a projectile spawns this far beyond the firer's exclusion radius,
+                                # along its launch direction, instead of at the ship's centre - so it
+                                # leaves the hull rather than being born inside it (and any blast it
+                                # triggers is centred out there, not on the launcher).
+_TORP_ARM_DIST = 400.0          # a warhead's proximity fuse is INERT against BYSTANDERS until it
+                                # has flown this far from the launch point. It spawns at the firing
+                                # ship and the contact radius is 300u, so with no arming distance it
+                                # detonated on the first tick against anything parked alongside the
+                                # firer (measured: a wingman 150-280u away was hit at t=0.03s while
+                                # the intended target took nothing). Set just outside the contact
+                                # radius so the torp always clears its own hull. The ship it was
+                                # AIMED at is exempt - a point-blank shot at a real target still
+                                # detonates, so this costs no close-range capability.
 # Drone fallbacks when the engine-set fields are absent. drone_launch_timer comes
 # from shipData (Torgoth + Ximni hulls); elite_drone_launcher / drone_damage /
 # drone_launch_max_range are set by the engine at runtime (not in shipData), so the
@@ -3237,9 +3258,31 @@ def launch_missile(source_id: int, target_id: int, kind: str = "Homing",
         direction = (-f.x, -f.y, -f.z)
     else:
         direction = _unit_toward(src, sim.space_objects.get(target_id))
+        # A warhead must always pull AHEAD of the ship that fired it. Torpedo speed is a
+        # flat 600 u/s and does not inherit launcher velocity, but player speed is
+        # 180 u/s on impulse and 180 + (pt-1)*450 on warp - so from warp 2 (630 u/s) up
+        # the ship outran its own torpedo the instant it left the tube. It fell behind
+        # the chase cam and was never seen, which read as torpedoes not firing at all.
+        # Floor it above the firer rather than adding the ship's velocity, so torpedo
+        # speed stays predictable instead of scaling straight off warp factor.
+        firer_speed = abs(float(getattr(src, "_cur_speed", 0.0) or 0.0))
+        speed = max(float(speed), firer_speed * _TORP_MIN_SPEED_OVER_FIRER)
+    # Spawn CLEAR OF THE HULL, not at the ship's centre. A projectile born at the centre
+    # starts inside its own launcher's exclusion radius, so it is touching everything the
+    # ship is touching from tick zero - and any blast it sets off is centred on the firer.
+    # Push it out along its launch direction past the hull plus a margin (mines out the
+    # stern, warheads toward the target), which is where a tube would actually sit.
+    # ...and ABOVE it. The directional push alone is near-horizontal whenever the target
+    # sits at a similar altitude, which is the normal case, so the projectile still grazes
+    # the hull it just left. Launching high clears the launcher on an axis the flight path
+    # never uses, so it cannot graze regardless of where the target is.
+    _off = (src._exclusion_radius or 0.0) + _TORP_LAUNCH_CLEARANCE
+    _spawn = vec3(src._pos.x + direction[0] * _off,
+                  src._pos.y + direction[1] * _off + _TORP_LAUNCH_RISE,
+                  src._pos.z + direction[2] * _off)
     _projectiles.append({
-        "pos": vec3(src._pos.x, src._pos.y, src._pos.z),
-        "origin": vec3(src._pos.x, src._pos.y, src._pos.z),   # for range cull / mine deploy
+        "pos": vec3(_spawn.x, _spawn.y, _spawn.z),
+        "origin": vec3(_spawn.x, _spawn.y, _spawn.z),   # for range cull / mine deploy
         "dir": direction,
         "target_id": int(target_id) if target_id else 0,
         "had_target": bool(target_id),        # a selection was made -> homing may re-acquire
@@ -3298,6 +3341,9 @@ def _blast_ripple(pos, per_ripple: float, radius: float, source_id: int, kind: s
         return
     r2 = radius * radius
     for oid, o in list(sim.space_objects.items()):
+        # The firing ship is immune to its own blast. Making blasts indiscriminate was
+        # tried and reverted: self-damage was being reported BEFORE that change, so it was
+        # never the cause, and it turned every close-range nuke into a guaranteed self-hit.
         if oid == source_id:
             continue
         dx = o._pos.x - pos.x
@@ -3434,9 +3480,14 @@ def _physics_projectiles(sim, dt: float) -> None:
                 if nid:
                     p["target_id"] = nid
                     tgt = space.get(nid)
-            if tgt is None and p.get("homing"):
-                # Orphaned warhead (target dead, nothing to re-acquire): fizzle fast instead of
-                # wandering across space for its full ~6000u range - those drifters cluttered the view.
+            if tgt is None and p.get("homing") and p.get("had_target"):
+                # ORPHANED warhead - it was launched at something and that something is gone,
+                # and re-acquire found nothing: fizzle fast instead of wandering across space
+                # for its full ~6000u range (those drifters were the orange torp sitting in
+                # space). Gated on had_target exactly like the re-acquire above: a torp fired
+                # with NO selection was never orphaned, so it flies straight for its full life
+                # as the comment above says. Without this guard every unaimed torpedo died
+                # 1.5s after launch, which read as torpedoes not firing at all.
                 p["life"] = min(p.get("life", 30.0), _TORP_ORPHAN_LIFE)
             if tgt is not None and not p.get("is_mine"):
                 dx = tgt._pos.x - pos.x; dy = tgt._pos.y - pos.y; dz = tgt._pos.z - pos.z
@@ -3475,8 +3526,17 @@ def _physics_projectiles(sim, dt: float) -> None:
                 remaining.append(p)
                 continue
 
-            # Warhead torp: detonate on contact with the nearest hittable.
+            # Warhead torp: detonate on contact with the nearest hittable - but only once it
+            # has ARMED. A torpedo spawns AT the launcher, and _PROJECTILE_HIT_RADIUS is 300u,
+            # so without an arming distance it detonates on the very first physics tick against
+            # anything parked alongside the firing ship (measured: a wingman 150-280u away was
+            # hit at t=0.03s and the intended target took nothing). Real ordnance is inert until
+            # it clears the tube; this is that. Mines are unaffected - they deploy at range.
+            armed = traveled2 >= _TORP_ARM_DIST * _TORP_ARM_DIST
             hit = _nearest_hittable(space, pos, _PROJECTILE_HIT_RADIUS, p["source_id"])
+            if hit and not armed and hit != (p.get("target_id") or 0):
+                hit = 0   # inert against BYSTANDERS only - the ship you aimed at is always
+                          # fair game, so a point-blank shot at a real target still works.
             if hit:
                 eff = p.get("effect", "single")
                 blast = p.get("blast_radius", 0.0)

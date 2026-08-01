@@ -497,5 +497,119 @@ class TestMockguiRadarThreadSafety(unittest.TestCase):
         self.assertEqual(errors, [], f"_push_radar raised under concurrent churn: {errors}")
 
 
+class TestMockguiRadarDeltaBaseline(unittest.TestCase):
+    """The delta radar suppresses a re-send until an object has moved
+    _DYNAMIC_POS_THRESHOLD_SQ. The baseline it compares against must be the last
+    value the browser RECEIVED, not the current one - otherwise only a single
+    tick of motion is ever tested, and anything slower than 5 units/tick (150
+    u/s: every NPC, whose top speed is 36 u/s) is never re-sent and stays frozen
+    at its spawn point in the browser."""
+
+    def setUp(self):
+        mockgui.gui_queue = _queue.Queue()
+        mockgui.create_new_sim()
+        mockgui.gui_queue = _queue.Queue()
+        mockgui._last_terrain_snapshot = frozenset()
+        mockgui._last_per_ship.clear()
+
+    def _updates_for(self, obj_id):
+        """Position updates (excluding the initial 'new' record) drained so far."""
+        n = 0
+        while not mockgui.gui_queue.empty():
+            m = mockgui.gui_queue.get_nowait()
+            if m.get("cmd") != "radar":
+                continue
+            for o in m.get("changed", []):
+                if o["id"] == str(obj_id) and not o.get("new"):
+                    n += 1
+        return n
+
+    def test_slow_drift_accumulates_into_a_resend(self):
+        sim = mockgui.sim
+        npc = sim.create_space_object("behav_npcship", "", 0x10)
+        o = sim.space_objects[npc]
+        o._pos = mockgui.vec3(0, 0, 0)
+
+        mockgui._push_radar()          # initial 'new' record
+        self._updates_for(npc)
+
+        # Creep 1 unit per tick - under the 5-unit threshold every single tick.
+        for i in range(1, 21):
+            o._pos = mockgui.vec3(float(i), 0, 0)
+            mockgui._push_radar()
+
+        sent = self._updates_for(npc)
+        self.assertGreater(sent, 0,
+                           "a slowly cruising NPC must eventually re-send its position")
+        # ~20 units of travel at a 5-unit threshold - a handful of packets, not one per tick.
+        self.assertLessEqual(sent, 8, "delta suppression must still throttle the stream")
+
+    def test_stationary_object_sends_nothing(self):
+        sim = mockgui.sim
+        rock = sim.create_space_object("behav_npcship", "", 0x10)
+        sim.space_objects[rock]._pos = mockgui.vec3(500, 0, 500)
+
+        mockgui._push_radar()
+        self._updates_for(rock)
+        for _ in range(20):
+            mockgui._push_radar()
+        self.assertEqual(self._updates_for(rock), 0,
+                         "a parked object must not re-send every tick")
+
+
+class TestMockguiFullRecordAfterReset(unittest.TestCase):
+    """A browser that has been told to wipe must be re-sent FULL records, never deltas.
+
+    art / beamports / meshscale / side / tick_type ride the `new` record ONLY. If a
+    browser first hears about an object through a delta it has no identity for it, and
+    (before the client-side guard) invented art:'' + beamports:null -- an object invisible
+    in the 3D view and beamless for the rest of its life. The same hazard exists on the
+    browser-CONNECT path, where a late client receives broadcast deltas until the runner
+    processes its connect event and calls _force_terrain_push().
+    """
+
+    def setUp(self):
+        mockgui.gui_queue = _queue.Queue()
+        mockgui.create_new_sim()
+        mockgui.gui_queue = _queue.Queue()
+        mockgui._last_terrain_snapshot = frozenset()
+        mockgui._last_per_ship.clear()
+
+    def _drain(self):
+        items = []
+        while not mockgui.gui_queue.empty():
+            items.append(mockgui.gui_queue.get_nowait())
+        return items
+
+    def test_every_object_gets_a_full_record_after_a_reset(self):
+        sim = mockgui.sim
+        ship = sim.create_space_object("behav_npcship", "", 0x10)
+        sim.space_objects[ship]._pos = mockgui.vec3(100, 0, 100)
+        mockgui._push_radar()          # object is now in the server's snapshot
+        self._drain()
+
+        mockgui.create_new_sim()       # restart: browser is told to wipe
+        sim = mockgui.sim
+        again = sim.create_space_object("behav_npcship", "", 0x10)
+        sim.space_objects[again]._pos = mockgui.vec3(200, 0, 200)
+        mockgui._push_radar()
+
+        saw_reset = False
+        full, delta = set(), set()
+        for m in self._drain():
+            if m.get("cmd") == "world_reset":
+                saw_reset = True
+                continue
+            if m.get("cmd") != "radar":
+                continue
+            for o in m.get("changed", []):
+                (full if o.get("new") else delta).add(o["id"])
+        self.assertTrue(saw_reset, "a reset must tell browsers to wipe")
+        self.assertIn(str(again), full,
+                      "after a reset every object must re-send a FULL record, not a delta")
+        self.assertNotIn(str(again), delta - full,
+                         "an object the browser just wiped must never arrive as a delta only")
+
+
 if __name__ == "__main__":
     unittest.main()

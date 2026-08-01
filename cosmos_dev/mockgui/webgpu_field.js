@@ -30,6 +30,8 @@ async function start(){
     if(e.key==="c"){ modeIx=(modeIx+1)%MODES.length; }   // cycle chase -> orbit -> cinematic
     if(e.key==="v"){ focusNpc=false; shipSel++; }        // cycle which PLAYER ship the chase follows
     if(e.key==="n"){ focusNpc=true; npcSel++; }          // cycle NON-player ships (find a far / cloaked NPC)
+    if(e.key==="B"){ beamCensus={in:0,nometa:0,noports:0,arccull:0,drawn:0,peak:0};
+                     projCensus={in:0,missile:0,drone:0,other:0,peak:0,now:0,ynone:false}; }   // zero the censuses for a fresh measurement
     if(e.key==="b"){ showGrid=!showGrid; }               // toggle the reference grid
     if(e.key==="k"){ nebBaked=!nebBaked; }               // nebula: baked (sample resident 3D pool) vs live (recompute noise)
     if(e.key==="t"){ nebSteps=({24:48,48:96,96:24})[nebSteps]||48; }  // raymarch steps knob
@@ -429,6 +431,18 @@ async function start(){
   const smokePipe=device.createRenderPipeline({layout:"auto", vertex:{module:mod,entryPoint:"vsmoke"}, fragment:{module:mod,entryPoint:"fsmoke",targets:[{format,blend:ADD}]}, primitive:{topology:"triangle-list"}, depthStencil:{format:"depth24plus",depthWriteEnabled:false,depthCompare:"less"}});
   const impPipe=device.createRenderPipeline({layout:"auto", vertex:{module:mod,entryPoint:"vimp"}, fragment:{module:mod,entryPoint:"fimp",targets:[{format,blend:ADD}]}, primitive:{topology:"triangle-list"}, depthStencil:{format:"depth24plus",depthWriteEnabled:false,depthCompare:"less"}});
   let beamBuf=null, beamCap=0, projBuf=null, projCap=0, smokeBuf=null, smokeCap=0;
+  // Diagnostic: where beam-fire records go. CUMULATIVE totals, never reset per frame -- a beam
+  // is lit only ~0.75s of a ~6s cycle, so a per-frame count flickers 0/1/0 and cannot be read.
+  // A firer the mock says is shooting draws nothing when it is absent from this client's radar
+  // stream (nometa), carries no shipData beam ports (noports), or every emitter's arc excludes
+  // the target (arccull). 'B' (shift+b) zeroes them to start a fresh measurement.
+  let beamCensus={in:0,nometa:0,noports:0,arccull:0,drawn:0,peak:0};
+  // Projectile census (torpedoes / mines / drones). Cumulative like the beam one, so a
+  // single launch every few seconds is still readable. NOTE the server streams projectiles
+  // as [x, z, kind, dirx, dirz] with NO Y, so everything here is drawn on the y=0 plane.
+  // An in-flight mine is still kind "missile" (it only becomes "mine" once deployed, and a
+  // deployed mine is skipped by _push_fx because it is a real space object by then).
+  let projCensus={in:0,missile:0,drone:0,other:0,peak:0,now:0,ynone:false};
 
   // fallback gray texture (art without a diffuse map)
   const grayTex=device.createTexture({size:[1,1],format:"rgba8unorm-srgb",usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
@@ -454,6 +468,10 @@ async function start(){
 
   // ---- real-art loader (cached by art root), self-contained fetch of the mock's /ships/ files ----
   const artCache=new Map();   // art -> {status:'loading'|'ready'|'failed', vb, ib, count, bind}
+  // Art roots whose /ships/<art>.obj fetch or parse failed. An object whose art fails to load
+  // is simply absent from the 3D view with no other symptom, so surface it on the HUD rather
+  // than only in the console (this is how a missing wreck/hull mesh shows itself).
+  const artFailed=[];
   function loadArt(art){
     if(artCache.has(art)) return artCache.get(art);
     const rec={status:"loading"}; artCache.set(art,rec);
@@ -476,7 +494,8 @@ async function start(){
         const normView=await loadTex('_normal.png',false,flatNormalTex); // tangent-space normal (linear), flat when missing
         rec.bind=device.createBindGroup({layout:pipe.getBindGroupLayout(1),entries:[{binding:0,resource:view},{binding:1,resource:samp},{binding:2,resource:emisView},{binding:3,resource:specView},{binding:4,resource:normView}]});
         rec.instBuf=null; rec.instCap=0; rec.status="ready";
-      }catch(e){ rec.status="failed"; wlog("art load failed: "+art+" — "+(e&&e.message||e)); }
+      }catch(e){ rec.status="failed"; if(artFailed.indexOf(art)<0) artFailed.push(art);
+        wlog("art load failed: "+art+" — "+(e&&e.message||e)); }
     })();
     return rec;
   }
@@ -486,6 +505,13 @@ async function start(){
   // when terrainVersion changes) + rec.dInst/dCount (dynamic=per-frame). This is the delta win: the
   // bulk (asteroid/nebula field) is sent once, not every frame — only the few moving ships re-upload.
   let terrainVer=-1; let fcx=0,fcz=0,fmeanR=1;   // nebArr / nebCount hoisted up to the bake section
+  // Orbit framing follows the SHIPS, not the terrain. Terrain meshes only began rendering when
+  // gatherTerrain's icon_index filter was corrected (data_set.get returns 0, not None, for an
+  // unset key, so `icon_index!=null` had been skipping every rock) -- which silently moved the
+  // orbit centre from the origin onto the asteroid field's centre of mass, and `dist` onto its
+  // spread. On a wide belt that parks the camera far outside the play area. Rendering terrain
+  // and framing on terrain are separate concerns; these track the dynamic objects instead.
+  let dcx=0,dcz=0,dmeanR=1;
   let terrainCensus={n:0,neb:0,icon:0,noart:0,wanted:[]};   // diagnostic: where terrain records go (asteroid hunt)
   function ensureInst(rec, which, list){
     const n=list.length/8; rec[which+"Count"]=n; if(n===0) return;
@@ -580,6 +606,13 @@ async function start(){
     for(const id of smDyn.keys()) if(!seen.has(id)) smDyn.delete(id);
     for(const rec of artCache.values()) rec.dCount=0;
     for(const [art,arr] of lists){ ensureInst(loadArt(art),"d",arr); }
+    // Ship centroid + mean spread, for the orbit camera (same shape as gatherTerrain's).
+    // Named d* so they don't shadow the block-scoped sx/sz/cnt used in the trail code above.
+    let dsx=0,dsz=0,dcnt=0;
+    for(const arr of lists.values()){ for(let i=0;i<arr.length;i+=8){ dsx+=arr[i]; dsz+=arr[i+2]; dcnt++; } }
+    dcx=dcnt?dsx/dcnt:0; dcz=dcnt?dsz/dcnt:0;
+    let dsr=0,dmm=0; for(const arr of lists.values()){ for(let i=0;i<arr.length;i+=8){ dsr+=Math.hypot(arr[i]-dcx, arr[i+2]-dcz); dmm++; } }
+    dmeanR=Math.max(1, dmm?dsr/dmm:1);
     return n;
   }
   // the client's own ship (by _myShipId, else first PLAYER-type) — for the chase camera
@@ -634,8 +667,12 @@ async function start(){
     let dynN=0;
     if(b2){ const tv=b2.terrainVersion|0; if(tv!==terrainVer){ terrainVer=tv; gatherTerrain(b2); } dynN=gatherDyn(b2); }
     let tObjs=0; for(const rec of artCache.values()) tObjs+=(rec.tCount||0);
-    const g={ n:tObjs+dynN, meanR:fmeanR };
-    if(g.n>0){ cx=fcx; cz=fcz; if(!framed){ dist=g.meanR*2.5+2000; framed=true; } }
+    const g={ n:tObjs+dynN, meanR:fmeanR };   // meanR stays terrain-wide: the FAR plane must still reach the whole field
+    // Frame on the SHIPS. Terrain is scenery and its centroid can sit far from the play area;
+    // fall back to it only while no ship is on screen, and don't latch `framed` until one is,
+    // so an early terrain-only frame can't pin the camera out in empty space for the session.
+    if(dynN>0){ cx=dcx; cz=dcz; if(!framed){ dist=dmeanR*2.5+2000; framed=true; } }
+    else if(g.n>0){ cx=fcx; cz=fcz; }
     const player=findPlayer(b2);
     if(player){ const rc=player.art?artCache.get(player.art):null; const sz=Math.max(1,(player.sc||1)*((rc&&rc.maxDim)?rc.maxDim:60));
       ringList.push(player.x, player.y, player.z, Math.max(460,sz*1.5), 0.0,0.9,1.0, 0.35, 0.0125, 0.0, 4.0, 0); }   // own-ship highlight (thin 1/4 band, 2x more transparent, full ring)
@@ -710,9 +747,13 @@ async function start(){
     // combat FX (additive glow): expand each beam to one ribbon per shipData beam-emitter (converging on the target)
     let beamOut=null;
     if(b2&&b2.beams&&b2.beams.length){ beamOut=[];
+      if(b2.beams.length>beamCensus.peak) beamCensus.peak=b2.beams.length;   // most simultaneous firers seen
       for(const bb of b2.beams){ const it=(bb[4]==null?1:bb[4]), fid=bb[5], tid=bb[6];
+        beamCensus.in++;
         const mm=(fid!=null&&b2.dynMeta)?b2.dynMeta.get(fid):null;
         const ports=(mm&&mm.beamports&&mm.beamports.length)?mm.beamports:null;
+        if(!mm) beamCensus.nometa++;
+        else if(!ports) beamCensus.noports++;
         if(!ports) continue;   // no beam-port set -> no beam weapons -> draw nothing (never fabricate a center beam)
         const sf=smDyn.get(fid), st=tid!=null?smDyn.get(tid):null;      // smoothed ends so the beam lines up with the drawn meshes
         const ox=sf?sf.r[0]:bb[0], oy=sf?sf.r[1]:0, oz=sf?sf.r[2]:bb[1];   // use the SHIP's altitude (ignore the port's Y) so the beam doesn't float
@@ -723,10 +764,10 @@ async function start(){
         const bearing=Math.atan2(fwz*dgx-fwx*dgz, fwx*dgx+fwz*dgz)*180/Math.PI;
         for(const e of ports){
           const aw=(e[7]!=null?e[7]:360);
-          if(aw<359){ const ba=e[6]||0; let d=((bearing-ba+540)%360)-180; if(Math.abs(d)>aw*0.5) continue; }   // target outside THIS emitter's arc -> it doesn't fire
+          if(aw<359){ const ba=e[6]||0; let d=((bearing-ba+540)%360)-180; if(Math.abs(d)>aw*0.5){ beamCensus.arccull++; continue; } }   // target outside THIS emitter's arc -> it doesn't fire
           const w=qrotJS(q,(e[0]-ctr[0])*ms,(e[1]-ctr[1])*ms,(e[2]-ctr[2])*ms);
           const cr=(e[3]!=null?e[3]:0.549), cg=(e[4]!=null?e[4]:0.863), cb=(e[5]!=null?e[5]:1.0);   // shipData beam color (fallback engine cyan)
-          beamOut.push(ox+w[0], oz+w[2], x2, z2, it, oy+w[1], ty, cr, cg, cb); }   // emitter (full 3D incl. its Y) -> target: x1,z1,x2,z2, life, y1,y2, r,g,b
+          beamOut.push(ox+w[0], oz+w[2], x2, z2, it, oy+w[1], ty, cr, cg, cb); beamCensus.drawn++; }   // emitter (full 3D incl. its Y) -> target: x1,z1,x2,z2, life, y1,y2, r,g,b
       }
     }
     const nbm=beamOut?Math.min((beamOut.length/10)|0,2048):0;
@@ -738,8 +779,15 @@ async function start(){
       const bd=device.createBindGroup({layout:beamPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:6,resource:{buffer:beamBuf}}]}); p.setPipeline(beamPipe); p.setBindGroup(0,bd); p.draw(6,nbm);
       const td=device.createBindGroup({layout:impPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:6,resource:{buffer:beamBuf}}]}); p.setPipeline(impPipe); p.setBindGroup(0,td); p.draw(30,nbm); draws++; }
     const prj=b2&&b2.projectiles?b2.projectiles:null, npr=prj?Math.min(prj.length,1024):0;
+    projCensus.now=npr;
+    if(npr>projCensus.peak) projCensus.peak=npr;
+    if(prj) for(const pp of prj){ projCensus.in++;
+      if(pp[5]==null) projCensus.ynone=true;   // server predates the streamed altitude -> y=0 plane
+      const k=pp[2]; if(k==='drone') projCensus.drone++; else if(k==='missile') projCensus.missile++; else projCensus.other++; }
     if(npr>0){ if(npr>projCap){ projCap=Math.max(32,npr*2); if(projBuf) projBuf.destroy(); projBuf=device.createBuffer({size:projCap*32,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST}); }
-      const arr=new Float32Array(npr*8); for(let i=0;i<npr;i++){ const pp=prj[i], o=i*8; arr[o]=pp[0]; arr[o+1]=0; arr[o+2]=pp[1]; arr[o+3]=(pp[2]==='drone')?1.0:0.0; arr[o+4]=(pp[3]==null?0:pp[3]); arr[o+5]=(pp[4]==null?0:pp[4]); } device.queue.writeBuffer(projBuf,0,arr);
+      // pp = [x, z, kind, dx, dz, y, dy]; y/dy are appended so older servers (5-element
+      // records) still work -- they fall back to the y=0 plane rather than drawing nothing.
+      const arr=new Float32Array(npr*8); for(let i=0;i<npr;i++){ const pp=prj[i], o=i*8; arr[o]=pp[0]; arr[o+1]=(pp[5]==null?0:pp[5]); arr[o+2]=pp[1]; arr[o+3]=(pp[2]==='drone')?1.0:0.0; arr[o+4]=(pp[3]==null?0:pp[3]); arr[o+5]=(pp[4]==null?0:pp[4]); } device.queue.writeBuffer(projBuf,0,arr);
       const pd=device.createBindGroup({layout:projPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:ubuf}},{binding:7,resource:{buffer:projBuf}}]}); p.setPipeline(projPipe); p.setBindGroup(0,pd); p.draw(6,npr); }
     p.end();
     if(tsw){ enc.resolveQuerySet(tsSet,0,2,tsResolve,0); enc.copyBufferToBuffer(tsResolve,0,tsRead,0,16); }
@@ -757,8 +805,11 @@ async function start(){
     const fmtB=b=> b<1048576?(b/1024).toFixed(0)+"KB":(b/1048576).toFixed(1)+"MB";
     hud.textContent=`${fps.toFixed(0)} fps  ·  cam: ${mode}${note?"  "+note:""}${shipNote}`
       +`\n${tObjs} terrain · ${dynN} dyn · ${arts} arts · ${nebCount} neb`
-      +`\nterrain rec ${terrainCensus.n}: ${terrainCensus.neb}neb ${terrainCensus.mark}mark ${terrainCensus.icon}icon ${terrainCensus.noart}noart · mesh[${terrainCensus.wanted.length}] ${terrainCensus.wanted.map(a=>{const r=artCache.get(a);return a+":"+(r?(r.status||"?")+(r.tCount?"/"+r.tCount:""):"none");}).slice(0,6).join(" ")||"(none)"}`
+      // terrain + beam censuses still tracked (terrainCensus / beamCensus) -- re-add their
+      // lines here when hunting those; kept off-screen so the HUD stays readable.
       +`\n${draws} draws${loading?` · ${loading} art loading…`:``}`
+      +`\nproj ${projCensus.now} now (peak ${projCensus.peak}) · total ${projCensus.in}: ${projCensus.missile}missile ${projCensus.drone}drone${projCensus.other?` ${projCensus.other}other`:``} · y ${projCensus.ynone?"MISSING":"streamed"}  ['B'=zero]`
+      +`\nfailed art[${artFailed.length}] ${artFailed.slice(0,4).map(a=>a===""?"(empty)":a).join(" ")||"(none)"}`
       +`\nSHARE ${nebShare?"ON ":"OFF"} · ${logicalSlots}→${physicalSlots} slab${physicalSlots<logicalSlots?" ⚠cap":""} · ${nebBaked?"BAKED":"live"} · ${nebStepMode?`~${Math.round(1.9/NEB_STEP_FRAC)}`:nebSteps} steps · ${canTS?nebGpuMs.toFixed(2)+"ms/3D":"gpu n/a"}`
       +`\n data ${fmtB(shareB)} shared vs ${fmtB(uniqB)} unique = ${(uniqB/shareB).toFixed(1)}× less · N=${effN}${nebStress>1?` ×${nebStress}`:``} · cover ${nebCover}`
       +`\n vram ${physicalSlots}×${nebBakedRES}³=${(physicalSlots*slabMB).toFixed(1)}MB vs unique N=${effN}→${(effN*slabMB).toFixed(0)}MB (r16f ½)`
