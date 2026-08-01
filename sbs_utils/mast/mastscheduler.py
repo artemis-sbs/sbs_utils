@@ -735,6 +735,24 @@ class MastAsyncTask(Agent, Promise):
         self._symbols_cache = None
 
 
+    def add_role(self, role: str):
+        """Tagging a task makes it a discoverable RECORD, not just execution.
+
+        procedural/prefab.py sets `prefab = FrameContext.task`, so a prefab IS its
+        task: `prefab_torpedo_type` runs once and then tags itself
+        ('torpedo_definition' + the torpedo key) so docking can resolve the type
+        long after the label finished. Such a task must (a) survive disposal and
+        (b) be findable by inventory key like any other agent - so joining the
+        has_inventory index is backfilled here, once, rather than paid by every
+        short-lived route/comms task that will never be looked up.
+        """
+        super().add_role(role)
+        if not self._mirror_inventory and self.is_data_record():
+            self._mirror_inventory = True      # instance attr shadows the class flag
+            for k, v in self.inventory.collections.items():
+                if v is not None:
+                    Agent._has_inventory.add_to_collection(k, self.id)
+
     def queue_on_change(self, runtime_node):
         if self.is_gui_task:
             self.pending_on_change_items.append(runtime_node)
@@ -802,6 +820,23 @@ class MastAsyncTask(Agent, Promise):
         self._canceled = True
 
     
+    def is_data_record(self):
+        """True when this task has been tagged for DISCOVERY, so it must outlive
+        its own execution.
+
+        A MastAsyncTask is an Agent, and missions legitimately use one as a
+        persistent data record: the label runs once to populate it, then tags it
+        with roles so other code can find it later. LegendaryMissions registers
+        every torpedo type this way (`prefab_torpedo_type` -> roles
+        'torpedo_definition' + 'homing'/'nuke'/'beacon'/...), and docking's rearm
+        step resolves the type through that role set long after the task ended.
+        Disposing such a task deletes the registry.
+
+        A role beyond the built-in __mast_task__ is the signal: nothing adds one
+        unless it intends the task to be found.
+        """
+        return bool(set(getattr(self, "_own_roles", ())) - {"__mast_task__"})
+
     def dispose(self):
         """Drop a FINISHED task from the Agent registries.
 
@@ -818,6 +853,8 @@ class MastAsyncTask(Agent, Promise):
         (`mast_task`, an awaited promise's result).  A task that is later revived
         via jump_restart_task re-registers itself there.
         """
+        if self.is_data_record():
+            return                # tagged for discovery - it outlives its code
         for st in list(self.sub_tasks):
             st.dispose()          # sub-tasks share the parent's lifecycle
         self.sub_tasks = []
@@ -1292,7 +1329,7 @@ class MastAsyncTask(Agent, Promise):
         swept = 0
         for tid in list(ids):
             t = Agent.all.get(tid)
-            if t is not None and t.done():
+            if t is not None and t.done() and not t.is_data_record():
                 t.dispose()
                 swept += 1
         return swept

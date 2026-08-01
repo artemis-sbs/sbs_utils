@@ -296,6 +296,78 @@ class TestSweepBackstop(unittest.TestCase):
         self.assertIn(task.id, Agent.all, "a RUNNING task must never be swept")
 
 
+class TestTaskAsDataRecord(unittest.TestCase):
+    """A tagged task is a RECORD and must outlive its own execution.
+
+    procedural/prefab.py sets `prefab = FrameContext.task`, so a prefab IS its
+    task. LegendaryMissions' `prefab_torpedo_type` runs once and then tags itself
+    ('torpedo_definition' + the torpedo key); docking's rearm step resolves the
+    type via role(key) & role("torpedo_definition") long afterwards. Disposing
+    those tasks deleted the whole torpedo registry, and the only visible symptom
+    was that docked ships stopped being resupplied with torpedoes - caught by
+    LM_TestRange (refit_rearms_depleted_torp), NOT by any unit test.
+    """
+
+    def setUp(self):
+        Agent.clear()
+        gc.collect()
+
+    def _finished_task(self, runner, label="main"):
+        task = runner.start_task(label)
+        _run_out(runner)
+        return task
+
+    def test_tagged_task_survives_disposal(self):
+        errors, runner = _build('x = 1\n->END\n')
+        self.assertEqual(errors, [])
+        task = runner.start_task("main")
+        task.add_role("torpedo_definition")
+        task.add_role("homing")
+        _run_out(runner)
+        self.assertIn(task.id, Agent.all,
+                      "a tagged (record) task must NOT be disposed")
+        self.assertIn(task.id, Agent.roles.collection_set("torpedo_definition"))
+        self.assertIn(task.id, Agent.roles.collection_set("homing"),
+                      "the role registry IS the lookup - it must survive")
+
+    def test_untagged_task_is_still_disposed(self):
+        """The gate must not disable the leak fix for ordinary tasks."""
+        errors, runner = _build('x = 1\n->END\n')
+        self.assertEqual(errors, [])
+        task = self._finished_task(runner)
+        self.assertNotIn(task.id, Agent.all,
+                         "an untagged task is ordinary execution - still disposed")
+
+    def test_sweep_spares_a_record_task(self):
+        errors, runner = _build('x = 1\n->END\n')
+        self.assertEqual(errors, [])
+        task = runner.start_task("main")
+        task.add_role("torpedo_definition")
+        _run_out(runner)
+        MastAsyncTask.sweep_finished()
+        self.assertIn(task.id, Agent.all,
+                      "the sweep backstop must respect records too")
+
+    def test_tagging_joins_the_inventory_index(self):
+        """A record is looked up like any agent, so it must be findable by key.
+
+        Excluding tasks from the has_inventory index is a perf win for the
+        thousands of short-lived route/comms tasks, but a record has to be in it -
+        including values set BEFORE it was tagged, hence the backfill.
+        """
+        errors, runner = _build('x = 1\n->END\n')
+        self.assertEqual(errors, [])
+        task = runner.start_task("main")
+        task.set_inventory_value("torp_speed", 10)      # set BEFORE tagging
+        self.assertNotIn(task.id, Agent._has_inventory.collection_set("torp_speed"),
+                         "an untagged task stays out of the index")
+        task.add_role("torpedo_definition")             # now it is a record
+        self.assertIn(task.id, Agent._has_inventory.collection_set("torp_speed"),
+                      "tagging must backfill values set before the tag")
+        task.set_inventory_value("torp_damage", 35)     # and after
+        self.assertIn(task.id, Agent._has_inventory.collection_set("torp_damage"))
+
+
 class TestSubTaskDisposal(unittest.TestCase):
     def setUp(self):
         Agent.clear()
