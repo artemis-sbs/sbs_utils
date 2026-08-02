@@ -19,7 +19,9 @@ Proving ground: **`missions/VisualTestRange`** — every phase below lands a spe
 ## 0. Scripted camera: what actually renders (2026-08-01)
 
 Established with `missions/CameraRepro` - a raw `script.py`, no sbs_utils, no MAST, no
-framework, every line a direct engine call. **An earlier version of this section claimed only
+framework, every line a direct engine call. **Sent to the engine team on 2026-08-01.** If they
+fix the two-id case, `camera_shot` / `camera_track` can drop their folding logic entirely (the
+degenerate-vector nudge would still be needed). **An earlier version of this section claimed only
 `dollyID` 0 works. That was wrong** - a faithful Game Master replica renders with a real id.
 Left here as written because the sequence matters:
 
