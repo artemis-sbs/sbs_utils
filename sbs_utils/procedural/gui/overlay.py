@@ -1202,6 +1202,18 @@ def overlay_lower_third_portrait(name, line, face=None, ship=None, icon=None,
         if reply.data == "Fire":
             ...
 
+    Pass ``seconds`` and it is a TIMEOUT, not just a dismiss: the card clears and
+    the reply resolves with ``data is None``, so an unanswered choice never
+    deadlocks the task waiting on it. Without ``seconds`` it waits indefinitely,
+    which is right for a beat the story cannot proceed past::
+
+        reply = await overlay_lower_third_portrait(..., buttons=[...], seconds=25)
+        answer = reply.data or "Hold"      # nobody answered -> the default
+
+    From MAST, hold it in a variable if you like - `p = f()` then `r = await p`
+    compiles. The one form that does not is a BARE `await p` with nothing
+    assigned; assign the result, or await the call.
+
     ``reply.data`` is the label pressed and ``reply.client_id`` is who pressed it,
     which matters as soon as ``to`` covers more than one console: the FIRST press
     wins and the rest are ignored, so the answer is meaningless without knowing
@@ -1244,6 +1256,24 @@ def overlay_lower_third_portrait(name, line, face=None, ship=None, icon=None,
     fields["_promise"] = prom
     fields["_signal"] = on_reply
     _show_transient(slot, "lower_third_portrait", to, seconds, fields, consoles)
+    if seconds and seconds > 0:
+        #
+        # The dismiss takes the BUTTONS with it, so on its own it leaves a caller
+        # awaiting a promise that nothing can ever resolve - a deadlocked story
+        # task, and the overlay is gone so there is nothing on screen to explain
+        # why. Resolve it as "no answer" at the same moment.
+        #
+        # This is why `seconds` is the timeout rather than the caller racing
+        # `promise_any(reply, delay_sim(n))`: the race leaves the card up after it
+        # loses, and it makes every caller re-derive which promise won.
+        #
+        from ...tickdispatcher import TickDispatcher
+
+        def _timeout(t):
+            if not prom.done():
+                prom.set_result(ButtonResultLike(None, None))
+
+        TickDispatcher.do_once(_timeout, seconds)
     return prom
 
 

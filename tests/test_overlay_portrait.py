@@ -500,6 +500,15 @@ class TestReplyPressContract(unittest.TestCase):
         FrameContext.page = None
         FrameContext.context = None
 
+    def _advance(self, seconds):
+        """Run the tick clock forward. TickDispatcher reads the sim's
+        time_tick_counter, so the test drives that directly rather than sleeping."""
+        from cosmos_dev.mock.sbs import TICKS_PER_SECOND
+        sim = FrameContext.context.sim
+        for _ in range(int(seconds * TICKS_PER_SECOND) + 2):
+            TickDispatcher.dispatch_tick()
+            sim._time_tick_counter += 1
+
     def test_without_buttons_it_is_not_a_promise(self):
         from sbs_utils.futures import Promise
         r = overlay_lower_third_portrait("Harkin", "Holding.", face="F1")
@@ -578,6 +587,45 @@ class TestReplyPressContract(unittest.TestCase):
             SIG.signal_emit = real
             FrameContext.task = None
         self.assertEqual(prom.result().data, "Fire")
+
+    def test_seconds_is_a_timeout_not_just_a_dismiss(self):
+        # The dismiss takes the buttons with it, so without this the caller awaits
+        # a promise nothing can resolve - a deadlocked task with nothing on screen
+        # to explain it.
+        r = overlay_lower_third_portrait("Harkin", "Do we fire?", face="F1",
+                                         buttons=["Fire", "Hold"], seconds=5)
+        self.assertFalse(r.done())
+        self._advance(6)
+        self.assertTrue(r.done(), "an unanswered choice must not hang forever")
+        self.assertIsNone(r.result().data, "no answer reads as no data")
+
+    def test_a_press_beats_the_timeout(self):
+        from sbs_utils.procedural.gui.overlay import _reply_emitter
+        import sbs_utils.procedural.signal as SIG
+        r = overlay_lower_third_portrait("Harkin", "Do we fire?", face="F1",
+                                         buttons=["Fire"], seconds=5)
+        real = SIG.signal_emit
+        SIG.signal_emit = lambda name, data=None, **k: None
+
+        class _Item:
+            data = "Fire"
+            client_id = 3
+        self.page.gui_task.set_variable("__ITEM__", _Item())
+        FrameContext.task = self.page.gui_task
+        try:
+            _reply_emitter("r", r)()
+            self._advance(6)
+        finally:
+            SIG.signal_emit = real
+            FrameContext.task = None
+        self.assertEqual(r.result().data, "Fire", "the timeout must not overwrite it")
+
+    def test_no_seconds_waits_indefinitely(self):
+        # Right for a beat the story cannot proceed past.
+        r = overlay_lower_third_portrait("Harkin", "Do we fire?", face="F1",
+                                         buttons=["Fire"])
+        self._advance(120)
+        self.assertFalse(r.done(), "no seconds -> it waits for an answer")
 
     def test_a_label_handler_is_not_offered(self):
         # gui_button supports one, but it is dispatched as a jump on the task that
