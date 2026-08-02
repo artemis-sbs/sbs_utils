@@ -74,6 +74,42 @@ def cutscene_get(name):
     return _CUTSCENES.get(name)
 
 
+def shot_apply(cids, shot):
+    """Put one shot on these consoles. Returns its move Promise, or None.
+
+    THE definition of a shot, shared by the cutscene sequencer and the rundown, so
+    "a shot" means one thing in both: a subject, where the lens sits (or travels),
+    and optional furniture. The slots it used come back on the returned set so a
+    caller can clear exactly what it put up.
+    """
+    seconds = float(shot.get("seconds", 4))
+    subject = shot.get("subject")
+    move = None
+    if shot.get("move"):
+        a, b = shot["move"][0], shot["move"][1]
+        move = camera_move(cids, subject, a, b, seconds,
+                           ease=shot.get("ease", "in_out"))
+    elif shot.get("eye") is not None:
+        camera_shot(cids, subject, shot["eye"])
+    return move
+
+
+def shot_furniture(cids, shot):
+    """Show a shot's overlay, if it has one. Returns the slots it used."""
+    slots = set()
+    furniture = shot.get("overlay")
+    if not furniture:
+        return slots
+    fields = dict(furniture)
+    kind = fields.pop("kind", None)
+    slot = fields.pop("slot", None)
+    if kind:
+        from .overlay import _KIND_DEFAULT_SLOT
+        slots.add(slot or _KIND_DEFAULT_SLOT.get(kind, "center_hero"))
+        overlay_kind(kind, to=cids, slot=slot, **fields)
+    return slots
+
+
 class _Playing:
     """One cutscene running on one set of consoles."""
 
@@ -90,29 +126,11 @@ class _Playing:
 
     # --- shots ----------------------------------------------------------
     def start_shot(self, shot):
-        seconds = float(shot.get("seconds", 4))
-        subject = shot.get("subject")
-        self.move = None
-        if shot.get("move"):
-            a, b = shot["move"][0], shot["move"][1]
-            self.move = camera_move(self.cids, subject, a, b, seconds,
-                                    ease=shot.get("ease", "in_out"))
-        elif shot.get("eye") is not None:
-            camera_shot(self.cids, subject, shot["eye"])
-
-        furniture = shot.get("overlay")
-        if furniture:
-            fields = dict(furniture)
-            kind = fields.pop("kind", None)
-            slot = fields.pop("slot", None)
-            if kind:
-                # Remembered so teardown clears exactly what the cutscene put up,
-                # and nothing a console had of its own.
-                from .overlay import _KIND_DEFAULT_SLOT
-                self.slots.add(slot or _KIND_DEFAULT_SLOT.get(kind, "center_hero"))
-                overlay_kind(kind, to=self.cids, slot=slot, **fields)
-
-        self.until = FrameContext.sim_seconds + seconds
+        self.move = shot_apply(self.cids, shot)
+        # Remembered so teardown clears exactly what the cutscene put up, and
+        # nothing a console had of its own.
+        self.slots |= shot_furniture(self.cids, shot)
+        self.until = FrameContext.sim_seconds + float(shot.get("seconds", 4))
 
     def advance(self):
         self.index += 1

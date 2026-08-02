@@ -271,7 +271,7 @@ Built, and the decisions worth keeping:
   alone would only have reported the leak; the clear is what stops a stale owner making the
   next mission's first move think it is being superseded.
 
-### Phase 4 — Rundowns and the director punch (the streaming layer)
+### Phase 4 — Rundowns and the director punch ✅ BUILT
 
 A **rundown** is not a cutscene. It is a named, ordered set of *available* cameras the
 director chooses between live:
@@ -294,8 +294,26 @@ The broadcast idiom, and it maps cleanly onto what we have:
   candidate shots and highlight the one worth punching to — director assist, not autopilot.
 - **Tally**: mark the live shot in the director's list, so the punch is unambiguous.
 
-This is where the flat click-region button matters: a rundown list is a grid of labelled
-tiles with a thumbnail-ish feel, not a column of engine buttons.
+**Built.** `rundown_add` / `rundown_program` / `rundown_preview` / `rundown_stage` /
+`rundown_take` / `rundown_punch` / `rundown_release` / `rundown_suggest` / `rundown_tiles`.
+
+- **A shot means ONE thing everywhere.** `shot_apply` / `shot_furniture` moved out of the
+  cutscene sequencer and are shared, so a rundown shot and a cutscene shot are the same dict.
+- **Auto-suggest turned out to be implementable**, not aspirational: the engine's excitement
+  notion lives on the object as the data_set key **`exciting`**, so a suggestion agrees with
+  what the engine's own cinematic camera would have picked rather than being a second opinion
+  invented here. *(Engine-confirm that key before trusting it in a session - it is modelled in
+  the mock, and `cinematic.py` describes it, but it has not been read off a real object.)*
+- **Suggest never punches.** A test pins it. The whole point of a rundown is that a person
+  chooses; the moment it takes the feed on its own it is autopilot, which is a different
+  product.
+- **Preview shows framing, not furniture.** A director already knows what the tile says;
+  duplicating the lower third onto their screen hides the framing they are judging.
+- **Removing a shot clears the tally but not the feed** - pulling a shot out of a list is not
+  a directing decision.
+- `rundown_tiles()` returns `{name, label, live, staged, suggested, excitement}` as DATA. The
+  director's console is a mission's to design; this layer has no opinion about tiles. The flat
+  look that wants is `gui_button(background_color=…)`, which already exists (Phase 6).
 
 `gui_screenshot(image_path)` already exists (full-desktop BMP via GDI) — worth revisiting for
 capturing a punch or a specimen, though it grabs the desktop rather than the view.
@@ -476,7 +494,7 @@ reference for how the background tones read over a live view.
 | ~~4~~ | ~~confirm the offset fold renders in-engine~~ | ✅ **CONFIRMED BY DOUG, 2026-08-01: "they all work now in engine."** The fold is real, so everything below stands on solid ground |
 | ~~5~~ | ~~Phase 2 mover~~ | ✅ done - `camera_move` / `camera_orbit` / `camera_rack` / `camera_move_stop` / `camera_eye`, 22 tests |
 | ~~6~~ | ~~Phase 3 cutscenes~~ | ✅ done - `cutscene_define` / `play` / `skip` / `stop` / `playing`, 22 tests |
-| **1** | **Phase 4 rundowns** | the payoff, and the last one left. A shot is a *(subject, lens position)* pair now, not a camera object - arguably a better model |
+| ~~7~~ | ~~Phase 4 rundowns~~ | ✅ done - `rundown_add/program/preview/stage/take/punch/suggest/tiles`, 22 tests. The payoff. A shot is a *(subject, lens position)* pair now, not a camera object - arguably a better model |
 
 ## 4. Standing constraints
 

@@ -116,6 +116,8 @@ def reset_mission_state():
     _CAMERA_MOVES.clear()
     _CUTSCENES.clear()
     _PLAYING.clear()
+    rundown_clear()     # shots AND both desks - a stale program audience would
+                        # aim the next mission's punches at dead client ids
     Agent.clear()       # all agents, roles, inventories, links
     clear_shared()      # rebuild the SHARED agent (drops label names / console types)
     from .procedural.signal import signal_waiters_clear
@@ -165,6 +167,8 @@ register_reset_state("camera moves",      lambda: len(_CAMERA_MOVES))
 from .procedural.gui.cutscene import _CUTSCENES, _PLAYING
 register_reset_state("cutscenes",         lambda: len(_CUTSCENES))
 register_reset_state("cutscenes playing", lambda: len(_PLAYING))
+from .procedural.gui.rundown import _SHOTS as _RUNDOWN_SHOTS, rundown_clear
+register_reset_state("rundown shots",     lambda: len(_RUNDOWN_SHOTS))
 register_reset_state("DeleteQueue",       lambda: len(DeleteQueue._pending) + len(DeleteQueue._pending_grid))
 register_reset_state("Agent.roles",       lambda: len(Agent.roles.collections))
 register_reset_state("Agent.has_links",   lambda: len(Agent.has_links.collections))
