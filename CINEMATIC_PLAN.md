@@ -498,7 +498,7 @@ reference for how the background tones read over a live view.
 
 ### AMD: a shot is a RECORD ✅ BUILT
 
-Doug chose one heading per shot, grouped by `Scene:` (a cutscene) or `Rundown:` (a set the
+Doug chose one heading per shot, grouped by `Cutscene:` (a cutscene) or `Rundown:` (a set the
 director punches between) - "clearer to me". `amd_cutscene.py` loads both, so Phase 3 and
 Phase 4 get AMD from ONE implementation, which is only possible because they already share
 `shot_apply`.
@@ -511,7 +511,7 @@ Letterbox: yes
 ---
 ## [Establish Phoenix](intro_1)
 ---
-Scene: intro
+Cutscene: intro
 Subject: station
 Lens: 0, 900, -4000
 Seconds: 4

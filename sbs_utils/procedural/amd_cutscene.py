@@ -1,6 +1,6 @@
 """Declarative cutscenes and rundowns from AMD - a shot is a RECORD.
 
-One heading per shot, grouped by ``Scene:`` (a cutscene) or ``Rundown:`` (a set the
+One heading per shot, grouped by ``Cutscene:`` or ``Rundown:`` (a set the
 director punches between). A shot is an ordinary AMD record, so the existing reader,
 lint, schema and typed widgets all work on it unchanged - and because Phase 3 and
 Phase 4 already share one ``shot_apply``, both get AMD from this one loader::
@@ -14,7 +14,7 @@ Phase 4 already share one ``shot_apply``, both get AMD from this one loader::
 
     ## [Establish Phoenix](intro_1)
     ---
-    Scene: intro
+    Cutscene: intro
     Subject: station
     Lens: 0, 900, -4000
     Seconds: 4
@@ -25,7 +25,7 @@ Phase 4 already share one ``shot_apply``, both get AMD from this one loader::
 
     ## [Push in on Artemis](intro_2)
     ---
-    Scene: intro
+    Cutscene: intro
     Subject: hero
     Move: 0,400,-3000 -> 0,120,-600
     Seconds: 6
@@ -138,7 +138,7 @@ def _num(v, default=None):
         return default
 
 
-_SHOT_FIELDS = ("scene", "rundown", "subject", "lens", "move", "seconds", "ease",
+_SHOT_FIELDS = ("cutscene", "rundown", "subject", "lens", "move", "seconds", "ease",
                 "order", "overlay", "slot", "label")
 
 
@@ -177,7 +177,12 @@ def amd_cutscenes(section):
     """Load every cutscene, shot and rundown in ``section``.
 
     Returns ``{"cutscenes": {...}, "rundowns": {...}}``. A record with
-    ``Kind: cutscene`` is a bed; a record with ``Scene:`` or ``Rundown:`` is a shot.
+    ``Kind: cutscene`` is a bed; a record with ``Cutscene:`` or ``Rundown:`` is a shot.
+
+    NOT ``Scene:``: that field is already a lifeform's dialogue scene, and the schema
+    INFERS the lifeform archetype from it (``("scene", "lifeform")``), so a shot
+    carrying it would be typed as a character. ``Cutscene:`` also pairs symmetrically
+    with ``Rundown:`` - both name the container the shot belongs to.
     """
     beds = {}
     scenes = {}
@@ -198,8 +203,8 @@ def amd_cutscenes(section):
             }
             continue
         shot = _shot_from(rec)
-        if data.get("scene"):
-            scenes.setdefault(str(data["scene"]).strip(), []).append(shot)
+        if data.get("cutscene"):
+            scenes.setdefault(str(data["cutscene"]).strip(), []).append(shot)
         elif data.get("rundown"):
             rundowns.setdefault(str(data["rundown"]).strip(), []).append(shot)
 

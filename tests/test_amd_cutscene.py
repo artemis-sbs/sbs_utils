@@ -1,6 +1,6 @@
 """Declarative cutscenes and rundowns — a shot is a RECORD.
 
-One heading per shot, grouped by ``Scene:`` or ``Rundown:``, which is what makes a
+One heading per shot, grouped by ``Cutscene:`` or ``Rundown:``, which is what makes a
 rundown shot and a cutscene shot the same thing and lets both phases share one
 loader. The hard part is that a shot names a LIVE object and no object exists when
 the ``.amd`` loads, so ``Subject:`` resolves late: cast first, then a role, and a
@@ -39,7 +39,7 @@ DOC = (
     "---\n"
     "## [Establish Phoenix](intro_1)\n"
     "---\n"
-    "Scene: intro\n"
+    "Cutscene: intro\n"
     "Subject: station\n"
     "Lens: 0, 900, -4000\n"
     "Seconds: 4\n"
@@ -49,7 +49,7 @@ DOC = (
     "All quiet on the belt.\n"
     "## [Push in on Artemis](intro_2)\n"
     "---\n"
-    "Scene: intro\n"
+    "Cutscene: intro\n"
     "Subject: hero\n"
     "Move: 0,400,-3000 -> 0,120,-600\n"
     "Seconds: 6\n"
@@ -203,8 +203,8 @@ class TestLoading(AmdCutsceneBase):
     def test_an_explicit_order_wins(self):
         doc = amd_document(
             "# [S](s)\n"
-            "## [B](b)\n---\nScene: s\nSubject: x\nLens: 0,0,-1\nOrder: 1\n---\n"
-            "## [A](a)\n---\nScene: s\nSubject: x\nLens: 0,0,-1\nOrder: 0\n---\n")
+            "## [B](b)\n---\nCutscene: s\nSubject: x\nLens: 0,0,-1\nOrder:1\n---\n"
+            "## [A](a)\n---\nCutscene: s\nSubject: x\nLens: 0,0,-1\nOrder:0\n---\n")
         amd_cutscenes(amd_root_node(doc))
         self.assertEqual([s["key"] for s in CUTSCENE_AMD["s"]["shots"]], ["a", "b"])
 

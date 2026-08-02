@@ -368,7 +368,7 @@ CUTSCENE = {
 # punches between - the same record either way, which is why Phase 3 and Phase 4
 # share one loader.
 SHOT = {
-    "scene": text(hint="the cutscene this shot belongs to"),
+    "cutscene": text(hint="the cutscene this shot belongs to"),
     "rundown": text(hint="the rundown this shot belongs to"),
     # Resolved LATE: a cast name bound by the mission, else a role. The object does
     # not exist when the .amd loads.
