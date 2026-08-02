@@ -460,7 +460,7 @@ and the orders layer moves behind a decision point instead of leading.
 | 5 | AT RISK - `amd_verb` metadata key; order-label discovery by `type: objective/orders/*`; bind to `objective_add` | sbs_utils, LM |
 | 6 | AT RISK - `brain: exclusive \| layered` (3.4); `valid_for` / `give_orders_type` lint | sbs_utils, sbs_cli |
 | 7 | AT RISK - new objective labels (section 7) | LM |
-| 8 | `Setting` archetype; `Skybox:` / `Music:` / `Establish:` - independent of all the above, can run any time | sbs_utils, OU |
+| 8 | ~~`Setting` archetype~~ - **DROPPED, see 9.2.** The fields are already authored on `map` and `region` records, and the real problem is kind resolution, not vocabulary | - |
 | 9 | Timeline action edges; Inspector widgets | sbs_cli, editors/vscode |
 | 10 | Docs, alongside `cosmos/cinematics.md` | mkdocs |
 
@@ -499,3 +499,56 @@ That also weakens what Phase 4 can prove. It will say whether `Action:` expresse
 directions well, but a small hand-picked sample cannot say much about demand for orders.
 Section 1.5.1 is the better evidence on that question, and the motivation survey
 (`NPC_MOTIVATION_PLAN.md` s7) is better still.
+
+
+---
+
+## 9.2 Phase 8 is dropped, and what killed it is worth more
+
+`Setting` was to be a new archetype carrying `Skybox:` / `Music:` / `Establish:`. Checking
+where those are actually written killed it, and turned up something larger.
+
+**They are already authored, on existing archetypes.** `Skybox:` and `Music:` sit on **map**
+records in OU (`default.amd`, `silver_reach.amd`, `skirmish_arena.amd`) and on a **region**
+record in Storm's Beacon. A new archetype would help neither - and since a section resolves
+to ONE archetype, those records cannot be settings as well as what they already are.
+`Establish:` is speculative vocabulary nobody writes. Adding it would repeat the mistake
+1.5 was written to stop.
+
+**The larger finding.** Ranking every `unknown-field` warning across LM + OU + Storm's
+Beacon gives 336 warnings over 88 distinct (field, archetype) pairs - and the top of the
+list is not obscure vocabulary, it is *core declared fields flagged against the wrong
+archetype*: `Done when` (19), `Values` (18), `State` (16), `Reward` (14), `Speaker` (12),
+`Center`/`Radius` (7 each) - all "not a known **map** field".
+
+The cause is one line. `silver_reach.amd` opens with a kind line on the ROOT record:
+
+```
+# [The Silver Reach](the_silver_reach)
+---
+Universe
+---
+```
+
+`Universe` maps to `map`, and **kind inherits downward**, so every record in the file
+becomes a `map` - overriding `## Sides`, `## Regions`, `## Jobs`, `## Narrative`. Verified
+directly: with the root kind line a region record resolves `map`; without it, `region`.
+
+**And it is not only lint noise - it changes parsed VALUES.** `node.kind` drives
+`amd_read_field` coercion, so in `silver_reach.amd` today:
+
+```
+Center: 5, -4     ->  '5, -4'   (str)     because the record typed as `map`
+Center: 5, -4     ->  [5, -4]   (list)    when it types as `region`
+```
+
+Inheriting a kind DOWN is right for `## Characters` over its records. It is wrong for a
+document ROOT, whose kind line names the FILE rather than its contents. The likely fix is
+that resolution should take the NEAREST of (ancestor kind, ancestor section name) rather
+than letting any ancestor kind beat every section name.
+
+**Not fixed here, deliberately.** It is core kind resolution, another session has been
+working in that exact table, and because it changes coercion it can change runtime values
+in OU - possibly fixing them, possibly breaking code written against the current strings.
+That wants its own change with OU exercised, not a drive-by at the end of an unrelated
+phase. It is the highest-value AMD work now visible.
