@@ -25,8 +25,16 @@ from sbs_utils.fs import load_yaml_string
 # the tooling and the game came to disagree about the same file, so they live here
 # once and both import them.
 
+# `\r` is in the trailing class on purpose. A line fed here still carries its ending
+# (`splitlines(True)` / `readlines()`), and `$` matches before a final `\n` but NOT
+# before `\r\n`. A file with CRLF therefore matched no heading at all - every heading
+# became body text and the whole document collapsed into its root, which is what a
+# mission sees when it reads an .amd out of a MASTLIB: zips preserve CRLF, while the
+# same file checked out on disk has been normalized to LF. Same bytes on disk, two
+# different documents depending on where they were read from.
+# RE_FENCE never had the bug because `\s` already includes `\r`.
 RE_HEADING = re.compile(r"(?P<hashes>#+)[ \t]+\[(?P<display>[^\]]*)\]"
-                        r"\((?P<urn>[^)]*)\)[ \t]*$")
+                        r"\((?P<urn>[^)]*)\)[ \t\r]*$")
 RE_FENCE = re.compile(r"\s*-{3,}\s*$")
 
 

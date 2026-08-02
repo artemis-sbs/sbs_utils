@@ -212,3 +212,33 @@ Color: #fff
 ---
 """)
         self.assertEqual(kinds["sides"], "side")
+
+
+class TestCrlfHeadings(unittest.TestCase):
+    """A file read out of a MASTLIB keeps its CRLF; the same file checked out on disk
+    has been normalized to LF. Both must parse to the same document."""
+
+    DOC = ("# [Root](root)\n\nProse.\n\n## [Races](races)\n\n"
+           "### [Arvonians](arvonians)\n\nAbout them.\n")
+
+    def test_crlf_parses_the_same_as_lf(self):
+        from sbs_utils.procedural.amd_core import parse
+        lf = [(n.key, n.level) for n in parse(self.DOC).nodes]
+        crlf = [(n.key, n.level) for n in parse(self.DOC.replace("\n", "\r\n")).nodes]
+        self.assertEqual(lf, crlf)
+        self.assertEqual(len(lf), 3)
+
+    def test_the_heading_regex_tolerates_a_line_ending(self):
+        from sbs_utils.procedural.amd import RE_HEADING
+        for ending in ("", "\n", "\r\n"):
+            self.assertTrue(RE_HEADING.match("# [A Title](key)" + ending),
+                            f"heading failed to match with ending {ending!r}")
+
+    def test_the_document_reader_agrees(self):
+        """`document_get_amd_file` is what the game uses; it must not collapse a CRLF
+        document into its root the way it did when read from a mastlib."""
+        from sbs_utils.procedural.quest import document_get_amd_file
+        for ending, label in (("\n", "LF"), ("\r\n", "CRLF")):
+            root = document_get_amd_file(None, "Overview",
+                                         content=self.DOC.replace("\n", ending))
+            self.assertEqual(len(root.get("children") or {}), 1, f"{label} lost its child")
