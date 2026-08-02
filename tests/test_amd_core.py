@@ -136,3 +136,79 @@ class TestKindResolution(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestKindNearestAncestorWins(unittest.TestCase):
+    """A kind line on the document ROOT names the FILE, not its contents. It used to
+    inherit past every section below it, typing whole files as `map`."""
+
+    def _kinds(self, src):
+        from sbs_utils.procedural.amd_core import parse
+        return {n.key: n.kind for n in parse(src).nodes}
+
+    ROOTED = """# [The Silver Reach](reach)
+---
+Universe
+---
+Prose.
+
+## [Regions](regions)
+
+### [The Veilfall](veilfall)
+---
+Center: 5, -4
+Radius: 3
+---
+
+## [Sides](sides)
+
+### [Combine](lantern)
+---
+Color: #ffcc44
+Enemies: veil
+---
+"""
+
+    def test_a_section_beats_a_root_kind_line(self):
+        kinds = self._kinds(self.ROOTED)
+        self.assertEqual(kinds["reach"], "map")        # the root still names the file
+        self.assertEqual(kinds["veilfall"], "region")  # not `map`
+        self.assertEqual(kinds["lantern"], "side")
+
+    def test_the_mistyping_changed_real_values(self):
+        """`node.kind` picks the coercion table, so this was never only a lint message:
+        a region's `Center:` is a coord2, a map's is an undeclared string."""
+        from sbs_utils.procedural.amd_core import parse
+        for n in parse(self.ROOTED).nodes:
+            if n.key == "veilfall":
+                self.assertEqual((n.data or {}).get("center"), [5, -4])
+
+    def test_a_nearer_kind_line_still_wins(self):
+        """Inheriting DOWN is still right where it was written - a section that declares
+        its own kind covers its records."""
+        kinds = self._kinds(self.ROOTED.replace(
+            "## [Sides](sides)\n", "## [Sides](sides)\n---\nCharacters\n---\n"))
+        self.assertEqual(kinds["lantern"], "lifeform")
+
+    def test_a_record_key_does_not_type_a_nested_record(self):
+        """peacetime keys three job steps `scan`; they are quest steps, not scans. Only a
+        FLAT file may read a record's own key as its kind."""
+        kinds = self._kinds("""# [Jobs](jobs)
+
+## [Ghost](ghost)
+
+### [Scan the hulk](scan)
+---
+Starts when: revealed
+Done when: scan derelict
+---
+""")
+        self.assertEqual(kinds["scan"], "quest")
+
+    def test_a_flat_file_still_types_by_its_own_key(self):
+        kinds = self._kinds("""# [Sides](sides)
+---
+Color: #fff
+---
+""")
+        self.assertEqual(kinds["sides"], "side")

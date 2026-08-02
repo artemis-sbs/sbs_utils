@@ -378,28 +378,64 @@ def _extract_data_refs(node, fence_lines):
             node.refs.append(r)
 
 
-def _resolve_node_kind(node, block):
-    """The archetype for one node, walking its own kind line then its ancestors.
-
-    Ancestors are collected NEAREST FIRST, so a record inside `## Jobs` inside a
-    document that declared `Characters` still resolves as a quest."""
-    from sbs_utils.procedural.amd_schema import amd_resolve_kind
-    kinds, sections = [], []
+def _is_top_level(node):
+    """True when nothing but the synthetic root is above this node - the flat-file shape
+    (`jobs.amd`), where the record's own key is the only thing that can name its kind."""
     parent = node.parent
     while parent is not None:
-        if getattr(parent, "kind", None):
-            kinds.append(parent.kind)
         if parent.key and parent.key != "__root__":
-            sections.append(parent.key)
+            return False
+        parent = parent.parent
+    return True
+
+
+def _resolve_node_kind(node, block):
+    """The archetype for one node: its own kind line, then the NEAREST ancestor that
+    answers, then the discriminating-field fallback.
+
+    "Nearest wins" is the whole point, and it used to be only a promise. Kind lines were
+    collected into one list and section names into another, and EVERY ancestor kind was
+    tried before ANY section name - so a kind line on the document ROOT reached past every
+    section beneath it. `silver_reach.amd` opens with `Universe` (-> map), which typed its
+    `## Sides`, `## Regions`, `## Jobs` and `## Narrative` records as maps: 336 bogus
+    unknown-field warnings across LM + OU + Storm's Beacon, and - because `node.kind`
+    picks the coercion table - wrong VALUES, `Center: 5, -4` parsing as the string
+    '5, -4' instead of [5, -4].
+
+    Inheriting a kind downward is right for `## Characters` over its records. It is wrong
+    for a root, whose kind line names the FILE and not its contents. So each ancestor is
+    asked in turn, closest first, for its kind line OR its section name, and the first
+    ancestor that answers wins. An explicit kind still beats a section NAME at the same
+    distance - explicit beats convention, but only where it was written.
+    """
+    from sbs_utils.procedural.amd_schema import amd_resolve_kind
+    own = amd_kind_line(block)
+    if own:
+        arch = amd_resolve_kind(own_kind=own)
+        if arch:
+            return arch
+    # A record's OWN key names its archetype ONLY in a flat file (`jobs.amd` handed to a
+    # loader whole), where there is no section above it to say so. Asking it for a NESTED
+    # record reads the record's name as a type: peacetime's three job steps are each
+    # keyed `scan`, and they are quest steps, not scan records. Guarded to top-level.
+    if _is_top_level(node):
+        arch = amd_resolve_kind(section_key=node.key)
+        if arch:
+            return arch
+    parent = node.parent
+    while parent is not None:
+        arch = amd_resolve_kind(
+            own_kind=getattr(parent, "kind", None),
+            section_key=(parent.key if parent.key != "__root__" else None))
+        if arch:
+            return arch
         parent = parent.parent
     # Read the labels out of the RAW block: this runs BEFORE the fence is parsed
     # (the parse needs the kind to pick a table), so `node.data` is still empty and
     # the discriminating-field fallback would never fire.
     from sbs_utils.procedural.amd import amd_fact_lines
     labels = [lab for lab, _v in amd_fact_lines(block)]
-    return amd_resolve_kind(own_kind=amd_kind_line(block), ancestor_kinds=kinds,
-                            section_key=node.key, field_labels=labels,
-                            ancestor_sections=sections)
+    return amd_resolve_kind(field_labels=labels)
 
 
 def _extract_choice_refs(node, lineno, raw):
