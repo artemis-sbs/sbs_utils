@@ -406,10 +406,11 @@ Built:
    the claim square is making.
 5. The specimen plays all four at one row height so the claim is checkable by eye.
 
-**Open, and only an eye can answer**: a ship is a LIVE 3D render (`send_gui_3dship`). At a 6em
-square it may read as a smudge, and it costs a render per frame. If it does not read, the answer
-is probably a taller strip when the visual is a ship — the one place the four would stop being
-identical.
+**Settled, not open**: a ship is a LIVE 3D render (`send_gui_3dship`), and it may read small at
+a 6em square. That is **not** a reason to give the ship variant its own row height. How legibly
+the engine renders a hull into a small rect is an ENGINE question, to be raised there if people
+find it too small — forking the strip per source would quietly undo the one property this design
+is built on, that the four are interchangeable. The row height stays a property of the STRIP.
 
 ### Phase 6 — flat button ❌ DROPPED (it already exists)
 
