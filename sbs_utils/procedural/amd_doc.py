@@ -33,6 +33,30 @@ def amd_read_content(fname):
     return media_read_relative_file(fname)
 
 
+def amd_has_content(fname):
+    """True when `amd_read_content` would find something - the consumer mission's own
+    copy, or one inside the addon that asks.
+
+    For gating a TAB on whether there is anything to put in it. An addon registers its
+    tab at module level, just by being listed in story.json, so a mission that loads the
+    addon for its MACHINERY gets an empty tab it never asked for - Storm's Beacon got an
+    empty codex the moment Open Universe's lore moved out of universe_core.
+
+    Deliberately QUIET: `amd_read_content` warns when a file resolves nowhere, which is
+    right when something is trying to READ it and wrong when something is only asking
+    whether to offer it at all.
+    """
+    if not fname:
+        return False
+    mission_path = get_mission_dir_filename(fname)
+    if mission_path is not None and os.path.isfile(mission_path):
+        return True
+    try:
+        return media_read_relative_file(fname) is not None
+    except Exception:
+        return False
+
+
 def amd_document(content, data_parser=None, title="Document"):
     """Parse AMD ``content`` into a document tree (one root heading whose children are the
     sections). ``data_parser`` coerces each ``---`` fence (e.g. amd_quest_data /
