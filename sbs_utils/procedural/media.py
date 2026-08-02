@@ -108,14 +108,36 @@ def music_schedule(name, ID=0):
 
 
 def media_read_relative_file(file):
+    """Read a file sitting beside the .mast that is running - from the addon's zip when
+    that .mast came from a mastlib, else from its folder.
+
+    EVERY failure is logged and named. It returns None on failure, and a None flows
+    straight into `document_get_amd_file(content=None)`, which yields an empty tree that
+    renders as a flat, contentless page - a screen that looks broken while saying
+    nothing about why. Reported as: a document whose headings "stopped being
+    recognized", running a mission that gets this addon from a mastlib.
+    """
+    def _log(why):
+        try:
+            from .execution import log
+            log(f"media_read_relative_file({file!r}): {why}", "media", "warning")
+        except Exception:
+            pass
+
     task = FrameContext.task
-    source_map = task.get_active_node_source_map()
+    source_map = task.get_active_node_source_map() if task is not None else None
     if source_map is None:
-        return 
-    #print(f"TEST FILE RELATIVE {source_map.file_name} {source_map.basedir}" )
-    if source_map.is_lib:
-        return media_read_from_zip(source_map.basedir, file)
-    return media_read_file(source_map.basedir, file)
+        _log("no source map for the running label, so there is nothing to be relative "
+             "TO - the file was not read")
+        return None
+    try:
+        if source_map.is_lib:
+            return media_read_from_zip(source_map.basedir, file)
+        return media_read_file(source_map.basedir, file)
+    except Exception as e:
+        where = "mastlib" if source_map.is_lib else "folder"
+        _log(f"not found in the {where} {source_map.basedir!r} ({e})")
+        return None
 
 import os
 import zipfile
