@@ -399,6 +399,25 @@ Event verbs (no objective - one-shot world changes on a different path):
 
 ---
 
+## 8.5 The orders layer may be answering the wrong question
+
+`NPC_MOTIVATION_PLAN.md` is the follow-on, and it changes the shape of what is left here.
+
+Phases 5-7 bind `heads to` / `targets` to `objective_add` as **verbs an author types**. The
+survey found zero corpus uses of either, and motivation supplies the reason: in a scripted
+mission you write the outcome directly, and in a sandbox you want the NPC to decide. Nobody
+writes "X heads to Y" because the interesting question was never the command - it was the
+reason behind it.
+
+So if the orders layer is built at all, it is most likely **the actuator a motive selector
+drives**, not a vocabulary in an `Action:` block. Different design, different test. Marked
+AT RISK below rather than deleted, because the migration in Phase 4 is what will say.
+
+Nothing here threatens Phases 1-2, already shipped: `Action:` is the author's override, and
+NPCs that decide for themselves make an override *more* necessary, not less.
+
+---
+
 ## 9. Phases
 
 Re-sequenced against the survey (1.5): the two verbs the corpus actually uses come first,
@@ -411,10 +430,10 @@ and the orders layer moves behind a decision point instead of leading.
 | ~~2~~ | ~~the event-verb registry~~ - **DONE**. Ships `becomes` / `is no longer` / `joins` / `arrives` / `departs`; registered in `mast_sbs_procedural.py`; `arrives` is idempotent through the landmark key so no `once` flag is needed | sbs_utils |
 | 3 | Lint: unknown verb, unknown actor | sbs_cli |
 | 4 | Migrate the 25 corpus sites (1.5); record what stays unsayable | LM, OU, SB |
-| - | **DECISION POINT** - did Phase 4 produce real demand for orders? If not, stop here | - |
-| 5 | `amd_verb` metadata key; order-label discovery by `type: objective/orders/*`; bind to `objective_add` | sbs_utils, LM |
-| 6 | `brain: exclusive \| layered` (3.4); `valid_for` / `give_orders_type` lint | sbs_utils, sbs_cli |
-| 7 | New objective labels (section 7) | LM |
+| - | **DECISION POINT** - not "did we need orders?" but **"did we need orders, or did we need MOTIVES?"** See `NPC_MOTIVATION_PLAN.md` s6. Answer this before starting 5-7 | - |
+| 5 | AT RISK - `amd_verb` metadata key; order-label discovery by `type: objective/orders/*`; bind to `objective_add` | sbs_utils, LM |
+| 6 | AT RISK - `brain: exclusive \| layered` (3.4); `valid_for` / `give_orders_type` lint | sbs_utils, sbs_cli |
+| 7 | AT RISK - new objective labels (section 7) | LM |
 | 8 | `Setting` archetype; `Skybox:` / `Music:` / `Establish:` - independent of all the above, can run any time | sbs_utils, OU |
 | 9 | Timeline action edges; Inspector widgets | sbs_cli, editors/vscode |
 | 10 | Docs, alongside `cosmos/cinematics.md` | mkdocs |
