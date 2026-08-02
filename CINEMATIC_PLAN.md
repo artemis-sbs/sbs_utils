@@ -225,7 +225,7 @@ Not built: `camera_handheld` (low-amplitude noise to sell "live"). It is ten lin
 `_drive`, but it is the one move whose value can only be judged by eye, so it waits for a
 specimen rather than being guessed at.
 
-### Phase 3 — Shots and cutscenes (declarative)
+### Phase 3 — Shots and cutscenes (declarative) ✅ BUILT
 
 **Teardown order is now a rule, not a preference.** A deleted dolly drops the view on the
 engine's default (a top-down on a station), so a cutscene must **release or re-point the
@@ -249,13 +249,27 @@ Shot:    dolly / target / eye / look / move / seconds / ease
 Cutscene: shots[] + letterbox + skippable + on_skip + music
 ```
 
-Runtime: `cutscene_play(name, to=role("mainscreen"))` returns a promise; `await` it, or race
-it against a skip button. The furniture is **existing overlay kinds** — `letterbox`, `hero`,
-`lower_third`, `credits`, `flash` are already engine-verified per the adoption plan. This
-phase adds no new drawing, only sequencing.
+Runtime: `cutscene_play(name, to=role("mainscreen"))` returns a Promise resolving with
+`{"skipped", "shots", "name"}`. The furniture is **existing overlay kinds**; this phase added
+no drawing, only sequencing.
 
-Skip must be a first-class path, not an afterthought: a cutscene that cannot be skipped is a
-bug report from a bridge crew.
+Built, and the decisions worth keeping:
+
+- **Skip is a parameter, not a race the caller writes.** `cutscene_skip` honours the scene's
+  `skippable`, so one global skip button can be wired once and left alone; `cutscene_stop` is
+  the teardown path that overrides it, because a mission ending must not be blocked by a scene
+  that declared itself unskippable to the crew.
+- **The first shot starts on the CALL.** A cutscene that begins a tick later begins on the
+  previous shot, which reads as a late cut rather than a late driver - the same bug as the
+  mover's, and it would have been invisible until an engine session.
+- **A dead subject ends that shot, not the cutscene.** The move resolves early, the sequencer
+  treats that as "this shot is over" and advances. Holding out the remaining seconds would sit
+  on a frame the engine has already replaced with its default.
+- **Teardown clears only the slots the cutscene used**, so it cannot wipe furniture a console
+  had of its own - and it releases the camera at the end, BEFORE the caller deletes its scene.
+- Both containers are in the **reset ledger** AND cleared by `reset_mission_state`. The probe
+  alone would only have reported the leak; the clear is what stops a stale owner making the
+  next mission's first move think it is being superseded.
 
 ### Phase 4 — Rundowns and the director punch (the streaming layer)
 
@@ -461,8 +475,8 @@ reference for how the background tones read over a live view.
 | ~~3~~ | ~~Phase 5 lower thirds~~ | ✅ done - one square visual (face/ship/icon/image), `align` left/right, optional replies. It also earned `col-width: square` and the overlay-kind mechanism the rest of the furniture will use |
 | ~~4~~ | ~~confirm the offset fold renders in-engine~~ | ✅ **CONFIRMED BY DOUG, 2026-08-01: "they all work now in engine."** The fold is real, so everything below stands on solid ground |
 | ~~5~~ | ~~Phase 2 mover~~ | ✅ done - `camera_move` / `camera_orbit` / `camera_rack` / `camera_move_stop` / `camera_eye`, 22 tests |
-| **1** | **Phase 3 cutscenes** | unblocked: Q2 SNAPS and Q4 FALLS TO DEFAULT are both answered. Sequencing on top of proven parts |
-| 4 | Phase 4 rundowns | the payoff. A shot is a *(subject, lens position)* pair now, not a camera object - arguably a better model |
+| ~~6~~ | ~~Phase 3 cutscenes~~ | ✅ done - `cutscene_define` / `play` / `skip` / `stop` / `playing`, 22 tests |
+| **1** | **Phase 4 rundowns** | the payoff, and the last one left. A shot is a *(subject, lens position)* pair now, not a camera object - arguably a better model |
 
 ## 4. Standing constraints
 

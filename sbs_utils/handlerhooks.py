@@ -108,6 +108,14 @@ def reset_mission_state():
     from .mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
     MediaLabel.clear()          # @media labels (folders APPENDS - reload would double)
     GuiTabDecoratorLabel.clear()  # //gui/tab labels
+    # Camera + cutscene state. TickDispatcher.clear() above drops their DRIVER
+    # tasks, but the dicts that say who owns which console outlive it - and a
+    # stale owner makes the next mission's first move think it is being
+    # superseded. Registered in the audit above, so a miss here is reported by
+    # name rather than found later as "the camera does not move on run 2".
+    _CAMERA_MOVES.clear()
+    _CUTSCENES.clear()
+    _PLAYING.clear()
     Agent.clear()       # all agents, roles, inventories, links
     clear_shared()      # rebuild the SHARED agent (drops label names / console types)
     from .procedural.signal import signal_waiters_clear
@@ -154,6 +162,9 @@ register_reset_state("TickDispatcher",    lambda: len(TickDispatcher._dispatch_t
 # the audit, which is exactly the leak the ledger exists to catch.
 from .procedural.gui.camera import _MOVES as _CAMERA_MOVES
 register_reset_state("camera moves",      lambda: len(_CAMERA_MOVES))
+from .procedural.gui.cutscene import _CUTSCENES, _PLAYING
+register_reset_state("cutscenes",         lambda: len(_CUTSCENES))
+register_reset_state("cutscenes playing", lambda: len(_PLAYING))
 register_reset_state("DeleteQueue",       lambda: len(DeleteQueue._pending) + len(DeleteQueue._pending_grid))
 register_reset_state("Agent.roles",       lambda: len(Agent.roles.collections))
 register_reset_state("Agent.has_links",   lambda: len(Agent.has_links.collections))

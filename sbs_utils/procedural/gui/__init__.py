@@ -17,6 +17,8 @@ from .cinematic import gui_cinematic_auto, gui_cinematic_full_control
 from .camera import (camera_anchor, camera_assign, camera_track, camera_auto,
                      camera_orbit_eye, camera_shot, camera_move, camera_orbit,
                      camera_rack, camera_move_stop, camera_eye)
+from .cutscene import (cutscene_define, cutscene_play, cutscene_skip,
+                       cutscene_stop, cutscene_playing, cutscene_get)
 from .clickable import gui_click
 from .content import gui_content
 from .dropdown import gui_drop_down
