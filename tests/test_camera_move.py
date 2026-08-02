@@ -19,6 +19,7 @@ from sbs_utils.helpers import FrameContext, Context
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.procedural.space_objects import delete_object
 from sbs_utils.tickdispatcher import TickDispatcher
+from sbs_utils.delete_queue import DeleteQueue
 from sbs_utils.vec import Vec3
 from sbs_utils.procedural.gui.camera import (
     camera_anchor, camera_move, camera_orbit, camera_rack, camera_move_stop,
@@ -56,6 +57,12 @@ class MoveBase(unittest.TestCase):
     def tearDown(self):
         TickDispatcher.clear()
         _MOVES.clear()
+        # delete_object() is DEFERRED (freeing the C++ object synchronously is a
+        # crash), so a test that deletes leaves an id queued. Ids are RECYCLED, so
+        # an undrained queue reaches into the next test module and deletes whatever
+        # inherited that id - which is how this suite briefly "failed" three
+        # console-selection tests that pass perfectly well on their own.
+        DeleteQueue.clear()
         FrameContext.context = None
 
     def advance(self, seconds):
