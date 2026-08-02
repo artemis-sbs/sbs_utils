@@ -120,6 +120,8 @@ def reset_mission_state():
                         # aim the next mission's punches at dead client ids
     amd_cutscene_clear()  # declared scenes/rundowns AND the cast bindings
     landmarks_registry_clear()  # declared landmark records an `Action:` line places by name
+    lore_clear()                # Library sources registered by addons
+    amd_declared_addons_clear()  # cached story.json addon list
     Agent.clear()       # all agents, roles, inventories, links
     clear_shared()      # rebuild the SHARED agent (drops label names / console types)
     from .procedural.signal import signal_waiters_clear
@@ -178,6 +180,10 @@ register_reset_state("amd rundowns",      lambda: len(RUNDOWN_AMD))
 register_reset_state("cutscene cast",     lambda: len(CUTSCENE_CAST))
 from .procedural.amd_landmarks import _RECORDS as _AMD_LANDMARKS, landmarks_registry_clear
 register_reset_state("amd landmarks",     lambda: len(_AMD_LANDMARKS))
+from .procedural.amd_doc import (lore_clear, lore_sources,
+                                 amd_declared_addons_clear, _DECLARED_ADDONS)
+register_reset_state("lore sources",      lambda: len(lore_sources()))
+register_reset_state("amd declared addons", lambda: len(_DECLARED_ADDONS))
 register_reset_state("DeleteQueue",       lambda: len(DeleteQueue._pending) + len(DeleteQueue._pending_grid))
 register_reset_state("Agent.roles",       lambda: len(Agent.roles.collections))
 register_reset_state("Agent.has_links",   lambda: len(Agent.has_links.collections))

@@ -20,17 +20,94 @@ from sbs_utils.fs import get_mission_dir_filename
 from sbs_utils.mast.mast_node import MastDataObject
 
 
+# Addons this story declares, resolved to a source folder or a mastlib zip. Per-mission,
+# so it is on the reset ledger in handlerhooks.
+_DECLARED_ADDONS = []
+
+
+def amd_declared_addons():
+    """Every addon this story declares, as a path to a source FOLDER or a mastlib ZIP.
+
+    Resolved the same way the compiler does (`story.json` -> a mission-local folder if it
+    has an `__init__.mast`, else `__lib__/<lib>`), reusing the compiler's own
+    `addon_source_folder` so the two cannot drift - a second copy of that rule is exactly
+    the class of bug this session spent its time on. Cached per mission; empty and
+    harmless when there is no story.json (tests, tools)."""
+    if _DECLARED_ADDONS:
+        return _DECLARED_ADDONS
+    try:
+        import json
+        from sbs_utils import fs
+        from sbs_utils.mast.mast import Mast
+        script_dir = fs.get_script_dir()
+        story = os.path.join(script_dir, "story.json")
+        if not os.path.isfile(story):
+            return _DECLARED_ADDONS
+        with open(story, "r") as f:
+            data = json.load(f) or {}
+        lib_dir = os.path.join(fs.get_missions_dir(), "__lib__")
+        for name in (data.get("mastlib") or []):
+            src = Mast.addon_source_folder(script_dir, name)
+            path = src if src is not None else os.path.join(lib_dir, name)
+            if os.path.exists(path):
+                _DECLARED_ADDONS.append(path)
+    except Exception:
+        pass
+    return _DECLARED_ADDONS
+
+
+def amd_declared_addons_clear():
+    """Drop the cached addon list - the per-mission reset."""
+    _DECLARED_ADDONS.clear()
+
+
+def _read_from_addon(path, fname):
+    """`fname` out of one addon - a folder on disk or a mastlib zip - or None."""
+    try:
+        if os.path.isdir(path):
+            full = os.path.join(path, fname)
+            if os.path.isfile(full):
+                with open(full, "r") as f:
+                    return f.read()
+            return None
+        import zipfile
+        with zipfile.ZipFile(path, "r") as z:
+            with z.open(fname.replace("\\", "/")) as f:
+                return f.read().decode("utf-8")
+    except Exception:
+        return None
+
+
 def amd_read_content(fname):
-    """Read an AMD file (or an include) as text. Tries the CONSUMER MISSION folder first
-    (``get_mission_dir_filename``) so a mission built on a library can supply its own
-    content, then falls back to code/lib-relative (``media_read_relative_file``, which also
-    reads from inside a packaged mastlib zip). Returns None if neither resolves."""
-    if fname:
-        mission_path = get_mission_dir_filename(fname)
-        if mission_path is not None and os.path.isfile(mission_path):
-            with open(mission_path, "r") as f:
-                return f.read()
-    return media_read_relative_file(fname)
+    """Read an AMD file (or an include) as text, in three steps:
+
+    1. the CONSUMER MISSION folder, so a mission built on a library supplies its own;
+    2. the addon the CALLING label came from (``media_read_relative_file``, which reads
+       inside a packaged mastlib zip);
+    3. any other addon this story DECLARES.
+
+    Step 3 is what lets content live in an addon of its own. `media_read_relative_file`
+    resolves relative to the calling label's source, so an addon holding only content is
+    invisible to a renderer living in a different addon - which is why Open Universe's
+    universes had to move to its mission root instead of becoming the opt-in addon they
+    wanted to be. With step 3, a mission adds a content addon and the renderer finds it.
+
+    Returns None when nothing resolves.
+    """
+    if not fname:
+        return None
+    mission_path = get_mission_dir_filename(fname)
+    if mission_path is not None and os.path.isfile(mission_path):
+        with open(mission_path, "r") as f:
+            return f.read()
+    found = media_read_relative_file(fname)
+    if found is not None:
+        return found
+    for path in amd_declared_addons():
+        found = _read_from_addon(path, fname)
+        if found is not None:
+            return found
+    return None
 
 
 def amd_has_content(fname):
@@ -52,9 +129,11 @@ def amd_has_content(fname):
     if mission_path is not None and os.path.isfile(mission_path):
         return True
     try:
-        return media_read_relative_file(fname) is not None
+        if media_read_relative_file(fname) is not None:
+            return True
     except Exception:
-        return False
+        pass
+    return any(_read_from_addon(p, fname) is not None for p in amd_declared_addons())
 
 
 def amd_document(content, data_parser=None, title="Document"):
@@ -206,3 +285,89 @@ def amd_fill(template, values):
         return template.format_map(_AmdFormatDict(values))
     except Exception:
         return template
+
+
+# --- the LORE registry -------------------------------------------------------
+# Codex and Library were the same idea twice: an in-game readable document, rendered by
+# the SAME `document_screen`, differing only in which .amd each tab hard-coded. Two tabs
+# meant two chances to show an empty one, and no way for a third source to join.
+#
+# Now anything with lore registers it and ONE tab renders them merged, a top-level
+# section per source. What follows from that, rather than being special-cased:
+#   * nothing registered -> no tab, so a mission that loads the machinery without the
+#     content does not get an empty shelf;
+#   * a mission adds a lore addon and its section simply appears;
+#   * a mission's own lore sits beside the libraries' as an equal.
+_LORE_SOURCES = []
+
+
+def lore_register(key, display, fname, domain=None):
+    """Offer a document to the shared Library.
+
+    `fname` is resolved by `amd_read_content` AT RENDER TIME, not now - a source may be
+    declared before the mission that supplies the file is known, and resolving late is
+    what lets a mission override a library's copy with its own.
+
+    Registering the same key twice REPLACES it, so a mission can substitute a library's
+    section wholesale by re-registering the key with its own file.
+    """
+    key = str(key).strip()
+    if not key:
+        return
+    for i, src in enumerate(_LORE_SOURCES):
+        if src["key"] == key:
+            _LORE_SOURCES[i] = {"key": key, "display": display, "file": fname,
+                                "domain": domain}
+            return
+    _LORE_SOURCES.append({"key": key, "display": display, "file": fname,
+                          "domain": domain})
+
+
+def lore_sources():
+    """Registered sources, in registration order."""
+    return list(_LORE_SOURCES)
+
+
+def lore_clear():
+    """Drop every registered source - the per-mission reset."""
+    _LORE_SOURCES.clear()
+
+
+def lore_available():
+    """True when at least one registered source actually resolves to content.
+
+    What the Library tab gates on. A source that registers but whose file is missing must
+    not conjure a tab - that is the empty-shelf bug in its other form.
+    """
+    return any(amd_has_content(s["file"]) for s in _LORE_SOURCES)
+
+
+def lore_document(title="Library"):
+    """Every registered source merged into ONE document tree.
+
+    Each source becomes a top-level section holding that file's own sections, so the
+    Library reads as one book with a chapter per contributor rather than as several
+    documents wearing different tab names. Sources that resolve to nothing are skipped
+    silently - `lore_available` is where "there is nothing at all" is answered.
+    """
+    root = {"key": "__root__", "children": [], "description": "",
+            "display_text": title}
+    for src in _LORE_SOURCES:
+        content = amd_read_content(src["file"])
+        if not content:
+            continue
+        doc = document_get_amd_file(None, src["display"] or src["key"], content=content)
+        kids = doc.get("children") or []
+        kids = list(kids.values()) if hasattr(kids, "values") else list(kids)
+        # A file with ONE root heading contributes that heading; a flat file contributes
+        # a section of its own, so both shapes land as one chapter either way.
+        if len(kids) == 1:
+            node = kids[0]
+            node["display_text"] = src["display"] or node.get("display_text")
+            root["children"].append(node)
+        elif kids:
+            root["children"].append({"key": src["key"],
+                                     "display_text": src["display"] or src["key"],
+                                     "description": doc.get("description", ""),
+                                     "children": kids})
+    return root
