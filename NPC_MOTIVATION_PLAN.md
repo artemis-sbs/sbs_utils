@@ -100,6 +100,42 @@ works for a fleet tasking its ships.
 
 ---
 
+## 3.5 The player is already a source of motive - this half is the mature one
+
+Three separate mechanisms already let a player change what an NPC wants, all in
+production, and they were being read as unrelated features:
+
+| Channel | Where | What it moves |
+|---|---|---|
+| **Direct orders** | `friendly_give_orders.mast` reads a ship's `give_orders_type` and builds a comms menu from `objective/orders/*` labels | the NPC's current objective, chosen by the player |
+| **Payment** | Storm's Beacon - pay Skarr 300cr, `hunters_bribed` suppresses the Second Wind | whether a motive applies at all |
+| **Standing** | Eddy's `earns crazy_eddy generous 3`, per captain, persisted | disposition, which gates what is offered |
+
+`enemy_surrender.mast` even *sets* `give_orders_type` on a beaten enemy, so defeating a
+ship changes which motives it can be given. The INPUT side of a motivation loop is built
+several times over. The selector remains the only missing piece.
+
+**A player order is therefore not a special case - it is one more motive competing with the
+NPC's own.** Today `objective_add` calls `brain_clear`, so a player order overrides
+absolutely and the NPC has no opinion. As a weighted motive it becomes a contest, which is
+where the interesting behaviour lives: a loyal escort obeys at once; a mercenary obeys if
+the pay beats what it is already doing; a defector refuses; a ship under fire defers until
+it is not.
+
+**This dissolves `AMD_ACTION_PLAN.md` s3.4.** The `brain: exclusive | layered` flag was a
+mechanical proxy for "who wins when two things want the brain". Motives answer that with a
+reason instead of a posture, so exclusivity stops being something an author declares and
+becomes simply *this motive won*. Good evidence that the flag was a workaround for this
+layer's absence.
+
+**The landmine: a refusable player order reads as a bug.** Tell an escort to defend, watch
+it not defend, and nobody thinks "interesting characterisation". Two rules follow -
+a refusal must always SPEAK (the objective `desc` seam, 3.5 of section 3), and ships on the
+player's own side default to obedient. Refusal is reserved for characters whose
+independence IS the point: mercenaries, defectors, rivals, Skarr.
+
+---
+
 ## 4. Three constraints, all learned from the examples
 
 1. **The author keeps the dial.** Storm's Beacon's fuses are tuned drama, not emergence -
@@ -158,5 +194,11 @@ same trap that made the action survey's first pass useless).
    four, a fixed vocabulary beats a scoring system.
 4. **Do any two NPCs ever want the same thing?** If not, there is no contest to resolve and
    this collapses to per-NPC scripting, which is what exists.
+5. **How often does the PLAYER already change an NPC's motive** (orders given, bribes paid,
+   standing gates crossed)? Section 3.5 says this is the mature half - the count says
+   whether a player order should be modelled as a competing motive or stay the absolute
+   override it is today.
 
-Question 4 is the one that decides whether this is a system or a pattern.
+Question 4 decides whether this is a system or a pattern. Question 5 decides whether the
+first thing built is the selector or just a weight on the orders that already exist - and
+the second is a far smaller starting point that would still deliver a refusal that speaks.
