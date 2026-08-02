@@ -354,10 +354,39 @@ IMAGE = {
     "domain": text(hint="a namespace, so two addons cannot claim one key"),
 }
 
+# A cutscene BED. The shots that belong to it are separate records carrying
+# `Scene:` - one heading per shot, so a shot is an ordinary record and lint, schema
+# and the typed widgets all work on it unchanged.
+CUTSCENE = {
+    "letterbox": boolean(),
+    "skippable": boolean(),
+    "release": boolean(),
+    "bar": integer(hint="letterbox bar height in em"),
+}
+
+# One SHOT. `Scene:` groups it into a cutscene, `Rundown:` into a set the director
+# punches between - the same record either way, which is why Phase 3 and Phase 4
+# share one loader.
+SHOT = {
+    "scene": text(hint="the cutscene this shot belongs to"),
+    "rundown": text(hint="the rundown this shot belongs to"),
+    # Resolved LATE: a cast name bound by the mission, else a role. The object does
+    # not exist when the .amd loads.
+    "subject": text(hint="cast name (cutscene_cast) or a role"),
+    "eye": text(hint="x, y, z - where the lens sits"),
+    "move": text(hint="x,y,z -> x,y,z - where the lens travels"),
+    "seconds": integer(),
+    "ease": enum("in_out", "in", "out", "linear"),
+    "order": integer(hint="optional - document order is used without it"),
+    "overlay": text(hint="an overlay kind to show with this shot"),
+    "label": text(hint="what a director's tile says"),
+}
+
 ARCHETYPES = {
     "quest": QUEST, "lifeform": LIFEFORM, "item": ITEM, "side": SIDE,
     "scan": SCAN, "landmark": LANDMARK, "region": REGION, "map": MAP,
     "dialogue": DIALOGUE, "image": IMAGE,
+    "cutscene": CUTSCENE, "shot": SHOT,
 }
 
 # TRAITS: a concern a record ALSO has, on top of what it is.

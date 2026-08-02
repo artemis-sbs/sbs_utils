@@ -496,6 +496,51 @@ reference for how the background tones read over a live view.
 | ~~6~~ | ~~Phase 3 cutscenes~~ | ✅ done - `cutscene_define` / `play` / `skip` / `stop` / `playing`, 22 tests |
 | ~~7~~ | ~~Phase 4 rundowns~~ | ✅ done - `rundown_add/program/preview/stage/take/punch/suggest/tiles`, 22 tests. The payoff. A shot is a *(subject, lens position)* pair now, not a camera object - arguably a better model |
 
+### AMD: a shot is a RECORD ✅ BUILT
+
+Doug chose one heading per shot, grouped by `Scene:` (a cutscene) or `Rundown:` (a set the
+director punches between) - "clearer to me". `amd_cutscene.py` loads both, so Phase 3 and
+Phase 4 get AMD from ONE implementation, which is only possible because they already share
+`shot_apply`.
+
+```
+## [Chapter One](intro)
+---
+Kind: cutscene
+Letterbox: yes
+---
+## [Establish Phoenix](intro_1)
+---
+Scene: intro
+Subject: station
+Eye: 0, 900, -4000
+Seconds: 4
+Overlay: lower_third
+Name: Phoenix Control
+---
+All quiet on the belt.
+```
+
+Why a record per shot rather than a scene body: a shot stays an ordinary AMD record, so the
+existing reader, `sbs lint`, the schema and the typed VS Code widgets all work on it unchanged
+(`CUTSCENE` and `SHOT` are registered archetypes). A scene body would have needed its own
+positional mini-language with quoting rules - which is exactly the DSL creep the AMD dialogue
+principle exists to prevent.
+
+**`Subject:` resolves LATE, and that was the real design problem.** A shot names a live object,
+and no object exists when the `.amd` loads. Doug chose cast-then-role:
+
+1. a **cast** the mission bound (`cutscene_cast("hero", artemis)`) - the film idiom, and it lets
+   one scene replay with a different ship without touching the `.amd`;
+2. failing that, the **role** `hero`, for the ad-hoc case;
+3. failing both, the shot is **dropped and the reason is logged NAMING the shot**. The rest of
+   the scene still plays: a missing actor should not take a whole cutscene down, and a silent
+   skip is far worse than one that says why.
+
+Ordering is document order unless a shot carries `Order:` (a stable sort, so the two mix).
+`amd_cutscenes(section)` loads, `cutscene_amd(key, to=...)` plays, `rundown_amd(key)` fills the
+director's rundown. All three registries plus the cast are in the reset ledger AND cleared.
+
 ## 4. Standing constraints
 
 - **Back-compat freezes signatures.** Prefer three obviously-right functions now over a
