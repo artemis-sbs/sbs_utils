@@ -7,6 +7,7 @@ test_set_exe_dir()
 from cosmos_dev.mock import sbs
 from sbs_utils.helpers import FrameContext, Context
 from sbs_utils.spaceobject import SpaceObject
+from sbs_utils.agent import clear_shared
 from sbs_utils.delete_queue import DeleteQueue
 from sbs_utils.procedural.roles import role, has_role, add_role
 from sbs_utils.procedural.query import to_id_list, to_object
@@ -167,10 +168,19 @@ class TestActionRun(unittest.TestCase):
         self.assertTrue(has_role(a.id, "hostile"))
         self.assertTrue(has_role(b.id, "hostile"))
 
-    def test_joins_sets_side(self):
+    def test_joins_sets_side_and_display(self):
+        """Goes through side_set_object_side, so `side_display` moves too - assigning
+        `.side` direct leaves the GUI showing the faction the ship just left."""
+        from sbs_utils.procedural.sides import side_ensure
+        side_ensure("tsn")
         so = self._spawn("xorn")
         amd_action_run(["xorn joins tsn"])
         self.assertEqual(to_object(so.id).side, "tsn")
+        self.assertIsNotNone(getattr(to_object(so.id), "side_display", None))
+
+    def test_joins_an_unknown_side_reports(self):
+        so = self._spawn("xorn")
+        self.assertEqual(amd_action_run(["xorn joins nowhere_at_all"]), 0)
 
     def test_departs_removes_the_object(self):
         so = self._spawn("scout")
@@ -291,3 +301,62 @@ class TestActionRegistry(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestActionFiresOnQuestStart(unittest.TestCase):
+    """The whole point of the slot: `Action:` runs the moment a beat goes ACTIVE."""
+
+    def setUp(self):
+        sbs.create_new_sim()
+        SpaceObject.clear()
+        clear_shared()   # SpaceObject.clear() drops the SHARED agent; quests need it back
+        landmarks_registry_clear()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+
+    def tearDown(self):
+        landmarks_registry_clear()
+        SpaceObject.clear()
+        DeleteQueue.clear()
+        FrameContext.context = None
+
+    def _spawn(self, key, roles=""):
+        csv = "raider, " + key + (", " + roles if roles else "")
+        return npc_spawn(0, 0, 0, key, csv, "raider", "behav_npcship")
+
+    def test_activating_a_quest_runs_its_action_block(self):
+        from sbs_utils.procedural.quest import quest_add, quest_activate
+        from sbs_utils.agent import Agent
+        so = self._spawn("kidnapper", "suspect")
+        quest_add(Agent.SHARED_ID, "reveal", "Reveal", "",
+                  data={"action": ["kidnapper becomes a pirate"]})
+        self.assertFalse(has_role(so.id, "pirate"))
+        quest_activate(Agent.SHARED_ID, "reveal")
+        self.assertTrue(has_role(so.id, "pirate"))
+
+    def test_a_quest_with_no_action_is_harmless(self):
+        from sbs_utils.procedural.quest import quest_add, quest_activate, quest_run_action
+        from sbs_utils.agent import Agent
+        quest_add(Agent.SHARED_ID, "plain", "Plain", "", data={"reward": {"credits": 10}})
+        quest_activate(Agent.SHARED_ID, "plain")
+        self.assertEqual(quest_run_action(Agent.SHARED_ID, "plain"), 0)
+        self.assertEqual(quest_run_action(Agent.SHARED_ID, "no_such_quest"), 0)
+
+    def test_running_twice_is_idempotent(self):
+        """A quest activated on several agents runs the block once EACH - so every
+        built-in verb has to survive being applied twice."""
+        from sbs_utils.procedural.quest import quest_add, quest_run_action
+        from sbs_utils.procedural.sides import side_ensure
+        from sbs_utils.agent import Agent
+        side_ensure("tsn")     # `joins` now refuses a side that does not exist
+        so = self._spawn("kidnapper", "civilian, suspect")
+        quest_add(Agent.SHARED_ID, "reveal", "Reveal", "", data={"action": [
+            "kidnapper is no longer a suspect",
+            "kidnapper becomes a pirate",
+            "kidnapper joins tsn",
+        ]})
+        first = quest_run_action(Agent.SHARED_ID, "reveal")
+        second = quest_run_action(Agent.SHARED_ID, "reveal")
+        self.assertEqual(first, second)
+        self.assertTrue(has_role(so.id, "pirate"))
+        self.assertFalse(has_role(so.id, "suspect"))
+        self.assertEqual(to_object(so.id).side, "tsn")

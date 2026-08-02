@@ -236,17 +236,23 @@ def _no_longer(actor, operand, line):
 
 def _joins(actor, operand, line):
     """`Xorn joins tsn` - change side. Distinct from `becomes` because a side is not a
-    role: it drives diplomacy, and conflating the two hid that."""
-    from .query import to_object
+    role: it drives diplomacy, and conflating the two hid that.
+
+    Goes through `side_set_object_side` rather than assigning `.side`. Assigning direct
+    leaves `side_display` pointing at the OLD side's name (so the GUI keeps showing the
+    faction it just left) and skips the warning gate that reports an unknown side key.
+    Found by migrating LM's `kidnapper_discovered`, which had it right.
+    """
+    from .sides import side_set_object_side, to_side_id
     ids = amd_action_actors(actor)
     if not ids:
         _action_log(f"nobody called {actor!r} to act on: {line!r}")
         return False
     side = _action_slug(operand)
-    for so_id in ids:
-        obj = to_object(so_id)
-        if obj is not None:
-            obj.side = side
+    if to_side_id(side) is None:
+        _action_log(f"there is no side called {side!r}: {line!r}")
+        return False
+    side_set_object_side(ids, side)
     return True
 
 

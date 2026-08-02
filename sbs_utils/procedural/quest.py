@@ -171,7 +171,15 @@ def quest_get(agent, quest_id):
             "Patrol state: {q.get('state')}"
     """
     quest, child_id = quest_folder(agent, quest_id)
+    # `quest_folder` returns (None, None) when the agent does not exist - which is the
+    # documented "does not exist" answer, not a reason to raise. Without this guard
+    # asking about a quest on a dead or not-yet-built agent is an AttributeError, and
+    # the caller has no way to ask the question safely first.
+    if quest is None:
+        return None
     children = quest.get("children")
+    if children is None:
+        return None
     return children.get(child_id)
 
 def quest_get_parent(agent, quest_id):
@@ -368,11 +376,40 @@ def quest_set_state(agent, quest_id, state):
 
     quest = quest_get(agent, quest_id)
     if state == QuestState.ACTIVE:
+        # `Action:` fires the moment the beat STARTS - that is the whole reason the slot
+        # exists (`Then:` is the other end, on completion). Run it BEFORE the signal so a
+        # //signal/quest_activated route sees a world that has already changed, rather
+        # than one it has to guess about.
+        quest_run_action(agent, quest_id)
         signal_emit("quest_activated", {"AGENT_ID": to_id(agent), "QUEST_ID": quest_id, "QUEST": quest})
     if state == QuestState.COMPLETE:
         signal_emit("quest_completed", {"AGENT_ID": to_id(agent), "QUEST_ID": quest_id, "QUEST": quest})
     if state == QuestState.FAILED:
         signal_emit("quest_failed", {"AGENT_ID": to_id(agent), "QUEST_ID": quest_id, "QUEST": quest})
+
+
+def quest_run_action(agent, quest_id):
+    """Run this quest's ``Action:`` stage directions, if it declares any. Returns how
+    many applied.
+
+    Called automatically when a quest goes ACTIVE. Public because a mission that drives
+    quests its own way still wants the block to fire.
+
+    ONE PER AGENT. A quest activated on five player ships runs its block five times -
+    the same multiplicity as a ``//signal`` route, and the same footgun. It is safe today
+    because every built-in verb is idempotent (``becomes``/``joins`` set state,
+    ``arrives`` is keyed on the landmark, ``departs`` deletes something already gone), and
+    a mission registering its own verb has to keep that property or scope the quest to
+    ``Agent.SHARED_ID``.
+    """
+    data = quest_get_data(agent, quest_id)
+    if not isinstance(data, dict):
+        return 0
+    value = data.get("action")
+    if not value:
+        return 0
+    from .amd_action import amd_action_run
+    return amd_action_run(value, where=f"action in quest {quest_id!r}: ")
 
 
 def quest_get_data(agent, quest_id):

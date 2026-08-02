@@ -60,6 +60,32 @@ Three conclusions, and the first two are unwelcome:
 3. **Runs are short**, which independently confirms 3.2: the inline list is the right
    default and the promoted `Actor:` record is genuinely the exception.
 
+### 1.5.1 CORRECTION - the run-based count undercounts single-line verbs
+
+Migrating the first site showed the "`heads to` / `targets` = 0" figure is an artifact of
+the method. Counting *runs of >=2 consecutive* action statements favours verbs that
+CLUSTER (you flip four roles at once) and hides verbs that appear ALONE. An order is
+almost always one line with setup around it, so no run ever forms.
+
+Raw count of `target_pos(` / `target(` outside `prefabs/` and `ai/`: **16**, not 0 - LM 11,
+SecretMeeting 3, MiningDays 1.
+
+Reading them changes the conclusion again, though. Most are `BRAIN_AGENT_ID` - brain
+internals, the implementation of a tree node, which no author writes. The author-level
+ones are about **six**, and every one takes a COORDINATE or a computed position:
+
+```
+target_pos(kidnapper_id, 90000, 0, 90000, throttle=1.5, target_id=0)
+target_pos(COMMS_SELECTED_ID, stop_pos.x, stop_pos.y, stop_pos.z, throttle=0.0, ...)
+```
+
+`Kidnapper heads to 90000, 0, 90000` is not an improvement on that line - it is the same
+numbers with more ceremony. **So the deferral stands, for a better and falsifiable
+reason:** orders are not unused, they are unnamed. `heads to` pays off only when the
+destination has a NAME, and today none of these do. If landmarks became the normal way to
+say where, the verb would become worth having - and that is a thing to watch for rather
+than a permanent verdict.
+
 The clearest real example in the corpus is `maps/bosses/ragnarok.mast` - Xorn defects,
 changes side, and turns on Ragnarok - which is a `becomes` + `orders` pair, and is almost
 exactly the scenario this plan was started from.
@@ -429,7 +455,7 @@ and the orders layer moves behind a decision point instead of leading.
 | ~~1~~ | ~~`Action:` field: parse, list form, verb match, actor/operand refs~~ - **DONE** (`procedural/amd_action.py`, 35 tests) | sbs_utils |
 | ~~2~~ | ~~the event-verb registry~~ - **DONE**. Ships `becomes` / `is no longer` / `joins` / `arrives` / `departs`; registered in `mast_sbs_procedural.py`; `arrives` is idempotent through the landmark key so no `once` flag is needed | sbs_utils |
 | 3 | Lint: unknown verb, unknown actor | sbs_cli |
-| 4 | Migrate the 25 corpus sites (1.5); record what stays unsayable | LM, OU, SB |
+| 4 | Migrate the corpus sites (1.5); record what stays unsayable. **RE-ESTIMATE - see 9.1** | LM, OU, SB |
 | - | **DECISION POINT** - not "did we need orders?" but **"did we need orders, or did we need MOTIVES?"** See `NPC_MOTIVATION_PLAN.md` s6. Answer this before starting 5-7 | - |
 | 5 | AT RISK - `amd_verb` metadata key; order-label discovery by `type: objective/orders/*`; bind to `objective_add` | sbs_utils, LM |
 | 6 | AT RISK - `brain: exclusive \| layered` (3.4); `valid_for` / `give_orders_type` lint | sbs_utils, sbs_cli |
@@ -440,3 +466,36 @@ and the orders layer moves behind a decision point instead of leading.
 
 Verification per phase: unit tests, `sbs lint` across LM + OU + StormsBeacon, a headless
 `--test` run, then a browser pass where a GUI surface is involved.
+
+---
+
+## 9.1 What starting Phase 4 actually found
+
+Three things, from reading `peacetime.mast:878 kidnapper_discovered` - the site picked as
+the *easiest* migration.
+
+**1. Actor resolution needs no new convention.** The worry was that these sites hold their
+actor in a MAST variable. They do - but it is derived FROM a role:
+`kidnapper_id = to_list(role("kidnapper"))[0]`. The role is already the identity, so
+`kidnapper becomes a pirate` resolves with nothing added. (One semantic difference worth
+knowing: the MAST takes `[0]`, a single member; `becomes` acts on ALL members. Identical
+here because there is exactly one kidnapper, and the set form is the better default.)
+
+**2. A real bug in shipped code.** LM changes side with `side_set_object_side`, which sets
+`side_display` as well as `side` and routes an unknown key through a warning gate. The
+first `joins` implementation assigned `.side` directly, so a converted ship would have kept
+showing the display name of the faction it just left, and a typo'd side would have stuck
+silently. Fixed, with a test. **This is the argument for migrating early**: 39 unit tests
+did not find it; one real site did, immediately.
+
+**3. Phase 4 is not mechanical, and that is the big one.** These sites are not AMD records.
+`kidnapper_discovered` is a MAST label that a science-scan handler reaches through
+`task_schedule`. To carry an `Action:` block it must first BECOME a beat record with a
+trigger - which is mission surgery on shipped content, not a conversion. So the phase is
+better read as *"pick two sites worth restructuring"* than *"convert 25 sites"*, and its
+cost is much closer to authoring than to refactoring.
+
+That also weakens what Phase 4 can prove. It will say whether `Action:` expresses the
+directions well, but a small hand-picked sample cannot say much about demand for orders.
+Section 1.5.1 is the better evidence on that question, and the motivation survey
+(`NPC_MOTIVATION_PLAN.md` s7) is better still.
