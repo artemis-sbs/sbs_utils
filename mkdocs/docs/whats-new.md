@@ -642,6 +642,21 @@ Repo: [artemis-sbs/control_gallery](https://github.com/artemis-sbs/control_galle
   squeezed below the widest word it has to show. (`1fr` is what CSS calls an
   equal share with a minimum; the older spelling `auto` still works.)
 
+- **[`col-width: square`](cosmos/gui_content_sizing.md#square-as-wide-as-it-is-tall).**
+  A column as wide as the row is tall. The other keywords derive a width from the
+  column's own content; this one derives it from the *other axis*, which is what a
+  portrait, an icon, a ship render or a badge nearly always wants. `gui_face` and
+  `gui_icon` were already square; **`gui_ship` and the image widgets were not** — so a
+  ship placed beside text used to flex and take half the row. Now they all say the
+  same thing.
+
+    **Behavior change**: `square` and an explicit width are mutually exclusive, and
+    setting either clears the other. A square column that *also* carried a width used
+    to be counted twice when the row was divided up, so the row reserved its space
+    twice over and — since the engine never clips — drew the surplus over and outside
+    its neighbours. If a screen of yours puts a `col-width` on a face or an icon, it
+    now gets the width it asked for instead of that double-count.
+
 - **[`overflow:` for text that cannot fit](cosmos/gui_overflow.md).** Because the
   engine never clips, text too big for its box is drawn over its neighbours. When
   there is genuinely no space to give — a user-entered name, a fixed strip — a
