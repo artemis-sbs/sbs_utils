@@ -360,3 +360,58 @@ class TestActionFiresOnQuestStart(unittest.TestCase):
         self.assertTrue(has_role(so.id, "pirate"))
         self.assertFalse(has_role(so.id, "suspect"))
         self.assertEqual(to_object(so.id).side, "tsn")
+
+
+class TestActionLint(unittest.TestCase):
+    """A typo'd direction silently does nothing at runtime, so lint has to catch it
+    first. The check IS the runtime parser, so the two cannot disagree."""
+
+    def _lint(self, body):
+        from sbs_utils.procedural.amd_lint import amd_lint
+        amd = ("# [Test](test)\n\n## [Beats](beats)\n\n### [A beat](beat)\n---\n"
+               + body + "\n---\nProse.\n")
+        return [f for f in amd_lint(content=amd, cross_file=False)
+                if f.code in ("unknown-action-verb", "bad-action")]
+
+    def test_valid_block_is_silent(self):
+        found = self._lint("Action:\n"
+                           "  - Kidnapper becomes a pirate\n"
+                           "  - Kidnapper is no longer a suspect\n"
+                           "  - Kessel Station arrives\n")
+        self.assertEqual(found, [])
+
+    def test_inline_form_is_silent(self):
+        self.assertEqual(self._lint("Action: Xorn joins tsn"), [])
+
+    def test_unknown_verb_is_flagged(self):
+        found = self._lint("Action:\n  - Ragnarok frobnicates DS1\n")
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0].code, "unknown-action-verb")
+        self.assertIn("becomes", found[0].message)      # offers what it knows
+
+    def test_missing_actor_is_flagged(self):
+        found = self._lint("Action:\n  - becomes a pirate\n")
+        self.assertEqual([f.code for f in found], ["bad-action"])
+
+    def test_operand_on_an_operandless_verb_is_flagged(self):
+        found = self._lint("Action:\n  - Kessel Station arrives loudly\n")
+        self.assertEqual([f.code for f in found], ["bad-action"])
+
+    def test_the_finding_points_at_the_right_line(self):
+        found = self._lint("Starts when: signal alarm\n"
+                           "Action:\n"
+                           "  - Kidnapper becomes a pirate\n"
+                           "  - Ragnarok frobnicates DS1\n")
+        self.assertEqual(len(found), 1)
+        # heading(5) + fence(6) + Starts when(7) + Action(8) + good(9) + bad(10)
+        self.assertEqual(found[0].line, 10)
+
+    def test_a_following_field_closes_the_block(self):
+        """Prose or another field after the list must not be read as directions."""
+        found = self._lint("Action:\n"
+                           "  - Kidnapper becomes a pirate\n"
+                           "Objective: Find the ambassador\n")
+        self.assertEqual(found, [])
+
+    def test_a_record_with_no_action_is_silent(self):
+        self.assertEqual(self._lint("Objective: Find the ambassador"), [])

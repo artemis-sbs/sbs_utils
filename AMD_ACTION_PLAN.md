@@ -454,7 +454,7 @@ and the orders layer moves behind a decision point instead of leading.
 | ~~0~~ | ~~Register the cinematic archetypes~~ - **done** by the cutscene work, see 5.2 | - |
 | ~~1~~ | ~~`Action:` field: parse, list form, verb match, actor/operand refs~~ - **DONE** (`procedural/amd_action.py`, 35 tests) | sbs_utils |
 | ~~2~~ | ~~the event-verb registry~~ - **DONE**. Ships `becomes` / `is no longer` / `joins` / `arrives` / `departs`; registered in `mast_sbs_procedural.py`; `arrives` is idempotent through the landmark key so no `once` flag is needed | sbs_utils |
-| 3 | Lint: unknown verb, unknown actor | sbs_cli |
+| ~~3~~ | ~~Lint~~ - **DONE**. `amd_lint_actions` flags an unknown verb / missing actor / bad operand, sharing the runtime parser so the two cannot disagree. Actor existence deliberately NOT checked - roles are minted in MAST and shipData, and guessing would flag correct files | sbs_utils |
 | 4 | Migrate the corpus sites (1.5); record what stays unsayable. **RE-ESTIMATE - see 9.1** | LM, OU, SB |
 | - | **DECISION POINT** - not "did we need orders?" but **"did we need orders, or did we need MOTIVES?"** See `NPC_MOTIVATION_PLAN.md` s6. Answer this before starting 5-7 | - |
 | 5 | AT RISK - `amd_verb` metadata key; order-label discovery by `type: objective/orders/*`; bind to `objective_add` | sbs_utils, LM |

@@ -544,6 +544,62 @@ def amd_lint_field_values(doc):
     return findings
 
 
+def _action_blocks(node):
+    """(lineno, text) for every stage-direction line in this record's `Action:` field.
+
+    The directions are LIST ITEMS, so `_fence_fields` never sees them - it keeps only
+    lines carrying a colon. Walk the raw fence instead: the `Action:` label opens the
+    block, indented / `-` lines continue it, and the next unindented `Label:` closes it.
+    The inline single-line form (`Action: X becomes a pirate`) is one direction on the
+    label line itself.
+    """
+    out = []
+    inside = False
+    for lineno, raw in (getattr(node, "fence_lines", None) or []):
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("//"):
+            continue
+        label = raw.split(":", 1)[0].strip().lower() if ":" in raw else None
+        indented = raw[:1] in (" ", "\t")
+        if label == "action" and not indented:
+            inside = True
+            value = raw.split(":", 1)[1].strip()
+            if value:                       # inline form
+                out.append((lineno, value))
+            continue
+        if inside and (indented or stripped.startswith("-")):
+            out.append((lineno, stripped))
+            continue
+        if not indented and label:
+            inside = False                  # a new field closes the block
+    return out
+
+
+def amd_lint_actions(doc):
+    """Flag a stage direction that will silently do nothing - an unknown verb, a
+    direction with no actor, or a missing/extra operand. WARNING.
+
+    The check is the runtime parser itself (`amd_action_parse`), which is pure and
+    engine-free precisely so the linter and the runtime can never disagree about what a
+    line means.
+
+    Deliberately NOT checked: whether the ACTOR exists. An actor resolves to a declared
+    landmark key or to a ROLE, and roles are minted in MAST (`add_role`), in spawn CSVs
+    and by shipData - none of which this pass can see. Guessing would flag correct files,
+    which is how authors learn to ignore a linter.
+    """
+    from sbs_utils.procedural.amd_action import amd_action_parse
+    findings = []
+    for node in doc.nodes:
+        for lineno, text in _action_blocks(node):
+            for act in amd_action_parse(text):
+                if not act.get("error"):
+                    continue
+                code = "unknown-action-verb" if act.get("verb") is None else "bad-action"
+                findings.append(AmdFinding(lineno, WARNING, code, act["error"]))
+    return findings
+
+
 def _png_size(path):
     """(width, height) from a PNG header, or (None, None). Read here rather than through
     the image atlas so the linter needs no engine paths and no image library."""
@@ -662,6 +718,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_keys(doc)
         findings += amd_lint_unknown_fields(doc)
         findings += amd_lint_field_values(doc)
+        findings += amd_lint_actions(doc)
         findings += amd_lint_images(doc, file_path)
         if cross_file is not False:
             findings += amd_lint_cross_file(doc, mast_sources, source_index)
