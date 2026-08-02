@@ -15,7 +15,8 @@ from .button import gui_button
 from .checkbox import gui_checkbox
 from .cinematic import gui_cinematic_auto, gui_cinematic_full_control
 from .camera import (camera_anchor, camera_assign, camera_track, camera_auto,
-                     camera_orbit_eye, camera_shot)
+                     camera_orbit_eye, camera_shot, camera_move, camera_orbit,
+                     camera_rack, camera_move_stop, camera_eye)
 from .clickable import gui_click
 from .content import gui_content
 from .dropdown import gui_drop_down

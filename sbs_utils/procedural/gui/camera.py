@@ -297,3 +297,223 @@ def camera_orbit_eye(distance, yaw=0.0, pitch=0.0):
                      target=hero_ship)
     """
     return Vec3(0, 0, float(distance)).rotate_around(Vec3(0, 0, 0), float(pitch), float(yaw), 0)
+
+
+# --- Phase 2: the mover ------------------------------------------------------
+#
+# "Camera animation" is a misnomer here. The engine has no interpolation, so a move
+# is a driver that RE-AIMS the shot every tick - which the Game Master proves is
+# fine (it re-applies its camera on every change and unconditionally every ~15s).
+#
+# Two engine facts shape all of this:
+#   * offsets are WORLD-space, so an orbit is "recompute the offset and re-aim",
+#     not "rotate a local frame". That is one driver task per moving shot.
+#   * dolly and target must be the same object, so a move animates the LENS around
+#     a subject. There is no second object to fly.
+#
+# Everything returns a Promise, so MAST can `await` a move or race it.
+
+# client_id -> {"task", "eye" (world Vec3), "subject"}. Per CONSOLE, because two
+# consoles can be running different shots at once.
+_MOVES = {}
+
+
+def camera_move_stop(to=None, consoles=None):
+    """Stop any running move on these consoles, leaving the lens where it is.
+
+    Called for you by every move below: two drivers re-aiming the same console
+    would fight tick by tick, and the symptom (a camera that jitters between two
+    paths) reads as an engine bug rather than a second caller.
+    """
+    n = 0
+    for cid in consoles_of(to, consoles):
+        state = _MOVES.pop(cid, None)
+        if state is not None:
+            task = state.get("task")
+            if task is not None:
+                task.stop()
+            n += 1
+    return n
+
+
+def camera_eye(to=None, consoles=None):
+    """Where the lens is right now on the first of these consoles, or None.
+
+    The mover records it, so a rack or a follow-on move can start from where the
+    last one finished instead of the caller having to remember.
+    """
+    for cid in consoles_of(to, consoles):
+        state = _MOVES.get(cid)
+        if state is not None:
+            return state.get("eye")
+    return None
+
+
+def _ease(name, t):
+    """Ours, because the engine has none. `t` is 0..1."""
+    if t <= 0.0:
+        return 0.0
+    if t >= 1.0:
+        return 1.0
+    if name == "in":
+        return t * t
+    if name == "out":
+        return 1.0 - (1.0 - t) * (1.0 - t)
+    if name == "in_out":
+        return 2.0 * t * t if t < 0.5 else 1.0 - 2.0 * (1.0 - t) * (1.0 - t)
+    return t          # linear, and the fallback for an unknown name
+
+
+def _now():
+    return FrameContext.sim_seconds
+
+
+def _drive(to, consoles, subject, seconds, eye_at, ease="in_out"):
+    """Run a shot whose lens position is a function of eased time.
+
+    `eye_at(u)` returns the world position for eased progress `u`. Shared by every
+    move below, because the only thing that differs between them is that function.
+    """
+    from ...futures import Promise
+    from ...tickdispatcher import TickDispatcher
+
+    prom = Promise()
+    cids = list(consoles_of(to, consoles))
+    if not cids:
+        # Resolve with the position rather than None: Promise.done() tests
+        # `_result is not None`, so a None result is indistinguishable from never
+        # having resolved - and a story awaiting it would hang forever.
+        prom.set_result(eye_at(0.0))
+        return prom
+
+    camera_move_stop(cids)
+    start = _now()
+    seconds = max(0.0001, float(seconds))
+    # A generation token, so a driver that outlives its stop cannot keep aiming.
+    # The dispatcher holds tasks in a SET, so two drivers on one console would
+    # otherwise fight in whatever order iteration happens to give - the last to
+    # run winning each frame, which reads as a camera tearing between two paths.
+    token = object()
+
+    def _owns():
+        for cid in cids:
+            state = _MOVES.get(cid)
+            if state is not None and state.get("token") is token:
+                return True
+        return False
+
+    def _tick(t):
+        if not _owns():
+            t.stop()
+            return
+        elapsed = _now() - start
+        raw = elapsed / seconds
+        if raw > 1.0:
+            raw = 1.0
+        where = eye_at(_ease(ease, raw))
+        camera_shot(cids, subject, where)
+        for cid in cids:
+            state = _MOVES.get(cid)
+            if state is not None:
+                state["eye"] = where
+        if raw >= 1.0:
+            t.stop()
+            camera_move_stop(cids)
+            if not prom.done():
+                prom.set_result(where)
+
+    # Every tick: the driver IS the animation, so a coarser interval is visible as
+    # a stutter rather than a saving.
+    task = TickDispatcher.do_interval(_tick, 0)
+    for cid in cids:
+        _MOVES[cid] = {"task": task, "eye": eye_at(0.0), "subject": subject,
+                       "token": token}
+    # AIM NOW, not on the first tick. Waiting a frame leaves the lens wherever the
+    # last shot put it for one frame - a visible pop at the top of every move, and
+    # the reason a cut into a move looked like a cut into the OLD shot.
+    where0 = eye_at(0.0)
+    camera_shot(cids, subject, where0)
+    return prom
+
+
+def camera_move(to, subject, eye_from, eye_to, seconds, ease="in_out",
+                consoles=None):
+    """Glide the lens from one world position to another, looking at `subject`.
+
+    Args:
+        to: audience (see ``consoles_of``).
+        subject: what the shot looks at - and, necessarily, what the lens rides.
+        eye_from (Vec3 | tuple): world position to start at.
+        eye_to (Vec3 | tuple): world position to end at.
+        seconds (float): duration.
+        ease (str): ``in_out`` (default), ``in``, ``out`` or ``linear``. Ours - the
+            engine interpolates nothing.
+
+    Returns:
+        Promise: resolves with the final lens position when the move ends.
+
+    Example:
+        await camera_move(role("mainscreen"), hero, Vec3(0,900,-4000), Vec3(0,300,-900), 6)
+    """
+    a = _vec(eye_from) or Vec3(0, 0, 0)
+    b = _vec(eye_to) or Vec3(0, 0, 0)
+
+    def _at(u):
+        return Vec3(a.x + (b.x - a.x) * u,
+                    a.y + (b.y - a.y) * u,
+                    a.z + (b.z - a.z) * u)
+
+    return _drive(to, consoles, subject, seconds, _at, ease)
+
+
+def camera_orbit(to, subject, distance, from_yaw=0.0, to_yaw=360.0, seconds=10.0,
+                 pitch=15.0, ease="linear", consoles=None):
+    """Swing the lens around `subject` at a fixed distance.
+
+    Because offsets are world-space, this is the Game Master's move: recompute
+    ``camera_orbit_eye`` each tick and re-aim. It follows a moving subject for free,
+    since the offset is applied to wherever the subject is at the time.
+
+    Args:
+        distance (float): radius of the orbit.
+        from_yaw / to_yaw (float): degrees to sweep between. Give ``to_yaw`` less
+            than ``from_yaw`` to swing the other way.
+        pitch (float): degrees above the subject. Default 15 looks down slightly,
+            which reads better than dead level.
+        ease (str): ``linear`` by default - an orbit that eases looks like a mistake.
+
+    Returns:
+        Promise: resolves when the sweep ends.
+    """
+    from ..query import to_object
+    subj = to_object(subject)
+
+    def _at(u):
+        yaw = from_yaw + (to_yaw - from_yaw) * u
+        offset = camera_orbit_eye(distance, yaw, pitch)
+        base = subj.pos if subj is not None else Vec3(0, 0, 0)
+        return Vec3(base.x + offset.x, base.y + offset.y, base.z + offset.z)
+
+    return _drive(to, consoles, subject, seconds, _at, ease)
+
+
+def camera_rack(to, subject, consoles=None):
+    """Look at something else WITHOUT moving the lens - a rack focus.
+
+    Holds the current world position and re-aims at ``subject``. Any running move is
+    stopped first: a rack during a move is a new intent, not a modifier on the old one.
+
+    Returns:
+        int: how many consoles were re-aimed.
+    """
+    eye = camera_eye(to, consoles)
+    camera_move_stop(to, consoles)
+    if eye is None:
+        # Nothing recorded (no move has run) - the caller has to say where the lens
+        # is, because the engine cannot be asked.
+        return 0
+    n = camera_shot(to, subject, eye, consoles=consoles)
+    for cid in consoles_of(to, consoles):
+        _MOVES[cid] = {"task": None, "eye": eye, "subject": subject,
+                       "token": None}
+    return n

@@ -149,6 +149,11 @@ register_reset_state("Agent.all", _probe_agents)
 register_reset_state("Gui.clients",       lambda: len(Gui.clients))
 register_reset_state("Gui.web_client_ids", lambda: len(Gui.web_client_ids))
 register_reset_state("TickDispatcher",    lambda: len(TickDispatcher._dispatch_tick))
+# Registered HERE rather than from camera.py, whose own import of this module is
+# circular - and a swallowed ImportError would have left the container invisible to
+# the audit, which is exactly the leak the ledger exists to catch.
+from .procedural.gui.camera import _MOVES as _CAMERA_MOVES
+register_reset_state("camera moves",      lambda: len(_CAMERA_MOVES))
 register_reset_state("DeleteQueue",       lambda: len(DeleteQueue._pending) + len(DeleteQueue._pending_grid))
 register_reset_state("Agent.roles",       lambda: len(Agent.roles.collections))
 register_reset_state("Agent.has_links",   lambda: len(Agent.has_links.collections))

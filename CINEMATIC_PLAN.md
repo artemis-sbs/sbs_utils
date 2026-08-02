@@ -188,26 +188,42 @@ dropped from the radar stream — already written and exercised in the range's h
 
 Explicitly **not** in Phase 1: easing, framing helpers, anything time-based.
 
-### Phase 2 — The mover (not the camera)
-
-Because a camera is an object, "camera animation" is a path-follower on an anchor. Shape,
-pending Q3:
+### Phase 2 — The mover (not the camera) ✅ BUILT
 
 ```
-camera_move(anchor, to, seconds, ease="in_out")     -> promise
-camera_orbit(anchor, around, radius, degrees, seconds)
-camera_rack(set, target)                            # change what we look at, hold position
-camera_handheld(anchor, amount)                     # low-amplitude noise, sells "live"
+camera_move(to, subject, eye_from, eye_to, seconds, ease="in_out")  -> Promise
+camera_orbit(to, subject, distance, from_yaw, to_yaw, seconds, pitch) -> Promise
+camera_rack(to, subject)          # look elsewhere, hold the lens where it is
+camera_move_stop(to)              # stop, leaving the lens put
+camera_eye(to)                    # where the lens is (the engine cannot be asked)
 ```
 
-Design notes:
-- `ease` is ours, applied to the interpolation, since the engine has none.
-- `camera_orbit` is trivial **if Q1 says local**; otherwise it is "recompute a world offset
-  each tick", which is fine but costs a driver task per shot.
-- Everything returns a promise so MAST can `await` a move or race it with `promise_any`.
-- **A moving anchor and a moving subject are different problems.** Pinning to a live ship
-  gives free "follow" with zero driver cost — prefer it over animating an anchor when the
-  shot allows.
+Built on the two answered questions: offsets are **WORLD** (Q1), so an orbit recomputes the
+offset and re-aims rather than rotating a local frame; and **per-tick re-apply is fine** (Q3),
+so the driver IS the animation. Every move returns a Promise, so MAST can `await` it or race it.
+
+Three things the tests forced out, each of which would have shown up in-engine as something
+other than what it was:
+
+- **Aim on the call, not on the first tick.** Waiting a frame leaves the lens wherever the
+  previous shot put it for one frame - a visible pop at the top of every move, which reads as
+  a bad cut rather than a late driver.
+- **Never resolve a Promise with `None`.** `Promise.done()` tests `_result is not None`, so a
+  None result is indistinguishable from never having resolved - a story awaiting a shot that
+  nobody could see would hang forever. Resolve with the position.
+- **A driver must check it still owns the console.** The dispatcher holds tasks in a SET, so
+  two drivers on one console fight in whatever order iteration gives, the last to run winning
+  each frame. That tears the camera between two paths and looks like an engine fault. Each
+  driver carries a token and stops itself the moment it is no longer the owner.
+
+`_MOVES` is in the **reset ledger** ("camera moves"), registered from `handlerhooks` rather
+than from `camera.py` - whose own import of that module is circular, and a swallowed
+ImportError would have left the container invisible to the audit, which is the exact leak the
+ledger exists to catch.
+
+Not built: `camera_handheld` (low-amplitude noise to sell "live"). It is ten lines on top of
+`_drive`, but it is the one move whose value can only be judged by eye, so it waits for a
+specimen rather than being guessed at.
 
 ### Phase 3 — Shots and cutscenes (declarative)
 
@@ -432,8 +448,8 @@ reference for how the background tones read over a live view.
 | ~~2~~ | ~~Phase 1 primitives~~ | ✅ done - `procedural/gui/camera.py`, 17 tests |
 | ~~-~~ | ~~Phase 6 flat button~~ | ❌ dropped - `gui_button(background_color=…)` already is one |
 | ~~3~~ | ~~Phase 5 lower thirds~~ | ✅ done - one square visual (face/ship/icon/image), `align` left/right, optional replies. It also earned `col-width: square` and the overlay-kind mechanism the rest of the furniture will use |
-| **1** | **CONFIRM THE OFFSET FOLD RENDERS IN-ENGINE** | the blocker. `camera_shot(to, subject, eye_world)` folds a two-object request into one id, because `cinematic_control` only draws when `dollyID == targetID`. Every phase below stands on that fold. It has never been seen to render - the range's own camera work was all mock-side |
-| 2 | Phase 2 mover | Q1 (WORLD) and Q3 (per-tick re-apply is fine) are answered, so the shape is known: a move recomputes the subject-relative offset each tick, one driver task per shot. It is not blocked by Q2/Q4 - those bite the cutscene, not the move |
+| ~~4~~ | ~~confirm the offset fold renders in-engine~~ | ✅ **CONFIRMED BY DOUG, 2026-08-01: "they all work now in engine."** The fold is real, so everything below stands on solid ground |
+| ~~5~~ | ~~Phase 2 mover~~ | ✅ done - `camera_move` / `camera_orbit` / `camera_rack` / `camera_move_stop` / `camera_eye`, 22 tests |
 | 3 | Phase 3 cutscenes | sequencing on top of proven parts. **Needs Q2 (cut or blend) and Q4 (dolly deleted mid-shot)** - both answerable by running `visual_camera_cut` in the engine |
 | 4 | Phase 4 rundowns | the payoff. A shot is a *(subject, lens position)* pair now, not a camera object - arguably a better model |
 
