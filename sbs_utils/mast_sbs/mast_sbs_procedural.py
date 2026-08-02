@@ -96,6 +96,12 @@ MastGlobals.import_python_module('sbs_utils.procedural.amd_chatter')
 MastGlobals.import_python_module('sbs_utils.procedural.amd_items')
 MastGlobals.import_python_module('sbs_utils.procedural.amd_mission')
 MastGlobals.import_python_module('sbs_utils.procedural.amd_overlay')
+# Declarative cinematics. Registered HERE because that is the only thing that makes
+# a function callable from MAST - importing it in a mission's own .py does NOT (the
+# mission's imports are not merged into the global namespace, only the functions it
+# DEFINES are). Without this line the whole AMD cinematics front door was Python-only,
+# which for a layer whose entire audience writes MAST means it did not exist.
+MastGlobals.import_python_module('sbs_utils.procedural.amd_cutscene')
 MastGlobals.import_python_module('sbs_utils.procedural.announce')
 MastGlobals.import_python_module('sbs_utils.procedural.persistence')
 MastGlobals.import_python_module('sbs_utils.procedural.settings')
