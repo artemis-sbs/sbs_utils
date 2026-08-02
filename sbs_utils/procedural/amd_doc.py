@@ -314,13 +314,24 @@ def lore_register(key, display, fname, domain=None):
     key = str(key).strip()
     if not key:
         return
+    entry = {"key": key, "display": display, "file": fname, "domain": domain}
     for i, src in enumerate(_LORE_SOURCES):
         if src["key"] == key:
-            _LORE_SOURCES[i] = {"key": key, "display": display, "file": fname,
-                                "domain": domain}
-            return
-    _LORE_SOURCES.append({"key": key, "display": display, "file": fname,
-                          "domain": domain})
+            _LORE_SOURCES[i] = entry
+            break
+    else:
+        _LORE_SOURCES.append(entry)
+    # Registering lore is what MAKES there be a Library - the tab is not declared
+    # separately and then gated. Gating it would race: addons load in a
+    # non-deterministic order, so a tab that asked "is there lore yet?" at module level
+    # would get a different answer depending on which addon ran first. Here the question
+    # cannot be asked too early, because asking IS the registration. Idempotent, and
+    # per-client like every other tab.
+    try:
+        from sbs_utils.procedural.gui.console_tab import gui_tab_add_top
+        gui_tab_add_top("library")
+    except Exception:
+        pass          # no GUI context (tests, tools) - the registry still works
 
 
 def lore_sources():
