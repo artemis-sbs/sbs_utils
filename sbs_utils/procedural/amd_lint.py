@@ -290,18 +290,24 @@ def amd_lint_unknown_fields(doc):
     author gets told, and the fix is either a spelling or one line of
     `amd_register_fields`. WARNING, and only where the record's kind is KNOWN: with no
     archetype there is nothing to be unknown against."""
-    from sbs_utils.procedural.amd_schema import amd_is_declared, template_fields
+    from sbs_utils.procedural.amd_schema import (amd_is_declared, template_fields,
+                                                 amd_traits_of)
     findings = []
     for node in doc.nodes:
         if not node.kind:
             continue
+        # A record's `Also:` traits lend it their fields - that is the whole point of a
+        # trait. Without them a worldlet saying `Also: economy` was still told `Yields:`
+        # and `Reserve:` are unknown, which is the trait mechanism working everywhere
+        # except in the tool that reports on it.
+        traits = amd_traits_of(node.data)
         for lineno, raw, label, _value in _fence_fields(node):
             # Only TOP-LEVEL labels are fields. An indented line is inside a nested
             # block (a recipe's Properties/Defaults, a chatter Lines list) whose inner
             # names the mission owns - the registry has no opinion on those.
             if raw[:1] in (" ", "\t"):
                 continue
-            if amd_is_declared(label, node.kind):
+            if amd_is_declared(label, node.kind, traits):
                 continue
             known = ", ".join(sorted(template_fields(node.kind))[:6])
             col = 0 if ":" not in raw else len(raw) - len(raw.lstrip())

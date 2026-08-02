@@ -419,3 +419,33 @@ class TestUnknownFieldDiagnostics(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestUnknownFieldHonorsTraits(unittest.TestCase):
+    """`Also:` lends a record its trait's fields - the linter has to know that too, or
+    the trait mechanism works everywhere except in the tool that reports on it."""
+
+    def _unknown(self, src):
+        from sbs_utils.procedural.amd_lint import amd_lint
+        return [f.message for f in amd_lint(content=src, cross_file=False)
+                if f.code == "unknown-field"]
+
+    WORLDLET = """# [Universe](u)
+
+## [Landmarks](landmarks)
+
+### [Cinder World](cinder)
+---
+Also: economy
+Yields: ore 8
+Reserve: 4000
+---
+"""
+
+    def test_a_claimed_trait_declares_its_fields(self):
+        self.assertEqual(self._unknown(self.WORLDLET), [])
+
+    def test_without_the_claim_they_are_still_unknown(self):
+        found = self._unknown(self.WORLDLET.replace("Also: economy\n", ""))
+        self.assertEqual(len(found), 2)
+        self.assertTrue(any("Yields" in m for m in found))
