@@ -1,9 +1,14 @@
 # NPC motivation - why an NPC does the thing it does
 
-Follow-on to `AMD_ACTION_PLAN.md`, and the reason that plan's deferred orders layer
-should not be built as designed. **Pre-survey: no phases yet, deliberately.** The action
-plan taught that designing phases before counting demand produces a vocabulary aimed at
-the wrong verbs; this one does not repeat it.
+> **VERDICT (2026-08-02): do not build the goal selector.** The survey in section 8 found
+> zero NPC decision-making in Open Universe to subsume, and no two NPCs anywhere that want
+> the same thing. It is a pattern with two instances, not a system. Sections 1-7 are the
+> reasoning that led there and are kept because the survey only overturns the CONCLUSION -
+> the observations still hold, and 8.1 is the smaller real gap it uncovered.
+
+Follow-on to `AMD_ACTION_PLAN.md`. **Pre-survey when written: no phases, deliberately** -
+the action plan taught that designing phases before counting demand produces a vocabulary
+aimed at the wrong verbs. This document did not repeat that mistake, and section 8 is why.
 
 ---
 
@@ -202,3 +207,56 @@ same trap that made the action survey's first pass useless).
 Question 4 decides whether this is a system or a pattern. Question 5 decides whether the
 first thing built is the selector or just a weight on the orders that already exist - and
 the second is a far smaller starting point that would still deliver a refusal that speaks.
+
+---
+
+## 8. SURVEY RESULT (2026-08-02) - do not build the selector
+
+Run against OU and Storm's Beacon. It contradicts this plan's premise.
+
+| # | Question | Answer |
+|---|---|---|
+| 1 | OU NPC behaviour a selector would subsume | **zero** |
+| 2 | Branches on standing | **heavy** - a whole consequence API |
+| 5 | Player already moves a motive | **29 sites** |
+| 4 | Do two NPCs ever want the same thing | **no** |
+
+**Q1 is zero because OU has no NPC decision-making at all.** Not one `brain_add`,
+`objective_add` or `brain_clear` in the whole mission. OU spawns LM **prefabs**
+(`prefab_fleet_raider`, `prefab_npc_defender`) and the brains come with them. Its world is
+**procedurally generated per system from persisted state** - `random.seed(key + N)`, then
+spawn according to who owns the sector and whether it is captured / cleared / destroyed.
+The model is *state -> generation*, not *agents -> decisions*. There is nothing to subsume.
+
+**Q4 follows: no two NPCs want the same thing, because OU's NPCs do not want anything.**
+What competes in OU is SIDES over territory, and that is already modelled - ownership
+flags, `universe_capture_watch`, `universe_recapture_watch`. The contest the selector was
+going to resolve is already resolved somewhere else.
+
+So the goal-selector is a **pattern with two instances** (XORN and the Second Wind), not a
+system. OU - predicted to supply the volume - supplies none. **Do not build it.** Storm's
+Beacon's two pursuers are correctly written as two small tasks.
+
+### 8.1 What the survey found instead, and it is worth having
+
+OU carries 113 standing references and a rich consequence API: `reputation_reward_mult`,
+`reputation_ransom_cost`, `reputation_offer_tier`, `reputation_ceasefire_cost`,
+`reputation_foe_deal_standing`.
+
+So the earlier claim that "nothing reads standing back out except one hardcoded threshold"
+was true of Storm's Beacon and **wrong about OU**, where reading it out is a mature,
+many-fingered pattern. But every finger lands in the same place:
+
+> **Standing changes what things COST. It never changes what anyone DOES.**
+
+A side you have wronged charges more for a ceasefire, ransoms your people dearer, and
+offers you worse tiers - and raids you exactly as often as before. That is the actual gap,
+it is one sentence, and it is far smaller than a selector.
+
+It also lands on **sides, not ships** - which is precisely where `Values:` is already
+auto-granted by `ARCHETYPE_TRAITS`, and where OU's competition already lives.
+
+That is the candidate feature if anything here gets built: *let the standing that already
+drives prices also drive behaviour, at the side level.* It needs its own demand evidence
+before design - the lesson this document was written to respect. What it does NOT need is
+a per-NPC goal selector.
