@@ -462,7 +462,7 @@ and the orders layer moves behind a decision point instead of leading.
 | 7 | AT RISK - new objective labels (section 7) | LM |
 | 8 | ~~`Setting` archetype~~ - **DROPPED, see 9.2.** The fields are already authored on `map` and `region` records, and the real problem is kind resolution, not vocabulary | - |
 | 9 | Timeline action edges; Inspector widgets | sbs_cli, editors/vscode |
-| 10 | Docs, alongside `cosmos/cinematics.md` | mkdocs |
+| ~~10~~ | ~~Docs~~ - **DONE**. `Action:` documented in `build/amd-format.md` beside the quest vocabulary (not a new page - it is a quest field, and the format doc is where an author already looks) | mkdocs |
 
 Verification per phase: unit tests, `sbs lint` across LM + OU + StormsBeacon, a headless
 `--test` run, then a browser pass where a GUI surface is involved.

@@ -232,12 +232,62 @@ never dropped.
 | `Objective:` | The sentence the player reads in the quest log |
 | `Done when:` | What completes it — `destroy 6 raiders`, `reach 6, 4`, `signal drone_down` |
 | `Starts when:` | What activates it (same grammar) |
-| `Then:` | What happens next — `reveal <key>` or `signal <name>` |
+| `Action:` | What happens the moment it **starts** — see below |
+| `Then:` | What happens next, once it **finishes** — `reveal <key>` or `signal <name>` |
 | `Reward:` | What completing it gives — `500 credits` |
 | `Penalty:` | What failing it costs |
 | `Fails when:` | What fails it — `signal base_lost`, `all dead convoy`, `5 minutes` |
 | `Part of:` | The larger mission this is a step of |
 | `Win:` / `Lose:` | Ends the game, with optional end-screen text |
+
+### `Action:` — stage directions
+
+A screenplay page has three things: a slug line, an action block, and dialogue. AMD could
+already write the dialogue. `Action:` is the action block — what the world does the moment
+a beat begins.
+
+```
+### [The trap closes](ambush)
+---
+Starts when: signal alarm
+Action:
+  - Kidnapper is no longer a suspect
+  - Kidnapper becomes a pirate
+  - Kessel Station arrives
+---
+The freighter lights her engines. The raider swings to follow.
+```
+
+A line reads **who — does what — to what**. The verb sits between the two names, which is
+what tells you which one is acting.
+
+| Verb | What it does |
+|---|---|
+| `becomes` | Gives it a role — `Kidnapper becomes a pirate` |
+| `is no longer` | Takes a role away — `Kidnapper is no longer a suspect` |
+| `joins` | Changes side — `Xorn joins tsn` |
+| `arrives` | Places a landmark you declared — `Kessel Station arrives` |
+| `departs` | Removes it from the world |
+
+**`Action:` fires when the beat starts. `Then:` fires when it finishes.** That is the whole
+difference between them, and it is why both exist.
+
+**The lines all happen at once.** The order you write them in is not an order of events. If
+one thing has to follow another, that is a second beat with its own `Starts when:` — and a
+time is a trigger like any other, so `Starts when: 3 seconds` works.
+
+There are no conditions, loops or sequences here, on purpose. A direction is a statement.
+When you want *"but only if the player scanned it"*, write two beats with different
+`Starts when:` — the same way a branching quest is already written.
+
+**Who can act.** An actor is a landmark you declared, or a role — and a role covers
+everyone who has it, so `Raiders become hostile` moves all of them at once. A name nothing
+recognises is reported in the log rather than silently skipped, and the linter catches a
+misspelled verb before the mission ever runs.
+
+**Repeating is safe.** A beat can start more than once — re-revealed, reloaded, a
+repeatable thread. Every verb above survives that: `arrives` is keyed to the landmark, so
+it will not place a second one, but it *will* re-place one that was destroyed.
 
 ### Older spellings still work
 
