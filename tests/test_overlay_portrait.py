@@ -24,13 +24,16 @@ from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.procedural.gui import overlay as OV
 from sbs_utils.procedural.gui import text as TEXT
 from sbs_utils.procedural.gui import face as FACE
+from sbs_utils.procedural.gui import ship as SHIP
+from sbs_utils.procedural.gui import icon as ICON
+from sbs_utils.procedural.gui import image as IMAGE
 from sbs_utils.procedural.gui import blank as BLANK
 from sbs_utils.procedural.gui import row as ROW
 from sbs_utils.procedural.gui import section as SECTION
 from sbs_utils.procedural.gui.overlay import (
     overlay_lower_third_portrait, _lower_third_portrait_builder, PORTRAIT_EM,
-    PORTRAIT_GUTTER_EM, _portrait_text_frac, OVERLAY_KINDS, _KIND_DEFAULT_SLOT,
-    _KIND_PRIMARY_FIELD, _CYCLE_KINDS, _KIND_TEXT_WIDTH)
+    PORTRAIT_GUTTER_EM, SQUARE_STYLE, _portrait_text_frac, OVERLAY_KINDS,
+    _KIND_DEFAULT_SLOT, _KIND_PRIMARY_FIELD, _CYCLE_KINDS, _KIND_TEXT_WIDTH)
 
 
 class _FakeMain:
@@ -84,7 +87,14 @@ class PortraitBuilderBase(unittest.TestCase):
         t = self.trace
         patch(ROW, "gui_row", lambda style=None: t.append(("row", style)))
         patch(TEXT, "gui_text", lambda s, *a, **k: t.append(("text", s)))
-        patch(FACE, "gui_face", lambda f, *a, **k: t.append(("face", f)))
+        patch(FACE, "gui_face",
+              lambda f, style=None: t.append(("face", style)))
+        patch(SHIP, "gui_ship",
+              lambda f, style=None: t.append(("ship", style)))
+        patch(ICON, "gui_icon",
+              lambda f, style=None: t.append(("icon", style)))
+        patch(IMAGE, "gui_image_keep_aspect_ratio_center",
+              lambda f, style=None: t.append(("image", style)))
         patch(BLANK, "gui_blank",
               lambda count=1, style=None: t.append(("blank", style)))
 
@@ -158,10 +168,10 @@ class TestPortraitColumns(PortraitBuilderBase):
     width, and the engine does not clip - the text draws outside its box and over
     whatever is beside it. That is exactly what an explicit 22/78 split did."""
 
-    def test_the_face_is_given_no_width(self):
+    def test_the_visual_asks_to_be_square(self):
         self.build(face="F1")
         faces = [v for (k, v) in self.trace if k == "face"]
-        self.assertEqual(faces, ["F1"], "gui_face called with no style/width")
+        self.assertEqual(faces, [SQUARE_STYLE])
 
     def test_the_text_column_is_flex(self):
         self.build(face="F1")
@@ -231,6 +241,88 @@ class TestPortraitColumns(PortraitBuilderBase):
         self.build(face="F1", background=None)
         outer = [v for (k, v) in self.trace if k == "row"][0]
         self.assertNotIn("background:", outer)
+
+
+VISUALS = ("face", "ship", "icon", "image")
+
+
+class TestPortraitVariants(PortraitBuilderBase):
+    """Four sources, one square slot. Requiring square is what makes them
+    interchangeable: the strip, the gutter and the room left for the line do not
+    move when a face is swapped for a ship."""
+
+    def test_every_source_renders_its_own_widget(self):
+        for v in VISUALS:
+            self.trace.clear()
+            self.build(**{v: "X"})
+            self.assertIn(v, self.kinds(), v)
+
+    def test_every_source_is_asked_to_be_square(self):
+        # Face and Icon are square already; Ship and Image are NOT, and unsquared
+        # they are flex columns that take half the strip.
+        for v in VISUALS:
+            self.trace.clear()
+            self.build(**{v: "X"})
+            style = [s for (k, s) in self.trace if k == v][0]
+            self.assertEqual(style, SQUARE_STYLE, v)
+
+    def test_no_source_is_given_an_explicit_width(self):
+        # square and a width are mutually exclusive - a width would un-square it.
+        for v in VISUALS:
+            self.trace.clear()
+            self.build(**{v: "X"})
+            style = [s for (k, s) in self.trace if k == v][0]
+            self.assertNotIn("em", style, v)
+            self.assertNotIn("%", style, v)
+
+    def test_the_layout_is_identical_whichever_source(self):
+        shapes = set()
+        for v in VISUALS:
+            self.trace.clear()
+            self.build(**{v: "X"})
+            shapes.add(tuple("visual" if k in VISUALS else k
+                             for k in self.kinds()))
+        self.assertEqual(len(shapes), 1, f"variants diverged: {shapes}")
+
+    def test_each_source_works_on_both_sides(self):
+        for v in VISUALS:
+            for align in ("left", "right"):
+                self.trace.clear()
+                self.build(align=align, **{v: "X"})
+                kinds = self.kinds()
+                gutter = kinds.index("blank")
+                vis = kinds.index(v)
+                texts = [i for i, k in enumerate(kinds) if k == "text"]
+                if align == "left":
+                    self.assertLess(vis, gutter, f"{v}/{align}")
+                    self.assertTrue(all(i > gutter for i in texts))
+                else:
+                    self.assertGreater(vis, gutter, f"{v}/{align}")
+                    self.assertTrue(all(i < gutter for i in texts))
+
+    def test_first_set_wins_in_hero_order(self):
+        # face, ship, icon, image - the same precedence overlay_hero uses, so the
+        # two cards do not disagree about which visual a record means.
+        self.build(face="F", ship="S", icon="I", image="M")
+        self.assertIn("face", self.kinds())
+        for other in ("ship", "icon", "image"):
+            self.assertNotIn(other, self.kinds())
+        self.trace.clear()
+        self.build(ship="S", icon="I", image="M")
+        self.assertIn("ship", self.kinds())
+        self.assertNotIn("icon", self.kinds())
+        self.trace.clear()
+        self.build(icon="I", image="M")
+        self.assertIn("icon", self.kinds())
+        self.assertNotIn("image", self.kinds())
+
+    def test_an_image_keeps_its_aspect_ratio_inside_the_square(self):
+        # The BOX is square; a non-square source letterboxes rather than
+        # distorting, which is why it goes through the keep-aspect front door.
+        import sbs_utils.procedural.gui.overlay as O
+        import inspect
+        src = inspect.getsource(O._lower_third_portrait_builder)
+        self.assertIn("gui_image_keep_aspect_ratio_center", src)
 
 
 class TestPortraitRegistration(unittest.TestCase):

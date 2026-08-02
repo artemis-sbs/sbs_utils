@@ -1,4 +1,4 @@
-# Sizing to content — `auto`, `content`, `min-content`, `max-content`
+# Sizing to content — `auto`, `content`, `min-content`, `max-content`, `square`
 
 Rows and columns **fill** by default: a section's height is split across its rows,
 a row's width across its columns. That is usually what you want, but it means a
@@ -39,11 +39,12 @@ That is the difference in one line:
 |---|---|---|
 | `1fr` (default, was `auto`) | yes — shares leftover space | never below `min-content` |
 | `content` / `min-content` / `max-content` | no — sized from its content | n/a |
+| `square` *(columns only)* | no — sized from the ROW HEIGHT | n/a |
 
 Because `col-width` cascades column → row → section, putting `1fr` on a section
 makes every column in it minimum-aware without annotating any of them.
 
-## The four keywords
+## The keywords
 
 | keyword | on a **column** | on a **row** |
 |---|---|---|
@@ -51,6 +52,31 @@ makes every column in it minimum-aware without annotating any of them.
 | `content` *(`fit-content` is an alias)* | natural width, clamped to what is available | as tall as the tallest cell **at its final width**, wrapping included |
 | `min-content` | the widest unbreakable word | *alias of `content`* |
 | `max-content` | the whole line, unbroken | tallest cell measured as one unwrapped line |
+| `square` | **as wide as it is tall** — sized from the row height | **not valid** (it would be circular; raises) |
+
+## `square` — as wide as it is tall
+
+The other keywords derive a width from the column's own content. `square` derives
+it from the **other axis**: the column becomes as wide as the row is tall. It is
+what a portrait, an icon, a ship render or a badge normally wants.
+
+```
+gui_row("row-height: 6em;")
+gui_face(face, style="col-width: square")     # a 6em square
+gui_text("$text:`Harkin`;justify:left")       # flex: takes the rest
+```
+
+**`square` and an explicit width are mutually exclusive** — setting either clears
+the other. They are two answers to one question, and holding both is an illegal
+state rather than a combination: a square column carrying a width is counted twice
+when the row is divided up, so the row reserves its space twice over and, because
+the engine does not clip, draws the surplus over and outside its neighbours.
+
+`gui_face` and `gui_icon` are square by default. `gui_ship` and the image widgets
+are **not** — left alone they flex, so a ship in a two-column strip takes half of
+it. Say `col-width: square` and they behave like the others. An image keeps its
+aspect ratio *inside* the square box, so a non-square source letterboxes rather
+than distorting.
 
 `min-content` on a **row** is an intentional alias. A true CSS row `min-content`
 (how tall it gets when wrapped as narrow as possible) is expensive to compute and

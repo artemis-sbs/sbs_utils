@@ -963,27 +963,38 @@ def overlay_lower_third(name, line, slot="lower_third", to=None, consoles=None,
 # not two portraits on screen at once. One face keeps the width for the line,
 # and it still reads for a monologue or a three-hander, which a fixed two-face
 # layout does not.
-# A face is a SQUARE column (Face.square = True): it takes its size from the row
-# HEIGHT and must be given no col-width at all. Assigning one is not a tuning
-# choice, it is a bug - a bare `col-width: 22` is an absolute percent of the
-# region, so 22 + 78 oversubscribes a strip that is not the full width, and the
-# engine DOES NOT CLIP: the text is drawn outside the box and over its
-# neighbours. This is the pattern LM's bar templates already use - face, then
-# text, no widths.
-PORTRAIT_EM = 6.0            # strip height - the square face sizes itself from it
-PORTRAIT_GUTTER_EM = 0.6     # thin separator column between the face and the text
+# The visual is ALWAYS SQUARE, and that requirement is the design: it makes the
+# bite out of the strip, the gutter, the placeholder and the cycling width
+# identical whichever of the four sources is used, so a variant costs one branch
+# instead of a layout each.
+#
+# `col-width: square` says it for all of them. Sizing the visual by hand is not a
+# tuning choice but a bug: a bare `col-width: 22` is an absolute percent of the
+# region, so 22 + 78 oversubscribes a strip that is not full width, and a square
+# carrying a width is double-counted on top of that - and the engine DOES NOT
+# CLIP, so the surplus is drawn outside the box and over its neighbours.
+SQUARE_STYLE = "col-width: square;"
+PORTRAIT_EM = 6.0            # strip height - the square visual sizes itself from it
+PORTRAIT_GUTTER_EM = 0.6     # thin separator column between the visual and the text
 
 
 def _lower_third_portrait_builder(client_id, content):
     from .text import gui_text
     from .face import gui_face
+    from .ship import gui_ship
+    from .icon import gui_icon
+    from .image import gui_image_keep_aspect_ratio_center
     from .blank import gui_blank
     from .row import gui_row
     from .section import gui_sub_section
 
     name = content.get("name", "")
     line = content.get("line", "")
+    # First set wins, in overlay_hero's order, so the two cards agree.
     face = content.get("face")
+    ship = content.get("ship")
+    icon = content.get("icon")
+    image = content.get("image")
     # "align" (not "side"): in Cosmos a side is a FACTION, and this is a layout.
     align = str(content.get("align", "left")).lower()
     right = align in ("right", "r", "end")
@@ -992,11 +1003,23 @@ def _lower_third_portrait_builder(client_id, content):
     just = "right" if right else "left"
 
     def _face_col():
+        # Face and Icon are square already; Ship and Image are NOT (Ship's square
+        # line is commented out, Image never sets one), so unsquared they are flex
+        # columns that take half the strip. Saying it explicitly for all four is
+        # both the fix and the thing that keeps them interchangeable.
         if face:
-            gui_face(face)          # square: sized from the row height, no width
+            gui_face(face, style=SQUARE_STYLE)
+        elif ship:
+            gui_ship(ship, style=SQUARE_STYLE)
+        elif icon:
+            gui_icon(icon, style=SQUARE_STYLE)
+        elif image:
+            # A square BOX with aspect-preserved content, so a non-square source
+            # letterboxes rather than distorting.
+            gui_image_keep_aspect_ratio_center(image, style=SQUARE_STYLE)
         else:
             # Hold the same bite of the strip so a run of beats does not slide
-            # sideways when a speaker has no portrait. A square in this row is
+            # sideways when a speaker has no visual. A square in this row is
             # about as wide as the row is tall, so ask for that.
             gui_blank(style=f"col-width: {PORTRAIT_EM}em;")
 
@@ -1047,30 +1070,42 @@ def _portrait_text_frac(client_id, slot):
 _KIND_TEXT_WIDTH["lower_third_portrait"] = _portrait_text_frac
 
 
-def overlay_lower_third_portrait(name, line, face=None, align="left",
-                                 slot="lower_third", to=None, consoles=None,
-                                 seconds=None, color="#8cf", background="#000a",
+def overlay_lower_third_portrait(name, line, face=None, ship=None, icon=None,
+                                 image=None, align="left", slot="lower_third",
+                                 to=None, consoles=None, seconds=None,
+                                 color="#8cf", background="#000a",
                                  cycle=True, dwell=None, loop=None):
-    """Lower third carrying ONE face, on the left or the right of the line.
+    """Lower third carrying ONE square visual, on the left or the right of the line.
 
     Same strip as ``overlay_lower_third``, plus a portrait. **A conversation is
-    this called repeatedly with ``align`` alternating** - the face moving side to
-    side is what reads as a back-and-forth, and only the speaker is on screen.
+    this called repeatedly with ``align`` alternating** - the visual moving side
+    to side is what reads as a back-and-forth, and only the speaker is on screen.
+
+    The visual is always laid out **square** (an image keeps its aspect ratio
+    inside that square box), which is what makes the four sources interchangeable:
+    the strip, the gutter and the space left for the line do not move when you
+    swap a face for a ship.
 
     Args:
         name (str): the speaker's name plate.
         line (str): what they say. Too long for the remaining width and it is
             played in **timed parts** (measured against the strip MINUS the
-            portrait), like ``overlay_lower_third``.
+            square), like ``overlay_lower_third``.
         face (str, optional): a face string - ``get_face(id)`` or a lifeform face.
-            Omitted, the portrait column is left blank so a run of beats does not
-            jump sideways when one speaker has no face.
-        align (str): ``"left"`` (default) or ``"right"`` - which side the face
+        ship (str, optional): a ship-type key (e.g. ``"tsn_battle_cruiser"``) -
+            a live 3D render.
+        icon (str, optional): an icon property string or key.
+        image (str, optional): an image key - letterboxed inside the square.
+        align (str): ``"left"`` (default) or ``"right"`` - which side the visual
             sits on. Named ``align`` and not ``side`` because a *side* in Cosmos
             is a faction; this is layout only.
         color (str): the name-plate color.
         background (str): fill behind the strip so it reads over the live view;
             pass ``None`` for bare content.
+
+    The four are **first set wins**, in ``overlay_hero``'s order (face, ship,
+    icon, image). With none set the column is still reserved, so a run of beats
+    does not jump sideways when one speaker has no visual.
 
     See ``overlay_banner`` for ``cycle`` / ``dwell`` / ``loop``.
     """
@@ -1078,8 +1113,9 @@ def overlay_lower_third_portrait(name, line, face=None, align="left",
         loop = False
     return _show_maybe_cycled(
         slot, "lower_third_portrait", to, consoles, seconds,
-        {"name": name, "line": line, "face": face, "align": align,
-         "color": color, "background": background},
+        {"name": name, "line": line, "face": face, "ship": ship, "icon": icon,
+         "image": image, "align": align, "color": color,
+         "background": background},
         "line", "gui-3", cycle, dwell, loop)
 
 

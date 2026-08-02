@@ -8,7 +8,7 @@ from .hole import Hole
 from .measure import pct_to_px_x, px_to_pct_x, DEFAULT_FONT
 # for type hints
 from .row import Row 
-from .column import Column
+from .column import Column, apply_col_width
 from .dirty import Dirty
 
 import weakref
@@ -356,7 +356,9 @@ class Layout(Clickable):
         self.default_height = height
 
     def set_col_width(self, width):
-        self.default_width = width
+        # A SECTION can be square too (Layout carries `square`), so it goes
+        # through the same mutually-exclusive rule as a plain column.
+        apply_col_width(self, width)
 
     def add(self, row:Row):
         self.rows.append(row)

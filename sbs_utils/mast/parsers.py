@@ -88,7 +88,15 @@ CONTENT = ContentSize("content")
 MIN_CONTENT = ContentSize("min-content")
 MAX_CONTENT = ContentSize("max-content")
 AUTO = ContentSize("1fr")          # canonical spelling: `1fr` (alias: `auto`)
-_CONTENT_BY_NAME = {c.mode: c for c in (CONTENT, MIN_CONTENT, MAX_CONTENT, AUTO)}
+#
+# `col-width: square` -- as wide as it is tall. It belongs in this family because
+# it is the same KIND of thing: a rule for deriving a width, exactly like
+# `content` ("as wide as my content"). It is the only one that reads the other
+# axis, which is why it is a WIDTH rule and has no row-height counterpart.
+#
+SQUARE = ContentSize("square")
+_CONTENT_BY_NAME = {c.mode: c
+                    for c in (CONTENT, MIN_CONTENT, MAX_CONTENT, AUTO, SQUARE)}
 #
 # CSS spellings accepted alongside ours. `auto` is the historical name for the
 # `1fr` mode and is kept working; `fit-content` is what CSS calls `content`.
@@ -380,6 +388,15 @@ class StyleDefinition:
     def parse_height(height):
         if height is not None:
             content = StyleDefinition._content_size(height)
+            #
+            # Rejected LOUDLY rather than accepted as a no-op: `square` derives a
+            # width from a height, so a square row-height is circular. An author
+            # who writes it has the axes swapped and wants to know now.
+            #
+            if content is SQUARE:
+                raise Exception(
+                    "row-height: square is not valid -- square is a WIDTH rule "
+                    "(as wide as it is tall). Use col-width: square.")
             if content is not None:
                 return content
             tokens = LayoutAreaParser.lex(height)

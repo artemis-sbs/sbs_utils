@@ -321,7 +321,7 @@ not clip:
 The fix for both was to stop sizing the visual at all: a face is a **square** column, so it
 takes its size from the row height. LM's `bar_helpers.py` templates already did exactly this.
 
-### Phase 5b — the square slot takes an icon, a ship or an image (PLANNED)
+### Phase 5b — the square slot takes an icon, a ship or an image ✅ BUILT
 
 Same strip, same geometry, four things that can sit in the square. **Square is REQUIRED**, and
 that requirement is the design: it makes the bite out of the strip, the gutter, the empty
@@ -390,14 +390,21 @@ the registry, `_KIND_DEFAULT_SLOT`, `_CYCLE_KINDS`, `_KIND_LOOP_DEFAULT` and
 `_KIND_PRIMARY_FIELD` for zero behavioral difference — and would need four AMD record types
 where one takes four fields.
 
-Work:
+Built:
 
-1. `col-width: square` lands first (its own change, with its own tests); then the builder
-   simply passes it for ship and image and special-cases nothing;
-2. `overlay_lower_third_portrait(..., icon=None, ship=None, image=None)`;
-3. tests: a variant matrix asserting each source is square, carries no `col-width`, keeps the
-   gutter, and works on both aligns — plus that an unsquared ship/image cannot regress in;
-4. the specimen cycles all four so the eye can compare them at one row height.
+1. **`col-width: square`** — `SQUARE = ContentSize("square")` in the keyword table;
+   `apply_col_width` in `column.py` is the single rule keeping `square` and an explicit width
+   mutually exclusive, shared by `Column` and `Layout`. `row-height: square` raises rather than
+   silently doing nothing. `tests/test_layout_square_width.py` (15 tests), documented in
+   `mkdocs/docs/cosmos/gui_content_sizing.md`.
+2. **The builder special-cases nothing** — all four sources go through the same
+   `style="col-width: square"`, so the two that were never square are no longer a separate case.
+3. `overlay_lower_third_portrait(..., ship=, icon=, image=)`, first set wins in `overlay_hero`'s
+   order; an image goes through `gui_image_keep_aspect_ratio_center` so it letterboxes.
+4. A variant matrix in `tests/test_overlay_portrait.py` (31 tests) — every source square, none
+   carrying a width, both aligns, and **the emitted layout identical whichever source**, which is
+   the claim square is making.
+5. The specimen plays all four at one row height so the claim is checkable by eye.
 
 **Open, and only an eye can answer**: a ship is a LIVE 3D render (`send_gui_3dship`). At a 6em
 square it may read as a smudge, and it costs a render per frame. If it does not read, the answer

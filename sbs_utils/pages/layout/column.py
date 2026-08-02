@@ -1,9 +1,34 @@
 from .bounds import Bounds
 from ...helpers import FrameContext
 from ...agent import Agent
+from ...mast.parsers import SQUARE
 from .clickable import Clickable
 from .dirty import Dirty
 import weakref
+
+
+def apply_col_width(item, width):
+    """Set `default_width` / `square` from a col-width value, keeping the two
+    MUTUALLY EXCLUSIVE.
+
+    `col-width: square` and an explicit width are two answers to one question,
+    and holding both is an illegal state rather than a combination:
+    `_resolve_col_widths` counts a square column in `squares` AND, if it also
+    carries a width, in `assigned_cols`/`assigned_space` -- so `need_assigned`
+    subtracts it twice and the row reserves its space twice over. The engine does
+    not clip, so the surplus is drawn over and outside its neighbours.
+
+    Setting either therefore clears the other. This does change behaviour for a
+    screen that puts a col-width on an already-square widget (a face, an icon):
+    it now gets the width it asked for, instead of the double-count.
+    """
+    if width is SQUARE:
+        item.square = True
+        item.default_width = None
+        return
+    item.default_width = width
+    if width is not None:
+        item.square = False
 
 class Column:
     def __init__(self, left=0, top=0, right=0, bottom=0) -> None:
@@ -131,7 +156,7 @@ class Column:
         self.default_height = height
 
     def set_col_width(self, width):
-        self.default_width = width
+        apply_col_width(self, width)
 
     def set_padding(self, padding):
         self._padding = padding
