@@ -358,16 +358,15 @@ IMAGE = {
 # `Scene:` - one heading per shot, so a shot is an ordinary record and lint, schema
 # and the typed widgets all work on it unchanged.
 CUTSCENE = {
+    # --- the BED ---
     "letterbox": boolean(),
     "skippable": boolean(),
     "release": boolean(),
     "bar": integer(hint="letterbox bar height in em"),
-}
-
-# One SHOT. `Scene:` groups it into a cutscene, `Rundown:` into a set the director
-# punches between - the same record either way, which is why Phase 3 and Phase 4
-# share one loader.
-SHOT = {
+    # --- a SHOT ---
+    # One archetype, not two, because a SECTION resolves to a single archetype and
+    # beds and shots live in the same section - splitting them left half of every
+    # cinematics file untyped and lint calling its fields unknown.
     "cutscene": text(hint="the cutscene this shot belongs to"),
     "rundown": text(hint="the rundown this shot belongs to"),
     # Resolved LATE: a cast name bound by the mission, else a role. The object does
@@ -380,13 +379,31 @@ SHOT = {
     "order": integer(hint="optional - document order is used without it"),
     "overlay": text(hint="an overlay kind to show with this shot"),
     "label": text(hint="what a director's tile says"),
+    # --- the shot's OVERLAY, authored inline ---
+    # A shot carries its overlay's own fields right beside it (`Overlay: lower_third`
+    # + `Name:`), rather than nesting them, so the record reads as one thing. They
+    # therefore belong in this schema: without them lint calls a correct file wrong,
+    # which teaches authors to ignore it.
+    "name": text(hint="overlay: the speaker's name plate"),
+    "line": text(hint="overlay: the subtitle line"),
+    "title": text(hint="overlay: hero/credits title"),
+    "subtitle": text(hint="overlay: hero subtitle"),
+    "align": enum("left", "right", hint="overlay: which side the portrait sits on"),
+    "face": face(hint="overlay: a face string, or a cast name"),
+    "ship": text(hint="overlay: a ship-type key"),
+    "icon": text(hint="overlay: an icon spec"),
+    "image": text(hint="overlay: an image key"),
+    "color": color(hint="overlay: name-plate color"),
+    "background": color(hint="overlay: fill behind the strip"),
+    "slot": text(hint="overlay: override the kind's default slot"),
 }
+SHOT = CUTSCENE     # one schema; "shot" and "cutscene" are two words for it
 
 ARCHETYPES = {
     "quest": QUEST, "lifeform": LIFEFORM, "item": ITEM, "side": SIDE,
     "scan": SCAN, "landmark": LANDMARK, "region": REGION, "map": MAP,
     "dialogue": DIALOGUE, "image": IMAGE,
-    "cutscene": CUTSCENE, "shot": SHOT,
+    "cutscene": CUTSCENE,
 }
 
 # TRAITS: a concern a record ALSO has, on top of what it is.
@@ -506,6 +523,11 @@ _SECTION_ALIASES = {
     # Names real missions already use for a group of quests. Before these, 5108 of
     # the corpus's 5273 field uses resolved to NO archetype, so the busiest part of
     # the language had no typing, no lint and no widgets.
+    # Cinematic sections. A cutscene bed and its shots share one archetype, so any
+    # of these words types a whole cinematics file.
+    "cinematic": "cutscene", "cinematics": "cutscene", "cutscene": "cutscene",
+    "cutscenes": "cutscene", "shot": "cutscene", "shots": "cutscene",
+    "rundown": "cutscene", "rundowns": "cutscene",
     "jobs": "quest", "job": "quest", "goals": "quest", "goal": "quest",
     "narrative": "quest", "missions": "quest", "mission": "quest",
     "contracts": "quest", "bounties": "quest", "scenario": "map",

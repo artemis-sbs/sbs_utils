@@ -7,7 +7,6 @@ Phase 4 already share one ``shot_apply``, both get AMD from this one loader::
 
     # [Chapter One](intro)
     ---
-    Kind: cutscene
     Letterbox: yes
     Skippable: yes
     ---
@@ -177,7 +176,8 @@ def amd_cutscenes(section):
     """Load every cutscene, shot and rundown in ``section``.
 
     Returns ``{"cutscenes": {...}, "rundowns": {...}}``. A record with
-    ``Kind: cutscene`` is a bed; a record with ``Cutscene:`` or ``Rundown:`` is a shot.
+    A record carrying ``Cutscene:`` or ``Rundown:`` is a SHOT; one carrying neither is
+    that cutscene's BED (matched to its shots by key).
 
     NOT ``Scene:``: that field is already a lifeform's dialogue scene, and the schema
     INFERS the lifeform archetype from it (``("scene", "lifeform")``), so a shot
@@ -192,8 +192,11 @@ def amd_cutscenes(section):
         key = rec.get("key")
         if not key:
             continue
-        kind = str(data.get("kind") or "").strip().lower()
-        if kind == "cutscene":
+        # A BED is structural: the record that carries neither grouping field. It
+        # is NOT flagged with `Kind: cutscene` - `Kind:` infers the landmark
+        # archetype, so that spelling typed the bed as a landmark and lint called
+        # every bed field unknown.
+        if not data.get("cutscene") and not data.get("rundown"):
             beds[key] = {
                 "letterbox": _truthy(data.get("letterbox"), True),
                 "skippable": _truthy(data.get("skippable"), True),
