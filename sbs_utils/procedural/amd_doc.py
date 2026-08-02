@@ -321,12 +321,19 @@ def lore_register(key, display, fname, domain=None):
             break
     else:
         _LORE_SOURCES.append(entry)
-    # Registering lore is what MAKES there be a Library - the tab is not declared
-    # separately and then gated. Gating it would race: addons load in a
-    # non-deterministic order, so a tab that asked "is there lore yet?" at module level
-    # would get a different answer depending on which addon ran first. Here the question
-    # cannot be asked too early, because asking IS the registration. Idempotent, and
-    # per-client like every other tab.
+    # Registering lore THAT RESOLVES is what makes there be a Library.
+    #
+    # The tab is not declared separately and then gated on "is there any lore yet?" -
+    # that races, because addons load in a non-deterministic order and the answer would
+    # depend on which ran first. Each registrant instead answers about its OWN file,
+    # which cannot be asked too early: the file is on disk or in a zip either way.
+    #
+    # The `if` matters. universe_core registers its Codex unconditionally, so without it
+    # every mission loading the universe ENGINE got a Library tab - Storm's Beacon has no
+    # lore.amd and got an empty one, which is the empty-shelf bug wearing a new hat. The
+    # source stays registered either way; it just does not conjure a tab it cannot fill.
+    if not amd_has_content(fname):
+        return
     try:
         from sbs_utils.procedural.gui.console_tab import gui_tab_add_top
         gui_tab_add_top("library")

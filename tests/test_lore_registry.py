@@ -127,3 +127,44 @@ class TestReadFromAddon(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTabOnlyWhenFillable(unittest.TestCase):
+    """Registering a source whose file resolves nowhere must not conjure a tab.
+
+    universe_core registers its Codex unconditionally, so every mission loading the
+    universe ENGINE reaches lore_register - Storm's Beacon has no lore.amd and was given
+    an empty Library.
+    """
+
+    def setUp(self):
+        lore_clear()
+        self.tabs = []
+        from sbs_utils.procedural.gui import console_tab
+        self._real = console_tab.gui_tab_add_top
+        console_tab.gui_tab_add_top = lambda name: self.tabs.append(name)
+        self._files = {}
+        self._real_has = amd_doc.amd_has_content
+        amd_doc.amd_has_content = lambda f: self._files.get(f) is not None
+
+    def tearDown(self):
+        from sbs_utils.procedural.gui import console_tab
+        console_tab.gui_tab_add_top = self._real
+        amd_doc.amd_has_content = self._real_has
+        lore_clear()
+
+    def test_an_unresolvable_source_adds_no_tab(self):
+        lore_register("universe", "Codex", "lore.amd")
+        self.assertEqual(self.tabs, [])
+        self.assertEqual(len(lore_sources()), 1, "the source should still be registered")
+
+    def test_a_resolvable_source_adds_the_tab(self):
+        self._files["lore.amd"] = "# [Codex](codex)\n"
+        lore_register("universe", "Codex", "lore.amd")
+        self.assertEqual(self.tabs, ["library"])
+
+    def test_one_resolvable_source_among_several_is_enough(self):
+        self._files["library_docs.amd"] = "# [Helpfile](zunok)\n"
+        lore_register("universe", "Codex", "lore.amd")          # missing
+        lore_register("lm", "Helpfile", "library_docs.amd")     # present
+        self.assertEqual(self.tabs, ["library"])
