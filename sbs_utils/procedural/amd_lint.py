@@ -330,12 +330,29 @@ def amd_lint_keys(doc):
     from sbs_utils.procedural.amd_core import path_of
     findings = []
     for key, nodes in sorted(doc.duplicates.items()):
-        where = ", ".join(path_of(n) for n in nodes)
-        for n in nodes[1:]:
-            findings.append(AmdFinding.at(
-                n.key_span or n.span, WARNING, "duplicate-key",
-                f"`{key}` names {len(nodes)} records ({where}) - reference them by "
-                f"path, or rename so a bare `{key}` is unambiguous"))
+        # SIBLINGS only. A record is addressed by PATH, so two cousins may share a leaf
+        # name - `job_sweep/recover` and `job_cache/recover` are two different steps and
+        # reading them as short names scoped to their job is the point, which this rule's
+        # own docstring says. Warning on every duplicate contradicted that: peacetime's
+        # three `scan` steps and three `recover` steps were flagged forever with nothing
+        # to fix, because renaming them would make the file worse and every reference to
+        # them already writes the path (`ambiguous-reference` below fires on the ones that
+        # do not, and fires zero times there).
+        #
+        # Two SIBLINGS sharing a key is the real defect: no path can tell them apart, so
+        # one of them is unreachable however it is referenced.
+        by_parent = {}
+        for n in nodes:
+            by_parent.setdefault(id(n.parent), []).append(n)
+        for clash in by_parent.values():
+            if len(clash) < 2:
+                continue
+            where = ", ".join(path_of(n) for n in clash)
+            for n in clash[1:]:
+                findings.append(AmdFinding.at(
+                    n.key_span or n.span, WARNING, "duplicate-key",
+                    f"`{key}` names {len(clash)} records under the same parent ({where}) "
+                    f"- no path can tell them apart, so rename one"))
     for ref in doc.refs:
         if ref.kind in ("scene", "parent", "reveal", "choice") and doc.is_ambiguous(ref.value):
             owner = doc.by_key.get(ref.owner)

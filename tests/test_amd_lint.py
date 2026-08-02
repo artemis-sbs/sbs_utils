@@ -449,3 +449,38 @@ Reserve: 4000
         found = self._unknown(self.WORLDLET.replace("Also: economy\n", ""))
         self.assertEqual(len(found), 2)
         self.assertTrue(any("Yields" in m for m in found))
+
+
+class TestDuplicateKeyIsAboutSiblings(unittest.TestCase):
+    """A record is addressed by PATH, so cousins may share a leaf name. Only siblings
+    sharing one is a defect - no path can tell those apart."""
+
+    HEAD = "# [M](m)\n\n## [Jobs](jobs)\n\n"
+
+    def _dupes(self, src):
+        from sbs_utils.procedural.amd_lint import amd_lint
+        return [f for f in amd_lint(content=src, cross_file=False)
+                if f.code == "duplicate-key"]
+
+    def test_cousins_may_share_a_key(self):
+        """peacetime's `job_sweep/recover` and `job_cache/recover` are two steps, and
+        reading them as short names scoped to their job is the point."""
+        src = (self.HEAD + "### [Sweep](job_sweep)\n\n#### [Recover](recover)\n\n"
+               "### [Cache](job_cache)\n\n#### [Recover](recover)\n")
+        self.assertEqual(self._dupes(src), [])
+
+    def test_siblings_may_not(self):
+        src = (self.HEAD + "### [Sweep](job_sweep)\n\n#### [Recover](recover)\n\n"
+               "#### [Recover Again](recover)\n")
+        found = self._dupes(src)
+        self.assertEqual(len(found), 1)
+        self.assertIn("same parent", found[0].message)
+
+    def test_an_ambiguous_bare_reference_is_still_flagged(self):
+        """The real hazard is unchanged: a bare reference that cannot be resolved."""
+        from sbs_utils.procedural.amd_lint import amd_lint
+        src = (self.HEAD + "### [Sweep](job_sweep)\n\n#### [Recover](recover)\n\n"
+               "### [Cache](job_cache)\n\n#### [Recover](recover)\n\n"
+               "### [Start](start)\n---\nThen: reveal recover\n---\n")
+        codes = [f.code for f in amd_lint(content=src, cross_file=False)]
+        self.assertIn("ambiguous-reference", codes)
