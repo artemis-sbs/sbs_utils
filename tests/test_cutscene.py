@@ -113,15 +113,15 @@ class TestSequencing(CutsceneBase):
         # Not a tick later: a cutscene that begins on the next frame begins on the
         # OLD shot, which reads as a late cut.
         a = camera_anchor(0, 0, 0)
-        cutscene_play([{"subject": a, "eye": (0, 100, -900), "seconds": 3}], to=C1)
+        cutscene_play([{"subject": a, "lens": (0, 100, -900), "seconds": 3}], to=C1)
         self.assertEqual(self.dolly(), a)
 
     def test_shots_run_in_order(self):
         a = camera_anchor(0, 0, 0)
         b = camera_anchor(5000, 0, 0)
         cutscene_play([
-            {"subject": a, "eye": (0, 0, -900), "seconds": 2},
-            {"subject": b, "eye": (5000, 0, -900), "seconds": 2},
+            {"subject": a, "lens": (0, 0, -900), "seconds": 2},
+            {"subject": b, "lens": (5000, 0, -900), "seconds": 2},
         ], to=C1)
         self.assertEqual(self.dolly(), a)
         self.advance(2.5)
@@ -129,7 +129,7 @@ class TestSequencing(CutsceneBase):
 
     def test_it_resolves_when_the_last_shot_ends(self):
         a = camera_anchor(0, 0, 0)
-        prom = cutscene_play([{"subject": a, "eye": (0, 0, -900), "seconds": 2}],
+        prom = cutscene_play([{"subject": a, "lens": (0, 0, -900), "seconds": 2}],
                              to=C1)
         self.advance(1.0)
         self.assertFalse(prom.done())
@@ -148,7 +148,7 @@ class TestSequencing(CutsceneBase):
 
     def test_a_named_cutscene_can_be_replayed(self):
         a = camera_anchor(0, 0, 0)
-        cutscene_define("intro", [{"subject": a, "eye": (0, 0, -900), "seconds": 1}])
+        cutscene_define("intro", [{"subject": a, "lens": (0, 0, -900), "seconds": 1}])
         self.assertIsNotNone(cutscene_get("intro"))
         for _ in range(2):
             prom = cutscene_play("intro", to=C1)
@@ -162,28 +162,28 @@ class TestSequencing(CutsceneBase):
 
     def test_no_audience_resolves(self):
         a = camera_anchor(0, 0, 0)
-        prom = cutscene_play([{"subject": a, "eye": (0, 0, -1), "seconds": 1}], to=[])
+        prom = cutscene_play([{"subject": a, "lens": (0, 0, -1), "seconds": 1}], to=[])
         self.assertTrue(prom.done())
 
 
 class TestFurniture(CutsceneBase):
     def test_the_letterbox_is_up_during_and_gone_after(self):
         a = camera_anchor(0, 0, 0)
-        cutscene_play([{"subject": a, "eye": (0, 0, -900), "seconds": 2}], to=C1)
+        cutscene_play([{"subject": a, "lens": (0, 0, -900), "seconds": 2}], to=C1)
         self.assertIsNotNone(self.slot_content("fullscreen"))
         self.advance(3.0)
         self.assertIsNone(self.slot_content("fullscreen"))
 
     def test_letterbox_can_be_turned_off(self):
         a = camera_anchor(0, 0, 0)
-        cutscene_play([{"subject": a, "eye": (0, 0, -900), "seconds": 1}],
+        cutscene_play([{"subject": a, "lens": (0, 0, -900), "seconds": 1}],
                       to=C1, letterbox=False)
         self.assertIsNone(self.slot_content("fullscreen"))
 
     def test_a_shot_can_carry_an_overlay(self):
         a = camera_anchor(0, 0, 0)
         cutscene_play([{
-            "subject": a, "eye": (0, 0, -900), "seconds": 2,
+            "subject": a, "lens": (0, 0, -900), "seconds": 2,
             "overlay": {"kind": "lower_third", "name": "Phoenix", "line": "Standing by."},
         }], to=C1)
         content = self.slot_content("lower_third")
@@ -197,7 +197,7 @@ class TestFurniture(CutsceneBase):
         a = camera_anchor(0, 0, 0)
         overlay_toast("mine", to=C1)
         cutscene_play([{
-            "subject": a, "eye": (0, 0, -900), "seconds": 1,
+            "subject": a, "lens": (0, 0, -900), "seconds": 1,
             "overlay": {"kind": "lower_third", "name": "P", "line": "x"},
         }], to=C1)
         self.advance(2.0)
@@ -209,7 +209,7 @@ class TestFurniture(CutsceneBase):
 class TestSkip(CutsceneBase):
     def test_skip_ends_it_and_says_so(self):
         a = camera_anchor(0, 0, 0)
-        prom = cutscene_play([{"subject": a, "eye": (0, 0, -900), "seconds": 30}],
+        prom = cutscene_play([{"subject": a, "lens": (0, 0, -900), "seconds": 30}],
                              to=C1)
         self.advance(0.5)
         self.assertEqual(cutscene_skip(C1), 1)
@@ -219,7 +219,7 @@ class TestSkip(CutsceneBase):
     def test_skip_tears_the_furniture_down_too(self):
         a = camera_anchor(0, 0, 0)
         cutscene_play([{
-            "subject": a, "eye": (0, 0, -900), "seconds": 30,
+            "subject": a, "lens": (0, 0, -900), "seconds": 30,
             "overlay": {"kind": "lower_third", "name": "P", "line": "x"},
         }], to=C1)
         cutscene_skip(C1)
@@ -228,7 +228,7 @@ class TestSkip(CutsceneBase):
 
     def test_an_unskippable_cutscene_ignores_it(self):
         a = camera_anchor(0, 0, 0)
-        prom = cutscene_play([{"subject": a, "eye": (0, 0, -900), "seconds": 10}],
+        prom = cutscene_play([{"subject": a, "lens": (0, 0, -900), "seconds": 10}],
                              to=C1, skippable=False)
         self.assertEqual(cutscene_skip(C1), 0)
         self.assertFalse(prom.done())
@@ -237,7 +237,7 @@ class TestSkip(CutsceneBase):
         # The teardown path - a mission ending must not be blocked by a scene that
         # declared itself unskippable to the crew.
         a = camera_anchor(0, 0, 0)
-        prom = cutscene_play([{"subject": a, "eye": (0, 0, -900), "seconds": 10}],
+        prom = cutscene_play([{"subject": a, "lens": (0, 0, -900), "seconds": 10}],
                              to=C1, skippable=False)
         self.assertEqual(cutscene_stop(C1), 1)
         self.assertTrue(prom.done())
@@ -255,7 +255,7 @@ class TestRecovery(CutsceneBase):
         b = camera_anchor(5000, 0, 0)
         cutscene_play([
             {"subject": a, "move": [(0, 0, -3000), (0, 0, -500)], "seconds": 30},
-            {"subject": b, "eye": (5000, 0, -900), "seconds": 5},
+            {"subject": b, "lens": (5000, 0, -900), "seconds": 5},
         ], to=C1)
         self.advance(1.0)
         self.assertEqual(self.dolly(), a)
@@ -266,9 +266,9 @@ class TestRecovery(CutsceneBase):
     def test_a_second_cutscene_replaces_the_first(self):
         a = camera_anchor(0, 0, 0)
         b = camera_anchor(5000, 0, 0)
-        first = cutscene_play([{"subject": a, "eye": (0, 0, -900), "seconds": 30}],
+        first = cutscene_play([{"subject": a, "lens": (0, 0, -900), "seconds": 30}],
                               to=C1)
-        second = cutscene_play([{"subject": b, "eye": (5000, 0, -900), "seconds": 2}],
+        second = cutscene_play([{"subject": b, "lens": (5000, 0, -900), "seconds": 2}],
                                to=C1)
         self.assertTrue(first.done(), "the first must not keep driving")
         self.assertEqual(self.dolly(), b)
@@ -277,7 +277,7 @@ class TestRecovery(CutsceneBase):
 
     def test_it_leaves_nothing_behind(self):
         a = camera_anchor(0, 0, 0)
-        cutscene_play([{"subject": a, "eye": (0, 0, -900), "seconds": 1}], to=C1)
+        cutscene_play([{"subject": a, "lens": (0, 0, -900), "seconds": 1}], to=C1)
         self.advance(2.0)
         self.assertEqual(len(_PLAYING), 0)
         self.assertEqual(len(_MOVES), 0)
@@ -286,13 +286,13 @@ class TestRecovery(CutsceneBase):
     def test_the_camera_is_released_at_the_end(self):
         # Before the caller deletes its scene, not after.
         a = camera_anchor(0, 0, 0)
-        cutscene_play([{"subject": a, "eye": (0, 0, -900), "seconds": 1}], to=C1)
+        cutscene_play([{"subject": a, "lens": (0, 0, -900), "seconds": 1}], to=C1)
         self.advance(2.0)
         self.assertEqual(mock_sbs._cinematic[C1]["script"], 0)
 
     def test_release_can_be_declined(self):
         a = camera_anchor(0, 0, 0)
-        cutscene_play([{"subject": a, "eye": (0, 0, -900), "seconds": 1}],
+        cutscene_play([{"subject": a, "lens": (0, 0, -900), "seconds": 1}],
                       to=C1, release=False)
         self.advance(2.0)
         self.assertEqual(mock_sbs._cinematic[C1]["script"], 1)
@@ -304,7 +304,7 @@ class TestResetLedger(CutsceneBase):
         self.assertIn("cutscenes", _RESET_PROBES)
         self.assertIn("cutscenes playing", _RESET_PROBES)
         a = camera_anchor(0, 0, 0)
-        cutscene_define("x", [{"subject": a, "eye": (0, 0, -1), "seconds": 9}])
+        cutscene_define("x", [{"subject": a, "lens": (0, 0, -1), "seconds": 9}])
         cutscene_play("x", to=C1)
         audit = reset_mission_audit()
         self.assertEqual(audit.get("cutscenes"), 1)

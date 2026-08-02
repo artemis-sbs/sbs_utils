@@ -9,7 +9,7 @@ from sbs_utils.helpers import FrameContext, Context
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.vec import Vec3
 from sbs_utils.procedural.gui.camera import (camera_anchor, camera_assign, camera_track,
-                                             camera_auto, camera_orbit_eye, camera_shot)
+                                             camera_auto, camera_orbit_lens, camera_shot)
 from sbs_utils.procedural.query import to_object
 
 
@@ -65,7 +65,7 @@ class TestCamera(unittest.TestCase):
     # --- tracking ---------------------------------------------------------
     def test_track_points_the_named_client(self):
         cam = camera_anchor(0, 0, 0)
-        n = camera_track(C1, cam, eye=(0, 500, -1200))
+        n = camera_track(C1, cam, lens=(0, 500, -1200))
         self.assertEqual(n, 1)
         state = mock_sbs._cinematic.get(C1)
         self.assertIsNotNone(state)
@@ -85,7 +85,7 @@ class TestCamera(unittest.TestCase):
         as one object plus an offset - keeping the lens exactly where the caller put it."""
         cam = camera_anchor(0, 0, 0)
         subject = camera_anchor(5000, 0, 0)
-        camera_track(C3, cam, eye=Vec3(0, 100, -400), target=subject)
+        camera_track(C3, cam, lens=Vec3(0, 100, -400), target=subject)
         state = mock_sbs._cinematic.get(C3)
         self.assertEqual(state["dolly_id"], state["target_id"])   # one object, as required
         self.assertEqual(state["target_id"], subject)             # the SUBJECT is kept
@@ -131,9 +131,9 @@ class TestCamera(unittest.TestCase):
 
     # --- the degenerate pin -----------------------------------------------
     def test_degenerate_pin_is_detected(self):
-        """Camera exactly on its own look-at point: normalize(target-eye) divides by zero, so
+        """Camera exactly on its own look-at point: normalize(target-lens) divides by zero, so
         the engine draws a BLACK frame with nothing logged. Easy to ask for by accident, since
-        `target` defaults to the dolly and `eye` defaults to no offset."""
+        `target` defaults to the dolly and `lens` defaults to no offset."""
         from sbs_utils.procedural.gui.camera import _degenerate
         cam = camera_anchor(0, 0, 0)
         zero = Vec3(0, 0, 0)
@@ -151,7 +151,7 @@ class TestCamera(unittest.TestCase):
     def test_degenerate_pin_is_nudged_not_emitted(self):
         """We never hand the engine a zero-length view vector - it just draws black."""
         cam = camera_anchor(0, 0, 0)
-        camera_track(C1, cam)                     # no eye offset, target defaults to the dolly
+        camera_track(C1, cam)                     # no lens offset, target defaults to the dolly
         off = mock_sbs._cinematic[C1]["dolly_off"]
         self.assertNotEqual(off, (0.0, 0.0, 0.0))
 
@@ -166,20 +166,20 @@ class TestCamera(unittest.TestCase):
 
     # --- orbit geometry ---------------------------------------------------
     def test_orbit_eye_zero_yaw_is_straight_back(self):
-        v = camera_orbit_eye(1000)
+        v = camera_orbit_lens(1000)
         self.assertAlmostEqual(v.x, 0, places=3)
         self.assertAlmostEqual(v.z, 1000, places=3)
 
     def test_orbit_eye_yaw_90_swings_to_the_side(self):
         """The Game Master's formula: orbiting is rotating the OFFSET, because the engine does
         not rotate offsets into the dolly's frame."""
-        v = camera_orbit_eye(1000, yaw=90)
+        v = camera_orbit_lens(1000, yaw=90)
         self.assertAlmostEqual(abs(v.x), 1000, places=2)
         self.assertAlmostEqual(v.z, 0, places=2)
 
     def test_orbit_eye_keeps_its_distance(self):
         for yaw in (0, 37, 90, 180, 305):
-            v = camera_orbit_eye(750, yaw=yaw, pitch=15)
+            v = camera_orbit_lens(750, yaw=yaw, pitch=15)
             self.assertAlmostEqual((v.x * v.x + v.y * v.y + v.z * v.z) ** 0.5, 750, places=2)
 
 

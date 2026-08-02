@@ -17,7 +17,7 @@ FOUR FACTS ABOUT THE ENGINE CAMERA, all of them load-bearing:
 * **The offsets are WORLD-space, not object-local.** LM's Game Master orbits its 3D view by
   rotating the offset vector itself before passing it in
   (`Vec3(0,0,d).rotate_around(...)`, gamemaster.mast) - which it would not need to do if the
-  engine rotated offsets into the dolly's frame. `camera_orbit_eye` below is that formula.
+  engine rotated offsets into the dolly's frame. `camera_orbit_lens` below is that formula.
 * **The console must be ASSIGNED to the object the camera rides.** Engine-observed: a camera
   change only takes when the client is assigned to the dolly. Re-pointing alone left a black
   screen, and so did moving the object the lens was already on; assigning and then pointing
@@ -59,14 +59,14 @@ def _xyz(v):
     return (float(v.x), float(v.y), float(v.z))
 
 
-def _degenerate(dolly_id, eye, target_id, look):
+def _degenerate(dolly_id, lens, target_id, look):
     """True when the camera would sit exactly on the point it is aimed at.
 
     Same object and identical offsets is the common way in; two different objects that happen
     to share a position is the rarer one, and is checked too because the symptom is identical.
     """
     from ..query import to_object
-    ex, ey, ez = _xyz(eye)
+    ex, ey, ez = _xyz(lens)
     lx, ly, lz = _xyz(look)
     if dolly_id == target_id:
         return (ex, ey, ez) == (lx, ly, lz)
@@ -134,12 +134,12 @@ def camera_assign(to, obj, consoles=None):
     return n
 
 
-def camera_track(to, dolly, eye=None, target=None, look=None, consoles=None):
+def camera_track(to, dolly, lens=None, target=None, look=None, consoles=None):
     """Point one or more consoles' cinematic camera at a subject.
 
-    Camera sits at ``dolly`` + ``eye``; it looks at ``target`` + ``look``. Both offsets are
+    Camera sits at ``dolly`` + ``lens``; it looks at ``target`` + ``look``. Both offsets are
     WORLD-space (see the module docstring), so an offset does not rotate as the dolly turns -
-    use `camera_orbit_eye` to place a shot by angle, and recompute it when you want the angle
+    use `camera_orbit_lens` to place a shot by angle, and recompute it when you want the angle
     to change.
 
     ``target`` defaults to ``dolly``: a single-subject shot pins both ids to that object, which
@@ -156,8 +156,8 @@ def camera_track(to, dolly, eye=None, target=None, look=None, consoles=None):
     Args:
         to: audience - a client id, a ship, a side, or a set/role query (see ``consoles_of``).
         dolly: the object the camera rides (id or object). Prefer a `camera_anchor`; pinning a
-            SHIP with no ``eye`` offset puts the lens inside its hull.
-        eye (Vec3 | tuple, optional): offset from the dolly. Defaults to no offset.
+            SHIP with no ``lens`` offset puts the lens inside its hull.
+        lens (Vec3 | tuple, optional): offset from the dolly. Defaults to no offset.
         target (optional): what to look at. Defaults to the dolly.
         look (Vec3 | tuple, optional): offset from the target. Defaults to no offset.
         consoles (str, optional): narrow to consoles carrying these roles.
@@ -175,7 +175,7 @@ def camera_track(to, dolly, eye=None, target=None, look=None, consoles=None):
     if not dolly_id:
         return 0
     target_id = to_id(target) if target is not None else dolly_id
-    eye_v = _vec(eye)
+    eye_v = _vec(lens)
     look_v = _vec(look)
 
     # ENGINE CONSTRAINT: the dolly and the target must be the SAME object. Naming two
@@ -202,7 +202,7 @@ def camera_track(to, dolly, eye=None, target=None, look=None, consoles=None):
             dolly_id = target_id
 
     # A camera placed exactly where it is looking has no direction to face: the renderer's
-    # `normalize(target - eye)` divides by a zero length, there is no forward axis, and the
+    # `normalize(target - lens)` divides by a zero length, there is no forward axis, and the
     # frame comes out BLACK with nothing logged anywhere. Engine-observed, and easy to ask for
     # by accident - `camera_track(to, cam)` with no offset is exactly this, since `target`
     # defaults to the dolly. Say so rather than let it look like a broken camera.
@@ -211,7 +211,7 @@ def camera_track(to, dolly, eye=None, target=None, look=None, consoles=None):
         DEBUG("[camera] camera_track: the camera was AT the point it is looking at "
               f"(dolly {dolly_id} + {tuple(_xyz(eye_v))} == target {target_id} + "
               f"{tuple(_xyz(look_v))}). Nudged back by {MIN_SEPARATION}u so it draws - give "
-              "`eye` a real offset to frame it deliberately.")
+              "`lens` a real offset to frame it deliberately.")
         eye_v = Vec3(eye_v.x, eye_v.y, eye_v.z - MIN_SEPARATION)
 
     sbs = FrameContext.context.sbs
@@ -223,7 +223,7 @@ def camera_track(to, dolly, eye=None, target=None, look=None, consoles=None):
     return n
 
 
-def camera_shot(to, subject, eye_world, consoles=None):
+def camera_shot(to, subject, lens_world, consoles=None):
     """Put the lens at an ABSOLUTE world position, looking at `subject`.
 
     The natural way to write a shot - "camera over here, pointed at that" - is to pass two
@@ -239,7 +239,7 @@ def camera_shot(to, subject, eye_world, consoles=None):
     Args:
         to: audience (see ``consoles_of``).
         subject: the object to look at - and, necessarily, the one the lens rides.
-        eye_world (Vec3 | tuple): where the camera should BE, in world coordinates.
+        lens_world (Vec3 | tuple): where the camera should BE, in world coordinates.
         consoles (str, optional): narrow to consoles carrying these roles.
 
     Returns:
@@ -252,9 +252,9 @@ def camera_shot(to, subject, eye_world, consoles=None):
     subj = to_object(subject)
     if subj is None:
         return 0
-    want = _vec(eye_world)
+    want = _vec(lens_world)
     offset = Vec3(want.x - subj.pos.x, want.y - subj.pos.y, want.z - subj.pos.z)
-    return camera_track(to, subject, eye=offset, target=subject, consoles=consoles)
+    return camera_track(to, subject, lens=offset, target=subject, consoles=consoles)
 
 
 def camera_auto(to=None, consoles=None):
@@ -276,7 +276,7 @@ def camera_auto(to=None, consoles=None):
     return n
 
 
-def camera_orbit_eye(distance, yaw=0.0, pitch=0.0):
+def camera_orbit_lens(distance, yaw=0.0, pitch=0.0):
     """The offset for a shot ``distance`` away at a given angle, as a world-space Vec3.
 
     This is LM's Game Master formula, which is the reference implementation of an orbit here:
@@ -290,10 +290,10 @@ def camera_orbit_eye(distance, yaw=0.0, pitch=0.0):
         pitch (float, optional): degrees above (positive) or below it.
 
     Returns:
-        Vec3: the offset to pass as ``eye``.
+        Vec3: the offset to pass as ``lens``.
 
     Example:
-        camera_track(role("mainscreen"), cam, eye=camera_orbit_eye(1800, yaw=35, pitch=20),
+        camera_track(role("mainscreen"), cam, lens=camera_orbit_lens(1800, yaw=35, pitch=20),
                      target=hero_ship)
     """
     return Vec3(0, 0, float(distance)).rotate_around(Vec3(0, 0, 0), float(pitch), float(yaw), 0)
@@ -313,7 +313,7 @@ def camera_orbit_eye(distance, yaw=0.0, pitch=0.0):
 #
 # Everything returns a Promise, so MAST can `await` a move or race it.
 
-# client_id -> {"task", "eye" (world Vec3), "subject"}. Per CONSOLE, because two
+# client_id -> {"task", "lens" (world Vec3), "subject"}. Per CONSOLE, because two
 # consoles can be running different shots at once.
 _MOVES = {}
 
@@ -336,7 +336,7 @@ def camera_move_stop(to=None, consoles=None):
     return n
 
 
-def camera_eye(to=None, consoles=None):
+def camera_lens(to=None, consoles=None):
     """Where the lens is right now on the first of these consoles, or None.
 
     The mover records it, so a rack or a follow-on move can start from where the
@@ -345,7 +345,7 @@ def camera_eye(to=None, consoles=None):
     for cid in consoles_of(to, consoles):
         state = _MOVES.get(cid)
         if state is not None:
-            return state.get("eye")
+            return state.get("lens")
     return None
 
 
@@ -368,10 +368,10 @@ def _now():
     return FrameContext.sim_seconds
 
 
-def _drive(to, consoles, subject, seconds, eye_at, ease="in_out"):
+def _drive(to, consoles, subject, seconds, lens_at, ease="in_out"):
     """Run a shot whose lens position is a function of eased time.
 
-    `eye_at(u)` returns the world position for eased progress `u`. Shared by every
+    `lens_at(u)` returns the world position for eased progress `u`. Shared by every
     move below, because the only thing that differs between them is that function.
     """
     from ...futures import Promise
@@ -383,7 +383,7 @@ def _drive(to, consoles, subject, seconds, eye_at, ease="in_out"):
         # Resolve with the position rather than None: Promise.done() tests
         # `_result is not None`, so a None result is indistinguishable from never
         # having resolved - and a story awaiting it would hang forever.
-        prom.set_result(eye_at(0.0))
+        prom.set_result(lens_at(0.0))
         return prom
 
     camera_move_stop(cids)
@@ -422,18 +422,18 @@ def _drive(to, consoles, subject, seconds, eye_at, ease="in_out"):
             t.stop()
             camera_move_stop(cids)
             if not prom.done():
-                prom.set_result(_MOVES.get(cids[0], {}).get("eye") or eye_at(0.0))
+                prom.set_result(_MOVES.get(cids[0], {}).get("lens") or lens_at(0.0))
             return
         elapsed = _now() - start
         raw = elapsed / seconds
         if raw > 1.0:
             raw = 1.0
-        where = eye_at(_ease(ease, raw))
+        where = lens_at(_ease(ease, raw))
         camera_shot(cids, subject, where)
         for cid in cids:
             state = _MOVES.get(cid)
             if state is not None:
-                state["eye"] = where
+                state["lens"] = where
         if raw >= 1.0:
             t.stop()
             camera_move_stop(cids)
@@ -444,25 +444,25 @@ def _drive(to, consoles, subject, seconds, eye_at, ease="in_out"):
     # a stutter rather than a saving.
     task = TickDispatcher.do_interval(_tick, 0)
     for cid in cids:
-        _MOVES[cid] = {"task": task, "eye": eye_at(0.0), "subject": subject,
+        _MOVES[cid] = {"task": task, "lens": lens_at(0.0), "subject": subject,
                        "token": token}
     # AIM NOW, not on the first tick. Waiting a frame leaves the lens wherever the
     # last shot put it for one frame - a visible pop at the top of every move, and
     # the reason a cut into a move looked like a cut into the OLD shot.
-    where0 = eye_at(0.0)
+    where0 = lens_at(0.0)
     camera_shot(cids, subject, where0)
     return prom
 
 
-def camera_move(to, subject, eye_from, eye_to, seconds, ease="in_out",
+def camera_move(to, subject, lens_from, lens_to, seconds, ease="in_out",
                 consoles=None):
     """Glide the lens from one world position to another, looking at `subject`.
 
     Args:
         to: audience (see ``consoles_of``).
         subject: what the shot looks at - and, necessarily, what the lens rides.
-        eye_from (Vec3 | tuple): world position to start at.
-        eye_to (Vec3 | tuple): world position to end at.
+        lens_from (Vec3 | tuple): world position to start at.
+        lens_to (Vec3 | tuple): world position to end at.
         seconds (float): duration.
         ease (str): ``in_out`` (default), ``in``, ``out`` or ``linear``. Ours - the
             engine interpolates nothing.
@@ -473,8 +473,8 @@ def camera_move(to, subject, eye_from, eye_to, seconds, ease="in_out",
     Example:
         await camera_move(role("mainscreen"), hero, Vec3(0,900,-4000), Vec3(0,300,-900), 6)
     """
-    a = _vec(eye_from) or Vec3(0, 0, 0)
-    b = _vec(eye_to) or Vec3(0, 0, 0)
+    a = _vec(lens_from) or Vec3(0, 0, 0)
+    b = _vec(lens_to) or Vec3(0, 0, 0)
 
     def _at(u):
         return Vec3(a.x + (b.x - a.x) * u,
@@ -489,7 +489,7 @@ def camera_orbit(to, subject, distance, from_yaw=0.0, to_yaw=360.0, seconds=10.0
     """Swing the lens around `subject` at a fixed distance.
 
     Because offsets are world-space, this is the Game Master's move: recompute
-    ``camera_orbit_eye`` each tick and re-aim. It follows a moving subject for free,
+    ``camera_orbit_lens`` each tick and re-aim. It follows a moving subject for free,
     since the offset is applied to wherever the subject is at the time.
 
     Args:
@@ -508,7 +508,7 @@ def camera_orbit(to, subject, distance, from_yaw=0.0, to_yaw=360.0, seconds=10.0
 
     def _at(u):
         yaw = from_yaw + (to_yaw - from_yaw) * u
-        offset = camera_orbit_eye(distance, yaw, pitch)
+        offset = camera_orbit_lens(distance, yaw, pitch)
         base = subj.pos if subj is not None else Vec3(0, 0, 0)
         return Vec3(base.x + offset.x, base.y + offset.y, base.z + offset.z)
 
@@ -524,14 +524,14 @@ def camera_rack(to, subject, consoles=None):
     Returns:
         int: how many consoles were re-aimed.
     """
-    eye = camera_eye(to, consoles)
+    lens = camera_lens(to, consoles)
     camera_move_stop(to, consoles)
-    if eye is None:
+    if lens is None:
         # Nothing recorded (no move has run) - the caller has to say where the lens
         # is, because the engine cannot be asked.
         return 0
-    n = camera_shot(to, subject, eye, consoles=consoles)
+    n = camera_shot(to, subject, lens, consoles=consoles)
     for cid in consoles_of(to, consoles):
-        _MOVES[cid] = {"task": None, "eye": eye, "subject": subject,
+        _MOVES[cid] = {"task": None, "lens": lens, "subject": subject,
                        "token": None}
     return n

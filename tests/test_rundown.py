@@ -109,7 +109,7 @@ class RundownBase(unittest.TestCase):
 class TestTheDesk(RundownBase):
     def test_punch_puts_a_shot_on_program(self):
         a = camera_anchor(0, 0, 0)
-        rundown_add("wide", a, eye=(0, 4000, -9000))
+        rundown_add("wide", a, lens=(0, 4000, -9000))
         self.assertTrue(rundown_punch("wide"))
         self.assertEqual(self.dolly(PGM), a)
 
@@ -117,8 +117,8 @@ class TestTheDesk(RundownBase):
         # Without it a punch is ambiguous the moment two shots look alike.
         a = camera_anchor(0, 0, 0)
         b = camera_anchor(5000, 0, 0)
-        rundown_add("wide", a, eye=(0, 4000, -9000))
-        rundown_add("hero", b, eye=(5000, 120, -420))
+        rundown_add("wide", a, lens=(0, 4000, -9000))
+        rundown_add("hero", b, lens=(5000, 120, -420))
         self.assertIsNone(rundown_live())
         rundown_punch("hero")
         self.assertEqual(rundown_live(), "hero")
@@ -126,8 +126,8 @@ class TestTheDesk(RundownBase):
     def test_staging_does_not_touch_program(self):
         a = camera_anchor(0, 0, 0)
         b = camera_anchor(5000, 0, 0)
-        rundown_add("wide", a, eye=(0, 4000, -9000))
-        rundown_add("hero", b, eye=(5000, 120, -420))
+        rundown_add("wide", a, lens=(0, 4000, -9000))
+        rundown_add("hero", b, lens=(5000, 120, -420))
         rundown_punch("wide")
         rundown_stage("hero")
         self.assertEqual(rundown_staged(), "hero")
@@ -137,8 +137,8 @@ class TestTheDesk(RundownBase):
     def test_take_promotes_preview_to_program(self):
         a = camera_anchor(0, 0, 0)
         b = camera_anchor(5000, 0, 0)
-        rundown_add("wide", a, eye=(0, 4000, -9000))
-        rundown_add("hero", b, eye=(5000, 120, -420))
+        rundown_add("wide", a, lens=(0, 4000, -9000))
+        rundown_add("hero", b, lens=(5000, 120, -420))
         rundown_punch("wide")
         rundown_stage("hero")
         self.assertEqual(rundown_take(), "hero")
@@ -150,7 +150,7 @@ class TestTheDesk(RundownBase):
 
     def test_punching_an_unknown_shot_changes_nothing(self):
         a = camera_anchor(0, 0, 0)
-        rundown_add("wide", a, eye=(0, 4000, -9000))
+        rundown_add("wide", a, lens=(0, 4000, -9000))
         rundown_punch("wide")
         self.assertFalse(rundown_punch("typo"))
         self.assertEqual(rundown_live(), "wide", "a typo took the feed down")
@@ -158,7 +158,7 @@ class TestTheDesk(RundownBase):
     def test_with_no_program_desk_a_punch_declines(self):
         rundown_clear()
         a = camera_anchor(0, 0, 0)
-        rundown_add("wide", a, eye=(0, 0, -900))
+        rundown_add("wide", a, lens=(0, 0, -900))
         self.assertFalse(rundown_punch("wide"))
 
 
@@ -167,9 +167,9 @@ class TestFurniture(RundownBase):
         # Otherwise the last shot's lower third sits over the new one.
         a = camera_anchor(0, 0, 0)
         b = camera_anchor(5000, 0, 0)
-        rundown_add("one", a, eye=(0, 0, -900),
+        rundown_add("one", a, lens=(0, 0, -900),
                     overlay={"kind": "lower_third", "name": "A", "line": "x"})
-        rundown_add("two", b, eye=(5000, 0, -900))
+        rundown_add("two", b, lens=(5000, 0, -900))
         rundown_punch("one")
         self.assertIsNotNone(self.pages[PGM].overlays.slots["lower_third"].content)
         rundown_punch("two")
@@ -179,7 +179,7 @@ class TestFurniture(RundownBase):
         # A director already knows what the tile says; duplicating the lower third
         # onto their screen tells them nothing and hides the framing.
         a = camera_anchor(0, 0, 0)
-        rundown_add("one", a, eye=(0, 0, -900),
+        rundown_add("one", a, lens=(0, 0, -900),
                     overlay={"kind": "lower_third", "name": "A", "line": "x"})
         rundown_stage("one")
         region = self.pages[PVW].overlays.slots.get("lower_third")
@@ -188,7 +188,7 @@ class TestFurniture(RundownBase):
 
     def test_release_hands_program_back_and_clears_the_tally(self):
         a = camera_anchor(0, 0, 0)
-        rundown_add("one", a, eye=(0, 0, -900),
+        rundown_add("one", a, lens=(0, 0, -900),
                     overlay={"kind": "lower_third", "name": "A", "line": "x"})
         rundown_punch("one")
         rundown_release()
@@ -203,8 +203,8 @@ class TestSuggest(RundownBase):
     def test_it_ranks_by_the_engines_own_excitement(self):
         a = camera_anchor(0, 0, 0)
         b = camera_anchor(5000, 0, 0)
-        rundown_add("wide", a, eye=(0, 4000, -9000))
-        rundown_add("hero", b, eye=(5000, 120, -420))
+        rundown_add("wide", a, lens=(0, 4000, -9000))
+        rundown_add("hero", b, lens=(5000, 120, -420))
         self.excite(b, 500)
         self.assertEqual(rundown_suggest(), "hero")
         self.excite(a, 900)
@@ -213,8 +213,8 @@ class TestSuggest(RundownBase):
     def test_it_does_not_suggest_what_is_already_live(self):
         a = camera_anchor(0, 0, 0)
         b = camera_anchor(5000, 0, 0)
-        rundown_add("wide", a, eye=(0, 0, -900))
-        rundown_add("hero", b, eye=(5000, 0, -900))
+        rundown_add("wide", a, lens=(0, 0, -900))
+        rundown_add("hero", b, lens=(5000, 0, -900))
         self.excite(a, 900)
         self.excite(b, 100)
         rundown_punch("wide")
@@ -224,20 +224,20 @@ class TestSuggest(RundownBase):
     def test_suggesting_never_punches(self):
         # The whole point of a rundown is that a person chooses.
         a = camera_anchor(0, 0, 0)
-        rundown_add("wide", a, eye=(0, 0, -900))
+        rundown_add("wide", a, lens=(0, 0, -900))
         self.excite(a, 900)
         self.assertEqual(rundown_suggest(), "wide")
         self.assertIsNone(rundown_live(), "suggest took the feed by itself")
 
     def test_nothing_exciting_means_no_suggestion(self):
         a = camera_anchor(0, 0, 0)
-        rundown_add("wide", a, eye=(0, 0, -900))
+        rundown_add("wide", a, lens=(0, 0, -900))
         self.assertIsNone(rundown_suggest())
 
     def test_a_dead_subject_scores_zero_rather_than_raising(self):
         from sbs_utils.procedural.space_objects import delete_object
         a = camera_anchor(0, 0, 0)
-        rundown_add("wide", a, eye=(0, 0, -900))
+        rundown_add("wide", a, lens=(0, 0, -900))
         self.excite(a, 900)
         delete_object(a)
         self.assertEqual(rundown_excitement("wide"), 0.0)
@@ -247,8 +247,8 @@ class TestTiles(RundownBase):
     def test_tiles_carry_what_a_console_needs(self):
         a = camera_anchor(0, 0, 0)
         b = camera_anchor(5000, 0, 0)
-        rundown_add("wide", a, eye=(0, 0, -900), label="Wide - station")
-        rundown_add("hero", b, eye=(5000, 0, -900))
+        rundown_add("wide", a, lens=(0, 0, -900), label="Wide - station")
+        rundown_add("hero", b, lens=(5000, 0, -900))
         self.excite(b, 400)
         rundown_punch("wide")
         rundown_stage("hero")
@@ -262,13 +262,13 @@ class TestTiles(RundownBase):
     def test_tiles_keep_rundown_order(self):
         a = camera_anchor(0, 0, 0)
         for name in ("one", "two", "three"):
-            rundown_add(name, a, eye=(0, 0, -900))
+            rundown_add(name, a, lens=(0, 0, -900))
         self.assertEqual([t["name"] for t in rundown_tiles()],
                          ["one", "two", "three"])
 
     def test_a_label_defaults_to_the_name(self):
         a = camera_anchor(0, 0, 0)
-        rundown_add("wide", a, eye=(0, 0, -900))
+        rundown_add("wide", a, lens=(0, 0, -900))
         self.assertEqual(rundown_tiles()[0]["label"], "wide")
 
 
@@ -276,7 +276,7 @@ class TestBookkeeping(RundownBase):
     def test_removing_the_live_shot_clears_the_tally_but_not_the_feed(self):
         # Pulling a shot out of a list is not a directing decision.
         a = camera_anchor(0, 0, 0)
-        rundown_add("wide", a, eye=(0, 0, -900))
+        rundown_add("wide", a, lens=(0, 0, -900))
         rundown_punch("wide")
         rundown_remove("wide")
         self.assertIsNone(rundown_live())
@@ -285,8 +285,8 @@ class TestBookkeeping(RundownBase):
     def test_add_replaces_by_name(self):
         a = camera_anchor(0, 0, 0)
         b = camera_anchor(5000, 0, 0)
-        rundown_add("wide", a, eye=(0, 0, -900))
-        rundown_add("wide", b, eye=(5000, 0, -900))
+        rundown_add("wide", a, lens=(0, 0, -900))
+        rundown_add("wide", b, lens=(5000, 0, -900))
         self.assertEqual(len(rundown_shots()), 1)
         self.assertEqual(rundown_get("wide")["subject"], b)
 
@@ -294,7 +294,7 @@ class TestBookkeeping(RundownBase):
         from sbs_utils.handlerhooks import _RESET_PROBES, reset_mission_audit
         self.assertIn("rundown shots", _RESET_PROBES)
         a = camera_anchor(0, 0, 0)
-        rundown_add("wide", a, eye=(0, 0, -900))
+        rundown_add("wide", a, lens=(0, 0, -900))
         self.assertEqual(reset_mission_audit().get("rundown shots"), 1)
         rundown_clear()
         self.assertNotIn("rundown shots", reset_mission_audit())
@@ -303,7 +303,7 @@ class TestBookkeeping(RundownBase):
         # A stale program audience would aim the next mission's punches at dead
         # client ids - the reused-interpreter trap.
         a = camera_anchor(0, 0, 0)
-        rundown_add("wide", a, eye=(0, 0, -900))
+        rundown_add("wide", a, lens=(0, 0, -900))
         rundown_punch("wide")
         rundown_clear()
         self.assertIsNone(_DESK["program"])

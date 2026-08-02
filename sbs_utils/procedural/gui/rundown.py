@@ -20,8 +20,8 @@ follows an "excitement" value, and that value lives on the object as the data_se
 highlight the one worth punching to. It never punches on its own: the whole point of a
 rundown is that a person is choosing.
 
-    rundown_add("wide",  station, eye=(0, 4000, -9000))
-    rundown_add("hero",  artemis, eye=(0, 120, -420))
+    rundown_add("wide",  station, lens=(0, 4000, -9000))
+    rundown_add("hero",  artemis, lens=(0, 120, -420))
     rundown_program(role("mainscreen"))
     rundown_punch("hero")            # live now
     rundown_suggest()                # -> "wide", if the station is where the action is
@@ -43,14 +43,14 @@ _DESK = {"program": None, "preview": None, "live": None, "staged": None,
          "slots": set()}
 
 
-def rundown_add(name, subject, eye=None, move=None, seconds=4, ease="in_out",
+def rundown_add(name, subject, lens=None, move=None, seconds=4, ease="in_out",
                 label=None, overlay=None):
     """Add (or replace) a shot in the rundown.
 
     Args:
         name (str): how the director refers to it.
         subject: what the shot looks at - and necessarily what the lens rides.
-        eye: world position for a static shot.
+        lens: world position for a static shot.
         move: ``[from, to]`` world positions for a moving one.
         seconds (float): duration of a ``move`` (a static shot holds until punched away).
         label (str, optional): what the director's tile says. Defaults to ``name``.
@@ -60,7 +60,7 @@ def rundown_add(name, subject, eye=None, move=None, seconds=4, ease="in_out",
         dict: the stored shot.
     """
     shot = {"name": name, "label": label or name, "subject": subject,
-            "eye": eye, "move": move, "seconds": seconds, "ease": ease,
+            "lens": lens, "move": move, "seconds": seconds, "ease": ease,
             "overlay": overlay}
     _SHOTS[name] = shot
     return shot

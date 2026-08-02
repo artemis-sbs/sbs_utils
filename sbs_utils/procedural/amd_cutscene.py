@@ -16,7 +16,7 @@ Phase 4 already share one ``shot_apply``, both get AMD from this one loader::
     ---
     Scene: intro
     Subject: station
-    Eye: 0, 900, -4000
+    Lens: 0, 900, -4000
     Seconds: 4
     Overlay: lower_third
     Name: Phoenix Control
@@ -138,7 +138,7 @@ def _num(v, default=None):
         return default
 
 
-_SHOT_FIELDS = ("scene", "rundown", "subject", "eye", "move", "seconds", "ease",
+_SHOT_FIELDS = ("scene", "rundown", "subject", "lens", "move", "seconds", "ease",
                 "order", "overlay", "slot", "label")
 
 
@@ -150,7 +150,7 @@ def _shot_from(rec):
         "key": rec.get("key"),
         "label": data.get("label") or rec.get("display") or rec.get("key"),
         "subject_name": data.get("subject"),
-        "eye": _vec(data.get("eye")),
+        "lens": _vec(data.get("lens")),
         "move": _move(data.get("move")),
         "seconds": _num(data.get("seconds"), 4),
         "ease": (data.get("ease") or "in_out").strip(),
@@ -231,7 +231,7 @@ def _playable(shots):
         if subject is None:
             continue
         playable = {k: v for k, v in shot.items()
-                    if k in ("eye", "move", "seconds", "ease", "overlay", "label")}
+                    if k in ("lens", "move", "seconds", "ease", "overlay", "label")}
         playable["subject"] = subject
         out.append(playable)
     return out
@@ -260,7 +260,7 @@ def rundown_amd(key):
     n = 0
     for shot in _playable(shots):
         rundown_add(shot.get("label") or f"shot{n}", shot["subject"],
-                    eye=shot.get("eye"), move=shot.get("move"),
+                    lens=shot.get("lens"), move=shot.get("move"),
                     seconds=shot.get("seconds", 4), ease=shot.get("ease", "in_out"),
                     label=shot.get("label"), overlay=shot.get("overlay"))
         n += 1

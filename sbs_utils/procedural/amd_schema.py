@@ -373,7 +373,7 @@ SHOT = {
     # Resolved LATE: a cast name bound by the mission, else a role. The object does
     # not exist when the .amd loads.
     "subject": text(hint="cast name (cutscene_cast) or a role"),
-    "eye": text(hint="x, y, z - where the lens sits"),
+    "lens": text(hint="x, y, z - where the lens sits"),
     "move": text(hint="x,y,z -> x,y,z - where the lens travels"),
     "seconds": integer(),
     "ease": enum("in_out", "in", "out", "linear"),

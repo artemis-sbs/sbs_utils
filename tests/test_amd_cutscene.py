@@ -41,7 +41,7 @@ DOC = (
     "---\n"
     "Scene: intro\n"
     "Subject: station\n"
-    "Eye: 0, 900, -4000\n"
+    "Lens: 0, 900, -4000\n"
     "Seconds: 4\n"
     "Overlay: lower_third\n"
     "Name: Phoenix Control\n"
@@ -59,14 +59,14 @@ DOC = (
     "---\n"
     "Rundown: patrol\n"
     "Subject: station\n"
-    "Eye: 0, 4000, -9000\n"
+    "Lens: 0, 4000, -9000\n"
     "Label: Wide - belt\n"
     "---\n"
     "## [On the hero](pat_2)\n"
     "---\n"
     "Rundown: patrol\n"
     "Subject: hero\n"
-    "Eye: 0, 120, -420\n"
+    "Lens: 0, 120, -420\n"
     "---\n"
 )
 
@@ -203,8 +203,8 @@ class TestLoading(AmdCutsceneBase):
     def test_an_explicit_order_wins(self):
         doc = amd_document(
             "# [S](s)\n"
-            "## [B](b)\n---\nScene: s\nSubject: x\nEye: 0,0,-1\nOrder: 1\n---\n"
-            "## [A](a)\n---\nScene: s\nSubject: x\nEye: 0,0,-1\nOrder: 0\n---\n")
+            "## [B](b)\n---\nScene: s\nSubject: x\nLens: 0,0,-1\nOrder: 1\n---\n"
+            "## [A](a)\n---\nScene: s\nSubject: x\nLens: 0,0,-1\nOrder: 0\n---\n")
         amd_cutscenes(amd_root_node(doc))
         self.assertEqual([s["key"] for s in CUTSCENE_AMD["s"]["shots"]], ["a", "b"])
 
@@ -219,7 +219,7 @@ class TestLoading(AmdCutsceneBase):
     def test_geometry_is_parsed_at_load(self):
         self.load()
         a, b = CUTSCENE_AMD["intro"]["shots"]
-        self.assertEqual(a["eye"], (0.0, 900.0, -4000.0))
+        self.assertEqual(a["lens"], (0.0, 900.0, -4000.0))
         self.assertEqual(b["move"][0], (0.0, 400.0, -3000.0))
         self.assertEqual(b["ease"], "linear")
         self.assertEqual(b["seconds"], 6)

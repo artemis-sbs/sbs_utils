@@ -151,7 +151,7 @@ What that proves, without an engine session:
 ### Phase 1 — Camera primitives ✅ BUILT (`procedural/gui/camera.py`, 13 tests)
 
 Shipped as `camera_anchor`, `camera_assign`, `camera_track`, `camera_auto`, plus
-`camera_orbit_eye` — the GM's orbit formula as a pure function, so placing a shot by angle is
+`camera_orbit_lens` — the GM's orbit formula as a pure function, so placing a shot by angle is
 one call instead of a rediscovery. `camera_track` and `camera_auto` are set-addressed through
 the same `consoles_of` resolver the overlay system uses, which was the whole point: the engine
 call takes one client id.
@@ -174,7 +174,7 @@ Pure ergonomics over a verified call. Keep the surface tiny — MAST back-compat
 signatures freeze.
 
 ```
-camera_track(set_or_client, dolly, eye=Vec3(...), look=None, look_offset=None)
+camera_track(set_or_client, dolly, lens=Vec3(...), look=None, look_offset=None)
 camera_auto(set_or_client)                  # release to the engine's director
 camera_anchor(x, y, z, name=None) -> id     # the invisible dolly post
 camera_is_scripted(client) -> bool          # sbs_utils-side bookkeeping (no engine getter)
@@ -182,7 +182,7 @@ camera_is_scripted(client) -> bool          # sbs_utils-side bookkeeping (no eng
 
 **Set-addressed** is the entire point: today a mission that does not know client ids has to
 invent an indirection (VisualTestRange declares a pin into harness state and each console
-applies it for itself). `camera_track(role("mainscreen"), anchor, eye=...)` deletes that
+applies it for itself). `camera_track(role("mainscreen"), anchor, lens=...)` deletes that
 dance. `camera_anchor` is the admiral-cambot pattern — invisible art, `behav_selection`,
 dropped from the radar stream — already written and exercised in the range's harness.
 
@@ -191,11 +191,11 @@ Explicitly **not** in Phase 1: easing, framing helpers, anything time-based.
 ### Phase 2 — The mover (not the camera) ✅ BUILT
 
 ```
-camera_move(to, subject, eye_from, eye_to, seconds, ease="in_out")  -> Promise
+camera_move(to, subject, lens_from, lens_to, seconds, ease="in_out")  -> Promise
 camera_orbit(to, subject, distance, from_yaw, to_yaw, seconds, pitch) -> Promise
 camera_rack(to, subject)          # look elsewhere, hold the lens where it is
 camera_move_stop(to)              # stop, leaving the lens put
-camera_eye(to)                    # where the lens is (the engine cannot be asked)
+camera_lens(to)                    # where the lens is (the engine cannot be asked)
 ```
 
 Built on the two answered questions: offsets are **WORLD** (Q1), so an orbit recomputes the
@@ -222,7 +222,7 @@ ImportError would have left the container invisible to the audit, which is the e
 ledger exists to catch.
 
 Not built: `camera_handheld` (low-amplitude noise to sell "live"). It is ten lines on top of
-`_drive`, but it is the one move whose value can only be judged by eye, so it waits for a
+`_drive`, but it is the one move whose value can only be judged by lens, so it waits for a
 specimen rather than being guessed at.
 
 ### Phase 3 — Shots and cutscenes (declarative) ✅ BUILT
@@ -244,7 +244,7 @@ project has gone with AMD — the movie-script stays a movie script and the time
 it rather than growing control flow into it.
 
 ```
-Shot:    dolly / target / eye / look / move / seconds / ease
+Shot:    dolly / target / lens / look / move / seconds / ease
          overlay: kind + fields (lower third, hero card, caption)
 Cutscene: shots[] + letterbox + skippable + on_skip + music
 ```
@@ -277,8 +277,8 @@ A **rundown** is not a cutscene. It is a named, ordered set of *available* camer
 director chooses between live:
 
 ```
-rundown_add("wide",        dolly=station, eye=Vec3(0, 4000, -9000))
-rundown_add("hero",        dolly=artemis, eye=Vec3(0, 120, -420))
+rundown_add("wide",        dolly=station, lens=Vec3(0, 4000, -9000))
+rundown_add("hero",        dolly=artemis, lens=Vec3(0, 120, -420))
 rundown_add("two-shot",    dolly=anchor,  target=raider)
 rundown_add("approach",    dolly=cam3,    move=...)
 ```
@@ -463,7 +463,7 @@ Built:
 4. A variant matrix in `tests/test_overlay_portrait.py` (31 tests) — every source square, none
    carrying a width, both aligns, and **the emitted layout identical whichever source**, which is
    the claim square is making.
-5. The specimen plays all four at one row height so the claim is checkable by eye.
+5. The specimen plays all four at one row height so the claim is checkable by lens.
 
 **Settled, not open**: a ship is a LIVE 3D render (`send_gui_3dship`), and it may read small at
 a 6em square. That is **not** a reason to give the ship variant its own row height. How legibly
@@ -492,7 +492,7 @@ reference for how the background tones read over a live view.
 | ~~-~~ | ~~Phase 6 flat button~~ | ❌ dropped - `gui_button(background_color=…)` already is one |
 | ~~3~~ | ~~Phase 5 lower thirds~~ | ✅ done - one square visual (face/ship/icon/image), `align` left/right, optional replies. It also earned `col-width: square` and the overlay-kind mechanism the rest of the furniture will use |
 | ~~4~~ | ~~confirm the offset fold renders in-engine~~ | ✅ **CONFIRMED BY DOUG, 2026-08-01: "they all work now in engine."** The fold is real, so everything below stands on solid ground |
-| ~~5~~ | ~~Phase 2 mover~~ | ✅ done - `camera_move` / `camera_orbit` / `camera_rack` / `camera_move_stop` / `camera_eye`, 22 tests |
+| ~~5~~ | ~~Phase 2 mover~~ | ✅ done - `camera_move` / `camera_orbit` / `camera_rack` / `camera_move_stop` / `camera_lens`, 22 tests |
 | ~~6~~ | ~~Phase 3 cutscenes~~ | ✅ done - `cutscene_define` / `play` / `skip` / `stop` / `playing`, 22 tests |
 | ~~7~~ | ~~Phase 4 rundowns~~ | ✅ done - `rundown_add/program/preview/stage/take/punch/suggest/tiles`, 22 tests. The payoff. A shot is a *(subject, lens position)* pair now, not a camera object - arguably a better model |
 
@@ -513,7 +513,7 @@ Letterbox: yes
 ---
 Scene: intro
 Subject: station
-Eye: 0, 900, -4000
+Lens: 0, 900, -4000
 Seconds: 4
 Overlay: lower_third
 Name: Phoenix Control

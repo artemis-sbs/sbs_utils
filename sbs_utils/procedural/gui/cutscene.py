@@ -20,7 +20,7 @@ where the engine's shape has to be respected:
   report, so it is a parameter, not something a caller races by hand.
 
     cutscene_define("intro", [
-        {"subject": station, "eye": (0, 900, -4000), "seconds": 4,
+        {"subject": station, "lens": (0, 900, -4000), "seconds": 4,
          "overlay": {"kind": "lower_third", "name": "Phoenix", "line": "Standing by."}},
         {"subject": hero, "move": [(0, 400, -3000), (0, 120, -600)], "seconds": 6},
     ])
@@ -49,7 +49,7 @@ def cutscene_define(name, shots, letterbox=True, skippable=True, bar=4,
         name (str): what ``cutscene_play`` will look up.
         shots (list[dict]): in order. Per shot:
             ``subject`` (required) - what the shot looks at, and necessarily what
-            the lens rides; ``eye`` (world position) OR ``move`` ([from, to]);
+            the lens rides; ``lens`` (world position) OR ``move`` ([from, to]);
             ``seconds`` (default 4); ``ease``; ``overlay`` ({"kind": ..., plus that
             kind's fields}).
         letterbox (bool): black bars for the duration.
@@ -89,8 +89,8 @@ def shot_apply(cids, shot):
         a, b = shot["move"][0], shot["move"][1]
         move = camera_move(cids, subject, a, b, seconds,
                            ease=shot.get("ease", "in_out"))
-    elif shot.get("eye") is not None:
-        camera_shot(cids, subject, shot["eye"])
+    elif shot.get("lens") is not None:
+        camera_shot(cids, subject, shot["lens"])
     return move
 
 
