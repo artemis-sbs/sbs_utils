@@ -28,6 +28,7 @@ from sbs_utils.procedural.gui import ship as SHIP
 from sbs_utils.procedural.gui import icon as ICON
 from sbs_utils.procedural.gui import image as IMAGE
 from sbs_utils.procedural.gui import blank as BLANK
+from sbs_utils.procedural.gui import button as BUTTON
 from sbs_utils.procedural.gui import row as ROW
 from sbs_utils.procedural.gui import section as SECTION
 from sbs_utils.procedural.gui.overlay import (
@@ -97,6 +98,9 @@ class PortraitBuilderBase(unittest.TestCase):
               lambda f, style=None: t.append(("image", style)))
         patch(BLANK, "gui_blank",
               lambda count=1, style=None: t.append(("blank", style)))
+        patch(BUTTON, "gui_button",
+              lambda props, style=None, data=None, on_press=None, is_sub_task=False:
+              t.append(("button", (props, data, on_press))))
 
         def _sub(style=None):
             t.append(("sub_section", style))
@@ -325,6 +329,66 @@ class TestPortraitVariants(PortraitBuilderBase):
         self.assertIn("gui_image_keep_aspect_ratio_center", src)
 
 
+class TestPortraitReplies(PortraitBuilderBase):
+    """Replies are OPTIONAL. Without them this is exactly the strip it always was."""
+
+    def test_no_buttons_no_button_row(self):
+        self.build(face="F1")
+        self.assertNotIn("button", self.kinds())
+
+    def test_one_button_per_label(self):
+        self.build(face="F1", buttons=["Fire", "Hold"])
+        labels = [d for (k, (p, d, h)) in
+                  [(k, v) for (k, v) in self.trace if k == "button"]]
+        self.assertEqual(labels, ["Fire", "Hold"])
+
+    def test_the_label_rides_data_not_a_closure(self):
+        # The builder re-runs on every repaint, so a per-iteration closure is the
+        # for-loop trap; the pressed label has to come back as ButtonResult.data.
+        self.build(face="F1", buttons=["Fire", "Hold"])
+        for (k, (props, data, handler)) in [(k, v) for (k, v) in self.trace
+                                            if k == "button"]:
+            self.assertIn(data, ("Fire", "Hold"))
+            self.assertIn(data, props)
+
+    def test_replies_sit_below_the_strip_not_beside_the_visual(self):
+        # Their own row, so the portrait is the same size as on a beat with no
+        # reply - a conversation must not change scale when a choice appears.
+        self.build(face="F1", buttons=["Fire"])
+        kinds = self.kinds()
+        self.assertLess(kinds.index("face"), kinds.index("button"))
+        rows = [i for i, k in enumerate(kinds) if k == "row"]
+        self.assertGreater(len(rows), 1, "a second row for the replies")
+        self.assertGreater(kinds.index("button"), rows[-1])
+
+    def test_the_visual_is_unchanged_by_adding_replies(self):
+        self.build(face="F1")
+        plain = [v for (k, v) in self.trace if k in ("face", "row")][:2]
+        self.trace.clear()
+        self.build(face="F1", buttons=["Fire"])
+        withb = [v for (k, v) in self.trace if k in ("face", "row")][:2]
+        self.assertEqual(plain, withb, "the strip itself must not move")
+
+    def test_replies_are_pushed_toward_the_speakers_side(self):
+        self.build(face="F1", align="left", buttons=["Fire"])
+        kinds = self.kinds()
+        self.assertLess(kinds.index("button"), len(kinds) - 1)
+        self.assertEqual(kinds[-1], "blank", "left: flex blank after the replies")
+        self.trace.clear()
+        self.build(face="F1", align="right", buttons=["Fire"])
+        kinds = self.kinds()
+        self.assertLess(kinds.index("blank"), kinds.index("button"),
+                        "right: flex blank before the replies")
+
+    def test_buttons_are_content_sized(self):
+        self.build(face="F1", buttons=["Fire", "Hold"])
+        # content-sized so labels stay tight; the blank does the pushing.
+        import sbs_utils.procedural.gui.overlay as O
+        import inspect
+        src = inspect.getsource(O._lower_third_portrait_builder)
+        self.assertIn('"col-width: content;"', src)
+
+
 class TestPortraitRegistration(unittest.TestCase):
     def test_registered_as_its_own_kind(self):
         self.assertIn("lower_third_portrait", OVERLAY_KINDS)
@@ -411,6 +475,118 @@ class TestPortraitCycling(unittest.TestCase):
         # A repeating subtitle reads as a stutter.
         from sbs_utils.procedural.gui.overlay import _KIND_LOOP_DEFAULT
         self.assertIs(_KIND_LOOP_DEFAULT["lower_third_portrait"], False)
+
+
+class TestReplyPressContract(unittest.TestCase):
+    """How a press comes back. gui_button's on_press natively takes a label, a
+    callable or a Promise; this offers Promise (default) and an optional signal,
+    and deliberately withholds the label form."""
+
+    def setUp(self):
+        sbs.create_new_sim()
+        SpaceObject.clear()
+        TickDispatcher.clear()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        self.page = StoryPage()
+        self.page.pending_gui = False
+        self.page.client_id = 0
+        self.page.gui_task = _FakeGuiTask(self.page)
+        client = GuiClient(0)
+        client.page_stack.append(self.page)
+        FrameContext.page = self.page
+
+    def tearDown(self):
+        TickDispatcher.clear()
+        FrameContext.page = None
+        FrameContext.context = None
+
+    def test_without_buttons_it_is_not_a_promise(self):
+        from sbs_utils.futures import Promise
+        r = overlay_lower_third_portrait("Harkin", "Holding.", face="F1")
+        self.assertNotIsInstance(r, Promise)
+
+    def test_with_buttons_it_returns_an_awaitable(self):
+        from sbs_utils.futures import Promise
+        r = overlay_lower_third_portrait("Harkin", "Do we fire?", face="F1",
+                                         buttons=["Fire", "Hold"])
+        self.assertIsInstance(r, Promise)
+        self.assertFalse(r.done())
+
+    def test_replies_default_to_the_taller_slot(self):
+        # The reply row needs the space and the engine does not clip.
+        from sbs_utils.procedural.gui.overlay import OVERLAY_SLOTS
+        plain = OVERLAY_SLOTS["lower_third"]["rect"]
+        choice = OVERLAY_SLOTS["lower_third_choice"]["rect"]
+        self.assertLess(choice[1], plain[1], "choice slot starts higher")
+        self.assertEqual(choice[3], plain[3], "both end on the same baseline")
+
+    def test_an_explicit_slot_still_wins(self):
+        r = overlay_lower_third_portrait("Harkin", "?", face="F1",
+                                         buttons=["A"], slot="center_hero")
+        self.assertIsNotNone(r)
+        self.assertIsNotNone(self.page.overlays.slots.get("center_hero"))
+
+    def test_the_signal_path_emits_and_resolves(self):
+        from sbs_utils.procedural.gui.overlay import _reply_emitter
+        from sbs_utils.futures import Promise
+        import sbs_utils.procedural.signal as SIG
+        seen = []
+        real = SIG.signal_emit
+        SIG.signal_emit = lambda name, data=None, **k: seen.append((name, data))
+        prom = Promise()
+
+        class _Item:
+            data = "Fire"
+            client_id = 7
+        self.page.gui_task.set_variable("__ITEM__", _Item())
+        FrameContext.task = self.page.gui_task
+        try:
+            _reply_emitter("dialogue_reply", prom)()
+        finally:
+            SIG.signal_emit = real
+            FrameContext.task = None
+
+        self.assertEqual(seen[0][0], "dialogue_reply")
+        self.assertEqual(seen[0][1]["reply"], "Fire")
+        self.assertEqual(seen[0][1]["client_id"], 7)
+        # BOTH, not either: a driver can await while a route also reacts.
+        self.assertTrue(prom.done())
+        self.assertEqual(prom.result().data, "Fire")
+        self.assertEqual(prom.result().client_id, 7)
+
+    def test_first_press_wins(self):
+        # With `to` covering several consoles, a second press must not overwrite
+        # the answer the story already acted on.
+        from sbs_utils.procedural.gui.overlay import _reply_emitter
+        from sbs_utils.futures import Promise
+        import sbs_utils.procedural.signal as SIG
+        real = SIG.signal_emit
+        SIG.signal_emit = lambda name, data=None, **k: None
+        prom = Promise()
+
+        class _Item:
+            def __init__(self, d, c):
+                self.data = d
+                self.client_id = c
+        FrameContext.task = self.page.gui_task
+        try:
+            self.page.gui_task.set_variable("__ITEM__", _Item("Fire", 7))
+            _reply_emitter("r", prom)()
+            self.page.gui_task.set_variable("__ITEM__", _Item("Hold", 9))
+            _reply_emitter("r", prom)()
+        finally:
+            SIG.signal_emit = real
+            FrameContext.task = None
+        self.assertEqual(prom.result().data, "Fire")
+
+    def test_a_label_handler_is_not_offered(self):
+        # gui_button supports one, but it is dispatched as a jump on the task that
+        # BUILT the widget - for an overlay that is the client's own GUI task, so a
+        # reply would navigate whatever console the player is sitting at.
+        import inspect
+        sig = inspect.signature(overlay_lower_third_portrait)
+        self.assertNotIn("label", sig.parameters)
+        self.assertIn("on_reply", sig.parameters)
 
 
 if __name__ == "__main__":

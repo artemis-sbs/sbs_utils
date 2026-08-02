@@ -41,6 +41,9 @@ OVERLAY_SLOTS = {
     "corner_toast": {"rect": (66.0, 70.0, 99.0, 96.0), "draw_layer": 22000, "input": "passthrough"},
     "top_banner":   {"rect": ( 0.0,  0.0,100.0,  8.0), "draw_layer": 24000, "input": "passthrough"},
     "lower_third":  {"rect": (20.0, 74.0, 80.0, 94.0), "draw_layer": 26000, "input": "passthrough"},
+    # Taller, because replies need a row of their own and the engine does not clip -
+    # a choice drawn into the plain strip would spill over whatever is under it.
+    "lower_third_choice": {"rect": (20.0, 64.0, 80.0, 94.0), "draw_layer": 26500, "input": "passthrough"},
     "center_hero":  {"rect": (25.0, 30.0, 75.0, 70.0), "draw_layer": 28000, "input": "passthrough"},
     "fullscreen":   {"rect": ( 0.0,  0.0,100.0,100.0), "draw_layer": 30000, "input": "passthrough"},
 }
@@ -976,6 +979,46 @@ def overlay_lower_third(name, line, slot="lower_third", to=None, consoles=None,
 SQUARE_STYLE = "col-width: square;"
 PORTRAIT_EM = 6.0            # strip height - the square visual sizes itself from it
 PORTRAIT_GUTTER_EM = 0.6     # thin separator column between the visual and the text
+PORTRAIT_CHOICE_EM = 2.2     # the optional reply row, below the strip
+
+
+def _reply_emitter(signal_name, prom):
+    """A press handler that emits ``signal_name`` and also resolves ``prom``.
+
+    Both, not either: a caller can await the reply AND a route can react to it,
+    which is what a dialogue driver plus a declarative AMD hook need at once.
+    The emitted payload carries the label and who pressed, because with ``to=``
+    several consoles a reply is meaningless without knowing whose it was.
+
+    NOTE the multiplayer rule: handle this in a ``//shared/signal`` route if it
+    does anything stateful (advances the scene, awards, spawns). A plain
+    ``//signal`` route runs once PER CONSOLE, so five consoles would advance the
+    conversation five times.
+    """
+    def _fire():
+        from ...helpers import FrameContext
+        from ..signal import signal_emit
+        item = None
+        task = FrameContext.task
+        if task is not None:
+            item = task.get_variable("__ITEM__", None)
+        label = getattr(item, "data", None)
+        client = getattr(item, "client_id", None)
+        signal_emit(signal_name, {"reply": label, "client_id": client})
+        if prom is not None and not prom.done():
+            prom.set_result(ButtonResultLike(item, client))
+    return _fire
+
+
+class ButtonResultLike:
+    """Mirrors ButtonResult (.data / .client_id) for the signal+promise path."""
+    def __init__(self, layout_item, client_id):
+        self.layout_item = layout_item
+        self.client_id = client_id
+
+    @property
+    def data(self):
+        return getattr(self.layout_item, "data", None)
 
 
 def _lower_third_portrait_builder(client_id, content):
@@ -995,6 +1038,10 @@ def _lower_third_portrait_builder(client_id, content):
     ship = content.get("ship")
     icon = content.get("icon")
     image = content.get("image")
+    # Optional replies. Absent, this is exactly the strip it always was.
+    buttons = content.get("buttons") or []
+    prom = content.get("_promise")
+    reply_signal = content.get("_signal")
     # "align" (not "side"): in Cosmos a side is a FACTION, and this is a layout.
     align = str(content.get("align", "left")).lower()
     right = align in ("right", "r", "end")
@@ -1046,6 +1093,44 @@ def _lower_third_portrait_builder(client_id, content):
         _gutter()
         _text_col()
 
+    # Replies, when there are any. Their own row BELOW the strip rather than inside
+    # the text column, so the portrait is exactly the size it is on a beat with no
+    # reply - a conversation that changed scale whenever the player was offered a
+    # choice would read as a different shot, not the same one continuing.
+    if buttons:
+        from .button import gui_button
+        #
+        # HOW A PRESS IS HANDLED. gui_button's on_press natively takes a label, a
+        # callable or a Promise. This passes a PROMISE, and deliberately does not
+        # expose the label form:
+        #
+        #   a label handler is dispatched as `self.task.jump(handler)`, and the task
+        #   that built an overlay widget is the CLIENT'S GUI TASK. An overlay is
+        #   furniture drawn over whatever console happens to be running, so a reply
+        #   that jumped that task would hijack the console - navigating someone's
+        #   Helm screen because they answered a line of dialogue. A signal route can
+        #   reach any label anyway, so nothing is lost by leaving it out.
+        #
+        # `_signal` is the declarative escape hatch for callers with nobody awaiting
+        # (AMD dialogue, fire-and-forget); it is emitted by the callable below.
+        gui_row(f"row-height: {PORTRAIT_CHOICE_EM}em;"
+                + (f"background: {bg};" if bg else ""))
+        # Content-sized buttons pushed toward the speaker's side by one flex blank,
+        # so the replies sit under the portrait they answer.
+        if right:
+            gui_blank()
+        press = prom
+        if reply_signal:
+            press = _reply_emitter(reply_signal, prom)
+        for label in buttons:
+            # data + on_press, never a closure over the loop variable: the builder
+            # re-runs on every repaint, and a per-iteration handler is the for-loop
+            # trap. The pressed label arrives as __ITEM__.data / ButtonResult.data.
+            gui_button(f"$text:`{label}`;justify:center;", "col-width: content;",
+                       data=label, on_press=press)
+        if not right:
+            gui_blank()
+
 
 overlay_register("lower_third_portrait", _lower_third_portrait_builder)
 
@@ -1071,8 +1156,9 @@ _KIND_TEXT_WIDTH["lower_third_portrait"] = _portrait_text_frac
 
 
 def overlay_lower_third_portrait(name, line, face=None, ship=None, icon=None,
-                                 image=None, align="left", slot="lower_third",
-                                 to=None, consoles=None, seconds=None,
+                                 image=None, align="left", buttons=None,
+                                 on_reply=None, slot=None, to=None,
+                                 consoles=None, seconds=None,
                                  color="#8cf", background="#000a",
                                  cycle=True, dwell=None, loop=None):
     """Lower third carrying ONE square visual, on the left or the right of the line.
@@ -1107,16 +1193,58 @@ def overlay_lower_third_portrait(name, line, face=None, ship=None, icon=None,
     icon, image). With none set the column is still reserved, so a run of beats
     does not jump sideways when one speaker has no visual.
 
+    **Replies are optional.** Pass ``buttons`` and the strip grows a row of them
+    below the line, pushed toward the speaker's side, in a taller slot. It then
+    returns an awaitable instead of the cycled flag::
+
+        reply = await overlay_lower_third_portrait(
+            "Harkin", "Do we fire?", face=f, buttons=["Fire", "Hold"], to=player)
+        if reply.data == "Fire":
+            ...
+
+    ``reply.data`` is the label pressed and ``reply.client_id`` is who pressed it,
+    which matters as soon as ``to`` covers more than one console: the FIRST press
+    wins and the rest are ignored, so the answer is meaningless without knowing
+    whose it was.
+
+    ``on_reply`` names a signal emitted on the press as well, carrying
+    ``{"reply": label, "client_id": id}`` - for a caller with nobody awaiting (a
+    declarative AMD hook, a fire-and-forget beat). Handle it in a
+    ``//shared/signal`` route if it changes anything: a plain ``//signal`` route
+    runs once PER CONSOLE, so five consoles would advance the scene five times.
+
+    A **label** handler is deliberately not offered. ``gui_button`` supports one,
+    but it is dispatched as a jump on the task that BUILT the widget - which for
+    an overlay is the client's own GUI task, so a reply would navigate whatever
+    console the player happens to be sitting at. A signal route reaches any label
+    without that.
+
     See ``overlay_banner`` for ``cycle`` / ``dwell`` / ``loop``.
     """
-    if loop is None:
-        loop = False
-    return _show_maybe_cycled(
-        slot, "lower_third_portrait", to, consoles, seconds,
-        {"name": name, "line": line, "face": face, "ship": ship, "icon": icon,
-         "image": image, "align": align, "color": color,
-         "background": background},
-        "line", "gui-3", cycle, dwell, loop)
+    fields = {"name": name, "line": line, "face": face, "ship": ship,
+              "icon": icon, "image": image, "align": align, "color": color,
+              "background": background}
+    if not buttons:
+        if slot is None:
+            slot = "lower_third"
+        if loop is None:
+            loop = False
+        return _show_maybe_cycled(
+            slot, "lower_third_portrait", to, consoles, seconds, fields,
+            "line", "gui-3", cycle, dwell, loop)
+
+    # With replies: a TALLER slot by default (the reply row needs the space and the
+    # engine does not clip), and no cycling - a line that reshuffles itself under a
+    # question the player is answering reads as the question changing.
+    from ...futures import Promise
+    if slot is None:
+        slot = "lower_third_choice"
+    prom = Promise()
+    fields["buttons"] = list(buttons)
+    fields["_promise"] = prom
+    fields["_signal"] = on_reply
+    _show_transient(slot, "lower_third_portrait", to, seconds, fields, consoles)
+    return prom
 
 
 # --- Credits (sequential list) -----------------------------------------------
