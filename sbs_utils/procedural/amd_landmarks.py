@@ -122,6 +122,37 @@ def _role_csv(record):
     return side + (", " + roles if roles else "")
 
 
+# Declared landmark records by key, so a landmark can be placed LATER by name (an
+# `Action:` line - `Kessel Station arrives`) rather than only in the bulk pass at map
+# setup. Per-mission, so it is on the reset ledger in handlerhooks.
+_RECORDS = {}
+
+
+def landmarks_register(section):
+    """Remember every landmark record in ``section`` by key, without spawning any.
+
+    Separate from ``landmarks_spawn`` on purpose: a mission places most of its landmarks
+    at setup, but a story beat places one on cue, and both need the same record.
+    """
+    for rec in landmarks_from_section(section):
+        key = rec.get("key")
+        if key:
+            _RECORDS[str(key).strip().lower()] = rec
+    return len(_RECORDS)
+
+
+def landmark_record(key):
+    """A registered landmark record by key, or None."""
+    if not key:
+        return None
+    return _RECORDS.get(str(key).strip().lower())
+
+
+def landmarks_registry_clear():
+    """Drop the declared-record registry - the per-mission reset."""
+    _RECORDS.clear()
+
+
 def landmark_key_role(key):
     """The role marking the object spawned for AMD landmark ``key``.
 

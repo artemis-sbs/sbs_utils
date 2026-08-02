@@ -26,6 +26,51 @@ That is the whole hole. Everything below fills it.
 
 ---
 
+## 1.5 What the corpus says - and it contradicts the design
+
+Surveyed LM, OU, SecretMeeting, WalkTheLine, StormsBeacon, HereThereBeMonsters and
+MiningDays for **runs of consecutive world-action statements** - the thing an `Action:`
+block would replace. Excluded: inventory/data plumbing (`set_inventory_value` and friends,
+which no author writes as a stage direction), engine infrastructure (`prefabs/`, `ai/`,
+consoles, autoplay, debug), and objective `+++ enter` blocks (those *implement* orders).
+
+**25 runs, 62 statements.** 19 of the 25 are only 2 lines. LM 18, OU 2, StormsBeacon 2,
+SecretMeeting / HTBM / MiningDays 1 each.
+
+| Verb | Uses |
+|---|---|
+| `becomes` (role / side change) | 30 |
+| `arrives` (spawn) | 20 |
+| `orders` (objective / brain) | 8 |
+| `says` (comms) | 2 |
+| `departs` (delete) | 2 |
+| **`targets`** | **0** |
+| **`heads to`** | **0** |
+
+Three conclusions, and the first two are unwelcome:
+
+1. **The vocabulary is wrong.** `becomes` and `arrives` are 50 of 62 statements - 81% -
+   and neither needs the objective layer at all. The `orders` machinery that sections 3.4,
+   4 and 7 spend most of their design effort on covers 8 uses.
+2. **The two motivating verbs have zero corpus support.** `targets` and `heads to` - the
+   examples this whole plan grew from - appear nowhere. **Caveat that cuts the other way:**
+   a corpus measures only *expressed* demand. Authors cannot write what the format does not
+   offer, and those two verbs are precisely what a person reached for unprompted when asked
+   to imagine the feature. Absence here is weak evidence, not proof of no demand.
+3. **Runs are short**, which independently confirms 3.2: the inline list is the right
+   default and the promoted `Actor:` record is genuinely the exception.
+
+The clearest real example in the corpus is `maps/bosses/ragnarok.mast` - Xorn defects,
+changes side, and turns on Ragnarok - which is a `becomes` + `orders` pair, and is almost
+exactly the scenario this plan was started from.
+
+**Recommendation: build `becomes` and `arrives` first and leave the orders layer out.**
+That is 81% of measured demand, needs no brain negotiation, and makes 3.4's
+exclusive/layered question - the most intricate part of this plan - unnecessary until
+something asks for it.
+
+---
+
 ## 2. What already exists (the reason this is small)
 
 The vocabulary was already written, in `LegendaryMissions/prefabs/defender.mast`:
@@ -219,14 +264,66 @@ Notes:
   `default.amd`, `skirmish_arena.amd`) and StormsBeacon. They are simply undeclared, so no
   tool knows what they are. This is mostly a Phase 5 vocabulary declaration, not a new
   feature.
-- **`Scene:` is taken** - it means "the dialogue scene this character plays"
-  (`amd_schema.py:285`, 12 uses across OU and StormsBeacon). A `## Scenes` *section* may
-  map to the `setting` archetype via `_SECTION_ALIASES`; the *field* name may not be
-  `Scene`.
-- `Establish:` is the hook for the cinematic camera work - the cut a scene opens on.
+- **`Scene:` is taken** - a lifeform's dialogue scene (`amd_schema.py:285`, 13 live uses).
+  The shot's grouping field was renamed to `Cutscene:` for exactly this reason, so do not
+  reclaim it here. A `## Scenes` *section* may still map to the `setting` archetype via
+  `_SECTION_ALIASES` - only the field name is blocked.
+- **One archetype per section** (see 5.2). A setting living in a story section alongside
+  beats needs its own `Setting` kind line, or its own section.
+- **`Establish:` is a reference to a declared cutscene or rundown** - see 5.1. Not a new
+  camera model.
 - **No `Action:` on a Setting.** A beat has an unambiguous start; a place does not (map
   load? first arrival? every arrival?). Directions belong only on records with a
   lifecycle.
+
+### 5.1 Cutscenes and rundowns already exist - connect, do not add
+
+`amd_cutscene.py` is built, tested, linted against a real file, MAST-reachable and
+documented (`mkdocs/docs/cosmos/cinematics.md`). A **shot is a record**, grouped by
+`Cutscene:` into a cutscene or `Rundown:` into a set the director punches between, with
+`Subject:` / `Lens:` / `Move:` / `Seconds:` / `Ease:` / `Overlay:` plus the overlay's own
+fields inline. The **bed** is identified structurally - it is the record carrying neither
+`Cutscene:` nor `Rundown:` - and needs no `Kind:` line. `cutscene_amd(key)` /
+`rundown_amd(key)` play them.
+
+Nothing here should re-model any of that. Two connections, both references:
+
+- **`Establish:` on a Setting** is a `ref` to a declared cutscene or rundown key. My first
+  draft wrote `Establish: kessel_station`, naming a landmark - that was wrong. Pointing a
+  camera at a station *is* a one-shot cutscene, and the cutscene model already expresses it
+  better than a second field ever would. As a ref it also lints and gets an LSP dropdown.
+- **`plays <cutscene>` is an event verb** in an `Action:` block - how a beat triggers a
+  cutscene. It binds to `cutscene_amd(key)`, and it is a one-shot, so it takes the event
+  path (identity / `once`), not the objective path.
+
+Deliberately NOT done: letting `Establish:` also name a bare subject as sugar. One field,
+two meanings is the `Win:` mistake `AMD_PLAN.md` P2 already had to undo.
+
+### 5.2 RESOLVED - and it taught this plan two things
+
+The archetype-unreachability defect this section used to describe is **fixed** (commits
+`2c4e55a`, `9929055`): `Scene:` -> `Cutscene:` on shots, the bed identified structurally
+instead of by `Kind:`, the section words (`Cinematics` / `Cutscenes` / `Shots` /
+`Rundowns`) registered, and the inline overlay fields declared. Nothing is owed here.
+
+Two findings from that work change decisions below, and both cost the other session real
+time to discover:
+
+**A section resolves to ONE archetype.** `CUTSCENE` and `SHOT` could not stay separate -
+beds and shots share a section, so splitting them left half of every cinematics file
+untyped. This lands directly on the `Setting` archetype proposed above: settings sitting
+in a story section alongside beats will not both type. Either give settings their own
+section, or have each setting carry its own kind line - `amd_resolve_kind` checks the
+record's own kind before the section name, so a per-record `Setting` line overrides. Worth
+deciding rather than discovering.
+
+**A function is not MAST-callable until it is registered in
+`mast_sbs_procedural.py`.** `cutscene_cast` / `cutscene_amd` / `rundown_amd` existed, were
+tested, and were invisible to every author, because importing a function in a mission's own
+`.py` does not make it a MAST global. For a layer whose entire audience writes MAST, that
+is the difference between shipped and not. Phase 3 must register every runtime entry point
+it adds. It was found by writing a specimen that used it - which is also the strongest
+argument for building a specimen mission alongside Phase 3 rather than after it.
 
 ### The ASCII sketch, inverted
 
@@ -283,6 +380,7 @@ Event verbs (no objective - one-shot world changes on a different path):
 | `arrives` / `departs` | Spawn / despawn a landmark as a story beat |
 | `hails` | Play a dialogue scene |
 | `joins` | Change `Side:` |
+| `plays` | Play a declared cutscene - `cutscene_amd(key)` (see 5.1) |
 
 ---
 
@@ -303,16 +401,23 @@ Event verbs (no objective - one-shot world changes on a different path):
 
 ## 9. Phases
 
+Re-sequenced against the survey (1.5): the two verbs the corpus actually uses come first,
+and the orders layer moves behind a decision point instead of leading.
+
 | # | Phase | Touches |
 |---|---|---|
-| 1 | `amd_verb` metadata key; order-label discovery by `type: objective/orders/*` | sbs_utils, LM |
-| 2 | `Action:` field: parse, list form, verb match, actor/operand refs | sbs_utils |
-| 3 | Runtime: bind order lines to `objective_add`; event-verb registry with identity | sbs_utils |
-| 4 | `Setting` archetype; declare `Skybox:` / `Music:` / `Establish:` | sbs_utils, OU |
-| 5 | Lint: unknown verb, unknown actor, `give_orders_type`, `valid_for` | sbs_cli |
-| 6 | Timeline action edges; Inspector widgets | sbs_cli, editors/vscode |
+| ~~0~~ | ~~Register the cinematic archetypes~~ - **done** by the cutscene work, see 5.2 | - |
+| ~~1~~ | ~~`Action:` field: parse, list form, verb match, actor/operand refs~~ - **DONE** (`procedural/amd_action.py`, 35 tests) | sbs_utils |
+| ~~2~~ | ~~the event-verb registry~~ - **DONE**. Ships `becomes` / `is no longer` / `joins` / `arrives` / `departs`; registered in `mast_sbs_procedural.py`; `arrives` is idempotent through the landmark key so no `once` flag is needed | sbs_utils |
+| 3 | Lint: unknown verb, unknown actor | sbs_cli |
+| 4 | Migrate the 25 corpus sites (1.5); record what stays unsayable | LM, OU, SB |
+| - | **DECISION POINT** - did Phase 4 produce real demand for orders? If not, stop here | - |
+| 5 | `amd_verb` metadata key; order-label discovery by `type: objective/orders/*`; bind to `objective_add` | sbs_utils, LM |
+| 6 | `brain: exclusive \| layered` (3.4); `valid_for` / `give_orders_type` lint | sbs_utils, sbs_cli |
 | 7 | New objective labels (section 7) | LM |
-| 8 | Docs | mkdocs |
+| 8 | `Setting` archetype; `Skybox:` / `Music:` / `Establish:` - independent of all the above, can run any time | sbs_utils, OU |
+| 9 | Timeline action edges; Inspector widgets | sbs_cli, editors/vscode |
+| 10 | Docs, alongside `cosmos/cinematics.md` | mkdocs |
 
 Verification per phase: unit tests, `sbs lint` across LM + OU + StormsBeacon, a headless
 `--test` run, then a browser pass where a GUI surface is involved.

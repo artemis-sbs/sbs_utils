@@ -102,6 +102,8 @@ MastGlobals.import_python_module('sbs_utils.procedural.amd_overlay')
 # DEFINES are). Without this line the whole AMD cinematics front door was Python-only,
 # which for a layer whose entire audience writes MAST means it did not exist.
 MastGlobals.import_python_module('sbs_utils.procedural.amd_cutscene')
+# Stage directions - same reason as the line above.
+MastGlobals.import_python_module('sbs_utils.procedural.amd_action')
 MastGlobals.import_python_module('sbs_utils.procedural.announce')
 MastGlobals.import_python_module('sbs_utils.procedural.persistence')
 MastGlobals.import_python_module('sbs_utils.procedural.settings')

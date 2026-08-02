@@ -131,6 +131,11 @@ def reward(hint="200 credits"):
     """What a job pays."""
     return _d("reward", hint=hint)
 
+def lines(hint="Kidnapper becomes a pirate"):
+    """A block of stage directions, one per list item - the ``Action:`` form. Distinct
+    from `csv` because a direction contains commas and must not be split on them."""
+    return _d("lines", hint=hint)
+
 def trigger(hint="5 drone_down  |  reach 6, 4  |  destroy 4 raiders"):
     """A game event to wait for. A bare token IS a signal name; verb-led forms
     (`reach`, `destroy`, `dock`, ...) name a different shape."""
@@ -211,6 +216,10 @@ QUEST = {
                         key="fails_when"),
     "then": compound({"reveal": ref("node"), "signal": signal()},
                      hint="reveal KEY  |  signal NAME"),
+    # What happens the MOMENT this record starts. `Then:` is the other end - it fires on
+    # completion - and the two were being conflated because there was no entry slot.
+    # Lines are simultaneous; see procedural/amd_action.py.
+    "action": lines(),
     "part of": field(ref("node"), key="parent", aka=("parent",)),
     "scope": enum("shared", "ship"),
     # `Reward:` over `Pays:`. Its partner is free - the failure side already exists in
@@ -891,8 +900,17 @@ def _install_core_parsers():
     for name, fn in (("int", amd_num), ("pct", amd_pct), ("csv", amd_list),
                      ("weighted", amd_weighted), ("makeup", amd_makeup),
                      ("coord2", amd_coords), ("counted", amd_counted), ("kv", amd_kv),
-                     ("signal", amd_signal_name), ("duration", amd_duration_seconds)):
+                     ("signal", amd_signal_name), ("duration", amd_duration_seconds),
+                     ("lines", _as_lines)):
         _PARSERS.setdefault(name, fn)
+
+
+def _as_lines(raw):
+    """A stage-direction block -> a list of lines. A single-line value is still a list of
+    one, so a caller never has to test which shape it got."""
+    if isinstance(raw, (list, tuple)):
+        return [str(v).strip() for v in raw if str(v).strip()]
+    return [l.strip() for l in str(raw).splitlines() if l.strip()]
 
 
 _TRUE = ("true", "yes", "on", "1", "")
