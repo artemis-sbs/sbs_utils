@@ -112,9 +112,9 @@ designed before then.
 | Question | Mock says | **Engine says** | Source |
 |---|---|---|---|
 | Q1 offsets world or local | world (adds raw) | **WORLD** | GM orbits by rotating the offset ITSELF |
-| Q2 cut or blend | cut | _unanswered_ | run `visual_camera_cut` |
+| Q2 cut or blend | cut | **SNAPS** - no blend, the mock was right | Doug, engine, 2026-08-01 |
 | Q3 what drives a move smoothly | — | **per-tick re-apply is fine** | GM re-applies every camera change this way |
-| Q4 dolly deleted mid-shot | — | _unanswered_ | run `visual_camera_cut` |
+| Q4 dolly deleted mid-shot | — | **the view FALLS to the engine default** (a top-down on a station) - it does not freeze and does not crash | Doug, engine, 2026-08-01 |
 | Q5 camera needs a ship assigned | no | **YES — assigned to a space object** | Doug, and GM assigns its cambot before setting the view up |
 
 ### The Game Master already does this — read it before building anything
@@ -226,6 +226,17 @@ Not built: `camera_handheld` (low-amplitude noise to sell "live"). It is ten lin
 specimen rather than being guessed at.
 
 ### Phase 3 — Shots and cutscenes (declarative)
+
+**Teardown order is now a rule, not a preference.** A deleted dolly drops the view on the
+engine's default (a top-down on a station), so a cutscene must **release or re-point the
+camera BEFORE it deletes its scene**. Deleting first and releasing after guarantees at least
+one garbage frame. `camera_move` already recovers on its own side - a subject that vanishes
+mid-move stops the driver and resolves its promise, so an `await`-driven cutscene advances to
+its next shot instead of holding on a dead id.
+
+**Cuts SNAP.** No blend, no hold-off needed - a cut is a cut, which is what the rundown punch
+wants anyway.
+
 
 A **shot** is a camera pin plus its furniture and duration. A **cutscene** is an ordered list
 of shots plus a bed (letterbox, music, skippability). Authored as **data**, matching where the
@@ -450,7 +461,7 @@ reference for how the background tones read over a live view.
 | ~~3~~ | ~~Phase 5 lower thirds~~ | ✅ done - one square visual (face/ship/icon/image), `align` left/right, optional replies. It also earned `col-width: square` and the overlay-kind mechanism the rest of the furniture will use |
 | ~~4~~ | ~~confirm the offset fold renders in-engine~~ | ✅ **CONFIRMED BY DOUG, 2026-08-01: "they all work now in engine."** The fold is real, so everything below stands on solid ground |
 | ~~5~~ | ~~Phase 2 mover~~ | ✅ done - `camera_move` / `camera_orbit` / `camera_rack` / `camera_move_stop` / `camera_eye`, 22 tests |
-| 3 | Phase 3 cutscenes | sequencing on top of proven parts. **Needs Q2 (cut or blend) and Q4 (dolly deleted mid-shot)** - both answerable by running `visual_camera_cut` in the engine |
+| **1** | **Phase 3 cutscenes** | unblocked: Q2 SNAPS and Q4 FALLS TO DEFAULT are both answered. Sequencing on top of proven parts |
 | 4 | Phase 4 rundowns | the payoff. A shot is a *(subject, lens position)* pair now, not a camera object - arguably a better model |
 
 ## 4. Standing constraints

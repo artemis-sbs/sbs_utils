@@ -17,6 +17,7 @@ import unittest
 from cosmos_dev.mock import sbs as mock_sbs
 from sbs_utils.helpers import FrameContext, Context
 from sbs_utils.spaceobject import SpaceObject
+from sbs_utils.procedural.space_objects import delete_object
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.vec import Vec3
 from sbs_utils.procedural.gui.camera import (
@@ -175,6 +176,32 @@ class TestMove(MoveBase):
         subj = camera_anchor(0, 0, 0)
         prom = camera_move([], subj, (0, 0, -1), (0, 0, -2), 1.0)
         self.assertTrue(prom.done(), "a shot nobody can see must not hang the story")
+
+
+class TestSubjectDies(MoveBase):
+    """Engine-observed: a dolly deleted mid-shot does not freeze the frame - the
+    view falls to the engine's default (a top-down on a station). Aiming at a dead
+    id therefore buys nothing and holds the story on a garbage frame."""
+
+    def test_the_move_ends_when_its_subject_does(self):
+        subj = camera_anchor(0, 0, 0)
+        prom = camera_move(C1, subj, (0, 0, -3000), (0, 0, -300), 10.0)
+        self.advance(1.0)
+        self.assertFalse(prom.done())
+        delete_object(subj)
+        self.advance(1.0)
+        self.assertTrue(prom.done(), "a cutscene awaiting this would have hung")
+        self.assertEqual(len(_MOVES), 0, "the driver kept running on a dead id")
+
+    def test_it_resolves_with_a_position_not_none(self):
+        # Promise.done() tests `_result is not None`, so resolving with None would
+        # read as never having resolved at all.
+        subj = camera_anchor(0, 0, 0)
+        prom = camera_move(C1, subj, (0, 0, -3000), (0, 0, -300), 10.0)
+        self.advance(0.5)
+        delete_object(subj)
+        self.advance(0.5)
+        self.assertIsNotNone(prom.result())
 
 
 class TestOrbit(MoveBase):

@@ -406,6 +406,24 @@ def _drive(to, consoles, subject, seconds, eye_at, ease="in_out"):
         if not _owns():
             t.stop()
             return
+        #
+        # SUBJECT GONE. Engine-observed: a dolly that is deleted mid-shot does not
+        # freeze the frame - the view falls to the engine's own default (a top-down
+        # on a station). So there is nothing to be gained by continuing to aim at a
+        # dead id, and a driver that did would hold the story on a garbage frame.
+        #
+        # Stop and RESOLVE instead: a cutscene written as `await camera_move(...)`
+        # then advances to its next shot, which is exactly the right recovery and
+        # costs the author nothing. The library will not pick a new shot itself -
+        # that is a directing decision it cannot make.
+        #
+        from ..query import to_object
+        if to_object(subject) is None:
+            t.stop()
+            camera_move_stop(cids)
+            if not prom.done():
+                prom.set_result(_MOVES.get(cids[0], {}).get("eye") or eye_at(0.0))
+            return
         elapsed = _now() - start
         raw = elapsed / seconds
         if raw > 1.0:
