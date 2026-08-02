@@ -342,17 +342,46 @@ distorting (`gui_image_keep_aspect_ratio_center`, which `overlay_hero` already u
 A ship or an image left unsquared is a **flex** column: it takes half the strip and pushes the
 text out of the box — the exact failure the 22/78 split produced. So forcing it is not cosmetic.
 
-**There is no `square` style keyword.** Nothing in `style.py` or `parsers.py` parses one, so
-"make this square" cannot be said in a style string today. Two ways to get it:
+**There is no `square` style keyword.** `StyleDefinition.parse` is a `match key:` with **no
+default case**, so an unknown key is not rejected - it is silently DROPPED. `square: true` in a
+style string today does nothing and looks like it worked.
 
-- **(a) the builder sets `item.square = True`** on the returned layout item. `gui_ship`,
-  `gui_icon` and `gui_image` all return theirs. One line, contained, no language change.
-- **(b) add `square` to the style system** — general, and the thing that would let a MISSION
-  author square a ship on their own screen, which is a real want. But it is a shared-language
-  change: parser, style docs, AMD schema, lint.
+**The answer is `col-width: square`**, not a boolean `square:` style and not a
+`gui_square(item)` wrapper.
 
-**Recommendation: (a) now, (b) only as its own item if squaring is wanted generally.** Phase 5b
-should not carry a style-language change.
+`col-width` already carries a KEYWORD FAMILY - `content`, `min-content`, `max-content`,
+`1fr`/`auto`, `fit-content` - in one table (`_CONTENT_BY_NAME`, parsers.py). `square` joins an
+existing enum rather than introducing the style system's first boolean, and it reads as what it
+actually is: another **rule for deriving width**. `content` means "as wide as my content";
+`square` means "as wide as I am tall". Same category, same slot in the grammar.
+
+It is also the smallest change, because the layout already anticipates it:
+
+1. `parsers.py` - `SQUARE = ContentSize("square")`, registered in `_CONTENT_BY_NAME`;
+2. `column.py` `set_col_width` - the SQUARE sentinel sets `self.square = True`. Style application
+   happens well before layout, and `_resolve_col_widths` reads `col.square` at the TOP of its
+   loop, so there is no ordering problem;
+3. **nothing else.** `resolved_size` already returns None for any `ContentSize` (so the column
+   falls to the flex/square path), and BOTH content-measuring branches are already guarded with
+   `if not col.square:`, so they no-op. The existing square math sizes it from the row height.
+
+**It also fixes a latent bug.** A square column given an explicit width is counted TWICE:
+`squares += 1 if col.square` and then `assigned_space += default_width` / `assigned_cols += 1`,
+while `need_assigned = len - squares - assigned_cols` subtracts it twice and the row reserves
+its space twice over. That double-count is why the 22/78 split did not merely look wrong but
+threw content clean outside the strip. Making the two spellings mutually exclusive - a
+non-square `col-width` CLEARS `square` - removes the illegal state rather than documenting it.
+That is a behavior change for any existing screen that sets a width on a face, which today gets
+the double-count; it should be called out in the release note.
+
+Rejected: **`gui_square(item)`** exists only because a style cannot say it. Once `col-width:
+square` exists, `gui_ship("x", style="col-width: square")` is already one call, and a wrapper is
+a second way to say the same thing - the kind of duplication that later makes authors ask which
+one is correct. It also cannot be written in an AMD field, a style def, or a per-control default.
+
+Worth doing alongside, separately: **a default case in `StyleDefinition.parse` that logs an
+unknown key**. Silent-drop is the reason a typo'd `sqaure: true` would cost an afternoon, and it
+helps far more than this one feature.
 
 **One kind, not four.** `lower_third_portrait` keeps its name (it is the *portrait slot*) and
 grows `icon=` / `ship=` / `image=` beside `face=`, **first set wins, in `overlay_hero`'s
@@ -363,7 +392,8 @@ where one takes four fields.
 
 Work:
 
-1. the builder branches on the four sources, forcing `square = True` on the two that need it;
+1. `col-width: square` lands first (its own change, with its own tests); then the builder
+   simply passes it for ship and image and special-cases nothing;
 2. `overlay_lower_third_portrait(..., icon=None, ship=None, image=None)`;
 3. tests: a variant matrix asserting each source is square, carries no `col-width`, keeps the
    gutter, and works on both aligns — plus that an unsquared ship/image cannot regress in;
