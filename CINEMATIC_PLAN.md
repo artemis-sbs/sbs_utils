@@ -485,6 +485,26 @@ face - click a portrait to talk to that character - that is a clickregion and a 
 un-asked-for widget; `visual_button_chrome` in the Visual Test Range remains useful as a
 reference for how the background tones read over a live view.
 
+## 2.5 ENGINE-CONFIRMED (2026-08-01)
+
+Doug ran `--map visual_cutscene` in the engine: **it works.** That specimen drives the whole
+stack at once, so one run confirms all of it:
+
+- **Phase 2 the mover** - a `Move:` shot glides; the per-tick re-aim reads as motion, not as a
+  stutter. This was the open question the mock could not answer.
+- **Phase 3 cutscenes** - shots play in order, each cut lands on a picture (the dolly==target
+  fold holds under a real sequence), and the letterbox and lower thirds clear on teardown.
+- **Phase 4 rundowns** - a punch changes PROGRAM immediately.
+- **The AMD layer** - a hand-written `.amd` loads, its cast binds, and it plays. The format is
+  confirmed by a consumer, not just by tests.
+
+Still unconfirmed in-engine, and both are narrow:
+
+- **`rundown_suggest`** rests on the `exciting` data_set key. The specimen punches by hand and
+  never calls suggest, so that key has still never been read off a real object.
+- **The portrait lower third's REPLY row** has never been pressed. The cutscene specimen shows
+  lower thirds but carries no buttons.
+
 ## 3. Sequencing
 
 | Order | What | Why now |
