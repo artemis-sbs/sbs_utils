@@ -743,14 +743,22 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
                 # ONE reader. This used to default to raw YAML, which is why the
                 # runtime and the linter could disagree about the same bytes - and
                 # why `Color: #86c` needed an opt-in parser to survive at all.
-                kinds = [s.get("kind") for s in reversed(toc_stack) if s.get("kind")]
-                sections = [s.get("key") for s in reversed(toc_stack)
-                            if s.get("key") and s.get("key") != "__root__"]
+                # ONE pair per ancestor, NEAREST FIRST - the record's own entry is the
+                # last on the stack, so it is skipped here and passed as `own_section`.
+                # Shares `amd_resolve_kind_chain` with amd_core: this used to hand over
+                # two separate lists, which made every ancestor KIND beat every section
+                # NAME, so a kind line on the document root typed the whole file - and
+                # since only ONE of the two readers had been fixed, the game and the
+                # tooling disagreed about every record.
+                ancestors = [(s.get("kind"),
+                              s.get("key") if s.get("key") != "__root__" else None)
+                             for s in reversed(toc_stack[:-1])]
                 from sbs_utils.procedural.amd import amd_fact_lines
-                section["kind"] = amd_resolve_kind(
-                    own_kind=amd_kind_line(block), ancestor_kinds=kinds,
-                    section_key=section.get("key"), ancestor_sections=sections,
-                    field_labels=[lab for lab, _v in amd_fact_lines(block)])
+                from sbs_utils.procedural.amd_schema import amd_resolve_kind_chain
+                section["kind"] = amd_resolve_kind_chain(
+                    own_kind=amd_kind_line(block), ancestors=ancestors,
+                    field_labels=[lab for lab, _v in amd_fact_lines(block)],
+                    own_section=section.get("key"))
                 parsed = amd_parse_facts(block, archetype=section["kind"])
             if isinstance(parsed, dict):
                 merged = section.get("data") or {}

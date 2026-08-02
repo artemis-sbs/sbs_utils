@@ -651,6 +651,43 @@ def amd_resolve_kind(own_kind=None, ancestor_kinds=(), section_key=None,
     return infer_archetype(field_labels)
 
 
+def amd_resolve_kind_chain(own_kind=None, ancestors=(), field_labels=(),
+                           own_section=None):
+    """Which kind of record this is, asking each ancestor IN TURN, closest first.
+
+    `ancestors` is `[(kind_line, section_key), ...]` ordered **nearest first** - one pair
+    per ancestor, so an ancestor's kind line and its section name stay at the same
+    distance. `own_section` is the record's own key, used ONLY when it has no real
+    ancestor (the flat-file shape, where nothing else can name its kind).
+
+    THIS IS THE ONE IMPLEMENTATION. `amd_resolve_kind` keeps the old shape - two
+    separate lists - and that shape is the bug: every ancestor KIND was tried before any
+    section NAME, so a kind line on the document root reached past every section beneath
+    it and typed a whole file. Both readers (`amd_core` for the tooling, `quest.py` for
+    the game) call this now, because two copies of this grammar is exactly how the
+    tooling and the game came to disagree about the same file.
+    """
+    if own_kind:
+        arch = _kind_to_archetype(own_kind)
+        if arch:
+            return arch
+    pairs = [p for p in ancestors if p and (p[0] or p[1])]
+    if not pairs and own_section:
+        arch = archetype_for_section(own_section)
+        if arch:
+            return arch
+    for kind, section in pairs:
+        if kind:
+            arch = _kind_to_archetype(kind)
+            if arch:
+                return arch
+        if section:
+            arch = archetype_for_section(section)
+            if arch:
+                return arch
+    return infer_archetype(field_labels)
+
+
 def _kind_to_archetype(noun):
     """A bare-noun kind line -> an archetype. Singular or plural both work, so an
     author writes `Character` over one record and `Characters` over a section

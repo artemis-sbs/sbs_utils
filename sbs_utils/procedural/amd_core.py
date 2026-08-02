@@ -408,34 +408,22 @@ def _resolve_node_kind(node, block):
     ancestor that answers wins. An explicit kind still beats a section NAME at the same
     distance - explicit beats convention, but only where it was written.
     """
-    from sbs_utils.procedural.amd_schema import amd_resolve_kind
-    own = amd_kind_line(block)
-    if own:
-        arch = amd_resolve_kind(own_kind=own)
-        if arch:
-            return arch
-    # A record's OWN key names its archetype ONLY in a flat file (`jobs.amd` handed to a
-    # loader whole), where there is no section above it to say so. Asking it for a NESTED
-    # record reads the record's name as a type: peacetime's three job steps are each
-    # keyed `scan`, and they are quest steps, not scan records. Guarded to top-level.
-    if _is_top_level(node):
-        arch = amd_resolve_kind(section_key=node.key)
-        if arch:
-            return arch
+    from sbs_utils.procedural.amd_schema import amd_resolve_kind_chain
+    # One pair per ancestor, NEAREST FIRST, so a kind line and a section name compete at
+    # the distance they were actually written at.
+    ancestors = []
     parent = node.parent
     while parent is not None:
-        arch = amd_resolve_kind(
-            own_kind=getattr(parent, "kind", None),
-            section_key=(parent.key if parent.key != "__root__" else None))
-        if arch:
-            return arch
+        key = parent.key if parent.key != "__root__" else None
+        ancestors.append((getattr(parent, "kind", None), key))
         parent = parent.parent
     # Read the labels out of the RAW block: this runs BEFORE the fence is parsed
     # (the parse needs the kind to pick a table), so `node.data` is still empty and
     # the discriminating-field fallback would never fire.
     from sbs_utils.procedural.amd import amd_fact_lines
     labels = [lab for lab, _v in amd_fact_lines(block)]
-    return amd_resolve_kind(field_labels=labels)
+    return amd_resolve_kind_chain(own_kind=amd_kind_line(block), ancestors=ancestors,
+                                  field_labels=labels, own_section=node.key)
 
 
 def _extract_choice_refs(node, lineno, raw):

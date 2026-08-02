@@ -242,3 +242,59 @@ class TestCrlfHeadings(unittest.TestCase):
             root = document_get_amd_file(None, "Overview",
                                          content=self.DOC.replace("\n", ending))
             self.assertEqual(len(root.get("children") or {}), 1, f"{label} lost its child")
+
+
+class TestRuntimeAndToolingAgreeOnKind(unittest.TestCase):
+    """`amd_core.parse` is what the TOOLING reads; `document_get_amd_file` is what the
+    GAME reads. They were two copies of the kind rules, and fixing one left them
+    disagreeing about every record in a file with a root kind line."""
+
+    DOC = """# [The Silver Reach](reach)
+---
+Universe
+---
+Prose.
+
+## [Regions](regions)
+
+### [The Veilfall](veilfall)
+---
+Center: 5, -4
+Radius: 3
+---
+
+## [Sides](sides)
+
+### [Combine](lantern)
+---
+Color: #ffcc44
+Enemies: veil
+---
+"""
+
+    def _runtime(self, src):
+        from sbs_utils.procedural.quest import document_get_amd_file
+        out = {}
+
+        def walk(node):
+            kids = node.get("children") or {}
+            for c in (kids.values() if hasattr(kids, "values") else kids):
+                out[c.get("key")] = c
+                walk(c)
+        walk(document_get_amd_file(None, "x", content=src))
+        return out
+
+    def test_both_readers_agree(self):
+        from sbs_utils.procedural.amd_core import parse
+        tooling = {n.key: n.kind for n in parse(self.DOC).nodes}
+        runtime = {k: v.get("kind") for k, v in self._runtime(self.DOC).items()}
+        for key in ("veilfall", "lantern"):
+            self.assertEqual(tooling[key], runtime[key],
+                             f"{key}: tooling {tooling[key]} vs runtime {runtime[key]}")
+        self.assertEqual(runtime["veilfall"], "region")
+        self.assertEqual(runtime["lantern"], "side")
+
+    def test_the_runtime_coerces_by_the_resolved_kind(self):
+        """The point of getting the kind right: it picks the coercion table."""
+        self.assertEqual(self._runtime(self.DOC)["veilfall"].get("data", {}).get("center"),
+                         [5, -4])
