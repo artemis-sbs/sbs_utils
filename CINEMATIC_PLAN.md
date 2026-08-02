@@ -431,9 +431,10 @@ reference for how the background tones read over a live view.
 | ~~1~~ | ~~Phase 0 spikes~~ | ✅ done - and section 0 above is what they found |
 | ~~2~~ | ~~Phase 1 primitives~~ | ✅ done - `procedural/gui/camera.py`, 17 tests |
 | ~~-~~ | ~~Phase 6 flat button~~ | ❌ dropped - `gui_button(background_color=…)` already is one |
-| **1** | **Phase 5 `two_shot`** | the conversation lower third. Wanted regardless of cutscenes, and it exercises the overlay-kind mechanism the rest of the furniture will use |
-| 2 | Phase 2 mover | needs re-sketching against the one-object rule: a move is now "recompute the subject-relative offset", not "animate an anchor the camera rides" |
-| 3 | Phase 3 cutscenes | sequencing on top of proven parts |
+| ~~3~~ | ~~Phase 5 lower thirds~~ | ✅ done - one square visual (face/ship/icon/image), `align` left/right, optional replies. It also earned `col-width: square` and the overlay-kind mechanism the rest of the furniture will use |
+| **1** | **CONFIRM THE OFFSET FOLD RENDERS IN-ENGINE** | the blocker. `camera_shot(to, subject, eye_world)` folds a two-object request into one id, because `cinematic_control` only draws when `dollyID == targetID`. Every phase below stands on that fold. It has never been seen to render - the range's own camera work was all mock-side |
+| 2 | Phase 2 mover | Q1 (WORLD) and Q3 (per-tick re-apply is fine) are answered, so the shape is known: a move recomputes the subject-relative offset each tick, one driver task per shot. It is not blocked by Q2/Q4 - those bite the cutscene, not the move |
+| 3 | Phase 3 cutscenes | sequencing on top of proven parts. **Needs Q2 (cut or blend) and Q4 (dolly deleted mid-shot)** - both answerable by running `visual_camera_cut` in the engine |
 | 4 | Phase 4 rundowns | the payoff. A shot is a *(subject, lens position)* pair now, not a camera object - arguably a better model |
 
 ## 4. Standing constraints
