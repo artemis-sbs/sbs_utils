@@ -54,3 +54,42 @@ class FuncCommandRuntimeNode(MastRuntimeNode):
             return PollResults.OK_ADVANCE_TRUE
 
         return PollResults.OK_RUN_AGAIN    
+
+
+#
+# `await <expr>` where the expression is NOT a call - typically a variable holding
+# a Promise:
+#
+#     choice = gui_button("Fire", on_press=Promise())
+#     await choice
+#
+# This fell between the two existing nodes. `Await` (the block form) ends in
+# BLOCK_START, which REQUIRES a trailing colon; `FuncCommand` above requires a
+# CALL, because its pattern demands parens. So a bare name matched neither and the
+# line was reported as "Unrecognized syntax" - which reads as a parser bug rather
+# than an unsupported form, because `r = await choice` compiles fine (Assign owns
+# that line, not this rule).
+#
+# ADDITIVE AND SAFE: the rule cannot match anything that parses today, because it
+# requires the literal `await` keyword and today every such line is a hard compile
+# error. Nothing existing can change meaning. Registered with @mast_node(), which
+# APPENDS - so the block form and the call form both still get first refusal.
+#
+# The runtime needed nothing: FuncCommandRuntimeNode already evaluates the code and
+# awaits whatever Promise comes back, indifferent to how it was spelled.
+#
+@mast_node()
+class AwaitExpression(MastNode):
+    rule = re.compile(r"""await[ \t]+(?P<py_cmds>[\w\.\[\]'"]+)[ \t]*(?=\r\n|\n|\#)""")
+
+    def __init__(self, py_cmds=None, loc=None, compile_info=None):
+        super().__init__()
+        self.loc = loc
+        self.is_await = True
+        self.code = compile(py_cmds.strip(), "<string>", "eval")
+
+
+@mast_runtime_node(AwaitExpression)
+class AwaitExpressionRuntimeNode(FuncCommandRuntimeNode):
+    """Identical behaviour - only the spelling differed."""
+    pass
