@@ -64,6 +64,19 @@ def _init_route_name(stripped):
     return parts[0] if _INIT_NAME.match(parts[0]) else None
 
 
+# `# lint: allow [code ...]` on the line ABOVE excuses the next line. A comment rather
+# than a trailing marker because MAST parses line by line and a trailing `#` on a call is
+# not reliably a comment.
+#
+# It exists because the alternative is worse. `//signal/show_game_results` schedules
+# save_game_results_yaml once per console, which is exactly what the ticker rule
+# describes - but that task opens with `default shared RESULTS_SAVED` and returns
+# immediately when set, so it writes once however many consoles fire it. The rule cannot
+# see a guard inside the task it is pointing at, and a linter that flags correct code
+# teaches people to stop reading it.
+_ALLOW = re.compile(r"^#\s*lint:\s*allow(?P<codes>.*)$", re.I)
+
+
 def signal_lint(file_path=None, content=None):
     """Return [AmdFinding] (all WARNING) for side-effects inside `//signal` routes in one
     .mast source. See the module docstring + SIGNAL_ROUTING.md."""
@@ -72,10 +85,16 @@ def signal_lint(file_path=None, content=None):
     cur = None        # name of the //signal route currently open, else None
     cur_init = None   # name of the unguarded //shared/signal init route open, else None
     loops = []        # indents of for/while headers still open
+    allow = None      # codes a `# lint: allow` comment excuses on the NEXT line
     for i, raw in enumerate(lines, start=1):
         line = raw.rstrip("\n")
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
+            m = _ALLOW.match(stripped)
+            if m:
+                # Bare `# lint: allow` excuses everything on the next line; naming codes
+                # excuses only those.
+                allow = {c.strip() for c in m.group("codes").replace(",", " ").split()}
             continue
         indent = len(line) - len(line.lstrip())
         while loops and indent <= loops[-1]:
@@ -96,8 +115,11 @@ def signal_lint(file_path=None, content=None):
         # init-shaped names on purpose: emitting a per-item signal from a loop
         # (quest_signal, fabricate, nebula_within_change) is a normal, correct pattern,
         # so flagging every emit-in-loop was pure noise.
+        def _excused(code):
+            return allow is not None and (not allow or code in allow)
+
         emit = _EMIT.search(line)
-        if emit and loops and _INIT_NAME.match(emit.group("name")):
+        if emit and loops and _INIT_NAME.match(emit.group("name")) and not _excused("signal-emit-in-loop"):
             findings.append(AmdFinding(
                 i, WARNING, "signal-emit-in-loop",
                 "signal_emit(\"" + emit.group("name") + "\") is inside a loop - its "
@@ -105,7 +127,8 @@ def signal_lint(file_path=None, content=None):
                 "handler idempotent (*_ensure). See SIGNAL_ROUTING.md"))
 
         # An init route that creates without a key duplicates on a second emit.
-        if cur_init and _SPAWN.search(line) and not _KEYED.search(line):
+        if (cur_init and _SPAWN.search(line) and not _KEYED.search(line)
+                and not _excused("signal-init-unkeyed-spawn")):
             findings.append(AmdFinding(
                 i, WARNING, "signal-init-unkeyed-spawn",
                 "//shared/signal/" + cur_init + " spawns without a stable key - a second "
@@ -113,15 +136,17 @@ def signal_lint(file_path=None, content=None):
                 "re-emit is a no-op, or mark the route `once`. See SIGNAL_ROUTING.md"))
 
         if cur is None:
+            allow = None
             continue
         for rx, code, human in _SIDE_EFFECTS:
-            if rx.search(line):
+            if rx.search(line) and not _excused("signal-side-effect-" + code):
                 findings.append(AmdFinding(
                     i, WARNING, "signal-side-effect-" + code,
                     "//signal/" + cur + " calls " + human + " - runs once PER console; use "
                     "//shared/signal (or split: shared does it + emits a display signal). "
                     "See SIGNAL_ROUTING.md"))
                 break   # one finding per line
+        allow = None        # a directive excuses exactly one line
     return findings
 
 
@@ -131,19 +156,26 @@ def _scan_project_file(content):
     emit_sites = []
     init_routes = set()
     cur_init = None
+    allow = None        # `# lint: allow` excuses the next line here too
     for i, raw in enumerate(_source_lines(None, content), start=1):
         line = raw.rstrip("\n")
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
+            m = _ALLOW.match(stripped)
+            if m:
+                allow = {c.strip() for c in m.group("codes").replace(",", " ").split()}
             continue
         if not line[:1].isspace() and _STRUCT.match(stripped):
             cur_init = _init_route_name(stripped)
+            allow = None
             continue
         m = _EMIT.search(line)
         if m:
             emit_sites.append((m.group("name"), i))
-        if cur_init and _SPAWN.search(line) and not _KEYED.search(line):
+        excused = allow is not None and (not allow or "signal-init-unkeyed-spawn" in allow)
+        if cur_init and _SPAWN.search(line) and not _KEYED.search(line) and not excused:
             init_routes.add(cur_init)
+        allow = None
     return emit_sites, init_routes
 
 

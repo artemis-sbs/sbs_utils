@@ -156,3 +156,39 @@ class SignalLintProjectTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLintAllowDirective(unittest.TestCase):
+    """`# lint: allow` - because a rule that cannot see a guard must not be unarguable.
+
+    show_game_results schedules its save once per console, which is exactly what the
+    ticker rule describes - but the scheduled task guards itself with a shared flag, so
+    it writes once. A linter with no way to say "this one is fine" gets ignored wholesale.
+    """
+
+    def _codes(self, src):
+        from sbs_utils.procedural.signal_lint import signal_lint
+        return [f.code for f in signal_lint(content=src)]
+
+    def test_without_a_directive_it_flags(self):
+        self.assertEqual(self._codes("//signal/x\n    task_schedule(t)\n"),
+                         ["signal-side-effect-ticker"])
+
+    def test_a_named_code_is_excused(self):
+        self.assertEqual(
+            self._codes("//signal/x\n    # lint: allow signal-side-effect-ticker\n"
+                        "    task_schedule(t)\n"), [])
+
+    def test_a_bare_allow_excuses_everything_on_that_line(self):
+        self.assertEqual(
+            self._codes("//signal/x\n    # lint: allow\n    task_schedule(t)\n"), [])
+
+    def test_a_different_code_still_flags(self):
+        self.assertEqual(
+            self._codes("//signal/x\n    # lint: allow signal-emit-in-loop\n"
+                        "    task_schedule(t)\n"), ["signal-side-effect-ticker"])
+
+    def test_it_excuses_exactly_one_line(self):
+        self.assertEqual(
+            self._codes("//signal/x\n    # lint: allow\n    task_schedule(a)\n"
+                        "    task_schedule(b)\n"), ["signal-side-effect-ticker"])
