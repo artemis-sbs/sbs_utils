@@ -383,9 +383,16 @@ def amd_lint_references(doc, known_keys=frozenset()):
 
 # --- Phase 3: cross-file (signals vs routes, reach vs landmark) --------------
 def _mast_routes(mast_sources):
-    """Set of declared `//signal/<name>` route names across the given .mast sources."""
+    """Set of declared signal-route names across the given .mast sources.
+
+    BOTH forms count. `//shared/signal/X` handles signal X exactly as `//signal/X` does -
+    it is the SERVER-only variant, and SIGNAL_ROUTING.md recommends it for anything that
+    spawns, saves, rewards or counts. Matching only the per-console form meant the linter
+    reported "no route was found" for the routing style the project tells authors to
+    prefer: every one of Storm's Beacon's shared routes was flagged despite existing.
+    """
     routes = set()
-    rx = re.compile(r"^//signal/(?P<name>\S+)")
+    rx = re.compile(r"^//(?:shared/)?signal/(?P<name>\S+)")
     for src in mast_sources or []:
         for line in src.splitlines():
             m = rx.match(line.strip())

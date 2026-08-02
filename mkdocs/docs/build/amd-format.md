@@ -289,6 +289,33 @@ misspelled verb before the mission ever runs.
 repeatable thread. Every verb above survives that: `arrives` is keyed to the landmark, so
 it will not place a second one, but it *will* re-place one that was destroyed.
 
+#### When it applies — and when it doesn't
+
+`Action:` is for a beat that **causes** a change in the world. Read it as: *this moment
+arrives, and because of it these things happen.* An ambush springs on a timer; a captain
+defects when the evidence lands; a fleet warps in when the alarm goes out.
+
+It is **not** for a change that causes a beat. That is the more common shape in an
+existing mission, and it looks like this:
+
+> The crew scans a cargo hold. Code unmasks the smuggler — flips its roles, changes its
+> side, sends it running — and *then* marks the quest step done.
+
+Here the world changed first and the beat is the consequence. Putting those directions in
+the next beat's `Action:` would run them *after* the step advances, which is later than
+the moment they belong to — the ship would already be fleeing while still flying its
+disguise.
+
+The test is which way the arrow points:
+
+| | |
+|---|---|
+| The beat happens, **so** the world changes | `Action:` |
+| The world changes, **so** the beat happens | leave it where it is |
+
+A useful sign you are in the second case: something is polling or translating state into a
+signal to advance the quest. That translation is the arrow pointing the other way.
+
 ### Older spellings still work
 
 Nothing you have written stops working. These are the same fields under their previous
