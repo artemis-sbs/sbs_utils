@@ -1408,6 +1408,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1782,6 +1786,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../cosmos/cinematics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cinematics (camera, cutscenes, rundowns)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../cosmos/comms/" class="md-nav__link">
         
   
@@ -1849,7 +1876,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_18" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_19" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1866,14 +1893,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_18" id="__nav_5_18_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_19" id="__nav_5_19_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_18_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_18">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_19">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -2086,6 +2113,29 @@
   
   <span class="md-ellipsis">
     Web pages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The Library (in-game reading)
     
   </span>
   
@@ -3797,9 +3847,27 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.objective.objective_reset" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;objective_reset
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.objective.objective_schedule" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;objective_schedule
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.objective.objective_ticks_stale" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;objective_ticks_stale
     </span>
   </a>
   
@@ -6003,9 +6071,27 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.objective.objective_reset" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;objective_reset
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.objective.objective_schedule" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;objective_schedule
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.objective.objective_ticks_stale" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;objective_ticks_stale
     </span>
   </a>
   
@@ -6826,6 +6912,33 @@ None.</p>
 <div class="doc doc-object doc-function">
 
 
+<h2 id="sbs_utils.procedural.objective.objective_reset" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">objective_reset</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Forget the scheduled tick tasks so the next mission re-registers them.</p>
+<p>These three module globals are "already scheduled" latches. A mission restart
+calls TickDispatcher.clear(), which throws the tasks away - but the latches
+stayed set, so objective_schedule() decided there was nothing to do and NOTHING
+EVER DROVE BRAINS OR OBJECTIVES AGAIN. NPCs still spawn and still get brains
+attached; they simply never think, never move, and never report an error.</p>
+<p>The engine forks a fresh process per mission and so never hits this. The dev
+runner reuses the interpreter, so there it means every mission after the first
+plays with dead AI - which is how it turned up: a --runs soak showed <code>moving</code>
+dropping 41 -&gt; 6 while <code>npcs</code> and <code>brains</code> stayed put.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="sbs_utils.procedural.objective.objective_schedule" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">objective_schedule</span><span class="p">()</span></code>
 
@@ -6835,6 +6948,26 @@ None.</p>
     <div class="doc doc-contents ">
 
         <p>Ensure the background tick task that drives objectives is running.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.objective.objective_ticks_stale" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">objective_ticks_stale</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>True if we think the tick tasks are scheduled but the dispatcher has lost them.</p>
+<p>Exactly the state above: latched but not running. Registered with the reset
+ledger so a restart soak names it instead of leaving an AI-less mission.</p>
 
 
     </div>

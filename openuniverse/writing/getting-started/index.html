@@ -1408,6 +1408,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1782,6 +1786,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../cosmos/cinematics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cinematics (camera, cutscenes, rundowns)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../cosmos/comms/" class="md-nav__link">
         
   
@@ -1849,7 +1876,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_18" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_19" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1866,14 +1893,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_18" id="__nav_5_18_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_19" id="__nav_5_19_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_18_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_18">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_19">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -2086,6 +2113,29 @@
   
   <span class="md-ellipsis">
     Web pages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The Library (in-game reading)
     
   </span>
   
@@ -5700,7 +5750,7 @@ one-heading universe that already plays.</p>
 <div class="admonition note">
 <p class="admonition-title">The finished example is already in the box</p>
 <p>The universe this walkthrough builds, <strong>The Silver Reach</strong>, ships with the
-mission (<code>universe/silver_reach.amd</code>) and is playable from the Universe
+mission (<code>silver_reach.amd</code>) and is playable from the Universe
 dropdown right now. You can peek at it whenever a page here leaves you
 unsure - or copy it wholesale and carve your own galaxy out of it. The
 steps below build it from a blank page, using <code>my_reach</code> as your file's
@@ -5710,10 +5760,15 @@ verbatim, keep your own <code>key:</code> and <code>display:</code> in the regis
 </div>
 <h2 id="hang-your-universe-on-the-shelf">Hang your universe on the shelf</h2>
 <p><strong>1.</strong> Create your file next to the existing ones:</p>
-<div class="highlight"><pre><span></span><code>OpenUniverse/universe/my_reach.amd
+<div class="highlight"><pre><span></span><code>OpenUniverse/my_reach.amd
 </code></pre></div>
+<p>Universes live at the mission root, not inside <code>universe_core/</code>. That addon is the
+<strong>engine</strong> - a mission built on Open Universe loads it to get the universe machinery,
+and should not inherit somebody else's universes along with it, the same way
+LegendaryMissions keeps its maps out of its addons. Your <code>.amd</code> is found because the
+mission's own folder is looked in first.</p>
 <p><strong>2.</strong> Add it to the game's universe list so it appears in the <strong>Universe</strong>
-dropdown on the start screen. Open <code>OpenUniverse/universe/universes.mast</code> and
+dropdown on the start screen. Open <code>OpenUniverse/universes.mast</code> and
 copy an existing entry, filling in your name (this is the only file you will
 touch that is not your own):</p>
 <div class="highlight"><pre><span></span><code>=== universe_my_reach

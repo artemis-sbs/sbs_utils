@@ -1408,6 +1408,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1782,6 +1786,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../cosmos/cinematics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cinematics (camera, cutscenes, rundowns)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../cosmos/comms/" class="md-nav__link">
         
   
@@ -1849,7 +1876,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_18" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_19" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1866,14 +1893,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_18" id="__nav_5_18_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_19" id="__nav_5_19_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_18_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_18">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_19">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -2086,6 +2113,29 @@
   
   <span class="md-ellipsis">
     Web pages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../build/library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The Library (in-game reading)
     
   </span>
   
@@ -5862,6 +5912,36 @@ heading-level jumps. <strong>Warnings</strong>: dangling choice / <code>Scene:</
 <code>Starts when: signal X</code> that nothing emits, a <code>reach i,j</code> with no landmark <code>At:</code>, and
 non-ASCII author text (the engine renders ASCII only). Backed by <code>sbs_utils.procedural.amd_lint</code> — also callable
 directly on a single file: <code>python -m sbs_utils.procedural.amd_lint &lt;file.amd&gt;</code>.</p>
+<p><code>lint</code> also reads the mission's <code>.mast</code> for two signal problems that are easy to write and
+hard to see. First, work that runs <strong>once per console</strong> when it should run once on the
+server (<code>signal-side-effect-*</code> — a <code>//signal</code> route that spawns, rewards, saves, counts or
+rolls random). Second, setup that can run <strong>more than once</strong> because its signal gets
+emitted more than once:</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Fires on</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>signal-init-unkeyed-spawn</code></td>
+<td>a <code>//shared/signal/create_*</code> route that spawns without a key and isn't marked <code>once</code></td>
+</tr>
+<tr>
+<td><code>signal-emit-in-loop</code></td>
+<td>a setup <code>signal_emit</code> inside a <code>for</code> / <code>while</code></td>
+</tr>
+<tr>
+<td><code>signal-multi-emit</code></td>
+<td>such a signal emitted from more than one place in the mission</td>
+</tr>
+</tbody>
+</table>
+<p>All are warnings — the fix is usually a keyed create (<code>player_ensure</code>) or a <code>once</code> route.
+See <a href="../../mast/routes/signals/#running-setup-only-once">Signal routes</a>. Skip them with
+<code>--no-signals</code>.</p>
 <p>References resolve across <strong>all of the mission's <code>.amd</code> files</strong> and against MAST
 <code>== labels ==</code>, so a <code>Scene:</code> / choice / <code>reveal</code> that targets a node in a sibling
 file (or a MAST handler label) isn't wrongly flagged. To vouch for a signal the

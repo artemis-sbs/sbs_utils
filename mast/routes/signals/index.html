@@ -1365,6 +1365,48 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#running-setup-only-once" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running setup only once
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running setup only once">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prefer-a-key-make-the-work-idempotent" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prefer a key: make the work idempotent
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#once-when-there-is-nothing-to-key-on" class="md-nav__link">
+    <span class="md-ellipsis">
+      once when there is nothing to key on
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sbs-lint-catches-the-common-shapes" class="md-nav__link">
+    <span class="md-ellipsis">
+      sbs lint catches the common shapes
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1446,6 +1488,10 @@
       
         
           
+        
+      
+        
+      
         
       
         
@@ -1876,6 +1922,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../cosmos/cinematics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cinematics (camera, cutscenes, rundowns)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../cosmos/comms/" class="md-nav__link">
         
   
@@ -1943,7 +2012,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_18" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_19" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1960,14 +2029,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_18" id="__nav_5_18_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_19" id="__nav_5_19_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_18_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_18">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_19">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -2180,6 +2249,29 @@
   
   <span class="md-ellipsis">
     Web pages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The Library (in-game reading)
     
   </span>
   
@@ -5714,6 +5806,48 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#running-setup-only-once" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running setup only once
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running setup only once">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prefer-a-key-make-the-work-idempotent" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prefer a key: make the work idempotent
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#once-when-there-is-nothing-to-key-on" class="md-nav__link">
+    <span class="md-ellipsis">
+      once when there is nothing to key on
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sbs-lint-catches-the-common-shapes" class="md-nav__link">
+    <span class="md-ellipsis">
+      sbs lint catches the common shapes
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5924,6 +6058,110 @@ if data is None:
 <tr>
 <td><code>await signal_next(name)</code></td>
 <td>A task needs to <strong>wait inline</strong> for the next emit and continue its own flow.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="running-setup-only-once">Running setup only once</h2>
+<p><code>//shared/signal</code> decides <strong>where</strong> a route runs — the server, once per emit. It says
+nothing about <strong>how many times the signal is emitted</strong>. Emit a setup signal twice and its
+route body runs twice, <code>shared</code> or not, and that happens more easily than you'd think: two
+addons emitting the same one, a copied emit in both the console start and a map body, an
+emit inside a loop, a double-clicked Start button, or a route that failed halfway and got
+re-emitted to fix it.</p>
+<h3 id="prefer-a-key-make-the-work-idempotent">Prefer a key: make the work idempotent</h3>
+<p>The best fix is for the work itself to be safe to repeat. Give what you create a stable
+name and create it only if it's missing:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="7:1"><input checked="checked" id="__tabbed_7_1" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="__tabbed_7_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>for slot, data in enumerate(SETTINGS.get(&quot;PLAYER_LIST&quot;)):
+    player_ensure(slot, 0,0,0, data[&quot;ship&quot;], data[&quot;name&quot;], data[&quot;side&quot;])
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>Eight ships, however many times that runs. This is better than "did I already run?"
+because it stays correct when you re-run <strong>on purpose</strong> — after a reset the ships are
+gone and they get rebuilt, a destroyed ship can be remade, and a late-joining crew's slot
+is filled without touching the others.</p>
+<p><code>player_ensure</code> / <code>player_slot_id</code> / <code>players_reset</code> work this way, as do <code>side_ensure</code>
+and AMD landmarks and characters (they key off the record's own <code>(key)</code>).</p>
+<h3 id="once-when-there-is-nothing-to-key-on"><code>once</code> when there is nothing to key on</h3>
+<p>For work with no natural name — award starting cash, play an intro — mark the route:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="8:1"><input checked="checked" id="__tabbed_8_1" name="__tabbed_8" type="radio" /><div class="tabbed-labels"><label for="__tabbed_8_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>//shared/signal/give_starting_cash once
+
+//signal/show_intro once if IS_HOST
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>It runs at most once per mission. The <code>if</code> is checked first, so a route whose condition is
+false keeps its shot for later. <code>signal_once_reset("name")</code> re-arms it; starting a new
+mission re-arms everything automatically.</p>
+<div class="admonition warning">
+<p class="admonition-title">Never put <code>once</code> on a route that repairs something</p>
+<p><code>create_sides</code> must stay re-runnable. Creating a new simulation leaves side
+relationships and colours needing to be written again, and re-declaring is the only
+cure — mark that route <code>once</code> and contacts quietly render grey. The same goes for any
+route that brings state back to how it should be rather than making something new.</p>
+</div>
+<h3 id="sbs-lint-catches-the-common-shapes"><code>sbs lint</code> catches the common shapes</h3>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Fires on</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>signal-init-unkeyed-spawn</code></td>
+<td>a <code>//shared/signal/create_*</code> route that spawns without a key and isn't <code>once</code></td>
+</tr>
+<tr>
+<td><code>signal-emit-in-loop</code></td>
+<td>a setup <code>signal_emit</code> inside a <code>for</code> / <code>while</code></td>
+</tr>
+<tr>
+<td><code>signal-multi-emit</code></td>
+<td>such a signal emitted from more than one place</td>
 </tr>
 </tbody>
 </table>

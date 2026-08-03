@@ -1408,6 +1408,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1782,6 +1786,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../cosmos/cinematics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cinematics (camera, cutscenes, rundowns)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../cosmos/comms/" class="md-nav__link">
         
   
@@ -1849,7 +1876,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_18" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_19" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1866,14 +1893,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_18" id="__nav_5_18_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_19" id="__nav_5_19_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_18_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_18">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_19">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -2086,6 +2113,29 @@
   
   <span class="md-ellipsis">
     Web pages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The Library (in-game reading)
     
   </span>
   
@@ -4076,6 +4126,15 @@
   <a href="#sbs_utils.procedural.quest.quest_remove" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;quest_remove
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.quest.quest_run_action" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;quest_run_action
     </span>
   </a>
   
@@ -6291,6 +6350,15 @@
   <a href="#sbs_utils.procedural.quest.quest_remove" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;quest_remove
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.quest.quest_run_action" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;quest_run_action
     </span>
   </a>
   
@@ -8637,6 +8705,33 @@ the in-game and end-game logs. Fix the look here and both update.</p>
   <summary>Example</summary>
   <p>removed = quest_remove(SHIP_ID, "patrol")</p>
 </details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.quest.quest_run_action" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">quest_run_action</span><span class="p">(</span><span class="n">agent</span><span class="p">,</span> <span class="n">quest_id</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Run this quest's <code>Action:</code> stage directions, if it declares any. Returns how
+many applied.</p>
+<p>Called automatically when a quest goes ACTIVE. Public because a mission that drives
+quests its own way still wants the block to fire.</p>
+<p>ONE PER AGENT. A quest activated on five player ships runs its block five times -
+the same multiplicity as a <code>//signal</code> route, and the same footgun. It is safe today
+because every built-in verb is idempotent (<code>becomes</code>/<code>joins</code> set state,
+<code>arrives</code> is keyed on the landmark, <code>departs</code> deletes something already gone), and
+a mission registering its own verb has to keep that property or scope the quest to
+<code>Agent.SHARED_ID</code>.</p>
+
 
     </div>
 

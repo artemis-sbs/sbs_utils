@@ -1410,6 +1410,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1787,6 +1791,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../cosmos/cinematics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cinematics (camera, cutscenes, rundowns)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../cosmos/comms/" class="md-nav__link">
         
   
@@ -1857,7 +1884,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_18" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_19" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1874,14 +1901,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_18" id="__nav_5_18_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5_19" id="__nav_5_19_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_18_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_18">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_19">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -2064,6 +2091,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#the-key-is-an-identity-so-records-dont-duplicate" class="md-nav__link">
+    <span class="md-ellipsis">
+      The key is an identity, so records don't duplicate
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2135,6 +2171,30 @@
   
     <nav class="md-nav" aria-label="Quest fields">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#action-stage-directions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Action: — stage directions
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Action: — stage directions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-it-applies-and-when-it-doesnt" class="md-nav__link">
+    <span class="md-ellipsis">
+      When it applies — and when it doesn't
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#older-spellings-still-work" class="md-nav__link">
@@ -2283,6 +2343,29 @@
   
   <span class="md-ellipsis">
     Web pages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The Library (in-game reading)
     
   </span>
   
@@ -5794,6 +5877,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#the-key-is-an-identity-so-records-dont-duplicate" class="md-nav__link">
+    <span class="md-ellipsis">
+      The key is an identity, so records don't duplicate
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -5865,6 +5957,30 @@
   
     <nav class="md-nav" aria-label="Quest fields">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#action-stage-directions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Action: — stage directions
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Action: — stage directions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-it-applies-and-when-it-doesnt" class="md-nav__link">
+    <span class="md-ellipsis">
+      When it applies — and when it doesn't
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#older-spellings-still-work" class="md-nav__link">
@@ -5973,6 +6089,16 @@ several different jobs. When a name is used more than once, point at it by <stro
 <p>A bare key resolves <strong>nearest first</strong> — from the record making the reference, then
 outward — so a step can refer to a sibling by its short name. If a bare key really is
 ambiguous, the linter says so and names the candidates rather than guessing.</p>
+<h3 id="the-key-is-an-identity-so-records-dont-duplicate">The key is an identity, so records don't duplicate</h3>
+<p>Because a record is named, loading one <strong>twice</strong> does not make two of it. Landmarks and
+characters are created against their key, so a section that gets loaded again — a map
+label that runs twice, a setup signal emitted more than once — gives you back the station
+or the person you already have, not a second one sitting on top of it.</p>
+<p>It's checked against the live game rather than a "have I loaded this?" flag, so it still
+does the right thing when you <em>mean</em> to load again: if the station was destroyed or the
+cast was cleared, loading the section re-creates it.</p>
+<p>Characters are keyed by their record <strong>and their host</strong>, so casting the same crew onto two
+different stations gives each station its own people.</p>
 <hr />
 <h2 id="the-fence">The fence</h2>
 <p>Everything between the <code>---</code> lines is the record's facts, one per line.</p>
@@ -6159,8 +6285,12 @@ never dropped.</p>
 <td>What activates it (same grammar)</td>
 </tr>
 <tr>
+<td><code>Action:</code></td>
+<td>What happens the moment it <strong>starts</strong> — see below</td>
+</tr>
+<tr>
 <td><code>Then:</code></td>
-<td>What happens next — <code>reveal &lt;key&gt;</code> or <code>signal &lt;name&gt;</code></td>
+<td>What happens next, once it <strong>finishes</strong> — <code>reveal &lt;key&gt;</code> or <code>signal &lt;name&gt;</code></td>
 </tr>
 <tr>
 <td><code>Reward:</code></td>
@@ -6184,6 +6314,102 @@ never dropped.</p>
 </tr>
 </tbody>
 </table>
+<h3 id="action-stage-directions"><code>Action:</code> — stage directions</h3>
+<p>A screenplay page has three things: a slug line, an action block, and dialogue. AMD could
+already write the dialogue. <code>Action:</code> is the action block — what the world does the moment
+a beat begins.</p>
+<div class="highlight"><pre><span></span><code>### [The trap closes](ambush)
+---
+Starts when: signal alarm
+Action:
+  - Kidnapper is no longer a suspect
+  - Kidnapper becomes a pirate
+  - Kessel Station arrives
+---
+The freighter lights her engines. The raider swings to follow.
+</code></pre></div>
+<p>A line reads <strong>who — does what — to what</strong>. The verb sits between the two names, which is
+what tells you which one is acting.</p>
+<table>
+<thead>
+<tr>
+<th>Verb</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>becomes</code></td>
+<td>Gives it a role — <code>Kidnapper becomes a pirate</code></td>
+</tr>
+<tr>
+<td><code>is no longer</code></td>
+<td>Takes a role away — <code>Kidnapper is no longer a suspect</code></td>
+</tr>
+<tr>
+<td><code>joins</code></td>
+<td>Changes side — <code>Xorn joins tsn</code></td>
+</tr>
+<tr>
+<td><code>arrives</code></td>
+<td>Places a landmark you declared — <code>Kessel Station arrives</code></td>
+</tr>
+<tr>
+<td><code>departs</code></td>
+<td>Removes it from the world</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>Action:</code> fires when the beat starts. <code>Then:</code> fires when it finishes.</strong> That is the whole
+difference between them, and it is why both exist.</p>
+<p><strong>The lines all happen at once.</strong> The order you write them in is not an order of events. If
+one thing has to follow another, that is a second beat with its own <code>Starts when:</code> — and a
+time is a trigger like any other, so <code>Starts when: 3 seconds</code> works.</p>
+<p>There are no conditions, loops or sequences here, on purpose. A direction is a statement.
+When you want <em>"but only if the player scanned it"</em>, write two beats with different
+<code>Starts when:</code> — the same way a branching quest is already written.</p>
+<p><strong>Who can act.</strong> An actor is a landmark you declared, or a role — and a role covers
+everyone who has it, so <code>Raiders become hostile</code> moves all of them at once. A name nothing
+recognises is reported in the log rather than silently skipped, and the linter catches a
+misspelled verb before the mission ever runs.</p>
+<p><strong>Repeating is safe.</strong> A beat can start more than once — re-revealed, reloaded, a
+repeatable thread. Every verb above survives that: <code>arrives</code> is keyed to the landmark, so
+it will not place a second one, but it <em>will</em> re-place one that was destroyed.</p>
+<h4 id="when-it-applies-and-when-it-doesnt">When it applies — and when it doesn't</h4>
+<p><code>Action:</code> is for a beat that <strong>causes</strong> a change in the world. Read it as: <em>this moment
+arrives, and because of it these things happen.</em> An ambush springs on a timer; a captain
+defects when the evidence lands; a fleet warps in when the alarm goes out.</p>
+<p>It is <strong>not</strong> for a change that causes a beat. That is the more common shape in an
+existing mission, and it looks like this:</p>
+<blockquote>
+<p>The crew scans a cargo hold. Code unmasks the smuggler — flips its roles, changes its
+side, sends it running — and <em>then</em> marks the quest step done.</p>
+</blockquote>
+<p>Here the world changed first and the beat is the consequence. Putting those directions in
+the next beat's <code>Action:</code> would run them <em>after</em> the step advances, which is later than
+the moment they belong to — the ship would already be fleeing while still flying its
+disguise.</p>
+<p>The test is which way the arrow points:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The beat happens, <strong>so</strong> the world changes</td>
+<td><code>Action:</code></td>
+</tr>
+<tr>
+<td>The world changes, <strong>so</strong> the beat happens</td>
+<td>leave it where it is</td>
+</tr>
+</tbody>
+</table>
+<p>A useful sign you are in the second case: something is polling or translating state into a
+signal to advance the quest. That translation is the arrow pointing the other way.</p>
 <h3 id="older-spellings-still-work">Older spellings still work</h3>
 <p>Nothing you have written stops working. These are the same fields under their previous
 names, and a file may use either:</p>

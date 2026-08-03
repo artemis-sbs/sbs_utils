@@ -1408,6 +1408,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1782,6 +1786,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../cosmos/cinematics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cinematics (camera, cutscenes, rundowns)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../cosmos/comms/" class="md-nav__link">
         
   
@@ -1849,7 +1876,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_18" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_19" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1866,14 +1893,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_18" id="__nav_5_18_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_19" id="__nav_5_19_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_18_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_18">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_19">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -2086,6 +2113,29 @@
   
   <span class="md-ellipsis">
     Web pages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The Library (in-game reading)
     
   </span>
   
@@ -3483,6 +3533,15 @@
   <a href="#sbs_utils.procedural.gui.gui.gui_screen_size" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_screen_size
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.gui.gui_screen_size_known" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_screen_size_known
     </span>
   </a>
   
@@ -7128,6 +7187,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.gui.gui_screen_size_known" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_screen_size_known
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.gui.gui.gui_task_for_client" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_task_for_client
@@ -9083,6 +9151,16 @@ immediately within the current tick.</p>
     <div class="doc doc-contents ">
 
         <p>Return the pixel dimensions of a client's screen.</p>
+<p>CAUTION: when the client has not reported its size yet, this returns a
+1024x768 PLACEHOLDER with <code>z == 99</code> rather than a real measurement, and a
+client that reconnects goes back to the placeholder until its next resize
+event. Branching on the width without checking validity silently builds the
+small-screen layout on a large display:</p>
+<pre><code>ss = gui_screen_size(client_id)
+if ss.x &lt; 1600:          # WRONG - 1024 placeholder also lands here
+    ...
+</code></pre>
+<p>Use <code>gui_screen_size_known</code> to tell "small" from "unknown".</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -9130,7 +9208,16 @@ immediately within the current tick.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Screen dimensions in pixels (x=width, y=height, z=0).</p>
+                <p>Screen dimensions in pixels (x=width, y=height); z is</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>GUI_SCREEN_SIZE_UNKNOWN_Z</code> (99) when the size is not yet known.</p>
               </div>
             </td>
           </tr>
@@ -9142,6 +9229,89 @@ immediately within the current tick.</p>
   <summary>Example</summary>
   <p>size = gui_screen_size(CLIENT_ID)
 ~~ print(size.x, size.y) ~~</p>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.gui.gui.gui_screen_size_known" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">gui_screen_size_known</span><span class="p">(</span><span class="n">client_id</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>True when the client has actually reported its screen size.</p>
+<p>Pair with <code>gui_screen_size</code> before branching on the dimensions, so an
+unknown size can be handled deliberately (usually: assume the LARGER layout,
+which degrades better than cramming a wide screen into the narrow one).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>client_id</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The client whose screen to query.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>bool</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>False while the size is still the 1024x768 placeholder.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <p>ss = gui_screen_size(client_id)
+if not gui_screen_size_known(client_id) or ss.x &gt;= 1600:
+    gui_row("row-height: 35px;col-width:45px;")
+else:
+    gui_row("row-height: 35px;col-width:25px;")</p>
 </details>
 
     </div>

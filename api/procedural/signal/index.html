@@ -1408,6 +1408,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1782,6 +1786,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../cosmos/cinematics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cinematics (camera, cutscenes, rundowns)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../cosmos/comms/" class="md-nav__link">
         
   
@@ -1849,7 +1876,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_18" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_19" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1866,14 +1893,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_18" id="__nav_5_18_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_19" id="__nav_5_19_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_18_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_18">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_19">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -2086,6 +2113,29 @@
   
   <span class="md-ellipsis">
     Web pages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The Library (in-game reading)
     
   </span>
   
@@ -3955,6 +4005,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#running-setup-only-once" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running setup only once
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#awaiting-a-signal" class="md-nav__link">
     <span class="md-ellipsis">
       Awaiting a signal
@@ -4012,6 +4071,24 @@
   <a href="#sbs_utils.procedural.signal.signal_next" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;signal_next
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.signal.signal_once_enter" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;signal_once_enter
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.signal.signal_once_reset" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;signal_once_reset
     </span>
   </a>
   
@@ -5775,6 +5852,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#running-setup-only-once" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running setup only once
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#awaiting-a-signal" class="md-nav__link">
     <span class="md-ellipsis">
       Awaiting a signal
@@ -5832,6 +5918,24 @@
   <a href="#sbs_utils.procedural.signal.signal_next" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;signal_next
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.signal.signal_once_enter" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;signal_once_enter
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.signal.signal_once_reset" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;signal_once_reset
     </span>
   </a>
   
@@ -5919,10 +6023,45 @@
 </div>
 </div>
 <h2 id="shared-signals">Shared signals</h2>
-<p>A <code>//shared/signal/&lt;name&gt;</code> route fires for all clients and tasks, not just the one that emitted it:</p>
+<p>A <code>//shared/signal/&lt;name&gt;</code> route runs on the <strong>server only</strong>, once. A plain
+<code>//signal/&lt;name&gt;</code> route runs once per <strong>connected console</strong>, plus the server — so with
+five consoles its body runs six times.</p>
+<p>That is the single most common multiplayer bug in mission code. Ask: <em>"with five consoles,
+do I want this five times?"</em> Anything that spawns, saves, rewards, counts, ends the game or
+rolls random belongs in <code>//shared/signal</code>; only per-console <strong>display</strong> stays in <code>//signal</code>.</p>
 <div class="highlight"><pre><span></span><code>//shared/signal/quest_completed
     log(&quot;Mission complete! Well done, crew.&quot;)
 </code></pre></div>
+<h2 id="running-setup-only-once">Running setup only once</h2>
+<p><code>//shared/signal</code> fixes <strong>where</strong> a route runs. It does not limit <strong>how many times the
+signal is emitted</strong> — emit setup twice and its body runs twice.</p>
+<p>Where what you create has a natural name, prefer making the work idempotent
+(<code>player_ensure</code>, <code>side_ensure</code>, AMD records keyed by their own <code>(key)</code>). Where it does
+not, mark the route <code>once</code>:</p>
+<div class="highlight"><pre><span></span><code>//shared/signal/give_starting_cash once
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>signal_once_reset(name)</code></td>
+<td>Re-arm the <code>once</code> routes for a signal, so they can run again</td>
+</tr>
+<tr>
+<td><code>signal_once_reset()</code></td>
+<td>Re-arm every <code>once</code> route</td>
+</tr>
+</tbody>
+</table>
+<p>Starting a new mission re-arms everything, so <code>signal_once_reset</code> is only for re-running
+setup <strong>within</strong> a mission — resetting scenario conditions without reloading.</p>
+<p>Full guidance, and the routes you must <em>not</em> mark <code>once</code>, are in
+<a href="../../../mast/routes/signals/#running-setup-only-once">Signal routes</a>.</p>
 <h2 id="awaiting-a-signal">Awaiting a signal</h2>
 <p>A <code>//signal/&lt;name&gt;</code> route reacts <em>every</em> time a signal fires. Sometimes instead a
 task just needs to <strong>pause until the next one</strong>. <code>signal_next(name)</code> is a one-shot
@@ -6275,6 +6414,170 @@ route. Composes with <code>promise_any</code> for event-or-timeout, or pass
   <p>data = await signal_next("wave_cleared")
 result = await promise_any(signal_next("docked"), delay_sim(30))</p>
 </details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.signal.signal_once_enter" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">signal_once_enter</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Test-and-set the one-shot flag for a <code>once</code> route body.</p>
+<p>Compiled into the route by <code>SignalRouteDecoratorLabel</code> - scripts do not call
+this directly. Keyed on the generated LABEL name, not the signal path, so two
+routes handling the same signal each get their own shot.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>label</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The route's generated label name.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>path</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The signal name, so <code>signal_once_reset</code> can find it.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>bool</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>True the first time (run the body), False afterwards.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.signal.signal_once_reset" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">signal_once_reset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Re-arm <code>once</code> routes so they will run again.</p>
+<p>The explicit path for an INTENTIONAL re-initialization - resetting scenario
+conditions without reloading the mission. A mission reload needs no call: the
+flags live in Agent.SHARED and <code>reset_mission_state</code> clears it.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>name</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Signal name to re-arm. Defaults to all of them.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>int</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How many routes were re-armed.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
 
     </div>
 

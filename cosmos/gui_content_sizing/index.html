@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#sizing-to-content-auto-content-min-content-max-content" class="md-skip">
+        <a href="#sizing-to-content-auto-content-min-content-max-content-square" class="md-skip">
           Skip to content
         </a>
       
@@ -1410,6 +1410,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1777,9 +1781,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-four-keywords" class="md-nav__link">
+  <a href="#the-keywords" class="md-nav__link">
     <span class="md-ellipsis">
-      The four keywords
+      The keywords
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#square-as-wide-as-it-is-tall" class="md-nav__link">
+    <span class="md-ellipsis">
+      square — as wide as it is tall
     </span>
   </a>
   
@@ -1892,6 +1905,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../cinematics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cinematics (camera, cutscenes, rundowns)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../comms/" class="md-nav__link">
         
   
@@ -1962,7 +1998,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_18" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_19" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1979,14 +2015,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_18" id="__nav_5_18_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5_19" id="__nav_5_19_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_18_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_18">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_19">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -2199,6 +2235,29 @@
   
   <span class="md-ellipsis">
     Web pages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../build/library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The Library (in-game reading)
     
   </span>
   
@@ -5701,9 +5760,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-four-keywords" class="md-nav__link">
+  <a href="#the-keywords" class="md-nav__link">
     <span class="md-ellipsis">
-      The four keywords
+      The keywords
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#square-as-wide-as-it-is-tall" class="md-nav__link">
+    <span class="md-ellipsis">
+      square — as wide as it is tall
     </span>
   </a>
   
@@ -5773,7 +5841,7 @@
   
 
 
-<h1 id="sizing-to-content-auto-content-min-content-max-content">Sizing to content — <code>auto</code>, <code>content</code>, <code>min-content</code>, <code>max-content</code></h1>
+<h1 id="sizing-to-content-auto-content-min-content-max-content-square">Sizing to content — <code>auto</code>, <code>content</code>, <code>min-content</code>, <code>max-content</code>, <code>square</code></h1>
 <p>Rows and columns <strong>fill</strong> by default: a section's height is split across its rows,
 a row's width across its columns. That is usually what you want, but it means a
 label like <code>Shields:</code> gets the same share as the value beside it, and you end up
@@ -5820,11 +5888,16 @@ keywords take a column <em>out</em> of the pool and give it a size of its own.</
 <td>no — sized from its content</td>
 <td>n/a</td>
 </tr>
+<tr>
+<td><code>square</code> <em>(columns only)</em></td>
+<td>no — sized from the ROW HEIGHT</td>
+<td>n/a</td>
+</tr>
 </tbody>
 </table>
 <p>Because <code>col-width</code> cascades column → row → section, putting <code>1fr</code> on a section
 makes every column in it minimum-aware without annotating any of them.</p>
-<h2 id="the-four-keywords">The four keywords</h2>
+<h2 id="the-keywords">The keywords</h2>
 <table>
 <thead>
 <tr>
@@ -5854,8 +5927,31 @@ makes every column in it minimum-aware without annotating any of them.</p>
 <td>the whole line, unbroken</td>
 <td>tallest cell measured as one unwrapped line</td>
 </tr>
+<tr>
+<td><code>square</code></td>
+<td><strong>as wide as it is tall</strong> — sized from the row height</td>
+<td><strong>not valid</strong> (it would be circular; raises)</td>
+</tr>
 </tbody>
 </table>
+<h2 id="square-as-wide-as-it-is-tall"><code>square</code> — as wide as it is tall</h2>
+<p>The other keywords derive a width from the column's own content. <code>square</code> derives
+it from the <strong>other axis</strong>: the column becomes as wide as the row is tall. It is
+what a portrait, an icon, a ship render or a badge normally wants.</p>
+<div class="highlight"><pre><span></span><code>gui_row(&quot;row-height: 6em;&quot;)
+gui_face(face, style=&quot;col-width: square&quot;)     # a 6em square
+gui_text(&quot;$text:`Harkin`;justify:left&quot;)       # flex: takes the rest
+</code></pre></div>
+<p><strong><code>square</code> and an explicit width are mutually exclusive</strong> — setting either clears
+the other. They are two answers to one question, and holding both is an illegal
+state rather than a combination: a square column carrying a width is counted twice
+when the row is divided up, so the row reserves its space twice over and, because
+the engine does not clip, draws the surplus over and outside its neighbours.</p>
+<p><code>gui_face</code> and <code>gui_icon</code> are square by default. <code>gui_ship</code> and the image widgets
+are <strong>not</strong> — left alone they flex, so a ship in a two-column strip takes half of
+it. Say <code>col-width: square</code> and they behave like the others. An image keeps its
+aspect ratio <em>inside</em> the square box, so a non-square source letterboxes rather
+than distorting.</p>
 <p><code>min-content</code> on a <strong>row</strong> is an intentional alias. A true CSS row <code>min-content</code>
 (how tall it gets when wrapped as narrow as possible) is expensive to compute and
 not useful for a console.</p>

@@ -1726,6 +1726,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -2100,6 +2104,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../cosmos/cinematics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cinematics (camera, cutscenes, rundowns)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cosmos/comms/" class="md-nav__link">
         
   
@@ -2167,7 +2194,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_18" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_19" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2184,14 +2211,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_18" id="__nav_5_18_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_19" id="__nav_5_19_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_18_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_18">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_19">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -2404,6 +2431,29 @@
   
   <span class="md-ellipsis">
     Web pages
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../build/library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The Library (in-game reading)
     
   </span>
   
@@ -6818,6 +6868,21 @@ Repo: <a href="https://github.com/artemis-sbs/control_gallery">artemis-sbs/contr
   equal share with a minimum; the older spelling <code>auto</code> still works.)</p>
 </li>
 <li>
+<p><strong><a href="../cosmos/gui_content_sizing/#square-as-wide-as-it-is-tall"><code>col-width: square</code></a>.</strong>
+  A column as wide as the row is tall. The other keywords derive a width from the
+  column's own content; this one derives it from the <em>other axis</em>, which is what a
+  portrait, an icon, a ship render or a badge nearly always wants. <code>gui_face</code> and
+  <code>gui_icon</code> were already square; <strong><code>gui_ship</code> and the image widgets were not</strong> — so a
+  ship placed beside text used to flex and take half the row. Now they all say the
+  same thing.</p>
+<p><strong>Behavior change</strong>: <code>square</code> and an explicit width are mutually exclusive, and
+setting either clears the other. A square column that <em>also</em> carried a width used
+to be counted twice when the row was divided up, so the row reserved its space
+twice over and — since the engine never clips — drew the surplus over and outside
+its neighbours. If a screen of yours puts a <code>col-width</code> on a face or an icon, it
+now gets the width it asked for instead of that double-count.</p>
+</li>
+<li>
 <p><strong><a href="../cosmos/gui_overflow/"><code>overflow:</code> for text that cannot fit</a>.</strong> Because the
   engine never clips, text too big for its box is drawn over its neighbours. When
   there is genuinely no space to give — a user-entered name, a fixed strip — a
@@ -6946,6 +7011,14 @@ If something must behave exactly like the engine, verify it in Cosmos.</p>
 <li><strong><code>sbs swap</code></strong> — keep several mission sets side by side and switch between them
   without copying anything (see below). → <a href="../tooling/cli/">The <code>sbs</code> CLI</a></li>
 <li><strong><code>signal_next</code></strong> — one-shot await of the next signal. → <a href="../api/procedural/signal/">Signals</a></li>
+<li><strong><code>once</code> routes, and creates that can't duplicate.</strong> <code>//shared/signal</code> runs a route
+  server-once <em>per emit</em> — it never promised the signal is only emitted once, so setup
+  that got emitted twice used to build everything twice. Now mark a route
+  <strong><code>//shared/signal/give_starting_cash once</code></strong> and it runs at most once a mission. Better
+  still, where the thing being made has a natural name, creating is <strong>idempotent</strong>:
+  <code>player_ensure(slot, …)</code> and AMD landmarks and characters key off the slot or the
+  record's own key, so asking twice gets you the same ship, station or person — while a
+  deliberate rebuild after a reset still works. → <a href="../mast/routes/signals/">Signals</a></li>
 <li><strong>Bring an old Artemis 2.8 mission forward.</strong> <code>pip install arme2cosmos</code>, point it at
   the old XML, and it writes the Cosmos mission for you — as a quest tree, or as plain
   MAST you can edit — plus a notes file listing anything worth a second look. It's
