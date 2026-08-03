@@ -101,6 +101,7 @@ nav:
     - Items & Upgrades: build/items-upgrades.md
     - Adding an item or upgrade: build/custom-upgrades.md
     - Web pages: build/web-pages.md
+    - The Library (in-game reading): build/library.md
     - Shared media (art that lives once): build/shared-media.md
     - Making add-ons: build/addons.md
 
