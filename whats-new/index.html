@@ -600,27 +600,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#amd-in-the-words-an-author-would-use" class="md-nav__link">
+  <a href="#amd-write-the-mission-dont-program-it" class="md-nav__link">
     <span class="md-ellipsis">
-      ✍️ AMD, in the words an author would use
+      ✍️ AMD — write the mission, don't program it
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#fewer-special-cases" class="md-nav__link">
+  <a href="#the-amd-editor-knows-the-format" class="md-nav__link">
     <span class="md-ellipsis">
-      🧹 Fewer special cases
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-amd-editor-knows-the-format-now" class="md-nav__link">
-    <span class="md-ellipsis">
-      🧰 The AMD editor knows the format now
+      🧰 The AMD editor knows the format
     </span>
   </a>
   
@@ -5974,27 +5965,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#amd-in-the-words-an-author-would-use" class="md-nav__link">
+  <a href="#amd-write-the-mission-dont-program-it" class="md-nav__link">
     <span class="md-ellipsis">
-      ✍️ AMD, in the words an author would use
+      ✍️ AMD — write the mission, don't program it
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#fewer-special-cases" class="md-nav__link">
+  <a href="#the-amd-editor-knows-the-format" class="md-nav__link">
     <span class="md-ellipsis">
-      🧹 Fewer special cases
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-amd-editor-knows-the-format-now" class="md-nav__link">
-    <span class="md-ellipsis">
-      🧰 The AMD editor knows the format now
+      🧰 The AMD editor knows the format
     </span>
   </a>
   
@@ -6270,8 +6252,8 @@ go to the relevant docs.</p>
 <li><strong>Impulse only</strong> (the canonical rule): a tether can't hold at warp — it caps you
   back to impulse, or optionally snaps and drops the load.</li>
 </ul>
-<p>Built on the engine's native tractor, with the mock now simulating the pull so the
-behavior is testable outside the game. API: <a href="../api/procedural/grav_tether/">grav_tether</a>.</p>
+<p>Built on the engine's native tractor.
+API: <a href="../api/procedural/grav_tether/">grav_tether</a>.</p>
 <h2 id="the-casino-is-open">🎰 The Casino is open</h2>
 <p>Dock in the hangar bay and step into the <strong>Casino</strong> — a self-contained hangout
 that adds a <strong>Casino</strong> tab to the bay (leave it out and nothing changes). It runs
@@ -6294,14 +6276,15 @@ their revered master computer.</p>
 </ul>
 <p>Play guide: <a href="../legendarymissions/playing/casino/">How to play the Casino</a> ·
 Authors: <a href="../legendarymissions/addons/casino/">The Casino addon</a>.</p>
-<h2 id="amd-in-the-words-an-author-would-use">✍️ AMD, in the words an author would use</h2>
-<p>The fact-sheet format had a pass over its whole vocabulary before it ships, and the
-theme is: <strong>say what a thing is, and stop configuring it.</strong></p>
+<h2 id="amd-write-the-mission-dont-program-it">✍️ AMD — write the mission, don't program it</h2>
+<p><strong>AMD</strong> is the new way to author content: a mission's jobs, characters, places and
+story beats are written as plain <strong>fact sheets</strong>, in the words you would use describing
+them to someone. No script, no wiring — you say what a thing is, and it behaves that way.</p>
 <p><strong>A record says what it is, and that decides how it behaves.</strong> A <code>Beat</code> is a moment the
 crew lives through — it runs unseen and appears in the log once it <em>has</em> happened, as
 history. A <code>Cue</code> is a stage direction: it fires and is never listed. An <code>Arc</code> is the
 heading over a run of beats. A <code>Job</code> is taken by a ship; an <code>Objective</code> is the crew's.
-Those words carry what used to be spelled out on every record:</p>
+The word you choose carries the rest:</p>
 <div class="highlight"><pre><span></span><code># [The Coils Overheat](ramscoop/coils)
 ---
 Beat
@@ -6309,14 +6292,12 @@ Done when: signal ramscoop_online
 ---
 Engineering reports the coils running hot.
 </code></pre></div>
-<p><strong>One trigger grammar, three questions.</strong> <code>Starts when:</code> / <code>Done when:</code> / <code>Fails when:</code>
+<p><strong>One grammar answers three questions.</strong> <code>Starts when:</code> / <code>Done when:</code> / <code>Fails when:</code>
 all take the same thing — <code>signal X</code>, <code>destroy 6 raiders</code>, <code>reach 6, 4</code>, <code>5 minutes</code>,
-<code>all dead convoy</code>, <code>accepted</code>, <code>revealed</code>. That replaced seven differently-shaped
-fields, and <code>Starts when:</code> is now a <strong>real gate</strong>: it opens a quest, and <code>Done when:</code>
-decides what finishes it. (They used to write the same key, so a quest carrying both
-finished on whichever fired first.)</p>
-<p><strong><code>Reward:</code> and <code>Penalty:</code></strong> — the failure side always had code and never had a word.
-A timed job that costs you something when the clock runs out is now two lines.</p>
+<code>all dead convoy</code>, <code>accepted</code>, <code>revealed</code>. Learn it once and you can say when anything
+opens, finishes or fails.</p>
+<p><strong><code>Reward:</code> and <code>Penalty:</code></strong> say what a job pays and what failing it costs — so a timed
+job with something at stake is two lines.</p>
 <p><strong>Traits — what a record ALSO does.</strong> A worldlet is a <em>Landmark</em> that happens to yield
 ore; that second half is a trait, not a new kind of thing:</p>
 <div class="highlight"><pre><span></span><code>Landmark
@@ -6325,72 +6306,23 @@ Yields: ore 8
 Reserve: 4000
 </code></pre></div>
 <p>Two traits ship: <strong><code>economy</code></strong> (<code>Yields:</code> <code>Reserve:</code> <code>Price:</code> <code>Costs:</code> <code>Time:</code>) and
-<strong><code>reputation</code></strong> (<code>Values:</code> <code>Standing:</code> <code>Reliability:</code> <code>Rival when:</code>) — one concern that
-four different records had each spelled their own way. A side and a Character carry
-<code>reputation</code> without saying so; <code>Also:</code> is for the optional half.</p>
-<p>Everything already written still parses — every rename keeps its old spelling, and no
-stored key moved. See <a href="../build/amd-format/">The AMD file format</a>.</p>
-<h2 id="fewer-special-cases">🧹 Fewer special cases</h2>
-<p>The same pass went through the missions themselves, where content written early had
-invented its own kinds of record for things the format already had a word for.</p>
-<table>
-<thead>
-<tr>
-<th>was its own kind</th>
-<th>is</th>
-<th>why</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>a <strong>clan</strong></td>
-<td>a <strong>Side</strong></td>
-<td>it was spawned as one all along</td>
-</tr>
-<tr>
-<td>a <strong>captain</strong></td>
-<td>a <strong>Character</strong></td>
-<td>its <code>Title:</code>/<code>Values:</code> were already declared on lifeform — twice</td>
-</tr>
-<tr>
-<td>a <strong>worldlet</strong></td>
-<td>a <strong>Landmark</strong> that yields</td>
-<td>a place on the map</td>
-</tr>
-<tr>
-<td>the <strong>admiralty</strong> dials</td>
-<td>the <strong>scenario's</strong> settings</td>
-<td>not a kind of record at all</td>
-</tr>
-<tr>
-<td>a bar <strong>patron</strong></td>
-<td>a <strong>Character</strong></td>
-<td>they are people</td>
-</tr>
-<tr>
-<td>a <strong>rumor</strong></td>
-<td><strong>Dialogue</strong></td>
-<td>a line someone says</td>
-</tr>
-</tbody>
-</table>
-<p>Five private types gone, and nothing lost: the domain words (<code>Flies:</code>, <code>Roams:</code>,
-<code>Reliability:</code>, <code>Palette:</code>) hang off the core archetypes instead. The patron one matters
-beyond tidiness — a brain attaches to an <strong>Agent</strong>, and a patron used to be a dictionary.</p>
-<h2 id="the-amd-editor-knows-the-format-now">🧰 The AMD editor knows the format now</h2>
-<p>The VS Code extension stopped being a text editor with colors:</p>
+<strong><code>reputation</code></strong> (<code>Values:</code> <code>Standing:</code> <code>Reliability:</code> <code>Rival when:</code>). A Side and a
+Character are always regarded some way, so they carry <code>reputation</code> without asking;
+<code>Also:</code> is for the optional half.</p>
+<p>See <a href="../build/amd-format/">The AMD file format</a>.</p>
+<h2 id="the-amd-editor-knows-the-format">🧰 The AMD editor knows the format</h2>
+<p>The VS Code extension reads AMD as a format rather than as coloured text:</p>
 <ul>
 <li><strong>"This is a" picker</strong> — a record's word is visible and settable, grouped Story / Work
   / Content, and it tells you what choosing it means (<em>"scope: shared, show: when done"</em>).</li>
 <li><strong>Completion answers where you are</strong>: nouns on the fence's first line, field labels on
   a fence line, that field's values after the colon.</li>
-<li><strong>Hover explains the field</strong> — the format's own words for it, its allowed values, and
-  whether it is a spelling something newer replaced.</li>
+<li><strong>Hover explains the field</strong> — the format's own words for it and its allowed values.</li>
 <li><strong>Your mission's own vocabulary is learned</strong>, by reading the Python that declares it
   (never running it), so a mission's private fields get the same widgets and lint as the
   core ones.</li>
-<li><strong>Editing a field no longer eats the rest of the fence</strong> — the kind line, <code>//</code> notes
-  and list continuations survive an edit. They did not before.</li>
+<li><strong>Edits are safe</strong> — changing one field leaves the kind line, <code>//</code> notes and list
+  continuations exactly as you wrote them.</li>
 </ul>
 <h2 id="quests-stories">🧭 Quests &amp; Stories</h2>
 <ul>
@@ -6484,8 +6416,8 @@ panel) decides whether you cooperate or compete for the same board of jobs:</p>
   Payment follows whoever delivers, and each ship banks its <strong>own</strong> earnings for a
   top-earner readout.</li>
 </ul>
-<p>The ownership, per-ship credit, and kill-attribution rules are all locked down by headless
-conformance tests, so the guarantees hold without standing up five clients to check.</p>
+<p>Who owns a job, who gets paid, and who gets credit for a kill are firm rules rather than
+best effort — they hold however many ships are flying.</p>
 <p>Player guide: <a href="../legendarymissions/playing/multiplayer-quests/">Multiplayer jobs</a>.</p>
 <h2 id="web-pages-written-in-mast">🌐 Web pages, written in MAST</h2>
 <ul>
