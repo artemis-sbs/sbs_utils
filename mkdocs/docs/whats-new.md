@@ -32,8 +32,8 @@ A tractor beam for Weapons and fighters — one system, scaled by hull.
 - **Impulse only** (the canonical rule): a tether can't hold at warp — it caps you
   back to impulse, or optionally snaps and drops the load.
 
-Built on the engine's native tractor, with the mock now simulating the pull so the
-behavior is testable outside the game. API: [grav_tether](api/procedural/grav_tether.md).
+Built on the engine's native tractor.
+API: [grav_tether](api/procedural/grav_tether.md).
 
 ## 🎰 The Casino is open
 
@@ -59,16 +59,17 @@ their revered master computer.
 Play guide: [How to play the Casino](legendarymissions/playing/casino.md) ·
 Authors: [The Casino addon](legendarymissions/addons/casino.md).
 
-## ✍️ AMD, in the words an author would use
+## ✍️ AMD — write the mission, don't program it
 
-The fact-sheet format had a pass over its whole vocabulary before it ships, and the
-theme is: **say what a thing is, and stop configuring it.**
+**AMD** is the new way to author content: a mission's jobs, characters, places and
+story beats are written as plain **fact sheets**, in the words you would use describing
+them to someone. No script, no wiring — you say what a thing is, and it behaves that way.
 
 **A record says what it is, and that decides how it behaves.** A `Beat` is a moment the
 crew lives through — it runs unseen and appears in the log once it *has* happened, as
 history. A `Cue` is a stage direction: it fires and is never listed. An `Arc` is the
 heading over a run of beats. A `Job` is taken by a ship; an `Objective` is the crew's.
-Those words carry what used to be spelled out on every record:
+The word you choose carries the rest:
 
 ```amd
 # [The Coils Overheat](ramscoop/coils)
@@ -79,15 +80,13 @@ Done when: signal ramscoop_online
 Engineering reports the coils running hot.
 ```
 
-**One trigger grammar, three questions.** `Starts when:` / `Done when:` / `Fails when:`
+**One grammar answers three questions.** `Starts when:` / `Done when:` / `Fails when:`
 all take the same thing — `signal X`, `destroy 6 raiders`, `reach 6, 4`, `5 minutes`,
-`all dead convoy`, `accepted`, `revealed`. That replaced seven differently-shaped
-fields, and `Starts when:` is now a **real gate**: it opens a quest, and `Done when:`
-decides what finishes it. (They used to write the same key, so a quest carrying both
-finished on whichever fired first.)
+`all dead convoy`, `accepted`, `revealed`. Learn it once and you can say when anything
+opens, finishes or fails.
 
-**`Reward:` and `Penalty:`** — the failure side always had code and never had a word.
-A timed job that costs you something when the clock runs out is now two lines.
+**`Reward:` and `Penalty:`** say what a job pays and what failing it costs — so a timed
+job with something at stake is two lines.
 
 **Traits — what a record ALSO does.** A worldlet is a *Landmark* that happens to yield
 ore; that second half is a trait, not a new kind of thing:
@@ -100,46 +99,26 @@ Reserve: 4000
 ```
 
 Two traits ship: **`economy`** (`Yields:` `Reserve:` `Price:` `Costs:` `Time:`) and
-**`reputation`** (`Values:` `Standing:` `Reliability:` `Rival when:`) — one concern that
-four different records had each spelled their own way. A side and a Character carry
-`reputation` without saying so; `Also:` is for the optional half.
+**`reputation`** (`Values:` `Standing:` `Reliability:` `Rival when:`). A Side and a
+Character are always regarded some way, so they carry `reputation` without asking;
+`Also:` is for the optional half.
 
-Everything already written still parses — every rename keeps its old spelling, and no
-stored key moved. See [The AMD file format](build/amd-format.md).
+See [The AMD file format](build/amd-format.md).
 
-## 🧹 Fewer special cases
+## 🧰 The AMD editor knows the format
 
-The same pass went through the missions themselves, where content written early had
-invented its own kinds of record for things the format already had a word for.
-
-| was its own kind | is | why |
-|---|---|---|
-| a **clan** | a **Side** | it was spawned as one all along |
-| a **captain** | a **Character** | its `Title:`/`Values:` were already declared on lifeform — twice |
-| a **worldlet** | a **Landmark** that yields | a place on the map |
-| the **admiralty** dials | the **scenario's** settings | not a kind of record at all |
-| a bar **patron** | a **Character** | they are people |
-| a **rumor** | **Dialogue** | a line someone says |
-
-Five private types gone, and nothing lost: the domain words (`Flies:`, `Roams:`,
-`Reliability:`, `Palette:`) hang off the core archetypes instead. The patron one matters
-beyond tidiness — a brain attaches to an **Agent**, and a patron used to be a dictionary.
-
-## 🧰 The AMD editor knows the format now
-
-The VS Code extension stopped being a text editor with colors:
+The VS Code extension reads AMD as a format rather than as coloured text:
 
 - **"This is a" picker** — a record's word is visible and settable, grouped Story / Work
   / Content, and it tells you what choosing it means (*"scope: shared, show: when done"*).
 - **Completion answers where you are**: nouns on the fence's first line, field labels on
   a fence line, that field's values after the colon.
-- **Hover explains the field** — the format's own words for it, its allowed values, and
-  whether it is a spelling something newer replaced.
+- **Hover explains the field** — the format's own words for it and its allowed values.
 - **Your mission's own vocabulary is learned**, by reading the Python that declares it
   (never running it), so a mission's private fields get the same widgets and lint as the
   core ones.
-- **Editing a field no longer eats the rest of the fence** — the kind line, `//` notes
-  and list continuations survive an edit. They did not before.
+- **Edits are safe** — changing one field leaves the kind line, `//` notes and list
+  continuations exactly as you wrote them.
 
 ## 🧭 Quests & Stories
 
@@ -213,8 +192,8 @@ panel) decides whether you cooperate or compete for the same board of jobs:
   Payment follows whoever delivers, and each ship banks its **own** earnings for a
   top-earner readout.
 
-The ownership, per-ship credit, and kill-attribution rules are all locked down by headless
-conformance tests, so the guarantees hold without standing up five clients to check.
+Who owns a job, who gets paid, and who gets credit for a kill are firm rules rather than
+best effort — they hold however many ships are flying.
 
 Player guide: [Multiplayer jobs](legendarymissions/playing/multiplayer-quests.md).
 
