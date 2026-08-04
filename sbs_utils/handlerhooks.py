@@ -139,6 +139,10 @@ def reset_mission_state():
     from .procedural.announce import announce_traffic_reset
     announce_traffic_reset()    # the "when did anything last speak" clock the urge
                                 # budget's global floor reads
+    from .procedural.terrain import terrain_sow_reset
+    terrain_sow_reset() # queued terrain for a mission that is over, plus the "we
+                        # are sowing" flag - left on, the next mission's terrain
+                        # would queue against a dead tick task and never appear
     Gui.web_client_ids.clear()  # drop web-page sessions from the old mission
     from .procedural.web import web_living_clear
     web_living_clear()  # drop living/persistent web-page registrations
@@ -193,6 +197,8 @@ register_reset_state("amd landmarks",     lambda: len(_AMD_LANDMARKS))
 from .procedural.amd_doc import (lore_clear, lore_sources,
                                  amd_declared_addons_clear, _DECLARED_ADDONS)
 register_reset_state("lore sources",      lambda: len(lore_sources()))
+from .procedural.terrain import terrain_sow_pending
+register_reset_state("terrain sow",       terrain_sow_pending)
 register_reset_state("amd declared addons", lambda: len(_DECLARED_ADDONS))
 register_reset_state("DeleteQueue",       lambda: len(DeleteQueue._pending) + len(DeleteQueue._pending_grid))
 register_reset_state("Agent.roles",       lambda: len(Agent.roles.collections))

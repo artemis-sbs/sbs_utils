@@ -185,9 +185,47 @@ def terrain_setup_nebula (nebula, diameter=4000, density_coef=1.0, color='yellow
             view). Defaults to 1.0.
         color (str | dict, optional): Colour name or a full colour dict.
             Defaults to ``"yellow"``."""
+def terrain_sow_begin (over=6, focus=None):
+    """Start sowing: terrain fill queued and spread over ``over`` sim-seconds.
+
+    What this guarantees: each queued call creates exactly what it would have
+    created inline -- it carries the RNG state it was queued under, so deferring a
+    cluster never changes that cluster.
+
+    What it does NOT guarantee: that a multi-cluster call produces the same field
+    as it would unsowed. Cluster centres are drawn up front so the macro layout is
+    unchanged, but rock counts and scales within each cluster differ. The result is
+    fully deterministic -- the same seed sows the same field every time.
+
+    Args:
+        over (float, optional): Seconds to spread the work across. Defaults to 6.
+        focus (Vec3 | tuple, optional): Work runs nearest-first from here.
+            Defaults to the map origin.
+
+    Returns:
+        DripQueue: the queue, for callers that want to inspect it."""
+def terrain_sow_complete ():
+    """Promise that resolves once the sown terrain has all been created.
+
+    Example:
+        terrain_sow_begin(over=6)
+        terrain_asteroid_clusters(terrain_value)
+        await terrain_sow_complete()"""
+def terrain_sow_end ():
+    """Stop queueing; terrain_* calls spawn inline again. Anything already queued
+    keeps draining -- use ``terrain_sow_flush()`` to force it out now."""
+def terrain_sow_flush ():
+    """Run all queued terrain work immediately. Returns how many units ran.
+
+    For code that must see the whole field right now -- a test, a headless
+    conformance run, or a query that cannot wait for the drip."""
+def terrain_sow_pending ():
+    """How many queued units of terrain work are still to run."""
+def terrain_sow_reset ():
+    """Drop queued work and leave sowing off (mission reset)."""
 def terrain_spawn (x, y, z, name, side, ship_key, behave_id):
     """Spawn a passive terrain object into the simulation.
-    
+
     Args:
         x (float): X spawn coordinate.
         y (float): Y spawn coordinate.
