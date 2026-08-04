@@ -39,7 +39,7 @@ class UrgeBase(unittest.TestCase):
         reset_mock(sbs)
         self.said = []
         self._real_speak = U.urge_speak
-        U.urge_speak = lambda actor_id, line: (self.said.append((actor_id, line)), True)[1]
+        U.urge_speak = lambda actor_id, line, title=None: (self.said.append((actor_id, line)), True)[1]
 
     def tearDown(self):
         U.urge_speak = self._real_speak
@@ -299,7 +299,7 @@ class BudgetTests(UrgeBase):
         from sbs_utils.procedural.announce import announce_last_traffic
         a = self._actor_with()
         real = U.urge_speak
-        U.urge_speak = lambda actor_id, line: False
+        U.urge_speak = lambda actor_id, line, title=None: False
         try:
             urge_run_one(a.id, now=0)
         finally:
@@ -509,7 +509,7 @@ class RealSpeechTests(unittest.TestCase):
         lf = lifeform_spawn("Ambassador Vell", None, "diplomat")
         urge_add(lf.id, urge_record(key="nag", every=300, pool=["unspeakable"]))
         real = U.urge_speak
-        U.urge_speak = lambda actor_id, line: False
+        U.urge_speak = lambda actor_id, line, title=None: False
         try:
             urge_run_one(lf.id, now=0)
         finally:
@@ -575,3 +575,85 @@ class AmdUrgeTests(UrgeBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class JitterTitleAndFaceTests(UrgeBase):
+    """The three things migrating a SHIPPED nagger needed (URGE_PLAN.md phase 7).
+    LM's Florbin was `random.randint(180, 300)` with a "Passenger Request" card and his
+    own portrait; a format that could not express those would have regressed him."""
+
+    def test_every_range_parses(self):
+        from sbs_utils.procedural.amd_urge import _every
+        self.assertEqual(_every("3-5m"), (180, 300))
+        self.assertEqual(_every("180-300s"), (180, 300))
+        self.assertEqual(_every("4m"), 240, "a plain duration is unchanged")
+
+    def test_jitter_stays_inside_the_range(self):
+        rec = urge_record(key="nag", every=(180, 300), pool=["x"])
+        for _ in range(50):
+            self.assertTrue(180 <= U.urge_every(rec) <= 300)
+
+    def test_jitter_is_rolled_once_per_firing_not_per_pass(self):
+        """Re-rolling every pass would average the range away and restore the metronome."""
+        a = make_agent()
+        urge_add(a.id, urge_record(key="nag", every=(180, 300), pool=["x"]))
+        urge_run_one(a.id, now=0)
+        from sbs_utils.procedural.inventory import get_inventory_value
+        st = get_inventory_value(a.id, "__URGES__")[0]
+        first = st["next"]
+        for _ in range(20):
+            urge_pick(a.id, now=1)          # many passes, no firing
+        self.assertEqual(st["next"], first, "the next-allowed time must not drift")
+
+    def test_a_plain_every_still_works(self):
+        a = make_agent()
+        urge_add(a.id, urge_record(key="nag", every=300, pool=["x"]))
+        urge_run_one(a.id, now=0)
+        self.assertIsNone(urge_pick(a.id, now=100))
+        self.assertIsNotNone(urge_pick(a.id, now=400))
+
+    def test_title_parses_and_reaches_the_card(self):
+        from sbs_utils.procedural.amd_urge import urges_from_section
+        recs = urges_from_section({"children": [
+            {"key": "nag", "display_text": "nag", "description": "% hello",
+             "data": {"Actor": "x", "Title": "Passenger Request"}}]})
+        self.assertEqual(recs[0]["title"], "Passenger Request")
+
+    def test_the_speaker_name_is_the_default_title(self):
+        self.assertIsNone(urge_record(key="nag")["title"])
+
+
+class SpeechCardTests(unittest.TestCase):
+    """The real send path, checking the card actually carries the actor's face and the
+    authored title - the half that unit tests keep not looking at (s10.1)."""
+
+    def setUp(self):
+        reset_mock(sbs)
+        from sbs_utils.procedural import comms as C
+        self.sent = []
+        self._real = C.comms_message
+        C.comms_message = lambda msg, frm, to, title=None, face=None, color=None, \
+            title_color=None, is_receive=True, from_name=None: \
+            self.sent.append({"msg": msg, "title": title, "face": face,
+                              "from_name": from_name})
+
+    def tearDown(self):
+        from sbs_utils.procedural import comms as C
+        C.comms_message = self._real
+
+    def test_card_carries_the_actors_face_and_title(self):
+        from sbs_utils.procedural.lifeform import lifeform_spawn
+        from sbs_utils.faces import get_face
+        lf = lifeform_spawn("Ambassador Florbin", "terran_male", "passenger")
+        U.urge_speak(lf.id, "more towels please", title="Passenger Request")
+        self.assertEqual(len(self.sent), 1)
+        self.assertEqual(self.sent[0]["title"], "Passenger Request")
+        self.assertEqual(self.sent[0]["from_name"], "Ambassador Florbin")
+        self.assertEqual(self.sent[0]["face"], get_face(lf.id))
+        self.assertTrue(self.sent[0]["face"], "a cast character has a portrait; use it")
+
+    def test_without_a_title_the_speaker_name_heads_the_card(self):
+        from sbs_utils.procedural.lifeform import lifeform_spawn
+        lf = lifeform_spawn("Ambassador Florbin", "terran_male", "passenger")
+        U.urge_speak(lf.id, "more towels please")
+        self.assertEqual(self.sent[0]["title"], "Ambassador Florbin")

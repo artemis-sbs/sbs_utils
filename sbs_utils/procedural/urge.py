@@ -172,17 +172,37 @@ _install_conditions()
 
 
 # --- the record ---------------------------------------------------------------
+def urge_every(rec):
+    """The cooldown to apply after a firing, in seconds.
+
+    ``every`` is either a number or a ``(low, high)`` range, in which case each firing
+    picks afresh. Jitter is not decoration: a character who speaks on an exact metronome
+    reads as a machine, and the one shipped nagger in the corpus (LM's Florbin) was
+    written as ``random.randint(180, 300)`` for exactly that reason.
+    """
+    every = rec.get("every") or 0
+    if isinstance(every, (tuple, list)) and len(every) == 2:
+        low, high = float(every[0]), float(every[1])
+        return random.uniform(min(low, high), max(low, high))
+    return float(every)
+
+
 def urge_record(key=None, whenever="always", every=60, until=None, weight=0,
-                pool=None, action=None, actor=None, stages=None, escalates=None):
+                pool=None, action=None, actor=None, stages=None, escalates=None,
+                title=None):
     """One urge, as plain data. ``every`` is seconds; ``pool`` is the flat line list.
 
     ``stages`` is the optional ``{1: [...], 2: [...]}`` map built from ``%`` markers, and
     ``escalates`` is ``"deadline"`` | ``"firing"`` | None. With neither, an urge behaves
     exactly as it did before escalation existed.
     """
-    return {"key": key, "whenever": whenever, "every": float(every or 0),
+    if isinstance(every, (tuple, list)):
+        every = (float(every[0]), float(every[-1]))
+    else:
+        every = float(every or 0)
+    return {"key": key, "whenever": whenever, "every": every,
             "until": until, "weight": int(weight or 0), "pool": list(pool or []),
-            "action": action, "actor": actor,
+            "action": action, "actor": actor, "title": title,
             "stages": dict(stages) if stages else None, "escalates": escalates}
 
 
@@ -285,8 +305,10 @@ def urge_pick(actor_id, now=None):
         if until and urge_condition_eval(actor_id, until):
             st["retired"] = True        # permanent - not merely cooled down
             continue
-        last = st.get("last")
-        if last is not None and (now - last) < rec.get("every", 0):
+        # The next-allowed time is stamped AT firing rather than recomputed here, so a
+        # ranged `Every:` picks its jitter once per firing instead of re-rolling every
+        # pass (which would average the range away and reinstate the metronome).
+        if st.get("next") is not None and now < st["next"]:
             continue
         if not urge_condition_eval(actor_id, rec.get("whenever") or "always"):
             continue
@@ -399,7 +421,7 @@ def urge_line(state):
 
 
 # --- speaking -----------------------------------------------------------------
-def urge_speak(actor_id, line):
+def urge_speak(actor_id, line, title=None):
     """Say one line as this actor, routed by where the actor IS (URGE_PLAN.md s6).
 
     * hosted on a player ship -> an internal crew message from the actor
@@ -422,15 +444,24 @@ def urge_speak(actor_id, line):
     name = getattr(actor, "name", None)
     color = get_inventory_value(actor_id, "lf_color", None)
     host_id = get_inventory_value(actor_id, "host", 0)
+    # The actor's OWN face. Without it an internal message falls back to looking up
+    # `face_<from_name>` on the ship, which a cast character has never registered - so
+    # the card came up faceless for the one person in the room with a portrait.
+    from sbs_utils.faces import get_face
+    face = get_face(actor_id)
+    # `Title:` is the card header; the speaker's name is the sensible default, but a
+    # shipped nagger wanted "Passenger Request" and the header is the only place to say
+    # what KIND of interruption this is.
+    head = title or name
     try:
         if host_id and has_role(host_id, "__player__"):
-            comms_receive_internal(line, host_id, from_name=name, title=name,
-                                   title_color=color)
+            comms_receive_internal(line, host_id, from_name=name, title=head,
+                                   face=face, title_color=color)
         elif host_id:
-            comms_message(line, host_id, role("__player__"), title=name,
+            comms_message(line, host_id, role("__player__"), title=head, face=face,
                           title_color=color, from_name=name)
         else:
-            comms_message(line, actor_id, role("__player__"), title=name,
+            comms_message(line, actor_id, role("__player__"), title=head, face=face,
                           title_color=color, from_name=name)
     except Exception as e:
         _urge_log(f"{name or actor_id} could not speak {line!r}: {e}")
@@ -517,7 +548,7 @@ def urge_run_one(actor_id, now=None):
         # Deliberately NOT stamped: a refused urge retries next pass rather than losing
         # its turn to a floor it had no say in.
         return None
-    if urge_speak(actor_id, urge_line(state)):
+    if urge_speak(actor_id, urge_line(state), title=state["rec"].get("title")):
         urge_note_spoke(actor_id, now)
     action = state["rec"].get("action")
     if action:
@@ -531,6 +562,8 @@ def urge_run_one(actor_id, now=None):
     # not stamping would retry it - and log it - every single pass, forever. The budget
     # refusal above is the deliberate exception: that one is transient by definition, so
     # it returns before this and keeps its turn.
-    state["last"] = FrameContext.sim_seconds if now is None else now
+    stamped = FrameContext.sim_seconds if now is None else now
+    state["last"] = stamped
+    state["next"] = stamped + urge_every(state["rec"])
     state["stage"] = state.get("stage", 0) + 1
     return state

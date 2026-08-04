@@ -366,7 +366,7 @@ Each phase ships something usable alone.
 | 4 | **The budget** DONE 2026-08-04 | Three floors + the `Weight: 90` escape + `announce` awareness. Not optional - phase 3 without it is the annoying version. See s10.4. |
 | 5 | **Escalation** DONE 2026-08-04 | `Escalates: with deadline` reading the bound quest's remaining fraction; `%`/`%%`/`%%%` staging. See s10.5. |
 | 6 | **Author the diplomat** DONE 2026-08-04 | OU passenger offers grow a waiting-actor urge. The real test: reach, escalation, `Until:`, `Action:` in one character. See s10.6. |
-| 7 | **Migrate Florbin** | `fb_pest_messages` becomes declarative. Proves the format covers the one shipped instance. |
+| 7 | **Migrate Florbin** DONE 2026-08-04 | `fb_pest_messages` becomes declarative. Proves the format covers the one shipped instance. See s10.7. |
 | 8 | **Lint + schema** | `amd_schema` typed fields, `sbs lint` checks: unknown `Whenever:` verb, urge bound to a nonexistent quest, urge with no pool, `Every:` shorter than the global floor. |
 
 Phases 1 and 2 are independently useful and unblock everything else - start there.
@@ -595,6 +595,50 @@ weight-90 farewell fires `self departs`. The curve is the `%` count and the temp
 
 **Verification:** 2480 unit tests OK; LM and OU headless PASS, OU coverage 67 -> 68
 labels (the new path runs).
+
+## 10.7 What building Phase 7 actually found
+
+The one shipped nagger needed **three** things the format could not express, and all
+three were fidelity rather than taste - shipping without them would have quietly
+downgraded a mission that already worked.
+
+1. **Jitter.** The original is `random.randint(180, 300)`. A fixed `Every:` makes a
+   character a metronome, which is exactly the thing that reads as software. `Every:
+   3-5m` now parses to a range, rolled once **per firing** and stamped as the
+   next-allowed time - re-rolling each pass would average the range away and put the
+   metronome back.
+2. **A card title.** His requests arrive headed "Passenger Request", not "Ambassador
+   Florbin". The speaker's name is the right default, but the header is the only place to
+   say what KIND of interruption this is, so `Title:` is a field.
+3. **His face.** `urge_speak` was letting `comms_receive_internal` fall back to looking up
+   `face_<from_name>` on the SHIP - which a cast character never registers - so the one
+   person in the room with a portrait came up faceless. It now passes `get_face(actor_id)`.
+
+**The pool moved onto the urge.** His lines were a separate `## Florbin Complaints`
+chatter section reached through `FB_COMPLAINTS` + `chatter_line`. They now live in the
+urge's body, which deleted a shared global, a load line, and a whole section - the lines
+sit on the thing that says them.
+
+**A second install path was needed, and it is the honest one.** `urges_install` resolves
+`Actor:` by name, which is right for a cast declared up front. A mission that is HOLDING
+the character - it just boarded him - should not invent a role so a name lookup can find
+its way back to an agent it already has. Hence `urges_install_on(agent, section, key)`.
+
+**Measured against the authored file**, not assumed:
+
+    every=(180.0, 300.0)  title='Passenger Request'  until='has role fb_delivered'  lines=20
+    card title: Passenger Request   from: Ambassador Florbin   face matches his portrait: True
+    gaps between requests (s): [266, 288, 289, 257, 221, 254]  -> all within 180..300
+    after delivery, still nagging: False
+
+**One correction worth keeping:** the first jitter measurement read as a FAILURE (gaps of
+383-488s, outside the range). The code was right and the measurement was wrong - it
+compared successive `next` values, which is `step + (jitter_new - jitter_old)`, not the
+jitter. Re-measured as `next - now` at the moment of firing. A metric that disagrees with
+the code is a suspect, not a verdict.
+
+**Verification:** 2488 unit tests OK; LM headless PASS on both `--map 0` and
+`--map peacetime_remastered`, coverage unchanged at 174/779.
 
 ---
 

@@ -80,7 +80,7 @@ def urges_from_section(section):
             from sbs_utils.procedural.urge import _urge_log
             _urge_log(f"urge {key!r} has no lines and no Action: - it would do nothing")
             continue
-        every = amd_duration_seconds(data.get("every")) if data.get("every") else None
+        every = _every(data.get("every"))
         escalates = _escalates(data.get("escalates"), stages, key)
         out.append(urge_record(
             key=key,
@@ -88,6 +88,7 @@ def urges_from_section(section):
             whenever=data.get("whenever") or data.get("when") or "always",
             every=60 if every is None else every,
             until=data.get("until"),
+            title=data.get("title"),
             weight=_int(data.get("weight"), 0),
             pool=pool,
             stages=stages,
@@ -95,6 +96,28 @@ def urges_from_section(section):
             action=data.get("action"),
         ))
     return out
+
+
+def _every(value):
+    """``Every:`` -> seconds, or a ``(low, high)`` range for ``3-5m``.
+
+    A range is jitter, and jitter is the difference between a person and a metronome -
+    the one shipped nagger in the corpus was written ``random.randint(180, 300)``. The
+    unit is read from the WHOLE string, so ``3-5m`` means three-to-five minutes rather
+    than three seconds to five minutes.
+    """
+    if value is None or str(value).strip() == "":
+        return None
+    text = str(value).strip()
+    if "-" in text:
+        low, _, high = text.partition("-")
+        unit = "".join(c for c in text if c.isalpha())
+        lo = amd_duration_seconds(low.strip() + unit)
+        hi = amd_duration_seconds(high.strip() if high.strip()[-1:].isalpha()
+                                  else high.strip() + unit)
+        if lo is not None and hi is not None:
+            return (lo, hi)
+    return amd_duration_seconds(text)
 
 
 def _escalates(value, stages, key):
@@ -131,6 +154,34 @@ def _int(value, default):
         return int(str(value).strip())
     except (TypeError, ValueError):
         return default
+
+
+def urges_install_on(agents, section, key=None):
+    """Install the urges authored under a record onto agents you ALREADY have.
+
+    The identity path, next to ``urges_install``'s name-resolution path. A mission that
+    is holding the character - it just spawned them, or boarded them - should not have to
+    invent a role so a name lookup can find its way back to an agent it already has.
+
+    ``key`` picks one record out of ``section`` (a cast entry, say); without it the
+    section's own children are the urges. Returns how many were installed; idempotent per
+    (agent, urge key), so re-entering a route does not stack a second copy.
+    """
+    from sbs_utils.procedural.urge import urge_add, _urge_log
+    node = section
+    if key is not None:
+        node = None
+        for child in (section or {}).get("children", []):
+            if child.get("key") == key:
+                node = child
+                break
+        if node is None:
+            _urge_log(f"no record {key!r} to take urges from")
+            return 0
+    recs = urges_from_section(node)
+    for rec in recs:
+        urge_add(agents, rec)
+    return len(recs)
 
 
 def urges_install(section):
