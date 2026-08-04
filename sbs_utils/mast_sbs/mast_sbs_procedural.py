@@ -112,8 +112,6 @@ MastGlobals.import_python_module('sbs_utils.procedural.ship_data', 'ship_data')
 MastGlobals.import_python_module('sbs_utils.procedural.sides')
 MastGlobals.import_python_module('sbs_utils.procedural.lifeform')
 MastGlobals.import_python_module('sbs_utils.procedural.terrain')
-# Phase 0 terrain-burst instrumentation. Inert unless a map calls terrain_probe_start().
-MastGlobals.import_python_module('sbs_utils.procedural.terrain_probe')
 MastGlobals.import_python_module('sbs_utils.procedural.items')
 MastGlobals.import_python_module('sbs_utils.procedural.promise_functions')
 MastGlobals.import_python_module('sbs_utils.procedural.dmx')
