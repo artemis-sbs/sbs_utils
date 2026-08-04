@@ -223,6 +223,12 @@ QUEST = {
     "action": lines(),
     "part of": field(ref("node"), key="parent", aka=("parent",)),
     "scope": enum("shared", "ship"),
+    # WHO owns the quest, named outright - `Scope:` generalized from "the crew or this
+    # ship" to any actor, so a station's resupply job is held by the station and its
+    # deadline and penalty land on the world rather than on a passing crew. Resolved the
+    # same way an `Action:` actor is (landmark key, then role); `shared` names the story
+    # agent. URGE_PLAN.md s7.2.
+    "held by": field(text(hint="ds1"), key="held_by"),
     # `Reward:` over `Pays:`. Its partner is free - the failure side already exists in
     # code (quest_grant_penalty) with no authored word yet, and `Reward:`/`Penalty:`
     # mirrors the two functions, while `Pays:`/`Costs:` collides with what you spend to

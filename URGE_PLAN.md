@@ -361,7 +361,7 @@ Each phase ships something usable alone.
 | # | Phase | Contents |
 |---|---|---|
 | 1 | **Reputation in consequences** DONE 2026-08-04 | Rewrite `amd_reward`: `earns <faction> <pole> <n>` tokens, `items`, and a warning on anything unparsed (s7.1a). `reputation_apply` bound into `quest_grant_reward`/`_penalty`, player/SHARED-held only. Independently useful, no urge needed. See s10.1. |
-| 2 | **Widen the quest tickers** | `Held by:` + iterate `has_inventory("__quests__")`, snapshot to a list (s7.2). Unblocks station stakes. Test: a station-held quest fails on its deadline. |
+| 2 | **Widen the quest tickers** DONE 2026-08-04 | `Held by:` + iterate `has_inventory("__quests__")`, snapshot to a list (s7.2). Unblocks station stakes. Test: a station-held quest fails on its deadline. See s10.2. |
 | 3 | **Urge parse + ticker** | `Urge` record, `__URGES__`, `RollingSlicer`, selection (s5.1), reset registration. Speech via the s6 table. No escalation yet. |
 | 4 | **The budget** | Three floors + the `Weight: 90` escape + `announce` awareness. Not optional - phase 3 without it is the annoying version. |
 | 5 | **Escalation** | `Escalates: with deadline` reading the bound quest's remaining fraction; `%`/`%%`/`%%%` staging. |
@@ -400,6 +400,43 @@ in place, because nothing asserted on the rendered text.
 
 **Verification:** 2393 unit tests OK; headless `--test 20 --map 0 --seed 7
 --use-working-tree` PASS on both LegendaryMissions and OpenUniverse.
+
+## 10.2 What building Phase 2 actually found
+
+**There were FIVE holder-set sites, not four.** s7.2 counted the four lines matching
+`[Agent.SHARED_ID] + [...]` literally. `quest_on_arrive` builds the same list a different
+way:
+
+```python
+agents = [s.id for s in to_object_list(role("__player__"))]
+agents.append(Agent.SHARED_ID)
+```
+
+Same bug, invisible to the grep that found the others. Widened too. Worth remembering
+next time a plan counts call sites by pattern - the fifth one is the one written
+differently.
+
+**A pre-existing silent drop, found by a wrong test.** A test asserting the unchanged
+nesting path failed, and the code was right - the *expectation* was wrong. Verified
+against the previous commit: a `Scope: shared` parent goes to SHARED, and its plain child
+then lands **nowhere**. Recursion passes the ship, the child re-resolves to the ship, and
+`quest_folder(ship, "arc/step1")` cannot find the parent there, so it is dropped with no
+word to anyone. Authoring `Scope: shared` on every level works fine.
+
+Not introduced here and not fixed here - fixing it changes what existing missions grant,
+which is its own change with its own testing. Both behaviors are now pinned in
+`test_quest_held_by.py` so the next edit to `quest_grant_amd` finds out at once if it
+moves them. **Candidate follow-up:** make the drop warn, which is a one-line change and
+cannot alter what any mission grants.
+
+**`Held by:` resolves to a LIST, deliberately.** `amd_action_actors` can answer for
+several agents ("every listening post wants a resupply"), and `quest_add` already takes a
+list. The steps of a held job go to the same holder as the job - a station's job does not
+have its steps held by a passing ship - while the no-`Held by:` path recurses exactly as
+before.
+
+**Verification:** 2408 unit tests OK; LM and OU headless PASS, LM label coverage
+unchanged at 174/780.
 
 ---
 

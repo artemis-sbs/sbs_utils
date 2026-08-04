@@ -283,6 +283,13 @@ def amd_quest_facts(aliases=None):
             if label == "state":
                 value = _STATE_ALIASES.get(str(value).strip().lower(), value)
             data[label] = value
+        elif label in ("held by", "held_by"):
+            # WHO owns this quest. `Scope: shared` already redirects the holder to the
+            # shared story agent; this generalizes that to a NAMED actor, so a station's
+            # resupply job or a side's war aim is held by the thing it is about rather
+            # than by whichever ship happened to be passed in. Resolved at grant time
+            # against landmarks then roles (the same resolution `Action:` verbs use).
+            data["held_by"] = str(value).strip()
         elif label == "display":
             data["display"] = value
         elif label == "tier":
