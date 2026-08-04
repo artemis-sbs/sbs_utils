@@ -367,7 +367,7 @@ Each phase ships something usable alone.
 | 5 | **Escalation** DONE 2026-08-04 | `Escalates: with deadline` reading the bound quest's remaining fraction; `%`/`%%`/`%%%` staging. See s10.5. |
 | 6 | **Author the diplomat** DONE 2026-08-04 | OU passenger offers grow a waiting-actor urge. The real test: reach, escalation, `Until:`, `Action:` in one character. See s10.6. |
 | 7 | **Migrate Florbin** DONE 2026-08-04 | `fb_pest_messages` becomes declarative. Proves the format covers the one shipped instance. See s10.7. |
-| 8 | **Lint + schema** | `amd_schema` typed fields, `sbs lint` checks: unknown `Whenever:` verb, urge bound to a nonexistent quest, urge with no pool, `Every:` shorter than the global floor. |
+| 8 | **Lint + schema** DONE 2026-08-04 | `amd_schema` typed fields, `sbs lint` checks: unknown `Whenever:` verb, urge bound to a nonexistent quest, urge with no pool, `Every:` shorter than the global floor. See s10.8. |
 
 Phases 1 and 2 are independently useful and unblock everything else - start there.
 
@@ -639,6 +639,48 @@ the code is a suspect, not a verdict.
 
 **Verification:** 2488 unit tests OK; LM headless PASS on both `--map 0` and
 `--map peacetime_remastered`, coverage unchanged at 174/779.
+
+## 10.8 What building Phase 8 actually found
+
+**One of the four planned checks was WRONG and is not built.** "An urge bound to a
+nonexistent quest" sounded obviously right. Run against the two files this plan itself
+authored, it flagged `frontier.amd` - because `waiting_sela_voss` is built at runtime as
+`"waiting_" + key`, so no scan of the file, and no scan of the MAST sources either, can
+ever see it. That is precisely the call `amd_lint_actions` already documents for actors:
+
+> Guessing would flag correct files, which is how authors learn to ignore a linter.
+
+Dropped, with the reason recorded in the code so nobody adds it back. **The three that
+shipped are all decidable from the file alone**: an unknown `Whenever:`/`Until:` phrase
+(checked against the RUNTIME registry, so linter and game cannot disagree), an urge with
+neither lines nor an `Action:`, and an `Every:` under the global speech floor - which is
+not an error but is a lie, since the urge cannot fire that often.
+
+**The lint model and the runtime reader name the body differently.** `amd_core` nodes
+carry `body_lines`; the runtime reader uses `description`. Reading the runtime's name in
+a lint pass made every well-formed urge report `empty-urge` - caught only because the
+"expect nothing" case was run first. Worth remembering: the two AMD models are not the
+same object.
+
+**Both authored files lint clean**, which is the actual acceptance test for a linter -
+it has to be silent on correct content before its noise means anything.
+
+**Verification:** 2498 unit tests OK; LM and OU headless PASS, coverage unchanged
+(174/779 and 68/536).
+
+---
+
+# All eight phases are built (2026-08-04)
+
+What shipped, in one line each: reputation as a quest consequence; quests held by the
+world; the urge record and its ticker; the speech budget; escalation off the bound
+quest's clock; a diplomat who waits and leaves; Florbin migrated off his hand-written
+loop; and the schema plus linter.
+
+**Not built, deliberately** - each with its reason above: a brain for actors (s9), a
+goal selector across actors (s9, and it stays the stop line), motive scoring (s9), an
+urge that invents words (s9), the bound-quest lint check (s10.8), and the dispatch voice
+(s8.5), which remains the largest measured gap in the corpus and is a different feature.
 
 ---
 

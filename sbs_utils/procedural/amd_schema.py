@@ -415,11 +415,27 @@ CUTSCENE = {
 }
 SHOT = CUTSCENE     # one schema; "shot" and "cutscene" are two words for it
 
+# An URGE: what an actor keeps asking for. A condition, a cadence, a pool of lines in
+# the BODY, and optionally an `Action:`. It declares no stakes of its own - the
+# consequence belongs to the quest it watches (URGE_PLAN.md).
+URGE = {
+    "actor": ref("node", hint="ds1  (a landmark key or a role)"),
+    "whenever": text(hint="quest ds1_resupply active"),
+    "every": duration(hint="5m, or 3-5m to jitter"),
+    "until": text(hint="quest passenger_vell active  (retires it for good)"),
+    "weight": integer(hint="20  (which of THIS actor's urges wins; 90+ is urgent)"),
+    # Open: the vocabulary is a registry, so a mission can add a mode. The linter still
+    # warns on anything it does not know, which is the point of `open` rather than text.
+    "escalates": enum("with deadline", "yes", open=True),
+    "title": text(hint="Passenger Request  (the card header; default is the speaker)"),
+    "action": lines(hint="self departs"),
+}
+
 ARCHETYPES = {
     "quest": QUEST, "lifeform": LIFEFORM, "item": ITEM, "side": SIDE,
     "scan": SCAN, "landmark": LANDMARK, "region": REGION, "map": MAP,
     "dialogue": DIALOGUE, "image": IMAGE,
-    "cutscene": CUTSCENE,
+    "cutscene": CUTSCENE, "urge": URGE,
 }
 
 # TRAITS: a concern a record ALSO has, on top of what it is.
@@ -529,6 +545,7 @@ _SECTION_ALIASES = {
     "regions": "region", "region": "region",
     "maps": "map", "map": "map",
     "dialogue": "dialogue", "lines": "dialogue",
+    "urges": "urge", "urge": "urge",
     # An icon IS an atlas cell that resolves in the icon domain - one archetype, two
     # section words, so a mission's card deck and its icon sheet read the same way.
     "images": "image", "image": "image", "art": "image", "atlas": "image",

@@ -630,6 +630,95 @@ def amd_lint_actions(doc):
     return findings
 
 
+def _urge_nodes(doc):
+    """(node, {label_lower: (lineno, value)}) for every record declared an Urge."""
+    out = []
+    for node in doc.nodes:
+        fields = {}
+        for lineno, raw, label, value in _fence_fields(node):
+            if raw[:1] not in (" ", "\t"):
+                fields[label.strip().lower()] = (lineno, value)
+        if str(getattr(node, "kind", "") or "").strip().lower() == "urge":
+            out.append((node, fields))
+    return out
+
+
+def amd_lint_urges(doc):
+    """Flag an urge that will never speak, or will speak wrongly. WARNING.
+
+    Four things go silently wrong with an urge, and none of them raises at runtime:
+
+    * an unknown ``Whenever:`` / ``Until:`` phrase evaluates FALSE, so the urge simply
+      never fires - and a condition that is never true looks exactly like a character
+      with nothing to say;
+    * a bound quest key that no record declares - the same typo, one layer along;
+    * no lines and no ``Action:``, which burns a turn every pass to do nothing; and
+    * an ``Every:`` shorter than the global speech floor, which is not an error but IS
+      a lie: the urge cannot possibly fire that often, so the number misleads whoever
+      tunes it next.
+
+    The condition check calls the RUNTIME registry (``urge_conditions``) rather than a
+    copy, so the linter and the game cannot disagree about what a phrase means - the
+    same rule ``amd_lint_actions`` follows for verbs.
+    """
+    try:
+        from sbs_utils.procedural.urge import urge_conditions, URGE_GLOBAL_FLOOR
+        from sbs_utils.procedural.amd_urge import _every
+    except Exception:
+        return []                      # engine-free environments skip this pass
+    from sbs_utils.procedural.amd import amd_duration_seconds
+    known = urge_conditions()
+    findings = []
+
+    def _phrase_ok(text):
+        line = " ".join(str(text).strip().lower().split())
+        if line.startswith("not "):
+            line = line[4:]
+        return any(line == p or line.startswith(p + " ") for p in known)
+
+    for node, fields in _urge_nodes(doc):
+        for label in ("whenever", "until"):
+            if label not in fields:
+                continue
+            lineno, value = fields[label]
+            if not value:
+                continue
+            if not _phrase_ok(value):
+                findings.append(AmdFinding(
+                    lineno, WARNING, "unknown-urge-condition",
+                    f"`{label.title()}: {value}` starts with no known condition - it "
+                    f"will always be false, so this urge never fires. Known: "
+                    f"{', '.join(known)}"))
+        # Deliberately NOT checked: whether the bound QUEST exists. A quest id is
+        # routinely built at runtime (`"waiting_" + key`), so no scan of the file - or
+        # of the MAST sources - can see it, and checking flagged correct shipped
+        # content on the first run. Same call `amd_lint_actions` makes about an actor,
+        # for the same reason: guessing flags good files, and that is how authors learn
+        # to ignore a linter.
+        # Nothing to say and nothing to do. The lint model calls the body `body_lines`
+        # (the runtime reader calls it `description`) - reading the runtime's name here
+        # made every well-formed urge look empty.
+        body = [l for _n, l in (getattr(node, "body_lines", None) or [])
+                if l.strip() and not l.strip().startswith("//")]
+        if not body and "action" not in fields:
+            findings.append(AmdFinding(
+                getattr(node, "body_start", 0) or 0, WARNING, "empty-urge",
+                f"urge `{node.key}` has no lines and no `Action:` - it would take its "
+                f"turn every pass and do nothing"))
+        # A cadence the speech budget cannot honor.
+        if "every" in fields:
+            lineno, value = fields["every"]
+            secs = _every(value)
+            low = min(secs) if isinstance(secs, tuple) else secs
+            if low is not None and 0 < low < URGE_GLOBAL_FLOOR:
+                findings.append(AmdFinding(
+                    lineno, WARNING, "urge-too-eager",
+                    f"`Every: {value}` is under the {URGE_GLOBAL_FLOOR}s global speech "
+                    f"floor, so it cannot fire that often - the number will mislead "
+                    f"whoever tunes this next"))
+    return findings
+
+
 def _png_size(path):
     """(width, height) from a PNG header, or (None, None). Read here rather than through
     the image atlas so the linter needs no engine paths and no image library."""
@@ -749,6 +838,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_unknown_fields(doc)
         findings += amd_lint_field_values(doc)
         findings += amd_lint_actions(doc)
+        findings += amd_lint_urges(doc)
         findings += amd_lint_images(doc, file_path)
         if cross_file is not False:
             findings += amd_lint_cross_file(doc, mast_sources, source_index)
