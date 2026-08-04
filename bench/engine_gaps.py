@@ -42,6 +42,11 @@ USAGE -- the engine must already be up with a devqueue-enabled mission loaded
 
 Each phase records the widget list that client actually has, so a row is labelled
 with its own widget count rather than with whatever we believed was on screen.
+
+NOTE the handler's own ">33ms Elapsed time" spike report is print()ed, and engine
+print output does not reach any log file (debug.log has none of it). So it cannot
+be read after the fact -- which is why the tap times our frames itself, and why
+"ours med/p90/max" in the report is the answer to "are OUR frames slow?".
 """
 from __future__ import annotations
 
@@ -204,8 +209,6 @@ def main():
     ap.add_argument("--reroute", metavar="LABEL",
                     help="send every client to LABEL first (else switch by hand)")
     ap.add_argument("--report", action="store_true", help="print what was captured")
-    ap.add_argument("--spikes", action="store_true",
-                    help="dump the engine's own >33ms spike lines from the log")
     ap.add_argument("--out", default=DEFAULT_OUT)
     ap.add_argument("--reset", action="store_true", help="drop captured phases")
     args = ap.parse_args()
@@ -221,17 +224,6 @@ def main():
 
     drv = _driver(args)
 
-    if args.spikes:
-        log = drv.read_log(tail=200000)
-        lines = [ln for ln in log.splitlines() if "Elapsed time:" in ln]
-        print(f"{len(lines)} spike line(s) (>33ms frames):")
-        for ln in lines[-40:]:
-            print("   " + ln)
-        if not lines:
-            print("   NONE -- no frame of ours exceeded 33ms. If the console still")
-            print("   feels slow, the time is not being spent in our frames.")
-        return 0
-
     if args.install:
         if not drv.ping(timeout=30):
             raise SystemExit("the devqueue did not answer -- is the mission loaded "
@@ -242,7 +234,7 @@ def main():
             return 0
 
     if not args.phase:
-        ap.error("nothing to do: pass --install, --phase, --spikes or --report")
+        ap.error("nothing to do: pass --install, --phase or --report")
 
     if args.reroute:
         resp = drv.send(REROUTE.format(label=args.reroute))
