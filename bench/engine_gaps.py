@@ -109,6 +109,32 @@ def tapped(event):
         S["last"] = t1
 
 Gui.present = staticmethod(tapped)
+
+# How often does a page do a FULL repaint (clear + re-emit everything) versus
+# just sitting there? A console sees far more engine events than a widget-less
+# screen, and if those events drive rebuilds, the re-emitting is OURS, not the
+# engine's. Counting the branch StoryPage.present actually takes is the only way
+# to tell "the engine is busy" from "we are repainting 20x a second".
+from sbs_utils.mast_sbs.maststorypage import StoryPage
+P = getattr(builtins, "_COSMOS_PAINT", None)
+if P is not None:
+    StoryPage.present = P["orig"]
+P = {"repaint": 0, "refresh": 0, "idle": 0, "orig": StoryPage.present}
+builtins._COSMOS_PAINT = P
+
+
+def painted(self, event):
+    state = getattr(self, "gui_state", None)
+    if state == "repaint":
+        P["repaint"] += 1
+    elif state == "refresh":
+        P["refresh"] += 1
+    else:
+        P["idle"] += 1
+    return P["orig"](self, event)
+
+
+StoryPage.present = painted
 _result = "installed"
 """
 
@@ -117,6 +143,9 @@ import builtins
 S = builtins._COSMOS_GAP
 S["gaps"].clear(); S["inside"].clear(); S["big"].clear()
 S["last"] = None; S["t0"] = None
+P = getattr(builtins, "_COSMOS_PAINT", None)
+if P is not None:
+    P["repaint"] = P["refresh"] = P["idle"] = 0
 _result = "reset"
 """
 
@@ -144,6 +173,8 @@ for cid, pair in getattr(Gui, "widget_list_sent", {}).items():
 tick_ish = len([x for x in g if 150.0 <= x <= 260.0])
 over = len([x for x in g if x > 260.0])
 
+P = getattr(builtins, "_COSMOS_PAINT", None) or {}
+
 _result = {
     "samples": len(g),
     "gap_med": pct(g, 0.5), "gap_p90": pct(g, 0.9),
@@ -151,6 +182,7 @@ _result = {
     "in_med": pct(i, 0.5), "in_p90": pct(i, 0.9),
     "in_max": round(i[-1], 2) if i else None,
     "tick_ish": tick_ish, "over_tick": over,
+    "repaints": P.get("repaint"), "refreshes": P.get("refresh"),
     "big": sorted(S["big"], key=lambda b: -b[0])[:12],
     "widget_lists": wl,
 }
@@ -237,13 +269,15 @@ def _report(rows):
     print("ENGINE GAPS  --  time between our frames (ms)")
     print("=" * 78)
     print(f"  {'phase':<14}{'widgets':>8}{'n':>6}{'gap med':>9}{'~tick':>7}"
-          f"{'>tick':>7}{'gap max':>10}{'ours med':>10}")
+          f"{'>tick':>7}{'gap max':>10}{'ours med':>10}{'repaint/s':>11}")
     for r in rows:
         w = r.get("widgets")
+        rp = r.get("repaints")
+        rps = "-" if rp is None else f"{rp / max(1e-9, r.get('seconds', 1)):.1f}"
         print(f"  {r['phase']:<14}{('-' if w is None else w):>8}{r['samples']:>6}"
               f"{r['gap_med'] or 0:>9.2f}{r.get('tick_ish', 0):>7}"
               f"{r.get('over_tick', 0):>7}{r['gap_max'] or 0:>10.2f}"
-              f"{r['in_med'] or 0:>10.2f}")
+              f"{r['in_med'] or 0:>10.2f}{rps:>11}")
     print("-" * 78)
     print("  gap med  = typical time between our frames")
     print("  ~tick    = gaps of 150-260ms. mission_tick is 5Hz, so these are the")
@@ -251,6 +285,10 @@ def _report(rows):
     print("  >tick    = gaps LONGER than a tick period. THIS is the count that")
     print("             matters -- each one is the engine busy past its own clock.")
     print("  ours med = time inside Gui.present. Our cost, for context.")
+    print("  repaint/s= FULL page repaints per second (clear + re-emit the lot).")
+    print("             A console sees far more engine events than a plain screen;")
+    print("             if this is high there, the re-emitting is OURS, not the")
+    print("             engine's. It should be ~0 on a screen sitting still.")
     for r in rows:
         big = r.get("big") or []
         if not big:
