@@ -11,7 +11,7 @@ Start from a starter mission:
 
 === ":mast-icon: {{ab.m}}"
     ```bash
-    sbs fetch artemis-sbs mast_starter simple_comms
+    sbs create simple_comms
     ```
 
 ## Add some stations

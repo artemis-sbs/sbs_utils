@@ -740,6 +740,38 @@ Anything the old script left genuinely ambiguous is written down for whoever fin
 the port, rather than quietly guessed at.
 → [Porting from Artemis 2.x](mast/porting-2x.md)
 
+## 🚀 Start a mission in one command
+
+Writing your first mission used to begin with "download this repository, rename the
+folder, edit these four files, then work out which libraries you need." Now:
+
+```
+sbs templates              # see what you can start from
+sbs create MyMission       # make one — libraries and all
+```
+
+There are five boilerplates, and they are whole missions rather than empty shells:
+
+| Template | What you get |
+|---|---|
+| `minimal` | One `@map` and a line of narration — the smallest thing that runs. |
+| `sandbox` | Two sides, a station in an asteroid field, player ships, and raider waves that ramp with the difficulty setting. |
+| `addon` | A shareable add-on — `provides` / `requires`, packaged as a `.mastlib` — plus a harness map to run it. |
+| `amd` | Quests and science scans authored as data in a `.amd` fact sheet, with MAST holding only the logic that reacts. |
+| `ou` | A whole procedurally generated universe, built on the OpenUniverse engine. |
+
+**It won't hand you a mission your game can't launch.** Missions are pinned to a
+release line, and everything a mission loads comes from the same one. `sbs create`
+picks the newest line your install already has libraries for — capped by your version
+of Cosmos — tells you which it chose and why, and never reaches for a newer one just
+because it exists. Not every template is on every line, either: `addon`, `amd` and
+`ou` need v1.4.0 language and library features.
+
+The templates live in the
+[mast_starter](https://github.com/artemis-sbs/mast_starter) repository and are read
+straight from it, so new ones show up without updating the tool.
+→ [Creating a mission](home/start.md) · [The `sbs` CLI](tooling/cli.md#starting-a-mission)
+
 ## 🛠️ For Mission Makers & Tinkerers
 
 !!! warning "For testing only — not an engine replacement"
@@ -761,6 +793,10 @@ the port, rather than quietly guessed at.
   torpedoes, drones, mines, EMP). → [Testing missions](tooling/testing.md)
 - **`--use-working-tree`** to smoke-test local library edits, and **`--seed`** for
   reproducible runs. → [The `sbs` CLI](tooling/cli.md)
+- **`sbs compile` can gate a build.** It used to print an error and exit 0, so any
+  script or CI reading its exit code saw success on a compile that never happened. It
+  now reports the errors and exits non-zero. (It still can't see a multi-line `{ }` —
+  only a `--test` run finds that.) → [The `sbs` CLI](tooling/cli.md#validating-amd)
 - **An in-game Avatar Editor** — an opt-in addon that customizes a character face
   **inside Cosmos**, with a **live `gui_face` preview** that updates as you move the
   sliders (unlike the extension's blind builder). Pick a race, tweak each feature,
@@ -850,7 +886,7 @@ the port, rather than quietly guessed at.
     A `requires` not satisfied by some loaded addon's `provides` **fails the
     compile** (caught by `sbs lint` / `--test`, and shown as a runtime error screen);
     `suggests` only logs a warning. Checking is **order-independent** and fully
-    backward compatible. → [The MAST language](mast/overview.md)
+    backward compatible. → [Making add-ons](build/addons.md#declare-what-it-needs)
 
 !!! tip "✨ New — colons inside quoted strings"
     A `:` inside a quoted string no longer confuses the parser, so you can write

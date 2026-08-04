@@ -8,7 +8,7 @@ Start from a starter template.
 
 === ":mast-icon: {{ab.m}}"
     ```bash
-    .\fetch artemis-sbs mast_starter simple_ai
+    sbs create simple_ai
     ```
 
 ## Add stations

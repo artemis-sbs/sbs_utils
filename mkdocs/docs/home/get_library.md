@@ -19,6 +19,8 @@ Your mission's [`story.json`](start.md) lists the ones it needs:
 
 ## Getting the files
 
+- **Starting a new mission?** [`sbs create`](start.md#start-from-a-template) fetches
+  everything the template pins, so there's nothing to do by hand.
 - **With the `sbs` tool:** `sbs fetch` pulls missions and their libraries. See
   [the CLI](../tooling/cli.md).
 - **From GitHub releases:** download the `.sbslib` / `.mastlib` assets from the

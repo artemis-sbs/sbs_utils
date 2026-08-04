@@ -32,27 +32,51 @@ MAST is loosely based on, and for Cosmos is compiled by, Python. Python is a pop
 
 ## 1. Setting up your first mission
 
-### Download mast_starter
-To download the basic template documents for any mission, start with the mast_starter mission from the [mast_starter Github Repository](https://github.com/artemis-sbs/mast_starter)
+### Create the mission
 
+From your `missions/` folder, run:
 
-For a mission that already has some very basic functionality included, you could also use [Secret Meeting](https://github.com/artemis-sbs/SecretMeeting). This mission is packaged with Cosmos by default, but there may be an updated version on GitHub, and it is always recommended that the most recent version be used.
+```
+sbs create TreasureHunt --title "Treasure Hunt"
+```
 
-For this tutorial, we will assume that you are using mast_starter as a template.  
+Pick **`minimal`** when it asks — this tutorial builds the mission up from nothing, so
+starting from an empty one is the point. It creates the folder and downloads the
+libraries the mission needs.
+
+!!! tip "Just want a mission that already works?"
+    `sbs create MyMission -t sandbox` gives you a playable one — two sides, a station
+    in an asteroid field, player ships and enemy waves — that you can read and pull
+    apart. `sbs templates` lists everything on offer.
+
+Everything comes from the
+[mast_starter](https://github.com/artemis-sbs/mast_starter) repository, which you can
+also browse on GitHub or use with its green **Use this template** button.
+
+For a full mission with a story already in it, look at
+[Secret Meeting](https://github.com/artemis-sbs/SecretMeeting). It ships with Cosmos,
+but the GitHub copy may be newer, and the newest is always the one to read.
 
 
 ## 2. What's in a name?
 The name of your mission is, of course, a pretty important part of the mission.  
 Fortunately, it's easy to set the name and description of the mission.  
-Name the mission folder to reflect the name you've chosen for your mission. We will be calling our mission "Treasure Hunt".  
-Now, open `description.yaml` in your mission folder. You will see something like this:
+The `--title` above already set it, so open `description.yaml` in your mission folder
+and you should see:
 
 ```yaml
 format version: 1
 Category: Standard
-Visible Mission Name: Mast Mission Template
-Description: A short description of your mission.
+Visible Mission Name: Treasure Hunt
+Description: Treasure Hunt
 ```
+
+Change them whenever you like &mdash; this file is read before the mission ever runs.
+
+!!! warning "No dashes, and keep it short"
+    A `-` anywhere in these values **crashes** the engine, mid-word included
+    (`Auto-ramping` → `Auto ramping`). Keep `Description` to one terse phrase; long
+    ones read badly in the mission browser.
 
 - **Category** is used to group missions in the browser.
 - **Visible Mission Name** is the mission name shown on the selection button.

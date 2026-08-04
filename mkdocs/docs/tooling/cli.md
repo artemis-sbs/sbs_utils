@@ -5,6 +5,8 @@ line. Run `sbs <command> --help` for full options.
 
 | Command | What it does |
 |---|---|
+| `sbs create <name>` | **Start a new mission** from a boilerplate template |
+| `sbs templates` | List the templates available, per release line |
 | `sbs debug <mission>` | Run a mission in a browser **mock GUI** (3D cinematic + 2D radar) |
 | `sbs debug <mission> --map 0` | Auto-start a map instead of the picker; `--no-gui` for headless |
 | `sbs overnight <mission>` | Long **soak test** under autoplay |
@@ -16,6 +18,41 @@ line. Run `sbs <command> --help` for full options.
 | `sbs fmt <mission>` | **Format** the mission's `.amd` files (canonical, prose-safe) |
 | `sbs swap <name>` | Switch which `missions_*` set Cosmos loads |
 | `sbs fetch` / `sbs update` | Fetch missions / update the tool |
+
+## Starting a mission
+
+```
+sbs templates                        # what's on offer, per release line
+sbs create MyMission                 # pick from a list
+sbs create MyMission -t sandbox      # pick up front
+sbs create MyMission --title "My Mission"
+```
+
+`create` lays the template down, rewrites the mission's name into
+`description.yaml`, and fetches everything its `story.json` pins. It refuses to write
+into a folder that already has anything in it.
+
+Templates come from the
+[mast_starter](https://github.com/artemis-sbs/mast_starter) repo, which keeps a
+`templates.json` catalog **on each branch** — so a new template is a commit there,
+not a release of this tool.
+
+### Release lines
+
+A branch per line (`v1.3.0`, `v1.4.0`), and every dependency of a mission comes from
+one line. That is not just a version string: a template can only use what its line
+has — `provides`/`requires` are v1.4.0+, and `pickup_spawn` / `scatter_box` don't
+exist in the v1.3.0 library at all — so **the branch decides which templates exist**.
+
+Resolution order is: what you asked for, then a line this install already has an
+sbslib for, capped by your Cosmos version. Deliberately *not* in that list: the
+newest branch on GitHub. That's the upper bound, not a default.
+
+```
+sbs create MyMission -l v1.4.0       # pin the line
+sbs create MyMission -b v1.4.0_dev   # a specific branch (pre-releases are opt-in)
+sbs create MyMission --retarget      # re-pin a template's deps to the resolved line
+```
 
 ## Running a mission
 
@@ -54,8 +91,17 @@ under the install; it finds the data folder by walking up, or pass `--data`.
 
 ## Validating AMD
 
-`compile` checks the MAST; `lint` checks the `.amd` content (quests, dialogue,
-cast, maps). AMD fails *silently* — a typo'd `# [Display](key)` heading becomes body
+`compile` checks the MAST and **exits non-zero** when it fails, so it can gate a build.
+
+!!! warning "What `compile` cannot see"
+    A `{ }` literal split across lines. MAST parses line by line, so the first line is
+    an unclosed `{`; the parser desyncs for the rest of the file, the story's main task
+    can end up **empty**, and the compiler still reports zero errors. The mission then
+    runs and does nothing. Keep dict literals on one line or inside `~~ … ~~`, and if a
+    mission mysteriously does nothing, suspect this first. A headless
+    `--test` run catches it (`labels 0/N`); a compile never will.
+
+`lint` checks the `.amd` content (quests, dialogue, cast, maps). AMD fails *silently* — a typo'd `# [Display](key)` heading becomes body
 text and its node vanishes — so lint re-scans a mission's `.amd` and surfaces it.
 
 ```
