@@ -364,7 +364,7 @@ Each phase ships something usable alone.
 | 2 | **Widen the quest tickers** DONE 2026-08-04 | `Held by:` + iterate `has_inventory("__quests__")`, snapshot to a list (s7.2). Unblocks station stakes. Test: a station-held quest fails on its deadline. See s10.2. |
 | 3 | **Urge parse + ticker** DONE 2026-08-04 | `Urge` record, `__URGES__`, `RollingSlicer`, selection (s5.1), reset registration. Speech via the s6 table. No escalation yet. See s10.3. |
 | 4 | **The budget** DONE 2026-08-04 | Three floors + the `Weight: 90` escape + `announce` awareness. Not optional - phase 3 without it is the annoying version. See s10.4. |
-| 5 | **Escalation** | `Escalates: with deadline` reading the bound quest's remaining fraction; `%`/`%%`/`%%%` staging. |
+| 5 | **Escalation** DONE 2026-08-04 | `Escalates: with deadline` reading the bound quest's remaining fraction; `%`/`%%`/`%%%` staging. See s10.5. |
 | 6 | **Author the diplomat** | OU passenger offers grow a waiting-actor urge. The real test: reach, escalation, `Until:`, `Action:` in one character. |
 | 7 | **Migrate Florbin** | `fb_pest_messages` becomes declarative. Proves the format covers the one shipped instance. |
 | 8 | **Lint + schema** | `amd_schema` typed fields, `sbs lint` checks: unknown `Whenever:` verb, urge bound to a nonexistent quest, urge with no pool, `Every:` shorter than the global floor. |
@@ -515,6 +515,39 @@ is writing to the tree. Check `git log`/mtimes before trusting a batch failure i
 you did not touch.
 
 **Verification:** 2460 unit tests OK x6 consecutive runs; LM and OU headless PASS, LM
+coverage unchanged at 174/780.
+
+## 10.5 What building Phase 5 actually found
+
+**The bound quest needs no field.** `Escalates: with deadline` has to know WHICH quest's
+clock to read, and the obvious answer was a new `Deadline:` field. It is already written:
+the bound quest is the one in `Whenever: quest <id> active`. Reading it out of there
+means there is no second field that can disagree with the first.
+
+**One clock, not two.** The fraction comes from the same `qfail:<id>` timer
+`quest_tick_fail_after` anchors, so an urge's escalation and its quest's failure cannot
+drift apart. An un-anchored timer reads 0.0 rather than None - the quest is active but
+nothing has elapsed yet, which is true, and it keeps the first line calm.
+
+**Staged lines with no `Escalates:` warn rather than guess.** Defaulting escalation ON
+whenever `%%` appears would change how an existing flat pool with a stray marker behaves;
+silently flattening would look like the feature was broken. So it warns and flattens, and
+the author decides.
+
+**A missing middle stage falls back DOWN, not silent.** Writing three stage-1 lines and
+one stage-3 line is natural, and stage 2 having no lines of its own must not produce
+silence. It falls back to the nearest lower stage that has some.
+
+**`Escalates: with deadline` on a clockless quest falls back to per-firing, and says so
+ONCE.** Freezing at stage 1 would be silent wrongness; warning every pass would be its own
+noise. The one-shot flag lives on the urge's runtime state, not the record.
+
+**Schema registration deliberately NOT done here.** Registering only `Escalates:` while
+`Actor:` / `Whenever:` / `Every:` / `Until:` / `Weight:` stayed unregistered would leave
+the vocabulary half-typed and the linter half-useful. The whole `Urge` kind lands together
+in phase 8.
+
+**Verification:** 2474 unit tests OK x3 consecutive runs; LM and OU headless PASS, LM
 coverage unchanged at 174/780.
 
 ---

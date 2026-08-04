@@ -321,6 +321,155 @@ class BudgetTests(UrgeBase):
                           "a carried-over clock mutes the next mission's first minute")
 
 
+class EscalationTests(UrgeBase):
+    """`%` / `%%` / `%%%` are stages, and `Escalates: with deadline` takes the stage from
+    the bound quest's remaining clock - so the drama curve IS the countdown that already
+    exists (URGE_PLAN.md s4.1)."""
+
+    def _staged(self, escalates, whenever="always"):
+        a = make_agent()
+        urge_add(a.id, urge_record(
+            key="nag", every=0, whenever=whenever, escalates=escalates,
+            pool=["calm", "firmer", "final"],
+            stages={1: ["calm"], 2: ["firmer"], 3: ["final"]}))
+        return a
+
+    def _state(self, agent):
+        from sbs_utils.procedural.inventory import get_inventory_value
+        return get_inventory_value(agent.id, "__URGES__")[0]
+
+    def test_no_escalation_uses_the_flat_pool(self):
+        a = self._staged(None)
+        self.assertEqual(U.urge_stage(self._state(a)), 1)
+        self.assertIn(U.urge_line(self._state(a)), ["calm", "firmer", "final"])
+
+    def test_per_firing_advances_a_stage_each_time(self):
+        a = self._staged("firing")
+        st = self._state(a)
+        self.assertEqual(U.urge_line(st), "calm")
+        st["stage"] = 1
+        self.assertEqual(U.urge_line(st), "firmer")
+        st["stage"] = 2
+        self.assertEqual(U.urge_line(st), "final")
+
+    def test_per_firing_sticks_at_the_last_stage(self):
+        a = self._staged("firing")
+        st = self._state(a)
+        st["stage"] = 99
+        self.assertEqual(U.urge_line(st), "final")
+
+    def test_a_missing_stage_falls_back_to_the_nearest_lower(self):
+        """Three stage-1 lines and one stage-3 line must not go quiet in the middle."""
+        a = make_agent()
+        urge_add(a.id, urge_record(key="nag", every=0, escalates="firing",
+                                   pool=["calm", "final"],
+                                   stages={1: ["calm"], 3: ["final"]}))
+        st = self._state(a)
+        st["stage"] = 1         # wants stage 2, which has no lines
+        self.assertEqual(U.urge_line(st), "calm")
+
+
+class DeadlineEscalationTests(UrgeBase):
+    def setUp(self):
+        super().setUp()
+        self._real_emit = __import__(
+            "sbs_utils.procedural.quest_driver", fromlist=["x"]).signal_emit
+
+    def _advance(self, seconds):
+        from sbs_utils.procedural.timers import TICK_PER_SECONDS
+        sbs.sim._time_tick_counter += int(seconds * TICK_PER_SECONDS)
+
+    def _setup(self, minutes=30):
+        from sbs_utils.procedural import quest_driver as QD
+        station = make_agent("ds1")
+        quest_add(station.id, "resupply", "Resupply", "", state=QuestState.ACTIVE,
+                  data={"fail_after": {"minutes": minutes}})
+        actor = make_agent()
+        urge_add(actor.id, urge_record(
+            key="call", every=0, whenever="quest resupply active",
+            escalates="deadline", pool=["calm", "firmer", "final"],
+            stages={1: ["calm"], 2: ["firmer"], 3: ["final"]}))
+        QD.quest_tick_fail_after()      # anchor the clock
+        return station, actor
+
+    def _state(self, agent):
+        from sbs_utils.procedural.inventory import get_inventory_value
+        return get_inventory_value(agent.id, "__URGES__")[0]
+
+    def test_bound_quest_is_read_from_whenever(self):
+        rec = urge_record(whenever="quest deliver_vell active")
+        self.assertEqual(U.urge_bound_quest(rec), "deliver_vell")
+
+    def test_no_quest_condition_has_no_bound_quest(self):
+        self.assertIsNone(U.urge_bound_quest(urge_record(whenever="always")))
+
+    def test_stage_follows_the_countdown(self):
+        _, actor = self._setup(minutes=30)
+        st = self._state(actor)
+        self.assertEqual(U.urge_line(st), "calm", "start of the clock")
+        self._advance(60 * 12)                      # 40% gone
+        self.assertEqual(U.urge_line(st), "firmer")
+        self._advance(60 * 12)                      # 80% gone
+        self.assertEqual(U.urge_line(st), "final")
+
+    def test_stage_is_one_before_the_watcher_anchors(self):
+        from sbs_utils.procedural import quest_driver as QD
+        station = make_agent("ds1")
+        quest_add(station.id, "resupply", "Resupply", "", state=QuestState.ACTIVE,
+                  data={"fail_after": {"minutes": 30}})
+        actor = make_agent()
+        urge_add(actor.id, urge_record(
+            key="call", every=0, whenever="quest resupply active",
+            escalates="deadline", pool=["calm"], stages={1: ["calm"], 2: ["firmer"]}))
+        self.assertEqual(U.urge_stage(self._state(actor)), 1,
+                         "nothing has elapsed until the watcher anchors the timer")
+
+    def test_deadlineless_quest_falls_back_to_per_firing_and_warns_once(self):
+        station = make_agent("ds1")
+        quest_add(station.id, "resupply", "Resupply", "", state=QuestState.ACTIVE)
+        actor = make_agent()
+        urge_add(actor.id, urge_record(
+            key="call", every=0, whenever="quest resupply active",
+            escalates="deadline", pool=["calm", "firmer"],
+            stages={1: ["calm"], 2: ["firmer"]}))
+        st = self._state(actor)
+        self.assertEqual(U.urge_line(st), "calm")
+        self.assertTrue(st.get("_warned_no_deadline"), "must say so, once")
+        st["stage"] = 1
+        self.assertEqual(U.urge_line(st), "firmer", "falls back to per-firing")
+
+
+class AmdEscalationTests(UrgeBase):
+    def _recs(self, data, desc):
+        return urges_from_section({"children": [
+            {"key": "nag", "display_text": "nag", "description": desc, "data": data}]})
+
+    def test_markers_become_stages(self):
+        r = self._recs({"Actor": "ds1", "Escalates": "yes"},
+                       "% calm\n%% firmer\n%%% final\n")[0]
+        self.assertEqual(r["stages"], {1: ["calm"], 2: ["firmer"], 3: ["final"]})
+        self.assertEqual(r["pool"], ["calm", "firmer", "final"])
+        self.assertEqual(r["escalates"], "firing")
+
+    def test_with_deadline_parses(self):
+        r = self._recs({"Actor": "ds1", "Escalates": "with deadline"}, "% a\n%% b")[0]
+        self.assertEqual(r["escalates"], "deadline")
+
+    def test_a_flat_pool_has_no_stages(self):
+        r = self._recs({"Actor": "ds1"}, "% one\n% two\n")[0]
+        self.assertIsNone(r["stages"], "one stage is not an escalation")
+        self.assertEqual(r["pool"], ["one", "two"])
+
+    def test_unmarked_lines_sit_at_stage_one(self):
+        r = self._recs({"Actor": "ds1", "Escalates": "yes"}, "plain\n%% firmer\n")[0]
+        self.assertEqual(r["stages"], {1: ["plain"], 2: ["firmer"]})
+
+    def test_staged_lines_without_escalates_warn_rather_than_guess(self):
+        r = self._recs({"Actor": "ds1"}, "% a\n%% b")[0]
+        self.assertIsNone(r["escalates"], "never default it on")
+        self.assertEqual(U.urge_line({"rec": r, "stage": 0}) in ["a", "b"], True)
+
+
 class RealSpeechTests(unittest.TestCase):
     """The REAL urge_speak, unmocked. URGE_PLAN.md s10.1: every phase here widens
     something a display path already touches, and the unit tests happily pass with a

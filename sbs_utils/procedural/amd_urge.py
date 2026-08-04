@@ -31,21 +31,35 @@ def amd_urge_data(text):
 
 
 def _urge_pool(desc):
-    """Body prose -> the line pool. Same rules as ``amd_chatter``: one line per entry, a
-    leading ``%`` stripped, ``//`` comments ignored."""
-    out = []
+    """Body prose -> ``(pool, stages)``.
+
+    Same rules as ``amd_chatter``: one line per entry, ``//`` comments ignored. The
+    number of leading ``%`` is the escalation STAGE - ``%`` first asking, ``%%`` more
+    insistent, ``%%%`` the last time. A line with no marker sits at stage 1.
+
+        % Ambassador Vell is on the docking ring, when convenient.
+        %% Vell again. My transport window is closing, captain.
+        %%% This is the last time I ask.
+
+    ``pool`` is every line flat (what a non-escalating urge uses, unchanged from before);
+    ``stages`` is ``{1: [...], 2: [...]}``, present only when the author actually wrote
+    more than one stage. So the marker count IS the escalation curve - no second field to
+    keep in sync with the words, and the author keeps the dial.
+    """
+    pool, stages = [], {}
     for raw in (desc or "").splitlines():
         line = raw.strip()
         if not line or line.startswith("//"):
             continue
+        stage = 0
         while line.startswith("%"):
-            # `%%` / `%%%` are escalation stages (phase 5). Until then every variant is
-            # simply one more line in the pool, which is the correct DEGRADED behavior:
-            # an author can write the staged form now and it reads as a flat pool.
+            stage += 1
             line = line[1:].strip()
-        if line:
-            out.append(line)
-    return out
+        if not line:
+            continue
+        pool.append(line)
+        stages.setdefault(max(1, stage), []).append(line)
+    return pool, (stages if len(stages) > 1 else None)
 
 
 def urges_from_section(section):
@@ -60,13 +74,14 @@ def urges_from_section(section):
     for n in section.get("children", []):
         data = {str(k).lower().replace(" ", "_"): v
                 for k, v in (n.get("data") or {}).items()}
-        pool = _urge_pool(n.get("description") or "")
+        pool, stages = _urge_pool(n.get("description") or "")
         key = n.get("key")
         if not pool and not data.get("action"):
             from sbs_utils.procedural.urge import _urge_log
             _urge_log(f"urge {key!r} has no lines and no Action: - it would do nothing")
             continue
         every = amd_duration_seconds(data.get("every")) if data.get("every") else None
+        escalates = _escalates(data.get("escalates"), stages, key)
         out.append(urge_record(
             key=key,
             actor=data.get("actor"),
@@ -75,9 +90,40 @@ def urges_from_section(section):
             until=data.get("until"),
             weight=_int(data.get("weight"), 0),
             pool=pool,
+            stages=stages,
+            escalates=escalates,
             action=data.get("action"),
         ))
     return out
+
+
+def _escalates(value, stages, key):
+    """``Escalates:`` -> ``"deadline"`` | ``"firing"`` | None.
+
+    ``with deadline`` (the interesting one) takes the stage from how much of the bound
+    quest's clock is left, so the drama curve IS the countdown that already exists - no
+    second clock to keep in sync. ``yes`` advances a stage per firing, for an urge with
+    no deadline behind it.
+
+    Staged lines with no ``Escalates:`` are a warning, not a guess: the author clearly
+    meant something by writing ``%%``, and silently flattening it would look like the
+    feature was broken. Defaulting it on would be worse - it would change how existing
+    flat pools with a stray ``%%`` behave.
+    """
+    word = str(value or "").strip().lower()
+    if not word:
+        if stages:
+            from sbs_utils.procedural.urge import _urge_log
+            _urge_log(f"urge {key!r} has staged lines (%% / %%%) but no 'Escalates:' - "
+                      f"they will read as one flat pool")
+        return None
+    if "deadline" in word:
+        return "deadline"
+    if word in ("yes", "true", "firing", "per firing", "on"):
+        return "firing"
+    from sbs_utils.procedural.urge import _urge_log
+    _urge_log(f"urge {key!r}: 'Escalates: {value}' is not 'with deadline' or 'yes'")
+    return None
 
 
 def _int(value, default):

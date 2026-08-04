@@ -173,11 +173,17 @@ _install_conditions()
 
 # --- the record ---------------------------------------------------------------
 def urge_record(key=None, whenever="always", every=60, until=None, weight=0,
-                pool=None, action=None, actor=None):
-    """One urge, as plain data. ``every`` is seconds; ``pool`` is the line list."""
+                pool=None, action=None, actor=None, stages=None, escalates=None):
+    """One urge, as plain data. ``every`` is seconds; ``pool`` is the flat line list.
+
+    ``stages`` is the optional ``{1: [...], 2: [...]}`` map built from ``%`` markers, and
+    ``escalates`` is ``"deadline"`` | ``"firing"`` | None. With neither, an urge behaves
+    exactly as it did before escalation existed.
+    """
     return {"key": key, "whenever": whenever, "every": float(every or 0),
             "until": until, "weight": int(weight or 0), "pool": list(pool or []),
-            "action": action, "actor": actor}
+            "action": action, "actor": actor,
+            "stages": dict(stages) if stages else None, "escalates": escalates}
 
 
 def urge_add(agents, record):
@@ -291,9 +297,104 @@ def urge_pick(actor_id, now=None):
     return random.choice([s for s in eligible if s["rec"].get("weight", 0) == top])
 
 
+_QUEST_WHENEVER = None      # lazily compiled; `quest <id> <state>`
+
+
+def urge_bound_quest(rec):
+    """The quest id this urge watches, read out of its ``Whenever:``, or None.
+
+    No separate field: the bound quest IS the one the urge is conditional on, and a
+    second field would be one more thing to keep in agreement with the first.
+    """
+    line = _norm(rec.get("whenever") or "")
+    if line.startswith("not "):
+        line = line[4:]
+    if not line.startswith("quest "):
+        return None
+    parts = line.split()
+    return " ".join(parts[1:-1]) if len(parts) >= 3 else None
+
+
+def urge_deadline_fraction(rec):
+    """How much of the bound quest's clock is GONE, 0.0 -> 1.0, or None if there is no
+    deadline to read.
+
+    Uses the same timer `quest_tick_fail_after` anchors (``qfail:<id>``), so the urge's
+    escalation and the quest's failure are reading one clock rather than two that can
+    disagree. Before the watcher anchors it, nothing has elapsed - which is correct, and
+    is why an un-anchored timer reads 0.0 rather than None.
+    """
+    qid = urge_bound_quest(rec)
+    if not qid:
+        return None
+    from sbs_utils.procedural.quest import quest_get_data, quest_get_state, QuestState
+    from sbs_utils.procedural.quest_driver import _quest_holders
+    from sbs_utils.procedural.timers import is_timer_set, get_time_remaining
+    for holder in _quest_holders():
+        if int(quest_get_state(holder, qid) or 0) != int(QuestState.ACTIVE):
+            continue
+        data = quest_get_data(holder, qid) or {}
+        trig = data.get("fail_after")
+        if not isinstance(trig, dict):
+            continue
+        total = int(trig.get("seconds", 0) or 0) + int(trig.get("minutes", 0) or 0) * 60
+        if total <= 0:
+            continue
+        name = "qfail:" + str(qid)
+        if not is_timer_set(holder, name):
+            return 0.0          # active, but the watcher has not anchored it yet
+        left = max(0, int(get_time_remaining(holder, name)))
+        return min(1.0, max(0.0, 1.0 - (left / float(total))))
+    return None
+
+
+def urge_stage(state):
+    """Which stage this urge should speak at (1-based), clamped to what was authored."""
+    rec = state["rec"]
+    stages = rec.get("stages")
+    if not stages:
+        return 1
+    top = max(stages)
+    mode = rec.get("escalates")
+    if mode == "deadline":
+        gone = urge_deadline_fraction(rec)
+        if gone is None:
+            # `with deadline` on an urge whose quest has no clock. Fall back to
+            # per-firing rather than freezing at stage 1, and say so ONCE - a warning
+            # every pass would be its own kind of noise.
+            if not state.get("_warned_no_deadline"):
+                state["_warned_no_deadline"] = True
+                _urge_log(f"urge {rec.get('key')!r} escalates 'with deadline' but "
+                          f"{urge_bound_quest(rec) or 'its condition'} has no deadline "
+                          f"- escalating per firing instead")
+            mode = "firing"
+        else:
+            # Split the clock evenly across the authored stages: with 3 stages, the last
+            # third of the countdown speaks stage 3.
+            return min(top, max(1, int(gone * top) + 1))
+    if mode == "firing":
+        return min(top, state.get("stage", 0) + 1)
+    return 1
+
+
 def urge_line(state):
-    """A line from the urge's pool (random among them), or "" if it has none."""
-    pool = state["rec"].get("pool") or []
+    """A line for this urge - random within its current stage, or "" if it has none.
+
+    A stage with no lines of its own falls back to the nearest LOWER stage that has
+    some, so an author can write three stage-1 lines and one stage-3 line without the
+    middle silently going quiet.
+    """
+    rec = state["rec"]
+    stages = rec.get("stages")
+    if not stages or not rec.get("escalates"):
+        pool = rec.get("pool") or []
+        return random.choice(pool) if pool else ""
+    want = urge_stage(state)
+    for s in range(want, 0, -1):
+        lines = stages.get(s)
+        if lines:
+            return random.choice(lines)
+    pool = rec.get("pool") or []
     return random.choice(pool) if pool else ""
 
 
