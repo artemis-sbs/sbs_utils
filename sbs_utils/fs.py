@@ -235,28 +235,81 @@ def get_mission_dir_filename(filename):
     return get_script_dir()+"\\"+filename        
 
 
+#
+# ryaml (the engine's PyAddons/ryaml.pyd) parses roughly 34x faster than the
+# bundled pure-Python yaml: 9ms against 308ms on shipData, which is most of a
+# second of mission start once the metadata blocks and data files are added up.
+#
+# Resolve it ONCE. A FAILED import walks the whole of sys.path, and this used to
+# run on every call, for every file - so the machine without it paid the search
+# over and over, and said so, over and over.
+#
+# The import is kept separate from the PARSE on purpose. They used to share one
+# try/except, so ryaml refusing a single file (it is a stricter parser than
+# pyyaml) surfaced as "ryaml not found" and every later load quietly took the
+# slow path. That is what "the fast parser only works once" looks like from the
+# outside, and the message sent anyone who investigated to the wrong place.
+#
+_RYAML = None            # the module once resolved; False once known absent
+_RYAML_REJECTED = set()  # things it refused, so we complain once each
+
+
+def ryaml_module():
+    """The fast YAML parser, or None where it is not installed.
+
+    Absent is NORMAL and silent: the mock and any host-side tooling run on a
+    plain Python that has no PyAddons on its path, and they must not be noisy
+    about a thing they were never going to have.
+    """
+    global _RYAML
+    if _RYAML is None:
+        try:
+            import ryaml
+            _RYAML = ryaml
+        except ImportError:
+            _RYAML = False
+    return _RYAML or None
+
+
+def _ryaml_rejected(what, err):
+    """ryaml is PRESENT and refused this content - a different fact entirely.
+
+    Worth saying once, with the name of the offending file: the fallback keeps
+    the mission running, so nothing else will ever mention that this file is
+    being parsed the slow way, or that it may be malformed.
+    """
+    if what in _RYAML_REJECTED:
+        return
+    _RYAML_REJECTED.add(what)
+    import logging
+    logging.getLogger("mast.runtime").warning(
+        f"ryaml refused {what} ({type(err).__name__}: {err}) - falling back to "
+        "the bundled parser for it. The fast path is otherwise still in use.")
+
+
 def load_yaml_data(file, multi=False):
     """Load and parse a YAML file.
-    
-    Attempts to load using ryaml first for better comment handling, 
-    falls back to standard yaml.safe_load if ryaml is unavailable.
-    
+
+    Uses the fast ryaml parser when the engine provides it, and the bundled
+    pure-Python yaml otherwise (or when ryaml refuses the file).
+
     Args:
         file (str): Path to the YAML file to load.
         multi (bool): return a generator of all documents
-    
+
     Returns:
         dict or generator or None: Parsed YAML data, or None if loading fails.
     """
-    try:
-        import ryaml
-        with open(file, 'r') as f:
-            if multi:
-                return ryaml.load_all(f)
-            else:
-                return ryaml.load(f)
-    except Exception as e:
-        print("ryaml not found downgrading to pyyaml")
+    ry = ryaml_module()
+    if ry is not None:
+        try:
+            with open(file, 'r') as f:
+                if multi:
+                    return ry.load_all(f)
+                else:
+                    return ry.load(f)
+        except Exception as e:
+            _ryaml_rejected(file, e)
 
     try:
         from . import yaml
@@ -309,11 +362,14 @@ def load_yaml_string(s):
     Returns:
         dict or None: Parsed YAML data, or None if parsing fails.
     """
-    try:
-        import ryaml
-        return ryaml.loads(s)
-    except Exception as e:
-        pass
+    ry = ryaml_module()
+    if ry is not None:
+        try:
+            return ry.loads(s)
+        except Exception as e:
+            # Keyed by content, not by name: this is called for every metadata:
+            # block, and one bad block should not mute the report for the rest.
+            _ryaml_rejected(f"yaml string {s[:60]!r}", e)
 
     try:
         from . import yaml
@@ -332,12 +388,13 @@ def save_yaml_data(file, data):
         file (str): Path to the YAML file to load.
         data (dict): Dict or object to save
     """
-    try:
-        import ryaml
-        with open(file, 'w') as f:
-            return ryaml.dump(f, data)
-    except Exception as e:
-        pass
+    ry = ryaml_module()
+    if ry is not None:
+        try:
+            with open(file, 'w') as f:
+                return ry.dump(f, data)
+        except Exception as e:
+            _ryaml_rejected(f"dump of {file}", e)
 
     try:
         from . import yaml
@@ -361,13 +418,14 @@ def load_json_data(file):
     Returns:
         dict or None: Parsed JSON data, or None if loading fails.
     """
-    try:
-        import ryaml
-        with open(file, 'r') as f:
-            return ryaml.load(f)
-    except Exception as e:
-        pass
-    
+    ry = ryaml_module()
+    if ry is not None:
+        try:
+            with open(file, 'r') as f:
+                return ry.load(f)
+        except Exception as e:
+            _ryaml_rejected(file, e)
+
     try:
         with open(file, 'r') as f:
             # remove comments
