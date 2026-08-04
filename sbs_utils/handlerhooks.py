@@ -318,7 +318,7 @@ def tick_the_rest(event):
     Gui.present(event)
 
 
-def cosmos_event_handler(sim, event):
+def _cosmos_event_handler(sim, event):
     try:
         #t = time.process_time()
         t = time.perf_counter()
@@ -646,6 +646,54 @@ def cosmos_event_handler(sim, event):
         FrameContext.error_message = ""
         Gui.push(0, ErrorPage(text_err))
 
+
+
+#
+# Nothing in this file is safe to re-enter. The handler installs ONE global
+# context (`FrameContext.context = ctx`) and nulls the sim on the way out, so a
+# nested call would hand the outer frame the inner event's client and a dead
+# sim - and the damage would surface far from here, as a NoneType on something
+# that was live a moment earlier, or work done against the wrong console.
+#
+# We have never verified that the engine cannot do this. It is only known that
+# the MOCK does not, which is no evidence at all: `sbs` calls run engine C++
+# synchronously inside our frame (that is what the delete_object use-after-free
+# was), so a call that builds native widgets could pump the engine's event queue
+# and land us right back here.
+#
+# So state the assumption instead of trusting it. One list append per event, and
+# it says something exactly once, the first time it is ever wrong.
+#
+_EVENT_STACK = []
+_REENTRY_REPORTED = False
+
+
+def _report_reentry(event):
+    global _REENTRY_REPORTED
+    if _REENTRY_REPORTED:
+        return
+    _REENTRY_REPORTED = True
+    inner = f"{getattr(event, 'tag', '?')}/{getattr(event, 'sub_tag', '')}"
+    import logging
+    msg = ("REENTRANT cosmos_event_handler: "
+           f"{' -> '.join(_EVENT_STACK)} -> {inner}. The engine called back into "
+           "the handler before the outer event finished. FrameContext.context is "
+           "a single global and the sim is nulled on exit, so the outer frame is "
+           "now running against the wrong event. Reported once per session.")
+    # Logged, not printed: engine print output reaches no file, so a print here
+    # would be invisible in the one place this can actually happen.
+    logging.getLogger("mast.runtime").error(msg)
+
+
+def cosmos_event_handler(sim, event):
+    """Engine entry point. Guards the non-reentrancy the rest of this file assumes."""
+    if _EVENT_STACK:
+        _report_reentry(event)
+    _EVENT_STACK.append(f"{getattr(event, 'tag', '?')}/{getattr(event, 'sub_tag', '')}")
+    try:
+        return _cosmos_event_handler(sim, event)
+    finally:
+        _EVENT_STACK.pop()
 
 
 GridDispatcher, DamageDispatcher, CollisionDispatcher,ConsoleDispatcher, TickDispatcher, LifetimeDispatcher, LaunchDispatcher
