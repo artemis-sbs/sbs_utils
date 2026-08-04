@@ -491,18 +491,28 @@ the global floor is for, so the test was replaced by two: one pass lets exactly 
 speak, and the others get their turn on later passes. Worth noting because it looked like a
 regression and was the feature working.
 
-**Do not import `announce` from inside `urge_reset`.** The first version did, to clear the
-traffic clock. `reset_mission_state` then pulled in `announce` -> `gui.overlay` -> `comms`
-while the world was half torn down. A full-suite run produced six failures in an unrelated
-GUI test file that passed alone, in isolation, and immediately after the urge tests - and
-the same suite was clean with the phase stashed. The clock is now reset from
-`reset_mission_state` directly and urge.py imports announce only at tick time.
+**Six unrelated GUI-test failures that were NOT this feature - a wrong diagnosis, kept.**
+A full-suite run produced six failures in `test_widget_list_resend.py`. The file passed
+alone, passed immediately after the urge tests, and the suite was clean with this phase
+stashed - which pointed hard at the phase. The diagnosis was an import chain:
+`urge_reset` lazily imported `announce` -> `gui.overlay` -> `comms` from inside
+`reset_mission_state`, i.e. while the world was half torn down.
 
-**Honest limit on that one:** after moving the import, six consecutive full-suite runs are
-clean (and five were clean even before moving it), so the original failure was never
-reproduced and the causal link is *plausible, not proven*. Recorded rather than smoothed
-over: if unrelated GUI tests ever fail in a batch again, the reset path's imports are the
-first place to look.
+**That diagnosis was wrong.** A second session was editing `gui.py` / `maststorypage.py`
+live during that run and committed minutes after it - and `test_widget_list_resend.py`
+tests exactly the code it was changing. The suite was reading a moving target.
+
+The evidence that should have carried more weight at the time: **five full-suite runs
+were already clean BEFORE the import was moved.** A causal import chain does not stop
+reproducing on its own. "The suite went green after my fix" was true and meant nothing,
+because it was green before the fix too.
+
+The import move is kept, on its own merits - `reset_mission_state` has no business
+pulling in `gui.overlay` and `comms`, and reset is the wrong place to discover an import
+cycle - but it fixed nothing, and is recorded that way. **The transferable lesson is about
+the harness, not the code:** a full-suite run is not a measurement while another session
+is writing to the tree. Check `git log`/mtimes before trusting a batch failure in an area
+you did not touch.
 
 **Verification:** 2460 unit tests OK x6 consecutive runs; LM and OU headless PASS, LM
 coverage unchanged at 174/780.
