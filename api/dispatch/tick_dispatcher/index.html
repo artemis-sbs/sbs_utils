@@ -3043,6 +3043,8 @@
       
         
       
+        
+      
     
     
     
@@ -4116,6 +4118,29 @@
   
   <span class="md-ellipsis">
     upgrades
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/urge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    urge
     
   </span>
   
@@ -6025,6 +6050,171 @@ class MyPlayer(PlayerShip):
 
 
 
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="sbs_utils.tickdispatcher.DripQueue" class="doc doc-heading">
+            <code>DripQueue</code>
+
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+
+        <p>Drain a FINITE work list over a few seconds instead of in one frame.</p>
+<p><code>RollingSlicer</code>'s sibling. That one paces <em>recurring</em> work over a live set
+(brains, objectives, urges); this paces <em>one-shot creation</em>, so a burst -- a
+map's whole terrain field, a fleet, a prefab scatter -- becomes a drip. The
+engine measurement behind this: LM's terrain block is ~280 ms of work in a
+single frame, a ~5x hitch, with no sync tail afterwards. The cost is all in the
+frame that creates the objects, so spreading that frame out is the whole fix.</p>
+<p>Two properties make a queued call equivalent to the inline one it replaced:</p>
+<ul>
+<li>each item captures <code>random.getstate()</code> when queued and runs under that
+  state, so it creates exactly what it would have created inline -- whenever
+  it runs, in whatever order (the same trick <code>terrain_spawn_field_keyed</code>
+  already uses per cell);</li>
+<li>items run NEAREST-FIRST from a focus point, so the space around the focus is
+  correct first and the fill-in lands where nobody is looking.</li>
+</ul>
+<p>That equivalence is PER ITEM. Deferring still moves when the caller's own RNG
+stream is consumed, so a sequence of queued calls whose plans read that stream
+(terrain's cluster loops do) produces a deterministic but different result from
+running them inline. Queue whole units of work, not halves of one.</p>
+<p>Draining is deadline-driven: everything queued has run by <code>over</code> sim-seconds
+after it was queued, and items added mid-drain push the deadline out rather
+than crowding the remaining ticks.</p>
+
+
+<details class="usage" open>
+  <summary>Usage</summary>
+  <p>q = DripQueue(over=6, focus=Vec3(0, 0, 0), name="terrain")
+q.add(spawn_a_cluster, (points, height), pos=points[0])
+...
+q.flush()          # or let it drain itself, a slice per tick</p>
+</details>
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="sbs_utils.tickdispatcher.DripQueue.add" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">add</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(),</span> <span class="n">kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pos</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Queue one unit of work, with the RNG state it would have run under.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="sbs_utils.tickdispatcher.DripQueue.clear" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">clear</span><span class="p">()</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Drop queued work without running it (mission reset).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="sbs_utils.tickdispatcher.DripQueue.flush" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">flush</span><span class="p">()</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Run everything still queued, right now. Returns how many ran.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="sbs_utils.tickdispatcher.DripQueue.run_slice" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">run_slice</span><span class="p">()</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Run this tick's share. Returns how many items ran.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="sbs_utils.tickdispatcher.DripQueue.set_focus" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_focus</span><span class="p">(</span><span class="n">focus</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Move the point work is ordered nearest-first from.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
 
 <div class="doc doc-object doc-class">
 

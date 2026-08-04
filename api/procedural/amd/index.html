@@ -3045,6 +3045,8 @@
       
         
       
+        
+      
     
     
     
@@ -4391,6 +4393,29 @@
   
   <span class="md-ellipsis">
     upgrades
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../urge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    urge
     
   </span>
   
@@ -6511,6 +6536,11 @@ through the SAME declared type as everything else, instead of a private loader.<
 <code>Complete after:</code> have always used. Shared so a view can't disagree with the clock
 the engine actually runs. Returns the AUTHORED unit (not just seconds) because the
 quest data keeps what was written.</p>
+<p>The COMPACT form parses too - <code>20m</code>, <code>30s</code>, <code>2h</code>. It reads naturally and everyone
+writes it, but the digit-token scan never saw it: <code>20m</code> is not <code>isdigit()</code>, so
+<code>Fails when: after 20m</code> came back <code>(None, "minutes")</code> -&gt; <code>{minutes: 0}</code> -&gt; <code>secs &lt;=
+0</code> -&gt; the watcher skipped the quest and <strong>the deadline silently never fired</strong>. An
+unrecognized suffix still falls through to minutes, as before.</p>
 
 
     </div>
