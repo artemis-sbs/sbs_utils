@@ -159,6 +159,40 @@ def _driver(args):
     return drv
 
 
+def _preflight(drv):
+    """Say WHY the queue is silent, instead of timing out with a guess.
+
+    Three things have to be true, and a plain TimeoutError cannot tell you which
+    one is missing -- the consumer is deliberately inert otherwise, so silence is
+    its normal state, not a fault.
+    """
+    problems = []
+    lib = os.path.join(drv.missions_dir, "__lib__", "cosmos_devqueue.mastlib")
+    if not os.path.isfile(lib):
+        problems.append(
+            "the queue mastlib is not built\n"
+            "      fix: python -c \"from cosmos_dev.engine_driver import EngineDriver;"
+            " EngineDriver(r'%s','%s').build_mastlib()\""
+            % (drv.cosmos_dir, drv.mission))
+
+    sj = os.path.join(drv.mission_dir, "story.json")
+    try:
+        with open(sj) as f:
+            libs = json.load(f).get("mastlib", [])
+        if "cosmos_devqueue.mastlib" not in libs:
+            problems.append(f"cosmos_devqueue.mastlib is not in {sj}")
+    except OSError:
+        problems.append(f"cannot read {sj}")
+
+    marker = os.path.join(drv.mission_dir, "dev_queue.enable")
+    env_on = os.environ.get("COSMOS_DEV_QUEUE", "") not in ("", "0", "false", "False")
+    if not os.path.isfile(marker) and not env_on:
+        problems.append(
+            f"the queue is not enabled\n      fix: create {marker} (empty file), "
+            "or launch the engine with COSMOS_DEV_QUEUE=1")
+    return problems
+
+
 def _rows(path):
     try:
         with open(path) as f:
@@ -225,9 +259,23 @@ def main():
     drv = _driver(args)
 
     if args.install:
-        if not drv.ping(timeout=30):
-            raise SystemExit("the devqueue did not answer -- is the mission loaded "
-                             "with cosmos_devqueue.mastlib in its story.json?")
+        try:
+            alive = drv.ping(timeout=20)
+        except TimeoutError:
+            alive = False
+        if not alive:
+            print("the dev queue did not answer.")
+            problems = _preflight(drv)
+            if problems:
+                for p in problems:
+                    print(f"  ! {p}")
+            else:
+                # Everything on disk is right, so the RUNNING mission predates it.
+                print("  ! setup on disk looks correct, so the loaded mission is")
+                print("    older than it. story.json and the enable marker are read")
+                print("    when the mission STARTS - back out to the mission list")
+                print("    and start it again, then re-run --install.")
+            return 1
         resp = drv.send(INSTALL)
         print(f"tap: {resp.get('result')}")
         if not args.phase:
