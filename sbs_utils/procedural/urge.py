@@ -522,7 +522,10 @@ def urge_run_one(actor_id, now=None):
     action = state["rec"].get("action")
     if action:
         from sbs_utils.procedural.amd_action import amd_action_run
-        amd_action_run(action, where=f"urge {state['rec'].get('key') or '?'!r}: ")
+        # actor_id makes `self` mean this actor, so "self departs" needs no role
+        # invented purely to let a character point at itself.
+        amd_action_run(action, where=f"urge {state['rec'].get('key') or '?'!r}: ",
+                       actor_id=actor_id)
     # Stamp even when the line FAILED to speak. A failure here is almost always a
     # permanent authoring fault (a stray brace, a dead host), not a transient one, and
     # not stamping would retry it - and log it - every single pass, forever. The budget

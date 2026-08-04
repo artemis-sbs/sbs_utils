@@ -365,7 +365,7 @@ Each phase ships something usable alone.
 | 3 | **Urge parse + ticker** DONE 2026-08-04 | `Urge` record, `__URGES__`, `RollingSlicer`, selection (s5.1), reset registration. Speech via the s6 table. No escalation yet. See s10.3. |
 | 4 | **The budget** DONE 2026-08-04 | Three floors + the `Weight: 90` escape + `announce` awareness. Not optional - phase 3 without it is the annoying version. See s10.4. |
 | 5 | **Escalation** DONE 2026-08-04 | `Escalates: with deadline` reading the bound quest's remaining fraction; `%`/`%%`/`%%%` staging. See s10.5. |
-| 6 | **Author the diplomat** | OU passenger offers grow a waiting-actor urge. The real test: reach, escalation, `Until:`, `Action:` in one character. |
+| 6 | **Author the diplomat** DONE 2026-08-04 | OU passenger offers grow a waiting-actor urge. The real test: reach, escalation, `Until:`, `Action:` in one character. See s10.6. |
 | 7 | **Migrate Florbin** | `fb_pest_messages` becomes declarative. Proves the format covers the one shipped instance. |
 | 8 | **Lint + schema** | `amd_schema` typed fields, `sbs lint` checks: unknown `Whenever:` verb, urge bound to a nonexistent quest, urge with no pool, `Every:` shorter than the global floor. |
 
@@ -549,6 +549,52 @@ in phase 8.
 
 **Verification:** 2474 unit tests OK x3 consecutive runs; LM and OU headless PASS, LM
 coverage unchanged at 174/780.
+
+## 10.6 What building Phase 6 actually found
+
+Writing an actual person found two library gaps and one plan error. All three were
+invisible until a character - not a test - had to do something.
+
+**`departs` raised on anyone who is not a space object.** `delete_object` needs a
+`SpaceObject`; a lifeform is a bare `Agent` with no `delete_object`, so the verb threw
+AttributeError - which `amd_action_run` catches and logs. The result was a stage
+direction that quietly did nothing. Invisible while `Action:` only ever ran on ships;
+immediate once urges put it on characters. It now handles both, and unhosts a lifeform
+first so its host does not keep a link to someone who left.
+
+**A character could not refer to itself.** `amd_action_actors` resolves a landmark key or
+a role, so "the ambassador gives up and leaves" meant inventing a role purely to let a
+line point at the person saying it. `amd_action_run(..., actor_id=)` now makes `self`
+mean the urge's own actor. This is the "does the format feel heavy" test from the phase
+list answering *yes* - and the fix was to shrink the authoring, not add a field.
+
+**The plan's flagship example did not fit the substrate.** s4 shows Vell with
+`Whenever: quest deliver_vell active` - but in OU the transport quest does not EXIST
+while a passenger waits; it is granted on acceptance. So the nag had nothing to watch and
+`Escalates: with deadline` had no clock. The fix is the architecture working as intended
+rather than an exception to it: the waiting passenger gets a **station-held quest with a
+`fail_after`** - exactly what phase 2 unblocked - and the urges are its voice. Stakes in
+the quest, voice in the urge, one clock.
+
+**`Until:` is supplied by the loader, not the author.** Every waiting passenger retires
+their nag on the same fact (they boarded), so making each author write
+`Until: quest passenger_<key> active` would be ceremony. The loader fills it when absent.
+
+**Measured, not assumed.** OU headless PASS proves only that nothing threw. A scripted
+run against the REAL authored `frontier.amd` plays her window out:
+
+    t+ 0m  Sela Voss here - still looking for passage out to Verdant. I can pay.
+    t+ 8m  I am asking around the ring now. Anyone headed out that way?
+    t+16m  Last call. I need to be on a hull today or not at all.
+    t+24m  Too late, I am afraid. I have taken a berth on a freighter.
+    waiting quest: FAILED   Sela still present: False
+
+Stage 1 to 6.7m, stage 2 to 13.3m, stage 3 to 20m, then the deadline fails and the
+weight-90 farewell fires `self departs`. The curve is the `%` count and the tempo is
+`Patience: 20m`; nothing in the lines has to agree with anything else.
+
+**Verification:** 2480 unit tests OK; LM and OU headless PASS, OU coverage 67 -> 68
+labels (the new path runs).
 
 ---
 

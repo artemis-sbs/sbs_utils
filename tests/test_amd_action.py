@@ -415,3 +415,85 @@ class TestActionLint(unittest.TestCase):
 
     def test_a_record_with_no_action_is_silent(self):
         self.assertEqual(self._lint("Objective: Find the ambassador"), [])
+
+
+class DepartsAndSelfTests(unittest.TestCase):
+    """`departs` on a NON-space actor, and `self` as an actor name.
+
+    Both surfaced when urges put `Action:` on lifeforms and stations (URGE_PLAN.md
+    phase 6): `delete_object` needs a SpaceObject, and a cast character is a bare Agent.
+    """
+
+    def setUp(self):
+        from tests.reset_helper import reset_mock
+        from cosmos_dev.mock import sbs as _sbs
+        reset_mock(_sbs)
+
+    def _lifeform(self, name, roles="diplomat", host=None):
+        from sbs_utils.procedural.lifeform import lifeform_spawn
+        return lifeform_spawn(name, None, roles, host)
+
+    def test_departs_removes_a_lifeform(self):
+        """It used to raise AttributeError, swallowed by amd_action_run - so the
+        direction silently did nothing."""
+        from sbs_utils.agent import Agent
+        from sbs_utils.procedural.amd_action import amd_action_run
+        lf = self._lifeform("Vell")
+        self.assertEqual(amd_action_run("diplomat departs"), 1)
+        self.assertIsNone(Agent.get(lf.id))
+
+    def test_departs_unhosts_before_removing(self):
+        """A host must not keep a link to someone who left."""
+        from sbs_utils.agent import Agent
+        from sbs_utils.procedural.amd_action import amd_action_run
+        from sbs_utils.procedural.spawn import npc_spawn
+        from sbs_utils.procedural.query import to_id
+        from sbs_utils.procedural.links import linked_to
+        host = npc_spawn(0, 0, 0, "Base", "station", "starbase", "behav_station")
+        lf = self._lifeform("Vell", host=to_id(host))
+        amd_action_run("diplomat departs")
+        self.assertIsNone(Agent.get(lf.id))
+        self.assertIsNotNone(Agent.get(to_id(host)), "the host survives")
+        self.assertEqual(len(linked_to(to_id(host), "onboard")), 0)
+
+    def test_departs_still_deletes_a_space_object(self):
+        from sbs_utils.agent import Agent
+        from sbs_utils.procedural.amd_action import amd_action_run
+        from sbs_utils.procedural.spawn import npc_spawn
+        from sbs_utils.procedural.query import to_id
+        ship = npc_spawn(0, 0, 0, "Freighter", "hauler", "cargo", "behav_npcship")
+        sid = to_id(ship)
+        self.assertEqual(amd_action_run("hauler departs"), 1)
+        self.assertIsNone(Agent.get(sid))
+
+    def test_self_resolves_to_the_running_actor(self):
+        from sbs_utils.agent import Agent
+        from sbs_utils.procedural.amd_action import amd_action_run
+        mine = self._lifeform("Vell")
+        other = self._lifeform("Renner")
+        amd_action_run("self departs", actor_id=mine.id)
+        self.assertIsNone(Agent.get(mine.id))
+        self.assertIsNotNone(Agent.get(other.id), "only the running actor")
+
+    def test_self_without_an_actor_is_not_silently_everyone(self):
+        from sbs_utils.procedural.amd_action import amd_action_actors
+        self.assertEqual(amd_action_actors("self"), set())
+
+    def test_nested_runs_restore_the_previous_self(self):
+        from sbs_utils.procedural import amd_action as A
+        a, b = self._lifeform("A"), self._lifeform("B")
+        seen = []
+
+        def _peek(actor, operand, line):
+            seen.append(tuple(A.amd_action_actors("self")))
+            if operand == "outer":
+                A.amd_action_run("x peeks inner", actor_id=b.id)
+                seen.append(tuple(A.amd_action_actors("self")))
+            return True
+
+        A.amd_action_register("peeks", _peek)
+        try:
+            A.amd_action_run("x peeks outer", actor_id=a.id)
+        finally:
+            del A._VERBS["peeks"]
+        self.assertEqual(seen, [(a.id,), (b.id,), (a.id,)])
