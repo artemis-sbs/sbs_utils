@@ -554,7 +554,7 @@ def _emit_soak_report(fingerprints: list, fp_json: str | None = None) -> int:
         return 1
     base = fingerprints[0]
     cols = ["players", "npcs", "terrain", "agents", "tasks", "brains", "moving",
-            "labels", "errors"]
+            "sow", "labels", "errors"]
     print("\n==== restart soak ====")
     hdr = "run  " + "".join(f"{c:>9}" for c in cols) + "   stream(full/delta/resync/drop)  browser(dyn/moving/orphan)"
     print(hdr)
@@ -574,6 +574,9 @@ def _emit_soak_report(fingerprints: list, fp_json: str | None = None) -> int:
             failures.append(f"run {n}: {fp['errors']} runtime error(s)")
         if fp.get("reset_leaks"):
             failures.append(f"run {n}: state survived the reset -> {fp['reset_leaks']}")
+        if fp.get("sow"):
+            failures.append(f"run {n}: {fp['sow']} sown terrain unit(s) never drained "
+                            f"- the map is missing terrain it asked for")
         if fp.get("b_orphans"):
             failures.append(f"run {n}: browser could not place {fp['b_orphans']} object(s) "
                             f"(delta with no full record)")
@@ -799,6 +802,20 @@ def _run(
 
     # Communicate map choice to the debug .mast via environment variable
     os.environ["COSMOS_DEBUG_MAP"] = str(map_arg)
+
+    # PyAddons on the path, because the ENGINE has it there. Without it the
+    # runner silently takes a different code path from the thing it is meant to
+    # imitate: `ryaml` lives here, and it parses ~34x faster than the bundled
+    # pure-Python yaml (9ms vs 308ms on shipData). Every headless timing taken
+    # without this was measuring a parser the engine does not use.
+    #
+    # Best effort by design: the .pyd is built for the engine's Python, so on a
+    # mismatched host the import just fails and fs.py falls back, silently. No
+    # threads, no pip, nothing imported here - only a path made available.
+    _addons = os.path.join(cosmos_dir or os.path.dirname(os.path.dirname(missions_root)),
+                           "PyAddons")
+    if os.path.isdir(_addons) and _addons not in sys.path:
+        sys.path.append(_addons)
 
     # Map auto-start: prefer the launcher the real engine uses. LM's server console
     # reaches its `start` label via `jump start if AUTO_START` and launches
@@ -1104,6 +1121,14 @@ def _run(
             "tick_rate": tick_rate,
         }
 
+    def _sow_pending() -> int:
+        """Terrain queued by the sower but not yet created. 0 unless a map opted in."""
+        try:
+            from sbs_utils.procedural.terrain import terrain_sow_pending
+            return terrain_sow_pending()
+        except Exception:
+            return 0
+
     def _run_fingerprint(errors_before: int) -> dict:
         """One run's measurable shape — the thing --runs compares across restarts.
 
@@ -1140,6 +1165,9 @@ def _run(
             "tasks":      sum(1 for a in Agent.all.values() if isinstance(a, MastAsyncTask)),
             "brains":     brains,
             "moving":     moving,
+            # Terrain still queued by the sower. Non-zero at the END of a run means
+            # a drip never finished - the map would be missing terrain it asked for.
+            "sow":        _sow_pending(),
             "labels":     len(_cov.labels_hit) if _cov is not None else 0,
             # The label NAMES, not just the count: "run 2 ran fewer labels" is a
             # symptom, "run 2 never entered these 83 labels" is a lead.

@@ -308,6 +308,11 @@ def load_yaml_data(file, multi=False):
                     return ry.load_all(f)
                 else:
                     return ry.load(f)
+        except OSError:
+            # Missing or unreadable is NOT a parser refusal. Optional data files
+            # are looked up speculatively all over the place, so reporting this
+            # would cry wolf on every one of them - and did.
+            pass
         except Exception as e:
             _ryaml_rejected(file, e)
 
@@ -393,6 +398,8 @@ def save_yaml_data(file, data):
         try:
             with open(file, 'w') as f:
                 return ry.dump(f, data)
+        except OSError:
+            pass
         except Exception as e:
             _ryaml_rejected(f"dump of {file}", e)
 
@@ -423,6 +430,8 @@ def load_json_data(file):
         try:
             with open(file, 'r') as f:
                 return ry.load(f)
+        except OSError:
+            pass
         except Exception as e:
             _ryaml_rejected(file, e)
 
