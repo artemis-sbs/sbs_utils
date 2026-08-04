@@ -139,6 +139,38 @@ The VS Code extension reads AMD as a format rather than as coloured text:
 
 Docs: [Quests](build/quests.md).
 
+## 🗣️ Characters who ask, and leave if nobody comes
+
+A quest could always count down. It just did it **in silence** — you learned the
+ambassador had given up when the fare quietly vanished from the board.
+
+An **urge** is what an actor keeps asking for: a condition, a cadence, and a pool of
+authored lines. Anyone can hold one — a passenger, a station, a whole side.
+
+- **The stakes stay in the quest.** An urge declares no consequence of its own; it is the
+  voice of a quest that is already counting down. One clock, one place to tune, and
+  deleting the urge costs the drama but not the mechanics.
+- **The countdown IS the drama curve.** Write `%` while there is time, `%%` as it runs
+  short, `%%%` at the end, and `Escalates: with deadline` reads the quest's own clock.
+  The number of markers is the curve; `Fails when:` is the tempo. Nothing has to agree
+  with anything else.
+- **They know when to shut up.** A per-actor floor stops one character monologuing, and a
+  global floor stops five of them piping up the moment a jump makes them all eligible —
+  shared with mission dispatch, so nobody talks over the Admiral. Only something urgent
+  (`Weight: 90`) jumps that queue.
+- **A station can hold a quest now**, which is what lets a resupply run have a deadline
+  and a cost that lands on the world instead of on whoever happened to fly past.
+- **Standing is a consequence.** `Reward:` and `Penalty:` take
+  `earns <faction> <pole> <n>`, so finishing a job — or abandoning one — can move how a
+  faction feels about you, not just what it charges.
+
+In Open Universe, **Doctor Voss** now waits on the docking ring at her pickup, asks more
+insistently as her window closes, and takes a berth on someone else's freighter if nobody
+comes. In Legendary Missions, **Ambassador Florbin's** famous passenger requests are the
+same character, rewritten as five lines of data instead of a hand-written loop.
+
+API: [urge](api/procedural/urge.md).
+
 ## 💱 Items & Upgrades
 
 - **Discoverable items and upgrades** driven by a data registry — collect them in

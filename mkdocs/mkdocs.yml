@@ -180,6 +180,7 @@ nav:
       - timers: api/procedural/timers.md
       - torpedoes: api/procedural/torpedoes.md
       - upgrades: api/procedural/upgrades.md
+      - urge: api/procedural/urge.md
       - web: api/procedural/web.md
     - Dispatch:
       - api/dispatch/index.md
