@@ -2498,6 +2498,30 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#starting-a-mission" class="md-nav__link">
+    <span class="md-ellipsis">
+      Starting a mission
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Starting a mission">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#release-lines" class="md-nav__link">
+    <span class="md-ellipsis">
+      Release lines
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#running-a-mission" class="md-nav__link">
     <span class="md-ellipsis">
       Running a mission
@@ -5736,6 +5760,30 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#starting-a-mission" class="md-nav__link">
+    <span class="md-ellipsis">
+      Starting a mission
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Starting a mission">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#release-lines" class="md-nav__link">
+    <span class="md-ellipsis">
+      Release lines
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#running-a-mission" class="md-nav__link">
     <span class="md-ellipsis">
       Running a mission
@@ -5826,6 +5874,14 @@ line. Run <code>sbs &lt;command&gt; --help</code> for full options.</p>
 </thead>
 <tbody>
 <tr>
+<td><code>sbs create &lt;name&gt;</code></td>
+<td><strong>Start a new mission</strong> from a boilerplate template</td>
+</tr>
+<tr>
+<td><code>sbs templates</code></td>
+<td>List the templates available, per release line</td>
+</tr>
+<tr>
 <td><code>sbs debug &lt;mission&gt;</code></td>
 <td>Run a mission in a browser <strong>mock GUI</strong> (3D cinematic + 2D radar)</td>
 </tr>
@@ -5871,6 +5927,31 @@ line. Run <code>sbs &lt;command&gt; --help</code> for full options.</p>
 </tr>
 </tbody>
 </table>
+<h2 id="starting-a-mission">Starting a mission</h2>
+<div class="highlight"><pre><span></span><code>sbs templates                        # what&#39;s on offer, per release line
+sbs create MyMission                 # pick from a list
+sbs create MyMission -t sandbox      # pick up front
+sbs create MyMission --title &quot;My Mission&quot;
+</code></pre></div>
+<p><code>create</code> lays the template down, rewrites the mission's name into
+<code>description.yaml</code>, and fetches everything its <code>story.json</code> pins. It refuses to write
+into a folder that already has anything in it.</p>
+<p>Templates come from the
+<a href="https://github.com/artemis-sbs/mast_starter">mast_starter</a> repo, which keeps a
+<code>templates.json</code> catalog <strong>on each branch</strong> — so a new template is a commit there,
+not a release of this tool.</p>
+<h3 id="release-lines">Release lines</h3>
+<p>A branch per line (<code>v1.3.0</code>, <code>v1.4.0</code>), and every dependency of a mission comes from
+one line. That is not just a version string: a template can only use what its line
+has — <code>provides</code>/<code>requires</code> are v1.4.0+, and <code>pickup_spawn</code> / <code>scatter_box</code> don't
+exist in the v1.3.0 library at all — so <strong>the branch decides which templates exist</strong>.</p>
+<p>Resolution order is: what you asked for, then a line this install already has an
+sbslib for, capped by your Cosmos version. Deliberately <em>not</em> in that list: the
+newest branch on GitHub. That's the upper bound, not a default.</p>
+<div class="highlight"><pre><span></span><code>sbs create MyMission -l v1.4.0       # pin the line
+sbs create MyMission -b v1.4.0_dev   # a specific branch (pre-releases are opt-in)
+sbs create MyMission --retarget      # re-pin a template&#39;s deps to the resolved line
+</code></pre></div>
 <h2 id="running-a-mission">Running a mission</h2>
 <div class="highlight"><pre><span></span><code>sbs debug .                 # browser GUI, map picker
 sbs debug . --map 0         # auto-start map 0
@@ -5899,8 +5980,17 @@ aren't in source control. And close Cosmos first — a running client holds
 files open under the link, and the swap will refuse rather than half-finish.</p>
 </div>
 <h2 id="validating-amd">Validating AMD</h2>
-<p><code>compile</code> checks the MAST; <code>lint</code> checks the <code>.amd</code> content (quests, dialogue,
-cast, maps). AMD fails <em>silently</em> — a typo'd <code># [Display](key)</code> heading becomes body
+<p><code>compile</code> checks the MAST and <strong>exits non-zero</strong> when it fails, so it can gate a build.</p>
+<div class="admonition warning">
+<p class="admonition-title">What <code>compile</code> cannot see</p>
+<p>A <code>{ }</code> literal split across lines. MAST parses line by line, so the first line is
+an unclosed <code>{</code>; the parser desyncs for the rest of the file, the story's main task
+can end up <strong>empty</strong>, and the compiler still reports zero errors. The mission then
+runs and does nothing. Keep dict literals on one line or inside <code>~~ … ~~</code>, and if a
+mission mysteriously does nothing, suspect this first. A headless
+<code>--test</code> run catches it (<code>labels 0/N</code>); a compile never will.</p>
+</div>
+<p><code>lint</code> checks the <code>.amd</code> content (quests, dialogue, cast, maps). AMD fails <em>silently</em> — a typo'd <code># [Display](key)</code> heading becomes body
 text and its node vanishes — so lint re-scans a mission's <code>.amd</code> and surfaces it.</p>
 <div class="highlight"><pre><span></span><code>sbs lint .                 # errors + warnings, exit 0/1
 sbs lint . --strict        # warnings fail too (CI)

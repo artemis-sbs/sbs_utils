@@ -655,6 +655,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#start-from-a-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      Start from a template
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#folder-layout" class="md-nav__link">
     <span class="md-ellipsis">
       Folder layout
@@ -5706,6 +5715,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#start-from-a-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      Start from a template
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#folder-layout" class="md-nav__link">
     <span class="md-ellipsis">
       Folder layout
@@ -5755,6 +5773,54 @@
 <p>A mission is a folder in your Cosmos <code>missions/</code> directory. Cosmos runs its
 <code>script.py</code> at startup; almost everything else is written in
 <a href="../../mast/tutorial/">MAST</a>.</p>
+<h2 id="start-from-a-template">Start from a template</h2>
+<p>From your <code>missions/</code> folder:</p>
+<div class="highlight"><pre><span></span><code>sbs templates              # see what you can start from
+sbs create MyMission       # make one, and fetch the libraries it needs
+</code></pre></div>
+<p><code>sbs create</code> writes the folder described below and downloads its dependencies, so
+you can go straight to <code>sbs debug MyMission --map 0</code>. Pick a template up front with
+<code>-t</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Template</th>
+<th>What you get</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>minimal</code></td>
+<td>One <code>@map</code> and a line of narration &mdash; the smallest thing that runs.</td>
+</tr>
+<tr>
+<td><code>sandbox</code></td>
+<td>Two sides, a station in an asteroid field, player ships, and raider waves. Start here if you want a mission.</td>
+</tr>
+<tr>
+<td><code>addon</code></td>
+<td>A shareable <a href="../../build/addons/">add-on</a> plus a harness map to run it.</td>
+</tr>
+<tr>
+<td><code>amd</code></td>
+<td>Quests and science scans authored as data in an <a href="../../build/amd-format/"><code>.amd</code> fact sheet</a>.</td>
+</tr>
+<tr>
+<td><code>ou</code></td>
+<td>A whole procedurally generated universe, built on the OpenUniverse engine.</td>
+</tr>
+</tbody>
+</table>
+<p>Missions are pinned to a <strong>release line</strong> (v1.3.0, v1.4.0), and everything a mission
+loads comes from the same line. <code>sbs create</code> picks the newest line your install
+already has libraries for and never one newer than your copy of Cosmos &mdash; a
+mission your game can't launch is not a useful starting point. It says which line it
+chose and why; override with <code>-l</code> or <code>-b</code>.</p>
+<p>Not every template exists on every line: a template can only use language and library
+features its line actually has.</p>
+<p>The templates live in the
+<a href="https://github.com/artemis-sbs/mast_starter">mast_starter</a> repository, so new ones
+appear without updating the tool. See <a href="../../tooling/cli/#starting-a-mission">the CLI</a>.</p>
 <h2 id="folder-layout">Folder layout</h2>
 <div class="highlight"><pre><span></span><code>MyMission/
 ├── script.py         # required - Cosmos entry point (boilerplate)
@@ -5764,6 +5830,8 @@
 ├── settings.yaml     # optional - difficulty, player count, etc.
 └── media/            # optional - images, skyboxes, music
 </code></pre></div>
+<p>Every template lays this down for you; the rest of this page is what those files are
+for, so you can change them.</p>
 <h2 id="the-required-files">The required files</h2>
 <p><strong><code>script.py</code></strong> &mdash; boilerplate that wires the library to Cosmos:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">sbslibs</span>

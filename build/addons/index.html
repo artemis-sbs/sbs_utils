@@ -2234,9 +2234,27 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#start-from-the-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      Start from the template
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#lay-out-the-module" class="md-nav__link">
     <span class="md-ellipsis">
       Lay out the module
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#declare-what-it-needs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Declare what it needs
     </span>
   </a>
   
@@ -5697,9 +5715,27 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#start-from-the-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      Start from the template
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#lay-out-the-module" class="md-nav__link">
     <span class="md-ellipsis">
       Lay out the module
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#declare-what-it-needs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Declare what it needs
     </span>
   </a>
   
@@ -5738,6 +5774,17 @@
 other missions can load it. sbs_utils ships the Legendary Missions add-ons this
 way. An add-on is a <strong>module</strong>: a folder with an <code>__init__.mast</code> that imports the
 rest.</p>
+<h2 id="start-from-the-template">Start from the template</h2>
+<div class="highlight"><pre><span></span><code>sbs create MyAddon -t addon
+</code></pre></div>
+<p>That gives you the layout below already wired up &mdash; including a harness map, so
+<code>sbs debug MyAddon --map 0</code> puts the add-on's console in front of you straight away.
+The rest of this page is what those pieces are.</p>
+<div class="admonition note">
+<p class="admonition-title">v1.4.0 and later</p>
+<p>The <code>addon</code> template uses <code>provides</code> / <code>requires</code>, which don't exist on v1.3.0, so
+it only appears on the v1.4.0 line. See <a href="../../tooling/cli/#release-lines">the CLI</a>.</p>
+</div>
 <h2 id="lay-out-the-module">Lay out the module</h2>
 <div class="highlight"><pre><span></span><code>MyAddon/                 # a dev mission that hosts the add-on
 ├── script.py            # standard boilerplate
@@ -5753,6 +5800,29 @@ rest.</p>
 <div class="highlight"><pre><span></span><code>import panels.mast
 import helpers.py
 </code></pre></div>
+<h2 id="declare-what-it-needs">Declare what it needs</h2>
+<p>Add-ons share one global namespace and load in <strong>no fixed order</strong>, so "my add-on uses
+a label from theirs" is only safe if you say so. Three directives at the top of
+<code>__init__.mast</code> (column 0, like <code>import</code>) make the contract explicit, and they're
+checked at <strong>compile time</strong>:</p>
+<div class="highlight"><pre><span></span><code>provides hangar.sortie_board     # this add-on supplies a capability
+suggests hangar                  # SOFT: warn if absent, never fail
+requires gamemaster              # HARD: fail the compile if nothing provides it
+</code></pre></div>
+<p>Tokens are opaque strings, dotted by convention; several per line is fine
+(<code>provides casino, casino.bar</code>). Collection is <strong>order-independent</strong> — the compiler
+gathers every <code>provides</code> as files compile, then validates once at the end.</p>
+<p>Use <code>requires</code> when you call the other add-on's globals or routes, or your feature is
+meaningless without it. Use <code>suggests</code> for an optional augmentation, guarded with
+<code>default shared X = None</code> so it degrades gracefully.</p>
+<p>An unmet <code>requires</code> is a compile error, surfaced by <code>sbs lint</code> and <code>--test</code> and shown
+as a runtime error screen. These are compile-time only — no runtime effect — and
+backward compatible: a line is a directive only when a token follows the keyword, so
+<code>requires = 5</code> is still an assignment.</p>
+<div class="admonition note">
+<p class="admonition-title">v1.4.0 and later</p>
+<p>Missions on the v1.3.0 line can't use these.</p>
+</div>
 <p><code>__lib__.json</code> names the folder(s) to package:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;v1.0.0&quot;</span><span class="p">,</span>

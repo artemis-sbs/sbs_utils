@@ -831,6 +831,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#start-a-mission-in-one-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      🚀 Start a mission in one command
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#for-mission-makers-tinkerers" class="md-nav__link">
     <span class="md-ellipsis">
       🛠️ For Mission Makers &amp; Tinkerers
@@ -6196,6 +6205,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#start-a-mission-in-one-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      🚀 Start a mission in one command
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#for-mission-makers-tinkerers" class="md-nav__link">
     <span class="md-ellipsis">
       🛠️ For Mission Makers &amp; Tinkerers
@@ -6913,6 +6931,53 @@ out on you, and each mission still ends the way it always did.</p>
 <p>Anything the old script left genuinely ambiguous is written down for whoever finishes
 the port, rather than quietly guessed at.
 → <a href="../mast/porting-2x/">Porting from Artemis 2.x</a></p>
+<h2 id="start-a-mission-in-one-command">🚀 Start a mission in one command</h2>
+<p>Writing your first mission used to begin with "download this repository, rename the
+folder, edit these four files, then work out which libraries you need." Now:</p>
+<div class="highlight"><pre><span></span><code>sbs templates              # see what you can start from
+sbs create MyMission       # make one — libraries and all
+</code></pre></div>
+<p>There are five boilerplates, and they are whole missions rather than empty shells:</p>
+<table>
+<thead>
+<tr>
+<th>Template</th>
+<th>What you get</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>minimal</code></td>
+<td>One <code>@map</code> and a line of narration — the smallest thing that runs.</td>
+</tr>
+<tr>
+<td><code>sandbox</code></td>
+<td>Two sides, a station in an asteroid field, player ships, and raider waves that ramp with the difficulty setting.</td>
+</tr>
+<tr>
+<td><code>addon</code></td>
+<td>A shareable add-on — <code>provides</code> / <code>requires</code>, packaged as a <code>.mastlib</code> — plus a harness map to run it.</td>
+</tr>
+<tr>
+<td><code>amd</code></td>
+<td>Quests and science scans authored as data in a <code>.amd</code> fact sheet, with MAST holding only the logic that reacts.</td>
+</tr>
+<tr>
+<td><code>ou</code></td>
+<td>A whole procedurally generated universe, built on the OpenUniverse engine.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>It won't hand you a mission your game can't launch.</strong> Missions are pinned to a
+release line, and everything a mission loads comes from the same one. <code>sbs create</code>
+picks the newest line your install already has libraries for — capped by your version
+of Cosmos — tells you which it chose and why, and never reaches for a newer one just
+because it exists. Not every template is on every line, either: <code>addon</code>, <code>amd</code> and
+<code>ou</code> need v1.4.0 language and library features.</p>
+<p>The templates live in the
+<a href="https://github.com/artemis-sbs/mast_starter">mast_starter</a> repository and are read
+straight from it, so new ones show up without updating the tool.
+→ <a href="../home/start/">Creating a mission</a> · <a href="../tooling/cli/#starting-a-mission">The <code>sbs</code> CLI</a></p>
 <h2 id="for-mission-makers-tinkerers">🛠️ For Mission Makers &amp; Tinkerers</h2>
 <div class="admonition warning">
 <p class="admonition-title">For testing only — not an engine replacement</p>
@@ -6935,6 +7000,10 @@ If something must behave exactly like the engine, verify it in Cosmos.</p>
   torpedoes, drones, mines, EMP). → <a href="../tooling/testing/">Testing missions</a></li>
 <li><strong><code>--use-working-tree</code></strong> to smoke-test local library edits, and <strong><code>--seed</code></strong> for
   reproducible runs. → <a href="../tooling/cli/">The <code>sbs</code> CLI</a></li>
+<li><strong><code>sbs compile</code> can gate a build.</strong> It used to print an error and exit 0, so any
+  script or CI reading its exit code saw success on a compile that never happened. It
+  now reports the errors and exits non-zero. (It still can't see a multi-line <code>{ }</code> —
+  only a <code>--test</code> run finds that.) → <a href="../tooling/cli/#validating-amd">The <code>sbs</code> CLI</a></li>
 <li><strong>An in-game Avatar Editor</strong> — an opt-in addon that customizes a character face
   <strong>inside Cosmos</strong>, with a <strong>live <code>gui_face</code> preview</strong> that updates as you move the
   sliders (unlike the extension's blind builder). Pick a race, tweak each feature,
@@ -7019,7 +7088,7 @@ requires gamemaster    # hard: fail the build if it&#39;s not loaded
 <p>A <code>requires</code> not satisfied by some loaded addon's <code>provides</code> <strong>fails the
 compile</strong> (caught by <code>sbs lint</code> / <code>--test</code>, and shown as a runtime error screen);
 <code>suggests</code> only logs a warning. Checking is <strong>order-independent</strong> and fully
-backward compatible. → <a href="../mast/overview/">The MAST language</a></p>
+backward compatible. → <a href="../build/addons/#declare-what-it-needs">Making add-ons</a></p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">✨ New — colons inside quoted strings</p>

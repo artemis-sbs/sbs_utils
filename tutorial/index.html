@@ -5686,9 +5686,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#download-mast_starter" class="md-nav__link">
+  <a href="#create-the-mission" class="md-nav__link">
     <span class="md-ellipsis">
-      Download mast_starter
+      Create the mission
     </span>
   </a>
   
@@ -5963,20 +5963,42 @@
 <h3 id="what-you-will-not-learn">What you will NOT learn</h3>
 <p>MAST is loosely based on, and for Cosmos is compiled by, Python. Python is a popular programming language which integrates with the Cosmos game engine to allow for flexible mission scripting. This tutorial is not a python tutorial, and we will touch on some aspects of the language, but if you want a more thorough understanding of python there are loads of resources online.</p>
 <h2 id="1-setting-up-your-first-mission">1. Setting up your first mission</h2>
-<h3 id="download-mast_starter">Download mast_starter</h3>
-<p>To download the basic template documents for any mission, start with the mast_starter mission from the <a href="https://github.com/artemis-sbs/mast_starter">mast_starter Github Repository</a></p>
-<p>For a mission that already has some very basic functionality included, you could also use <a href="https://github.com/artemis-sbs/SecretMeeting">Secret Meeting</a>. This mission is packaged with Cosmos by default, but there may be an updated version on GitHub, and it is always recommended that the most recent version be used.</p>
-<p>For this tutorial, we will assume that you are using mast_starter as a template.  </p>
+<h3 id="create-the-mission">Create the mission</h3>
+<p>From your <code>missions/</code> folder, run:</p>
+<div class="highlight"><pre><span></span><code>sbs create TreasureHunt --title &quot;Treasure Hunt&quot;
+</code></pre></div>
+<p>Pick <strong><code>minimal</code></strong> when it asks — this tutorial builds the mission up from nothing, so
+starting from an empty one is the point. It creates the folder and downloads the
+libraries the mission needs.</p>
+<div class="admonition tip">
+<p class="admonition-title">Just want a mission that already works?</p>
+<p><code>sbs create MyMission -t sandbox</code> gives you a playable one — two sides, a station
+in an asteroid field, player ships and enemy waves — that you can read and pull
+apart. <code>sbs templates</code> lists everything on offer.</p>
+</div>
+<p>Everything comes from the
+<a href="https://github.com/artemis-sbs/mast_starter">mast_starter</a> repository, which you can
+also browse on GitHub or use with its green <strong>Use this template</strong> button.</p>
+<p>For a full mission with a story already in it, look at
+<a href="https://github.com/artemis-sbs/SecretMeeting">Secret Meeting</a>. It ships with Cosmos,
+but the GitHub copy may be newer, and the newest is always the one to read.</p>
 <h2 id="2-whats-in-a-name">2. What's in a name?</h2>
 <p>The name of your mission is, of course, a pretty important part of the mission.<br />
 Fortunately, it's easy to set the name and description of the mission.<br />
-Name the mission folder to reflect the name you've chosen for your mission. We will be calling our mission "Treasure Hunt".<br />
-Now, open <code>description.yaml</code> in your mission folder. You will see something like this:</p>
+The <code>--title</code> above already set it, so open <code>description.yaml</code> in your mission folder
+and you should see:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">format version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
 <span class="nt">Category</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Standard</span>
-<span class="nt">Visible Mission Name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Mast Mission Template</span>
-<span class="nt">Description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">A short description of your mission.</span>
+<span class="nt">Visible Mission Name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Treasure Hunt</span>
+<span class="nt">Description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Treasure Hunt</span>
 </code></pre></div>
+<p>Change them whenever you like &mdash; this file is read before the mission ever runs.</p>
+<div class="admonition warning">
+<p class="admonition-title">No dashes, and keep it short</p>
+<p>A <code>-</code> anywhere in these values <strong>crashes</strong> the engine, mid-word included
+(<code>Auto-ramping</code> → <code>Auto ramping</code>). Keep <code>Description</code> to one terse phrase; long
+ones read badly in the mission browser.</p>
+</div>
 <ul>
 <li><strong>Category</strong> is used to group missions in the browser.</li>
 <li><strong>Visible Mission Name</strong> is the mission name shown on the selection button.</li>
