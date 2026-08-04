@@ -1,3 +1,5 @@
+import time
+
 from ..gui import Gui, Page
 from ..helpers import FakeEvent, FrameContext, FrameContextOverride
 from ..procedural.inventory import get_inventory_value, set_inventory_value, has_inventory_value
@@ -24,6 +26,12 @@ from .maststoryscheduler import StoryScheduler
 from . import story_nodes
 #from .mastmission import MissionLabel, StateMachineLabel
 from . import mast_sbs_procedural
+
+
+# A send_client_widget_list slower than this is reported by name. One MAST tick
+# is 200ms and a frame is ~16ms, so 8ms is "this call is visible to a player"
+# without being so twitchy that a loaded machine spams the log.
+WIDGET_LIST_SLOW_SECONDS = 0.008
 
 
 class TabControl(Text):
@@ -687,7 +695,22 @@ class StoryPage(Page):
                 widget_list = (self.console, self.widgets)
                 if Gui.widget_list_sent.get(event.client_id) != widget_list:
                     Gui.widget_list_sent[event.client_id] = widget_list
+                    # Timed, because "the console is slow to come up" needs to be
+                    # a number before anyone can act on it. If the call BLOCKS,
+                    # the engine is building widgets synchronously and the ms
+                    # here is the cost; if it returns instantly and the screen
+                    # still takes a beat, the work is happening outside our
+                    # frame and this line will say so by staying silent. Costs
+                    # one perf_counter pair on a call that now happens only when
+                    # the list actually changes.
+                    _t0 = time.perf_counter()
                     my_sbs.send_client_widget_list(event.client_id, self.console, self.widgets)
+                    _dt = time.perf_counter() - _t0
+                    if _dt > WIDGET_LIST_SLOW_SECONDS:
+                        n = len(self.widgets.split("^")) if self.widgets else 0
+                        log(f"send_client_widget_list BLOCKED {_dt*1000:.0f}ms "
+                            f"console={self.console or '(none)'} widgets={n} "
+                            f"client={event.client_id}", "mast:internal", "warning")
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
 
