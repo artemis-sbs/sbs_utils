@@ -133,6 +133,9 @@ def reset_mission_state():
     # this drops the "already scheduled" latches that would otherwise stop them
     # being re-registered - leaving the next mission with brains that never think.
     objective_reset()
+    from .procedural.urge import urge_reset
+    urge_reset()        # same latch as objective_reset: a stale "scheduled" global
+                        # would leave every actor mute from run 2 onward, silently
     Gui.web_client_ids.clear()  # drop web-page sessions from the old mission
     from .procedural.web import web_living_clear
     web_living_clear()  # drop living/persistent web-page registrations
@@ -150,6 +153,9 @@ def reset_mission_state():
     # and a stale reference silently resolves to a DIFFERENT label of the same
     # name, which is far worse to debug than this error.
     Gui.clients.clear()
+    # The engine's widget list belongs to the old mission's pages. Forget what
+    # was sent so each rebuilt page establishes its own.
+    Gui.widget_list_sent.clear()
 
 
 # Library-side probes. Each returns the count that MUST be zero once a reset has run.
@@ -162,6 +168,7 @@ def _probe_agents() -> int:
 register_reset_state("Agent.all", _probe_agents)
 register_reset_state("Gui.clients",       lambda: len(Gui.clients))
 register_reset_state("Gui.web_client_ids", lambda: len(Gui.web_client_ids))
+register_reset_state("Gui.widget_list_sent", lambda: len(Gui.widget_list_sent))
 register_reset_state("TickDispatcher",    lambda: len(TickDispatcher._dispatch_tick))
 # Registered HERE rather than from camera.py, whose own import of this module is
 # circular - and a swallowed ImportError would have left the container invisible to
@@ -197,6 +204,10 @@ register_reset_state("brain.stalled",
 # task means brains and objectives are dead for the rest of the process.
 register_reset_state("objective.ticks_stale",
                      lambda: 1 if __import__("sbs_utils.procedural.objective", fromlist=["x"]).objective_ticks_stale() else 0)
+# The urge ticker's latch, for the same reason: set-but-unscheduled means no actor ever
+# speaks again, with no error to show for it.
+register_reset_state("urge.ticks_stale",
+                     lambda: 1 if __import__("sbs_utils.procedural.urge", fromlist=["x"]).urge_ticks_stale() else 0)
 
 
 #	client_id"

@@ -670,7 +670,24 @@ class StoryPage(Page):
             
             case  "repaint":
                 my_sbs.send_gui_clear(event.client_id,"")
-                my_sbs.send_client_widget_list(event.client_id, self.console, self.widgets)
+                #
+                # Only when it CHANGED. This call is how the ENGINE learns which
+                # native widgets a console has, and acting on it means building
+                # them (2d view, waterfall, ship_data, grid...). swap_layout sets
+                # gui_state='repaint' on EVERY gui rebuild, so re-sending
+                # unconditionally asked the engine to redo that work every time a
+                # console's MAST screen rebuilt -- which is why a console felt
+                # slow to come up while a widget-less screen was instant.
+                #
+                # Safe to skip: send_gui_clear does NOT drop the engine's
+                # widgets. The "refresh" branch below clears and re-presents
+                # without ever re-sending the list, and consoles keep their
+                # widgets across a resize, which is proof of it.
+                #
+                widget_list = (self.console, self.widgets)
+                if Gui.widget_list_sent.get(event.client_id) != widget_list:
+                    Gui.widget_list_sent[event.client_id] = widget_list
+                    my_sbs.send_client_widget_list(event.client_id, self.console, self.widgets)
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
 
