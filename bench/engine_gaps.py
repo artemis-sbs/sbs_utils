@@ -74,34 +74,49 @@ INSTALL = """
 import builtins, time
 from sbs_utils.gui import Gui
 S = getattr(builtins, "_COSMOS_GAP", None)
-if S is None:
-    # cap: a long session must not grow an unbounded list inside the engine
-    S = {"last": None, "gaps": [], "inside": [], "cap": 50000}
-    S["orig"] = Gui.present
-    builtins._COSMOS_GAP = S
-
-    def tapped(event):
-        t0 = time.perf_counter()
-        if S["last"] is not None and len(S["gaps"]) < S["cap"]:
-            S["gaps"].append((t0 - S["last"]) * 1000.0)
-        try:
-            return S["orig"](event)
-        finally:
-            t1 = time.perf_counter()
-            if len(S["inside"]) < S["cap"]:
-                S["inside"].append((t1 - t0) * 1000.0)
-            S["last"] = t1
-
-    Gui.present = staticmethod(tapped)
-    _result = "installed"
+if S is not None:
+    # Put the original back before re-wrapping, so re-installing an updated tap
+    # cannot stack wrappers on top of each other.
+    Gui.present = staticmethod(S["orig"])
+    orig = S["orig"]
 else:
-    _result = "already installed"
+    orig = Gui.present
+
+# cap: a long session must not grow an unbounded list inside the engine
+S = {"last": None, "gaps": [], "inside": [], "big": [], "t0": None,
+     "cap": 50000, "big_ms": 100.0, "orig": orig}
+builtins._COSMOS_GAP = S
+
+
+def tapped(event):
+    t = time.perf_counter()
+    if S["t0"] is None:
+        S["t0"] = t
+    if S["last"] is not None and len(S["gaps"]) < S["cap"]:
+        gap = (t - S["last"]) * 1000.0
+        S["gaps"].append(gap)
+        # A big gap is only actionable if we know WHEN it happened and what came
+        # out of it -- a bare max cannot be told apart from the 5Hz tick period.
+        if gap >= S["big_ms"] and len(S["big"]) < 400:
+            S["big"].append([round(gap, 1), round(t - S["t0"], 2),
+                             str(getattr(event, "tag", "?"))])
+    try:
+        return S["orig"](event)
+    finally:
+        t1 = time.perf_counter()
+        if len(S["inside"]) < S["cap"]:
+            S["inside"].append((t1 - t) * 1000.0)
+        S["last"] = t1
+
+Gui.present = staticmethod(tapped)
+_result = "installed"
 """
 
 RESET = """
 import builtins
 S = builtins._COSMOS_GAP
-S["gaps"].clear(); S["inside"].clear(); S["last"] = None
+S["gaps"].clear(); S["inside"].clear(); S["big"].clear()
+S["last"] = None; S["t0"] = None
 _result = "reset"
 """
 
@@ -124,12 +139,19 @@ for cid, pair in getattr(Gui, "widget_list_sent", {}).items():
     if cid:
         wl[str(cid)] = [pair[0], len(pair[1].split("^")) if pair[1] else 0]
 
+# mission_tick arrives at 5Hz, so ~200ms between our frames is the CADENCE, not
+# a stall. Count those separately or the tick clock reads as engine slowness.
+tick_ish = len([x for x in g if 150.0 <= x <= 260.0])
+over = len([x for x in g if x > 260.0])
+
 _result = {
     "samples": len(g),
     "gap_med": pct(g, 0.5), "gap_p90": pct(g, 0.9),
     "gap_max": round(g[-1], 2) if g else None,
     "in_med": pct(i, 0.5), "in_p90": pct(i, 0.9),
     "in_max": round(i[-1], 2) if i else None,
+    "tick_ish": tick_ish, "over_tick": over,
+    "big": sorted(S["big"], key=lambda b: -b[0])[:12],
     "widget_lists": wl,
 }
 """
@@ -214,19 +236,29 @@ def _report(rows):
     print("=" * 78)
     print("ENGINE GAPS  --  time between our frames (ms)")
     print("=" * 78)
-    print(f"  {'phase':<16}{'widgets':>8}{'n':>7}{'gap med':>9}{'gap p90':>9}"
-          f"{'gap max':>9}{'ours med':>10}")
+    print(f"  {'phase':<14}{'widgets':>8}{'n':>6}{'gap med':>9}{'~tick':>7}"
+          f"{'>tick':>7}{'gap max':>10}{'ours med':>10}")
     for r in rows:
         w = r.get("widgets")
-        print(f"  {r['phase']:<16}{('-' if w is None else w):>8}{r['samples']:>7}"
-              f"{r['gap_med'] or 0:>9.2f}{r['gap_p90'] or 0:>9.2f}"
-              f"{r['gap_max'] or 0:>9.2f}{r['in_med'] or 0:>10.2f}")
+        print(f"  {r['phase']:<14}{('-' if w is None else w):>8}{r['samples']:>6}"
+              f"{r['gap_med'] or 0:>9.2f}{r.get('tick_ish', 0):>7}"
+              f"{r.get('over_tick', 0):>7}{r['gap_max'] or 0:>10.2f}"
+              f"{r['in_med'] or 0:>10.2f}")
     print("-" * 78)
-    print("  gap  = engine time between our frames -- what to compare")
-    print("  ours = time inside Gui.present -- our own cost, for context")
-    print()
-    print("  Every gap up while widgets are on screen -> steady-state engine cost.")
-    print("  Only gap max up, right after a switch    -> one-time construction.")
+    print("  gap med  = typical time between our frames")
+    print("  ~tick    = gaps of 150-260ms. mission_tick is 5Hz, so these are the")
+    print("             CADENCE, not stalls. Ignore them.")
+    print("  >tick    = gaps LONGER than a tick period. THIS is the count that")
+    print("             matters -- each one is the engine busy past its own clock.")
+    print("  ours med = time inside Gui.present. Our cost, for context.")
+    for r in rows:
+        big = r.get("big") or []
+        if not big:
+            continue
+        print()
+        print(f"  {r['phase']}: longest holes (ms, seconds-into-phase, next event)")
+        for gap, at, tag in big[:6]:
+            print(f"      {gap:>8.1f}ms   at t+{at:>6.2f}s   -> {tag}")
     print("=" * 78)
 
 
@@ -306,6 +338,9 @@ def main():
     row = {"phase": args.phase, "widgets": widgets,
            "seconds": args.seconds, **{k: v for k, v in stats.items()
                                        if k != "widget_lists"}}
+    if row.get("over_tick") and not row.get("big"):
+        print("  note: gaps over a tick period were seen but not captured -- the "
+              "tap predates --install of this version; re-run --install.")
     rows = [r for r in _rows(args.out) if r["phase"] != args.phase]
     rows.append(row)
     _save(args.out, rows)
