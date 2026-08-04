@@ -363,7 +363,7 @@ Each phase ships something usable alone.
 | 1 | **Reputation in consequences** DONE 2026-08-04 | Rewrite `amd_reward`: `earns <faction> <pole> <n>` tokens, `items`, and a warning on anything unparsed (s7.1a). `reputation_apply` bound into `quest_grant_reward`/`_penalty`, player/SHARED-held only. Independently useful, no urge needed. See s10.1. |
 | 2 | **Widen the quest tickers** DONE 2026-08-04 | `Held by:` + iterate `has_inventory("__quests__")`, snapshot to a list (s7.2). Unblocks station stakes. Test: a station-held quest fails on its deadline. See s10.2. |
 | 3 | **Urge parse + ticker** DONE 2026-08-04 | `Urge` record, `__URGES__`, `RollingSlicer`, selection (s5.1), reset registration. Speech via the s6 table. No escalation yet. See s10.3. |
-| 4 | **The budget** | Three floors + the `Weight: 90` escape + `announce` awareness. Not optional - phase 3 without it is the annoying version. |
+| 4 | **The budget** DONE 2026-08-04 | Three floors + the `Weight: 90` escape + `announce` awareness. Not optional - phase 3 without it is the annoying version. See s10.4. |
 | 5 | **Escalation** | `Escalates: with deadline` reading the bound quest's remaining fraction; `%`/`%%`/`%%%` staging. |
 | 6 | **Author the diplomat** | OU passenger offers grow a waiting-actor urge. The real test: reach, escalation, `Until:`, `Action:` in one character. |
 | 7 | **Migrate Florbin** | `fb_pest_messages` becomes declarative. Proves the format covers the one shipped instance. |
@@ -469,6 +469,43 @@ untouched here - and worth its own investigation, since it is exactly the "works
 shape the reset ledger exists to catch.
 
 **Verification:** 2443 unit tests OK.
+
+## 10.4 What building Phase 4 actually found
+
+**The traffic clock belongs to `announce`, not to urges.** The global floor has to know
+when the crew was last spoken to *unprompted*, and an announce and an urge are the same
+thing from the bridge's side. So `announce` owns `_LAST_TRAFFIC`, every `announce()`
+records into it, and an urge that speaks records there too. Deliberately NOT every
+`comms_message`: a player hailing a station is traffic the player ASKED for, and counting
+it would starve autonomous speech exactly when the crew is busy - the opposite of what a
+floor is for.
+
+**Urgent bypasses the global floor, not the actor's own.** s5.2 said "bypasses the global
+floor" and that turns out to be exactly right rather than an under-specification: an actor
+leaving forever outranks politeness towards *other* speakers, but two lines from one mouth
+in consecutive seconds read as a bug however urgent they are. Both directions are tested.
+
+**A phase-3 test asserted the behavior this phase exists to prevent.**
+`test_run_all_visits_everyone` had three actors all speaking in one pass. That is the pile-up
+the global floor is for, so the test was replaced by two: one pass lets exactly one actor
+speak, and the others get their turn on later passes. Worth noting because it looked like a
+regression and was the feature working.
+
+**Do not import `announce` from inside `urge_reset`.** The first version did, to clear the
+traffic clock. `reset_mission_state` then pulled in `announce` -> `gui.overlay` -> `comms`
+while the world was half torn down. A full-suite run produced six failures in an unrelated
+GUI test file that passed alone, in isolation, and immediately after the urge tests - and
+the same suite was clean with the phase stashed. The clock is now reset from
+`reset_mission_state` directly and urge.py imports announce only at tick time.
+
+**Honest limit on that one:** after moving the import, six consecutive full-suite runs are
+clean (and five were clean even before moving it), so the original failure was never
+reproduced and the causal link is *plausible, not proven*. Recorded rather than smoothed
+over: if unrelated GUI tests ever fail in a batch again, the reset path's imports are the
+first place to look.
+
+**Verification:** 2460 unit tests OK x6 consecutive runs; LM and OU headless PASS, LM
+coverage unchanged at 174/780.
 
 ---
 

@@ -122,7 +122,7 @@ class SelectionTests(UrgeBase):
         a = make_agent()
         urge_add(a.id, urge_record(key="nag", every=300, pool=["nag"]))
         real = U.urge_budget_allows
-        U.urge_budget_allows = lambda actor_id, state: False
+        U.urge_budget_allows = lambda actor_id, state, now=None: False
         try:
             self.assertIsNone(urge_run_one(a.id, now=0))
         finally:
@@ -161,11 +161,30 @@ class TickerTests(UrgeBase):
         urge_add(a.id, urge_record(key="nag", pool=["x"]))
         self.assertIsInstance(urge_actors(), list)
 
-    def test_run_all_visits_everyone(self):
+    def test_a_pass_lets_exactly_one_actor_speak(self):
+        """Everyone is VISITED; the global floor means only one of them speaks. Three
+        actors all piping up the instant they become eligible is the behavior the
+        budget exists to prevent."""
+        U.urge_budget_reset()
+        from sbs_utils.procedural.announce import announce_traffic_reset
+        announce_traffic_reset()
         agents = [make_agent() for _ in range(3)]
         for i, a in enumerate(agents):
-            urge_add(a.id, urge_record(key=f"nag{i}", pool=[f"line{i}"]))
+            urge_add(a.id, urge_record(key=f"nag{i}", every=0, pool=[f"line{i}"]))
         urges_run_all()
+        self.assertEqual(len(self.said), 1, f"one voice per pass, got {self.said}")
+
+    def test_the_others_speak_on_later_passes(self):
+        U.urge_budget_reset()
+        from sbs_utils.procedural.announce import announce_traffic_reset
+        announce_traffic_reset()
+        agents = [make_agent() for _ in range(3)]
+        for i, a in enumerate(agents):
+            urge_add(a.id, urge_record(key=f"nag{i}", every=0, pool=[f"line{i}"]))
+        from sbs_utils.procedural.timers import TICK_PER_SECONDS
+        for _ in range(3):
+            urges_run_all()
+            sbs.sim._time_tick_counter += int((U.URGE_GLOBAL_FLOOR + 1) * TICK_PER_SECONDS)
         self.assertEqual(sorted(line for _, line in self.said),
                          ["line0", "line1", "line2"])
 
@@ -213,6 +232,93 @@ class TickerTests(UrgeBase):
         U.urge_schedule()
         U.urge_reset()
         self.assertIsNone(U._urge_slicer._sig)
+
+
+class BudgetTests(UrgeBase):
+    """The speech budget (URGE_PLAN.md s5.2). Not an optimization - it is what decides
+    whether autonomous speech is pleasant or unbearable."""
+
+    def setUp(self):
+        super().setUp()
+        U.urge_budget_reset()
+        from sbs_utils.procedural.announce import announce_traffic_reset
+        announce_traffic_reset()
+
+    def _actor_with(self, key="nag", **kw):
+        a = make_agent()
+        kw.setdefault("every", 0)
+        kw.setdefault("pool", ["line"])
+        urge_add(a.id, urge_record(key=key, **kw))
+        return a
+
+    def test_an_actor_does_not_monologue(self):
+        a = self._actor_with()
+        self.assertIsNotNone(urge_run_one(a.id, now=0))
+        self.assertIsNone(urge_run_one(a.id, now=10), "inside the per-actor floor")
+        self.assertIsNotNone(urge_run_one(a.id, now=U.URGE_ACTOR_FLOOR + 1))
+
+    def test_actors_do_not_pile_up(self):
+        a, b = self._actor_with("a"), self._actor_with("b")
+        self.assertIsNotNone(urge_run_one(a.id, now=0))
+        self.assertIsNone(urge_run_one(b.id, now=5), "inside the global floor")
+        self.assertIsNotNone(urge_run_one(b.id, now=U.URGE_GLOBAL_FLOOR + 1))
+
+    def test_urgent_bypasses_the_global_floor(self):
+        a = self._actor_with("a")
+        b = self._actor_with("b", weight=U.URGE_URGENT_WEIGHT)
+        self.assertIsNotNone(urge_run_one(a.id, now=0))
+        self.assertIsNotNone(urge_run_one(b.id, now=1),
+                             "leaving forever outranks politeness")
+
+    def test_urgent_does_NOT_bypass_its_own_floor(self):
+        """Back-to-back lines from one mouth read as a bug however urgent they are."""
+        a = make_agent()
+        urge_add(a.id, urge_record(key="nag", every=0, pool=["line"]))
+        urge_add(a.id, urge_record(key="bye", every=0, weight=U.URGE_URGENT_WEIGHT,
+                                   pool=["goodbye"]))
+        self.assertIsNotNone(urge_run_one(a.id, now=0))
+        self.assertIsNone(urge_run_one(a.id, now=1))
+
+    def test_an_actor_does_not_talk_over_mission_dispatch(self):
+        from sbs_utils.procedural.announce import announce_note_traffic
+        a = self._actor_with()
+        announce_note_traffic(0)        # the mission just said something
+        self.assertIsNone(urge_run_one(a.id, now=5))
+        self.assertIsNotNone(urge_run_one(a.id, now=U.URGE_GLOBAL_FLOOR + 1))
+
+    def test_a_refusal_does_not_burn_the_cooldown(self):
+        a = self._actor_with(every=300)
+        self.assertIsNotNone(urge_run_one(a.id, now=0))
+        b = self._actor_with("other", every=300)
+        self.assertIsNone(urge_run_one(b.id, now=1), "refused by the global floor")
+        # ...and it still has its turn once the floor clears
+        self.assertIsNotNone(urge_run_one(b.id, now=U.URGE_GLOBAL_FLOOR + 1))
+
+    def test_a_line_that_failed_does_not_register_traffic(self):
+        """Only speech that actually happened should hold the floor against others."""
+        from sbs_utils.procedural.announce import announce_last_traffic
+        a = self._actor_with()
+        real = U.urge_speak
+        U.urge_speak = lambda actor_id, line: False
+        try:
+            urge_run_one(a.id, now=0)
+        finally:
+            U.urge_speak = real
+        self.assertIsNone(announce_last_traffic(), "a silent failure is not traffic")
+
+    def test_reset_drops_the_clocks(self):
+        from sbs_utils.handlerhooks import reset_mission_state
+        from sbs_utils.procedural.announce import announce_last_traffic
+        a = self._actor_with()
+        urge_run_one(a.id, now=0)
+        self.assertTrue(U._last_actor_spoke)
+        self.assertIsNotNone(announce_last_traffic())
+        # Through the real entry point, so this cannot pass while reset_mission_state
+        # forgets one of the two clocks - which is the way it would actually break.
+        reset_mission_state()
+        self.assertFalse(U._last_actor_spoke)
+        self.assertIsNone(announce_last_traffic(),
+                          "a carried-over clock mutes the next mission's first minute")
 
 
 class RealSpeechTests(unittest.TestCase):

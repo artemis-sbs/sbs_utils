@@ -136,6 +136,9 @@ def reset_mission_state():
     from .procedural.urge import urge_reset
     urge_reset()        # same latch as objective_reset: a stale "scheduled" global
                         # would leave every actor mute from run 2 onward, silently
+    from .procedural.announce import announce_traffic_reset
+    announce_traffic_reset()    # the "when did anything last speak" clock the urge
+                                # budget's global floor reads
     Gui.web_client_ids.clear()  # drop web-page sessions from the old mission
     from .procedural.web import web_living_clear
     web_living_clear()  # drop living/persistent web-page registrations
@@ -208,6 +211,10 @@ register_reset_state("objective.ticks_stale",
 # speaks again, with no error to show for it.
 register_reset_state("urge.ticks_stale",
                      lambda: 1 if __import__("sbs_utils.procedural.urge", fromlist=["x"]).urge_ticks_stale() else 0)
+# The speech budget's per-actor clocks. Carried into the next mission they would mute
+# actors for the first 45 seconds of it, for no reason anyone could see.
+register_reset_state("urge.speech clocks",
+                     lambda: len(__import__("sbs_utils.procedural.urge", fromlist=["x"])._last_actor_spoke))
 
 
 #	client_id"

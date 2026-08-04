@@ -204,15 +204,58 @@ def urge_clear(agents):
 
 
 # --- selection ----------------------------------------------------------------
-def urge_budget_allows(actor_id, state):
+# The speech budget. Not an optimization - it is what decides whether autonomous speech
+# is pleasant or unbearable, so it is a first-class part of the feature.
+#
+#   per-urge   `Every:`   authored     this specific thing should not repeat
+#   per-actor  FLOOR      45s          one actor should not monologue across its urges
+#   global     FLOOR      20s          five actors should not pile up after a jump
+#
+# A `Weight: 90`+ urge bypasses the GLOBAL floor only: an actor leaving forever outranks
+# politeness towards other speakers, but not its own self-restraint - back-to-back lines
+# from one mouth read as a bug no matter how urgent they are.
+URGE_ACTOR_FLOOR = 45
+URGE_GLOBAL_FLOOR = 20
+URGE_URGENT_WEIGHT = 90
+
+_last_actor_spoke = {}          # actor_id -> sim seconds
+
+
+def urge_budget_allows(actor_id, state, now=None):
     """Whether this actor may speak right now.
 
-    Phase 3 always allows; the three floors (per-actor, global, and the `Weight: 90`
-    escape) land in phase 4. It is a seam rather than a TODO because the caller's
-    contract already depends on it: a refused urge must NOT stamp its cooldown, so it
-    retries on the next pass instead of losing its turn.
+    A refusal here must NOT stamp the urge's cooldown - the caller retries next pass, so
+    a floor never costs an urge its turn. (A speech FAILURE is the opposite case and does
+    stamp; see ``urge_run_one``.)
     """
-    return True
+    if now is None:
+        now = FrameContext.sim_seconds
+    mine = _last_actor_spoke.get(actor_id)
+    if mine is not None and (now - mine) < URGE_ACTOR_FLOOR:
+        return False
+    if int(state["rec"].get("weight", 0)) >= URGE_URGENT_WEIGHT:
+        return True
+    from sbs_utils.procedural.announce import announce_last_traffic
+    last = announce_last_traffic()
+    return last is None or (now - last) >= URGE_GLOBAL_FLOOR
+
+
+def urge_note_spoke(actor_id, now=None):
+    """Record that this actor just spoke - feeding both floors.
+
+    The global clock lives in ``announce`` because an urge and a mission announcement are
+    the same thing from the bridge's side: an unprompted voice.
+    """
+    from sbs_utils.procedural.announce import announce_note_traffic
+    if now is None:
+        now = FrameContext.sim_seconds
+    _last_actor_spoke[actor_id] = now
+    announce_note_traffic(now)
+
+
+def urge_budget_reset():
+    """Drop the per-actor speech clocks (called by reset_mission_state)."""
+    _last_actor_spoke.clear()
 
 
 def urge_pick(actor_id, now=None):
@@ -317,6 +360,11 @@ def urge_reset():
     global __urge_tick_task
     __urge_tick_task = None
     _urge_slicer.__init__()
+    urge_budget_reset()
+    # NOTE the announce traffic clock is reset by reset_mission_state directly, NOT from
+    # here. Importing announce (and through it gui.overlay + comms) from inside the reset
+    # path adds an import chain to a function that runs while the world is half torn
+    # down. Cheap to avoid, and reset is the wrong place to discover an import cycle.
 
 
 def urge_ticks_stale():
@@ -364,11 +412,12 @@ def urge_run_one(actor_id, now=None):
     state = urge_pick(actor_id, now)
     if state is None:
         return None
-    if not urge_budget_allows(actor_id, state):
+    if not urge_budget_allows(actor_id, state, now):
         # Deliberately NOT stamped: a refused urge retries next pass rather than losing
         # its turn to a floor it had no say in.
         return None
-    urge_speak(actor_id, urge_line(state))
+    if urge_speak(actor_id, urge_line(state)):
+        urge_note_spoke(actor_id, now)
     action = state["rec"].get("action")
     if action:
         from sbs_utils.procedural.amd_action import amd_action_run
