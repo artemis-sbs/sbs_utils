@@ -137,12 +137,91 @@ def amd_trigger(value, aliases=None):
     return trig, data
 
 
+def _quest_log(message):
+    """Warn about an authored line that did not parse (never raise - a bad reward must
+    not take the mission down with it). Mirrors ``amd_action``'s ``_action_log``."""
+    try:
+        from .execution import log
+        log(message, "quest", "warning")
+    except Exception:
+        pass
+
+
+def _rep_clause(toks):
+    """``earns <faction> <pole...> <n>`` -> ``(faction, pole, delta)``, else None.
+
+    Deliberately the SAME shape as the dialogue outcome verb already in production
+    (``earns ashfang selfish +5``, OU ``_ou_earns``): number last, pole possibly several
+    words. One grammar for shifting standing, not two spellings of it.
+    """
+    if len(toks) >= 3 and str(toks[-1]).lstrip("+-").isdigit():
+        return toks[0].lower(), amd_norm(" ".join(toks[1:-1])), int(toks[-1])
+    return None
+
+
 def amd_reward(value):
-    """'300 credits' -> {credits: 300}."""
-    for t in str(value).split():
-        if t.isdigit():
-            return {"credits": int(t)}
-    return {"credits": 0}
+    """A reward/penalty block -> ``{credits, items, reputation}``. Clauses are
+    comma-separated::
+
+        Pays: 300 credits, 2 torpedoes, earns tsn honest +10
+        Penalty: 200 credits, earns tsn diplomatic -15
+
+    * ``<n> credits``  -> ``{"credits": n}``
+    * ``<n> <item>``   -> ``{"items": {<amd_norm(item)>: n}}``, keyed exactly the way
+      ``recover 2 torpedoes`` keys its goal, so a reward and the goal that collects it
+      cannot disagree.
+    * ``earns <faction> <pole...> <n>`` -> ``{"reputation": {faction: {pole: n}}}``.
+
+    ``earns`` applies its delta **literally in both blocks** - a `Penalty:` does not
+    silently flip the sign, so an author writing ``-15`` gets ``-15``. (Credits differ:
+    a bare quantity takes its direction from the block, which is why the sign is written
+    on the one that could be ambiguous and omitted on the one that cannot.)
+
+    Prose carrying no number is a FLAVOR reward and stays ``{"credits": 0}`` silently -
+    "a favor" is a legitimate thing to write. A clause that DOES carry a number but
+    matches no form is logged: this used to be the ``Pays: 300 credits, 2 torpedoes``
+    case, which returned the credits and dropped the torpedoes without telling anyone,
+    while ``quest_grant_reward`` had supported ``items`` the whole time.
+
+    ``items`` and ``reputation`` are present only when non-empty, so the common
+    ``{"credits": n}`` shape is unchanged for every existing caller.
+    """
+    out = {"credits": 0}
+    items = {}
+    rep = {}
+    for clause in str(value).split(","):
+        toks = clause.split()
+        if not toks:
+            continue
+        if toks[0].lower() == "earns":
+            parsed = _rep_clause(toks[1:])
+            if parsed is None:
+                _quest_log(f"reward clause {clause.strip()!r} is not "
+                           f"'earns <faction> <pole> <n>'")
+            else:
+                faction, pole, delta = parsed
+                rep.setdefault(faction, {})[pole] = delta
+            continue
+        nums = [t for t in toks if t.lstrip("+-").isdigit()]
+        words = [t for t in toks if not t.lstrip("+-").isdigit()]
+        if not nums:
+            continue        # flavor prose, silent - the pre-existing behavior
+        n = int(nums[0])
+        # "300 credits" and "300 credits bonus" are both money; anything else counted
+        # is an item.
+        if any(w.lower().startswith("credit") for w in words):
+            out["credits"] = n
+        elif words:
+            key = amd_norm(" ".join(words))
+            items[key] = items.get(key, 0) + n
+        else:
+            _quest_log(f"reward clause {clause.strip()!r} counts something, but does "
+                       f"not say what")
+    if items:
+        out["items"] = items
+    if rep:
+        out["reputation"] = rep
+    return out
 
 
 def amd_console_list(value):

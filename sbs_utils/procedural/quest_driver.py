@@ -89,8 +89,40 @@ def _quest_fire_overlays(agent_id, data, ref_key, inline_key):
         _fire_overlay_directive(inline, to)
 
 
+def _quest_rep_holder(agent_id):
+    """True where a reputation line MEANS something: a player ship, or the shared story
+    agent standing in for the crew.
+
+    A world-held quest (a station, a side) carries no reputation. ``reputation_adjust``
+    shifts *this agent's* standing with a faction, so a rep penalty on DS1's resupply
+    quest would move DS1's own opinion of TSN - which no player can perceive and no
+    author means. World stakes are world state (``Then:`` / ``Action:``). Silently
+    ignoring the line would hide the mistake, so ``sbs lint`` rejects it at author time;
+    this is the runtime backstop. URGE_PLAN.md s7.1.
+    """
+    if agent_id == Agent.SHARED_ID:
+        return True
+    return has_role(agent_id, "__player__")
+
+
+def _quest_grant_reputation(agent_id, block):
+    """Apply a reward/penalty block's ``reputation`` map, if this holder can carry one.
+
+    Deltas apply exactly as authored - a ``Penalty:`` never flips the sign for you (see
+    ``amd_reward``).
+    """
+    rep = (block or {}).get("reputation")
+    if not rep:
+        return
+    if not _quest_rep_holder(agent_id):
+        return
+    from sbs_utils.procedural.reputation import reputation_apply
+    reputation_apply(agent_id, rep)
+
+
 def quest_grant_reward(agent_id, reward):
-    """Grant a quest reward: credits to the agent's side, items to the agent."""
+    """Grant a quest reward: credits to the agent's side, items to the agent, and
+    reputation to the agent (player/SHARED holders only - see ``_quest_rep_holder``)."""
     if not isinstance(reward, dict):
         return
     credits = reward.get("credits", 0)
@@ -102,11 +134,14 @@ def quest_grant_reward(agent_id, reward):
             set_inventory_value(sid, "credits", get_inventory_value(sid, "credits", 0) + credits)
     for k, n in (reward.get("items") or {}).items():
         set_inventory_value(agent_id, k, get_inventory_value(agent_id, k, 0) + n)
+    _quest_grant_reputation(agent_id, reward)
 
 
 def quest_grant_penalty(agent_id, penalty):
     """Apply a quest penalty (mirror of quest_grant_reward): deduct credits from
-    the agent's side, remove items from the agent. Never goes below zero."""
+    the agent's side, remove items from the agent, and apply any reputation block
+    (player/SHARED holders only). Credits and items never go below zero; reputation
+    applies as authored, so a penalty's ``earns`` carries its own sign."""
     if not isinstance(penalty, dict):
         return
     credits = penalty.get("credits", 0)
@@ -118,6 +153,7 @@ def quest_grant_penalty(agent_id, penalty):
             set_inventory_value(sid, "credits", max(0, get_inventory_value(sid, "credits", 0) - credits))
     for k, n in (penalty.get("items") or {}).items():
         set_inventory_value(agent_id, k, max(0, get_inventory_value(agent_id, k, 0) - n))
+    _quest_grant_reputation(agent_id, penalty)
 
 
 def _quest_maybe_end_game(agent_id, quest_id, data, win):

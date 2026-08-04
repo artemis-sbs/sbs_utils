@@ -71,6 +71,45 @@ class AmdRewardTests(unittest.TestCase):
     def test_no_number_is_zero(self):
         self.assertEqual(amd_reward("a favor"), {"credits": 0})
 
+    def test_credits_with_trailing_words_is_still_money(self):
+        # "300 credits bonus" must not become an ITEM called credits_bonus.
+        self.assertEqual(amd_reward("300 credits bonus"), {"credits": 300})
+
+    def test_items(self):
+        # Keyed the way `recover 2 torpedoes` keys its goal, so the two agree.
+        self.assertEqual(amd_reward("2 torpedoes"),
+                         {"credits": 0, "items": {"torpedoes": 2}})
+
+    def test_credits_and_items_together(self):
+        # The regression this rewrite exists for: the old parser returned the credits
+        # and dropped the torpedoes silently.
+        self.assertEqual(amd_reward("300 credits, 2 torpedoes"),
+                         {"credits": 300, "items": {"torpedoes": 2}})
+
+    def test_reputation_uses_the_dialogue_grammar(self):
+        self.assertEqual(amd_reward("earns tsn honest +10"),
+                         {"credits": 0, "reputation": {"tsn": {"honest": 10}}})
+
+    def test_reputation_multiword_pole_and_negative(self):
+        self.assertEqual(amd_reward("earns tsn by the book -15"),
+                         {"credits": 0, "reputation": {"tsn": {"by_the_book": -15}}})
+
+    def test_penalty_sign_is_authored_not_flipped(self):
+        # `Penalty:` and `Pays:` share this parser; a negative stays negative rather
+        # than being silently re-signed by the block it sits in.
+        self.assertEqual(amd_reward("200 credits, earns tsn diplomatic -15"),
+                         {"credits": 200, "reputation": {"tsn": {"diplomatic": -15}}})
+
+    def test_multiple_factions(self):
+        self.assertEqual(amd_reward("earns tsn honest +5, earns skaraan feared +3"),
+                         {"credits": 0,
+                          "reputation": {"tsn": {"honest": 5}, "skaraan": {"feared": 3}}})
+
+    def test_empty_keys_are_absent_not_empty(self):
+        # Existing callers compare against the bare {"credits": n} shape.
+        self.assertNotIn("items", amd_reward("300 credits"))
+        self.assertNotIn("reputation", amd_reward("300 credits"))
+
 
 class AmdQuestFactsTests(unittest.TestCase):
     def test_full_quest_fence(self):

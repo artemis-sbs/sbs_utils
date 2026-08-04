@@ -997,13 +997,37 @@ def _quest_field(q, label):
 
 
 def _quest_reward_text(q):
-    """A reward as an author would read it back: `120 credits`."""
+    """A reward as an author would read it back:
+    `120 credits, 2 torpedoes, +10 honest with tsn`.
+
+    Renders the three authored kinds EXPLICITLY rather than walking the dict, because a
+    nested value formatted generically would emit braces (`{'torpedoes': 2} items`) - and
+    a display string containing `{` is a runtime SyntaxError the moment MAST assigns it,
+    reported against the author's line rather than this function. Any other scalar key
+    still renders the old way, so a mission-specific key is not silently dropped; a
+    nested one is skipped rather than turned into a crash.
+    """
     reward = _quest_field(q, "reward")
     if not reward:
         return None
-    if isinstance(reward, dict):
-        return ", ".join(f"{v} {k}" for k, v in reward.items() if v)
-    return str(reward).strip() or None
+    if not isinstance(reward, dict):
+        return str(reward).strip() or None
+    parts = []
+    if reward.get("credits"):
+        parts.append(f"{reward['credits']} credits")
+    for key, n in (reward.get("items") or {}).items():
+        if n:
+            parts.append(f"{n} {key}")
+    for faction, poles in (reward.get("reputation") or {}).items():
+        for pole, delta in (poles or {}).items():
+            if delta:
+                parts.append(f"{delta:+d} {pole} with {faction}")
+    for key, value in reward.items():
+        if key in ("credits", "items", "reputation") or not value:
+            continue
+        if not isinstance(value, (dict, list, tuple, set)):
+            parts.append(f"{value} {key}")
+    return ", ".join(parts) or None
 
 
 def _quest_need(q):

@@ -127,8 +127,9 @@ def kv(hint="kind=bio, range=medium"):
     """`k=v, k=v` settings stamped onto whatever the record produces."""
     return _d("kv", hint=hint)
 
-def reward(hint="200 credits"):
-    """What a job pays."""
+def reward(hint="200 credits, 2 torpedoes, earns tsn honest +10"):
+    """What a job pays: comma-separated credits / items / `earns <faction> <pole> <n>`.
+    A reputation clause is only meaningful on a player-held quest (URGE_PLAN.md s7.1)."""
     return _d("reward", hint=hint)
 
 def lines(hint="Kidnapper becomes a pirate"):
@@ -232,7 +233,7 @@ QUEST = {
     "reward": field(reward(), key="reward", aka=("pays",)),
     # The failure side has had code since the beginning (quest_grant_penalty) and no
     # word. `Reward:` / `Penalty:` is the pair.
-    "penalty": field(reward(hint="100 credits"), key="penalty"),
+    "penalty": field(reward(hint="100 credits, earns tsn diplomatic -15"), key="penalty"),
     "tier": integer(),
     "fail on signal": field(signal(), internal=True),
     "fail on all dead": field(ref("role"), internal=True),
