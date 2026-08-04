@@ -362,7 +362,7 @@ Each phase ships something usable alone.
 |---|---|---|
 | 1 | **Reputation in consequences** DONE 2026-08-04 | Rewrite `amd_reward`: `earns <faction> <pole> <n>` tokens, `items`, and a warning on anything unparsed (s7.1a). `reputation_apply` bound into `quest_grant_reward`/`_penalty`, player/SHARED-held only. Independently useful, no urge needed. See s10.1. |
 | 2 | **Widen the quest tickers** DONE 2026-08-04 | `Held by:` + iterate `has_inventory("__quests__")`, snapshot to a list (s7.2). Unblocks station stakes. Test: a station-held quest fails on its deadline. See s10.2. |
-| 3 | **Urge parse + ticker** | `Urge` record, `__URGES__`, `RollingSlicer`, selection (s5.1), reset registration. Speech via the s6 table. No escalation yet. |
+| 3 | **Urge parse + ticker** DONE 2026-08-04 | `Urge` record, `__URGES__`, `RollingSlicer`, selection (s5.1), reset registration. Speech via the s6 table. No escalation yet. See s10.3. |
 | 4 | **The budget** | Three floors + the `Weight: 90` escape + `announce` awareness. Not optional - phase 3 without it is the annoying version. |
 | 5 | **Escalation** | `Escalates: with deadline` reading the bound quest's remaining fraction; `%`/`%%`/`%%%` staging. |
 | 6 | **Author the diplomat** | OU passenger offers grow a waiting-actor urge. The real test: reach, escalation, `Until:`, `Action:` in one character. |
@@ -437,6 +437,38 @@ before.
 
 **Verification:** 2408 unit tests OK; LM and OU headless PASS, LM label coverage
 unchanged at 174/780.
+
+## 10.3 What building Phase 3 actually found
+
+**`20m` and `30s` did not parse, and the failure was silent.** The plan's own examples
+used the compact duration form throughout. `amd_duration_parts` scanned for a token
+passing `isdigit()`, which `20m` does not - so `Fails when: after 20m` came back
+`(None, "minutes")` -> `{minutes: 0}` -> `secs <= 0` -> the watcher skipped the quest and
+**the deadline never fired**. Not an urge bug: it has been true of `Fail after:` and
+`Complete after:` since they existed. Real content survived by spelling it `6 minutes`,
+which is the only form anywhere in LM/OU/SB. Now `20m` / `30s` / `2h` parse; an
+unrecognized suffix still falls through to minutes.
+
+**A refused urge and a failed urge want opposite handling.** s5.1 step 5 says a
+budget-refused urge must not stamp its cooldown - it retries. Applying the same rule to a
+line that FAILED to speak was wrong: a permanently broken line (a stray brace, a dead
+host) would then retry and log every pass, forever. A speech failure is almost always a
+permanent authoring fault, so it stamps and backs off; the budget refusal is transient by
+definition, so it keeps its turn. Both are tested.
+
+**The mocked-speech trap, exactly as s10.1 predicted.** Every selection test mocked
+`urge_speak`, so the real send path had no coverage at all - the same shape as the brace
+bug that 2393 green tests missed. Added `RealSpeechTests` exercising the unmocked path:
+unhosted actor, empty line, dead actor, and a raising send (which must be caught, because
+one unspeakable line must not stop the pass for every other actor).
+
+**A restart divergence exists, and it is NOT this feature's.** `--test 15 --runs 2` on LM
+reports run 2 doing ~113 labels against run 1's 174. Verified against the previous commit
+with the phase stashed: 112 vs 174, the same divergence. Pre-existing, unrelated,
+untouched here - and worth its own investigation, since it is exactly the "works on run 1"
+shape the reset ledger exists to catch.
+
+**Verification:** 2443 unit tests OK.
 
 ---
 
