@@ -100,13 +100,17 @@ who does it and at what moment, and that decides whether modding needs a CLI at 
 | **B. Runtime generation** | `sbs_utils` at mission start | during load | no CLI at all - **if** the engine reads the file after script init |
 | **C. Generate + reload** | `sbs_utils`, then re-enter the mission | first load | works regardless of read order, but a visible reload |
 
-**ANSWERED - see s6a. Option B is dead and option A is the answer.** The engine does read
-a mission-folder `extraShipData.json`, but only if it is on disk before the mission loads.
-`sbs_utils` cannot write it at mission start: by then the engine has already looked. Every
-runtime-generation moment was tried - story top level, the `create_player_ships` signal,
-inside a `@map` - and all three are too late.
+**PARTLY ANSWERED - see s6a.** The engine does read a mission-folder
+`extraShipData.json`; that much is confirmed on engine 1.3.4. The remaining question is
+WHEN, and it decides between A and B outright.
 
-So `sbs mod merge` is the design, as originally proposed, and the requirements below stand.
+The read appears to happen inside `create_new_sim()`. If so the condition is "the file
+exists before `sim_create()`", which a script can satisfy by writing it and then creating
+the sim - **option B, no CLI**. Every failed run wrote the file after LM had already called
+`sim_create()`, which explains them all without needing the file to pre-date the mission.
+
+The requirements below stand either way: whoever writes that file, it must be
+deterministic, stamped, collision-checked and validated before it replaces anything.
 
 **All three options stay inside s1.** Consider them all; none may risk the engine. That
 means: write to a temp file and rename atomically, so a crash mid-write cannot leave a
@@ -236,16 +240,28 @@ wrote it during a session - at story top level, at `create_player_ships`, inside
 and none of them could ever have worked. In `shipdata_min` the file was committed, present
 before Cosmos launched.
 
-### What this settles
+### What this settles, and what it does not
 
-**Option B is dead.** `sbs_utils` cannot generate `extraShipData` at mission start; by then
-the engine has already read (or not read) it. **Option A - a build step - is the answer**,
-and `sbs mod merge` goes back on the table as originally proposed.
+It settles that the file IS read. It does NOT settle when, and the first reading of it here
+was wrong.
 
-Option C (generate, then reload) is not obviously alive either: whether a mission reload
-re-reads the file depends on whether the engine reads at mission load or at executable
-start, which this run does not distinguish. It does not matter much - if a build step is
-needed anyway, C buys nothing.
+**The read happens inside `create_new_sim()`** - that is what the engine code looks like.
+So the condition is not "the file existed before the mission loaded", it is **"the file
+existed before `sim_create()`"**. Those are very different claims, and the difference is
+the whole design:
+
+- "before the mission loaded" means only a build step can satisfy it - option A.
+- "before `sim_create()`" is something a SCRIPT can satisfy: write the file, then create
+  the sim. That is **option B**, and it needs no CLI at all.
+
+Every failed run is still explained. All of them wrote the file at a moment *after* LM's
+server console had already called `sim_create()` - story top level, the
+`create_player_ships` signal, inside a `@map`. `shipdata_min` worked because its file was
+on disk before the `sim_create()` it makes itself.
+
+**The test that settles it** is in `missions/shipdata_min`: write a ship no committed file
+contains, THEN call `sim_create()`, then spawn it. If the engine knows
+`probe_runtime_ship`, option B is alive and `sbs mod merge` is unnecessary.
 
 ### What is NOT yet known
 
