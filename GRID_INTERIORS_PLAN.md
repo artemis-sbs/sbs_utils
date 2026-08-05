@@ -392,8 +392,10 @@ Probes 1 and 2 share a single route and a single run. Two more probes, about art
 
 1. **Does a consumer exist for pirate interiors?** Which mission lets a player fly one -
    LM hangar, OU, something planned? Gates phase 8 only.
-2. **Room vocabulary:** extend the theme with pirate-specific names and icons, or reuse
-   existing names and let *placement* carry the flavor? Phase 8 assumes the former.
+2. ~~Room vocabulary: extend the theme, or reuse existing names?~~ **ANSWERED - neither.**
+   New NAMES with STANDARD roles. `plunder-hold` carries `room,bay,cargo`, so the icon
+   resolves from `cargo` exactly as before - flavor and correct art with **no theme work at
+   all**. A theme is only needed to change colors. See `interiors_pirate`.
 3. **Does a layout carry its own theme?** (s3.4)
 4. The remaining format forks in `GRID_ASCII_FORMAT.md` s4 - **runtime-parsed vs
    compiled** and **replace vs coexist**. q1 and q2 are resolved: roles live in a generated

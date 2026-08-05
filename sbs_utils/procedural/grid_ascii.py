@@ -333,15 +333,19 @@ def grid_ascii_validate(objects, w, h, open_cells=None, ship_data=None):
                 out.append(("hint", f"only {fill:.0%} of the hull is rooms "
                                     "(the shipped ships run 54-100%, median 74%)"))
 
-    # Roles: unknown room types, and known ones being redefined.
+    # Roles: unknown room types, and known ones being redefined. Reported once per NAME,
+    # not per cell - an 8-cell plunder hold is one fact about the layout, and repeating it
+    # eight times buries the findings that matter.
+    seen = set()
     for o in objects:
         name = o["name"]
+        if name in seen:
+            continue
+        seen.add(name)
         known = grid_room_roles(name)
         if known is None:
-            if grid_room_is_known(name):
-                continue
-            out.append(("hint", f"'{name}' is not a known room type; its roles are taken "
-                                "from the legend"))
+            out.append(("hint", f"'{name}' is a new room type; its roles come from the "
+                                "legend"))
         else:
             norm = lambda r: {t.strip().lower() for t in r.split(",")}
             if norm(known) != norm(o["roles"]):
