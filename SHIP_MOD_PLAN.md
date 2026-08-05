@@ -216,6 +216,38 @@ There is prior evidence that `body_N_geom_filename` can be set at runtime while
 
 ---
 
+## 6a. Probe 7, so far: a controlled NEGATIVE
+
+Run in the engine 2026-08-05 with `LM_TestRange`, file present at load, written at story
+top level before any map or sim existed, strict JSON, top level exactly `#credits-text` +
+`#ship-list`, entry modelled on the shipped example.
+
+**The engine did not know the ship.** Both probe ships spawned as bare objects with no
+shipData applied - `shield_max_val` absent entirely, not zero.
+
+The **control makes this trustworthy**: `tsn_light_cruiser`, spawned the same way in the
+same run, came back with `speed_coeff` 1.0 and `shield_max_val`/`shield_val` 120.0. So the
+field names are right, and the engine does apply shipData to ships it knows. The negative
+is about the FILE, not the measurement.
+
+**Also true, and worth pausing on: no shipped mission uses one.** The only instance in the
+install is `example-extraShipData.json`, and the `example-` prefix means it is never
+loaded. There is no working case anywhere to compare against, which is itself evidence
+about how exercised this path is.
+
+**Still untested: a full Cosmos restart with the file already present.** Both runs happened
+inside one session. If the engine builds its shipData table at executable start, or when it
+scans the mission list, re-entering a mission would never re-read it - and this negative
+would say nothing about a fresh launch.
+
+**If it survives that**, s3's premise is wrong: a mission cannot contribute engine-known
+ships through its own folder at all, and tiers 2 and 3 need a different mechanism entirely.
+That would be a bigger finding than the one the probe set out to get, and it should be
+confirmed rather than assumed - preferably against a case where someone has seen mission
+extraShipData work.
+
+---
+
 ## 7. Engine probes
 
 | # | Question | Decides |
