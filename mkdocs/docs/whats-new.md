@@ -706,6 +706,16 @@ Repo: [artemis-sbs/control_gallery](https://github.com/artemis-sbs/control_galle
   widget can now say `shrink` (step the font down), `ellipsis` (truncate with
   `...`) or `hide`. The default is unchanged, so nothing moves unless you ask.
 
+- **[`layer:` — paint order you can set](cosmos/gui_layer.md).** The other half of
+  the same problem. `overflow:` changes the *text*; `layer:` changes what is drawn
+  *on top*. Raise a row or section's background above its neighbour's content and an
+  overflowing string is simply covered — not clipped (the engine cannot clip), but
+  invisible, which is what a player cares about. It cascades like `color` and `font`,
+  so one declaration can raise a whole panel. Two fixes came with it: a background
+  could not be lifted above content at all before, and `gui_image` was **silently
+  discarding** any `draw_layer` you gave it. Opt-in — a layout that never says
+  `layer:` is byte-for-byte unchanged.
+
 - **Text no longer overlaps itself in a scrolling text area.** A `gui_text_area`
   measured its wrapping against the full width but drew 20px narrower to leave
   room for its scrollbar, so roughly one paragraph in eight gained a line the

@@ -86,6 +86,7 @@ nav:
     - Icons (gui_icon_name): cosmos/gui_icons.md
     - Sizing to content: cosmos/gui_content_sizing.md
     - Text that does not fit: cosmos/gui_overflow.md
+    - Paint order (layer): cosmos/gui_layer.md
     - Overlays (cards, HUDs, cutscenes): cosmos/overlays.md
     - Cinematics (camera, cutscenes, rundowns): cosmos/cinematics.md
     - Comms: cosmos/comms.md
