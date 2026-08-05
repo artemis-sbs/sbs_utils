@@ -25,8 +25,24 @@ order means "later paints over earlier", covering exactly the two directions tha
 | Phase | State |
 |---|---|
 | 0. Engine probe | **ANSWERED IN THE ENGINE, 2026-08-05. Occlusion works.** |
-| B. Unpin the layer | **DONE** -- `layer:` style key, cascade, backgrounds and `gui_image` unpinned |
+| B. Unpin the layer | **DONE and ENGINE-CONFIRMED** -- `layer:` style key, cascade, backgrounds and `gui_image` unpinned |
 | A. `overflow: occlude` | ready to start; scope still depends on the open question below |
+
+### Phase B confirmed in the engine (`--map visual_layer_style`)
+
+The same overflow twice, one row raised by `layer: 1500` and one untouched control:
+
+- **blue band (with `layer:`) is SOLID** -- seven lines of overflow hidden behind it;
+- **red band (control) shows every one of those lines drawn over it**, exactly as it
+  always did.
+
+So the whole chain -- style key -> section/row/column cascade -> unpinned backdrop ->
+engine -- delivers, **and back-compat holds**: a layout that does not say `layer:` is
+unchanged. (Second attempt. The first engine run was **inconclusive and looked like a
+pass**: the paragraph ran the full panel width, wrapped to two lines, fit its row, and
+so never reached either band -- both halves drew the same picture. A specimen whose two
+halves cannot differ answers nothing. The spill now sits in a narrow column, and the
+on-screen expectations lead with "check the spill actually reaches the band".)
 
 ## The engine result (2026-08-05)
 
