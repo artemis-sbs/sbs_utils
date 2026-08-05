@@ -1,41 +1,35 @@
-# Race add-ons
+# The races add-on
 
-!!! warning "List these in your `story.json`"
+!!! warning "List this in your `story.json`"
     A mission that loads LegendaryMissions' `ai` or `fleets` add-on **also needs the
-    `race_*` add-ons**. Leave them out and your player ship has a **dead Engineering
+    `races` add-on**. Leave them out and your player ship has a **dead Engineering
     console**, and **nothing raids you** — with no error to tell you why.
 
     ```json title="story.json"
     "mastlib": [
         "artemis-sbs.LegendaryMissions.ai.v1.4.0.mastlib",
         "artemis-sbs.LegendaryMissions.fleets.v1.4.0.mastlib",
-
-        "artemis-sbs.LegendaryMissions.race_tsn.v1.4.0.mastlib",
-        "artemis-sbs.LegendaryMissions.race_ximni.v1.4.0.mastlib",
-        "artemis-sbs.LegendaryMissions.race_usfp.v1.4.0.mastlib",
-        "artemis-sbs.LegendaryMissions.race_arvonian.v1.4.0.mastlib",
-        "artemis-sbs.LegendaryMissions.race_torgoth.v1.4.0.mastlib",
-        "artemis-sbs.LegendaryMissions.race_skaraan.v1.4.0.mastlib",
-        "artemis-sbs.LegendaryMissions.race_kralien.v1.4.0.mastlib",
-        "artemis-sbs.LegendaryMissions.race_biomech.v1.4.0.mastlib",
-        "artemis-sbs.LegendaryMissions.race_pirate.v1.4.0.mastlib"
+        "artemis-sbs.LegendaryMissions.races.v1.4.0.mastlib"
     ]
     ```
 
     Missions created with `sbs create` from the v1.4.0 templates already have them.
 
-## What a race add-on carries
+## What it carries
 
-One add-on per race, named for the race rather than for its contents, because a race is
-more than any one of them.
+One add-on covering every race, holding two kinds of per-race content.
 
 | Content | What it does | Without it |
 |---|---|---|
 | **Ship interiors** | one ASCII floor plan per hull — the rooms and system nodes Engineering shows | the Engineering console is empty: no system nodes, no damcons, no internal damage |
 | **Fleet ladders** | which ships make up a raiding fleet at each difficulty | `fleet_create` finds no ladder, so nothing spawns |
 
-v1.4.0 ships nine: `race_tsn`, `race_ximni`, `race_usfp`, `race_arvonian`,
-`race_torgoth`, `race_skaraan`, `race_kralien`, `race_biomech`, `race_pirate`.
+Nine races in v1.4.0 — TSN, Ximni, USFP, Arvonian, Torgoth, Skaraan, Kralien, Biomech and
+Pirate — covering **63 ship interiors** and **six fleet ladders**.
+
+**Why one add-on and not one per race:** the per-race control is in the settings below.
+Splitting the *package* too would only have made every mission list nine mastlibs instead
+of one, without granting anything the settings did not already give.
 
 ## Why they are separate
 
@@ -59,7 +53,7 @@ PLAYABLE_RACES: "TSN, USFP"                  # whose interiors load
 NPC_RACES: "Kralien, Torgoth, Pirate"        # whose fleet ladders load
 ```
 
-Each add-on skips itself when its race is not listed. An interior is only ever built for a
+Each race's content is skipped when it is not listed. An interior is only ever built for a
 **player** ship, so floor plans for a race nobody can fly are parsed at load and never
 used — with `PLAYABLE_RACES: "TSN"` that is 25 floor plans loaded instead of 63.
 
@@ -68,22 +62,26 @@ rather than *nothing* — clearing it gives you every race.
 
 ## Adding a race
 
-A race add-on is an ordinary add-on: a folder with `__init__.mast`, listed in
-`__lib__.json`. See [Making add-ons](addons.md).
+A race is a block in `races/__init__.mast`, or a whole add-on of your own — the calls are
+the same either way. See [Making add-ons](addons.md).
 
-```mast title="race_myrace/__init__.mast"
-provides race_myrace
+```mast title="__init__.mast"
+provides races_myrace
 
 if settings_race_is_playable("MyRace"):
-    grid_merge_ascii(media_read_relative_file("myrace_cruiser.grid"), "race_myrace")
+    grid_merge_ascii(media_read_relative_file("myrace_cruiser.grid"), "races_myrace")
 
 if settings_race_is_npc("MyRace"):
-    fleet_table_load_yaml(media_read_relative_file("fleets.yaml"), "race_myrace")
+    fleet_table_load_yaml(media_read_relative_file("myrace_fleets.yaml"), "races_myrace")
 ```
+
+Files are named **race first** (`myrace_cruiser.grid`, `myrace_fleets.yaml`) so everything
+for one race sorts together — a mastlib zip is flat, so names must be unique across the
+whole add-on.
 
 Floor plans are ASCII grid files (`.grid`); fleet ladders are YAML:
 
-```yaml title="fleets.yaml"
+```yaml title="myrace_fleets.yaml"
 race: myrace
 fleets:
   # difficulty 0
