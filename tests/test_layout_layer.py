@@ -136,6 +136,37 @@ class TestStyleStringToEmittedProps(unittest.TestCase):
         self.assertIsNone(row.get_layer())
 
 
+class TestImageAtlasProps(unittest.TestCase):
+    """ImageAtlas used to DROP draw_layer -- get_props rebuilt the string from
+    file/color/sub_rect -- so the one widget that can paint an opaque rectangle was
+    the one that could not be raised."""
+
+    def _atlas(self):
+        from sbs_utils.procedural.gui.image import ImageAtlas
+        atlas = ImageAtlas.__new__(ImageAtlas)     # bypass file resolution
+        atlas.file = "smallWhite"
+        atlas.left = atlas.top = atlas.right = atlas.bottom = None
+        atlas.color = "#123"
+        atlas.draw_layer = None
+        return atlas
+
+    def test_no_layer_is_byte_identical_to_the_historic_string(self):
+        # The back-compat claim at the level of the emitted string, not just of
+        # what it renders -- this branch never carried a trailing semicolon.
+        self.assertEqual(self._atlas().get_props(), "image:smallWhite;color:#123")
+
+    def test_registered_layer_is_emitted(self):
+        atlas = self._atlas()
+        atlas.draw_layer = "1500"
+        self.assertEqual(atlas.get_props(), "image:smallWhite;color:#123;draw_layer:1500;")
+
+    def test_per_use_layer_beats_the_registration(self):
+        # Same rule `color` already follows: one registered cell serves every use.
+        atlas = self._atlas()
+        atlas.draw_layer = "1500"
+        self.assertIn("draw_layer:2500;", atlas.get_props(layer=2500))
+
+
 class TestStyleParsing(unittest.TestCase):
     def test_layer_survives_the_style_parser(self):
         parsed = StyleDefinition.parse("layer: 2000;")

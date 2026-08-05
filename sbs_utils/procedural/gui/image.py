@@ -271,8 +271,13 @@ class ImageAtlas:
         layer = f"draw_layer:{layer};" if layer is not None else ""
         if self.left is not None:
             return f"image:{rel_file};sub_rect:{self.left},{self.top},{self.right},{self.bottom};color:{color};{layer}"
-        else:
-            return f"image:{rel_file};color:{color};{layer}"
+        # No layer means BYTE-IDENTICAL to what this always returned, trailing
+        # semicolon included (this branch never had one). "Nothing moves unless
+        # you ask for it" is the whole back-compat claim -- it should hold at the
+        # level of the emitted string, not just at the level of what it renders.
+        if not layer:
+            return f"image:{rel_file};color:{color}"
+        return f"image:{rel_file};color:{color};{layer}"
 
     def is_valid(self):
         file_name = os.path.normpath(os.path.join(get_artemis_graphics_dir(), self.file)) + ".png"
