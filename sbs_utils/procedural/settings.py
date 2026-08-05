@@ -72,6 +72,14 @@ def settings_get_defaults():
         # fly, and widen it when a mod adds a race.
         "PLAYABLE_RACES": "TSN, USFP, Ximni, Arvonian, Torgoth, Skaraan, Kralien, "
                           "Biomech, Pirate",
+        # Which races can show up as NPCs - specifically, whose raiding fleet ladders get
+        # loaded. A race not listed here has no fleet composition, so nothing will spawn
+        # one, and "random" will not pick it.
+        #
+        # Separate from PLAYABLE_RACES on purpose: the races a player may BE and the races
+        # that raid them are different questions, and most missions want few of the first
+        # and many of the second.
+        "NPC_RACES": "Kralien, Torgoth, Arvonian, Skaraan, Ximni, Pirate",
         "PLAYER_LIST": [
             {
                 "name": "Artemis",
@@ -211,6 +219,27 @@ def settings_race_is_playable(race):
     no ship has an interior.
     """
     races = settings_playable_races()
+    if not races:
+        return True
+    return str(race or "").strip().lower() in races
+
+
+def settings_npc_races():
+    """The races that can appear as NPCs, lowercased, from ``NPC_RACES``."""
+    raw = settings_get_defaults().get("NPC_RACES") or ""
+    if not isinstance(raw, str):
+        raw = ",".join(str(x) for x in raw)
+    return {r.strip().lower() for r in raw.split(",") if r.strip()}
+
+
+def settings_race_is_npc(race):
+    """Whether a race can appear as an NPC.
+
+    Used by the ``race_*`` addons to skip loading a fleet ladder for a race this mission
+    never spawns. As with :func:`settings_race_is_playable`, matching ignores case and
+    spacing, and an EMPTY setting means no restriction rather than no races.
+    """
+    races = settings_npc_races()
     if not races:
         return True
     return str(race or "").strip().lower() in races

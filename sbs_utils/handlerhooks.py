@@ -149,6 +149,10 @@ def reset_mission_state():
                                     # next mission has its own mission dir and its own
                                     # mods; inheriting these spawns ships it never asked
                                     # for and hides ones it did.
+    from .procedural.fleet_tables import fleet_tables_reset
+    fleet_tables_reset()    # a race's fleet ladder belongs to the mission that enabled
+                            # the race; inheriting it would let the next mission spawn
+                            # fleets for a race it never turned on.
     from .procedural.grid import grid_reset_caches
     grid_reset_caches() # ship interiors + grid themes, same reason: _grid_data is the
                         # base table MERGED with the mission's own, and the theme index
@@ -220,6 +224,8 @@ from .procedural.grid import (grid_data_is_loaded, grid_theme_is_loaded,
 register_reset_state("grid_data",         grid_data_is_loaded)
 register_reset_state("grid_theme",        grid_theme_is_loaded)
 register_reset_state("grid_theme_current", grid_theme_current_index)
+from .procedural.fleet_tables import fleet_tables_count
+register_reset_state("fleet_tables",      fleet_tables_count)
 register_reset_state("amd declared addons", lambda: len(_DECLARED_ADDONS))
 register_reset_state("DeleteQueue",       lambda: len(DeleteQueue._pending) + len(DeleteQueue._pending_grid))
 register_reset_state("Agent.roles",       lambda: len(Agent.roles.collections))
