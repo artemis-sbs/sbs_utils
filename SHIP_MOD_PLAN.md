@@ -100,14 +100,13 @@ who does it and at what moment, and that decides whether modding needs a CLI at 
 | **B. Runtime generation** | `sbs_utils` at mission start | during load | no CLI at all - **if** the engine reads the file after script init |
 | **C. Generate + reload** | `sbs_utils`, then re-enter the mission | first load | works regardless of read order, but a visible reload |
 
-**PARTLY ANSWERED - see s6a.** The engine does read a mission-folder
-`extraShipData.json`; that much is confirmed on engine 1.3.4. The remaining question is
-WHEN, and it decides between A and B outright.
+**ANSWERED - see s6a. Option B wins; there is no build step.** The engine reads a
+mission's `extraShipData.json` inside `create_new_sim()`, so the condition is "the file
+exists before `sim_create()`" - which a script satisfies by writing it and then creating
+the sim. Proven on engine 1.3.4 with a file that did not exist when Cosmos launched.
 
-The read appears to happen inside `create_new_sim()`. If so the condition is "the file
-exists before `sim_create()`", which a script can satisfy by writing it and then creating
-the sim - **option B, no CLI**. Every failed run wrote the file after LM had already called
-`sim_create()`, which explains them all without needing the file to pre-date the mission.
+`sbs mod merge` is unnecessary. The hook goes immediately before `sim_create()`, which LM
+already owns.
 
 The requirements below stand either way: whoever writes that file, it must be
 deterministic, stamped, collision-checked and validated before it replaces anything.
@@ -220,59 +219,54 @@ There is prior evidence that `body_N_geom_filename` can be set at runtime while
 
 ---
 
-## 6a. Probe 7: ANSWERED - the file is read, but it must pre-exist
+## 6a. Probe 7: ANSWERED - the read is at sim_create, and option B wins
 
-**Engine 1.3.4, `missions/shipdata_min`, 2026-08-05.** The engine read a mission-folder
-`extraShipData.json` and applied it:
+**Engine 1.3.4, `missions/shipdata_min`, 2026-08-05.** A script wrote `extraShipData.json`
+at runtime, then called `sim_create()`, then spawned the ship it had just declared:
 
-| field | control `tsn_light_cruiser` | probe, only in extraShipData.json |
+| field | control `tsn_light_cruiser` | the runtime-written ship |
 |---|---|---|
-| `speed_coeff` | 1.0 | **0.33000001311302185** |
-| `shield_max_val` | 120.0 | **777.0** |
-| `shield_val` | 120.0 | **777.0** |
+| `speed_coeff` | 1.0 | **0.550000011920929** |
+| `shield_max_val` | 120.0 | **555.0** |
+| `shield_val` | 120.0 | **555.0** |
 
-That `speed_coeff` is the proof. 0.33 stored as float32 and widened back is
-0.33000001311302185; sbs_utils would have returned exactly `0.33` as a Python float. The
-value round-tripped through the ENGINE's own storage, so this is not the library answering.
+`0.550000011920929` is 0.55 stored as float32 and widened back. sbs_utils would have
+returned exactly `0.55` as a Python float, so the value round-tripped through the ENGINE's
+own storage - this is not the library answering.
 
-**The condition: the file must be on disk before the mission loads.** Every earlier run
-wrote it during a session - at story top level, at `create_player_ships`, inside a `@map` -
-and none of them could ever have worked. In `shipdata_min` the file was committed, present
-before Cosmos launched.
+**The file did not exist when Cosmos launched.** It was deleted before the run, written by
+the script, and read by the engine at `sim_create()`. Nothing pre-existing can explain it.
 
-### What this settles, and what it does not
+### The rule
 
-It settles that the file IS read. It does NOT settle when, and the first reading of it here
-was wrong.
+**The engine reads a mission's `extraShipData.json` inside `create_new_sim()`.** The
+condition is not "the file pre-dates the mission" - it is **"the file exists before
+`sim_create()`"**.
 
-**The read happens inside `create_new_sim()`** - that is what the engine code looks like.
-So the condition is not "the file existed before the mission loaded", it is **"the file
-existed before `sim_create()`"**. Those are very different claims, and the difference is
-the whole design:
+That explains every earlier failure without any special pleading. All of them wrote the
+file at a moment *after* LM's server console had already called `sim_create()`: story top
+level, the `create_player_ships` signal, inside a `@map`. None could have worked.
 
-- "before the mission loaded" means only a build step can satisfy it - option A.
-- "before `sim_create()`" is something a SCRIPT can satisfy: write the file, then create
-  the sim. That is **option B**, and it needs no CLI at all.
+### What it means for the design
 
-Every failed run is still explained. All of them wrote the file at a moment *after* LM's
-server console had already called `sim_create()` - story top level, the
-`create_player_ships` signal, inside a `@map`. `shipdata_min` worked because its file was
-on disk before the `sim_create()` it makes itself.
+**Option B wins. There is no build step.** `sbs_utils` can collect every mod's ship
+entries, write one `extraShipData.json`, and call `sim_create()` - and the engine picks it
+up. `sbs mod merge` is unnecessary.
 
-**The test that settles it** is in `missions/shipdata_min`: write a ship no committed file
-contains, THEN call `sim_create()`, then spawn it. If the engine knows
-`probe_runtime_ship`, option B is alive and `sbs mod merge` is unnecessary.
+**The hook belongs immediately before `sim_create()`**, and LM already owns that call
+(`consoles/server_console.mast`). A signal emitted just ahead of it lets any addon
+contribute ship data, exactly the way `grid_merge_mod_data` lets one contribute interiors.
+That makes tier 2 as easy as tier 1.
 
-### What is NOT yet known
+The s1 write rules still bind: temp file plus atomic rename, validate before it replaces
+anything, never touch `data/shipData.yaml`. Generating during load is precisely when a bad
+write is least recoverable.
 
-`shipdata_min` differs from `LM_TestRange` in two ways at once: no LegendaryMissions, and a
-committed file. This run shows the committed file is sufficient WITHOUT LM. It does not
-show whether LM would still break it - LM's `sim_create()` discards the simulation the
-engine built at load, and if the ship table belongs to that simulation, every LM mission
-would lose it regardless of when the file appeared.
+### Still open
 
-**That is the next run, and it matters**: nearly every real mission loads LM. A committed
-`extraShipData.json` in `LM_TestRange` answers it.
+Whether a mission that does NOT control its own `sim_create()` can still contribute - i.e.
+whether LM's ordering leaves room for the write. That is a question about LM's sequence,
+not about the engine, and it is answered by adding the signal.
 
 ---
 
