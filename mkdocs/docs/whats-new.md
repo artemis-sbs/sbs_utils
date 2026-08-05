@@ -6,6 +6,46 @@ go to the relevant docs.
 
 ---
 
+## ⚠️ Race add-ons — add them to your `story.json`
+
+**This one needs action.** Ship interiors and fleet compositions used to be built into the
+game; in v1.4.0 they ship as **per-race add-ons**, and a mission has to ask for them.
+
+If your mission loads LegendaryMissions' `ai` or `fleets` add-on, add all nine:
+
+```json title="story.json"
+"artemis-sbs.LegendaryMissions.race_tsn.v1.4.0.mastlib",
+"artemis-sbs.LegendaryMissions.race_ximni.v1.4.0.mastlib",
+"artemis-sbs.LegendaryMissions.race_usfp.v1.4.0.mastlib",
+"artemis-sbs.LegendaryMissions.race_arvonian.v1.4.0.mastlib",
+"artemis-sbs.LegendaryMissions.race_torgoth.v1.4.0.mastlib",
+"artemis-sbs.LegendaryMissions.race_skaraan.v1.4.0.mastlib",
+"artemis-sbs.LegendaryMissions.race_kralien.v1.4.0.mastlib",
+"artemis-sbs.LegendaryMissions.race_biomech.v1.4.0.mastlib",
+"artemis-sbs.LegendaryMissions.race_pirate.v1.4.0.mastlib"
+```
+
+**Leave them out and two things break quietly.** Your player ship gets a **dead
+Engineering console** — no system nodes, no damcons, no internal damage — and
+`fleet_create` finds no ladder for any race, so **nothing raids you**. Neither failure
+prints an error, which is exactly why it is worth checking now.
+
+New missions from `sbs create` already include them.
+
+**What you get in return** is content that was previously unreachable. Interiors lived in
+the engine's own `data/grid_data.json`; fleet ladders were Python literals behind an
+`if race == "..."` chain. Now a race owns both, `"random"` picks from the races that
+actually registered, and **a new race joins the rotation by existing**. Two settings —
+`PLAYABLE_RACES` and `NPC_RACES` — turn races off per mission.
+
+Every hull that declares an interior now has one, so ships that were never really
+flyable — Kralien, Torgoth, Skaraan, Biomech and the pirates — have a working Engineering
+console for the first time.
+
+See [Race add-ons](build/race-addons.md).
+
+---
+
 ## 🛩️ Hangar
 
 - **Sortie board.** Fighter and shuttle pilots pick their own missions from a board.

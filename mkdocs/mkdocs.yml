@@ -104,6 +104,7 @@ nav:
     - The Library (in-game reading): build/library.md
     - Shared media (art that lives once): build/shared-media.md
     - Making add-ons: build/addons.md
+    - Race add-ons (interiors & fleets): build/race-addons.md
 
   - Tutorials:
     - tutorial/index.md

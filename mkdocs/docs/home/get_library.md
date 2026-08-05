@@ -6,6 +6,10 @@ zip:
 
 - `artemis-sbs.sbs_utils.v1.4.0.sbslib` &mdash; the `sbs_utils` library
 - `artemis-sbs.LegendaryMissions.<addon>.v1.4.0.mastlib` &mdash; optional
+- `artemis-sbs.LegendaryMissions.race_<race>.v1.4.0.mastlib` &mdash; **needed if you
+  use the `ai` or `fleets` add-on.** These carry ship interiors and fleet
+  compositions; without them a player ship has an empty Engineering console and
+  nothing raids you. See [Race add-ons](../build/race-addons.md).
   [LegendaryMissions](../legendarymissions/addons/index.md) addons
 
 Your mission's [`story.json`](start.md) lists the ones it needs:
