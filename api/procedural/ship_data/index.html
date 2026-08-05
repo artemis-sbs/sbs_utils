@@ -1412,6 +1412,8 @@
       
         
       
+        
+      
     
     
     
@@ -2182,6 +2184,29 @@
   
   <span class="md-ellipsis">
     Making add-ons
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/race-addons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The races add-on (interiors & fleets)
     
   </span>
   
@@ -4180,6 +4205,24 @@
   <a href="#sbs_utils.procedural.ship_data.reset_ship_data_caches" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;reset_ship_data_caches
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.ship_data.ship_data_is_loaded" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;ship_data_is_loaded
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.ship_data.ship_data_reset_for_mission" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;ship_data_reset_for_mission
     </span>
   </a>
   
@@ -6291,6 +6334,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.ship_data.ship_data_is_loaded" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;ship_data_is_loaded
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.ship_data.ship_data_reset_for_mission" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;ship_data_reset_for_mission
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.ship_data.skaraan_ship_keys" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;skaraan_ship_keys
@@ -7809,9 +7870,54 @@ empty list.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Clear all ship data and key-list caches.</p>
-<p>Use when switching missions to ensure stale ship data from a previous
-mission directory is not used.</p>
+        <p>Clear the DERIVED ship data caches (index and key lists), not the data itself.</p>
+<p>Called by the merge/add functions after they change the <code>#ship-list</code> so the next
+lookup sees the new entries. For the mission-boundary reset that also drops the
+loaded data, use :func:<code>ship_data_reset_for_mission</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.ship_data.ship_data_is_loaded" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">ship_data_is_loaded</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Reset-ledger probe: 1 while ship data (possibly mod-merged) is held, else 0.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.ship_data.ship_data_reset_for_mission" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">ship_data_reset_for_mission</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Drop the loaded ship data ENTIRELY, including any merged mod entries.</p>
+<p>Deliberately NOT the same as :func:<code>reset_ship_data_caches</code>, which clears only the
+DERIVED caches and is called by the merge functions themselves - clearing
+<code>ship_data_cache</code> there would throw away the entries just merged.</p>
+<p>This is the MISSION-BOUNDARY reset. The next mission has its own mission directory
+(its own <code>extraShipData</code>) and its own set of mods, so a <code>#ship-list</code> carrying the
+previous mission's merged entries must not survive into it. The engine forks a fresh
+process per mission and hides this; <code>cosmos_dev</code> reuses one interpreter and does
+not. Registered in the reset ledger as <code>ship_data_cache</code>.</p>
 
 
     </div>

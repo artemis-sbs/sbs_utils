@@ -573,6 +573,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#the-races-add-on-add-it-to-your-storyjson" class="md-nav__link">
+    <span class="md-ellipsis">
+      ⚠️ The races add-on — add it to your story.json
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#hangar" class="md-nav__link">
     <span class="md-ellipsis">
       🛩️ Hangar
@@ -1739,6 +1748,8 @@
       
         
       
+        
+      
     
     
     
@@ -2509,6 +2520,29 @@
   
   <span class="md-ellipsis">
     Making add-ons
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../build/race-addons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The races add-on (interiors & fleets)
     
   </span>
   
@@ -5981,6 +6015,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#the-races-add-on-add-it-to-your-storyjson" class="md-nav__link">
+    <span class="md-ellipsis">
+      ⚠️ The races add-on — add it to your story.json
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#hangar" class="md-nav__link">
     <span class="md-ellipsis">
       🛩️ Hangar
@@ -6288,6 +6331,27 @@
 <p>A whirlwind tour of everything that landed in v1.4.0 — across the
 <strong>LegendaryMissions</strong> content and the <strong>sbs_utils</strong> library that powers it. Links
 go to the relevant docs.</p>
+<hr />
+<h2 id="the-races-add-on-add-it-to-your-storyjson">⚠️ The <code>races</code> add-on — add it to your <code>story.json</code></h2>
+<p><strong>This one needs action.</strong> Ship interiors and fleet compositions used to be built into the
+game; in v1.4.0 they ship as <strong>per-race add-ons</strong>, and a mission has to ask for them.</p>
+<p>If your mission loads LegendaryMissions' <code>ai</code> or <code>fleets</code> add-on, add one line:</p>
+<div class="highlight"><span class="filename">story.json</span><pre><span></span><code><span class="s2">&quot;artemis-sbs.LegendaryMissions.races.v1.4.0.mastlib&quot;</span>
+</code></pre></div>
+<p><strong>Leave them out and two things break quietly.</strong> Your player ship gets a <strong>dead
+Engineering console</strong> — no system nodes, no damcons, no internal damage — and
+<code>fleet_create</code> finds no ladder for any race, so <strong>nothing raids you</strong>. Neither failure
+prints an error, which is exactly why it is worth checking now.</p>
+<p>New missions from <code>sbs create</code> already include it.</p>
+<p><strong>What you get in return</strong> is content that was previously unreachable. Interiors lived in
+the engine's own <code>data/grid_data.json</code>; fleet ladders were Python literals behind an
+<code>if race == "..."</code> chain. Now a race owns both, <code>"random"</code> picks from the races that
+actually registered, and <strong>a new race joins the rotation by existing</strong>. Two settings —
+<code>PLAYABLE_RACES</code> and <code>NPC_RACES</code> — turn races off per mission.</p>
+<p>Every hull that declares an interior now has one, so ships that were never really
+flyable — Kralien, Torgoth, Skaraan, Biomech and the pirates — have a working Engineering
+console for the first time.</p>
+<p>See <a href="../build/race-addons/">The races add-on</a>.</p>
 <hr />
 <h2 id="hangar">🛩️ Hangar</h2>
 <ul>

@@ -1412,6 +1412,8 @@
       
         
       
+        
+      
     
     
     
@@ -2182,6 +2184,29 @@
   
   <span class="md-ellipsis">
     Making add-ons
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/race-addons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The races add-on (interiors & fleets)
     
   </span>
   
@@ -3968,6 +3993,42 @@
   <a href="#sbs_utils.procedural.settings.settings_get_defaults" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;settings_get_defaults
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.settings.settings_npc_races" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;settings_npc_races
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.settings.settings_playable_races" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;settings_playable_races
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.settings.settings_race_is_npc" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;settings_race_is_npc
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.settings.settings_race_is_playable" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;settings_race_is_playable
     </span>
   </a>
   
@@ -5850,6 +5911,42 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.settings.settings_npc_races" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;settings_npc_races
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.settings.settings_playable_races" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;settings_playable_races
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.settings.settings_race_is_npc" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;settings_race_is_npc
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.settings.settings_race_is_playable" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;settings_race_is_playable
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.settings.settings_seed_apply" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;settings_seed_apply
@@ -6119,6 +6216,86 @@ YAML/JSON file override the built-in defaults.</p>
           </tr>
       </tbody>
     </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.settings.settings_npc_races" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">settings_npc_races</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The races that can appear as NPCs, lowercased, from <code>NPC_RACES</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.settings.settings_playable_races" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">settings_playable_races</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The races a player ship may be, lowercased, from <code>PLAYABLE_RACES</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.settings.settings_race_is_npc" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">settings_race_is_npc</span><span class="p">(</span><span class="n">race</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Whether a race can appear as an NPC.</p>
+<p>Used by the <code>race_*</code> addons to skip loading a fleet ladder for a race this mission
+never spawns. As with :func:<code>settings_race_is_playable</code>, matching ignores case and
+spacing, and an EMPTY setting means no restriction rather than no races.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.settings.settings_race_is_playable" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">settings_race_is_playable</span><span class="p">(</span><span class="n">race</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Whether a race may be flown as a player ship.</p>
+<p>Used by the <code>interiors_*</code> addons to skip loading floor plans for a race no player
+can be, since an interior is only ever built for a player ship.</p>
+<p>An EMPTY or missing <code>PLAYABLE_RACES</code> means "no restriction" rather than "nothing is
+playable" - a mission that clears the setting should get every race, not a game where
+no ship has an interior.</p>
 
 
     </div>
