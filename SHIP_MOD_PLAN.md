@@ -149,9 +149,19 @@ Both are tempting and both are traps.
 
 ### 5.4 Scope
 
-**Interiors split by race now** - that is `GRID_INTERIORS_PLAN.md` phase 6, and it costs
-nothing because it is only how the migration partitions its output. It establishes the
-boundary while there is no content to move.
+**Done.** LegendaryMissions now carries nine `race_<name>` addons - `race_tsn`,
+`race_ximni`, `race_arvonian`, `race_usfp`, `race_torgoth`, `race_skaraan`, `race_kralien`,
+`race_biomech`, `race_pirate` - holding 63 ship interiors between them. They are named for
+the RACE rather than for the interiors precisely so fleet composition and other per-race
+configuration can join them rather than stay scattered (s5.1).
+
+Starbases are folded into their own race's folder rather than sitting in a separate
+`interiors_starbases`, so every folder is a race and there is no odd one out.
+
+Each addon skips itself unless its race is in the **`PLAYABLE_RACES`** setting - an
+interior is only ever built for a player ship, so floor plans for a race nobody can fly
+would be parsed at load and never used. Matching is case- and whitespace-insensitive on
+both sides; an empty setting means no restriction rather than nothing playable.
 
 **The fleet tables do not move in that plan.** It is a behavior-preserving refactor of
 shipped content used by siege, borderwar, deepstrike, doublefront, singlefront, gamemaster

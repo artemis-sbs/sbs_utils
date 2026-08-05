@@ -59,6 +59,19 @@ def settings_get_defaults():
         "PLAYER_CREATE_DEFAULT": True,
         "PLAYER_COUNT": 1,
         "GRID_THEME": 0,
+        # Which races a player ship may be. Comma separated, matched against a hull's
+        # shipData "side" (case and spacing are ignored).
+        #
+        # Ship INTERIORS are the main consumer: `grid_rebuild_grid_objects` only ever
+        # builds a grid for a player ship, so an interior for a race nobody can fly is
+        # parsed at load and never used. LegendaryMissions' interiors_* addons skip
+        # themselves when their race is not listed here.
+        #
+        # The default lists every race that HAS interiors, so behavior is unchanged out of
+        # the box. Narrow it - "TSN" alone, say - when a mission knows what its players
+        # fly, and widen it when a mod adds a race.
+        "PLAYABLE_RACES": "TSN, USFP, Ximni, Arvonian, Torgoth, Skaraan, Kralien, "
+                          "Biomech, Pirate",
         "PLAYER_LIST": [
             {
                 "name": "Artemis",
@@ -176,3 +189,28 @@ def settings_add_defaults(additions):
     # NOTE: Should this return the setting_defaults?
 
 
+
+
+def settings_playable_races():
+    """The races a player ship may be, lowercased, from ``PLAYABLE_RACES``."""
+    raw = settings_get_defaults().get("PLAYABLE_RACES") or ""
+    if not isinstance(raw, str):
+        # A mission may reasonably have written a list instead of a string.
+        raw = ",".join(str(x) for x in raw)
+    return {r.strip().lower() for r in raw.split(",") if r.strip()}
+
+
+def settings_race_is_playable(race):
+    """Whether a race may be flown as a player ship.
+
+    Used by the ``interiors_*`` addons to skip loading floor plans for a race no player
+    can be, since an interior is only ever built for a player ship.
+
+    An EMPTY or missing ``PLAYABLE_RACES`` means "no restriction" rather than "nothing is
+    playable" - a mission that clears the setting should get every race, not a game where
+    no ship has an interior.
+    """
+    races = settings_playable_races()
+    if not races:
+        return True
+    return str(race or "").strip().lower() in races

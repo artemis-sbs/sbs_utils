@@ -225,5 +225,57 @@ class TestSensorCoefficientRole(unittest.TestCase):
                          "a hull uses the plural role - the singular fix would miss it")
 
 
+class TestPlayableRaces(unittest.TestCase):
+    """PLAYABLE_RACES gates which race addons load their floor plans.
+
+    An interior is only ever built for a PLAYER ship, so floor plans for a race nobody can
+    fly are parsed at load and never used.
+    """
+
+    def setUp(self):
+        from sbs_utils.procedural import settings
+        self.settings = settings
+        settings.setting_defaults = None
+        settings.settings_get_defaults()
+
+    def tearDown(self):
+        self.settings.setting_defaults = None
+
+    def _set(self, value):
+        self.settings.settings_get_defaults()["PLAYABLE_RACES"] = value
+
+    def test_matching_ignores_case_and_spacing(self):
+        """Both sides are normalized. A setting written 'tsn' or ' TSN ' must match a
+        shipData side of 'TSN', or the gate silently hides a whole race's interiors."""
+        self._set("  tsn ,  PIRATE  ")
+        for race in ("TSN", "tsn", "Tsn", "  tSn  ", "PIRATE", "pirate", "Pirate"):
+            self.assertTrue(self.settings.settings_race_is_playable(race), race)
+
+    def test_a_race_not_listed_is_not_playable(self):
+        self._set("TSN")
+        self.assertFalse(self.settings.settings_race_is_playable("Pirate"))
+        self.assertFalse(self.settings.settings_race_is_playable("Klingon"))
+
+    def test_empty_means_no_restriction_not_nothing(self):
+        """A mission that clears the setting should get every race, not a game where no
+        ship has an interior."""
+        for empty in ("", "   ", None):
+            self._set(empty)
+            self.assertTrue(self.settings.settings_race_is_playable("Pirate"))
+
+    def test_a_list_works_too(self):
+        """A mission may reasonably write a YAML list instead of a string."""
+        self._set(["TSN", "Pirate"])
+        self.assertTrue(self.settings.settings_race_is_playable("pirate"))
+        self.assertFalse(self.settings.settings_race_is_playable("Ximni"))
+
+    def test_the_default_covers_every_race_that_has_interiors(self):
+        """The default must not silently drop interiors that ship today."""
+        for race in ("TSN", "USFP", "Ximni", "Arvonian", "Torgoth", "Skaraan",
+                     "Kralien", "Biomech", "Pirate"):
+            self.assertTrue(self.settings.settings_race_is_playable(race),
+                            f"{race} is not in the default PLAYABLE_RACES")
+
+
 if __name__ == "__main__":
     unittest.main()
