@@ -324,9 +324,10 @@ correct art for free; a theme would only be needed to change colors.
 
 **shipData is not edited.** The w/h recommendations are recorded, not applied.
 
-**Exit met, verified in the engine 2026-08-04.** The brigantine's authored interior renders
-correctly - the first hand-authored layout to go through the ASCII path end to end, from
-floor plan to `grid_merge_ascii` to the engineering screen.
+**Exit met, verified in the engine.** All three authored pirate interiors render correctly
+- brigantine 2026-08-04, longbow and strongbow 2026-08-05 - the ASCII path proven end to
+end, from floor plan to `grid_merge_ascii` to the engineering screen. `pirate_fighter`
+keeps its generated systems-only layout by design.
 
 The validator earned its place during authoring: a miscounted row in the longbow pushed a
 `maneuver` node off the hull, and it named the cell.
