@@ -235,7 +235,23 @@ install is `example-extraShipData.json`, and the `example-` prefix means it is n
 loaded. There is no working case anywhere to compare against, which is itself evidence
 about how exercised this path is.
 
-**Still untested: a full Cosmos restart with the file already present.** Both runs happened
+**The discriminator, and where it points.** Mission-folder extraShipData was seen WORKING
+on a small project on the engine team's machine. So rather than keep varying the probe,
+vary what differs between that and here - and the loudest difference is
+**LegendaryMissions calls `sim_create()`**. LM's server console DISCARDS the simulation the
+engine built when the mission loaded and makes a fresh one, before any map runs. A small
+project without LM never does that. If the engine's ship table is read at mission load and
+belongs to that first simulation, every LM-based mission throws it away.
+
+Every run so far has been `LM_TestRange`, which loads LM's `consoles` addon. So every run
+has been through `sim_create()`.
+
+`missions/shipdata_min` is the isolation test: sbs_utils and nothing else, no consoles
+addon, no `sim_create`, `extraShipData.json` committed rather than written at runtime, and
+no `@map` (without a server console nothing would start one - the top-level code IS the
+mission). If the engine knows `probe_min_ship` there, the file works and LM breaks it.
+
+**Also still untested: a full Cosmos restart with the file already present.** Both runs happened
 inside one session. If the engine builds its shipData table at executable start, or when it
 scans the mission list, re-entering a mission would never re-read it - and this negative
 would say nothing about a fresh launch.
