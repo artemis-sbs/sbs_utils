@@ -264,7 +264,7 @@ these keeps the interiors it has today.
 reports 28 errors over the set - exactly the pre-existing off-hull rooms, left alone
 because moving a room is a content decision, not a migration.
 
-### Phase 7 - Systems-only for every hull  [DONE headless; NEEDS AN ENGINE CHECK]
+### Phase 7 - Systems-only for every hull  [DONE - ENGINE VERIFIED]
 
 Generate a systems-only layout for every hull that declares an interior but has none.
 Derived from shipData plus the captured hull map; no hand authoring.
@@ -286,9 +286,13 @@ Drives are an assumption, not a measurement: Ximni jump, Arvonian none - both ma
 their authored ships - and everything else warps. It decides the Engineering control label
 on hulls nobody has flown yet.
 
-**Exit, headless:** 23 hulls, 468 nodes, zero validator errors, and every one of the **63**
-hulls that declares an interior now has one. **Still needed: an engine check** - fly one
-and look at Engineering. A headless pass is not evidence for a render (s1a).
+**Exit met.** 23 hulls, 468 nodes, zero validator errors, and every one of the **63** hulls
+that declares an interior now has one. **Confirmed in the engine 2026-08-04**: a pirate
+hull flies with a working Engineering console showing its systems-only interior. That hull
+had no interior at all before.
+
+The s6 stop condition - "systems-only reads as broken rather than minimal" - did not
+fire. Sparse read as sparse.
 
 ### Phase 8 - The pirate mod
 
