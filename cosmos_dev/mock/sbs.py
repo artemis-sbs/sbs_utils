@@ -429,6 +429,41 @@ def get_game_version() -> str:
     """returns the version of the game EXE currently operating this script, as a string."""
     return ""
 
+
+# The engine's launch arguments (engine 1.3.5). The mock has no engine command line, so
+# these are EMPTY by default and settable, which is what lets a headless run reproduce a
+# particular launch - `cosmos_dev.mission_runner` fills them from its own arguments so a
+# mission reading `map=` behaves the same in both.
+#
+# Shapes copied from the engine, measured rather than guessed: the LIST carries the exe
+# path at index 0 and every argument including bare flags; the DICT carries only the
+# `key=value` ones, so bare flags never appear in it.
+_command_line = ["mock-cosmos.exe"]
+
+
+def set_command_line(args) -> None:
+    """TEST/DEV ONLY - pretend the engine was launched with these arguments.
+
+    Pass them WITHOUT the exe path; it is prepended, so callers do not have to fake one.
+    """
+    global _command_line
+    _command_line = ["mock-cosmos.exe"] + [str(a) for a in (args or [])]
+
+
+def command_line_list() -> list:
+    """Every launch argument, exe path first."""
+    return list(_command_line)
+
+
+def command_line_dict() -> dict:
+    """Only the `key=value` launch arguments. Bare flags are absent, as in the engine."""
+    out = {}
+    for arg in _command_line[1:]:
+        if "=" in arg:
+            key, _, value = arg.partition("=")
+            out[key] = value
+    return out
+
 hull_map_objects = {}
 def _populate_hull_map(hull_map, spaceObjectID) -> None:
     """Give a fresh hull map its ship's interior dimensions from shipData.

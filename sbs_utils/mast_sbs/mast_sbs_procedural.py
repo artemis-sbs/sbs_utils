@@ -116,6 +116,7 @@ MastGlobals.import_python_module('sbs_utils.procedural.fleet_tables')
 # above: this is the only thing that makes ship_data_merge_mod callable from a
 # .mast, and an add-on that cannot call it cannot declare a ship.
 MastGlobals.import_python_module('sbs_utils.procedural.ship_data_mod')
+MastGlobals.import_python_module('sbs_utils.procedural.command_line')
 MastGlobals.import_python_module('sbs_utils.procedural.extra_scan_sources')
 MastGlobals.import_python_module('sbs_utils.procedural.ship_data', 'ship_data')
 MastGlobals.import_python_module('sbs_utils.procedural.sides')
