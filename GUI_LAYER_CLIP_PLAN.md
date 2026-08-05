@@ -26,7 +26,7 @@ order means "later paints over earlier", covering exactly the two directions tha
 |---|---|
 | 0. Engine probe | **ANSWERED IN THE ENGINE, 2026-08-05. Occlusion works.** |
 | B. Unpin the layer | **DONE and ENGINE-CONFIRMED** -- `layer:` style key, cascade, backgrounds and `gui_image` unpinned |
-| A. `overflow: occlude` | ready to start; scope still depends on the open question below |
+| A. `overflow: occlude` | **PARKED -- no production case found.** See the survey below |
 
 ### Phase B confirmed in the engine (`--map visual_layer_style`)
 
@@ -199,7 +199,40 @@ automatic numbering.
 
 ---
 
-## Phase A -- `overflow: occlude` (automatic numbering)
+## Why Phase A is PARKED -- the production survey
+
+The overflows that prompted this had already been **worked around**, so a clean
+`--audit-layout` sweep proves nothing. The workarounds themselves are the evidence: each
+one marks a place someone wanted this. Every one found in LM and OU:
+
+| Where | Real problem | What was actually done |
+|---|---|---|
+| `consoles/common_console_select.mast:207` | ship + console lists overflow their boxes | listbox `reveal`/`hint` -- **the container scrolls** |
+| `consoles/server_console.py:27` | text spilling | reached for `gui_text_area` -- **the container scrolls** |
+| `consoles/common_console_selection.py:37` | row-height rounding | **erred on the safe side** -- sizing |
+| `consoles/layout_widgets.mast:99` | "Ship Data overlap" | section offset `45px` to clear the engine widget |
+
+**Not one is a case occlusion would fix.** The first three are containers and sizing
+doing their job -- which is the library working as designed, not a gap. The fourth cuts
+against occlusion hardest: the thing overlapped is the **engine-drawn `ship_data`
+widget**, so an opaque backdrop over the collision would hide content the player wants.
+Repositioning was the CORRECT fix, not a workaround for a missing feature.
+
+Nor does any production mission use `overflow: shrink | ellipsis | hide` -- only
+`control_gallery` (the demo) and `issue672b` (the test). Authors are not reaching for the
+existing policy either.
+
+So automatic banding would buy a layer-numbering scheme, an audit that has to be taught
+about it, and a comparison every `layer:`-free layout pays -- to fix nothing anyone has.
+**Phase B already gives the capability to whoever hits a real case.**
+
+**Unpark when** a panel actually needs to hide a spill AND what it spills onto is content
+we draw ourselves (not an engine widget) AND the container for it does not already exist.
+If that case is a whole panel over another panel, build ONLY the section tier -- it is a
+renumber of backgrounds already being emitted, zero new widgets. The row tier needs its
+own justification on top of that.
+
+## Phase A -- `overflow: occlude` (automatic numbering) -- NOT BUILT
 
 Only worth building where hand-numbering breaks down: loops, data-driven lists, listbox
 item templates (generated sections nobody can number by hand).
