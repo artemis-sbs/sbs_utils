@@ -292,14 +292,33 @@ lines that the shipped `extraShipData` example uses and every hand-written one c
 comment containing a colon read as a mapping, the parse failed, and the declaration
 vanished with no error. Line comments are now stripped on the way in.
 
+### ENGINE-VERIFIED (engine 1.3.4, 2026-08-05)
+
+`shipdata_min` ran the real API in Cosmos: an add-on declared `probe_api_ship` through
+`ship_data_merge_mod` alone, `sim_create()` flushed it, and **the engine knew the ship**.
+
+The proof is the float, not the verdict line. `speed_coeff` came back
+`0.550000011920929` for the add-on ship and `0.33000001311302185` for the hand-authored
+one - float32 round-trips of 0.55 and 0.33. `sbs_utils` holds Python float64 and would
+have returned exactly 0.55, so those values passed through the engine's C++ shipData
+table. Corroborating that the run was genuinely the engine: `turn_rate`,
+`torpedo_tube_count` and `armorMax` all read `None`, which is the engine's signature - the
+mock populates them.
+
+Both guarantees held in-engine too: the hand-authored `probe_min_ship` survived the
+rewrite unstamped, and the generated entry carried `#mod`.
+
 ### Still open
 
-**Engine verification of this path.** Everything above is measured except the library
-itself: the `create_new_sim()` rule was confirmed on engine 1.3.4, but
-`ship_data_merge_mod` -> `sim_create()` has only been run headless, where the mock answers
-from `sbs_utils`' own list and therefore says yes regardless. The mission `shipdata_min`
-now exercises the real API for exactly this purpose, and needs the rebuilt `.sbslib` before
-the engine can run it.
+1. **Does LM break it?** LM's server console calls `sim_create()` itself, and if the
+   engine's ship table belongs to the simulation that call discards, every LM-based
+   mission throws the data away - which is nearly every real mission. `LM_TestRange`'s
+   `test_shipdata_probe` is staged for exactly this and is now worth running, since a red
+   result there is finally attributable.
+2. **Does `artfileroot` work now?** Recorded elsewhere as "hull art does NOT apply to a
+   modded ship", but that was measured for a **library-side** mod the engine had never
+   heard of. Here the engine *does* know the ship from `extraShipData.json`, so the hull
+   may well resolve. Cheap to check by eye - the three probe ships sit at x=0/2000/4000.
 
 ---
 
