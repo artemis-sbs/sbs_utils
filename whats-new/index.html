@@ -1750,6 +1750,8 @@
       
         
       
+        
+      
     
     
     
@@ -2101,6 +2103,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../cosmos/gui_layer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Paint order (layer)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cosmos/overlays/" class="md-nav__link">
         
   
@@ -2214,7 +2239,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_19" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_20" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2231,14 +2256,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_19" id="__nav_5_19_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_20" id="__nav_5_20_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_19_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_19">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_20">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -6973,6 +6998,17 @@ now gets the width it asked for instead of that double-count.</p>
   there is genuinely no space to give — a user-entered name, a fixed strip — a
   widget can now say <code>shrink</code> (step the font down), <code>ellipsis</code> (truncate with
   <code>...</code>) or <code>hide</code>. The default is unchanged, so nothing moves unless you ask.</p>
+</li>
+<li>
+<p><strong><a href="../cosmos/gui_layer/"><code>layer:</code> — paint order you can set</a>.</strong> The other half of
+  the same problem. <code>overflow:</code> changes the <em>text</em>; <code>layer:</code> changes what is drawn
+  <em>on top</em>. Raise a row or section's background above its neighbour's content and an
+  overflowing string is simply covered — not clipped (the engine cannot clip), but
+  invisible, which is what a player cares about. It cascades like <code>color</code> and <code>font</code>,
+  so one declaration can raise a whole panel. Two fixes came with it: a background
+  could not be lifted above content at all before, and <code>gui_image</code> was <strong>silently
+  discarding</strong> any <code>draw_layer</code> you gave it. Opt-in — a layout that never says
+  <code>layer:</code> is byte-for-byte unchanged.</p>
 </li>
 <li>
 <p><strong>Text no longer overlaps itself in a scrolling text area.</strong> A <code>gui_text_area</code>

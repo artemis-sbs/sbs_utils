@@ -12,7 +12,7 @@
         <link rel="prev" href="../gui_content_sizing/">
       
       
-        <link rel="next" href="../overlays/">
+        <link rel="next" href="../gui_layer/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -1416,6 +1416,8 @@
       
         
       
+        
+      
     
     
     
@@ -1848,6 +1850,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../gui_layer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Paint order (layer)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../overlays/" class="md-nav__link">
         
   
@@ -1964,7 +1989,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_19" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_20" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1981,14 +2006,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_19" id="__nav_5_19_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5_20" id="__nav_5_20_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_19_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_19">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_20_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_20">
             <span class="md-nav__icon md-icon"></span>
             AI
           </label>
@@ -5829,6 +5854,13 @@ give: a name is user-entered, a description is longer than the panel, a label ha
 to sit in a fixed strip. <code>overflow:</code> says what to do then.</p>
 <div class="highlight"><pre><span></span><code>gui_text(&quot;$text:`{ship_name}`;&quot;, &quot;overflow: shrink;&quot;)
 </code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">The other half</p>
+<p>Every policy here changes the <strong>text</strong>. When the text has to stay as it is,
+<a href="../gui_layer/"><code>layer:</code></a> can instead paint an opaque background <em>over</em> the
+spill so it is never seen — the only tool that hides an overflow rather than
+preventing one.</p>
+</div>
 <h2 id="the-four-policies">The four policies</h2>
 <table>
 <thead>

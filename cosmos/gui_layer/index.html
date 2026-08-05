@@ -9,6 +9,10 @@
       
       
       
+        <link rel="prev" href="../gui_overflow/">
+      
+      
+        <link rel="next" href="../overlays/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -16,7 +20,7 @@
     
     
       
-        <title>GUI Tutorials - SBS Utils library Documentation</title>
+        <title>Paint order (layer) - SBS Utils library Documentation</title>
       
     
     
@@ -60,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#gui-tutorials" class="md-skip">
+        <a href="#paint-order-layer" class="md-skip">
           Skip to content
         </a>
       
@@ -111,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              GUI Tutorials
+              Paint order (layer)
             
           </span>
         </div>
@@ -276,10 +280,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../../build/" class="md-tabs__link">
           
   
@@ -302,7 +308,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../" class="md-tabs__link">
+        <a href="../../tutorial/" class="md-tabs__link">
           
   
   
@@ -1339,6 +1345,8 @@
       
   
   
+    
+  
   
   
     
@@ -1414,16 +1422,19 @@
     
     
       
+        
+        
+      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
           <div class="md-nav__link md-nav__container">
@@ -1440,13 +1451,13 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Build a mission
@@ -1577,7 +1588,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cosmos/control-gallery/" class="md-nav__link">
+      <a href="../control-gallery/" class="md-nav__link">
         
   
   
@@ -1600,7 +1611,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cosmos/gui/" class="md-nav__link">
+      <a href="../gui/" class="md-nav__link">
         
   
   
@@ -1623,7 +1634,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cosmos/gui_list/" class="md-nav__link">
+      <a href="../gui_list/" class="md-nav__link">
         
   
   
@@ -1646,7 +1657,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cosmos/gui_table/" class="md-nav__link">
+      <a href="../gui_table/" class="md-nav__link">
         
   
   
@@ -1669,7 +1680,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cosmos/gui_grid/" class="md-nav__link">
+      <a href="../gui_grid/" class="md-nav__link">
         
   
   
@@ -1692,7 +1703,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cosmos/gui_icons/" class="md-nav__link">
+      <a href="../gui_icons/" class="md-nav__link">
         
   
   
@@ -1715,7 +1726,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cosmos/gui_content_sizing/" class="md-nav__link">
+      <a href="../gui_content_sizing/" class="md-nav__link">
         
   
   
@@ -1738,7 +1749,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cosmos/gui_overflow/" class="md-nav__link">
+      <a href="../gui_overflow/" class="md-nav__link">
         
   
   
@@ -1758,10 +1769,32 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../cosmos/gui_layer/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Paint order (layer)
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1772,6 +1805,80 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-it-is-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      What it is for
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-the-direction-works-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      Why the direction works out
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#it-cascades" class="md-nav__link">
+    <span class="md-ellipsis">
+      It cascades
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-layer-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      The layer map
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-it-cannot-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      What it cannot do
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gotchas" class="md-nav__link">
+    <span class="md-ellipsis">
+      Gotchas
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1784,7 +1891,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cosmos/overlays/" class="md-nav__link">
+      <a href="../overlays/" class="md-nav__link">
         
   
   
@@ -1807,7 +1914,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cosmos/cinematics/" class="md-nav__link">
+      <a href="../cinematics/" class="md-nav__link">
         
   
   
@@ -1830,7 +1937,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cosmos/comms/" class="md-nav__link">
+      <a href="../comms/" class="md-nav__link">
         
   
   
@@ -1853,7 +1960,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cosmos/science/" class="md-nav__link">
+      <a href="../science/" class="md-nav__link">
         
   
   
@@ -1890,10 +1997,13 @@
       
       
         
+          
+          
+        
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
@@ -1914,7 +2024,7 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_20" id="__nav_5_20_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_20" id="__nav_5_20_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
@@ -2281,7 +2391,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../../tutorial/" class="md-nav__link ">
               
   
   
@@ -2316,7 +2426,7 @@
   
   
     <li class="md-nav__item">
-      <a href="simple_gui/" class="md-nav__link">
+      <a href="../../tutorial/gui/simple_gui/" class="md-nav__link">
         
   
   
@@ -2339,7 +2449,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../comms/simple_comms/" class="md-nav__link">
+      <a href="../../tutorial/comms/simple_comms/" class="md-nav__link">
         
   
   
@@ -2362,7 +2472,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../science/simple_science/" class="md-nav__link">
+      <a href="../../tutorial/science/simple_science/" class="md-nav__link">
         
   
   
@@ -2385,7 +2495,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ai/simple_ai/" class="md-nav__link">
+      <a href="../../tutorial/ai/simple_ai/" class="md-nav__link">
         
   
   
@@ -5691,6 +5801,68 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-it-is-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      What it is for
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-the-direction-works-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      Why the direction works out
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#it-cascades" class="md-nav__link">
+    <span class="md-ellipsis">
+      It cascades
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-layer-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      The layer map
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-it-cannot-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      What it cannot do
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gotchas" class="md-nav__link">
+    <span class="md-ellipsis">
+      Gotchas
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -5708,11 +5880,94 @@
   
 
 
-<h1 id="gui-tutorials">GUI Tutorials</h1>
-<p>Tutorials for building custom GUI panels in Artemis Cosmos missions.</p>
-<ul>
-<li><a href="simple_gui/">Simple GUI</a> — console label, buttons, and reactive widget updates</li>
-</ul>
+<h1 id="paint-order-layer">Paint order — <code>layer:</code></h1>
+<p>The engine draws widgets in <strong>layer order</strong>, and every widget has a layer
+(<code>draw_layer</code>, default <code>1001</code>). A higher number is drawn later, so it lands on
+top. <code>layer:</code> sets it from a style string.</p>
+<div class="highlight"><pre><span></span><code>gui_row(&quot;row-height: 6em; background: #2a4a6a; layer: 1500;&quot;)
+</code></pre></div>
+<p>This is <strong>opt-in and cheap to ignore</strong>. A layout that never says <code>layer:</code> emits
+exactly the same thing it always did.</p>
+<h2 id="what-it-is-for">What it is for</h2>
+<p>Two jobs, and it is worth knowing which one you are doing.</p>
+<p><strong>1. Deciding what wins when things overlap.</strong> The engine has no clip: text
+wider or taller than its box is drawn over its neighbours anyway
+(<a href="../gui_overflow/"><code>overflow:</code></a> is the other half of that story). Raising a
+widget's layer decides which of the two stays readable.</p>
+<p><strong>2. Hiding a spill behind an opaque fill.</strong> This is the interesting one. A
+background raised <strong>above</strong> the content next to it <em>covers</em> that content, so an
+overflowing string simply disappears behind it. It is not clipping — nothing is
+cut — but to a player it looks the same.</p>
+<div class="highlight"><pre><span></span><code># a row whose text overruns...
+gui_row(&quot;row-height: 2em;&quot;)
+gui_text(&quot;$text:`{a very long description}`;&quot;)
+
+# ...and the row below hides the overflow instead of wearing it
+gui_row(&quot;row-height: 8em; background: #2a4a6a; layer: 1500;&quot;)
+</code></pre></div>
+<p>Leave the <code>layer:</code> off that second row and the overflow is drawn across it,
+which is what always happened and still does.</p>
+<h2 id="why-the-direction-works-out">Why the direction works out</h2>
+<p>Overflow only ever goes <strong>right and down</strong> — text lays out from its box's
+top-left. Document order also runs left-to-right, top-to-bottom. So the widget
+that gets damaged is always declared <em>after</em> the one that spills, and "later
+declaration, higher layer" is exactly the rule you want.</p>
+<h2 id="it-cascades">It cascades</h2>
+<p><code>layer:</code> on a <strong>section</strong> or a <strong>row</strong> reaches everything inside it, the same
+way <code>color</code> and <code>font</code> do. So one declaration can raise a whole panel:</p>
+<div class="highlight"><pre><span></span><code>gui_section(&quot;area: 50,10,99,90; layer: 1500;&quot;)   # every widget in here is raised
+</code></pre></div>
+<p>A widget's own <code>layer:</code> beats the one it inherits. And a <code>draw_layer</code> written
+directly into a widget's props always wins over both — the nearest declaration
+is the one that counts.</p>
+<h2 id="the-layer-map">The layer map</h2>
+<p>Pick numbers that do not collide with what the library already uses:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Used by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>1000</code></td>
+<td>section / row / column backgrounds and borders (the default)</td>
+</tr>
+<tr>
+<td><code>1001</code></td>
+<td>the engine default — ordinary content, buttons</td>
+</tr>
+<tr>
+<td><code>20000</code>+</td>
+<td><a href="../overlays/">overlay</a> slots</td>
+</tr>
+</tbody>
+</table>
+<p>So <code>1002</code>–<code>9999</code> is yours. Above <code>20000</code> you are fighting the overlay system.</p>
+<h2 id="what-it-cannot-do">What it cannot do</h2>
+<p><strong>It needs a colour.</strong> Hiding a spill means painting <em>something</em> over it, and
+that something has to be what should have been there. Over a solid panel that is
+easy. <strong>Over a <code>3dview</code> or <code>2dview</code> it is impossible</strong> — you would punch an
+opaque rectangle into the view to hide a line of text. Panels over live views
+have to be fixed by <a href="../gui_content_sizing/">sizing</a> instead.</p>
+<p><strong>It hides; it does not fix.</strong> The text is still wrong, it is just no longer on
+top of anything. <code>spill</code> remains the default deliberately: a visible failure gets
+fixed, a silent one does not.</p>
+<p><strong>Size the backdrop to the row or section, not to the widget.</strong> The engine draws
+button chrome slightly <em>outside</em> the rect it was given, so a fill matching a
+button's exact box still leaves a visible rim around it.</p>
+<h2 id="gotchas">Gotchas</h2>
+<p><strong>A covered widget still works.</strong> Input is not blocked by whatever is painted on
+top — a button under an opaque fill still takes the hover and the click. Handy,
+and also a hazard: do not hide a control and assume it is disabled.</p>
+<p><strong>Backgrounds default to <code>1000</code>, which is <em>under</em> content.</strong> That is why a plain
+<code>background:</code> cannot hide a neighbour's overflow on its own. Raising it is the
+entire point of <code>layer:</code>.</p>
+<p><strong><code>gui_image</code> honours it too</strong> — either in the props string
+(<code>gui_image("image:smallWhite;color:#123;draw_layer:1500;")</code>) or as a style
+(<code>gui_image_stretch("smallWhite", "layer: 1500;")</code>). An image is usually the
+thing doing the covering.</p>
 
 
 
