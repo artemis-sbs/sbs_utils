@@ -218,14 +218,24 @@ scale, the read site now says so, and the migration drops the field.
 
 **Exit met:** `tests/test_grid_mod_api.py`, 19 tests.
 
-### Phase 5 - The ASCII format and validator
+### Phase 5 - The ASCII format and validator  [DONE]
 
 Format per `GRID_ASCII_FORMAT.md`. Validator: every cell on-hull; fill density in the
 38-75% band; port/starboard symmetry; system node counts against shipData beams/tubes;
 every roleset resolves to a theme icon rather than falling to 120.
 
-**Exit:** round-trips **all 40** authored ships - render to ASCII, read back, get identical
-JSON semantics. Not spot-checked.
+Done. `procedural/grid_rooms.py` (60 room types, role order preserved),
+`procedural/grid_ascii.py` (parse / render / validate).
+
+Two things the format does that the JSON could not: a multi-cell room is typed as
+`cccc` rather than four coincidentally-adjacent objects, and the hull outline is
+pre-filled from the engine capture so a room OUTSIDE the hull is unrepresentable rather
+than merely caught. Legend characters avoid visually confusable pairs (`I`/`l`, `O`/`o`) -
+in a format people edit, a misread character silently moves a room into another damage
+pool.
+
+**Exit met:** all 40 authored ships round-trip with identical semantics.
+`tests/test_grid_ascii.py`, 24 tests.
 
 ### Phase 6 - Migrate the stock interiors
 
@@ -336,7 +346,7 @@ All write to a file.
 | # | Question | Blocks |
 |---|---|---|
 | 1 | Does `is_grid_point_open` match the bbox+flip rule? | phases 3, 5-8 |
-| 2 | What does `symmetrical_flag` do - mirror the mask, or the objects? | phase 5 validator |
+| 2 | What does `symmetrical_flag` do? | **ANSWERED**: every hull is a perfect left-right mirror, all 63 with flag=1. The HULL is symmetric; the CONTENTS are not (17% of rooms have no counterpart), so no half-map mirroring - `GRID_ASCII_FORMAT.md` s4 q2 |
 | 3 | `grid_scale` / `internalmapscale` - world units per cell? | nothing yet; affects hit mapping |
 | 4 | Can a ship have `warp_drive_active` and `jump_drive_active` at once? | s7 |
 
@@ -352,6 +362,7 @@ Probes 1 and 2 share a single route and a single run. Two more probes, about art
 2. **Room vocabulary:** extend the theme with pirate-specific names and icons, or reuse
    existing names and let *placement* carry the flavor? Phase 8 assumes the former.
 3. **Does a layout carry its own theme?** (s3.4)
-4. The remaining format forks in `GRID_ASCII_FORMAT.md` s4 - half-map mirroring,
-   runtime-parsed vs compiled, replace vs coexist. **q1 is resolved**: roles live in a
-   generated room registry, the theme stays a pure skin, and the legend may override.
+4. The remaining format forks in `GRID_ASCII_FORMAT.md` s4 - **runtime-parsed vs
+   compiled** and **replace vs coexist**. q1 and q2 are resolved: roles live in a generated
+   room registry (the theme stays a pure skin, the legend may override), and layouts are
+   authored full width - mirroring would corrupt 16.9% of the shipped rooms.

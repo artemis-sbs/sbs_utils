@@ -40,6 +40,12 @@ Cosmos's embedded Python. No pip packages, no PIL, no exceptions.
   JSON objects that happen to share a name and happen to be adjacent - the connected-
   component structure `GRID_REFERENCE.md` s5 had to recover *statistically*. In ASCII it is
   `cccc`. The author types the thing directly.
+
+  This changes **authoring, not rendering**. Icons are center-anchored on a grid node, so
+  `cccc` still draws four cargo icons, exactly as the four JSON objects do today - and
+  `scale` could never have collapsed them into one, because scaling grows an icon about
+  its own node rather than filling a block (`GRID_REFERENCE.md` s3). A one-icon-per-room
+  look is a separate idea needing a different mechanism, not a property of this format.
 - **Shape is legible.** The intent in the corpus - warp on the nacelles, `beam-aft` on the
   centerline, `sick-bay` in the protected core - is visible in an ASCII map and invisible
   in 3171 coordinate entries.
@@ -129,13 +135,42 @@ slips.
 
 Fix those two rows during the migration.
 
-### q2. Half-map with mirroring, or full width?
+### q2. Half-map with mirroring? RESOLVED - no. Full width.
 
-Hulls are symmetric and the corpus authors both halves explicitly, so a `mirror` directive
-halves the typing. But real layouts have asymmetric singletons - `sick-bay` off-centre,
-`beam-port` vs `beam-starboard` - so it needs an escape hatch.
+The HULL is symmetric: all **63 of 63** captured hull maps are perfect left-right mirrors,
+every one with `symmetrical_flag=1`. (That also answers probe 2.) So mirroring the
+*outline* would be free - but the outline is generated for the author anyway (s3), so it
+saves nothing.
 
-Depends partly on probe 2 (what `symmetrical_flag` actually does).
+**The CONTENTS are not symmetric, and mirroring them destroys rooms.** Measured over the
+40 authored interiors: a half-map mirror gets **537 of 3171 cells wrong - 16.9%**, and up
+to 39% on `starbase_industry`.
+
+Mirroring `tsn_light_cruiser`'s port half:
+
+| Room | before | after |
+|---|---|---|
+| `saloon` | 2 | **0** - it sits to starboard and vanishes entirely |
+| `sick-bay` | 2 | 4 |
+| `gymnasium` | 1 | 2 |
+| `beam-starboard` | 1 | **0** |
+| `beam-port` | 1 | **2** |
+| `astro-lab`, `galley`, `conference-room`, `Workshop` | 1 | **0** |
+
+The last two rows are not cosmetic: beam nodes set `system_max_damage` for weapons, so a
+mirrored map silently changes what the ship can survive.
+
+**So: full width, always.** It is also the format's whole selling point - a full-width map
+is legible AS the ship (s2), and halving it throws that away to save typing on a file that
+is generated pre-filled anyway.
+
+**Mirroring stays as a TOOL operation, not a format feature** - paint one side, press
+mirror, then fix the singletons. The author sees the result and owns it; nothing is
+mirrored at load time, where a mistake would be invisible.
+
+**Consequence for the validator:** port/starboard asymmetry is NORMAL at ~17%, so a
+symmetry check must be a hint ("this room has no counterpart - deliberate?"), never an
+error.
 
 ### q3. Runtime-parsed, or compiled to JSON?
 
@@ -145,6 +180,9 @@ worth having for diffing and debugging.
 
 **Recommendation: parse at runtime, compile on demand.** Note this puts the parser inside
 the engine (s1).
+
+Whichever way this goes, the format does NOT carry `scale`: it is per-icon emphasis owned
+by the theme, and it cannot express extent (s2).
 
 ### q4. Replace or coexist?
 

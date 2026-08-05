@@ -118,6 +118,24 @@ roleset in the shipped file resolves; none reaches the fallback icon 120.
 `f"{name}:{x},{y}"`. A multi-cell room is several objects that share a name and happen to
 be adjacent. Nothing in the engine models "room" as a unit.
 
+**Icons are CENTER-anchored on a grid node**, not corner-anchored to a cell. Two things
+follow:
+
+- A multi-cell room draws its icon **once per cell** - a 4-cell cargo hold is four cargo
+  icons, not one large one. That is the existing visual language, and the ASCII format
+  changes how it is *authored*, not how it is drawn.
+- **`scale` cannot express room extent.** Scaling grows an icon about its own node, so a
+  big icon straddles its neighbors' nodes instead of filling a block. Scale is for
+  *emphasis within a cell* and that is exactly how the theme uses it: `shield` 1.21,
+  `computer` 1.2, `passenger` 1.21, `damcons` 0.7, and the EPad hidden at 0.01.
+
+This is the substantive reason the per-object `scale` in `grid_data.json` is not read
+(defect 6): it could not have meant "this room is N cells" even if someone intended it to.
+
+Two loose ends here, neither chased: rooms get `icon_scale = scale / 2` while damcons get
+the full `scale`, and "one icon per room, at its centroid" would need a different
+mechanism than scale - a second object type, or the other cells drawn as plain occupancy.
+
 ---
 
 ## 4. The interior IS the drive
@@ -162,9 +180,20 @@ center->edge 0..1.
 Living spaces are **1-6 cell blobs**. Of 1519 connected room blobs: 853 are 1 cell, 309
 are 2, 119 are 3, 127 are 4.
 
-**Density.** 38-75% of open hull cells carry an object, median ~52%. The remainder is
-hallway and it is load-bearing - a hit on an empty cell spawns a fire instead of damaging
-a system, so a fully-packed ship has no soak.
+**Density.** Against the ENGINE hull: **54-100% of open cells carry an object, median
+74%, mean 76%.** `arvonian_destroyer` is loosest at 54%, `tsn_fighter` is packed solid at
+100% (11 of 11).
+
+Hallway is still load-bearing - a hit on an empty cell spawns a fire instead of damaging a
+system, so a fully packed ship has no soak - but dense IS the norm and should not be
+treated as a defect.
+
+*(An earlier reading of this document said 38-75%, median 52%. That was measured against
+the art-derived approximation's larger open-cell count - the same refuted rule as s2. It
+is the third figure that turned out to be an artifact of the denominator rather than a
+fact about the ships; anything else here computed against a hull mask deserves the same
+suspicion. The zone, blob-size and count statistics below are derived from `grid_data.json`
+alone and are unaffected.)*
 
 **Counts track shipData.** Beam node count equals the `hull_port_sets` beam count exactly
 on the authored ships; torpedo nodes track `tubecount`. Drive nodes follow faction: TSN
