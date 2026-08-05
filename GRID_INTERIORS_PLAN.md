@@ -237,7 +237,7 @@ pool.
 **Exit met:** all 40 authored ships round-trip with identical semantics.
 `tests/test_grid_ascii.py`, 24 tests.
 
-### Phase 6 - Migrate the stock interiors
+### Phase 6 - Migrate the stock interiors  [DONE]
 
 Convert all 40 out of `data/grid_data.json` into ASCII, **split one bundled addon per
 race** (`SHIP_MOD_PLAN.md` s5). `grid_data.json` becomes a deprecated fallback read.
@@ -248,8 +248,21 @@ Normalize in the same pass - safe, nothing looks a grid object up by room name
 This is the format's real exam. A ship that will not round-trip means the format is
 under-designed; fix the format, do not special-case the ship.
 
-**Exit:** every stock ship renders from ASCII with identical semantics - same cells, same
-roles, same system counts - diffed mechanically across all 40.
+Done. Five addons in **LegendaryMissions** - `interiors_tsn`, `interiors_ximni`,
+`interiors_arvonian`, `interiors_usfp`, `interiors_starbases` - 40 floor plans, registered
+in LM's `__lib__.json`.
+
+**Why LM and not a repo of its own:** `grid_ai.mast` (LM's `ai/` addon) is the only thing
+that builds a grid on `//spawn`. Interiors shipped anywhere else would be inert unless LM
+were loaded anyway. The PIRATE mod does get its own repo - it is the one that has to prove
+the external path works.
+
+Additive: `grid_data.json` is still read as a fallback, so a mission that does not list
+these keeps the interiors it has today.
+
+**Exit met:** all 40 read back to identical semantics, diffed mechanically. The validator
+reports 28 errors over the set - exactly the pre-existing off-hull rooms, left alone
+because moving a room is a content decision, not a migration.
 
 ### Phase 7 - Systems-only for every hull
 
