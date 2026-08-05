@@ -100,13 +100,13 @@ who does it and at what moment, and that decides whether modding needs a CLI at 
 | **B. Runtime generation** | `sbs_utils` at mission start | during load | no CLI at all - **if** the engine reads the file after script init |
 | **C. Generate + reload** | `sbs_utils`, then re-enter the mission | first load | works regardless of read order, but a visible reload |
 
-**Option B hinges entirely on load order** - does the engine read the mission's
-`extraShipData` before or after `script.py` gets control? That is probe 7 (s6), and it is
-the single cheapest question with the largest effect on this design. If B works, tiers 2
-and 3 lose their build step and mods become as easy as addons.
+**ANSWERED - see s6a. Option B is dead and option A is the answer.** The engine does read
+a mission-folder `extraShipData.json`, but only if it is on disk before the mission loads.
+`sbs_utils` cannot write it at mission start: by then the engine has already looked. Every
+runtime-generation moment was tried - story top level, the `create_player_ships` signal,
+inside a `@map` - and all three are too late.
 
-A sane end state is probably **B in dev, A for shipping** - generated live while iterating,
-committed and reviewable in a release. Do not pick before the probe.
+So `sbs mod merge` is the design, as originally proposed, and the requirements below stand.
 
 **All three options stay inside s1.** Consider them all; none may risk the engine. That
 means: write to a temp file and rename atomically, so a crash mid-write cannot leave a
@@ -216,70 +216,47 @@ There is prior evidence that `body_N_geom_filename` can be set at runtime while
 
 ---
 
-## 6a. Probe 7, so far: a controlled NEGATIVE
+## 6a. Probe 7: ANSWERED - the file is read, but it must pre-exist
 
-Run in the engine 2026-08-05 with `LM_TestRange`, file present at load, written at story
-top level before any map or sim existed, strict JSON, top level exactly `#credits-text` +
-`#ship-list`, entry modelled on the shipped example.
+**Engine 1.3.4, `missions/shipdata_min`, 2026-08-05.** The engine read a mission-folder
+`extraShipData.json` and applied it:
 
-**The engine did not know the ship.** Both probe ships spawned as bare objects with no
-shipData applied - `shield_max_val` absent entirely, not zero.
+| field | control `tsn_light_cruiser` | probe, only in extraShipData.json |
+|---|---|---|
+| `speed_coeff` | 1.0 | **0.33000001311302185** |
+| `shield_max_val` | 120.0 | **777.0** |
+| `shield_val` | 120.0 | **777.0** |
 
-The **control makes this trustworthy**: `tsn_light_cruiser`, spawned the same way in the
-same run, came back with `speed_coeff` 1.0 and `shield_max_val`/`shield_val` 120.0. So the
-field names are right, and the engine does apply shipData to ships it knows. The negative
-is about the FILE, not the measurement.
+That `speed_coeff` is the proof. 0.33 stored as float32 and widened back is
+0.33000001311302185; sbs_utils would have returned exactly `0.33` as a Python float. The
+value round-tripped through the ENGINE's own storage, so this is not the library answering.
 
-**Also true, and worth pausing on: no shipped mission uses one.** The only instance in the
-install is `example-extraShipData.json`, and the `example-` prefix means it is never
-loaded. There is no working case anywhere to compare against, which is itself evidence
-about how exercised this path is.
+**The condition: the file must be on disk before the mission loads.** Every earlier run
+wrote it during a session - at story top level, at `create_player_ships`, inside a `@map` -
+and none of them could ever have worked. In `shipdata_min` the file was committed, present
+before Cosmos launched.
 
-**The discriminator, and where it points.** Mission-folder extraShipData was seen WORKING
-on a small project on the engine team's machine. So rather than keep varying the probe,
-vary what differs between that and here - and the loudest difference is
-**LegendaryMissions calls `sim_create()`**. LM's server console DISCARDS the simulation the
-engine built when the mission loaded and makes a fresh one, before any map runs. A small
-project without LM never does that. If the engine's ship table is read at mission load and
-belongs to that first simulation, every LM-based mission throws it away.
+### What this settles
 
-Every run so far has been `LM_TestRange`, which loads LM's `consoles` addon. So every run
-has been through `sim_create()`.
+**Option B is dead.** `sbs_utils` cannot generate `extraShipData` at mission start; by then
+the engine has already read (or not read) it. **Option A - a build step - is the answer**,
+and `sbs mod merge` goes back on the table as originally proposed.
 
-**It crashed the engine, and that is the best news yet.** The first `shipdata_min` run
-took Cosmos down, leaving `mast.compile.log` and `mast.runtime.log` at **0 bytes** - the
-mission began loading and died before MAST compiled a line. A crash that early is at
-mission LOAD, which is exactly where extraShipData would be read. Something got further
-than any previous run.
+Option C (generate, then reload) is not obviously alive either: whether a mission reload
+re-reads the file depends on whether the engine reads at mission load or at executable
+start, which this run does not distinguish. It does not matter much - if a build step is
+needed anyway, C buys nothing.
 
-The entry was the likely cause: it omitted `hull_port_sets` and `torpedostart`, both
-present in the shipped example, and `hull_port_sets` is where the beams live. It is now a
-faithful copy of the example - all 25 fields - with only the key, name, shields and
-speed_coeff changed.
+### What is NOT yet known
 
-**But note the asymmetry, because it matters.** The SAME incomplete entry in `LM_TestRange`
-did not crash; it was simply not read. If the engine read the file at load in both, the
-incomplete entry should have crashed both. So either the engine reads it in one and not the
-other, or the crash has nothing to do with the file. **The control that settles it: run
-`shipdata_min` with no `extraShipData.json` at all.** If it still crashes, the file is
-exonerated and the crash belongs to something else about a mission with no consoles - the
-bare `sim_resume()`, or the absence of a server page.
+`shipdata_min` differs from `LM_TestRange` in two ways at once: no LegendaryMissions, and a
+committed file. This run shows the committed file is sufficient WITHOUT LM. It does not
+show whether LM would still break it - LM's `sim_create()` discards the simulation the
+engine built at load, and if the ship table belongs to that simulation, every LM mission
+would lose it regardless of when the file appeared.
 
-`missions/shipdata_min` is the isolation test: sbs_utils and nothing else, no consoles
-addon, no `sim_create`, `extraShipData.json` committed rather than written at runtime, and
-no `@map` (without a server console nothing would start one - the top-level code IS the
-mission). If the engine knows `probe_min_ship` there, the file works and LM breaks it.
-
-**Also still untested: a full Cosmos restart with the file already present.** Both runs happened
-inside one session. If the engine builds its shipData table at executable start, or when it
-scans the mission list, re-entering a mission would never re-read it - and this negative
-would say nothing about a fresh launch.
-
-**If it survives that**, s3's premise is wrong: a mission cannot contribute engine-known
-ships through its own folder at all, and tiers 2 and 3 need a different mechanism entirely.
-That would be a bigger finding than the one the probe set out to get, and it should be
-confirmed rather than assumed - preferably against a case where someone has seen mission
-extraShipData work.
+**That is the next run, and it matters**: nearly every real mission loads LM. A committed
+`extraShipData.json` in `LM_TestRange` answers it.
 
 ---
 
