@@ -812,3 +812,50 @@ def grid_remove_move_role(event):
     
 
 GridDispatcher.add_any_object(grid_remove_move_role)
+
+def grid_merge_ascii(content, mod=None, ship_key=None):
+    """Merge one ASCII floor plan (see :mod:`grid_ascii`) into the grid data.
+
+    The one-line form an addon's ``__init__.mast`` uses::
+
+        grid_merge_ascii(media_read_relative_file("tsn_light_cruiser.grid"), "interiors_tsn")
+
+    A plan naming a ``layout:`` other than ``default`` is merged INTO the hull's existing
+    entry as a named layout rather than replacing it, so a hull's variants can arrive from
+    separate files - and, later, from separate mods.
+
+    Returns the entry that was merged, or ``None`` if the text could not be read (which is
+    logged, not raised: one unreadable floor plan should not take a mission down).
+    """
+    if not content:
+        return None
+    from .grid_ascii import grid_ascii_parse, GridAsciiError
+    try:
+        parsed = grid_ascii_parse(content, ship_key)
+    except GridAsciiError as e:
+        from .execution import log
+        log(f"floor plan not loaded: {e}", "grid", "warning")
+        return None
+
+    grid_data = grid_get_grid_data()
+    if grid_data is None:
+        return None
+    key, layout, entry = parsed["ship"], parsed["layout"], parsed["entry"]
+
+    if layout == "default":
+        existing = grid_data.get(key)
+        # Keep any named layouts a sibling file already contributed.
+        if isinstance(existing, dict) and isinstance(existing.get("layouts"), dict):
+            entry["layouts"] = existing["layouts"]
+        grid_data[key] = entry
+    else:
+        existing = grid_data.get(key)
+        if not isinstance(existing, dict):
+            existing = {}
+            grid_data[key] = existing
+        existing.setdefault("layouts", {})[layout] = entry
+
+    if mod is not None:
+        grid_data[key][GRID_DATA_MOD_KEY] = mod
+        _grid_data_mods[key] = mod
+    return grid_data[key]
