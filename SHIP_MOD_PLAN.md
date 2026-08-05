@@ -246,6 +246,25 @@ belongs to that first simulation, every LM-based mission throws it away.
 Every run so far has been `LM_TestRange`, which loads LM's `consoles` addon. So every run
 has been through `sim_create()`.
 
+**It crashed the engine, and that is the best news yet.** The first `shipdata_min` run
+took Cosmos down, leaving `mast.compile.log` and `mast.runtime.log` at **0 bytes** - the
+mission began loading and died before MAST compiled a line. A crash that early is at
+mission LOAD, which is exactly where extraShipData would be read. Something got further
+than any previous run.
+
+The entry was the likely cause: it omitted `hull_port_sets` and `torpedostart`, both
+present in the shipped example, and `hull_port_sets` is where the beams live. It is now a
+faithful copy of the example - all 25 fields - with only the key, name, shields and
+speed_coeff changed.
+
+**But note the asymmetry, because it matters.** The SAME incomplete entry in `LM_TestRange`
+did not crash; it was simply not read. If the engine read the file at load in both, the
+incomplete entry should have crashed both. So either the engine reads it in one and not the
+other, or the crash has nothing to do with the file. **The control that settles it: run
+`shipdata_min` with no `extraShipData.json` at all.** If it still crashes, the file is
+exonerated and the crash belongs to something else about a mission with no consoles - the
+bare `sim_resume()`, or the absence of a server page.
+
 `missions/shipdata_min` is the isolation test: sbs_utils and nothing else, no consoles
 addon, no `sim_create`, `extraShipData.json` committed rather than written at runtime, and
 no `@map` (without a server console nothing would start one - the top-level code IS the
