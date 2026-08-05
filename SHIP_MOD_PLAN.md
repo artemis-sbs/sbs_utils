@@ -253,20 +253,53 @@ level, the `create_player_ships` signal, inside a `@map`. None could have worked
 entries, write one `extraShipData.json`, and call `sim_create()` - and the engine picks it
 up. `sbs mod merge` is unnecessary.
 
-**The hook belongs immediately before `sim_create()`**, and LM already owns that call
-(`consoles/server_console.mast`). A signal emitted just ahead of it lets any addon
-contribute ship data, exactly the way `grid_merge_mod_data` lets one contribute interiors.
-That makes tier 2 as easy as tier 1.
+**The hook belongs immediately before `sim_create()`.** The obvious design was a signal
+emitted just ahead of that call, letting any addon contribute ship data the way
+`grid_merge_mod_data` lets one contribute interiors. **That design was rejected.** A signal
+route is synchronous only while nothing in it awaits, and an addon's route is someone
+else's code: a single `await` anywhere in one mod's handler puts the write *after* the sim
+was created - silently, and only on that mod's machine. The failure would look exactly like
+the engine not reading the file, which is the bug we just spent this long ruling out.
+
+So the flush lives **inside `sim_create()`** instead, which makes the ordering a fact of
+the call rather than a convention every addon has to honor. A mission does not have to opt
+in and LM did not have to change.
 
 The s1 write rules still bind: temp file plus atomic rename, validate before it replaces
 anything, never touch `data/shipData.yaml`. Generating during load is precisely when a bad
 write is least recoverable.
 
+### Tier 2: BUILT
+
+`procedural/ship_data_mod.py`. An addon declares its ships at story top level and stops:
+
+```
+ship_data_merge_mod(media_read_relative_file("myships.json"), "MyMod")
+```
+
+`sim_create()` flushes the accumulated entries to `extraShipData.json` and then calls
+`create_new_sim()`. There is no explicit flush, no CLI, and no `sbs mod merge`.
+
+What it refuses to do, each covered by a test that fails when the guarantee is removed
+(`tests/test_ship_data_mod.py`, mutation-checked): overwrite a hand-authored entry (the
+mission's own wins, and the collision is reported by name), accumulate across runs
+(generated entries carry `#mod` and are dropped on read-back, so a removed mod actually
+disappears), write when nothing asked for it, or clobber a file it cannot parse.
+
+One defect worth recording because the tests did not find it - running the mission did.
+`ship_data_merge_mod` parsed with `load_yaml_string`, and YAML rejects the `//` comment
+lines that the shipped `extraShipData` example uses and every hand-written one copies. A
+comment containing a colon read as a mapping, the parse failed, and the declaration
+vanished with no error. Line comments are now stripped on the way in.
+
 ### Still open
 
-Whether a mission that does NOT control its own `sim_create()` can still contribute - i.e.
-whether LM's ordering leaves room for the write. That is a question about LM's sequence,
-not about the engine, and it is answered by adding the signal.
+**Engine verification of this path.** Everything above is measured except the library
+itself: the `create_new_sim()` rule was confirmed on engine 1.3.4, but
+`ship_data_merge_mod` -> `sim_create()` has only been run headless, where the mock answers
+from `sbs_utils`' own list and therefore says yes regardless. The mission `shipdata_min`
+now exercises the real API for exactly this purpose, and needs the rebuilt `.sbslib` before
+the engine can run it.
 
 ---
 
