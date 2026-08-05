@@ -143,6 +143,16 @@ def reset_mission_state():
     terrain_sow_reset() # queued terrain for a mission that is over, plus the "we
                         # are sowing" flag - left on, the next mission's terrain
                         # would queue against a dead tick task and never appear
+    from .procedural.ship_data import ship_data_reset_for_mission
+    ship_data_reset_for_mission()   # the loaded #ship-list, INCLUDING entries merged from
+                                    # the old mission's extraShipData and its mods. The
+                                    # next mission has its own mission dir and its own
+                                    # mods; inheriting these spawns ships it never asked
+                                    # for and hides ones it did.
+    from .procedural.grid import grid_reset_caches
+    grid_reset_caches() # ship interiors + grid themes, same reason: _grid_data is the
+                        # base table MERGED with the mission's own, and the theme index
+                        # is a per-mission selection.
     Gui.web_client_ids.clear()  # drop web-page sessions from the old mission
     from .procedural.web import web_living_clear
     web_living_clear()  # drop living/persistent web-page registrations
@@ -199,6 +209,17 @@ from .procedural.amd_doc import (lore_clear, lore_sources,
 register_reset_state("lore sources",      lambda: len(lore_sources()))
 from .procedural.terrain import terrain_sow_pending
 register_reset_state("terrain sow",       terrain_sow_pending)
+# Ship + interior data. These look like read-only caches of engine files and are not:
+# each is the base table MERGED with what the mission (and, later, its mods) added, so
+# they are per-mission state. A mod system makes an unreset one a correctness bug -
+# mission B silently inheriting mission A's ships and interiors.
+from .procedural.ship_data import ship_data_is_loaded
+register_reset_state("ship_data_cache",   ship_data_is_loaded)
+from .procedural.grid import (grid_data_is_loaded, grid_theme_is_loaded,
+                              grid_theme_current_index)
+register_reset_state("grid_data",         grid_data_is_loaded)
+register_reset_state("grid_theme",        grid_theme_is_loaded)
+register_reset_state("grid_theme_current", grid_theme_current_index)
 register_reset_state("amd declared addons", lambda: len(_DECLARED_ADDONS))
 register_reset_state("DeleteQueue",       lambda: len(DeleteQueue._pending) + len(DeleteQueue._pending_grid))
 register_reset_state("Agent.roles",       lambda: len(Agent.roles.collections))

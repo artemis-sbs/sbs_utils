@@ -1,0 +1,209 @@
+# Mod libraries - shipData, art, and the race as a unit
+
+**Deferred.** Recorded now because it is the constraint that shaped the interior work, and
+because the survey in s5 should not have to be gathered twice. The active plan is
+`GRID_INTERIORS_PLAN.md`. Mechanics: `GRID_REFERENCE.md`.
+
+---
+
+## 1. shipData is the most important engine file
+
+Everything here is downstream of one fact: **the engine learns ships from files it reads
+at load.** Get that wrong and it is not one mission that breaks.
+
+Two rules that follow, and neither is negotiable:
+
+- **Never write `data/shipData.yaml`.** That is the game's own table. A mod contributes
+  through a mission-folder `extraShipData`, never by editing the base.
+- **A generated engine file is validated before it is written**, never written partially,
+  and never left half-updated on failure. A malformed `extraShipData` is a broken game,
+  not a broken feature.
+
+---
+
+## 2. Three tiers
+
+| Tier | Example | shipData | grid data | art | Needs a file generated |
+|---|---|---|---|---|---|
+| **1. interiors only** | pirates | - | new | - | **no** - pure runtime |
+| **2. new ship, existing art** | reskins, variants | new | new | - | **yes** |
+| **3. new art** | art mods | new | new | files | **yes** + art placement (s6) |
+
+Tier 1 is what `GRID_INTERIORS_PLAN.md` delivers, and it is deliberately independent of
+everything below.
+
+---
+
+## 3. The asymmetry: shipData needs a file, grid data does not
+
+This is the constraint the whole design turns on.
+
+**The engine only learns ships from `data/shipData.yaml` and one
+`extraShipData.{json,yaml}` in the mission folder.** One file, fixed place, and nothing
+can contribute to it from a `.mastlib`. Several mods carrying ship entries must therefore
+be **merged into that one file, and that file must physically exist before the engine
+reads it.**
+
+`ship_data.py` does carry a runtime path:
+
+```
+merge_mod_ship_yaml(media_read_relative_file("extraShipData.yaml"), "MyMod")
+```
+
+**It is not a substitute.** It merges `sbs_utils`' own Python-side `#ship-list` - which
+drives queries, `filter_ship_data_by_side`, the `*_keys` helpers and the spawn
+post-processing in `mod_ship_data_process`. The **engine** never sees it. That is why
+`mod_ship_data_process` re-derives every field by hand, and why it can only point art at a
+mesh the engine already knows (`set_ship_data_key`). Prior measurement agrees: for a
+runtime-merged entry the stats take effect and the hull does not.
+
+| | Engine-visible (art, mesh, hull) | sbs_utils-visible (stats, queries, spawn) |
+|---|---|---|
+| merged `extraShipData` file in the mission folder | yes | yes |
+| `merge_mod_ship_yaml` from a mastlib | **no** | yes |
+
+**Grid data is exempt, structurally.** Grid objects are not engine content -
+`grid_rebuild_grid_objects` creates every one at runtime through `grid_spawn`. The engine
+never pre-knows an interior, so grid data has no one-file constraint and can be merged
+from anywhere, including a mastlib zip. That is what makes tier 1 need no build step at
+all.
+
+---
+
+## 4. Who generates the merged file, and when
+
+The file must exist for the engine. **Generating it is plausible** - the open question is
+who does it and at what moment, and that decides whether modding needs a CLI at all.
+
+| Option | Who | When | Cost |
+|---|---|---|---|
+| **A. Build step** | `sbs mod merge` in `sbs_cli` | before ship / before run | a command authors must remember; output is committed and diffable |
+| **B. Runtime generation** | `sbs_utils` at mission start | during load | no CLI at all - **if** the engine reads the file after script init |
+| **C. Generate + reload** | `sbs_utils`, then re-enter the mission | first load | works regardless of read order, but a visible reload |
+
+**Option B hinges entirely on load order** - does the engine read the mission's
+`extraShipData` before or after `script.py` gets control? That is probe 7 (s6), and it is
+the single cheapest question with the largest effect on this design. If B works, tiers 2
+and 3 lose their build step and mods become as easy as addons.
+
+A sane end state is probably **B in dev, A for shipping** - generated live while iterating,
+committed and reviewable in a release. Do not pick before the probe.
+
+**All three options stay inside s1.** Consider them all; none may risk the engine. That
+means: write to a temp file and rename atomically, so a crash mid-write cannot leave a
+truncated `extraShipData`; parse and validate the result before it replaces anything; keep
+the previous file recoverable; and never write while the engine may be mid-read. Option B
+is the one to scrutinize hardest here - generating during load is exactly when a bad write
+is least recoverable.
+
+Requirements regardless of which:
+
+- **Deterministic and diffable.** Same inputs, same bytes.
+- **Stamped.** Source mod and version per entry, so it traces back and nobody hand-edits
+  it.
+- **Key-collision detection.** Two mods claiming `pirate_longbow` is an error at merge
+  time, not silent last-writer-wins.
+- **Staleness detection.** Lint / `--test` fails when the generated file is older than a
+  declared mod's data. A generated file that silently drifts is worse than none.
+- **Validated before write** (s1).
+
+---
+
+## 5. The race mod
+
+The unit of modding should be a **race**, not a file. Interiors are only the first thing a
+race owns.
+
+### 5.1 A race is currently scattered
+
+Adding or changing one means editing at least five files across two repos:
+
+| Where | What is hardcoded |
+|---|---|
+| `LM/fleets/map_common.py` | six `siege_<race>_fleet` tables, 66-77 lines each (~407 total), a seven-branch `if race == "..."` dispatch, and a `random.choice([...])` roster of who can raid |
+| `sbs_utils/procedural/ship_data.py` | `<race>_ship_keys()` / `<race>_starbase_keys()` - **18 hand-written functions**, nine races x two |
+| `sbs_utils/faces.py` | per-race generators, feature maps, a prefix alias table (`ter`/`tor`/`ska`/`kra`/`zim`/`arv`), another roster literal |
+| `data/grid_theme.json` | room vocabulary and icons |
+| `data/grid_data.json` | interiors |
+| `LM/comms/enemy_surrender.mast`, `LM/damage/damage.mast`, `LM/maps/siege_boss.py`, `a2x/comms.py` | scattered `if race ==` cases and `_RACE_WORDS` |
+
+Biomech and the monsters are absent from the fleet tables entirely. That
+`random.choice(["kralien", "torgoth", "arvonian", "skaraan", "ximni", "pirate"])` line *is*
+the roster of raiding factions - a literal, in a mission library, that no mod can extend.
+
+### 5.2 What a race mod owns
+
+Interiors (ASCII layouts, including variants), theme (room vocabulary and icons), the
+fleet composition ladder, the roster of its ship and starbase keys, names and faces.
+Later: shipData entries (tier 2) and art (tier 3).
+
+### 5.3 What it must NOT own
+
+Both are tempting and both are traps.
+
+- **Brains and AI.** `prefab_fleet_raider` carries its behavior tree in metadata. If a race
+  mod may override it, nine races become nine divergent copies of one tree and every AI fix
+  has to be made nine times. A race supplies *composition*, not *behavior*.
+- **Diplomacy.** Who is hostile to whom is a mission's decision - that is what the sides
+  system is for. A race mod declaring its own enemies would fight it directly.
+
+### 5.4 Scope
+
+**Interiors split by race now** - that is `GRID_INTERIORS_PLAN.md` phase 6, and it costs
+nothing because it is only how the migration partitions its output. It establishes the
+boundary while there is no content to move.
+
+**The fleet tables do not move in that plan.** It is a behavior-preserving refactor of
+shipped content used by siege, borderwar, deepstrike, doublefront, singlefront, gamemaster
+and the boss maps. It belongs to LegendaryMissions. It is the natural second payload once
+interiors prove the mod path.
+
+### 5.5 Open: is the boundary `side` or `origin`?
+
+shipData carries both and they disagree. `side` has 16 values; `origin` has 9 and is
+`None` on 111 entries. Terran spans **two** sides - TSN and USFP - which share an interior
+style but not a fleet role.
+
+Fleets, rosters and starbase lookups all key on side-ish names, so **side** is the likelier
+boundary, with a Terran mod covering both. Not settled.
+
+---
+
+## 6. Tier 3 art
+
+Unknown where it goes, and that decides how much work tier 3 is.
+
+- If the engine resolves `artfileroot` against the **mission folder**, art rides along with
+  the mission the way media already does, and tier 3 is "generate + copy files". No mission
+  currently carries ship art - checked, zero `.paxmesh` under `missions/` - so there is no
+  example either way.
+- If it resolves only against `data/graphics/ships/`, tier 3 needs an **installer** writing
+  into the Cosmos install: idempotent, reversible, versioned, modelled on the shared-media
+  pattern (`__lib__/media/<pack>/` - unpack once beside the libraries, named for the
+  version, so two missions pinning different versions each get theirs).
+
+There is prior evidence that `body_N_geom_filename` can be set at runtime while
+`artfileroot` cannot, which may open a third path.
+
+---
+
+## 7. Engine probes
+
+| # | Question | Decides |
+|---|---|---|
+| 5 | Can `body_N_geom_filename` point at mod-installed art at runtime? | s6 |
+| 6 | Does the engine resolve `artfileroot` against the **mission folder**, or only `data/graphics/ships/`? | s6 - "copy files" vs "write into the install" |
+| 7 | **Does the engine read the mission's `extraShipData` before or after `script.py` gets control?** | s4 - whether modding needs a CLI at all |
+
+Probe 7 is the cheapest and the most consequential. It should be run even while this plan
+is deferred, because its answer may simplify the plan out of existence.
+
+---
+
+## 8. Open questions
+
+1. **Where does the pirate mod repo live** - new repo under `artemis-sbs`, or a folder in
+   an existing one?
+2. **Does the pirate mod become the Pirate race mod?** If yes, question 1 answers itself
+   and the pirate repo is the template every other race copies.
+3. **`side` or `origin` as the race boundary** (s5.5).
