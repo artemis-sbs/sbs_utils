@@ -294,30 +294,42 @@ had no interior at all before.
 The s6 stop condition - "systems-only reads as broken rather than minimal" - did not
 fire. Sparse read as sparse.
 
-### Phase 8 - The pirate mod
+### Phase 8 - The pirate mod  [DONE - ENGINE VERIFIED]
 
 Hand-authored content on top of phase 7's floor, in LM's `interiors_pirate` addon
 (which already exists and holds the generated systems-only layouts). A real external mod
 in its own repo comes later, and that is what will prove the out-of-tree path.
 
-| Ship | Grid | Open cells | ~Objects | Beams | Tubes | Hull | Note |
-|---|---|---|---|---|---|---|---|
-| `pirate_fighter` | 7x9 | 30 | ~16 | 2 | 0 | 1 | hull aspect 0.97 vs grid 0.78 - **9x9 fits better** (36 cells) |
-| `pirate_brigantine` | 12x12 | 78 | ~43 | 3 | 2 | 5 | aspect 0.80 - acceptable as-is |
-| `pirate_longbow` | 15x15 | 96 | ~53 | 1 | 1 | 2 | aspect 0.97 - correct as-is |
-| `pirate_strongbow` | 17x17 | 159 | ~87 | 4 | 2 | 4 | aspect 0.69 - **12x17 is truer**; cells 1.4x too wide |
+Open-cell counts, from the ENGINE capture. (An earlier table here said 30/78/96/159 -
+those came from the refuted art approximation and were all too generous.)
+
+| Ship | Grid | Open cells | Authored | Fill | Beams | Tubes |
+|---|---|---|---|---|---|---|
+| `pirate_fighter` | 7x9 | **13** | generated systems-only | - | 2 | 0 |
+| `pirate_brigantine` | 12x12 | **50** | 40 rooms | 80% | 3 | 3 -> 2 |
+| `pirate_longbow` | 15x15 | **69** | 50 rooms | 72% | 1 | 1 |
+| `pirate_strongbow` | 17x17 | **122** | 91 rooms | 75% | 4 | 2 |
+
+`pirate_fighter` keeps its generated layout deliberately: 13 open cells is barely more than
+its own system nodes, so there is nothing to author.
 
 Start with `pirate_brigantine`: 78 cells is enough to be interesting without being a slog,
 and its hull is the cleanest shape of the four.
 
-Room vocabulary re-flavored and carried by the pirate theme - `cargo` becomes a plunder
-hold, `brig` does real work, `galley`/`saloon` weighted up, no `School` or
-`observation-lounge`.
+**The vocabulary needed no theme at all.** `plunder-hold`, `gun-deck`, `tube-deck`,
+`crew-berths`, `captains-cabin`, `surgery`, `mess-deck`, `grog-locker` and `boat-bay` are
+new NAMES carrying STANDARD roles - and since the icon resolves from the last role with a
+theme entry, `plunder-hold` draws the cargo glyph and `surgery` the medical one. Flavor and
+correct art for free; a theme would only be needed to change colors.
 
 **shipData is not edited.** The w/h recommendations are recorded, not applied.
 
-**Exit:** a player flies a brigantine with a working Engineering console. Verified in the
-engine, in a browser, by the user - a green headless run is not evidence for a render.
+**Exit met, verified in the engine 2026-08-04.** The brigantine's authored interior renders
+correctly - the first hand-authored layout to go through the ASCII path end to end, from
+floor plan to `grid_merge_ascii` to the engineering screen.
+
+The validator earned its place during authoring: a miscounted row in the longbow pushed a
+`maneuver` node off the hull, and it named the cell.
 
 ---
 
