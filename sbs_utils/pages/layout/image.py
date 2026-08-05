@@ -51,10 +51,13 @@ class Image(Column):
                 self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
             
         else:
+            # get_layer() carries a `layer:` style, including one cascaded from
+            # the row or section -- an image is THE occluder, so the style key
+            # has to reach it or the whole point is lost.
             self.atlas.send_gui_image(ctx.sbs, event.client_id,
-                    self.region_tag,  self.tag, self.mode,  
+                    self.region_tag,  self.tag, self.mode,
                     self.bounds.left,self.bounds.top,self.bounds.right,self.bounds.bottom,
-                    self.color)
+                    self.color, self.get_layer())
             
     @property
     def value(self):

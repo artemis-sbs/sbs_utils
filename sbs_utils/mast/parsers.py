@@ -307,6 +307,8 @@ class StyleDefinition:
                     ret[key]=StyleDefinition.parse_bounds(value)
                 case "overflow":
                     ret[key]=value
+                case "layer":
+                    ret[key]=value
                 case "background":
                     ret[key]=value
                 case "background-color":

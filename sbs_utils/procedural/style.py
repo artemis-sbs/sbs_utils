@@ -41,7 +41,8 @@ def apply_style_def(style_def, layout_item, task):
     Handles ``area``, ``orientation``, ``row-height``, ``col-width``,
     ``margin``, ``border``, ``padding``, ``color``, ``font``, ``justify``,
     ``background``, ``background-color``, ``background-image``,
-    ``border-image``, ``border-color``, ``click_*``, and ``tag`` keys.
+    ``border-image``, ``border-color``, ``overflow``, ``layer``, ``click_*``,
+    and ``tag`` keys.
 
     Args:
         style_def (dict): Parsed style definition (key → value).
@@ -112,6 +113,22 @@ def apply_style_def(style_def, layout_item, task):
         # clip, so the default (spill) draws over the neighbours -- visibly,
         # which is deliberate: a silent failure never gets fixed.
         layout_item.overflow = str(st).strip().lower()
+
+    st = style_def.get("layer")
+    if st is not None:
+        # Paint order. The engine draws a higher layer over a lower one, so an
+        # opaque backdrop raised above its neighbour's content HIDES a spill
+        # that has already happened -- the only tool here that can, since the
+        # engine has no clip. Layer map + engine evidence: pages/layout/measure.py.
+        # Compiled first, like every other key here, so `layer: {panel_layer};`
+        # interpolates instead of arriving as the literal text and being dropped.
+        st = compile_formatted_string(st)
+        try:
+            layout_item.layer = int(float(str(task.format_string(st)).strip()))
+        except (TypeError, ValueError):
+            # A junk layer must not take the widget down with it; leaving it
+            # unset just means "say nothing", which is the historic behaviour.
+            pass
 
     st = style_def.get("justify")
     if st is not None:

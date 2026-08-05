@@ -461,6 +461,44 @@ def measure_cache_stats():
     return stats
 
 
+# --- draw layers ------------------------------------------------------------
+#
+# `draw_layer` is the engine's paint ORDER (default 1001), NOT a clip. But paint
+# order plus an opaque fill is occlusion, and occlusion is what a clip looks like
+# from the outside -- which is the only way to hide a spill that has already
+# happened, since nothing here can make the engine clip.
+#
+# ENGINE-VERIFIED 2026-08-05 (VisualTestRange, `--map visual_draw_layer`):
+#   * an opaque fill at a HIGHER layer hides text that overflowed into it;
+#   * a fill at a LOWER layer does not -- so the number is respected;
+#   * on a TIE the text wins even though the image was emitted later, so paint
+#     order is decided by the layer, not by emission order;
+#   * a covered widget STILL RECEIVES INPUT -- a button under an opaque fill
+#     shows its hover highlight, so an occluder does not steal the click;
+#   * the engine draws button chrome OUTSIDE the rect it was given. A fill on
+#     the button's exact rect still left a visible rim, so a backdrop must be
+#     sized to the ROW or SECTION, never to the widget it is hiding.
+#
+# The map, written down so a new band cannot silently collide with an old one:
+#
+#   1000    section / row / column backgrounds and borders  (BACKDROP_LAYER)
+#   1001    engine default: content, and button text over a colorbutton
+#   ~1001   buttons themselves -- bracketed in the engine to 500 < button < 5000
+#   20000+  overlay slots (procedural/gui/overlay.py)
+BACKDROP_LAYER = 1000
+
+
+def backdrop_props(image, color, layer=None):
+    """Props for a background / border fill.
+
+    `layer` None keeps the historic 1000, which is UNDER content -- so a
+    backdrop cannot hide a neighbour's spill unless the author raises it.
+    """
+    if layer is None:
+        layer = BACKDROP_LAYER
+    return f"image:{image}; color:{color};draw_layer:{layer};"
+
+
 # --- overflow policies ------------------------------------------------------
 #
 # The engine does not clip: text wider or taller than its rect is drawn anyway,

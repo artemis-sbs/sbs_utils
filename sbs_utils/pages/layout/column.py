@@ -1,4 +1,5 @@
 from .bounds import Bounds
+from .measure import backdrop_props
 from ...helpers import FrameContext
 from ...agent import Agent
 from ...mast.parsers import SQUARE
@@ -68,6 +69,10 @@ class Column:
         # Overflow policy: None/"spill" (draw anyway, the historical
         # behaviour), "shrink", "ellipsis" or "hide". See measure.py.
         self.overflow = None
+        # Paint order. None means "say nothing", so the engine's own defaults
+        # apply and no existing layout moves. See measure.py for the layer map.
+        self.layer = None
+        self.default_layer = None
         
         self.tag = None
         self.region_tag = ""
@@ -188,8 +193,23 @@ class Column:
             return self.default_font
         return self.font
     
-    def get_cascade_props(self,font = False, color = False, justify = False):
+    def get_layer(self):
+        if self.layer is not None:
+            return self.layer
+        return self.default_layer
+
+    def get_cascade_props(self, font = False, color = False, justify = False,
+                          layer = False, message = None):
         props = ""
+        if layer:
+            # Paint order, only when someone asked for one -- a layout that
+            # never says `layer:` emits exactly the props string it always did.
+            lay = self.get_layer()
+            # An author-supplied draw_layer in the widget's own props WINS: two
+            # draw_layer keys in one string is undefined, and the nearer
+            # declaration is the one they meant. Same rule as button.py.
+            if lay is not None and (message is None or "draw_layer" not in message):
+                props += f"draw_layer:{lay};"
         if font:
             prop = self.get_font()
             if prop is not None:
@@ -230,13 +250,13 @@ class Column:
             bb = Bounds(self.bounds)
             bb.grow(self.padding)
             bb.grow(self.border)
-            bb_props = f"image:{self.border_image}; color:{self.border_color};draw_layer:1000;"
+            bb_props = backdrop_props(self.border_image, self.border_color, self.get_layer())
             ctx.sbs.send_gui_image(event.client_id, self.region_tag,
                 "__bb:"+self.tag, bb_props,
                 bb.left, bb.top, bb.right, bb.bottom)
-            
+
         if self.background_color is not None:
-            props = f"image:{self.background_image}; color:{self.background_color};draw_layer:1000;"
+            props = backdrop_props(self.background_image, self.background_color, self.get_layer())
             
             #
             # Bounds include padding, margin for column

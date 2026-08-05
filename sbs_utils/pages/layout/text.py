@@ -11,7 +11,7 @@ class Text(Column):
 
     def _present(self, event):
         ctx = FrameContext.context
-        message = self.message + self.get_cascade_props(True, True, True)
+        message = self.message + self.get_cascade_props(True, True, True, True, self.message)
         if self.overflow:
             # Honour `overflow:` now that the final rect is known. Only widgets
             # that declare a policy pay for this; the default is to spill.

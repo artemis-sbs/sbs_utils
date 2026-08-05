@@ -14,7 +14,7 @@ class Checkbox(Column):
 
     def _present(self, event):
         message = f"state: {self._value};{self.message}"
-        message += self.get_cascade_props(True, True, True)
+        message += self.get_cascade_props(True, True, True, True, message)
         ctx = FrameContext.context
 
         # Icon mode draws a glyph, not a label -- nothing to fit.
