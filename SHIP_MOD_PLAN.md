@@ -323,13 +323,34 @@ simulation was never a threat.
 
 Tier 2 is complete and verified with and without LM. No CLI, no build step, no LM change.
 
-### Still open
+### Tier 3 art: blocked on the engine, not on us
 
-**Does `artfileroot` work now?** Recorded elsewhere as "hull art does NOT apply to a modded
-ship", but that was measured for a **library-side** mod the engine had never heard of. Here
-the engine *does* know the ship from `extraShipData.json`, so the hull may resolve through
-the normal path. This is tier 3 and the next thing to settle; both probes place their three
-ships at x=0/2000/4000 so it can be checked by eye.
+**`artfileroot` resolves relative to `data/graphics/ships`.** Confirmed by the project
+owner; there is a **pending request to the engine team** to change it. So an add-on cannot
+carry its own meshes today - not in its own folder, not in the mission folder, not through
+a relative path in `artfileroot`.
+
+A probe for this was built and then thrown away rather than run: it tested four candidate
+locations (add-on `graphics/ships/`, mission root, mission `media/`, and a path inside
+`artfileroot`), and every one of them is outside `data/graphics/ships`, so all four were
+known-negative before the engine was started. Worth recording as a method note - the
+constraint was cheaper to ask about than to measure, and the probe would have cost a run to
+confirm nothing.
+
+Note also that unresolved art is **not fatal**: the engine draws its `unknown` placeholder.
+So any future art probe must ask *which shape* a ship is, never whether it has a hull - the
+latter answers "yes" even when every candidate failed.
+
+**What the engine change needs to allow**, for whoever picks up that request: an
+`artfileroot` that resolves against the add-on or mission that declared the ship, so a mod
+ships its meshes beside its `mod_ships.json` and never writes into the game install. That
+is the last thing standing between this and a complete mod format - stats, roles, interiors
+and fleet ladders all already declare cleanly.
+
+**Interim, if it is ever needed:** `body_N_geom_filename` points straight at geometry and
+is how LM's monster prefabs render custom meshes, bypassing the shipData hull-art pipeline.
+It is set per spawn rather than declared once, so it does not fit the declarative shape -
+but it is a working path if art cannot wait for the engine.
 
 ---
 
