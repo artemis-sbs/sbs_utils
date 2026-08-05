@@ -38,8 +38,27 @@ everything below.
 
 This is the constraint the whole design turns on.
 
-**The engine only learns ships from `data/shipData.yaml` and one
-`extraShipData.{json,yaml}` in the mission folder.** One file, fixed place, and nothing
+**There is an official example, and it had been sitting in the install unread:**
+`missions_sh/production/missions/legendarymissions/example-extraShipData.json`, beside
+`example-extra_grid_data.json`. Three things come straight off it:
+
+- **The file is `extraShipData.json`** - camelCase - while its grid sibling is
+  `extra_grid_data.json` with underscores. They genuinely are spelled differently, which
+  is why the name was worth checking rather than assuming.
+- **The format is HJSON**, "a more human-usable variant of JSON": the file opens with `//`
+  comments. Plain JSON is valid HJSON, so writing strict JSON is safe.
+- **The sample entry is COMPLETE** - `meshscale`, `radarscale`, `exclusionradius`,
+  `meshrotate`, the `internalmap*` block, `hull_port_sets`. Whether a thinner entry works
+  is unknown, so anything generated should follow the sample's shape.
+
+The grid example is worth reading too: it carries an explicit `icon` and `color` per grid
+object, which the shipped `grid_data.json` does not and `grid_rebuild_grid_objects`
+ignores - the same dead-field story as `scale`.
+
+**The engine only learns ships from `data/shipData.yaml` and one `extraShipData.json`
+in the mission folder.** (`.yaml` is sbs_utils' own convenience: its `load_data` tries
+`.yaml` then `.json`, which is why an early probe run had the LIBRARY seeing an entry the
+engine never did.) One file, fixed place, and nothing
 can contribute to it from a `.mastlib`. Several mods carrying ship entries must therefore
 be **merged into that one file, and that file must physically exist before the engine
 reads it.**
