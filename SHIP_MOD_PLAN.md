@@ -308,17 +308,28 @@ mock populates them.
 Both guarantees held in-engine too: the hand-authored `probe_min_ship` survived the
 rewrite unstamped, and the generated entry carried `#mod`.
 
+### LM does not break it either (engine 1.3.4, 2026-08-05)
+
+`LM_TestRange`'s `PROBE shipData` map ran in Cosmos with LegendaryMissions loaded. Both the
+hand-authored `probe_lm_ship` and the add-on-declared `probe_lm_api_ship` reached the
+engine - `speed_coeff` back as `0.4399999976158142` and `0.6600000262260437`, float32 of
+0.44 and 0.66, with `turn_rate` `None` confirming a real engine run.
+
+**The mission never calls `sim_create()`.** LM's server console owns that call, so an
+add-on's declaration lands with no cooperation from the mission it is dropped into - which
+is the property that makes this usable rather than merely possible. It also means LM's
+`sim_create()` rebuilds the engine's ship table rather than orphaning it, so the discarded
+simulation was never a threat.
+
+Tier 2 is complete and verified with and without LM. No CLI, no build step, no LM change.
+
 ### Still open
 
-1. **Does LM break it?** LM's server console calls `sim_create()` itself, and if the
-   engine's ship table belongs to the simulation that call discards, every LM-based
-   mission throws the data away - which is nearly every real mission. `LM_TestRange`'s
-   `test_shipdata_probe` is staged for exactly this and is now worth running, since a red
-   result there is finally attributable.
-2. **Does `artfileroot` work now?** Recorded elsewhere as "hull art does NOT apply to a
-   modded ship", but that was measured for a **library-side** mod the engine had never
-   heard of. Here the engine *does* know the ship from `extraShipData.json`, so the hull
-   may well resolve. Cheap to check by eye - the three probe ships sit at x=0/2000/4000.
+**Does `artfileroot` work now?** Recorded elsewhere as "hull art does NOT apply to a modded
+ship", but that was measured for a **library-side** mod the engine had never heard of. Here
+the engine *does* know the ship from `extraShipData.json`, so the hull may resolve through
+the normal path. This is tier 3 and the next thing to settle; both probes place their three
+ships at x=0/2000/4000 so it can be checked by eye.
 
 ---
 
