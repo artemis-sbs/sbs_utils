@@ -264,21 +264,37 @@ these keeps the interiors it has today.
 reports 28 errors over the set - exactly the pre-existing off-hull rooms, left alone
 because moving a room is a content decision, not a migration.
 
-### Phase 7 - Systems-only for every hull
+### Phase 7 - Systems-only for every hull  [DONE headless; NEEDS AN ENGINE CHECK]
 
-Generate a systems-only layout for all ~120 interior-less hulls. Derived from shipData
-plus the mask; no hand authoring.
+Generate a systems-only layout for every hull that declares an interior but has none.
+Derived from shipData plus the captured hull map; no hand authoring.
 
-**The highest-value phase here and among the cheapest.** Every unflyable hull gets a
-working Engineering console.
+**The count was 23, not ~120.** The larger figure counted shipData entries without
+interiors, but asteroids, pickups and aliens have no `internalmapw` and correctly have no
+interior at all. The 23 are every Torgoth, Skaraan, Kralien, Biomech and Pirate ship, plus
+`cargo_ship`, `starbase_civil`, `starbase_arvonian`, `starbase_skaraan`,
+`starbase_torgoth`.
 
-**Exit:** a player can fly any hull in shipData with functioning Engineering.
-Spot-verified in the engine across several factions; the generated set checked
-mechanically.
+Done. `cosmos_dev/grid_gen.py` derives the nodes - beams from `hull_port_sets`, tubes from
+`tubecount`, shields per facing, sensors, impulse, maneuver, drive by faction - and places
+them with the zone grammar against the engine's hull map. Counts scale with hull size,
+because a system's node count IS its hit-point pool. Output goes to five new race addons
+(`interiors_torgoth`, `_skaraan`, `_kralien`, `_biomech`, `_pirate`) plus additions to
+`interiors_starbases` and `interiors_usfp`.
+
+Drives are an assumption, not a measurement: Ximni jump, Arvonian none - both matching
+their authored ships - and everything else warps. It decides the Engineering control label
+on hulls nobody has flown yet.
+
+**Exit, headless:** 23 hulls, 468 nodes, zero validator errors, and every one of the **63**
+hulls that declares an interior now has one. **Still needed: an engine check** - fly one
+and look at Engineering. A headless pass is not evidence for a render (s1a).
 
 ### Phase 8 - The pirate mod
 
-Hand-authored content on top of phase 7's floor. ASCII interiors plus a pirate theme.
+Hand-authored content on top of phase 7's floor, in LM's `interiors_pirate` addon
+(which already exists and holds the generated systems-only layouts). A real external mod
+in its own repo comes later, and that is what will prove the out-of-tree path.
 
 | Ship | Grid | Open cells | ~Objects | Beams | Tubes | Hull | Note |
 |---|---|---|---|---|---|---|---|
