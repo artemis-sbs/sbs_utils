@@ -323,49 +323,45 @@ simulation was never a threat.
 
 Tier 2 is complete and verified with and without LM. No CLI, no build step, no LM change.
 
-### Tier 3 art: blocked on the engine, not on us
+### Tier 3 art: the mechanism WORKS on 1.3.5; one engine crash is in the way
 
-**`artfileroot` resolves relative to `data/graphics/ships`.** Confirmed by the project
-owner; there is a **pending request to the engine team** to change it. So an add-on cannot
-carry its own meshes today - not in its own folder, not in the mission folder, not through
-a relative path in `artfileroot`.
+**Engine 1.3.5 added the two things this needed**, and the shape is not what earlier
+guessing here assumed. From the engine team's own working example,
+`data/missions/BeamArcTest/extraShipDataAAA.json`:
 
-**The relative-path escape was tested, and it does not work.** Since `artfileroot` resolves
-relative to `data/graphics/ships` and that is a *path*, a relative one ought to climb out of
-it - `../../missions/<mod>/graphics/ships/God_Phoenix` resolves to a real file on disk. The
-engine does not follow it. Measured on engine 1.3.4 by the VisualTestRange specimen
-`visual_mod_art`, which brackets the question with a positive control (art the engine has)
-and a negative control (a name that exists nowhere): both controls came back correctly and
-differed from each other, and the relative path drew the placeholder.
+```json
+"artfileroot": "tsn_light_cr",
+"artfilepath": "data/missions/BeamArcTest/extraShipGraphicData",
+```
 
-So there is no workaround. The engine change is the only route.
+`artfilepath` is the **FOLDER** and `artfileroot` stays the file's **base name** - they work
+together rather than one replacing the other - and the path is relative to the **exe**
+folder. Alongside it, `sbs.add_extra_ship_data(file, path)` loads the ship data itself
+straight from a mod folder (measured: the engine read `shields [110, 90]` from
+`anime_mods/anime_ships/mod_ships.json` with nothing written into the mission).
 
-Two method notes from getting there. An earlier probe tested four candidate locations
-(add-on folder, mission root, mission `media/`, a path inside `artfileroot`) and was thrown
-away unrun once the `data/graphics/ships` rule was known - all four were known-negative
-before Cosmos started, and asking was cheaper than measuring. And the specimen's first card
-labelled its ships LEFT/MIDDLE/RIGHT, which was wrong: **the frame is mirrored in X**, so
-the ship at `x=-1200` draws on the *right*. The first engine look therefore read as a
-contradiction until the controls resolved it - only one ship can draw a TSN hull, so
-wherever that hull is, that is the control. Judge such a specimen by ship name, never by
-side.
+So a mod carries its own ships AND its own art, and writes nothing into the game install.
+That closes the gap this whole plan was about.
 
-Note also that unresolved art is **not fatal**: the engine draws its `unknown` placeholder.
-So any future art probe must ask *which shape* a ship is, never whether it has a hull - the
-latter answers "yes" even when every candidate failed.
+**1.3.4, for the record:** none of this existed. `artfileroot` resolved only inside
+`data/graphics/ships` and would not walk out of it, measured with controls.
 
-**What the engine change needs to allow**, for whoever picks up that request: an
-`artfileroot` that resolves against the add-on or mission that declared the ship, so a mod
-ships its meshes beside its `mod_ships.json` and never writes into the game install. That
-is the last thing standing between this and a complete mod format - stats, roles, interiors
-and fleet ladders all already declare cleanly.
+**What still blocks it:** generating derived art from a bare `.obj` crashes the engine -
+it writes `<root>1024.png` and dies with an access violation. Art that already has its
+`.paxmesh`/`.pointcube`/`.rawbitmap`/`1024`/`256` set renders fine, which is why the engine
+team's own example never hits it. A mod cannot produce those files, so today a mod cannot
+ship a plain `.obj`. Full write-up and reproducer:
+`VisualTestRange/ENGINE_BUG_derived_art_generation.md`.
 
-**Interim, if it is ever needed:** `body_N_geom_filename` points straight at geometry and
-is how LM's monster prefabs render custom meshes, bypassing the shipData hull-art pipeline.
-It is set per spawn rather than declared once, so it does not fit the declarative shape -
-but it is a working path if art cannot wait for the engine.
+A second crash, probably related: an **unresolvable `artfileroot`** segfaults at render
+where 1.3.4 drew the `unknown` placeholder.
 
----
+**Method note, because it cost several engine runs.** Everything above came from reading
+the engine team's working example. Before that, this was guessed at: `art_file_path` as a
+file rather than a folder, `artfileroot` dropped instead of kept, absolute paths, and two
+different "does it crash" oracles that turned out to measure how *fast* it crashed rather
+than whether. A reference that works beats an experiment designed around a guess - read it
+first.
 
 ## 7. Engine probes
 
