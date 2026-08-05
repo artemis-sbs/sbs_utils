@@ -140,5 +140,32 @@ class TestNpcRaces(unittest.TestCase):
                             f"{race} ships a fleets.yaml but is not in the default")
 
 
+
+class TestMastCanCallThem(unittest.TestCase):
+    """A procedural module is invisible to MAST until it is added to the import list in
+    `mast_sbs/mast_sbs_procedural.py`.
+
+    This is not theoretical. `fleet_tables` shipped without that line: the unit tests
+    passed, the headless conformance run passed, and the first ENGINE run died with a
+    NameError inside the addon that supplies the enemies. Nothing else checks it, because
+    Python code that imports the module directly never notices.
+    """
+
+    def test_the_race_addon_entry_points_are_mast_globals(self):
+        import sys
+        import cosmos_dev.mock.sbs as mock
+        sys.modules.setdefault("sbs", mock)
+        import sbs_utils.mast_sbs.mast_sbs_procedural  # noqa: F401
+        from sbs_utils.mast.mast_globals import MastGlobals
+
+        # Every function a race_*/__init__.mast line calls.
+        for name in ("fleet_table_load_yaml", "fleet_table_get", "fleet_table_has",
+                     "fleet_table_races", "fleet_table_pick_race",
+                     "settings_race_is_npc", "settings_race_is_playable",
+                     "grid_merge_ascii", "grid_get_layout"):
+            self.assertIn(name, MastGlobals.globals,
+                          f"{name} is not callable from MAST - add its module to the "
+                          "import list in mast_sbs/mast_sbs_procedural.py")
+
 if __name__ == "__main__":
     unittest.main()
