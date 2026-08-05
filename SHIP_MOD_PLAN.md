@@ -330,12 +330,25 @@ owner; there is a **pending request to the engine team** to change it. So an add
 carry its own meshes today - not in its own folder, not in the mission folder, not through
 a relative path in `artfileroot`.
 
-A probe for this was built and then thrown away rather than run: it tested four candidate
-locations (add-on `graphics/ships/`, mission root, mission `media/`, and a path inside
-`artfileroot`), and every one of them is outside `data/graphics/ships`, so all four were
-known-negative before the engine was started. Worth recording as a method note - the
-constraint was cheaper to ask about than to measure, and the probe would have cost a run to
-confirm nothing.
+**The relative-path escape was tested, and it does not work.** Since `artfileroot` resolves
+relative to `data/graphics/ships` and that is a *path*, a relative one ought to climb out of
+it - `../../missions/<mod>/graphics/ships/God_Phoenix` resolves to a real file on disk. The
+engine does not follow it. Measured on engine 1.3.4 by the VisualTestRange specimen
+`visual_mod_art`, which brackets the question with a positive control (art the engine has)
+and a negative control (a name that exists nowhere): both controls came back correctly and
+differed from each other, and the relative path drew the placeholder.
+
+So there is no workaround. The engine change is the only route.
+
+Two method notes from getting there. An earlier probe tested four candidate locations
+(add-on folder, mission root, mission `media/`, a path inside `artfileroot`) and was thrown
+away unrun once the `data/graphics/ships` rule was known - all four were known-negative
+before Cosmos started, and asking was cheaper than measuring. And the specimen's first card
+labelled its ships LEFT/MIDDLE/RIGHT, which was wrong: **the frame is mirrored in X**, so
+the ship at `x=-1200` draws on the *right*. The first engine look therefore read as a
+contradiction until the controls resolved it - only one ship can draw a TSN hull, so
+wherever that hull is, that is the control. Judge such a specimen by ship name, never by
+side.
 
 Note also that unresolved art is **not fatal**: the engine draws its `unknown` placeholder.
 So any future art probe must ask *which shape* a ship is, never whether it has a hull - the
