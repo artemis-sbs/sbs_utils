@@ -271,7 +271,9 @@ class Layout(Clickable):
 
     @property
     def parent(self):
-        return self._parent
+        if self._parent is None:
+            return None
+        return self._parent()
         
     @parent.setter
     def parent(self, v):
