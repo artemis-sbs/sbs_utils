@@ -137,7 +137,9 @@ class GuiClient(Agent):
 
         """
         ret = None
-        FrameContext.context.sbs.send_gui_clear(self.client_id, "")
+        # Root clear -> every sub-region this client held is gone. Through
+        # Gui.root_clear so overlay slots find out (Gui.root_epoch).
+        Gui.root_clear(FrameContext.context.sbs, self.client_id)
         # The page revealed underneath must re-establish its widget list: the
         # page that is leaving may well have replaced it.
         Gui.widget_list_sent.pop(self.client_id, None)
@@ -259,6 +261,37 @@ class Gui:
     # nothing. Cleared whenever a client's page stack changes, so a push/pop
     # always re-establishes the list.
     widget_list_sent = {}
+    # client_id -> how many times this client's ROOT region has been cleared.
+    #
+    # A root clear drops every SUB-REGION the client had, and the engine only
+    # honors send_gui_sub_region inside a root clear/complete bracket (see
+    # OVERLAY_PLAN.md). So anything that establishes a sub-region and then
+    # updates it out-of-band -- overlays -- is caching a handle the engine can
+    # revoke at any time, from a code path it never hears about (a page pop, an
+    # error screen). Sending an out-of-band update into a revoked region does
+    # not fail: the widgets re-parent to ROOT, where they are visible and no
+    # clear on the region tag can ever reach them again. This counter is how
+    # that cache stays honest -- establish records the epoch it ran in, and any
+    # later root clear makes the recorded epoch stale.
+    #
+    # Never decreases and is never popped (a reused client id keeps counting up),
+    # so a stale recorded epoch can never coincidentally match again.
+    root_epoch = {}
+
+    @staticmethod
+    def root_clear(sbs, client_id):
+        """Clear a client's ROOT region, recording that it happened.
+
+        Use this rather than a bare ``send_gui_clear(cid, "")`` anywhere in the
+        library. The bookkeeping is the point: see ``Gui.root_epoch``.
+        """
+        Gui.root_epoch[client_id] = Gui.root_epoch.get(client_id, 0) + 1
+        sbs.send_gui_clear(client_id, "")
+
+    @staticmethod
+    def root_epoch_of(client_id):
+        """The client's current root-clear epoch (see ``Gui.root_epoch``)."""
+        return Gui.root_epoch.get(client_id, 0)
 
     @staticmethod
     def server_start_page_class(cls_page):

@@ -617,7 +617,7 @@ class StoryPage(Page):
             message = "".join(self.compiler_errors)
             message = message.replace(";", "~")
             message = "$text: Mast Compiler Errors\n" + message.replace(",", ".")
-            my_sbs.send_gui_clear(event.client_id,"")
+            Gui.root_clear(my_sbs, event.client_id)
             if event.client_id != 0:
                 my_sbs.send_client_widget_list(event.client_id, "", "")
             my_sbs.send_gui_text(event.client_id,"", "error", message,  0,0,100,100)
@@ -653,7 +653,7 @@ class StoryPage(Page):
             message = "".join(self.errors)
             message = message.replace(";", "~")
             message = "$text: Mast Compiler Errors\n" + message.replace(",", ".")
-            my_sbs.send_gui_clear(event.client_id,"")
+            Gui.root_clear(my_sbs, event.client_id)
             if event.client_id != 0:
                 my_sbs.send_client_widget_list(event.client_id, "", "")
             my_sbs.send_gui_text(event.client_id,"", "error", message,  0,0,100,100)
@@ -666,10 +666,20 @@ class StoryPage(Page):
             return
         
         
+        # An overlay slot holding content whose sub-region was revoked by a root
+        # clear from outside this page's own repaint (a page pop, an error
+        # screen). Only "repaint"/"refresh" run present_all, so any other state
+        # would leave the card gone for the rest of its life.
+        if (self.overlays.slots and self.gui_state not in ("repaint", "refresh")
+                and self.overlays.needs_repaint()):
+            self.gui_state = "repaint"
+
         match self.gui_state:
-            
+
             case  "repaint":
-                my_sbs.send_gui_clear(event.client_id,"")
+                # Bumps the root epoch BEFORE present_all below, so the slots
+                # establish into the epoch they will be checked against.
+                Gui.root_clear(my_sbs, event.client_id)
                 #
                 # Only when it CHANGED. This call is how the ENGINE learns which
                 # native widgets a console has, and acting on it means building
@@ -705,7 +715,7 @@ class StoryPage(Page):
                     self.gui_state = "presenting"
                 my_sbs.send_gui_complete(event.client_id,"")
             case  "refresh":
-                my_sbs.send_gui_clear(event.client_id,"")
+                Gui.root_clear(my_sbs, event.client_id)
                 for layout_obj in self.layouts:
                     #layout_obj.calc(self.client_id)
                     layout_obj.invalidate_all()

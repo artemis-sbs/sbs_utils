@@ -16,6 +16,7 @@ import unittest
 
 from cosmos_dev.mock import sbs
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
+from sbs_utils.gui import Gui, GuiClient
 from sbs_utils.mast_sbs.maststorypage import StoryPage
 from sbs_utils.procedural.gui.overlay import (
     overlay_register, overlay_hero, overlay_show, overlay_clear, _pages_for)
@@ -170,6 +171,85 @@ class TestOverlayClear(OverlayTestBase):
         ov.present_all(FakeEvent(0))         # empty slot: not drawn, un-established
         self.assertNotIn(HERO_TAG, self.region_tags_in_order())
         self.assertFalse(ov.slots["center_hero"].established)
+
+
+class TestOverlayRootClearRevokesRegion(OverlayTestBase):
+    """A root clear from OUTSIDE the page's own repaint (a page pop, an error
+    screen) drops every sub-region. The slot must notice: an out-of-band update
+    into a revoked region does not fail, it re-parents the widgets to ROOT where
+    no clear on the region tag can ever reach them again -- a stuck overlay."""
+
+    def _establish(self):
+        ov = self.page.overlays
+        ov.show("center_hero", "test", {"slot": "center_hero", "title": "HI"})
+        ov.present_all(FakeEvent(0))
+        self.assertTrue(ov.slots["center_hero"].established)
+        return ov
+
+    def _foreign_root_clear(self):
+        """A root clear that does NOT run present_all -- i.e. Gui.pop / error page."""
+        Gui.root_clear(FrameContext.context.sbs, 0)
+
+    def test_root_clear_unestablishes_the_slot(self):
+        ov = self._establish()
+        self._foreign_root_clear()
+        self.assertFalse(ov.slots["center_hero"].established)
+
+    def test_show_after_root_clear_repaints_instead_of_dangling_to_root(self):
+        ov = self._establish()
+        self._foreign_root_clear()
+        self.page.gui_state = "presenting"
+        self.rec.clear()
+        ov.show("center_hero", "test", {"slot": "center_hero", "title": "B"})
+
+        # THE bug: no out-of-band write into the revoked region.
+        self.assertNotIn((0, HERO_TAG), self.calls("send_gui_clear"))
+        self.assertFalse([a for a in self.calls("send_gui_text") if a[1] == HERO_TAG])
+        self.assertEqual(self.page.gui_state, "repaint")
+
+    def test_clear_after_root_clear_emits_nothing(self):
+        ov = self._establish()
+        self._foreign_root_clear()
+        self.rec.clear()
+        ov.clear("center_hero")
+        self.assertTrue(ov.slots["center_hero"].is_empty)
+        self.assertFalse(self.rec, "region is already gone; nothing to send")
+
+    def test_repaint_re_establishes_into_the_new_epoch(self):
+        ov = self._establish()
+        self._foreign_root_clear()
+        ov.show("center_hero", "test", {"slot": "center_hero", "title": "B"})
+        self.rec.clear()
+        # the page's own repaint: root clear (bumps the epoch) then present_all
+        Gui.root_clear(FrameContext.context.sbs, 0)
+        ov.present_all(FakeEvent(0))
+
+        self.assertTrue(ov.slots["center_hero"].established)
+        self.assertIn(HERO_TAG, self.region_tags_in_order(), "region re-sent")
+        self.assertTrue([a for a in self.calls("send_gui_text") if a[1] == HERO_TAG])
+
+    def test_page_present_promotes_a_revoked_slot_to_repaint(self):
+        # Nobody shows again, so only the page itself can bring the card back.
+        ov = self._establish()
+        self.assertFalse(ov.needs_repaint())
+        self._foreign_root_clear()
+        self.assertTrue(ov.needs_repaint())
+        self.page.gui_state = "presenting"
+        self.page.present(FakeEvent(0))
+        self.assertTrue(ov.slots["center_hero"].established, "re-established by present")
+
+    def test_empty_slot_does_not_force_a_repaint(self):
+        ov = self._establish()
+        ov.clear("center_hero")
+        self._foreign_root_clear()
+        self.assertFalse(ov.needs_repaint(), "nothing on screen to restore")
+
+    def test_gui_pop_bumps_the_root_epoch(self):
+        before = Gui.root_epoch_of(0)
+        gui = GuiClient(0)
+        gui.page_stack.append(self.page)
+        gui.pop()
+        self.assertGreater(Gui.root_epoch_of(0), before)
 
 
 class TestOverlayOrder(OverlayTestBase):

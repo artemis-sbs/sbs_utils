@@ -1,4 +1,4 @@
-from ..gui import Page
+from ..gui import Page, Gui
 from ..helpers import FrameContext, gui_text_escape
 from ..spaceobject import SpaceObject
 
@@ -14,7 +14,7 @@ class StartPage(Page):
         CID = event.client_id
         SBS = FrameContext.context.sbs
 
-        SBS.send_gui_clear(CID,"")
+        Gui.root_clear(SBS, CID)
         SBS.send_gui_text(
                     CID,"",  "text", self.desc, 25, 30, 99, 90)
         
@@ -47,7 +47,7 @@ class ClientSelectPage(Page):
            self.PLAYER_COUNT == len(players)
 
         if self.state == "choose":
-            SBS.send_gui_clear(CID,"")
+            Gui.root_clear(SBS, CID)
             SBS.send_client_widget_list(event.client_id, "","")
             i = 0
             for console in ["Helm", "Weapons", "Science", "Engineering", "Comms", "Main Screen"]:
@@ -101,7 +101,7 @@ class ClientSelectPage(Page):
                 self.state = "choose"
                 self.present(sim, event)
             case "select":
-                SBS.send_gui_clear(event.client_id,"")
+                Gui.root_clear(SBS, event.client_id)
                 SBS.send_client_widget_list(event.client_id, self.console_name, self.widget_list)
                 self.state = "main"
                 self.present(event)

@@ -305,11 +305,11 @@ class ErrorPage(Page):
         match self.gui_state:
             case  "sim_on":
                 self.gui_state = "blank"
-                SBS.send_gui_clear(event.client_id, "")
+                Gui.root_clear(SBS, event.client_id)
                 SBS.send_gui_complete(event.client_id, "")
 
             case  "show":
-                SBS.send_gui_clear(event.client_id, "")
+                Gui.root_clear(SBS, event.client_id)
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
                 self.gui_state = "presenting"

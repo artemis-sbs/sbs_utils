@@ -214,7 +214,13 @@ class OverlayRegion:
         # sub_region and the content's parent dangles up to root — visible, but
         # not in the slot, so clear can't reach it. So: establish in present_all
         # (full repaint), then out-of-band clear/complete updates the live region.
-        self.established = False
+        #
+        # The root epoch this region was established in (None = never). NOT a
+        # bool, because "established" is not something we get to decide and then
+        # rely on: a root clear from ANY path (a page pop, an error screen, a
+        # console rebuild) revokes the region without telling us. Recording the
+        # epoch turns that into a comparison — see the `established` property.
+        self._epoch = None
         # bumped on every content change; a pending transient dismiss captures it and
         # only fires when it still matches, so re-showing a slot supersedes an older
         # auto-dismiss instead of clearing the newer content.
@@ -223,6 +229,32 @@ class OverlayRegion:
     @property
     def is_empty(self):
         return self.content is None
+
+    @property
+    def established(self):
+        """True only while the engine still holds this sub-region.
+
+        Not a latch — "the root has not been cleared since establish() ran".
+        Updating a revoked region is the failure this guards: the engine does
+        not reject it, it re-parents the widgets to ROOT, where they are on
+        screen and no clear on the region tag can ever reach them again (a
+        stuck overlay). Stale here simply means the next show goes back through
+        a repaint, which re-establishes and re-draws.
+        """
+        if self._epoch is None:
+            return False
+        from ...gui import Gui
+        return self._epoch == Gui.root_epoch_of(self.client_id)
+
+    @established.setter
+    def established(self, value):
+        if not value:
+            self._epoch = None
+            return
+        from ...gui import Gui
+        # Only ever set from establish(), which runs INSIDE the root clear
+        # bracket — so this reads the epoch that clear just bumped to.
+        self._epoch = Gui.root_epoch_of(self.client_id)
 
     def _fill(self, event):
         """Draw the slot's content, or an invisible placeholder when empty.
@@ -315,11 +347,25 @@ class OverlayManager:
 
     def _request_repaint(self):
         """Force a full page repaint so present_all can ESTABLISH the sub-region
-        (establishment is gated on the root clear("")). Used only the first time a
-        slot is shown; subsequent updates go out-of-band."""
+        (establishment is gated on the root clear("")). Used the first time a slot
+        is shown, and whenever a root clear has revoked a live one; subsequent
+        updates go out-of-band."""
         from ...gui import Gui
         self.page.gui_state = "repaint"
         Gui.dirty(self.page.client_id)
+
+    def needs_repaint(self):
+        """True when a slot is holding content the engine no longer has on screen.
+
+        A root clear from outside the page's own repaint (a page pop, an error
+        screen) drops every sub-region. The slot still has content, so nothing
+        will ask for it again -- without this the card just vanishes for the rest
+        of its lifetime. Cheap: almost every page has no slots at all.
+        """
+        for r in self.slots.values():
+            if r.content is not None and not r.established:
+                return True
+        return False
 
     def show(self, slot, kind, content):
         r = self._region(slot)

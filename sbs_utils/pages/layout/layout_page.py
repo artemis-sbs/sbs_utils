@@ -1,6 +1,6 @@
 from .column import Column
 from ...helpers import FrameContext
-from ...gui import Page, get_client_aspect_ratio
+from ...gui import Page, Gui, get_client_aspect_ratio
 from .layout import Layout
 
 
@@ -27,7 +27,7 @@ class LayoutPage(Page):
         ctx = FrameContext.context
         match self.gui_state:
             case  "repaint":
-                ctx.sbs.send_gui_clear(event.client_id, "")
+                Gui.root_clear(ctx.sbs, event.client_id)
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
                 self.gui_state = "presenting"
