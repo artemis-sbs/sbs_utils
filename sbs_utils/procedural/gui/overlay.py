@@ -261,11 +261,18 @@ class OverlayRegion:
 
         The engine only swaps the back buffer forward on `complete` when it holds
         SOMETHING; an empty back buffer isn't swapped (stale content stays). So an
-        empty slot still emits one placeholder (a space renders nothing)."""
+        empty slot still emits one placeholder (a space renders nothing).
+
+        The placeholder is deliberately TINY rather than filling the region. An empty
+        slot is now kept established (see present_all), so this widget is on screen
+        for as long as the mission runs -- and `input: passthrough` is plumbed but not
+        yet honored by the engine, so a full-screen one sitting at draw_layer 30000
+        over a main screen is a hit-test hazard waiting to happen. A 1% corner is
+        still "something" for the buffer swap without covering anything."""
         if self.content is None:
             FrameContext.context.sbs.send_gui_text(
                 event.client_id, self.local_region_tag, f"{self.tag_prefix}_blank",
-                "$text:` `;", 0.0, 0.0, 100.0, 100.0)
+                "$text:` `;", 0.0, 0.0, 1.0, 1.0)
         else:
             self._build_content(event)
 
@@ -410,16 +417,24 @@ class OverlayManager:
 
     def present_all(self, event):
         """Called inside the page's repaint (after root clear("")), so this is
-        where sub-regions get ESTABLISHED. Draw every slot that has content in
-        draw_layer order (low → high so higher slots emit last). Empty slots are
-        dropped by the root clear and marked un-established so a later show
-        re-establishes them via a repaint."""
+        where sub-regions get ESTABLISHED. Every known slot is re-established in
+        draw_layer order (low → high so higher slots emit last); empty ones get
+        only the invisible placeholder.
+
+        EMPTY SLOTS ARE ESTABLISHED TOO, and that is the point. Establishment is
+        gated on a repaint, so a slot left un-established meant the NEXT card on
+        this console had to wait for one -- while a console that happened not to
+        have repainted since still had its region live and updated instantly. Same
+        card, two consoles, different arrival, decided by unrelated repaint
+        history: the out-of-sync opening cards. Keeping the regions live makes
+        every show after the first out-of-band everywhere, so they land together.
+
+        Only slots the mission has actually used exist here (they are created
+        lazily), so this is a handful of commands per repaint, not one per
+        declared slot."""
         for r in sorted(self.slots.values(), key=lambda r: r.draw_layer):
-            if r.content is not None:
-                _dbg(f"present_all establish+draw slot={r.slot}")
-                r.establish(event)
-            else:
-                r.established = False
+            _dbg(f"present_all establish{'+draw' if r.content is not None else ''} slot={r.slot}")
+            r.establish(event)
 
 
 # --- Procedural API ----------------------------------------------------------
@@ -551,6 +566,113 @@ def _on_page(page, fn):
         fn(page.overlays)
 
 
+# --- Late joiners ------------------------------------------------------------
+# An overlay resolves its audience WHEN CALLED, and at mission start the crew is
+# still taking consoles: `linked_to(ship, "consoles")` returns whoever has linked
+# so far. A card fired a moment early therefore reaches some main screens and not
+# others -- and the ones it missed get NOTHING, not a late copy, with nothing
+# logged. That is the other half of the out-of-sync opening cards, and the worse
+# half, because no amount of waiting fixes it.
+#
+# So a live overlay is remembered with what it was addressed to, and that is
+# re-resolved while it is up. A console that joins the audience during the card's
+# lifetime gets it, with the REMAINING time, so it still lifts everywhere at the
+# same moment.
+#
+# WHAT ACTUALLY RE-RESOLVES, precisely, because `role(...)` returns a SNAPSHOT set
+# and no amount of storing it changes that:
+#   - a SHIP in `to` -> linked_to(ship, "consoles") is looked up again, so a console
+#     that links to its ship after the card fired is picked up. This is the case
+#     that matters: it is what `to=role("__player__")` resolves to.
+#   - the `consoles=` role string -> re-applied, so a console that gains the
+#     "mainscreen" role later is picked up.
+# A ship that did not EXIST when the card fired is not, and that is fine — the
+# complaint is consoles arriving, not ships.
+#
+# Keyed by slot: a slot holds one thing at a time, which is the rule the regions
+# already follow.
+_LIVE = {}                       # slot -> {"kind","content","to","consoles","expires"}
+_CATCHUP = {"task": None}
+CATCHUP_INTERVAL = 1.0           # a console linking up is a human-timescale event
+
+
+def _live_now():
+    return FrameContext.sim_seconds or 0
+
+
+def _live_set(slot, kind, content, to, consoles, seconds=None, replay=None):
+    """Remember an overlay as live so late joiners get it.
+
+    ``replay(page, remaining)`` overrides how it is delivered to one late console —
+    needed by kinds whose presentation is measured against the SCREEN (the split
+    single-line kinds), where replaying a stored content dict would hand the new
+    console a layout computed for somebody else's width.
+    """
+    _LIVE[slot] = {"kind": kind, "content": content, "to": to, "consoles": consoles,
+                   "expires": (_live_now() + seconds) if seconds and seconds > 0 else None,
+                   "replay": replay}
+    _live_start()
+
+
+def _live_drop(slot=None):
+    if slot is None:
+        _LIVE.clear()
+    else:
+        _LIVE.pop(slot, None)
+
+
+def _live_start():
+    if _CATCHUP["task"] is not None or not _LIVE:
+        return
+    from ...tickdispatcher import TickDispatcher
+    _CATCHUP["task"] = TickDispatcher.do_interval(_live_catchup, CATCHUP_INTERVAL)
+
+
+def overlay_live_clear():
+    """Drop every live-overlay record and the catch-up ticker (mission reset).
+
+    Registered in handlerhooks' reset ledger. The ticker itself is already dropped
+    by TickDispatcher.clear(), but the HANDLE has to go with it or _live_start()
+    sees a task that no longer runs and never schedules a new one — the "already
+    scheduled" latch that outlives the dispatcher."""
+    _LIVE.clear()
+    _CATCHUP["task"] = None
+
+
+def _live_catchup(t):
+    """Deliver every live overlay to consoles that have since joined its audience."""
+    if not _LIVE:
+        t.stop()
+        _CATCHUP["task"] = None
+        return
+    now = _live_now()
+    for slot in list(_LIVE.keys()):
+        rec = _LIVE.get(slot)
+        if rec is None:
+            continue
+        expires = rec["expires"]
+        if expires is not None and now >= expires:
+            _live_drop(slot)
+            continue
+        # the REMAINING time, so the card lifts everywhere together rather than
+        # hanging on a late console for a full fresh lifetime
+        remaining = None if expires is None else expires - now
+        for page in _pages_for(rec["to"], rec["consoles"]):
+            r = page.overlays.slots.get(slot)
+            if r is not None and r.content is not None:
+                continue                     # this console already has it
+            if rec["replay"] is not None:
+                rec["replay"](page, remaining)
+                continue
+            # default args, not a closure over the loop variables — the for-loop trap
+            _on_page(page, lambda ov, s=slot, k=rec["kind"], c=rec["content"]:
+                     ov.show(s, k, c))
+            if remaining is not None:
+                nr = page.overlays.slots.get(slot)
+                if nr is not None:
+                    _schedule_dismiss(page, slot, nr.generation, remaining)
+
+
 def overlay_show(slot, kind, to=None, consoles=None, **content):
     """Show an overlay in ``slot`` using content builder ``kind``.
 
@@ -564,15 +686,24 @@ def overlay_show(slot, kind, to=None, consoles=None, **content):
         consoles (str, optional): narrow the audience to consoles with these roles,
             e.g. ``"mainscreen"``.
         **content: fields passed through to the builder.
+
+    A console that joins the audience while this is still up gets it too — see
+    the late-joiner note above. ``to=None`` means "the console calling", which has
+    no audience to join, so it is not tracked.
     """
     for page in _pages_for(to, consoles):
         _on_page(page, lambda ov: ov.show(slot, kind, content))
+    if to is not None:
+        _live_set(slot, kind, dict(content), to, consoles)
 
 
 def overlay_clear(slot=None, to=None, consoles=None):
     """Clear one slot (or all slots if ``slot`` is None) on the ``to`` targets."""
     for page in _pages_for(to, consoles):
         _on_page(page, lambda ov: ov.clear(slot))
+    # Taking a card down means taking it down, including for anyone who has not
+    # arrived yet - otherwise the catch-up would put it straight back.
+    _live_drop(slot)
 
 
 # --- Signal bridge -----------------------------------------------------------
@@ -664,6 +795,11 @@ def _schedule_dismiss(page, slot, gen, seconds):
         r = page.overlays.slots.get(slot)
         want = gen() if callable(gen) else gen
         if r is not None and r.generation == want and r.content is not None:
+            # This lifetime has run out for everyone, not just this page, so retire
+            # the late-joiner record here rather than leaving it to expire on its own
+            # clock - otherwise the catch-up could hand the card to a console
+            # arriving in the gap between the two.
+            _live_drop(slot)
             _on_page(page, lambda ov: ov.clear(slot))
 
     return TickDispatcher.do_once(_fire, seconds)
@@ -675,6 +811,10 @@ def _show_transient(slot, kind, to, seconds, content, consoles=None):
     the timer fires supersedes it instead of clearing the newer content."""
     overlay_show(slot, kind, to=to, consoles=consoles, **content)
     if seconds and seconds > 0:
+        # overlay_show registered it as sticky; give the record the lifetime, so a
+        # late joiner gets the REMAINING time rather than a fresh full one.
+        if to is not None:
+            _live_set(slot, kind, dict(content), to, consoles, seconds)
         for page in _pages_for(to, consoles):
             r = page.overlays.slots.get(slot)
             if r is not None:
@@ -875,6 +1015,11 @@ def _start_text_cycle(page, slot, kind, fields, field, segments, dwell, loop):
         _on_page(page, lambda ov: ov.show(slot, kind, data))
         r = page.overlays.slots.get(slot)
         state["gen"] = r.generation if r is not None else None
+        # Keep the late-joiner record on the segment actually showing, or a console
+        # arriving mid-sequence would be handed part one again.
+        rec = _LIVE.get(slot)
+        if rec is not None:
+            rec["content"] = data
 
     def _advance(t):
         r = page.overlays.slots.get(slot)
@@ -885,6 +1030,7 @@ def _start_text_cycle(page, slot, kind, fields, field, segments, dwell, loop):
         if state["i"] >= len(segments):
             if not loop:
                 t.stop()
+                _live_drop(slot)          # played through: nothing left to catch up to
                 _on_page(page, lambda ov: ov.clear(slot))
                 return
             state["i"] = 0
@@ -901,46 +1047,66 @@ def _start_text_cycle(page, slot, kind, fields, field, segments, dwell, loop):
     return state
 
 
+def _show_one_page_cycled(page, slot, kind, seconds, fields, field, font,
+                          cycle, dwell, loop, width_frac):
+    """Show a single-line overlay on ONE page, splitting if it will not fit there.
+
+    Per page because "does it fit" is a property of that screen. Returns True if
+    the text had to be split. Also the late-joiner replay: a console that arrives
+    while the banner is up runs exactly this, measured against ITS screen.
+    """
+    text = fields.get(field, "")
+    # PER CLIENT too: a kind whose share depends on a square widget depends on
+    # that screen's aspect ratio, so the fraction is resolved here rather than
+    # once for everybody.
+    frac = width_frac
+    if frac is None:
+        frac = _KIND_TEXT_WIDTH.get(kind, 1.0)
+        if callable(frac):
+            frac = frac(page.client_id, slot)
+    segments = (_split_to_fit(page.client_id, slot, text, font, frac)
+                if cycle else [text])
+    if len(segments) <= 1:
+        data = dict(fields)
+        data[field] = segments[0] if segments else text
+        _on_page(page, lambda ov: ov.show(slot, kind, data))
+        if seconds and seconds > 0:
+            r = page.overlays.slots.get(slot)
+            if r is not None:
+                _schedule_dismiss(page, slot, r.generation, seconds)
+        return False
+
+    do_loop = (seconds is None) if loop is None else loop
+    state = _start_text_cycle(page, slot, kind, fields, field, segments, dwell, do_loop)
+    if seconds and seconds > 0:
+        # FOLLOW the cycle's generation instead of freezing the first segment's.
+        # Every segment repaints the slot and bumps it, so a frozen match went
+        # stale the moment part two appeared and the dismiss then declined to
+        # fire -- a banner given a lifetime stayed up forever, but only once its
+        # text was long enough to split.
+        _schedule_dismiss(page, slot, lambda: state["gen"], seconds)
+    return True
+
+
 def _show_maybe_cycled(slot, kind, to, consoles, seconds, fields, field, font,
                        cycle, dwell, loop, width_frac=None):
     """Show a single-line overlay, splitting into timed parts when it will not fit.
 
     The split is PER CLIENT, because "does it fit" depends on that screen's width.
     """
-    text = fields.get(field, "")
-    pages = _pages_for(to, consoles)
     cycled_any = False
-    for page in pages:
-        # PER CLIENT too: a kind whose share depends on a square widget depends
-        # on that screen's aspect ratio, so the fraction is resolved here rather
-        # than once for everybody.
-        frac = width_frac
-        if frac is None:
-            frac = _KIND_TEXT_WIDTH.get(kind, 1.0)
-            if callable(frac):
-                frac = frac(page.client_id, slot)
-        segments = (_split_to_fit(page.client_id, slot, text, font, frac)
-                    if cycle else [text])
-        if len(segments) <= 1:
-            data = dict(fields)
-            data[field] = segments[0] if segments else text
-            _on_page(page, lambda ov: ov.show(slot, kind, data))
-            if seconds and seconds > 0:
-                r = page.overlays.slots.get(slot)
-                if r is not None:
-                    _schedule_dismiss(page, slot, r.generation, seconds)
-            continue
-        cycled_any = True
-        do_loop = (seconds is None) if loop is None else loop
-        state = _start_text_cycle(page, slot, kind, fields, field, segments,
-                                  dwell, do_loop)
-        if seconds and seconds > 0:
-            # FOLLOW the cycle's generation instead of freezing the first
-            # segment's. Every segment repaints the slot and bumps it, so a frozen
-            # match went stale the moment part two appeared and the dismiss then
-            # declined to fire -- a banner given a lifetime stayed up forever, but
-            # only once its text was long enough to split.
-            _schedule_dismiss(page, slot, lambda: state["gen"], seconds)
+    for page in _pages_for(to, consoles):
+        if _show_one_page_cycled(page, slot, kind, seconds, fields, field, font,
+                                 cycle, dwell, loop, width_frac):
+            cycled_any = True
+    if to is not None:
+        # Replay rather than a stored content dict: the split is per screen, so a
+        # late console has to be measured on its own, not handed whatever the
+        # first console's width happened to produce.
+        def _replay(page, remaining, _f=dict(fields)):
+            _show_one_page_cycled(page, slot, kind, remaining, _f, field, font,
+                                  cycle, dwell, loop, width_frac)
+        _live_set(slot, kind, dict(fields), to, consoles, seconds, replay=_replay)
     return cycled_any
 
 

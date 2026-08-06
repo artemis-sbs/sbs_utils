@@ -118,6 +118,9 @@ def reset_mission_state():
     _PLAYING.clear()
     rundown_clear()     # shots AND both desks - a stale program audience would
                         # aim the next mission's punches at dead client ids
+    overlay_live_clear()  # live overlays awaiting late joiners; the catch-up ticker
+                          # is dropped by TickDispatcher.clear() above, and a record
+                          # left behind would re-deliver last mission's card
     amd_cutscene_clear()  # declared scenes/rundowns AND the cast bindings
     landmarks_registry_clear()  # declared landmark records an `Action:` line places by name
     lore_clear()                # Library sources registered by addons
@@ -209,6 +212,8 @@ register_reset_state("cutscenes",         lambda: len(_CUTSCENES))
 register_reset_state("cutscenes playing", lambda: len(_PLAYING))
 from .procedural.gui.rundown import _SHOTS as _RUNDOWN_SHOTS, rundown_clear
 register_reset_state("rundown shots",     lambda: len(_RUNDOWN_SHOTS))
+from .procedural.gui.overlay import _LIVE as _OVERLAY_LIVE, overlay_live_clear
+register_reset_state("overlays live",     lambda: len(_OVERLAY_LIVE))
 from .procedural.amd_cutscene import (CUTSCENE_AMD, RUNDOWN_AMD, CUTSCENE_CAST,
                                       amd_cutscene_clear)
 register_reset_state("amd cutscenes",     lambda: len(CUTSCENE_AMD))

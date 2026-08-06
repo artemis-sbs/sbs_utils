@@ -162,15 +162,56 @@ class TestOverlayClear(OverlayTestBase):
         self.assertEqual(len(texts), 1, "just the placeholder")
         self.assertTrue(texts[0][2].endswith("_blank"), "placeholder tag")
 
-    def test_present_all_drops_empty_slot_and_unestablishes(self):
+    def test_present_all_keeps_an_empty_slot_established(self):
+        # An empty slot is re-established (placeholder only, no content) rather than
+        # dropped -- see test_second_card_costs_no_repaint for why.
         ov = self.page.overlays
         ov.show("center_hero", "test", {"slot": "center_hero", "title": "HI"})
         ov.present_all(FakeEvent(0))
         ov.clear("center_hero")
         self.rec.clear()
-        ov.present_all(FakeEvent(0))         # empty slot: not drawn, un-established
-        self.assertNotIn(HERO_TAG, self.region_tags_in_order())
-        self.assertFalse(ov.slots["center_hero"].established)
+        ov.present_all(FakeEvent(0))
+        self.assertIn(HERO_TAG, self.region_tags_in_order(), "region re-established")
+        texts = [a for a in self.calls("send_gui_text") if a[1] == HERO_TAG]
+        self.assertEqual(len(texts), 1, "placeholder only")
+        self.assertTrue(texts[0][2].endswith("_blank"))
+        self.assertTrue(ov.slots["center_hero"].established)
+
+    def test_empty_placeholder_does_not_cover_the_screen(self):
+        # It now lives for the whole mission, and `input: passthrough` is not yet
+        # honored by the engine, so a full-screen one at draw_layer 30000 over a main
+        # screen would be a hit-test hazard.
+        ov = self.page.overlays
+        ov.show("fullscreen", "test", {"slot": "fullscreen", "title": "X"})
+        ov.present_all(FakeEvent(0))
+        ov.clear("fullscreen")
+        self.rec.clear()
+        ov.present_all(FakeEvent(0))
+        blank = [a for a in self.calls("send_gui_text")
+                 if a[1] == "ovl_fullscreen$$" and a[2].endswith("_blank")][0]
+        left, top, right, bottom = blank[4], blank[5], blank[6], blank[7]
+        self.assertLess(right - left, 5.0, "placeholder is a corner, not the screen")
+        self.assertLess(bottom - top, 5.0)
+
+    def test_second_card_costs_no_repaint(self):
+        # THE out-of-sync fix. Establishment is gated on a repaint, so a slot left
+        # un-established made the NEXT card wait for one -- while a console that
+        # happened not to have repainted since still had a live region and updated
+        # instantly. Same card, two consoles, arrival decided by unrelated repaint
+        # history. Now every show after the first is out-of-band everywhere.
+        ov = self.page.overlays
+        ov.show("center_hero", "test", {"slot": "center_hero", "title": "one"})
+        ov.present_all(FakeEvent(0))
+        ov.clear("center_hero")
+        ov.present_all(FakeEvent(0))          # a repaint while the slot is empty
+        self.page.gui_state = "presenting"
+        self.rec.clear()
+
+        ov.show("center_hero", "test", {"slot": "center_hero", "title": "two"})
+        self.assertEqual(self.page.gui_state, "presenting", "no repaint requested")
+        self.assertFalse(self.sub_regions(), "out-of-band, no sub_region")
+        self.assertIn((0, HERO_TAG), self.calls("send_gui_clear"))
+        self.assertNotIn((0, ""), self.calls("send_gui_clear"), "no page repaint")
 
 
 class TestOverlayRootClearRevokesRegion(OverlayTestBase):
@@ -855,6 +896,123 @@ class TestOverlayToTargeting(unittest.TestCase):
         ov.present_all(FakeEvent(1001))          # establish
         overlay_clear("center_hero", to=1001)
         self.assertTrue(ov.slots["center_hero"].is_empty)
+
+
+class TestOverlayLateJoiners(TestOverlayToTargeting):
+    """An overlay resolves its audience WHEN CALLED, and at mission start the crew is
+    still taking consoles. A card fired a moment early reached some main screens and
+    not others -- and the ones it missed got NOTHING, not a late copy. So a live card
+    is re-resolved against its audience EXPRESSION while it is up."""
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.tickdispatcher import TickDispatcher
+        from sbs_utils.procedural.gui.overlay import overlay_live_clear
+        TickDispatcher.clear()
+        overlay_live_clear()
+        self.addCleanup(overlay_live_clear)
+
+    def setUpShip(self):
+        """A player ship with ONE console linked — the mission-start situation, where
+        the rest of the crew has not taken theirs yet. `to=<ship>` is what
+        `to=role("__player__")` resolves to, and it is looked up again on catch-up."""
+        from sbs_utils.procedural.links import link
+        from sbs_utils.procedural.query import to_object
+        from sbs_utils.procedural.spawn import player_spawn
+        ship = to_object(player_spawn(0, 0, 0, "Artemis", "tsn", "tsn_light_cruiser"))
+        link(ship.id, "consoles", 1001)
+        return ship
+
+    def _catchup(self):
+        from sbs_utils.procedural.gui.overlay import _CATCHUP
+        t = _CATCHUP["task"]
+        self.assertIsNotNone(t, "a live overlay arms the catch-up ticker")
+        t.cb(t)
+
+    def test_console_linking_late_gets_the_live_card(self):
+        from sbs_utils.procedural.links import link
+        ship = self.setUpShip()
+        overlay_show("center_hero", "test", to=ship.id, title="CHAPTER ONE")
+        self.assertIn("center_hero", self.pages[1001].overlays.slots)
+        self.assertNotIn("center_hero", self.pages[1002].overlays.slots)
+
+        link(ship.id, "consoles", 1002)          # 1002 takes its console late
+        self._catchup()
+        self.assertIn("center_hero", self.pages[1002].overlays.slots)
+        self.assertEqual(
+            self.pages[1002].overlays.slots["center_hero"].content["title"],
+            "CHAPTER ONE")
+
+    def test_console_gaining_the_narrowing_role_late_gets_it(self):
+        # big_message's other half: to=<ships>, consoles="mainscreen". A console
+        # already linked but not yet flagged a main screen must be picked up too.
+        from sbs_utils.agent import Agent
+        from sbs_utils.procedural.links import link
+        ship = self.setUpShip()
+        link(ship.id, "consoles", 1002)
+        overlay_show("center_hero", "test", to=ship.id, consoles="mainscreen",
+                     title="CHAPTER ONE")
+        self.assertIn("center_hero", self.pages[1001].overlays.slots)
+        self.assertNotIn("center_hero", self.pages[1002].overlays.slots)
+
+        Agent.get(1002).add_role("mainscreen")
+        self._catchup()
+        self.assertIn("center_hero", self.pages[1002].overlays.slots)
+
+    def test_late_console_is_not_given_a_fresh_full_lifetime(self):
+        from sbs_utils.procedural.links import link
+        from sbs_utils.procedural.gui.overlay import _LIVE, _show_transient
+        ship = self.setUpShip()
+        _show_transient("center_hero", "test", ship.id, 8, {"title": "CH1"})
+        expires = _LIVE["center_hero"]["expires"]
+        self.assertIsNotNone(expires, "a timed card records when it lifts")
+
+        link(ship.id, "consoles", 1002)
+        self._catchup()
+        # the expiry is ABSOLUTE, so the late console's dismiss comes off the same
+        # moment rather than restarting the clock — it lifts everywhere together
+        self.assertEqual(_LIVE["center_hero"]["expires"], expires)
+        self.assertIn("center_hero", self.pages[1002].overlays.slots)
+
+    def test_a_cleared_card_is_not_re_delivered(self):
+        from sbs_utils.procedural.links import link
+        from sbs_utils.procedural.gui.overlay import _LIVE, _CATCHUP
+        ship = self.setUpShip()
+        overlay_show("center_hero", "test", to=ship.id, title="CH1")
+        overlay_clear("center_hero", to=ship.id)
+        self.assertNotIn("center_hero", _LIVE, "taking it down means down for everyone")
+
+        link(ship.id, "consoles", 1002)
+        if _CATCHUP["task"] is not None:
+            _CATCHUP["task"].cb(_CATCHUP["task"])
+        r = self.pages[1002].overlays.slots.get("center_hero")
+        self.assertTrue(r is None or r.is_empty)
+
+    def test_catchup_does_not_disturb_a_console_that_has_it(self):
+        ship = self.setUpShip()
+        overlay_show("center_hero", "test", to=ship.id, title="CH1")
+        ov = self.pages[1001].overlays
+        ov.present_all(FakeEvent(1001))
+        gen = ov.slots["center_hero"].generation
+        self._catchup()
+        self.assertEqual(ov.slots["center_hero"].generation, gen,
+                         "no redundant repaint of a console already showing it")
+
+    def test_to_none_is_not_tracked(self):
+        # "the console calling" has no audience for anyone to join.
+        from sbs_utils.procedural.gui.overlay import _LIVE, _CATCHUP
+        overlay_show("center_hero", "test", title="LOCAL")
+        self.assertEqual(_LIVE, {})
+        self.assertIsNone(_CATCHUP["task"])
+
+    def test_ticker_stops_when_nothing_is_live(self):
+        from sbs_utils.procedural.gui.overlay import _CATCHUP
+        ship = self.setUpShip()
+        overlay_show("center_hero", "test", to=ship.id, title="CH1")
+        overlay_clear("center_hero", to=ship.id)
+        t = _CATCHUP["task"]
+        t.cb(t)
+        self.assertIsNone(_CATCHUP["task"], "ticker retires itself")
 
 
 if __name__ == "__main__":
