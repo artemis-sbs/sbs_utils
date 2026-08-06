@@ -403,6 +403,19 @@ class TestCallouts(unittest.TestCase):
         self.assertEqual(styles[2]["background"], _CALLOUT_KINDS["warning"]["background"])
         self.assertEqual(styles[1]["background"], _CALLOUT_KINDS["warning"]["background"])
 
+    def test_title_font_actually_wins(self):
+        """A style string is LAST-WINS (`split_props`). Prepending the title's font
+        let the kind's own `font:` override it, so the title rendered at body size -
+        emphasis present in the source and absent on screen. Assert the EFFECTIVE
+        font rather than the string, which is what made this invisible."""
+        from sbs_utils.helpers import split_props
+        _text, styles = amd_callout_render(self.SRC)
+        title_font = split_props(styles[1]["style"], "font").get("font")
+        body_font = split_props(styles[2]["style"], "font").get("font")
+        self.assertEqual(title_font, "gui-3")
+        self.assertEqual(body_font, "gui-2")
+        self.assertNotEqual(title_font, body_font)
+
     def test_two_blocks_do_not_merge(self):
         src = "> [!NOTE] One\n> body\n> [!TIP] Two\n> body\n"
         kinds = [b["kind"] for b in amd_callout_blocks(src)]

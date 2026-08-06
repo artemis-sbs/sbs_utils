@@ -112,7 +112,11 @@ def amd_callout_render(text):
         title = block["title"] or block["kind"].title()
         out[block["start"]] = title
         head = dict(base)
-        head["style"] = _TITLE_EXTRA + base["style"]
+        # APPENDED, not prepended: a style string is last-wins (`split_props`), so a
+        # kind's own `font:gui-2;` would override a leading `font:gui-3;` and the
+        # title would silently render at body size - the emphasis present in the
+        # source and absent on screen.
+        head["style"] = base["style"] + _TITLE_EXTRA
         styles[block["start"]] = head
         for offset, body_line in enumerate(block["lines"], start=1):
             out[block["start"] + offset] = body_line
