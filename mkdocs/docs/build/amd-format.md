@@ -107,6 +107,141 @@ fence, and one left open at the end of the file is reported.
 
 ---
 
+## Writing the body
+
+Below the fence is your prose, and **a line the format does not recognize is prose,
+always**. That rule is the reason it is safe to keep adding to this list: a sentence you
+wrote last year cannot change meaning because a new build learned a new mark. It is also
+why every mark below is unmistakable — a whole line starting with a specific character,
+never a guess about how you were writing.
+
+### `= ` — a note to yourself
+
+What a beat is *for*, written for you and never shown to a player:
+
+```amd
+### [Identify the Kidnapper](trail)
+= Midpoint. The crew learns Florbin is alive; raises stakes before the boarding.
+---
+Starts when: revealed
+Done when: signal suspect_identified
+---
+Follow the cargo trail: interview stations and bio-scan suspect holds.
+```
+
+It shows in hover, in the Story Outline and on the Timeline, so the shape of your story
+is readable without opening every record. The space after `=` is required — `=$name` is
+still a [line style](#writing-values).
+
+### `/* ... */` — cut, not deleted
+
+You cut scenes far more often than lines, and you want them back next week:
+
+```amd
+/*
+### [The Casino Detour](detour)
+---
+Starts when: revealed
+---
+Maybe next draft.
+*/
+```
+
+Everything between the marks is gone from the mission — heading, fence and all — and
+still sitting in the file. `//` still comments a single line.
+
+### `[[key]]` — linking from inside prose
+
+Prose can point at other records:
+
+```amd
+Talk to [[cmdr_vell]] before you reach [[ds1|the station]].
+```
+
+A bare `[[key]]` shows that record's display name; `[[key|your words]]` shows your words.
+These are real references, so **Find All References**, **Rename** and the **Story Graph**
+all see them.
+
+A link to something you have not written yet is not an error — it is a note to self:
+
+```
+$ sbs lint --missing
+3 thing(s) referenced but not written yet:
+  cmdr_vell
+      linked from `brief`   story.amd:6
+```
+
+So you can draft a whole mission as prose, link freely to scenes that do not exist, and
+let the linter hand you the list of what to write next. In the editor the same targets
+get a **Create this record** quick fix.
+
+### `@Speaker` — a scene that holds a conversation
+
+A dialogue scene used to have one speaker, named in its fence. Put the cue in the body
+and one scene can hold a whole exchange:
+
+```amd
+# [The Standoff](standoff)
+---
+Dialogue
+When: comms
+---
+@Ashfang
+% You're a long way from friends, captain.
+% Brave or stupid, flying in here.
+
+@Vell (comms)
+(shaken)
+He means it, captain.
+
+- [Apologize](ashfang_backoff)
+- [Offer a cut](ashfang_deal) if credits >= 200 ; costs 200 credits
+```
+
+- `@Name` names who speaks. It matches a character record, so `@Ashfang` and `@ashfang`
+  are the same person, and a name nobody defines is reported.
+- `(shaken)` on its own line is **how** the line is delivered. Write anything you like —
+  an unrecognized direction is kept as flavor, and a registered one can drive a face or a
+  color.
+- `(comms)`, `(over)` and `(card)` on the cue itself say **where** the line is delivered.
+- `Speaker:` in the fence still works and is still the right thing for a scene with one
+  voice; it covers any lines above the first `@`.
+
+### `> [!NOTE]` — in-fiction documents
+
+A callout, for library entries and briefing documents:
+
+```amd
+> [!WARNING] Quarantine Notice
+> Do not dock. Contact TSN Command on channel 4.
+```
+
+`NOTE`, `TIP`, `WARNING` and `DANGER` are built in; an unknown kind reads as a plain
+quote and warns, so a document from a newer mission is still readable.
+
+### `FADE IN:` — cutscene transitions
+
+In a cutscene shot, a screenplay transition says how the shot arrives, and stays out of
+the words on screen:
+
+```amd
+## [Florbin, Recovered](florbin_recover)
+---
+Cutscene: finale
+Subject: hero
+Seconds: 6
+---
+FADE IN:
+
+The transport slips its mooring and turns for home.
+```
+
+`FADE IN:`, `FADE OUT.`, `CUT TO:`, `SMASH CUT TO:`, `DISSOLVE TO:` and friends are
+recognized as written; anything else works with Fountain's `>` in front (`> SLAM TO
+BLACK`).
+
+---
+
 ## Saying what a record is
 
 Most of the time you never say — the **section name** already does:
@@ -438,6 +573,15 @@ cannot render.
 The VS Code extension shows the same findings as you type, and gives each field an
 editor suited to it — a dropdown for a fixed set of values, a picker for a reference, a
 swatch for a color, the face builder for a face.
+
+To see what you have *not* written yet rather than what is wrong:
+
+```
+sbs lint <mission> --missing
+```
+
+Every reference that resolves to nothing, grouped by target and always exiting 0. It is
+a work list, not a failure — see [`[[key]]`](#key--linking-from-inside-prose).
 
 See [AMD authoring tools](../tooling/amd-tools.md) for the outline, timeline, graph and
 map views over the same files.

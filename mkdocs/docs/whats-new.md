@@ -185,6 +185,53 @@ Character are always regarded some way, so they carry `reputation` without askin
 
 See [The AMD file format](build/amd-format.md).
 
+## 🎞️ AMD writes like a script now
+
+The fact sheets were only half the file. The other half is the **prose**, and it learned
+six marks — borrowed from Fountain, the screenplay format, and Obsidian, where linked
+notes come from. A line the format does not recognize is still prose, always, so nothing
+you have already written changes.
+
+**A scene can hold a conversation.** A dialogue scene used to have one speaker named in
+its fence. Now the cue goes in the body, the way a script writes it:
+
+```amd
+@Ashfang
+% You're a long way from friends, captain.
+
+@Vell (comms)
+(shaken)
+He means it, captain.
+```
+
+`(shaken)` is how the line is delivered — write anything you like. `(comms)` is *where*
+it is delivered, so who-says-what-and-where is decided in the script instead of in code.
+
+**Prose can point at things.** `Talk to [[cmdr_vell]] before you reach
+[[ds1|the station]].` These are real references, so Find All References, Rename and the
+Story Graph all see them — and a link to something you have not written **is not an
+error**:
+
+```
+$ sbs lint <mission> --missing
+3 thing(s) referenced but not written yet:
+  cmdr_vell
+      linked from `brief`   story.amd:6
+```
+
+Draft the whole mission as prose, link freely to scenes that do not exist yet, and let
+the linter hand you the list of what to write next. In the editor each one gets a
+**Create this record** quick fix.
+
+**And three smaller ones.** `= a note to yourself` records what a beat is *for* — it
+shows in hover and the outline and never reaches a player. `/* ... */` cuts a scene
+without deleting it. `> [!WARNING]` gives an in-fiction document in-fiction formatting.
+In a cutscene, `FADE IN:` and `> CUT TO:` say how a shot arrives without appearing on
+screen — so a cutscene file reads as a screenplay and is still the shot list the engine
+plays.
+
+See [Writing the body](build/amd-format.md#writing-the-body).
+
 ## 🧰 The AMD editor knows the format
 
 The VS Code extension reads AMD as a format rather than as coloured text:
