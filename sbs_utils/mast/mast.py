@@ -103,6 +103,63 @@ class Rule:
 
 
 
+# Open .mastlib handles, reused for the duration of ONE compile.
+#
+# content_from_lib_or_file() is called once per file, and a mastlib holds many
+# files, so opening the zip per read re-parsed the same central directory over and
+# over (measured: OpenUniverse did 124 opens for its 21 declared libs, ~56ms of
+# pure ZipFile.__init__; now 21 opens, ~9ms). _lib_zip_scope closes them when the
+# outermost compile unwinds - deliberately not held longer, so nothing keeps a
+# Windows file lock on a .mastlib that a rebuild wants to replace.
+_lib_zip_cache = {}
+
+
+def _open_lib_zip(lib_name):
+    z = _lib_zip_cache.get(lib_name)
+    if z is None:
+        z = ZipFile(lib_name)
+        _lib_zip_cache[lib_name] = z
+    return z
+
+
+def close_lib_zips():
+    """Drop every cached .mastlib handle. Safe to call at any time; the next read
+    reopens."""
+    for z in _lib_zip_cache.values():
+        try:
+            z.close()
+        except Exception:
+            pass
+    _lib_zip_cache.clear()
+
+
+_compile_depth = 0
+
+
+class _lib_zip_scope:
+    """Own the .mastlib handle cache for the OUTERMOST compile, whichever public
+    entry point that is. Nested calls ride the same cache; the outermost one closes
+    it on the way out, including on exceptions.
+
+    Depth-counted rather than keyed on `root is None`, because import_content() is
+    a legitimate standalone entry (tooling and tests call it with a non-None root).
+    Keying on root leaked a handle there and left a Windows lock on the .mastlib -
+    the caller then could not delete or rebuild it.
+    """
+    def __enter__(self):
+        global _compile_depth
+        _compile_depth += 1
+        return self
+
+    def __exit__(self, *exc):
+        global _compile_depth
+        _compile_depth -= 1
+        if _compile_depth <= 0:
+            _compile_depth = 0
+            close_lib_zips()
+        return False
+
+
 def first_non_space_index(s):
     for idx, c in enumerate(s):
         if not c.isspace():
@@ -647,6 +704,16 @@ class Mast():
 
             
     def from_file(self, file_name, root):
+        """Compile `file_name` and everything it pulls in.
+
+        `root is None` means this is the ROOT compile of a story; nested imports
+        pass the root through. The scope guard owns the .mastlib handle cache for
+        the outermost compile only.
+        """
+        with _lib_zip_scope():
+            return self._from_file(file_name, root)
+
+    def _from_file(self, file_name, root):
         """ Docstring"""
         if root is None:
             root = self # I am root
@@ -723,20 +790,22 @@ class Mast():
                 if ":" not in self.lib_name:
                     lib_name = os.path.join(fs.get_mission_dir(), self.lib_name)
 
-                with ZipFile(lib_name) as lib_file:
-                    #
-                    # NOTE: Zip files must use /
-                    #
-                    if self.basedir is not  None:
-                        file_name = os.path.join(self.basedir, file_name).replace("\\", '/')
-                    elif self.parent_basedir is not None:
-                        file_name = os.path.join(self.parent_basedir, file_name).replace("\\", '/')
+                # Cached handle: NOT a `with`, so the zip stays open for the rest of
+                # this compile (see _open_lib_zip). _lib_zip_scope closes it.
+                lib_file = _open_lib_zip(lib_name)
+                #
+                # NOTE: Zip files must use /
+                #
+                if self.basedir is not  None:
+                    file_name = os.path.join(self.basedir, file_name).replace("\\", '/')
+                elif self.parent_basedir is not None:
+                    file_name = os.path.join(self.parent_basedir, file_name).replace("\\", '/')
 
-                    with lib_file.open(file_name) as f:
-                        DEBUG(f"DEBUG: {self.lib_name} {file_name}")
-                        content = f.read().decode('UTF-8')
-                        self.basedir = os.path.dirname(file_name)
-                        return content, None
+                with lib_file.open(file_name) as f:
+                    DEBUG(f"DEBUG: {self.lib_name} {file_name}")
+                    content = f.read().decode('UTF-8')
+                    self.basedir = os.path.dirname(file_name)
+                    return content, None
 
             else:
                 og_file_name = file_name
@@ -769,25 +838,28 @@ class Mast():
     
 
     def import_content(self, filename, root, lib_name):
-        add = self.__class__(is_import=True)
-        add.parent_basedir = self.basedir
-        #
-        # Only the nest file needs to know about 
-        # lib name
-        #
-        if self.lib_name is not None:
-            add.lib_name = self.lib_name
-        elif lib_name is not None:
-            add.lib_name = lib_name
-            add.parent_basedir = None
+        # Also a public entry point (tooling/tests call it directly), so it takes
+        # the scope guard too - otherwise a .mastlib opened here is never closed.
+        with _lib_zip_scope():
+            add = self.__class__(is_import=True)
+            add.parent_basedir = self.basedir
+            #
+            # Only the nest file needs to know about
+            # lib name
+            #
+            if self.lib_name is not None:
+                add.lib_name = self.lib_name
+            elif lib_name is not None:
+                add.lib_name = lib_name
+                add.parent_basedir = None
 
-        # add.is_import = True
-        errors = add.from_file(filename, root)
-        if len(errors)==0:
-            for label, node in add.labels.items():
-                if label != "main":
-                    self.labels[label] = node
-        return errors
+            # add.is_import = True
+            errors = add.from_file(filename, root)
+            if len(errors)==0:
+                for label, node in add.labels.items():
+                    if label != "main":
+                        self.labels[label] = node
+            return errors
 
     def get_manifest(self):
         """The addon dependency manifest collected during compile: the set of
