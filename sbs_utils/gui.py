@@ -125,6 +125,9 @@ class GuiClient(Agent):
         """
         event = FakeEvent(self.client_id, "gui_push")
         self.page_stack.append(page)
+        # The new page owns the client's widget list from here; forget what the
+        # page underneath established so the next repaint re-sends it.
+        Gui.widget_list_sent.pop(self.client_id, None)
         self.present(event)
 
     def pop(self):
@@ -135,6 +138,9 @@ class GuiClient(Agent):
         """
         ret = None
         FrameContext.context.sbs.send_gui_clear(self.client_id, "")
+        # The page revealed underneath must re-establish its widget list: the
+        # page that is leaving may well have replaced it.
+        Gui.widget_list_sent.pop(self.client_id, None)
         if len(self.page_stack) > 0:
             ret = self.page_stack.pop()
             if ret:
@@ -244,6 +250,15 @@ class Gui:
     # web pages from the REAL engine with no engine changes (the mock leaves
     # this None and renders web clients straight to the browser as usual).
     web_render_sink = None
+    # client_id -> the last (console, widgets) pair handed to
+    # send_client_widget_list. THAT call is how the engine learns which native
+    # widgets a console has, and acting on it means building them (2d view,
+    # waterfall, ship_data...). A page used to re-send it on every full repaint,
+    # so every MAST rebuild of a console screen asked the engine to redo that
+    # work, while a widget-less screen (which sends the empty list) cost
+    # nothing. Cleared whenever a client's page stack changes, so a push/pop
+    # always re-establishes the list.
+    widget_list_sent = {}
 
     @staticmethod
     def server_start_page_class(cls_page):
@@ -375,6 +390,7 @@ class Gui:
             gui.destroyed()
             Gui.clients.pop(client_id, None)
             FrameContext.aspect_ratios.pop(client_id, None)
+            Gui.widget_list_sent.pop(client_id, None)
 
     @staticmethod
     def push(client_id, page):
@@ -467,6 +483,7 @@ class Gui:
                 gui.destroyed()
                 Gui.clients.pop(cid, None)
                 FrameContext.aspect_ratios.pop(cid, None)
+                Gui.widget_list_sent.pop(cid, None)
                 
 
         # Anything left is a client not connected to the script
@@ -532,10 +549,23 @@ class Gui:
         :param event: The tag name of the control interacted with
         :type event: event
         """
+        # Optional GUI transcript (`record=<name>`). Off by default, one boolean when off.
+        #
+        # HERE and not in handlerhooks: this static method is the real chokepoint, and
+        # handlerhooks is only one of its callers. cosmos_dev's exerciser and the mockgui
+        # bridge both call Gui.on_message directly, so a hook in handlerhooks recorded
+        # nothing for either - which is exactly how this was caught.
+        #
+        # Wrapped AROUND the dispatch because the widget is only known during it:
+        # Layout.on_message annotates the entry with the label, and the label is what makes
+        # a transcript survive a page edit. See procedural/gui_record.py.
+        from .procedural.gui_record import gui_record_begin, gui_record_end
+        gui_record_begin(event)
         # message_tag, clientID, data
         gui = Gui.clients.get(event.client_id)
         if gui is not None:
             gui.on_message(event)
+        gui_record_end()
         Gui.present_dirty()
         
 

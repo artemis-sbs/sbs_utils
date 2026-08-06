@@ -13,12 +13,12 @@ Create the mission from using a starter mission.
 
 === ":mast-icon: {{ab.m}}"
     ```bash
-    .\fetch artemis-sbs mast_starter simple_ai    
+    sbs create complex_comms
     ```
 
 === ":simple-python: {{ab.pm}}"
     ```python
-    .\fetch artemis-sbs pymast_starter simple_ai
+    sbs create complex_comms -r pymast_starter
     ```
 
 ## Add more enemies

@@ -111,6 +111,9 @@ def amd_signal_name(value):
     return str(value).strip().lower().replace(" ", "_")
 
 
+_COMPACT_DURATION = re.compile(r"^(\d+)\s*([a-zA-Z]*)$")
+
+
 def amd_duration_parts(value):
     """`6 minutes` -> `(6, "minutes")`, `90 seconds` -> `(90, "seconds")`, `2` ->
     `(2, "minutes")`. `(None, unit)` when there's no number.
@@ -118,10 +121,32 @@ def amd_duration_parts(value):
     The unit is MINUTES unless the text says "second" - the rule `Fail after:` and
     `Complete after:` have always used. Shared so a view can't disagree with the clock
     the engine actually runs. Returns the AUTHORED unit (not just seconds) because the
-    quest data keeps what was written."""
-    num = next((int(t) for t in str(value).split() if t.isdigit()), None)
-    unit = "seconds" if "second" in str(value).lower() else "minutes"
-    return num, unit
+    quest data keeps what was written.
+
+    The COMPACT form parses too - `20m`, `30s`, `2h`. It reads naturally and everyone
+    writes it, but the digit-token scan never saw it: `20m` is not `isdigit()`, so
+    `Fails when: after 20m` came back `(None, "minutes")` -> `{minutes: 0}` -> `secs <=
+    0` -> the watcher skipped the quest and **the deadline silently never fired**. An
+    unrecognized suffix still falls through to minutes, as before.
+    """
+    text = str(value)
+    num = next((int(t) for t in text.split() if t.isdigit()), None)
+    unit = "seconds" if "second" in text.lower() else "minutes"
+    if num is not None:
+        return num, unit
+    for token in text.split():
+        m = _COMPACT_DURATION.match(token)
+        if m is None:
+            continue
+        num = int(m.group(1))
+        suffix = m.group(2).lower()
+        if suffix.startswith("s"):
+            unit = "seconds"
+        elif suffix.startswith("h"):
+            num *= 60           # hours are minutes; `2h` must not read as 2 minutes
+            unit = "minutes"
+        return num, unit
+    return None, unit
 
 
 def amd_duration_seconds(value):

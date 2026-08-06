@@ -10,8 +10,130 @@ from sbs_utils.scatter import ring as scatter_ring
 from sbs_utils.faces import set_face, random_terran
 from sbs_utils.vec import Vec3
 from sbs_utils.procedural.prefab import prefab_spawn
+from sbs_utils.tickdispatcher import DripQueue
+from sbs_utils.futures import awaitable
 
 import math
+
+
+# --- Sowing: spread terrain creation over seconds, not one frame --------------
+# Engine measurement (LM, Terrain: max): the terrain block costs ~280 ms in ONE
+# frame -- a ~5x hitch -- and there is NO sync tail afterwards, so the entire cost
+# is the frame that creates the objects. Sowing hands that frame's work to a
+# DripQueue, one cluster at a time, nearest-first.
+#
+# OPT-IN. Outside a sow scope every terrain_* call behaves exactly as before, so no
+# existing mission, addon or test changes. A map opts in with one line:
+#
+#     terrain_sow_begin(over=6)
+#     terrain_asteroid_clusters(terrain_value)
+#     terrain_spawn_nebula_clusters(terrain_value)
+#     await terrain_sow_complete()      # optional; only if you must gate on it
+#
+# Cluster markers, stations, monsters, black holes and pickups are NOT sowed -- they
+# are few, and they are what other systems look for. Only the asteroid/nebula fill
+# drips, which is where the milliseconds are.
+_SOW = {"q": None, "on": False}
+
+# Nebula objects per queued unit of work. Nebula is the expensive terrain by a wide
+# margin (~0.40 ms an object against an asteroid's ~0.08 ms, almost all of it the
+# per-object shader property writes), so a whole cluster is too big an atom to
+# queue. 8 keeps a unit near ~3 ms. Asteroid clusters are NOT chunked: they are
+# cheap, and their loop carries state across points (scatter_pass drives which
+# rocks get satellites), so splitting one would change what it produces.
+NEB_SOW_CHUNK = 8
+
+
+def terrain_sow_begin(over=6, focus=None):
+    """Start sowing: terrain fill queued and spread over ``over`` sim-seconds.
+
+    What this guarantees: each queued call creates exactly what it would have
+    created inline -- it carries the RNG state it was queued under, so deferring a
+    cluster never changes that cluster.
+
+    NEBULA is identical either way, cluster for cluster: its whole plan (colour,
+    height, size, shader seed per object) is drawn at queue time in the same order
+    the inline spawn draws it, so the caller's stream advances exactly as it would
+    have. The same is true of ``terrain_spawn_field_keyed``, which already isolates
+    its RNG per cell.
+
+    ASTEROID clusters do shift the stream: their spawn loop's randomness is
+    interleaved with reads of the spawned object (a rock's exclusion radius sets
+    where its satellites go), so it cannot be drawn up front the same way. Deferring
+    it moves that consumption, which changes what a LATER cluster draws. Cluster
+    centres come from one up-front scatter, so the macro layout is unchanged; what
+    differs is rock counts and scales per cluster. Across seeds this is a different
+    sample of the same distribution, not a thinner field (measured: +2% net, both
+    directions). The result is fully deterministic -- the same seed sows the same
+    field every time -- just not the same field as not sowing. Since sowing is
+    opt-in per map, a map is only ever played one way.
+
+    Args:
+        over (float, optional): Seconds to spread the work across. Defaults to 6.
+        focus (Vec3 | tuple, optional): Work runs nearest-first from here, so the
+            space around it is correct first. Defaults to the map origin.
+
+    Returns:
+        DripQueue: the queue, for callers that want to inspect it.
+    """
+    q = _SOW["q"]
+    if q is None:
+        q = DripQueue(over=over, focus=focus, name="terrain")
+        _SOW["q"] = q
+    else:
+        q.over = over
+        if focus is not None:
+            q.set_focus(focus)
+    _SOW["on"] = True
+    return q
+
+
+def terrain_sow_end():
+    """Stop queueing; terrain_* calls spawn inline again. Anything already queued
+    keeps draining -- use ``terrain_sow_flush()`` to force it out now."""
+    _SOW["on"] = False
+
+
+def terrain_sow_pending():
+    """How many queued units of terrain work are still to run."""
+    q = _SOW["q"]
+    return 0 if q is None else q.pending()
+
+
+def terrain_sow_flush():
+    """Run all queued terrain work immediately. Returns how many units ran.
+
+    For code that must see the whole field right now -- a test, a headless
+    conformance run, or a query that cannot wait for the drip.
+    """
+    q = _SOW["q"]
+    return 0 if q is None else q.flush()
+
+
+@awaitable
+def terrain_sow_complete():
+    """Promise that resolves once the sown terrain has all been created.
+
+    Example:
+        terrain_sow_begin(over=6)
+        terrain_asteroid_clusters(terrain_value)
+        await terrain_sow_complete()
+    """
+    from .promise_functions import TestPromise
+    return TestPromise(lambda: terrain_sow_pending() == 0)
+
+
+def terrain_sow_reset():
+    """Drop queued work and leave sowing off (mission reset)."""
+    q = _SOW["q"]
+    if q is not None:
+        q.clear()
+    _SOW["q"] = None
+    _SOW["on"] = False
+
+
+def _sowing():
+    return _SOW["on"] and _SOW["q"] is not None
 
 # Nebula object size. DEFAULT is unchanged (1500) - the "fewer, bigger objects"
 # optimization is OPT-IN via terrain_set_nebula_object_size() below, because it pairs
@@ -383,12 +505,28 @@ def terrain_spawn_asteroid_points(x,y,z, points, radius=10000, density_scale=1.0
 def terrain_spawn_asteroid_scatter(cluster_spawn_points, height, selectable=False):
     """Spawn a randomised asteroid (with possible satellite cluster) at each given point.
 
+    Every asteroid path in this module funnels through here, so this is where
+    sowing intercepts: inside a sow scope the whole cluster is queued as one unit
+    of work and created later, identically. See ``terrain_sow_begin``.
+
     Args:
         cluster_spawn_points (Iterable[Vec3]): Spawn positions.
         height (int): Controls Y scatter range around each point.
         selectable (bool, optional): Make asteroids selectable on 2D radar.
             Defaults to False.
     """
+    # Materialize: the caller may hand us a generator, and a queued item has to
+    # own its points.
+    points = list(cluster_spawn_points)
+    if not points:
+        return
+    if _sowing():
+        _SOW["q"].add(_asteroid_scatter_now, (points, height, selectable), pos=points[0])
+        return
+    _asteroid_scatter_now(points, height, selectable)
+
+
+def _asteroid_scatter_now(cluster_spawn_points, height, selectable=False):
     asteroid_types = plain_asteroid_keys()
     a_type = random.choice(asteroid_types)
 
@@ -1042,20 +1180,78 @@ def terrain_spawn_nebula_common(x,y,z, size_x=10000, size_z=None,
     # Nebula need lots of drift to look good
     cluster_spawn_points = scatter.simple_noise(0, x,y, z, size_x, height, size_z,
                                                  count_x, count_y,count_z, radius=radius, centered=True, drift=5.0)
-    
+
+    # The marker above is already placed -- only the nebula objects themselves are
+    # sowed. They are the expensive half by a wide margin: in the engine a nebula
+    # object costs ~0.40 ms against an asteroid's ~0.08 ms, almost all of it the
+    # per-object shader property writes.
+    points = list(cluster_spawn_points)
+    if _sowing() and points:
+        # CHUNKED, not queued whole. A nebula cluster is ~30 objects at ~0.40 ms
+        # each -- ~12 ms in one tick, by far the largest atom the sower has (an
+        # asteroid cluster is ~2.6 ms). Splitting it puts the worst drip tick back
+        # under the engine's own frame-to-frame jitter.
+        #
+        # Every per-object random value is drawn HERE, so a chunk contains no
+        # randomness at all. This is what makes splitting safe: chunks of one
+        # cluster are queued in the same instant and so carry the SAME RNG
+        # snapshot, and any chunk that drew its own values would replay the
+        # previous chunk's jitter rather than continue the sequence.
+        specs = _nebula_plan(points, cluster_color, rainbow, color_is_set,
+                             height, neb_size)
+        for i in range(0, len(specs), NEB_SOW_CHUNK):
+            chunk = specs[i:i + NEB_SOW_CHUNK]
+            _SOW["q"].add(_nebula_chunk_now, (chunk, density, selectable),
+                          pos=chunk[0][0])
+        # Sowed: the objects do not exist yet, so there is nothing to hand back.
+        # No caller outside this module uses the return value.
+        return []
+    return _nebula_scatter_now(points, height, cluster_color, neb_size, density,
+                               selectable, rainbow, color_is_set)
+
+
+def _nebula_plan(points, cluster_color, rainbow, color_is_set, height, neb_size):
+    """Draw every per-object value now, in the same order the inline spawn draws
+    them -- so the caller's RNG stream advances exactly as it would have, and the
+    sown cluster is identical to the inline one."""
+    specs = []
+    for v2 in points:
+        color = cluster_color
+        if rainbow and not color_is_set:
+            color = terrain_nebula_color(None)
+        y = random.random() * (height) - (height / 2)
+        diameter = neb_size + ((random.random() * 2) - 1) * neb_size * 0.15
+        diameter = min(diameter, NEB_MAX_SIZE)
+        seed = random.randint(2, 99999)
+        specs.append((v2, y, color, diameter, seed))
+    return specs
+
+
+def _nebula_chunk_now(specs, density, selectable):
+    """Pure creation: the mirror of terrain_nebula_spawn with the draws removed."""
     ret = []
-    for v2 in cluster_spawn_points:
+    for v2, y, color, diameter, seed in specs:
+        v2.y = y
+        nebula = terrain_spawn(v2.x, v2.y, v2.z, None, "#, nebula", "nebula", "behav_nebula")
+        nebula.blob.set("unselectable", 0 if selectable else 1)
+        terrain_setup_nebula(nebula, diameter, density, color, seed=seed)
+        ret.append(nebula)
+    return ret
+
+
+def _nebula_scatter_now(points, height, cluster_color, neb_size, density,
+                        selectable, rainbow, color_is_set):
+    ret = []
+    for v2 in points:
         # v2.y = v2.y % 500.0 Mod doesn't work like you think
         if rainbow and not color_is_set:
             cluster_color = terrain_nebula_color(None)
         nebula = terrain_nebula_spawn(v2, height, cluster_color, neb_size, density, selectable)
         ret.append(nebula)
-        
-    #l = len(ret)
-    #print(f"cluster count {l}")
     return ret
 
-def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"):
+def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow",
+                         seed=None):
     """Apply visual and physical properties to an existing nebula space object.
 
     Args:
@@ -1066,6 +1262,9 @@ def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"
             view). Defaults to 1.0.
         color (str | dict, optional): Colour name or a full colour dict.
             Defaults to ``"yellow"``.
+        seed (int, optional): The shader's ``random_seed``. Defaults to None --
+            drawn here, as always. The sower passes one in because it draws every
+            per-object value up front, so a queued chunk contains no randomness.
     """
     blob = to_data_set(nebula)
     
@@ -1082,7 +1281,8 @@ def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"
     #density = 20
     blob.set("density", density)
     # 0 to 10000
-    seed = random.randint(2,99999)
+    if seed is None:
+        seed = random.randint(2,99999)
     blob.set("random_seed", seed)
 
     if isinstance(color, str):

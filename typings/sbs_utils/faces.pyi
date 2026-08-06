@@ -1,3 +1,11 @@
+def _parse_face_generic (race, feats, layers):
+    ...
+def _parse_face_layers (face_string):
+    ...
+def _parse_face_terran (feats, layers):
+    ...
+def _tone_index (color, tones):
+    ...
 def arvonian (face_id, eye_id, mouth_id, crown_id, collar_id):
     """Create an arvonian face
     
@@ -10,11 +18,22 @@ def arvonian (face_id, eye_id, mouth_id, crown_id, collar_id):
     
     Returns:
         (str):   A Face string"""
+def build_face (race, values, enables=None):
+    """Build a face string from per-feature indices in FACE_FEATURES order.
+    
+    `values[i]` is the chosen index for feature i; `enables[i]` False sets an
+    (optional) feature to None. Terran maps 1:1 to terran(); other races prepend
+    face_id 0 (the slot their builders expect). Returns '' for an unknown race."""
 def clear_face (ship_id):
     """Removes a face string for a specified ID.
     
     Args:
         ship_id (Agent | int): The id of the ship/object"""
+def face_resolve (spec):
+    """Resolve a declarative face spec to a face string. A KEYWORD (terran / male / female /
+    fluid) -> a fresh random face of that kind; a literal face string -> itself unchanged;
+    None/empty -> a random terran. Lets AMD/data author a face as a simple word instead of a
+    raw face string. (Promoted from Open Universe's lifeform_face.)"""
 def get_face (ship_id):
     """Returns a face string for a specified ID
     
@@ -44,6 +63,11 @@ def kralien (face_id, eye_id, mouth_id, scalp_id, extra_id):
     
     Returns:
         (str):   A Face string"""
+def parse_face (face_string):
+    """Recover (race, values, enables) from a face string — the inverse of
+    build_face. Returns None if the string is not a recognized face. The result
+    rebuilds to the same visual face via build_face (indices reproduce the same
+    cells), so an editor can seed its controls from an existing face."""
 def probably (chance):
     """Will compare a float with a random float between 0 and 1. If the provided number is larger than the random number, will return True.
     Args:

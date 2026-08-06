@@ -38,7 +38,7 @@ class Button(Column):
     def _present(self,  event):
         ctx = FrameContext.context
         message = self.message
-        message += self.get_cascade_props(True, True, True)
+        message += self.get_cascade_props(True, True, True, True, message)
 
         # Only the TEXT forms have text to fit. In raw/icon mode the message is
         # icon props, so there is nothing to shrink or truncate -- the same

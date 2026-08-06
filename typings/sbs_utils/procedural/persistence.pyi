@@ -12,8 +12,8 @@ def load_json_data (file):
 def load_yaml_data (file, multi=False):
     """Load and parse a YAML file.
     
-    Attempts to load using ryaml first for better comment handling,
-    falls back to standard yaml.safe_load if ryaml is unavailable.
+    Uses the fast ryaml parser when the engine provides it, and the bundled
+    pure-Python yaml otherwise (or when ryaml refuses the file).
     
     Args:
         file (str): Path to the YAML file to load.

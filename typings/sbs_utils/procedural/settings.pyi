@@ -27,8 +27,8 @@ def load_json_data (file):
 def load_yaml_data (file, multi=False):
     """Load and parse a YAML file.
     
-    Attempts to load using ryaml first for better comment handling,
-    falls back to standard yaml.safe_load if ryaml is unavailable.
+    Uses the fast ryaml parser when the engine provides it, and the bundled
+    pure-Python yaml otherwise (or when ryaml refuses the file).
     
     Args:
         file (str): Path to the YAML file to load.
@@ -52,6 +52,25 @@ def settings_get_defaults ():
     
     Returns:
         dict: The default settings mapping."""
+def settings_npc_races ():
+    """The races that can appear as NPCs, lowercased, from ``NPC_RACES``."""
+def settings_playable_races ():
+    """The races a player ship may be, lowercased, from ``PLAYABLE_RACES``."""
+def settings_race_is_npc (race):
+    """Whether a race can appear as an NPC.
+    
+    Used by the ``race_*`` addons to skip loading a fleet ladder for a race this mission
+    never spawns. As with :func:`settings_race_is_playable`, matching ignores case and
+    spacing, and an EMPTY setting means no restriction rather than no races."""
+def settings_race_is_playable (race):
+    """Whether a race may be flown as a player ship.
+    
+    Used by the ``interiors_*`` addons to skip loading floor plans for a race no player
+    can be, since an interior is only ever built for a player ship.
+    
+    An EMPTY or missing ``PLAYABLE_RACES`` means "no restriction" rather than "nothing is
+    playable" - a mission that clears the setting should get every race, not a game where
+    no ship has an interior."""
 def settings_seed_apply (value=None):
     """Seed the global RNG so a run is reproducible.
     

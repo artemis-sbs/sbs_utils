@@ -3,6 +3,8 @@ from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.futures import Promise
 def _resolve_signal_waiters (name, data):
     """Fire all tasks currently awaiting ``name`` (one-shot) and clear them."""
+def _signal_once_fired ():
+    """The label -> path map of `once` routes that have already run."""
 def _signal_waiter_remove (name, prom):
     ...
 def awaitable (func):
@@ -36,6 +38,31 @@ def signal_next (name, timeout=None) -> sbs_utils.procedural.signal.SignalPromis
     Example:
         data = await signal_next("wave_cleared")
         result = await promise_any(signal_next("docked"), delay_sim(30))"""
+def signal_once_enter (label, path=None):
+    """Test-and-set the one-shot flag for a ``once`` route body.
+    
+    Compiled into the route by ``SignalRouteDecoratorLabel`` - scripts do not call
+    this directly. Keyed on the generated LABEL name, not the signal path, so two
+    routes handling the same signal each get their own shot.
+    
+    Args:
+        label (str): The route's generated label name.
+        path (str, optional): The signal name, so ``signal_once_reset`` can find it.
+    
+    Returns:
+        bool: True the first time (run the body), False afterwards."""
+def signal_once_reset (name=None):
+    """Re-arm ``once`` routes so they will run again.
+    
+    The explicit path for an INTENTIONAL re-initialization - resetting scenario
+    conditions without reloading the mission. A mission reload needs no call: the
+    flags live in Agent.SHARED and ``reset_mission_state`` clears it.
+    
+    Args:
+        name (str, optional): Signal name to re-arm. Defaults to all of them.
+    
+    Returns:
+        int: How many routes were re-armed."""
 def signal_register (name, label, server=False, task=None, loc=0, is_jump=True, is_temporary=False):
     """Register a label as a handler for a named signal.
     

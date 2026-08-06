@@ -148,6 +148,12 @@ class StoryPage(Page):
         ...
     def get_tag (self):
         ...
+    def grid_begin (self, columns):
+        """Enter a gui_grid() context: subsequent add_content()s flow into an
+        ``columns``-wide grid, auto-breaking rows. Nestable."""
+    def grid_end (self):
+        """Leave the current gui_grid() context, padding the final row with Hole
+        spacers so its columns stay aligned, then start a fresh row."""
     def gui_queue_console_tabs (self):
         ...
     def on_begin_presenting (self):

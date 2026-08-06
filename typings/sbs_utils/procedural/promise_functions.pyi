@@ -43,7 +43,9 @@ def distance_greater (obj_or_id1, obj_or_id2, distance):
         distance (float): Threshold distance in simulation units.
     
     Returns:
-        TestPromise: Resolves when ``dist(obj1, obj2) > distance``.
+        TestPromise: Resolves when ``dist(obj1, obj2) > distance``. Stays pending
+            while either object is missing or has been destroyed -- a destroyed
+            object is not "far away", it is simply no longer testable.
     
     Example:
         await distance_greater(SHIP_ID, ENEMY_ID, 2000)
@@ -57,7 +59,8 @@ def distance_less (obj_or_id1, obj_or_id2, distance):
         distance (float): Threshold distance in simulation units.
     
     Returns:
-        TestPromise: Resolves when ``dist(obj1, obj2) < distance``.
+        TestPromise: Resolves when ``dist(obj1, obj2) < distance``. Stays pending
+            while either object is missing or has been destroyed.
     
     Example:
         await distance_less(SHIP_ID, ENEMY_ID, 500)
@@ -140,6 +143,14 @@ def has_role (so, role):
     
     Returns:
         bool: ``True`` if the agent has the role."""
+def object_exists (so_id):
+    """Return whether an object currently exists in the simulation.
+    
+    Args:
+        so_id (Agent | int): Agent ID or object.
+    
+    Returns:
+        bool: ``True`` if the engine reports the object present."""
 def to_data_set (id_or_obj):
     """Return the engine data-set (blob) for an agent. Same as ``to_blob``.
     

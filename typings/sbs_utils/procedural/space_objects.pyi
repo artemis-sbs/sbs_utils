@@ -63,6 +63,23 @@ def closest (the_ship, the_set, max_dist=None, filter_func=None) -> sbs_utils.ag
     Returns:
         CloseData | None: Distance data for the closest match, or ``None`` if
             no candidates qualify."""
+def closest_in_front (the_ship, the_set, max_dist=None, cone_deg=45.0, filter_func=None) -> sbs_utils.agent.CloseData:
+    """Closest object within a forward CONE of the ship's heading (nose-aim targeting).
+    
+    There is no engine raycast/pick, so this is :func:`closest` restricted to candidates
+    whose bearing from the ship is within ``cone_deg`` of ``forward_vector()`` (a cone is
+    more forgiving to aim than a true ray). If the ship has no usable heading the cone
+    test is skipped (falls back to plain nearest).
+    
+    Args:
+        the_ship: reference ship (id / Agent).
+        the_set: candidate ids.
+        max_dist (float, optional): max distance. Defaults to None.
+        cone_deg (float): half-angle of the forward cone in degrees. Defaults to 45.
+        filter_func (Callable, optional): extra ``f(agent) -> bool`` predicate.
+    
+    Returns:
+        CloseData | None: nearest in-cone candidate, or None."""
 def closest_list (source: int | sbs_utils.agent.CloseData | sbs_utils.agent.SpawnData | sbs_utils.agent.Agent | sbs_utils.vec.Vec3, the_set, max_dist=None, filter_func=None) -> list[sbs_utils.agent.CloseData]:
     """Return all objects in a set within optional distance and filter criteria.
     

@@ -53,7 +53,7 @@ class TextInput(Column):
         ctx = FrameContext.context
         props = self._text_prop()
         props += self.props
-        props += self.get_cascade_props(True, True, True)
+        props += self.get_cascade_props(True, True, True, True, props)
 
         # A typein is the one widget whose text the PLAYER controls, so a
         # policy here reacts as they type. `shrink` is the sane choice --

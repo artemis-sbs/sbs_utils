@@ -484,3 +484,75 @@ class TestDuplicateKeyIsAboutSiblings(unittest.TestCase):
                "### [Start](start)\n---\nThen: reveal recover\n---\n")
         codes = [f.code for f in amd_lint(content=src, cross_file=False)]
         self.assertIn("ambiguous-reference", codes)
+
+
+class UrgeLintTests(unittest.TestCase):
+    """Urge checks (URGE_PLAN.md phase 8). Every one is decidable from the file alone -
+    the bound-quest check was tried and REMOVED because quest ids are routinely built at
+    runtime, so it flagged correct shipped content."""
+
+    GOOD = ("# [Doc](doc)\n"
+            "## [Cast](cast)\n"
+            "### [Vell](vell)\n"
+            "---\n"
+            "Character\n"
+            "---\n"
+            "An ambassador.\n"
+            "\n"
+            "#### [Waiting](vell_wait)\n"
+            "---\n"
+            "Urge\n"
+            "Whenever: quest waiting_vell active\n"
+            "Every: 4m\n"
+            "---\n"
+            "% Still waiting.\n")
+
+    def _codes(self, content):
+        from sbs_utils.procedural.amd_lint import amd_lint
+        return [f.code for f in amd_lint(content=content, cross_file=False)
+                if "urge" in f.code or f.code == "empty-urge"]
+
+    def test_a_well_formed_urge_is_silent(self):
+        self.assertEqual(self._codes(self.GOOD), [])
+
+    def test_unknown_condition_is_flagged(self):
+        """It evaluates FALSE, so the urge never fires - and a condition that is never
+        true looks exactly like a character with nothing to say."""
+        bad = self.GOOD.replace("quest waiting_vell active", "the mood takes her")
+        self.assertEqual(self._codes(bad), ["unknown-urge-condition"])
+
+    def test_negation_is_understood(self):
+        ok = self.GOOD.replace("quest waiting_vell active", "not quest waiting_vell active")
+        self.assertEqual(self._codes(ok), [])
+
+    def test_until_is_checked_too(self):
+        bad = self.GOOD.replace("Every: 4m", "Every: 4m\nUntil: she feels like it")
+        self.assertEqual(self._codes(bad), ["unknown-urge-condition"])
+
+    def test_an_urge_with_nothing_to_say_is_flagged(self):
+        self.assertEqual(self._codes(self.GOOD.replace("% Still waiting.\n", "")),
+                         ["empty-urge"])
+
+    def test_an_action_counts_as_something_to_do(self):
+        ok = self.GOOD.replace("% Still waiting.\n", "").replace(
+            "Every: 4m", "Every: 4m\nAction:\n  - self departs")
+        self.assertEqual(self._codes(ok), [])
+
+    def test_a_cadence_under_the_global_floor_is_flagged(self):
+        bad = self.GOOD.replace("Every: 4m", "Every: 5s")
+        self.assertEqual(self._codes(bad), ["urge-too-eager"])
+
+    def test_a_jittered_cadence_is_fine(self):
+        self.assertEqual(self._codes(self.GOOD.replace("Every: 4m", "Every: 3-5m")), [])
+
+    def test_a_runtime_built_quest_id_is_NOT_flagged(self):
+        """`waiting_sela_voss` is built as `"waiting_" + key` in python, so no scan can
+        see it. Flagging it warned about correct shipped content, which is how authors
+        learn to ignore a linter."""
+        content = self.GOOD.replace("quest waiting_vell active",
+                                    "quest built_at_runtime_xyz active")
+        self.assertEqual(self._codes(content), [])
+
+    def test_non_urge_records_are_untouched(self):
+        content = ("# [Doc](doc)\n### [A quest](q)\n---\nQuest\n---\nDo a thing.\n")
+        self.assertEqual(self._codes(content), [])

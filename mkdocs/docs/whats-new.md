@@ -6,6 +6,86 @@ go to the relevant docs.
 
 ---
 
+## ⚠️ The `races` add-on — add it to your `story.json`
+
+**This one needs action.** Ship interiors and fleet compositions used to be built into the
+game; in v1.4.0 they ship as **per-race add-ons**, and a mission has to ask for them.
+
+If your mission loads LegendaryMissions' `ai` or `fleets` add-on, add one line:
+
+```json title="story.json"
+"artemis-sbs.LegendaryMissions.races.v1.4.0.mastlib"
+```
+
+**Leave them out and two things break quietly.** Your player ship gets a **dead
+Engineering console** — no system nodes, no damcons, no internal damage — and
+`fleet_create` finds no ladder for any race, so **nothing raids you**. Neither failure
+prints an error, which is exactly why it is worth checking now.
+
+New missions from `sbs create` already include it.
+
+**What you get in return** is content that was previously unreachable. Interiors lived in
+the engine's own `data/grid_data.json`; fleet ladders were Python literals behind an
+`if race == "..."` chain. Now a race owns both, `"random"` picks from the races that
+actually registered, and **a new race joins the rotation by existing**. Two settings —
+`PLAYABLE_RACES` and `NPC_RACES` — turn races off per mission.
+
+Every hull that declares an interior now has one, so ships that were never really
+flyable — Kralien, Torgoth, Skaraan, Biomech and the pirates — have a working Engineering
+console for the first time.
+
+See [The races add-on](build/race-addons.md).
+
+---
+
+## 🚀 Launch it without clicking — `sbs run` and command-line arguments
+
+Cosmos can now be started with arguments, and **a mission can read them**. A shortcut, a
+batch file or a CI job can bring up a full bridge on a particular map with particular
+settings, untouched by human hands.
+
+```
+sbs run                                        server + five consoles, nothing to click
+sbs run comms,weapons                          just those two
+sbs run -m LM_TestRange map=sandbox            a mission and a map
+sbs run --dry-run                              show the command lines, launch nothing
+```
+
+The mission comes from `-m` (default `LegendaryMissions`) and is passed as
+`defaultmission=`, so **`preferences.json` is no longer edited** to choose one. Consoles
+are selected per process instead of by rewriting a file inside the game install — two runs
+at once no longer fight over it, and a crash cannot leave it changed.
+
+**Anything you add on the end reaches the mission**, because the engine hands unrecognized
+`key=value` arguments straight to script:
+
+| | |
+|---|---|
+| `map=` `console=` | start a map, open a console |
+| `profile=` `var.NAME=` | settings, in bulk or one at a time |
+| `seed=` `run=` | reproducible runs, labelled |
+| `record=` | transcribe what you click |
+| `test=` | a pass/fail verdict from the **real engine** |
+
+Settings merge `defaults < settings.yaml < profile= < COSMOS_SETTINGS < var.NAME=`, so a
+profile file carries the bulk and the command line names it:
+
+```
+sbs run -m MyMission profile=soak var.DIFFICULTY=3 var.AUTO_PLAY.enable=true
+```
+
+`test=30` is the one worth knowing about if you automate anything: the mission plays for
+that long and writes `records/verdict.json`, which means **the real engine can be checked
+by a script** rather than by someone watching it. It counts runtime errors, not MAST
+coverage — `sbs debug . --test` remains the stronger check for whether your mission
+actually did anything.
+
+Anything that matches nothing says so, rather than quietly doing nothing.
+
+→ [Command-line arguments](tooling/command-line.md)
+
+---
+
 ## 🛩️ Hangar
 
 - **Sortie board.** Fighter and shuttle pilots pick their own missions from a board.
@@ -138,6 +218,38 @@ The VS Code extension reads AMD as a format rather than as coloured text:
   things the crew can act on, and history accruing underneath.
 
 Docs: [Quests](build/quests.md).
+
+## 🗣️ Characters who ask, and leave if nobody comes
+
+A quest could always count down. It just did it **in silence** — you learned the
+ambassador had given up when the fare quietly vanished from the board.
+
+An **urge** is what an actor keeps asking for: a condition, a cadence, and a pool of
+authored lines. Anyone can hold one — a passenger, a station, a whole side.
+
+- **The stakes stay in the quest.** An urge declares no consequence of its own; it is the
+  voice of a quest that is already counting down. One clock, one place to tune, and
+  deleting the urge costs the drama but not the mechanics.
+- **The countdown IS the drama curve.** Write `%` while there is time, `%%` as it runs
+  short, `%%%` at the end, and `Escalates: with deadline` reads the quest's own clock.
+  The number of markers is the curve; `Fails when:` is the tempo. Nothing has to agree
+  with anything else.
+- **They know when to shut up.** A per-actor floor stops one character monologuing, and a
+  global floor stops five of them piping up the moment a jump makes them all eligible —
+  shared with mission dispatch, so nobody talks over the Admiral. Only something urgent
+  (`Weight: 90`) jumps that queue.
+- **A station can hold a quest now**, which is what lets a resupply run have a deadline
+  and a cost that lands on the world instead of on whoever happened to fly past.
+- **Standing is a consequence.** `Reward:` and `Penalty:` take
+  `earns <faction> <pole> <n>`, so finishing a job — or abandoning one — can move how a
+  faction feels about you, not just what it charges.
+
+In Open Universe, **Doctor Voss** now waits on the docking ring at her pickup, asks more
+insistently as her window closes, and takes a berth on someone else's freighter if nobody
+comes. In Legendary Missions, **Ambassador Florbin's** famous passenger requests are the
+same character, rewritten as five lines of data instead of a hand-written loop.
+
+API: [urge](api/procedural/urge.md).
 
 ## 💱 Items & Upgrades
 
@@ -642,6 +754,16 @@ Repo: [artemis-sbs/control_gallery](https://github.com/artemis-sbs/control_galle
   widget can now say `shrink` (step the font down), `ellipsis` (truncate with
   `...`) or `hide`. The default is unchanged, so nothing moves unless you ask.
 
+- **[`layer:` — paint order you can set](cosmos/gui_layer.md).** The other half of
+  the same problem. `overflow:` changes the *text*; `layer:` changes what is drawn
+  *on top*. Raise a row or section's background above its neighbour's content and an
+  overflowing string is simply covered — not clipped (the engine cannot clip), but
+  invisible, which is what a player cares about. It cascades like `color` and `font`,
+  so one declaration can raise a whole panel. Two fixes came with it: a background
+  could not be lifted above content at all before, and `gui_image` was **silently
+  discarding** any `draw_layer` you gave it. Opt-in — a layout that never says
+  `layer:` is byte-for-byte unchanged.
+
 - **Text no longer overlaps itself in a scrolling text area.** A `gui_text_area`
   measured its wrapping against the full width but drew 20px narrower to leave
   room for its scrollbar, so roughly one paragraph in eight gained a line the
@@ -740,6 +862,38 @@ Anything the old script left genuinely ambiguous is written down for whoever fin
 the port, rather than quietly guessed at.
 → [Porting from Artemis 2.x](mast/porting-2x.md)
 
+## 🚀 Start a mission in one command
+
+Writing your first mission used to begin with "download this repository, rename the
+folder, edit these four files, then work out which libraries you need." Now:
+
+```
+sbs templates              # see what you can start from
+sbs create MyMission       # make one — libraries and all
+```
+
+There are five boilerplates, and they are whole missions rather than empty shells:
+
+| Template | What you get |
+|---|---|
+| `minimal` | One `@map` and a line of narration — the smallest thing that runs. |
+| `sandbox` | Two sides, a station in an asteroid field, player ships, and raider waves that ramp with the difficulty setting. |
+| `addon` | A shareable add-on — `provides` / `requires`, packaged as a `.mastlib` — plus a harness map to run it. |
+| `amd` | Quests and science scans authored as data in a `.amd` fact sheet, with MAST holding only the logic that reacts. |
+| `ou` | A whole procedurally generated universe, built on the OpenUniverse engine. |
+
+**It won't hand you a mission your game can't launch.** Missions are pinned to a
+release line, and everything a mission loads comes from the same one. `sbs create`
+picks the newest line your install already has libraries for — capped by your version
+of Cosmos — tells you which it chose and why, and never reaches for a newer one just
+because it exists. Not every template is on every line, either: `addon`, `amd` and
+`ou` need v1.4.0 language and library features.
+
+The templates live in the
+[mast_starter](https://github.com/artemis-sbs/mast_starter) repository and are read
+straight from it, so new ones show up without updating the tool.
+→ [Creating a mission](home/start.md) · [The `sbs` CLI](tooling/cli.md#starting-a-mission)
+
 ## 🛠️ For Mission Makers & Tinkerers
 
 !!! warning "For testing only — not an engine replacement"
@@ -761,6 +915,10 @@ the port, rather than quietly guessed at.
   torpedoes, drones, mines, EMP). → [Testing missions](tooling/testing.md)
 - **`--use-working-tree`** to smoke-test local library edits, and **`--seed`** for
   reproducible runs. → [The `sbs` CLI](tooling/cli.md)
+- **`sbs compile` can gate a build.** It used to print an error and exit 0, so any
+  script or CI reading its exit code saw success on a compile that never happened. It
+  now reports the errors and exits non-zero. (It still can't see a multi-line `{ }` —
+  only a `--test` run finds that.) → [The `sbs` CLI](tooling/cli.md#validating-amd)
 - **An in-game Avatar Editor** — an opt-in addon that customizes a character face
   **inside Cosmos**, with a **live `gui_face` preview** that updates as you move the
   sliders (unlike the extension's blind builder). Pick a race, tweak each feature,
@@ -850,7 +1008,7 @@ the port, rather than quietly guessed at.
     A `requires` not satisfied by some loaded addon's `provides` **fails the
     compile** (caught by `sbs lint` / `--test`, and shown as a runtime error screen);
     `suggests` only logs a warning. Checking is **order-independent** and fully
-    backward compatible. → [The MAST language](mast/overview.md)
+    backward compatible. → [Making add-ons](build/addons.md#declare-what-it-needs)
 
 !!! tip "✨ New — colons inside quoted strings"
     A `:` inside a quoted string no longer confuses the parser, so you can write

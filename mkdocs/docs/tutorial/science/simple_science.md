@@ -8,12 +8,12 @@ Start from a starter template.
 
 === ":mast-icon: {{ab.m}}"
     ```bash
-    .\fetch artemis-sbs mast_starter simple_science
+    sbs create simple_science
     ```
 
 === ":simple-python: {{ab.pm}}"
     ```bash
-    .\fetch artemis-sbs pymast_starter simple_science
+    sbs create simple_science -r pymast_starter
     ```
 
 ## Spawn an object to scan

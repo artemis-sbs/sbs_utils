@@ -2,7 +2,10 @@ from .query import to_id, to_blob, to_object, to_list, to_set
 from .roles import role, add_role, remove_role, all_roles,has_role
 from .links import link,unlink
 from .inventory import get_inventory_value, set_inventory_value
-from .grid import grid_objects, grid_objects_at, grid_closest, grid_get_grid_data, grid_get_item_theme_data, grid_get_grid_current_theme, grid_delete_object
+from .grid import (grid_objects, grid_objects_at, grid_closest, grid_get_grid_data,
+                   grid_get_item_theme_data, grid_get_grid_current_theme,
+                   grid_get_grid_named_theme, grid_get_layout, grid_get_theme_name,
+                   grid_delete_object)
 from .spawn import grid_spawn
 from .comms import comms_broadcast
 from .settings import settings_get_defaults
@@ -66,7 +69,7 @@ Wally
 """
 
 
-def grid_rebuild_grid_objects(id_or_obj, grid_data=None):
+def grid_rebuild_grid_objects(id_or_obj, grid_data=None, layout=None):
     """Rebuild all engineering-grid objects on a ship from shipData JSON.
 
     Deletes all existing grid objects for the ship, then re-creates them from
@@ -88,11 +91,21 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None):
     blob = to_blob(ship_id)
     if blob is None: return
 
-    ship_grid  = grid_data.get(so.art_id)
-    if ship_grid is None: return
-    internal_items = ship_grid.get("grid_objects")
+    # A hull has N named LAYOUTS - a full authored interior, a cheap systems-only one, a
+    # jump-drive refit of the same hull. Most specific wins: an explicit argument, then
+    # the ship's own "grid_layout" inventory value, then "default". A plain
+    # {"grid_objects": [...]} entry still reads as the default, so existing data is
+    # untouched.
+    if layout is None:
+        layout = get_inventory_value(ship_id, "grid_layout", None)
+    internal_items = grid_get_layout(so.art_id, layout)
     if internal_items is None: return
-    theme = grid_get_grid_current_theme()
+
+    # The theme is per HULL (or per layout) now, not one global setting - that is what
+    # makes a race's room vocabulary possible, and a captured hull refitted by another
+    # race is the same mesh with a different interior AND a different vocabulary.
+    theme_name = grid_get_theme_name(so.art_id, layout)
+    theme = grid_get_grid_named_theme(theme_name)
 
 
     #
@@ -124,10 +137,14 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None):
         coords = f"{loc_x},{loc_y}"
         name_tag = f"{g['name']}:{coords}"
 
-        item_theme_data = grid_get_item_theme_data(g["roles"])
+        item_theme_data = grid_get_item_theme_data(g["roles"], theme_name)
 
         color = item_theme_data.color
         icon = item_theme_data.icon
+        # NOTE the per-object "scale" in grid_data.json is deliberately NOT read. Those
+        # values (1.2454545497894287 and friends) are artifacts of whatever tool wrote the
+        # file, not authored intent, and honoring them would import that noise into the
+        # render. The theme owns scale; the migration to the ASCII format drops the field.
         scale = item_theme_data.scale
         r = "#,"+g["roles"]
         go =  grid_spawn(ship_id,  name_tag, name_tag, loc_x, loc_y, icon, color, r)
@@ -481,7 +498,10 @@ def set_damage_coefficients(id_or_obj):
         ("impulse", "impulse_damage_coeff",0), 
         ("warp", "warp_damage_coeff",0), 
         ("maneuver", "turn_damage_coeff",0),
-        ("sensors", "sensor_damage_coeff",0),
+        # "sensor", not "sensors": the role every ship actually carries is SINGULAR (92
+        # uses in the shipped data, zero plural). Matching the plural meant this coeff was
+        # permanently 1.0 - sensor damage never degraded sensors at all.
+        ("sensor", "sensor_damage_coeff",0),
         ("shield,fwd", "shield_damage_coeff",0), 
         ("shield,aft", "shield_damage_coeff",1)
         ]

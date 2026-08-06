@@ -392,7 +392,139 @@ def grid_get_grid_data() -> dict:
     return _grid_data
 
 
-_grid_theme = None 
+GRID_DATA_MOD_KEY = "#mod"
+_grid_data_mods = {}
+
+
+def grid_merge_mod_data(content, mod=None):
+    """Merge grid data supplied as a JSON/YAML string into the grid data cache.
+
+    The counterpart of :func:`sbs_utils.procedural.ship_data.merge_mod_ship_yaml`, and the
+    one change that lets an ADDON ship ship interiors. ``grid_get_grid_data`` reads only
+    two places - the engine's ``grid_data.json`` and the *mission directory's*
+    ``extra_grid_data.json`` - so an addon inside a ``.mastlib`` could not contribute at
+    all. Pair it with ``media_read_relative_file``, which reads from the addon's zip when
+    it is packaged and from its folder in dev::
+
+        grid_merge_mod_data(media_read_relative_file("extra_grid_data.json"), "PirateMod")
+
+    Unlike ship data, this needs no build step: grid objects are not engine content -
+    ``grid_rebuild_grid_objects`` creates every one at runtime through ``grid_spawn`` - so
+    the engine never has to pre-know an interior. See ``SHIP_MOD_PLAN.md`` s3.
+
+    Merging is **whole-entry replace**, matching the ``|=`` the mission file has always
+    used: a mod supplies a hull's whole interior and cannot add a room to someone else's.
+    Layout variants are how one hull legitimately has more than one interior.
+
+    Two mods claiming the same hull is reported by name. It is a warning rather than an
+    error because failing here would take down a mission at load over a cosmetic clash,
+    but silent last-writer-wins is how interiors start feeling haunted.
+
+    Args:
+        content (str): JSON or YAML text (YAML is a JSON superset, so both parse).
+        mod (str, optional): Name of the mod these entries come from; stamped on each
+            entry as ``#mod`` and used to name collisions.
+
+    Returns:
+        dict | None: The updated grid data, or ``None`` if ``content`` was empty or
+            unparseable.
+    """
+    if not content:
+        return None
+    from ..fs import load_yaml_string
+    data = load_yaml_string(content)
+    if not isinstance(data, dict):
+        return None
+
+    grid_data = grid_get_grid_data()
+    if grid_data is None:
+        return None
+
+    for key, entry in data.items():
+        if not isinstance(entry, dict):
+            continue
+        previous = _grid_data_mods.get(key)
+        if previous is not None and mod is not None and previous != mod:
+            from .execution import log
+            log(f"grid data collision: '{key}' is supplied by both '{previous}' and "
+                f"'{mod}' - '{mod}' wins. One of them should be renamed.",
+                "grid", "warning")
+        if mod is not None:
+            entry[GRID_DATA_MOD_KEY] = mod
+            _grid_data_mods[key] = mod
+        grid_data[key] = entry
+    return grid_data
+
+
+def grid_get_mod(ship_key):
+    """The mod that supplied a hull's interior, or ``None`` for built-in data."""
+    entry = grid_get_grid_data().get(ship_key)
+    if not isinstance(entry, dict):
+        return None
+    return entry.get(GRID_DATA_MOD_KEY)
+
+
+def grid_get_layout(ship_key, layout=None):
+    """The grid-object list for one hull's layout.
+
+    A hull has N named LAYOUTS, not one interior - a full authored interior, a cheap
+    systems-only one, a jump-drive refit of the same hull. ``grid_objects`` at the top
+    level is still read as the default, so every existing entry keeps working::
+
+        {"tsn_light_cruiser": {"grid_objects": [...]}}                    # still valid
+        {"pirate_brigantine": {"layouts": {"default": {...},
+                                           "systems": {...}}}}
+
+    A layout may be either ``{"grid_objects": [...]}`` or a bare list.
+
+    Args:
+        ship_key (str): Ship key as defined in shipData.
+        layout (str, optional): Layout name. Defaults to ``"default"``, then to the
+            top-level ``grid_objects``.
+
+    Returns:
+        list | None: The grid object dicts, or ``None`` when there is no such interior.
+    """
+    entry = grid_get_grid_data().get(ship_key)
+    if not isinstance(entry, dict):
+        return None
+
+    layouts = entry.get("layouts")
+    if isinstance(layouts, dict):
+        chosen = layouts.get(layout or "default")
+        # An explicitly requested layout that does not exist falls back to the default
+        # rather than to nothing: a mission asking for "systems" on a hull that has no
+        # systems layout should still get a working ship.
+        if chosen is None and layout:
+            chosen = layouts.get("default")
+        if isinstance(chosen, list):
+            return chosen
+        if isinstance(chosen, dict):
+            return chosen.get("grid_objects")
+
+    return entry.get("grid_objects")
+
+
+def grid_get_theme_name(ship_key, layout=None):
+    """The theme a hull (or one of its layouts) asks for, or ``None`` for the current one.
+
+    Theme selection used to be a single module-level index - a whole-game setting - which
+    made per-race themes impossible. A hull, or a single layout of it, can now name its
+    own: a captured TSN hull refitted by pirates is the same mesh with a different
+    interior AND a different vocabulary.
+    """
+    entry = grid_get_grid_data().get(ship_key)
+    if not isinstance(entry, dict):
+        return None
+    layouts = entry.get("layouts")
+    if isinstance(layouts, dict):
+        chosen = layouts.get(layout or "default")
+        if isinstance(chosen, dict) and chosen.get("theme"):
+            return chosen.get("theme")
+    return entry.get("theme")
+
+
+_grid_theme = None
 def grid_get_grid_theme():
     """Get the grid data from all the grid_data.json files
 
@@ -411,6 +543,45 @@ def grid_get_grid_theme():
             _grid_theme.extend(script_grid_data)
     return _grid_theme
 
+
+def grid_merge_mod_theme(content):
+    """Append themes supplied as a JSON/YAML string, so an addon can ship its own.
+
+    Companion to :func:`grid_merge_mod_data`; same reason it exists - the built-in reader
+    only looks in the engine data dir and the mission dir, so a `.mastlib` addon had no
+    way in. A race mod's room VOCABULARY lives here: new room names need theme icon
+    entries or they fall back to the generic icon 120.
+
+    A theme with a name that already exists REPLACES it, so a mod can re-skin a built-in
+    theme rather than only adding beside it.
+
+    Args:
+        content (str): JSON or YAML text - one theme dict, or a list of them.
+
+    Returns:
+        list | None: The updated theme list, or ``None`` if nothing parsed.
+    """
+    if not content:
+        return None
+    from ..fs import load_yaml_string
+    data = load_yaml_string(content)
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        return None
+    themes = grid_get_grid_theme()
+    for t in data:
+        if not isinstance(t, dict) or not t.get("name"):
+            continue
+        name = str(t["name"]).strip().lower()
+        for i, existing in enumerate(themes):
+            if str(existing.get("name", "")).strip().lower() == name:
+                themes[i] = t
+                break
+        else:
+            themes.append(t)
+    return themes
+
 _grid_theme_current = 0
 def grid_get_grid_current_theme():
     """Get the currently active grid theme data.
@@ -423,7 +594,13 @@ def grid_get_grid_current_theme():
     td = grid_get_grid_theme()
     if _grid_theme_current < len(td):
         return td[_grid_theme_current]
-    return _grid_theme_current
+    # Used to return the integer INDEX here, into callers that immediately subscript it
+    # as a dict (theme["colors"], theme["icons"]) - so an out-of-range selection raised
+    # TypeError somewhere unrelated. Fall back to the first theme, which always exists
+    # once any theme has loaded.
+    if td:
+        return td[0]
+    return {"name": "", "colors": {}, "damage_colors": {}, "icons": {}}
 
 def grid_set_grid_current_theme(i):
     """Set the active grid theme by index.
@@ -435,6 +612,44 @@ def grid_set_grid_current_theme(i):
     td = grid_get_grid_theme()
     if i < len(td):
         _grid_theme_current = i
+
+
+def grid_reset_caches():
+    """Drop the loaded grid data and themes at a mission boundary.
+
+    ``_grid_data`` merges the mission's ``extra_grid_data.json`` (and, once mods can
+    contribute, every enabled mod's interiors) into the base table, and ``_grid_theme``
+    does the same for themes - so both are PER-MISSION state wearing the clothes of a
+    module-level cache. Left alone, the next mission inherits the previous one's
+    interiors and its theme index.
+
+    The engine forks a fresh process per mission and hides this; ``cosmos_dev`` reuses
+    one interpreter and does not. Registered in the reset ledger.
+    """
+    global _grid_data, _grid_theme, _grid_theme_current
+    _grid_data = None
+    _grid_theme = None
+    _grid_theme_current = 0
+    _grid_data_mods.clear()     # which mod supplied which hull, for collision reporting
+
+
+def grid_data_is_loaded() -> int:
+    """Reset-ledger probe: 1 while grid data (possibly mod-merged) is held, else 0."""
+    return 0 if _grid_data is None else 1
+
+
+def grid_theme_is_loaded() -> int:
+    """Reset-ledger probe: 1 while theme data is held, else 0."""
+    return 0 if _grid_theme is None else 1
+
+
+def grid_theme_current_index() -> int:
+    """Reset-ledger probe: the selected theme index, which must be back to 0 (default).
+
+    Not a container - a setting. A mission that selected theme 1 would silently hand it
+    to the next mission, which is a whole game re-skinned for no reason anyone could see.
+    """
+    return _grid_theme_current
 
 
 def grid_get_grid_named_theme(name):
@@ -451,10 +666,13 @@ def grid_get_grid_named_theme(name):
     if name is None:
         return grid_get_grid_current_theme()
     td = grid_get_grid_theme()
-    name = name.lower.strip()
+    name = name.lower().strip()
     for t in td:
-        if t["name"].lower() == name:
+        if str(t.get("name", "")).lower() == name:
             return t
+    # An unknown theme name falls back to the current theme rather than None - callers
+    # subscript the result, so None here would raise far from the typo that caused it.
+    return grid_get_grid_current_theme()
 
 
 def grid_set_grid_named_theme(name):
@@ -466,7 +684,7 @@ def grid_set_grid_named_theme(name):
     """
     global _grid_theme_current
     td = grid_get_grid_theme()
-    name = name.lower.strip()
+    name = name.lower().strip()
 
     for i,t in enumerate(td):
         if t["name"].lower() == name:
@@ -594,3 +812,50 @@ def grid_remove_move_role(event):
     
 
 GridDispatcher.add_any_object(grid_remove_move_role)
+
+def grid_merge_ascii(content, mod=None, ship_key=None):
+    """Merge one ASCII floor plan (see :mod:`grid_ascii`) into the grid data.
+
+    The one-line form an addon's ``__init__.mast`` uses::
+
+        grid_merge_ascii(media_read_relative_file("tsn_light_cruiser.grid"), "interiors_tsn")
+
+    A plan naming a ``layout:`` other than ``default`` is merged INTO the hull's existing
+    entry as a named layout rather than replacing it, so a hull's variants can arrive from
+    separate files - and, later, from separate mods.
+
+    Returns the entry that was merged, or ``None`` if the text could not be read (which is
+    logged, not raised: one unreadable floor plan should not take a mission down).
+    """
+    if not content:
+        return None
+    from .grid_ascii import grid_ascii_parse, GridAsciiError
+    try:
+        parsed = grid_ascii_parse(content, ship_key)
+    except GridAsciiError as e:
+        from .execution import log
+        log(f"floor plan not loaded: {e}", "grid", "warning")
+        return None
+
+    grid_data = grid_get_grid_data()
+    if grid_data is None:
+        return None
+    key, layout, entry = parsed["ship"], parsed["layout"], parsed["entry"]
+
+    if layout == "default":
+        existing = grid_data.get(key)
+        # Keep any named layouts a sibling file already contributed.
+        if isinstance(existing, dict) and isinstance(existing.get("layouts"), dict):
+            entry["layouts"] = existing["layouts"]
+        grid_data[key] = entry
+    else:
+        existing = grid_data.get(key)
+        if not isinstance(existing, dict):
+            existing = {}
+            grid_data[key] = existing
+        existing.setdefault("layouts", {})[layout] = entry
+
+    if mod is not None:
+        grid_data[key][GRID_DATA_MOD_KEY] = mod
+        _grid_data_mods[key] = mod
+    return grid_data[key]

@@ -351,13 +351,56 @@ def distance_to_navpoint(arg0: int, arg1: int) -> float:
             return (p2 - p1).length()
     return 1000.0
 
+def _grid_point_search(spaceObjectID, vecPoint, randomRadius, require_empty):
+    """Nearest OPEN grid cell to a normalized ship-space point, searched outward.
+
+    Both finders used to return [0, 0] unconditionally. That was survivable only while
+    every cell was "open"; now that the hull has a shape, cell (0,0) is a corner and
+    usually OUTSIDE it - so returning it would park damcons, markers and the EPad off the
+    hull, and drop every internal-damage hit onto the same dead cell.
+
+    `vecPoint` is normalized ship space (callers pass vec3(0.5, 0, 0.5) for "the middle"),
+    x across and z along the hull.
+    """
+    hull_map = hull_map_objects.get(spaceObjectID) or get_hull_map(spaceObjectID)
+    w, h = hull_map.w, hull_map.h
+    if w <= 0 or h <= 0:
+        return [0, 0]           # no interior declared - preserve the old answer
+
+    cx = min(w - 1, max(0, int(getattr(vecPoint, "x", 0.5) * w)))
+    cy = min(h - 1, max(0, int(getattr(vecPoint, "z", 0.5) * h)))
+
+    occupied = set()
+    if require_empty:
+        for go in hull_map.grid_items:
+            ds = go.data_set
+            occupied.add((int(ds.get("curx", 0)), int(ds.get("cury", 0))))
+
+    limit = max(int(randomRadius or 0), w + h)
+    for r in range(limit + 1):
+        for dy in range(-r, r + 1):
+            for dx in range(-r, r + 1):
+                # Ring only, so nearer cells are always returned first.
+                if r and max(abs(dx), abs(dy)) != r:
+                    continue
+                x, y = cx + dx, cy + dy
+                if x < 0 or y < 0 or x >= w or y >= h:
+                    continue
+                if not hull_map.is_grid_point_open(x, y):
+                    continue
+                if require_empty and (x, y) in occupied:
+                    continue
+                return [x, y]
+    return []
+
+
 def find_valid_grid_point_for_vector3(spaceObjectID: int, vecPoint: vec3, randomRadius: int) -> List[int]:
     """return a list of two integers, the grid x and y that is open and is closest.  The list is empty if the search fails."""
-    return [0, 0]
+    return _grid_point_search(spaceObjectID, vecPoint, randomRadius, False)
 
 def find_valid_unoccupied_grid_point_for_vector3(spaceObjectID: int, vecPoint: vec3, randomRadius: int) -> List[int]:
     """return a list of two integers, the grid x and y that is open and is closest.  The list is empty if the search fails."""
-    return [0, 0]
+    return _grid_point_search(spaceObjectID, vecPoint, randomRadius, True)
 
 def get_client_ID_list() -> List[int]:
     """return a list of client ids, for the computers that are currently connected to this server."""
@@ -386,12 +429,116 @@ def get_game_version() -> str:
     """returns the version of the game EXE currently operating this script, as a string."""
     return ""
 
+
+# The engine's launch arguments (engine 1.3.5). The mock has no engine command line, so
+# these are EMPTY by default and settable, which is what lets a headless run reproduce a
+# particular launch - `cosmos_dev.mission_runner` fills them from its own arguments so a
+# mission reading `map=` behaves the same in both.
+#
+# Shapes copied from the engine, measured rather than guessed: the LIST carries the exe
+# path at index 0 and every argument including bare flags; the DICT carries only the
+# `key=value` ones, so bare flags never appear in it.
+_command_line = ["mock-cosmos.exe"]
+
+
+def set_command_line(args) -> None:
+    """TEST/DEV ONLY - pretend the engine was launched with these arguments.
+
+    Pass them WITHOUT the exe path; it is prepended, so callers do not have to fake one.
+    """
+    global _command_line
+    _command_line = ["mock-cosmos.exe"] + [str(a) for a in (args or [])]
+
+
+def add_extra_ship_data(filename: str, path: str) -> None:
+    """Load another set of ships from a data file, for this mission only (engine 1.3.5).
+
+    PASS THE FILENAME WITHOUT AN EXTENSION. The engine tries `.yaml` then `.json` itself,
+    which is also why it is the more useful form: a mod can switch format without the
+    caller changing. Their own example does exactly this -
+    `sbs.add_extra_ship_data("extraShipDataAAA", "data/missions/BeamArcTest")` - even though
+    the file on disk is `.json`.
+
+    The mock reproduces that search and merges into sbs_utils' own list, which is where
+    `_try_populate_from_ship_data` looks, so a mission using this behaves the same headless.
+
+    Forgiving about a missing file, matching the engine's habit of not being fatal about
+    data it cannot find: a mod with a broken path should be a ship with no stats, not a
+    dead mission.
+    """
+    import os
+    import re
+    from sbs_utils.procedural.ship_data import merge_mod_ship_yaml
+    stem = os.path.join(str(path), str(filename))
+    for candidate in (stem, stem + ".yaml", stem + ".json"):
+        try:
+            with open(candidate, "r", encoding="utf-8") as f:
+                text = f.read()
+        except OSError:
+            continue
+        merge_mod_ship_yaml(re.sub(r"^[ 	]*//.*$", "", text, flags=re.M),
+                            "add_extra_ship_data")
+        return
+
+
+def command_line_list() -> list:
+    """Every launch argument, exe path first."""
+    return list(_command_line)
+
+
+def command_line_dict() -> dict:
+    """Only the `key=value` launch arguments. Bare flags are absent, as in the engine."""
+    out = {}
+    for arg in _command_line[1:]:
+        if "=" in arg:
+            key, _, value = arg.partition("=")
+            out[key] = value
+    return out
+
 hull_map_objects = {}
+def _populate_hull_map(hull_map, spaceObjectID) -> None:
+    """Give a fresh hull map its ship's interior dimensions from shipData.
+
+    The engine derives these when it builds the interior; the mock has to look them up.
+    Without this the map stays 0x0, `is_grid_point_open` has no grid to answer about, and
+    every consumer sees a ship with no interior - which is what it did before.
+
+    A ship with no `internalmapw` (asteroids, pickups, generics) legitimately has no
+    interior, and is left at 0x0.
+    """
+    try:
+        obj = sim.space_objects.get(spaceObjectID) if sim is not None else None
+        key = getattr(obj, "_data_tag", None) if obj is not None else None
+        if not key:
+            return
+        from sbs_utils.procedural.ship_data import get_ship_data_for
+        data = get_ship_data_for(key)
+        if not data:
+            return
+        w = data.get("internalmapw")
+        h = data.get("internalmaph")
+        if not w or not h:
+            return
+        hull_map._w = int(w)
+        hull_map._h = int(h)
+        hull_map._grid_scale = float(data.get("internalmapscale", 1.0) or 1.0)
+        hull_map._sym = int(data.get("internalsymmetry", 0) or 0)
+        hull_map._art_file_root = data.get("artfileroot", "") or ""
+        # `artfilepath` - no underscores, like every other shipData key - is the folder the
+        # art lives in. New in 1.3.5; absent from every older entry, hence the plain default.
+        hull_map._art_file_path = data.get("artfilepath", "") or ""
+        hull_map._ship_key = key
+    except Exception:
+        # A hull map that fails to populate is a degraded mock, never a broken run.
+        pass
+
+
 def get_hull_map(spaceObjectID: int, forceCreate: bool = False) -> hullmap:
     """gets the hull map object for this space object; setting forceCreate to True will erase and rebuild the grid (and gridObjects) of this spaceobject"""
     hull_map = hull_map_objects.get(spaceObjectID)
     if not hull_map or forceCreate:
         hull_map = hullmap()
+        _populate_hull_map(hull_map, spaceObjectID)
         hull_map_objects[spaceObjectID] = hull_map
     return hull_map
 
@@ -1275,6 +1422,7 @@ class hullmap(object): ### from pybind
     """class hullmap"""
     def __init__(self) -> None:
         self._art_file_root = ""
+        self._art_file_path = ""
         self._desc = ""
         self._name = ""
         self.grid_items = []
@@ -1282,6 +1430,9 @@ class hullmap(object): ### from pybind
         self._h = 0
         self._w = 0
         self._sym = 0
+        # shipData key, so the engine CAPTURE can be looked up. NOT artfileroot -
+        # they differ on about half the ships, and the capture is keyed by key.
+        self._ship_key = ""
 
     @property
     def art_file_root(self: hullmap) -> str:
@@ -1291,6 +1442,39 @@ class hullmap(object): ### from pybind
     @art_file_root.setter
     def art_file_root(self: hullmap, arg0: str) -> None:
         self._art_file_root = arg0
+
+    def _art_dir(self):
+        """Where this hull's art lives, or None for the stock graphics folder.
+
+        Stored as a string that is a FOLDER relative to the exe. Returning None rather than
+        the stock path keeps `open_cells` in charge of its own default.
+        """
+        if not self._art_file_path:
+            return None
+        import os
+        if os.path.isabs(self._art_file_path):
+            return self._art_file_path
+        from sbs_utils import fs
+        return os.path.join(fs.get_artemis_dir(), *self._art_file_path.replace("\\", "/").split("/"))
+
+    @property
+    def art_file_path(self: hullmap) -> str:
+        """string, file path, used to get top-down image from disk (engine 1.3.5).
+
+        A FOLDER, holding art named by `art_file_root` - the two work together rather than
+        one replacing the other. Relative paths resolve against the EXE directory, which is
+        the engine's rule, confirmed from its own example:
+
+            "artfileroot": "tsn_light_cr",
+            "artfilepath": "data/missions/BeamArcTest/extraShipGraphicData"
+
+        Empty means the stock `data/graphics/ships`.
+        """
+        return self._art_file_path
+
+    @art_file_path.setter
+    def art_file_path(self: hullmap, arg0: str) -> None:
+        self._art_file_path = arg0 or ""
 
     def create_grid_object(self: hullmap, name: str, tag: str, type: str) -> grid_object:
         """returns a gridobject, after creating it"""
@@ -1349,7 +1533,16 @@ class hullmap(object): ### from pybind
 
     def get_objects_at_point(self: hullmap, x: int, y: int) -> List[int]:
         """returns a list of grid object IDs that are currently at the x/y point."""
-        return []
+        # Was `return []`, which meant internal damage could never find what it hit and
+        # ai_idle_at_room could never tell which room a damcon was standing in - its
+        # `set(hm.get_objects_at_point(x, y))` was always empty, so the whole
+        # room-detection half of the damcon AI was untestable headless.
+        found = []
+        for go in self.grid_items:
+            ds = go.data_set
+            if int(ds.get("curx", 0)) == int(x) and int(ds.get("cury", 0)) == int(y):
+                found.append(go._id)
+        return found
 
     @property
     def grid_scale(self: hullmap) -> float:
@@ -1371,7 +1564,23 @@ class hullmap(object): ### from pybind
 
     def is_grid_point_open(self: hullmap, arg0: int, arg1: int) -> int:
         """is the x/y point within this hullmap open (traversable)? 0 == no"""
-        return 1
+        # Was an unconditional `return 1` - so headless, every ship was a solid rectangle
+        # and nothing could report a room placed outside the hull. The shape now comes
+        # from the silhouette art, per cosmos_dev/mock/hull_mask.py.
+        #
+        # The ENGINE owns the real answer; this only reconstructs it for the mock.
+        x, y = int(arg0), int(arg1)
+        if self._w <= 0 or self._h <= 0:
+            return 1                    # no interior declared -> nothing to be outside of
+        if x < 0 or y < 0 or x >= self._w or y >= self._h:
+            return 0
+        from . import hull_mask
+        cells = hull_mask.open_cells(self._art_file_root, self._w, self._h,
+                                    ships_dir=self._art_dir(),
+                                    ship_key=self._ship_key)
+        if cells is None:
+            return 1                    # art unreadable -> unknown, so stay permissive
+        return 1 if cells[y][x] else 0
 
     @property
     def name(self: hullmap) -> str:

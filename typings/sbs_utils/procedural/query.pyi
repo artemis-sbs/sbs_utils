@@ -1,6 +1,7 @@
 from sbs_utils.agent import Agent
 from sbs_utils.agent import CloseData
 from sbs_utils.agent import SpawnData
+from sbs_utils.delete_queue import DeleteQueue
 from sbs_utils.helpers import FrameContext
 def all_objects_exists (the_set):
     """Return whether every object in a collection exists in the simulation.
@@ -216,10 +217,21 @@ def random_object_list (the_set, count=1):
     Returns:
         list[Agent]: Randomly selected agents (may contain duplicates)."""
 def safe_int (s, defa=0):
-    """Convert a string to an integer, returning a default on failure.
+    """Convert a value to an integer, returning a default on failure.
+    
+    Accepts strings (GUI typeins / loaded game codes arrive as strings) as well
+    as values that are already ``int``/``float`` - a GUI property can be either
+    depending on whether it was typed, defaulted, or loaded from settings, so
+    callers must not assume a string. Non-numeric input yields ``defa``.
+    
+    A prefixed literal is also accepted: ``"0x1F"`` -> 31 (and ``0o``/``0b``).
+    Decimal is tried first so leading-zero decimals still parse as base 10
+    (``"007"`` -> 7). Bare hex without the ``0x`` prefix is intentionally NOT
+    accepted - ``"42"`` is valid hex too, so it would silently reinterpret
+    ordinary decimal input.
     
     Args:
-        s (str | any): The value to convert. Expected to be a string.
+        s (str | int | float | any): The value to convert.
         defa (int, optional): Value returned if ``s`` is not a valid integer.
             Defaults to 0.
     

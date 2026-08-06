@@ -1,6 +1,6 @@
 from sbs_utils.mast.mast_node import MastNode
 from sbs_utils.mast.mast_runtime_node import MastRuntimeNode
-def gui_text_area (props, style=None):
+def gui_text_area (props, style=None, markdown=True, line_styles=None):
     """Add a rich text area to the current GUI layout.
     
     Supports Markdown-style formatting and inline image references

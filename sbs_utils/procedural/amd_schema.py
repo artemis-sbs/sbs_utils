@@ -127,8 +127,9 @@ def kv(hint="kind=bio, range=medium"):
     """`k=v, k=v` settings stamped onto whatever the record produces."""
     return _d("kv", hint=hint)
 
-def reward(hint="200 credits"):
-    """What a job pays."""
+def reward(hint="200 credits, 2 torpedoes, earns tsn honest +10"):
+    """What a job pays: comma-separated credits / items / `earns <faction> <pole> <n>`.
+    A reputation clause is only meaningful on a player-held quest (URGE_PLAN.md s7.1)."""
     return _d("reward", hint=hint)
 
 def lines(hint="Kidnapper becomes a pirate"):
@@ -222,6 +223,12 @@ QUEST = {
     "action": lines(),
     "part of": field(ref("node"), key="parent", aka=("parent",)),
     "scope": enum("shared", "ship"),
+    # WHO owns the quest, named outright - `Scope:` generalized from "the crew or this
+    # ship" to any actor, so a station's resupply job is held by the station and its
+    # deadline and penalty land on the world rather than on a passing crew. Resolved the
+    # same way an `Action:` actor is (landmark key, then role); `shared` names the story
+    # agent. URGE_PLAN.md s7.2.
+    "held by": field(text(hint="ds1"), key="held_by"),
     # `Reward:` over `Pays:`. Its partner is free - the failure side already exists in
     # code (quest_grant_penalty) with no authored word yet, and `Reward:`/`Penalty:`
     # mirrors the two functions, while `Pays:`/`Costs:` collides with what you spend to
@@ -232,7 +239,7 @@ QUEST = {
     "reward": field(reward(), key="reward", aka=("pays",)),
     # The failure side has had code since the beginning (quest_grant_penalty) and no
     # word. `Reward:` / `Penalty:` is the pair.
-    "penalty": field(reward(hint="100 credits"), key="penalty"),
+    "penalty": field(reward(hint="100 credits, earns tsn diplomatic -15"), key="penalty"),
     "tier": integer(),
     "fail on signal": field(signal(), internal=True),
     "fail on all dead": field(ref("role"), internal=True),
@@ -408,11 +415,27 @@ CUTSCENE = {
 }
 SHOT = CUTSCENE     # one schema; "shot" and "cutscene" are two words for it
 
+# An URGE: what an actor keeps asking for. A condition, a cadence, a pool of lines in
+# the BODY, and optionally an `Action:`. It declares no stakes of its own - the
+# consequence belongs to the quest it watches (URGE_PLAN.md).
+URGE = {
+    "actor": ref("node", hint="ds1  (a landmark key or a role)"),
+    "whenever": text(hint="quest ds1_resupply active"),
+    "every": duration(hint="5m, or 3-5m to jitter"),
+    "until": text(hint="quest passenger_vell active  (retires it for good)"),
+    "weight": integer(hint="20  (which of THIS actor's urges wins; 90+ is urgent)"),
+    # Open: the vocabulary is a registry, so a mission can add a mode. The linter still
+    # warns on anything it does not know, which is the point of `open` rather than text.
+    "escalates": enum("with deadline", "yes", open=True),
+    "title": text(hint="Passenger Request  (the card header; default is the speaker)"),
+    "action": lines(hint="self departs"),
+}
+
 ARCHETYPES = {
     "quest": QUEST, "lifeform": LIFEFORM, "item": ITEM, "side": SIDE,
     "scan": SCAN, "landmark": LANDMARK, "region": REGION, "map": MAP,
     "dialogue": DIALOGUE, "image": IMAGE,
-    "cutscene": CUTSCENE,
+    "cutscene": CUTSCENE, "urge": URGE,
 }
 
 # TRAITS: a concern a record ALSO has, on top of what it is.
@@ -522,6 +545,7 @@ _SECTION_ALIASES = {
     "regions": "region", "region": "region",
     "maps": "map", "map": "map",
     "dialogue": "dialogue", "lines": "dialogue",
+    "urges": "urge", "urge": "urge",
     # An icon IS an atlas cell that resolves in the icon domain - one archetype, two
     # section words, so a mission's card deck and its icon sheet read the same way.
     "images": "image", "image": "image", "art": "image", "atlas": "image",

@@ -1,4 +1,8 @@
 from sbs_utils.agent import Agent
+def _role_expr_match (so, toks):
+    ...
+def _role_expr_tokenize (expr):
+    ...
 def add_role (set_holder, role):
     """Add a role to one or more agents.
     
@@ -115,6 +119,35 @@ def role_are_allies (id_or_obj, other_id_or_obj):
     
     Returns:
         bool: ``True`` if both objects have at least one allied side in common."""
+def role_matches (so, expr):
+    """Return whether an agent satisfies a role EXPRESSION.
+    
+    The expression combines role names (a ship's side counts as a role) with set-style
+    operators, evaluated for the single agent ``so``:
+    
+    * ``|`` OR       -- ``"__player__ | tsn"``     (a player OR a tsn ship)
+    * ``&`` AND      -- ``"__player__ & tsn"``     (a tsn player)
+    * ``-`` AND-NOT  -- ``"__player__ - cockpit"`` (a player that is not a fighter)
+    * ``!`` NOT      -- ``"!tsn"``                 (anything not tsn); ``-`` is BINARY
+    * ``( )`` group  -- ``"(tsn | raider) & !__player__"``
+    
+    Precedence high->low: ``!``, then ``&``/``-`` (left to right), then ``|`` -- use
+    parentheses for other groupings. An empty/None expression matches nothing.
+    
+    Args:
+        so (Agent | int): Agent ID or object to test.
+        expr (str): The role expression.
+    
+    Returns:
+        bool: ``True`` if the agent satisfies the expression."""
+def roles_matching (expr):
+    """Return the set of agent IDs that satisfy a role expression (see :func:`role_matches`).
+    
+    Args:
+        expr (str): The role expression (``| & - !`` and parentheses).
+    
+    Returns:
+        set[int]: IDs of all agents matching the expression."""
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """Resolve an ID, ``CloseData``, or ``SpawnData`` to its Agent object.
     

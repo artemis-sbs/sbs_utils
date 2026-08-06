@@ -19,6 +19,11 @@ Runs inside **Artemis Cosmos** — a space ship bridge simulator. Python 3.11 em
 **Hard constraints:**
 - No pip-installable packages (bundled `yaml/` is the exception)
 - No threading, no asyncio
+- **Always use US English spelling** — color, center, optimize, behavior, honor,
+  initialize. Applies to everything: code, identifiers, comments, docstrings, docs,
+  commit messages, and user-facing strings.
+- Engine-rendered strings are **ASCII only** — no emoji, no Unicode, no em-dashes.
+  Comments and docs are exempt from the ASCII rule (but not the spelling one).
 
 **Cosmos ≠ old SBS** — the old game used XML scripts; Cosmos uses MAST (Python-based). Never reference XML scripting.
 

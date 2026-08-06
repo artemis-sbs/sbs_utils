@@ -887,6 +887,10 @@ class TextArea(Control):
         # so anything the row/section was contributing has to be folded in now.
         # The widget's own props win, matching what the engine draws today.
         #
+        # No `layer` here on purpose: this folds the cascade into a per-line
+        # `$$` style for the text area's OWN mini-language, not into a props
+        # string the engine reads, so a draw_layer key would only confuse the
+        # line parser. The simple path (_present_simple) does carry it.
         for k, v in split_props(self.get_cascade_props(True, True, True), "font").items():
             props.setdefault(k, v)
         # Values are stripped because the `$$` form splits style from text on
@@ -905,7 +909,7 @@ class TextArea(Control):
             if "text:" not in message:
                 message = f"$text:`{message}`;"
 
-        message += self.get_cascade_props(True, True, True)
+        message += self.get_cascade_props(True, True, True, True, message)
 
         ctx.sbs.send_gui_text(event.client_id, self.local_region_tag,
             self.tag, message,  

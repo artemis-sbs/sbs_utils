@@ -5,7 +5,7 @@ def mast_node (append=True):
     ...
 class SignalRouteDecoratorLabel(DecoratorLabel):
     """class SignalRouteDecoratorLabel"""
-    def __init__ (self, path, shared=None, if_exp=None, loc=None, compile_info=None):
+    def __init__ (self, path, shared=None, once=None, if_exp=None, loc=None, compile_info=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def _add (id, obj):
         ...

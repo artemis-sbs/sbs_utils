@@ -1,3 +1,19 @@
+def _distance_between (obj1, obj2):
+    """Distance between two objects, or ``None`` if either is missing/destroyed.
+    
+    ``sbs.distance_id`` errors ("was sent None") for an id that is None or refers to
+    a deleted object, and ``to_id`` passes both straight through -- so resolve to live
+    objects first. Callers turn ``None`` into a False condition."""
+def distance_greater (obj1, obj2, radius):
+    """2.8 ``if_distance`` (GREATER) as a live boolean for polling loops.
+    
+    Also False when either object is missing or destroyed: a destroyed object is
+    not "infinitely far away", it is untestable, so the condition should not fire."""
+def distance_less (obj1, obj2, radius):
+    """2.8 ``if_distance`` (LESS) as a live boolean for polling loops.
+    
+    False when either object is missing or destroyed -- a 2.8 condition about an
+    object that does not exist simply never fires."""
 def in_box (obj, least_x, least_z, most_x, most_z, inside=True):
     """2.8 ``if_inside_box`` / ``if_outside_box`` (an XZ rectangle).
     

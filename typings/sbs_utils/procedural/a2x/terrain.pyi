@@ -48,3 +48,14 @@ def pos (x, y, z):
     
     Returns:
         Vec3: the equivalent Cosmos position."""
+def set_nebula_opaque_all (opaque):
+    """2.8 global ``nebulaIsOpaque`` (a nameless set_object_property) -> set every nebula's
+    throttle limit. Non-zero (opaque) keeps the Cosmos default limit (2.0, which slows
+    ships); 0 = no limit. Returns the number of nebulae updated."""
+def set_skybox_index (index):
+    """2.8 ``set_skybox_index`` (SB00..SB29) -> schedule a Cosmos skybox.
+    
+    Cosmos has no SB## skyboxes; map the 2.8 index across the skyboxes the LM
+    ``basic_random_skybox`` addon registers (``@media/skybox/*``), so each 2.8 index picks a
+    stable Cosmos skybox. A negative / non-integer index schedules a random skybox. Returns
+    the scheduled skybox label, or ``None`` when a random one was scheduled."""

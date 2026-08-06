@@ -86,6 +86,7 @@ nav:
     - Icons (gui_icon_name): cosmos/gui_icons.md
     - Sizing to content: cosmos/gui_content_sizing.md
     - Text that does not fit: cosmos/gui_overflow.md
+    - Paint order (layer): cosmos/gui_layer.md
     - Overlays (cards, HUDs, cutscenes): cosmos/overlays.md
     - Cinematics (camera, cutscenes, rundowns): cosmos/cinematics.md
     - Comms: cosmos/comms.md
@@ -104,6 +105,7 @@ nav:
     - The Library (in-game reading): build/library.md
     - Shared media (art that lives once): build/shared-media.md
     - Making add-ons: build/addons.md
+    - The races add-on (interiors & fleets): build/race-addons.md
 
   - Tutorials:
     - tutorial/index.md
@@ -115,6 +117,7 @@ nav:
   - Tooling:
     - tooling/index.md
     - sbs CLI: tooling/cli.md
+    - Command-line arguments: tooling/command-line.md
     - Testing missions: tooling/testing.md
     - Debugging your mission: tooling/mast-debugger.md
     - AMD authoring tools: tooling/amd-tools.md
@@ -180,6 +183,7 @@ nav:
       - timers: api/procedural/timers.md
       - torpedoes: api/procedural/torpedoes.md
       - upgrades: api/procedural/upgrades.md
+      - urge: api/procedural/urge.md
       - web: api/procedural/web.md
     - Dispatch:
       - api/dispatch/index.md

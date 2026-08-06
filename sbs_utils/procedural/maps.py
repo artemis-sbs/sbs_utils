@@ -430,3 +430,56 @@ def game_code_presets_save_code(code, name=None, filename=None):
 
 
 
+
+
+def maps_find(spec):
+    """Find one `@map` label from a loose, human-typed spec.
+
+    Built for launch arguments - `map=test_shipdata_probe` on the engine command line, or
+    `--map 0` under cosmos_dev - where the value is typed by a person or pasted from a
+    script and should not have to be exact.
+
+    Accepts, in order of preference so an exact hit always wins over a fuzzy one:
+
+    * an integer, or a string of digits - an index into the map list
+    * the label `path`, case-insensitively
+    * the `display_name`, case-insensitively
+    * a unique case-insensitive substring of either; AMBIGUOUS matches return None
+      rather than picking one, because silently starting the wrong map is worse than
+      starting none and saying so.
+
+    Returns:
+        Label | None: the map, or None if nothing matched or the spec was ambiguous.
+    """
+    maps = [m for m in (maps_get_list() or []) if hasattr(m, "path")]
+    if not maps or spec is None:
+        return None
+
+    if isinstance(spec, bool):          # bool is an int; a True index is nonsense
+        return None
+    if isinstance(spec, int):
+        return maps[spec] if 0 <= spec < len(maps) else None
+
+    want = str(spec).strip()
+    if not want:
+        return None
+    if want.isdigit():
+        idx = int(want)
+        return maps[idx] if 0 <= idx < len(maps) else None
+
+    lowered = want.lower()
+
+    def _name(m):
+        return str(getattr(m, "display_name", "") or "")
+
+    for m in maps:
+        if str(getattr(m, "path", "")).lower() == lowered:
+            return m
+    for m in maps:
+        if _name(m).lower() == lowered:
+            return m
+
+    partial = [m for m in maps
+               if lowered in str(getattr(m, "path", "")).lower()
+               or lowered in _name(m).lower()]
+    return partial[0] if len(partial) == 1 else None

@@ -1,3 +1,9 @@
+def _ryaml_rejected (what, err):
+    """ryaml is PRESENT and refused this content - a different fact entirely.
+    
+    Worth saying once, with the name of the offending file: the fallback keeps
+    the mission running, so nothing else will ever mention that this file is
+    being parsed the slow way, or that it may be malformed."""
 def add_to_path (dir):
     """Add a directory to the Python module search path.
     
@@ -127,6 +133,21 @@ def is_dev_build ():
     
     Returns:
         bool: True if running in development mode, False otherwise."""
+def load_data (file):
+    """Load a data file as YAML or JSON, dispatching on the extension.
+    
+    ``.yaml``/``.yml`` are parsed as YAML; ``.json`` as JSON (comment- and
+    trailing-comma-tolerant). When ``file`` has no recognised extension it is
+    treated as a BASE path and the ``.yaml``, ``.yml`` then ``.json`` siblings are
+    tried in turn -- so a caller can pass ``"shipData"`` (no extension) and get
+    whichever form is present, YAML preferred.
+    
+    Args:
+        file (str): Path to the data file, with or without a
+            ``.yaml``/``.yml``/``.json`` extension.
+    
+    Returns:
+        dict | list | None: The parsed data, or ``None`` if nothing loaded."""
 def load_json_data (file):
     """Load and parse a JSON file with comment support.
     
@@ -152,8 +173,8 @@ def load_json_string (contents):
 def load_yaml_data (file, multi=False):
     """Load and parse a YAML file.
     
-    Attempts to load using ryaml first for better comment handling,
-    falls back to standard yaml.safe_load if ryaml is unavailable.
+    Uses the fast ryaml parser when the engine provides it, and the bundled
+    pure-Python yaml otherwise (or when ryaml refuses the file).
     
     Args:
         file (str): Path to the YAML file to load.
@@ -172,6 +193,12 @@ def load_yaml_string (s):
     
     Returns:
         dict or None: Parsed YAML data, or None if parsing fails."""
+def ryaml_module ():
+    """The fast YAML parser, or None where it is not installed.
+    
+    Absent is NORMAL and silent: the mock and any host-side tooling run on a
+    plain Python that has no PyAddons on its path, and they must not be noisy
+    about a thing they were never going to have."""
 def save_json_data (file, data):
     """Save data to a JSON file with human-readable formatting.
     

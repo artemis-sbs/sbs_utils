@@ -1,5 +1,6 @@
 from .bounds import Bounds, is_out_of_bounds
 from .column import Column
+from .measure import backdrop_props
 from .clickable import Clickable
 from .dirty import Dirty
 from ...helpers import FrameContext
@@ -45,6 +46,9 @@ class Row:
         self.default_font = None
         self.default_height = None
         self.default_width = None
+        # Paint order -- None keeps the historic backdrop layer. See measure.py.
+        # `layer` is a property aliasing this, like color/justify/font above.
+        self.default_layer = None
 
         self.background_color = None
         self.background_image = "smallWhite"
@@ -65,7 +69,9 @@ class Row:
 
     @property
     def parent(self):
-        return self._parent
+        if self._parent is None:
+            return None
+        return self._parent()
         
     @parent.setter
     def parent(self, v):
@@ -152,6 +158,17 @@ class Row:
     def font(self, v):
         self.default_font = v
 
+    @property
+    def layer(self):
+        return self.default_layer
+
+    @layer.setter
+    def layer(self, v):
+        self.default_layer = v
+
+    def get_layer(self):
+        return self.default_layer
+
     def set_row_height(self, height):
         self.default_height = height
 
@@ -199,16 +216,16 @@ class Row:
         padding.shrink(self.border)
    
         if self.border is not None and self.border_color is not None:
-            bb_props = f"image:{self.border_image}; color:{self.border_color};draw_layer:1000;"
+            bb_props = backdrop_props(self.border_image, self.border_color, self.get_layer())
             ctx.sbs.send_gui_image(event.client_id, self.region_tag,
                 "__bb:"+self.tag, bb_props,
-                border.left, 
-                border.top, 
-                border.right, 
+                border.left,
+                border.top,
+                border.right,
                 border.bottom)
-            
+
         if self.background_color is not None:
-            props = f"image:{self.background_image}; color:{self.background_color};draw_layer:1000;"
+            props = backdrop_props(self.background_image, self.background_color, self.get_layer())
             ctx.sbs.send_gui_image(event.client_id, self.region_tag,
                 "__bg:"+self.tag, props,
                 padding.left, 

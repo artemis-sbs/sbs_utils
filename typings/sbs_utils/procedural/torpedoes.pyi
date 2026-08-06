@@ -1,4 +1,18 @@
 from sbs_utils.helpers import FrameContext
+def fire_torpedo (id_or_obj, kind=None, tube_index=0) -> None:
+    """Fire a torpedo at the ship's current weapon target, via the engine
+    (``sbs.simulation.launch_torpedo``). Callable from MAST or Python.
+    
+    Beams auto-fire, but torpedoes need an explicit launch - this is that call. If
+    ``kind`` is given (e.g. ``"Nuke"``, ``"EMP"``), the tube holding that loaded type is
+    selected; otherwise ``tube_index`` fires as-is (``0`` = the default/first loaded
+    type). No-ops if the ship is gone or the type is out of ammo.
+    
+    Args:
+        id_or_obj (int | Agent): The firing ship.
+        kind (str, optional): Torpedo type to fire; resolved to its tube. Defaults to
+            None (fire ``tube_index``).
+        tube_index (int, optional): Tube to fire when ``kind`` is not given. Defaults 0."""
 def get_data_set_value (id_or_obj, key, index=0):
     """Get a value from the engine data-set (blob) of a space or grid object.
     

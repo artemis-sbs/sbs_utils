@@ -55,6 +55,38 @@ _LEVEL_SECONDS = {"chapter": 5, "hail": 8, "alert": 6, "status": 3, "minor": 3}
 HEADLINE_MAX = 60
 
 
+# --- the traffic clock --------------------------------------------------------
+# When did the mission last say something UNPROMPTED to the crew? Every announce
+# records here, and so does every urge that speaks (procedural/urge.py), because the
+# two are the same thing from the bridge's side: a voice arriving that nobody asked
+# for. The urge budget's global floor reads it, so an actor does not pipe up on top of
+# mission dispatch - which is the annoyance players actually notice.
+#
+# Deliberately NOT every comms_message: a player hailing a station is traffic the
+# player ASKED for, and counting it would starve autonomous speech exactly when the
+# crew is busy - the opposite of what a floor is for.
+_LAST_TRAFFIC = [None]
+
+
+def announce_note_traffic(now=None):
+    """Record that something just spoke to the crew unprompted."""
+    if now is None:
+        from sbs_utils.helpers import FrameContext
+        now = FrameContext.sim_seconds
+    _LAST_TRAFFIC[0] = now
+    return now
+
+
+def announce_last_traffic():
+    """Sim seconds when the crew was last spoken to unprompted, or None."""
+    return _LAST_TRAFFIC[0]
+
+
+def announce_traffic_reset():
+    """Drop the traffic clock (called by reset_mission_state)."""
+    _LAST_TRAFFIC[0] = None
+
+
 def announce_headline(text, limit=HEADLINE_MAX):
     """Reduce ``text`` to a single-line ASCII headline for an overlay.
 
@@ -131,6 +163,7 @@ def announce(text, title=None, level="status", to=None, ship=None, consoles=None
     head = headline if headline is not None else announce_headline(title or text)
     if seconds is None:
         seconds = _LEVEL_SECONDS.get(level)
+    announce_note_traffic()     # an actor must not talk over mission dispatch
 
     # --- the attention half ---------------------------------------------------
     # A hero card and a toast get a HEADLINE - they are a glance, and there is

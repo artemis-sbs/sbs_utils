@@ -133,6 +133,38 @@ def reset_mission_state():
     # this drops the "already scheduled" latches that would otherwise stop them
     # being re-registered - leaving the next mission with brains that never think.
     objective_reset()
+    from .procedural.urge import urge_reset
+    urge_reset()        # same latch as objective_reset: a stale "scheduled" global
+                        # would leave every actor mute from run 2 onward, silently
+    from .procedural.announce import announce_traffic_reset
+    announce_traffic_reset()    # the "when did anything last speak" clock the urge
+                                # budget's global floor reads
+    from .procedural.terrain import terrain_sow_reset
+    terrain_sow_reset() # queued terrain for a mission that is over, plus the "we
+                        # are sowing" flag - left on, the next mission's terrain
+                        # would queue against a dead tick task and never appear
+    from .procedural.ship_data import ship_data_reset_for_mission
+    ship_data_reset_for_mission()   # the loaded #ship-list, INCLUDING entries merged from
+                                    # the old mission's extraShipData and its mods. The
+                                    # next mission has its own mission dir and its own
+                                    # mods; inheriting these spawns ships it never asked
+                                    # for and hides ones it did.
+    from .procedural.gui_record import gui_record_reset
+    gui_record_reset()      # the transcript belongs to the mission that was recording
+    from .procedural.conformance import conformance_reset
+    conformance_reset()     # ...and so does the verdict
+    from .procedural.ship_data_mod import ship_data_mod_reset
+    ship_data_mod_reset()   # add-on ship entries belong to the mission that declared them;
+                            # inheriting them would write ships the next mission never
+                            # asked for into its folder.
+    from .procedural.fleet_tables import fleet_tables_reset
+    fleet_tables_reset()    # a race's fleet ladder belongs to the mission that enabled
+                            # the race; inheriting it would let the next mission spawn
+                            # fleets for a race it never turned on.
+    from .procedural.grid import grid_reset_caches
+    grid_reset_caches() # ship interiors + grid themes, same reason: _grid_data is the
+                        # base table MERGED with the mission's own, and the theme index
+                        # is a per-mission selection.
     Gui.web_client_ids.clear()  # drop web-page sessions from the old mission
     from .procedural.web import web_living_clear
     web_living_clear()  # drop living/persistent web-page registrations
@@ -150,6 +182,9 @@ def reset_mission_state():
     # and a stale reference silently resolves to a DIFFERENT label of the same
     # name, which is far worse to debug than this error.
     Gui.clients.clear()
+    # The engine's widget list belongs to the old mission's pages. Forget what
+    # was sent so each rebuilt page establishes its own.
+    Gui.widget_list_sent.clear()
 
 
 # Library-side probes. Each returns the count that MUST be zero once a reset has run.
@@ -162,6 +197,7 @@ def _probe_agents() -> int:
 register_reset_state("Agent.all", _probe_agents)
 register_reset_state("Gui.clients",       lambda: len(Gui.clients))
 register_reset_state("Gui.web_client_ids", lambda: len(Gui.web_client_ids))
+register_reset_state("Gui.widget_list_sent", lambda: len(Gui.widget_list_sent))
 register_reset_state("TickDispatcher",    lambda: len(TickDispatcher._dispatch_tick))
 # Registered HERE rather than from camera.py, whose own import of this module is
 # circular - and a swallowed ImportError would have left the container invisible to
@@ -183,6 +219,27 @@ register_reset_state("amd landmarks",     lambda: len(_AMD_LANDMARKS))
 from .procedural.amd_doc import (lore_clear, lore_sources,
                                  amd_declared_addons_clear, _DECLARED_ADDONS)
 register_reset_state("lore sources",      lambda: len(lore_sources()))
+from .procedural.terrain import terrain_sow_pending
+register_reset_state("terrain sow",       terrain_sow_pending)
+# Ship + interior data. These look like read-only caches of engine files and are not:
+# each is the base table MERGED with what the mission (and, later, its mods) added, so
+# they are per-mission state. A mod system makes an unreset one a correctness bug -
+# mission B silently inheriting mission A's ships and interiors.
+from .procedural.ship_data import ship_data_is_loaded
+register_reset_state("ship_data_cache",   ship_data_is_loaded)
+from .procedural.grid import (grid_data_is_loaded, grid_theme_is_loaded,
+                              grid_theme_current_index)
+register_reset_state("grid_data",         grid_data_is_loaded)
+register_reset_state("grid_theme",        grid_theme_is_loaded)
+register_reset_state("grid_theme_current", grid_theme_current_index)
+from .procedural.fleet_tables import fleet_tables_count
+register_reset_state("fleet_tables",      fleet_tables_count)
+from .procedural.ship_data_mod import ship_data_pending_count
+register_reset_state("ship_data_mod",     ship_data_pending_count)
+from .procedural.gui_record import gui_record_count
+register_reset_state("gui_record",        gui_record_count)
+from .procedural.conformance import conformance_error_count
+register_reset_state("conformance",       conformance_error_count)
 register_reset_state("amd declared addons", lambda: len(_DECLARED_ADDONS))
 register_reset_state("DeleteQueue",       lambda: len(DeleteQueue._pending) + len(DeleteQueue._pending_grid))
 register_reset_state("Agent.roles",       lambda: len(Agent.roles.collections))
@@ -197,6 +254,14 @@ register_reset_state("brain.stalled",
 # task means brains and objectives are dead for the rest of the process.
 register_reset_state("objective.ticks_stale",
                      lambda: 1 if __import__("sbs_utils.procedural.objective", fromlist=["x"]).objective_ticks_stale() else 0)
+# The urge ticker's latch, for the same reason: set-but-unscheduled means no actor ever
+# speaks again, with no error to show for it.
+register_reset_state("urge.ticks_stale",
+                     lambda: 1 if __import__("sbs_utils.procedural.urge", fromlist=["x"]).urge_ticks_stale() else 0)
+# The speech budget's per-actor clocks. Carried into the next mission they would mute
+# actors for the first 45 seconds of it, for no reason anyone could see.
+register_reset_state("urge.speech clocks",
+                     lambda: len(__import__("sbs_utils.procedural.urge", fromlist=["x"])._last_actor_spoke))
 
 
 #	client_id"
@@ -298,9 +363,14 @@ class ErrorPage(Page):
 def tick_the_rest(event):
     TickDispatcher.dispatch_tick()
     Gui.present(event)
+    # `test=<seconds>` writes a conformance verdict once the mission has run that long.
+    # Costs one resolved integer when not requested. Here because it is the one place
+    # reached every tick regardless of which event arrived.
+    from .procedural.conformance import conformance_tick
+    conformance_tick()
 
 
-def cosmos_event_handler(sim, event):
+def _cosmos_event_handler(sim, event):
     try:
         #t = time.process_time()
         t = time.perf_counter()
@@ -628,6 +698,54 @@ def cosmos_event_handler(sim, event):
         FrameContext.error_message = ""
         Gui.push(0, ErrorPage(text_err))
 
+
+
+#
+# Nothing in this file is safe to re-enter. The handler installs ONE global
+# context (`FrameContext.context = ctx`) and nulls the sim on the way out, so a
+# nested call would hand the outer frame the inner event's client and a dead
+# sim - and the damage would surface far from here, as a NoneType on something
+# that was live a moment earlier, or work done against the wrong console.
+#
+# We have never verified that the engine cannot do this. It is only known that
+# the MOCK does not, which is no evidence at all: `sbs` calls run engine C++
+# synchronously inside our frame (that is what the delete_object use-after-free
+# was), so a call that builds native widgets could pump the engine's event queue
+# and land us right back here.
+#
+# So state the assumption instead of trusting it. One list append per event, and
+# it says something exactly once, the first time it is ever wrong.
+#
+_EVENT_STACK = []
+_REENTRY_REPORTED = False
+
+
+def _report_reentry(event):
+    global _REENTRY_REPORTED
+    if _REENTRY_REPORTED:
+        return
+    _REENTRY_REPORTED = True
+    inner = f"{getattr(event, 'tag', '?')}/{getattr(event, 'sub_tag', '')}"
+    import logging
+    msg = ("REENTRANT cosmos_event_handler: "
+           f"{' -> '.join(_EVENT_STACK)} -> {inner}. The engine called back into "
+           "the handler before the outer event finished. FrameContext.context is "
+           "a single global and the sim is nulled on exit, so the outer frame is "
+           "now running against the wrong event. Reported once per session.")
+    # Logged, not printed: engine print output reaches no file, so a print here
+    # would be invisible in the one place this can actually happen.
+    logging.getLogger("mast.runtime").error(msg)
+
+
+def cosmos_event_handler(sim, event):
+    """Engine entry point. Guards the non-reentrancy the rest of this file assumes."""
+    if _EVENT_STACK:
+        _report_reentry(event)
+    _EVENT_STACK.append(f"{getattr(event, 'tag', '?')}/{getattr(event, 'sub_tag', '')}")
+    try:
+        return _cosmos_event_handler(sim, event)
+    finally:
+        _EVENT_STACK.pop()
 
 
 GridDispatcher, DamageDispatcher, CollisionDispatcher,ConsoleDispatcher, TickDispatcher, LifetimeDispatcher, LaunchDispatcher

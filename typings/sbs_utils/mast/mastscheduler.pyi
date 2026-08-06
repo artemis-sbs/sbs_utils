@@ -66,6 +66,16 @@ class MastAsyncTask(Agent, Promise):
         ...
     def add_dependency (id, task):
         ...
+    def add_role (self, role: 'str'):
+        """Tagging a task makes it a discoverable RECORD, not just execution.
+        
+        procedural/prefab.py sets `prefab = FrameContext.task`, so a prefab IS its
+        task: `prefab_torpedo_type` runs once and then tags itself
+        ('torpedo_definition' + the torpedo key) so docking can resolve the type
+        long after the label finished. Such a task must (a) survive disposal and
+        (b) be findable by inventory key like any other agent - so joining the
+        has_inventory index is backfilled here, once, rather than paid by every
+        short-lived route/comms task that will never be looked up."""
     def are_variables_defined (self, keys):
         """Check if the provided variable keys are defined in this task.
         Args:
@@ -78,6 +88,21 @@ class MastAsyncTask(Agent, Promise):
         ...
     def compile_and_format_string (self, value):
         ...
+    def dispose (self):
+        """Drop a FINISHED task from the Agent registries.
+        
+        A task is an Agent: __init__ calls self.add(), which registers it in
+        Agent.all, in Agent.roles under __MAST_TASK__, and in Agent._has_inventory
+        under EVERY variable name it holds (start_task(inherit=True) copies the
+        whole parent scope, so that is a lot of names).  Dropping the task from the
+        scheduler's `tasks` list left all of that behind, so a busy mission grew
+        Agent.all without bound -- ~150 dead tasks a sim-second on LM, 47k agents
+        of which 92% were finished tasks.
+        
+        Idempotent, and safe to call while the task object is still referenced:
+        this only unregisters the id, it does not invalidate live references
+        (`mast_task`, an awaited promise's result).  A task that is later revived
+        via jump_restart_task re-registers itself there."""
     def emit_signal (self, name, sender_task, label_info, data):
         ...
     def end (self):
@@ -124,6 +149,20 @@ class MastAsyncTask(Agent, Promise):
         ...
     def has_links_set (collection_name):
         ...
+    def is_data_record (self):
+        """True when this task has been tagged for DISCOVERY, so it must outlive
+        its own execution.
+        
+        A MastAsyncTask is an Agent, and missions legitimately use one as a
+        persistent data record: the label runs once to populate it, then tags it
+        with roles so other code can find it later. LegendaryMissions registers
+        every torpedo type this way (`prefab_torpedo_type` -> roles
+        'torpedo_definition' + 'homing'/'nuke'/'beacon'/...), and docking's rearm
+        step resolves the type through that role set long after the task ended.
+        Disposing such a task deletes the registry.
+        
+        A role beyond the built-in __mast_task__ is the signal: nothing adds one
+        unless it intends the task to be found."""
     @property
     def is_observable (self):
         ...
@@ -171,6 +210,19 @@ class MastAsyncTask(Agent, Promise):
         ...
     def swap_on_change (self):
         ...
+    def sweep_finished ():
+        """Backstop: dispose any FINISHED task still sitting in the registries.
+        
+        Disposing at the two points where a task leaves `tasks` / `sub_tasks`
+        catches the common case, but tasks are started from a dozen places
+        (routes, comms, science, overlays) and some run to completion outside
+        those lists -- notably a sub-task whose parent never ticks again, which
+        leaves it done-but-registered forever. This sweep is creation-site
+        agnostic: if it is done, it does not belong in the registries.
+        
+        Cheap: it walks the __mast_task__ role set, not all of Agent.all, and
+        runs on the GarbageCollector cadence rather than every frame. dispose()
+        is idempotent, and a task revived later by jump_restart_task re-registers."""
     def tick (self):
         ...
     def tick_in_context (self):

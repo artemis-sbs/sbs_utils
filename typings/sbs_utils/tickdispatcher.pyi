@@ -1,7 +1,86 @@
 from sbs_utils.agent import Agent
 from sbs_utils.helpers import FrameContext
+def _xyz (p):
+    """Accept a Vec3, an (x, y, z) tuple, or None."""
 def get_task_id ():
     ...
+class DripQueue(object):
+    """Drain a FINITE work list over a few seconds instead of in one frame.
+    
+    ``RollingSlicer``'s sibling. That one paces *recurring* work over a live set
+    (brains, objectives, urges); this paces *one-shot creation*, so a burst -- a
+    map's whole terrain field, a fleet, a prefab scatter -- becomes a drip. The
+    engine measurement behind this: LM's terrain block is ~280 ms of work in a
+    single frame, a ~5x hitch, with no sync tail afterwards. The cost is all in the
+    frame that creates the objects, so spreading that frame out is the whole fix.
+    
+    Two properties make a queued call equivalent to the inline one it replaced:
+    
+    * each item captures ``random.getstate()`` when queued and runs under that
+      state, so it creates exactly what it would have created inline -- whenever
+      it runs, in whatever order (the same trick ``terrain_spawn_field_keyed``
+      already uses per cell);
+    * items run NEAREST-FIRST from a focus point, so the space around the focus is
+      correct first and the fill-in lands where nobody is looking.
+    
+    That equivalence is PER ITEM. Deferring still moves when the caller's own RNG
+    stream is consumed, so a sequence of queued calls whose plans read that stream
+    (terrain's cluster loops do) produces a deterministic but different result from
+    running them inline. Queue whole units of work, not halves of one.
+    
+    Draining is deadline-driven: everything queued has run by ``over`` sim-seconds
+    after it was queued, and items added mid-drain push the deadline out rather
+    than crowding the remaining ticks.
+    
+    Usage:
+        q = DripQueue(over=6, focus=Vec3(0, 0, 0), name="terrain")
+        q.add(spawn_a_cluster, (points, height), pos=points[0])
+        ...
+        q.flush()          # or let it drain itself, a slice per tick"""
+    def __init__ (self, over=6.0, focus=None, name='drip'):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def _now ():
+        ...
+    def _on_tick (self, t=None):
+        ...
+    def _run (self, n):
+        ...
+    def _sort (self):
+        """Nearest-first from the CURRENT focus; enqueue order breaks ties, so the
+        drain order is stable and reproducible."""
+    def _stop (self):
+        ...
+    def add (self, fn, args=(), kwargs=None, pos=None):
+        """Queue one unit of work, with the RNG state it would have run under."""
+    def clear (self):
+        """Drop queued work without running it (mission reset)."""
+    def flush (self):
+        """Run everything still queued, right now. Returns how many ran."""
+    def pending (self):
+        ...
+    def run_slice (self):
+        """Run this tick's share. Returns how many items ran."""
+    def set_focus (self, focus):
+        """Move the point work is ordered nearest-first from."""
+class RollingSlicer(object):
+    """Spread per-tick work over a set of ids across ticks (anti-spike).
+    
+    A large per-tick batch (e.g. running every brain or objective in one frame)
+    causes a periodic hitch. A RollingSlicer instead hands back a small slice
+    each tick, sized by a fractional accumulator so a full pass over every id
+    completes in exactly ``pass_seconds`` of sim time -- regardless of set size
+    or tick rate (no over-run on small sets, no spike on large ones). The set's
+    sorted order is cached and only rebuilt when membership changes, so the
+    cursor advances predictably as ids are added/removed.
+    
+    Usage:
+        _slicer = RollingSlicer()
+        for id in _slicer.slice(id_set, pass_seconds=3):
+            ...work one item..."""
+    def __init__ (self):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def slice (self, ids, pass_seconds):
+        ...
 class TickDispatcher(object):
     """The Tick Dispatcher is used to manager timed items via the HandleSimulationTick"""
     def clear ():

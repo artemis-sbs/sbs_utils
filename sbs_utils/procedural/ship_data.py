@@ -296,11 +296,35 @@ def add_ship_data(entry, mod=None, prepend=True):
     return data
 
 
-def reset_ship_data_caches():
-    """Clear all ship data and key-list caches.
+def ship_data_reset_for_mission():
+    """Drop the loaded ship data ENTIRELY, including any merged mod entries.
 
-    Use when switching missions to ensure stale ship data from a previous
-    mission directory is not used.
+    Deliberately NOT the same as :func:`reset_ship_data_caches`, which clears only the
+    DERIVED caches and is called by the merge functions themselves - clearing
+    ``ship_data_cache`` there would throw away the entries just merged.
+
+    This is the MISSION-BOUNDARY reset. The next mission has its own mission directory
+    (its own ``extraShipData``) and its own set of mods, so a ``#ship-list`` carrying the
+    previous mission's merged entries must not survive into it. The engine forks a fresh
+    process per mission and hides this; ``cosmos_dev`` reuses one interpreter and does
+    not. Registered in the reset ledger as ``ship_data_cache``.
+    """
+    global ship_data_cache
+    ship_data_cache = None
+    reset_ship_data_caches()
+
+
+def ship_data_is_loaded() -> int:
+    """Reset-ledger probe: 1 while ship data (possibly mod-merged) is held, else 0."""
+    return 0 if ship_data_cache is None else 1
+
+
+def reset_ship_data_caches():
+    """Clear the DERIVED ship data caches (index and key lists), not the data itself.
+
+    Called by the merge/add functions after they change the ``#ship-list`` so the next
+    lookup sees the new entries. For the mission-boundary reset that also drops the
+    loaded data, use :func:`ship_data_reset_for_mission`.
     """
     global ship_index
     ship_index = None

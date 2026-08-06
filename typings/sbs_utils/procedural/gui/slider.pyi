@@ -19,7 +19,7 @@ def gui_int_slider (msg, style=None, var=None, data=None):
     
     Args:
         msg (str): Property string defining the slider range and label, e.g.
-            ``"min:1;max:10;label:Count;"``
+            ``"low:1;high:10;text:int;"``
         style (str, optional): CSS-like style overrides. Defaults to None.
         var (str, optional): Variable name to read the initial value from and
             update on change. Defaults to None.
@@ -30,7 +30,7 @@ def gui_int_slider (msg, style=None, var=None, data=None):
         Slider: The layout item created.
     
     Example:
-        gui_int_slider("min:1;max:5;label:Torpedo Count;", var="torp_count")"""
+        gui_int_slider("low:1;high:5;text:int;", var="torp_count")"""
 def gui_slider (msg, style=None, var=None, data=None, is_int=False):
     """Add a slider control to the current GUI layout.
     
@@ -39,7 +39,7 @@ def gui_slider (msg, style=None, var=None, data=None, is_int=False):
     
     Args:
         msg (str): Property string defining the slider range and label, e.g.
-            ``"min:0;max:100;label:Energy;"``
+            ``"low:0;high:100;text:float;"``
         style (str, optional): CSS-like style overrides. Defaults to None.
         var (str, optional): Variable name to read the initial value from and
             update on change. Defaults to None.
@@ -52,4 +52,4 @@ def gui_slider (msg, style=None, var=None, data=None, is_int=False):
         Slider: The layout item created.
     
     Example:
-        gui_slider("min:0;max:100;label:Speed;", var="speed_pct")"""
+        gui_slider("low:0;high:100;text:float;", var="speed_pct")"""

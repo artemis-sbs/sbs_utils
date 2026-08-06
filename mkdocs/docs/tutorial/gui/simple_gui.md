@@ -8,12 +8,12 @@ Start from a starter template.
 
 === ":mast-icon: {{ab.m}}"
     ```bash
-    .\fetch artemis-sbs mast_starter simple_gui
+    sbs create simple_gui
     ```
 
 === ":simple-python: {{ab.pm}}"
     ```bash
-    .\fetch artemis-sbs pymast_starter simple_gui
+    sbs create simple_gui -r pymast_starter
     ```
 
 ## Add a console label

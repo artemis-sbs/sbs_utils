@@ -21,6 +21,38 @@
 
 ### sbs_utils
 
+- Urges: a recurring want held by any agent (a lifeform, a station, a side),
+  authored as an `Urge` record - a `Whenever:` condition, an `Every:` cadence
+  (`3-5m` to jitter), and a pool of lines in the body. One shared ticker walks
+  every actor that has urges and picks at most one. An urge declares no stakes of
+  its own: the consequence belongs to the quest it watches, so there is one clock
+  and one place to tune it.
+- Urge escalation: `%` / `%%` / `%%%` are stages, and `Escalates: with deadline`
+  takes the stage from how much of the bound quest's clock has gone - the marker
+  count is the curve, `Fails when:` is the tempo. The bound quest is read out of
+  `Whenever:`, so there is no second field to keep in agreement.
+- A speech budget, which is what decides whether autonomous speech is bearable:
+  a per-actor floor (no monologuing) and a global floor shared with `announce`
+  (no piling up, and nothing talks over mission dispatch). `Weight: 90+` bypasses
+  the global floor only, never its own.
+- Quests can be held by the world. `quest_add` always took agents, but every
+  deadline/proximity watcher iterated `SHARED + players`, so a station-held quest
+  showed its objective and its clock never started. The holder set is now
+  `has_inventory("__quests__")`, and `Held by:` names the owner in AMD.
+- Reputation as a quest consequence: `Reward:` / `Penalty:` accept
+  `earns <faction> <pole> <n>` (the dialogue outcome grammar, not a second
+  spelling), on player/SHARED-held quests. `amd_reward` also parses items now -
+  `300 credits, 2 torpedoes` used to return the credits and drop the torpedoes
+  silently, while `quest_grant_reward` had supported items all along.
+- `Fails when: after 20m` finally means 20 minutes. The compact duration forms
+  (`20m`, `30s`, `2h`) never parsed - the scan wanted an `isdigit()` token - so
+  the deadline silently never fired. Only `6 minutes` had ever worked.
+- `Action: ... departs` works on a non-space actor (a lifeform is a bare Agent, so
+  it used to raise and be swallowed, leaving a direction that did nothing), and
+  `self` names the actor an `Action:` block belongs to.
+- `sbs lint` checks urges: an unknown `Whenever:`/`Until:` phrase (which evaluates
+  false, so the urge never fires), an urge with neither lines nor an `Action:`, and
+  an `Every:` under the global speech floor.
 - MAST web pages: author browser pages in MAST with `//web/<path>` routes,
   rendered live in a browser with the normal gui_* layout - with no engine
   changes. Query string seeds page variables (`/web/scores?title=Hi`),

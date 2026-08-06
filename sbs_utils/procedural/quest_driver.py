@@ -89,8 +89,40 @@ def _quest_fire_overlays(agent_id, data, ref_key, inline_key):
         _fire_overlay_directive(inline, to)
 
 
+def _quest_rep_holder(agent_id):
+    """True where a reputation line MEANS something: a player ship, or the shared story
+    agent standing in for the crew.
+
+    A world-held quest (a station, a side) carries no reputation. ``reputation_adjust``
+    shifts *this agent's* standing with a faction, so a rep penalty on DS1's resupply
+    quest would move DS1's own opinion of TSN - which no player can perceive and no
+    author means. World stakes are world state (``Then:`` / ``Action:``). Silently
+    ignoring the line would hide the mistake, so ``sbs lint`` rejects it at author time;
+    this is the runtime backstop. URGE_PLAN.md s7.1.
+    """
+    if agent_id == Agent.SHARED_ID:
+        return True
+    return has_role(agent_id, "__player__")
+
+
+def _quest_grant_reputation(agent_id, block):
+    """Apply a reward/penalty block's ``reputation`` map, if this holder can carry one.
+
+    Deltas apply exactly as authored - a ``Penalty:`` never flips the sign for you (see
+    ``amd_reward``).
+    """
+    rep = (block or {}).get("reputation")
+    if not rep:
+        return
+    if not _quest_rep_holder(agent_id):
+        return
+    from sbs_utils.procedural.reputation import reputation_apply
+    reputation_apply(agent_id, rep)
+
+
 def quest_grant_reward(agent_id, reward):
-    """Grant a quest reward: credits to the agent's side, items to the agent."""
+    """Grant a quest reward: credits to the agent's side, items to the agent, and
+    reputation to the agent (player/SHARED holders only - see ``_quest_rep_holder``)."""
     if not isinstance(reward, dict):
         return
     credits = reward.get("credits", 0)
@@ -102,11 +134,14 @@ def quest_grant_reward(agent_id, reward):
             set_inventory_value(sid, "credits", get_inventory_value(sid, "credits", 0) + credits)
     for k, n in (reward.get("items") or {}).items():
         set_inventory_value(agent_id, k, get_inventory_value(agent_id, k, 0) + n)
+    _quest_grant_reputation(agent_id, reward)
 
 
 def quest_grant_penalty(agent_id, penalty):
     """Apply a quest penalty (mirror of quest_grant_reward): deduct credits from
-    the agent's side, remove items from the agent. Never goes below zero."""
+    the agent's side, remove items from the agent, and apply any reputation block
+    (player/SHARED holders only). Credits and items never go below zero; reputation
+    applies as authored, so a penalty's ``earns`` carries its own sign."""
     if not isinstance(penalty, dict):
         return
     credits = penalty.get("credits", 0)
@@ -118,6 +153,7 @@ def quest_grant_penalty(agent_id, penalty):
             set_inventory_value(sid, "credits", max(0, get_inventory_value(sid, "credits", 0) - credits))
     for k, n in (penalty.get("items") or {}).items():
         set_inventory_value(agent_id, k, max(0, get_inventory_value(agent_id, k, 0) - n))
+    _quest_grant_reputation(agent_id, penalty)
 
 
 def _quest_maybe_end_game(agent_id, quest_id, data, win):
@@ -315,6 +351,38 @@ def _scale_goal_counts(data, scale):
     return out if out is not None else data
 
 
+def _quest_held_by(name, qid):
+    """Resolve a ``Held by:`` actor to the agent id that should hold the quest.
+
+    Uses ``amd_action_actors`` - the SAME resolution a stage direction uses (a declared
+    landmark key first, then a role), so "DS1" means the same thing in ``Held by:`` as it
+    does in ``DS1 departs``. ``shared`` / ``game`` / ``story`` name the shared story agent.
+
+    Returns None if nothing answers to the name, having LOGGED it. The caller skips the
+    quest rather than falling back to the passed-in agent: quietly parking a station's
+    resupply job on a player ship would put a world deadline in a crew's log and pay its
+    penalty out of the crew's pocket. Most often this means the AMD was granted before the
+    landmark spawned, which the message says.
+
+    A name matching several agents grants to all of them - ``quest_add`` takes a list, and
+    "every listening post wants a resupply" is a legitimate thing to author.
+    """
+    key = str(name).strip()
+    if key.lower() in ("shared", "game", "story"):
+        return [Agent.SHARED_ID]
+    from sbs_utils.procedural.amd_action import amd_action_actors
+    ids = amd_action_actors(key)
+    if not ids:
+        try:
+            from sbs_utils.procedural.execution import log
+            log(f"quest {qid!r} is 'Held by: {key}', but nothing answers to that name "
+                f"- is it granted before the landmark spawns?", "quest", "warning")
+        except Exception:
+            pass
+        return None
+    return list(ids)
+
+
 def quest_grant_amd(agent_id, doc, _prefix="", count_scale=1.0):
     """Grant all quests from a parsed AMD story doc to an agent at once.
 
@@ -344,20 +412,35 @@ def quest_grant_amd(agent_id, doc, _prefix="", count_scale=1.0):
         # A record that called itself `Beat` / `Arc` / `Cue` has already said it is the
         # whole crew's and already running; only a record that DIFFERS writes the field.
         implied = amd_kind_defaults(data.get(KIND_KEY) if hasattr(data, "get") else None)
-        # scope: shared -> grant to the game (SHARED) agent, so the whole crew
-        # shares the arc; otherwise to the given agent (ship).
+        # WHO holds this quest. `Held by: <actor>` names it outright (a station's
+        # resupply job belongs to the station); `scope: shared` grants to the game
+        # (SHARED) agent so the whole crew shares the arc; otherwise the given agent.
+        # A name can answer for several agents, so the holder is always a LIST.
         scope = data.get("scope") or implied.get("scope")
-        target = Agent.SHARED_ID if scope == "shared" else agent_id
-        if quest_get_state(target, qid) == QuestState.IDLE:  # skip already-granted
-            st = _STATE_NAMES.get(
-                str(data.get("state") or implied.get("state") or "idle").lower(),
-                QuestState.IDLE)
-            quest_add(target, qid, n.get("display_text"),
-                      (n.get("description") or "").strip(), state=st,
-                      data=_arm_start_trigger(_scale_goal_counts(data, count_scale)))
+        held_by = data.get("held_by")
+        if held_by:
+            targets = _quest_held_by(held_by, qid)
+            if not targets:
+                continue    # already logged; never fall back to the player
+        else:
+            targets = [Agent.SHARED_ID if scope == "shared" else agent_id]
+        for target in targets:
+            if quest_get_state(target, qid) == QuestState.IDLE:  # skip already-granted
+                st = _STATE_NAMES.get(
+                    str(data.get("state") or implied.get("state") or "idle").lower(),
+                    QuestState.IDLE)
+                quest_add(target, qid, n.get("display_text"),
+                          (n.get("description") or "").strip(), state=st,
+                          data=_arm_start_trigger(_scale_goal_counts(data, count_scale)))
         # Recurse into nested headings, building the child path key `<qid>/<childkey>`.
+        # The steps of a `Held by:` job belong to the SAME holder - a station's job does
+        # not have its steps held by a passing ship. Without a `Held by:` the historical
+        # behavior is kept exactly: children are granted against the passed-in agent and
+        # re-resolve their own `scope`, so a `scope: shared` parent's plain children still
+        # land on the ship as they always have.
         if n.get("children"):
-            quest_grant_amd(agent_id, n, _prefix=qid + "/", count_scale=count_scale)
+            for child_agent in (targets if held_by else [agent_id]):
+                quest_grant_amd(child_agent, n, _prefix=qid + "/", count_scale=count_scale)
 
 
 def quest_reveal(agent_id, reveal):
@@ -411,6 +494,28 @@ def _collect_active_quests(children, prefix, out):
         sub = q.get("children")
         if sub:
             _collect_active_quests(sub, path + "/", out)
+
+
+def _quest_holders():
+    """Every agent that actually holds a quest tree.
+
+    Quest trees live in the ``__quests__`` inventory key, so this class-level registry IS
+    the holder set - the same shape ``brains_run_all`` uses for ``__BRAIN__``. It replaces
+    ``[SHARED_ID] + players``, which silently skipped any quest granted to a station or a
+    side: the quest existed, showed its objective, and its deadline never fired. Nothing
+    logged, because nothing looked.
+
+    Self-limiting by construction (an agent with no quests never appears), so it needs no
+    separate bound. If a mission ever holds enough quests for this to matter, wrap it in a
+    ``RollingSlicer`` the way brains and objectives already are.
+
+    Returned as a LIST, not the live set. ``quest_mark_complete``/``_failed`` inside the
+    walk can grant a follow-on quest to an agent that had none, which mutates the registry
+    mid-iteration and raises "Set changed size during iteration" - the lesson
+    ``brain.py`` s396-400 already paid for once.
+    """
+    from sbs_utils.procedural.inventory import has_inventory
+    return list(has_inventory("__quests__"))
 
 
 def _active_quests(agent_id):
@@ -610,7 +715,7 @@ def quest_fail_on_all_dead(destroyed_id=None):
     """Fail ACTIVE quests whose fail_on_all_dead {role} guard just emptied - the
     last holder of that role has died. Called from the killed route; the victim is
     still registered there, so it is excluded from the remaining count."""
-    for aid in [Agent.SHARED_ID] + [s.id for s in to_object_list(role("__player__"))]:
+    for aid in _quest_holders():
         for qid, data in _active_quests(aid):
             trig = data.get("fail_on_all_dead")
             if not isinstance(trig, dict):
@@ -629,7 +734,7 @@ def quest_tick_fail_after():
     """Watcher tick: fail ACTIVE quests whose fail_after deadline elapsed. The
     deadline is anchored lazily (a per-quest timer set on first sight), so
     activation needs no hook - general to any mission, not just siege."""
-    for aid in [Agent.SHARED_ID] + [s.id for s in to_object_list(role("__player__"))]:
+    for aid in _quest_holders():
         for qid, data in _active_quests(aid):
             trig = data.get("fail_after")
             if not isinstance(trig, dict):
@@ -650,7 +755,7 @@ def quest_tick_complete_after():
     timer set on first ACTIVE sight), so a purely timed step needs no activation hook.
     On completion the quest's Then: reveal fires, advancing a reveal chain; this lets a
     timed narrative beat be authored as a quest instead of a hand-written timer loop."""
-    for aid in [Agent.SHARED_ID] + [s.id for s in to_object_list(role("__player__"))]:
+    for aid in _quest_holders():
         for qid, data in _active_quests(aid):
             trig = data.get("complete_after")
             if not isinstance(trig, dict):
@@ -685,7 +790,7 @@ def quest_tick_reach():
     players = to_object_list(role("__player__"))
     if not players:
         return
-    for aid in [Agent.SHARED_ID] + [p.id for p in players]:
+    for aid in _quest_holders():
         for qid, data in _active_quests(aid):
             trig = data.get("on_reach")
             if not isinstance(trig, dict) or not trig.get("role"):
@@ -705,9 +810,7 @@ def quest_on_arrive(i, j):
     objective. Used by the Open Universe (signal universe_arrived).
     """
     target = [int(i), int(j)]
-    agents = [s.id for s in to_object_list(role("__player__"))]
-    agents.append(Agent.SHARED_ID)
-    for aid in agents:
+    for aid in _quest_holders():
         for qid, data in _active_quests(aid):
             trig = data.get("on_reach")
             if isinstance(trig, dict) and list(trig.get("sector") or []) == target:

@@ -107,6 +107,16 @@ MastGlobals.import_python_module('sbs_utils.procedural.amd_action')
 MastGlobals.import_python_module('sbs_utils.procedural.announce')
 MastGlobals.import_python_module('sbs_utils.procedural.persistence')
 MastGlobals.import_python_module('sbs_utils.procedural.settings')
+# Fleet composition ladders. Registered HERE because that is the only thing that
+# makes a function callable from MAST - a race addon's `fleet_table_load_yaml(...)`
+# line is a NameError without it, and the addon that fails is the one that supplies
+# the enemies.
+MastGlobals.import_python_module('sbs_utils.procedural.fleet_tables')
+# Add-on ship data for the ENGINE. Registered here for the same reason as the line
+# above: this is the only thing that makes ship_data_merge_mod callable from a
+# .mast, and an add-on that cannot call it cannot declare a ship.
+MastGlobals.import_python_module('sbs_utils.procedural.ship_data_mod')
+MastGlobals.import_python_module('sbs_utils.procedural.command_line')
 MastGlobals.import_python_module('sbs_utils.procedural.extra_scan_sources')
 MastGlobals.import_python_module('sbs_utils.procedural.ship_data', 'ship_data')
 MastGlobals.import_python_module('sbs_utils.procedural.sides')

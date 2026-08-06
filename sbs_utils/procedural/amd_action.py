@@ -148,12 +148,30 @@ def _parse_line(line):
 
 
 # --- running -----------------------------------------------------------------
-def amd_action_run(value, where=""):
+_CURRENT_ACTOR = [None]
+
+
+def amd_action_run(value, where="", actor_id=None):
     """Apply every direction in an ``Action:`` block. Returns how many applied.
 
     One bad line never stops the others: a beat that half-fires is bad, but a beat that
     stops at the first dead actor is worse, and the log names which line went wrong.
+
+    ``actor_id`` is who "self" means for the duration - an urge's own actor. Without it
+    a direction can only name a role or a landmark, so a character wanting to act on
+    ITSELF ("the ambassador gives up and leaves") had to be given a role purely so a
+    line could point at it. Nested runs restore the previous actor, so an action that
+    triggers another cannot leave the wrong "self" behind.
     """
+    prior = _CURRENT_ACTOR[0]
+    _CURRENT_ACTOR[0] = actor_id
+    try:
+        return _amd_action_run(value, where)
+    finally:
+        _CURRENT_ACTOR[0] = prior
+
+
+def _amd_action_run(value, where=""):
     done = 0
     for act in amd_action_parse(value):
         if act["error"]:
@@ -184,10 +202,11 @@ def amd_action_run_record(record):
 def amd_action_actors(name):
     """The live agent ids a direction's actor names, as a set (possibly empty).
 
-    Resolution order: a declared AMD **landmark** key first (the specific thing an
-    author named in this mission), then a **role** (which covers a group - "Raiders
-    become hostile" acts on all of them). Both are role lookups underneath, so this
-    stays O(1) and self-cleans when an object dies.
+    Resolution order: ``self`` (the actor this run belongs to, when there is one), then
+    a declared AMD **landmark** key (the specific thing an author named in this
+    mission), then a **role** (which covers a group - "Raiders become hostile" acts on
+    all of them). Both are role lookups underneath, so this stays O(1) and self-cleans
+    when an object dies.
     """
     from .roles import role
     from .query import to_id_list
@@ -195,6 +214,11 @@ def amd_action_actors(name):
     if not name:
         return set()
     key = str(name).strip()
+    # `self` / `me` = whoever this Action block belongs to (see amd_action_run). Checked
+    # before roles so a mission that happens to have a role called "self" cannot quietly
+    # capture it.
+    if key.lower() in ("self", "me") and _CURRENT_ACTOR[0] is not None:
+        return {_CURRENT_ACTOR[0]}
     ids = set(to_id_list(role(landmark_key_role(_action_slug(key)))))
     if ids:
         return ids
@@ -273,13 +297,35 @@ def _arrives(actor, operand, line):
 
 
 def _departs(actor, operand, line):
-    """`The freighter departs` - remove it from the world."""
+    """`The freighter departs` - remove it from the world.
+
+    Handles a NON-space actor too. `delete_object` needs a SpaceObject; a cast
+    character (a lifeform, a side) is a bare Agent and has no `delete_object`, so this
+    used to raise AttributeError - swallowed by `amd_action_run`, which meant the
+    direction silently did nothing. Invisible until urges put `Action:` on lifeforms and
+    stations, at which point "the ambassador gives up and leaves" quietly never happened.
+
+    A lifeform is unhosted first, so its host does not keep a link to someone who left.
+    """
     from .space_objects import delete_object
+    from .query import is_space_object_id, is_grid_object_id, to_object
+    from .inventory import get_inventory_value
+    from ..agent import Agent
     ids = amd_action_actors(actor)
     if not ids:
         _action_log(f"nobody called {actor!r} to act on: {line!r}")
         return False
-    delete_object(ids)
+    space = [i for i in ids if is_space_object_id(i) or is_grid_object_id(i)]
+    plain = [i for i in ids if i not in space]
+    if space:
+        delete_object(space)
+    for agent_id in plain:
+        if to_object(agent_id) is None:
+            continue
+        if get_inventory_value(agent_id, "host", 0):
+            from .lifeform import lifeform_transfer
+            lifeform_transfer(agent_id, None)
+        Agent.remove_id(agent_id)
     return True
 
 

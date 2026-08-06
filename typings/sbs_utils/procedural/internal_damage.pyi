@@ -135,6 +135,18 @@ def grid_damage_system (id_or_obj, the_system=None):
     Returns:
         bool: ``True`` if a node was damaged; ``False`` if no undamaged nodes
             remain or the ship has already exploded."""
+def grid_delete_object (host_id_or_obj, id_or_obj):
+    """Delete a single grid object, deferring the native free.
+    
+    Tombstones the grid agent now (dropped from ``Agent.all``/roles, so
+    ``object_exists()``/``to_object()`` report it gone this instant) and enqueues
+    the native ``sbs.delete_grid_object(host_id, id)`` to run at the end of the
+    event handler. Mirrors ``SpaceObject.delete_object`` for grid objects, closing
+    the same-tick use-after-free window. See ``DeleteQueue``.
+    
+    Args:
+        host_id_or_obj (Agent | int): The host ship the grid object lives on.
+        id_or_obj (Agent | int): The grid object (or its id) to delete."""
 def grid_get_grid_current_theme ():
     """Get the currently active grid theme data.
     
@@ -148,6 +160,16 @@ def grid_get_grid_data () -> dict:
         dict: a dictionary of grid data objects.
         * key (str): The key of the dict, which is a ship key as defined in shipData.
         * value (dict): A dict with `grid_objects` as a key, and a list of grid object data as the value."""
+def grid_get_grid_named_theme (name):
+    """Get a grid theme by name, falling back to the current theme if not found.
+    
+    Args:
+        name (str | None): Theme name to look up (case-insensitive), or
+            ``None`` to return the current theme.
+    
+    Returns:
+        dict: Theme dict with keys such as ``name``, ``colors``, ``icons``,
+            ``damage_colors``, etc."""
 def grid_get_item_theme_data (roles, name=None):
     """Get icon, scale, color, and damage color for a set of roles from the grid theme.
     
@@ -162,11 +184,38 @@ def grid_get_item_theme_data (roles, name=None):
     Returns:
         RetVal: Object with ``.icon`` (int), ``.scale`` (float), ``.color``
             (str), and ``.damage_color`` (str) attributes."""
+def grid_get_layout (ship_key, layout=None):
+    """The grid-object list for one hull's layout.
+    
+    A hull has N named LAYOUTS, not one interior - a full authored interior, a cheap
+    systems-only one, a jump-drive refit of the same hull. ``grid_objects`` at the top
+    level is still read as the default, so every existing entry keeps working::
+    
+        {"tsn_light_cruiser": {"grid_objects": [...]}}                    # still valid
+        {"pirate_brigantine": {"layouts": {"default": {...},
+                                           "systems": {...}}}}
+    
+    A layout may be either ``{"grid_objects": [...]}`` or a bare list.
+    
+    Args:
+        ship_key (str): Ship key as defined in shipData.
+        layout (str, optional): Layout name. Defaults to ``"default"``, then to the
+            top-level ``grid_objects``.
+    
+    Returns:
+        list | None: The grid object dicts, or ``None`` when there is no such interior."""
 def grid_get_max_hp ():
     """Return the current global maximum HP value for damcon-team grid objects.
     
     Returns:
         int: The max HP setting (default 6)."""
+def grid_get_theme_name (ship_key, layout=None):
+    """The theme a hull (or one of its layouts) asks for, or ``None`` for the current one.
+    
+    Theme selection used to be a single module-level index - a whole-game setting - which
+    made per-race themes impossible. A hull, or a single layout of it, can now name its
+    own: a captured TSN hull refitted by pirates is the same mesh with a different
+    interior AND a different vocabulary."""
 def grid_objects (so_id) -> set[int]:
     """Get a set of agent ids of the grid objects on the specified ship
     
@@ -185,7 +234,7 @@ def grid_objects_at (so_id, x, y) -> set[int]:
     
     Returns:
         set[int]: A set of agent ids"""
-def grid_rebuild_grid_objects (id_or_obj, grid_data=None):
+def grid_rebuild_grid_objects (id_or_obj, grid_data=None, layout=None):
     """Rebuild all engineering-grid objects on a ship from shipData JSON.
     
     Deletes all existing grid objects for the ship, then re-creates them from

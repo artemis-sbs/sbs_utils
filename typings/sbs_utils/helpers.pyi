@@ -2,8 +2,37 @@ from sbs_utils.agent import Agent
 from sbs_utils.vec import Vec3
 def format_exception (message, source):
     ...
+def gui_text_escape (s):
+    """Quote a dynamic value for safe inclusion as a ``$text:`` style value.
+    
+    Wraps ``s`` in backticks so any ``:`` or ``;`` it contains is treated as
+    literal text by the style parser rather than a style property (issue #569).
+    A literal backtick -- the quoting delimiter itself -- is stripped. An empty
+    or ``None`` value returns ``""`` so the caller emits ``$text:;`` with no
+    stray backtick in the box (issue #641).
+    
+    Use this ONLY on the dynamic value, e.g. ``f"$text:{gui_text_escape(name)};color:red;"``
+    -- never on a whole authored props string, so the author's own ``:``/``;``
+    styling is left untouched."""
 def merge_props (d):
     ...
+def props_display_text (props, def_key='$text'):
+    """Extract the plain display text from a widget props string.
+    
+    The inverse of the ``$text:`...`;`` quoting that ``gui_text_escape`` and
+    ``Text.update`` apply. Given ``"$text:`Hello`;font:gui-2;"`` this returns
+    ``"Hello"``. Handles the unquoted form, the bare ``text:`` spelling, and a
+    props string that is really just a bare label (no colon at all).
+    
+    This is what a measurement needs: the glyphs the engine will actually draw,
+    with the style props stripped off. Returns ``""`` when there is no text."""
+def props_font (props, default=None):
+    """Effective font for a widget props string.
+    
+    A ``font:`` inside the widget's own props WINS over the cascaded font,
+    because ``present()`` appends the cascade props *after* the message, so the
+    engine sees the widget's own value last. Measurement has to agree with that
+    or it measures in a different font than it renders."""
 def show_warning (t):
     ...
 def split_props (s, def_key):

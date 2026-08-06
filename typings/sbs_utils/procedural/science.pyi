@@ -16,10 +16,22 @@ def AWAIT (promise: sbs_utils.futures.Promise) -> sbs_utils.futures.PromiseWaite
     
     Returns:
         PromiseWaiter: A waiter that reports completion without blocking."""
+def _forget_science_promise (origin_id, selected_id):
+    """Evict a cached scan promise for an (origin, selected) pair.
+    
+    Called from ``ScanPromise.leave`` -- which the GarbageCollector runs the moment
+    either object of the pair is destroyed -- so a promise can't outlive its objects
+    and be handed back for a recycled id. This fires on ordinary in-engine object
+    deletion, not only the dev in-process reset, so the cache stays coherent in the
+    real game as well as the mock."""
 def _science_get_origin_id ():
     ...
 def _science_get_selected_id ():
     ...
+def _science_scan_interp (selected_id, text):
+    """Fill ``{key}`` placeholders in scan text from the object's inventory (unknown keys
+    are left as-is, so a stray brace is harmless). Lets a role template like
+    ``"Captain {captain}"`` resolve per object."""
 def awaitable (func):
     ...
 def create_scan_label ():
@@ -80,6 +92,18 @@ def science_add_scan (message, label=None, data=None, path=None):
         label (str | Label, optional): Label to run when the button is pressed.
         data (dict, optional): Variables passed to the button's label.
         path (str, optional): Route path to navigate to when pressed."""
+def science_clear_scan_defs ():
+    """Clear all registered per-role scan content (test/reset helper)."""
+def science_define_scan (role, tabs):
+    """Register declarative science-scan content for a ROLE.
+    
+    Args:
+        role (str): The role an object must hold to get this scan content.
+        tabs (dict | str): ``{tab_name: text}`` (e.g. ``{"scan": "...", "bio": "..."}``);
+            a bare string is shorthand for ``{"scan": string}``. Standard tab names:
+            ``scan``, ``status``, ``intel``, ``mat``, ``bio``. Text may contain ``{key}``
+            placeholders, filled per object from inventory. Merges with any tabs already
+            registered for the role."""
 def science_ensure_scan (ids_or_objs, target_ids_or_objs, tabs='scan'):
     """Force a completed scan result onto all (scanner, target) pairs.
     
@@ -113,6 +137,9 @@ def science_has_scan_data (origin, target, tab='scan') -> bool:
     
     Returns:
         bool: ``True`` if scan data exists and is not empty or default."""
+def science_has_scan_def (selected_id):
+    """True if the object has any registered/overridden scan content - gates the generic
+    //enable/science + //science route that renders it."""
 def science_is_unknown (origin, target) -> bool:
     """Return ``True`` if the target has not been scanned by the scanning ship.
     
@@ -130,6 +157,16 @@ def science_navigate (path):
     
     Args:
         path (str): The science route path to navigate to."""
+def science_scan_def_for (selected_id):
+    """Effective ``{tab: text}`` scan content for an object BEFORE interpolation: the
+    merged per-role defaults, with per-object inventory overrides (a ``scan_<tab>``
+    inventory value wins). Empty dict if the object has neither."""
+def science_scan_tab (selected_id, tab):
+    """The resolved text for one tab on an object (``""`` if none): per-object override or
+    role default, with ``{key}`` placeholders filled from inventory. A LIST value is a set
+    of ``%``-style random variants - one is picked at random per call (so a fresh line each
+    scan, like the engine's ``%``). The generic science route uses this both as the tab's
+    show-condition and as its scan result text."""
 def science_set_2dview_focus (client_id, focus_id=0):
     """Focus the science 2D view of a client console on a specific object.
     

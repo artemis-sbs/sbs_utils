@@ -1,10 +1,10 @@
 from sbs_utils.agent import Agent
 def clear_dedicated_link (so, link_name: str):
     """Clear a dedicated (1-to-1) link, leaving the source linked to nothing.
-
+    
     After this ``get_dedicated_link(so, link_name)`` returns ``None`` and the
     source no longer appears in ``has_link(link_name)``.
-
+    
     Args:
         so (Agent | int): The source agent ID or object.
         link_name (str): The link key name."""
@@ -63,7 +63,7 @@ def set_dedicated_link (so, link_name: str, to):
     Replaces any existing link under ``link_name`` with the new target. Pass
     ``to=None`` to clear the link entirely, so that ``get_dedicated_link``
     returns ``None`` again.
-
+    
     Args:
         so (Agent | int): The source agent ID or object.
         link_name (str): The link key name.

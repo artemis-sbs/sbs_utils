@@ -207,10 +207,16 @@ class ImageAtlas:
         file = get_mission_dir_filename(image)
 
         color = color
+        # Paint order, when the caller put one in the props string. Without
+        # this it was silently DROPPED -- get_props rebuilds the string from
+        # file/color/sub_rect, so the one widget that can paint an opaque
+        # rectangle was the one that could not be raised over its neighbours.
+        draw_layer = None
         if ";" in image:
             props = split_props(file, "image")
             image = props.get("image")
             color = props.get("color", "white")
+            draw_layer = props.get("draw_layer")
             file = get_mission_dir_filename(image)
 
     
@@ -241,7 +247,8 @@ class ImageAtlas:
         self.right = right
         self.top = top
         self.bottom = bottom
-        self.color = color 
+        self.color = color
+        self.draw_layer = draw_layer
         self.key = ImageAtlas.qualify(key, domain)
         self.domain = domain
         if self.key is not None:
@@ -250,16 +257,27 @@ class ImageAtlas:
     def __str__(self):
         return self.get_props()
 
-    def get_props(self, color=None):
+    def get_props(self, color=None, layer=None):
         # File should already be relative
         # Needs to be done so clients aren't using server file paths
         rel_file = self.file.replace("\\", "/")  # forward slashes for URL
         color = color if color else self.color
         color = color if color else "white"
+        # Per-USE layer beats the registration's own, exactly as `color` does --
+        # one registered cell can then be a backdrop at any depth. Only emitted
+        # when one was actually given, so a registration that says nothing about
+        # paint order still produces the exact string it always did.
+        layer = layer if layer is not None else self.draw_layer
+        layer = f"draw_layer:{layer};" if layer is not None else ""
         if self.left is not None:
-            return f"image:{rel_file};sub_rect:{self.left},{self.top},{self.right},{self.bottom};color:{color};"
-        else:
+            return f"image:{rel_file};sub_rect:{self.left},{self.top},{self.right},{self.bottom};color:{color};{layer}"
+        # No layer means BYTE-IDENTICAL to what this always returned, trailing
+        # semicolon included (this branch never had one). "Nothing moves unless
+        # you ask for it" is the whole back-compat claim -- it should hold at the
+        # level of the emitted string, not just at the level of what it renders.
+        if not layer:
             return f"image:{rel_file};color:{color}"
+        return f"image:{rel_file};color:{color};{layer}"
 
     def is_valid(self):
         file_name = os.path.normpath(os.path.join(get_artemis_graphics_dir(), self.file)) + ".png"
@@ -285,9 +303,9 @@ class ImageAtlas:
         
         
     
-    def send_gui_image(self, SBS, client_id, region_tag, tag, mode, left,top,right,bottom, color=None):
+    def send_gui_image(self, SBS, client_id, region_tag, tag, mode, left,top,right,bottom, color=None, layer=None):
         width, height = self.get_size()
-        props = self.get_props(color=color)
+        props = self.get_props(color=color, layer=layer)
 
         if not self.is_valid():
             file = self.file 

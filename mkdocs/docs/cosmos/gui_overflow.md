@@ -13,6 +13,13 @@ to sit in a fixed strip. `overflow:` says what to do then.
 gui_text("$text:`{ship_name}`;", "overflow: shrink;")
 ```
 
+!!! tip "The other half"
+
+    Every policy here changes the **text**. When the text has to stay as it is,
+    [`layer:`](gui_layer.md) can instead paint an opaque background *over* the
+    spill so it is never seen — the only tool that hides an overflow rather than
+    preventing one.
+
 ## The four policies
 
 | policy | what it does |
