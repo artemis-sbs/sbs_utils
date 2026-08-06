@@ -649,14 +649,21 @@ overlay_register("hero", _hero_builder)
 def _schedule_dismiss(page, slot, gen, seconds):
     """Auto-clear ``page``'s ``slot`` after ``seconds`` — but only if it still holds
     generation ``gen`` (i.e. it wasn't re-shown / updated / already cleared in the
-    meantime). One-shot tick; runs in the target page's FrameContext."""
+    meantime). One-shot tick; runs in the target page's FrameContext.
+
+    ``gen`` may be a CALLABLE returning the generation to match. A caller that keeps
+    repainting the slot itself — the text cycle — has to be able to move the target,
+    or its own next segment reads as "somebody else took the slot" and the lifetime
+    it asked for never arrives.
+    """
     if not seconds or seconds <= 0:
         return
     from ...tickdispatcher import TickDispatcher
 
     def _fire(t):
         r = page.overlays.slots.get(slot)
-        if r is not None and r.generation == gen and r.content is not None:
+        want = gen() if callable(gen) else gen
+        if r is not None and r.generation == want and r.content is not None:
             _on_page(page, lambda ov: ov.clear(slot))
 
     return TickDispatcher.do_once(_fire, seconds)
@@ -889,7 +896,9 @@ def _start_text_cycle(page, slot, kind, fields, field, segments, dwell, loop):
 
     _paint(0)
     state["task"] = TickDispatcher.do_interval(_advance, _dwell_for(0))
-    return state["task"]
+    # The STATE, not the task: a caller scheduling a lifetime over this cycle has to
+    # follow state["gen"] as the segments advance (see _schedule_dismiss).
+    return state
 
 
 def _show_maybe_cycled(slot, kind, to, consoles, seconds, fields, field, font,
@@ -923,11 +932,15 @@ def _show_maybe_cycled(slot, kind, to, consoles, seconds, fields, field, font,
             continue
         cycled_any = True
         do_loop = (seconds is None) if loop is None else loop
-        _start_text_cycle(page, slot, kind, fields, field, segments, dwell, do_loop)
+        state = _start_text_cycle(page, slot, kind, fields, field, segments,
+                                  dwell, do_loop)
         if seconds and seconds > 0:
-            r = page.overlays.slots.get(slot)
-            if r is not None:
-                _schedule_dismiss(page, slot, r.generation, seconds)
+            # FOLLOW the cycle's generation instead of freezing the first
+            # segment's. Every segment repaints the slot and bumps it, so a frozen
+            # match went stale the moment part two appeared and the dismiss then
+            # declined to fire -- a banner given a lifetime stayed up forever, but
+            # only once its text was long enough to split.
+            _schedule_dismiss(page, slot, lambda: state["gen"], seconds)
     return cycled_any
 
 

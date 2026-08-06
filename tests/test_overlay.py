@@ -399,6 +399,54 @@ class TestOverlayPolish(OverlayTestBase):
         t.cb(t)
         self.assertTrue(r.is_empty)
 
+    # --- a lifetime over CYCLED text ----------------------------------------
+    # Text too long for the strip is split and played in timed parts. Each part
+    # repaints the slot and bumps its generation, so a dismiss frozen on the
+    # FIRST part's generation never matched again and silently declined to fire:
+    # a banner given `seconds` stayed up forever, but only once its text was long
+    # enough to split -- which is why it survived the short-text tests above.
+    def _force_split(self, segments):
+        from sbs_utils.procedural.gui import overlay as ovl
+        real = ovl._split_to_fit
+        ovl._split_to_fit = lambda cid, slot, text, font, frac=1.0: list(segments)
+        self.addCleanup(setattr, ovl, "_split_to_fit", real)
+
+    def _cycle_and_dismiss_tasks(self):
+        from sbs_utils.tickdispatcher import TickDispatcher
+        tasks = list(TickDispatcher._new_this_tick)
+        cycle = [t for t in tasks if t.count is None]      # do_interval
+        dismiss = [t for t in tasks if t.count == 1]       # do_once
+        return cycle, dismiss
+
+    def test_cycled_banner_with_seconds_still_dismisses(self):
+        from sbs_utils.procedural.gui.overlay import overlay_banner
+        self._force_split(["part one", "part two"])
+        overlay_banner("part one part two", seconds=5)
+        r = self.page.overlays.slots["top_banner"]
+        cycle, dismiss = self._cycle_and_dismiss_tasks()
+        self.assertEqual(len(cycle), 1, "the segment cycle")
+        self.assertEqual(len(dismiss), 1, "the lifetime")
+
+        cycle[0].cb(cycle[0])                  # advance to part two -> generation bumps
+        self.assertEqual(r.content["text"], "part two")
+        dismiss[0].cb(dismiss[0])              # the lifetime expires
+        self.assertTrue(r.is_empty, "a cycled banner given seconds must still clear")
+
+    def test_cycled_dismiss_still_defers_to_a_newer_show(self):
+        # The follow must not become "clear whatever is there": a DIFFERENT
+        # banner claiming the slot still supersedes the old cycle's lifetime.
+        from sbs_utils.procedural.gui.overlay import overlay_banner
+        self._force_split(["part one", "part two"])
+        overlay_banner("part one part two", seconds=5)
+        r = self.page.overlays.slots["top_banner"]
+        _cycle, dismiss = self._cycle_and_dismiss_tasks()
+
+        self._force_split(["newer"])           # a short banner takes the strip
+        overlay_banner("newer", seconds=5)
+        dismiss[0].cb(dismiss[0])              # the OLD lifetime fires
+        self.assertFalse(r.is_empty, "newer banner survives the old lifetime")
+        self.assertEqual(r.content["text"], "newer")
+
     def test_toasts_stack(self):
         from sbs_utils.procedural.gui.overlay import overlay_toast
         overlay_toast("one", seconds=3)
