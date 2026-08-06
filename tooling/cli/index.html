@@ -12,7 +12,7 @@
         <link rel="prev" href="../">
       
       
-        <link rel="next" href="../testing/">
+        <link rel="next" href="../command-line/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -2443,6 +2443,8 @@
       
         
       
+        
+      
     
     
     
@@ -2581,6 +2583,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#launching-the-real-game" class="md-nav__link">
+    <span class="md-ellipsis">
+      Launching the real game
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#switching-mission-sets" class="md-nav__link">
     <span class="md-ellipsis">
       Switching mission sets
@@ -2635,6 +2646,29 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../command-line/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Command-line arguments
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -5868,6 +5902,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#launching-the-real-game" class="md-nav__link">
+    <span class="md-ellipsis">
+      Launching the real game
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#switching-mission-sets" class="md-nav__link">
     <span class="md-ellipsis">
       Switching mission sets
@@ -6035,6 +6078,25 @@ sbs debug . --no-gui --map 0 --test 30    # headless, play ~30s, pass/fail verdi
 <p>Handy flags: <code>--use-working-tree</code> (test local library edits against the packaged
 mission), <code>--seed N</code> (reproducible runs), and settings overrides that don't touch
 <code>settings.yaml</code> (<code>--auto-start</code>, <code>--players N</code>, <code>--set KEY=VALUE</code>).</p>
+<h2 id="launching-the-real-game">Launching the real game</h2>
+<p><code>sbs debug</code> runs a mission in the browser; <code>sbs run</code> opens the actual game — a server and
+as many console clients as you ask for, arranged on screen.</p>
+<div class="highlight"><pre><span></span><code>sbs run                                    server + a full test bridge
+sbs run comms,weapons                      just those two consoles
+sbs run -m LM_TestRange                    a different mission (default: LegendaryMissions)
+sbs run comms --ip 192.168.1.50            clients pointed at another machine
+sbs run --dry-run                          show the command lines, launch nothing
+</code></pre></div>
+<p>Nothing needs clicking: the server starts itself, clients connect, and each lands on its
+console. <code>--no-auto</code> restores the old launcher-menu behavior.</p>
+<p>The mission is passed as <code>defaultmission=</code>, so <code>preferences.json</code> is never edited.</p>
+<p><strong>Anything you add on the end reaches the mission</strong>, which is how you start a particular
+map or set of settings:</p>
+<div class="highlight"><pre><span></span><code>sbs run -m LM_TestRange map=sandbox profile=soak var.DIFFICULTY=3
+sbs run -m LegendaryMissions test=60       a pass/fail verdict from the real engine
+sbs run -m LegendaryMissions record=session  transcribe what you click
+</code></pre></div>
+<p>See <a href="../command-line/">Command-line arguments</a> for the full list and how settings merge.</p>
 <h2 id="switching-mission-sets">Switching mission sets</h2>
 <p>Cosmos loads exactly one <code>data/missions</code> folder. Keep several sets beside it as
 <code>data/missions_&lt;name&gt;</code> and let <code>data/missions</code> be a link to whichever you want:</p>

@@ -582,6 +582,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#launch-it-without-clicking-sbs-run-and-command-line-arguments" class="md-nav__link">
+    <span class="md-ellipsis">
+      🚀 Launch it without clicking — sbs run and command-line arguments
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#hangar" class="md-nav__link">
     <span class="md-ellipsis">
       🛩️ Hangar
@@ -2777,6 +2786,8 @@
       
         
       
+        
+      
     
     
     
@@ -2835,6 +2846,29 @@
   
   <span class="md-ellipsis">
     sbs CLI
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tooling/command-line/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Command-line arguments
     
   </span>
   
@@ -6049,6 +6083,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#launch-it-without-clicking-sbs-run-and-command-line-arguments" class="md-nav__link">
+    <span class="md-ellipsis">
+      🚀 Launch it without clicking — sbs run and command-line arguments
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#hangar" class="md-nav__link">
     <span class="md-ellipsis">
       🛩️ Hangar
@@ -6377,6 +6420,63 @@ actually registered, and <strong>a new race joins the rotation by existing</stro
 flyable — Kralien, Torgoth, Skaraan, Biomech and the pirates — have a working Engineering
 console for the first time.</p>
 <p>See <a href="../build/race-addons/">The races add-on</a>.</p>
+<hr />
+<h2 id="launch-it-without-clicking-sbs-run-and-command-line-arguments">🚀 Launch it without clicking — <code>sbs run</code> and command-line arguments</h2>
+<p>Cosmos can now be started with arguments, and <strong>a mission can read them</strong>. A shortcut, a
+batch file or a CI job can bring up a full bridge on a particular map with particular
+settings, untouched by human hands.</p>
+<div class="highlight"><pre><span></span><code>sbs run                                        server + five consoles, nothing to click
+sbs run comms,weapons                          just those two
+sbs run -m LM_TestRange map=sandbox            a mission and a map
+sbs run --dry-run                              show the command lines, launch nothing
+</code></pre></div>
+<p>The mission comes from <code>-m</code> (default <code>LegendaryMissions</code>) and is passed as
+<code>defaultmission=</code>, so <strong><code>preferences.json</code> is no longer edited</strong> to choose one. Consoles
+are selected per process instead of by rewriting a file inside the game install — two runs
+at once no longer fight over it, and a crash cannot leave it changed.</p>
+<p><strong>Anything you add on the end reaches the mission</strong>, because the engine hands unrecognized
+<code>key=value</code> arguments straight to script:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>map=</code> <code>console=</code></td>
+<td>start a map, open a console</td>
+</tr>
+<tr>
+<td><code>profile=</code> <code>var.NAME=</code></td>
+<td>settings, in bulk or one at a time</td>
+</tr>
+<tr>
+<td><code>seed=</code> <code>run=</code></td>
+<td>reproducible runs, labelled</td>
+</tr>
+<tr>
+<td><code>record=</code></td>
+<td>transcribe what you click</td>
+</tr>
+<tr>
+<td><code>test=</code></td>
+<td>a pass/fail verdict from the <strong>real engine</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Settings merge <code>defaults &lt; settings.yaml &lt; profile= &lt; COSMOS_SETTINGS &lt; var.NAME=</code>, so a
+profile file carries the bulk and the command line names it:</p>
+<div class="highlight"><pre><span></span><code>sbs run -m MyMission profile=soak var.DIFFICULTY=3 var.AUTO_PLAY.enable=true
+</code></pre></div>
+<p><code>test=30</code> is the one worth knowing about if you automate anything: the mission plays for
+that long and writes <code>records/verdict.json</code>, which means <strong>the real engine can be checked
+by a script</strong> rather than by someone watching it. It counts runtime errors, not MAST
+coverage — <code>sbs debug . --test</code> remains the stronger check for whether your mission
+actually did anything.</p>
+<p>Anything that matches nothing says so, rather than quietly doing nothing.</p>
+<p>→ <a href="../tooling/command-line/">Command-line arguments</a></p>
 <hr />
 <h2 id="hangar">🛩️ Hangar</h2>
 <ul>
