@@ -627,6 +627,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#amd-writes-like-a-script-now" class="md-nav__link">
+    <span class="md-ellipsis">
+      🎞️ AMD writes like a script now
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-amd-editor-knows-the-format" class="md-nav__link">
     <span class="md-ellipsis">
       🧰 The AMD editor knows the format
@@ -6128,6 +6137,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#amd-writes-like-a-script-now" class="md-nav__link">
+    <span class="md-ellipsis">
+      🎞️ AMD writes like a script now
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-amd-editor-knows-the-format" class="md-nav__link">
     <span class="md-ellipsis">
       🧰 The AMD editor knows the format
@@ -6560,6 +6578,41 @@ Reserve: 4000
 Character are always regarded some way, so they carry <code>reputation</code> without asking;
 <code>Also:</code> is for the optional half.</p>
 <p>See <a href="../build/amd-format/">The AMD file format</a>.</p>
+<h2 id="amd-writes-like-a-script-now">🎞️ AMD writes like a script now</h2>
+<p>The fact sheets were only half the file. The other half is the <strong>prose</strong>, and it learned
+six marks — borrowed from Fountain, the screenplay format, and Obsidian, where linked
+notes come from. A line the format does not recognize is still prose, always, so nothing
+you have already written changes.</p>
+<p><strong>A scene can hold a conversation.</strong> A dialogue scene used to have one speaker named in
+its fence. Now the cue goes in the body, the way a script writes it:</p>
+<div class="highlight"><pre><span></span><code>@Ashfang
+% You&#39;re a long way from friends, captain.
+
+@Vell (comms)
+(shaken)
+He means it, captain.
+</code></pre></div>
+<p><code>(shaken)</code> is how the line is delivered — write anything you like. <code>(comms)</code> is <em>where</em>
+it is delivered, so who-says-what-and-where is decided in the script instead of in code.</p>
+<p><strong>Prose can point at things.</strong> <code>Talk to [[cmdr_vell]] before you reach
+[[ds1|the station]].</code> These are real references, so Find All References, Rename and the
+Story Graph all see them — and a link to something you have not written <strong>is not an
+error</strong>:</p>
+<div class="highlight"><pre><span></span><code>$ sbs lint &lt;mission&gt; --missing
+3 thing(s) referenced but not written yet:
+  cmdr_vell
+      linked from `brief`   story.amd:6
+</code></pre></div>
+<p>Draft the whole mission as prose, link freely to scenes that do not exist yet, and let
+the linter hand you the list of what to write next. In the editor each one gets a
+<strong>Create this record</strong> quick fix.</p>
+<p><strong>And three smaller ones.</strong> <code>= a note to yourself</code> records what a beat is <em>for</em> — it
+shows in hover and the outline and never reaches a player. <code>/* ... */</code> cuts a scene
+without deleting it. <code>&gt; [!WARNING]</code> gives an in-fiction document in-fiction formatting.
+In a cutscene, <code>FADE IN:</code> and <code>&gt; CUT TO:</code> say how a shot arrives without appearing on
+screen — so a cutscene file reads as a screenplay and is still the shot list the engine
+plays.</p>
+<p>See <a href="../build/amd-format/#writing-the-body">Writing the body</a>.</p>
 <h2 id="the-amd-editor-knows-the-format">🧰 The AMD editor knows the format</h2>
 <p>The VS Code extension reads AMD as a format rather than as coloured text:</p>
 <ul>

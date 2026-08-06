@@ -5828,7 +5828,11 @@ This section is specifically about what the LegendaryMissions addons provide.</p
 <tbody>
 <tr>
 <td><code>fleets</code></td>
-<td><code>spawn_players</code>, enemy fleet prefabs (<code>prefab_fleet_raider</code>, ...)</td>
+<td><code>spawn_players</code>, enemy fleet prefabs (<code>prefab_fleet_raider</code>, ...). Needs <code>races</code> for its composition ladders &mdash; see below</td>
+</tr>
+<tr>
+<td><code>races</code></td>
+<td>Per-race content the other addons look up: the <strong>fleet composition ladders</strong> <code>fleets</code> reads (gated on <code>NPC_RACES</code>) and the <strong>ship interiors</strong> for hulls the base game ships without one (gated on <code>PLAYABLE_RACES</code>)</td>
 </tr>
 <tr>
 <td><code>docking</code></td>
@@ -5896,8 +5900,14 @@ This section is specifically about what the LegendaryMissions addons provide.</p
 </tr>
 </tbody>
 </table>
-<p><strong>A standard multi-console combat mission</strong> typically loads: <code>fleets</code>, <code>docking</code>,
-<code>prefabs</code>, <code>comms</code>, <code>consoles</code>, <code>damage</code>.</p>
+<p><strong>A standard multi-console combat mission</strong> typically loads: <code>fleets</code>, <code>races</code>,
+<code>docking</code>, <code>prefabs</code>, <code>comms</code>, <code>consoles</code>, <code>damage</code>.</p>
+<p><code>races</code> is on that list because the composition ladders moved OUT of <code>fleets</code> and into
+it: with <code>fleets</code> alone, <code>fleet_create</code> finds no table for the race, prints one line and
+returns <code>None</code> &mdash; a fleet that spawns nothing and a mission that quietly has no
+enemies. It also matters as soon as the crew flies a non-TSN hull: every Torgoth,
+Skaraan, Kralien, Biomech and Pirate entry in the base <code>grid_data.json</code> is <strong>empty</strong>, and
+a hull with no interior has a dead Engineering console.</p>
 <h2 id="minimum-without-legendarymissions">Minimum without LegendaryMissions</h2>
 <p>A mission can also skip LegendaryMissions entirely and route consoles, spawn
 players, and build GUI itself &mdash; see the

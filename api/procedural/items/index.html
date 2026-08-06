@@ -6121,6 +6121,12 @@ keep working unchanged.</p>
 <p>Art comes from the registry; the key is stored on the pickup as the
 <code>item_key</code> inventory value so the generic collision route can credit it
 without any per-item code.</p>
+<p>An UNREGISTERED key is a mission bug, and a silent one: the art it falls back to
+decides both the mesh and -- via the art's shipData <code>interactionradius</code> -- whether
+<code>//collision/interactive</code> fires at all, so an unregistered pickup can look like a
+<code>?</code> and be uncollectable. Fall back to the key itself (item keys and art keys
+coincide by convention, so it is the best available guess) and log a warning, rather
+than quietly spawning the <code>unknown</code> placeholder, which has no interaction radius.</p>
 
 
     </div>

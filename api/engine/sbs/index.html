@@ -14415,6 +14415,13 @@ the object identity, so every held reference stays valid.</p>
     <div class="doc doc-contents ">
 
         <p>deletes the grid object, and sends the deletion message to all clients</p>
+<p>The object must leave BOTH registries: the sim-wide <code>grid_objects</code> map and its
+host hull map's <code>grid_items</code> list. Popping only the former left a dangling entry
+on the hull map, so <code>get_objects_at_point</code> kept returning an id whose py-side
+Agent and data_set were long gone -- <code>grid_take_internal_damage_at</code> then hit
+<code>None.set(...)</code> the next time internal damage landed on that cell. This is the
+delete path DeleteQueue actually uses (<code>delete_queue.py</code>), so every deferred grid
+delete leaked; <code>hullmap.delete_grid_object</code> already removed from both.</p>
 
 
     </div>
