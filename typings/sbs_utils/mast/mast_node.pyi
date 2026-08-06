@@ -6,16 +6,8 @@ def STRING_REGEX_NAMED_2 (name):
     ...
 def STRING_REGEX_NAMED_3 (name):
     ...
-def compile_format_string (message):
-    """Compile a MAST format string into a code object (eval mode).
-    
-    Text containing ``{`` is wrapped as an f-string and compiled so it can be
-    formatted later; other text is returned unchanged. A triple-quote delimiter
-    that does not occur in the text (and won't be escaped by a trailing quote)
-    is chosen so embedded quotes don't terminate the literal early. If the text
-    still cannot be wrapped safely, a clear error is raised rather than emitting
-    broken code (the old ``f"""{message}"""`` wrapping silently produced a
-    cryptic SyntaxError on any embedded triple-quote)."""
+def lru_cache (maxsize=128, typed=False):
+    ...
 def mast_node (append=True):
     ...
 class DescribableNode(MastNode):

@@ -26,6 +26,13 @@ def _comms_get_origin_id () -> int:
     ...
 def _comms_get_selected_id () -> int:
     ...
+def _forget_comms_promise (origin_id, selected_id):
+    """Evict a cached comms promise for an (origin, selected) pair.
+    
+    Called from ``CommsPromise.leave`` -- which the GarbageCollector runs the moment
+    either object of the pair is destroyed -- so a promise can't outlive its objects
+    and be handed back for a recycled id. Fires on ordinary in-engine object deletion,
+    not only the dev in-process reset, keeping the cache coherent in the real game."""
 def awaitable (func):
     ...
 def comms (path=None, buttons=None, timeout=None) -> sbs_utils.procedural.comms.CommsPromise:
@@ -103,7 +110,7 @@ def comms_info (name, face=None, color=None) -> None:
     
     Example:
         comms_info("Commander Karn", face="crew/karn", color="red")"""
-def comms_info_card (client_id, message=None, title=None, color=None, face=None, icon_index=None, banner=None, button=None, time=10, history=True, path=None):
+def comms_info_card (client_id, message=None, title=None, color=None, face=None, icon_index=None, banner=None, button=None, time=10, history=True, path=None, notify=None):
     """Send an "incoming comms" card to one or more clients' info panel.
     
     A reusable wrapper over ``gui_info_panel_send_message`` for narrative / ambient
@@ -129,8 +136,13 @@ def comms_info_card (client_id, message=None, title=None, color=None, face=None,
             an awaitable Promise that resolves on press.
         time (int, optional): Auto-dismiss after this many seconds (when there is
             no button). Defaults to 10.
-        history (bool, optional): Keep the card in panel history. Defaults to True.
+        history (bool, optional): Keep the card in the panel log. Defaults to True.
         path (str, optional): Info-panel tab path. Defaults to ``"message"``.
+        notify (bool, optional): Interrupt - show the card live and switch the
+            panel to its tab. Defaults to None ("only if it has a button"), so a
+            plain card is filed in the log and the attention half is left to an
+            overlay (see ``announce``). Pass True to keep the old always-interrupt
+            behaviour.
     
     Returns:
         Promise | None: Resolves on button press, or None if no button was given.
@@ -413,13 +425,18 @@ def get_inventory_value (id_or_object, key: str, default=None):
     
     Returns:
         any: The inventory value, or ``default`` if the key is not set."""
-def gui_info_panel_send_message (client_id, message=None, message_color=None, path=None, title=None, title_color=None, banner=None, banner_color=None, face=None, icon_index=None, icon_color=None, button=None, history=True, time=-1):
+def gui_info_panel_send_message (client_id, message=None, message_color=None, path=None, title=None, title_color=None, banner=None, banner_color=None, face=None, icon_index=None, icon_color=None, button=None, history=True, time=-1, notify=None):
     """Send a message card to a client's info panel.
     
-    The message is queued under the given ``path`` tab and displayed when that
-    tab is active. If a ``button`` label is provided the call suspends until the
-    player presses it. Messages are stored in history (up to 9 items) unless
-    ``history=False``.
+    Every card is filed in the tab's **log** (readable any time on the log tab)
+    unless ``history=False``. A card only *interrupts* - taking over the panel's
+    tab and auto-dismissing - when it needs an answer or the caller asks:
+    
+    - a card with a ``button`` ALWAYS interrupts. It is a progression gate: a
+      mission awaiting the press deadlocks if the player never sees it.
+    - otherwise pass ``notify=True`` to interrupt. The default is ``False``:
+      the card goes to the log and does not steal the tab, because the attention
+      half of a notification belongs to an overlay now (see ``announce``).
     
     Args:
         client_id (int | set): Client(s) to receive the message.
@@ -436,9 +453,12 @@ def gui_info_panel_send_message (client_id, message=None, message_color=None, pa
         icon_color (str, optional): CSS color for the icon.
         button (str | list, optional): Button label(s) to show. When set the
             function returns an awaitable Promise that resolves on button press.
-        history (bool, optional): Append to message history. Defaults to True.
+        history (bool, optional): File the card in the tab's log. Defaults to True.
         time (int, optional): Auto-dismiss after this many seconds if no button
             is configured. Defaults to -1 (use panel default of 10 s).
+        notify (bool, optional): Interrupt - show the card live and switch the
+            panel to its tab. Defaults to None, meaning "only if it has a
+            button". Pass True for a card that must be seen now.
     
     Returns:
         Promise | None: Resolves when the button is pressed, or None if no

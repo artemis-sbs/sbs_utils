@@ -6,6 +6,45 @@ def _amd_slug (text):
     """A heading display -> a key: lowercase, non-alphanumeric runs -> single '_'."""
 def _document_get_amd_file (file_path, root_display_text='', strip_comments=True, content=None, data_parser=None, allow_bare_headings=False):
     ...
+def _quest_field (q, label):
+    """A fence field, wherever it ended up. Only state / display_text / description are
+    promoted onto the quest itself, so an AMD-authored `Reward:` is under `data` while a
+    hand-built one may be on top - the same trap `_quest_show` documents."""
+def _quest_kind (q):
+    """The record's kind noun (`job` / `beat` / `arc` / ...), or None.
+    
+    Lives in the fence data like `Show:` does - only state / display_text / description
+    are promoted onto the quest itself - so both places are checked here rather than in
+    every caller."""
+def _quest_log_rows (children, aid, group, depth):
+    """One level of the quest tree. A quest that HAS visible children is emitted as a
+    COLLAPSIBLE gui_list_box_header - so it folds its steps exactly like the Game/You/Ship
+    group headers - followed by its children one level deeper; a leaf quest is a plain row.
+    The list box itself does the fold + indent (a parent header sits at visual `depth`
+    while its logical indent `depth+1` folds/indents its subtree; each row carries its own
+    `indent`), so NO manual padding. State-sorted per level; SECRET (and subtrees) hidden."""
+def _quest_need (q):
+    """How many the goal counts, when it counts - `destroy 6 raiders` -> 6."""
+def _quest_remaining (aid, qid):
+    """Time left on a quest's fail deadline, `M:SS`, or "" when there is none. The driver
+    anchors that timer lazily, so this is also how the log learns a deadline exists."""
+def _quest_reward_text (q):
+    """A reward as an author would read it back:
+    `120 credits, 2 torpedoes, +10 honest with tsn`.
+    
+    Renders the three authored kinds EXPLICITLY rather than walking the dict, because a
+    nested value formatted generically would emit braces (`{'torpedoes': 2} items`) - and
+    a display string containing `{` is a runtime SyntaxError the moment MAST assigns it,
+    reported against the author's line rather than this function. Any other scalar key
+    still renders the old way, so a mission-specific key is not silently dropped; a
+    nested one is skipped rather than turned into a crash."""
+def _quest_show (q):
+    """A quest's `Show:` - WHEN it is listed in the log, normalized.
+    
+    Fence fields live under the quest's `data`; only state / display_text / description
+    are promoted onto the quest itself, so reading `q["show"]` returns None and the
+    field silently does nothing. Both are checked here so there is one place to be
+    wrong."""
 def document_flatten (doc_obj, header=None, indent=0, data=None):
     """Flatten a nested quest/document tree into an ordered display list.
     
@@ -74,6 +113,19 @@ def gui_list_box_header (label, collapse=False, indent=0, selectable=False, data
     
     Returns:
         LayoutListBoxHeader: The header item."""
+def gui_list_box_is_header (item):
+    """Return whether a listbox item is a collapsible header.
+    
+    Args:
+        item: Any item from a listbox items list.
+    
+    Returns:
+        bool: ``True`` if the item is a ``LayoutListBoxHeader``.
+    
+    Example:
+        for item in items:
+            if gui_list_box_is_header(item):
+                ~~ print("header:", item.label) ~~"""
 def load_yaml_string (s):
     """Parse a YAML string.
     
@@ -104,7 +156,7 @@ def quest_add (agents, quest_id, display_text, description, state=<QuestState.ID
     """Add a quest to one or more agents.
     
     Creates a new quest entry in each agent's quest tree. If the agent has no
-    quest tree yet, one is initialised automatically. The ``quest_id`` may use
+    quest tree yet, one is initialized automatically. The ``quest_id`` may use
     ``/`` separators for nested quests (e.g. ``"main/rescue"``), but all parent
     levels must already exist.
     
@@ -178,10 +230,19 @@ def quest_agent_quests (agent_id):
 def quest_complete (agents, quest_id):
     """Emit a ``quest_completed`` signal for one or more agents.
     
-    Fires ``signal_emit("quest_completed", ...)`` for each agent. To also
-    update the stored state, call ``quest_set_key(agent, quest_id, "state",
-    QuestState.COMPLETE)`` or handle the signal in a ``//signal/quest_completed``
-    route that sets the state.
+    ``quest_completed`` is an INPUT: you emit it to ASK for a quest to be completed.
+    The LegendaryMissions quest driver listens for it and calls ``quest_mark_complete``.
+    
+    **To REACT to a quest finishing, listen for ``quest_succeeded``** - that is what the
+    driver emits once it has finished processing a completion (``quest_failed_done`` for
+    a failure, ``quest_started`` for an activation). Do not write
+    ``//signal/quest_completed`` to catch a completion: nothing emits it except callers
+    like this one, so the route waits forever and fails silently. The two names are
+    near-identical and point opposite ways; this bug killed every narrated beat in the
+    2.8 converter's output.
+    
+    To also update the stored state without the driver, call
+    ``quest_set_key(agent, quest_id, "state", QuestState.COMPLETE)``.
     
     Args:
         agents: Agent ID, object, or list/set of either.
@@ -194,7 +255,7 @@ def quest_console_enable (console, enable=True):
     """Mark one or more console types as quest-panel-enabled.
     
     Controls which console types display the quest panel. Multiple console
-    names can be passed as a comma-separated string. Names are normalised to
+    names can be passed as a comma-separated string. Names are normalized to
     lowercase before storage.
     
     Args:
@@ -363,6 +424,39 @@ def quest_kill_count_for_difficulty (count, difficulty, baseline=5, grind_min=3,
     Returns:
         int: The difficulty-adjusted kill target (or ``count`` unchanged if it is
         below ``grind_min`` or the inputs aren't numeric)."""
+def quest_log_build_items (sources):
+    """Build the collapsible quest-log item list shared by both logs.
+    
+    `sources` is a list of (section_label, agent_id). Each becomes a
+    gui_list_box_header followed by that agent's non-SECRET quests. Child quests
+    (nested via `/`-separated keys, e.g. `arc/step1`) render indented under their
+    parent as a TREE (see _quest_log_rows); empty sections are skipped. Rows are
+    MastDataObject with agent_id / key / group / depth / title / state /
+    state_label / progress / desc, so quest_log_template renders them the same
+    everywhere. The ONLY thing the two callers vary is `sources`."""
+def quest_log_detail (row):
+    """The second line of a row - the most useful thing known about it.
+    
+    It used to repeat the state, which the icon's COLOR already says; a line that says
+    what the reader can already see is a line they stop reading. In order: how far along,
+    what it pays while it is still a choice, how long is left, and only then the state
+    (which for `Done` / `Failed` IS the news)."""
+def quest_log_icon (row):
+    """The icon NAME for a row: its kind if it has one, else the plain state pip.
+    
+    Shape says what KIND of thing it is, color says what STATE it is in - two facts in
+    one glyph, where before every row was the same square and the kind was invisible. The
+    name resolves through the icon sheet, so a mission that ships its own art re-skins
+    every quest log without touching this."""
+def quest_log_state_icon_color (state):
+    """Hex color for the state icon (defaults to gray)."""
+def quest_log_state_label (state):
+    """Display label for a quest state (Active / Available / Done / Failed / ...)."""
+def quest_log_template (item):
+    """Canonical quest-log row renderer (section headers + quest rows), shared by
+    the in-game and end-game logs. Fix the look here and both update."""
+def quest_log_title ():
+    """Shared list title for the quest log."""
 def quest_remove (agent, quest_id):
     """Remove a quest from an agent and return it.
     
@@ -375,6 +469,19 @@ def quest_remove (agent, quest_id):
     
     Example:
         removed = quest_remove(SHIP_ID, "patrol")"""
+def quest_run_action (agent, quest_id):
+    """Run this quest's ``Action:`` stage directions, if it declares any. Returns how
+    many applied.
+    
+    Called automatically when a quest goes ACTIVE. Public because a mission that drives
+    quests its own way still wants the block to fire.
+    
+    ONE PER AGENT. A quest activated on five player ships runs its block five times -
+    the same multiplicity as a ``//signal`` route, and the same footgun. It is safe today
+    because every built-in verb is idempotent (``becomes``/``joins`` set state,
+    ``arrives`` is keyed on the landmark, ``departs`` deletes something already gone), and
+    a mission registering its own verb has to keep that property or scope the quest to
+    ``Agent.SHARED_ID``."""
 def quest_set_key (agent, quest_id, key, value):
     """Set an arbitrary attribute on a quest object.
     

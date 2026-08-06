@@ -36,7 +36,14 @@ def media_read_file (basedir, file):
 def media_read_from_zip (zip_file, file, as_utf8=True):
     ...
 def media_read_relative_file (file):
-    ...
+    """Read a file sitting beside the .mast that is running - from the addon's zip when
+    that .mast came from a mastlib, else from its folder.
+    
+    EVERY failure is logged and named. It returns None on failure, and a None flows
+    straight into `document_get_amd_file(content=None)`, which yields an empty tree that
+    renders as a flat, contentless page - a screen that looks broken while saying
+    nothing about why. Reported as: a document whose headings "stopped being
+    recognized", running a mission that gets this addon from a mastlib."""
 def media_schedule (kind, name, ID=0):
     """Schedule a named ``@media`` label of the given kind.
     

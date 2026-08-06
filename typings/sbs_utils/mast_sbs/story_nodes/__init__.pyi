@@ -11,5 +11,6 @@ from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecorat
 from sbs_utils.mast_sbs.story_nodes.inline_route import InlineRoute
 from sbs_utils.mast_sbs.story_nodes.card_map import MapCardLabel
 from sbs_utils.mast_sbs.story_nodes.media import MediaLabel
+from sbs_utils.mast_sbs.story_nodes.overlay_route_label import OverlayRouteDecoratorLabel
 from sbs_utils.mast_sbs.story_nodes.route_label import RouteDecoratorLabel
 from sbs_utils.mast_sbs.story_nodes.weighted_text import WeightedText

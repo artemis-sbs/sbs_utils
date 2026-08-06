@@ -3,6 +3,11 @@ from sbs_utils.pages.layout.clickable import Clickable
 from sbs_utils.pages.layout.column import Column
 from sbs_utils.pages.layout.dirty import Dirty
 from sbs_utils.helpers import FrameContext
+def backdrop_props (image, color, layer=None):
+    """Props for a background / border fill.
+    
+    `layer` None keeps the historic 1000, which is UNDER content -- so a
+    backdrop cannot hide a neighbour's spill unless the author raises it."""
 class Row(object):
     """class Row"""
     def __init__ (self, cols=None, width=0, height=0) -> None:
@@ -36,6 +41,8 @@ class Row(object):
     @font.setter
     def font (self, v):
         ...
+    def get_layer (self):
+        ...
     def invalidate_regions (self):
         ...
     @property
@@ -54,6 +61,12 @@ class Row(object):
         ...
     @justify.setter
     def justify (self, v):
+        ...
+    @property
+    def layer (self):
+        ...
+    @layer.setter
+    def layer (self, v):
         ...
     def mark_layout_dirty (self):
         ...

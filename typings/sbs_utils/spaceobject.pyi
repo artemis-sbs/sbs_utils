@@ -149,6 +149,13 @@ class SpaceObject(Agent):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def _add (id, obj):
         ...
+    def _delete_grid_objects (self):
+        """Tombstone + queue every grid object hosted on this ship.
+        
+        Best-effort and deliberately quiet: a ship with no hull map (most
+        non-player objects) simply has no interior to clean up, and this runs
+        while something is already being torn down -- a failure here must not
+        stop the ship itself from being deleted."""
     def _remove (id):
         ...
     @property
@@ -194,7 +201,22 @@ class SpaceObject(Agent):
         Args
             name (str): The name of the navpoint to delete."""
     def delete_object (self):
-        """Delete this SpaceObject."""
+        """Delete this SpaceObject **and the grid objects it hosts**.
+        
+        The native free is **deferred**: the agent is tombstoned now
+        (``destroyed()`` drops it from ``Agent.all``/roles, so
+        ``object_exists()``/``to_object()`` report it gone immediately) and the
+        actual ``sbs.delete_object()`` runs when the event handler drains the
+        queue, after every MAST task for this tick has yielded. This closes the
+        use-after-free window where another task still references this object
+        within the same tick. See ``delete_queue.DeleteQueue``.
+        
+        The interior goes with the ship. A grid object is an independent agent
+        that only carries its host's id, so deleting the ship alone ORPHANED
+        them: they stayed live with a ``host_id`` pointing at nothing, and any
+        AI still walking them kept dereferencing the dead ship (LM's
+        ``damcon_ai`` re-enters every 3s and reads ``obj.host_id`` on the way
+        through). Nothing else owns that cleanup, so it belongs here."""
     def get (id):
         ...
     def get_as (id, as_cls):

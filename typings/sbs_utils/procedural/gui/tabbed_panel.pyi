@@ -191,13 +191,18 @@ def gui_info_panel_remove (path, var=None):
     
     Example:
         gui_info_panel_remove("crew")"""
-def gui_info_panel_send_message (client_id, message=None, message_color=None, path=None, title=None, title_color=None, banner=None, banner_color=None, face=None, icon_index=None, icon_color=None, button=None, history=True, time=-1):
+def gui_info_panel_send_message (client_id, message=None, message_color=None, path=None, title=None, title_color=None, banner=None, banner_color=None, face=None, icon_index=None, icon_color=None, button=None, history=True, time=-1, notify=None):
     """Send a message card to a client's info panel.
     
-    The message is queued under the given ``path`` tab and displayed when that
-    tab is active. If a ``button`` label is provided the call suspends until the
-    player presses it. Messages are stored in history (up to 9 items) unless
-    ``history=False``.
+    Every card is filed in the tab's **log** (readable any time on the log tab)
+    unless ``history=False``. A card only *interrupts* - taking over the panel's
+    tab and auto-dismissing - when it needs an answer or the caller asks:
+    
+    - a card with a ``button`` ALWAYS interrupts. It is a progression gate: a
+      mission awaiting the press deadlocks if the player never sees it.
+    - otherwise pass ``notify=True`` to interrupt. The default is ``False``:
+      the card goes to the log and does not steal the tab, because the attention
+      half of a notification belongs to an overlay now (see ``announce``).
     
     Args:
         client_id (int | set): Client(s) to receive the message.
@@ -214,9 +219,12 @@ def gui_info_panel_send_message (client_id, message=None, message_color=None, pa
         icon_color (str, optional): CSS color for the icon.
         button (str | list, optional): Button label(s) to show. When set the
             function returns an awaitable Promise that resolves on button press.
-        history (bool, optional): Append to message history. Defaults to True.
+        history (bool, optional): File the card in the tab's log. Defaults to True.
         time (int, optional): Auto-dismiss after this many seconds if no button
             is configured. Defaults to -1 (use panel default of 10 s).
+        notify (bool, optional): Interrupt - show the card live and switch the
+            panel to its tab. Defaults to None, meaning "only if it has a
+            button". Pass True for a card that must be seen now.
     
     Returns:
         Promise | None: Resolves when the button is pressed, or None if no
@@ -227,7 +235,7 @@ def gui_info_panel_send_message (client_id, message=None, message_color=None, pa
             title="New Orders",
             message="Report to DS1 immediately.",
             face="captain")"""
-def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False):
+def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False, reveal=False, hint=None):
     """Add a listbox to the current GUI layout.
     
     Args:
@@ -253,6 +261,15 @@ def gui_list_box (items, style, item_template=None, title_template=None, section
             the next header. Defaults to ``False``.
         read_only (bool, optional): Prevent item modification. Defaults to
             ``False``.
+        reveal (bool, optional): Scroll so the selected row is visible. A
+            repaint rebuilds the listbox and the view starts at the top, so a
+            restored selection can be held but off screen. Opt-in: this widget
+            is load-bearing, and defaulting it on would move every list in every
+            mission. Defaults to ``False``.
+        hint (object, optional): An opaque token from the previous listbox's
+            ``get_selection_hint()``. A repaint builds a DIFFERENT listbox whose
+            view starts at the top, so without this the row under the user's
+            mouse moves. Do not inspect it; pass it along.
     
     Returns:
         LayoutListbox: The layout object created.

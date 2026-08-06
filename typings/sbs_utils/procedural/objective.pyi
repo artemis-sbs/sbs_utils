@@ -3,18 +3,34 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.procedural.modifiers import ModifierHandler
 from sbs_utils.mast.pollresults import PollResults
+from sbs_utils.tickdispatcher import RollingSlicer
 from sbs_utils.tickdispatcher import TickDispatcher
+def _brains_tick (tt):
+    """Per-tick driver: run a rolling slice of brains (see brains_run_all)."""
+def _objectives_tick (tt):
+    """Per-tick driver: run a rolling slice of objectives (see objectives_run_all)."""
 def awaitable (func):
     ...
-def brains_run_all (tick_task):
-    """Run all agent brains for the current tick.
+def brains_run_all (tick_task, pass_seconds=None):
+    """Run agent brains for the current tick.
     
-    Iterates every agent with a ``__BRAIN__`` inventory entry and calls
-    ``brain.run()``. Re-entrant calls are suppressed with a guard flag.
-    Agents whose ``Agent.get`` returns ``None`` are silently skipped.
+    Iterates agents with a ``__BRAIN__`` inventory entry and calls
+    ``brain.run()``. Re-entrant calls are suppressed with a guard flag; agents
+    whose ``Agent.get`` returns ``None`` (or that are paused) are skipped.
+    
+    ``pass_seconds`` controls batching:
+    
+    * ``None`` (default) - run **all** brains this call (original behavior; kept
+      for existing callers/tests).
+    * a number - run only a **rolling slice** this call, sized so a full pass
+      over every brain completes in about ``pass_seconds`` of sim time. This
+      spreads a large fleet's brains across ticks instead of one batch, so no
+      single tick spikes. Each brain still runs about once per ``pass_seconds``,
+      preserving the prior cadence and total cost.
     
     Args:
-        tick_task: The tick task or event that triggered this run."""
+        tick_task: The tick task or event that triggered this run.
+        pass_seconds: If set, spread a full pass over ~this many seconds."""
 def extra_scan_sources_run_all (tick_task: sbs_utils.tickdispatcher.TickTask):
     """Push extra scan source IDs to all scanners that have them linked.
     
@@ -122,13 +138,39 @@ def objective_extends (label, data=None):
     
     Returns:
         MastAsyncTask: The scheduled sub-task."""
+def objective_reset ():
+    """Forget the scheduled tick tasks so the next mission re-registers them.
+    
+    These three module globals are "already scheduled" latches. A mission restart
+    calls TickDispatcher.clear(), which throws the tasks away - but the latches
+    stayed set, so objective_schedule() decided there was nothing to do and NOTHING
+    EVER DROVE BRAINS OR OBJECTIVES AGAIN. NPCs still spawn and still get brains
+    attached; they simply never think, never move, and never report an error.
+    
+    The engine forks a fresh process per mission and so never hits this. The dev
+    runner reuses the interpreter, so there it means every mission after the first
+    plays with dead AI - which is how it turned up: a --runs soak showed `moving`
+    dropping 41 -> 6 while `npcs` and `brains` stayed put."""
 def objective_schedule ():
     """Ensure the background tick task that drives objectives is running."""
-def objectives_run_all (tick_task):
-    """Poll every active ``OBJECTIVE_RUN`` objective, removing any whose agent no longer exists.
+def objective_ticks_stale () -> bool:
+    """True if we think the tick tasks are scheduled but the dispatcher has lost them.
+    
+    Exactly the state above: latched but not running. Registered with the reset
+    ledger so a restart soak names it instead of leaving an AI-less mission."""
+def objectives_run_all (tick_task, pass_seconds=None):
+    """Poll active ``OBJECTIVE_RUN`` objectives; skip any whose agent is gone.
+    
+    ``pass_seconds`` controls batching (mirrors brains_run_all):
+    
+    * ``None`` (default) - run **all** objectives this call (original behavior).
+    * a number - run only a **rolling slice** this call, sized so a full pass
+      over every objective completes in ~``pass_seconds`` of sim time, spreading
+      a large goal list across ticks instead of one batch.
     
     Args:
-        tick_task (Task): Tick task (unused)."""
+        tick_task (Task): Tick task (unused).
+        pass_seconds: If set, spread a full pass over ~this many seconds."""
 def objectives_run_everything (tick_task):
     """Run one slice of the per-tick work: objectives, brains, scan sources, or game-end checks.
     

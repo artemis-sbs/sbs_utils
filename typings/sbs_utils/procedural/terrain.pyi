@@ -1,4 +1,19 @@
+from sbs_utils.tickdispatcher import DripQueue
 from sbs_utils.vec import Vec3
+def _asteroid_scatter_now (cluster_spawn_points, height, selectable=False):
+    ...
+def _nebula_chunk_now (specs, density, selectable):
+    """Pure creation: the mirror of terrain_nebula_spawn with the draws removed."""
+def _nebula_plan (points, cluster_color, rainbow, color_is_set, height, neb_size):
+    """Draw every per-object value now, in the same order the inline spawn draws
+    them -- so the caller's RNG stream advances exactly as it would have, and the
+    sown cluster is identical to the inline one."""
+def _nebula_scatter_now (points, height, cluster_color, neb_size, density, selectable, rainbow, color_is_set):
+    ...
+def _sowing ():
+    ...
+def awaitable (func):
+    ...
 def closest_list (source: int | sbs_utils.agent.CloseData | sbs_utils.agent.SpawnData | sbs_utils.agent.Agent | sbs_utils.vec.Vec3, the_set, max_dist=None, filter_func=None) -> list[sbs_utils.agent.CloseData]:
     """Return all objects in a set within optional distance and filter criteria.
     
@@ -174,7 +189,20 @@ def terrain_remove_points_near (all_points, test_points, radius):
     Returns:
         list[Vec3]: Subset of ``all_points`` farther than ``radius`` from every
             test point."""
-def terrain_setup_nebula (nebula, diameter=4000, density_coef=1.0, color='yellow'):
+def terrain_set_nebula_object_size (size=2500):
+    """OPT-IN (experimental): raise the per-object nebula size so clusters spawn
+    FEWER, BIGGER objects.
+    
+    A cluster's object count is ``cluster_size // NEB_SIZE_LARGE``, so raising this
+    makes the existing generator produce fewer/bigger objects (a 10000 cluster:
+    ~36 -> ~16 at 2500 = ~55% less overdraw) while keeping all its scatter/drift/
+    jitter - no re-tuning. Default behavior is UNCHANGED unless a mission calls this.
+    
+    Pairs with the projection depth shader fix (NEB_DEPTH_PROJECTION in
+    shader-emissivenebula.ps): sizes above ~3000 need it to avoid the "sphere at
+    origin" artifact. 2500 is clean even without it. Call once before spawning
+    nebulae; pass 1500 to restore the default."""
+def terrain_setup_nebula (nebula, diameter=4000, density_coef=1.0, color='yellow', seed=None):
     """Apply visual and physical properties to an existing nebula space object.
     
     Args:
@@ -184,29 +212,44 @@ def terrain_setup_nebula (nebula, diameter=4000, density_coef=1.0, color='yellow
         density_coef (float, optional): Visual nebula density multiplier (3D
             view). Defaults to 1.0.
         color (str | dict, optional): Colour name or a full colour dict.
-            Defaults to ``"yellow"``."""
+            Defaults to ``"yellow"``.
+        seed (int, optional): The shader's ``random_seed``. Defaults to None --
+            drawn here, as always. The sower passes one in because it draws every
+            per-object value up front, so a queued chunk contains no randomness."""
 def terrain_sow_begin (over=6, focus=None):
     """Start sowing: terrain fill queued and spread over ``over`` sim-seconds.
-
+    
     What this guarantees: each queued call creates exactly what it would have
     created inline -- it carries the RNG state it was queued under, so deferring a
     cluster never changes that cluster.
-
-    What it does NOT guarantee: that a multi-cluster call produces the same field
-    as it would unsowed. Cluster centres are drawn up front so the macro layout is
-    unchanged, but rock counts and scales within each cluster differ. The result is
-    fully deterministic -- the same seed sows the same field every time.
-
+    
+    NEBULA is identical either way, cluster for cluster: its whole plan (colour,
+    height, size, shader seed per object) is drawn at queue time in the same order
+    the inline spawn draws it, so the caller's stream advances exactly as it would
+    have. The same is true of ``terrain_spawn_field_keyed``, which already isolates
+    its RNG per cell.
+    
+    ASTEROID clusters do shift the stream: their spawn loop's randomness is
+    interleaved with reads of the spawned object (a rock's exclusion radius sets
+    where its satellites go), so it cannot be drawn up front the same way. Deferring
+    it moves that consumption, which changes what a LATER cluster draws. Cluster
+    centres come from one up-front scatter, so the macro layout is unchanged; what
+    differs is rock counts and scales per cluster. Across seeds this is a different
+    sample of the same distribution, not a thinner field (measured: +2% net, both
+    directions). The result is fully deterministic -- the same seed sows the same
+    field every time -- just not the same field as not sowing. Since sowing is
+    opt-in per map, a map is only ever played one way.
+    
     Args:
         over (float, optional): Seconds to spread the work across. Defaults to 6.
-        focus (Vec3 | tuple, optional): Work runs nearest-first from here.
-            Defaults to the map origin.
-
+        focus (Vec3 | tuple, optional): Work runs nearest-first from here, so the
+            space around it is correct first. Defaults to the map origin.
+    
     Returns:
         DripQueue: the queue, for callers that want to inspect it."""
 def terrain_sow_complete ():
     """Promise that resolves once the sown terrain has all been created.
-
+    
     Example:
         terrain_sow_begin(over=6)
         terrain_asteroid_clusters(terrain_value)
@@ -216,7 +259,7 @@ def terrain_sow_end ():
     keeps draining -- use ``terrain_sow_flush()`` to force it out now."""
 def terrain_sow_flush ():
     """Run all queued terrain work immediately. Returns how many units ran.
-
+    
     For code that must see the whole field right now -- a test, a headless
     conformance run, or a query that cannot wait for the drip."""
 def terrain_sow_pending ():
@@ -225,7 +268,7 @@ def terrain_sow_reset ():
     """Drop queued work and leave sowing off (mission reset)."""
 def terrain_spawn (x, y, z, name, side, ship_key, behave_id):
     """Spawn a passive terrain object into the simulation.
-
+    
     Args:
         x (float): X spawn coordinate.
         y (float): Y spawn coordinate.
@@ -275,6 +318,10 @@ def terrain_spawn_asteroid_points (x, y, z, points, radius=10000, density_scale=
             Defaults to False."""
 def terrain_spawn_asteroid_scatter (cluster_spawn_points, height, selectable=False):
     """Spawn a randomised asteroid (with possible satellite cluster) at each given point.
+    
+    Every asteroid path in this module funnels through here, so this is where
+    sowing intercepts: inside a sow scope the whole cluster is queued as one unit
+    of work and created later, identically. See ``terrain_sow_begin``.
     
     Args:
         cluster_spawn_points (Iterable[Vec3]): Spawn positions.
@@ -338,7 +385,11 @@ def terrain_spawn_field_keyed (key, cell, x_min, z_min, x_max, z_max, terrain_va
     Returns:
         list[tuple[Vec3, str]]: the plan that was spawned."""
 def terrain_spawn_monsters (monster_value, center=None, points=None):
-    """Spawn Typhon-class monster prefabs based on the monster difficulty value.
+    """Spawn monster-bestiary prefabs based on the monster difficulty value.
+    
+    Each monster is rolled from ``monster_species_weights`` (Typhon-dominant), so
+    the field is a mix of hostile, tame and helpful creatures. Reassign that list
+    to change the mix.
     
     Args:
         monster_value (int): Number of monsters to spawn.

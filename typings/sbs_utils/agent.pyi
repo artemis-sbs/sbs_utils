@@ -15,6 +15,8 @@ class Agent(object):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def _add (id, obj):
         ...
+    def _index_own_roles (self, role: 'str', add: 'bool'):
+        """Keep _own_roles in step with what add/remove_role did to Agent.roles."""
     def _remove (id):
         ...
     def _remove_every_inventory (self, data: 'object'):
@@ -149,7 +151,17 @@ class Agent(object):
         ...
     def remove (self):
         """remove the object to the system, called by destroyed normally
-                """
+        
+        Targeted purge. An object's OWN inventory/link dicts are a superset of the
+        collections it can appear in inside the class-level mirrors, so purging
+        just those keys is exact AND cheap. The generic _remove() scans EVERY
+        collection instead, which is fine for a rare object delete but not for MAST
+        task disposal: _has_inventory runs ~1500 collections wide on a real mission
+        and tasks are disposed thousands of times a minute, so that scan measured as
+        the single largest self-time in the whole runner (25s of 106s).
+        
+        Roles keep the full scan - an Agent has no per-object record of its own
+        roles - but that registry is ~100 collections wide, not thousands."""
     def remove_id (id):
         ...
     def remove_inventory (self, collection_name: 'str', data: 'object'):
@@ -177,9 +189,9 @@ class Agent(object):
         ...
     def set_dedicated_link (self, link_name: 'str', other: 'Agent | CloseData | int'):
         """set the a dedicated link. i.e. there can be only one
-
+        
         Pass ``other=None`` to clear the link.
-
+        
         :param link_name: The link to add e.g. spy, pirate etc.
         :type id: id"""
     def set_inventory_value (self, collection_name, value):
@@ -218,6 +230,13 @@ class Stuff(object):
         ...
     def dedicated_collection (self, collection, id):
         ...
+    def discard_from_collection (self, collection, id):
+        """Discard by EXACT collection name (no comma splitting).
+        
+        remove_from_collection() treats its argument as a comma-separated list,
+        which is right for caller-supplied role strings but wrong when the name
+        came from a dict key that may legitimately contain a comma. Used by the
+        targeted purge in Agent.remove()."""
     def get_collections_in (self, id):
         ...
     def remove_collection (self, collection):

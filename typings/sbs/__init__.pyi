@@ -1,5 +1,7 @@
 def add_client_tag() -> None:
     """stub; does nothing yet."""
+def add_extra_ship_data(arg0: str, arg1: str) -> None:
+    """load another set of ships from a data file (just for this mission). string arguments of filename(plus suffix), and then path."""
 def add_particle_emittor(spaceObject: sbs.space_object, lifeSpan: int, descriptorString: str) -> int:
     """creates a complex particle emittor and attaches it to a space object."""
 def app_milliseconds() -> int:
@@ -18,6 +20,10 @@ def cinematic_control(clientID: int, scriptControlsCamera: int, dollyID: int, do
     """for a specific client (0=server machine), this sets the values to be used with the 'cinematic' console, which requiers a 3d_view widget, and 'cinematic' == camModeTag"""
 def clear_client_tags() -> None:
     """stub; does nothing yet."""
+def command_line_dict() -> Dict[str, str]:
+    """Returns a dictionary of the space-seperated key-value-pairs of the exe command line."""
+def command_line_list() -> List[str]:
+    """Returns a list of the space-seperated elements of the exe command line."""
 def create_new_sim() -> None:
     """all space objects are deleted; a blank slate is born."""
 def delete_all_navpoints() -> None:
@@ -364,6 +370,12 @@ class grid_object(object): ### from pybind
         """uint64, read only, id of this particular grid object"""
 class hullmap(object): ### from pybind
     """class hullmap"""
+    @property
+    def art_file_path (self: sbs.hullmap) -> str:
+        """string, file path, used to get top-down image from disk"""
+    @art_file_path.setter
+    def art_file_path (self: sbs.hullmap, arg0: str) -> None:
+        """string, file path, used to get top-down image from disk"""
     @property
     def art_file_root (self: sbs.hullmap) -> str:
         """string, file name, used to get top-down image from disk"""

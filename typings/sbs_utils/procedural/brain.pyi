@@ -4,6 +4,10 @@ from enum import IntFlag
 from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.mast.mast_node import MastNode
 from sbs_utils.mast.pollresults import PollResults
+from sbs_utils.tickdispatcher import RollingSlicer
+from sbs_utils.tickdispatcher import TickDispatcher
+def _brains_run_all (tick_task, pass_seconds=None):
+    ...
 def brain_add (agent_id_or_set, label, data=None, client_id=0, parent=None):
     """Add a behaviour-tree node to one or more agents.
     
@@ -71,15 +75,33 @@ def brain_resume (agent_id_or_set):
     """Resume one or more agents' brains (see ``brain_pause``)."""
 def brain_schedule ():
     """Schedule the brain tick task via the objective system."""
-def brains_run_all (tick_task):
-    """Run all agent brains for the current tick.
+def brains_is_stalled () -> bool:
+    """True if the re-entrancy guard is stuck on (no brain will ever run again).
     
-    Iterates every agent with a ``__BRAIN__`` inventory entry and calls
-    ``brain.run()``. Re-entrant calls are suppressed with a guard flag.
-    Agents whose ``Agent.get`` returns ``None`` are silently skipped.
+    Registered with the reset ledger so a restart soak reports it instead of
+    leaving a silently AI-less mission."""
+def brains_reset () -> None:
+    """Drop cross-mission brain scheduler state (called by reset_mission_state)."""
+def brains_run_all (tick_task, pass_seconds=None):
+    """Run agent brains for the current tick.
+    
+    Iterates agents with a ``__BRAIN__`` inventory entry and calls
+    ``brain.run()``. Re-entrant calls are suppressed with a guard flag; agents
+    whose ``Agent.get`` returns ``None`` (or that are paused) are skipped.
+    
+    ``pass_seconds`` controls batching:
+    
+    * ``None`` (default) - run **all** brains this call (original behavior; kept
+      for existing callers/tests).
+    * a number - run only a **rolling slice** this call, sized so a full pass
+      over every brain completes in about ``pass_seconds`` of sim time. This
+      spreads a large fleet's brains across ticks instead of one batch, so no
+      single tick spikes. Each brain still runs about once per ``pass_seconds``,
+      preserving the prior cadence and total cost.
     
     Args:
-        tick_task: The tick task or event that triggered this run."""
+        tick_task: The tick task or event that triggered this run.
+        pass_seconds: If set, spread a full pass over ~this many seconds."""
 def get_inventory_value (id_or_object, key: str, default=None):
     """Get an inventory value from an agent by key.
     
@@ -99,6 +121,30 @@ def has_inventory (key: str):
     
     Returns:
         set[int]: IDs of all agents that have this key set."""
+def is_grid_object_id (id):
+    """Return whether an ID belongs to an engineering-grid object.
+    
+    Args:
+        id (Agent | int): Agent ID or object.
+    
+    Returns:
+        bool: ``True`` if the grid-object bit (0x2000…) is set."""
+def is_space_object_id (id):
+    """Return whether an ID belongs to a space object.
+    
+    Args:
+        id (Agent | int): Agent ID or object.
+    
+    Returns:
+        bool: ``True`` if the space-object bit (0x4000…) is set."""
+def object_exists (so_id):
+    """Return whether an object currently exists in the simulation.
+    
+    Args:
+        so_id (Agent | int): Agent ID or object.
+    
+    Returns:
+        bool: ``True`` if the engine reports the object present."""
 def set_inventory_value (so, key: str, value):
     """Set an inventory value on one or more agents.
     

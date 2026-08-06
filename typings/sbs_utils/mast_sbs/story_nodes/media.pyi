@@ -35,6 +35,14 @@ class MediaLabel(DecoratorLabel):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def _add (id, obj):
         ...
+    def _media_roots (self):
+        """Where a media label may find its file: this mission's own `media/` first, then
+        each media pack it declared - unpacked ONCE beside the libraries rather than
+        copied into every mission.
+        
+        Skybox and music are resolved HERE, not by the engine, so a pack's skybox and
+        music are shareable exactly like its graphics. Only the mission-local folder was
+        searched before, which is why a pack had to be copied in to be usable."""
     def _remove (id):
         ...
     def can_fallthrough (self, parent):

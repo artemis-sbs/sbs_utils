@@ -17,7 +17,8 @@ def apply_style_def (style_def, layout_item, task):
     Handles ``area``, ``orientation``, ``row-height``, ``col-width``,
     ``margin``, ``border``, ``padding``, ``color``, ``font``, ``justify``,
     ``background``, ``background-color``, ``background-image``,
-    ``border-image``, ``border-color``, ``click_*``, and ``tag`` keys.
+    ``border-image``, ``border-color``, ``overflow``, ``layer``, ``click_*``,
+    and ``tag`` keys.
     
     Args:
         style_def (dict): Parsed style definition (key → value).

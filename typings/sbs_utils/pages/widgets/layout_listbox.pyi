@@ -24,6 +24,19 @@ def get_client_aspect_ratio (cid):
         Vec3: The aspect ratio. If Vec3.z is 99, then the client hasn't set the aspect ratio."""
 def layout_list_box_control (items, template_func=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False):
     ...
+def pack_slots (heights, avail, item_height=0.0, start=0):
+    """How many rows fit starting at `start`, packing REAL heights."""
+def reveal_cur (sel, cur, heights, avail, item_height=0.0):
+    """Where the view must start so row `sel` is visible, moving the LEAST.
+    
+    `sel`, `cur` and `heights` are all in DISPLAY space -- the rows actually on
+    show. A collapsible list also has an unfiltered index space; passing one of
+    those in points past the end of the shorter list, which is how this broke the
+    Control Gallery's index. Clamped rather than trusted.
+    
+    Above the window, scroll up to it. Below, back-pack UPWARD from it so it
+    lands at the BOTTOM -- the smallest move that reveals it, where
+    set_selected_index(i, True) would slam it to the top on every repaint."""
 class LayoutListBoxHeader(object):
     """class LayoutListBoxHeader"""
     def __init__ (self, label, collapse, indent=0, selectable=False, data=None, visual_indent=None):
@@ -31,7 +44,7 @@ class LayoutListBoxHeader(object):
 class LayoutListbox(Column):
     """A widget to list things passing function/lamdas to get the data needed for option display of
      a template """
-    def __init__ (self, left, top, tag_prefix, items, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False) -> None:
+    def __init__ (self, left, top, tag_prefix, items, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False, reveal=False, hint=None) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
     def _on_message (self, event):
         ...
@@ -41,8 +54,20 @@ class LayoutListbox(Column):
         builds/manages the content of the widget
         Args:
             event (event): The event that triggered the gui to update"""
+    def apply_selection_hint (self, hint):
+        """Apply a hint. Always a HINT -- stale is the normal case (a shorter
+        list, a collapsed section, another screen entirely), so everything is
+        clamped and the reveal has the final word."""
     def calc_max (self, CID):
-        ...
+        """Measure the items. Returns (max_width, max_height, avg_height).
+        
+        avg_height exists because slot budgeting used to divide the available
+        space by the TALLEST item, which silently assumes every row is the same
+        height. One tall row then shrank the whole list: eleven 48px consoles
+        with a single 96px one showed six rows and left half the box empty.
+        
+        For a UNIFORM list avg == max, so every existing listbox budgets exactly
+        as it did before. Only a list with genuinely varying rows changes."""
     def clear_selection_locks (self):
         ...
     def convert_value (self, item):
@@ -55,6 +80,22 @@ class LayoutListbox(Column):
         ...
     def get_selected_index (self):
         ...
+    def get_selection_hint (self):
+        """An OPAQUE token describing where this listbox is looking.
+        
+        Hand it to the next clone after a repaint, so the row under the user's
+        mouse stays under it:
+        
+            on change lb.value:
+                saved = lb.get_selection_hint()
+                jump repaint
+            ...
+            lb = gui_list_box(items, style, select=True, reveal=True, hint=saved)
+        
+        Do not inspect it. `selected_index` is in UNFILTERED space because that
+        is what set_selected_index takes; `slot` is a DISPLAY position, recorded
+        for a future resize policy and not used to restore today. Mixing those
+        two spaces is what broke this twice."""
     def get_value (self):
         ...
     def invalidate_regions (self):

@@ -48,7 +48,7 @@ def get_mission_graphics_file (file):
     
     Returns:
         str: The relative path from graphics directory to the file."""
-def gui_image (props, style=None, fit=0):
+def gui_image (props, style=None, fit=0, color=None):
     """Add an image to the current GUI layout.
     
     Resolves the image via the atlas, mission directory, and engine graphics
@@ -63,6 +63,8 @@ def gui_image (props, style=None, fit=0):
         style (str, optional): CSS-like style overrides. Defaults to None.
         fit (int, optional): Scaling mode — 0=stretch, 1=absolute pixels,
             2=keep aspect ratio (top-left), 3=keep aspect ratio (centered).
+        color (str, optional): Tint for this use only, overriding the atlas's own
+            color. Lets one registered cell serve every state.
             Defaults to 0.
     
     Returns:
@@ -83,7 +85,7 @@ def gui_image_absolute (props, style=None):
     
     Example:
         gui_image_absolute("media/icons/torpedo")"""
-def gui_image_add_atlas (key, image, left=None, top=None, right=None, bottom=None):
+def gui_image_add_atlas (key, image, left=None, top=None, right=None, bottom=None, color=None, domain=None):
     """The image atlas allows a key name to be used to assign to a set of image properties.
     This key can be used instead of image properties in any command that expect image properties.
     
@@ -134,11 +136,45 @@ def gui_image_add_atlas (key, image, left=None, top=None, right=None, bottom=Non
         top (float, optional): The pixel location of the top. Defaults to None.
         right (float, optional): The pixel location of the right. Defaults to None.
         bottom (float, optional): The pixel location of the bottom. Defaults to None.
+        color (str, optional): default tint for this key. A drawing call may override it.
+        domain (str, optional): a namespace for the key. `ImageAtlas.all` is one
+            process-wide dict, so two addons registering `card_back` collide silently and
+            the last one loaded wins. A domain scopes the claim - and something that
+            RESOLVES through a domain (icons do) will only honor a deliberate registration.
     
     Returns:
         ImageAtlas: The image Atlas object. This is a low level object typically used by the system """
-def gui_image_get_atlas (text):
-    ...
+def gui_image_add_atlas_grid (image, cols, rows=None, names=None, cell=None, color=None, domain=None, start=0):
+    """Register a whole sheet of evenly spaced cells in one call.
+    
+    Cutting a sheet up by hand is the same four lines of arithmetic every time, and
+    getting one of them wrong shows up as art that is off by a cell rather than as an
+    error (`casino_media.py` hand-loops exactly this).
+    
+        gui_image_add_atlas_grid("media/icons/quest-sheet", 8, 8,
+                                 ["job", "beat", "arc"], cell=64, domain="icon")
+    
+    Args:
+        image (str): the sheet, without the extension.
+        cols (int): cells across.
+        rows (int, optional): cells down. Needed only to measure a cell from the file.
+        names (list | dict, optional): a list is laid out ROW-MAJOR from `start`, and a
+            `None` entry skips that cell; a dict is `{name: (col, row)}` for a sparse
+            sheet. Omit to register nothing and just get the cell size back.
+        cell (int | tuple, optional): cell size in PIXELS. Measured from the file
+            (`width / cols`) when omitted, which requires the file to be readable.
+        color (str, optional): default tint for every cell.
+        domain (str, optional): namespace for the keys - see ``gui_image_add_atlas``.
+        start (int, optional): index of the first name in row-major order.
+    
+    Returns:
+        dict: {name: ImageAtlas} for everything registered."""
+def gui_image_get_atlas (text, domain=None):
+    """The atlas registered under a key, or one built from the text as a file name.
+    
+    Args:
+        text (str): a registered key, or an image path / property string.
+        domain (str, optional): look only in this domain (see ``gui_image_add_atlas``)."""
 def gui_image_keep_aspect_ratio (props, style=None):
     """Add an image scaled to fit the area while preserving aspect ratio.
     
@@ -206,15 +242,19 @@ def split_props (s, def_key):
     ...
 class ImageAtlas(object):
     """class ImageAtlas"""
-    def __init__ (self, key, image, left=None, top=None, right=None, bottom=None, color=None):
+    def __init__ (self, key, image, left=None, top=None, right=None, bottom=None, color=None, domain=None):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def __str__ (self):
         """Return str(self)."""
-    def get_props (self, color=None):
+    def get_props (self, color=None, layer=None):
         ...
     def get_size (self):
         ...
     def is_valid (self):
         ...
-    def send_gui_image (self, SBS, client_id, region_tag, tag, mode, left, top, right, bottom, color=None):
+    def qualify (key, domain=None):
+        """The key a registration is stored under. `ImageAtlas.all` is one process-wide
+        dict, so without a domain two addons can claim the same word and the last one
+        loaded silently wins. A domain makes the claim explicit and scoped."""
+    def send_gui_image (self, SBS, client_id, region_tag, tag, mode, left, top, right, bottom, color=None, layer=None):
         ...

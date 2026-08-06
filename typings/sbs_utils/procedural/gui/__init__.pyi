@@ -1,4 +1,231 @@
 from sbs_utils.procedural.gui.gui import ButtonPromise
+def camera_anchor (x, y, z, name='', roles='camera_anchor'):
+    """Spawn an invisible camera post and return its id.
+    
+    The detached-camera pattern LM's Game Master already uses: a player-family object with the
+    'invisible' art, with ``__player__`` removed so it is not a player ship. It has to be
+    player-family rather than terrain because a client can be ASSIGNED to it, and it is
+    invisible so it never appears in the shot it exists to frame.
+    
+    Args:
+        x, y, z (float): where to put it.
+        name (str, optional): display name; usually empty for a camera post.
+        roles (str, optional): extra roles, comma separated.
+    
+    Returns:
+        int: the anchor's id, or 0 if it could not be spawned."""
+def camera_assign (to, obj, consoles=None):
+    """Assign consoles to a space object - their identity, not their lens.
+    
+    The engine needs this before a cinematic camera means anything. It is normally called ONCE
+    per console (typically onto a `camera_anchor`), and then the lens is moved freely with
+    `camera_track`. Re-assigning per shot changes what the console *is* - which also changes
+    what it can see, since view culling follows the assigned object, not the camera.
+    
+    Args:
+        to: audience - a client id, a ship, a side, or a set/role query (see ``consoles_of``).
+        obj: the space object (id or object) to assign them to.
+        consoles (str, optional): narrow to consoles carrying these roles.
+    
+    Returns:
+        int: how many consoles were assigned."""
+def camera_auto (to=None, consoles=None):
+    """Hand the camera back to the engine's own director (it follows the assigned ship).
+    
+    The release path for anything `camera_track` took over - end a cutscene with this.
+    
+    Args:
+        to: audience (see ``consoles_of``); ``None`` is the current console.
+        consoles (str, optional): narrow to consoles carrying these roles.
+    
+    Returns:
+        int: how many consoles were released."""
+def camera_lens (to=None, consoles=None):
+    """Where the lens is right now on the first of these consoles, or None.
+    
+    The mover records it, so a rack or a follow-on move can start from where the
+    last one finished instead of the caller having to remember."""
+def camera_move (to, subject, lens_from, lens_to, seconds, ease='in_out', consoles=None):
+    """Glide the lens from one world position to another, looking at `subject`.
+    
+    Args:
+        to: audience (see ``consoles_of``).
+        subject: what the shot looks at - and, necessarily, what the lens rides.
+        lens_from (Vec3 | tuple): world position to start at.
+        lens_to (Vec3 | tuple): world position to end at.
+        seconds (float): duration.
+        ease (str): ``in_out`` (default), ``in``, ``out`` or ``linear``. Ours - the
+            engine interpolates nothing.
+    
+    Returns:
+        Promise: resolves with the final lens position when the move ends.
+    
+    Example:
+        await camera_move(role("mainscreen"), hero, Vec3(0,900,-4000), Vec3(0,300,-900), 6)"""
+def camera_move_stop (to=None, consoles=None):
+    """Stop any running move on these consoles, leaving the lens where it is.
+    
+    Called for you by every move below: two drivers re-aiming the same console
+    would fight tick by tick, and the symptom (a camera that jitters between two
+    paths) reads as an engine bug rather than a second caller."""
+def camera_orbit (to, subject, distance, from_yaw=0.0, to_yaw=360.0, seconds=10.0, pitch=15.0, ease='linear', consoles=None):
+    """Swing the lens around `subject` at a fixed distance.
+    
+    Because offsets are world-space, this is the Game Master's move: recompute
+    ``camera_orbit_lens`` each tick and re-aim. It follows a moving subject for free,
+    since the offset is applied to wherever the subject is at the time.
+    
+    Args:
+        distance (float): radius of the orbit.
+        from_yaw / to_yaw (float): degrees to sweep between. Give ``to_yaw`` less
+            than ``from_yaw`` to swing the other way.
+        pitch (float): degrees above the subject. Default 15 looks down slightly,
+            which reads better than dead level.
+        ease (str): ``linear`` by default - an orbit that eases looks like a mistake.
+    
+    Returns:
+        Promise: resolves when the sweep ends."""
+def camera_orbit_lens (distance, yaw=0.0, pitch=0.0):
+    """The offset for a shot ``distance`` away at a given angle, as a world-space Vec3.
+    
+    This is LM's Game Master formula, which is the reference implementation of an orbit here:
+    take a vector straight back and rotate it. Because the engine does not rotate offsets into
+    the dolly's frame, orbiting means recomputing this and calling `camera_track` again - which
+    is exactly what the GM does when you drag its orbit slider.
+    
+    Args:
+        distance (float): how far from the subject.
+        yaw (float, optional): degrees around the subject.
+        pitch (float, optional): degrees above (positive) or below it.
+    
+    Returns:
+        Vec3: the offset to pass as ``lens``.
+    
+    Example:
+        camera_track(role("mainscreen"), cam, lens=camera_orbit_lens(1800, yaw=35, pitch=20),
+                     target=hero_ship)"""
+def camera_rack (to, subject, consoles=None):
+    """Look at something else WITHOUT moving the lens - a rack focus.
+    
+    Holds the current world position and re-aims at ``subject``. Any running move is
+    stopped first: a rack during a move is a new intent, not a modifier on the old one.
+    
+    Returns:
+        int: how many consoles were re-aimed."""
+def camera_shot (to, subject, lens_world, consoles=None):
+    """Put the lens at an ABSOLUTE world position, looking at `subject`.
+    
+    The natural way to write a shot - "camera over here, pointed at that" - is to pass two
+    different objects as dolly and target. That shape does not render (see CINEMATIC_PLAN.md
+    section 0); what renders is one object named twice, with the lens offset away from it,
+    which is what the Game Master does.
+    
+    That constraint costs nothing, because the offsets are WORLD-space: any camera position is
+    reachable as `wanted - subject.pos`. So this composes the shot you meant out of the shape
+    the engine accepts, and it keeps working as the subject moves, since the offset is
+    recomputed from wherever it is at the time.
+    
+    Args:
+        to: audience (see ``consoles_of``).
+        subject: the object to look at - and, necessarily, the one the lens rides.
+        lens_world (Vec3 | tuple): where the camera should BE, in world coordinates.
+        consoles (str, optional): narrow to consoles carrying these roles.
+    
+    Returns:
+        int: how many consoles were pointed.
+    
+    Example:
+        camera_shot(role("mainscreen"), hero_ship, Vec3(0, 900, -2600))"""
+def camera_track (to, dolly, lens=None, target=None, look=None, consoles=None):
+    """Point one or more consoles' cinematic camera at a subject.
+    
+    Camera sits at ``dolly`` + ``lens``; it looks at ``target`` + ``look``. Both offsets are
+    WORLD-space (see the module docstring), so an offset does not rotate as the dolly turns -
+    use `camera_orbit_lens` to place a shot by angle, and recompute it when you want the angle
+    to change.
+    
+    ``target`` defaults to ``dolly``: a single-subject shot pins both ids to that object, which
+    is the shape the engine expects.
+    
+    ASSIGNS each console to `dolly` before pointing, because the engine only honors the change
+    when they match (see the module docstring). `camera_assign` remains for the rare case of
+    setting a console's object without touching its camera.
+    
+    Note the consequence: moving the camera to an object CHANGES what that console can see,
+    since view culling follows the assigned object. That is the engine's model, not a choice
+    this wrapper makes.
+    
+    Args:
+        to: audience - a client id, a ship, a side, or a set/role query (see ``consoles_of``).
+        dolly: the object the camera rides (id or object). Prefer a `camera_anchor`; pinning a
+            SHIP with no ``lens`` offset puts the lens inside its hull.
+        lens (Vec3 | tuple, optional): offset from the dolly. Defaults to no offset.
+        target (optional): what to look at. Defaults to the dolly.
+        look (Vec3 | tuple, optional): offset from the target. Defaults to no offset.
+        consoles (str, optional): narrow to consoles carrying these roles.
+    
+    Returns:
+        int: how many consoles were pointed.
+    
+    Example:
+        cam = camera_anchor(0, 900, -2600)
+        camera_assign(role("mainscreen"), cam)
+        camera_track(role("mainscreen"), cam, target=hero_ship)"""
+def consoles_of (to, consoles=None):
+    """Resolve an audience expression to a set of console client ids.
+    
+    Args:
+        to: ``None`` (the current console), a client id, a ship id/object, a side
+            key or side agent, or a set/list mixing any of those.
+        consoles (str, optional): narrow to consoles with these roles, e.g.
+            ``"mainscreen"`` or ``"science, comms"``.
+    
+    Returns:
+        set[int]: console client ids (possibly empty)."""
+def cutscene_define (name, shots, letterbox=True, skippable=True, bar=4, release=True):
+    """Register a cutscene under ``name``.
+    
+    Args:
+        name (str): what ``cutscene_play`` will look up.
+        shots (list[dict]): in order. Per shot:
+            ``subject`` (required) - what the shot looks at, and necessarily what
+            the lens rides; ``lens`` (world position) OR ``move`` ([from, to]);
+            ``seconds`` (default 4); ``ease``; ``overlay`` ({"kind": ..., plus that
+            kind's fields}).
+        letterbox (bool): black bars for the duration.
+        skippable (bool): whether ``cutscene_skip`` ends it.
+        bar (float): letterbox bar height in em.
+        release (bool): hand the camera back to the engine's director at the end.
+            Leave it True unless the next thing the story does is set its own shot -
+            a cutscene that ends still holding a dolly will drop to the engine
+            default the moment that object is deleted.
+    
+    Returns:
+        dict: the stored cutscene."""
+def cutscene_get (name):
+    """The stored cutscene, or None."""
+def cutscene_play (name_or_shots, to=None, consoles=None, **overrides):
+    """Play a cutscene and return a Promise that resolves when it ends.
+    
+    Args:
+        name_or_shots: a name from ``cutscene_define``, or a list of shots to play
+            without registering one.
+        to: audience (see ``consoles_of``).
+        **overrides: any ``cutscene_define`` field, for this run only.
+    
+    Returns:
+        Promise: resolves with ``{"skipped": bool, "shots": int, "name": str}``."""
+def cutscene_playing (to=None, consoles=None):
+    """Whether a cutscene is running on any of these consoles."""
+def cutscene_skip (to=None, consoles=None):
+    """Skip a running cutscene. Returns how many consoles were skipped.
+    
+    A no-op on a cutscene defined as unskippable, so a global skip button can be
+    wired once and left alone."""
+def cutscene_stop (to=None, consoles=None):
+    """Stop a running cutscene without honouring ``skippable`` - the teardown path.
+    
+    Resolves its promise as skipped, so a story awaiting it still continues."""
 def gui (buttons=None, timeout=None):
     """Present the GUI layout that has been queued up for the current client.
     
@@ -346,6 +573,29 @@ def gui_get_console_types ():
     """Get the list of consoles defined by @console decorator labels
     
         """
+def gui_grid (columns=1):
+    """Lay the GUI items you add next out as a grid, as a context manager.
+    
+    Inside the ``with`` block, items flow left-to-right and wrap to a new row
+    every ``columns`` items — no manual ``gui_row()`` needed. The short final
+    row is padded so columns stay aligned. Because it only starts standard rows,
+    it adds no new rendering path.
+    
+    Args:
+        columns (int): Number of columns (cells per row). Minimum 1.
+    
+    Returns:
+        PageGrid: Context manager. Use with ``with``.
+    
+    Example:
+        with gui_grid(3):
+            gui_text("Name")
+            gui_text("Side")
+            gui_text("Status")
+            for ship in ships:
+                gui_text(ship.name)
+                gui_text(ship.side)
+                gui_text(ship.status)"""
 def gui_hide (layout_item):
     """Hide a visible layout item.
     
@@ -479,6 +729,19 @@ def gui_icon (props, style=None):
     Example:
         gui_icon("icons/shield")
         gui_text("{shield_pct}%")"""
+def gui_icon_add_atlas (name, image, left=None, top=None, right=None, bottom=None, color=None):
+    """Claim an icon NAME for a cell of your own sheet.
+    
+        gui_icon_add_atlas("wanted", media_shared("icons/quest-sheet"), 0, 0, 64, 64)
+    
+    From then on every `gui_icon_name("quest.job")` draws your art - the meaning points
+    at the look `wanted`, and this claims that look. Nothing that draws it changes.
+    
+    This is `gui_image_add_atlas(..., domain="icon")`. The domain is what separates a
+    deliberate re-skin from an image that happens to be called `square`."""
+def gui_icon_add_atlas_grid (image, cols, rows=None, names=None, cell=None, color=None, start=0):
+    """Claim a whole sheet of icon names at once - `gui_image_add_atlas_grid` in the icon
+    domain. Names are laid out row-major; a `None` entry skips a cell."""
 def gui_icon_button (props, style=None):
     """Add a clickable icon button to the current GUI layout.
     
@@ -495,7 +758,32 @@ def gui_icon_button (props, style=None):
     Example:
         btn = gui_icon_button("icons/fire")
         gui_click(btn, on_fire_clicked)"""
-def gui_image (props, style=None, fit=0):
+def gui_icon_name (name, color=None, style=None, props=None):
+    """Draw an icon by NAME rather than by sheet index.
+    
+        gui_icon_name("quest.job", color="#cc0")
+    
+    The name is resolved by `icon_names.icon_resolve`: a meaning (`quest.job`) follows
+    its alias to a look, and a look is either a cell of the built-in sheet or - when a
+    mission has registered that name with `gui_image_add_atlas` - a cell of its own
+    sheet. The caller says what it wants; where the art comes from is not its business,
+    which is what lets a consumer be written before the art exists and lets a mission
+    re-skin every screen that draws it.
+    
+    An unknown name draws NOTHING and says so once, rather than falling back to some
+    arbitrary glyph: a wrong icon is worse than a missing one, because it looks
+    deliberate.
+    
+    Args:
+        name (str): a meaning or a look - see `icon_names.icon_names()`.
+        color (str, optional): tint. The built-in glyphs are white on transparent, so
+            one glyph serves every state.
+        style (str, optional): layout style, as for `gui_icon`.
+        props (str, optional): extra icon properties appended verbatim.
+    
+    Returns:
+        Icon | Image | None"""
+def gui_image (props, style=None, fit=0, color=None):
     """Add an image to the current GUI layout.
     
     Resolves the image via the atlas, mission directory, and engine graphics
@@ -510,6 +798,8 @@ def gui_image (props, style=None, fit=0):
         style (str, optional): CSS-like style overrides. Defaults to None.
         fit (int, optional): Scaling mode — 0=stretch, 1=absolute pixels,
             2=keep aspect ratio (top-left), 3=keep aspect ratio (centered).
+        color (str, optional): Tint for this use only, overriding the atlas's own
+            color. Lets one registered cell serve every state.
             Defaults to 0.
     
     Returns:
@@ -530,7 +820,7 @@ def gui_image_absolute (props, style=None):
     
     Example:
         gui_image_absolute("media/icons/torpedo")"""
-def gui_image_add_atlas (key, image, left=None, top=None, right=None, bottom=None):
+def gui_image_add_atlas (key, image, left=None, top=None, right=None, bottom=None, color=None, domain=None):
     """The image atlas allows a key name to be used to assign to a set of image properties.
     This key can be used instead of image properties in any command that expect image properties.
     
@@ -581,11 +871,45 @@ def gui_image_add_atlas (key, image, left=None, top=None, right=None, bottom=Non
         top (float, optional): The pixel location of the top. Defaults to None.
         right (float, optional): The pixel location of the right. Defaults to None.
         bottom (float, optional): The pixel location of the bottom. Defaults to None.
+        color (str, optional): default tint for this key. A drawing call may override it.
+        domain (str, optional): a namespace for the key. `ImageAtlas.all` is one
+            process-wide dict, so two addons registering `card_back` collide silently and
+            the last one loaded wins. A domain scopes the claim - and something that
+            RESOLVES through a domain (icons do) will only honor a deliberate registration.
     
     Returns:
         ImageAtlas: The image Atlas object. This is a low level object typically used by the system """
-def gui_image_get_atlas (text):
-    ...
+def gui_image_add_atlas_grid (image, cols, rows=None, names=None, cell=None, color=None, domain=None, start=0):
+    """Register a whole sheet of evenly spaced cells in one call.
+    
+    Cutting a sheet up by hand is the same four lines of arithmetic every time, and
+    getting one of them wrong shows up as art that is off by a cell rather than as an
+    error (`casino_media.py` hand-loops exactly this).
+    
+        gui_image_add_atlas_grid("media/icons/quest-sheet", 8, 8,
+                                 ["job", "beat", "arc"], cell=64, domain="icon")
+    
+    Args:
+        image (str): the sheet, without the extension.
+        cols (int): cells across.
+        rows (int, optional): cells down. Needed only to measure a cell from the file.
+        names (list | dict, optional): a list is laid out ROW-MAJOR from `start`, and a
+            `None` entry skips that cell; a dict is `{name: (col, row)}` for a sparse
+            sheet. Omit to register nothing and just get the cell size back.
+        cell (int | tuple, optional): cell size in PIXELS. Measured from the file
+            (`width / cols`) when omitted, which requires the file to be readable.
+        color (str, optional): default tint for every cell.
+        domain (str, optional): namespace for the keys - see ``gui_image_add_atlas``.
+        start (int, optional): index of the first name in row-major order.
+    
+    Returns:
+        dict: {name: ImageAtlas} for everything registered."""
+def gui_image_get_atlas (text, domain=None):
+    """The atlas registered under a key, or one built from the text as a file name.
+    
+    Args:
+        text (str): a registered key, or an image path / property string.
+        domain (str, optional): look only in this domain (see ``gui_image_add_atlas``)."""
 def gui_image_keep_aspect_ratio (props, style=None):
     """Add an image scaled to fit the area while preserving aspect ratio.
     
@@ -707,13 +1031,18 @@ def gui_info_panel_remove (path, var=None):
     
     Example:
         gui_info_panel_remove("crew")"""
-def gui_info_panel_send_message (client_id, message=None, message_color=None, path=None, title=None, title_color=None, banner=None, banner_color=None, face=None, icon_index=None, icon_color=None, button=None, history=True, time=-1):
+def gui_info_panel_send_message (client_id, message=None, message_color=None, path=None, title=None, title_color=None, banner=None, banner_color=None, face=None, icon_index=None, icon_color=None, button=None, history=True, time=-1, notify=None):
     """Send a message card to a client's info panel.
     
-    The message is queued under the given ``path`` tab and displayed when that
-    tab is active. If a ``button`` label is provided the call suspends until the
-    player presses it. Messages are stored in history (up to 9 items) unless
-    ``history=False``.
+    Every card is filed in the tab's **log** (readable any time on the log tab)
+    unless ``history=False``. A card only *interrupts* - taking over the panel's
+    tab and auto-dismissing - when it needs an answer or the caller asks:
+    
+    - a card with a ``button`` ALWAYS interrupts. It is a progression gate: a
+      mission awaiting the press deadlocks if the player never sees it.
+    - otherwise pass ``notify=True`` to interrupt. The default is ``False``:
+      the card goes to the log and does not steal the tab, because the attention
+      half of a notification belongs to an overlay now (see ``announce``).
     
     Args:
         client_id (int | set): Client(s) to receive the message.
@@ -730,9 +1059,12 @@ def gui_info_panel_send_message (client_id, message=None, message_color=None, pa
         icon_color (str, optional): CSS color for the icon.
         button (str | list, optional): Button label(s) to show. When set the
             function returns an awaitable Promise that resolves on button press.
-        history (bool, optional): Append to message history. Defaults to True.
+        history (bool, optional): File the card in the tab's log. Defaults to True.
         time (int, optional): Auto-dismiss after this many seconds if no button
             is configured. Defaults to -1 (use panel default of 10 s).
+        notify (bool, optional): Interrupt - show the card live and switch the
+            panel to its tab. Defaults to None, meaning "only if it has a
+            button". Pass True for a card that must be seen now.
     
     Returns:
         Promise | None: Resolves when the button is pressed, or None if no
@@ -770,7 +1102,7 @@ def gui_int_slider (msg, style=None, var=None, data=None):
     
     Args:
         msg (str): Property string defining the slider range and label, e.g.
-            ``"min:1;max:10;label:Count;"``
+            ``"low:1;high:10;text:int;"``
         style (str, optional): CSS-like style overrides. Defaults to None.
         var (str, optional): Variable name to read the initial value from and
             update on change. Defaults to None.
@@ -781,7 +1113,7 @@ def gui_int_slider (msg, style=None, var=None, data=None):
         Slider: The layout item created.
     
     Example:
-        gui_int_slider("min:1;max:5;label:Torpedo Count;", var="torp_count")"""
+        gui_int_slider("low:1;high:5;text:int;", var="torp_count")"""
 def gui_layout_widget (widget):
     """Place a specific engine widget at a fixed position in the layout.
     
@@ -799,7 +1131,28 @@ def gui_layout_widget (widget):
     Example:
         gui_section(style="area:0,0,70,100;")
         gui_layout_widget("2dview")"""
-def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False):
+def gui_list (items, style='', select=False, multi=False, title=None, read_only=False, row_height='1.6em'):
+    """Data-bound listbox: the ``with`` block is the per-row template.
+    
+    Args:
+        items: The rows to render. The ``as`` name (and ``item``) is bound to
+            each one while the block runs.
+        style (str, optional): listbox container style. Defaults to "".
+        select (bool, optional): allow row selection. Defaults to False.
+        multi (bool, optional): allow multiple selection. Defaults to False.
+        title (str, optional): a title row for the listbox. Defaults to None.
+        read_only (bool, optional): prevent modification. Defaults to False.
+        row_height (str, optional): height of each row (e.g. "1.6em", "3em").
+            A roomier value gives cells more breathing room. Defaults to "1.6em".
+    
+    Returns:
+        PageList: A row-template context manager. Use with ``with``.
+    
+    Example:
+        with gui_list(ships, select=True) as ship:
+            gui_text("{ship.name}")
+            gui_text("{ship.hull}%")"""
+def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False, reveal=False, hint=None):
     """Add a listbox to the current GUI layout.
     
     Args:
@@ -825,6 +1178,15 @@ def gui_list_box (items, style, item_template=None, title_template=None, section
             the next header. Defaults to ``False``.
         read_only (bool, optional): Prevent item modification. Defaults to
             ``False``.
+        reveal (bool, optional): Scroll so the selected row is visible. A
+            repaint rebuilds the listbox and the view starts at the top, so a
+            restored selection can be held but off screen. Opt-in: this widget
+            is load-bearing, and defaulting it on would move every list in every
+            mission. Defaults to ``False``.
+        hint (object, optional): An opaque token from the previous listbox's
+            ``get_selection_hint()``. A repaint builds a DIFFERENT listbox whose
+            view starts at the top, so without this the row under the user's
+            mouse moves. Do not inspect it; pass it along.
     
     Returns:
         LayoutListbox: The layout object created.
@@ -937,6 +1299,31 @@ def gui_message_label (layout_item, label):
     Example:
         section = gui_sub_section(style="col-width:30%;")
         gui_message_label(section, handle_section_click)"""
+def gui_options_button (transparent=True, client_id=None):
+    """Make the engine Options button transparent (or normal) for a client, and
+    keep it that way across page rebuilds.
+    
+    Prefer this over calling ``sbs.transparent_options_button`` directly: the raw
+    call is undone by the next page build.
+    
+    Args:
+        transparent (bool, optional): ``True`` to make the button transparent,
+            ``False`` to restore it. Defaults to ``True``.
+        client_id (int, optional): The client to set it for. Defaults to the
+            client of the current frame.
+    
+    Example:
+        gui_options_button()            # this console's button, transparent
+        gui_options_button(False)       # put it back"""
+def gui_options_button_clear (client_id=None):
+    """Forget the recorded intent (all clients when client_id is None), so the
+    button returns to the default on the next rebuild. For a client that
+    disconnected, and for tests."""
+def gui_options_button_flag (client_id):
+    """The flag a mission last asked for on this client, or 0 if it never did.
+    
+    Used by StoryPage.on_new_gui to restore the button to what the mission
+    wanted rather than to a hardcoded 0."""
 def gui_panel_console_message (cid, left, top, width, height):
     ...
 def gui_panel_console_message_list (cid, left, top, width, height):
@@ -1015,7 +1402,7 @@ def gui_properties_set (p=None, tag=None):
     
     Example:
         gui_properties_set({"Speed": "gui_text(str(ship_speed))", "Shields": "gui_slider(shield_pct)"})"""
-def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x000001F8423CF9C0>):
+def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x0000011CF6D33560>):
     """Create a property list box with single-line label/control layout.
     
     Each property is rendered as a label on the left and its control widget
@@ -1224,15 +1611,47 @@ def gui_row (style=None):
 def gui_screen_size (client_id):
     """Return the pixel dimensions of a client's screen.
     
+    CAUTION: when the client has not reported its size yet, this returns a
+    1024x768 PLACEHOLDER with ``z == 99`` rather than a real measurement, and a
+    client that reconnects goes back to the placeholder until its next resize
+    event. Branching on the width without checking validity silently builds the
+    small-screen layout on a large display:
+    
+        ss = gui_screen_size(client_id)
+        if ss.x < 1600:          # WRONG - 1024 placeholder also lands here
+            ...
+    
+    Use ``gui_screen_size_known`` to tell "small" from "unknown".
+    
     Args:
         client_id (int): The client whose screen to query.
     
     Returns:
-        Vec3: Screen dimensions in pixels (x=width, y=height, z=0).
+        Vec3: Screen dimensions in pixels (x=width, y=height); z is
+        ``GUI_SCREEN_SIZE_UNKNOWN_Z`` (99) when the size is not yet known.
     
     Example:
         size = gui_screen_size(CLIENT_ID)
         ~~ print(size.x, size.y) ~~"""
+def gui_screen_size_known (client_id):
+    """True when the client has actually reported its screen size.
+    
+    Pair with ``gui_screen_size`` before branching on the dimensions, so an
+    unknown size can be handled deliberately (usually: assume the LARGER layout,
+    which degrades better than cramming a wide screen into the narrow one).
+    
+    Args:
+        client_id (int): The client whose screen to query.
+    
+    Returns:
+        bool: False while the size is still the 1024x768 placeholder.
+    
+    Example:
+        ss = gui_screen_size(client_id)
+        if not gui_screen_size_known(client_id) or ss.x >= 1600:
+            gui_row("row-height: 35px;col-width:45px;")
+        else:
+            gui_row("row-height: 35px;col-width:25px;")"""
 def gui_screenshot (image_path):
     """Capture the full desktop and save it as a BMP file.
     
@@ -1320,7 +1739,7 @@ def gui_slider (msg, style=None, var=None, data=None, is_int=False):
     
     Args:
         msg (str): Property string defining the slider range and label, e.g.
-            ``"min:0;max:100;label:Energy;"``
+            ``"low:0;high:100;text:float;"``
         style (str, optional): CSS-like style overrides. Defaults to None.
         var (str, optional): Variable name to read the initial value from and
             update on change. Defaults to None.
@@ -1333,7 +1752,7 @@ def gui_slider (msg, style=None, var=None, data=None, is_int=False):
         Slider: The layout item created.
     
     Example:
-        gui_slider("min:0;max:100;label:Speed;", var="speed_pct")"""
+        gui_slider("low:0;high:100;text:float;", var="speed_pct")"""
 def gui_style_def (style):
     """Parse a CSS-like style string into a StyleDefinition object.
     
@@ -1449,6 +1868,56 @@ def gui_tabbed_panel (items=None, style=None, tab=0, tab_location=0, icon_size=0
             {"path": "map",    "icon": 121, "show": show_map},
         ]
         tp = gui_tabbed_panel(panels, tab=0)"""
+def gui_table (items, columns=None, style='row-height: 1.6em;', select=False, header=True, font='gui-2', on_cell_change=None, headers=None, **kwargs):
+    """Add a table (a selectable/scrollable gui_list_box) to the layout.
+    
+    Two forms:
+    
+    **Block form** — author the row yourself, like the other containers::
+    
+        with gui_table(fleet, headers=["Ship", "Hull"], select=True) as ship:
+            gui_text("{ship.name}")
+            gui_text("{ship.hull}%")
+    
+    Each widget in the ``with`` block is a column; ``headers`` labels line up above
+    them. (Used with ``with`` — pass no ``columns``.)
+    
+    **Declarative form** — pass column specs and it generates the row for you::
+    
+        gui_table(fleet, [{"key": "name", "label": "Ship"}, ...], select=True)
+    
+    Args:
+        items: list of rows — dicts, MastDataObjects, or plain objects.
+        columns: list of column specs (declarative form). Omit for the block form.
+            Each spec is a dict:
+            {"key": <field name>,
+             "label": <header text>            (default: key),
+             "align": "l" | "c" | "r"          (default: "l"),
+             "width": <percent number> | "auto" (default: "auto"),
+             "type": "text" | "checkbox" | "dropdown" | "input" | "button"
+                                               (default: "text", read-only),
+             "options": [...]                  (dropdown choices),
+             "button_label": <text>}           (button cell label; default: label)
+            Interactive cells write their new value back to the row and fire
+            on_cell_change. 'auto' columns are sized to the widest cell (header +
+            data) and share whatever percent the fixed columns leave.
+        style: row style (row-height, padding, ...).
+        select: allow row selection (default False).
+        header: render the column-label header row (default True).
+        font: cell/header font tag (default gui-2).
+        on_cell_change: fn(item, key, value) called when a cell control changes
+            (value is None for a button press). The row is already updated.
+        **kwargs: forwarded to gui_list_box (multi, carousel, ...).
+    
+    Returns:
+        The gui_list_box. Read the selected row with get_value()/get_selected().
+    
+    Example:
+        gui_table(fleet, [
+            {"key": "name",   "label": "Ship",    "align": "l"},
+            {"key": "hull",   "label": "Hull",    "align": "c", "width": 20},
+            {"key": "side",   "label": "Side",    "align": "r", "width": 20},
+        ], select=True)"""
 def gui_task_for_client (client_id):
     """Return the GUI task currently running for a client.
     
@@ -1479,7 +1948,7 @@ def gui_text (props, style=None):
     Example:
         gui_text("Hull: {hull_pct}%")
         gui_text("$text:WARNING;color:red;")"""
-def gui_text_area (props, style=None):
+def gui_text_area (props, style=None, markdown=True, line_styles=None):
     """Add a rich text area to the current GUI layout.
     
     Supports Markdown-style formatting and inline image references
@@ -1496,6 +1965,18 @@ def gui_text_area (props, style=None):
     Example:
         gui_text_area("## Status\nAll systems nominal.")
         gui_text_area("![](image://logo?scale=0.5) Mission active")"""
+def gui_text_escape (s):
+    """Quote a dynamic value for safe inclusion as a ``$text:`` style value.
+    
+    Wraps ``s`` in backticks so any ``:`` or ``;`` it contains is treated as
+    literal text by the style parser rather than a style property (issue #569).
+    A literal backtick -- the quoting delimiter itself -- is stripped. An empty
+    or ``None`` value returns ``""`` so the caller emits ``$text:;`` with no
+    stray backtick in the box (issue #641).
+    
+    Use this ONLY on the dynamic value, e.g. ``f"$text:{gui_text_escape(name)};color:red;"``
+    -- never on a whole authored props string, so the author's own ``:``/``;``
+    styling is left untouched."""
 def gui_update (tag, props, shared=False, test=None):
     """Update the property string of an existing GUI element by tag.
     
@@ -1594,3 +2075,284 @@ def gui_widget_list_clear ():
     
     Example:
         gui_widget_list_clear()"""
+def icon_names ():
+    """Every name that resolves - the built-ins plus the meanings. For lint, for a
+    picker, and for anyone wondering what they may ask for."""
+def icon_resolve (name):
+    """A name -> (icon_index, atlas_key). Exactly one of the two is set.
+    
+    Follows aliases first, so `quest.job` lands on whatever look it currently points at.
+    An unknown name resolves to (None, None) and the caller draws nothing rather than
+    guessing a glyph - a wrong icon is worse than a missing one.
+    
+    The atlas branch is what makes a custom sheet a drop-in later: register the look in
+    the ICON DOMAIN (`gui_icon_add_atlas`, or `Kind: icon` in AMD) and it wins, with no
+    change to anything that draws it.
+    
+    The domain is a GUARD, not ceremony. `ImageAtlas.all` is one process-wide dict, so
+    without it any mission registering an image called `square` or `flag` - words no one
+    would think twice about - would silently re-skin every icon meaning pointing there.
+    Overriding a look has to be something you meant."""
+def overlay_banner (text, color='#fd0', slot='top_banner', to=None, consoles=None, seconds=None, background='#000a', cycle=True, dwell=None, loop=None):
+    """Full-width top strip (alert / countdown). Auto-dismiss after ``seconds`` if set.
+    Re-call it to update in place (generation-guarded) - a countdown needs no new API.
+    
+    ``background`` fills the strip (translucent black by default) so the text reads
+    over the live view; pass ``None`` for bare text on the view.
+    
+    **Text too long for the strip is shown in timed parts** rather than clipped:
+    it is measured against that client's screen, split into segments that each fit,
+    and advanced on a tick.
+    
+    Args:
+        cycle (bool): split-and-cycle when the text does not fit. Default True;
+            pass False to let a long line spill/clip as before.
+        dwell (float, optional): seconds per part. Default: paced by word count
+            (about 2.6 words/second, clamped to 2.5-7s).
+        loop (bool, optional): repeat the sequence. Default: loop while the banner
+            is sticky (no ``seconds``), play once when it has a lifetime."""
+def overlay_choice (title, buttons, to=None, consoles=None, slot='center_hero'):
+    """Show a modal choice card and return an awaitable that resolves when a button
+    is pressed. Await it from a story/background task (not the target console's own
+    gui task); the result's ``.data`` is the chosen label.
+    
+        result = await overlay_choice("Fire on the ambassador?", ["Yes", "No"], to=player)
+        if result.data == "Yes":
+            ..."""
+def overlay_clear (slot=None, to=None, consoles=None):
+    """Clear one slot (or all slots if ``slot`` is None) on the ``to`` targets."""
+def overlay_credits (entries, title=None, slot='fullscreen', to=None, consoles=None, seconds=None, roll=None, window=8):
+    """Opening/closing credits: a title + a list of lines. Static by default; pass
+    ``roll`` (seconds per page) to auto-advance ``window`` lines at a time, clearing
+    at the end."""
+def overlay_debug_log (path=None):
+    """Enable overlay command-stream logging to ``path`` (default: the mission's
+    overlay_debug.log). Truncates the file. Pass None-path to disable."""
+def overlay_flash (color='#f006', to=None, consoles=None, slot='fullscreen', seconds=0.4):
+    """Full-screen color wash (hull hit, jump). Auto-dismisses fast (default 0.4s)."""
+def overlay_hero (title, subtitle=None, image=None, face=None, ship=None, icon=None, slot='center_hero', to=None, consoles=None, seconds=None, background=None, letterbox=False, bar=4):
+    """Show a big centered hero / chapter card with an optional visual above the
+    title (first set wins): ``face`` (a face string), ``ship`` (a ship-type key),
+    ``icon`` (an icon index), or ``image`` (an image key). Auto-dismiss after
+    ``seconds`` if set.
+    
+    Args:
+        background (str, optional): a colour laid under the card's rows - a scrim,
+            so the text stays legible over a bright 3D view. Usually translucent
+            (``"#000a"``).
+        letterbox (bool | str): also drop cinematic bars on the full-screen slot,
+            so one call gives a framed title card. Pass a string to use it as the
+            line between the bars. Lifts together with the card when ``seconds``
+            is set.
+        bar (int): letterbox bar height in em."""
+def overlay_hud (rows=None, controls=None, title=None, to=None, consoles=None, slot='hud'):
+    """Show a sticky HUD (label/value rows + optional control buttons) over the
+    live view. Stays until cleared. Update values with ``overlay_hud_update``.
+    
+    Args:
+        rows: a dict or list of (label, value) pairs.
+        controls: list of ``{"label":.., "action": <MAST label | callable>,
+            "data":..}`` — rendered as persistent sub-task buttons."""
+def overlay_hud_update (rows=None, title=None, to=None, consoles=None, slot='hud'):
+    """Cheaply update a live HUD's rows (and/or title). Re-fills the slot region
+    out-of-band — no page repaint. Watchers call this only when a displayed value
+    actually changes."""
+def overlay_kind (kind, to=None, consoles=None, slot=None, seconds=None, **fields):
+    """Low-level front door: show any registered ``kind`` with its default slot.
+    
+    The escape hatch for callers that pick the kind at runtime (the quest driver's
+    inline overlay directives, AMD records). Prefer the named wrappers when the
+    kind is known at author time."""
+def overlay_letterbox (line=None, bar=4, to=None, consoles=None, slot='fullscreen', seconds=None):
+    """Cinematic letterbox: black bars top+bottom (``bar`` em each) with an optional
+    centered line. Sticky by default; pass ``seconds`` to auto-lift."""
+def overlay_lower_third (name, line, slot='lower_third', to=None, consoles=None, seconds=None, cycle=True, dwell=None, loop=None):
+    """Bottom name-plate + subtitle line (someone speaking over the live view).
+    
+    A line too long for the plate is shown in **timed parts** rather than clipped -
+    which is what subtitles want anyway: the speaker's line arrives in readable
+    chunks while their audio plays. See ``overlay_banner`` for ``cycle`` / ``dwell``
+    / ``loop``; a lower third defaults to playing through once (``loop=False``)
+    because a repeating subtitle reads as a stutter."""
+def overlay_lower_third_portrait (name, line, face=None, ship=None, icon=None, image=None, align='left', buttons=None, on_reply=None, slot=None, to=None, consoles=None, seconds=None, color='#8cf', background='#000a', cycle=True, dwell=None, loop=None):
+    """Lower third carrying ONE square visual, on the left or the right of the line.
+    
+    Same strip as ``overlay_lower_third``, plus a portrait. **A conversation is
+    this called repeatedly with ``align`` alternating** - the visual moving side
+    to side is what reads as a back-and-forth, and only the speaker is on screen.
+    
+    The visual is always laid out **square** (an image keeps its aspect ratio
+    inside that square box), which is what makes the four sources interchangeable:
+    the strip, the gutter and the space left for the line do not move when you
+    swap a face for a ship.
+    
+    Args:
+        name (str): the speaker's name plate.
+        line (str): what they say. Too long for the remaining width and it is
+            played in **timed parts** (measured against the strip MINUS the
+            square), like ``overlay_lower_third``.
+        face (str, optional): a face string - ``get_face(id)`` or a lifeform face.
+        ship (str, optional): a ship-type key (e.g. ``"tsn_battle_cruiser"``) -
+            a live 3D render.
+        icon (str, optional): an icon property string or key.
+        image (str, optional): an image key - letterboxed inside the square.
+        align (str): ``"left"`` (default) or ``"right"`` - which side the visual
+            sits on. Named ``align`` and not ``side`` because a *side* in Cosmos
+            is a faction; this is layout only.
+        color (str): the name-plate color.
+        background (str): fill behind the strip so it reads over the live view;
+            pass ``None`` for bare content.
+    
+    The four are **first set wins**, in ``overlay_hero``'s order (face, ship,
+    icon, image). With none set the column is still reserved, so a run of beats
+    does not jump sideways when one speaker has no visual.
+    
+    **Replies are optional.** Pass ``buttons`` and the strip grows a row of them
+    below the line, pushed toward the speaker's side, in a taller slot. It then
+    returns an awaitable instead of the cycled flag::
+    
+        reply = await overlay_lower_third_portrait(
+            "Harkin", "Do we fire?", face=f, buttons=["Fire", "Hold"], to=player)
+        if reply.data == "Fire":
+            ...
+    
+    Pass ``seconds`` and it is a TIMEOUT, not just a dismiss: the card clears and
+    the reply resolves with ``data is None``, so an unanswered choice never
+    deadlocks the task waiting on it. Without ``seconds`` it waits indefinitely,
+    which is right for a beat the story cannot proceed past::
+    
+        reply = await overlay_lower_third_portrait(..., buttons=[...], seconds=25)
+        answer = reply.data or "Hold"      # nobody answered -> the default
+    
+    From MAST, hold it in a variable if you like - `p = f()` then `r = await p`
+    compiles. The one form that does not is a BARE `await p` with nothing
+    assigned; assign the result, or await the call.
+    
+    ``reply.data`` is the label pressed and ``reply.client_id`` is who pressed it,
+    which matters as soon as ``to`` covers more than one console: the FIRST press
+    wins and the rest are ignored, so the answer is meaningless without knowing
+    whose it was.
+    
+    ``on_reply`` names a signal emitted on the press as well, carrying
+    ``{"reply": label, "client_id": id}`` - for a caller with nobody awaiting (a
+    declarative AMD hook, a fire-and-forget beat). Handle it in a
+    ``//shared/signal`` route if it changes anything: a plain ``//signal`` route
+    runs once PER CONSOLE, so five consoles would advance the scene five times.
+    
+    A **label** handler is deliberately not offered. ``gui_button`` supports one,
+    but it is dispatched as a jump on the task that BUILT the widget - which for
+    an overlay is the client's own GUI task, so a reply would navigate whatever
+    console the player happens to be sitting at. A signal route reaches any label
+    without that.
+    
+    See ``overlay_banner`` for ``cycle`` / ``dwell`` / ``loop``."""
+def overlay_register (kind, builder):
+    """Register a content builder for an overlay ``kind``.
+    
+    Args:
+        kind (str): the ``kind`` value callers pass to ``overlay_show``.
+        builder (callable): ``builder(client_id, content)`` — content is the dict
+            passed to ``overlay_show`` (with ``kind`` included). Build widgets with
+            the normal ``gui_*`` functions."""
+def overlay_register_label (kind, label):
+    """Register a MAST **label** as the builder for ``kind`` — the MAST-native way to
+    author a custom overlay card without a Python builder.
+    
+    The label builds the card with the usual ``gui_*`` verbs and ends (``->END``);
+    the content fields passed to ``overlay_show`` arrive as task variables. It is
+    re-run on every repaint, so keep it **build-only** (no ``await``, no state
+    changes). Reference the label by name from top-level MAST::
+    
+        === my_hero_card
+            gui_row("row-height: content;")
+            gui_text(f"$text:`{title}`;justify:center;font:gui-6")
+            ->END
+    
+        overlay_register_label("my_hero", my_hero_card)
+        # then anywhere: overlay_show("center_hero", "my_hero", title="CHAPTER TWO")"""
+def overlay_show (slot, kind, to=None, consoles=None, **content):
+    """Show an overlay in ``slot`` using content builder ``kind``.
+    
+    Args:
+        slot (str): a slot name (see ``OVERLAY_SLOTS``); unknown names use a
+            centered default rect.
+        kind (str): a registered builder (see ``overlay_register``).
+        to: the audience — ``None`` = the current console; a client id; a **ship**
+            (its consoles); a **side** key/agent (that side's consoles); or a set /
+            role query mixing them. See ``consoles_of``.
+        consoles (str, optional): narrow the audience to consoles with these roles,
+            e.g. ``"mainscreen"``.
+        **content: fields passed through to the builder."""
+def overlay_signal_clear (to=None, slot=None):
+    """Signal-route forwarder for clear."""
+def overlay_signal_show (to, slot, kind, fields=None):
+    """Signal-route forwarder: overlay_show with content supplied as a dict."""
+def overlay_slot_define (slot, rect, draw_layer=28000, input='passthrough'):
+    """Define or override a slot's default rect / draw_layer / input mode."""
+def overlay_toast (text, icon=None, seconds=3, to=None, consoles=None, slot='corner_toast'):
+    """Small transient corner notification. Toasts STACK — several coexist, each
+    auto-clearing after its own ``seconds`` (default 3), capped at TOAST_MAX."""
+def rundown_add (name, subject, lens=None, move=None, seconds=4, ease='in_out', label=None, overlay=None):
+    """Add (or replace) a shot in the rundown.
+    
+    Args:
+        name (str): how the director refers to it.
+        subject: what the shot looks at - and necessarily what the lens rides.
+        lens: world position for a static shot.
+        move: ``[from, to]`` world positions for a moving one.
+        seconds (float): duration of a ``move`` (a static shot holds until punched away).
+        label (str, optional): what the director's tile says. Defaults to ``name``.
+        overlay (dict, optional): furniture to show with it, ``{"kind": ..., ...}``.
+    
+    Returns:
+        dict: the stored shot."""
+def rundown_clear ():
+    """Empty the rundown and both desks."""
+def rundown_excitement (name):
+    """How interesting this shot's subject is right now.
+    
+    Reads the engine's own ``exciting`` value - the same notion its automatic
+    cinematic camera follows - so a suggestion agrees with what the engine would
+    have picked, rather than being a second opinion invented here."""
+def rundown_get (name):
+    ...
+def rundown_live ():
+    """The name of the shot on PROGRAM, or None. This is the tally."""
+def rundown_preview (to=None, consoles=None):
+    """Set (or read) the PREVIEW audience - the director's own console."""
+def rundown_program (to=None, consoles=None):
+    """Set (or read) the PROGRAM audience - the feed everyone sees."""
+def rundown_punch (name, flash=False):
+    """Put a shot on PROGRAM. Returns True if it went live.
+    
+    A cut, because the engine only cuts. ``flash`` fakes a transition with a
+    one-frame flash overlay - the only "effect" available, and it is honest about
+    being a fake rather than pretending to dissolve."""
+def rundown_release ():
+    """Hand PROGRAM back to the engine's own director and clear the tally.
+    
+    The end-of-show path - and the one to call BEFORE deleting anything a shot was
+    riding, since a deleted dolly drops the view to the engine default."""
+def rundown_remove (name):
+    """Drop a shot. If it was live, the tally is cleared - the feed does not change,
+    because pulling a shot out of a list is not a directing decision."""
+def rundown_shots ():
+    """Every shot, in rundown order."""
+def rundown_stage (name):
+    """Line a shot up on PREVIEW without touching PROGRAM. Returns True if staged."""
+def rundown_staged ():
+    """The name of the shot on PREVIEW, or None."""
+def rundown_suggest (exclude_live=True):
+    """The shot worth punching to, or None. **Assist, never autopilot.**
+    
+    Args:
+        exclude_live (bool): skip whatever is already live, since suggesting the
+            shot the director is already on is noise."""
+def rundown_take (flash=False):
+    """Punch what is on PREVIEW. The broadcast take. Returns the name, or None."""
+def rundown_tiles ():
+    """Everything a director's console needs to draw the rundown.
+    
+    A list of ``{name, label, live, staged, suggested, excitement}`` in rundown
+    order. Returned as DATA so the console is a mission's to design - this layer
+    has no opinion about what a tile looks like."""

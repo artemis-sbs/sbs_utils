@@ -17,6 +17,17 @@ class GridObject(Agent):
     @comms_id.setter
     def comms_id (self: 'GridObject', comms_id):
         """str, cached version of comms_id"""
+    def delete_object (self):
+        """Delete this GridObject.
+        
+        The native free is **deferred**, mirroring
+        ``SpaceObject.delete_object``: the agent is tombstoned now
+        (``destroyed()`` drops it from ``Agent.all``/roles, so
+        ``object_exists()``/``to_object()`` report it gone immediately) and the
+        actual ``sbs.delete_grid_object(host_id, id)`` runs when the event
+        handler drains the queue, after every MAST task for this tick has
+        yielded. This closes the same-tick use-after-free window where another
+        task still references this grid object. See ``delete_queue.DeleteQueue``."""
     def get (id):
         ...
     def get_as (id, as_cls):

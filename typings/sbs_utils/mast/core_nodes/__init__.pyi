@@ -14,6 +14,9 @@ from sbs_utils.mast.core_nodes.loop import LoopStart
 from sbs_utils.mast.core_nodes.metadata_block import MetaDataBlock
 from sbs_utils.mast.core_nodes.on_change import OnChange
 from sbs_utils.mast.core_nodes.on_signal import OnSignal
+from sbs_utils.mast.core_nodes.requires_cmd import Provides
+from sbs_utils.mast.core_nodes.requires_cmd import Requires
+from sbs_utils.mast.core_nodes.requires_cmd import Suggests
 from sbs_utils.mast.core_nodes.inline_python import PyCode
 from sbs_utils.mast.core_nodes.signal_route_label import SignalRouteDecoratorLabel
 from sbs_utils.mast.core_nodes.with_cmd import WithStart

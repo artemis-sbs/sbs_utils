@@ -60,8 +60,22 @@ class Mast(object):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def _compile (self, lines, file_name, root):
         ...
+    def _validate_requirements (self):
+        """Order-independent dependency barrier. Run once after the whole story
+        (every addon) has compiled, so the `provides` union is complete. An unmet
+        `requires` is a hard compile error (blocks the story, surfaces in `sbs
+        lint` / `--test` and as a runtime error screen); an unmet `suggests` is a
+        logged warning (optional augmentation, keeps running). Runs on the ROOT
+        story, whose provides/requires hold the union across all files."""
     def add_scheduler (self, scheduler):
         ...
+    def addon_source_folder (mission_dir, lib_name):
+        """The mission-local source folder for a declared mastlib, or None.
+        
+        A lib is named ``{user}.{repo}.{folder}.{version}.{ext}``, so the addon folder is
+        the third dot-segment. Answers None unless that folder holds an ``__init__.mast`` -
+        the same test find_imports uses to call something an addon, so a mission that
+        merely happens to have a same-named folder cannot suppress a lib it needs."""
     def clear (self, file_name, root):
         ...
     def compile (self, lines, file_name, root):
@@ -72,12 +86,33 @@ class Mast(object):
         ...
     def expand_resources (self):
         ...
-    def find_add_ons (self, folder):
-        ...
+    def find_add_ons (self):
+        """The addons to compile into this story: the mastlibs its story.json declares.
+        
+        Dependencies are DECLARED, never discovered. This used to also walk the mission
+        tree adopting any `.mastlib`/`.zip` it found, from before story.json + __lib__
+        managed dependencies; that walk is obsolete and was actively harmful:
+        
+          * A stray archive in a mission SUBFOLDER (an art pack, a backup, an old build)
+            was treated as an addon. A `.zip` has no `__init__.mast`, so the read failed
+            and the story compiled to ZERO labels - and reported PASS, because the error
+            only ever surfaced on the engine's on-screen error page.
+          * A stale `.mastlib` was worse: it loaded fine and merged its labels in, so a
+            mission silently ran content its story.json never declared.
+        
+        It could not even see the mission ROOT (the walk root was `<mission>/.`, whose
+        basename tripped its own skip-hidden-directories rule), so only SUBfolders were
+        ever adopted - and it walked the whole tree on every compile to produce a list
+        that __lib__ had already made unnecessary."""
     def find_imports (self, folder):
         ...
     def from_file (self, file_name, root):
         """Docstring"""
+    def get_manifest (self):
+        """The addon dependency manifest collected during compile: the set of
+        `provides` tokens and the list of `requires`/`suggests` declarations.
+        Exposed so an offline tool (e.g. `sbs lint`) can read the same data the
+        runtime validates - both go through the same collection in compile()."""
     def get_source_file_name (file_num):
         ...
     def import_content (self, filename, root, lib_name):

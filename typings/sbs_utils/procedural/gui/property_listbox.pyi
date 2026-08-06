@@ -39,7 +39,7 @@ def gui_hole (count=1, style=None):
     Example:
         gui_hole(2)
         gui_text("This text spans 3 columns")"""
-def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False):
+def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False, reveal=False, hint=None):
     """Add a listbox to the current GUI layout.
     
     Args:
@@ -65,6 +65,15 @@ def gui_list_box (items, style, item_template=None, title_template=None, section
             the next header. Defaults to ``False``.
         read_only (bool, optional): Prevent item modification. Defaults to
             ``False``.
+        reveal (bool, optional): Scroll so the selected row is visible. A
+            repaint rebuilds the listbox and the view starts at the top, so a
+            restored selection can be held but off screen. Opt-in: this widget
+            is load-bearing, and defaulting it on would move every list in every
+            mission. Defaults to ``False``.
+        hint (object, optional): An opaque token from the previous listbox's
+            ``get_selection_hint()``. A repaint builds a DIFFERENT listbox whose
+            view starts at the top, so without this the row under the user's
+            mouse moves. Do not inspect it; pass it along.
     
     Returns:
         LayoutListbox: The layout object created.
@@ -88,7 +97,7 @@ def gui_properties_set (p=None, tag=None):
     
     Example:
         gui_properties_set({"Speed": "gui_text(str(ship_speed))", "Shields": "gui_slider(shield_pct)"})"""
-def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x000001F8423CF9C0>):
+def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x0000011CF6D33560>):
     """Create a property list box with single-line label/control layout.
     
     Each property is rendered as a label on the left and its control widget

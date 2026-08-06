@@ -95,7 +95,7 @@ def is_timer_finished (id_or_obj, name):
             "Repair bay ready.""""
 def label (**kwargs):
     ...
-def modifier_add (obj_or_id_or_set, key, value, source, flat_add_or_mult=1, duration=None, index=None) -> sbs_utils.procedural.modifiers.Modifier:
+def modifier_add (obj_or_id_or_set, key, value, source, flat_add_or_mult=1, duration=None, index=None, replace_if_exists=False) -> sbs_utils.procedural.modifiers.Modifier:
     """Add and apply a modifier to a blob value on one or more objects.
     
     ``obj_or_id_or_set`` may be an agent, an ID, a set of IDs, or a side key
@@ -126,6 +126,9 @@ def modifier_add (obj_or_id_or_set, key, value, source, flat_add_or_mult=1, dura
             automatically. Defaults to None (permanent).
         index (int, optional): Index into a list blob value. ``None`` applies
             to all indices. Ignored for inventory keys. Defaults to None.
+        replace_if_exists (bool): When a modifier with this key/source is already
+            applied, update its value in place (and refresh its duration) instead
+            of leaving the existing one untouched. Defaults to False.
     
     Returns:
         Modifier | set[int]: The created ``Modifier`` when exactly one is
@@ -301,15 +304,24 @@ def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     
     Returns:
         set[int]: A set of integer IDs; ``None`` becomes an empty set."""
-def to_side_id (key_or_id_or_object):
+def to_side_id (key_or_id_or_object, warn=True):
     """Resolve any side reference to the side agent's ID.
     
     Accepts a side key string, a side agent ID, a side agent object, or any
     space object (in which case its side property is used).
     
+    A leading ``#`` on a side key is a display-hide marker only (it tells the
+    engine not to draw the side name); it is not part of the side identity, so
+    ``"#raider"`` resolves to the ``"raider"`` side. An empty or all-``#`` key
+    means the object has NO side (asteroids, cambots, hidden objects) and
+    resolves to ``None`` silently — that is a legitimate state, not a miss.
+    
     Args:
         key_or_id_or_object (str | int | Agent): Side key, side agent ID, side
             agent, or a space object whose side should be resolved.
+        warn (bool): Warn (once per distinct key) when a genuinely-named side
+            can't be resolved. Pass ``False`` for existence probes (e.g. a
+            create-if-missing check) where a miss is expected, not an error.
     
     Returns:
         int | None: The side agent ID, or ``None`` if not found."""
@@ -421,3 +433,15 @@ class ModifierHandler(object):
             key (str): The blob key"""
     def remove_expired_modifiers ():
         """Remove all expired modifiers. This should be called regularly to ensure that modifiers are removed after their duration expires."""
+    def update_modifier_value (id, key, values, source) -> bool:
+        """Change the value of an existing modifier in place and recalculate, instead of
+        removing and re-adding it.
+        
+        Args:
+            id (int): object ID
+            key (str): The blob key the modifier affects.
+            values (list[float] | float): The new modifier amount. A scalar is broadcast
+                across every index of the existing modifier's value list.
+            source (str | int): Identifier for this modifier - used to overwrite or remove it later.
+        Returns:
+            bool: True if a matching modifier was found and updated."""

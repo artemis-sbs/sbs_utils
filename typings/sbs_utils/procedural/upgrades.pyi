@@ -1,6 +1,7 @@
 from sbs_utils.agent import Agent
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.mastscheduler import MastAsyncTask
+from sbs_utils.procedural.modifiers import Modifier
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.tickdispatcher import TickDispatcher
 def add_role (set_holder, role):
@@ -48,7 +49,7 @@ def linked_to (link_source, link_name: str):
     
     Returns:
         set[int]: IDs of all linked targets, or an empty set if none."""
-def modifier_add (obj_or_id_or_set, key, value, source, flat_add_or_mult=1, duration=None, index=None) -> sbs_utils.procedural.modifiers.Modifier:
+def modifier_add (obj_or_id_or_set, key, value, source, flat_add_or_mult=1, duration=None, index=None, replace_if_exists=False) -> sbs_utils.procedural.modifiers.Modifier:
     """Add and apply a modifier to a blob value on one or more objects.
     
     ``obj_or_id_or_set`` may be an agent, an ID, a set of IDs, or a side key
@@ -79,6 +80,9 @@ def modifier_add (obj_or_id_or_set, key, value, source, flat_add_or_mult=1, dura
             automatically. Defaults to None (permanent).
         index (int, optional): Index into a list blob value. ``None`` applies
             to all indices. Ignored for inventory keys. Defaults to None.
+        replace_if_exists (bool): When a modifier with this key/source is already
+            applied, update its value in place (and refresh its duration) instead
+            of leaving the existing one untouched. Defaults to False.
     
     Returns:
         Modifier | set[int]: The created ``Modifier`` when exactly one is
@@ -215,6 +219,18 @@ class Upgrade(Agent):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def _add (id, obj):
         ...
+    def _apply_declared_modifiers (self, data):
+        """Apply a declarative ``modifiers`` spec (a list of ``[blob_key, value]`` pairs) carried
+        on the label's metadata - the data-only effect for an item authored with just a
+        ``Modifiers:`` field and no MAST body.
+        
+        Each pair becomes ``modifier_add(holder, blob_key, value, source, duration=duration)``
+        where ``source`` is the item ``key`` and ``duration`` is the item's ``Duration`` (so the
+        modifier auto-expires and ``deactivate`` can remove it). No-op when the label carries no
+        ``modifiers`` metadata, so hand-authored bodies are never affected."""
+    def _label_meta (self, field, default=None):
+        """Read a metadata field off this upgrade's label (safe if the label is a plain
+        string/callable rather than a Label object)."""
     def _remove (id):
         ...
     def activate (self):
