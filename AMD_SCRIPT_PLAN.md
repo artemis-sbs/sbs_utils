@@ -429,7 +429,7 @@ StormsBeacon and the a2x corpus.
 | 5 | **`/* */` boneyard** - pre-pass in BOTH readers, unclosed-at-EOF error | `amd.py`, `amd_core`, `quest` | **DONE** |
 | 6 | **`@cue` + `(direction)` + `(surface)`** - `beats` in `dialogue_parse`, `dialogue_beats`, registries, `dangling-speaker` lint | `amd.py`, `amd_dialogue`, `amd_core`, `amd_lint` | **DONE** |
 | 7 | **Cutscene transitions** - `FADE IN:` / `> CUT TO:` become a shot's `transition`, out of the overlay text | `amd.py`, `amd_cutscene` | **DONE** |
-| 8 | **Callouts** - parse + per-line style payload; `unknown-callout` lint | `amd_callout` (new), `amd_lint` | **parse DONE, render UNVERIFIED** |
+| 8 | **Callouts** - native in `gui_text_area`'s mini-markdown; `unknown-callout` lint | `amd_callout` (new), `pages/layout/text_area`, `amd_lint` | **DONE, ENGINE-VERIFIED** |
 | 9 | **LSP surface** - `@` / `[` triggers, cast + link-target + direction completion, synopsis on hover | `amd_lsp` | **DONE** |
 | 10 | **TextMate grammar** - six new patterns | `sbs_cli/editors/vscode` | **DONE** |
 | 11 | **Missing panel** - a dedicated view over `--missing` | `sbs_cli/editors/vscode` | **NOT DONE** - see below |
@@ -446,10 +446,18 @@ StormsBeacon and the a2x corpus.
   the Problems pane already shows. It is a 264KB `extension.ts` and a packaging
   cycle for a second view of existing data - worth doing only if the CLI list turns
   out to be the wrong shape in practice.
-- **Callout RENDER is unverified.** The parse, the style payload and the lint are
-  done and tested. Whether consecutive per-line `background` values abut cleanly
-  enough to read as ONE box is a render question that needs a browser pass; if they
-  do not, the widget-layer block grouping noted in 4.5 is the real work.
+- **Callouts belong in the RENDERER, not in an AMD-side transform.** They shipped
+  first as `amd_callout_render(text) -> (text, line_styles)`, which a caller had to
+  opt into - and LM's `document_screen` renders a doc body with a bare
+  `gui_text_area(t)`, so `help_docs.amd` and `library_docs.amd`, the only shipped
+  prose AMD and the entire point of the feature, would never have gotten it. Moved
+  into `get_markdown_line_style` beside `#`/`-`/`1.`. General rule: when a feature
+  has to reach text a caller already renders, put it in the renderer.
+- **The "block grouping missing" blocker was wrong.** Per-line backgrounds abut by
+  construction - the render loop advances `bounds.top = bounds.bottom` - and
+  `doc_viewer/doc.amd` already shipped `background:#115;`. Engine-verified.
+  The real bug was the opposite: a callout must END at the first non-`>` line, or
+  the background bleeds down the document. A box with no bottom.
 
 ### Gates, actually run
 
