@@ -22,6 +22,114 @@ def _runtime_settings_override():
     return data if isinstance(data, dict) else None
 
 
+def _coerce(text):
+    """A command-line value is always a string; give it the obvious type.
+
+    int, then float, then true/false, else the string unchanged. Documented rather than
+    clever on purpose - anything needing a list or a dict belongs in a profile file, which
+    is where the boundary between the two surfaces sits.
+    """
+    t = str(text).strip()
+    try:
+        return int(t)
+    except ValueError:
+        pass
+    try:
+        return float(t)
+    except ValueError:
+        pass
+    low = t.lower()
+    if low in ("true", "yes", "on"):
+        return True
+    if low in ("false", "no", "off"):
+        return False
+    return t
+
+
+def _set_path(target, dotted, value):
+    """Set `a.b.c` inside nested dicts, creating levels as needed.
+
+    Dotted paths exist for exactly one reason: the interesting settings are nested.
+    `var.AUTO_PLAY.enable=true` is the case that motivated it - turning autoplay on from a
+    launch argument is the whole point, and AUTO_PLAY is a dict.
+    """
+    parts = [p for p in str(dotted).split(".") if p]
+    if not parts:
+        return
+    node = target
+    for part in parts[:-1]:
+        nxt = node.get(part)
+        if not isinstance(nxt, dict):
+            nxt = {}
+            node[part] = nxt
+        node = nxt
+    node[parts[-1]] = value
+
+
+def _profile_overrides():
+    """Settings from `profile=<name>` on the command line -> `profiles/<name>.yaml`.
+
+    The command line is for a HANDFUL of short, memorable arguments; a profile is how a
+    launch carries twenty settings without twenty arguments. `cmd.exe` caps a command line
+    at 8191 characters, shortcuts truncate, Windows quoting around spaces and `=` is
+    painful, and none of it is diffable or reviewable. A file is all of those things.
+    """
+    from .command_line import command_line_get
+    name = command_line_get("profile")
+    if not name:
+        return None
+    name = str(name).strip()
+    data = load_yaml_data(get_mission_dir_filename(os.path.join("profiles", name + ".yaml")))
+    if data is None:
+        data = load_json_data(get_mission_dir_filename(os.path.join("profiles", name + ".json")))
+    if data is None:
+        _warn(f"profile='{name}' matched no profiles/{name}.yaml - ignoring it")
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _cli_overrides(known):
+    """Settings from `var.NAME=value` command-line arguments.
+
+    Prefixed because `command_line_dict()` is one flat namespace shared with the engine and
+    every add-on: a bare `difficulty=` would be a collision waiting to happen, while `var.`
+    is unambiguous and needs no parsing rules.
+
+    An unknown NAME is applied AND warned about. Applied because a mission may legitimately
+    read a setting sbs_utils has never heard of; warned because a typo that silently does
+    nothing is the worst outcome - `var.DIFFICULTLY=7` would otherwise look like it worked.
+    """
+    from .command_line import command_line_dict
+    out = {}
+    for key, value in (command_line_dict() or {}).items():
+        if not str(key).lower().startswith("var."):
+            continue
+        path = str(key)[4:]
+        if not path:
+            continue
+        root = path.split(".")[0]
+        if root not in known:
+            _warn(f"var.{path} is not a known setting - applying it anyway, but check the "
+                  f"spelling")
+        _set_path(out, path, _coerce(value))
+    return out or None
+
+
+def _warn(message):
+    """Loud about a launch argument that did nothing.
+
+    Worth its own function because the quiet version of this cost real time: a launch
+    argument whose value matched nothing selected an empty set, ran, and reported a pass -
+    the result was believed before the typo was noticed. An argument that does not land
+    must say so.
+    """
+    try:
+        from .execution import log
+        log(message, "settings", "warning")
+    except Exception:
+        print("settings warning:", message)
+
+
 setting_defaults = None
 def settings_get_defaults():
     """Return the merged default settings dict, loading ``settings.yaml`` or ``setup.json`` if present.
@@ -146,9 +254,26 @@ def settings_get_defaults():
         setting_defaults = setting_defaults | setup_data
     # Runtime overrides (e.g. `sbs debug --set ...`) win over the file/built-ins
     # without editing settings.yaml.
+    # A named profile: `profile=soak` -> profiles/soak.yaml. Bulk config belongs in a file
+    # that the command line merely NAMES.
+    profile = _profile_overrides()
+    if profile is not None:
+        setting_defaults = setting_defaults | profile
+    # Runtime overrides (e.g. `sbs debug --set ...`) win over the file/built-ins
+    # without editing settings.yaml.
     override = _runtime_settings_override()
     if override is not None:
         setting_defaults = setting_defaults | override
+    # `var.NAME=value` on the command line is LAST: typing it is the most explicit
+    # per-launch act there is, so it beats the file, the profile and the env var. Kept
+    # deliberately small - it is for deltas, not configuration.
+    cli = _cli_overrides(set(setting_defaults))
+    if cli is not None:
+        for key, value in cli.items():
+            if isinstance(value, dict) and isinstance(setting_defaults.get(key), dict):
+                setting_defaults[key] = setting_defaults[key] | value
+            else:
+                setting_defaults[key] = value
     return setting_defaults
 
 
@@ -171,7 +296,19 @@ def settings_seed_apply(value=None):
         int: the seed actually applied.
     """
     if value is None:
-        value = settings_get_defaults().get("seed_value", 0)
+        # `seed=` on the command line outranks the setting: a soak comparing runs needs to
+        # pin the seed per launch, and editing settings.yaml between runs is exactly the
+        # kind of shared-state fiddling a launch argument exists to avoid.
+        from .command_line import command_line_get
+        cli_seed = command_line_get("seed")
+        if cli_seed:
+            try:
+                value = int(str(cli_seed).strip())
+            except ValueError:
+                _warn(f"seed='{cli_seed}' is not a number - using the setting instead")
+                value = None
+        if value is None:
+            value = settings_get_defaults().get("seed_value", 0)
     value = int(value) if value else random.randrange(1, 2**31)
     random.seed(value)
     return value

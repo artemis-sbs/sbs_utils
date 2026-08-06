@@ -100,3 +100,39 @@ def command_line_has(flag):
         return False
     wanted = str(flag).strip().lower()
     return any(str(a).strip().lower() == wanted for a in command_line_list()[1:])
+
+
+def command_line_run_tag():
+    """A label for this launch, from `run=` - for naming logs and artifacts.
+
+    A soak that plays a mission repeatedly produces one set of files per run, and a report
+    with no run identity in it is unactionable: "it broke" without "on which run" cannot be
+    chased. `cosmos_dev` already prints a run index for its in-process restarts; this is the
+    same idea for separately launched processes, which cannot share a counter.
+
+    Returns:
+        str: the tag, or "" when none was given - so a caller can always concatenate it.
+    """
+    return (command_line_get("run") or "").strip()
+
+
+def command_line_report():
+    """Every launch argument this library understands, and whether it landed.
+
+    For a mission or a probe to print at startup. Worth having because the failure mode of
+    a launch argument is silence: a mistyped one selects nothing, changes nothing, and the
+    run proceeds looking healthy. Printing what was understood turns that into something
+    visible in the first line of a log.
+    """
+    known = ("map", "console", "profile", "seed", "run")
+    args = command_line_dict()
+    lines = []
+    for name in known:
+        if name in {k.lower() for k in args}:
+            lines.append(f"  {name} = {command_line_get(name)}")
+    for key, value in sorted(args.items()):
+        if str(key).lower().startswith("var."):
+            lines.append(f"  {key} = {value}")
+    if not lines:
+        return "no launch arguments"
+    return "launch arguments:\n" + "\n".join(lines)
