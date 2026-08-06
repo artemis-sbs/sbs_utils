@@ -549,10 +549,23 @@ class Gui:
         :param event: The tag name of the control interacted with
         :type event: event
         """
+        # Optional GUI transcript (`record=<name>`). Off by default, one boolean when off.
+        #
+        # HERE and not in handlerhooks: this static method is the real chokepoint, and
+        # handlerhooks is only one of its callers. cosmos_dev's exerciser and the mockgui
+        # bridge both call Gui.on_message directly, so a hook in handlerhooks recorded
+        # nothing for either - which is exactly how this was caught.
+        #
+        # Wrapped AROUND the dispatch because the widget is only known during it:
+        # Layout.on_message annotates the entry with the label, and the label is what makes
+        # a transcript survive a page edit. See procedural/gui_record.py.
+        from .procedural.gui_record import gui_record_begin, gui_record_end
+        gui_record_begin(event)
         # message_tag, clientID, data
         gui = Gui.clients.get(event.client_id)
         if gui is not None:
             gui.on_message(event)
+        gui_record_end()
         Gui.present_dirty()
         
 

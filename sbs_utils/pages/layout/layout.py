@@ -1315,6 +1315,15 @@ class Layout(Clickable):
   
 
     def on_message(self, event):
+        # A GUI transcript, when one is being recorded, wants the WIDGET and not just the
+        # tag: a tag is an ordinal assigned in page-build order, so it stops meaning
+        # anything the moment a row is added above it. Only the widget the event is
+        # actually for gets noted. See procedural/gui_record.py.
+        from ...procedural import gui_record
+        if gui_record._enabled and (event.sub_tag == self.tag
+                                    or event.sub_tag == self.click_tag):
+            gui_record.gui_record_note(event, self)
+
         # If this is clickable handle it
         if event.sub_tag == self.click_tag:
             Layout.clicked[event.client_id] = self
