@@ -395,7 +395,66 @@ def amd_lint_references(doc, known_keys=frozenset()):
                 findings.append(AmdFinding.at(
                     ref.span, WARNING, "dangling-choice",
                     f"choice in `{ref.owner}` points at `{target}`, which resolves to no node"))
+        elif ref.kind == "cue":
+            # A cue names who SPEAKS. The cast usually lives in another file (a
+            # `Characters` section loaded alongside), so `known_keys` carries most of
+            # the real answers and this only fires on a name nothing defines.
+            if not _resolves(doc, ref.value, known_keys):
+                findings.append(AmdFinding.at(
+                    ref.span, WARNING, "dangling-speaker",
+                    f"`{ref.owner}` gives a line to `{ref.value}`, who is not in the cast"))
+        elif ref.kind == "link":
+            # A `[[link]]` to something unwritten is a NOTE TO SELF, not a mistake -
+            # drafting a mission as prose and letting the linter list what is still
+            # missing is a supported way to work (`sbs lint --missing`). So the
+            # wording asks rather than accuses, and the severity stays WARNING.
+            if not _resolves(doc, ref.value, known_keys):
+                findings.append(AmdFinding.at(
+                    ref.span, WARNING, "dangling-link",
+                    f"`{ref.owner}` links to `{ref.value}`, which is not written yet"))
     return findings
+
+
+def amd_lint_callouts(doc):
+    """An unknown callout kind (`> [!MYSTERY]`) - renders as a plain quote. WARNING.
+
+    Never an error: a document written against a newer build, or against an addon
+    that is not loaded right now, must stay readable."""
+    from sbs_utils.procedural.amd_callout import amd_callout_blocks, amd_callout_kinds
+    findings = []
+    for node in doc.nodes:
+        body = [raw for _ln, raw in (node.body_lines or ())]
+        if not body:
+            continue
+        first_line = node.body_lines[0][0]
+        for block in amd_callout_blocks("\n".join(body)):
+            if block["known"]:
+                continue
+            findings.append(AmdFinding(
+                first_line + block["start"], WARNING, "unknown-callout",
+                f"`{block['kind']}` is not a callout kind this build knows "
+                f"(one of: {', '.join(amd_callout_kinds())}) - it will read as a quote"))
+    return findings
+
+
+def amd_lint_missing(doc, known_keys=frozenset()):
+    """Every reference in `doc` that resolves to nothing, grouped by target.
+
+    Obsidian's unresolved-links pane: the same facts `amd_lint_references` reports as
+    diagnostics, turned into a WORK LIST - `{target: [(kind, owner, span), ...]}`.
+    Powers `sbs lint --missing` and the editor's Missing panel, so a writer can draft
+    the whole story in prose with `[[links]]` and be handed what to write next."""
+    out = {}
+    for ref in doc.refs:
+        if ref.kind not in ("scene", "parent", "reveal", "choice", "link", "cue"):
+            continue
+        target = str(ref.value or "")
+        if not target or target.startswith("//"):
+            continue
+        if _resolves(doc, target, known_keys):
+            continue
+        out.setdefault(target, []).append((ref.kind, ref.owner, ref.span))
+    return out
 
 
 # --- Phase 3: cross-file (signals vs routes, reach vs landmark) --------------
@@ -839,6 +898,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_field_values(doc)
         findings += amd_lint_actions(doc)
         findings += amd_lint_urges(doc)
+        findings += amd_lint_callouts(doc)
         findings += amd_lint_images(doc, file_path)
         if cross_file is not False:
             findings += amd_lint_cross_file(doc, mast_sources, source_index)

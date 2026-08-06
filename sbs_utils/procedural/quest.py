@@ -693,7 +693,8 @@ def _amd_slug(text):
 
 def _document_get_amd_file(file_path, root_display_text="", strip_comments=True, content=None, data_parser=None, allow_bare_headings=False):
     from sbs_utils.procedural.amd import (amd_parse_facts, amd_kind_line, KIND_KEY,
-                                          FenceScanner, RE_HEADING)
+                                          FenceScanner, RE_HEADING,
+                                          BoneyardScanner, amd_body_synopsis)
     from sbs_utils.procedural.amd_schema import amd_resolve_kind
 
     toc = {"key": "__root__", "file_path": file_path, "children": [], "description":"", "display_text": root_display_text}
@@ -720,8 +721,15 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
             print("no file")
 
     scanner = FenceScanner()
+    boneyard = BoneyardScanner()
     data_lines = []
     for i, line in enumerate(lines):
+        # Cut text (`/* ... */`) comes out before anything else looks at the line -
+        # the SAME pre-pass amd_core runs, so the game and the tooling cannot
+        # disagree about which records exist.
+        dropped, line = boneyard.feed(line, i + 1)
+        if dropped:
+            continue
         #
         # Data section: the `---` fence. The scanner enforces the non-toggling rule
         # (a fence opens only right after a heading, closes only while open), so one
@@ -829,13 +837,57 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
             continue
         else:
             section = toc_stack[-1]
+            # `= ` is the author's synopsis - what the beat is FOR, written for the
+            # writer and never for the player. It is kept on the section (tooling
+            # and hover want it) but must not reach `description`, which IS what
+            # renders.
+            syn = amd_body_synopsis(line)
+            if syn is not None:
+                prev = section.get("synopsis") or ""
+                section["synopsis"] = (prev + " " + syn) if prev else syn
+                continue
             desc = section.get("description", "")
             # if len(desc)>0:
             #     desc += "\n"
             desc += line
             section["description"] = desc
     # fs.save_json_data(file_path+".json", toc)
+    _amd_render_tree_links(toc)
     return toc
+
+
+def _amd_render_tree_links(toc):
+    """Turn `[[key]]` in every body into readable text, once the whole tree exists.
+
+    This has to be a POST-pass: a writer links forward far more often than back
+    (`[[the_wreck]]` in the briefing, written before the wreck's record is), and
+    during the line loop the target usually does not exist yet. Running it here means
+    forward and backward links behave identically, and every consumer of
+    ``description`` - amd_records, amd_text_map, science, chatter, dialogue - gets
+    rendered text without knowing this feature exists."""
+    from sbs_utils.procedural.amd import amd_render_wikilinks
+
+    index = {}
+
+    def collect(node, trail):
+        key = node.get("key")
+        path = trail
+        if key and key != "__root__":
+            path = trail + [key]
+            index.setdefault(key, node.get("display_text") or key)
+            index.setdefault("/".join(path), node.get("display_text") or key)
+        for child in node.get("children", []):
+            collect(child, path)
+
+    def apply(node):
+        desc = node.get("description")
+        if desc and "[[" in desc:
+            node["description"] = amd_render_wikilinks(desc, index.get)
+        for child in node.get("children", []):
+            apply(child)
+
+    collect(toc, [])
+    apply(toc)
 
 def document_get_amd_file(file_path, root_display_text="", strip_comments=True, content=None, data_parser=None, allow_bare_headings=False):
     """Parse an AMD markdown file into a nested quest/document structure.

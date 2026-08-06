@@ -41,6 +41,163 @@ RE_HEADING = re.compile(r"(?P<hashes>#+)[ \t]+\[(?P<display>[^\]]*)\]"
                         r"\((?P<urn>[^)]*)\)[ \t\r]*$")
 RE_FENCE = re.compile(r"\s*-{3,}\s*$")
 
+# --- body-line grammar -------------------------------------------------------
+# The rule that keeps this format growable: **a body line the grammar does not
+# claim is prose, forever.** Every pattern below claims a line only on an
+# unmistakable leading sigil, so adding one can never change what an existing
+# sentence means. (Strictness is the FENCE's job, where a dropped line silently
+# loses authored data; a body is a writer's paragraph and must stay one.)
+
+# `= ` opens an author-only synopsis, never rendered to a player. The space is
+# REQUIRED: `=$name font:...;color:...` is the line-style declaration (14 uses in
+# the corpus), and `=` immediately followed by `$` must keep meaning that. No line
+# in the corpus matches `^=\s`, so this costs no migration.
+RE_SYNOPSIS = re.compile(r"^[ \t]*=(?=[ \t])[ \t]*(?P<text>.*?)[ \t\r]*$")
+
+# `[[key]]` / `[[key|words]]` - an inline reference inside prose. Non-greedy and
+# newline-free so an unclosed `[[` cannot swallow the rest of the document.
+RE_WIKILINK = re.compile(r"\[\[[ \t]*(?P<target>[^\]|\r\n]+?)[ \t]*"
+                         r"(?:\|[ \t]*(?P<alias>[^\]\r\n]*?)[ \t]*)?\]\]")
+
+# A line-leading `//` comment. Shared so both readers agree on what a comment is.
+RE_COMMENT = re.compile(r"^[ \t]*//")
+
+# `@Ashfang` / `@Ashfang (comms)` - a character cue, Fountain's idea with an
+# explicit sigil. Fountain detects a cue by ALL CAPS, which it can afford because
+# screenplay prose is stylized; AMD bodies are arbitrary sci-fi prose and 12 record
+# bodies already open with a field-shaped line (`COMMS: hail the freighter.`), so
+# the cue is always `@`. It reads as mention syntax, which every writer knows.
+RE_CUE = re.compile(r"^[ \t]*@(?P<key>[\w.\-]+)[ \t]*"
+                    r"(?:\((?P<ext>[^)\r\n]*)\))?[ \t\r]*$")
+
+# `(shaken)` on its own line - a delivery direction for the line beneath it.
+RE_DIRECTION = re.compile(r"^[ \t]*\((?P<text>[^)\r\n]*)\)[ \t\r]*$")
+
+# `> CUT TO:` - Fountain's transition, with its forcing character. A callout
+# (`> [!NOTE]`) also opens with `>`, so a transition is `>` NOT followed by `[`.
+RE_TRANSITION = re.compile(r"^[ \t]*>[ \t]*(?!\[)(?P<text>\S[^\r\n]*?)[ \t\r]*$")
+
+# The bare forms a screenwriter writes without thinking about markup. A CLOSED set,
+# checked by exact match - deliberately not an all-caps heuristic, which is the same
+# trap that made ALL-CAPS character cues unusable here (`Cutscene: intro` is a fence
+# line, `SCIENCE: scan her.` is prose, and neither may become structure by accident).
+_BARE_TRANSITIONS = {
+    "FADE IN:", "FADE OUT.", "FADE OUT:", "FADE TO BLACK.", "CUT TO:",
+    "SMASH CUT TO:", "MATCH CUT TO:", "DISSOLVE TO:", "CUT TO BLACK.", "THE END",
+}
+
+# `> [!NOTE] Title` - an Obsidian callout, for in-fiction documents that want
+# in-fiction document formatting.
+RE_CALLOUT = re.compile(r"^[ \t]*>[ \t]*\[!(?P<kind>[A-Za-z]+)\][ \t]*"
+                        r"(?P<title>[^\r\n]*?)[ \t\r]*$")
+# A continuation line of a callout block: `>` and the rest of the paragraph.
+RE_CALLOUT_BODY = re.compile(r"^[ \t]*>[ \t]?(?P<text>[^\r\n]*?)[ \t\r]*$")
+
+
+def amd_body_transition(line):
+    """The transition a body line names (`CUT TO:`), or None.
+
+    Either Fountain's forced form (`> CUT TO:`) or one of the bare spellings every
+    screenwriter already types. Returned uppercase so a renderer never has to care
+    which was written."""
+    text = (line or "").strip()
+    if text.upper() in _BARE_TRANSITIONS:
+        return text.upper()
+    if RE_CALLOUT.match(line or ""):
+        return None
+    m = RE_TRANSITION.match(line or "")
+    return m.group("text").strip().upper() if m is not None else None
+
+
+def amd_body_synopsis(line):
+    """The text of a `= ` synopsis line, or None when this is not one."""
+    m = RE_SYNOPSIS.match(line or "")
+    return m.group("text") if m is not None else None
+
+
+def amd_wikilinks(line):
+    """Every `[[target]]` / `[[target|words]]` in `line` as `(target, alias, start, end)`.
+
+    Columns are 0-based into `line` and cover the whole `[[...]]` token, so a caller
+    can both point at it (spans, diagnostics) and replace it (rendering)."""
+    out = []
+    for m in RE_WIKILINK.finditer(line or ""):
+        target = (m.group("target") or "").strip()
+        if target:
+            out.append((target, (m.group("alias") or "").strip() or None,
+                        m.start(), m.end()))
+    return out
+
+
+def amd_render_wikilinks(text, display_of=None):
+    """Replace every `[[key]]` / `[[key|words]]` with what a PLAYER should read.
+
+    `[[key|words]]` renders `words`. A bare `[[key]]` renders the target record's
+    display text when `display_of(key)` finds one, and otherwise the key itself - so
+    a draft that links ahead to a scene nobody has written yet still reads as a
+    sentence instead of showing brackets. The linter reports the same unresolved
+    target as `dangling-link`; rendering never fails on it."""
+    def sub(m):
+        target = (m.group("target") or "").strip()
+        if not target:
+            return m.group(0)
+        alias = (m.group("alias") or "").strip()
+        if alias:
+            return alias
+        if display_of is not None:
+            shown = display_of(target)
+            if shown:
+                return str(shown)
+        return target
+    return RE_WIKILINK.sub(sub, text or "")
+
+
+class BoneyardScanner:
+    """Tracks `/* ... */` cut text - Fountain's boneyard.
+
+    A writer cuts a scene far more often than a line, and wants it back next week.
+    `//` handles a line; this handles a block, and it works INSIDE a fence as well
+    as in a body because a cut scene usually takes its data with it - so it runs as
+    a pre-pass, before the fence scanner sees anything.
+
+    The opener must start a line (indent allowed) so a `/*` inside a sentence is
+    still a sentence. Nothing is silently eaten: text after the closing `*/` on the
+    same line is handed back as the surviving line, and an unclosed block at EOF is
+    reported rather than swallowing the rest of the file."""
+
+    def __init__(self):
+        self.in_boneyard = False
+        self.open_line = 0
+        self.unterminated = False
+
+    def feed(self, line, lineno=0):
+        """Classify one raw line -> `(dropped, surviving_text)`.
+
+        `dropped` True means the line is entirely commented out. Otherwise
+        `surviving_text` is the line to go on processing - normally the line
+        itself, or its tail when a `*/` ended a block partway through."""
+        if self.in_boneyard:
+            pos = line.find("*/")
+            if pos < 0:
+                return True, None
+            self.in_boneyard = False
+            rest = line[pos + 2:]
+            return (True, None) if not rest.strip() else (False, rest)
+        if not line.lstrip().startswith("/*"):
+            return False, line
+        pos = line.find("*/", line.find("/*") + 2)
+        if pos < 0:
+            self.in_boneyard = True
+            self.open_line = lineno
+            return True, None
+        rest = line[pos + 2:]
+        return (True, None) if not rest.strip() else (False, rest)
+
+    def finish(self):
+        """Call at EOF. True when a block was left open."""
+        self.unterminated = self.in_boneyard
+        return self.unterminated
+
 
 class FenceScanner:
     """Tracks whether we are inside a `---` data block, WITHOUT toggling.
@@ -79,7 +236,13 @@ class FenceScanner:
         if RE_HEADING.match(line):
             self._can_open = True
             return "heading"
-        if line.strip():
+        # A comment or an author-only synopsis may sit between a heading and its
+        # fence without closing the window - both are things a writer puts THERE,
+        # right under the title, and neither is content. Nothing else survives:
+        # one line of real prose still means the `---` below it is a rule, not a
+        # fence. (Zero files in the corpus put either between a heading and a
+        # fence today, so this opens a door without moving anything through it.)
+        if line.strip() and not RE_COMMENT.match(line) and RE_SYNOPSIS.match(line) is None:
             self._can_open = False
         return "body"
 

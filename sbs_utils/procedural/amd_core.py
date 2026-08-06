@@ -17,7 +17,9 @@ metadata verbs) but not what any domain *means*; callers resolve keys/signals.
 import re
 
 from sbs_utils.procedural.amd import (amd_parse_facts, amd_kind_line, KIND_KEY,
-                                      FenceScanner, RE_HEADING, RE_FENCE, AmdErrors)
+                                      FenceScanner, RE_HEADING, RE_FENCE, AmdErrors,
+                                      BoneyardScanner, amd_body_synopsis, amd_wikilinks,
+                                      RE_CUE, RE_DIRECTION, amd_norm)
 
 # Grammar - ONE definition, imported from `amd` and shared with the runtime reader
 # in quest.py. These aliases keep the existing local names working.
@@ -64,7 +66,8 @@ class AmdNode:
     merged `---` fence dict; `refs` are references sourced from this node."""
     __slots__ = ("key", "display", "level", "span", "key_span", "display_span",
                  "query", "data", "children", "parent", "refs", "summary",
-                 "fence_lines", "body_lines", "body_start", "kind")
+                 "fence_lines", "body_lines", "body_start", "kind", "synopsis",
+                 "synopsis_span")
 
     def __init__(self, key, display, level, span=None, parent=None):
         self.key = key
@@ -83,6 +86,8 @@ class AmdNode:
         self.body_lines = []        # (lineno, raw) of the prose/choice body
         self.body_start = 0         # 0-based line where the body begins
         self.kind = None            # resolved archetype (own kind line, else inherited)
+        self.synopsis = ""          # `= ` author-only note; NEVER shown to a player
+        self.synopsis_span = None
 
 
 class AmdDocument:
@@ -444,6 +449,37 @@ def _extract_choice_refs(node, lineno, raw):
         node.refs.append(AmdRef("signal", name, Span(lineno, col, lineno, col + len(name)), node.key))
 
 
+def _extract_link_refs(node, lineno, raw):
+    """`[[key]]` / `[[key|words]]` in prose -> ordinary `link` refs.
+
+    Narrative text could not carry a reference before this: a record reached another
+    only through a typed field (`Then: reveal`, `Scene:`, `Parent:`). Because these
+    are plain `AmdRef`s, everything already built on refs - find-all-references,
+    rename, the story graph, the timeline, the outline - picks them up with no
+    further work. The span covers the WHOLE `[[...]]` token so a rename can rewrite
+    it and a diagnostic can underline it."""
+    for target, _alias, start, end in amd_wikilinks(raw):
+        node.refs.append(AmdRef("link", target, Span(lineno, start, lineno, end), node.key))
+
+
+def _extract_cue_refs(node, lineno, raw):
+    """`@Ashfang` -> a `cue` ref pointing at the cast record that voices the line.
+
+    Same treatment as every other reference, so go-to-definition on a cue lands on
+    the character, rename follows it, and a cue naming nobody is reported instead of
+    silently speaking as an unknown."""
+    m = RE_CUE.match(raw)
+    if m is None:
+        return
+    key = m.group("key")
+    col = m.start("key")
+    # The VALUE normalizes (record keys are slugs, so `@Ashfang` and `@ashfang` are
+    # the same cast member) while the SPAN stays on the authored text, so a
+    # diagnostic underlines what the writer actually typed.
+    node.refs.append(AmdRef("cue", amd_norm(key),
+                            Span(lineno, col, lineno, col + len(key)), node.key))
+
+
 # --- parser -----------------------------------------------------------------
 def parse(content, file_path=None):
     """Parse AMD `content` into an `AmdDocument` (tree + spans + references)."""
@@ -457,10 +493,16 @@ def parse(content, file_path=None):
     nodes, refs = [], []
 
     scanner = FenceScanner()
+    boneyard = BoneyardScanner()
     fence_lines = []
     errors = []          # (line, message) - fence problems, in a writer's terms
 
     for idx, raw in enumerate(lines, start=1):
+        # Cut text first, before anything else can see it: `/* ... */` must be able
+        # to take a whole record - heading, fence and body - out of the document.
+        dropped, raw = boneyard.feed(raw, idx)
+        if dropped:
+            continue
         action = scanner.feed(raw, idx)
         if action == "open":
             fence_lines = []
@@ -520,12 +562,34 @@ def parse(content, file_path=None):
         if raw.strip().startswith("//"):
             continue
 
-        # body line of the current node - scan for choice/signal references
         node = stack[-1]
+
+        # `= ` synopsis: the author's note about what this beat is FOR. It is not
+        # body text - keeping it out of `body_lines` is what keeps it out of every
+        # renderer, and keeping it out of `summary` is what stops a synopsized
+        # record from showing the author's private note as its description.
+        syn = amd_body_synopsis(raw)
+        if syn is not None:
+            if node.synopsis:
+                node.synopsis += " " + syn
+            else:
+                node.synopsis = syn
+                col = raw.find("=")
+                node.synopsis_span = Span(idx, col, idx, len(raw.rstrip()))
+            continue
+
+        # body line of the current node - scan for choice/signal/link references
         node.body_lines.append((idx, raw))
         _extract_choice_refs(node, idx, raw)
+        _extract_link_refs(node, idx, raw)
+        _extract_cue_refs(node, idx, raw)
         stripped = raw.strip()
-        if stripped and not node.summary and not stripped.startswith("- ["):
+        # `summary` is what hover and the outline show, so it wants the first line of
+        # PROSE - not the scaffolding around it. A choice, a cue and a direction are
+        # all structure, and a scene that opens `@Ashfang` should summarize as what
+        # Ashfang says, not as the word "@Ashfang".
+        if (stripped and not node.summary and not stripped.startswith("- [")
+                and RE_CUE.match(raw) is None and RE_DIRECTION.match(raw) is None):
             node.summary = stripped
 
     # Collect refs in document order (data refs were attached per-node above).
@@ -535,6 +599,9 @@ def parse(content, file_path=None):
     if scanner.finish():
         errors.append((scanner.open_line,
                        'this --- was never closed, so the rest of the file is being read as data'))
+    if boneyard.finish():
+        errors.append((boneyard.open_line,
+                       'this /* was never closed, so the rest of the file is cut out of the document'))
     doc = AmdDocument(root, nodes, refs, line_count=len(lines))
     doc.errors = errors
     return doc

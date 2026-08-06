@@ -364,13 +364,17 @@ def _hover(index, doc, pos, text=""):
         return _fence_hover(doc, pos, text)
     leaf = str(ref.value).split("/")[-1]
     _uri, target = _find_node(index, leaf)
-    val = f"**{ref.kind}** → `{ref.value}`"
+    val = f"**{ref.kind}** -> `{ref.value}`"
     if target:
         val += f"\n\n**{target.display or target.key}**"
+        # The author's own note about what this beat is FOR - written for exactly
+        # this moment and, until now, visible only by opening the other record.
+        if getattr(target, "synopsis", ""):
+            val += f"\n\n*{target.synopsis}*"
         if target.summary:
             val += f"\n\n{target.summary}"
     else:
-        val += "\n\n*(unresolved)*"
+        val += "\n\n*(not written yet - use the quick fix to create it)*"
     return {"contents": {"kind": "markdown", "value": val}}
 
 
@@ -455,6 +459,52 @@ def _fence_hover(doc, pos, text):
     return {"contents": {"kind": "markdown", "value": val}}
 
 
+def _body_completion(index, text_line, character):
+    """Completions for the BODY sigils, or None when the cursor is not in one.
+
+    Three places a writer needs a name offered: after `@` (who speaks), inside
+    `[[` (what to link to), and inside a cue's `(...)` (how it is delivered). All
+    three are decided from the text left of the cursor, which is what makes them
+    work while the line is still half-typed."""
+    from sbs_utils.procedural.amd_dialogue import amd_direction_names, amd_surface_names
+
+    left = (text_line or "")[:max(0, character)]
+
+    # Inside an unclosed `[[` -> node keys. `rfind` beats a regex here: the token is
+    # still being typed, so it has no closing bracket to match.
+    open_link = left.rfind("[[")
+    if open_link >= 0 and "]]" not in left[open_link:]:
+        return [{"label": k, "kind": 6,          # 6 = Variable
+                 "detail": _key_detail(index, k)} for k in sorted(index["known"])]
+
+    stripped = left.lstrip()
+    if stripped.startswith("@"):
+        # Inside the cue's `(...)`: surfaces first (a closed set that CHANGES
+        # behavior), then registered directions.
+        if "(" in stripped and ")" not in stripped:
+            return ([{"label": s, "kind": 12, "detail": "delivery surface"}
+                     for s in amd_surface_names()]
+                    + [{"label": d, "kind": 12, "detail": "direction"}
+                       for d in amd_direction_names()])
+        return [{"label": k, "kind": 6, "detail": _key_detail(index, k)}
+                for k in sorted(index["known"])]
+
+    # A bare `(` opening a line is a direction on its own line.
+    if stripped.startswith("(") and ")" not in stripped:
+        return [{"label": d, "kind": 12, "detail": "direction"}
+                for d in amd_direction_names()]
+    return None
+
+
+def _key_detail(index, key):
+    """The display text for a node key, so a completion list reads as names."""
+    for _p, _u, d in index.get("docs", ()):
+        node = d.by_key.get(key)
+        if node is not None and node.display:
+            return node.display
+    return None
+
+
 def _completion(index, doc=None, pos=None, text=""):
     """What can be written HERE: a kind noun on the fence's first line, a field label on
     a fence line, that field's values after the colon, else the mission's node keys."""
@@ -465,6 +515,11 @@ def _completion(index, doc=None, pos=None, text=""):
         line0 = pos.get("line", 0)
         src = str(text or "").split(chr(10))
         text_line = src[line0] if 0 <= line0 < len(src) else ""
+        # BODY completions come first: they are decided by what is to the LEFT of the
+        # cursor on this line, and a body line has no fence context to consult.
+        body = _body_completion(index, text_line or "", pos.get("character", 0))
+        if body is not None:
+            return {"isIncomplete": False, "items": body}
         where, label, node = _fence_context(doc, line0, text_line or "", pos.get("character", 0))
         arch = getattr(node, "kind", None) if node is not None else None
         if where == "kind":
@@ -496,7 +551,13 @@ def _completion(index, doc=None, pos=None, text=""):
 
 
 # --- code actions (quick fixes) ---------------------------------------------
-_FIXABLE_DANGLING = ("dangling-choice", "dangling-scene", "dangling-parent", "dangling-reveal")
+# Every reference kind that can point at something unwritten gets the same two
+# fixes: correct a typo, or create what is missing. `dangling-link` and
+# `dangling-speaker` are the body-layer members - a `[[link]]` into prose and an
+# `@cue` - and "Create node" is what makes drafting a story as prose and filling in
+# the records afterward an actual workflow rather than a slogan.
+_FIXABLE_DANGLING = ("dangling-choice", "dangling-scene", "dangling-parent",
+                     "dangling-reveal", "dangling-link", "dangling-speaker")
 
 
 def _levenshtein(a, b):
@@ -1510,7 +1571,10 @@ def serve(stdin=None, stdout=None):
                         "definitionProvider": True,
                         "documentSymbolProvider": True,
                         "hoverProvider": True,
-                        "completionProvider": {"triggerCharacters": ["(", " "]},
+                        # `@` opens a cast list, `[` a link target list. `(` was
+                        # already here for fence values and now also fires the
+                        # direction list, which is why directions cost almost nothing.
+                        "completionProvider": {"triggerCharacters": ["(", " ", "@", "["]},
                         "documentFormattingProvider": True,
                         "referencesProvider": True,
                         "renameProvider": True,

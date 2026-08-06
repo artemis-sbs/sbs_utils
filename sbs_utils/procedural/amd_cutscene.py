@@ -48,6 +48,7 @@ from .amd_doc import amd_records
 from .gui.cutscene import cutscene_define, cutscene_play
 from .gui.rundown import rundown_add
 from .gui.overlay import _KIND_PRIMARY_FIELD
+from .amd import amd_body_transition
 
 
 # key -> {"key", "bed", "shots": [...], "display"} for a cutscene
@@ -138,13 +139,34 @@ def _num(v, default=None):
 
 
 _SHOT_FIELDS = ("cutscene", "rundown", "subject", "lens", "move", "seconds", "ease",
-                "order", "overlay", "slot", "label")
+                "order", "overlay", "slot", "label", "transition")
+
+
+def _split_transition(body):
+    """A shot body -> `(transition, prose)`.
+
+    `FADE IN:` / `> CUT TO:` in a shot's body says how the shot ARRIVES, exactly the
+    way a screenplay says it. It is structure, not overlay text, so it comes out of
+    the prose here - otherwise the words "CUT TO:" would render on screen as the
+    shot's title. This is what lets a cutscene file read as a screenplay and still be
+    the shot list the engine plays."""
+    transition = None
+    kept = []
+    for line in (body or "").splitlines():
+        found = amd_body_transition(line)
+        if found is not None:
+            if transition is None:
+                transition = found
+            continue
+        kept.append(line)
+    return transition, "\n".join(kept).strip()
 
 
 def _shot_from(rec):
     """Build a shot dict from an AMD record. Subject stays a NAME here and is
     resolved at play time - the object does not exist at load."""
     data = rec.get("data") or {}
+    transition, body = _split_transition(rec.get("body"))
     shot = {
         "key": rec.get("key"),
         "label": data.get("label") or rec.get("display") or rec.get("key"),
@@ -154,6 +176,9 @@ def _shot_from(rec):
         "seconds": _num(data.get("seconds"), 4),
         "ease": (data.get("ease") or "in_out").strip(),
         "order": _num(data.get("order")),
+        # How the shot arrives. Authored either as `Transition:` in the fence or as a
+        # screenplay line in the body; the fence wins, as everywhere else.
+        "transition": (data.get("transition") or transition or None),
     }
     kind = data.get("overlay")
     if kind:
@@ -162,7 +187,6 @@ def _shot_from(rec):
         # fields (Name:, Color:, Face:) are authored right beside the shot.
         fields = {k: v for k, v in data.items() if k not in _SHOT_FIELDS}
         prim = _KIND_PRIMARY_FIELD.get(kind, "title")
-        body = (rec.get("body") or "").strip()
         if prim not in fields and body:
             fields[prim] = body
         fields["kind"] = kind
