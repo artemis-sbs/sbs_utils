@@ -450,6 +450,37 @@ def set_command_line(args) -> None:
     _command_line = ["mock-cosmos.exe"] + [str(a) for a in (args or [])]
 
 
+def add_extra_ship_data(filename: str, path: str) -> None:
+    """Load another set of ships from a data file, for this mission only (engine 1.3.5).
+
+    PASS THE FILENAME WITHOUT AN EXTENSION. The engine tries `.yaml` then `.json` itself,
+    which is also why it is the more useful form: a mod can switch format without the
+    caller changing. Their own example does exactly this -
+    `sbs.add_extra_ship_data("extraShipDataAAA", "data/missions/BeamArcTest")` - even though
+    the file on disk is `.json`.
+
+    The mock reproduces that search and merges into sbs_utils' own list, which is where
+    `_try_populate_from_ship_data` looks, so a mission using this behaves the same headless.
+
+    Forgiving about a missing file, matching the engine's habit of not being fatal about
+    data it cannot find: a mod with a broken path should be a ship with no stats, not a
+    dead mission.
+    """
+    import os
+    import re
+    from sbs_utils.procedural.ship_data import merge_mod_ship_yaml
+    stem = os.path.join(str(path), str(filename))
+    for candidate in (stem, stem + ".yaml", stem + ".json"):
+        try:
+            with open(candidate, "r", encoding="utf-8") as f:
+                text = f.read()
+        except OSError:
+            continue
+        merge_mod_ship_yaml(re.sub(r"^[ 	]*//.*$", "", text, flags=re.M),
+                            "add_extra_ship_data")
+        return
+
+
 def command_line_list() -> list:
     """Every launch argument, exe path first."""
     return list(_command_line)
