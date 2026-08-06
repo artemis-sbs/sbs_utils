@@ -19,7 +19,7 @@ import random
 
 from sbs_utils import scatter
 from sbs_utils.vec import Vec3
-from sbs_utils.procedural.execution import labels_get_type
+from sbs_utils.procedural.execution import labels_get_type, log
 from sbs_utils.procedural.spawn import terrain_spawn
 from sbs_utils.procedural.inventory import set_inventory_value
 
@@ -70,8 +70,18 @@ def item_spawn(key, x, y, z, name=None, blink=None, yaw=None):
     Art comes from the registry; the key is stored on the pickup as the
     ``item_key`` inventory value so the generic collision route can credit it
     without any per-item code.
+
+    An UNREGISTERED key is a mission bug, and a silent one: the art it falls back to
+    decides both the mesh and -- via the art's shipData ``interactionradius`` -- whether
+    ``//collision/interactive`` fires at all, so an unregistered pickup can look like a
+    ``?`` and be uncollectable. Fall back to the key itself (item keys and art keys
+    coincide by convention, so it is the best available guess) and log a warning, rather
+    than quietly spawning the ``unknown`` placeholder, which has no interaction radius.
     """
-    art = item_meta(key, "art", "unknown")
+    if item_get(key) is None:
+        log(f"item_spawn: '{key}' is not a registered item (no item/ label); "
+            f"falling back to '{key}' as art", "items", "warning")
+    art = item_meta(key, "art", key)
     if name is None:
         name = item_meta(key, "display_text", key)
     if blink is None:
