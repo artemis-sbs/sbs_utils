@@ -151,6 +151,8 @@ def reset_mission_state():
                                     # for and hides ones it did.
     from .procedural.gui_record import gui_record_reset
     gui_record_reset()      # the transcript belongs to the mission that was recording
+    from .procedural.conformance import conformance_reset
+    conformance_reset()     # ...and so does the verdict
     from .procedural.ship_data_mod import ship_data_mod_reset
     ship_data_mod_reset()   # add-on ship entries belong to the mission that declared them;
                             # inheriting them would write ships the next mission never
@@ -236,6 +238,8 @@ from .procedural.ship_data_mod import ship_data_pending_count
 register_reset_state("ship_data_mod",     ship_data_pending_count)
 from .procedural.gui_record import gui_record_count
 register_reset_state("gui_record",        gui_record_count)
+from .procedural.conformance import conformance_error_count
+register_reset_state("conformance",       conformance_error_count)
 register_reset_state("amd declared addons", lambda: len(_DECLARED_ADDONS))
 register_reset_state("DeleteQueue",       lambda: len(DeleteQueue._pending) + len(DeleteQueue._pending_grid))
 register_reset_state("Agent.roles",       lambda: len(Agent.roles.collections))
@@ -359,6 +363,11 @@ class ErrorPage(Page):
 def tick_the_rest(event):
     TickDispatcher.dispatch_tick()
     Gui.present(event)
+    # `test=<seconds>` writes a conformance verdict once the mission has run that long.
+    # Costs one resolved integer when not requested. Here because it is the one place
+    # reached every tick regardless of which event arrived.
+    from .procedural.conformance import conformance_tick
+    conformance_tick()
 
 
 def _cosmos_event_handler(sim, event):
