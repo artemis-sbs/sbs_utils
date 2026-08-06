@@ -117,6 +117,7 @@ nav:
   - Tooling:
     - tooling/index.md
     - sbs CLI: tooling/cli.md
+    - Command-line arguments: tooling/command-line.md
     - Testing missions: tooling/testing.md
     - Debugging your mission: tooling/mast-debugger.md
     - AMD authoring tools: tooling/amd-tools.md

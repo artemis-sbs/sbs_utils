@@ -38,6 +38,54 @@ See [The races add-on](build/race-addons.md).
 
 ---
 
+## 🚀 Launch it without clicking — `sbs run` and command-line arguments
+
+Cosmos can now be started with arguments, and **a mission can read them**. A shortcut, a
+batch file or a CI job can bring up a full bridge on a particular map with particular
+settings, untouched by human hands.
+
+```
+sbs run                                        server + five consoles, nothing to click
+sbs run comms,weapons                          just those two
+sbs run -m LM_TestRange map=sandbox            a mission and a map
+sbs run --dry-run                              show the command lines, launch nothing
+```
+
+The mission comes from `-m` (default `LegendaryMissions`) and is passed as
+`defaultmission=`, so **`preferences.json` is no longer edited** to choose one. Consoles
+are selected per process instead of by rewriting a file inside the game install — two runs
+at once no longer fight over it, and a crash cannot leave it changed.
+
+**Anything you add on the end reaches the mission**, because the engine hands unrecognized
+`key=value` arguments straight to script:
+
+| | |
+|---|---|
+| `map=` `console=` | start a map, open a console |
+| `profile=` `var.NAME=` | settings, in bulk or one at a time |
+| `seed=` `run=` | reproducible runs, labelled |
+| `record=` | transcribe what you click |
+| `test=` | a pass/fail verdict from the **real engine** |
+
+Settings merge `defaults < settings.yaml < profile= < COSMOS_SETTINGS < var.NAME=`, so a
+profile file carries the bulk and the command line names it:
+
+```
+sbs run -m MyMission profile=soak var.DIFFICULTY=3 var.AUTO_PLAY.enable=true
+```
+
+`test=30` is the one worth knowing about if you automate anything: the mission plays for
+that long and writes `records/verdict.json`, which means **the real engine can be checked
+by a script** rather than by someone watching it. It counts runtime errors, not MAST
+coverage — `sbs debug . --test` remains the stronger check for whether your mission
+actually did anything.
+
+Anything that matches nothing says so, rather than quietly doing nothing.
+
+→ [Command-line arguments](tooling/command-line.md)
+
+---
+
 ## 🛩️ Hangar
 
 - **Sortie board.** Fighter and shuttle pilots pick their own missions from a board.

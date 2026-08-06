@@ -66,6 +66,35 @@ Handy flags: `--use-working-tree` (test local library edits against the packaged
 mission), `--seed N` (reproducible runs), and settings overrides that don't touch
 `settings.yaml` (`--auto-start`, `--players N`, `--set KEY=VALUE`).
 
+## Launching the real game
+
+`sbs debug` runs a mission in the browser; `sbs run` opens the actual game — a server and
+as many console clients as you ask for, arranged on screen.
+
+```
+sbs run                                    server + a full test bridge
+sbs run comms,weapons                      just those two consoles
+sbs run -m LM_TestRange                    a different mission (default: LegendaryMissions)
+sbs run comms --ip 192.168.1.50            clients pointed at another machine
+sbs run --dry-run                          show the command lines, launch nothing
+```
+
+Nothing needs clicking: the server starts itself, clients connect, and each lands on its
+console. `--no-auto` restores the old launcher-menu behavior.
+
+The mission is passed as `defaultmission=`, so `preferences.json` is never edited.
+
+**Anything you add on the end reaches the mission**, which is how you start a particular
+map or set of settings:
+
+```
+sbs run -m LM_TestRange map=sandbox profile=soak var.DIFFICULTY=3
+sbs run -m LegendaryMissions test=60       a pass/fail verdict from the real engine
+sbs run -m LegendaryMissions record=session  transcribe what you click
+```
+
+See [Command-line arguments](command-line.md) for the full list and how settings merge.
+
 ## Switching mission sets
 
 Cosmos loads exactly one `data/missions` folder. Keep several sets beside it as
