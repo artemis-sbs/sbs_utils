@@ -5,7 +5,7 @@ from .inventory import get_inventory_value, set_inventory_value
 from .grid import (grid_objects, grid_objects_at, grid_closest, grid_get_grid_data,
                    grid_get_item_theme_data, grid_get_grid_current_theme,
                    grid_get_grid_named_theme, grid_get_layout, grid_get_theme_name,
-                   grid_delete_object)
+                   grid_delete_object, grid_valid_blob)
 from .spawn import grid_spawn
 from .comms import comms_broadcast
 from .settings import settings_get_defaults
@@ -711,10 +711,19 @@ def grid_take_internal_damage_at(id_or_obj, source_point, system_hit=None, damag
                 already_damaged = True
                 continue
 
+            # Skip anything the grid still lists but that is no longer usable. A
+            # grid object can outlive its blob two ways: the host ship is destroyed
+            # (the wrapper survives but every get/set raises), or the object was
+            # deleted this tick and the hull map has not caught up. Internal damage
+            # runs *while* ships are blowing up, so both are live cases here -
+            # grid_valid_blob collapses them into one `is None` check, as the rest
+            # of the grid layer already does.
             go = to_object(go_id)
-            blob = to_blob(go_id)
+            blob = grid_valid_blob(go_id)
+            if blob is None:
+                continue
             blob.set("icon_color", damage_color, 0)
-            link(ship_id, "damage", go_id) 
+            link(ship_id, "damage", go_id)
             add_role(go_id, "__damaged__")
             remove_role(go_id, "__undamaged__")
         #
@@ -732,8 +741,8 @@ def grid_take_internal_damage_at(id_or_obj, source_point, system_hit=None, damag
         #
         # Just need one item to get x,y
         #
-        if undam is not None:
-            go_blob = to_blob(undam)
+        go_blob = grid_valid_blob(undam) if undam is not None else None
+        if go_blob is not None:
             loc_x = int(go_blob.get("curx", 0))
             loc_y = int(go_blob.get("cury", 0))
 
@@ -746,11 +755,13 @@ def grid_take_internal_damage_at(id_or_obj, source_point, system_hit=None, damag
         hp -= 1
         set_inventory_value(d, "HP", hp)
         go = to_object(d)
-        blob = to_blob(d)
+        blob = grid_valid_blob(d)
+        # Same guard as the damage loop above: an injured lifeform can lose its host
+        # (or be deleted) between being collected and being processed here.
+        if go is None or blob is None:
+            continue
         dc_damage_color = get_inventory_value(d, "damage_color")
         dc_damage_color = damage_color if damage_color else damage_color
-        
-        
 
         blob.set("icon_color", dc_damage_color, 0)
         if hp <= 0:

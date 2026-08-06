@@ -194,6 +194,30 @@ class TestMockHullMap(unittest.TestCase):
         self.assertEqual(hm.get_objects_at_point(3, 5), [go.unique_ID])
         self.assertEqual(hm.get_objects_at_point(4, 5), [])
 
+    def test_module_delete_grid_object_clears_the_hull_map(self):
+        """A grid object must leave the hull map, not just the sim registry.
+
+        `sbs.delete_grid_object` (the module function, which is the one
+        `DeleteQueue` calls for every deferred grid delete) used to pop only
+        `sim.grid_objects`, leaving the entry on the host's `grid_items`. The
+        hull map then kept handing that dead id to `get_objects_at_point`, and
+        `grid_take_internal_damage_at` crashed on its `None` blob the next time
+        internal damage landed on that cell.
+        """
+        sid = self._ship("tsn_light_cruiser")
+        hm = mock.get_hull_map(sid)
+        go = hm.create_grid_object("sick-bay:3,5", "sick-bay:3,5", "")
+        go.data_set.set("curx", 3, 0)
+        go.data_set.set("cury", 5, 0)
+        gid = go.unique_ID
+
+        mock.delete_grid_object(sid, gid)
+
+        self.assertNotIn(gid, mock.sim.grid_objects, "left in the sim registry")
+        self.assertEqual(hm.get_objects_at_point(3, 5), [],
+                         "deleted grid object is still on the hull map")
+        self.assertEqual(hm.get_grid_object_count(), 0)
+
 
 class TestCapturePrecedence(unittest.TestCase):
     """The capture is the engine's answer and must win over the approximation."""

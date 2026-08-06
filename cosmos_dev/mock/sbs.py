@@ -281,10 +281,25 @@ def delete_all_navproxies() -> None:
         sim.navproxies = {}
 
 def delete_grid_object(spaceObjectID: int, gridObjID: int) -> None:
-    """deletes the grid object, and sends the deletion message to all clients"""
+    """deletes the grid object, and sends the deletion message to all clients
+
+    The object must leave BOTH registries: the sim-wide `grid_objects` map and its
+    host hull map's `grid_items` list. Popping only the former left a dangling entry
+    on the hull map, so `get_objects_at_point` kept returning an id whose py-side
+    Agent and data_set were long gone -- `grid_take_internal_damage_at` then hit
+    `None.set(...)` the next time internal damage landed on that cell. This is the
+    delete path DeleteQueue actually uses (`delete_queue.py`), so every deferred grid
+    delete leaked; `hullmap.delete_grid_object` already removed from both.
+    """
     global sim
     if sim is not None:
         sim.grid_objects.pop(gridObjID, None)
+    hull_map = hull_map_objects.get(spaceObjectID)
+    if hull_map is not None:
+        for go in list(hull_map.grid_items):
+            if go.unique_ID == gridObjID:
+                hull_map.grid_items.remove(go)
+                break
 
 def delete_object(ID: int) -> None:
     """deletes a space object by its ID"""
