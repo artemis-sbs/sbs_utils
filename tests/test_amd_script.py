@@ -434,6 +434,58 @@ class TestCallouts(unittest.TestCase):
         self.assertEqual(text.splitlines()[0], "Hmm")
         self.assertIn("unknown-callout", [f.code for f in amd_lint_callouts(parse(src))])
 
+    def test_gui_text_area_understands_them_natively(self):
+        """The point of moving it into the widget: a callout works wherever text is
+        rendered, without the caller knowing the feature exists. `document_screen`
+        calls a bare `gui_text_area(t)`, so an opt-in transform would never have
+        reached the two shipped prose files."""
+        from sbs_utils.pages.layout.text_area import TextArea
+        ta = TextArea("t", "x")
+        src = ("Ordinary prose.\n"
+               "> [!WARNING] Quarantine Notice\n"
+               "> Do not dock.\n"
+               "Prose resumes.\n")
+        keys, style = [], ta.get_style("_")
+        for line in src.splitlines():
+            key, _text = ta.get_line_style(line, style)
+            if isinstance(key, str):
+                style = ta.get_style(key)
+            keys.append(key if isinstance(key, str) else "(inherited)")
+        self.assertEqual(keys[1], "callout_warning_title")
+        self.assertEqual(keys[2], "callout_warning")
+
+    def test_the_box_has_a_bottom(self):
+        """A callout ENDS at the first non-`>` line. An unstyled line inherits the
+        previous style, so without an explicit reset the background bled down the
+        rest of the document."""
+        from sbs_utils.pages.layout.text_area import TextArea
+        ta = TextArea("t", "x")
+        style = ta.get_style("_")
+        for line in ["> [!DANGER] Breach", "> Leave now."]:
+            key, _t = ta.get_line_style(line, style)
+            style = ta.get_style(key)
+        self.assertEqual(style.get("background"), _CALLOUT_KINDS["danger"]["background"])
+        key, _t = ta.get_line_style("Ordinary prose again.", style)
+        self.assertEqual(key, "_")
+        self.assertIsNone(ta.get_style(key).get("background"))
+
+    def test_a_plain_quote_is_still_prose(self):
+        """`>` without an open callout keeps meaning exactly what it always did."""
+        from sbs_utils.pages.layout.text_area import TextArea
+        ta = TextArea("t", "x")
+        prev = ta.get_style("_")
+        key, text = ta.get_line_style("> just a quoted line", prev)
+        self.assertNotIsInstance(key, str)      # inherited, i.e. untouched
+        self.assertEqual(text, "> just a quoted line")
+
+    def test_widget_and_pure_render_agree_on_colors(self):
+        """One definition of what a callout looks like. The widget reads
+        `amd_callout_style_table`; the pure renderer reads `_CALLOUT_KINDS`."""
+        from sbs_utils.procedural.amd_callout import amd_callout_style_table
+        table = amd_callout_style_table()
+        for kind, spec in _CALLOUT_KINDS.items():
+            self.assertEqual(table[f"callout_{kind}"]["background"], spec["background"])
+
     def test_ascii_only(self):
         """Engine-rendered strings carry no Unicode, so a callout is marked by color
         and indent - never by a glyph."""

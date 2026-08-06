@@ -798,7 +798,63 @@ class TextArea(Control):
             some_lines = some_lines[nl:]
         return some_lines,style_key
     
+    def _callout_styles(self):
+        """Register the callout named styles once, from their ONE definition.
+
+        Lazy and local: `procedural.amd_callout` is stdlib-shallow (it reaches only
+        `procedural.amd`, which is `re` + `fs`), but importing it at module scope
+        would still tie this widget's import order to the procedural package for a
+        feature most text areas never use."""
+        if getattr(self, "_callout_styles_loaded", False):
+            return
+        self._callout_styles_loaded = True
+        self._re_callout = None
+        self._re_callout_body = None
+        try:
+            from sbs_utils.procedural.amd import RE_CALLOUT, RE_CALLOUT_BODY
+            from sbs_utils.procedural.amd_callout import amd_callout_style_table
+            for key, spec in amd_callout_style_table().items():
+                self.styles.setdefault(key, spec)
+            # The GRAMMAR comes from the same place as the styles - one definition of
+            # what a callout looks like, one of what it IS. A second copy of either
+            # here is how the tooling and the game came to read the same bytes
+            # differently the last time.
+            self._re_callout = RE_CALLOUT
+            self._re_callout_body = RE_CALLOUT_BODY
+        except Exception:
+            pass          # a callout simply reads as a quote if this is unavailable
+
     def get_markdown_line_style(self, some_lines, previous):
+        # `> [!WARNING] Title` opens a callout and following `>` lines continue it -
+        # handled HERE, beside `#`/`-`/`1.`, so it works in every text area rather
+        # than only where a caller remembered to pre-process the text.
+        #
+        # A bare `>` with no callout open is left alone: it falls through to the
+        # normal path and stays the prose it has always been.
+        if some_lines.startswith(">"):
+            self._callout_styles()
+            if self._re_callout is not None:
+                m = self._re_callout.match(some_lines)
+                if m is not None:
+                    kind = m.group("kind").strip().lower()
+                    key = f"callout_{kind}"
+                    if key not in self.styles:
+                        key = "callout_note"  # unknown kind: readable, never fatal
+                    self._callout_key = key
+                    title = (m.group("title") or "").strip() or kind.title()
+                    return key + "_title", title
+                if getattr(self, "_callout_key", None):
+                    body = self._re_callout_body.match(some_lines)
+                    if body is not None:
+                        return self._callout_key, body.group("text")
+        elif getattr(self, "_callout_key", None):
+            # The block ENDS at the first line that is not `>`. Reset explicitly
+            # rather than falling through: an unstyled line inherits `previous`, so
+            # without this the callout's background bleeds down the rest of the
+            # document - the box would have no bottom.
+            self._callout_key = None
+            return "_", some_lines
+
         style_key = None
         if some_lines.startswith("#"):
             count = 0

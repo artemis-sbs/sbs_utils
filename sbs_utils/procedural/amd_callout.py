@@ -56,6 +56,34 @@ def amd_callout_kinds():
     return sorted(_CALLOUT_KINDS)
 
 
+# Named-style keys a rich text widget registers, so `> [!WARNING]` is understood by
+# the SAME mini-markdown that already understands `#`, `-` and `1.` - and a callout
+# therefore works in every text area without its caller knowing the feature exists.
+_BODY_HEIGHT = 20
+_TITLE_HEIGHT = 24
+
+
+def amd_callout_style_table():
+    """`{style_key: style_dict}` for a text widget's named-style table.
+
+    ONE source of truth for what a callout looks like: the widget reads this rather
+    than carrying its own copy of the colors, so the two cannot drift the way the
+    parallel schema copy did before the field registry existed."""
+    out = {}
+    for kind, spec in _CALLOUT_KINDS.items():
+        body = {"style": spec.get("style", ""), "prepend": spec.get("prepend", ""),
+                "indent": spec.get("indent", 2), "height": _BODY_HEIGHT,
+                "background": spec.get("background")}
+        title = dict(body)
+        # APPENDED: a style string is last-wins, so a leading font would lose to the
+        # kind's own and the title would silently render at body size.
+        title["style"] = body["style"] + _TITLE_EXTRA
+        title["height"] = _TITLE_HEIGHT
+        out[f"callout_{kind}"] = body
+        out[f"callout_{kind}_title"] = title
+    return out
+
+
 def amd_callout_blocks(text):
     """Parse `text` into callout blocks: `[{kind, title, lines, start, end, known}]`.
 
