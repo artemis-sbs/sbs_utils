@@ -2212,6 +2212,33 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#key-write-it-once-use-it-everywhere" class="md-nav__link">
+    <span class="md-ellipsis">
+      ![[key]] — write it once, use it everywhere
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aka-other-names-a-record-answers-to" class="md-nav__link">
+    <span class="md-ellipsis">
+      Aka: — other names a record answers to
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-title-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      The title page
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#fade-in-cutscene-transitions" class="md-nav__link">
     <span class="md-ellipsis">
       FADE IN: — cutscene transitions
@@ -6140,6 +6167,33 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#key-write-it-once-use-it-everywhere" class="md-nav__link">
+    <span class="md-ellipsis">
+      ![[key]] — write it once, use it everywhere
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aka-other-names-a-record-answers-to" class="md-nav__link">
+    <span class="md-ellipsis">
+      Aka: — other names a record answers to
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-title-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      The title page
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#fade-in-cutscene-transitions" class="md-nav__link">
     <span class="md-ellipsis">
       FADE IN: — cutscene transitions
@@ -6457,6 +6511,46 @@ He means it, captain.
 </code></pre></div>
 <p><code>NOTE</code>, <code>TIP</code>, <code>WARNING</code> and <code>DANGER</code> are built in; an unknown kind reads as a plain
 quote and warns, so a document from a newer mission is still readable.</p>
+<h3 id="key-write-it-once-use-it-everywhere"><code>![[key]]</code> — write it once, use it everywhere</h3>
+<p>On its own line, an embed pulls in another record's body:</p>
+<div class="highlight"><pre><span></span><code># [Docking Procedure](dock_help)
+Hold at 2000 and hail. Clearance is verbal.
+
+# [Starbase Aurora](aurora)
+Approach from the south.
+![[dock_help]]
+Then request a berth.
+</code></pre></div>
+<p>The shared paragraph lives in one place and every document that needs it says so.
+A record that would include itself, directly or in a ring, is left as
+<code>[circular include: key]</code> rather than hanging the mission; a target that does not
+exist reads <code>[missing: key]</code>.</p>
+<p>It must be a whole line — a transclusion is a block, and allowing it mid-sentence
+would splice paragraphs into the middle of one.</p>
+<h3 id="aka-other-names-a-record-answers-to"><code>Aka:</code> — other names a record answers to</h3>
+<div class="highlight"><pre><span></span><code># [The Florbin Affair](florbin)
+---
+Aka: The Florbin Job, florbin_case
+---
+</code></pre></div>
+<p>Now <code>[[The Florbin Job]]</code>, <code>Then: reveal florbin_case</code> and anything else pointing at
+those names resolves here. Use it when you rename something and would rather not
+chase every reference, or when a generated key needs a human name.</p>
+<p>A real key always wins — an alias can never shadow a record that genuinely has that
+key. (Not to be confused with <code>Also:</code>, which is <a href="#what-it-also-does">traits</a>.)</p>
+<h3 id="the-title-page">The title page</h3>
+<p>Fountain's title page is the fence <strong>before the first heading</strong>, and the words are
+the ones a screenwriter already types:</p>
+<div class="highlight"><pre><span></span><code>---
+Title: The Florbin Affair
+Author: D. Reichard
+Draft: 3
+---
+
+# [Jobs](jobs)
+</code></pre></div>
+<p>This is where document-wide settings live; a mission reads them with
+<code>amd_root_data</code>.</p>
 <h3 id="fade-in-cutscene-transitions"><code>FADE IN:</code> — cutscene transitions</h3>
 <p>In a cutscene shot, a screenplay transition says how the shot arrives, and stays out of
 the words on screen:</p>
