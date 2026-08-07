@@ -1044,6 +1044,60 @@ def quest_log_state_icon_color(state):
     return _QUEST_LOG_STATE_ICON_COLOR.get(int(state or 0), "#888")
 
 
+def quest_log_parent_summary(row):
+    """Detail-pane text for a PARENT quest (an arc): its own description, then a
+    checklist of its steps.
+
+    The quest tab used to answer a selected arc with "Select a quest from the list" - it
+    skipped anything that rendered as a header, and a parent quest renders as one. But an
+    arc IS a quest: it has a description, and what a player wants from it is "where am I
+    in this?".
+
+    SECRET STEPS ARE NOT COUNTED. A step the story has not revealed is neither listed nor
+    tallied; if any remain, a single "more to follow" line stands in for however many
+    there are. So the pane shows real progress without disclosing how long the arc is -
+    which is the whole point of authoring a step secret in the first place.
+
+    `row` is the list-box row/header data for the parent (it carries `agent_id` and
+    `key`). Returns "" for a bare Game/You/Ship group header, which has no quest.
+    """
+    if row is None or not hasattr(row, "get"):
+        return ""
+    qid = row.get("key")
+    aid = row.get("agent_id")
+    if qid is None or aid is None:
+        return ""            # a source-group header, not a quest
+    quest = quest_get(aid, qid)
+    if quest is None:
+        return ""
+    out = (quest.get("description") or "").strip()
+    kids = quest.get("children") or {}
+    lines = []
+    hidden = False
+    for cid, kid in kids.items():
+        st = int(kid.get("state") or 0)
+        if st == int(QuestState.SECRET) or _quest_show(kid) == "never":
+            hidden = True
+            continue
+        if st == int(QuestState.COMPLETE):
+            mark = "[x]"
+        elif st == int(QuestState.FAILED):
+            mark = "[!]"
+        elif st == int(QuestState.ACTIVE):
+            mark = "[>]"
+        else:
+            mark = "[ ]"
+        lines.append(mark + " " + str(kid.get("display_text", cid)))
+    if not lines and not hidden:
+        return out
+    if hidden:
+        lines.append("... more to follow")   # deliberately no number - see the docstring
+    steps = chr(10).join(lines)
+    if out:
+        return out + chr(10) + chr(10) + steps
+    return steps
+
+
 _QUEST_LOG_MAX_DEPTH = 5
 
 
