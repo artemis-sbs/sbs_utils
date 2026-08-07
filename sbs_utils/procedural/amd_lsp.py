@@ -1045,6 +1045,36 @@ def _kind_choices():
     return amd_kind_menu()
 
 
+def _mission_missing(index):
+    """Everything referenced but not written yet, mission-wide, grouped by TARGET.
+
+    Obsidian's unresolved-links pane. Deliberately not the same shape as the
+    diagnostics the Problems pane already shows: those are per-FILE and answer "what
+    is wrong here", while this is per-TARGET across the whole mission and answers
+    "what do I still have to write". Drafting a story in prose with `[[links]]` to
+    records that do not exist yet is a supported way to work, so this is a work list
+    and never a failure."""
+    from sbs_utils.procedural.amd_lint import amd_lint_missing
+
+    known = index["known"]
+    targets = {}
+    for _path, uri, doc in index["docs"]:
+        for target, uses in amd_lint_missing(doc, known).items():
+            entry = targets.setdefault(target, {"target": target, "uses": []})
+            for kind, owner, span in uses:
+                entry["uses"].append({
+                    "kind": kind, "owner": owner, "uri": uri,
+                    "line": span.line - 1, "col": span.col,
+                    "endLine": span.end_line - 1, "endCol": span.end_col,
+                })
+    out = sorted(targets.values(), key=lambda t: (-len(t["uses"]), t["target"]))
+    for entry in out:
+        entry["uses"].sort(key=lambda u: (u["uri"], u["line"]))
+    return {"missing": out,
+            "total": sum(len(e["uses"]) for e in out),
+            "files": len(index["docs"])}
+
+
 def _mission_symbols(index):
     """Candidate lists for the Inspector's reference widgets, mission-wide: every
     node key (`node`), the side keys (`side`), and the known signal names
@@ -1676,6 +1706,10 @@ def serve(stdin=None, stdout=None):
                 uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
                 _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                         "result": _mission_resolve(_index_for(uri, docs))})
+            elif method == "amd/missing":
+                uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _mission_missing(_index_for(uri, docs))})
             elif method == "amd/timeline":
                 uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
                 _write_message(stdout, {"jsonrpc": "2.0", "id": mid,

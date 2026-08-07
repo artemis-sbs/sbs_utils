@@ -582,6 +582,67 @@ class TestTitlePage(unittest.TestCase):
         self.assertEqual(amd_lint_unknown_fields(parse(self.SRC)), [])
 
 
+class TestMissingRequest(unittest.TestCase):
+    """`amd/missing` - the editor's Missing panel, mission-wide and grouped by target.
+
+    A different question from the Problems pane, which is per-FILE and asks "what is
+    wrong here". This asks "what do I still have to write", so it crosses files and
+    groups by the thing that does not exist yet."""
+
+    def _index(self, sources):
+        docs = [(name, f"file:///{name}", parse(text)) for name, text in sources.items()]
+        known = set()
+        for _p, _u, d in docs:
+            known |= d.keys
+        return {"docs": docs, "known": known}
+
+    def test_groups_across_files_by_target(self):
+        from sbs_utils.procedural.amd_lsp import _mission_missing
+        res = _mission_missing(self._index({
+            "a.amd": "# [Brief](brief)\nSee [[ghost]].\n",
+            "b.amd": "# [Other](other)\nAlso [[ghost]] and [[lone]].\n",
+        }))
+        by_target = {e["target"]: e for e in res["missing"]}
+        self.assertEqual(set(by_target), {"ghost", "lone"})
+        self.assertEqual(len(by_target["ghost"]["uses"]), 2)
+        self.assertEqual({u["owner"] for u in by_target["ghost"]["uses"]}, {"brief", "other"})
+        self.assertEqual(res["total"], 3)
+        self.assertEqual(res["files"], 2)
+
+    def test_most_referenced_first(self):
+        """What to write next is what the most things are waiting on."""
+        from sbs_utils.procedural.amd_lsp import _mission_missing
+        res = _mission_missing(self._index({
+            "a.amd": "# [A](a)\n[[one]] [[two]] [[two]]\n",
+        }))
+        self.assertEqual([e["target"] for e in res["missing"]], ["two", "one"])
+
+    def test_a_record_defined_anywhere_is_not_missing(self):
+        from sbs_utils.procedural.amd_lsp import _mission_missing
+        res = _mission_missing(self._index({
+            "a.amd": "# [Brief](brief)\nSee [[vell]].\n",
+            "cast.amd": "# [Vell](vell)\nA tired officer.\n",
+        }))
+        self.assertEqual(res["missing"], [])
+
+    def test_cues_and_choices_count_too(self):
+        from sbs_utils.procedural.amd_lsp import _mission_missing
+        res = _mission_missing(self._index({
+            "a.amd": "# [S](s)\n@Ashfang\n% hi\n- [Back](nowhere)\n",
+        }))
+        self.assertEqual({e["target"] for e in res["missing"]}, {"ashfang", "nowhere"})
+        kinds = {u["kind"] for e in res["missing"] for u in e["uses"]}
+        self.assertEqual(kinds, {"cue", "choice"})
+
+    def test_uses_carry_a_jumpable_location(self):
+        from sbs_utils.procedural.amd_lsp import _mission_missing
+        res = _mission_missing(self._index({"a.amd": "# [A](a)\nx\nSee [[ghost]].\n"}))
+        use = res["missing"][0]["uses"][0]
+        self.assertEqual(use["uri"], "file:///a.amd")
+        self.assertEqual(use["line"], 2)        # 0-based, for the editor
+        self.assertGreaterEqual(use["col"], 0)
+
+
 class TestProseIsProse(unittest.TestCase):
     """Law 1: an unclaimed body line means exactly what it always meant."""
 
