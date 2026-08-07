@@ -181,6 +181,92 @@ def incoming_comms_text(message, from_name="", title=None, to=None, time=8,
                            title_color=type_title_color(title))
 
 
+_COMMS_SCENES = {}
+_COMMS_CALLERS = {}
+
+
+def comms_callers_load(section):
+    """Register the callers: a record per 2.8 ``from`` label, key = its slug.
+
+    A cue has to be a slug (`RE_CUE` is `[\\w.\\-]+`), but "GW 214" and
+    "CyberSecurity Suite IV" are what the crew must actually READ - and title-casing a
+    slug back mangles both. So the exact label lives on the record's display text and
+    is looked up here, which also gives a human one obvious place to attach a face or
+    a color to a caller later."""
+    from sbs_utils.procedural.amd_doc import amd_records
+    for rec in amd_records(section):
+        key = rec.get("key")
+        if key:
+            _COMMS_CALLERS[key] = rec.get("display") or key
+    return len(_COMMS_CALLERS)
+
+
+def comms_scenes_load(section):
+    """Register a dialogue section's scenes so ``comms_scene`` can play them by key.
+
+    A converted 2.8 mission repeats the same comms run relentlessly - once per player
+    ship, once per branch - so the emitter dedupes identical runs into ONE scene and
+    every event that used it just names it. 6128 runs in the corpus collapse to 770
+    scenes, so this is mostly about making converted missions editable: the words live
+    in one place, and editing them is editing a script rather than hunting call sites.
+    """
+    from sbs_utils.procedural.amd_dialogue import dialogue_scenes, dialogue_parse
+    for key, node in dialogue_scenes(section).items():
+        _COMMS_SCENES[key] = (dialogue_parse(node), node.get("data") or {})
+    return len(_COMMS_SCENES)
+
+
+def comms_scenes_clear():
+    """Drop every registered scene and caller (per-mission state - an unreset
+    module-level container is how a mission's second run goes wrong; see the reset
+    ledger in handlerhooks)."""
+    _COMMS_SCENES.clear()
+    _COMMS_CALLERS.clear()
+
+
+def comms_scene(key, to=None, side=None):
+    """Play a registered dialogue scene as a run of 2.8 comms messages.
+
+    One call replaces the contiguous run of ``incoming_comms_text`` tags it was built
+    from, IN PLACE - which is why this is safe: 6096 of the corpus's 6112 comms-bearing
+    events keep their comms in a single unbroken block, so nothing moves relative to
+    the spawns and timers around it.
+
+    Each beat's ``@cue`` is the 2.8 ``from`` label, and the scene's ``Title:`` / ``Side:``
+    carry the ``type`` / ``sideValue`` the whole run shared. A run whose tags DISAGREED
+    about either is not converted at all - it stays a sequence of direct calls - so this
+    never has to guess.
+    """
+    entry = _COMMS_SCENES.get(str(key))
+    if entry is None:
+        from sbs_utils.procedural.execution import log
+        log(f"comms scene {key!r} is not registered - nothing said", "a2x", "warning")
+        return
+    scene, data = entry
+    title = data.get("title")
+    scene_side = data.get("side") if side is None else side
+    for beat in scene.get("beats") or ():
+        speaker = beat.get("speaker") or ""
+        for text, _gate, _direction in beat["lines"]:
+            if not text:
+                continue
+            incoming_comms_text(text, from_name=_cue_name(speaker), title=title,
+                                to=to, side=scene_side)
+
+
+def _cue_name(cue):
+    """A cue slug -> the exact 2.8 label, via the registered callers.
+
+    Falls back to title-casing the slug when a mission never registered a caster
+    list. That fallback is LOSSY on purpose-built names ("gw_214" -> "Gw 214"), which
+    is exactly why `comms_callers_load` exists and why the emitter writes it."""
+    key = str(cue or "")
+    known = _COMMS_CALLERS.get(key)
+    if known:
+        return known
+    return " ".join(w.capitalize() for w in key.split("_") if w)
+
+
 def big_message(title, subtitle1="", subtitle2="", to=None, time=8):
     """2.8 ``big_message`` -> a cinematic Hero chapter card on every player MAIN SCREEN.
 
