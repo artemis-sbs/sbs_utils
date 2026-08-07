@@ -18,6 +18,7 @@ from .layout import Layout
 from .row import Row
 from .text import Text
 from ...mast.parsers import StyleDefinition
+from ...helpers import gui_text_escape
 
 
 class Group:
@@ -44,7 +45,7 @@ class Group:
         row = Row()
         if height is not None:
             row.set_row_height(height)        # keep the title off the flex share
-        text = Text(f"{self.tag}:title", f"$text:{title}")
+        text = Text(f"{self.tag}:title", f"$text:{gui_text_escape(title)}")
         if font is not None:
             text.default_font = font
         if color is not None:

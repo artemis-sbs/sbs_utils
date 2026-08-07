@@ -2,7 +2,7 @@ from email import message
 from ..gui import Page, Gui
 from .. import layout as layout
 from .. import faces as faces
-from ..helpers import FrameContext
+from ..helpers import FrameContext, gui_text_escape
 
 # import ctypes
 # MessageBox = ctypes.windll.user32.MessageBoxW
@@ -113,7 +113,7 @@ class AvatarEditor(Page):
                         next(l2)
 
                 else:
-                    SBS.send_gui_text(CID, label, f"$text:{label}", *loc)
+                    SBS.send_gui_text(CID, label, f"$text:{gui_text_escape(label)}", *loc)
                     SBS.send_gui_slider(CID, f"{v}", self.cur[v], f"low: {widget['min']}; high: {widget['max']}; show_number: no", *next(l2))
                     #SBS.send_gui_slider(CID, f"{v}",  widget["min"],widget["max"],self.cur[v], *next(l2), True)
 

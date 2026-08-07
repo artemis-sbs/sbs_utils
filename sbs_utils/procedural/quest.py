@@ -11,7 +11,7 @@ When a quest is activated or completed a signal is sent
 from sbs_utils.procedural.query import to_id_list, to_object, to_id
 from sbs_utils.procedural.signal import signal_emit
 from sbs_utils.mast.mast_node import MastDataObject
-from sbs_utils.helpers import FrameContext
+from sbs_utils.helpers import FrameContext, gui_text_escape
 from sbs_utils.fs import load_yaml_string
 from enum import IntEnum
 from sbs_utils.agent import Agent
@@ -430,18 +430,29 @@ def quest_get_data(agent, quest_id):
 def quest_get_display_name(agent, quest_id):
     """Return the display name of a quest.
 
+    Reads ``display_text`` - the field ``quest_add`` actually writes. It used to read
+    only ``display_name``, which NOTHING in the codebase ever sets, so this returned
+    ``None`` for every quest and each caller fell back to the raw quest id. That is why
+    the text waterfall announced `job_ghost/hail` instead of "Hail the Derelict": not a
+    missing display name on some quests, but a key mismatch affecting all of them.
+
+    ``display_name`` is still honored first, so anything that deliberately set it with
+    ``quest_set_key`` keeps overriding.
+
     Args:
         agent: Agent ID or object that owns the quest.
         quest_id (str): Quest identifier.
 
     Returns:
-        str | None: The display name, or ``None`` if the quest does not exist.
+        str | None: The display name, or ``None`` if the quest does not exist or has
+            no name of either kind.
 
     Example:
         name = quest_get_display_name(SHIP_ID, "patrol")
         "Mission: {name}"
     """
-    return quest_get_key(agent, quest_id, "display_name")
+    return (quest_get_key(agent, quest_id, "display_name")
+            or quest_get_key(agent, quest_id, "display_text"))
 
 def quest_get_description(agent, quest_id):
     """Return the description of a quest.
@@ -1285,13 +1296,13 @@ def quest_log_template(item):
             gui_icon_name(quest_log_icon(hdata),
                           quest_log_state_icon_color(hdata.get("state")),
                           "padding:5px,0,5px,0;")
-            gui_text(f"$text:{item.label};justify: left;", "padding:5px,6px,0,0;")
+            gui_text(f"$text:{gui_text_escape(item.label)};justify: left;", "padding:5px,6px,0,0;")
             arrow = gui_icon_name(fold, "#fff", "padding:0,0,5px,0;")
             gui_row("row-height: 1.0em;padding:6px;")
-            gui_text(f"$text:{quest_log_detail(hdata)};justify: left;font:gui-1")
+            gui_text(f"$text:{gui_text_escape(quest_log_detail(hdata))};justify: left;font:gui-1")
         else:
             gui_row("row-height: 1.4em;padding:6px;")
-            gui_text(f"$text:{item.label};justify: left;color:#fff;", "padding:5px,6px,0,0;background:#1578")
+            gui_text(f"$text:{gui_text_escape(item.label)};justify: left;color:#fff;", "padding:5px,6px,0,0;background:#1578")
             arrow = gui_icon_name(fold, "#fff", "padding:0,0,5px,0;background:#1578;")
         if item.selectable and arrow is not None:
             arrow.click_text = ""
@@ -1304,6 +1315,6 @@ def quest_log_template(item):
     gui_row("row-height: 1.2em;padding:6px;")
     gui_icon_name(quest_log_icon(item), quest_log_state_icon_color(item.get("state")),
                   "padding:5px,0,5px,0;")
-    gui_text(f"$text:{item.get('title')};justify: left;", "padding:5px,6px,0,0;")
+    gui_text(f"$text:{gui_text_escape(item.get('title'))};justify: left;", "padding:5px,6px,0,0;")
     gui_row("row-height: 1.0em;padding:6px;")
-    gui_text(f"$text:{quest_log_detail(item)};justify: left;font:gui-1")
+    gui_text(f"$text:{gui_text_escape(quest_log_detail(item))};justify: left;font:gui-1")

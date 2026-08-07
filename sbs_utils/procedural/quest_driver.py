@@ -71,6 +71,43 @@ def _fire_overlay_directive(directive, to):
     overlay_kind(kind, to=to, **{prim: rest})
 
 
+def _quest_noun(data):
+    """What to call this quest to the crew: "Mission" only when it IS the mission.
+
+    The player already meets three words for one thing - the tab says Quests, an AMD
+    author writes Job, and the library used to say Mission for every last step of every
+    arc. "Mission" is reserved for a quest that ends the game (`end_win`/`end_lose`),
+    where it is simply true; everything else is a Quest, which is the word on the tab
+    the player clicks to find it.
+    """
+    if data and (data.get("end_win") or data.get("end_lose")):
+        return "Mission"
+    return "Quest"
+
+
+def _quest_author_announces(data, ref_key, inline_key):
+    """True when the quest carries its own completion/failure announcement.
+
+    `on_complete` / `on_fail` are overlay DIRECTIVES (`<kind> <text>`), so a quest that
+    has one is already telling the crew - and the library adding its own line made every
+    such quest announce twice, in two different vocabularies ("Job complete: Mercy Run"
+    then "Mission complete: Mercy Run"). Authored wording wins where an author wrote any.
+
+    TRADE-OFF worth knowing: the overlay is the attention layer and the broadcast is the
+    durable log, so suppressing the broadcast means an authored completion leaves no line
+    in the waterfall. That is the intent here (the duplicate is what playtesters
+    reported), but if a quest wants both, it should say so rather than getting it by
+    accident.
+    """
+    if not data:
+        return False
+    for key in (ref_key, inline_key):
+        # accept underscore or space authoring, same as _quest_fire_overlays
+        if data.get(key) or data.get(key.replace("_", " ")):
+            return True
+    return False
+
+
 def _quest_fire_overlays(agent_id, data, ref_key, inline_key):
     """Fire a quest lifecycle overlay to the quest's participant consoles. Supports
     BOTH forms: a declared-record reference (``ref_key`` -> ``overlay_amd(key)``) and
@@ -273,7 +310,9 @@ def quest_mark_complete(agent_id, quest_id):
     signal_emit("quest_succeeded", {"AGENT_ID": agent_id, "QUEST_ID": quest_id, "DATA": data})
     _quest_fire_overlays(agent_id, data, "complete_overlay", "on_complete")
     name = quest_get_display_name(agent_id, quest_id) or quest_id
-    comms_broadcast(_quest_audience(agent_id), "Mission complete: " + str(name), "#0f0")
+    if not _quest_author_announces(data, "complete_overlay", "on_complete"):
+        comms_broadcast(_quest_audience(agent_id),
+                        f"{_quest_noun(data)} complete: {name}", "#0f0")
     # A game-ending mission quest wins the game; then bubble up to a parent mission.
     _quest_maybe_end_game(agent_id, quest_id, data, win=True)
     if data.get("parent"):
@@ -472,7 +511,9 @@ def quest_mark_failed(agent_id, quest_id):
     quest_grant_penalty(agent_id, data.get("penalty"))
     _quest_fire_overlays(agent_id, data, "fail_overlay", "on_fail")
     name = quest_get_display_name(agent_id, quest_id) or quest_id
-    comms_broadcast(_quest_audience(agent_id), "Mission failed: " + str(name), "#f33")
+    if not _quest_author_announces(data, "fail_overlay", "on_fail"):
+        comms_broadcast(_quest_audience(agent_id),
+                        f"{_quest_noun(data)} failed: {name}", "#f33")
     _quest_maybe_end_game(agent_id, quest_id, data, win=False)
     # The FAILURE twin of quest_succeeded. There was no announcement for failure at
     # all, so anything reacting to a lost objective had nothing to listen to.
@@ -979,8 +1020,18 @@ def quest_tab_accept(item):
 
 
 def quest_tab_abandon(item):
-    """Abandon an active quest (-> FAILED). No-op on a section header."""
+    """Abandon an active quest. No-op on a section header.
+
+    Routes through `quest_mark_failed` rather than writing the state directly. Setting
+    `state = FAILED` by hand looked equivalent and was not: it skipped the `Penalty:`,
+    the `on_fail` overlay, the announcement, the `quest_failed_done` signal AND
+    `_quest_maybe_end_game` - so abandoning was strictly cheaper than letting a quest
+    fail on its own (Mercy Run costs 100 credits on the clock, nothing on the button),
+    and an `end_lose` quest could be neutralised by abandoning it.
+
+    A deliberate drop and a timed-out drop now mean the same thing.
+    """
     if item is None or gui_list_box_is_header(item):
         return
     if item.get("state") == int(QuestState.ACTIVE):
-        quest_set_key(item.get("agent_id"), item.get("key"), "state", QuestState.FAILED)
+        quest_mark_failed(item.get("agent_id"), item.get("key"))
