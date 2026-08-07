@@ -12,7 +12,15 @@ class GuiControl(Column):
         self._value=self.content.get_value()
 
     def _present(self, event):
+        # Re-hand the bounds INSIDE the present pass. set_bounds runs during
+        # calc, where `bounds` deliberately does not apply the parent's clipping
+        # verdict -- so a control scrolled out of its region would otherwise draw
+        # at the real position it was last laid out at. Here `bounds` carries
+        # both the script's hide and the clipping, which is what the content
+        # needs to be told.
+        self.content.bounds = self.bounds
         self.content.present(event)
+
     def on_message(self, event):
         self.content.on_message(event)
         v = self.content.get_value()
@@ -23,16 +31,18 @@ class GuiControl(Column):
     def invalidate_regions(self):
         self.content.invalidate_regions()
 
-    @property
-    def is_hidden(self):
-        return self.content.is_hidden
-
-    @property
-    def is_hidden_by_script(self):
-        # Mirrors the is_hidden delegation above: a control's visibility is its
-        # content's, so the layout-time question has to delegate too.
-        return self.content.is_hidden_by_script
-
+    # NOTE: is_hidden / is_hidden_by_script are deliberately NOT overridden.
+    #
+    # They used to delegate to self.content, which made gui_hide(control) a lie:
+    # the wrapper's _show went False while is_hidden kept answering False, because
+    # the content is not a layout item and nothing ever hides it. measure() and
+    # has_square ask exactly that question, so a hidden control went on
+    # contributing its measured size to the row.
+    #
+    # The wrapper IS the column in the layout tree. Its own flags are the truth,
+    # and Column's implementations are correct for it. The content learns about
+    # visibility the only way it can -- through the bounds it is handed, in
+    # set_bounds and again in _present.
 
     @property
     def region_tag(self, v):

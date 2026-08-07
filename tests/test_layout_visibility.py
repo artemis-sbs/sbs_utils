@@ -25,6 +25,7 @@ import sbs_utils.procedural.gui  # noqa: F401
 from sbs_utils.mast.parsers import StyleDefinition
 from sbs_utils.pages.layout.bounds import Bounds
 from sbs_utils.pages.layout.column import Column
+from sbs_utils.pages.layout.gui_control import GuiControl
 from sbs_utils.pages.layout.layout import Layout, RegionType
 from sbs_utils.pages.layout.row import Row
 from sbs_utils.procedural.gui.update import gui_hide, gui_show
@@ -674,6 +675,106 @@ class TestRestoringDoesNotResize(_Base):
         cols[1].show(True)
         sec.calc(0)
         self.assertEqual([33.33, 33.33, 33.33], self._widths(cols))
+
+
+class TestGuiControlHasOneOwnerOfVisibility(_Base):
+    """A wrapped control is hidden by the WRAPPER, and the content is told.
+
+    gui_content() puts a plain Python widget (a ship picker, a listbox) into the
+    layout inside a GuiControl. The wrapper is the column the layout sees; the
+    content is not a layout item at all and nothing ever hides it. So delegating
+    is_hidden to the content made gui_hide() a lie -- _show went False while
+    is_hidden kept answering False, and measure()/has_square, which ask exactly
+    that, went on counting a hidden control's size.
+
+    The content learns about visibility the only way it can: through the bounds
+    it is handed. That has to happen inside the present pass as well as in
+    set_bounds, because set_bounds runs during calc, where the parent's clipping
+    verdict is deliberately not applied.
+    """
+
+    class Content(Column):
+        """Stands in for a ShipPicker: a widget with bounds of its own."""
+        def get_value(self):
+            return None
+
+        def _present(self, event):
+            self.drawn_at = Bounds(self.bounds)
+
+    def _control(self):
+        content = self.Content()
+        control = GuiControl("t", content)
+        control.set_bounds(Bounds(10, 20, 30, 40))
+        return control, content
+
+    def _tuple(self, b):
+        return (b.left, b.top, b.right, b.bottom)
+
+    def _drawn(self, content):
+        return self._tuple(content.drawn_at)
+
+    def test_hiding_the_wrapper_reads_as_hidden(self):
+        control, _content = self._control()
+        gui_hide(control)
+        self.assertTrue(control.is_hidden,
+                        "is_hidden delegated to content, which nothing hides")
+        self.assertTrue(control.is_hidden_by_script)
+
+    def test_a_visible_control_reads_as_visible(self):
+        control, _content = self._control()
+        self.assertFalse(control.is_hidden)
+        self.assertFalse(control.is_hidden_by_script)
+
+    def test_a_hidden_control_is_skipped_by_the_layout_pass(self):
+        """measure() and has_square both ask is_hidden_by_script."""
+        control, _content = self._control()
+        gui_hide(control)
+        row = Row()
+        row.add(control)
+        sec = Layout("t", [row], 0, 0, 100, 100)
+        sec.calc(0)
+        self.assertTrue(control.is_hidden_by_script)
+
+    def test_a_hidden_control_draws_off_screen(self):
+        control, content = self._control()
+        gui_hide(control)
+        control.set_bounds(Bounds(10, 20, 30, 40))     # a later calc re-places it
+        control.present(FakeEvent())
+        self.assertLess(content.drawn_at.right, -900)
+
+    def test_a_CLIPPED_control_draws_off_screen(self):
+        """The half that set_bounds alone could never carry.
+
+        Clipping is applied only during the present pass, so a control scrolled
+        out of its region was still handed its real laid-out bounds and drew
+        there.
+        """
+        control, content = self._control()
+        control._is_shown = False
+        control.present(FakeEvent())
+        self.assertLess(content.drawn_at.right, -900,
+                        "a clipped control drew at its real position")
+
+    def test_a_visible_control_draws_where_it_was_laid_out(self):
+        control, content = self._control()
+        control.present(FakeEvent())
+        self.assertEqual((10, 20, 30, 40), self._drawn(content))
+
+    def test_the_layout_pass_still_sees_real_geometry_when_clipped(self):
+        """Clipping must not poison the bounds calc reads back."""
+        control, _content = self._control()
+        control._is_shown = False
+        self.assertEqual((10, 20, 30, 40), self._tuple(control.bounds))
+
+    def test_showing_it_again_puts_the_content_back(self):
+        control, content = self._control()
+        gui_hide(control)
+        control.set_bounds(Bounds(10, 20, 30, 40))
+        control.present(FakeEvent())
+        gui_show(control)
+        control.set_bounds(Bounds(10, 20, 30, 40))
+        control.present(FakeEvent())
+        self.assertEqual((10, 20, 30, 40), self._drawn(content))
 
 
 class TestLayoutTimeQuestionIsSeparate(_Base):
