@@ -294,7 +294,11 @@ DIALOGUE = {
     # to. Both are per-message in 2.8 and per-SCENE here, which is exactly why a run
     # whose tags disagree about either is never lifted into a scene.
     "title": text(hint="the comms title bar - ALERT / FRIEND / STATION"),
-    "side": text(hint="the side this is addressed to"),
+    # An INTEGER, not text: 2.8's sideValue is a faction index (`a2x.sides.side_key`
+    # does `int(...)` on it). Declaring it as text made the fence hand back "2" where
+    # the direct call passed 2 - harmless downstream, but it is a type change and the
+    # conversion is supposed to be exact.
+    "side": integer(hint="the 2.8 sideValue this is addressed to"),
 }
 
 LIFEFORM = {
