@@ -268,6 +268,13 @@ def _console_started_map() -> bool:
         return False
 
 
+# Ticks to let the story's top-level `main` run before the headless auto-start launches
+# a map. See the comment in _try_auto_start_map: 25 was measured as sufficient on
+# LegendaryMissions (the heaviest story here); the cost is a fraction of a second of
+# startup in dev runs only.
+_AUTO_START_SETTLE = 25
+
+
 def _try_auto_start_map(map_arg, sbs) -> bool:
     """Try to schedule the target map. Returns True once done, False if maps not ready yet.
 
@@ -287,6 +294,29 @@ def _try_auto_start_map(map_arg, sbs) -> bool:
     real_maps = [m for m in mission_list if hasattr(m, "path")]
     if not real_maps:
         return False  # story still initialising — try again next tick
+
+    # Labels are not enough. @map labels register at COMPILE time, so real_maps goes
+    # non-empty while the story's top-level `main` has not RUN - and `default shared`
+    # assignments live in main. Launching in that window emits game_started against a
+    # story with no shared state, so any route whose `if` reads one raises: autoplay's
+    # `//signal/game_started if SETTINGS.get("AUTO_PLAY", ...)` died with
+    # `name 'SETTINGS' is not defined`.
+    #
+    # The engine never hits this - there a human starts the map from the server console,
+    # long after main - so this is purely the headless auto-start racing the story, and
+    # it bites hardest on a RELOAD where the recompile is immediate.
+    #
+    # A settle rather than a "has main finished?" probe on purpose: main is spread across
+    # every addon's top level, a mission may deliberately keep a top-level loop running,
+    # and there is no single signal that says "done". Ticks, not wall clock, because the
+    # sim is paused on the start screen.
+    global _AUTO_START_SETTLE_TICKS
+    try:
+        _AUTO_START_SETTLE_TICKS += 1
+    except NameError:
+        _AUTO_START_SETTLE_TICKS = 1
+    if _AUTO_START_SETTLE_TICKS < _AUTO_START_SETTLE:
+        return False
 
     if isinstance(map_arg, int):
         idx = max(0, min(map_arg, len(real_maps) - 1))
@@ -1550,6 +1580,11 @@ def _run(
                     # import dedup keeps them; a `default` that precedes the import is
                     # allowed against a global, see assign.py is_default.)
                     reset_mission_state()
+                    # Re-arm the auto-start settle for the new run. It is a module
+                    # global, so without this the next run inherits run 1's spent
+                    # budget and launches into the same race the settle exists to
+                    # avoid - and the reload is exactly when the race is worst.
+                    globals()['_AUTO_START_SETTLE_TICKS'] = 0
                     # Fresh sim — in GUI mode create_new_sim also broadcasts
                     # world_reset so browsers wipe the old mission's 2D/3D views.
                     sbs.create_new_sim()
