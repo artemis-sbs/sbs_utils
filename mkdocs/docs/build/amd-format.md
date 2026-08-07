@@ -219,6 +219,62 @@ A callout, for library entries and briefing documents:
 `NOTE`, `TIP`, `WARNING` and `DANGER` are built in; an unknown kind reads as a plain
 quote and warns, so a document from a newer mission is still readable.
 
+### `![[key]]` — write it once, use it everywhere
+
+On its own line, an embed pulls in another record's body:
+
+```amd
+# [Docking Procedure](dock_help)
+Hold at 2000 and hail. Clearance is verbal.
+
+# [Starbase Aurora](aurora)
+Approach from the south.
+![[dock_help]]
+Then request a berth.
+```
+
+The shared paragraph lives in one place and every document that needs it says so.
+A record that would include itself, directly or in a ring, is left as
+`[circular include: key]` rather than hanging the mission; a target that does not
+exist reads `[missing: key]`.
+
+It must be a whole line — a transclusion is a block, and allowing it mid-sentence
+would splice paragraphs into the middle of one.
+
+### `Aka:` — other names a record answers to
+
+```amd
+# [The Florbin Affair](florbin)
+---
+Aka: The Florbin Job, florbin_case
+---
+```
+
+Now `[[The Florbin Job]]`, `Then: reveal florbin_case` and anything else pointing at
+those names resolves here. Use it when you rename something and would rather not
+chase every reference, or when a generated key needs a human name.
+
+A real key always wins — an alias can never shadow a record that genuinely has that
+key. (Not to be confused with `Also:`, which is [traits](#what-it-also-does).)
+
+### The title page
+
+Fountain's title page is the fence **before the first heading**, and the words are
+the ones a screenwriter already types:
+
+```amd
+---
+Title: The Florbin Affair
+Author: D. Reichard
+Draft: 3
+---
+
+# [Jobs](jobs)
+```
+
+This is where document-wide settings live; a mission reads them with
+`amd_root_data`.
+
 ### `FADE IN:` — cutscene transitions
 
 In a cutscene shot, a screenplay transition says how the shot arrives, and stays out of

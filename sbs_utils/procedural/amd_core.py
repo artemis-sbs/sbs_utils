@@ -111,6 +111,16 @@ class AmdDocument:
         # repeats, which is exactly why path resolution no longer consults it.
         self.parent_of = {n.key: (n.parent.key if n.parent and n.parent.key != "__root__" else None)
                           for n in nodes}
+        # `Aka:` - other names a record answers to. Indexed beside the real keys so
+        # a reference written before a rename still finds its target, and an
+        # a2x-generated key can be given a human name without breaking anything that
+        # already points at it. A real key ALWAYS wins: an alias is a fallback, never
+        # a way to shadow another record.
+        self.aliases = {}
+        for n in nodes:
+            for alias in _node_aliases(n):
+                if alias and alias not in self.keys:
+                    self.aliases.setdefault(alias, []).append(n)
         self.landmark_cells = {r.value for r in refs if r.kind == "at"}
         self.errors = []      # (line, message) fence parse problems
 
@@ -164,6 +174,9 @@ class AmdDocument:
         key = segs[0]
         candidates = self._by_key_all.get(key, ())
         if not candidates:
+            # Only now consider `Aka:` names, so a real key can never be shadowed.
+            candidates = self.aliases.get(amd_norm(key), ())
+        if not candidates:
             return None
         if len(candidates) == 1:
             return candidates[0]
@@ -207,6 +220,16 @@ def path_of(node):
         parts.append(n.key)
         n = n.parent
     return "/".join(reversed(parts))
+
+
+def _node_aliases(node):
+    """The `Aka:` names a node answers to, normalized. Tolerant of the shape the
+    fence reader produced - a csv field may arrive as a list or as one string."""
+    raw = (node.data or {}).get("aka")
+    if not raw:
+        return ()
+    parts = raw if isinstance(raw, (list, tuple)) else str(raw).split(",")
+    return tuple(amd_norm(p) for p in parts if str(p).strip())
 
 
 def _is_within(node, scope):

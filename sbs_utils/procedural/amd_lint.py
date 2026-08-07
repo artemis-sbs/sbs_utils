@@ -268,7 +268,16 @@ def _resolves(doc, value, known_keys):
         # every nested reference reads as dangling.
         return (value in doc.keys or doc.path_resolves(value)
                 or value.split("/")[-1] in known_keys)
-    return value in doc.keys or value in known_keys
+    # `Aka:` names count as resolving - that is the entire point of declaring one.
+    return (value in doc.keys or value in known_keys
+            or _aka_hit(doc, value))
+
+
+def _aka_hit(doc, value):
+    """True when `value` is an `Aka:` name some record in this doc answers to."""
+    from sbs_utils.procedural.amd import amd_norm
+    aliases = getattr(doc, "aliases", None)
+    return bool(aliases) and amd_norm(value) in aliases
 
 
 def amd_lint_fence(doc):

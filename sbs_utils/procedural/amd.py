@@ -56,8 +56,21 @@ RE_SYNOPSIS = re.compile(r"^[ \t]*=(?=[ \t])[ \t]*(?P<text>.*?)[ \t\r]*$")
 
 # `[[key]]` / `[[key|words]]` - an inline reference inside prose. Non-greedy and
 # newline-free so an unclosed `[[` cannot swallow the rest of the document.
-RE_WIKILINK = re.compile(r"\[\[[ \t]*(?P<target>[^\]|\r\n]+?)[ \t]*"
+# The leading `!` (Obsidian's embed) is NOT consumed here: `RE_TRANSCLUDE` claims
+# those first, and the negative lookbehind keeps this from also matching them.
+RE_WIKILINK = re.compile(r"(?<!!)\[\[[ \t]*(?P<target>[^\]|\r\n]+?)[ \t]*"
                          r"(?:\|[ \t]*(?P<alias>[^\]\r\n]*?)[ \t]*)?\]\]")
+
+# `![[key]]` on its own line - pull that record's body in here. A whole line by
+# itself, deliberately: a transclusion is a BLOCK, and allowing it mid-sentence
+# would mean splicing paragraphs into the middle of one.
+RE_TRANSCLUDE = re.compile(r"^[ \t]*!\[\[[ \t]*(?P<target>[^\]|\r\n]+?)[ \t]*\]\][ \t\r]*$")
+
+
+def amd_body_transclude(line):
+    """The record a `![[key]]` line pulls in, or None."""
+    m = RE_TRANSCLUDE.match(line or "")
+    return m.group("target").strip() if m is not None else None
 
 # A line-leading `//` comment. Shared so both readers agree on what a comment is.
 RE_COMMENT = re.compile(r"^[ \t]*//")

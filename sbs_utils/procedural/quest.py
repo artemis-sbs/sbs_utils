@@ -852,8 +852,70 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
             desc += line
             section["description"] = desc
     # fs.save_json_data(file_path+".json", toc)
+    _amd_expand_transclusions(toc)
     _amd_render_tree_links(toc)
     return toc
+
+
+_TRANSCLUDE_DEPTH = 8
+
+
+def _amd_expand_transclusions(toc):
+    """Splice `![[key]]` lines with the named record's body.
+
+    A shared paragraph - how docking works, what a reward means - written once and
+    pulled into every doc that needs it. Runs BEFORE link rendering so a transcluded
+    body's own `[[links]]` resolve exactly like the host's.
+
+    A cycle is a real risk (A pulls B pulls A), so expansion is depth-bounded AND
+    tracks the chain: a record that would include itself is left as literal text
+    naming the problem, rather than hanging the mission load."""
+    from sbs_utils.procedural.amd import amd_body_transclude, amd_norm
+
+    bodies = {}
+
+    def collect(node, trail):
+        key = node.get("key")
+        path = trail
+        if key and key != "__root__":
+            path = trail + [key]
+            bodies.setdefault(key, node)
+            bodies.setdefault("/".join(path), node)
+        for child in node.get("children", []):
+            collect(child, path)
+
+    collect(toc, [])
+    if not bodies:
+        return
+
+    def expand(text, chain, depth):
+        out = []
+        for line in (text or "").splitlines():
+            target = amd_body_transclude(line)
+            if target is None:
+                out.append(line)
+                continue
+            node = bodies.get(target) or bodies.get(amd_norm(target))
+            if node is None:
+                out.append(f"[missing: {target}]")
+                continue
+            key = node.get("key")
+            if key in chain or depth >= _TRANSCLUDE_DEPTH:
+                out.append(f"[circular include: {target}]")
+                continue
+            out.append(expand(node.get("description") or "",
+                              chain | {key}, depth + 1).strip())
+        return "\n".join(out)
+
+    def apply(node):
+        desc = node.get("description")
+        if desc and "![[" in desc:
+            own = node.get("key")
+            node["description"] = expand(desc, {own} if own else set(), 0)
+        for child in node.get("children", []):
+            apply(child)
+
+    apply(toc)
 
 
 def _amd_render_tree_links(toc):
@@ -865,7 +927,7 @@ def _amd_render_tree_links(toc):
     forward and backward links behave identically, and every consumer of
     ``description`` - amd_records, amd_text_map, science, chatter, dialogue - gets
     rendered text without knowing this feature exists."""
-    from sbs_utils.procedural.amd import amd_render_wikilinks
+    from sbs_utils.procedural.amd import amd_norm, amd_render_wikilinks
 
     index = {}
 
@@ -874,8 +936,19 @@ def _amd_render_tree_links(toc):
         path = trail
         if key and key != "__root__":
             path = trail + [key]
-            index.setdefault(key, node.get("display_text") or key)
-            index.setdefault("/".join(path), node.get("display_text") or key)
+            shown = node.get("display_text") or key
+            index.setdefault(key, shown)
+            index.setdefault("/".join(path), shown)
+            # `Aka:` names resolve too, so `[[The Florbin Job]]` reads as the record
+            # it points at. `setdefault` is what keeps a real key winning.
+            raw = (node.get("data") or {}).get("aka")
+            if raw:
+                parts = raw if isinstance(raw, (list, tuple)) else str(raw).split(",")
+                for part in parts:
+                    name = str(part).strip()
+                    if name:
+                        index.setdefault(name, shown)
+                        index.setdefault(amd_norm(name), shown)
         for child in node.get("children", []):
             collect(child, path)
 

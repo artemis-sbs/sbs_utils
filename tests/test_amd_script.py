@@ -495,6 +495,93 @@ class TestCallouts(unittest.TestCase):
                     self.assertTrue(all(ord(c) < 128 for c in value), value)
 
 
+class TestAliases(unittest.TestCase):
+    """`Aka:` - other names a record answers to (Obsidian note aliases)."""
+
+    SRC = ("# [The Florbin Affair](florbin)\n---\nAka: The Florbin Job, florbin_case\n---\n"
+           "Body.\n\n# [Brief](brief)\nSee [[The Florbin Job]] and [[florbin_case]].\n")
+
+    def test_aliases_resolve_like_keys(self):
+        doc = parse(self.SRC)
+        self.assertEqual(doc.resolve_target("florbin_case").key, "florbin")
+        self.assertEqual(doc.resolve_target("The Florbin Job").key, "florbin")
+
+    def test_an_aliased_link_is_not_dangling(self):
+        self.assertEqual([f.code for f in amd_lint_references(parse(self.SRC))], [])
+
+    def test_renders_the_target_display_name(self):
+        desc = _rt(self.SRC)["brief"].get("description")
+        self.assertIn("See The Florbin Affair and The Florbin Affair.", desc)
+
+    def test_a_real_key_always_wins(self):
+        """An alias must never shadow a record that actually has that key."""
+        src = ("# [Decoy](real)\n---\nAka: taken\n---\nx\n"
+               "# [Genuine](taken)\ny\n")
+        self.assertEqual(parse(src).resolve_target("taken").key, "taken")
+
+    def test_aka_is_not_also(self):
+        """`Also:` is traits, `Aka:` is names. A syllable apart, and not the same."""
+        doc = parse("# [X](x)\n---\nAlso: economy\n---\nbody\n")
+        self.assertEqual(doc.aliases, {})
+
+
+class TestTransclusion(unittest.TestCase):
+    """`![[key]]` on its own line pulls that record's body in."""
+
+    def test_splices_the_body(self):
+        src = ("# [Docking](dock_help)\nHold at 2000 and hail.\n\n"
+               "# [Station A](sta)\nApproach from the south.\n![[dock_help]]\nThen dock.\n")
+        desc = _rt(src)["sta"].get("description")
+        self.assertIn("Approach from the south.", desc)
+        self.assertIn("Hold at 2000 and hail.", desc)
+        self.assertIn("Then dock.", desc)
+        self.assertNotIn("![[", desc)
+
+    def test_a_cycle_is_reported_not_hung(self):
+        src = "# [A](a)\ntop\n![[b]]\n# [B](b)\nmiddle\n![[a]]\n"
+        self.assertIn("[circular include: a]", _rt(src)["a"].get("description"))
+
+    def test_self_include_is_a_cycle(self):
+        self.assertIn("[circular include: a]",
+                      _rt("# [A](a)\nx\n![[a]]\n")["a"].get("description"))
+
+    def test_missing_target_says_so(self):
+        self.assertIn("[missing: nope]", _rt("# [A](a)\n![[nope]]\n")["a"].get("description"))
+
+    def test_inline_links_and_embeds_coexist(self):
+        """`[[x]]` must not swallow the `[[x]]` inside `![[x]]`, and vice versa."""
+        src = "# [T](t)\nbody\n# [A](a)\nsee [[t]] and\n![[t]]\n"
+        desc = _rt(src)["a"].get("description")
+        self.assertIn("see T and", desc)      # the link rendered as a display name
+        self.assertIn("body", desc)           # the embed spliced the body
+
+    def test_embed_is_not_counted_as_a_link_ref(self):
+        doc = parse("# [T](t)\nx\n# [A](a)\n![[t]]\n")
+        self.assertEqual([r for r in doc.refs if r.kind == "link"], [])
+
+    def test_mid_sentence_embed_is_prose(self):
+        """A transclusion is a BLOCK; inline would splice paragraphs into a sentence."""
+        src = "# [T](t)\nbody\n# [A](a)\ntext ![[t]] more\n"
+        self.assertIn("![[t]]", _rt(src)["a"].get("description"))
+
+
+class TestTitlePage(unittest.TestCase):
+    """Fountain's title page IS the document fence - it already parsed; this pins it."""
+
+    SRC = ("---\nTitle: The Florbin Affair\nAuthor: D. Reichard\nDraft: 3\n---\n\n"
+           "# [Jobs](jobs)\n## [A Job](j1)\nbody\n")
+
+    def test_reaches_root_data(self):
+        from sbs_utils.procedural.amd_doc import amd_root_data
+        data = amd_root_data(document_get_amd_file(None, "Doc", content=self.SRC))
+        self.assertEqual(data.get("title"), "The Florbin Affair")
+        self.assertEqual(data.get("author"), "D. Reichard")
+
+    def test_does_not_warn(self):
+        from sbs_utils.procedural.amd_lint import amd_lint_unknown_fields
+        self.assertEqual(amd_lint_unknown_fields(parse(self.SRC)), [])
+
+
 class TestProseIsProse(unittest.TestCase):
     """Law 1: an unclaimed body line means exactly what it always meant."""
 

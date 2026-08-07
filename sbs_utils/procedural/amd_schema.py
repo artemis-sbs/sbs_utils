@@ -522,6 +522,11 @@ def amd_traits_of(data):
 GLOBAL = {
     # What this record ALSO does, beyond what it is (see TRAITS).
     "also": csv(hint="economy"),
+    # What else this record ANSWERS TO. Obsidian's note aliases: other names that
+    # resolve here, so a reference written before a rename - or an a2x-generated key
+    # nobody wants to keep - still finds its target. Distinct from `Also:`, which is
+    # traits; the two are a syllable apart on purpose and must not be conflated.
+    "aka": csv(hint="The Florbin Job, florbin_case"),
     "display": text(hint="the name shown in game, when it differs from the heading"),
     "weight": integer(hint="relative chance when one of a set is picked"),
     "color": color(),
