@@ -1416,6 +1416,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -2203,6 +2207,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../build/fleets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Fleets & raiding
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../build/addons/" class="md-nav__link">
         
   
@@ -2232,6 +2259,29 @@
   
   <span class="md-ellipsis">
     The races add-on (interiors & fleets)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/making-a-mod/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Making a mod (ships, races, art)
     
   </span>
   
@@ -7965,6 +8015,13 @@ if q is not None:
     <div class="doc doc-contents ">
 
         <p>Return the display name of a quest.</p>
+<p>Reads <code>display_text</code> - the field <code>quest_add</code> actually writes. It used to read
+only <code>display_name</code>, which NOTHING in the codebase ever sets, so this returned
+<code>None</code> for every quest and each caller fell back to the raw quest id. That is why
+the text waterfall announced <code>job_ghost/hail</code> instead of "Hail the Derelict": not a
+missing display name on some quests, but a key mismatch affecting all of them.</p>
+<p><code>display_name</code> is still honored first, so anything that deliberately set it with
+<code>quest_set_key</code> keeps overriding.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -8027,7 +8084,8 @@ if q is not None:
             </td>
             <td>
               <div class="doc-md-description">
-                <p>str | None: The display name, or <code>None</code> if the quest does not exist.</p>
+                <p>str | None: The display name, or <code>None</code> if the quest does not exist or has
+no name of either kind.</p>
               </div>
             </td>
           </tr>

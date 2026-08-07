@@ -12,7 +12,7 @@
         <link rel="prev" href="../addons/">
       
       
-        <link rel="next" href="../../tutorial/">
+        <link rel="next" href="../making-a-mod/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -1418,6 +1418,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -2211,6 +2215,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../fleets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Fleets & raiding
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../addons/" class="md-nav__link">
         
   
@@ -2332,6 +2359,29 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../making-a-mod/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Making a mod (ships, races, art)
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -5963,24 +6013,17 @@ if settings_race_is_npc(&quot;MyRace&quot;):
 <p>Files are named <strong>race first</strong> (<code>myrace_cruiser.grid</code>, <code>myrace_fleets.yaml</code>) so everything
 for one race sorts together — a mastlib zip is flat, so names must be unique across the
 whole add-on.</p>
-<p>Floor plans are ASCII grid files (<code>.grid</code>); fleet ladders are YAML:</p>
-<div class="highlight"><span class="filename">myrace_fleets.yaml</span><pre><span></span><code><span class="nt">race</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">myrace</span>
-<span class="nt">fleets</span><span class="p">:</span>
-<span class="w">  </span><span class="c1"># difficulty 0</span>
-<span class="w">  </span><span class="p p-Indicator">-</span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">myrace_cruiser</span><span class="p p-Indicator">]</span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">myrace_cruiser</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">myrace_cruiser</span><span class="p p-Indicator">]</span>
-<span class="w">  </span><span class="c1"># difficulty 1</span>
-<span class="w">  </span><span class="p p-Indicator">-</span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">myrace_battleship</span><span class="p p-Indicator">]</span>
-</code></pre></div>
-<p>Eleven tiers of five variants is what the shipped races use; fewer is fine — the
-difficulty index is clamped, so asking for a tier past the end gives you the top one
-rather than an error mid-spawn.</p>
+<p>Floor plans are ASCII grid files (<code>.grid</code>). Fleet ladders are YAML, and have a page of
+their own — the file format, the difficulty encoding and per-faction sides are all in
+<strong><a href="../fleets/">Fleets &amp; raiding</a></strong>.</p>
+<p>Adding a whole race of your own, with its ships and art as well as its interiors and
+ladder, is <strong><a href="../making-a-mod/">Making a mod</a></strong>.</p>
 <p>Two add-ons supplying the same hull or the same race are reported by name in the log
 rather than silently letting the last one win.</p>
 <h2 id="related">Related</h2>
 <ul>
+<li><a href="../fleets/">Fleets &amp; raiding</a> — ladders, difficulty, spawning</li>
+<li><a href="../making-a-mod/">Making a mod</a> — a race with its own ships and art</li>
 <li><a href="../addons/">Making add-ons</a></li>
 <li><a href="../../home/settings/">Mission settings</a></li>
 <li><a href="../damage/">Damage</a> — what the interior's system nodes actually do</li>

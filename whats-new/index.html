@@ -750,6 +750,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#mods-ships-races-and-art-from-an-add-on-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      🧪 Mods — ships, races and art from an add-on (experimental)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fleets-written-down-at-last" class="md-nav__link">
+    <span class="md-ellipsis">
+      🚢 Fleets, written down at last
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#quality-of-life-presentation" class="md-nav__link">
     <span class="md-ellipsis">
       🎬 Quality-of-Life &amp; Presentation
@@ -1770,6 +1788,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -2557,6 +2579,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../build/fleets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Fleets & raiding
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../build/addons/" class="md-nav__link">
         
   
@@ -2586,6 +2631,29 @@
   
   <span class="md-ellipsis">
     The races add-on (interiors & fleets)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../build/making-a-mod/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Making a mod (ships, races, art)
     
   </span>
   
@@ -6260,6 +6328,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#mods-ships-races-and-art-from-an-add-on-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      🧪 Mods — ships, races and art from an add-on (experimental)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fleets-written-down-at-last" class="md-nav__link">
+    <span class="md-ellipsis">
+      🚢 Fleets, written down at last
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#quality-of-life-presentation" class="md-nav__link">
     <span class="md-ellipsis">
       🎬 Quality-of-Life &amp; Presentation
@@ -6868,6 +6954,57 @@ damage) for an objective result. The <strong>Director</strong> console gives you
 spectator / big-screen view for the venue floor.</p>
 </div>
 <p>Details: <a href="../legendarymissions/playing/features/">LegendaryMissions &rsaquo; Game features</a>.</p>
+<h2 id="mods-ships-races-and-art-from-an-add-on-experimental">🧪 Mods — ships, races and art from an add-on <em>(experimental)</em></h2>
+<p>An add-on can now add <strong>ships the game does not have</strong> — with their stats, interiors, fleet
+ladder and race — <strong>without editing a single file in your Cosmos install</strong>.</p>
+<p>The idea that makes it work is a split by <em>who opens the file</em>: MAST reads happily out of a
+<code>.mastlib</code>, but the <strong>engine</strong> needs real files on disk, so a mod's ship data and art travel
+in a <a href="../build/shared-media/">shared media pack</a> and everything else in the mastlib.</p>
+<div class="highlight"><span class="filename">your ships, in the media pack</span><pre><span></span><code><span class="s">&#39;#ship-list&#39;</span><span class="p p-Indicator">:</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dw_scrapper</span><span class="w">           </span><span class="c1"># YOUR key - never one the game already owns</span>
+<span class="w">  </span><span class="nt">side</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Driftwake</span>
+<span class="w">  </span><span class="nt">origin</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Driftwake</span>
+</code></pre></div>
+<div class="highlight"><span class="filename">your add-on</span><pre><span></span><code>sbs.add_extra_ship_data(&quot;dw_ships&quot;, pack_folder)     # the engine learns your hulls
+grid_merge_ascii(media_read_relative_file(&quot;dw_scrapper.grid&quot;), &quot;dw_races&quot;)
+fleet_table_load_yaml(media_read_relative_file(&quot;dw_fleets.yaml&quot;), &quot;dw_races&quot;)
+</code></pre></div>
+<p>Add your race to <code>PLAYABLE_RACES</code> / <code>NPC_RACES</code> rather than replacing them and your ships
+fight alongside the shipped ones instead of replacing them. Two mods that pick distinct key
+prefixes can be installed together.</p>
+<p><strong>What works:</strong> ship data, interiors, fleet ladders, races, sides — all verified in the
+engine. <strong>What does not, yet:</strong> hull art. The path mechanism is in place, but generating
+derived art from a bare <code>.obj</code> crashes the engine, so for now a mod points <code>artfileroot</code> at
+art the game already owns. There is also a trap worth knowing before you start: <strong>never
+commit a <code>.paxmesh</code></strong> — it bakes its texture paths, so a committed one points at its author's
+disk.</p>
+<p>Marked experimental because the engine side is still moving. Full walkthrough, including
+publishing on GitHub or as a plain zip: <strong><a href="../build/making-a-mod/">Making a mod</a></strong>.</p>
+<hr />
+<h2 id="fleets-written-down-at-last">🚢 Fleets, written down at last</h2>
+<p>Fleet ladders became per-race data in v1.4.0, but how you actually <em>spawn</em> one was folklore.
+Now documented: <strong><a href="../build/fleets/">Fleets &amp; raiding</a></strong> — <code>prefab_fleet_raider</code>, what a
+variant is, per-faction sides via <code>faction_side</code>, and the difficulty encoding, which has two
+forms nobody guessed:</p>
+<table>
+<thead>
+<tr>
+<th>You pass</th>
+<th>You get</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td>the mission's <code>DIFFICULTY</code> setting</td>
+</tr>
+<tr>
+<td><code>200</code></td>
+<td><code>DIFFICULTY + 2</code> — a <em>relative</em> offset</td>
+</tr>
+</tbody>
+</table>
+<hr />
 <h2 id="quality-of-life-presentation">🎬 Quality-of-Life &amp; Presentation</h2>
 <ul>
 <li><strong>The Director console</strong> (formerly Console View) — pair and rotate multiple

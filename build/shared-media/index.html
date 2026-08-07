@@ -12,7 +12,7 @@
         <link rel="prev" href="../library/">
       
       
-        <link rel="next" href="../addons/">
+        <link rel="next" href="../fleets/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -1418,6 +1418,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -2265,6 +2269,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#not-only-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      Not only images
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#things-worth-knowing" class="md-nav__link">
     <span class="md-ellipsis">
       Things worth knowing
@@ -2277,6 +2290,29 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fleets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Fleets & raiding
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -2318,6 +2354,29 @@
   
   <span class="md-ellipsis">
     The races add-on (interiors & fleets)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../making-a-mod/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Making a mod (ships, races, art)
     
   </span>
   
@@ -5842,6 +5901,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#not-only-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      Not only images
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#things-worth-knowing" class="md-nav__link">
     <span class="md-ellipsis">
       Things worth knowing
@@ -5952,6 +6020,11 @@ mkdocs/         export-ignore
 </code></pre></div>
 <p><code>export-ignore</code> governs <code>git archive</code> only, so a clone and CI still get everything and
 the pack still builds from the real art.</p>
+<h2 id="not-only-images">Not only images</h2>
+<p>A pack is the natural home for <strong>anything the engine opens directly</strong>, because it unpacks to
+a real folder on disk and a <code>.mastlib</code> is a zip. A mod puts its <strong>ship data</strong> there as well
+as its meshes, and points the engine at it with <code>sbs.add_extra_ship_data</code>. See
+<a href="../making-a-mod/">Making a mod</a>.</p>
 <h2 id="things-worth-knowing">Things worth knowing</h2>
 <ul>
 <li><strong><code>sub_rect</code> is in pixels.</strong> Cutting a cell out of a sheet is
