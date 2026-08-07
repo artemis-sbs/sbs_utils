@@ -8,13 +8,21 @@ import weakref
 
 class Row:
     def __init__(self, cols=None, width=0, height=0) -> None:
-        # self.height = height
-        # self.width = width
         self.columns = cols if cols else []
         left=0
         top=0
 
         self._bounds = Bounds(left, top, left + width, top + height)
+        # calc() overwrites these every layout pass, but a row that is hidden
+        # before it has ever been laid out is filtered out of calc entirely --
+        # so they have to exist from birth. tests/layout_corpus.py reads them,
+        # and is_out_of_bounds() falls back to them when .bounds is None.
+        self.left = left
+        self.top = top
+        self.right = left + width
+        self.bottom = top + height
+        self.width = width
+        self.height = height
         self._is_shown = True
         """
         :func:`_is_shown` is used internally to ensure that only gui elements that are within the bounds of their parent are displayed.
@@ -203,10 +211,15 @@ class Row:
     def present(self, event):
         self.client_id = event.client_id
         self.is_presenting = True
-        self._pre_present(event)
-        self._present(event)
-        self._post_present(event)
-        self.is_presenting = False
+        try:
+            self._pre_present(event)
+            self._present(event)
+            self._post_present(event)
+        finally:
+            # A raise here must not leave the flag set: `bounds` would then
+            # keep reporting Bounds.hidden outside of a present pass and
+            # poison every later layout calculation.
+            self.is_presenting = False
 
     def _pre_present(self, event):
         ctx = FrameContext.context

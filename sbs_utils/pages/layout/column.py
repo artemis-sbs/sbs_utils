@@ -265,10 +265,15 @@ class Column:
     def present(self, event):
         self.client_id = event.client_id
         self.is_presenting = True
-        self._pre_present(event)
-        self._present(event)
-        self._post_present(event)
-        self.is_presenting = False
+        try:
+            self._pre_present(event)
+            self._present(event)
+            self._post_present(event)
+        finally:
+            # A raise here must not leave the flag set: `bounds` would then
+            # keep reporting Bounds.hidden outside of a present pass and
+            # poison every later layout calculation.
+            self.is_presenting = False
 
     def _present(self, event):
         pass
