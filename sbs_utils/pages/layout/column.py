@@ -140,13 +140,19 @@ class Column:
 
     @property
     def bounds(self):
-        if not self.is_presenting:
-            # If we're not presenting yet, then we don't want to use Bounds.hidden at all.
-            return self._bounds
-        # If we are presenting, then we need to check if Bounds.hidden should be used instead.
-        if self._show and self._is_shown:
-            return self._bounds
-        return Bounds.hidden
+        if not self._show:
+            # Hidden by the SCRIPT: off screen at all times, layout included.
+            # A region's own rect is always sent full-screen (Layout.region_begin),
+            # so laying the CONTENT out off screen is the only thing that takes a
+            # hidden panel off the display.
+            # A COPY, never the shared sentinel -- callers assign this and then
+            # mutate it, and writing through it un-hides every hidden element.
+            return Bounds(Bounds.hidden)
+        if self.is_presenting and not self._is_shown:
+            # Clipped by the PARENT: recomputed every present pass, so it must
+            # not reach the layout pass or geometry goes stale by a frame.
+            return Bounds(Bounds.hidden)
+        return self._bounds
 
     @bounds.setter
     def bounds(self, v):
@@ -182,6 +188,19 @@ class Column:
         If either of these are False, will return True.
         """
         return not self._show or not self._is_shown
+
+    @property
+    def is_hidden_by_script(self):
+        """Hidden because the SCRIPT asked -- show() / gui_hide().
+
+        This is the question the LAYOUT pass must ask. :func:`is_hidden` also
+        folds in :func:`_is_shown`, which is an OUTPUT of the present pass, so
+        reading it during calc makes geometry depend on the previous frame:
+        a control clipped last frame is dropped from the width split and comes
+        back the wrong size, and gui_show() cannot fix it because _show never
+        changed.
+        """
+        return not self._show
         
 
     def set_row_height(self, height):

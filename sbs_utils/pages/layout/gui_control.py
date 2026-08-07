@@ -27,6 +27,12 @@ class GuiControl(Column):
     def is_hidden(self):
         return self.content.is_hidden
 
+    @property
+    def is_hidden_by_script(self):
+        # Mirrors the is_hidden delegation above: a control's visibility is its
+        # content's, so the layout-time question has to delegate too.
+        return self.content.is_hidden_by_script
+
 
     @property
     def region_tag(self, v):

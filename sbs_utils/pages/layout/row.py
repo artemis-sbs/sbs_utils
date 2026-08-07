@@ -115,6 +115,15 @@ class Row:
         If either of these are False, will return True.
         """
         return not self._is_shown or not self._show
+
+    @property
+    def is_hidden_by_script(self):
+        """Hidden because the SCRIPT asked -- show() / gui_hide().
+
+        This is the question the LAYOUT pass must ask; see
+        :func:`Column.is_hidden_by_script`.
+        """
+        return not self._show
     
 
     @property
@@ -130,13 +139,19 @@ class Row:
 
     @property
     def bounds(self):
-        if not self.is_presenting:
-            # If we're not presenting yet, then we don't want to use Bounds.hidden at all.
-            return self._bounds
-        # If we are presenting, then we need to check if Bounds.hidden should be used instead.
-        if self._show and self._is_shown:
-            return self._bounds
-        return Bounds.hidden
+        if not self._show:
+            # Hidden by the SCRIPT: off screen at all times, layout included.
+            # A region's own rect is always sent full-screen (Layout.region_begin),
+            # so laying the CONTENT out off screen is the only thing that takes a
+            # hidden panel off the display.
+            # A COPY, never the shared sentinel -- callers assign this and then
+            # mutate it, and writing through it un-hides every hidden element.
+            return Bounds(Bounds.hidden)
+        if self.is_presenting and not self._is_shown:
+            # Clipped by the PARENT: recomputed every present pass, so it must
+            # not reach the layout pass or geometry goes stale by a frame.
+            return Bounds(Bounds.hidden)
+        return self._bounds
 
     @bounds.setter
     def bounds(self, v):

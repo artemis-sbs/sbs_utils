@@ -316,13 +316,19 @@ class Layout(Clickable):
 
     @property
     def bounds(self):
-        if not self.is_presenting:
-            # If we're not presenting yet, then we don't want to use Bounds.hidden at all.
-            return self._bounds
-        # If we are presenting, then we need to check if Bounds.hidden should be used instead.
-        if self._show and self._is_shown:
-            return self._bounds
-        return Bounds.hidden
+        if not self._show:
+            # Hidden by the SCRIPT: off screen at all times, layout included.
+            # A region's own rect is always sent full-screen (region_begin), so
+            # laying the CONTENT out off screen is the only thing that takes a
+            # hidden panel off the display.
+            # A COPY, never the shared sentinel -- callers assign this and then
+            # mutate it, and writing through it un-hides every hidden element.
+            return Bounds(Bounds.hidden)
+        if self.is_presenting and not self._is_shown:
+            # Clipped by the PARENT: recomputed every present pass, so it must
+            # not reach the layout pass or geometry goes stale by a frame.
+            return Bounds(Bounds.hidden)
+        return self._bounds
 
     @bounds.setter
     def bounds(self, v):
@@ -354,6 +360,15 @@ class Layout(Clickable):
         If either of these are False, will return True.
         """
         return not self._show or not self._is_shown
+
+    @property
+    def is_hidden_by_script(self):
+        """Hidden because the SCRIPT asked -- show() / gui_hide().
+
+        This is the question the LAYOUT pass must ask; see
+        `Column.is_hidden_by_script`.
+        """
+        return not self._show
     
     @property
     def color(self):
@@ -558,7 +573,7 @@ class Layout(Clickable):
             row_width = 0.0
             row_height = 0.0
             for col in row.columns:
-                if col.is_hidden:
+                if col.is_hidden_by_script:
                     continue
                 natural = col.measure(client_id, mode, None,
                                       effective_font(col, row_font), ar)
@@ -611,7 +626,7 @@ class Layout(Clickable):
         col: Column
         columns = filter(lambda c: c._show, row.columns)
         for col in columns:
-            if col.is_hidden:
+            if col.is_hidden_by_script:
                 continue
             squares += 1 if col.square else 0
             col_font = effective_font(col, row_font)
@@ -895,7 +910,7 @@ class Layout(Clickable):
         area.shrink(row.padding)
         area.shrink(row.border)
 
-        has_square = any(c.square for c in row.columns if not c.is_hidden)
+        has_square = any(c.square for c in row.columns if not c.is_hidden_by_script)
 
         if not has_square:
             area.height = bounds_area.height     # width is height-independent

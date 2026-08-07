@@ -37,9 +37,12 @@ class Text(Column):
 
         message = merge_props(props)
         self.message = message
-        if not self.is_hidden:
+        if not self.is_hidden_by_script:
             # Visual-only unless this column is content-sized AND its measured
             # size actually moved -- see Column.mark_value_dirty.
+            # Deliberately NOT is_hidden: a control merely clipped by its parent
+            # this frame must still register the change, or it scrolls back into
+            # view showing stale text.
             self.mark_value_dirty()
 
     

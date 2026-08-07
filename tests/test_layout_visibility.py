@@ -22,9 +22,10 @@ from sbs_utils.vec import Vec3
 
 # procedural.gui must be imported before pages.layout.layout -- circular via blank
 import sbs_utils.procedural.gui  # noqa: F401
+from sbs_utils.mast.parsers import StyleDefinition
 from sbs_utils.pages.layout.bounds import Bounds
 from sbs_utils.pages.layout.column import Column
-from sbs_utils.pages.layout.layout import Layout
+from sbs_utils.pages.layout.layout import Layout, RegionType
 from sbs_utils.pages.layout.row import Row
 from sbs_utils.procedural.gui.update import gui_hide, gui_show
 
@@ -153,11 +154,17 @@ class TestShowIsIdempotent(_Base):
 
 
 class TestBoundsOnlyHideWhilePresenting(_Base):
-    """Outside a present pass, bounds are real even for a hidden item.
+    """The two flags substitute the sentinel at DIFFERENT times.
 
-    This is the change that lets a hidden element be measured and laid out
-    normally; only the present pass substitutes the off-screen sentinel so the
-    engine draws it nowhere.
+    ``_show`` (the script's hide) is off screen at ALL times, layout included.
+    A region's own rect is sent full-screen by region_begin and never consults
+    bounds, so laying the CONTENT out off screen is the only thing that takes a
+    hidden panel off the display -- gate that on a present pass and two overlapping
+    regions both draw.
+
+    ``_is_shown`` (the parent's per-frame clipping verdict) is substituted only
+    while presenting. It is an output of the present pass, so letting it reach
+    the layout pass makes geometry stale by a frame.
     """
 
     REAL = (10, 20, 30, 40)
@@ -176,13 +183,48 @@ class TestBoundsOnlyHideWhilePresenting(_Base):
             with self.subTest(kind=kind.__name__):
                 self.assertEqual(self.REAL, self._tuple(self._item(kind).bounds))
 
-    def test_hidden_and_not_presenting_still_gives_real_bounds(self):
+    def test_script_hidden_gives_the_sentinel_even_outside_present(self):
+        """The regression that stacked two console-select panels."""
         for kind in KINDS:
             with self.subTest(kind=kind.__name__):
                 item = self._item(kind)
                 item.show(False)
+                self.assertEqual((-1011, -1011, -999, -999), self._tuple(item.bounds),
+                                 "a script-hidden item must lay out off screen, "
+                                 "or a region draws on top of its replacement")
+
+    def test_script_hidden_keeps_its_real_geometry(self):
+        """Off screen is a substitution, not a demolition -- _bounds survives."""
+        for kind in KINDS:
+            with self.subTest(kind=kind.__name__):
+                item = self._item(kind)
+                item.show(False)
+                self.assertEqual(self.REAL, self._tuple(item._bounds))
+                item.show(True)
                 self.assertEqual(self.REAL, self._tuple(item.bounds),
-                                 "layout math outside present must see real geometry")
+                                 "showing it again must restore the real bounds")
+
+    def test_clipped_and_not_presenting_gives_real_bounds(self):
+        """The parent's verdict must NOT reach the layout pass."""
+        for kind in KINDS:
+            with self.subTest(kind=kind.__name__):
+                item = self._item(kind)
+                item._is_shown = False
+                self.assertEqual(self.REAL, self._tuple(item.bounds),
+                                 "layout math must see real geometry, or a control "
+                                 "clipped last frame comes back the wrong size")
+
+    def test_the_sentinel_is_never_handed_out_directly(self):
+        """Callers assign and then mutate what bounds returns."""
+        for kind in KINDS:
+            with self.subTest(kind=kind.__name__):
+                item = self._item(kind)
+                item.show(False)
+                got = item.bounds
+                self.assertIsNot(got, Bounds.hidden)
+                got.left = 12345
+                self.assertEqual(-1011, Bounds.hidden.left,
+                                 "mutating a returned bounds rewrote the sentinel")
 
     def test_visible_and_presenting_gives_real_bounds(self):
         for kind in KINDS:
@@ -246,12 +288,17 @@ class TestPresentingFlagIsAlwaysCleared(_Base):
         self.assertFalse(sec.is_presenting)
 
     def test_bounds_are_trustworthy_after_the_raise(self):
+        """A clipped item must report real geometry again once present is over.
+
+        If is_presenting stayed set, this would keep reading as off screen and
+        every later layout pass would compute against the sentinel.
+        """
         class Boom(Column):
             def _present(self, event):
                 raise RuntimeError("boom")
         col = Boom()
         col.set_bounds(Bounds(10, 20, 30, 40))
-        col.show(False)
+        col._is_shown = False                  # clipped, not script-hidden
         with self.assertRaises(RuntimeError):
             col.present(FakeEvent())
         b = col.bounds
@@ -469,6 +516,161 @@ class TestGuiShowAndHide(_Base):
     def test_none_is_tolerated(self):
         gui_show(None)
         gui_hide(None)
+
+
+class TestHiddenRegionLaysOutOffScreen(_Base):
+    """Engine regression: two overlapping regions both drew.
+
+    LM's console-select puts ship_sec and ship_sec_not at the SAME area and
+    shows one while hiding the other. A region's own rect is sent full-screen
+    by region_begin -- it never reads self.bounds -- so the ONLY thing that
+    takes a hidden region off the display is laying its CONTENT out off screen.
+    Gate that on a present pass and the hidden panel lays out exactly where the
+    visible one is.
+    """
+
+    AREA = "area: 10,60,40,105;"
+
+    def _region(self):
+        col = Column()
+        row = Row()
+        row.add(col)
+        lay = Layout("r", [row], 0, 0, 100, 100)
+        lay.region_type = RegionType.REGION_ABSOLUTE
+        lay.bounds_style = StyleDefinition.parse(self.AREA)["area"]
+        return lay, row
+
+    def _tuple(self, b):
+        return (b.left, b.top, b.right, b.bottom)
+
+    def test_a_visible_region_lays_out_at_its_area(self):
+        lay, row = self._region()
+        lay.calc(0)
+        self.assertEqual((10, 60, 40, 105), self._tuple(row.bounds))
+
+    def test_a_hidden_region_lays_its_content_off_screen(self):
+        lay, row = self._region()
+        lay.show(False)
+        lay.calc(0)
+        self.assertLess(row.bounds.right, -900,
+                        "a hidden region's content stayed on screen, so it draws "
+                        "on top of whatever replaced it")
+
+    def test_showing_it_again_puts_it_back(self):
+        lay, row = self._region()
+        lay.show(False)
+        lay.calc(0)
+        lay.show(True)
+        lay.calc(0)
+        self.assertEqual((10, 60, 40, 105), self._tuple(row.bounds))
+
+    def test_the_swap_survives_repeated_toggling(self):
+        """console-select re-runs this branch on every console change."""
+        lay, row = self._region()
+        for _cycle in range(3):
+            lay.show(False)
+            lay.calc(0)
+            self.assertLess(row.bounds.right, -900)
+            lay.show(True)
+            lay.calc(0)
+            self.assertEqual((10, 60, 40, 105), self._tuple(row.bounds))
+
+    def test_two_stacked_regions_do_not_share_a_place(self):
+        """The actual ship_sec / ship_sec_not shape."""
+        shown, shown_row = self._region()
+        hidden, hidden_row = self._region()
+        hidden.show(False)
+        shown.calc(0)
+        hidden.calc(0)
+        self.assertEqual((10, 60, 40, 105), self._tuple(shown_row.bounds))
+        self.assertLess(hidden_row.bounds.right, -900)
+
+
+class TestRestoringDoesNotResize(_Base):
+    """Engine regression: restored buttons came back the wrong size.
+
+    _is_shown is an OUTPUT of the present pass. When the layout pass read it,
+    a control clipped last frame was dropped from the width split, its siblings
+    grew to fill the gap, and gui_show() could not put it right because _show
+    had never changed.
+    """
+
+    def _buttons(self, n=3):
+        cols = [Column() for _ in range(n)]
+        row = Row()
+        for c in cols:
+            row.add(c)
+        return Layout("t", [row], 0, 0, 100, 100), cols
+
+    def _widths(self, cols):
+        return [round(c.bounds.width, 2) for c in cols]
+
+    def test_baseline(self):
+        sec, cols = self._buttons()
+        sec.calc(0)
+        self.assertEqual([33.33, 33.33, 33.33], self._widths(cols))
+
+    def test_a_clipped_sibling_does_not_resize_the_others(self):
+        sec, cols = self._buttons()
+        sec.calc(0)
+        cols[1]._is_shown = False          # what a present pass leaves behind
+        sec.calc(0)
+        self.assertEqual([33.33, 33.33, 33.33], self._widths(cols),
+                         "the layout pass read the present pass's verdict")
+
+    def test_restoring_gives_the_original_size(self):
+        sec, cols = self._buttons()
+        sec.calc(0)
+        cols[1]._is_shown = False
+        sec.calc(0)
+        cols[1].show(True)                 # _show was already True -- a no-op
+        sec.calc(0)
+        self.assertEqual([33.33, 33.33, 33.33], self._widths(cols))
+
+    def test_a_script_hidden_sibling_DOES_give_up_its_space(self):
+        """The other half: an intentional hide must still reflow."""
+        sec, cols = self._buttons()
+        cols[1].show(False)
+        sec.calc(0)
+        widths = self._widths(cols)
+        self.assertEqual(50.0, widths[0])
+        self.assertEqual(50.0, widths[2])
+
+    def test_and_gives_it_back_on_show(self):
+        sec, cols = self._buttons()
+        cols[1].show(False)
+        sec.calc(0)
+        cols[1].show(True)
+        sec.calc(0)
+        self.assertEqual([33.33, 33.33, 33.33], self._widths(cols))
+
+
+class TestLayoutTimeQuestionIsSeparate(_Base):
+    """is_hidden_by_script asks only about the script; is_hidden asks about both."""
+
+    def test_they_agree_when_the_script_hides(self):
+        for kind in KINDS:
+            with self.subTest(kind=kind.__name__):
+                item = make(kind)
+                item.show(False)
+                self.assertTrue(item.is_hidden)
+                self.assertTrue(item.is_hidden_by_script)
+
+    def test_they_differ_when_the_parent_clips(self):
+        for kind in KINDS:
+            with self.subTest(kind=kind.__name__):
+                item = make(kind)
+                item._is_shown = False
+                self.assertTrue(item.is_hidden)
+                self.assertFalse(item.is_hidden_by_script,
+                                 "clipping is not the script's doing")
+
+    def test_both_are_false_when_visible(self):
+        for kind in KINDS:
+            with self.subTest(kind=kind.__name__):
+                item = make(kind)
+                self.assertFalse(item.is_hidden)
+                self.assertFalse(item.is_hidden_by_script)
 
 
 if __name__ == "__main__":
