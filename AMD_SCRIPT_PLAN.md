@@ -282,7 +282,7 @@ phrasing as the unclosed-fence message.
 
 ---
 
-## 5. Designed, deferred
+## 5. Designed, deferred - ALL LANDED
 
 Not in the first pass, but decided, so they do not get re-argued.
 
@@ -432,8 +432,8 @@ StormsBeacon and the a2x corpus.
 | 8 | **Callouts** - native in `gui_text_area`'s mini-markdown; `unknown-callout` lint | `amd_callout` (new), `pages/layout/text_area`, `amd_lint` | **DONE, ENGINE-VERIFIED** |
 | 9 | **LSP surface** - `@` / `[` triggers, cast + link-target + direction completion, synopsis on hover | `amd_lsp` | **DONE** |
 | 10 | **TextMate grammar** - six new patterns | `sbs_cli/editors/vscode` | **DONE** |
-| 11 | **Missing panel** - a dedicated view over `--missing` | `sbs_cli/editors/vscode` | **NOT DONE** - see below |
-| 12 | **Docs** | `mkdocs` | **NOT DONE** |
+| 11 | **Missing panel** - `amd/missing` + the webview | `amd_lsp`, `sbs_cli/editors/vscode` | **DONE** |
+| 12 | **Docs** | `mkdocs` | **DONE + deployed** |
 
 ### What the code corrected about this plan
 
@@ -441,11 +441,11 @@ StormsBeacon and the a2x corpus.
   `<near key>`" and "Create node" since the schema work; it is gated by
   `_FIXABLE_DANGLING`. Phase 3's editor half was therefore *registering two codes*,
   not building a feature. Both `dangling-link` and `dangling-speaker` now get it.
-- **Phase 11 is optional and was left undone deliberately.** With diagnostics,
-  quick-fixes and `sbs lint --missing` all landed, a separate panel duplicates what
-  the Problems pane already shows. It is a 264KB `extension.ts` and a packaging
-  cycle for a second view of existing data - worth doing only if the CLI list turns
-  out to be the wrong shape in practice.
+- **Phase 11 was NOT redundant, and I argued twice that it was.** The Problems
+  pane is per-FILE and answers "what is wrong here"; the Missing panel is
+  per-TARGET, crosses files, and answers "what do I still have to write". That is
+  the workflow the inline-link syntax exists for, and without the panel it lived
+  only on the CLI. Built as `amd/missing` + a webview.
 - **Callouts belong in the RENDERER, not in an AMD-side transform.** They shipped
   first as `amd_callout_render(text) -> (text, line_styles)`, which a caller had to
   opt into - and LM's `document_screen` renders a doc body with a bare
