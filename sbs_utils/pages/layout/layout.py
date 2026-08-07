@@ -471,7 +471,7 @@ class Layout(Clickable):
         #     #self.representing = False
         #     return
         # el
-        print(f"Recalculating Layout")
+        # print(f"Recalculating Layout")
         # self.calc(event.client_id)
         # self.present(event)
         if not self._show:
@@ -533,7 +533,8 @@ class Layout(Clickable):
             area = Bounds(0.0, 0.0, px_to_pct_x(avail_px, ar), 0.0)
             total_height = 0.0
             measured_any = False
-            for row in self.rows:
+            rows = list(filter(lambda r: r._show, self.rows))
+            for row in rows:
                 row_font = row.default_font
                 if row_font is None:
                     row_font = self.default_font
@@ -549,7 +550,8 @@ class Layout(Clickable):
         width = 0.0
         height = 0.0
         measured_any = False
-        for row in self.rows:
+        rows = list(filter(lambda r: r._show, self.rows))
+        for row in rows:
             row_font = row.default_font
             if row_font is None:
                 row_font = self.default_font
@@ -607,7 +609,8 @@ class Layout(Clickable):
         auto_floor = None     # {index: min-content width} for `auto` columns
 
         col: Column
-        for col in row.columns:
+        columns = filter(lambda c: c._show, row.columns)
+        for col in columns:
             if col.is_hidden:
                 continue
             squares += 1 if col.square else 0
@@ -927,7 +930,8 @@ class Layout(Clickable):
             h = bounds_area.height
             bounds_area = Bounds(0,0,w,h)
 
-        rows = self.rows
+        # rows = self.rows
+        rows = list(filter(lambda r: r._show, self.rows))
         #if self.orientation == 1:
         #    rows = list(reversed(rows))
         

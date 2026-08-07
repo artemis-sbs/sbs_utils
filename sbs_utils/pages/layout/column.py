@@ -154,10 +154,10 @@ class Column:
 
 
     def set_bounds(self, bounds) -> None:
-        self.bounds.left=bounds.left
-        self.bounds.top=bounds.top
-        self.bounds.right=bounds.right
-        self.bounds.bottom=bounds.bottom
+        self._bounds.left=bounds.left
+        self._bounds.top=bounds.top
+        self._bounds.right=bounds.right
+        self._bounds.bottom=bounds.bottom
 
 
     def show(self, _show):
