@@ -261,11 +261,22 @@ class Row:
                 padding.right, 
                 padding.bottom)
 
+    def _apply_clipping(self):
+        """Decide which columns are clipped out of view. See Layout._apply_clipping.
+
+        Recurses into a column that is itself a section, so the whole tree is
+        decided top-down before anything draws.
+        """
+        for col in self.columns:
+            col._is_shown = not is_out_of_bounds(col, self) and not self.is_hidden
+            apply = getattr(col, "_apply_clipping", None)
+            if apply is not None:
+                apply()
+
     def _present(self, event):
         col:Column
         for col in self.columns:
-            # If it's not in the bounds of its parent, or if the parent is not hidden, then set _is_shown to False.
-            col._is_shown = not is_out_of_bounds(col, self) and not self.is_hidden
+            # Visibility was decided in _apply_clipping, before drawing began.
             col.present(event)
         # self._post_present(event) # Called from present() instead
 

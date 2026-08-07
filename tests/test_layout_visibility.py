@@ -345,9 +345,20 @@ class TestParentDrivesChildVisibility(_Base):
 
     def test_a_child_outside_its_row_is_marked_not_shown(self):
         row, col = self._row_with((5000, 5000, 6000, 6000))
-        row.present(FakeEvent())
+        row._apply_clipping()
         self.assertFalse(col._is_shown)
         self.assertTrue(col.is_hidden)
+
+    def test_presenting_does_not_decide_visibility(self):
+        """Clipping is a layout step. Drawing must not change the verdict.
+
+        This separation is the whole point: while _present computed _is_shown,
+        the next layout pass read a value produced by drawing.
+        """
+        row, col = self._row_with((5000, 5000, 6000, 6000))
+        row.present(FakeEvent())
+        self.assertTrue(col._is_shown,
+                        "present() decided visibility; that belongs to calc")
 
     def test_an_out_of_bounds_child_is_still_presented(self):
         row, col = self._row_with((5000, 5000, 6000, 6000))
@@ -365,7 +376,7 @@ class TestParentDrivesChildVisibility(_Base):
     def test_a_hidden_row_forces_its_columns_not_shown(self):
         row, col = self._row_with((10, 2, 20, 8))
         row.show(False)
-        row.present(FakeEvent())
+        row._apply_clipping()
         self.assertFalse(col._is_shown)
 
     def test_a_hidden_row_still_presents_its_columns(self):
@@ -388,16 +399,36 @@ class TestParentDrivesChildVisibility(_Base):
         self.assertTrue(row._is_shown)
 
     def test_a_row_outside_the_layout_is_marked_not_shown(self):
-        """Driven through _present so calc() does not re-place the row."""
+        """Driven through _apply_clipping so calc() does not re-place the row."""
         row, col = self._row_with((10, 2, 20, 8), row_bounds=(5000, 5000, 6000, 6000))
         sec = Layout("t", [row], 0, 0, 100, 100)
         sec.bounds = Bounds(0, 0, 100, 100)
-        sec.is_presenting = True
-        try:
-            sec._present(FakeEvent())
-        finally:
-            sec.is_presenting = False
+        sec._apply_clipping()
         self.assertFalse(row._is_shown)
+
+    def test_clipping_recurses_into_a_sub_section(self):
+        """A section stored as a column decides its own children, top-down."""
+        inner_col = Column()
+        inner_col.bounds = Bounds(10, 2, 20, 8)
+        inner_row = Row()
+        inner_row.bounds = Bounds(0, 0, 100, 10)
+        inner_row.add(inner_col)
+        sub = Layout("sub", [inner_row], 0, 0, 100, 100)
+        sub.bounds = Bounds(0, 0, 100, 100)
+
+        outer_row = Row()
+        outer_row.bounds = Bounds(0, 0, 100, 100)
+        outer_row.add(sub)
+        sec = Layout("t", [outer_row], 0, 0, 100, 100)
+        sec.bounds = Bounds(0, 0, 100, 100)
+
+        sec.show(False)                 # hide the root
+        sec._apply_clipping()
+        self.assertFalse(outer_row._is_shown)
+        self.assertFalse(sub._is_shown)
+        self.assertFalse(inner_row._is_shown,
+                         "the verdict must reach the bottom of the tree")
+        self.assertFalse(inner_col._is_shown)
 
 
 class TestHiddenRowsAreNotLaidOut(_Base):

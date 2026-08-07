@@ -1282,8 +1282,30 @@ class Layout(Clickable):
         # setting the parent region tag
         self.parent_region_tag = t
     
+    def _apply_clipping(self):
+        """Decide which children are clipped out of view.
+
+        This is a LAYOUT-time step, not a drawing one. `_is_shown` is derived
+        purely from geometry, so it belongs to the pass that decides geometry.
+        Computing it while drawing made it an OUTPUT of the present pass that
+        the next layout pass then read back -- geometry went stale by a frame,
+        a control clipped last frame was dropped from the width split, and
+        gui_show() could not put it right because `_show` never changed.
+
+        Top-down, after the whole tree has been laid out: a child's verdict
+        depends on its parent's, so the parent must be decided first. Runs over
+        EVERY row, including script-hidden ones that calc() filtered out of the
+        layout loop -- their columns still have to be told, or they draw at
+        their own stale bounds inside a row that is not there.
+        """
+        for row in self.rows:
+            row._is_shown = not is_out_of_bounds(row, self) and not self.is_hidden
+            row._apply_clipping()
+
     def present(self, event):
         self.calc(event.client_id)
+        # Geometry is settled; decide visibility from it before anything draws.
+        self._apply_clipping()
         self.is_presenting = True
         try:
             self.region_begin(event.client_id)
@@ -1332,9 +1354,7 @@ class Layout(Clickable):
             
         row:Row
         for row in self.rows:
-            # If the row is out of bounds, or this layout is hidden, then we hide the children.
-            row._is_shown = not is_out_of_bounds(row, self) and not self.is_hidden
-
+            # Visibility was decided in _apply_clipping, before drawing began.
             # We still want to present all children, because if we don't, then we get ghost gui elements
             row.present(event)
 
