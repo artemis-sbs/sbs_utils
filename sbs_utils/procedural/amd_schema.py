@@ -289,6 +289,12 @@ DIALOGUE = {
     "speaker": ref("node", hint="who says it"),
     "when": text(hint="the condition this line plays under"),
     "file": text(hint="a sibling .amd to pull lines from"),
+    # A scene the whole run shares. `Title:` is the comms title bar (2.8 called it the
+    # message `type` - ALERT / FRIEND / STATION), `Side:` is who the hail is addressed
+    # to. Both are per-message in 2.8 and per-SCENE here, which is exactly why a run
+    # whose tags disagree about either is never lifted into a scene.
+    "title": text(hint="the comms title bar - ALERT / FRIEND / STATION"),
+    "side": text(hint="the side this is addressed to"),
 }
 
 LIFEFORM = {
