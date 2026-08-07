@@ -401,7 +401,25 @@ class ButtonPromise(AwaitBlockPromise):
         path_labels = ButtonPromise.navigation_map.get(self.path)
         if path_labels is None:
             return
-        
+
+        # Only labels THIS story compiled. navigation_map is a class-level registry that
+        # accumulates route label OBJECTS as they compile and is not emptied between
+        # compiles, so a second compile in one interpreter leaves it holding both
+        # generations (measured: 66 science labels registered against a mast that knows
+        # 33). Running one from a dead compile half-works - the jump itself is handed the
+        # label object, so it succeeds - and then the first inline `+ "x":` button inside
+        # re-enters BY NAME, which resolves against the live mast and dies with
+        # `Jump to label "__route__science__360__" command 4 not found`.
+        #
+        # Label ids are deliberately never reused (see reset_mission_state), which is what
+        # makes a stale label identifiable at all: it is simply absent from the current
+        # mast. Filtering here keeps navigation working whatever leaves the registry dirty.
+        labels = getattr(getattr(self.task.main, "mast", None), "labels", None)
+        if labels is not None:
+            path_labels = [lbl for lbl in path_labels if getattr(lbl, "name", None) in labels]
+            if not path_labels:
+                return
+
         ButtonPromise.navigating_promise = self
         #
         # Make sure to use the right task

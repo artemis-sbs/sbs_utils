@@ -108,6 +108,16 @@ def reset_mission_state():
     from .mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
     MediaLabel.clear()          # @media labels (folders APPENDS - reload would double)
     GuiTabDecoratorLabel.clear()  # //gui/tab labels
+    # Navigation routes (//comms, //science, //gui/...) register their LABEL OBJECTS
+    # here as they compile, and nothing emptied it - so a second compile in one
+    # interpreter left the map holding two generations of the same routes. Navigating
+    # then ran a label from the dead compile, and the first inline button inside it
+    # re-entered by name against the live mast: `Jump to label "__route__science__360__"
+    # command 4 not found`. build_navigation_buttons now also filters to the current
+    # mast, so this is belt and braces - but an unbounded compile-time registry is
+    # exactly what the ledger below exists to notice.
+    from .procedural.gui.gui import ButtonPromise
+    ButtonPromise.navigation_map.clear()
     # Camera + cutscene state. TickDispatcher.clear() above drops their DRIVER
     # tasks, but the dicts that say who owns which console outlive it - and a
     # stale owner makes the next mission's first move think it is being
@@ -190,6 +200,12 @@ def reset_mission_state():
     Gui.widget_list_sent.clear()
 
 
+def _button_promise():
+    """Lazy import: procedural.gui imports back into this module."""
+    from .procedural.gui.gui import ButtonPromise
+    return ButtonPromise
+
+
 # Library-side probes. Each returns the count that MUST be zero once a reset has run.
 # Agent.all keeps exactly one entry - the rebuilt SHARED agent - so it reports the
 # excess over that rather than its raw size.
@@ -201,6 +217,10 @@ register_reset_state("Agent.all", _probe_agents)
 register_reset_state("Gui.clients",       lambda: len(Gui.clients))
 register_reset_state("Gui.web_client_ids", lambda: len(Gui.web_client_ids))
 register_reset_state("Gui.widget_list_sent", lambda: len(Gui.widget_list_sent))
+# Route labels registered per compile. Unregistered until 2026-08-06, which is why it
+# grew silently across compiles instead of being reported by name.
+register_reset_state("ButtonPromise.navigation_map",
+                     lambda: sum(len(v) for v in _button_promise().navigation_map.values()))
 register_reset_state("TickDispatcher",    lambda: len(TickDispatcher._dispatch_tick))
 # Registered HERE rather than from camera.py, whose own import of this module is
 # circular - and a swallowed ImportError would have left the container invisible to
