@@ -104,8 +104,10 @@ nav:
     - Web pages: build/web-pages.md
     - The Library (in-game reading): build/library.md
     - Shared media (art that lives once): build/shared-media.md
+    - Fleets & raiding: build/fleets.md
     - Making add-ons: build/addons.md
     - The races add-on (interiors & fleets): build/race-addons.md
+    - Making a mod (ships, races, art): build/making-a-mod.md
 
   - Tutorials:
     - tutorial/index.md

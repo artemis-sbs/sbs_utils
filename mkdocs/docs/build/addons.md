@@ -98,3 +98,6 @@ Its labels, routes, and prefabs are now available globally in that mission. Add-
 are a great way to share partial missions &mdash; Gamemaster comms, custom
 consoles, prefab libraries, and so on. See
 [Sharing reusable Python](../tooling/libraries.md) for the `.sbslib` side.
+
+An add-on that also carries content the **engine** has to open — ships, interiors, art — is a
+**mod**, and needs a media pack alongside the `.mastlib`. See [Making a mod](making-a-mod.md).

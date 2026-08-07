@@ -481,6 +481,58 @@ built for bragging rights, and for running a scored event.
 
 Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/features.md).
 
+## 🧪 Mods — ships, races and art from an add-on *(experimental)*
+
+An add-on can now add **ships the game does not have** — with their stats, interiors, fleet
+ladder and race — **without editing a single file in your Cosmos install**.
+
+The idea that makes it work is a split by *who opens the file*: MAST reads happily out of a
+`.mastlib`, but the **engine** needs real files on disk, so a mod's ship data and art travel
+in a [shared media pack](build/shared-media.md) and everything else in the mastlib.
+
+```yaml title="your ships, in the media pack"
+'#ship-list':
+- key: dw_scrapper           # YOUR key - never one the game already owns
+  side: Driftwake
+  origin: Driftwake
+```
+
+```mast title="your add-on"
+sbs.add_extra_ship_data("dw_ships", pack_folder)     # the engine learns your hulls
+grid_merge_ascii(media_read_relative_file("dw_scrapper.grid"), "dw_races")
+fleet_table_load_yaml(media_read_relative_file("dw_fleets.yaml"), "dw_races")
+```
+
+Add your race to `PLAYABLE_RACES` / `NPC_RACES` rather than replacing them and your ships
+fight alongside the shipped ones instead of replacing them. Two mods that pick distinct key
+prefixes can be installed together.
+
+**What works:** ship data, interiors, fleet ladders, races, sides — all verified in the
+engine. **What does not, yet:** hull art. The path mechanism is in place, but generating
+derived art from a bare `.obj` crashes the engine, so for now a mod points `artfileroot` at
+art the game already owns. There is also a trap worth knowing before you start: **never
+commit a `.paxmesh`** — it bakes its texture paths, so a committed one points at its author's
+disk.
+
+Marked experimental because the engine side is still moving. Full walkthrough, including
+publishing on GitHub or as a plain zip: **[Making a mod](build/making-a-mod.md)**.
+
+---
+
+## 🚢 Fleets, written down at last
+
+Fleet ladders became per-race data in v1.4.0, but how you actually *spawn* one was folklore.
+Now documented: **[Fleets & raiding](build/fleets.md)** — `prefab_fleet_raider`, what a
+variant is, per-faction sides via `faction_side`, and the difficulty encoding, which has two
+forms nobody guessed:
+
+| You pass | You get |
+|---|---|
+| `0` | the mission's `DIFFICULTY` setting |
+| `200` | `DIFFICULTY + 2` — a *relative* offset |
+
+---
+
 ## 🎬 Quality-of-Life & Presentation
 
 - **The Director console** (formerly Console View) — pair and rotate multiple

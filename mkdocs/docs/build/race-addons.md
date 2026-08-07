@@ -79,29 +79,20 @@ Files are named **race first** (`myrace_cruiser.grid`, `myrace_fleets.yaml`) so 
 for one race sorts together — a mastlib zip is flat, so names must be unique across the
 whole add-on.
 
-Floor plans are ASCII grid files (`.grid`); fleet ladders are YAML:
+Floor plans are ASCII grid files (`.grid`). Fleet ladders are YAML, and have a page of
+their own — the file format, the difficulty encoding and per-faction sides are all in
+**[Fleets & raiding](fleets.md)**.
 
-```yaml title="myrace_fleets.yaml"
-race: myrace
-fleets:
-  # difficulty 0
-  -
-    - [myrace_cruiser]
-    - [myrace_cruiser, myrace_cruiser]
-  # difficulty 1
-  -
-    - [myrace_battleship]
-```
-
-Eleven tiers of five variants is what the shipped races use; fewer is fine — the
-difficulty index is clamped, so asking for a tier past the end gives you the top one
-rather than an error mid-spawn.
+Adding a whole race of your own, with its ships and art as well as its interiors and
+ladder, is **[Making a mod](making-a-mod.md)**.
 
 Two add-ons supplying the same hull or the same race are reported by name in the log
 rather than silently letting the last one win.
 
 ## Related
 
+- [Fleets & raiding](fleets.md) — ladders, difficulty, spawning
+- [Making a mod](making-a-mod.md) — a race with its own ships and art
 - [Making add-ons](addons.md)
 - [Mission settings](../home/settings.md)
 - [Damage](damage.md) — what the interior's system nodes actually do
