@@ -87,7 +87,20 @@ class Column:
         self.on_message_cb = None
         self.client_id = None
         self._parent = None
+        self._show = True
+        """
+        :func:`_show` represents the user's desire for a gui element to be displayed. This should only be set using `Column.show()`.
+        """
         self._is_shown = True
+        """
+        :func:`_is_shown` is used internally to ensure that only gui elements that are within the bounds of their parent are displayed.
+        If a gui element is outside the bounds of its parent, it will be hidden using `_is_shown = False`. *This is handled by the parent.*
+        Don't change this manually. `Column.show()` uses :func:`_show` instead.
+        """
+        self.is_presenting = False
+        """
+        Used to determine if true bounds should be used, or if hidden bounds should be used instead. Primary purpose of this is for presenting. When NOT presenting, the true bounds should be used for calculations. If presenting, we hide a gui element (if applicable) using `Bounds.hidden`.
+        """
 
     @property
     def click_tag(self):
@@ -127,9 +140,13 @@ class Column:
 
     @property
     def bounds(self):
-        if not self._is_shown:
-            return Bounds.hidden
-        return self._bounds
+        if not self.is_presenting:
+            # If we're not presenting yet, then we don't want to use Bounds.hidden at all.
+            return self._bounds
+        # If we are presenting, then we need to check if Bounds.hidden should be used instead.
+        if self._show and self._is_shown:
+            return self._bounds
+        return Bounds.hidden
 
     @bounds.setter
     def bounds(self, v):
@@ -137,24 +154,34 @@ class Column:
 
 
     def set_bounds(self, bounds) -> None:
-        self.bounds.left=bounds.left
-        self.bounds.top=bounds.top
-        self.bounds.right=bounds.right
-        self.bounds.bottom=bounds.bottom
+        self._bounds.left=bounds.left
+        self._bounds.top=bounds.top
+        self._bounds.right=bounds.right
+        self._bounds.bottom=bounds.bottom
 
 
     def show(self, _show):
-        self._is_shown = _show
-        # if not _show:
-        #     # Needs to be different than section to truly know it is hidden
-        #     self.set_bounds(Bounds(-1011,-1011, -999,-999))
-        # else:
-        #     self.set_bounds(self.restore_bounds)
+        """
+        Use to force the gui element to be hidden, or to allow it to be seen.
+        If False - the gui element will always be hidden.
+        If True - will be visible assuming that it is within the bounds of its parent.
+
+        Args:
+            _show (bool): Should the element be visible.
+        """
+        if self._show == _show:
+            return
+        self._show = _show
         self.mark_layout_dirty()
 
     @property
     def is_hidden(self):
-        return self.bounds.left < -1000
+        """
+        Use :func:`is_hidden` only to check if the layout item is currently visible to the user.
+        It checks both :func:`_show` and :func:`_is_shown`.
+        If either of these are False, will return True.
+        """
+        return not self._show or not self._is_shown
         
 
     def set_row_height(self, height):
@@ -237,9 +264,11 @@ class Column:
 
     def present(self, event):
         self.client_id = event.client_id
+        self.is_presenting = True
         self._pre_present(event)
         self._present(event)
         self._post_present(event)
+        self.is_presenting = False
 
     def _present(self, event):
         pass
@@ -296,6 +325,7 @@ class Column:
                 self.click_tag, click_props,
                 bounds.left, bounds.top, bounds.right, bounds.bottom)
             
+
     def invalidate_regions(self):
         pass
 

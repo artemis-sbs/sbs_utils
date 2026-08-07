@@ -59,8 +59,8 @@ def gui_show(layout_item):
     """    
     if layout_item is None:
         return
-    if not layout_item.is_hidden:
-        return
+    # Removed layout_item.hidden check, since that checks both `_show` and `_is_shown`.
+    # This only changes `_show`
     layout_item.show(True)
     # page = FrameContext.page
     # if page is None:
@@ -85,8 +85,8 @@ def gui_hide(layout_item):
     """    
     if layout_item is None:
         return
-    if layout_item.is_hidden:
-        return
+    # Removed layout_item.hidden check, since that checks both `_show` and `_is_shown`.
+    # This only changes `_show`
     layout_item.show(False)
     # page = FrameContext.page
     # if page is None:

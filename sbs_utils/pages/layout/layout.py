@@ -3,7 +3,7 @@ from ...helpers import FrameContext
 from ...mast.parsers import LayoutAreaParser, ContentSize, MIN_CONTENT, AUTO
 
 from enum import IntEnum
-from .bounds import Bounds
+from .bounds import Bounds, is_out_of_bounds
 from .hole import Hole
 from .measure import pct_to_px_x, px_to_pct_x, DEFAULT_FONT, backdrop_props
 # for type hints
@@ -204,8 +204,17 @@ def get_font_size(font):
 
 class RegionType(IntEnum):
     SECTION_AREA_ABSOLUTE = 0,       # Not a window layout, Old school layout
+    """
+    Not a window layout, old school layout
+    """
     REGION_ABSOLUTE = 100,   # a Sub region that use 0,0,100,100 of screen
+    """
+    A sub region that uses 0,0,100,100 of screen
+    """
     REGION_RELATIVE = 200,   # TODO: Sub Region that uses pixel size of area as aspect ration
+    """
+    TODO: Sub region that uses pixel size of area as aspect ratio.
+    """
     # CHILD_WINDOW = 2,          
     
 from .clickable import Clickable
@@ -216,7 +225,7 @@ class Layout(Clickable):
                 left=0, top=0, right=100, bottom=50, region_type=RegionType.SECTION_AREA_ABSOLUTE) -> None:
         self.rows = rows if rows else []
         self.set_bounds(Bounds(left,top,right,bottom))
-        self.restore_bounds = self.bounds
+        # self.restore_bounds = self.bounds
         self.default_height = None
         self.default_width = None
         self.default_color = None
@@ -262,6 +271,19 @@ class Layout(Clickable):
         self.region_type = region_type
         self.representing = False
         self._show = True
+        """
+        `_show` represents the user's desire for a gui element to be displayed. This should only be set using `Layout.show()`.
+        """
+        self._is_shown = True
+        """
+        `_is_shown` is used internally to ensure that only gui elements that are within the bounds of their parent are displayed.
+        If a gui element is outside the bounds of its parent, it will be hidden using `_is_shown = False`. This is handled by the parent.
+        Don't change this manually. `Layout.show()` uses `_show` instead.
+        """
+        self.is_presenting = False
+        """
+        Used to determine if true bounds should be used, or if hidden bounds should be used instead. Primary purpose of this is for presenting. When NOT presenting, the true bounds should be used for calculations. If presenting, we hide a gui element (if applicable) using `Bounds.hidden`.
+        """
         self.orientation = 0 # 0 = Top to bottom, 1 = bottom to top
 
         self.runtime_node = None
@@ -292,11 +314,23 @@ class Layout(Clickable):
             return self.tag + "$$"
         return self.region_tag
 
-    def set_bounds(self, bounds):
-        self.bounds = bounds
-        if bounds.left > -995:
-            self.restore_bounds = bounds
+    @property
+    def bounds(self):
+        if not self.is_presenting:
+            # If we're not presenting yet, then we don't want to use Bounds.hidden at all.
+            return self._bounds
+        # If we are presenting, then we need to check if Bounds.hidden should be used instead.
+        if self._show and self._is_shown:
+            return self._bounds
+        return Bounds.hidden
 
+    @bounds.setter
+    def bounds(self, v):
+        self._bounds = v
+
+
+    def set_bounds(self, bounds):
+        self._bounds = bounds
     
     
     def get_content_bounds(self, merge_self):
@@ -314,7 +348,12 @@ class Layout(Clickable):
 
     @property
     def is_hidden(self):
-        return not self._show #bounds.left == -1000
+        """
+        Use `is_hidden` only to check if the layout item is currently visible to the user.
+        It checks both `_show` and `_is_shown`.
+        If either of these are False, will return True.
+        """
+        return not self._show or not self._is_shown
     
     @property
     def color(self):
@@ -352,6 +391,12 @@ class Layout(Clickable):
         return self.default_layer
 
     def set_orientation(self, s):
+        """
+        Set the orientation of the layout element.
+        Valid values:
+            "TB" - Top to Bottom
+            "BT" - Bottom to Top
+        """
         s = s.strip().upper()
         if s == "TB":
             self.orientation = 0
@@ -382,14 +427,23 @@ class Layout(Clickable):
         self.rows = [Row()]
 
     def show(self, _show):
+        """
+        Use to force the gui element to be hidden, or to allow it to be seen.
+        If False - the gui element will always be hidden.
+        If True - will be visible assuming that it is within the bounds of its parent.
+
+        Args:
+            _show (bool): Should the element be visible.
+        """
         if _show == self._show:
             return
         self._show = _show
 
-        if not _show:
-            self.set_bounds(Bounds(-1000,-1000, -999,-999))
-        else:
-            self.set_bounds(self.restore_bounds)
+        # Instead of all this, we just need to use `self.bounds`
+        # if not _show:
+        #     self.set_bounds(Bounds(-1000,-1000, -999,-999))
+        # else:
+        #     self.set_bounds(self.restore_bounds)
         self.mark_visual_dirty()
 
     # Called when the content is clear and not presented
@@ -417,13 +471,16 @@ class Layout(Clickable):
         #     #self.representing = False
         #     return
         # el
-        if not self.is_hidden:
-            self.calc(event.client_id)
+        # print(f"Recalculating Layout")
+        # self.calc(event.client_id)
+        # self.present(event)
+        if not self._show:
+            # self.calc(event.client_id)
             self.present(event)
             #self.representing = False
             return
         else:  # is_hidden 
-            self.calc(event.client_id)
+            
             self.present(event)
             # #self.calc(event.client_id)
             # self.region_begin(event.client_id)
@@ -476,7 +533,8 @@ class Layout(Clickable):
             area = Bounds(0.0, 0.0, px_to_pct_x(avail_px, ar), 0.0)
             total_height = 0.0
             measured_any = False
-            for row in self.rows:
+            rows = list(filter(lambda r: r._show, self.rows))
+            for row in rows:
                 row_font = row.default_font
                 if row_font is None:
                     row_font = self.default_font
@@ -492,7 +550,8 @@ class Layout(Clickable):
         width = 0.0
         height = 0.0
         measured_any = False
-        for row in self.rows:
+        rows = list(filter(lambda r: r._show, self.rows))
+        for row in rows:
             row_font = row.default_font
             if row_font is None:
                 row_font = self.default_font
@@ -550,7 +609,8 @@ class Layout(Clickable):
         auto_floor = None     # {index: min-content width} for `auto` columns
 
         col: Column
-        for col in row.columns:
+        columns = filter(lambda c: c._show, row.columns)
+        for col in columns:
             if col.is_hidden:
                 continue
             squares += 1 if col.square else 0
@@ -859,7 +919,7 @@ class Layout(Clickable):
         sec_font_size = get_font_size(self.default_font)
         if self.bounds_style is None:
             bounds_area = Bounds(self.bounds)
-        elif self.bounds is not None and self.is_hidden:
+        elif self.bounds is not None and not self._show:
             bounds_area = Bounds(self.bounds)
         else:
             bounds_area = Bounds(calc_bounds(self.bounds_style, aspect_ratio, sec_font_size))
@@ -870,7 +930,8 @@ class Layout(Clickable):
             h = bounds_area.height
             bounds_area = Bounds(0,0,w,h)
 
-        rows = self.rows
+        # rows = self.rows
+        rows = list(filter(lambda r: r._show, self.rows))
         #if self.orientation == 1:
         #    rows = list(reversed(rows))
         
@@ -1076,7 +1137,7 @@ class Layout(Clickable):
                 # SET Parent
                 row.parent = self
                 
-
+                row.bounds = Bounds(row_bounds_area)
                 row_bounds_area.shrink(row.margin)
                 row_bounds_area.shrink(row.padding)
                 row_bounds_area.shrink(row.border)
@@ -1206,14 +1267,26 @@ class Layout(Clickable):
         # setting the parent region tag
         self.parent_region_tag = t
     
-
     def present(self, event):
-        # Sections are different their bounds are the whole container
-        
+        self.calc(event.client_id)
+        self.is_presenting = True
         self.region_begin(event.client_id)
+        self._pre_present(event)
+        self._present(event)
+        self._post_present(event)
+        self.region_end(event.client_id)
+        self.is_presenting = False
 
+    def _pre_present(self, event):
+        pass
+
+    def _present(self, event):
+        # Sections are different their bounds are the whole container
+
+        bounds = Bounds(self.bounds)
+        
         ctx = FrameContext.context
-        border = Bounds(self.bounds)
+        border = Bounds(bounds)
         border.shrink(self.margin)
         padding= Bounds(border)
         padding.shrink(self.border)
@@ -1239,14 +1312,11 @@ class Layout(Clickable):
             
         row:Row
         for row in self.rows:
-            if row.bounds.left > 100 or row.bounds.right < 0 or row.bounds.top>100 or row.bounds.bottom <0:
-                continue
-            if row.bounds.left > self.bounds.right or row.bounds.right < self.bounds.left or row.bounds.top>self.bounds.bottom or row.bounds.bottom < self.bounds.top:
-                continue
-            row.present(event)
+            # If the row is out of bounds, or this layout is hidden, then we hide the children.
+            row._is_shown = not is_out_of_bounds(row, self) and not self.is_hidden
 
-        self._post_present(event)
-        self.region_end(event.client_id)
+            # We still want to present all children, because if we don't, then we get ghost gui elements
+            row.present(event)
 
 
     def region_begin(self, client_id):
@@ -1352,10 +1422,15 @@ class Layout(Clickable):
             row.on_begin_presenting(client_id)
 
 
+    def print_bounds(self, bounds=None):
+        if not bounds:
+            bounds = self.bounds
+        print(f"Left: {bounds.left}    Top: {bounds.top};   ")
+        print(f"Rigth: {bounds.right}    Bottom: {bounds.bottom}")
 
 
 
-        
+
         
 
 
