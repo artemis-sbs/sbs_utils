@@ -77,3 +77,37 @@ def gui_panel_log_tick(info_panel):
     if log_mark_seen(info_panel.client_id, log_newest_seq(ship)):
         return 2      # grew - redraw
     return 1          # unchanged - stay put, draw nothing
+
+
+# Severities that pull the log to the front. `tip` deliberately does not: good news can
+# wait, and a surface that grabs the console for every completion becomes one the crew
+# learns to resent.
+RAISE_ON = ("warning", "danger")
+
+
+def log_raise(scope, tab=TAB_LOG):
+    """Bring a log tab to the front on every console that would show this entry.
+
+    The same move `gui_info_panel_send_message(notify=True)` makes for a card that must
+    be seen now - reused rather than reinvented, so an urgent log entry behaves like every
+    other interrupt on that panel.
+
+    `scope` is a ship (raise on all its consoles) or a client (just that one).
+    """
+    from ...gui import Gui
+    from ..query import to_id_list, is_client_id
+    from ..links import linked_to
+    from .tabbed_panel import gui_task_for_client
+
+    if is_client_id(scope):
+        client_ids = [scope]
+    else:
+        # Every console riding this ship - the log is the CREW's, so the interrupt is too.
+        client_ids = [c for c in to_id_list(linked_to(scope, "consoles"))]
+    for cid in client_ids:
+        task = gui_task_for_client(cid)
+        if task is None:
+            continue
+        panel = getattr(getattr(getattr(task, "main", None), "page", None), "info_panel", None)
+        if panel is not None:
+            panel.set_tab(tab)

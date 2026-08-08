@@ -81,6 +81,12 @@ def _log_add(scope, msg, color=None, category=None, severity=None):
         from .log_panel import log_add
         log_add(scope, msg, color=color, category=category or "log",
                 severity=severity or "")
+        # An urgent entry pulls the log to the front, the same way a notify card does.
+        # Routine traffic never does: a panel that grabs the console for every message
+        # is one the crew learns to ignore, which defeats the point of raising at all.
+        if severity in ("warning", "danger"):
+            from .gui.log_panel_gui import log_raise
+            log_raise(scope)
     except Exception:
         pass
 
