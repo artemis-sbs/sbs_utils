@@ -72,27 +72,32 @@ def gui_console(console, is_jump=False):
     page = FrameContext.page
     if page is None:
         return None
+    # NOTE: no console declares `text_waterfall` any more. The engine widget could not
+    # be styled from script - its background is fixed and too dark - so it is replaced
+    # by gui_log_tail(), a text area the console owns showing the same traffic. See
+    # LOG_PANEL_PLAN.md. Removed HERE rather than hidden per console: this is where it
+    # was declared, and an engine widget cannot be un-declared once it has been sent.
     widgets = ""
     match console.lower():
         case "helm":
             console =  "normal_helm"
             if is_jump:
-                widgets = "2dview^radar_zoom_ctrl^helm_movement^helm_jump^quick_jump^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+                widgets = "2dview^radar_zoom_ctrl^helm_movement^helm_jump^quick_jump^throttle^request_dock^shield_control^ship_data^main_screen_control"
             else:
-                widgets = "2dview^radar_zoom_ctrl^helm_movement^throttle^request_dock^shield_control^ship_data^text_waterfall^main_screen_control"
+                widgets = "2dview^radar_zoom_ctrl^helm_movement^throttle^request_dock^shield_control^ship_data^main_screen_control"
         case "weapons":
             console =  "normal_weap"
-            widgets = "weapon_2d_view^radar_zoom_ctrl^weapon_control^weap_beam_freq^weap_beam_speed^weap_torp_conversion^ship_data^shield_control^text_waterfall^main_screen_control"
+            widgets = "weapon_2d_view^radar_zoom_ctrl^weapon_control^weap_beam_freq^weap_beam_speed^weap_torp_conversion^ship_data^shield_control^main_screen_control"
         case "science":
             console =  "normal_sci"
-            widgets = "science_2d_view^radar_zoom_ctrl^ship_data^science_data_freq^science_data_tabs^text_waterfall^science_data^science_sorted_list"
+            widgets = "science_2d_view^radar_zoom_ctrl^ship_data^science_data_freq^science_data_tabs^science_data^science_sorted_list"
         case "engineering":
             console =  "normal_engi"
-            widgets = "ship_internal_view^eng_presets^grid_object_list^grid_face^grid_control^text_waterfall^eng_heat_controls^eng_power_controls^ship_data"
+            widgets = "ship_internal_view^eng_presets^grid_object_list^grid_face^grid_control^eng_heat_controls^eng_power_controls^ship_data"
         case "comms":
             console =  "normal_comm"
-            widgets = "comms_2d_view^radar_zoom_ctrl^text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
-            #widgets = "2dview^text_waterfall^comms_waterfall^comms_control^comms_face^comms_sorted_list^red_alert"
+            widgets = "comms_2d_view^radar_zoom_ctrl^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
+            #widgets = "2dview^comms_waterfall^comms_control^comms_face^comms_sorted_list^red_alert"
         case "cinematic":
             console =  "cinematic"
             widgets = "3dview"
@@ -103,17 +108,17 @@ def gui_console(console, is_jump=False):
             view = get_inventory_value(ship_id, "MAIN_SCREEN_VIEW", "3d_view")
             if view == "lrs":
                 #console =  "normal_main_lrs"
-                widgets = "2dview^ship_data^text_waterfall"
+                widgets = "2dview^ship_data"
             elif view == "tactical":
                 #console =  "normal_main_tact"
-                widgets = "2dview^ship_data^text_waterfall"
+                widgets = "2dview^ship_data"
             elif view == "data":
                 #console =  "normal_main_data"
-                widgets = "ship_internal_view^ship_data^text_waterfall"
+                widgets = "ship_internal_view^ship_data"
             else:
-                widgets = "3dview^ship_data^text_waterfall"
+                widgets = "3dview^ship_data"
         case "cockpit":
-            widgets = "3dview^2dview^radar_zoom_ctrl^helm_free_3d^text_waterfall^fighter_control^ship_data^grid_face^grid_control"
+            widgets = "3dview^2dview^radar_zoom_ctrl^helm_free_3d^fighter_control^ship_data^grid_face^grid_control"
         
 
     page.set_widget_list(console, widgets)

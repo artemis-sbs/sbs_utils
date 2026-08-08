@@ -36,12 +36,13 @@ class TailTests(unittest.TestCase):
     def test_only_the_last_few(self):
         self.assertEqual(LP.LOG_TAIL_LINES, len(tail(1)))
 
-    def test_the_default_is_two(self):
-        """One is a headline; three starts competing with the panel holding the history."""
-        self.assertEqual(2, LP.LOG_TAIL_LINES)
+    def test_the_default_is_just_the_latest(self):
+        """A headline, not a log - the history is one tab away."""
+        self.assertEqual(1, LP.LOG_TAIL_LINES)
 
     def test_order_within_the_tail_is_newest_down(self):
-        self.assertEqual(["fourth", "third"], tail(1))
+        """With an explicit count, newest still comes first."""
+        self.assertEqual(["fourth", "third"], tail(1, count=2))
 
     def test_a_shorter_log_than_the_tail_is_fine(self):
         LP.log_clear()

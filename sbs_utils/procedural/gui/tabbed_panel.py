@@ -479,40 +479,35 @@ from .gui import gui_percent_from_pixels
 
 
 def gui_panel_ship_data_show(cid, left, top, width, height):
-    ctx = FrameContext.context
-    waterfall_size = gui_percent_from_pixels(cid, 20).y
-    waterfall_size *= 4  # 4 lines
+    """Ship data filling the panel.
 
+    It used to give the bottom four lines to `text_waterfall` and shrink ship_data to
+    suit. That widget is gone (LOG_PANEL_PLAN.md) - it could not be styled from script -
+    and positioning it here brought it BACK on any console showing this tab, whatever the
+    console's widget list said. ship_data now gets the whole panel.
+    """
+    ctx = FrameContext.context
     ctx.sbs.send_client_widget_rects(
         cid,
         "ship_data",
         left,
         top,
         left + width,
-        top + height - waterfall_size,
-        left,
-        top,
-        left + width,
-        top + height - waterfall_size,
-    )
-    ctx.sbs.send_client_widget_rects(
-        cid,
-        "text_waterfall",
-        left,
-        top + height - waterfall_size,
-        left + width,
         top + height,
         left,
-        top + height - waterfall_size,
+        top,
         left + width,
         top + height,
     )
 
 
 def gui_panel_ship_data_hide(cid, left, top, width, height):
+    """Push ship data off screen when the tab is deactivated.
+
+    No longer moves `text_waterfall` with it - that widget is gone; see the note on
+    gui_panel_ship_data_show.
+    """
     ctx = FrameContext.context
-    waterfall_size = gui_percent_from_pixels(cid, 20).y
-    waterfall_size *= 4  # 4 lines
     left = -100
     ctx.sbs.send_client_widget_rects(
         cid,
@@ -520,21 +515,9 @@ def gui_panel_ship_data_hide(cid, left, top, width, height):
         left,
         top,
         left + width,
-        top + height - waterfall_size,
-        left,
-        top,
-        left + width,
-        top + top + height - waterfall_size,
-    )
-    ctx.sbs.send_client_widget_rects(
-        cid,
-        "text_waterfall",
-        left,
-        top + height - waterfall_size,
-        left + width,
         top + height,
         left,
-        top + height - waterfall_size,
+        top,
         left + width,
         top + height,
     )
