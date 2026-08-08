@@ -134,6 +134,17 @@ def gui_log_tail(count=None, background=None, tab=TAB_LOG, style=None):
     count = LOG_TAIL_LINES if count is None else count
     if count > 0:
         entries = entries[-count:]
+    # NEWEST FIRST. Two reasons, and neither is only about being easier:
+    #
+    # The newest line is then always in the SAME PLACE - you glance at the top rather than
+    # tracking a line that moves as the strip fills. For an ambient surface that is read at
+    # a glance and never scrolled, that is the whole job.
+    #
+    # And it takes the strip off the scroll machinery entirely. Showing the END of a text
+    # area means the widget has to be scrolled there, which in the engine kept landing on
+    # the top instead; showing the START needs nothing. `gui_panel_console_message_list`
+    # already reads newest-first for the same reason.
+    entries = list(reversed(entries))
     text, styles = log_render(entries)
     bg = LOG_TAIL_BACKGROUND if background is None else background
     props = f"background:{bg};padding:4px,6px,4px,6px;" + (style or "")
