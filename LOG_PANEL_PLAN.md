@@ -196,19 +196,105 @@ to Mission, docking and internal damage to Ship. Two library edits cover most of
 
 ---
 
+## Mechanism
+
+### Mounting - it takes the waterfall's space, and the pattern already exists
+
+`comms_waterfall` is an ENGINE console widget, named in each console's widget list
+(`pages/start.py:94`, `gamemaster.mast:109`) and positioned with
+`gui_layout_widget("comms_waterfall")`.
+
+**LM already replaces its space today** - `consoles/layout_widgets.mast:287`:
+
+    with gui_sub_section():
+        water = gui_layout_widget("comms_waterfall")
+        gui_hide(water)                       # claim the slot, hide the engine widget
+        recent_listbox = gui_list_box(...)    # MAST content in the same sub-section
+        history_text  = gui_text_area("", ...)
+
+So mounting is a solved problem: claim the slot, hide the widget, draw into it. No new
+layout scheme, and the panel inherits exactly the geometry the waterfall had on every console
+that declares it.
+
+### Tabs - reuse TabbedPanel, do not invent
+
+`procedural/gui/tabbed_panel.py` already provides
+`gui_info_panel_add(path, icon_index, show, hide=None, tick=None, var=None)` - tabs with icons
+and per-tab show/hide/tick callbacks, re-represented on change. `gamemaster.mast:261` already
+adds an engine widget as a tab through it.
+
+This is the "tab panel similar to the info panel" from the brainstorm, and it exists. Log /
+Ship / Mission become three `gui_info_panel_add` calls whose `show` sets
+`area.value = render(entries, tab)`.
+
+### Retention
+
+Entries are strings, so MEMORY IS NOT THE CONSTRAINT. A waterfall line is ~40-120 chars
+(~130-180 bytes as a `str`), plus a small record for its metadata - call it ~300 bytes an
+entry. 500 entries is ~150 KB; 2000 is ~600 KB. Neither matters on a desktop.
+
+**The real cost is RENDER**: the text area wraps and lays out every line on recalc, and this
+surface updates whenever content arrives.
+
+Start with a **single cap of 500 entries per scope**, rendered whole - one number, no paging,
+~500 lines of scrollback (many screens, far more than anyone scrolls back through).
+
+**The number that would change this is not memory, it is wrap cost.** Measure once with a
+500-line text area; if it hitches, split the store (keep 500) from the render window (last
+150-200) and add paging then, not now.
+
+**Ring buffer with a monotonic sequence id per entry.** The id is what makes "N new below"
+survive entries dropping off the top while a reader is scrolled back - without it, the count
+drifts every time the buffer wraps.
+
+### Shapes
+
+    entry = {
+        "seq":      int,     # monotonic; survives the ring wrapping
+        "t":        float,   # sim seconds, for ordering and any future timestamps
+        "text":     str,     # what comms_broadcast was given
+        "color":    str,     # its existing color argument, preserved
+        "category": str,     # "log" (default) | "ship" | "mission"
+        "severity": str,     # "" (plain) | "tip" | "warning" | "danger"
+    }
+
+    render(entries, tab) -> str     # PURE. filter by category, format to mini-markdown.
+                                    # No GUI, no engine - unit-testable on its own.
+
+`category` defaults to `"log"`, which is why an untagged message is lossless: Log shows
+everything, subset tabs show their own.
+
+### Where the store lives
+
+Per SHIP (see Scoping), plus a small per-console overlay. **If it is a module-level container
+it MUST be registered with `register_reset_state`** and cleared in `reset_mission_state` -
+an unregistered per-mission container is a run-2 bug by construction, which is exactly what
+PRM-3 and PRM-40 were this round.
+
+### Interception
+
+`comms_broadcast(ids_or_obj, msg, color)` keeps its signature and gains an optional
+`category=` / `severity=`. During the parallel phase it does BOTH: append to the store AND
+write the classic widget, so the two surfaces can be compared side by side on one console.
+Retiring the widget is then deleting the second half of one function, per console.
+
 ## Build order
 
-1. **`follow_tail` on `gui_text_area`** - the only real widget work, independently useful.
-2. **The store + pure `render(entries, tab)`** - testable headlessly; this is how the feature
-   gets verified at all.
-3. **One console, Log tab only**, fed by intercepting `comms_broadcast`, with the classic
-   waterfall still visible beside it.
+1. **`follow_tail` on `gui_text_area`** - the only real widget work, honored at recalc (not by
+   poking `scroll_line`), and independently useful to any log-shaped text area.
+2. **Store + `render(entries, tab)`** - pure, headlessly testable, no GUI. Tests: category
+   filtering, the ring wrapping without breaking `seq`, severity picking the right callout,
+   and an untagged entry appearing in Log and nowhere else.
+3. **Mount on ONE console** via the existing `gui_layout_widget` + `gui_hide` pattern, Log tab
+   only, with `comms_broadcast` doing both halves so the classic widget still renders beside
+   it for comparison.
+4. **Tabs** via `gui_info_panel_add`, then tag at the source (`quest_driver` -> Mission,
+   docking + internal damage -> Ship).
+5. **Collapse + toast strip**, once the expanded panel is proven.
 
-That order makes the first reviewable thing a like-for-like - same content, new surface -
-before any categorization or retirement decisions. If it does not feel right at real console
-proportions, the cost so far is one widget flag and a pure function.
-
----
+Steps 1-2 need no console and no engine: they are the parts that can be verified properly.
+Step 3 is the first thing to LOOK at, and it is a like-for-like - same content, new surface -
+before any categorization or retirement decision.
 
 ## Open
 
