@@ -54,6 +54,13 @@ def _quest_overlay_audience(agent_id):
     return consoles_of(to_set(_quest_audience(agent_id)))
 
 
+# How long an inline overlay directive stays up, by kind. Mirrors announce()'s
+# _LEVEL_SECONDS so `On complete: toast ...` and an announce at status level agree.
+# A kind with no entry gets 4s - transient, because an authored directive is a
+# notification; anything that must persist belongs in the log or an info card.
+_DIRECTIVE_SECONDS = {"hero": 5, "lower_third": 8, "banner": 6, "toast": 3}
+
+
 def _fire_overlay_directive(directive, to):
     """Fire one inline overlay directive: ``<kind> <text>`` (e.g. ``hero CONVOY
     SAVED``) or ``overlay <key>`` to fire a declared amd_overlays record. The kind's
@@ -68,7 +75,15 @@ def _fire_overlay_directive(directive, to):
         overlay_amd(rest, to=to)
         return
     prim = _PRIMARY.get(kind, "title")
-    overlay_kind(kind, to=to, **{prim: rest})
+    # Pass a LIFETIME. overlay_kind only schedules a dismiss when it is given one, so
+    # without this an authored `On accept: toast ...` was registered STICKY: the text sat
+    # on every console for the rest of the mission, and restarting the mission script was
+    # the only thing that cleared it. overlay_toast() has always expired; this path never
+    # did, which is why the two behaved differently.
+    #
+    # The defaults match announce()'s _LEVEL_SECONDS for the same kinds, so a directive
+    # and an announce of the same weight stay on screen for the same time.
+    overlay_kind(kind, to=to, seconds=_DIRECTIVE_SECONDS.get(kind, 4), **{prim: rest})
 
 
 def _quest_noun(data):

@@ -872,6 +872,12 @@ _TOAST_SEQ = [0]
 TOAST_MAX = 4
 
 
+# Scrim behind a toast. Translucent slate rather than black, so it reads as a
+# passing notification over the console beneath it (usually the text waterfall)
+# instead of a new permanent panel.
+TOAST_BACKGROUND = "#1578"
+
+
 def _toast_builder(client_id, content):
     from .text import gui_text
     from .row import gui_row
@@ -879,8 +885,14 @@ def _toast_builder(client_id, content):
     items = content.get("items")
     if items is None:
         items = [{"text": content.get("text", "")}]
+    # A toast sits over whatever the console is already showing - often the text
+    # waterfall - so it needs a scrim to stay readable. Deliberately NOT black: a black
+    # panel reads as a permanent part of the layout, and a toast must look like something
+    # passing through. This slate matches the translucent panels the consoles already use.
+    bg = content.get("background", TOAST_BACKGROUND)
+    row_bg = f"background: {bg};" if bg else ""
     for it in items:
-        gui_row("row-height: content;")
+        gui_row("row-height: content;" + row_bg)
         gui_text(f"$text:`{it.get('text', '')}`;justify:center;font:gui-2;color:#fff")
 
 
