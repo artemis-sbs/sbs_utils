@@ -9,7 +9,7 @@ meant by "a tab panel similar to the info panel" - that panel already exists, al
 tabs with icons, and already hosts other content on the comms console.
 """
 from ...helpers import FrameContext
-from ..log_panel import (log_entries_union, log_render, log_newest_seq_union,
+from ..log_panel import (log_entries_union, log_render, log_tail_render, log_newest_seq_union,
                          log_mark_seen, TAB_LOG, TAB_SHIP, TAB_MISSION,
                          LOG_TAIL_LINES, LOG_TAIL_BACKGROUND)
 from .text import gui_text_area
@@ -151,7 +151,43 @@ def gui_log_tail(count=None, background=None, tab=TAB_LOG, style=None):
     # the top instead; showing the START needs nothing. `gui_panel_console_message_list`
     # already reads newest-first for the same reason.
     entries = list(reversed(entries))
-    text, styles = log_render(entries)
+    text, styles = log_tail_render(entries)
     bg = LOG_TAIL_BACKGROUND if background is None else background
     props = f"background:{bg};padding:4px,6px,4px,6px;" + (style or "")
-    return gui_text_area(text, props, markdown=False, line_styles=styles)
+    area = gui_text_area(text, props, markdown=False, line_styles=styles)
+    # Remember it so new traffic can update it in place. gui_log_tail runs ONCE, when the
+    # console builds its layout - without this the strip shows whatever the log held at
+    # that instant and never changes, which reads as the feature not working at all.
+    _TAILS[cid] = (area, tab, count)
+    return area
+
+
+# client id -> (text area, tab, count). Per-mission, so log_clear() drops it.
+_TAILS = {}
+
+
+def log_tail_refresh(scope=None):
+    """Push new traffic into every console's ambient strip.
+
+    A push, like log_raise: the strip is built ONCE, when the console lays itself out, and
+    the console is not otherwise repainting - so without this it keeps whatever the log
+    held at that instant, which reads as the feature not working at all.
+
+    `scope` is accepted for symmetry with log_raise but not used to filter: every strip
+    recomputes its OWN union (its ship plus its client), which is the correct filter
+    already, and there are only ever a handful of them. Both the text and the styles are
+    replaced - `line_styles` is fixed at construction, so updating the value alone would
+    leave the previous entry's color on the new line.
+    """
+    for cid, (area, tab, count) in list(_TAILS.items()):
+        entries = log_entries_union([_ship_of(cid), cid], tab)
+        if count and count > 0:
+            entries = entries[-count:]
+        text, styles = log_tail_render(list(reversed(entries)))
+        try:
+            if area.value == text:
+                continue                   # nothing new for this console
+            area.line_styles = list(styles) if styles else None
+            area.value = text
+        except Exception:
+            _TAILS.pop(cid, None)          # the widget went away with its page

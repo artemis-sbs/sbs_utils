@@ -58,3 +58,29 @@ class TailTests(unittest.TestCase):
         LP.log_add(1, "chatter")
         LP.log_add(1, "hull breach", category=LP.TAB_SHIP)
         self.assertEqual(["hull breach"], tail(1, count=2, tab=LP.TAB_SHIP))
+
+
+class EmptyStripTests(unittest.TestCase):
+    """The strip is a fixed slot, so it has to draw something even with nothing to say.
+
+    A text area sends each line as $text:`text`;style. Empty text therefore reaches the
+    engine as $text:``; and renders as a LONE BACKTICK - which is exactly what every
+    console showed where the waterfall used to be, until the first message arrived.
+    """
+
+    def setUp(self):
+        LP.log_clear()
+
+    def test_the_plain_renderer_still_returns_nothing_for_nothing(self):
+        self.assertEqual(("", []), LP.log_render([]))
+
+    def test_the_strip_never_renders_empty_text(self):
+        text, styles = LP.log_tail_render([])
+        self.assertTrue(text.strip(), "an empty strip draws a bare backtick in the engine")
+        self.assertTrue(styles, "the placeholder needs its own dim style")
+
+    def test_a_real_entry_is_not_replaced(self):
+        LP.log_add(1, "Docked at DS 1")
+        entries = LP.log_entries_union([1], LP.TAB_LOG)
+        text, _ = LP.log_tail_render(list(reversed(entries)))
+        self.assertEqual("Docked at DS 1", text)

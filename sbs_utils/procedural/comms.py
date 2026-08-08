@@ -84,6 +84,10 @@ def _log_add(scope, msg, color=None, category=None, severity=None):
         # An urgent entry pulls the log to the front, the same way a notify card does.
         # Routine traffic never does: a panel that grabs the console for every message
         # is one the crew learns to ignore, which defeats the point of raising at all.
+        # Update the one-line tail on every console showing this scope. It is not
+        # repainting on its own, so without a push it keeps the entry it was built with.
+        from .gui.log_panel_gui import log_tail_refresh
+        log_tail_refresh(scope)
         if severity in ("warning", "danger"):
             from .gui.log_panel_gui import log_raise
             log_raise(scope)

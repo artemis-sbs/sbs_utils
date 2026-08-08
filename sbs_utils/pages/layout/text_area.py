@@ -294,7 +294,7 @@ class TextArea(Control):
         # be set before self.value, which the setter reads.
         self.markdown = markdown
         # B: one style per CONTENT line, supplied by the caller. A style already
-        # carries colour, font, background AND indent, and the render loop
+        # carries color, font, background AND indent, and the render loop
         # already accepts a style dict per line (the `$$font:...;` path), so the
         # caller -- which is the thing that knows a line is a comment and knows
         # its depth -- supplies them and this stays a renderer.
@@ -1102,7 +1102,13 @@ class TextArea(Control):
         # Split into sections
         message_list = message.split("\n")
 
-        if len(message_list)==1:
+        # Caller-supplied per-line styles are a PROMISE the fast path cannot keep: it
+        # emits one `$text:`line`;` with no style at all, so a one-line text area given
+        # `line_styles` drew in the default color and dropped any callout prepend. That
+        # is silent - the text appears, just unstyled - and it is what made the ambient
+        # log strip (always exactly one line) impossible to color. Only calc_rich reads
+        # line_styles, so asking for them means asking for the rich path.
+        if len(message_list)==1 and not getattr(self, "line_styles", None):
             if "$text:" in message_list[0]:
                 self.simple_text = True
                 self.content = message_list

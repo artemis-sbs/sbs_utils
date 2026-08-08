@@ -362,3 +362,59 @@ before any categorization or retirement decision.
   engine-owned (PRM-26); inheriting it would inherit that bug.
 
 Related: `PRM_Feedback.md` (PRM-8, PRM-15, PRM-16, PRM-32), `OVERLAY_PLAN.md`.
+
+## The strip was invisible: two causes, both found from one symptom
+
+Reported as "I still do not see this control - anywhere", then narrowed by "all I see is
+a back tick". Two separate bugs, either of which alone would have hidden it:
+
+1. **An empty strip drew a lone backtick.** `TextArea` sends each line as
+   ``$text:`text`;style``, so empty text reaches the engine as ``$text:``;`` -- a bare
+   backtick, not blank. Until the first message arrived, that is all any console showed.
+   Fixed with `log_tail_render()`, which substitutes a dim `...` for empty text. It lives
+   in `log_panel.py`, not the GUI half, so it is testable without a page --
+   `EmptyStripTests` in `tests/test_log_tail.py`, and that test was checked to FAIL with
+   the substitution reverted.
+
+2. **The strip never updated.** `gui_log_tail()` runs ONCE, while the console lays itself
+   out; nothing repaints it afterwards, so it kept whatever the log held at that instant.
+   Fixed with `log_tail_refresh()`, a push from `comms_broadcast` alongside `log_raise`.
+   Registered tails live in `_TAILS` (client id -> widget, tab, count), cleared by
+   `log_clear()`. Both `value` AND `line_styles` are replaced: `line_styles` is fixed at
+   construction, so updating the value alone leaves the previous entry's color behind.
+
+Together these are why a single run looked like "the feature does nothing" rather than
+"the feature is stale" -- there was never a first frame to be stale from.
+
+## Placement: under ship data, every console
+
+Science and Engineering had drifted into a different COLUMN -- science put the strip
+under `science_sorted_list`, engineering under `grid_object_list`. Both are now directly
+below the info panel, matching comms/helm/weapons/main, and every one is `6em`. One
+place to look on every console is the whole point of replacing the waterfall; a strip
+that moves per console is worse than the widget it replaced.
+
+## The colors were dropped by the FAST PATH, not by the strip
+
+"It has text but not the colors." A `TextArea` whose value is a single line with no
+`$`/`=` prefix sets `simple_text` and emits one ``$text:`line`;`` with no style at all --
+and `line_styles` is read only by `calc_rich`. The strip is *always* exactly one line, so
+it could never be colored, and neither could any other one-line `gui_text_area(...,
+line_styles=[...])`. Silent, too: the text appears, just plain.
+
+Caller-supplied `line_styles` is now treated as a request for the rich path
+(`text_area.py`, `value` setter). It is a promise the fast path cannot keep.
+
+Found by `tests/test_log_tail_render.py`, which renders a real MAST page and reads the
+emitted `send_gui_text` stream -- the level these bugs live at. The store tests in
+`test_log_tail.py` check WHICH entries are picked and were green throughout.
+
+`log_tail_refresh` replaces `line_styles` as well as `value` for the same reason: styles
+are fixed at construction, so a value-only update leaves the previous entry's color on
+the new line -- a `danger` line would inherit chatter's.
+
+## Background
+
+`#0002` -- monochrome, low alpha. The strip sits behind text that carries meaning in
+color (category tints, callout severity), so a tinted scrim shifts all of them. Black
+rather than white because the consoles are dark: it reads as a slight recess.

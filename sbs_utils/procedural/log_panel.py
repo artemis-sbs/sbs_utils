@@ -40,7 +40,13 @@ LOG_FONT = "gui-1"          # plain lines
 LOG_TAIL_LINES = 1
 # ...and the reason the tail exists at all: the ENGINE waterfall's background cannot be
 # controlled from script, and it is too dark. A MAST text area's can.
-LOG_TAIL_BACKGROUND = "#1572"
+#
+# MONOCHROME on purpose. This sits behind message text that carries its own meaning in
+# color - category tints and callout severity - and a tinted scrim shifts every one of
+# them. Black rather than white because the consoles are dark, so it reads as a slight
+# recess instead of a panel. Low alpha: enough to separate the strip from whatever is
+# behind it, not enough to become a block.
+LOG_TAIL_BACKGROUND = "#0002"
 LOG_CALLOUT_FONT = "gui-2"  # severity lines, still a step above plain
 
 TAB_LOG = "log"
@@ -77,6 +83,11 @@ def log_clear():
     """Drop every scope's log (fresh mission / in-process recompile)."""
     _LOG.clear()
     _SEEN.clear()
+    try:
+        from .gui.log_panel_gui import _TAILS
+        _TAILS.clear()
+    except Exception:
+        pass
     _SEQ[0] = 0
 
 
@@ -186,6 +197,26 @@ def log_entries_union(scopes, tab=TAB_LOG):
         out.extend(log_entries(scope, tab))
     out.sort(key=lambda e: e["seq"])
     return out
+
+
+# What the ambient strip shows before any traffic arrives. NOT the empty string: a text
+# area sends each line as $text:`text`;style, so empty text reaches the engine as
+# $text:``; and draws a lone backtick - which is what the strip looked like on every
+# console until the first message. A dim ellipsis reads as "nothing yet" instead.
+LOG_TAIL_EMPTY = "..."
+LOG_TAIL_EMPTY_STYLE = "color:#667;font:" + LOG_FONT + ";"
+
+
+def log_tail_render(entries):
+    """log_render for the ambient strip: never returns empty text.
+
+    The strip is a fixed slot in the console layout, so it has to draw SOMETHING - an
+    empty text area is invisible and the console just looks broken.
+    """
+    text, styles = log_render(entries)
+    if not text:
+        return LOG_TAIL_EMPTY, [{"style": LOG_TAIL_EMPTY_STYLE}]
+    return text, styles
 
 
 def log_newest_seq(scope):
