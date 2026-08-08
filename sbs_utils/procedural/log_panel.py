@@ -163,6 +163,23 @@ def log_render(entries):
     return text, styles
 
 
+def log_entries_union(scopes, tab=TAB_LOG):
+    """Entries from several scopes merged into one stream, oldest first.
+
+    A console shows its SHIP's log (the crew's shared record) PLUS anything addressed to
+    that console alone - `comms_broadcast` takes either, so both have to arrive somewhere
+    visible. Merged by `seq`, which is monotonic across every scope, so a console-only
+    note lands in the right place in time rather than clumped at one end.
+    """
+    out = []
+    for scope in scopes:
+        if scope is None:
+            continue
+        out.extend(log_entries(scope, tab))
+    out.sort(key=lambda e: e["seq"])
+    return out
+
+
 def log_newest_seq(scope):
     """The newest entry's ``seq`` for a scope, or 0 when it has no log yet.
 
@@ -171,6 +188,11 @@ def log_newest_seq(scope):
     """
     entries = _LOG.get(scope)
     return entries[-1]["seq"] if entries else 0
+
+
+def log_newest_seq_union(scopes):
+    """Newest seq across several scopes - the change check for a merged view."""
+    return max([log_newest_seq(s) for s in scopes if s is not None] or [0])
 
 
 def log_mark_seen(client_id, seq):

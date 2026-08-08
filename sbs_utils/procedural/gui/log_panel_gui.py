@@ -9,7 +9,7 @@ meant by "a tab panel similar to the info panel" - that panel already exists, al
 tabs with icons, and already hosts other content on the comms console.
 """
 from ...helpers import FrameContext
-from ..log_panel import (log_entries, log_render, log_newest_seq,
+from ..log_panel import (log_entries_union, log_render, log_newest_seq_union,
                          log_mark_seen, TAB_LOG, TAB_SHIP, TAB_MISSION)
 from .text import gui_text_area
 
@@ -34,10 +34,10 @@ def gui_panel_log(cid, left, top, width, height, tab=TAB_LOG):
     a running log should do - the text area follows the tail unless the reader has
     scrolled back (see TextArea.follow_tail).
     """
-    ship = _ship_of(cid)
-    if ship is None:
-        return
-    text, styles = log_render(log_entries(ship, tab))
+    # The ship's log PLUS anything addressed to this console alone. comms_broadcast
+    # accepts either a ship or a client, so a console-only note has to show up somewhere -
+    # reading only the ship scope recorded it and never displayed it.
+    text, styles = log_render(log_entries_union([_ship_of(cid), cid], tab))
     if not text:
         # An empty log should read as empty, not as a broken panel.
         gui_text_area("$text:(nothing here yet);color:#888;")
@@ -71,10 +71,8 @@ def gui_panel_log_tick(info_panel):
     zero render cost - this widget wraps every line on recalc, so a 1 Hz re-present of a
     500-line log would be real work for no change.
     """
-    ship = _ship_of(info_panel.client_id)
-    if ship is None:
-        return 1
-    if log_mark_seen(info_panel.client_id, log_newest_seq(ship)):
+    cid = info_panel.client_id
+    if log_mark_seen(cid, log_newest_seq_union([_ship_of(cid), cid])):
         return 2      # grew - redraw
     return 1          # unchanged - stay put, draw nothing
 
