@@ -28,7 +28,9 @@ from sbs_utils.procedural.gui.overlay import overlay_kind, consoles_of
 from sbs_utils.procedural.amd_overlay import overlay_amd, _PRIMARY
 from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
 from sbs_utils.procedural.sides import to_side_id, side_are_enemies, is_hostile_to_players
-from sbs_utils.procedural.timers import set_timer, is_timer_set, is_timer_finished
+from sbs_utils.procedural.timers import (
+    set_timer, is_timer_set, is_timer_finished, get_time_remaining,
+    format_time_remaining)
 from sbs_utils.procedural.comms import comms_broadcast
 from sbs_utils.procedural.signal import signal_emit
 from sbs_utils.procedural.gui import gui_list_box_is_header
@@ -808,6 +810,152 @@ def quest_tick_fail_after():
                 set_timer(aid, tname, seconds=secs)
             elif is_timer_finished(aid, tname):
                 quest_mark_failed(aid, qid)
+
+
+# --- Deadline reminders -------------------------------------------------------------
+# A countdown the crew has to open a tab to read is a countdown they discover by failing
+# (PRM-11). These are the reminders, on comms, where a bridge already looks.
+#
+# ABSOLUTE marks, not a fixed interval and not fractions of the deadline. A fixed
+# interval is spam by construction; fractions land three messages 15, 7 and 3 seconds
+# apart on a short clock, which is a burst rather than a warning. Marks that FIT under
+# the deadline mean a 6-minute job gets four and a 45-second job gets two, sparse early
+# and tightening as it matters.
+QUEST_COUNTDOWN_MARKS = (300, 120, 60, 30)
+
+# The voice used when a quest names no speaker and its holder cannot talk. Registered by
+# the MISSION, never named here: the library has no business knowing a faction exists, let
+# alone which one is in charge. Unset means deadline reminders stay silent rather than
+# arriving from nobody.
+_QUEST_DISPATCH_VOICE = [None]
+
+
+def quest_dispatch_voice(agent=None):
+    """Register the fallback voice for quest reminders, or read the current one.
+
+    A mission calls this once with the character its crews already hear from - LM has a
+    "TSN Command" lifeform, Peacetime has Admiral Harkin. Pass None to read.
+
+    Accepts an id, an object, OR a NAME (a Cast/landmark key), which is resolved lazily at
+    send time. Lazily on purpose: a mission registers its voice while setting the story up,
+    which is before the cast has spawned, so resolving eagerly would store None and stay
+    that way for the whole mission.
+    """
+    if agent is not None:
+        _QUEST_DISPATCH_VOICE[0] = agent
+    return _QUEST_DISPATCH_VOICE[0]
+
+
+def quest_dispatch_voice_clear():
+    """Forget the registered voice. Part of the per-mission reset - a voice left over
+    from the last mission names an agent that no longer exists."""
+    _QUEST_DISPATCH_VOICE[0] = None
+
+
+def _quest_dispatch_id():
+    """The registered voice as an agent id, resolving a name if that is what was given."""
+    voice = _QUEST_DISPATCH_VOICE[0]
+    if voice is None:
+        return None
+    if isinstance(voice, str):
+        ids = _quest_held_by(voice, "dispatch voice")
+        return ids[0] if ids else None
+    return to_id(voice)
+
+
+def _quest_speaker(qid, data):
+    """Who speaks for this quest, in order of how much the author asked for it.
+
+    `Speaker:` names it outright - the shuttle crew calling in on their own rescue, the
+    client chasing a delivery. Failing that, `Held by:` when it resolves to something that
+    can talk: a station's job then speaks with the station's own face for no authoring at
+    all. Failing that, the mission's registered dispatch voice.
+
+    Returns None when nothing can speak, and the caller stays SILENT rather than sending
+    an anonymous message - a reminder from nobody is worse than no reminder.
+    """
+    for field in ("speaker", "held_by"):
+        name = data.get(field)
+        if not name:
+            continue
+        ids = _quest_held_by(name, qid)
+        if ids:
+            return ids[0]
+    return _quest_dispatch_id()
+
+
+def _quest_countdown_body(data, speaker, fmt, final):
+    """The words. Authored line first, then a voice-appropriate default.
+
+    A speaker with no FACE is a machine - a beacon, a ship's transmitter, an empty hull
+    with a distress signal still running - so it gets transmission phrasing rather than
+    someone politely reporting the time. A cast character keeps the spoken form. The
+    author overrides either with `Signal says:`, which is the only way to get wording
+    specific to what is actually failing ("LIFE SUPPORT CRITICAL").
+    """
+    authored = data.get("reminder")
+    if authored:
+        # `{time}` on purpose rather than a general format: the line is authored text and
+        # may legitimately contain braces, so nothing else is interpolated.
+        return str(authored).replace("{time}", fmt)
+    from sbs_utils.faces import get_face
+    if not get_face(speaker):
+        body = f"AUTOMATED SIGNAL - {fmt} REMAINING" if fmt else "AUTOMATED SIGNAL"
+        return f"{body} - FINAL" if final else body
+    body = f"{fmt} remaining." if fmt else "Time is almost up."
+    return f"{body} Final warning." if final else body
+
+
+def _quest_countdown_send(aid, qid, data, mark, left):
+    from sbs_utils.procedural.comms import comms_message
+    speaker = _quest_speaker(qid, data)
+    if speaker is None:
+        return
+    title = quest_get_key(aid, qid, "display_text", None) or str(qid)
+    fmt = format_time_remaining(aid, "qfail:" + str(qid)) or ""
+    # The TITLE answers "which clock?" first - a crew can hold several timed jobs at once,
+    # and an urgent line about the wrong one is worse than none. Time goes in the body,
+    # urgency in the color.
+    final = mark <= QUEST_COUNTDOWN_MARKS[-1]
+    color = "#f66" if final else "#fc6"
+    comms_message(_quest_countdown_body(data, speaker, fmt, final), speaker,
+                  _quest_audience(aid), title=title, color=color, title_color=color)
+
+
+def quest_tick_countdown_reminders():
+    """Watcher tick: remind the crew, on comms, as a quest's deadline closes in.
+
+    Rides the deadline `quest_tick_fail_after` already anchors, so a quest with no
+    `Fails when:` costs nothing here and one that has not started its clock is skipped.
+
+    Marks are latched per quest, so each fires exactly once. When a single tick crosses
+    several at once (a long frame, a mission restart), all of them latch but only the most
+    urgent is SENT - passing three marks must not produce three messages.
+    """
+    for aid in _quest_holders():
+        for qid, data in _active_quests(aid):
+            trig = data.get("fail_after")
+            if not isinstance(trig, dict):
+                continue
+            total = int(trig.get("seconds", 0) or 0) + int(trig.get("minutes", 0) or 0) * 60
+            if total <= 0:
+                continue
+            tname = "qfail:" + str(qid)
+            if not is_timer_set(aid, tname) or is_timer_finished(aid, tname):
+                continue
+            left = get_time_remaining(aid, tname)
+            if left is None:
+                continue
+            key = "qcd:" + str(qid)
+            sent = get_inventory_value(aid, key, None) or []
+            # `mark < total`: never warn about "5 minutes left" on a 5-minute deadline -
+            # that fires the instant the job is accepted and reads as a bug.
+            due = [m for m in QUEST_COUNTDOWN_MARKS
+                   if m < total and m not in sent and left <= m]
+            if not due:
+                continue
+            set_inventory_value(aid, key, list(sent) + due)
+            _quest_countdown_send(aid, qid, data, min(due), left)
 
 
 def quest_tick_complete_after():

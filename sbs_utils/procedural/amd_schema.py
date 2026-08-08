@@ -241,6 +241,26 @@ QUEST = {
     # word. `Reward:` / `Penalty:` is the pair.
     "penalty": field(reward(hint="100 credits, earns tsn diplomatic -15"), key="penalty"),
     "tier": integer(),
+    # WHO speaks for this quest. Same word DIALOGUE and LIFEFORM already use, extended
+    # to a quest rather than a new one invented for it - the vocabulary is meant to be
+    # one language. Today it names the voice for deadline reminders (the shuttle crew
+    # calling in on their own rescue, the client chasing a delivery); anything else the
+    # quest needs to SAY should use it too rather than growing a second field.
+    #
+    # Optional by design. Unset falls back to `Held by:` when that resolves to a real
+    # agent - a station's job speaks with the station's face for nothing - and then to
+    # whatever voice the mission registered for dispatch.
+    "speaker": ref("node", hint="who says it - falls back to Held by:, then dispatch"),
+    # What the SIGNAL reads out, the way `Scan says:` is what a scan reads out. The line
+    # sent as a deadline closes in, so an automated distress beacon sounds like one
+    # instead of like a person reporting the time. `{time}` interpolates the remaining
+    # clock; without it the line is sent as written.
+    #
+    # NOT to be confused with `Done when: signal <name>` - that "signal" is an event
+    # name, this one is the thing transmitting. Same word, and the only reason it is safe
+    # is that one is a field LABEL and the other a field VALUE.
+    "signal says": field(multiline(hint="LIFE SUPPORT CRITICAL. {time} TO FAILURE."),
+                         key="reminder"),
     "fail on signal": field(signal(), internal=True),
     "fail on all dead": field(ref("role"), internal=True),
     "fail after": field(duration(), internal=True),
@@ -642,6 +662,12 @@ _DISCRIMINATORS = (
     ("complete after", "quest"), ("complete_after", "quest"),
     ("fail on all dead", "quest"), ("fail_on_all_dead", "quest"),
     ("on accept", "quest"), ("on_accept", "quest"),
+    # A failure DEADLINE is quest-only, and it has to be listed here now that `Speaker:`
+    # is legal on a quest: without it, a job carrying a speaker and a deadline but no
+    # `Done when:` would hit ("speaker", "dialogue") below and be classified as dialogue.
+    # Real jobs declare `Job` outright so inference never runs on them, but the flat a2x
+    # records have no section to be named by and rely on exactly this.
+    ("fails when", "quest"), ("fails_when", "quest"),
     ("enemies", "side"), ("allies", "side"), ("neutral", "side"),
     ("modifiers", "item"),
     ("center", "region"), ("radius", "region"),

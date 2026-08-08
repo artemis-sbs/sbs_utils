@@ -123,6 +123,9 @@ def reset_mission_state():
     # is reported by name rather than found three runs later.
     from .procedural.log_panel import log_clear
     log_clear()
+    # A voice registered by the LAST mission names an agent that no longer exists.
+    from .procedural.quest_driver import quest_dispatch_voice_clear
+    quest_dispatch_voice_clear()
     # Camera + cutscene state. TickDispatcher.clear() above drops their DRIVER
     # tasks, but the dicts that say who owns which console outlive it - and a
     # stale owner makes the next mission's first move think it is being
@@ -231,6 +234,9 @@ register_reset_state("Gui.widget_list_sent", lambda: len(Gui.widget_list_sent))
 # Route labels registered per compile. Unregistered until 2026-08-06, which is why it
 # grew silently across compiles instead of being reported by name.
 register_reset_state("log_panel", lambda: _log_size())
+from .procedural.quest_driver import _QUEST_DISPATCH_VOICE
+register_reset_state("quest dispatch voice",
+                     lambda: 1 if _QUEST_DISPATCH_VOICE[0] is not None else 0)
 register_reset_state("ButtonPromise.navigation_map",
                      lambda: sum(len(v) for v in _button_promise().navigation_map.values()))
 register_reset_state("TickDispatcher",    lambda: len(TickDispatcher._dispatch_tick))

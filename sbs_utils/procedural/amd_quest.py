@@ -396,6 +396,16 @@ def amd_quest_facts(aliases=None):
             # loop. Read by the LM quest_driver's quest_tick_complete_after watcher.
             n, unit = amd_duration_parts(value)
             data["complete_after"] = {unit: n or 0}
+        # --- who speaks for this quest, and what the signal says -------------------
+        elif label == "speaker":
+            # A node key: a Cast character, a landmark, or a role. Resolved at SEND time
+            # (amd_action_actors), never here - the named thing usually does not exist yet
+            # when the AMD is parsed.
+            data["speaker"] = str(value).strip()
+        elif label in ("signal says", "signal_says"):
+            # What the deadline reminder transmits, `{time}` interpolated at send. The
+            # signal analogue of `Scan says:`.
+            data["reminder"] = str(value).strip()
         else:
             return None
         return True

@@ -222,6 +222,21 @@ def amd_action_actors(name):
     ids = set(to_id_list(role(landmark_key_role(_action_slug(key)))))
     if ids:
         return ids
+    # A CAST character, by its record key. Cast lifeforms carry `amd_lifeform:<key>`
+    # rather than a landmark role or their own key as a plain role, so naming one - the
+    # obvious thing to write, and what `Speaker: admiral` means - resolved to nothing and
+    # failed SILENTLY: the direction ran against an empty actor set, or a quest's voice
+    # fell through to a fallback that was never meant to speak for it.
+    #
+    # Unhosted first (the common case: a cast spawned with no host), then any host, so a
+    # character cast onto a station is still findable by key alone.
+    from .amd_lifeforms import lifeform_key_role
+    ids = set(to_id_list(role(lifeform_key_role(key))))
+    if ids:
+        return ids
+    ids = set(to_id_list(role(lifeform_key_role(_action_slug(key)))))
+    if ids:
+        return ids
     return set(to_id_list(role(_action_slug(key)))) or set(to_id_list(role(key)))
 
 
