@@ -223,6 +223,37 @@ So mounting is a solved problem: claim the slot, hide the widget, draw into it. 
 layout scheme, and the panel inherits exactly the geometry the waterfall had on every console
 that declares it.
 
+### Getting rid of the engine waterfall - THREE wrong ways first
+
+Worth writing down, because it cost real time and every wrong way reads as though it works.
+
+**`gui_console()` is what declares it.** Not the layout. `procedural/gui/console.py` sets a
+built-in widget list per console, and `text_waterfall` is in EVERY one of them:
+
+    science:      science_2d_view^radar_zoom_ctrl^ship_data^...^text_waterfall^...
+    helm/weapons/engineering/comms: all include it too
+
+So the layout never had to ask for it, and REMOVING a `gui_layout_widget("text_waterfall")`
+from a console's layout changes nothing at all - which is exactly what happened.
+
+| Attempt | Why it fails |
+|---|---|
+| `gui_hide(widget)` | Clears `_show` on the layout PLACEHOLDER. The engine draws from the widget LIST and carries on. |
+| Not calling `gui_layout_widget` | It was never the source - `gui_console` already declared it. |
+| Expecting a new widget list to drop it | The engine KEEPS widgets it has been given. |
+
+**What works: `gui_widget_offscreen(widget)`** - send it a rect at 100,100, out of view. That
+is all `gui_panel_widget_hide` has ever done, now named, because an engine widget cannot be
+un-declared.
+
+`gui_hide()` now logs a warning when handed an engine widget, naming both remedies, so the
+next person is told rather than left wondering.
+
+**For the rollout:** when the tail goes to every console, the cleaner move is an `exclude`
+argument on `gui_console` so the widget is never declared, rather than declaring it and
+pushing it off screen on five consoles. Deliberately NOT added yet - it is speculative until
+more than one console needs it.
+
 ### Tabs - reuse TabbedPanel, do not invent
 
 `procedural/gui/tabbed_panel.py` already provides
