@@ -10,7 +10,8 @@ tabs with icons, and already hosts other content on the comms console.
 """
 from ...helpers import FrameContext
 from ..log_panel import (log_entries_union, log_render, log_newest_seq_union,
-                         log_mark_seen, TAB_LOG, TAB_SHIP, TAB_MISSION)
+                         log_mark_seen, TAB_LOG, TAB_SHIP, TAB_MISSION,
+                         LOG_TAIL_LINES, LOG_TAIL_BACKGROUND)
 from .text import gui_text_area
 
 
@@ -109,3 +110,31 @@ def log_raise(scope, tab=TAB_LOG):
         panel = getattr(getattr(getattr(task, "main", None), "page", None), "info_panel", None)
         if panel is not None:
             panel.set_tab(tab)
+
+
+def gui_log_tail(count=None, background=None, tab=TAB_LOG, style=None):
+    """The last few log lines, drawn where a console's text waterfall used to be.
+
+    The engine waterfall cannot be styled from script - its background is fixed, and too
+    dark. This is the same content in a MAST text area, so the console owns its own look.
+
+    It is the AMBIENT half of the log: always visible, no interaction, the last line or
+    two. The history - filtered, scrollable, categorised - is the info-panel tab. Keeping
+    both is deliberate: a crew reading ship data should still catch traffic going past
+    without opening anything, and that is exactly what the tab cannot do.
+
+    Args:
+        count (int, optional): how many lines. Defaults to LOG_TAIL_LINES (2).
+        background (str, optional): the strip's colour. Defaults to LOG_TAIL_BACKGROUND.
+        tab (str, optional): which stream to tail. Defaults to everything.
+        style (str, optional): extra style for the text area.
+    """
+    cid = FrameContext.client_id
+    entries = log_entries_union([_ship_of(cid), cid], tab)
+    count = LOG_TAIL_LINES if count is None else count
+    if count > 0:
+        entries = entries[-count:]
+    text, styles = log_render(entries)
+    bg = LOG_TAIL_BACKGROUND if background is None else background
+    props = f"background:{bg};padding:4px,6px,4px,6px;" + (style or "")
+    return gui_text_area(text, props, markdown=False, line_styles=styles)

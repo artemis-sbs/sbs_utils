@@ -33,6 +33,13 @@ LOG_CAP = 500
 # a one-line callout, so it was being styled as a title - a size up - when a log line is
 # not a heading, it is a line. Set here so both are tunable in one place.
 LOG_FONT = "gui-1"          # plain lines
+# The compact tail that replaces the engine waterfall in a console's layout. Two lines is
+# the useful default: one is a headline, three starts competing with the panel that already
+# holds the history.
+LOG_TAIL_LINES = 2
+# ...and the reason the tail exists at all: the ENGINE waterfall's background cannot be
+# controlled from script, and it is too dark. A MAST text area's can.
+LOG_TAIL_BACKGROUND = "#1572"
 LOG_CALLOUT_FONT = "gui-2"  # severity lines, still a step above plain
 
 TAB_LOG = "log"

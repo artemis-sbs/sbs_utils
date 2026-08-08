@@ -82,7 +82,8 @@ from .tabbed_panel import gui_info_panel, gui_info_panel_send_message, gui_info_
 # The ship's log as an info-panel tab (LOG_PANEL_PLAN.md) - the text waterfall's
 # replacement. Exported here so a console can name it in gui_info_panel_add.
 from .log_panel_gui import (gui_panel_log, gui_panel_log_ship,
-                            gui_panel_log_mission, gui_panel_log_tick)
+                            gui_panel_log_mission, gui_panel_log_tick,
+                            gui_log_tail)
 from .overlay import overlay_show, overlay_clear, overlay_register, overlay_register_label, overlay_slot_define, overlay_hero, overlay_debug_log
 from .overlay import overlay_kind, consoles_of
 from .overlay import overlay_signal_show, overlay_signal_clear
