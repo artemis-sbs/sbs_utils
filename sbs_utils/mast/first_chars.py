@@ -1,4 +1,4 @@
-"""First-char set analysis for MAST node regexes (compiler dispatch).
+r"""First-char set analysis for MAST node regexes (compiler dispatch).
 
 `first_chars_for_pattern(pattern)` returns the set of characters a compiled
 regex could match as its first character, or `None` meaning "could start with

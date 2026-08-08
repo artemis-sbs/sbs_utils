@@ -52,6 +52,7 @@
 	"settings": {
 		"python.testing.unittestEnabled": true,
 		"taskviewer.showLaunches": true,
-		"taskviewer.showAll": false
+		"taskviewer.showAll": false,
+		"taskviewer.groupByWorkspace": false
 	}
 }
