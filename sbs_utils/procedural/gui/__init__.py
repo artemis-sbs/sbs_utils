@@ -47,7 +47,7 @@ from .navigation import gui_reroute_server, gui_reroute_clients, gui_reroute_cli
 from .navigation import gui_history_store, gui_history_back, gui_history_forward, gui_history_jump, gui_history_clear, gui_history_redirect
 
 from .console import gui_console, gui_activate_console, gui_console_clients
-from .widgets import gui_update_widget_list, gui_update_widgets, gui_widget_list, gui_widget_list_clear, gui_layout_widget
+from .widgets import gui_update_widget_list, gui_update_widgets, gui_widget_list, gui_widget_list_clear, gui_layout_widget, gui_widget_offscreen
 
 
 # Screenshot + clipboard use the Win32 API (ctypes.WinDLL) at import time, so they

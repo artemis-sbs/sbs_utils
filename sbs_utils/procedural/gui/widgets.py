@@ -139,3 +139,31 @@ def gui_layout_widget(widget):
     page.add_content(control, None)
     return control
     
+
+
+def gui_widget_offscreen(widget, client_id=None):
+    """Push an engine widget out of view.
+
+    The ONLY reliable way to be rid of an engine widget. It cannot be un-declared: the
+    console's widget list is what the engine draws from, and the engine keeps what it has
+    been given, so simply not asking for it is not always enough on a console that has
+    already shown it. gui_hide() does even less - it clears `_show` on the layout
+    placeholder while the engine carries on rendering.
+
+    So this does what `gui_panel_widget_hide` has always quietly done: sends the widget a
+    rect at 100,100, off the visible area. Named, because "hide the waterfall" was
+    attempted three different wrong ways before anyone found the one that works.
+
+    Args:
+        widget (str): engine widget name, e.g. ``"text_waterfall"``.
+        client_id (int, optional): defaults to the current client.
+    """
+    ctx = FrameContext.context
+    if ctx is None or ctx.sbs is None:
+        return
+    cid = FrameContext.client_id if client_id is None else client_id
+    if cid is None:
+        return
+    off = 100
+    ctx.sbs.send_client_widget_rects(cid, widget, off, off, off + 10, off + 10,
+                                     off, off, off + 10, off + 10)
