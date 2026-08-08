@@ -38,7 +38,13 @@ def gui_panel_log(cid, left, top, width, height, tab=TAB_LOG):
     # The ship's log PLUS anything addressed to this console alone. comms_broadcast
     # accepts either a ship or a client, so a console-only note has to show up somewhere -
     # reading only the ship scope recorded it and never displayed it.
-    text, styles = log_render(log_entries_union([_ship_of(cid), cid], tab))
+    #
+    # NEWEST FIRST, like the tail and like the `messages` tab this sits beside: new
+    # content appears where you are already looking, instead of below the fold with the
+    # widget needing to be scrolled to reach it. It also means the tab never depends on
+    # follow_tail - the thing worth reading is at the top the moment it arrives.
+    entries = list(reversed(log_entries_union([_ship_of(cid), cid], tab)))
+    text, styles = log_render(entries)
     if not text:
         # An empty log should read as empty, not as a broken panel.
         gui_text_area("$text:(nothing here yet);color:#888;")
