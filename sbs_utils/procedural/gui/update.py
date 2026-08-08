@@ -85,6 +85,19 @@ def gui_hide(layout_item):
     """    
     if layout_item is None:
         return
+    # An ENGINE widget cannot be hidden this way, and failing silently has cost real time
+    # twice now. gui_layout_widget ADDS the widget to the console's widget list
+    # (page.add_console_widget), and that list is what makes the engine draw it - this only
+    # clears `_show` on the layout PLACEHOLDER, so the engine carries on rendering it in
+    # exactly the same place. Say so rather than doing nothing visible.
+    from ...pages.layout.console_widget import ConsoleWidget
+    if isinstance(layout_item, ConsoleWidget):
+        from ..execution import log
+        log(f"gui_hide() cannot hide the engine widget "
+            f"'{getattr(layout_item, 'widget', '?')}': it is drawn from the console's "
+            f"widget list, not from this layout. Either do not call gui_layout_widget for "
+            f"it at all, or move it off screen the way gui_panel_widget_hide does.",
+            "gui", "warning")
     # Removed layout_item.hidden check, since that checks both `_show` and `_is_shown`.
     # This only changes `_show`
     layout_item.show(False)
