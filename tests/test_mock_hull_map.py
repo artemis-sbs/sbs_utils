@@ -352,7 +352,17 @@ class TestArtFilePath(unittest.TestCase):
         self.assertTrue(resolved.endswith(os.path.join("Mod", "graphics", "ships")), resolved)
 
     def test_an_absolute_path_is_left_alone(self):
-        abs_path = os.path.join(os.path.sep, "somewhere", "art")
+        # abspath(), not a bare leading separator. A rooted path with no DRIVE letter
+        # (one backslash, then the folders) stopped counting as absolute in Python 3.13:
+        # os.path.isabs() returns False for it on Windows now. So the old form quietly
+        # became a RELATIVE path on a 3.13+ dev interpreter and got joined onto the exe
+        # dir, failing here. abspath gives a genuinely absolute path on either platform,
+        # which is what this test was always about.
+        #
+        # NOTE the engine runs Python 3.11, where the driveless form IS absolute - so the
+        # mock and the engine disagree about that one shape. Out of scope here; this test
+        # is about 'absolute is passed through', not about which spellings are absolute.
+        abs_path = os.path.abspath(os.path.join(os.path.sep, "somewhere", "art"))
         self.hull.art_file_path = abs_path
         self.assertEqual(self.hull._art_dir(), abs_path)
 
