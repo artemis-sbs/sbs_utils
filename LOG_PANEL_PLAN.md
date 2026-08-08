@@ -254,6 +254,24 @@ Start with a **single cap of 500 entries per scope**, rendered whole - one numbe
 survive entries dropping off the top while a reader is scrolled back - without it, the count
 drifts every time the buffer wraps.
 
+### Font size - settled
+
+Log text runs a size DOWN from document text: `LOG_FONT = "gui-1"` plain,
+`LOG_CALLOUT_FONT = "gui-2"` for a severity line, so the hierarchy survives.
+
+Why it needed setting at all: `amd_callout` is built for in-fiction DOCUMENTS, where a
+callout has a title line and a body and the title SHOULD be bigger (`_TITLE_EXTRA` bumps it
+to gui-3). Every log entry is a ONE-LINE callout - a title with no body - so it inherited
+title emphasis for a line that is not a title. That is a consequence of reusing a document
+feature for log lines, not a defect in `amd_callout`, which is left untouched: the override
+lives entirely in `log_render`, and any other consumer of callouts still gets gui-2 body /
+gui-3 title.
+
+**Decided (Doug, 2026-08-07) after seeing it on a console: "for this with limited space this
+looks good."** The panel shares a console with everything else, and density is worth more
+here than matching document size. Do not raise it back on the argument that gui-1 is smaller
+than the widget default - that is the point.
+
 ### Shapes
 
     entry = {
