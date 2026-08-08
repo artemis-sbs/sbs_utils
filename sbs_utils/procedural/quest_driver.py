@@ -326,8 +326,12 @@ def quest_mark_complete(agent_id, quest_id):
     _quest_fire_overlays(agent_id, data, "complete_overlay", "on_complete")
     name = quest_get_display_name(agent_id, quest_id) or quest_id
     if not _quest_author_announces(data, "complete_overlay", "on_complete"):
+        # Tagged at the SOURCE, so every mission's quest traffic lands in the log's
+        # Mission tab without any mission being edited. `tip` gives a completion its
+        # callout; failures below take `danger`.
         comms_broadcast(_quest_audience(agent_id),
-                        f"{_quest_noun(data)} complete: {name}", "#0f0")
+                        f"{_quest_noun(data)} complete: {name}", "#0f0",
+                        category="mission", severity="tip")
     # A game-ending mission quest wins the game; then bubble up to a parent mission.
     _quest_maybe_end_game(agent_id, quest_id, data, win=True)
     if data.get("parent"):
@@ -528,7 +532,8 @@ def quest_mark_failed(agent_id, quest_id):
     name = quest_get_display_name(agent_id, quest_id) or quest_id
     if not _quest_author_announces(data, "fail_overlay", "on_fail"):
         comms_broadcast(_quest_audience(agent_id),
-                        f"{_quest_noun(data)} failed: {name}", "#f33")
+                        f"{_quest_noun(data)} failed: {name}", "#f33",
+                        category="mission", severity="danger")
     _quest_maybe_end_game(agent_id, quest_id, data, win=False)
     # The FAILURE twin of quest_succeeded. There was no announcement for failure at
     # all, so anything reacting to a lost objective had nothing to listen to.

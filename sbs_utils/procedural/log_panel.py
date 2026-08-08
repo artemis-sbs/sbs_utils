@@ -53,11 +53,15 @@ SEVERITY_CALLOUT = {
 # construction.
 _LOG = {}
 _SEQ = [0]
+# client id -> the newest seq that client has been shown. Lets the panel's tick redraw
+# only when the log actually grew, instead of re-presenting at 1 Hz forever.
+_SEEN = {}
 
 
 def log_clear():
     """Drop every scope's log (fresh mission / in-process recompile)."""
     _LOG.clear()
+    _SEEN.clear()
     _SEQ[0] = 0
 
 
@@ -139,3 +143,33 @@ def log_render(entries):
         if own is not None and i < len(styles) and styles[i] is None:
             styles[i] = own
     return text, styles
+
+
+def log_newest_seq(scope):
+    """The newest entry's ``seq`` for a scope, or 0 when it has no log yet.
+
+    Cheap change detection: a panel compares this against what it last drew rather than
+    re-rendering on a timer.
+    """
+    entries = _LOG.get(scope)
+    return entries[-1]["seq"] if entries else 0
+
+
+def log_mark_seen(client_id, seq):
+    """Record the newest seq a client has been shown. Returns True if it CHANGED."""
+    if _SEEN.get(client_id) == seq:
+        return False
+    _SEEN[client_id] = seq
+    return True
+
+
+def log_unseen(client_id, scope):
+    """How many entries have arrived for `scope` since this client last saw it.
+
+    Counts by SEQ, not by index, so it stays right when the ring has dropped entries off
+    the top underneath a reader who scrolled back.
+    """
+    last = _SEEN.get(client_id)
+    if last is None:
+        return 0
+    return sum(1 for e in (_LOG.get(scope) or []) if e["seq"] > last)
