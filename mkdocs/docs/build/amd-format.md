@@ -308,9 +308,9 @@ Most of the time you never say — the **section name** already does:
 ```
 
 `Jobs`, `Goals`, `Narrative`, `Characters`, `Cast`, `Crew`, `Landmarks`, `Regions`,
-`Items`, `Sides`, `Scans`, `Dialogue` and their singular forms are all understood, and a
-mission can teach the format its own names (`Contracts`, `Bounties`) so it never has to
-say this twice.
+`Items`, `Drops`, `Sides`, `Scans`, `Dialogue` and their singular forms are all
+understood, and a mission can teach the format its own names (`Contracts`, `Bounties`)
+so it never has to say this twice.
 
 When the name does not say it, write the word on the **first line of the fence**:
 
@@ -637,7 +637,7 @@ sbs lint <mission> --missing
 ```
 
 Every reference that resolves to nothing, grouped by target and always exiting 0. It is
-a work list, not a failure — see [`[[key]]`](#key--linking-from-inside-prose).
+a work list, not a failure — see [`[[key]]`](#key-linking-from-inside-prose).
 
 See [AMD authoring tools](../tooling/amd-tools.md) for the outline, timeline, graph and
 map views over the same files.

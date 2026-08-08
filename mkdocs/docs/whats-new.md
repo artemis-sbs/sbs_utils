@@ -278,6 +278,68 @@ the interrupt sets `RAISE_ON = ("danger",)`.
 
 Docs: [Messages & the ship's log](build/messages.md), [Overlays](cosmos/overlays.md).
 
+## ⏳ A deadline you can hear coming
+
+A job with a `Fails when:` clock now **calls in as it runs down**, on comms, instead of
+counting silently on a tab nobody is looking at. Marks are absolute — 5:00, 2:00, 1:00,
+0:30 — filtered to the ones that fit under the deadline, so a six-minute job gets four
+reminders and a forty-five-second one gets two.
+
+Who speaks is whoever the job asked for: `Speaker:` outright, else `Held by:` when it can
+talk (a station's job speaks with the station's face for free), else the mission's
+registered dispatch voice — and **silence** if none of those resolve, because a reminder
+from nobody is worse than no reminder. `Signal says:` gives it words, with `{time}`
+interpolated, so an automated beacon sounds like one:
+
+```amd
+Speaker: shuttle_pilot
+Fails when: 6 minutes
+Signal says: LIFE SUPPORT CRITICAL. {time} TO FAILURE.
+```
+
+See [Deadline reminders](build/quests.md#deadline-reminders).
+
+## 💀 `Drops:` — what a kill leaves behind
+
+Loot is authored now, keyed by **role**, because what a ship drops follows from what it
+*is*:
+
+```amd
+### [Raider](raider)
+---
+Drops: salvage x2-4, contraband 20%
+---
+```
+
+The defaults stay the defaults — a mission that authors nothing behaves exactly as
+before. What changes is that an author can *see* the answer and change it, instead of a
+condemned hulk on a live-fire range leaving contraband because it happens to be spawned
+hostile. `Drops: none` means **this one drops nothing**, which is not the same as having
+no table at all, and `sbs lint` flags a drop key that names no item.
+
+See [What a kill leaves behind](build/items-upgrades.md#what-a-kill-leaves-behind).
+
+## 📍 Markers — naming a place
+
+"Clear the asteroids in the shipping lane" needed the crew to know which asteroids, and
+prose written at authoring time could only name coordinates that go stale. So put the
+place **in the world** instead: `marker_area` for a region, `marker_point` for a spot,
+and `marker_object` for a spot the crew has to select.
+
+See [Naming a place](build/world-building.md#naming-a-place).
+
+## 🗂️ Console tabs stop drawing over each other
+
+The tab strip divided a fixed width evenly, so more tabs only ever meant narrower tabs —
+and the engine does not clip text, it draws it anyway, over the neighbour. Every tab was
+present, clickable and illegible, which is why *adding* a tab broke ones that already
+worked.
+
+Eight tabs are shown; the rest go behind a **`More (N)`** menu that behaves exactly like
+clicking a tab. BACK is never overflowed. Nothing to configure.
+
+See [The console tab strip](build/players-consoles.md#the-console-tab-strip).
+
 ## 🧭 Quests & Stories
 
 - **A signal-driven quest engine** with kill / collect / scan / dock / reach /
@@ -330,6 +392,12 @@ same character, rewritten as five lines of data instead of a hand-written loop.
 API: [urge](api/procedural/urge.md).
 
 ## 💱 Items & Upgrades
+
+**One pickup can be worth several units.** `item_spawn(key, x, y, z, qty=24)` stamps a
+quantity on the pickup and collecting it credits the lot. A job wanting 24 salvage used
+to mean 24 collectibles scattered across the map — object churn, and a tedious flight
+rather than a pickup. Pickups that don't ask for a quantity are unchanged.
+
 
 - **Discoverable items and upgrades** driven by a data registry — collect them in
   space and activate them through a generic **Upgrades GUI**.

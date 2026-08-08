@@ -160,6 +160,7 @@ nav:
       - lifeform: api/procedural/lifeform.md
       - links: api/procedural/links.md
       - maps: api/procedural/maps.md
+      - markers: api/procedural/markers.md
       - media: api/procedural/media.md
       - mission: api/procedural/mission.md
       - modifiers: api/procedural/modifiers.md

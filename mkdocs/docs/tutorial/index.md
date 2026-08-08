@@ -148,7 +148,7 @@ The second line in our label example above you will recognize from the map label
 The third line and onwards defines the metadata associated with this label. Within the set of triple backticks, you can define keys, and set the default value for that key. This is very useful, because when you schedule a task, you can include different values for each key. This allows a label to not only run multiple times, but use different information while doing so.
 For both main and sublabels, the description and metadata lines are optional.  
 You might be able to guess what is special about sublabels. They are defined inside of a main label, and are only applicable to the their parent label. Sublabels with the same parent may not share a name, but if their parent labels are different, sublabel names can be reused.  
-More details on [tasks](https://artemis-sbs.github.io/sbs_utils/mast/overview/#sub-plots-aka-tasks) and [labels](https://artemis-sbs.github.io/sbs_utils/mast/syntax/#task-flow-story-sections-via-labels).
+More details on [tasks](../mast/overview.md#tasks-storylines-in-parallel) and [labels](../mast/syntax.md#labels).
 
 ## 4. Spawning Player Ships
 Moving on from all that technical stuff, let's get into actual mission writing! … Which requires some technical stuff.  
@@ -323,7 +323,7 @@ First, we need to tell MAST that science should be enabled for objects that meet
 ```python
 //enable/science if has_role(SCIENCE_SELECTED_ID, "treasure")
 ```
-This is a route label or a route, and all routes share this format. You'll note that we have a new variable: `SCIENCE_SELECTED_ID`. All routes have similar variables, and they can be found [here](https://artemis-sbs.github.io/sbs_utils/mast/routes/). The big difference between route labels and other types of labels is how and when they run. While main and sublabels are scheduled by the mission writer, routes run whenever the specified conditions are met. In this case, the object represented by `SCIENCE_SELECTED_ID` must have the "treasure" role.  
+This is a route label or a route, and all routes share this format. You'll note that we have a new variable: `SCIENCE_SELECTED_ID`. All routes have similar variables, and they can be found [here](../mast/routes/index.md). The big difference between route labels and other types of labels is how and when they run. While main and sublabels are scheduled by the mission writer, routes run whenever the specified conditions are met. In this case, the object represented by `SCIENCE_SELECTED_ID` must have the "treasure" role.  
 We have another important step before we begin adding science scans:
 ```python
 //science if has_role(SCIENCE_SELECTED_ID, "treasure")
@@ -405,7 +405,7 @@ Now flip over to weapons and target the asteroid... and we get an error like thi
 Errors are an unavoidable part of mission writing for Cosmos. Fortunately, crashes are very rare, and we can easily restart the mission after we fix the issue. This particular error is a bit of an edge case. It's caused by `resource_gather.py`, which is part of the commerce addon in LegendaryMissions. There's a couple ways to get around this, but for now the simplest is to go into story.json and remove the commerce module. It's not used for anything yet anyways.  
 Note that if we use `terrain_asteroid_clusters()`, this is not an issue and we can use the commerce addon as normal.  
 ### Debug logging
-It is often useful to log the value of variable or other bits of information to verify that your code works properly, or to help isolate the cause of an issue. MAST has a built-in [logger](https://artemis-sbs.github.io/sbs_utils/mast/syntax/#logging) system, but I prefer to get a message in-game. I usually use the `comms_broadcast()` function. This function can send a message to the server (and all clients), or it can send the message to only a specific client if necessary.
+It is often useful to log the value of variable or other bits of information to verify that your code works properly, or to help isolate the cause of an issue. MAST has a built-in [logger](../mast/syntax.md#logging) system, but I prefer to get a message in-game. I usually use the `comms_broadcast()` function. This function can send a message to the server (and all clients), or it can send the message to only a specific client if necessary.
 ```python
 test_var = 10
 comms_broadcast(0, "My test var: {test_var}")
@@ -487,7 +487,7 @@ Now we need to schedule the task. We know how to use the `task_schedule()` funct
 await delay_sim(minutes=5)
 jump spawn_area_defenders
 ```
-You'll notice that we're using `await` again here. This pauses task execution until the [delay](https://artemis-sbs.github.io/sbs_utils/mast/syntax/#delay-commands) is complete.  
+You'll notice that we're using `await` again here. This pauses task execution until the [delay](../mast/syntax.md#delays) is complete.  
 I'm sure you've also seen that we're using the `jump` keyword instead of `task_schedule()`. This is a MAST-specific keyword, and it works very similarly to the `GOTO` keyword in BASIC. There is a difference between using `task_schedule()` and `jump` - `task_schedule()` creates a new, separate task, but continues the execution of the original task, while the `jump` keyword keeps the execution flow in the same task. This can be useful in a situation where you want to use the same metadata. An example of this can be found in [station_prefabs.mast](https://github.com/artemis-sbs/LegendaryMissions/blob/main/prefabs/station_prefabs.mast) in Legendary Missions.  
 `jump` could also be replaced with `->`. Its meaning and use are identical:
 ```python

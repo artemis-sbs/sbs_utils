@@ -55,3 +55,35 @@ side_set_relations(tsn, raider, sbs.DIPLOMACY.HOSTILE)
 ```
 
 See the [sides](../api/procedural/sides.md) API.
+
+## Naming a place
+
+"Clear the asteroids in the shipping lane" is only useful if the crew can tell which
+asteroids. Prose written at authoring time cannot say: the targets are scattered at
+runtime, so any coordinates in the text go stale the moment the spawn changes.
+
+The answer is to put a real object in the world rather than a phrase in the text, so
+the place is on the map where the crew is already looking. Three kinds, because they
+answer different questions:
+
+| Function | Is | Answers |
+|---|---|---|
+| `marker_area(x, y, z, size_x, size_z, text)` | a navarea quad | "the shipping lane", "the asteroid field" — a **region** |
+| `marker_point(x, y, z, text)` | a navpoint | "the rendezvous" — a **spot** |
+| `marker_object(x, y, z, text)` | a selectable object | a spot the crew must **select** — to scan it, comms it, fly to it |
+
+```
+marker_area(*center, 20000, 12000, "Shipping Lane")
+marker_point(*rendezvous, "Rendezvous")
+```
+
+`marker_area` takes the **full** width and depth, not half-extents, so a job passes the
+same numbers it gave its scatter box and the marker covers exactly what was placed
+inside it.
+
+A job that wants its markers gone before the mission ends removes them itself:
+`marker_delete(handle)` takes what any of the three returned, and
+`marker_delete_role(role)` clears every marker object carrying a role — how a job tidies
+up after itself when it completes. Otherwise there is nothing to clean up: navpoints live
+in the sim (rebuilt per mission) and marker objects are agents, cleared with everything
+else. See the [markers API](../api/procedural/markers.md).

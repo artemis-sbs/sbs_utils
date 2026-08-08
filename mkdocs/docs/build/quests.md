@@ -41,15 +41,16 @@ it is — is in [The AMD file format](amd-format.md).
 | `Then:` | Follow-up on completion — `reveal <quest>` (unlock another) or `signal <name>`. |
 | `Display:` / `Tier:` | Optional label / ordering for the log. |
 | `Show:` | **When** this quest is listed — `always` (default), `when done` (runs unseen, appears once it completes *or* fails, reading as history), `with children` (a grouping heading: a row only while something under it is listed), or `never` (drives its events invisibly). Not the same as `Starts when: revealed`, which also stops the triggers. |
+| `Accept On:` | Restrict which **consoles** may Accept/Abandon this job from the Quests tab — e.g. `comms`, or `comms, admiral`. Overrides the mission default (see [Console gating](#console-gating)). |
+| `Engage On:` | Restrict which consoles may **Engage** (travel to) this job — e.g. `helm`. Only meaningful when the mission enables the Engage button. |
+| `Speaker:` | **Who this quest talks as** — a character or ship key. Today it is the voice of the [deadline reminders](#deadline-reminders); anything else the quest needs to say uses it too. |
+| `Signal says:` | The words a deadline reminder transmits. `{time}` interpolates the clock — see [deadline reminders](#deadline-reminders). |
 
 !!! tip "Say `Beat` or `Arc` instead"
     A record that calls itself a **`Beat`** (a moment the crew lives through) already
     means `Show: when done`, and an **`Arc`** (the heading over a run of beats) already
     means `Show: with children` — see [screenplay words](amd-format.md#screenplay-words).
     Write `Show:` only to contradict the word.
-
-| `Accept On:` | Restrict which **consoles** may Accept/Abandon this job from the Quests tab — e.g. `comms`, or `comms, admiral`. Overrides the mission default (see [Console gating](#console-gating)). |
-| `Engage On:` | Restrict which consoles may **Engage** (travel to) this job — e.g. `helm`. Only meaningful when the mission enables the Engage button. |
 
 ### Console gating
 
@@ -112,6 +113,57 @@ objectives on.
     unaccepted on the board. (Pair it with **spawn-on-accept** — key the target
     spawn off the `quest_activated` signal or a state watch — so the objective's
     objects also appear only once the job is taken.)
+
+### Deadline reminders
+
+A countdown that only lives on the Quests tab is one the crew discovers by failing. A
+job with a `Fails when:` deadline calls in as its clock runs down, on comms, in the
+voice of whatever is transmitting:
+
+```amd
+## [Rescue the Shuttle](rescue_shuttle)
+---
+Job
+Speaker: shuttle_pilot
+Fails when: 6 minutes
+Signal says: LIFE SUPPORT CRITICAL. {time} TO FAILURE.
+---
+Their air is going. Reach them before the clock does.
+```
+
+**Cadence** is absolute marks — **5:00, 2:00, 1:00 and 0:30** — filtered to the ones
+that fit under the deadline. A six-minute job gets all four; a forty-five-second job
+gets two. They are sparse early and tighten as it matters, which a fixed interval
+cannot do: every-minute is spam on a long job, and fractions of the deadline land
+three messages seconds apart on a short one. A mark equal to the deadline never fires,
+so a five-minute job does not announce "5:00 remaining" the instant it is accepted, and
+a tick that crosses several marks at once (a long frame, a restart) sends only the most
+urgent rather than a burst.
+
+**Who speaks** is resolved in the order of how much you asked for it:
+
+| Order | Source |
+|---|---|
+| 1 | `Speaker:` on the quest. |
+| 2 | `Held by:`, when it resolves to something that can talk — a station's job speaks with the station's face for free. |
+| 3 | The mission's registered dispatch voice (`quest_dispatch_voice(<agent>)`). |
+| 4 | **Silence.** A reminder from nobody is worse than no reminder. |
+
+The mission registers its own dispatch voice, because the library has no business
+knowing which faction is in charge — and it is resolved lazily, so you may register it
+before the cast has spawned.
+
+**What it says** comes from `Signal says:`, with `{time}` replaced by the remaining
+clock. Without one, the wording follows the voice: a speaker with **no face** is a
+machine and *transmits* ("AUTOMATED SIGNAL - 2:00 REMAINING"), a cast character *speaks*
+("2:00 remaining."). Either way the message arrives on **comms**, titled with the
+quest's name — a crew can hold several timed jobs at once, and an urgent line about the
+wrong one is worse than none. The last mark is marked **final** and colored red.
+
+!!! note "`Signal says:` is not `Done when: signal <name>`"
+    Same word, two jobs: in `Done when: signal breach` the signal is an **event name**;
+    in `Signal says:` it is the thing **transmitting**. One is a field value, the other
+    a field label, which is the only reason the collision is safe.
 
 ## Signals
 

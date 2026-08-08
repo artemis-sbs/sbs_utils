@@ -46,3 +46,21 @@ Add your own console with a `@console/` label:
 
 Without LegendaryMissions, route consoles yourself with `gui_reroute_server` /
 `gui_reroute_clients`; MiningDays is an example that loads no add-ons.
+
+## The console tab strip
+
+A console's screens are tabs across the top, declared with `//gui/tab/<Name>` routes
+and turned on per console with `gui_tab_enable`.
+
+The strip is a **fixed width divided evenly**, so it never dropped a tab and never
+scrolled — it just kept making them narrower. Past about eight tabs the labels are
+narrower than the words in them, and the engine does not clip text: it draws it anyway,
+over the neighbour. Every tab stayed present and clickable, and all of them became
+illegible — which is why *adding* a tab damaged the ones that already worked.
+
+Now the strip shows **eight** tabs and puts the rest behind a **`More (N)`** menu.
+Picking from the menu is indistinguishable from clicking a tab, and the **BACK** tab is
+never overflowed — it is how you leave the screen, and hiding it would trade one
+navigation bug for another.
+
+Nothing to configure: a console with eight tabs or fewer looks exactly as it did.
