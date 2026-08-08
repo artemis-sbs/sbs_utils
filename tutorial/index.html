@@ -3635,6 +3635,8 @@
       
         
       
+        
+      
     
     
     
@@ -4236,6 +4238,34 @@
     
   
     maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/markers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    markers
   
 
     
@@ -7225,7 +7255,7 @@ The second line in our label example above you will recognize from the map label
 The third line and onwards defines the metadata associated with this label. Within the set of triple backticks, you can define keys, and set the default value for that key. This is very useful, because when you schedule a task, you can include different values for each key. This allows a label to not only run multiple times, but use different information while doing so.
 For both main and sublabels, the description and metadata lines are optional.<br />
 You might be able to guess what is special about sublabels. They are defined inside of a main label, and are only applicable to the their parent label. Sublabels with the same parent may not share a name, but if their parent labels are different, sublabel names can be reused.<br />
-More details on <a href="https://artemis-sbs.github.io/sbs_utils/mast/overview/#sub-plots-aka-tasks">tasks</a> and <a href="https://artemis-sbs.github.io/sbs_utils/mast/syntax/#task-flow-story-sections-via-labels">labels</a>.</p>
+More details on <a href="../mast/overview/#tasks-storylines-in-parallel">tasks</a> and <a href="../mast/syntax/#labels">labels</a>.</p>
 <h2 id="4-spawning-player-ships">4. Spawning Player Ships</h2>
 <p>Moving on from all that technical stuff, let's get into actual mission writing! … Which requires some technical stuff.<br />
 You've learned that labels are used by MAST to create a task. Well, it turns out that it's time to do so.
@@ -7367,7 +7397,7 @@ And now that we have an asteroid to contain the treasure, we can make it special
 First, we need to tell MAST that science should be enabled for objects that meet certain criteria. In our case, the criteria is an object with the "treasure" role:
 <div class="highlight"><pre><span></span><code><span class="o">//</span><span class="n">enable</span><span class="o">/</span><span class="n">science</span> <span class="k">if</span> <span class="n">has_role</span><span class="p">(</span><span class="n">SCIENCE_SELECTED_ID</span><span class="p">,</span> <span class="s2">&quot;treasure&quot;</span><span class="p">)</span>
 </code></pre></div>
-This is a route label or a route, and all routes share this format. You'll note that we have a new variable: <code>SCIENCE_SELECTED_ID</code>. All routes have similar variables, and they can be found <a href="https://artemis-sbs.github.io/sbs_utils/mast/routes/">here</a>. The big difference between route labels and other types of labels is how and when they run. While main and sublabels are scheduled by the mission writer, routes run whenever the specified conditions are met. In this case, the object represented by <code>SCIENCE_SELECTED_ID</code> must have the "treasure" role.<br />
+This is a route label or a route, and all routes share this format. You'll note that we have a new variable: <code>SCIENCE_SELECTED_ID</code>. All routes have similar variables, and they can be found <a href="../mast/routes/">here</a>. The big difference between route labels and other types of labels is how and when they run. While main and sublabels are scheduled by the mission writer, routes run whenever the specified conditions are met. In this case, the object represented by <code>SCIENCE_SELECTED_ID</code> must have the "treasure" role.<br />
 We have another important step before we begin adding science scans:
 <div class="highlight"><pre><span></span><code><span class="o">//</span><span class="n">science</span> <span class="k">if</span> <span class="n">has_role</span><span class="p">(</span><span class="n">SCIENCE_SELECTED_ID</span><span class="p">,</span> <span class="s2">&quot;treasure&quot;</span><span class="p">)</span>
 </code></pre></div>
@@ -7438,7 +7468,7 @@ Now flip over to weapons and target the asteroid... and we get an error like thi
 Errors are an unavoidable part of mission writing for Cosmos. Fortunately, crashes are very rare, and we can easily restart the mission after we fix the issue. This particular error is a bit of an edge case. It's caused by <code>resource_gather.py</code>, which is part of the commerce addon in LegendaryMissions. There's a couple ways to get around this, but for now the simplest is to go into story.json and remove the commerce module. It's not used for anything yet anyways.<br />
 Note that if we use <code>terrain_asteroid_clusters()</code>, this is not an issue and we can use the commerce addon as normal.  </p>
 <h3 id="debug-logging">Debug logging</h3>
-<p>It is often useful to log the value of variable or other bits of information to verify that your code works properly, or to help isolate the cause of an issue. MAST has a built-in <a href="https://artemis-sbs.github.io/sbs_utils/mast/syntax/#logging">logger</a> system, but I prefer to get a message in-game. I usually use the <code>comms_broadcast()</code> function. This function can send a message to the server (and all clients), or it can send the message to only a specific client if necessary.
+<p>It is often useful to log the value of variable or other bits of information to verify that your code works properly, or to help isolate the cause of an issue. MAST has a built-in <a href="../mast/syntax/#logging">logger</a> system, but I prefer to get a message in-game. I usually use the <code>comms_broadcast()</code> function. This function can send a message to the server (and all clients), or it can send the message to only a specific client if necessary.
 <div class="highlight"><pre><span></span><code><span class="n">test_var</span> <span class="o">=</span> <span class="mi">10</span>
 <span class="n">comms_broadcast</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;My test var: </span><span class="si">{test_var}</span><span class="s2">&quot;</span><span class="p">)</span>
 <span class="c1"># All clients and the server will show: &quot;My test var: 10&quot;</span>
@@ -7510,7 +7540,7 @@ Since we've identified everything that needs to happen in this label, let's put 
 <div class="highlight"><pre><span></span><code><span class="k">await</span> <span class="n">delay_sim</span><span class="p">(</span><span class="n">minutes</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
 <span class="n">jump</span> <span class="n">spawn_area_defenders</span>
 </code></pre></div>
-You'll notice that we're using <code>await</code> again here. This pauses task execution until the <a href="https://artemis-sbs.github.io/sbs_utils/mast/syntax/#delay-commands">delay</a> is complete.<br />
+You'll notice that we're using <code>await</code> again here. This pauses task execution until the <a href="../mast/syntax/#delays">delay</a> is complete.<br />
 I'm sure you've also seen that we're using the <code>jump</code> keyword instead of <code>task_schedule()</code>. This is a MAST-specific keyword, and it works very similarly to the <code>GOTO</code> keyword in BASIC. There is a difference between using <code>task_schedule()</code> and <code>jump</code> - <code>task_schedule()</code> creates a new, separate task, but continues the execution of the original task, while the <code>jump</code> keyword keeps the execution flow in the same task. This can be useful in a situation where you want to use the same metadata. An example of this can be found in <a href="https://github.com/artemis-sbs/LegendaryMissions/blob/main/prefabs/station_prefabs.mast">station_prefabs.mast</a> in Legendary Missions.<br />
 <code>jump</code> could also be replaced with <code>-&gt;</code>. Its meaning and use are identical:
 <div class="highlight"><pre><span></span><code><span class="o">-&gt;</span> <span class="n">spawn_area_defenders</span>

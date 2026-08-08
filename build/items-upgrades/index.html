@@ -2405,6 +2405,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Items & Upgrades
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -2421,6 +2439,47 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-a-kill-leaves-behind" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What a kill leaves behind
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-pickup-several-units" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One pickup, several units
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -3648,6 +3707,8 @@
       
         
       
+        
+      
     
     
     
@@ -4249,6 +4310,34 @@
     
   
     maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/markers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    markers
   
 
     
@@ -6748,6 +6837,36 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-a-kill-leaves-behind" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What a kill leaves behind
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-pickup-several-units" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One pickup, several units
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -6783,6 +6902,83 @@ code.</p>
 <div class="highlight"><pre><span></span><code>//signal/upgrade_activated
     log(f&quot;Upgrade collected&quot;)
 </code></pre></div>
+<h2 id="what-a-kill-leaves-behind">What a kill leaves behind</h2>
+<p>A drop table says what an object drops when it dies, keyed by <strong>role</strong> — because loot
+follows from what a ship <em>is</em>. Write it as a <code>Drops</code> section in AMD, one record per
+role:</p>
+<div class="highlight"><pre><span></span><code>## [Drops](drops)
+
+### [Condemned Hulk](target_drone)
+---
+Drops: none
+---
+Practice targets carry nothing.
+
+### [Raider](raider)
+---
+Drops: salvage x2-4, contraband 20%
+---
+</code></pre></div>
+<p>Each entry is a key plus optional count and chance, in any order:</p>
+<table>
+<thead>
+<tr>
+<th>Form</th>
+<th>Means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>salvage</code></td>
+<td>one, always</td>
+</tr>
+<tr>
+<td><code>salvage x3</code></td>
+<td>three, always</td>
+</tr>
+<tr>
+<td><code>salvage x2-4</code></td>
+<td>between two and four</td>
+</tr>
+<tr>
+<td><code>contraband 20%</code></td>
+<td>one, 20% of the time</td>
+</tr>
+<tr>
+<td><code>salvage x2-4 20%</code></td>
+<td>both</td>
+</tr>
+<tr>
+<td><code>none</code></td>
+<td>nothing at all</td>
+</tr>
+</tbody>
+</table>
+<p>The record <strong>key is the role</strong> the table applies to, and the <strong>first authored role
+wins</strong> — so a specific role written above a general one overrides it.</p>
+<div class="admonition warning">
+<p class="admonition-title">No table and an empty table are different</p>
+<p>A role with <strong>no</strong> table drops whatever it always dropped (the library's
+hand-written defaults — a hostile leaves a random trade good, a wreck rolls an
+upgrade by race). <code>Drops: none</code> means <strong>this one drops nothing</strong>. Collapsing the
+two would make <code>Drops: none</code> a no-op, which is the whole reason the field exists:
+condemned hulks on a live-fire range were leaving contraband, because they are
+spawned hostile so Weapons can lock them.</p>
+</div>
+<p><code>sbs lint</code> checks the keys: a drop naming no item is reported as <code>dangling-drop</code>,
+because otherwise a typo is a table that silently yields nothing. It only checks when it
+can see what an item <em>is</em> -- an item declared in the mission's own <code>.mast</code> (<code>type: item/</code>
+with a <code>key:</code>) or as an AMD record. A mission whose items all live in an add-on the
+linter cannot read gets no drop warnings rather than a wrong one.</p>
+<h2 id="one-pickup-several-units">One pickup, several units</h2>
+<p>A pickup is normally worth one of its item. <code>qty</code> makes a single object worth several
+— a salvage cache, an ore seam:</p>
+<div class="highlight"><pre><span></span><code>item_spawn(&quot;salvage&quot;, x, y, z, qty=24)
+</code></pre></div>
+<p>Without it a bulk resource needs one object per unit: a job wanting 24 salvage would
+scatter 24 collectibles across the map, which is both object churn and a tedious flight
+rather than a pickup. Collecting one credits the whole quantity at once (and says so).
+Pickups that don't pass <code>qty</code> are unchanged — absent means one.</p>
 
 
 

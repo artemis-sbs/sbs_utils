@@ -2483,6 +2483,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#deadline-reminders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deadline reminders
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3757,6 +3768,8 @@
       
         
       
+        
+      
     
     
     
@@ -4358,6 +4371,34 @@
     
   
     maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/markers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    markers
   
 
     
@@ -6919,6 +6960,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#deadline-reminders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deadline reminders
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -7029,6 +7081,22 @@ it is — is in <a href="../amd-format/">The AMD file format</a>.</p>
 <td><code>Show:</code></td>
 <td><strong>When</strong> this quest is listed — <code>always</code> (default), <code>when done</code> (runs unseen, appears once it completes <em>or</em> fails, reading as history), <code>with children</code> (a grouping heading: a row only while something under it is listed), or <code>never</code> (drives its events invisibly). Not the same as <code>Starts when: revealed</code>, which also stops the triggers.</td>
 </tr>
+<tr>
+<td><code>Accept On:</code></td>
+<td>Restrict which <strong>consoles</strong> may Accept/Abandon this job from the Quests tab — e.g. <code>comms</code>, or <code>comms, admiral</code>. Overrides the mission default (see <a href="#console-gating">Console gating</a>).</td>
+</tr>
+<tr>
+<td><code>Engage On:</code></td>
+<td>Restrict which consoles may <strong>Engage</strong> (travel to) this job — e.g. <code>helm</code>. Only meaningful when the mission enables the Engage button.</td>
+</tr>
+<tr>
+<td><code>Speaker:</code></td>
+<td><strong>Who this quest talks as</strong> — a character or ship key. Today it is the voice of the <a href="#deadline-reminders">deadline reminders</a>; anything else the quest needs to say uses it too.</td>
+</tr>
+<tr>
+<td><code>Signal says:</code></td>
+<td>The words a deadline reminder transmits. <code>{time}</code> interpolates the clock — see <a href="#deadline-reminders">deadline reminders</a>.</td>
+</tr>
 </tbody>
 </table>
 <div class="admonition tip">
@@ -7038,8 +7106,6 @@ means <code>Show: when done</code>, and an <strong><code>Arc</code></strong> (th
 means <code>Show: with children</code> — see <a href="../amd-format/#screenplay-words">screenplay words</a>.
 Write <code>Show:</code> only to contradict the word.</p>
 </div>
-<p>| <code>Accept On:</code> | Restrict which <strong>consoles</strong> may Accept/Abandon this job from the Quests tab — e.g. <code>comms</code>, or <code>comms, admiral</code>. Overrides the mission default (see <a href="#console-gating">Console gating</a>). |
-| <code>Engage On:</code> | Restrict which consoles may <strong>Engage</strong> (travel to) this job — e.g. <code>helm</code>. Only meaningful when the mission enables the Engage button. |</p>
 <h3 id="console-gating">Console gating</h3>
 <p>The Quests tab <strong>displays</strong> on every enabled console, but <em>who may act</em> is gated per
 console. A mission sets the defaults (shared vars, e.g. in <code>settings.yaml</code>):</p>
@@ -7179,6 +7245,69 @@ from the moment they take it on, instead of ticking down while it sits
 unaccepted on the board. (Pair it with <strong>spawn-on-accept</strong> — key the target
 spawn off the <code>quest_activated</code> signal or a state watch — so the objective's
 objects also appear only once the job is taken.)</p>
+</div>
+<h3 id="deadline-reminders">Deadline reminders</h3>
+<p>A countdown that only lives on the Quests tab is one the crew discovers by failing. A
+job with a <code>Fails when:</code> deadline calls in as its clock runs down, on comms, in the
+voice of whatever is transmitting:</p>
+<div class="highlight"><pre><span></span><code>## [Rescue the Shuttle](rescue_shuttle)
+---
+Job
+Speaker: shuttle_pilot
+Fails when: 6 minutes
+Signal says: LIFE SUPPORT CRITICAL. {time} TO FAILURE.
+---
+Their air is going. Reach them before the clock does.
+</code></pre></div>
+<p><strong>Cadence</strong> is absolute marks — <strong>5:00, 2:00, 1:00 and 0:30</strong> — filtered to the ones
+that fit under the deadline. A six-minute job gets all four; a forty-five-second job
+gets two. They are sparse early and tighten as it matters, which a fixed interval
+cannot do: every-minute is spam on a long job, and fractions of the deadline land
+three messages seconds apart on a short one. A mark equal to the deadline never fires,
+so a five-minute job does not announce "5:00 remaining" the instant it is accepted, and
+a tick that crosses several marks at once (a long frame, a restart) sends only the most
+urgent rather than a burst.</p>
+<p><strong>Who speaks</strong> is resolved in the order of how much you asked for it:</p>
+<table>
+<thead>
+<tr>
+<th>Order</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>Speaker:</code> on the quest.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>Held by:</code>, when it resolves to something that can talk — a station's job speaks with the station's face for free.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>The mission's registered dispatch voice (<code>quest_dispatch_voice(&lt;agent&gt;)</code>).</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Silence.</strong> A reminder from nobody is worse than no reminder.</td>
+</tr>
+</tbody>
+</table>
+<p>The mission registers its own dispatch voice, because the library has no business
+knowing which faction is in charge — and it is resolved lazily, so you may register it
+before the cast has spawned.</p>
+<p><strong>What it says</strong> comes from <code>Signal says:</code>, with <code>{time}</code> replaced by the remaining
+clock. Without one, the wording follows the voice: a speaker with <strong>no face</strong> is a
+machine and <em>transmits</em> ("AUTOMATED SIGNAL - 2:00 REMAINING"), a cast character <em>speaks</em>
+("2:00 remaining."). Either way the message arrives on <strong>comms</strong>, titled with the
+quest's name — a crew can hold several timed jobs at once, and an urgent line about the
+wrong one is worse than none. The last mark is marked <strong>final</strong> and colored red.</p>
+<div class="admonition note">
+<p class="admonition-title"><code>Signal says:</code> is not <code>Done when: signal &lt;name&gt;</code></p>
+<p>Same word, two jobs: in <code>Done when: signal breach</code> the signal is an <strong>event name</strong>;
+in <code>Signal says:</code> it is the thing <strong>transmitting</strong>. One is a field value, the other
+a field label, which is the only reason the collision is safe.</p>
 </div>
 <h2 id="signals">Signals</h2>
 <p>Quests emit signals you can react to from anywhere:</p>

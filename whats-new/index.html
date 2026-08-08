@@ -689,6 +689,50 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-deadline-you-can-hear-coming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ⏳ A deadline you can hear coming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#drops-what-a-kill-leaves-behind" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        💀 Drops: — what a kill leaves behind
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#markers-naming-a-place" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📍 Markers — naming a place
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#console-tabs-stop-drawing-over-each-other" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🗂️ Console tabs stop drawing over each other
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#quests-stories" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4090,6 +4134,8 @@
       
         
       
+        
+      
     
     
     
@@ -4691,6 +4737,34 @@
     
   
     maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/markers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    markers
   
 
     
@@ -7296,6 +7370,50 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-deadline-you-can-hear-coming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ⏳ A deadline you can hear coming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#drops-what-a-kill-leaves-behind" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        💀 Drops: — what a kill leaves behind
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#markers-naming-a-place" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📍 Markers — naming a place
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#console-tabs-stop-drawing-over-each-other" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🗂️ Console tabs stop drawing over each other
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#quests-stories" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7868,6 +7986,49 @@ that connected a second later never saw it.</p>
 tab — the strip already shows it, in its severity colour, everywhere. A mission that wants
 the interrupt sets <code>RAISE_ON = ("danger",)</code>.</p>
 <p>Docs: <a href="../build/messages/">Messages &amp; the ship's log</a>, <a href="../cosmos/overlays/">Overlays</a>.</p>
+<h2 id="a-deadline-you-can-hear-coming">⏳ A deadline you can hear coming</h2>
+<p>A job with a <code>Fails when:</code> clock now <strong>calls in as it runs down</strong>, on comms, instead of
+counting silently on a tab nobody is looking at. Marks are absolute — 5:00, 2:00, 1:00,
+0:30 — filtered to the ones that fit under the deadline, so a six-minute job gets four
+reminders and a forty-five-second one gets two.</p>
+<p>Who speaks is whoever the job asked for: <code>Speaker:</code> outright, else <code>Held by:</code> when it can
+talk (a station's job speaks with the station's face for free), else the mission's
+registered dispatch voice — and <strong>silence</strong> if none of those resolve, because a reminder
+from nobody is worse than no reminder. <code>Signal says:</code> gives it words, with <code>{time}</code>
+interpolated, so an automated beacon sounds like one:</p>
+<div class="highlight"><pre><span></span><code>Speaker: shuttle_pilot
+Fails when: 6 minutes
+Signal says: LIFE SUPPORT CRITICAL. {time} TO FAILURE.
+</code></pre></div>
+<p>See <a href="../build/quests/#deadline-reminders">Deadline reminders</a>.</p>
+<h2 id="drops-what-a-kill-leaves-behind">💀 <code>Drops:</code> — what a kill leaves behind</h2>
+<p>Loot is authored now, keyed by <strong>role</strong>, because what a ship drops follows from what it
+<em>is</em>:</p>
+<div class="highlight"><pre><span></span><code>### [Raider](raider)
+---
+Drops: salvage x2-4, contraband 20%
+---
+</code></pre></div>
+<p>The defaults stay the defaults — a mission that authors nothing behaves exactly as
+before. What changes is that an author can <em>see</em> the answer and change it, instead of a
+condemned hulk on a live-fire range leaving contraband because it happens to be spawned
+hostile. <code>Drops: none</code> means <strong>this one drops nothing</strong>, which is not the same as having
+no table at all, and <code>sbs lint</code> flags a drop key that names no item.</p>
+<p>See <a href="../build/items-upgrades/#what-a-kill-leaves-behind">What a kill leaves behind</a>.</p>
+<h2 id="markers-naming-a-place">📍 Markers — naming a place</h2>
+<p>"Clear the asteroids in the shipping lane" needed the crew to know which asteroids, and
+prose written at authoring time could only name coordinates that go stale. So put the
+place <strong>in the world</strong> instead: <code>marker_area</code> for a region, <code>marker_point</code> for a spot,
+and <code>marker_object</code> for a spot the crew has to select.</p>
+<p>See <a href="../build/world-building/#naming-a-place">Naming a place</a>.</p>
+<h2 id="console-tabs-stop-drawing-over-each-other">🗂️ Console tabs stop drawing over each other</h2>
+<p>The tab strip divided a fixed width evenly, so more tabs only ever meant narrower tabs —
+and the engine does not clip text, it draws it anyway, over the neighbour. Every tab was
+present, clickable and illegible, which is why <em>adding</em> a tab broke ones that already
+worked.</p>
+<p>Eight tabs are shown; the rest go behind a <strong><code>More (N)</code></strong> menu that behaves exactly like
+clicking a tab. BACK is never overflowed. Nothing to configure.</p>
+<p>See <a href="../build/players-consoles/#the-console-tab-strip">The console tab strip</a>.</p>
 <h2 id="quests-stories">🧭 Quests &amp; Stories</h2>
 <ul>
 <li><strong>A signal-driven quest engine</strong> with kill / collect / scan / dock / reach /
@@ -7915,6 +8076,10 @@ comes. In Legendary Missions, <strong>Ambassador Florbin's</strong> famous passe
 same character, rewritten as five lines of data instead of a hand-written loop.</p>
 <p>API: <a href="../api/procedural/urge/">urge</a>.</p>
 <h2 id="items-upgrades">💱 Items &amp; Upgrades</h2>
+<p><strong>One pickup can be worth several units.</strong> <code>item_spawn(key, x, y, z, qty=24)</code> stamps a
+quantity on the pickup and collecting it credits the lot. A job wanting 24 salvage used
+to mean 24 collectibles scattered across the map — object churn, and a tedious flight
+rather than a pickup. Pickups that don't ask for a quantity are unchanged.</p>
 <ul>
 <li><strong>Discoverable items and upgrades</strong> driven by a data registry — collect them in
   space and activate them through a generic <strong>Upgrades GUI</strong>.</li>

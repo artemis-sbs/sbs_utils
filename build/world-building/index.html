@@ -1775,6 +1775,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#naming-a-place" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming a place
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3729,6 +3740,8 @@
       
         
       
+        
+      
     
     
     
@@ -4330,6 +4343,34 @@
     
   
     maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/markers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    markers
   
 
     
@@ -6879,6 +6920,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#naming-a-place" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming a place
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -6933,6 +6985,51 @@ raider = await prefab_spawn(prefab_side_generic, data={&quot;key&quot;:&quot;rai
 side_set_relations(tsn, raider, sbs.DIPLOMACY.HOSTILE)
 </code></pre></div>
 <p>See the <a href="../../api/procedural/sides/">sides</a> API.</p>
+<h2 id="naming-a-place">Naming a place</h2>
+<p>"Clear the asteroids in the shipping lane" is only useful if the crew can tell which
+asteroids. Prose written at authoring time cannot say: the targets are scattered at
+runtime, so any coordinates in the text go stale the moment the spawn changes.</p>
+<p>The answer is to put a real object in the world rather than a phrase in the text, so
+the place is on the map where the crew is already looking. Three kinds, because they
+answer different questions:</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Is</th>
+<th>Answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>marker_area(x, y, z, size_x, size_z, text)</code></td>
+<td>a navarea quad</td>
+<td>"the shipping lane", "the asteroid field" — a <strong>region</strong></td>
+</tr>
+<tr>
+<td><code>marker_point(x, y, z, text)</code></td>
+<td>a navpoint</td>
+<td>"the rendezvous" — a <strong>spot</strong></td>
+</tr>
+<tr>
+<td><code>marker_object(x, y, z, text)</code></td>
+<td>a selectable object</td>
+<td>a spot the crew must <strong>select</strong> — to scan it, comms it, fly to it</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code>marker_area(*center, 20000, 12000, &quot;Shipping Lane&quot;)
+marker_point(*rendezvous, &quot;Rendezvous&quot;)
+</code></pre></div>
+<p><code>marker_area</code> takes the <strong>full</strong> width and depth, not half-extents, so a job passes the
+same numbers it gave its scatter box and the marker covers exactly what was placed
+inside it.</p>
+<p>A job that wants its markers gone before the mission ends removes them itself:
+<code>marker_delete(handle)</code> takes what any of the three returned, and
+<code>marker_delete_role(role)</code> clears every marker object carrying a role — how a job tidies
+up after itself when it completes. Otherwise there is nothing to clean up: navpoints live
+in the sim (rebuilt per mission) and marker objects are agents, cleared with everything
+else. See the <a href="../../api/procedural/markers/">markers API</a>.</p>
 
 
 

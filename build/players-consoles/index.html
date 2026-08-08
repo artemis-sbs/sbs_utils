@@ -1837,6 +1837,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#the-console-tab-strip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The console tab strip
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3707,6 +3718,8 @@
       
         
       
+        
+      
     
     
     
@@ -4308,6 +4321,34 @@
     
   
     maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/markers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    markers
   
 
     
@@ -6835,6 +6876,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#the-console-tab-strip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The console tab strip
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -6888,6 +6940,19 @@ engineering / comms / main-screen consoles. Loading it in <code>story.json</code
 <a href="../../cosmos/gui/">GUI cookbook</a> for building console layouts.</p>
 <p>Without LegendaryMissions, route consoles yourself with <code>gui_reroute_server</code> /
 <code>gui_reroute_clients</code>; MiningDays is an example that loads no add-ons.</p>
+<h2 id="the-console-tab-strip">The console tab strip</h2>
+<p>A console's screens are tabs across the top, declared with <code>//gui/tab/&lt;Name&gt;</code> routes
+and turned on per console with <code>gui_tab_enable</code>.</p>
+<p>The strip is a <strong>fixed width divided evenly</strong>, so it never dropped a tab and never
+scrolled — it just kept making them narrower. Past about eight tabs the labels are
+narrower than the words in them, and the engine does not clip text: it draws it anyway,
+over the neighbour. Every tab stayed present and clickable, and all of them became
+illegible — which is why <em>adding</em> a tab damaged the ones that already worked.</p>
+<p>Now the strip shows <strong>eight</strong> tabs and puts the rest behind a <strong><code>More (N)</code></strong> menu.
+Picking from the menu is indistinguishable from clicking a tab, and the <strong>BACK</strong> tab is
+never overflowed — it is how you leave the screen, and hiding it would trade one
+navigation bug for another.</p>
+<p>Nothing to configure: a console with eight tabs or fewer looks exactly as it did.</p>
 
 
 

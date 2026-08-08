@@ -3643,6 +3643,8 @@
       
         
       
+        
+      
     
     
     
@@ -3959,6 +3961,28 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_counted
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_drop_keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_drop_keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_drop_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_drop_table
       
     </span>
   </a>
@@ -4669,6 +4693,34 @@
     
   
     maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../markers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    markers
   
 
     
@@ -7377,6 +7429,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_drop_keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_drop_keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_drop_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_drop_table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.amd.amd_duration_parts" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8042,6 +8116,57 @@ same label; keep the most specific first.</p>
 <p>The shopping-list shape an author writes for costs and contents. Promoted here from
 LegendaryMissions' <code>recipes.py:_parse_inputs</code> so the fabrication recipe fence reads
 through the SAME declared type as everything else, instead of a private loader.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.amd.amd_drop_keys" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">amd_drop_keys</span><span class="p">(</span><span class="n">s</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Just the item keys a drop table names, in written order - what a reference
+extractor and a linter need, without the counts.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.amd.amd_drop_table" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">amd_drop_table</span><span class="p">(</span><span class="n">s</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>'salvage x2-4, contraband 20%' -&gt; [{key, low, high, chance}, ...].</p>
+<p>What a kill leaves behind. A richer shopping list than <code>amd_counted</code>, because loot
+has a RANGE and a CHANCE as well as a name:</p>
+<pre><code>key            one, always
+key xN         N, always
+key xN-M       between N and M
+key P%         one, P of the time
+key xN-M P%    both
+none           nothing at all - an EMPTY table, which is NOT the same as having
+               no table (see `amd_drops.drops_table_for`)
+</code></pre>
+<p>Lives here rather than in <code>amd_drops</code> so the stdlib-only half of the toolchain can
+read it too: the parser turns these keys into references and the linter checks them,
+and neither may import the runtime module. An already-parsed list passes through, so
+parsing twice is harmless.</p>
 
 
     </div>
