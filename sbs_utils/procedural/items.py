@@ -64,12 +64,17 @@ def items_of_category(category):
 
 
 # --- Spawning (registry-driven) ----------------------------------------------
-def item_spawn(key, x, y, z, name=None, blink=None, yaw=None):
+def item_spawn(key, x, y, z, name=None, blink=None, yaw=None, qty=None):
     """Spawn a collectible pickup for an item ``key`` at ``(x, y, z)``.
 
     Art comes from the registry; the key is stored on the pickup as the
     ``item_key`` inventory value so the generic collision route can credit it
     without any per-item code.
+
+    ``qty`` makes ONE pickup worth several units - a salvage cache, an ore seam. Without
+    it a bulk resource has to spawn one object per unit, which is both object churn and a
+    tedious pickup grind (a job needing 24 salvage would scatter 24 collectibles). The
+    collection route reads it, defaulting to 1, so existing pickups are unaffected.
 
     An UNREGISTERED key is a mission bug, and a silent one: the art it falls back to
     decides both the mesh and -- via the art's shipData ``interactionradius`` -- whether
@@ -94,6 +99,10 @@ def item_spawn(key, x, y, z, name=None, blink=None, yaw=None):
     obj.engine_object.steer_yaw = yaw
     obj.engine_object.blink_state = int(blink)
     set_inventory_value(obj.id, "item_key", key)
+    # Only stamped when asked for: absent means 1, which is what every caller before this
+    # meant and what the collection route falls back to.
+    if qty is not None and int(qty) > 1:
+        set_inventory_value(obj.id, "item_qty", int(qty))
     return obj
 
 
