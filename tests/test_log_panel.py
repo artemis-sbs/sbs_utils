@@ -84,11 +84,15 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(1, len(styles))
 
     def test_a_plain_entry_carries_no_box(self):
-        """Day-one parity: an untagged line must look like a waterfall line."""
+        """Day-one parity: an untagged line must look like a waterfall line.
+
+        It DOES carry a font - log text runs a size down from document text - so the
+        assertion is about colour and boxing, not about the slot being empty."""
         LP.log_add(1, "just text")
         text, styles = self._render()
         self.assertEqual("just text", text)
-        self.assertIsNone(styles[0], "a plain log line must not be styled or boxed")
+        self.assertNotIn("color:", styles[0]["style"], "a plain line must not be coloured")
+        self.assertIsNone(styles[0].get("background"), "a plain line must not be boxed")
 
     def test_severity_becomes_a_callout(self):
         LP.log_add(1, "Hull breach", severity="danger")
@@ -119,9 +123,10 @@ class RenderTests(unittest.TestCase):
         lines = text.splitlines()
         self.assertEqual(3, len(lines))
         self.assertEqual(3, len(styles))
-        self.assertIsNone(styles[0])                       # plain
-        self.assertTrue(styles[1].get("background"))       # callout
-        self.assertIsNone(styles[2].get("background"))     # colored, not boxed
+        self.assertNotIn("color:", styles[0]["style"])     # plain: font only
+        self.assertTrue(styles[1].get("background"))       # callout: boxed
+        self.assertIn("color:", styles[2]["style"])        # category: coloured...
+        self.assertIsNone(styles[2].get("background"))     # ...but not boxed
 
     def test_empty_renders_without_raising(self):
         text, styles = self._render()

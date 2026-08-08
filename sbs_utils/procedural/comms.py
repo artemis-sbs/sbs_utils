@@ -114,6 +114,10 @@ def comms_broadcast(ids_or_obj, msg, color=None, category=None, severity=None) -
     Example:
         comms_broadcast(SHIP_ID, "Red alert!", color="red", severity="danger")
     """
+    # The CALLER's color, before the engine default below. The log needs to know the
+    # difference between "this message asked to be red" and "nobody said" - a defaulted
+    # "#fff" forced every entry white and meant a category tint could never show.
+    caller_color = color
     if color is None:
         color="#fff"
     if ids_or_obj is None:
@@ -128,7 +132,7 @@ def comms_broadcast(ids_or_obj, msg, color=None, category=None, severity=None) -
         for id in _ids:
             # The log is scoped to whatever was addressed - a ship id gives the crew's
             # shared log, a client id a console-specific note.
-            _log_add(id, msg, color=color, category=category, severity=severity)
+            _log_add(id, msg, color=caller_color, category=category, severity=severity)
             if query.is_client_id(id):
                 FrameContext.context.sbs.send_message_to_client(id, color, msg)
             elif id == 0 or query.is_space_object_id(id):

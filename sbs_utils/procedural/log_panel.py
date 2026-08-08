@@ -28,6 +28,13 @@ from sbs_utils.procedural.amd_callout import amd_callout_render
 # window and add paging - measured wrap cost, not a memory number, is what should move it.
 LOG_CAP = 500
 
+# Log lines run one size DOWN from document text. amd_callout is built for in-fiction
+# DOCUMENTS: its body is gui-2 and it bumps a title to gui-3. Every severity log entry is
+# a one-line callout, so it was being styled as a title - a size up - when a log line is
+# not a heading, it is a line. Set here so both are tunable in one place.
+LOG_FONT = "gui-1"          # plain lines
+LOG_CALLOUT_FONT = "gui-2"  # severity lines, still a step above plain
+
 TAB_LOG = "log"
 TAB_SHIP = "ship"
 TAB_MISSION = "mission"
@@ -142,6 +149,17 @@ def log_render(entries):
     for i, own in enumerate(plain_styles):
         if own is not None and i < len(styles) and styles[i] is None:
             styles[i] = own
+    # Size every line for a LOG rather than a document. amd_callout is built for
+    # in-fiction DOCUMENTS - body gui-2, and a title bumped to gui-3 - and every severity
+    # entry here is a ONE-LINE callout, so it was being styled as a title, a size up. A
+    # log line is not a heading. A style string is last-wins, so appending the font beats
+    # whatever the callout pass put there.
+    for i in range(len(styles)):
+        is_callout = plain_styles[i] is None and styles[i] is not None
+        font = LOG_CALLOUT_FONT if is_callout else LOG_FONT
+        base = dict(styles[i]) if styles[i] else {}
+        base["style"] = (base.get("style") or "") + f"font:{font};"
+        styles[i] = base
     return text, styles
 
 
