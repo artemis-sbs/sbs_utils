@@ -118,3 +118,28 @@ class LookupTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OneGrammarTests(unittest.TestCase):
+    """The runtime reads the table; the parser turns its keys into references and the
+    linter checks them. Two parsers would mean the linter blessing loot the game then
+    ignores, so there is one - `amd.amd_drop_table` - and this pins them together."""
+
+    SAMPLES = ("salvage", "salvage x2-4, contraband 20%", "a x1 50%, b, c x3",
+               "none", "", "   ", "junk x, x2 lonely")
+
+    def test_the_runtime_parser_is_the_shared_one(self):
+        from sbs_utils.procedural.amd import amd_drop_table
+        for s in self.SAMPLES:
+            self.assertEqual(D.drop_table_parse(s), amd_drop_table(s), s)
+
+    def test_the_keys_the_linter_sees_are_the_keys_the_game_drops(self):
+        from sbs_utils.procedural.amd import amd_drop_keys
+        for s in self.SAMPLES:
+            self.assertEqual(amd_drop_keys(s), [e["key"] for e in D.drop_table_parse(s)], s)
+
+    def test_an_already_parsed_table_survives_a_second_parse(self):
+        """The reader and the linter may both reach the same value; parsing twice must
+        not turn a table into the string `[{'key': ...}]`."""
+        once = D.drop_table_parse("salvage x2-4, contraband 20%")
+        self.assertEqual(D.drop_table_parse(once), once)

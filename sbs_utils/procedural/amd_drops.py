@@ -28,6 +28,7 @@ which is the order the author wrote them in.
 import random
 
 from ..agent import Agent
+from .amd import amd_drop_table
 from .query import to_object, to_id
 
 
@@ -49,46 +50,12 @@ def drops_size():
 def drop_table_parse(value):
     """`salvage x2-4, contraband 20%` -> [{key, low, high, chance}].
 
-    Forms, all optional-in-any-order per entry:
-        key            one, always
-        key xN         N, always
-        key xN-M       between N and M
-        key P%         one, P of the time
-        key xN-M P%    both
-        none           nothing at all (an EMPTY table, which is not the same as
-                       having no table - see drops_table_for)
+    The grammar itself lives in `amd.amd_drop_table`, alongside the other authored value
+    types and reachable from the stdlib-only half of the toolchain - the parser turns
+    these keys into references and `sbs lint` checks them, and neither may import this
+    module. This name stays because it is what the mission-facing code calls.
     """
-    text = str(value or "").strip()
-    if not text or text.lower() in ("none", "nothing", "-"):
-        return []
-    out = []
-    for part in text.split(","):
-        part = part.strip()
-        if not part:
-            continue
-        key = None
-        low = high = 1
-        chance = 1.0
-        for tok in part.split():
-            if tok.endswith("%"):
-                try:
-                    chance = max(0.0, min(1.0, float(tok[:-1]) / 100.0))
-                except ValueError:
-                    pass
-            elif tok.lower().startswith("x") and len(tok) > 1:
-                span = tok[1:]
-                lo, _, hi = span.partition("-")
-                try:
-                    low = int(lo)
-                    high = int(hi) if hi else low
-                except ValueError:
-                    low = high = 1
-            elif key is None:
-                key = tok
-        if key:
-            out.append({"key": key, "low": min(low, high), "high": max(low, high),
-                        "chance": chance})
-    return out
+    return amd_drop_table(value)
 
 
 def drops_register(role, value):

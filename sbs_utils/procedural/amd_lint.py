@@ -253,6 +253,15 @@ DRIVER_SIGNALS = frozenset({
 
 
 # --- Phase 2: reference integrity (model-level, exact spans) -----------------
+def _item_universe_known(doc, items):
+    """True when SOMETHING in reach declares items - MAST `type: item/` labels, or item
+    records in this document. False means the checker cannot see what an item is, and a
+    drop key must be given the benefit of the doubt."""
+    if items:
+        return True
+    return any(getattr(n, "kind", None) == "item" for n in doc.nodes)
+
+
 def _resolves(doc, value, known_keys):
     """A bare key or `a/b/c` path resolves inside this doc, or (cross-file) its
     key/leaf is a known symbol elsewhere in the mission (another .amd node or a
@@ -373,7 +382,7 @@ def amd_lint_keys(doc):
     return findings
 
 
-def amd_lint_references(doc, known_keys=frozenset()):
+def amd_lint_references(doc, known_keys=frozenset(), items=None):
     """Flag intra-document references that resolve to no node: dialogue/comms choice
     `](target)`, lifeform `Scene:`, quest `Then: reveal <path>`, `Parent:`. Uses the
     `amd_core` model, so each finding carries the target's exact range. `known_keys`
@@ -412,6 +421,33 @@ def amd_lint_references(doc, known_keys=frozenset()):
                 findings.append(AmdFinding.at(
                     ref.span, WARNING, "dangling-speaker",
                     f"`{ref.owner}` gives a line to `{ref.value}`, who is not in the cast"))
+        elif ref.kind == "speaker":
+            # The FIELD form of the same question a cue asks, so it answers to the same
+            # code: a tool filtering `dangling-speaker` keeps working, and an author sees
+            # one diagnostic for "this voice is nobody" however they wrote it.
+            if not _resolves(doc, ref.value, known_keys):
+                findings.append(AmdFinding.at(
+                    ref.span, WARNING, "dangling-speaker",
+                    f"`{ref.owner}` gives its voice to `{ref.value}`, who is not in the cast"))
+        elif ref.kind == "drop":
+            # A drop key that names no item is a table that yields nothing - the silent
+            # failure the feature was asked for.
+            #
+            # But an item is usually a `type: item/` MAST label, and its KEY is not its
+            # label name - so checking against nodes and labels alone called every
+            # shipped trade good dangling (`salvage`, `contraband`). The item universe is
+            # scanned separately, and when it is EMPTY this check does not run at all:
+            # a mission whose items all live in an addon we cannot see has not told us
+            # what an item key looks like, and guessing there is how a linter teaches
+            # authors to ignore it.
+            if not _item_universe_known(doc, items):
+                continue
+            if ref.value in (items or ()):
+                continue
+            if not _resolves(doc, ref.value, known_keys):
+                findings.append(AmdFinding.at(
+                    ref.span, WARNING, "dangling-drop",
+                    f"`{ref.owner}` drops `{ref.value}`, which is not a defined item"))
         elif ref.kind == "link":
             # A `[[link]]` to something unwritten is a NOTE TO SELF, not a mistake -
             # drafting a mission as prose and letting the linter list what is still
@@ -542,7 +578,8 @@ def mast_source_index(mast_sources):
     decl_emits, decl_handles = _declared_from_sources(mast_sources)
     return {"routes": _mast_routes(mast_sources) | decl_handles,
             "emitted": _emitted_from_sources(mast_sources) | decl_emits | DRIVER_SIGNALS,
-            "labels": mast_labels(mast_sources)}
+            "labels": mast_labels(mast_sources),
+            "items": mast_item_keys(mast_sources)}
 
 
 def amd_lint_cross_file(doc, mast_sources=None, source_index=None):
@@ -869,6 +906,46 @@ def mast_labels(mast_sources):
     return labels
 
 
+def mast_item_keys(mast_sources):
+    """Every ITEM key the given MAST sources declare.
+
+    An item is a prefab label whose metadata says `type: item/...` and names itself with
+    `key: <k>` - that `key` is the word a `Drops:` table, a `Reward:` and a `collect`
+    trigger all write. It is NOT the label name (`prefab_trade_ore` declares `ore`), so
+    the label table cannot answer this and a drop key checked against labels alone reads
+    as dangling for every item the game actually ships.
+    """
+    keys = set()
+    rx_type = re.compile(r"^\s*type\s*:\s*item/", re.I)
+    rx_key = re.compile(r"^\s*key\s*:\s*(?P<k>[\w.\-]+)")
+    for src in mast_sources or []:
+        in_item = False
+        pending = None
+        for line in src.splitlines():
+            stripped = line.strip()
+            # A metadata fence closes the block; a new label starts another one.
+            if stripped.startswith("```") or stripped.startswith("=="):
+                if in_item and pending:
+                    keys.add(pending)
+                in_item, pending = False, None
+                continue
+            if rx_type.match(line):
+                in_item = True
+                if pending:
+                    keys.add(pending)
+                    pending = None
+                continue
+            m = rx_key.match(line)
+            if m:
+                # `key:` may be written above or below `type:`, so hold it until the
+                # block ends and only keep it if the block turned out to be an item.
+                if in_item:
+                    keys.add(m.group("k"))
+                else:
+                    pending = m.group("k")
+    return keys
+
+
 def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
              known_keys=None, source_index=None):
     """Run all passes and return a combined, position-sorted [AmdFinding].
@@ -901,7 +978,8 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         if source_index is not None:
             keys |= source_index["labels"]  # MAST labels are valid targets too
         findings += amd_lint_fence(doc)
-        findings += amd_lint_references(doc, keys)
+        findings += amd_lint_references(
+            doc, keys, items=(source_index or {}).get("items"))
         findings += amd_lint_keys(doc)
         findings += amd_lint_unknown_fields(doc)
         findings += amd_lint_field_values(doc)

@@ -495,6 +495,39 @@ class TestWorkspace(unittest.TestCase):
         self.assertEqual(respond["inbound"], 1)
         self.assertFalse(respond["orphan"])
 
+    # A drop table names several items on ONE line, which no other field does.
+    _DROPS_AMD = """# [R](r)
+## [Items](items)
+### [Salvage](salvage)
+---
+Kind: item
+---
+scrap
+## [Drops](drops)
+### [Raider](raider)
+---
+Drops: salvage x2-4, contrabnd 20%
+---
+x
+"""
+
+    def test_a_drop_table_resolves_each_key_on_its_own(self):
+        """One bad key must not paint the good ones beside it. Findings used to be
+        matched to refs by LINE, which was safe only while no line carried two refs."""
+        r = self._mission_request(self._DROPS_AMD, "amd/resolve")
+        drops = {ref["value"]: ref for ref in r["refs"] if ref["kind"] == "drop"}
+        self.assertEqual(set(drops), {"salvage", "contrabnd"})
+        self.assertTrue(drops["salvage"]["resolved"])
+        self.assertIsNone(drops["salvage"]["code"])
+        self.assertFalse(drops["contrabnd"]["resolved"])
+        self.assertEqual(drops["contrabnd"]["code"], "dangling-drop")
+
+    def test_an_item_something_drops_is_a_resolved_reference(self):
+        """The Resolver's whole job: an item that only loot names still shows up as a
+        real entity, instead of looking like content nothing points at."""
+        r = self._mission_request(self._DROPS_AMD, "amd/resolve")
+        self.assertIn("salvage", {e["key"] for e in r["entities"]})
+
     def test_mission_timeline(self):
         amd = ("# [R](r)\n## [Quests](quests)\n"
                "### [One](one)\n---\nState: active\nThen: reveal two\n---\nx\n"

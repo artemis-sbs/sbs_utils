@@ -557,7 +557,8 @@ def _completion(index, doc=None, pos=None, text=""):
 # `@cue` - and "Create node" is what makes drafting a story as prose and filling in
 # the records afterward an actual workflow rather than a slogan.
 _FIXABLE_DANGLING = ("dangling-choice", "dangling-scene", "dangling-parent",
-                     "dangling-reveal", "dangling-link", "dangling-speaker")
+                     "dangling-reveal", "dangling-link", "dangling-speaker",
+                     "dangling-drop")
 
 
 def _levenshtein(a, b):
@@ -1548,11 +1549,20 @@ def _mission_resolve(index):
             code = None
             if r.span:
                 for f in fmap.get(r.span.line, []):
-                    if f.code and f.code.startswith(_DANGLE):
-                        code = f.code
-                        if not key_kind:
-                            resolved = False
-                        break
+                    if not (f.code and f.code.startswith(_DANGLE)):
+                        continue
+                    # A finding claims the ref it is ANCHORED to. One line can now carry
+                    # several refs - a drop table names several items - and matching on
+                    # the line alone painted every key on it as dangling the moment one
+                    # of them was. Findings with no column (whole-line rules like
+                    # `unfired-signal`) still apply to any ref on the line, as before.
+                    if (f.col is not None and r.span.col is not None
+                            and f.col != r.span.col):
+                        continue
+                    code = f.code
+                    if not key_kind:
+                        resolved = False
+                    break
             refs.append({"kind": r.kind, "value": str(r.value), "owner": r.owner,
                          "uri": u, "line": (r.span.line - 1) if r.span else 0,
                          "span": _span_range(r.span) if r.span else None,

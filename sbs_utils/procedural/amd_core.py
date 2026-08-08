@@ -306,6 +306,29 @@ def _token_span(fence_lines, key, token, owner_key, kind):
     return None
 
 
+def _token_spans(fence_lines, key, tokens, owner_key, kind):
+    """Locate every token in order on the `key:` line; one AmdRef each.
+
+    A cursor walks forward so a word written twice (`salvage x1, salvage 10%`) lands on
+    its own occurrence instead of every ref pointing at the first one."""
+    out = []
+    for lineno, raw in fence_lines:
+        base = _kv_value_col(raw, key)
+        if base is None:
+            continue
+        cursor = base
+        for token in tokens:
+            col = raw.find(token, cursor)
+            if col < 0:
+                col = base
+            else:
+                cursor = col + len(token)
+            out.append(AmdRef(kind, token, Span(lineno, col, lineno, col + len(token)),
+                              owner_key))
+        return out
+    return out
+
+
 def _extract_data_refs(node, fence_lines):
     """Pull reference-bearing verbs out of a node's fence block (with spans)."""
     data = node.data
@@ -404,6 +427,27 @@ def _extract_data_refs(node, fence_lines):
         r = _token_span(fence_lines, "Kind", str(kind).strip(), key, "kind")
         if r:
             node.refs.append(r)
+
+    # WHO speaks for this record. Dialogue has always had its speaker checked, but only
+    # through its cue LINES; the field itself named nobody, so a quest's `Speaker:` - the
+    # voice its deadline reminders go out in - resolved to nothing and no tool could say
+    # so. Same ref kind for both, because it is the same question.
+    speaker = _di(data, "Speaker")
+    if speaker:
+        r = _token_span(fence_lines, "Speaker", str(speaker).strip(), key, "speaker")
+        if r:
+            node.refs.append(r)
+
+    # `Drops: salvage x2-4, contraband 20%` - every key in the table names an ITEM. Without
+    # refs a misspelled key is a table that silently yields nothing, which is the exact
+    # failure `Drops:` exists to make visible. The grammar is shared with the runtime
+    # reader (`amd.amd_drop_table`), so the linter and the loot cannot disagree about
+    # which words are keys.
+    drops = _di(data, "Drops")
+    if drops:
+        from sbs_utils.procedural.amd import amd_drop_keys
+        node.refs.extend(_token_spans(fence_lines, "Drops", amd_drop_keys(drops),
+                                      key, "drop"))
 
 
 def _is_top_level(node):

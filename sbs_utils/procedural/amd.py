@@ -426,6 +426,63 @@ def amd_counted(s):
     return out
 
 
+def amd_drop_table(s):
+    """'salvage x2-4, contraband 20%' -> [{key, low, high, chance}, ...].
+
+    What a kill leaves behind. A richer shopping list than `amd_counted`, because loot
+    has a RANGE and a CHANCE as well as a name:
+
+        key            one, always
+        key xN         N, always
+        key xN-M       between N and M
+        key P%         one, P of the time
+        key xN-M P%    both
+        none           nothing at all - an EMPTY table, which is NOT the same as having
+                       no table (see `amd_drops.drops_table_for`)
+
+    Lives here rather than in `amd_drops` so the stdlib-only half of the toolchain can
+    read it too: the parser turns these keys into references and the linter checks them,
+    and neither may import the runtime module. An already-parsed list passes through, so
+    parsing twice is harmless.
+    """
+    if isinstance(s, (list, tuple)) and all(isinstance(e, dict) for e in s):
+        return [dict(e) for e in s]
+    text = str(s or "").strip()
+    if not text or text.lower() in ("none", "nothing", "-"):
+        return []
+    out = []
+    for part in amd_list(text):
+        key = None
+        low = high = 1
+        chance = 1.0
+        for tok in part.split():
+            if tok.endswith("%"):
+                try:
+                    chance = max(0.0, min(1.0, float(tok[:-1]) / 100.0))
+                except ValueError:
+                    pass
+            elif tok.lower().startswith("x") and len(tok) > 1:
+                span = tok[1:]
+                lo, _, hi = span.partition("-")
+                try:
+                    low = int(lo)
+                    high = int(hi) if hi else low
+                except ValueError:
+                    low = high = 1
+            elif key is None:
+                key = tok
+        if key:
+            out.append({"key": key, "low": min(low, high), "high": max(low, high),
+                        "chance": chance})
+    return out
+
+
+def amd_drop_keys(s):
+    """Just the item keys a drop table names, in written order - what a reference
+    extractor and a linter need, without the counts."""
+    return [e["key"] for e in amd_drop_table(s)]
+
+
 def amd_kv(s):
     """'kind=bio, range=medium' -> {'kind': 'bio', 'range': 'medium'}.
 

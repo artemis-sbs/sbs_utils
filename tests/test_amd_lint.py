@@ -10,7 +10,7 @@ test_set_exe_dir()
 import unittest
 
 from sbs_utils.procedural.amd_lint import (
-    amd_lint, amd_lint_structural, ERROR, WARNING,
+    amd_lint, amd_lint_structural, mast_item_keys, ERROR, WARNING,
 )
 
 
@@ -556,3 +556,142 @@ class UrgeLintTests(unittest.TestCase):
     def test_non_urge_records_are_untouched(self):
         content = ("# [Doc](doc)\n### [A quest](q)\n---\nQuest\n---\nDo a thing.\n")
         self.assertEqual(self._codes(content), [])
+
+
+class TestDropTableReferences(unittest.TestCase):
+    """`Drops:` names ITEMS. A key that names nothing is a table that silently yields
+    nothing - the exact failure the feature exists to make visible."""
+
+    ITEMS = ("# [Root](root)\n## [Items](items)\n"
+             "### [Salvage](salvage)\n---\nKind: item\n---\nscrap\n"
+             "### [Contraband](contraband)\n---\nKind: item\n---\nhot\n"
+             "## [Drops](drops)\n")
+
+    def _codes(self, drops, **kw):
+        doc = self.ITEMS + f"### [Raider](raider)\n---\nDrops: {drops}\n---\nx\n"
+        return _by_code(amd_lint(content=doc, cross_file=False, **kw), "dangling-drop")
+
+    def test_a_typoed_key_is_flagged(self):
+        f = self._codes("salvage x2-4, contrabnd 20%")
+        self.assertEqual(len(f), 1)
+        self.assertEqual(f[0].severity, WARNING)
+        self.assertIn("contrabnd", f[0].message)
+
+    def test_keys_that_name_items_are_clean(self):
+        self.assertEqual(self._codes("salvage x2-4, contraband 20%"), [])
+
+    def test_none_names_nothing_so_flags_nothing(self):
+        """`Drops: none` is an EMPTY table, not a reference to an item called none."""
+        for empty in ("none", "nothing", "-"):
+            self.assertEqual(self._codes(empty), [])
+
+    def test_an_item_in_a_sibling_file_resolves(self):
+        """Items usually live in their own .amd, so the cross-file symbol table has to
+        settle it - otherwise every real mission lights up."""
+        self.assertEqual(self._codes("plasma_core x1", known_keys={"plasma_core"}), [])
+
+    def test_the_finding_points_at_the_bad_key_not_the_line(self):
+        """Several keys share one line, so the span has to pick out the one that is
+        wrong or the quick-fix rewrites the wrong word."""
+        f = self._codes("salvage x2-4, contrabnd 20%")[0]
+        line = "Drops: salvage x2-4, contrabnd 20%"
+        self.assertEqual(f.col, line.index("contrabnd"))
+        self.assertEqual(f.end_col, line.index("contrabnd") + len("contrabnd"))
+
+
+class TestSpeakerReferences(unittest.TestCase):
+    """`Speaker:` names WHO talks. Dialogue's cue lines were already checked; the
+    FIELD - which is how a quest names the voice of its deadline reminders - named
+    nobody and nothing could tell."""
+
+    CAST = ("# [Root](root)\n## [Lifeforms](lifeforms)\n"
+            "### [Dispatch](dispatch)\n---\nSide: tsn\n---\na voice\n"
+            "## [Jobs](jobs)\n")
+
+    def _codes(self, speaker, **kw):
+        doc = self.CAST + ("### [Rescue](rescue)\n---\nKind: job\n"
+                           f"Speaker: {speaker}\nFails when: 6 minutes\n---\nx\n")
+        return _by_code(amd_lint(content=doc, cross_file=False, **kw), "dangling-speaker")
+
+    def test_a_speaker_nobody_defines_is_flagged(self):
+        f = self._codes("nobody_here")
+        self.assertEqual(len(f), 1)
+        self.assertIn("nobody_here", f[0].message)
+
+    def test_a_speaker_in_the_cast_is_clean(self):
+        self.assertEqual(self._codes("dispatch"), [])
+
+    def test_a_speaker_in_a_sibling_file_resolves(self):
+        self.assertEqual(self._codes("harkin", known_keys={"harkin"}), [])
+
+
+class TestDropKeysComeFromMastItems(unittest.TestCase):
+    """An item is usually a `type: item/` MAST label, and its KEY is not its label name
+    (`prefab_trade_ore` declares `ore`). Checking drop keys against nodes and labels
+    alone called every shipped trade good dangling."""
+
+    ITEM_MAST = ("=== prefab_trade_ore\n"
+                 "metadata:``` yaml\n"
+                 "type: item/trade/ore\n"
+                 "key: ore\n"
+                 "display_text: Raw Ore\n"
+                 "```\n"
+                 "    ->END\n")
+
+    DROPS = ("# [Root](root)\n## [Drops](drops)\n"
+             "### [Raider](raider)\n---\nDrops: {table}\n---\nx\n")
+
+    def test_the_scanner_finds_the_key_not_the_label(self):
+        self.assertEqual(mast_item_keys([self.ITEM_MAST]), {"ore"})
+
+    def test_a_key_a_mast_item_declares_is_not_dangling(self):
+        f = _by_code(amd_lint(content=self.DROPS.format(table="ore x2"),
+                              cross_file=False, mast_sources=[self.ITEM_MAST]),
+                     "dangling-drop")
+        self.assertEqual(f, [])
+
+    def test_a_typo_is_still_caught_once_items_are_visible(self):
+        f = _by_code(amd_lint(content=self.DROPS.format(table="orre x2"),
+                              cross_file=False, mast_sources=[self.ITEM_MAST]),
+                     "dangling-drop")
+        self.assertEqual(len(f), 1)
+        self.assertIn("orre", f[0].message)
+
+    def test_nothing_is_flagged_when_no_items_are_visible_at_all(self):
+        """A mission whose items live in an addon the linter cannot read has not told it
+        what an item key looks like. Guessing there is how a linter earns being ignored -
+        this is the case that flagged `salvage` and `contraband` in shipped LM content."""
+        f = _by_code(amd_lint(content=self.DROPS.format(table="salvage x2, contraband 20%"),
+                              cross_file=False),
+                     "dangling-drop")
+        self.assertEqual(f, [])
+
+    def test_an_item_RECORD_in_the_document_is_evidence_enough(self):
+        """The other way the universe becomes known: this file declares items itself, so
+        a key that matches none of them is a real typo."""
+        doc = ("# [Root](root)\n## [Items](items)\n"
+               "### [Ore](ore)\n---\nKind: item\n---\nrock\n"
+               "## [Drops](drops)\n"
+               "### [Raider](raider)\n---\nDrops: orre x2\n---\nx\n")
+        f = _by_code(amd_lint(content=doc, cross_file=False), "dangling-drop")
+        self.assertEqual(len(f), 1)
+
+    def test_a_key_written_above_its_type_line_still_counts(self):
+        """`key:` and `type:` may be written in either order inside the fence."""
+        src = ("=== prefab_item_thing\n"
+               "metadata:``` yaml\n"
+               "key: thing\n"
+               "type: item/resource/thing\n"
+               "```\n"
+               "    ->END\n")
+        self.assertEqual(mast_item_keys([src]), {"thing"})
+
+    def test_a_non_item_label_with_a_key_is_not_an_item(self):
+        """Plenty of prefabs carry a `key:`; only `type: item/` ones are items."""
+        src = ("=== prefab_fleet_raider\n"
+               "metadata:``` yaml\n"
+               "type: fleet/raider\n"
+               "key: raider\n"
+               "```\n"
+               "    ->END\n")
+        self.assertEqual(mast_item_keys([src]), set())
