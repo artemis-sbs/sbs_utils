@@ -107,18 +107,25 @@ everything else, which is most of it.
 * The boxed entries should be exactly the ones that ALSO announced via an overlay. Something
   boxed in the log but never announced is an authoring bug the panel now makes visible.
 
-### Tail-follow
+### Tail-follow - CORRECTED, and it was backwards
 
-Follow the tail by default. The rule that actually matters is the second one:
+The plan first said "add follow-to-tail". **Reading the widget showed the opposite is
+needed.** `.value` sets `recalc = True`, and `calc_rich` then does
+`self.scroll_line = min(self.last_line+1, len(self.lines))` - it snaps to the END on every
+recalc.
 
-> **If the user has scrolled back, new entries must NOT yank them to the bottom.** Show "N new
-> below" and jump only when clicked.
+So a text area ALREADY follows the tail. What was missing is the other half: nothing
+preserved a reader's position when they had scrolled back, so new content yanked them to the
+bottom mid-sentence. That was not a hypothetical to design around - it was the behavior.
 
-`scroll_line` is settable, but `lines` is built during recalc - so setting it right after
-assigning `.value` clamps against the PREVIOUS content's line count. The right shape is a
-**`follow_tail` flag on the text area**, honored at recalc. It goes false when the user scrolls
-up, true again when they return to the bottom. Small addition, and useful to any log-shaped
-text area.
+**Implemented (2026-08-07):** a `follow_tail` flag on `TextArea`.
+
+* Defaults **True**, so existing behavior is unchanged for every current caller.
+* `calc_rich` snaps to the tail only while it is True; otherwise it restores the previous
+  `scroll_line`, clamped (new content may be SHORTER than what the reader was looking at).
+* The scrollbar sets it: scrolling away from the bottom -> False ("I am reading"), scrolling
+  back to the bottom -> True ("follow along again"). The reader opts in and out by doing the
+  obvious thing, with no extra control to find.
 
 **Per-tab scroll: snap to tail on every switch.** You switch tabs to see what is happening now,
 and remembering three offsets is state that will drift. If it is missed later it is a

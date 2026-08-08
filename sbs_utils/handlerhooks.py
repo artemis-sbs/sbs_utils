@@ -118,6 +118,11 @@ def reset_mission_state():
     # exactly what the ledger below exists to notice.
     from .procedural.gui.gui import ButtonPromise
     ButtonPromise.navigation_map.clear()
+    # The ship's log (Log Panel). Per-mission by definition - last mission's traffic
+    # in this one's log would be nonsense - and registered below so a forgotten clear
+    # is reported by name rather than found three runs later.
+    from .procedural.log_panel import log_clear
+    log_clear()
     # Camera + cutscene state. TickDispatcher.clear() above drops their DRIVER
     # tasks, but the dicts that say who owns which console outlive it - and a
     # stale owner makes the next mission's first move think it is being
@@ -200,6 +205,12 @@ def reset_mission_state():
     Gui.widget_list_sent.clear()
 
 
+def _log_size():
+    """Lazy import: procedural.log_panel is not needed until a reset audit runs."""
+    from .procedural.log_panel import log_size
+    return log_size()
+
+
 def _button_promise():
     """Lazy import: procedural.gui imports back into this module."""
     from .procedural.gui.gui import ButtonPromise
@@ -219,6 +230,7 @@ register_reset_state("Gui.web_client_ids", lambda: len(Gui.web_client_ids))
 register_reset_state("Gui.widget_list_sent", lambda: len(Gui.widget_list_sent))
 # Route labels registered per compile. Unregistered until 2026-08-06, which is why it
 # grew silently across compiles instead of being reported by name.
+register_reset_state("log_panel", lambda: _log_size())
 register_reset_state("ButtonPromise.navigation_map",
                      lambda: sum(len(v) for v in _button_promise().navigation_map.values()))
 register_reset_state("TickDispatcher",    lambda: len(TickDispatcher._dispatch_tick))

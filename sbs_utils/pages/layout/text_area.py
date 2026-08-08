@@ -308,6 +308,12 @@ class TextArea(Control):
         self.active_tags = set()
         self.lines = []
         self.scroll_line = 0
+        # Does new content follow the tail? calc_rich snaps scroll_line to the end
+        # on every recalc, which is right while the reader IS at the end - a log
+        # should follow. It is wrong once they have scrolled back to read something:
+        # the next arrival yanks them to the bottom mid-sentence. This records which
+        # of the two we are in, and is set False by scrolling away from the bottom.
+        self.follow_tail = True
         self.last_line = 0
         self.max_tag = 0
         self.absolute = True
@@ -706,9 +712,11 @@ class TextArea(Control):
             self.calc_rich(client_id, _retry=False)
             return
 
+        prev_scroll = self.scroll_line
         self.last_line = len(self.lines)
         self.scroll_line = self.last_line
         if not self.need_v_scroll:
+            # Everything fits, so there is no tail to fall behind.
             return
         
         # Back track to find the last line
@@ -725,7 +733,13 @@ class TextArea(Control):
             calc_height += height
         
         self.last_line = min(self.last_line+1, len(self.lines))
-        self.scroll_line = min(self.last_line+1,len(self.lines))
+        tail = min(self.last_line+1, len(self.lines))
+        if self.follow_tail:
+            self.scroll_line = tail
+        else:
+            # Hold the reader's place. Clamped, because the content that triggered this
+            # recalc may be SHORTER than what they were looking at.
+            self.scroll_line = max(0, min(prev_scroll, tail))
         
 
     _table_sep_re = re.compile(r"^:?-{2,}:?$")
@@ -1176,6 +1190,10 @@ class TextArea(Control):
         #value = int(-event.sub_float+self.last_line+0.5)
         if value != self.scroll_line:
             self.scroll_line = value
+            # Scrolling away from the bottom means "I am reading"; scrolling back to it
+            # means "follow along again". The reader opts in and out by doing the obvious
+            # thing, with no extra control to find.
+            self.follow_tail = value >= min(self.last_line + 1, len(self.lines))
             self.gui_state = "redraw"
             self.present(event)
         
