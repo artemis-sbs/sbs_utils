@@ -523,11 +523,24 @@ class TextArea(Control):
                     calc_height += tbl.height
                 continue
 
+            per_line = self.line_style_for(i)
             if not self.markdown:
                 # No markdown sniffing. A caller-supplied style wins; otherwise
                 # the widget's default.
-                per_line = self.line_style_for(i)
                 style_key = per_line if per_line is not None else "_"
+            elif per_line is not None:
+                # A caller-supplied style wins over sniffing in MARKDOWN mode too.
+                # `line_styles` used to be read only when markdown was off, which
+                # silently discarded them the rest of the time - and that is the
+                # documented way to render callouts:
+                #
+                #     body, styles = amd_callout_render(record.get("body"))
+                #     gui_text_area(body, line_styles=styles)
+                #
+                # `amd_callout` had no other caller, so nothing had exercised it. The
+                # line needs no rewriting here: a caller that supplies a style has
+                # already produced its final text (amd_callout strips its own markers).
+                style_key = per_line
             else:
                 style_key, line = self.get_line_style(line, style)
             

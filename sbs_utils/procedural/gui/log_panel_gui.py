@@ -41,4 +41,8 @@ def gui_panel_log(cid, left, top, width, height, tab=TAB_LOG):
         # An empty log should read as empty, not as a broken panel.
         gui_text_area("$text:(no log yet);color:#888;")
         return
-    gui_text_area(text, line_styles=styles)
+    # markdown=False on purpose. Log lines are literal mission text, and a message that
+    # happens to start with '#' or '-' must not become a heading or a bullet. It also
+    # keeps the per-line styles (colors, callouts) authoritative rather than competing
+    # with what markdown sniffing would infer.
+    gui_text_area(text, markdown=False, line_styles=styles)
