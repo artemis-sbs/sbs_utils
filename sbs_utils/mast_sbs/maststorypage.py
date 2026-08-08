@@ -13,6 +13,7 @@ from ..pages.layout.layout import Layout
 from ..pages.layout.row import Row
 from ..pages.layout.text import Text
 from ..pages.layout.blank import Blank
+from ..pages.layout.dropdown import Dropdown
 from..fs import get_mission_name, get_startup_mission_name, is_dev_build
 
 from .story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
@@ -40,6 +41,39 @@ class TabControl(Text):
                 self.page.gui_task.tick_in_context()
 
 
+
+
+# How many tabs the strip shows before the rest go into an overflow menu.
+#
+# The strip is a FIXED width (20%..100%) divided evenly, so it never dropped a tab and
+# never scrolled - it just kept making them narrower. At 18 registered tabs that is 4.4%
+# each, about 85px on a 1920 screen, and "engineering" needs roughly 130. The engine does
+# not clip text, so the labels drew straight over their neighbours: the tabs were all
+# present and all illegible, which is why adding tabs made EXISTING ones unreadable
+# (PRM-26).
+#
+# Eight keeps every visible tab at 10% (~192px), comfortably wider than the longest label
+# we ship.
+TAB_MAX_VISIBLE = 8
+
+
+class TabOverflow(Dropdown):
+    """The tabs that did not fit, as a menu. Selecting one jumps to it exactly as
+    clicking its tab would - the same two lines TabControl runs."""
+
+    def __init__(self, tag, props, labels, page) -> None:
+        super().__init__(tag, props)
+        self.labels = labels
+        self.page = page
+
+    def on_message(self, event):
+        if event.sub_tag == self.tag:
+            label = self.labels.get(event.value_tag)
+            if label is not None:
+                self.page.gui_task.jump(label)
+                self.page.gui_task.tick_in_context()
+                return
+        super().on_message(event)
 
 
 class StoryPage(Page):
@@ -512,9 +546,11 @@ class StoryPage(Page):
         apply_control_styles(".row", "row-height:35px", _row, self.gui_task)
         _layout.add(_row)
 
-        # Make spots for a certain amount of tabs
-        count = 0
-        tabs= set()
+        # Collect FIRST, emit second. The strip has to know how many tabs there are before
+        # it can decide which of them fit, and the old loop added each one as it went.
+        entries = []          # (text, label) in registration order
+        back_entry = None
+        tabs = set()
         for tab in GuiTabDecoratorLabel.all:
             # Only use enabled tabs
             if not enabled_tabs.get(tab):
@@ -530,23 +566,42 @@ class StoryPage(Page):
             if tab_text in tabs:
                 continue
             tabs.add(tab_text)
-            count+= 1
-            msg = f"justify:center;color:black;$text:{tab_text};"
-
-            button = TabControl(self.get_tag(), msg, tab_label, self) # Jump label all_tabs[tab]
-            button.click_text = tab_text
-            button.click_color = "#FFF"
-            #self.click_font = None
-            button.click_tag = self.get_tag()
-
             if tab_text == back_tab:
-                button.background_color = "#999"
-                _row.add(button)        
+                back_entry = (tab_text, tab_label)
             else:
-                button.background_color = "#333"
-                _row.add_front(button)
-            
-        
+                entries.append((tab_text, tab_label))
+
+        def _button(text, label, is_back):
+            msg = f"justify:center;color:black;$text:{text};"
+            button = TabControl(self.get_tag(), msg, label, self)
+            button.click_text = text
+            button.click_color = "#FFF"
+            button.click_tag = self.get_tag()
+            button.background_color = "#999" if is_back else "#333"
+            return button
+
+        # More than fits? Keep the first few and put the rest behind one menu. The BACK
+        # tab is never overflowed - it is how you leave, so it stays where it always is.
+        visible, overflow = entries, []
+        reserved = (1 if back_entry else 0) + 1        # back tab + the menu itself
+        if len(entries) + (1 if back_entry else 0) > TAB_MAX_VISIBLE:
+            keep = max(1, TAB_MAX_VISIBLE - reserved)
+            visible, overflow = entries[:keep], entries[keep:]
+
+        for text, label in visible:
+            _row.add_front(_button(text, label, False))
+        if overflow:
+            names = ", ".join(t for t, _ in overflow)
+            menu = TabOverflow(self.get_tag(),
+                               f"text: More ({len(overflow)}); list: {names}",
+                               {t: l for t, l in overflow}, self)
+            _row.add_front(menu)
+        if back_entry:
+            _row.add(_button(back_entry[0], back_entry[1], True))
+
+        count = len(visible) + (1 if back_entry else 0) + (1 if overflow else 0)
+        # Pad to six so a console with only a few tabs keeps them the size they have
+        # always been rather than stretching each across the whole strip.
         spots = 6
         blanks = spots-count
         if blanks <0: blanks = 0
