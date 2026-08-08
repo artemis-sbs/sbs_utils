@@ -71,12 +71,31 @@ def comms_override(origin_id=None, selected_id=None, face=None, from_name=None):
     return CommsOverride(origin_id, selected_id, face, from_name)
 
 
-def comms_broadcast(ids_or_obj, msg, color=None) -> None:
+def _log_add(scope, msg, color=None, category=None, severity=None):
+    """Append to the ship's log, and never let that break a broadcast.
+
+    Lazy import and a swallowed failure on purpose: the waterfall is what ships
+    today, and a fault in its replacement must not take a mission's messaging with
+    it during the changeover."""
+    try:
+        from .log_panel import log_add
+        log_add(scope, msg, color=color, category=category or "log",
+                severity=severity or "")
+    except Exception:
+        pass
+
+
+def comms_broadcast(ids_or_obj, msg, color=None, category=None, severity=None) -> None:
     """Send a text message to the text waterfall of one or more targets.
 
     Accepts player ship IDs or client/console IDs. Ship IDs use
     ``send_message_to_player_ship``; client IDs use
     ``send_message_to_client``.
+
+    ALSO appends to the ship's log (``procedural.log_panel``), which is the waterfall's
+    replacement - see LOG_PANEL_PLAN.md. Both surfaces are written during the changeover
+    so they can be compared side by side; retiring the waterfall is then deleting the
+    engine half of this function.
 
     Args:
         ids_or_obj: Agent ID, client ID, or set/list of either to send to.
@@ -84,9 +103,16 @@ def comms_broadcast(ids_or_obj, msg, color=None) -> None:
         msg (str): The message text. Supports ``{var}`` interpolation.
         color (str, optional): Text color as a name or hex string, e.g.
             ``"red"`` or ``"#3ff"``. Defaults to ``"#fff"``.
+        category (str, optional): Which log TAB this belongs in - ``"ship"`` or
+            ``"mission"``. Omitted (the default) means it appears in the Log tab, which
+            shows everything, and in no subset tab. That is what makes tagging
+            incremental: nothing is lost by not being tagged.
+        severity (str, optional): ``"tip"`` / ``"warning"`` / ``"danger"``. Draws the
+            entry as a callout. Reserved for things that matter - a box costs two rows,
+            so one per line would halve how much log fits on screen.
 
     Example:
-        comms_broadcast(SHIP_ID, "Red alert!", color="red")
+        comms_broadcast(SHIP_ID, "Red alert!", color="red", severity="danger")
     """
     if color is None:
         color="#fff"
@@ -100,6 +126,9 @@ def comms_broadcast(ids_or_obj, msg, color=None) -> None:
     _ids = query.to_id_list(ids_or_obj)
     if _ids:
         for id in _ids:
+            # The log is scoped to whatever was addressed - a ship id gives the crew's
+            # shared log, a client id a console-specific note.
+            _log_add(id, msg, color=color, category=category, severity=severity)
             if query.is_client_id(id):
                 FrameContext.context.sbs.send_message_to_client(id, color, msg)
             elif id == 0 or query.is_space_object_id(id):
