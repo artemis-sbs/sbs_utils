@@ -827,6 +827,12 @@ def overlay_kind(kind, to=None, consoles=None, slot=None, seconds=None, **fields
     The escape hatch for callers that pick the kind at runtime (the quest driver's
     inline overlay directives, AMD records). Prefer the named wrappers when the
     kind is known at author time."""
+    if kind == "toast":
+        # Retired: `toast <text>` is now a log line, not a corner card. Intercepted here
+        # rather than left to the registry so the AMD/quest directive path and a direct
+        # overlay_toast() call cannot drift apart again.
+        return overlay_toast(fields.get("text") or fields.get("title") or "",
+                             to=to, consoles=consoles)
     slot = slot or _KIND_DEFAULT_SLOT.get(kind, "center_hero")
     # Single-line kinds route through the cycling path, so text that will not fit
     # is played in timed parts here too - the quest/AMD front doors get the same
@@ -865,79 +871,60 @@ def overlay_hero(title, subtitle=None, image=None, face=None, ship=None, icon=No
                     consoles)
 
 
-# --- Toast (corner, transient, STACKING) -------------------------------------
-# Toasts stack: each overlay_toast appends an entry (with a unique id) and schedules
-# its OWN removal, so several notifications coexist instead of clobbering each other.
-_TOAST_SEQ = [0]
-TOAST_MAX = 4
+# --- Toast: RETIRED into the log ---------------------------------------------
+# The corner toast was the one announce level with no durable twin (LEVELS: status and
+# minor). It said something and took it with it: a console that connected a second later
+# never saw it, and neither did a crew who happened to be looking at the 3D view. Every
+# library caller was exactly the kind of line that wants keeping - "Docking moors
+# active", "Pickup: nanites", "Objective complete: ...".
+#
+# So the toast now writes to the ship's log instead of drawing. The ambient strip shows
+# the latest line where the toast used to appear, and the log tab keeps the history, so
+# the message is both more visible AND recoverable. See LOG_PANEL_PLAN.md.
+#
+# overlay_toast() and `toast <text>` (the AMD/quest directive) are DELIBERATELY still
+# callable - thirteen LM call sites and any number of authored directives use them, and
+# a MAST-facing name that starts erroring is not a retirement, it is a break. They are
+# now log producers.
 
 
-# Scrim behind a toast. Translucent slate rather than black, so it reads as a
-# passing notification over the console beneath it (usually the text waterfall)
-# instead of a new permanent panel.
-TOAST_BACKGROUND = "#1578"
+def _log_scopes(to, consoles):
+    """Log scopes for an overlay audience.
+
+    Resolved through consoles_of, so a side / role query / ship / console id is read the
+    same way the overlay read it - then each console is mapped back to its SHIP where it
+    has one. Ship scope on purpose: it is the crew's shared log, so a console that
+    connects later still finds the line, which is the whole difference between this and
+    the toast it replaces.
+    """
+    from .log_panel_gui import _ship_of
+    scopes = []
+    for cid in consoles_of(to, consoles):
+        scope = _ship_of(cid) or cid
+        if scope not in scopes:
+            scopes.append(scope)
+    return scopes
 
 
-def _toast_builder(client_id, content):
-    from .text import gui_text
-    from .row import gui_row
-    # `items` = the stack; fall back to a single {text} (amd / quest inline path).
-    items = content.get("items")
-    if items is None:
-        items = [{"text": content.get("text", "")}]
-    # A toast sits over whatever the console is already showing - often the text
-    # waterfall - so it needs a scrim to stay readable. Deliberately NOT black: a black
-    # panel reads as a permanent part of the layout, and a toast must look like something
-    # passing through. This slate matches the translucent panels the consoles already use.
-    bg = content.get("background", TOAST_BACKGROUND)
-    row_bg = f"background: {bg};" if bg else ""
-    for it in items:
-        gui_row("row-height: content;" + row_bg)
-        gui_text(f"$text:`{it.get('text', '')}`;justify:center;font:gui-2;color:#fff")
+def overlay_toast(text, icon=None, seconds=3, to=None, consoles=None, slot="corner_toast",
+                  color=None, category=None, severity=None):
+    """Notify the crew. RETIRED as an overlay -- writes to the ship's log instead.
 
+    The line appears immediately in the ambient strip on every console of the addressed
+    ship, and stays in the log tab afterwards. ``icon``, ``seconds`` and ``slot`` are
+    accepted and ignored: they described a transient corner card that no longer exists,
+    and removing them would break every existing caller for no gain.
 
-overlay_register("toast", _toast_builder)
-
-
-def _toast_push(ov, slot, item):
-    r = ov._region(slot)
-    items = (r.content or {}).get("items") if r.content else None
-    items = (list(items) if items else []) + [item]
-    if len(items) > TOAST_MAX:
-        items = items[-TOAST_MAX:]
-    ov.show(slot, "toast", {"items": items})
-
-
-def _schedule_toast_remove(page, slot, tid, seconds):
-    if not seconds or seconds <= 0:
-        return
-    from ...tickdispatcher import TickDispatcher
-
-    def _fire(t):
-        r = page.overlays.slots.get(slot)
-        items = (r.content or {}).get("items") if (r and r.content) else None
-        if not items:
-            return
-        remaining = [it for it in items if it.get("tid") != tid]
-        if len(remaining) == len(items):
-            return
-        if remaining:
-            _on_page(page, lambda ov: ov.show(slot, "toast", {"items": remaining}))
-        else:
-            _on_page(page, lambda ov: ov.clear(slot))
-
-    TickDispatcher.do_once(_fire, seconds)
-
-
-def overlay_toast(text, icon=None, seconds=3, to=None, consoles=None, slot="corner_toast"):
-    """Small transient corner notification. Toasts STACK — several coexist, each
-    auto-clearing after its own ``seconds`` (default 3), capped at TOAST_MAX."""
-    _TOAST_SEQ[0] += 1
-    tid = _TOAST_SEQ[0]
-    item = {"text": text, "icon": icon, "tid": tid}
-    for page in _pages_for(to, consoles):
-        _on_page(page, lambda ov: _toast_push(ov, slot, item))
-        _schedule_toast_remove(page, slot, tid, seconds)
+    Args:
+        color (str, optional): line color; defaults to the category's.
+        category (str, optional): which log tab -- ``ship`` or ``mission``. Everything
+            shows in ``log`` regardless.
+        severity (str, optional): ``tip`` | ``warning`` | ``danger``. A warning or danger
+            line renders as a callout and raises the log tab.
+    """
+    from .log_panel_gui import log_notify_all
+    log_notify_all(_log_scopes(to, consoles), text,
+                   color=color, category=category, severity=severity)
 
 
 # --- Text that does not fit: split it, and time the parts --------------------

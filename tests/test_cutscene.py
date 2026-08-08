@@ -193,16 +193,17 @@ class TestFurniture(CutsceneBase):
     def test_teardown_clears_only_what_the_cutscene_put_up(self):
         # It remembers the slots it used, so it cannot wipe furniture a console had
         # of its own.
-        from sbs_utils.procedural.gui.overlay import overlay_toast
+        from sbs_utils.procedural.gui.overlay import overlay_banner
         a = camera_anchor(0, 0, 0)
-        overlay_toast("mine", to=C1)
+        overlay_banner("mine", to=C1)      # the toast retired into the log, so it is
+                                           # no longer furniture a cutscene could wipe
         cutscene_play([{
             "subject": a, "lens": (0, 0, -900), "seconds": 1,
             "overlay": {"kind": "lower_third", "name": "P", "line": "x"},
         }], to=C1)
         self.advance(2.0)
         self.assertIsNone(self.slot_content("lower_third"))
-        self.assertIsNotNone(self.slot_content("corner_toast"),
+        self.assertIsNotNone(self.slot_content("top_banner"),
                              "it cleared a slot that was not its own")
 
 

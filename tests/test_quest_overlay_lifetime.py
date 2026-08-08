@@ -55,10 +55,20 @@ class DirectiveLifetimeTests(unittest.TestCase):
                 self.assertEqual(_LEVEL_SECONDS[level], QD._DIRECTIVE_SECONDS[kind],
                                  f"{kind}: directive and announce disagree")
 
-    def test_the_toast_scrim_is_not_black(self):
-        """It covers the text waterfall, so it needs a scrim - but a black panel reads
-        as permanent furniture rather than something passing through."""
-        from sbs_utils.procedural.gui.overlay import TOAST_BACKGROUND
-        self.assertTrue(TOAST_BACKGROUND, "a toast over the waterfall needs a background")
-        rgb = TOAST_BACKGROUND.lstrip("#")[:3]
-        self.assertNotEqual("000", rgb, "the scrim must not be black")
+    def test_an_authored_toast_directive_never_reaches_the_overlay_layer(self):
+        """`On complete: toast ...` is a LOG line now (LOG_PANEL_PLAN.md). The directive
+        stays valid - authored content must not start failing - but the corner card that
+        needed its own scrim and its own lifetime is gone, and with it the bug where an
+        authored toast registered STICKY.
+
+        Goes through the REAL overlay_kind, since the retirement lives inside it."""
+        from sbs_utils.procedural.gui import overlay as OV
+        QD.overlay_kind = self._real
+        shown = []
+        real_show = OV._show_transient
+        OV._show_transient = lambda *a, **k: shown.append(a)
+        try:
+            QD._fire_overlay_directive("toast Objective updated", None)
+        finally:
+            OV._show_transient = real_show
+        self.assertEqual([], shown, "the toast retired into the log; nothing draws")

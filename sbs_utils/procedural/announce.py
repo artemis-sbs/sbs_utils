@@ -23,9 +23,14 @@ level        overlay         durable twin
 ``chapter``  hero card       info panel card (history)
 ``hail``     lower third     comms_message from ``sender`` (else a card)
 ``alert``    top banner      info panel card (history)
-``status``   corner toast    none
-``minor``    corner toast    none
+``status``   none            ship's log (strip + log tab)
+``minor``    none            ship's log (strip + log tab)
 ===========  ==============  ===========================================
+
+``status`` and ``minor`` used to draw a corner toast and keep NO record -- the one pair
+of levels that broke the house rule above, since the toast was carrying the information
+alone. They are now log lines: visible immediately in the ambient strip where the toast
+appeared, and still there afterwards. The toast is retired (LOG_PANEL_PLAN.md).
 
 The overlay gets a **headline** (ASCII, clamped short); the twin gets the full
 text. Pass ``record=False`` to suppress the twin (it is already being sent another
@@ -38,13 +43,18 @@ from .query import to_id, to_id_list, is_space_object_id
 # level -> (overlay kind, twin surface)
 #   "card"    -> comms_info_card (info panel, keeps history)
 #   "message" -> comms_message from the sender (falls back to a card)
+#   "log"     -> a line in the ship's log (ambient strip + log tab)
 #   None      -> no twin
+#
+# A None OVERLAY is legal and means "record only" - status and minor say their piece in
+# the log, which is a surface the crew can go back to, rather than on a card that takes
+# the message with it when it fades.
 LEVELS = {
     "chapter": ("hero",        "card"),
     "hail":    ("lower_third", "message"),
     "alert":   ("banner",      "card"),
-    "status":  ("toast",       None),
-    "minor":   ("toast",       None),
+    "status":  (None,          "log"),
+    "minor":   (None,          "log"),
 }
 _LEVEL_ALIAS = {"info": "status", "toast": "status", "hero": "chapter",
                 "banner": "alert", "lower_third": "hail"}
@@ -131,7 +141,8 @@ def announce(text, title=None, level="status", to=None, ship=None, consoles=None
         title (str, optional): speaker / header line. Used as the hero card's
             title and the lower third's name.
         level (str): ``chapter`` | ``hail`` | ``alert`` | ``status`` | ``minor``
-            (see the table in the module docstring). Defaults to ``status``.
+            (see the table in the module docstring). Defaults to ``status``, which
+            is a log line and no overlay.
         to: the audience — a console id, a **ship**, a **side**, or a set/role
             query. See ``consoles_of``.
         ship: shorthand for "this ship's crew" — used for ``to`` when ``to`` is
@@ -156,7 +167,10 @@ def announce(text, title=None, level="status", to=None, ship=None, consoles=None
     kind, twin = LEVELS.get(level, LEVELS["status"])
     if record is False:
         twin = None
-    elif record is True and twin is None:
+    elif record is True and twin in (None, "log"):
+        # record=True has always meant "give this one a CARD". Kept literal now that the
+        # default twin for status/minor is the log, so the escape hatch still escapes to
+        # the same place it did before.
         twin = "card"
 
     audience = to if to is not None else ship
@@ -181,7 +195,8 @@ def announce(text, title=None, level="status", to=None, ship=None, consoles=None
         fields["text"] = str(text or head)
         if color:
             fields["color"] = color
-    overlay_kind(kind, to=audience, consoles=consoles, seconds=seconds, **fields)
+    if kind is not None:
+        overlay_kind(kind, to=audience, consoles=consoles, seconds=seconds, **fields)
 
     # --- the record half ------------------------------------------------------
     if twin == "message" and sender is not None:
@@ -190,6 +205,11 @@ def announce(text, title=None, level="status", to=None, ship=None, consoles=None
             comms_message(text, sender, ships, title=title, face=face, color=color)
             return None
         twin = "card"        # nobody to comms — keep the record on the panel
+    if twin == "log":
+        from .gui.overlay import _log_scopes
+        from .gui.log_panel_gui import log_notify_all
+        log_notify_all(_log_scopes(audience, consoles), str(text or head), color=color)
+        return None
     if twin == "card":
         cids = _twin_audience(to, ship, consoles)
         if cids:

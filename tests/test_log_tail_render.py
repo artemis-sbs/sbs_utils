@@ -139,3 +139,40 @@ class TailRenderTests(unittest.TestCase):
         self.assertEqual(["reactor critical"], area.value)
         blob = str(area.line_styles)
         self.assertIn(LP.LOG_CALLOUT_FONT, blob, f"styles did not follow the text: {blob}")
+
+
+class StaleStripTests(TailRenderTests):
+    """A strip must not redraw itself onto a screen the console has LEFT.
+
+    _TAILS holds a widget reference and updating it marks it dirty, so the engine's dirty
+    pass re-presents it at its old layout's coordinates no matter what is on screen now.
+    Reported as the console's latest-message strip appearing in the MIDDLE OF THE QUEST
+    LIST - the quest tab never built one, and it runs on the same page, so the orphan
+    just drew itself over the list.
+    """
+
+    def test_a_strip_from_a_screen_the_console_left_is_dropped(self):
+        from sbs_utils.procedural.gui.log_panel_gui import _TAILS
+        LP.log_add(WEB_ID, "on the console")
+        self._render()
+        area, _tab, _count, page = _TAILS[WEB_ID]
+        before = area.value
+
+        # The console moves to another screen: the page rebuilds, swapping tag_map for
+        # the new layout's (maststorypage.present). The old strip is now an orphan.
+        page.tag_map = {}
+        page.pending_tag_map = {}
+
+        LP.log_add(WEB_ID, "must not land on the quest screen")
+        log_tail_refresh(WEB_ID)
+
+        self.assertEqual(before, area.value, "an orphaned strip redrew itself")
+        self.assertNotIn(WEB_ID, _TAILS, "it should be dropped, not carried forever")
+
+    def test_it_re_registers_when_the_console_comes_back(self):
+        """Dropping is safe precisely because laying the console out again rebuilds it."""
+        from sbs_utils.procedural.gui.log_panel_gui import _TAILS
+        self._render()
+        _TAILS.clear()
+        self._render()
+        self.assertIn(WEB_ID, _TAILS)

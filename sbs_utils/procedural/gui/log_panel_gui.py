@@ -13,6 +13,7 @@ from ..log_panel import (log_entries_union, log_render, log_tail_render, log_new
                          log_mark_seen, TAB_LOG, TAB_SHIP, TAB_MISSION,
                          LOG_TAIL_LINES, LOG_TAIL_BACKGROUND)
 from .text import gui_text_area
+from .gui import gui_page_for_client
 
 
 def _ship_of(cid):
@@ -84,10 +85,19 @@ def gui_panel_log_tick(info_panel):
     return 1          # unchanged - stay put, draw nothing
 
 
-# Severities that pull the log to the front. `tip` deliberately does not: good news can
-# wait, and a surface that grabs the console for every completion becomes one the crew
-# learns to resent.
-RAISE_ON = ("warning", "danger")
+# Severities that pull the log tab to the front. EMPTY by default -- nothing raises.
+#
+# Raising made sense while the log was only a tab: an urgent line the crew never opened
+# the tab to see was a line lost. The ambient strip changed that. Every console now shows
+# the newest line where it is already looking, in its severity color, without touching
+# the panel -- so the reason to interrupt is gone, while the costs stayed: switching away
+# from ship data (or a message card) that the crew chose, with nothing to switch back, so
+# every warning left the panel stranded on the log.
+#
+# Kept as a dial rather than deleted: a mission that genuinely wants the panel seized can
+# set RAISE_ON = ("danger",), and log_raise() is still callable directly for the one beat
+# that has earned it.
+RAISE_ON = ()
 
 
 def log_raise(scope, tab=TAB_LOG):
@@ -158,12 +168,39 @@ def gui_log_tail(count=None, background=None, tab=TAB_LOG, style=None):
     # Remember it so new traffic can update it in place. gui_log_tail runs ONCE, when the
     # console builds its layout - without this the strip shows whatever the log held at
     # that instant and never changes, which reads as the feature not working at all.
-    _TAILS[cid] = (area, tab, count)
+    _TAILS[cid] = (area, tab, count, FrameContext.page)
     return area
 
 
-# client id -> (text area, tab, count). Per-mission, so log_clear() drops it.
+# client id -> (text area, tab, count, page). Per-mission, so log_clear() drops it.
 _TAILS = {}
+
+
+def _tail_is_live(area, page):
+    """Is this strip still part of what the client is actually looking at?
+
+    _TAILS holds a widget REFERENCE, and setting its value marks it dirty - so the
+    engine's dirty pass re-presents it wherever its old layout put it, long after that
+    layout is gone. That is how the console strip turned up in the MIDDLE OF THE QUEST
+    LIST: the quest tab never built one, and it runs on the same page (gui_activate_console
+    only renames the console), so the orphan from the console layout simply redrew itself
+    at the console's coordinates over whatever is there now.
+
+    A page swaps tag_map wholesale when it rebuilds (maststorypage.present), so the tag
+    missing from it means precisely "this widget belongs to a layout that no longer
+    exists". pending_tag_map covers the window between building a layout and swapping it
+    in, where the widget is real but not yet current.
+    """
+    if page is None:
+        return False
+    tag = getattr(area, "tag", None)
+    if tag is None:
+        return False
+    for name in ("tag_map", "pending_tag_map"):
+        m = getattr(page, name, None)
+        if m and tag in m:
+            return True
+    return False
 
 
 def log_tail_refresh(scope=None):
@@ -179,7 +216,12 @@ def log_tail_refresh(scope=None):
     replaced - `line_styles` is fixed at construction, so updating the value alone would
     leave the previous entry's color on the new line.
     """
-    for cid, (area, tab, count) in list(_TAILS.items()):
+    for cid, (area, tab, count, page) in list(_TAILS.items()):
+        if not _tail_is_live(area, gui_page_for_client(cid) or page):
+            # The console moved to another screen. Drop it rather than skip: the strip
+            # re-registers the moment that console lays itself out again.
+            _TAILS.pop(cid, None)
+            continue
         entries = log_entries_union([_ship_of(cid), cid], tab)
         if count and count > 0:
             entries = entries[-count:]
@@ -191,3 +233,41 @@ def log_tail_refresh(scope=None):
             area.value = text
         except Exception:
             _TAILS.pop(cid, None)          # the widget went away with its page
+
+
+def log_notify(scope, text, color=None, category=None, severity=None):
+    """Log a line AND make it visible now: refresh the strips, raise the tab if urgent.
+
+    The one front door for "the mission has something to say". Logging alone is not
+    enough - the ambient strip is built once and the info panel keeps whatever tab the
+    crew left it on - so every producer needs the same three steps, and each one that
+    hand-rolled them got a different subset.
+
+    Never raises: a fault in the log must not take a docking message or a broadcast with
+    it. That mattered during the changeover and still does, since this is now the only
+    surface some of those messages have.
+    """
+    try:
+        from ..log_panel import log_add
+        log_add(scope, text, color=color, category=category or TAB_LOG,
+                severity=severity or "")
+        log_tail_refresh(scope)
+        # An urgent entry pulls the log to the front, the way a notify card does. Routine
+        # traffic never does: a panel that grabs the console for every message is one the
+        # crew learns to ignore, which defeats the point of raising at all.
+        if severity in RAISE_ON:
+            log_raise(scope)
+    except Exception:
+        pass
+
+
+def log_notify_all(scopes, text, color=None, category=None, severity=None):
+    """log_notify for an audience. Duplicate scopes are collapsed, so a crew whose
+    consoles all resolve to one ship gets ONE entry, not one per console."""
+    seen = []
+    for scope in scopes:
+        if scope is None or scope in seen:
+            continue
+        seen.append(scope)
+        log_notify(scope, text, color=color, category=category, severity=severity)
+    return seen

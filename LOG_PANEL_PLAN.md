@@ -418,3 +418,50 @@ the new line -- a `danger` line would inherit chatter's.
 `#0002` -- monochrome, low alpha. The strip sits behind text that carries meaning in
 color (category tints, callout severity), so a tinted scrim shifts all of them. Black
 rather than white because the consoles are dark: it reads as a slight recess.
+
+## The toast is retired into the log
+
+`status` and `minor` were the only announce levels with **no durable twin** -- the one
+pair that broke this file's own house rule, since the corner toast was carrying the
+information alone. It said its piece and took it with it: a console that connected a
+second later never saw it, and neither did a crew looking at the 3D view. Every library
+caller was a line worth keeping ("Docking moors active", "Pickup: nanites", "Objective
+complete: ...").
+
+So the toast writes to the ship's log now and draws nothing. The strip shows it where the
+toast used to appear, and the log tab keeps it -- more visible AND recoverable.
+
+Three entry points, one destination:
+
+| entry point | before | now |
+|---|---|---|
+| `overlay_toast(...)` | corner card, stacking, auto-dismiss | log line |
+| `announce(level="status"/"minor")` | corner card, no record | log line |
+| `toast <text>` (AMD / quest directive) | corner card via `overlay_kind` | log line |
+
+All three stay CALLABLE. There are thirteen `overlay_toast` call sites in LM alone and an
+unknown number of authored `On complete: toast ...` directives; a MAST-facing name that
+starts erroring is a break, not a retirement. `icon`, `seconds` and `slot` are accepted
+and ignored -- they described a card that no longer exists.
+
+`overlay_kind` intercepts `toast` itself rather than leaving it to the kind registry, so
+the directive path and a direct call cannot drift apart again (they had: an authored
+toast was registered STICKY while `overlay_toast` always expired).
+
+`record=True` still forces a card, unchanged -- the escape hatch escapes where it always did.
+
+`log_notify()` / `log_notify_all()` (gui/log_panel_gui.py) are now the single front door
+for "the mission has something to say": log it, refresh the strips, raise if urgent.
+Every producer needs those three steps and each one that hand-rolled them got a
+different subset.
+
+## Nothing raises the tab any more
+
+`RAISE_ON = ()`. Raising made sense while the log was only a tab -- an urgent line nobody
+opened the tab for was a line lost. The strip removed that reason and left only the
+costs: it switched away from the ship data or message card the crew had chosen, with
+nothing to switch back, so one warning left the panel stranded on the log.
+
+Kept as a dial, not deleted: a mission that wants the panel seized for its worst news can
+set `RAISE_ON = ("danger",)`, and `log_raise()` is still callable for the single beat
+that has earned it.

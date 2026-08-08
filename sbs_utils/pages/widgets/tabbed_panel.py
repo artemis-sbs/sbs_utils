@@ -111,8 +111,17 @@ class TabbedPanel(layout.Column):
             # May needs this for click?
             #
             FrameContext.page = restore
-            page = gui_page_for_client(CID)
-            page.tag_map |= sub_page.tag_map
+            # gui_page_for_client is documented nullable and really is None for a client
+            # with no gui agent - the SERVER (client 0) among them, since Agent.get(0) is
+            # None. Dereferencing it took down the whole tick phase (brains and timers
+            # with it), from a tab redraw. Rare while only comms traffic grew the log;
+            # constant once the retired toast started feeding it too.
+            #
+            # `restore` is the same page in the normal case, so falling back to it merges
+            # the sub-page's click tags instead of dropping them for a frame.
+            page = gui_page_for_client(CID) or restore
+            if page is not None:
+                page.tag_map |= sub_page.tag_map
             
             
             

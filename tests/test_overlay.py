@@ -330,18 +330,21 @@ class TestOverlayTransientAndBuilders(OverlayTestBase):
         self.page.overlays.present_all(FakeEvent(0))
         return [a for a in self.calls("send_gui_text") if a[1] == tag]
 
-    def test_toast_schedules_one_shot_dismiss(self):
+    def test_the_toast_is_retired_and_draws_nothing(self):
+        """It writes to the ship's log now (LOG_PANEL_PLAN.md). Still CALLABLE - there
+        are call sites in the wild - it just no longer puts up a corner card."""
         from sbs_utils.tickdispatcher import TickDispatcher
         from sbs_utils.procedural.gui.overlay import overlay_toast
         overlay_toast("Objective updated", seconds=3)
-        self.assertIn("corner_toast", self.page.overlays.slots)
-        self.assertEqual(len(TickDispatcher._new_this_tick), 1, "one auto-dismiss task")
+        self.assertNotIn("corner_toast", self.page.overlays.slots)
+        self.assertEqual(len(TickDispatcher._new_this_tick), 0,
+                         "nothing to auto-dismiss - a log line does not expire")
 
-    def test_toast_no_dismiss_when_seconds_zero(self):
-        from sbs_utils.tickdispatcher import TickDispatcher
+    def test_the_retired_toast_still_accepts_its_old_arguments(self):
+        """icon/seconds/slot described the card and are ignored, but a caller passing
+        them must not start erroring - that is a break, not a retirement."""
         from sbs_utils.procedural.gui.overlay import overlay_toast
-        overlay_toast("no timer", seconds=0)
-        self.assertEqual(len(TickDispatcher._new_this_tick), 0)
+        overlay_toast("no timer", icon=12, seconds=0, slot="corner_toast")
 
     def test_banner_builder_renders(self):
         from sbs_utils.procedural.gui.overlay import overlay_banner
@@ -488,31 +491,13 @@ class TestOverlayPolish(OverlayTestBase):
         self.assertFalse(r.is_empty, "newer banner survives the old lifetime")
         self.assertEqual(r.content["text"], "newer")
 
-    def test_toasts_stack(self):
+    def test_repeated_toasts_never_reach_the_screen(self):
+        """Stacking, the cap and the per-item dismiss all went with the card. The log
+        keeps every one of these lines instead of showing at most TOAST_MAX of them."""
         from sbs_utils.procedural.gui.overlay import overlay_toast
-        overlay_toast("one", seconds=3)
-        overlay_toast("two", seconds=3)
-        items = self.page.overlays.slots["corner_toast"].content["items"]
-        self.assertEqual([it["text"] for it in items], ["one", "two"])
-
-    def test_toast_removal_drops_only_its_own(self):
-        from sbs_utils.tickdispatcher import TickDispatcher
-        from sbs_utils.procedural.gui.overlay import overlay_toast
-        overlay_toast("one", seconds=3)
-        first = set(TickDispatcher._new_this_tick)      # the "one" removal
-        overlay_toast("two", seconds=3)
-        for t in first:                                 # fire only the "one" removal
-            t.cb(t)
-        items = self.page.overlays.slots["corner_toast"].content["items"]
-        self.assertEqual([it["text"] for it in items], ["two"])
-
-    def test_toast_stack_capped(self):
-        from sbs_utils.procedural.gui.overlay import overlay_toast, TOAST_MAX
-        for i in range(TOAST_MAX + 3):
+        for i in range(8):
             overlay_toast(f"t{i}", seconds=9)
-        items = self.page.overlays.slots["corner_toast"].content["items"]
-        self.assertEqual(len(items), TOAST_MAX)
-        self.assertEqual(items[-1]["text"], f"t{TOAST_MAX + 2}")   # newest kept
+        self.assertNotIn("corner_toast", self.page.overlays.slots)
 
     def test_credits_roll_pages_then_advances(self):
         from sbs_utils.tickdispatcher import TickDispatcher

@@ -1,9 +1,14 @@
-"""Urgent log entries raise the log tab; routine ones must not (LOG_PANEL_PLAN.md step 5).
+"""NOTHING raises the log tab by default, and the raise is still there for a mission
+that wants it (LOG_PANEL_PLAN.md step 5).
 
 The plan's "collapse until the next content" became "raise on the content that matters",
-because the log mounted as info-panel TABS rather than a standalone panel - see the plan.
-The rule is the same one the plan settled: routine traffic is silent, warning/danger
-interrupts, and a completion does NOT (good news can wait).
+and then the ambient strip made even that unnecessary: every console shows the newest
+line, in its severity color, where the crew is already looking. Raising kept only its
+costs - it switched away from the ship data or message card the crew had chosen, with
+nothing to switch back, so a single warning left the panel stranded on the log.
+
+So RAISE_ON is empty, and these tests pin BOTH halves: no severity interrupts on its
+own, and log_raise still works when a mission opts in.
 
     python -m unittest tests.test_log_panel_raise
 """
@@ -46,16 +51,30 @@ class RaiseTests(unittest.TestCase):
                         category="mission", severity="tip")
         self.assertEqual([], self.raised)
 
-    def test_a_warning_raises(self):
+    def test_a_warning_does_not_interrupt_either(self):
+        """The strip already shows it, in the warning color, on every console."""
         comms_broadcast(self.ship, "Shields critical", category="ship", severity="warning")
-        self.assertEqual(1, len(self.raised))
+        self.assertEqual([], self.raised)
 
-    def test_danger_raises(self):
+    def test_danger_does_not_interrupt_either(self):
         comms_broadcast(self.ship, "Hull breach", category="ship", severity="danger")
-        self.assertEqual(1, len(self.raised))
+        self.assertEqual([], self.raised)
 
-    def test_the_entry_is_still_logged_when_it_raises(self):
-        """Raising is in addition to recording, never instead of it."""
+    def test_a_mission_can_opt_back_in(self):
+        """RAISE_ON is a dial, not a deletion - a mission that wants the panel seized
+        for its worst news can still have it."""
+        real = LPG.RAISE_ON
+        LPG.RAISE_ON = ("danger",)
+        try:
+            comms_broadcast(self.ship, "Warp core breach", category="ship",
+                            severity="danger")
+            comms_broadcast(self.ship, "Shields low", category="ship", severity="warning")
+        finally:
+            LPG.RAISE_ON = real
+        self.assertEqual(1, len(self.raised), "only the opted-in severity raises")
+
+    def test_an_urgent_entry_is_still_logged(self):
+        """Not interrupting must never mean not recording."""
         comms_broadcast(self.ship, "Hull breach", category="ship", severity="danger")
         self.assertEqual(1, len(LP.log_entries(self.ship, LP.TAB_SHIP)))
 

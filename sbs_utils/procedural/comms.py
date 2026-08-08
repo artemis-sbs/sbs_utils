@@ -72,27 +72,10 @@ def comms_override(origin_id=None, selected_id=None, face=None, from_name=None):
 
 
 def _log_add(scope, msg, color=None, category=None, severity=None):
-    """Append to the ship's log, and never let that break a broadcast.
-
-    Lazy import and a swallowed failure on purpose: the waterfall is what ships
-    today, and a fault in its replacement must not take a mission's messaging with
-    it during the changeover."""
-    try:
-        from .log_panel import log_add
-        log_add(scope, msg, color=color, category=category or "log",
-                severity=severity or "")
-        # An urgent entry pulls the log to the front, the same way a notify card does.
-        # Routine traffic never does: a panel that grabs the console for every message
-        # is one the crew learns to ignore, which defeats the point of raising at all.
-        # Update the one-line tail on every console showing this scope. It is not
-        # repainting on its own, so without a push it keeps the entry it was built with.
-        from .gui.log_panel_gui import log_tail_refresh
-        log_tail_refresh(scope)
-        if severity in ("warning", "danger"):
-            from .gui.log_panel_gui import log_raise
-            log_raise(scope)
-    except Exception:
-        pass
+    """Append to the ship's log and surface it. See gui.log_panel_gui.log_notify, which
+    is the shared version - the overlay toast retired into the same call."""
+    from .gui.log_panel_gui import log_notify
+    log_notify(scope, msg, color=color, category=category, severity=severity)
 
 
 def comms_broadcast(ids_or_obj, msg, color=None, category=None, severity=None) -> None:

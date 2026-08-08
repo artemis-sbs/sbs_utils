@@ -153,6 +153,16 @@ class TestAnnouncePairs(AudienceBase):
     def _slots(self, cid):
         return self.pages[cid].overlays.slots
 
+    def _logged(self):
+        """Every log line, across scopes - announce logs at SHIP scope, and which id
+        that is depends on how the mock links this console to its ship."""
+        from sbs_utils.procedural import log_panel as LP
+        out = []
+        for tab in (LP.TAB_LOG,):
+            for scope in list(LP._LOG.keys()):
+                out += [e["text"] for e in LP.log_entries(scope, tab)]
+        return out
+
     def _cards(self, cid):
         """The info-panel LOG for a console - the durable record half. announce()
         leaves the interrupting to the overlay, so its card is filed rather than
@@ -173,17 +183,23 @@ class TestAnnouncePairs(AudienceBase):
         # the durable twin landed on the same consoles' info panel queue
         self.assertEqual(self._cards(1001)[0]["message"], "Raiders inbound")
 
-    def test_status_is_a_toast_with_no_record(self):
+    def test_status_is_a_LOG_line_and_no_overlay(self):
+        """status/minor were the one pair of levels carrying information on a surface
+        that kept no record - the corner toast. They are log lines now: visible in the
+        ambient strip immediately, and still there when the crew looks back."""
         announce("Cargo ejected", level="status", ship=self.a_id)
-        self.assertIn("corner_toast", self._slots(1001))
+        self.assertFalse(self._slots(1001), "status draws no overlay at all")
         self.assertEqual(self._cards(1001), [])
+        self.assertIn("Cargo ejected", self._logged())
 
     def test_record_false_suppresses_the_twin(self):
         announce("Raiders inbound", level="alert", ship=self.a_id, record=False)
         self.assertIn("top_banner", self._slots(1001))
         self.assertEqual(self._cards(1001), [])
 
-    def test_record_true_forces_a_card_on_a_toast_level(self):
+    def test_record_true_still_forces_a_card_on_a_status_level(self):
+        """record=True has always meant "give this one a card". The default twin for
+        status changed to the log; the escape hatch must still reach a card."""
         announce("Beacon built", level="status", ship=self.a_id, record=True)
         self.assertEqual(self._cards(1001)[0]["message"], "Beacon built")
 
@@ -207,7 +223,8 @@ class TestAnnouncePairs(AudienceBase):
 
     def test_unknown_level_falls_back_to_status(self):
         announce("something", level="bogus", ship=self.a_id)
-        self.assertIn("corner_toast", self._slots(1001))
+        self.assertFalse(self._slots(1001))
+        self.assertIn("something", self._logged())
 
 
 if __name__ == "__main__":
