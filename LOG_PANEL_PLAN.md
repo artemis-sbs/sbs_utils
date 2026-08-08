@@ -1,0 +1,222 @@
+# Log Panel - replacing the text waterfall
+
+**Decision (Doug, 2026-08-07):** this is an UPGRADE that REPLACES the text waterfall, not a
+second surface beside it.
+
+The waterfall became a dumping ground. This feedback round alone produced four items against
+it - raw quest ids printed to it (PRM-15), the wrong noun (PRM-16), fighter docking spam
+(PRM-32), and a toast with nowhere sensible to live (PRM-8). Each was fixed on its own, but
+they share a cause: one undifferentiated stream that everything writes to and nothing owns.
+
+---
+
+## The rule
+
+> **The panel is for what you READ. Anything you ACT on stays interactive.**
+
+Comms is deliberately NOT a tab. Comms is where a human acts - menus, dialogue, choices - and
+folding it into a scrollback pane would turn participation into reading, flattening the thing
+that makes a bridge feel like a crew. Info cards stay where they are too: read-only, but tied
+to a comms interaction, and pulling them in would drag conversation back through the side door.
+
+That rule decides future tabs without re-litigating this, and it is why the toast DOES belong
+here (purely read-only) while comms never could.
+
+---
+
+## What is already confirmed
+
+Checked, not assumed:
+
+| Fact | Why it matters |
+|---|---|
+| **The engine never writes to the waterfall - it is all script** (Doug) | The widget can be fully retired. This is a replacement, not an "alongside". |
+| `comms_broadcast(ids_or_obj, msg, color)` is the single write API | One choke point. Every mission follows without being rewritten. |
+| `gui_text_area` already scrolls (`scroll_line`, `need_v_scroll`) | The container exists; this is composition, not invention. |
+| `gui_text_area` already renders callouts (`_callout_styles` / `amd_callout`) | Callout formatting is reusable as-is. |
+| Setting `.value` does NOT reset scroll | A tab switch is an assignment, not a page rebuild. |
+
+---
+
+## Architecture
+
+**One `gui_text_area`. Tabs replace its content.** A tab is not a widget - it is a filter
+argument. Switching tabs is `area.value = render(entries, tab)`, which the dirty system picks
+up in place.
+
+Three consequences worth stating, because they remove most of the expected work:
+
+* **No page rebuild**, so none of the `reveal` / `get_selection_hint` machinery the quest tab
+  and hangar needed applies here.
+* **The content layer is a pure function** - `(entries, tab) -> markdown string` - so it is
+  fully unit-testable with no GUI. That matters for a surface nobody can verify headlessly
+  today.
+* **The "N new below" affordance is just a line in the string.** No extra widget.
+
+So the whole feature is: an append-only tagged store, a pure render function, a small tab row,
+and one text area.
+
+### Tabs
+
+| Tab | Holds |
+|---|---|
+| **Log** | everything, chronological - the default and the safety net |
+| **Ship** | damage, internal systems, docking, engineering events |
+| **Mission** | objective and quest changes, mission beats |
+
+Three, not four. "Alerts" was considered and rejected: it is a SEVERITY filter, not a
+category, and anything urgent should already have announced via an overlay - so an Alerts tab
+risks becoming the place urgency goes to be missed. Because a tab is a filter argument, adding
+a fourth later is a data change, not a redesign.
+
+### Callouts vs categories - two axes, not one
+
+Asked (Doug, 2026-08-07): should a callout match a category? **No - they are orthogonal, and
+collapsing them loses one of them.**
+
+* **Category** = what the entry is ABOUT -> which tab it appears in.
+* **Callout** = how URGENT it is -> how it looks.
+
+A Ship entry can be routine ("docked at DS 1") or critical ("hull breach"); a Mission entry can
+be a beat or a failure. Making the callout follow the category means either every Ship line
+looks identical (severity lost) or severity picks the tab - which is the rejected "Alerts"
+idea arriving by another road.
+
+**A callout is also not free.** `_TITLE_HEIGHT = 24` + `_BODY_HEIGHT = 20` plus a background
+box (`amd_callout._CALLOUT_KINDS`): give every line one and you roughly halve how many entries
+fit in a small panel, and a wall of boxes is harder to scan than plain lines. So:
+
+| Need | Mechanism | Cost |
+|---|---|---|
+| Which category is this line? | **color** (plus an optional short prefix) | free - one style string |
+| Is this urgent? | **callout box** | 2 rows + background, so reserved |
+
+That keeps the Log tab scannable, which is where it matters - entries from every category
+interleave there and must be tellable apart at a glance.
+
+**Reserve the boxes for severity, not topic:** `danger` (quest failed, hull breach, ship lost),
+`warning` (timer expiring, shields critical), `tip` (a completion worth marking), and plain for
+everything else, which is most of it.
+
+**Two consequences worth having:**
+
+* `quote` is the only kind with `background: None`, so a plain untagged message rendered that
+  way looks essentially like a waterfall line does today. **Day-one visual parity is a
+  rendering default, not extra work** - tagging later gains a color, escalating gains a box,
+  both additive, matching the lossless migration above.
+* The boxed entries should be exactly the ones that ALSO announced via an overlay. Something
+  boxed in the log but never announced is an authoring bug the panel now makes visible.
+
+### Tail-follow
+
+Follow the tail by default. The rule that actually matters is the second one:
+
+> **If the user has scrolled back, new entries must NOT yank them to the bottom.** Show "N new
+> below" and jump only when clicked.
+
+`scroll_line` is settable, but `lines` is built during recalc - so setting it right after
+assigning `.value` clamps against the PREVIOUS content's line count. The right shape is a
+**`follow_tail` flag on the text area**, honored at recalc. It goes false when the user scrolls
+up, true again when they return to the bottom. Small addition, and useful to any log-shaped
+text area.
+
+**Per-tab scroll: snap to tail on every switch.** You switch tabs to see what is happening now,
+and remembering three offsets is state that will drift. If it is missed later it is a
+`{tab: scroll_line}` dict.
+
+### The toast lives here
+
+The overlay principle is *overlay = attention, paired with a durable twin*. Putting the toast
+in this panel makes that pairing SPATIAL: the notification appears exactly where its permanent
+record lands, so "what was that?" is answered by looking at the same place.
+
+It must occupy a **reserved strip** inside the panel, not float over the text - covering the
+log while announcing something new is the one way this ends up worse than today. Retiring the
+waterfall frees the space for it, which also settles the position question left open by PRM-8.
+
+---
+
+### Collapse
+
+Asked (Doug, 2026-08-07): an icon that collapses the panel until the next content. Yes - the
+panel spends real estate that helm and weapons may want back mid-fight.
+
+**But "until the next content" taken literally means "hide for two seconds"** in a busy
+mission, where content arrives constantly. The control would feel broken. So reuse the SEVERITY
+axis rather than inventing a rule:
+
+| Event while collapsed | Behavior |
+|---|---|
+| Routine entry (plain / `quote`) | stays collapsed; unread count increments |
+| `warning` / `danger` | **auto-expands** |
+| `tip` / completion | badge only - good news can wait |
+
+Collapse then means "I do not want the chatter", not "hide briefly", and the only thing that
+overrides the player's choice is the thing they would want overridden.
+
+**Collapsed state IS the toast strip.** The toast already occupies a reserved strip inside the
+panel, so a collapsed panel is not empty:
+
+* collapsed = icon + unread badge + whatever toast is currently up
+* expanded  = that same strip, plus the scrollback beneath it
+
+You never lose the attention layer by collapsing - only the history. One surface with two
+heights, rather than two things to design.
+
+**Per-console, sticky for the session.** Helm may keep it collapsed while comms never does, so
+tie the state to the console rather than the ship, and do not reset it on repaint or the player
+will re-collapse it forever. The icon should communicate STATE (an unread badge does most of
+the work); the glyph only needs to say "there is a log here".
+
+## Scoping - the one thing awkward to retrofit
+
+`comms_broadcast` takes EITHER player-ship ids OR client ids, and that distinction has to
+survive:
+
+* **Ship-scoped is primary.** Every console on a ship sees the same Log - that is what makes it
+  the *ship's* log, and a crew asking "what did that say?" should be reading the same text.
+* **Client-scoped is the exception**, a small per-console overlay for console-specific notices.
+
+A console renders the union. Decide this before building: per-console-first gives five
+diverging logs on one bridge and no way to merge them afterwards.
+
+---
+
+## Migration - lossless, and no mission rewrites
+
+Keep `comms_broadcast(ids, msg, color)` exactly as it is; add an optional `category=`.
+
+* Untagged messages appear in **Log** (which shows everything) and in no subset tab.
+* Day one, with zero call sites touched, the panel behaves exactly like today's waterfall.
+* Tagging a call site ADDS it to a subset tab; it never removes it from Log.
+* So no message can go missing by being mis-tagged, and nothing has to change for this to ship.
+
+Then tag at the SOURCE rather than per-mission - `quest_driver`'s completion/failure broadcasts
+to Mission, docking and internal damage to Ship. Two library edits cover most of the value.
+
+---
+
+## Build order
+
+1. **`follow_tail` on `gui_text_area`** - the only real widget work, independently useful.
+2. **The store + pure `render(entries, tab)`** - testable headlessly; this is how the feature
+   gets verified at all.
+3. **One console, Log tab only**, fed by intercepting `comms_broadcast`, with the classic
+   waterfall still visible beside it.
+
+That order makes the first reviewable thing a like-for-like - same content, new surface -
+before any categorization or retirement decisions. If it does not feel right at real console
+proportions, the cost so far is one widget flag and a pure function.
+
+---
+
+## Open
+
+* **Screen space.** It must be at least as large as the waterfall on consoles that are already
+  crowded. Worth mocking one console at real proportions before committing.
+* **Tabs hide things.** A crew under pressure will not switch tabs. Default to Log, and keep the
+  rule that anything urgent still announces via overlay.
+* **Panel-internal tabs, NOT console top-tabs.** That strip is capacity-limited and partly
+  engine-owned (PRM-26); inheriting it would inherit that bug.
+
+Related: `PRM_Feedback.md` (PRM-8, PRM-15, PRM-16, PRM-32), `OVERLAY_PLAN.md`.
