@@ -461,11 +461,20 @@ URGE = {
     "action": lines(hint="self departs"),
 }
 
+# WHAT A KILL LEAVES BEHIND, keyed by role - loot follows from what a ship IS.
+#
+# The hand-written defaults stay the default: a mission that authors no table behaves
+# exactly as before. This exists so an author can SEE the answer and change it, instead of
+# a practice target dropping contraband because it happens to be spawned hostile (PRM-14).
+DROP = {
+    "drops": text(hint="salvage x2-4, contraband 20%   (or `none`)"),
+}
+
 ARCHETYPES = {
     "quest": QUEST, "lifeform": LIFEFORM, "item": ITEM, "side": SIDE,
     "scan": SCAN, "landmark": LANDMARK, "region": REGION, "map": MAP,
     "dialogue": DIALOGUE, "image": IMAGE,
-    "cutscene": CUTSCENE, "urge": URGE,
+    "cutscene": CUTSCENE, "urge": URGE, "drop": DROP,
 }
 
 # TRAITS: a concern a record ALSO has, on top of what it is.
@@ -581,6 +590,7 @@ _SECTION_ALIASES = {
     "maps": "map", "map": "map",
     "dialogue": "dialogue", "lines": "dialogue",
     "urges": "urge", "urge": "urge",
+    "drops": "drop", "drop": "drop", "loot": "drop", "drop tables": "drop",
     # An icon IS an atlas cell that resolves in the icon domain - one archetype, two
     # section words, so a mission's card deck and its icon sheet read the same way.
     "images": "image", "image": "image", "art": "image", "atlas": "image",
@@ -672,6 +682,7 @@ _DISCRIMINATORS = (
     ("modifiers", "item"),
     ("center", "region"), ("radius", "region"),
     ("face", "lifeform"), ("scene", "lifeform"),
+    ("drops", "drop"),
     ("speaker", "dialogue"),
     ("at", "landmark"), ("kind", "landmark"),
     ("state", "quest"), ("when", "quest"), ("then", "quest"),

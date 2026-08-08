@@ -126,6 +126,8 @@ def reset_mission_state():
     # A voice registered by the LAST mission names an agent that no longer exists.
     from .procedural.quest_driver import quest_dispatch_voice_clear
     quest_dispatch_voice_clear()
+    from .procedural.amd_drops import drops_clear
+    drops_clear()
     # Camera + cutscene state. TickDispatcher.clear() above drops their DRIVER
     # tasks, but the dicts that say who owns which console outlive it - and a
     # stale owner makes the next mission's first move think it is being
@@ -237,6 +239,8 @@ register_reset_state("log_panel", lambda: _log_size())
 from .procedural.quest_driver import _QUEST_DISPATCH_VOICE
 register_reset_state("quest dispatch voice",
                      lambda: 1 if _QUEST_DISPATCH_VOICE[0] is not None else 0)
+from .procedural.amd_drops import drops_size as _drops_size
+register_reset_state("drop tables", _drops_size)
 register_reset_state("ButtonPromise.navigation_map",
                      lambda: sum(len(v) for v in _button_promise().navigation_map.values()))
 register_reset_state("TickDispatcher",    lambda: len(TickDispatcher._dispatch_tick))
