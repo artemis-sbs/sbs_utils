@@ -247,6 +247,37 @@ The VS Code extension reads AMD as a format rather than as coloured text:
 - **Edits are safe** — changing one field leaves the kind line, `//` notes and list
   continuations exactly as you wrote them.
 
+## 📻 The text waterfall is gone — say hello to the ship's log
+
+**This one changes what your mission looks like whether you opt in or not.** The engine
+never wrote to the waterfall, script could not control its background, and no mission
+could style it. It has been removed from every console and replaced by a log with two
+halves, fed by one record:
+
+- **The strip** — one line, the newest message, where the waterfall used to sit. Always
+  visible, no interaction, read at a glance.
+- **The tab** — the history, in the info panel: scrollable and filtered into **Log**,
+  **Ship** and **Mission**.
+
+Newest is **first** in both, so the latest line never moves.
+
+You write to it exactly as before — `comms_broadcast(...)` — with two new optional
+arguments: `category` picks the tab (everything still shows in **Log**, so a filter can
+never hide a message), and `severity` (`tip` / `warning` / `danger`) renders the line as a
+coloured callout.
+
+**The corner toast retired into the same log.** `overlay_toast()` and the `toast <text>`
+quest directive still work and still compile — they write a log line instead of drawing a
+card. `announce(level="status")` and `level="minor"` draw no overlay at all now. They were
+the one pair of levels carrying information on a surface that kept no record: a console
+that connected a second later never saw it.
+
+**Nothing seizes the console.** An urgent line does not switch the info panel to the log
+tab — the strip already shows it, in its severity colour, everywhere. A mission that wants
+the interrupt sets `RAISE_ON = ("danger",)`.
+
+Docs: [Messages & the ship's log](build/messages.md), [Overlays](cosmos/overlays.md).
+
 ## 🧭 Quests & Stories
 
 - **A signal-driven quest engine** with kill / collect / scan / dock / reach /

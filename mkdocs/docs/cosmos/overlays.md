@@ -2,8 +2,15 @@
 
 An **overlay** is a screen-anchored surface drawn **on top of** a console's page and
 its embedded engine views (the 3D view, the tactical map). Hero cards, lower thirds,
-toasts, banners, a full-screen flash, a modal choice, a live HUD — all draw over
-whatever is on screen and update **without repainting the page underneath**.
+banners, a full-screen flash, a modal choice, a live HUD — all draw over whatever is on
+screen and update **without repainting the page underneath**.
+
+!!! warning "The corner toast is retired"
+    `overlay_toast()` no longer draws anything — it writes to the **ship's log**
+    ([messages](../build/messages.md)). It was the one surface carrying information with
+    no durable record: it said its piece and took it with it, so a console that connected
+    a second later never saw it. The call still works, and so does the `toast <text>`
+    quest directive; `icon`, `seconds` and `slot` are accepted and ignored.
 
 Overlays live in named **slots** (centre, top strip, corner, bottom, full-screen), and
 each slot draws above the page via the engine's draw-layer. You never build the
@@ -48,8 +55,8 @@ overlay_banner("Long range sensors report a raider wing crossing the neutral zon
   (headless, no client yet) the text is left whole.
 
 `announce()` uses this: `alert` and `hail` hand their **full** text to the slot, because
-it can play the whole thing. Only a hero card and a toast still get a clamped headline —
-they are a glance, with nowhere for a paragraph to go.
+it can play the whole thing. Only a hero card still gets a clamped headline — it is a
+glance, with nowhere for a paragraph to go.
 
 ## Legibility — scrims, fills and framing
 
@@ -80,7 +87,6 @@ see [Targeting](#targeting-which-consoles)).
 | `overlay_hero(title, subtitle, face/ship/icon/image, background, letterbox, seconds)` | centre | chapter / scene title, boss reveal |
 | `overlay_lower_third(name, line)` | bottom | someone speaking over the live view |
 | `overlay_banner(text, color)` | top strip | RED ALERT, a countdown |
-| `overlay_toast(text, seconds=3)` | lower-right | *Objective updated* — **toasts stack** |
 | `overlay_credits(entries, title, roll=)` | full-screen | opening / closing credits |
 | `overlay_letterbox(line, bar)` | full-screen | cinematic bars for a cutscene |
 | `overlay_flash(color)` | full-screen | hull-hit / jump colour wash (fast) |
@@ -104,7 +110,6 @@ Overlays draw on **consoles**, but you usually hold a ship or a side. `to` is an
 ```
 overlay_hero("FLEET ALERT", subtitle="Raiders inbound", to=role("mainscreen"))
 overlay_banner("WAR DECLARED", to=role("__player__"))      # ships -> their consoles
-overlay_toast("Cargo ejected", to=ship_id)                 # one crew
 overlay_banner("BLOCKADE LIFTED", to="tsn")                # a whole side
 ```
 
@@ -116,23 +121,21 @@ screen:
 
 ```
 overlay_lower_third(name, line, to=ship_id, consoles="mainscreen")
-overlay_toast("Contact bearing 040", to=ship_id, consoles="science, comms")
+overlay_banner("Contact bearing 040", to=ship_id, consoles="science, comms")
 ```
 
 Passing a scalar `to` that resolves to no console logs a one-off warning (that is the
 "I pushed an overlay and saw nothing" bug); an empty *set* is normal and stays quiet.
 
-## Auto-dismiss & stacking toasts
+## Auto-dismiss
 
 `seconds` schedules a **generation-guarded** auto-dismiss: if the slot is re-shown or
 updated before the timer fires, the old timer is superseded — it can never clear the
-*newer* content. Toasts are special: each `overlay_toast` **appends** (capped, each
-self-removing), so several notifications coexist instead of clobbering one another.
+*newer* content.
 
-```
-overlay_toast("Upgrade acquired")
-overlay_toast("Objective updated")     # both visible, each clears on its own
-```
+An overlay slot holds **one** thing: showing again replaces what is there. Stacking used
+to be the corner toast's trick, and it retired with it — several notifications that all
+want keeping are a **log**, not a pile of cards ([messages](../build/messages.md)).
 
 ## A modal choice
 
@@ -261,8 +264,13 @@ act on later gets a durable twin.
 | `chapter` | hero card | info-panel card (history) |
 | `hail` | lower third | `comms_message` from `sender` (else a card) |
 | `alert` | top banner | info-panel card (history) |
-| `status` | corner toast | none |
-| `minor` | corner toast | none |
+| `status` | *none* | a line in the ship's **log** |
+| `minor` | *none* | a line in the ship's **log** |
+
+`status` and `minor` draw **no overlay**. They were the one pair carrying information on
+a surface that kept no record; they are log lines now — visible immediately in the strip
+where the toast used to appear, and still there when the crew looks back. Pass
+`record=True` to force a card instead, exactly as before.
 
 ```
 announce("Raiders have crossed the line.", title="TSN Command",
