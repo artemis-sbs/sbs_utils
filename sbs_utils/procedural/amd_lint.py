@@ -1001,6 +1001,97 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
     return findings
 
 
+def amd_lint_mission(mission_root, cross_file=False, use_stamp=True):
+    """Lint every .amd a mission ships. Returns [(path, finding)].
+
+    The pre-flight gate. `sbs lint` is the same passes wrapped in a CLI with the
+    signal and namespace checks on top; this is the part a headless `--test` can
+    run before the sim starts, so a mission that cannot possibly work does not
+    burn a test window proving it.
+
+    Loads the mission's own vocabulary FIRST -- that step is what makes the result
+    trustworthy rather than noise. Without it the shipped corpus reports 174
+    `unknown-field` warnings instead of 2.
+
+    `cross_file` defaults OFF: that pass needs the mastlib signal scan only the CLI
+    assembles, and the findings that should stop a run are the ERROR-class
+    structural ones anyway.
+
+    `use_stamp` skips a file whose bytes a mastlib already recorded as clean (see
+    amd_stamp). A mission-folder file has no stamp, so the file an author is
+    actually editing is always linted.
+    """
+    from sbs_utils.procedural.amd_vocab import load_mission_vocabulary
+    from sbs_utils.procedural.amd_schema import (amd_vocabulary_snapshot,
+                                                 amd_vocabulary_restore)
+
+    root = os.path.abspath(mission_root)
+    # BORROW the mission's vocabulary; do not keep it. This runs in the same process
+    # that is about to run the mission, and pre-registering its fields changes the
+    # ORDER they are declared in - which is enough to turn a passing mission into a
+    # startup ValueError. See amd_vocabulary_snapshot.
+    _snap = amd_vocabulary_snapshot()
+    try:
+        try:
+            load_mission_vocabulary(root)
+        except Exception:
+            pass      # a mission whose module needs the engine still lints
+        return _amd_lint_mission_inner(root, cross_file, use_stamp)
+    finally:
+        amd_vocabulary_restore(_snap)
+
+
+def _amd_lint_mission_inner(root, cross_file, use_stamp):
+    """The pass itself, with the mission's vocabulary loaded around it."""
+    import glob as _glob
+    from sbs_utils.procedural.amd import amd_read_text
+    from sbs_utils.procedural.amd_core import parse as _core_parse
+    from sbs_utils.procedural.amd_vocab import declared_addon_paths
+
+    clean = set()
+    if use_stamp:
+        try:
+            from sbs_utils.procedural.amd_stamp import amd_clean_digests, amd_digest
+            clean = amd_clean_digests(declared_addon_paths(root))
+        except Exception:
+            clean = set()
+
+    paths = sorted(_glob.glob(os.path.join(root, "**", "*.amd"), recursive=True))
+    sources = {}
+    for path in paths:
+        try:
+            sources[path] = amd_read_text(path)
+        except Exception as e:
+            sources[path] = e
+
+    # The MISSION-WIDE symbol table, built before anything is linted. A reference
+    # is only dangling if NO file in the mission defines it, and linting a file
+    # alone cannot know that: without this, OpenUniverse reports 35 findings
+    # instead of 2, and 33 of them point at records that do exist next door.
+    known_keys = set()
+    for text in sources.values():
+        if isinstance(text, str):
+            try:
+                known_keys |= _core_parse(text).keys
+            except Exception:
+                pass
+
+    out = []
+    for path in paths:
+        text = sources.get(path)
+        if not isinstance(text, str):
+            out.append((path, AmdFinding(0, ERROR, "unreadable", f"cannot read: {text}")))
+            continue
+        if clean:
+            from sbs_utils.procedural.amd_stamp import amd_digest
+            if amd_digest(text) in clean:
+                continue
+        for f in amd_lint(file_path=path, content=text, cross_file=cross_file,
+                          known_keys=known_keys):
+            out.append((path, f))
+    return out
+
+
 def _main(argv):
     """Minimal file linter: `python -m sbs_utils.procedural.amd_lint [--json|--compact]
     <file.amd> ...`. (No cross-file signal check here - use `sbs lint` for a whole

@@ -756,6 +756,7 @@ def _run(
     cosmos_dir: str | None = None,
     test_seconds: float | None = None,
     junit_path: str | None = None,
+    lint_strict: bool = False,
     exercise: bool = False,
     exercise_console: str | None = None,
     exercise_dwell: int | None = None,
@@ -1481,6 +1482,29 @@ def _run(
         from sbs_utils.helpers import _TPS as _TEST_TPS
         _cov = MastCoverage().install()
         _verdict = MastVerdict().install()
+        # PRE-FLIGHT: lint the mission's .amd BEFORE the sim starts. A mission that
+        # cannot possibly work should not burn a test window proving it, and until
+        # this ran there was nothing in the runner that looked at .amd at all - a
+        # broken document rendered a blank panel and the run reported PASS.
+        # Errors only by default: the shipped corpus has legitimate warnings, and a
+        # gate that fails on those is a gate people learn to pass with --no-check.
+        try:
+            from sbs_utils.procedural.amd_lint import amd_lint_mission
+            _amd_findings = amd_lint_mission(mission_folder)
+            _amd_bad = [(pth, f) for pth, f in _amd_findings
+                        if f.is_error() or lint_strict]
+            for pth, f in _amd_bad:
+                _verdict.errors.append({
+                    "source": "amd-lint",
+                    "message": f"{f.message} ({f.code})",
+                    "label": f"{os.path.relpath(pth, mission_folder)}:{f.line}"})
+            _n_warn = len(_amd_findings) - len([1 for _p, f in _amd_findings if f.is_error()])
+            print(f"[runner] amd lint: {len(_amd_findings)} finding(s), "
+                  f"{len(_amd_bad)} counted against the verdict"
+                  + (f" ({_n_warn} warning(s) not counted)" if _n_warn and not lint_strict else ""))
+        except Exception as _e:
+            # Never let the GATE be the thing that breaks the run.
+            print(f"[runner] amd lint skipped: {_e}")
         if exercise:
             from cosmos_dev.exerciser import Exerciser
             _extra_consoles = [c.strip() for c in (exercise_console or "").split(",") if c.strip()]
@@ -2002,6 +2026,7 @@ def run_mission(
     cosmos_dir: str | None = None,
     test_seconds: float | None = None,
     junit_path: str | None = None,
+    lint_strict: bool = False,
     use_working_tree: bool = False,
 ) -> int:
     """Entry point for per-mission extern_debug.py wrappers."""
@@ -2015,6 +2040,7 @@ def run_mission(
         cosmos_dir=cosmos_dir,
         test_seconds=test_seconds,
         junit_path=junit_path,
+        lint_strict=lint_strict,
         use_working_tree=use_working_tree,
     )
 
@@ -2053,6 +2079,9 @@ if __name__ == "__main__":
                          "print MAST coverage + a pass/fail verdict and exit 0/1")
     ap.add_argument("--junit", default=None, metavar="PATH",
                     help="With --test, also write a JUnit XML report to PATH")
+    ap.add_argument("--lint-strict", action="store_true",
+                    help="With --test, count .amd lint WARNINGS against the verdict "
+                         "too (errors always count)")
     ap.add_argument("--seed", type=int, default=None, metavar="N",
                     help="Seed the RNG for a reproducible run (overrides the "
                          "seed_value setting). Omit to use seed_value, or 0 for a "
@@ -2149,6 +2178,7 @@ if __name__ == "__main__":
         cosmos_dir=args.cosmos_dir,
         test_seconds=args.test,
         junit_path=args.junit,
+        lint_strict=args.lint_strict,
         exercise=args.exercise,
         exercise_console=args.exercise_console,
         exercise_dwell=args.exercise_dwell,

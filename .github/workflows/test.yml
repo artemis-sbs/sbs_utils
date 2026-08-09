@@ -1,0 +1,36 @@
+name: Tests (offline suites)
+
+# The RELEASE workflow (main.yml) deliberately does not run tests: many mock tests
+# need shipData/data files that live in the Cosmos install, not in this repo. That
+# comment has always ended "re-enable once these tests are ... moved to a separate
+# push/PR CI" - this is that CI, scoped to the suites that need nothing but stdlib.
+#
+# AMD is the reason it is worth having now: it went from a corner of v1.3.0 to the
+# thing quests, dialogue, landmarks, drops, urges, lore and sides are authored in,
+# and its failure mode is silent. A parse that changes shape still renders a panel.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # The engine embeds 3.11; test on what ships.
+          python-version: "3.11"
+
+      - name: AMD suites
+        run: python -m unittest discover -s tests -p "test_amd*.py" -v
+
+      - name: Golden parse + lint rule suites
+        # The golden file is the backstop for "no authored .amd parses differently".
+        run: |
+          python -m unittest tests.test_amd_parse_golden -v
+          python -m unittest tests.test_signal_lint tests.test_namespace_lint -v

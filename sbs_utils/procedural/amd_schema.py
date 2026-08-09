@@ -1148,6 +1148,46 @@ def amd_read_field(label, value, archetype=None):
 
 
 # --- extension: a mission/addon adds vocabulary ------------------------------
+def amd_vocabulary_snapshot():
+    """Everything `amd_register_*` can change, copied deeply enough to put back.
+
+    For a caller that has to LOAD a mission's vocabulary without KEEPING it. The
+    pre-flight lint gate is the reason this exists: it imports the mission's
+    `*_amd.py` so its words are declared before linting, and it runs in the same
+    process that is about to run the mission - so without a restore it pre-registers
+    fields the mission then re-registers, and any pair that disagrees raises at
+    startup on a mission that was fine a moment ago. (Measured: linting
+    LegendaryMissions in-process turned a passing run into `AMD field 'call sign'
+    is already declared ... with a different meaning`, because loading `lm_amd.py`
+    early let it collide with `casino/bar_content.py`, which the gate does not load.)
+
+    It also stops one mission's words leaking into the next one linted in the same
+    process, which is how OpenUniverse briefly inherited LegendaryMissions' fields.
+    """
+    return {
+        "archetypes": {k: dict(v) for k, v in ARCHETYPES.items()},
+        "traits": {k: dict(v) for k, v in TRAITS.items()},
+        "archetype_traits": dict(ARCHETYPE_TRAITS),
+        "sections": dict(_SECTION_ALIASES),
+        "parsers": dict(_PARSERS),
+    }
+
+
+def amd_vocabulary_restore(snap):
+    """Put back an `amd_vocabulary_snapshot`, and drop every memo over it."""
+    if not snap:
+        return
+    for live, saved in ((ARCHETYPES, snap["archetypes"]), (TRAITS, snap["traits"])):
+        live.clear()
+        live.update({k: dict(v) for k, v in saved.items()})
+    for live, saved in ((ARCHETYPE_TRAITS, snap["archetype_traits"]),
+                        (_SECTION_ALIASES, snap["sections"]),
+                        (_PARSERS, snap["parsers"])):
+        live.clear()
+        live.update(saved)
+    _schema_changed()
+
+
 def amd_register_fields(archetype, table, domain=None):
     """Declare (or extend) an archetype's field table.
 
