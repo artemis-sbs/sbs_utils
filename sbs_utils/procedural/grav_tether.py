@@ -60,6 +60,116 @@ _tick_task = None
 _attach_policy = None
 
 
+# Mass provider for the constraints layer. shipData has NO mass field, and the obvious
+# proxies do not order ships correctly (exclusionradius puts a fighter and a shuttle both
+# at 25), so a MISSION owns the numbers and installs them here - the same shape as the
+# attach veto below. The default keeps the library usable on its own: everything weighs
+# the same, so tug-of-war is a no-op rather than a wrong answer.
+_mass_fn = None
+
+#: What an object weighs when nothing better is known. Units are RELATIVE - only the
+#: ratio between two ends of a tether is ever used.
+DEFAULT_MASS = 1.0
+
+#: How much heavier the load must be before it drags YOU instead. 2.0 = anything twice
+#: your mass wins. Below this the puller wins and merely pays for it in drag.
+MASS_REVERSE_RATIO = 2.0
+
+#: Above this throttle a target is moving too fast to get hold of - None disables the
+#: rule. Off in the library and switched on by the mission, because "can you grab a ship
+#: under power" is a game-balance question, not a physics one. Turning it on is what ties
+#: the tether to the rest of Weapons: cripple the engines first, THEN grab.
+_grab_speed_limit = None
+
+#: Energy the puller spends per tick per unit of towed mass. 0 disables it. Gives
+#: Engineering a stake - a long haul competes with shields and weapons for power.
+_tow_energy_cost = 0.0
+
+
+def grav_tether_set_mass_fn(fn):
+    """Install (or clear with None) the mass provider: fn(id) -> float.
+
+    Without one every object weighs :data:`DEFAULT_MASS`, so the mass rules below all
+    reduce to "evenly matched" - no gating, no drag. That is deliberate: a library that
+    guessed at mass would be confidently wrong, and a mission that has not said what
+    things weigh should get the un-gated behavior it had before.
+    """
+    global _mass_fn
+    _mass_fn = fn
+
+
+def grav_tether_mass(obj):
+    """What this object weighs, via the installed provider. Never returns 0."""
+    oid = to_id(obj)
+    if oid is None or _mass_fn is None:
+        return DEFAULT_MASS
+    try:
+        m = float(_mass_fn(oid))
+    except Exception:
+        return DEFAULT_MASS
+    return m if m > 0 else DEFAULT_MASS
+
+
+def grav_tether_mass_ratio(source, target):
+    """target mass / source mass. >1 means the LOAD is the heavier end.
+
+    The one number the constraints layer turns on: who drags whom, and how much it costs
+    the puller.
+    """
+    return grav_tether_mass(target) / max(0.0001, grav_tether_mass(source))
+
+
+def grav_tether_set_grab_speed_limit(limit):
+    """Refuse a grab on anything moving faster than `limit` throttle. None = no rule."""
+    global _grab_speed_limit
+    _grab_speed_limit = limit
+
+
+def grav_tether_set_tow_energy_cost(per_mass_per_tick):
+    """Energy the puller spends per tick, per unit of towed mass. 0 = free."""
+    global _tow_energy_cost
+    _tow_energy_cost = float(per_mass_per_tick or 0.0)
+
+
+def grav_tether_target_too_fast(target):
+    """Whether this target is moving too fast to get hold of."""
+    if _grab_speed_limit is None:
+        return False
+    thr = get_data_set_value(to_id(target), "playerThrottle")
+    if thr is None:
+        thr = get_data_set_value(to_id(target), "throttle")
+    return thr is not None and float(thr) > float(_grab_speed_limit)
+
+
+def _spend_tow_energy(src, tgt, st):
+    """Charge the puller for holding a load. Returns True if the tether snapped dry.
+
+    Running a ship's reserves to nothing would be a worse mechanic than making the haul
+    expensive, so an empty tank BREAKS the beam and drops the load rather than pinning the
+    ship at zero energy.
+    """
+    if _tow_energy_cost <= 0.0 or st.get("swing"):
+        return False
+    so = to_object(src)
+    if so is None:
+        return False
+    try:
+        have = so.data_set.get("energy", 0) or 0.0
+    except Exception:
+        return False
+    if have <= 0.0:
+        return False                      # nothing to spend from (an NPC): tow is free
+    cost = _tow_energy_cost * grav_tether_mass(tgt)
+    left = float(have) - cost
+    if left <= 0.0:
+        so.data_set.set("energy", 0.0, 0)
+        grav_tether_release(src, tgt)
+        signal_emit("grav_tether_dry", {"SOURCE_ID": src, "TARGET_ID": tgt})
+        return True
+    so.data_set.set("energy", left, 0)
+    return False
+
+
 def grav_tether_set_attach_policy(fn):
     """Install (or clear with None) the attach veto callback. An attach whose
     fn(source_id, target_id) returns False is refused (attach returns None)."""
@@ -121,9 +231,20 @@ def grav_tether_attach(source, target, offset=None, stiffness=0.0, pull_distance
         return None
     if not _attach_allowed(src, tgt):
         return None
+    if grav_tether_target_too_fast(tgt):
+        signal_emit("grav_tether_too_fast", {"SOURCE_ID": src, "TARGET_ID": tgt})
+        return None
     sim = _sim()
-    sim.DeleteTractorConnection(src, tgt)
-    con = sim.AddTractorConnection(src, tgt, _to_sbs_vec(offset), float(pull_distance))
+    # WHO ACTUALLY GETS PULLED is decided by mass, not by who pressed the button. Grab
+    # something far heavier than you and the engine connection is built the other way
+    # round, so the starbase holds station and reels YOU in. That is a better answer than
+    # refusing the grab: a refusal teaches nothing, and being dragged toward a station is
+    # a moment. The registry key stays as the CALLER wrote it, so release/get/has all
+    # still work in the caller's terms; only the engine pair is flipped.
+    reverse = grav_tether_mass_ratio(src, tgt) >= MASS_REVERSE_RATIO
+    a, b = (tgt, src) if reverse else (src, tgt)
+    sim.DeleteTractorConnection(a, b)
+    con = sim.AddTractorConnection(a, b, _to_sbs_vec(offset), float(pull_distance))
     con.offset = float(stiffness)
     _TETHERS[(src, tgt)] = {
         "offset": offset,
@@ -131,6 +252,7 @@ def grav_tether_attach(source, target, offset=None, stiffness=0.0, pull_distance
         "pull": float(pull_distance),
         "overspeed": overspeed if overspeed is not None else _default_overspeed,
         "reel_rate": 0.0,
+        "reversed": reverse,
     }
     _ensure_tick()
     return con
@@ -142,17 +264,49 @@ def grav_tether_release(source, target):
     tgt = to_id(target)
     if src is None or tgt is None:
         return
-    _sim().DeleteTractorConnection(src, tgt)
+    _delete_connection(src, tgt)
     _TETHERS.pop((src, tgt), None)
+    _drag_recheck(src)
     _maybe_stop_tick()
+
+
+def _delete_connection(src, tgt):
+    """Drop the ENGINE connection for a registry pair, whichever way round it was built.
+
+    A mass-reversed tether was created as (target, source), so deleting only the pair the
+    caller knows about would leave the real connection live and the load still held.
+    """
+    st = _TETHERS.get((src, tgt))
+    sim = _sim()
+    try:
+        if st is not None and st.get("reversed"):
+            sim.DeleteTractorConnection(tgt, src)
+        else:
+            sim.DeleteTractorConnection(src, tgt)
+    except Exception:
+        pass
+
+
+def _drag_recheck(src):
+    """Lift the tow drag, and re-arm any tether this ship still holds.
+
+    A ship towing two things that lets one go should end up dragged by what is LEFT, not
+    by what it dropped and not by nothing. Clearing the cached amount makes the next tick
+    recompute from whatever remains.
+    """
+    _release_drag(src)
+    for key, st in _TETHERS.items():
+        if key[0] == src:
+            st.pop("drag", None)
 
 
 def grav_tether_release_all(source):
     """Break every tether where ``source`` is the puller."""
     src = to_id(source)
     for key in [k for k in _TETHERS if k[0] == src]:
-        _sim().DeleteTractorConnection(key[0], key[1])
+        _delete_connection(key[0], key[1])
         _TETHERS.pop(key, None)
+    _drag_recheck(src)
     _maybe_stop_tick()
 
 
@@ -191,8 +345,9 @@ def grav_tether_release_any(obj):
     """Release every tether obj is part of, at either end."""
     oid = to_id(obj)
     for k in [k for k in _TETHERS if k[0] == oid or k[1] == oid]:
-        _sim().DeleteTractorConnection(k[0], k[1])
+        _delete_connection(k[0], k[1])
         _TETHERS.pop(k, None)
+        _drag_recheck(k[0])
     _maybe_stop_tick()
 
 
@@ -272,6 +427,9 @@ def grav_tether_rope(source, target, rope_len, stiffness=DEFAULT_TOW_STIFFNESS, 
         return None
     if not _attach_allowed(src, tgt):
         return None
+    if grav_tether_target_too_fast(tgt):
+        signal_emit("grav_tether_too_fast", {"SOURCE_ID": src, "TARGET_ID": tgt})
+        return None
     _TETHERS[(src, tgt)] = {
         "offset": None,
         "stiffness": float(stiffness),
@@ -298,6 +456,9 @@ def grav_tether_swing(anchor, ship, rope_len, stiffness=1.0, overspeed=None):
     if src is None or tgt is None or src == 0 or tgt == 0:
         return None
     if not _attach_allowed(src, tgt):
+        return None
+    if grav_tether_target_too_fast(tgt):
+        signal_emit("grav_tether_too_fast", {"SOURCE_ID": src, "TARGET_ID": tgt})
         return None
     _TETHERS[(src, tgt)] = {
         "offset": None,
@@ -419,6 +580,63 @@ def _advance_reel(src, tgt, st):
         signal_emit("grav_tether_reeled", {"source": src, "target": tgt})
 
 
+#: Key the tow-drag modifiers are registered under, so they can be lifted cleanly.
+_DRAG_KEY = "grav_tether_drag"
+
+#: How much of your drive a load of EQUAL mass costs you. A same-mass tow at 0.35 leaves
+#: you at 65% throttle and turn - slow enough to be a real decision, not so slow that
+#: hauling anything is a punishment.
+DRAG_AT_EQUAL_MASS = 0.35
+
+#: Never drag a ship below this fraction of its drive, whatever it has hold of. A ship
+#: pinned to 0 is a ship that cannot play; the tug-of-war should make a trip slow and
+#: vulnerable, not end it.
+DRAG_FLOOR = 0.25
+
+
+def _drag_amount(ratio):
+    """How much drive a load of this mass ratio costs. 0 = free, 0.75 = at the floor."""
+    return min(1.0 - DRAG_FLOOR, float(ratio) * DRAG_AT_EQUAL_MASS)
+
+
+def _enforce_drag(src, tgt, st):
+    """Towed mass drops the puller's throttle and turn rate.
+
+    This is what makes big salvage a slow, vulnerable trip home rather than free money.
+    Applied as MODIFIERS on the engine's own upgrade coefficients (the same keys the item
+    system boosts), so it stacks and expires through machinery that already exists instead
+    of fighting the helm for the throttle value every tick.
+
+    A SWING is exempt: the anchor is the source, the fighter is the load, and slowing the
+    anchor (usually a rock) means nothing - while slowing the fighter would kill the orbit
+    the mode exists for.
+    """
+    if st.get("swing"):
+        return
+    amount = _drag_amount(grav_tether_mass_ratio(src, tgt))
+    if amount <= 0.0:
+        return
+    if st.get("drag") == amount:
+        return                              # already applied at this ratio
+    try:
+        from .modifiers import modifier_add
+        modifier_add(src, "impulse_upgrade_coeff", -amount, _DRAG_KEY, replace_if_exists=True)
+        modifier_add(src, "turn_upgrade_coeff", -amount, _DRAG_KEY, replace_if_exists=True)
+        st["drag"] = amount
+    except Exception:
+        pass
+
+
+def _release_drag(src):
+    """Lift the tow drag. Called on release - a ship that let go must get its drive back."""
+    try:
+        from .modifiers import modifier_remove
+        modifier_remove(src, "impulse_upgrade_coeff", _DRAG_KEY)
+        modifier_remove(src, "turn_upgrade_coeff", _DRAG_KEY)
+    except Exception:
+        pass
+
+
 def grav_tether_tick(t=None):
     """Runs on the TickDispatcher (~10 Hz) while any tether is live; also directly
     callable (tests). Enforces impulse and advances reels; self-heals dead objects."""
@@ -432,6 +650,9 @@ def grav_tether_tick(t=None):
             continue
         if _enforce_impulse(src, tgt, st):
             continue                       # snapped -> gone this tick
+        _enforce_drag(src, tgt, st)        # towing a heavy load costs you speed
+        if _spend_tow_energy(src, tgt, st):
+            continue                       # ran dry -> released this tick
         if st.get("swing"):
             _tick_swing(src, tgt, st)      # circle-point orbit (holds radius)
         elif st.get("rope"):

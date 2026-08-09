@@ -14,6 +14,7 @@ from tests.reset_helper import reset_mock
 from sbs_utils.procedural.query import to_id, to_object, get_data_set_value
 from sbs_utils.procedural.spawn import player_spawn, npc_spawn
 from sbs_utils.procedural import grav_tether as gt
+from sbs_utils.procedural.sides import side_ensure
 
 
 class TestGravTether(unittest.TestCase):
@@ -298,6 +299,160 @@ class TestGravTether(unittest.TestCase):
 
         self.assertEqual(mt.mount_count(), 0)
         self.assertTrue(gt.grav_tether_has(self.ship, self.load), "the tow must survive")
+
+
+class TestGravTetherConstraints(unittest.TestCase):
+    """Phase 4: what stops the tether being a win button.
+
+    All of it turns on MASS, and the library deliberately ships no numbers - a mission
+    installs them. So each test installs its own, and the last one checks that WITHOUT a
+    provider every rule reduces to a no-op rather than a wrong guess.
+    """
+
+    def setUp(self):
+        reset_mock(sbs)
+        gt.grav_tether_clear_all()
+        gt.grav_tether_set_mass_fn(None)
+        gt.grav_tether_set_grab_speed_limit(None)
+        gt.grav_tether_set_tow_energy_cost(0.0)
+        # modifier_add resolves a SIDE as well as the object, and warns "Side not found"
+        # without one - so the drag lands nowhere a query can see it.
+        side_ensure("tsn", "TSN")
+        self.ship = to_id(player_spawn(0, 0, 0, "Tug", "tsn", "tsn_light_cruiser"))
+        self.load = to_id(npc_spawn(400, 0, 0, "Load", "tsn", "tsn_light_cruiser", "behav_npcship"))
+
+    def tearDown(self):
+        gt.grav_tether_clear_all()
+        gt.grav_tether_set_mass_fn(None)
+        gt.grav_tether_set_grab_speed_limit(None)
+        gt.grav_tether_set_tow_energy_cost(0.0)
+        # Modifiers outlive reset_mock, so a drag left on a ship by one test is still
+        # in the registry for the next one.
+        gt._release_drag(self.ship)
+        gt._release_drag(self.load)
+
+    def _masses(self, table):
+        gt.grav_tether_set_mass_fn(lambda oid: table.get(oid, 1.0))
+
+    def _has_drag(self, obj, key="impulse_upgrade_coeff"):
+        """Whether the tow drag is on this object.
+
+        NOT modifier_exists: that does `id in mod.id` with mod.id an int, so it raises
+        TypeError on any normal single-target modifier.
+        """
+        from sbs_utils.procedural.modifiers import modifiers_get_for_object
+        return any(m.source == gt._DRAG_KEY
+                   for m in (modifiers_get_for_object(obj, key) or []))
+
+    # --- mass ---------------------------------------------------------------
+
+    def test_no_provider_means_evenly_matched(self):
+        # The library must not guess. Without a table every rule is inert.
+        self.assertEqual(gt.grav_tether_mass(self.ship), gt.DEFAULT_MASS)
+        self.assertEqual(gt.grav_tether_mass_ratio(self.ship, self.load), 1.0)
+
+    def test_ratio_reads_both_ends(self):
+        self._masses({self.ship: 4.0, self.load: 12.0})
+        self.assertEqual(gt.grav_tether_mass_ratio(self.ship, self.load), 3.0)
+        self.assertEqual(gt.grav_tether_mass_ratio(self.load, self.ship), 1.0 / 3.0)
+
+    def test_a_broken_provider_falls_back_rather_than_raising(self):
+        gt.grav_tether_set_mass_fn(lambda oid: 1 / 0)
+        self.assertEqual(gt.grav_tether_mass(self.ship), gt.DEFAULT_MASS)
+
+    # --- who tows whom ------------------------------------------------------
+
+    def test_a_heavier_load_tows_YOU(self):
+        """Grab a starbase in a cruiser and the engine pulls the other way.
+
+        The registry key stays as the CALLER wrote it - release/has still work in their
+        terms - but the engine pair is flipped so the heavy end holds station.
+        """
+        self._masses({self.ship: 3.0, self.load: 200.0})
+        gt.grav_tether_lock(self.ship, self.load)
+        self.assertTrue(gt.grav_tether_has(self.ship, self.load), "caller's view is unchanged")
+        self.assertIsNotNone(sbs.sim.GetTractorConnection(self.load, self.ship),
+                             "the heavy end must be the one doing the pulling")
+        self.assertIsNone(sbs.sim.GetTractorConnection(self.ship, self.load))
+
+    def test_a_lighter_load_is_pulled_normally(self):
+        self._masses({self.ship: 8.0, self.load: 1.0})
+        gt.grav_tether_lock(self.ship, self.load)
+        self.assertIsNotNone(sbs.sim.GetTractorConnection(self.ship, self.load))
+
+    def test_releasing_a_reversed_tether_really_lets_go(self):
+        # The bug this guards: deleting only the pair the caller knows about leaves the
+        # real (flipped) connection live and the load still held.
+        self._masses({self.ship: 3.0, self.load: 200.0})
+        gt.grav_tether_lock(self.ship, self.load)
+        gt.grav_tether_release(self.ship, self.load)
+        self.assertIsNone(sbs.sim.GetTractorConnection(self.load, self.ship))
+        self.assertFalse(gt.grav_tether_has(self.ship, self.load))
+
+    # --- tug of war ---------------------------------------------------------
+
+    def test_towing_costs_the_puller_drive(self):
+        self._masses({self.ship: 4.0, self.load: 4.0})
+        gt.grav_tether_tow(self.ship, self.load, 500)
+        gt.grav_tether_tick()
+        self.assertTrue(self._has_drag(self.ship, "impulse_upgrade_coeff"))
+        self.assertTrue(self._has_drag(self.ship, "turn_upgrade_coeff"))
+
+    def test_a_swing_does_not_slow_the_anchor(self):
+        # The anchor is usually a rock, and slowing the FIGHTER would kill the orbit.
+        self._masses({self.ship: 1.0, self.load: 1.0})
+        gt.grav_tether_swing(self.load, self.ship, 800)
+        gt.grav_tether_tick()
+        self.assertFalse(self._has_drag(self.load))
+        self.assertFalse(self._has_drag(self.ship))
+
+    def test_drag_is_floored(self):
+        # A ship pinned to zero cannot play; the haul should be slow, not impossible.
+        self.assertLessEqual(gt._drag_amount(1000.0), 1.0 - gt.DRAG_FLOOR)
+
+    def test_releasing_lifts_the_drag(self):
+        self._masses({self.ship: 4.0, self.load: 4.0})
+        gt.grav_tether_tow(self.ship, self.load, 500)
+        gt.grav_tether_tick()
+        self.assertTrue(self._has_drag(self.ship))
+        gt.grav_tether_release(self.ship, self.load)
+        self.assertFalse(self._has_drag(self.ship))
+
+    # --- grab needs a slowed target ----------------------------------------
+
+    def test_a_ship_under_power_cannot_be_grabbed(self):
+        gt.grav_tether_set_grab_speed_limit(0.5)
+        to_object(self.load).data_set.set("playerThrottle", 1.0, 0)
+        self.assertIsNone(gt.grav_tether_lock(self.ship, self.load))
+        self.assertFalse(gt.grav_tether_has(self.ship, self.load))
+
+    def test_a_crippled_ship_can_be_grabbed(self):
+        gt.grav_tether_set_grab_speed_limit(0.5)
+        to_object(self.load).data_set.set("playerThrottle", 0.1, 0)
+        self.assertIsNotNone(gt.grav_tether_lock(self.ship, self.load))
+
+    def test_the_speed_rule_is_off_by_default(self):
+        to_object(self.load).data_set.set("playerThrottle", 3.0, 0)
+        self.assertIsNotNone(gt.grav_tether_lock(self.ship, self.load))
+
+    # --- power --------------------------------------------------------------
+
+    def test_towing_spends_energy(self):
+        self._masses({self.ship: 4.0, self.load: 10.0})
+        gt.grav_tether_set_tow_energy_cost(0.02)
+        to_object(self.ship).data_set.set("energy", 500.0, 0)
+        gt.grav_tether_tow(self.ship, self.load, 500)
+        gt.grav_tether_tick()
+        self.assertLess(to_object(self.ship).data_set.get("energy", 0), 500.0)
+
+    def test_running_dry_drops_the_load(self):
+        # Being slow is a mechanic; being stranded at zero energy is not.
+        self._masses({self.ship: 4.0, self.load: 10.0})
+        gt.grav_tether_set_tow_energy_cost(0.02)
+        to_object(self.ship).data_set.set("energy", 0.05, 0)
+        gt.grav_tether_tow(self.ship, self.load, 500)
+        gt.grav_tether_tick()
+        self.assertFalse(gt.grav_tether_has(self.ship, self.load))
 
 
 if __name__ == "__main__":

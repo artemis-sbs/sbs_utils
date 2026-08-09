@@ -576,3 +576,19 @@ def modifier_get_formatted_time_remaining(modifier) -> str:
     """
     mod = to_object(modifier)
     return mod.format_time_remaining()
+
+
+def modifiers_reset() -> None:
+    """Drop every active modifier (fresh mission / in-process reload).
+
+    `all_modifiers` is a CLASS-level list and nothing emptied it, so buffs, debuffs and
+    their duration timers survived into the next mission - a ship in mission 2 could be
+    carrying a tow drag applied to a ship that no longer exists in mission 1. The
+    per-object half is purged with the agents; this is the registry half.
+    """
+    ModifierHandler.all_modifiers.clear()
+
+
+def modifiers_count() -> int:
+    """How many modifiers are live. Reset-ledger probe."""
+    return len(ModifierHandler.all_modifiers)

@@ -141,6 +141,10 @@ def reset_mission_state():
     # grav_tether_clear_all now deletes only ITS OWN connections, nothing else would.
     from .procedural.mount import mount_clear_all
     mount_clear_all()
+    # Modifiers are a CLASS-level registry that nothing emptied, so a buff (or a tow drag)
+    # applied in one mission was still live in the next one.
+    from .procedural.modifiers import modifiers_reset
+    modifiers_reset()
     # Camera + cutscene state. TickDispatcher.clear() above drops their DRIVER
     # tasks, but the dicts that say who owns which console outlive it - and a
     # stale owner makes the next mission's first move think it is being
@@ -260,6 +264,8 @@ from .procedural.amd_drops import drops_size as _drops_size
 register_reset_state("drop tables", _drops_size)
 from .procedural.grav_tether import _TETHERS as _GRAV_TETHERS
 register_reset_state("grav tethers",       lambda: len(_GRAV_TETHERS))
+from .procedural.modifiers import modifiers_count
+register_reset_state("modifiers",          modifiers_count)
 register_reset_state("ButtonPromise.navigation_map",
                      lambda: sum(len(v) for v in _button_promise().navigation_map.values()))
 register_reset_state("TickDispatcher",    lambda: len(TickDispatcher._dispatch_tick))
