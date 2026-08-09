@@ -19,6 +19,13 @@ Confirmed in-engine (Phase 0 spike, GRAV_TETHER_PLAN.md):
 NOTE: the cosmos_dev mock STORES connections but does not simulate the pull, so the
 physics is engine-verified; the registry / enforcer / reel logic below is Python and IS
 unit-tested against the mock.
+
+CAVEAT ON "the offset point is world-fixed", stated below and in GRAV_TETHER_PLAN.md: it
+is world-fixed only because this module never PASSES an offset. Engine-measured
+(LM_TestRange/maps/test_tractor_mount.mast), AddTractorConnection WITH an offset holds
+the target in the source's BODY FRAME - 200u at 0 deg off the nose through a 51 deg turn.
+That is why a load here always reels to the source's own position. Bolting something ON
+to a hull is sbs_utils.procedural.mount; this module drags things BEHIND one.
 """
 
 import math
@@ -179,8 +186,18 @@ def grav_tether_get(source, target):
 
 
 def grav_tether_clear_all():
-    """Drop all tethers (fresh mission / test reset)."""
-    _sim().ClearTractorConnections()
+    """Drop all tethers (fresh mission / test reset).
+
+    Tolerates having no sim: this runs from reset_mission_state(), which can fire with no
+    frame context at all, and dropping our own state must never depend on the engine
+    being there. The engine-side connections die with the old sim regardless.
+    """
+    try:
+        sim = _sim()
+        if sim is not None:
+            sim.ClearTractorConnections()
+    except Exception:
+        pass
     _TETHERS.clear()
     _maybe_stop_tick()
 
@@ -196,8 +213,16 @@ def grav_tether_lock(source, target, offset=None, overspeed=None):
 def grav_tether_tow(source, target, distance, stiffness=DEFAULT_TOW_STIFFNESS, overspeed=None):
     """Trailing tow: hold the load at ~``distance`` from the source via the rope-toggle
     (a static tether would reel it fully in). As the source moves, the load trails behind
-    at that distance — no offset needed (the offset point is WORLD-fixed, so a static
-    'behind' offset would pin to a compass point; the drag makes it trail for free)."""
+    at that distance - no offset needed here; the drag makes it trail for free.
+
+    NOTE the offset point is only "world-fixed" in the sense that THIS module never
+    passes one. Engine-measured (LM_TestRange/maps/test_tractor_mount.mast):
+    ``AddTractorConnection(host, target, vec3(0,0,200), 0)`` holds the target in the
+    SOURCE'S BODY FRAME - exactly 200u at exactly 0 deg off the nose while the host's
+    heading swung 51 deg. Passing no offset is what makes a load reel to the source's own
+    position, which is what a tow wants and what the "reels fully in regardless of
+    pull_distance" measurement was really showing. To bolt something ON to a hull rather
+    than drag it behind one, use :mod:`sbs_utils.procedural.mount`."""
     return grav_tether_rope(source, target, distance, stiffness, overspeed)
 
 

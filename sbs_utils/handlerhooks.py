@@ -128,6 +128,13 @@ def reset_mission_state():
     quest_dispatch_voice_clear()
     from .procedural.amd_drops import drops_clear
     drops_clear()
+    # Grav tethers. The engine holds the connections and _TETHERS holds the enforcement
+    # state that drives them - neither was cleared, so a tether from the LAST mission
+    # survived the reload and its per-tick enforcer kept capping a ship's throttle in
+    # this one. Mounts (procedural.mount) need no entry here: they keep no module-level
+    # registry, only Agent links that are purged with their objects.
+    from .procedural.grav_tether import grav_tether_clear_all
+    grav_tether_clear_all()
     # Camera + cutscene state. TickDispatcher.clear() above drops their DRIVER
     # tasks, but the dicts that say who owns which console outlive it - and a
     # stale owner makes the next mission's first move think it is being
@@ -245,6 +252,8 @@ register_reset_state("quest dispatch voice",
                      lambda: 1 if _QUEST_DISPATCH_VOICE[0] is not None else 0)
 from .procedural.amd_drops import drops_size as _drops_size
 register_reset_state("drop tables", _drops_size)
+from .procedural.grav_tether import _TETHERS as _GRAV_TETHERS
+register_reset_state("grav tethers",       lambda: len(_GRAV_TETHERS))
 register_reset_state("ButtonPromise.navigation_map",
                      lambda: sum(len(v) for v in _button_promise().navigation_map.values()))
 register_reset_state("TickDispatcher",    lambda: len(TickDispatcher._dispatch_tick))

@@ -101,6 +101,7 @@ nav:
     - The AMD file format: build/amd-format.md
     - Quests: build/quests.md
     - Items & Upgrades: build/items-upgrades.md
+    - Turrets: build/turrets.md
     - Adding an item or upgrade: build/custom-upgrades.md
     - Web pages: build/web-pages.md
     - The Library (in-game reading): build/library.md
@@ -165,6 +166,7 @@ nav:
       - media: api/procedural/media.md
       - mission: api/procedural/mission.md
       - modifiers: api/procedural/modifiers.md
+      - mount: api/procedural/mount.md
       - objective: api/procedural/objective.md
       - persistence: api/procedural/persistence.md
       - popup: api/procedural/popup.md
@@ -186,6 +188,7 @@ nav:
       - terrain: api/procedural/terrain.md
       - timers: api/procedural/timers.md
       - torpedoes: api/procedural/torpedoes.md
+      - turret: api/procedural/turret.md
       - upgrades: api/procedural/upgrades.md
       - urge: api/procedural/urge.md
       - web: api/procedural/web.md
