@@ -1,5 +1,15 @@
 # Mod libraries - shipData, art, and the race as a unit
 
+> **Status: DEFERRED (2026-08-09) - by design, not by neglect.** Nothing in tiers 2 and 3 is
+> built: there is no `extraShipData` generator anywhere in `sbs_cli/src/`. Probes 5, 6 and 7
+> are unanswered, and **probe 7 is worth running while this stays parked** - it is cheap and
+> it de-risks the whole tier-2 design.
+>
+> Kept for the s5 race survey, the two shipData non-negotiables (never write
+> `data/shipData.yaml`; validate a generated engine file before writing it), and the
+> "shipData needs a file on disk, grid data does not" asymmetry. Those are the constraints
+> that shaped the interior work and should not be gathered twice.
+
 **Deferred.** Recorded now because it is the constraint that shaped the interior work, and
 because the survey in s5 should not have to be gathered twice. The active plan is
 `GRID_INTERIORS_PLAN.md`. Mechanics: `GRID_REFERENCE.md`.
@@ -170,6 +180,13 @@ Both are tempting and both are traps.
   system is for. A race mod declaring its own enemies would fight it directly.
 
 ### 5.4 Scope
+
+> **Packaging note (2026-08-09): the nine addons below were folded into one.** What ships is
+> a **single flat `races` addon** - `LegendaryMissions/races/` holds all 63 `.grid` files
+> plus the per-race `*_fleets.yaml`, registered as `"races"` in LM's `__lib__.json`. The
+> race-prefixed *file* naming survived (`tsn_battleship.grid`, `pirate_fleets.yaml`), so the
+> reasoning below still holds - a race is still the unit of composition, it just is not the
+> unit of packaging. `race_<name>` names here are historical.
 
 **Done.** LegendaryMissions now carries nine `race_<name>` addons - `race_tsn`,
 `race_ximni`, `race_arvonian`, `race_usfp`, `race_torgoth`, `race_skaraan`, `race_kralien`,

@@ -1,5 +1,20 @@
 # Overlay System — Plan
 
+> **Status: DONE (2026-08-09), engine pass still partial.** Phases 1-6 built:
+> `procedural/gui/overlay.py` (~1700 lines - slot registry, `overlay_show` / `_clear` /
+> `_register` / `_signal_*`, the `hero` / `toast` / `banner` / `lower_third` / `credits` /
+> `choice` / `hud` / `letterbox` / `flash` kinds, live-catchup) plus
+> `procedural/amd_overlay.py`, with four test modules.
+>
+> **Only `hero` has been verified in the engine**; every other kind is headless-green only,
+> tracked as P0 in `OVERLAY_ADOPTION_PLAN.md`. `input: capture` is deferred on an engine
+> dependency, and "clear overlays on page change" is parked with a written argument - the
+> trigger we want is "this screen changed what it IS", not "the page rebuilt".
+>
+> Kept for the engine mechanics: `complete` only swaps the back buffer when it is non-empty,
+> the first show forces one full repaint, `draw_layer` must stay above 10000, and
+> `overlay_debug_log` exists because `get_debug_gui_tree` is painted, not copyable.
+
 A GUI **overlay** subsystem for the StoryPage framework: screen-anchored surfaces
 that draw *on top of* a console's page and its embedded engine views, updated
 independently of the page's build/present pass, and driven by signals.

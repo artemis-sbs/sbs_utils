@@ -1,5 +1,11 @@
 # MAST Debugger — Design & Implementation Plan
 
+> **Status: ACTIVE (2026-08-09), phases 1 and 6 only.** Everything else shipped and is
+> verified live. Phase 1 (trace / replay scrub) and phase 6 (long-poll stepping, PyMAST and
+> the real-engine bridge) are confirmed unstarted - there is no `replay`, `long_poll` or
+> `trace_file` code in the tree. The four design questions at the end are still open, and
+> they gate phase 6. Drop this to DONE if neither phase is wanted.
+
 Status: **Phases 0-5 done & attach VERIFIED LIVE.** Core, DAP adapter, `sbs dap`
 (launch) command, VS Code contribution (launch + attach), attach mode over a
 socket, and conditional/hit/logpoint breakpoints + setVariable — all working.

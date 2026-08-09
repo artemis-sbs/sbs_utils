@@ -1,5 +1,15 @@
 # Listbox: keeping the selection on screen across a repaint
 
+> **Status: DONE (2026-08-09).** Both parts shipped opt-in and engine-verified:
+> `procedural/gui/listbox.py:84` takes `reveal=False, hint=None`, documented at :110-116;
+> tests in `test_listbox_modes.py` and `test_listbox_packing.py`. Default-on is deliberately
+> deferred ("a later conversation"), and the `horizontal=True` packing path is untouched.
+> Adoption elsewhere is tracked separately in `LISTBOX_ADOPTION_PLAN.md`.
+>
+> The four "what the build changed" contracts below are behavioral rules, not history - reveal
+> fires ONCE rather than every present, indices are DISPLAY indices, and an explicit selection
+> beats the hint's.
+
 **BOTH PARTS BUILT and engine-verified**: `gui_list_box(reveal=True, hint=...)`,
 opt-in, with the Control Gallery's index as the first caller. Four things the
 build changed in this plan:

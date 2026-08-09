@@ -1,5 +1,16 @@
 # Viewscreen Plan - "On Screen" from the science console
 
+> **Status: ACTIVE (2026-08-09), phase-5 leftovers only.** Phases 1-4 shipped (2 engine-
+> verified on 1.3.5), and further than this document states: both items it defers to phase 5
+> have landed - `results_helpers.py:99` now imports `viewscreen_hull_percent` from the
+> library. `gui/viewscreen.py` (20 functions) + `viewscreen_pages.py`, 49 tests, the LM
+> drop-down live at `consoles/layout_widgets.mast:165-170`, `missions/viewscreen_probe`, docs
+> at `cosmos/viewscreen.md`.
+>
+> What is left is small: a by-eye pass on a real LM bridge, an audit of
+> `show_main_game_screen`'s `get_ship_of_client` re-link, and a restart soak. Making
+> `--exercise` actually drive console pages is a `cosmos_dev` job of its own, not this plan's.
+
 Science picks what the main screen shows. A drop-down beside the Follow checkbox
 with four shots, and a data column that reads out what science knows about the
 thing on screen, paging itself when there is more than one screenful.

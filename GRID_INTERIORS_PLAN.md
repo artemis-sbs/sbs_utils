@@ -1,5 +1,13 @@
 # Ship interiors - make every hull flyable
 
+> **Status: DONE (2026-08-09).** Phases 1-8 built, 7 and 8 engine-verified: `grid_ascii.py`,
+> `grid_rooms.py`, `grid_merge_*`, plus `cosmos_dev/mock/hull_mask.py`, `hull_maps.json` and
+> `grid_gen.py`. Every one of the 63 hulls that declares an interior has one.
+>
+> Open: the section 7 warp-to-jump refit is unbuilt (`grid_set_layout` does not exist), probes
+> 3 and 4 are unanswered, and open questions 1, 3 and 4 stand. **See the packaging note in
+> phase 6** - the `interiors_*` addon names in this file no longer exist.
+
 Mechanics reference: `GRID_REFERENCE.md`. Format spec: `GRID_ASCII_FORMAT.md`. The mod
 packaging this feeds: `SHIP_MOD_PLAN.md` (deferred).
 
@@ -251,6 +259,15 @@ under-designed; fix the format, do not special-case the ship.
 Done. Five addons in **LegendaryMissions** - `interiors_tsn`, `interiors_ximni`,
 `interiors_arvonian`, `interiors_usfp`, `interiors_starbases` - 40 floor plans, registered
 in LM's `__lib__.json`.
+
+> **Packaging note (2026-08-09): none of these addon folders exist any more.** The
+> `interiors_*` split was later folded to per-race `race_<name>` addons
+> (`SHIP_MOD_PLAN.md` s5.4) and then to a **single flat `races` addon**, which is what
+> ships: `LegendaryMissions/races/` holds all **63** `.grid` files plus the per-race
+> `*_fleets.yaml`, registered as `"races"` in LM's `__lib__.json`. The race-prefixed
+> *file* naming survived (`tsn_battleship.grid`); the per-race *folders* did not. Every
+> `interiors_*` name below - including `interiors_pirate` in phases 7 and 8 - reads as a
+> historical grouping, not a path.
 
 **Why LM and not a repo of its own:** `grid_ai.mast` (LM's `ai/` addon) is the only thing
 that builds a grid on `//spawn`. Interiors shipped anywhere else would be inert unless LM

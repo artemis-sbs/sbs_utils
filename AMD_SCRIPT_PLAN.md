@@ -1,5 +1,13 @@
 # AMD as a screenplay and a graph
 
+> **Status: DONE (2026-08-09).** All 12 phases, gates run (2731 -> 2780 tests). The two items
+> section 5 listed as "yes, later" also landed: `Aka:` (`amd_core.py:114-228`) and `![[key]]`
+> transclusion (`amd.py:64-71`). `amd_callout.py` ships; `amd_lint.py` emits
+> `dangling-speaker`, `dangling-link` and `unknown-callout`; `sbs lint --missing` and the
+> `amd.showMissing` VS Code command are live.
+>
+> Kept for the sigil-collision survey in sections 2-4, which is what justifies `= ` vs `=$`.
+
 `AMD_PLAN.md` settled the **data layer** - one fence reader, a field-descriptor
 registry, kind resolution, path-indexed headings, a vocabulary that passes the
 read-aloud test. That work is done.

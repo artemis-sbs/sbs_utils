@@ -1,5 +1,16 @@
 # Cinematic Plan — camera, cutscenes, rundowns, and the widgets they need
 
+> **Status: DONE (2026-08-09), engine-confirmed 2026-08-01.** All seven sequenced phases
+> shipped (phase 6 dropped): `procedural/gui/camera.py`, `cutscene.py`, `rundown.py`,
+> `amd_cutscene.py`, with tests and `mkdocs/docs/cosmos/cinematics.md`.
+>
+> Two narrow in-engine confirmations remain, neither blocking: `rundown_suggest`'s `exciting`
+> data_set key has never been read off a real object, and the portrait lower-third's REPLY row
+> has never been pressed.
+>
+> **Section 0 is the durable half** - the 7-rung CameraRepro black-frame matrix sent to the
+> engine team. The docs page distils only four facts out of it; the rest lives only here.
+
 Where this is heading, captured because it spans sessions:
 
 1. **Scriptable camera animation**, within what the engine actually allows.

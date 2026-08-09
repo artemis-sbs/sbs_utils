@@ -1,8 +1,18 @@
 # Mission Authoring Tools — VS Code Plan
 
-Status: **proposal / roadmap**. No code written yet. Follows the pattern that worked
-for the MAST debugger (`MAST_DEBUGGER_PLAN.md`): tap an existing seam, stream to a
-VS Code panel, keep zero cost on non-debug runs.
+> **Status: ACTIVE (2026-08-09).** Mostly built. What remains is the **GUI Editor**
+> (G0 pixel canvas, G2 live preview over the socket, G3 capture-and-tweak, G4 undo/redo)
+> and the Mission Inspector's live click-test. Section 4.4 is the live queue; sections 0-3
+> are now a status log rather than a proposal.
+>
+> Shipped since this was written: `cosmos_dev/mast_inspect.py` carries the InspectionBus and
+> the Signal / World / Gui / Brain / Quest taps, and the VS Code extension registers
+> `showMissionInspector`, `showResolver`, `showStoryOutline`, `showTimeline`, `showGraph`,
+> `showMissing`, `guiEditor`, `showMap` and `showPreview`. The layout containers of section
+> 3.7 all exist (`pages/layout/grid.py`, `group.py`, `repeater.py`).
+
+Follows the pattern that worked for the MAST debugger (`MAST_DEBUGGER_PLAN.md`): tap an
+existing seam, stream to a VS Code panel, keep zero cost on non-debug runs.
 
 ---
 

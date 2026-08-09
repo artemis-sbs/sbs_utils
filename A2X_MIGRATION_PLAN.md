@@ -1,6 +1,14 @@
 # A2X — Artemis 2.8 XML → Cosmos MAST Migration Plan
 
-> Status: **planning only — no code changed.**
+> **Status: DONE (2026-08-09).** Shipped and exceeded. Residue: `a2x/gm.py` (the a28-compat
+> GM console) was never built, and the Layer-A promotion of jitter/seed and
+> `terrain_spawn_mines_*` into core `scatter`/`terrain` is still deferred.
+>
+> Both deliverables are live: `sbs_utils/procedural/a2x/` holds 9 modules (`ai`, `comms`,
+> `conditions`, `coords`, `props`, `sides`, `spawn`, `terrain`), registered at
+> `mast_sbs/mast_sbs_procedural.py:152` and covered by 8 `tests/test_a2x_*.py`; `arme2cosmos`
+> is a working repo. The sections below are the design record, not a to-do list.
+>
 > Goal: help authors port legacy Artemis 2.8 (`MISS_*.xml`) missions to Artemis Cosmos (MAST),
 > getting them 80–90% of the way with idiomatic output and a clear punch-list for the rest.
 > Guiding rule: **Cosmos is the new engine — respect it over the old one.** The legacy layer is a
@@ -256,7 +264,7 @@ a28 screen when it's a bespoke control panel; `MIGRATION_NOTES.md` records which
 - Add optional `seed=` so any count-scatter is reproducible (reuse the existing FNV-1a per-cell seeding).
 - Add a `terrain_spawn_mines_*` family (sphere/line/box) setting `damage_done` / `blast_radius`.
 
-> **Status:** Layer B shipped first (self-contained in `a2x/terrain.py`: jitter + seeded RNG envelope +
+> **Status of this item:** Layer B shipped first (self-contained in `a2x/terrain.py`: jitter + seeded RNG envelope +
 > mine placement, all composing existing public spawners — no edits to `scatter.py`/`terrain.py`, to avoid
 > collision with concurrent work). Promoting jitter/seed/mines into core `scatter`/`terrain` (Layer A) is
 > the deferred follow-up.

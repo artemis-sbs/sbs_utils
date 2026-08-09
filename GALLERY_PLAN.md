@@ -1,5 +1,14 @@
 # Control Gallery
 
+> **Status: DONE (2026-08-09).** Phases 1-7 built and shipped as the `control_gallery`
+> mission (`gallery.mast`, `gallery_code.py`, `gallery.amd`, `gallery_specimens.py`,
+> `overlays.amd`, `quests.amd`, README). Optional leftovers: a browser pass on phase 1, and
+> folding in `content_demo` / `layout_probe` / `font_measure`.
+>
+> Kept for the engine facts the build turned up, which are recorded nowhere else:
+> `has_role(0, ...)` is always False, disabling a console does not unregister it, a morph
+> needs `gui_widget_list_clear()`, and `--exercise-click` cannot take a comma in a label.
+
 Grow the Overlay Demo into a **Control Gallery**: a browsable, runnable catalog of the
 Cosmos GUI, in the shape of Material Design's component gallery or Storybook, but built
 for a system whose docs are a skill file and whose widgets are `send_gui_*` commands.

@@ -1,19 +1,33 @@
 # Shared media, and custom icon sheets
 
-Art is copied once per consuming mission today. This is the plan to make it live once,
-to let `sbs.pyz` own the unpacking, and — on top of that — to give missions custom icon
-sheets that a non-programmer can declare.
+> **Status: DONE (2026-08-09).** Phases 1-4 and 6 shipped. **Phase 5 is the only phase
+> genuinely not done** - there is no `quest-sheet.png` and no `icons/` folder under LM's
+> `media/`. Skybox and music from a pack resolve but have still never been opened by the
+> engine, and the three questions at the end of this file are still open.
+>
+> Phases 3, 4 and 6 landed despite what this line used to claim: `gui/icon_sheet.py`,
+> `procedural/amd_images.py`, `gui_image_add_atlas_grid`, `gui_icon_name`, `amd_lint_images`
+> and `icon_props`, plus `sbs_cli/src/media_cmd.py` (unpack + `.stamp.json`), 11 tests,
+> `missions/media_probe`, and docs at `build/shared-media.md` + `cosmos/gui_icons.md`.
 
-Status: **PROVEN END TO END, for graphics.** A *fetched* LegendaryMissions - no `media/`
+Art *was* copied once per consuming mission. This is the plan that made it live once, let
+`sbs.pyz` own the unpacking, and — on top of that — gave missions custom icon sheets that a
+non-programmer can declare.
+
+**Proven end to end, for graphics.** A *fetched* LegendaryMissions - no `media/`
 of its own, `export-ignore`d out of the archive - draws its casino cards, cut from a
 sheet with a pixel `sub_rect`, out of the single shared copy in `__lib__`, in the engine.
-Ten missions migrated; 272 MB of 314 MB reclaimed. Remaining: skybox/music from a pack
-resolve but have never been opened by the engine, and phases 3-6 (icon sheets, the quest
-log) are untouched.
+Ten missions migrated; 272 MB of 314 MB reclaimed.
 
 ---
 
-## Where we are
+## Where we started
+
+> **Historical - this is the BEFORE state, not the layout today.** The extra
+> `media/LegendaryMissions/` nesting level was dropped when the work landed: LM's `media/`
+> now holds `admiral/`, `casino/`, `comms/`, `skybox/` and the rest directly, and the
+> per-mission copies below are gone. Kept because the 81-MB-for-27-MB arithmetic is the
+> argument the whole plan rests on.
 
 ```
 LegendaryMissions/media/LegendaryMissions/**     27 MB, tracked in LM's git   <- source

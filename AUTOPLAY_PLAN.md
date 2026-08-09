@@ -1,7 +1,16 @@
-# Autoplay Redesign — Design Proposal
+# Autoplay Redesign
 
-> Status: **speculative design proposal**, not yet implemented. Captures the plan
-> for splitting and improving the LegendaryMissions autoplay system.
+> **Status: ACTIVE (2026-08-09), split by repo.** Every `sbs_utils` **enabler** shipped;
+> the **entire LegendaryMissions half is untouched**. That split is the one thing to know
+> before reading on.
+>
+> - **Done (`sbs_utils`)** - `settings_seed_apply` (`procedural/settings.py:280`),
+>   `cosmos_dev/coverage.py`, `verdict.py`, `exerciser.py`, and the `--junit` / `--seed`
+>   runner flags. The adjacent MAST-debugger spike shipped in full (`MAST_DEBUGGER_PLAN.md`).
+> - **Not started (LegendaryMissions)** - the brain/blackboard autoplayer, personae,
+>   actuation back-ends, the cinematic attract director, the watchdog, exerciser-to-
+>   conformance, the scenario matrix and capture-replay. `autoplay/` still holds only
+>   `__init__.mast` and `auto_player_console.mast`.
 >
 > Implementation split: LegendaryMissions changes go on a **branch (never pushed
 > to main)**; `sbs_utils` enabler changes continue on the current working branch.

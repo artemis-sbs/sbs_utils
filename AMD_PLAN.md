@@ -1,10 +1,19 @@
 # AMD format: nail it down before release
 
+> **Status: DONE (2026-08-09).** 8.5 of 9 phases. This is the **record of a completed
+> redesign**, not a proposal - OU and LM now depend on the vocabulary below, so the data
+> layer is emphatically no longer free to change. Read section 4's growth rules before
+> adding a field.
+>
+> One phase-6 item survives: `LegendaryMissions/maps/siege_boss.py:56 _boss_data` is still
+> a bypass loader. The other two named there are gone (`recipes.py`'s removed, OU registered
+> through `universe_core/universe_amd.py:183`).
+
 AMD's document layer (link-form headings, `---` fence, prose body, `- [label](target)`
-choices) is sound. The **fence** grew per-domain across OU, LM and the a2x conversion and
-is now four incompatible dialects with no declared vocabulary. Only `help_docs.amd` and
-`library_docs.amd` have shipped, and **neither contains a single fence** - so the whole
-data layer is free to redesign. This is that redesign.
+choices) was sound. The **fence** had grown per-domain across OU, LM and the a2x conversion
+into four incompatible dialects with no declared vocabulary. At the time of writing only
+`help_docs.amd` and `library_docs.amd` had shipped, and **neither contained a single
+fence** - which is what made the data layer free to redesign. This is that redesign.
 
 Prime directive: **AMD is for sci-fi authors, not programmers.** Every naming choice below
 is settled by reading it aloud and asking whether someone who has never programmed would

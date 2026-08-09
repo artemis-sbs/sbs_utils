@@ -1,5 +1,15 @@
 # Log Panel - replacing the text waterfall
 
+> **Status: DONE (2026-08-09).** Shipped and adopted. `procedural/gui/log_panel_gui.py`
+> provides `gui_panel_log`, `gui_panel_log_ship` / `_mission`, `gui_panel_log_tick`,
+> `log_raise`, `gui_log_tail`, `log_tail_refresh`, `log_notify` and `log_notify_all`, with 7
+> tests; LM adopted it across 4 files. **No console declares `text_waterfall` any more** - see
+> the note at `procedural/gui/console.py:75`.
+>
+> Kept for the rule that decides what belongs here ("the panel is for what you READ; anything
+> you ACT on stays interactive"), callout-vs-category as two axes, `RAISE_ON` as a dial rather
+> than a deletion, and the retirement semantics of `overlay_toast` / `announce` / `toast`.
+
 **Decision (Doug, 2026-08-07):** this is an UPGRADE that REPLACES the text waterfall, not a
 second surface beside it.
 

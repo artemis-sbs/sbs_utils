@@ -1,5 +1,14 @@
 # Urges - what an actor wants, said out loud, with something at stake
 
+> **Status: DONE (2026-08-09).** All eight phases built and shipped in v1.4.0:
+> `procedural/urge.py`, `procedural/amd_urge.py`, `tests/test_urge.py`, docs at
+> `api/procedural/urge.md`.
+>
+> Three things were **deliberately not built** and should stay that way without new evidence:
+> the dispatch voice (section 8.5, named as the largest measured gap), the bound-quest lint
+> check, and cross-actor contest - which section 11 fixes as the stop line. Kept for the
+> 209-site speech census in section 2 and the locked decisions in section 11.
+
 Follow-on to `AMD_ACTION_PLAN.md` and `NPC_MOTIVATION_PLAN.md`. Where `Action:` is the
 author overriding a beat, an **urge** is an actor with an unfinished want that keeps
 speaking about it - and a consequence if nobody answers.

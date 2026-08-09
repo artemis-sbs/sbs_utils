@@ -1,7 +1,23 @@
 # Rendering source text in a `gui_text_area`
 
-A spec, not a change. Nothing here is implemented except an inert `literal` flag
-sitting uncommitted in `pages/layout/text_area.py`.
+> **Status: DONE (2026-08-09).** All three features (A, B and C) shipped, are tested, and
+> are consumed by the Control Gallery. Nothing here is outstanding.
+>
+> **The API names differ from this document.** Read the sections below with the rename in
+> mind, or you will grep for symbols that do not exist:
+>
+> | This plan calls it | It shipped as |
+> |---|---|
+> | A - the `literal` flag | `markdown=False` |
+> | B - per-line styles | `line_styles=` (`procedural/gui/text.py:51`) |
+> | C - the indent/wrap-width fix | landed in place, `pages/layout/text_area.py:692-717` |
+>
+> Tests: `tests/test_text_area_code.py`, `tests/test_text_area_line_styles.py`. Live caller:
+> `control_gallery/gallery_code.py:192`. The section 5 table below is still the only written
+> record of what a text area does to source text, which is why this file is kept.
+
+A spec, written before the change. The transformation table in "What a text area does to
+source today" is the durable half.
 
 ## Why
 

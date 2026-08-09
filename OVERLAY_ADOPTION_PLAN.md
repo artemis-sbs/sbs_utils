@@ -1,5 +1,14 @@
 # Overlay Adoption — where overlays replace (and where they pair with) the existing surfaces
 
+> **Status: ACTIVE (2026-08-09).** P1-P5 done; **P0 is the open gate** - the in-engine
+> verification pass for every overlay kind but `hero`. Everything below P0 is headless-green
+> only, and a mock frame is not evidence about the engine.
+>
+> Also unbuilt: the `amd_announce` vocabulary (library item 4). `procedural/amd_overlay.py`
+> exposes only `amd_overlays` / `overlay_amd`. P3 did land: `procedural/announce.py` with
+> `announce`, `announce_headline`, `announce_clear` and the traffic helpers, plus
+> `tests/test_announce.py`.
+
 Companion to [OVERLAY_PLAN.md](OVERLAY_PLAN.md) (which builds the system). This one
 answers the *authoring* question: **given LM and HTBM as they exist today, what should
 become an overlay, what should stay, and what should become BOTH.**

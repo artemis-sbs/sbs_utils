@@ -1,5 +1,15 @@
 # Listbox reveal/hint — adoption inventory for LM and OU
 
+> **Status: ACTIVE (2026-08-09).** Buckets 1-2 adopted in LM (7 files with `reveal=`, 31
+> `get_selection_hint` sites). Buckets 3-4 unadopted, and **OpenUniverse has zero adoption**
+> - all three OU listboxes (`admiral.mast:352`, `:452`, `universe.mast:954`) are still plain
+> `gui_list_box(..., select=True)`. `common_console_select` still awaits its engine check.
+>
+> **Re-score bucket 4 before trusting it.** The ranking counted jumps *into* a page as if
+> they were repaints, which is why `console_select` scored high and was then a wrong verdict.
+> Count the page's own fall-through and its handlers' jumps instead - see the note at the end
+> of this file.
+
 `gui_list_box(..., reveal=True, hint=saved)` landed opt-in with the Control
 Gallery's index as its only caller (design and what the build changed:
 `LISTBOX_VIEW_PLAN.md`). This is the inventory of everywhere else it could go,

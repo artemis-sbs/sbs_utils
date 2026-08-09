@@ -1,5 +1,16 @@
 # Grav-tether — design & build plan
 
+> **Status: ACTIVE (2026-08-09).** Phases 0-1 shipped and the orbit/swing math works:
+> `procedural/grav_tether.py` (17 functions incl. `grav_tether_swing`), 22 tests, the
+> `grav_tether/` addon registered in LM's `__lib__.json`, `missions/grav_tether_spike`, and
+> API docs at `api/procedural/grav_tether.md`.
+>
+> **The phase-3 fighter UI is absent** - no `nose` or `swing` reference anywhere in the LM
+> addon, so the one-button nose-cone pick and its synthesized popup are unbuilt. Phases 2
+> (tow/salvage), 4 (constraints) and 5 (growth) are untouched. The physics feel still needs a
+> real engine session: **the mock is blind to the native pull**, so a green headless run says
+> nothing about how this handles.
+
 A beam that links two space objects and lets one drag, reel, lock, or swing the
 other. Gives **Weapons** (capital ships) and **pilots** (fighters) a new thing to
 do that isn't shooting. Named **Grav-tether** — one umbrella; the *modes* carry the

@@ -1,5 +1,18 @@
 # AMD: stage directions and settings
 
+> **Status: DONE (2026-08-09) for what shipped; the tail is not planned.** Phases 0-3 and 10
+> are built (`procedural/amd_action.py`, registered in `mast_sbs_procedural.py:108`,
+> `tests/test_amd_action.py`); phase 8 was dropped.
+>
+> **Phases 4-7 never started and are not on the roadmap.** `amd_verb` has zero hits across
+> `sbs_utils` and LegendaryMissions, as do `objective_follow` / `break_off` / `patrol` /
+> `hold_fire`; phase 4's corpus migration got exactly one `Action:` site tree-wide
+> (`OpenUniverse/cast/frontier.amd`). The orders layer they belong to was surveyed and
+> declined - see `NPC_MOTIVATION_PLAN.md` section 8.
+>
+> Section 9.2's "highest-value AMD work now visible" - root-kind inheritance beating section
+> names - **has since been fixed** (`amd_core.py:465-497` resolves nearest-ancestor first).
+
 AMD can already write **dialogue**. A screenplay page has three things: a slug line, an
 action block, and dialogue. This adds the other two.
 

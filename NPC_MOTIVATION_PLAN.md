@@ -1,5 +1,12 @@
 # NPC motivation - why an NPC does the thing it does
 
+> **Status: SUPERSEDED BY DECISION (2026-08-09).** Nothing was built and nothing is owed -
+> confirmed against the tree, there is no selector or motive code anywhere. This file is kept
+> for the section 8 survey that produced the verdict, and for section 8.1, which names the
+> smaller real gap (let the standing that already drives prices also drive behaviour, at the
+> **side** level). That successor needs its own demand evidence before design - which is the
+> lesson this document exists to respect.
+
 > **VERDICT (2026-08-02): do not build the goal selector.** The survey in section 8 found
 > zero NPC decision-making in Open Universe to subsume, and no two NPCs anywhere that want
 > the same thing. It is a pattern with two instances, not a system. Sections 1-7 are the

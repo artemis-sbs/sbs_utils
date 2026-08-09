@@ -24,5 +24,37 @@ missions outside the game. It is not part of a normal mission.
 - **`webproxy/`** — serve MAST `//web` pages to browsers (see
   [webproxy/README.md](webproxy/README.md)).
 
+## How the threads fit together
+
+The real engine is single-threaded (Python embedded via Pybind11). **The mock is not**, and
+that is deliberate — physics runs off the main loop so a large mission's collision pass
+cannot block GUI events or the MAST tick.
+
+```
+Main thread (60 Hz loop)
+  |- GUI event drain       <- always immediate
+  |- MAST tick (5 Hz)
+  |- Client connect/disconnect
+  '- Physics-event drain   <- queue.Queue, thread-safe
+
+Physics thread (30 Hz, daemon)
+  |- acquire sim._lock
+  |- behavior dispatch      <- active objects only
+  |- rotation + translation <- active objects only
+  |- spatial-hash collision <- active-active + active-terrain only
+  |- passive systems        <- active objects only
+  |- release sim._lock
+  '- _push_radar()          <- no lock needed (eventual consistency OK)
+
+WebSocket server process
+  |- drain gui_queue        <- batch all pending commands into ONE frame
+  '- broadcast to clients
+```
+
+Physics runs at **30 Hz (`dt = 1/30`)**, matching the engine's `TICKS_PER_SECOND`. Terrain is
+passive and never integrates — only `_active_ids` objects move, which is why asteroids do not
+tumble in the mock. The radar stream is culled per ship (`CULL_RADIUS`) and tagged with a
+`ship_id` so all consoles on one ship share a single message.
+
 Full docs: the **Tooling** section of the sbs_utils documentation
 (<https://artemis-sbs.github.io/sbs_utils/tooling/>).

@@ -1,5 +1,15 @@
 # GUI draw_layer / occlusion plan
 
+> **Status: DONE (2026-08-09), with phase A parked.** Phase B shipped and is engine-confirmed
+> - the `layer:` style key is live (`procedural/style.py:117`, `mast/parsers.py:310`) and the
+> layout literals are pinned. **Phase A (occlusion bands) is deliberately unbuilt**:
+> `measure.py`'s `OVERFLOW_POLICIES` is still `("spill", "visible", "shrink", "ellipsis",
+> "hide")` with no `occlude`. It is parked with a written unpark condition - read that before
+> reviving it, the decision not to build was the point.
+>
+> The phase-0 engine probe table below is the durable half: it is the only recorded evidence
+> of how the engine actually orders and occludes overflowing content.
+
 **The problem.** In the **engine** (not the mock), GUI content overflows to the RIGHT and
 to the BOTTOM and draws over its neighbours. The engine has no clip at any level -- text
 wider or taller than its rect is drawn anyway. The library's answers today are to size
