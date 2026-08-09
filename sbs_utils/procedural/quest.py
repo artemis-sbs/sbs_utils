@@ -76,6 +76,18 @@ def quest_transfer(from_agent_id, to_agent_id, quest_id):
     return False
 
 __quest_consoles = set()
+
+
+def quest_consoles_clear():
+    """Drop the quest-tab console names. CONTENT: a mission declares these from its
+    own .mast at compile scope, so without a clear the set is add-only across an
+    in-process reload and the next mission shows a Quests tab on consoles it never
+    enabled."""
+    __quest_consoles.clear()
+
+
+def quest_consoles_count():
+    return len(__quest_consoles)
 def quest_console_enable(console, enable=True):
     """Mark one or more console types as quest-panel-enabled.
 

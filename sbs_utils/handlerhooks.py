@@ -166,6 +166,13 @@ def reset_mission_state():
     landmarks_registry_clear()  # declared landmark records an `Action:` line places by name
     lore_clear()                # Library sources registered by addons
     amd_declared_addons_clear()  # cached story.json addon list
+    overlay_amd_clear()   # DECLARED overlay records read out of the mission's .amd.
+                          # Distinct from `overlay_live_clear()` above, which drops the
+                          # live cards: this is the catalogue they are looked up in, and
+                          # keeping it let run 2 resolve a key only run 1 declared.
+    quest_consoles_clear()  # which consoles show the Quests tab. A mission declares
+                            # these at compile scope, so the set was add-only across a
+                            # reload and the next mission inherited them.
     Agent.clear()       # all agents, roles, inventories, links
     clear_shared()      # rebuild the SHARED agent (drops label names / console types)
     from .procedural.signal import signal_waiters_clear
@@ -318,6 +325,52 @@ register_reset_state("gui_record",        gui_record_count)
 from .procedural.conformance import conformance_error_count
 register_reset_state("conformance",       conformance_error_count)
 register_reset_state("amd declared addons", lambda: len(_DECLARED_ADDONS))
+from .procedural.amd_overlay import overlay_amd_clear, overlay_amd_count
+register_reset_state("amd overlays",      overlay_amd_count)
+from .procedural.quest import quest_consoles_clear, quest_consoles_count
+register_reset_state("quest consoles",    quest_consoles_count)
+
+# --- VOCABULARY, and why it is NOT on the list above ------------------------
+# The registries below (AMD field tables, stage-direction verbs, dialogue surfaces,
+# urge conditions, the landmark placer) look like the same kind of module-level
+# per-mission state, and clearing them would be a run-2 bug in the OTHER direction.
+# They are populated at module IMPORT time, and `MastGlobals.mission_py_modules` is
+# not reset while `Mast.import_python_module_for_source` dedupes by file - so on an
+# in-process recompile a mission's `*_amd.py` is NOT re-executed and nothing would
+# re-register what a clear had just deleted. The mission would lose its own words.
+#
+# What IS worth watching is the DELTA: the library's own baseline is fine, a
+# MISSION's additions surviving into the next mission are not - two missions that
+# declare the same label differently make amd_register_fields raise at startup, on
+# a mission that was fine a moment ago. So these probes report growth, not size.
+from .procedural import amd_schema as _amd_schema
+from .procedural import amd_action as _amd_action
+from .procedural import amd_dialogue as _amd_dialogue
+from .procedural import urge as _urge
+
+
+def _vocab_size():
+    return (sum(len(t) for t in _amd_schema.ARCHETYPES.values())
+            + sum(len(t) for t in _amd_schema.TRAITS.values())
+            + len(_amd_schema._SECTION_ALIASES) + len(_amd_schema._PARSERS)
+            + len(_amd_action._VERBS) + len(_amd_dialogue._DIRECTIONS)
+            + len(_urge._CONDITIONS))
+
+
+_VOCAB_BASELINE = _vocab_size()   # the LIBRARY's own vocabulary, at import
+
+
+def amd_vocabulary_added():
+    """How many vocabulary entries exist beyond the library's own baseline.
+
+    DELIBERATELY NOT on the reset ledger. The ledger means "this must be EMPTY after
+    a reset", and vocabulary must survive one - so a probe here would report a leak
+    on every run after the first and turn the restart soak into noise. This is a
+    DIAGNOSTIC: when two missions declare one label differently, amd_register_fields
+    raises at startup on a mission that was fine a moment ago, and this is the number
+    that tells you the previous mission's words are still loaded.
+    """
+    return max(0, _vocab_size() - _VOCAB_BASELINE)
 register_reset_state("DeleteQueue",       lambda: len(DeleteQueue._pending) + len(DeleteQueue._pending_grid))
 register_reset_state("Agent.roles",       lambda: len(Agent.roles.collections))
 register_reset_state("Agent.has_links",   lambda: len(Agent.has_links.collections))

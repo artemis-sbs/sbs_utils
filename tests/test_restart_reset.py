@@ -35,7 +35,12 @@ class TestResetLedger(unittest.TestCase):
         for name in ("Agent.all", "Gui.clients", "TickDispatcher",
                      "mock.hull_map_objects", "mock.space_objects",
                      "mock.active_ids", "mockgui.last_per_ship",
-                     "mockgui.hud_cache"):
+                     "mockgui.hud_cache",
+                     # AMD CONTENT read out of a mission's .amd. Both were
+                     # module-level, uncleared and unregistered: overlay records
+                     # let run 2 resolve a key only run 1 declared, and the quest
+                     # console set was add-only across a reload.
+                     "amd overlays", "quest consoles"):
             self.assertIn(name, _RESET_PROBES, f"{name} is not in the reset ledger")
 
     def test_clean_after_reset(self):

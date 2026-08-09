@@ -66,6 +66,18 @@ def amd_overlays(section):
     return dict(OVERLAY_AMD)
 
 
+def overlay_amd_clear():
+    """Drop the declared overlay records. CONTENT, not vocabulary: these come from a
+    mission's .amd, so keeping them means run 2 can resolve a key only the PREVIOUS
+    mission declared and fire the wrong card, silently. On the reset ledger, so a
+    forgotten clear is reported by name instead of found three runs later."""
+    OVERLAY_AMD.clear()
+
+
+def overlay_amd_count():
+    return len(OVERLAY_AMD)
+
+
 def overlay_amd(key, to=None, fields=None, consoles=None):
     """Fire a declared overlay by key. ``fields`` (a dict) merge over the record's
     fields; a ``seconds`` field auto-dismisses. ``to`` accepts a console, ship, side
