@@ -1578,6 +1578,8 @@
       
         
       
+        
+      
     
     
     
@@ -2087,6 +2089,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../cosmos/viewscreen/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    On screen (the main screen from science)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../cosmos/comms/" class="md-nav__link">
         
   
@@ -2164,7 +2194,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_20" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_21" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2186,14 +2216,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_20" id="__nav_5_20_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_21" id="__nav_5_21_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_20_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_20">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_21_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_21">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3951,6 +3981,50 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;comms_broadcast
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.comms.comms_history_add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;comms_history_add
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.comms.comms_history_clear" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;comms_history_clear
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.comms.comms_history_for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;comms_history_for
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.comms.comms_history_size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;comms_history_size
       
     </span>
   </a>
@@ -7152,6 +7226,50 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.comms.comms_history_add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;comms_history_add
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.comms.comms_history_clear" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;comms_history_clear
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.comms.comms_history_for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;comms_history_for
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.comms.comms_history_size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;comms_history_size
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.comms.comms_info" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7786,6 +7904,78 @@ so one per line would halve how much log fits on screen.</p>
   <summary>Example</summary>
   <p>comms_broadcast(SHIP_ID, "Red alert!", color="red", severity="danger")</p>
 </details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.comms.comms_history_add" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">comms_history_add</span><span class="p">(</span><span class="n">player_id</span><span class="p">,</span> <span class="n">other_id</span><span class="p">,</span> <span class="n">entry</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Record one exchange between a player ship and a contact.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.comms.comms_history_clear" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">comms_history_clear</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Per-mission state: last mission's conversations are not this one's.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.comms.comms_history_for" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">comms_history_for</span><span class="p">(</span><span class="n">player_id</span><span class="p">,</span> <span class="n">other_id</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Exchanges between the two, oldest first. <code>limit</code> takes the most RECENT n.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.comms.comms_history_size" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">comms_history_size</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Probe for the reset ledger.</p>
+
 
     </div>
 
