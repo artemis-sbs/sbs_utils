@@ -234,6 +234,71 @@ class TestGravTether(unittest.TestCase):
         gt.grav_tether_tick()
         self.assertNotIn((self.ship, self.load), gt._TETHERS)
 
+    # --- the rope-toggle blind spot -----------------------------------------
+
+    def test_has_is_true_during_a_tow_when_get_is_not(self):
+        """The bug that made the Weapons popup unable to Release mid-tow.
+
+        A Tow deletes the engine connection whenever the load is inside the rope length,
+        so `grav_tether_get` reads None for most of a perfectly good tow. Any UI gated on
+        `get` offers "Tow" to something already under tow and never offers "Release".
+        """
+        to_object(self.load).pos = sbs.vec3(400, 0, 0)   # inside a 500 rope
+        gt.grav_tether_tow(self.ship, self.load, 500)
+        self.assertIsNone(gt.grav_tether_get(self.ship, self.load),
+                          "the toggle should have released the connection inside rope_len")
+        self.assertTrue(gt.grav_tether_has(self.ship, self.load),
+                        "but the tow is live and the registry must say so")
+        self.assertTrue(gt.grav_tether_involves(self.load))
+
+    def test_has_is_false_for_an_untethered_pair(self):
+        self.assertFalse(gt.grav_tether_has(self.ship, self.load))
+        gt.grav_tether_tow(self.ship, self.load, 500)
+        gt.grav_tether_release(self.ship, self.load)
+        self.assertFalse(gt.grav_tether_has(self.ship, self.load))
+
+    def test_has_is_pair_specific(self):
+        other = to_id(npc_spawn(9000, 0, 0, "Other", "tsn", "tsn_light_cruiser", "behav_npcship"))
+        gt.grav_tether_tow(self.ship, self.load, 500)
+        self.assertTrue(gt.grav_tether_has(self.ship, self.load))
+        self.assertFalse(gt.grav_tether_has(self.ship, other))
+
+    # --- coexistence with mounts -------------------------------------------
+
+    def test_clear_all_does_not_unweld_a_mount(self):
+        """The engine has ONE tractor pool, and procedural.mount builds connections in it.
+
+        This used to call ClearTractorConnections(), which is global: every turret welded
+        to a hull came off, while mount's own bookkeeping went on insisting they were
+        attached. Clearing must touch only what this module registered.
+        """
+        from sbs_utils.procedural import mount as mt
+        host = to_id(npc_spawn(0, 0, 5000, "Host", "tsn", "tsn_light_cruiser", "behav_npcship"))
+        pod = to_id(npc_spawn(0, 0, 5000, "Pod", "tsn", "tsn_fighter", "behav_station"))
+        mt.mount_attach(host, pod, (0, 0, 200))
+        gt.grav_tether_tow(self.ship, self.load, 500)
+
+        gt.grav_tether_clear_all()
+
+        self.assertFalse(gt.grav_tether_has(self.ship, self.load), "our own tether goes")
+        self.assertIsNotNone(sbs.sim.GetTractorConnection(host, pod),
+                             "the mount's weld must survive - it is not a tether")
+        self.assertEqual(mt.mount_count(), 1)
+        mt.mount_clear_all()
+
+    def test_mount_clear_all_leaves_tethers_alone(self):
+        """And the reverse, so the two are genuinely independent."""
+        from sbs_utils.procedural import mount as mt
+        host = to_id(npc_spawn(0, 0, 5000, "Host", "tsn", "tsn_light_cruiser", "behav_npcship"))
+        pod = to_id(npc_spawn(0, 0, 5000, "Pod", "tsn", "tsn_fighter", "behav_station"))
+        mt.mount_attach(host, pod, (0, 0, 200))
+        gt.grav_tether_tow(self.ship, self.load, 500)
+
+        mt.mount_clear_all()
+
+        self.assertEqual(mt.mount_count(), 0)
+        self.assertTrue(gt.grav_tether_has(self.ship, self.load), "the tow must survive")
+
 
 if __name__ == "__main__":
     unittest.main()

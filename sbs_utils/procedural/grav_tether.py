@@ -20,12 +20,15 @@ NOTE: the cosmos_dev mock STORES connections but does not simulate the pull, so 
 physics is engine-verified; the registry / enforcer / reel logic below is Python and IS
 unit-tested against the mock.
 
-CAVEAT ON "the offset point is world-fixed", stated below and in GRAV_TETHER_PLAN.md: it
-is world-fixed only because this module never PASSES an offset. Engine-measured
-(LM_TestRange/maps/test_tractor_mount.mast), AddTractorConnection WITH an offset holds
-the target in the source's BODY FRAME - 200u at 0 deg off the nose through a 51 deg turn.
-That is why a load here always reels to the source's own position. Bolting something ON
-to a hull is sbs_utils.procedural.mount; this module drags things BEHIND one.
+THE OFFSET POINT IS SOURCE-RELATIVE - it rotates with the hull. Engine-measured
+(LM_TestRange/maps/test_tractor_mount.mast): AddTractorConnection with an offset held a
+target at exactly 200u and exactly 0 deg off the source's nose through a 51 deg turn.
+Older notes here and in GRAV_TETHER_PLAN.md called it "world-fixed"; that was only ever
+true of the case this module uses, because a tow passes NO offset and the load therefore
+reels to the source's own position. The wrong wording cost a real design decision once.
+To bolt something ONTO a hull rather than drag it behind one, use
+sbs_utils.procedural.mount - which shares the engine call but deliberately not this
+registry, since _enforce_impulse would cap the carrying ship to impulse.
 """
 
 import math
@@ -160,9 +163,26 @@ def grav_tether_sources_of(target):
     return [k[0] for k in _TETHERS if k[1] == tid]
 
 
+def grav_tether_has(source, target):
+    """True if this exact PAIR is tethered — ask this, not :func:`grav_tether_get`.
+
+    `grav_tether_get` returns the live ENGINE connection, and a Tow is a rope-TOGGLE: it
+    deletes the connection whenever the load is inside the rope length and re-adds it when
+    the load drifts out. So `get` reads None for most of a perfectly good tow, and a UI
+    gated on it offers "Tow" to something already under tow and never offers "Release".
+
+    Use `get` only when you want the engine object itself (to read `.offset`).
+    """
+    src, tgt = to_id(source), to_id(target)
+    return (src, tgt) in _TETHERS
+
+
 def grav_tether_involves(obj):
     """True if obj is either end (source or target) of any live tether — for a one-button
-    toggle where the ship may be the puller (tow/reel) or the pulled (swing)."""
+    toggle where the ship may be the puller (tow/reel) or the pulled (swing).
+
+    Registry-based, so it is honest during a rope-toggle tow (see :func:`grav_tether_has`).
+    """
     oid = to_id(obj)
     return any(oid == k[0] or oid == k[1] for k in _TETHERS)
 
@@ -188,16 +208,28 @@ def grav_tether_get(source, target):
 def grav_tether_clear_all():
     """Drop all tethers (fresh mission / test reset).
 
+    Drops OUR tethers one by one rather than calling ClearTractorConnections(), which is
+    global: the engine has a single tractor pool, and other systems build connections in
+    it that are not tethers. `procedural.mount` welds a turret to a hull with one, and a
+    global clear silently unwelded every mount while mount's own bookkeeping went on
+    insisting they were attached. Deleting only what this module registered keeps the two
+    uses independent.
+
     Tolerates having no sim: this runs from reset_mission_state(), which can fire with no
     frame context at all, and dropping our own state must never depend on the engine
     being there. The engine-side connections die with the old sim regardless.
     """
+    sim = None
     try:
         sim = _sim()
-        if sim is not None:
-            sim.ClearTractorConnections()
     except Exception:
-        pass
+        sim = None
+    if sim is not None:
+        for key in list(_TETHERS):
+            try:
+                sim.DeleteTractorConnection(key[0], key[1])
+            except Exception:
+                pass
     _TETHERS.clear()
     _maybe_stop_tick()
 

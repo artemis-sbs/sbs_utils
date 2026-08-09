@@ -92,8 +92,18 @@ The source/target *flip* is what turns "I drag the load" into "the anchor swings
 - A per-tick **ROPE-TOGGLE holds at distance** — 798/801/801 at rope_len 800 (engage a
   stiff pull when beyond rope_len, release when inside).
 - `.offset` (stiffness): `0` = rigid, `~5` = good tow feel.
-- The offset point is **WORLD-fixed** (a static "behind" offset would pin to a compass
-  point) — so we don't use one; the drag makes a towed load trail for free.
+- The offset point is **SOURCE-RELATIVE — it rotates with the hull.** ~~WORLD-fixed~~.
+  Later measured directly (`LM_TestRange/maps/test_tractor_mount.mast`):
+  `AddTractorConnection(host, target, vec3(0,0,200), 0)` held the target at **exactly
+  200.0u and exactly 0.0° off the host's nose while the host's heading swung 51°**.
+  This module still passes **no** offset — a tow wants the load dragged behind, and the
+  drag does that for free — which is why its load always reels to the source's own
+  position, and is what the original "world-fixed" reading was actually seeing.
+  **This line was wrong for months and cost a design decision:** the turret feature built
+  a whole per-tick body-frame transform because it trusted it. If you want to bolt
+  something ONTO a hull rather than drag it behind one, pass an offset — or use
+  `sbs_utils.procedural.mount`, which does exactly that (and deliberately does not route
+  through here, because `_enforce_impulse` would cap the carrying ship to impulse).
 - A **player hull CAN be tractor-pulled** (3000 → 0) — swing is viable.
 
 So the modes are:

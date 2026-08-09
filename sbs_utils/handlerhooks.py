@@ -135,6 +135,12 @@ def reset_mission_state():
     # registry, only Agent links that are purged with their objects.
     from .procedural.grav_tether import grav_tether_clear_all
     grav_tether_clear_all()
+    # Mounts hold ENGINE tractor connections too. They need no ledger entry (their state
+    # is Agent links and inventory, purged with the agents), but the welds themselves are
+    # dropped here deliberately rather than left to the sim being recreated - and since
+    # grav_tether_clear_all now deletes only ITS OWN connections, nothing else would.
+    from .procedural.mount import mount_clear_all
+    mount_clear_all()
     # Camera + cutscene state. TickDispatcher.clear() above drops their DRIVER
     # tasks, but the dicts that say who owns which console outlive it - and a
     # stale owner makes the next mission's first move think it is being

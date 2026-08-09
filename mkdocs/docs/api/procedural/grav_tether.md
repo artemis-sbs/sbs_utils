@@ -10,6 +10,14 @@ load *at* a distance uses a per-tick rope-toggle; a player hull can be tractor-p
 Pair with [`closest_in_front`](space_objects.md) for nose-aim acquisition (the engine has
 no raycast).
 
+!!! warning "Ask `grav_tether_has`, not `grav_tether_get`, for *is this tethered?*"
+    `grav_tether_get` returns the live **engine connection**, and a Tow is a rope-toggle:
+    it deletes that connection whenever the load is inside the rope length and re-adds it
+    when the load drifts out. So `get` reads `None` for most of a perfectly good tow. A
+    menu gated on it offers *Tow* to something already under tow and never offers
+    *Release* — which is exactly what the shipped Weapons hold-click did. Use `get` only
+    when you want the connection object itself (to read `.offset`).
+
 !!! note "The offset point is not world-fixed - this module just never passes one"
     Older notes here said the tractor's offset point is world-fixed. It is measurably
     **source-relative**: `AddTractorConnection(host, target, vec3(0,0,200), 0)` held a

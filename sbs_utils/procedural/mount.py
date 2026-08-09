@@ -16,11 +16,18 @@ heading swung 51 deg** - the separation vector rotated with the hull, (0,0,200) 
 (155.5, 0, 125.8). So the ENGINE does the work every frame: no per-tick reposition, no
 tick task, and none of the one-frame lag a script-side transform suffers.
 
-**Do not infer this from grav_tether's docs.** They say the offset point is "world-fixed",
-which is true of the case grav_tether actually uses - it never PASSES an offset
-(``"offset": None``), so its load reels all the way to the host's own position. The offset
-point was the missing ingredient, and the two modules want opposite things: grav_tether
-tows a load BEHIND a ship, this bolts one ONTO it.
+**Do not infer this from grav_tether's prose.** It called the offset point "world-fixed",
+which was only ever true of the case that module uses - a tow passes no offset, so its
+load reels to the host's own position. (`grav_tether_attach`'s own parameter doc said
+"point (relative to source)" all along and was right; the surrounding prose was not.)
+
+**Why this does not just wrap ``grav_tether_lock``.** It could: that function passes an
+offset straight through with stiffness 0, which is the same weld. But grav_tether runs
+``_enforce_impulse`` over every live tether, capping the SOURCE ship back to impulse - so
+a ship carrying bolted turrets could never warp. A mount is part of the ship; a tether is
+a thing the ship is dragging. Same engine call, opposite intent, and they must not share
+a registry: a global ``ClearTractorConnections`` silently unwelded every mount until
+``grav_tether_clear_all`` was made to delete only its own connections.
 
 **No module-level state**, deliberately. The engine owns the connection; the host->mount
 relationship is an Agent LINK and the per-mount settings live in the mount's own
@@ -355,14 +362,24 @@ def _mount_all_mounted():
 
 
 def mount_clear_all():
-    """Release every mount in the mission without deleting anything.
+    """Release every mount without deleting anything.
 
     There is no module-level registry to clear - the relationships live on the agents
-    themselves and are purged with them - so this exists for tests and for anything that
-    wants a clean slate mid-mission.
+    themselves and are purged with them - so this is for tests, for a mid-mission clean
+    slate, and for reset_mission_state to drop the ENGINE-side welds deliberately.
+
+    Tolerates having no frame context: a reset can fire with none, and dropping our own
+    state must never depend on the engine being there.
     """
-    for mid in list(_mount_all_mounted()):
-        mount_detach(None, mid, delete=False)
+    try:
+        mounted = list(_mount_all_mounted())
+    except Exception:
+        return
+    for mid in mounted:
+        try:
+            mount_detach(None, mid, delete=False)
+        except Exception:
+            pass
 
 
 def _mount_on_destroy(destroyed, damage_event=None):
