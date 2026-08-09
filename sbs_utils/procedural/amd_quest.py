@@ -28,12 +28,18 @@ TRIGGER_VERBS = {
     "dock": ("on_dock", "role"),
     "reach": ("on_reach", "sector"),  "travel": ("on_reach", "sector"),
     "signal": ("on_signal", "name"),
+    # Grav-tether: "tow 1 survivor" / "tow derelict". Delivering something under tow is
+    # its own kind of objective - a rescue, an escort, a salvage run - and expressing it
+    # as a signal made every mission invent its own name for the same event.
+    "tow": ("on_tow", "role"),        "haul": ("on_tow", "role"),
+    "recover to": ("on_tow", "role"),
 }
 
 
 # Triggers that read as an instruction to the crew, so they can stand in for a missing
 # `Objective:`. A signal or a timer is a mechanism, not something anyone can go and do.
-_INSTRUCTION_TRIGGERS = ("on_kill", "on_collect", "on_scan", "on_dock", "on_reach")
+_INSTRUCTION_TRIGGERS = ("on_kill", "on_collect", "on_scan", "on_dock", "on_reach",
+                         "on_tow")
 
 
 def _is_duration(text):

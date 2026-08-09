@@ -354,7 +354,8 @@ _STATE_NAMES = {
 }
 
 # Goal keys whose `count` is a completion target a mission may want to scale by difficulty.
-_COUNT_GOAL_KEYS = ("on_signal", "on_kill", "on_scan", "on_reach", "on_dock", "on_collect")
+_COUNT_GOAL_KEYS = ("on_signal", "on_kill", "on_scan", "on_reach", "on_dock", "on_collect",
+                    "on_tow")
 
 
 def _arm_start_trigger(data):
@@ -716,6 +717,26 @@ def quest_on_dock(ship_id, station_id):
                 continue
             want = trig.get("role")
             if want and not has_role(station_id, want):
+                continue
+            _advance_count(aid, qid, data, trig.get("count", 1))
+
+
+def quest_on_tow(ship_id, towed_id):
+    """Advance on_tow quests when `ship_id` delivers `towed_id` under tow.
+
+    `on_tow {role: <role>}` filters by what was delivered, so "tow 2 survivors" and
+    "tow the derelict home" are the same trigger with a different noun. Credit goes to
+    the HAULER (and SHARED) - the ship that did the work, not whatever it was dragging.
+    """
+    if ship_id is None:
+        return
+    for aid in (ship_id, Agent.SHARED_ID):
+        for qid, data in _active_quests(aid):
+            trig = data.get("on_tow")
+            if not isinstance(trig, dict):
+                continue
+            want = trig.get("role")
+            if want and not has_role(towed_id, want):
                 continue
             _advance_count(aid, qid, data, trig.get("count", 1))
 

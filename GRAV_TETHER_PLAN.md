@@ -17,11 +17,21 @@
 > nose-cone pick already existed in the **hangar** addon. What was genuinely missing was the
 > popup half, which is what got built.)
 >
-> **Still open:** Phases 2 (tow/salvage), 4 (constraints) and 5 (growth) are untouched, and
-> the **feel** has never had a real session - reach, cone angle and swing radius are all
-> guesses. The mock now does simulate the pull well enough that the swing orbit was verified
-> in it, so a green headless run is no longer meaningless - but it still says nothing about
-> whether this is nice to fly.
+> **Phases 2, 4 and 5 are now BUILT too - every phase in this plan is done.**
+> - **4 (constraints)** is the load-bearing one: mass is pluggable in the library with LM
+>   authoring the table, and it decides who drags whom (a starbase tows YOU), what the haul
+>   costs in throttle/turn, whether you can grab a ship under power, and what it spends in
+>   energy. 11/11 in engine.
+> - **2 (salvage)** pays by MASS, so the heavy freighter is both the slow vulnerable trip
+>   and the big payout. 9/9.
+> - **5 (growth)** - black-hole slingshot (rope clamped clear of the gravity well), enemy
+>   tethers with a burn-hard counter-play, a declarative `tow` quest trigger, and the
+>   admiral tug. 18/18 in engine.
+>
+> **The ONLY thing still open is the FEEL.** Every number in here - reach, cone angle,
+> swing radius, mass values, drag, energy cost, break threshold - is a reasoned guess that
+> no test can judge. They are all named constants for exactly that reason. This needs
+> someone flying it.
 
 A beam that links two space objects and lets one drag, reel, lock, or swing the
 other. Gives **Weapons** (capital ships) and **pilots** (fighters) a new thing to
@@ -278,11 +288,20 @@ Two things the type stub / mock cannot answer, both requiring a real Cosmos sess
     else→Lock; Release when tethered). **Engine-verified**: the right-click popup shows
     and toggles tether state in real Cosmos. Enforcer is automatic (primitive tick), so
     the addon is UX-only. Uncommitted in the LM repo pending.
-- **Phase 2 — Tow/Reel derelict + salvage.** Tow-behind + the Fabrication tie-in.
+- **Phase 2 — DONE.** Tow a hulk to a friendly station and it pays salvage by its MASS,
+  into the same `salvage` key the Fabricator spends. Only TETHERED hulks count (a wreck
+  drifting past a dock is not salvage), and the dock has to be friendly to the HAULER -
+  a derelict's own diplomacy is civilian scrap and meant nothing.
 - **Phase 3 — Fighter grav-tether.** Nose-cone acquire → synthesized popup → Swing
   (native or assisted per Phase 0). Settle toggle-vs-hold and the override question.
-- **Phase 4 — Constraints layer.** Mass gating, tug-of-war, power/heat, plus fighter
-  recovery → docking.
+- **Phase 4 — DONE.** Mass is PLUGGABLE (the library ships no numbers; a mission installs
+  them) because shipData has no mass field and the proxies do not order ships - exclusion
+  radius puts a fighter and a shuttle both at 25. Soft gating: a heavier load reverses the
+  engine connection so it tows YOU, which beats refusing the grab. Tug-of-war via the same
+  upgrade-coefficient modifiers the item system uses, floored so a haul is slow rather than
+  impossible. Grab-needs-a-slowed-target ties the tether to the rest of Weapons. Energy per
+  tick per mass, and running dry breaks the beam rather than stranding the ship.
+  Fighter recovery → docking is NOT built (the hangar already recovers craft by other means).
 - **Phase 3 — Fighter: DONE (engine-verified).** Orbit math + the one-button UI.
   `grav_tether_swing(anchor, ship, rope_len)` uses a **moving circle-point** pull: each
   tick it aims at the point on the rope_len circle at the ship's current bearing (radial-
@@ -306,8 +325,13 @@ Two things the type stub / mock cannot answer, both requiring a real Cosmos sess
 
   **Remaining:** a real-engine FEEL pass. Reach, cone half-angle and swing radius are
   guesses that no test can judge.
-- **Phase 5 — Growth.** Enemy tethers, black-hole swing, rescue/escort quest hooks,
-  admiral tug.
+- **Phase 5 — DONE.** Black-hole slingshot with the rope clamped clear of the gravity well
+  (the tether must never be the thing that drops someone in). Enemy tethers routed through
+  the ordinary tow so every constraint applies to the NPC too, with a counter-play needing
+  BOTH a hard burn and time - breaking free is something the crew DOES. A declarative `tow`
+  trigger verb (`Done when: tow 2 survivors`), so a rescue is authored in AMD instead of
+  each mission inventing a signal name. Admiral tug drags rather than teleports, because a
+  drag is an event players can see coming.
 
 ---
 

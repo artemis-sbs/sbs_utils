@@ -338,6 +338,26 @@ def quest_complete(agents, quest_id):
         quest_set_state(agent_id, quest_id, QuestState.COMPLETE)
 
 
+def quest_is_complete(agent, quest_id):
+    """Whether this agent has finished this quest.
+
+    QuestState is a CLASS, and MAST only imports module-level functions - so a script
+    asking "is it done?" had no way to say so except comparing quest_get_state() to a
+    bare 99. These three exist so nobody has to write the magic number.
+    """
+    return quest_get_state(agent, quest_id) == QuestState.COMPLETE
+
+
+def quest_is_active(agent, quest_id):
+    """Whether this agent is currently working this quest."""
+    return quest_get_state(agent, quest_id) == QuestState.ACTIVE
+
+
+def quest_is_failed(agent, quest_id):
+    """Whether this agent has failed this quest."""
+    return quest_get_state(agent, quest_id) == QuestState.FAILED
+
+
 def quest_get_state(agent, quest_id):
     """Return the current state of a quest.
 
