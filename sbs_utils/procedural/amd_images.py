@@ -47,6 +47,7 @@ a fetched copy. A record may override the sheet (one loose file among cells), gi
 explicit pixels with `Rect:`, or give neither and take the whole file.
 """
 from sbs_utils.mast.mast_node import MastDataObject
+from sbs_utils.procedural.amd import amd_read_text
 
 
 ICON_KINDS = ("icon", "icons")
@@ -246,8 +247,7 @@ def images_load_amd(file_path):
     """Read an AMD file relative to the mission folder and declare every atlas in it."""
     from sbs_utils.procedural.amd_doc import amd_document
     from sbs_utils.fs import get_mission_dir_filename
-    with open(get_mission_dir_filename(file_path), "r") as f:
-        content = f.read()
+    content = amd_read_text(get_mission_dir_filename(file_path))
     return images_declare_document(amd_document(content))
 
 

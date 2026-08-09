@@ -152,10 +152,10 @@ def media_read_from_zip(zip_file, file, as_utf8=True):
             return content
 
 def media_read_file(basedir, file):
-    with open(os.path.join(basedir, file), 'r') as file:
-        content = file.read()
-        return content
-    return None
+    # Same decode as media_read_from_zip above, so a mission read from a folder
+    # and the same mission read from a mastlib produce the same string.
+    from sbs_utils.procedural.amd import amd_read_text
+    return amd_read_text(os.path.join(basedir, file))
     
 
 

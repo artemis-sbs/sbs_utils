@@ -18,6 +18,7 @@ import re
 
 from sbs_utils.procedural.amd import (amd_parse_facts, amd_kind_line, KIND_KEY,
                                       FenceScanner, RE_HEADING, RE_FENCE, AmdErrors,
+                                      amd_read_text,
                                       BoneyardScanner, amd_body_synopsis, amd_wikilinks,
                                       RE_CUE, RE_DIRECTION, amd_norm)
 
@@ -551,8 +552,7 @@ def _extract_cue_refs(node, lineno, raw):
 def parse(content, file_path=None):
     """Parse AMD `content` into an `AmdDocument` (tree + spans + references)."""
     if content is None and file_path is not None:
-        with open(file_path, "r") as f:
-            content = f.read()
+        content = amd_read_text(file_path)
     lines = (content or "").splitlines()
 
     root = AmdNode("__root__", "", 0)

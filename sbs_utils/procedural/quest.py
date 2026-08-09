@@ -724,7 +724,7 @@ def _amd_slug(text):
 
 def _document_get_amd_file(file_path, root_display_text="", strip_comments=True, content=None, data_parser=None, allow_bare_headings=False):
     from sbs_utils.procedural.amd import (amd_parse_facts, amd_kind_line, KIND_KEY,
-                                          FenceScanner, RE_HEADING,
+                                          FenceScanner, RE_HEADING, amd_read_text,
                                           BoneyardScanner, amd_body_synopsis)
     from sbs_utils.procedural.amd_schema import amd_resolve_kind
 
@@ -746,8 +746,10 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
         lines = content.splitlines(True)
     elif file_path is not None:
         try:
-            with open(file_path, "r") as file:
-                lines = file.readlines()
+            # `splitlines(True)` not `readlines()`: it keeps the line endings the
+            # same way the content= path does, so a file and its own text parse
+            # identically. See amd_read_text for why the decode is shared.
+            lines = amd_read_text(file_path).splitlines(True)
         except Exception as e:
             print("no file")
 

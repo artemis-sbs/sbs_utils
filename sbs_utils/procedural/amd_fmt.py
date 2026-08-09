@@ -18,8 +18,11 @@ What it normalizes:
 Dependency-free (stdlib `re`), so it's unit-testable and embeddable anywhere.
 """
 import re
+from sbs_utils.procedural.amd import amd_read_text, RE_HEADING
 
-_RE_SECTION = re.compile(r"^(?P<hashes>#+)[ \t]+\[(?P<display>.*)\]\((?P<urn>.*)\)[ \t]*$")
+# THE PARSER'S rule (see amd_lint for the same note). A formatter that claims a
+# line the reader does not is a formatter that can rewrite prose into a heading.
+_RE_SECTION = RE_HEADING
 _RE_HEADING = re.compile(r"^(?P<hashes>#+)[ \t]+(?P<rest>.*?)[ \t]*$")
 _RE_FENCE = re.compile(r"^\s*-{3,}\s*$")
 
@@ -70,8 +73,7 @@ def format_text(content):
 def format_file(path, write=False):
     """Format the file at `path`. Returns (changed, formatted_text). Writes back
     only when `write` is True and the content actually changed."""
-    with open(path, "r") as f:
-        original = f.read()
+    original = amd_read_text(path)
     formatted = format_text(original)
     changed = formatted != original
     if changed and write:

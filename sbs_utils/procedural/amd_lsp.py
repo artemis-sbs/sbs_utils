@@ -22,6 +22,7 @@ import glob
 from urllib.parse import urlparse, unquote
 
 from sbs_utils.procedural.amd_lint import mast_source_index
+from sbs_utils.procedural.amd import amd_read_text
 from sbs_utils.procedural.amd_timeline import (records, resolve_ref,
                                                signal_edges_for)
 
@@ -54,8 +55,7 @@ def _mission_root(path):
 
 def _read(path):
     try:
-        with open(path, "r") as f:
-            return f.read()
+        return amd_read_text(path)
     except Exception:
         return None
 

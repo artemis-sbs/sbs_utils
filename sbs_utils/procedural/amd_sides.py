@@ -16,7 +16,7 @@ shared Python side_create (the port of the prefab_side_generic prefab), so no ma
 needed. sides_declare is TWO-PASS - every side is created first, then relations are applied -
 so a side may name an enemy/ally defined later in the file.
 """
-from sbs_utils.procedural.amd import amd_parse_facts
+from sbs_utils.procedural.amd import amd_parse_facts, amd_read_text
 from sbs_utils.procedural.sides import side_create, side_set_relations, _side_csv_list
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.mast_node import MastDataObject
@@ -98,6 +98,5 @@ def sides_load_amd(file_path):
     ``Color: #07F`` value (``#`` starts a YAML comment). Returns {key: side_id}."""
     from sbs_utils.procedural.amd_doc import amd_document
     from sbs_utils.fs import get_mission_dir_filename
-    with open(get_mission_dir_filename(file_path), "r") as f:
-        content = f.read()
+    content = amd_read_text(get_mission_dir_filename(file_path))
     return sides_declare_amd(amd_document(content, data_parser=amd_side_data))

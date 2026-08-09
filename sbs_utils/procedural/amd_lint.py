@@ -28,13 +28,18 @@ engine uses (`document_get_amd_file`).
 """
 import os
 import re
+from sbs_utils.procedural.amd import amd_read_text, RE_HEADING
 
 ERROR = "error"
 WARNING = "warning"
 
 # Mirror the parser's own patterns (procedural/quest.py `_document_get_amd_file`)
 # so the linter agrees with it exactly on what IS a heading / a fence.
-_RE_SECTION = re.compile(r"#+[ \t]+\[(?P<display_text>.*)\]\((?P<urn>.*)\)[ \t]*")
+# THE PARSER'S rule, not a copy of it. This used to be a lookalike with greedy
+# `.*` groups and no end anchor, which made it MORE permissive than the reader:
+# a `#` line the parser drops into body text matched HERE as a valid heading, so
+# the linter stayed quiet about the exact `broken-heading` it exists to catch.
+_RE_SECTION = RE_HEADING
 _RE_HEADING_ATTEMPT = re.compile(r"#+[ \t]+\S")
 _RE_DATA_FENCE = re.compile(r"\s*-{3,}\s*$")
 
@@ -99,8 +104,7 @@ class AmdFinding:
 def _source_lines(file_path=None, content=None):
     """Return source as a list of lines (no trailing newline), from content or file."""
     if content is None and file_path is not None:
-        with open(file_path, "r") as f:
-            content = f.read()
+        content = amd_read_text(file_path)
     return (content or "").splitlines()
 
 
@@ -966,8 +970,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
 
     if content is None and file_path is not None:
         try:
-            with open(file_path, "r") as f:
-                content = f.read()
+            content = amd_read_text(file_path)
         except Exception:
             content = ""
 

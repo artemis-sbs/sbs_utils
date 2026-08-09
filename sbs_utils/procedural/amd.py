@@ -37,6 +37,30 @@ from sbs_utils.fs import load_yaml_string
 # the zip's BYTES, where no such translation happens, so the CRLF survives. One file,
 # two readers, two different documents.
 # RE_FENCE never had the bug because `\s` already includes `\r`.
+# The other half of that same lesson, and the half that was still open: a folder
+# read used bare `open(path, "r")` - the LOCALE codepage - while every zip read
+# forces UTF-8. So one file read two ways decoded to two different strings the
+# moment it contained a non-ASCII byte, and on a machine whose codepage rejects
+# that byte the read raised instead, straight into a bare `except` that turned it
+# into an empty document. ONE reader, so the folder and the mastlib agree.
+def amd_read_text(path):
+    """The text of one .amd (or any AMD-adjacent source), decoded the same way a
+    mastlib read decodes it.
+
+    UTF-8 first (with a BOM tolerated, since editors add one), falling back to
+    cp1252 for a legacy file that predates that convention, and finally to a
+    replacing UTF-8 decode - because a file that cannot be decoded should still
+    parse into something an author can look at and fix, not vanish."""
+    with open(path, "rb") as f:
+        raw = f.read()
+    for enc in ("utf-8-sig", "utf-8", "cp1252"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("utf-8", "replace")
+
+
 RE_HEADING = re.compile(r"(?P<hashes>#+)[ \t]+\[(?P<display>[^\]]*)\]"
                         r"\((?P<urn>[^)]*)\)[ \t\r]*$")
 RE_FENCE = re.compile(r"\s*-{3,}\s*$")

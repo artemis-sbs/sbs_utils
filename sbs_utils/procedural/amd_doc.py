@@ -17,6 +17,7 @@ import os
 from sbs_utils.procedural.quest import document_get_amd_file
 from sbs_utils.procedural.media import media_read_relative_file
 from sbs_utils.fs import get_mission_dir_filename
+from sbs_utils.procedural.amd import amd_read_text
 from sbs_utils.mast.mast_node import MastDataObject
 
 
@@ -43,8 +44,7 @@ def amd_declared_addons():
         story = os.path.join(script_dir, "story.json")
         if not os.path.isfile(story):
             return _DECLARED_ADDONS
-        with open(story, "r") as f:
-            data = json.load(f) or {}
+        data = json.loads(amd_read_text(story)) or {}
         lib_dir = os.path.join(fs.get_missions_dir(), "__lib__")
         for name in (data.get("mastlib") or []):
             src = Mast.addon_source_folder(script_dir, name)
@@ -67,8 +67,7 @@ def _read_from_addon(path, fname):
         if os.path.isdir(path):
             full = os.path.join(path, fname)
             if os.path.isfile(full):
-                with open(full, "r") as f:
-                    return f.read()
+                return amd_read_text(full)
             return None
         import zipfile
         with zipfile.ZipFile(path, "r") as z:
@@ -98,8 +97,7 @@ def amd_read_content(fname):
         return None
     mission_path = get_mission_dir_filename(fname)
     if mission_path is not None and os.path.isfile(mission_path):
-        with open(mission_path, "r") as f:
-            return f.read()
+        return amd_read_text(mission_path)
     found = media_read_relative_file(fname)
     if found is not None:
         return found
