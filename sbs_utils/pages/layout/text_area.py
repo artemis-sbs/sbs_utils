@@ -395,30 +395,36 @@ class TextArea(Control):
         style_key = "_"
         heading_numbers = {}
         def get_prepend(style_key):
+            # A GENERATED marker -- a number or a bullet -- carries its own trailing
+            # space. The line's own leading "1. " / "- " was already eaten by
+            # get_line_style's split, so without it the marker ran straight into the
+            # text: "1.GATHER the materials", "-Helm". A pass-through prepend (an
+            # arbitrary string from a registered style, e.g. a callout kind) is
+            # returned EXACTLY as the author wrote it -- their spacing is theirs.
             prepend = ""
             prepend_fmt = style.get("prepend", "")
             number = heading_numbers.get(style_key,1)
             if prepend_fmt == "1":
-                prepend = f"{number}."
+                prepend = f"{number}. "
                 heading_numbers[style_key] = number + 1
             elif prepend_fmt == "a":
                 number = number % len(alpha) # wrap don't crash
-                prepend = f"{alpha[number].lower()}."
+                prepend = f"{alpha[number].lower()}. "
                 heading_numbers[style_key] = number + 1
             elif prepend_fmt == "A":
                 number = number % len(alpha) # wrap don't crash
-                prepend = f"{alpha[number]}."
+                prepend = f"{alpha[number]}. "
                 heading_numbers[style_key] = number + 1
             elif prepend_fmt == "i":
                 number = number % len(roman) # wrap don't crash
-                prepend = f"{roman[number]}."
+                prepend = f"{roman[number]}. "
                 heading_numbers[style_key] = number + 1
             elif prepend_fmt== "I":
                 number = number % len(roman) # wrap don't crash
-                prepend = f"{roman[number].upper()}."
+                prepend = f"{roman[number].upper()}. "
                 heading_numbers[style_key] = number + 1
             elif prepend_fmt== "*" or prepend_fmt== "-":
-                prepend = prepend_fmt
+                prepend = prepend_fmt + " "
             elif prepend_fmt is not None:
                 return prepend_fmt
             return prepend
@@ -492,6 +498,24 @@ class TextArea(Control):
                 hr = HrLine(ar)
                 self.lines.append(hr)
                 calc_height += hr.height
+                continue
+
+            # Line break: <br> / <br/>. Handled HERE, with the block-level markup,
+            # NOT down in the render loop where it used to live. A <br> between
+            # numbered list items inherited the list's style -- the line matched no
+            # markdown rule, so get_line_style handed back `previous` -- and the
+            # prepend was then glued onto it. The line the render loop saw was
+            # "1<br>", which no longer matched its exact "<br>" test, so instead of a
+            # break the reader got the literal text `1<br>` (LM's "How a build works"
+            # help topic). A break is never a list item and never a heading, so it
+            # takes no prepend and does not disturb the numbering.
+            if line.strip().lower() in ("<br>", "<br/>"):
+                br_style = style if isinstance(style, dict) else self.get_style("_")
+                br_font = split_props(br_style.get("style", "font:gui-3;"), "font").get("font", "gui-3")
+                br_height = (measure_block_height(br_font, "^", int(pixel_width)) / ar.y) * 100
+                # `^` is what the engine reads as a newline.
+                self.lines.append(TextLine("^", br_style, self.bounds.width, br_height, False))
+                calc_height += br_height
                 continue
 
             # Whole-line hyperlink: [Display](ref://key) -> clickable LinkLine that

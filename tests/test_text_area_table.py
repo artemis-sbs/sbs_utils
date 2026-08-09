@@ -12,7 +12,7 @@ import unittest
 from cosmos_dev.mock import sbs
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
 from sbs_utils.gui import get_client_aspect_ratio
-from sbs_utils.pages.layout.text_area import TextArea, TableLine, LinkLine, HrLine
+from sbs_utils.pages.layout.text_area import TextArea, TableLine, LinkLine, HrLine, TextLine
 from sbs_utils.pages.layout.layout import Bounds
 
 
@@ -125,6 +125,75 @@ class TestTextAreaLinksAndRule(unittest.TestCase):
         ta = self._calc("| a | b |\n|---|---|\n| 1 | 2 |")
         self.assertEqual(len([ln for ln in ta.lines if isinstance(ln, HrLine)]), 0)
         self.assertEqual(len([ln for ln in ta.lines if isinstance(ln, TableLine)]), 1)
+
+
+class TestTextAreaLineBreak(unittest.TestCase):
+    """`<br>` is a break EVERYWHERE, including inside a list.
+
+    A <br> between numbered items used to inherit the list style, get the list's
+    prepend glued on, and reach the reader as the literal text "1<br>" -- LM's
+    "How a build works" help topic is written that way throughout.
+    """
+    def setUp(self):
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+
+    def _texts(self, text):
+        ta = TextArea("t", text)
+        ta.bounds = Bounds(0, 0, 80, 60)
+        ta.calc_rich(0)
+        return [ln.text for ln in ta.lines if isinstance(ln, TextLine)]
+
+    def test_br_in_prose_is_a_break(self):
+        # `^` is what the engine reads as a newline
+        self.assertEqual(self._texts("Above\n<br>\nBelow"), ["Above", "^", "Below"])
+
+    def test_br_between_list_items_is_a_break(self):
+        got = self._texts("1. GATHER\n<br>\n2. FABRICATE\n<br>\n3. DELIVER")
+        self.assertEqual([t for t in got if t == "^"], ["^", "^"])
+        self.assertFalse([t for t in got if "<br>" in t],
+                         f"a <br> reached the reader as literal text: {got}")
+
+    def test_br_does_not_disturb_the_numbering(self):
+        got = self._texts("1. GATHER\n<br>\n2. FABRICATE\n<br>\n3. DELIVER")
+        numbered = [t for t in got if t != "^"]
+        self.assertEqual([t[:2] for t in numbered], ["1.", "2.", "3."])
+
+    def test_self_closing_and_case(self):
+        self.assertEqual(self._texts("a\n<BR/>\nb"), ["a", "^", "b"])
+
+class TestTextAreaListMarkers(unittest.TestCase):
+    """A generated marker is separated from the text it marks.
+
+    get_line_style eats the line's own "1. " / "- ", so the marker the renderer
+    puts back has to supply the space itself - otherwise every list in every
+    document reads "1.GATHER the materials", "-Helm".
+    """
+    def setUp(self):
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+
+    def _texts(self, text):
+        ta = TextArea("t", text)
+        ta.bounds = Bounds(0, 0, 80, 60)
+        ta.calc_rich(0)
+        return [ln.text for ln in ta.lines if isinstance(ln, TextLine)]
+
+    def test_ordered_marker_has_a_space(self):
+        got = self._texts("1. GATHER the materials\n2. FABRICATE it")
+        self.assertEqual(got, ["1. GATHER the materials", "2. FABRICATE it"])
+
+    def test_bullet_marker_has_a_space(self):
+        self.assertEqual(self._texts("- Helm\n- Weapons"), ["- Helm", "- Weapons"])
+
+    def test_author_numbering_is_still_replaced_not_doubled(self):
+        # the author's own "7." is dropped; the renderer numbers the list
+        self.assertEqual(self._texts("7. seven\n9. nine"), ["1. seven", "2. nine"])
+
+    def test_unmarked_styles_gain_no_space(self):
+        # a heading has no prepend, so nothing is inserted in front of it
+        # (two lines: a one-line text area takes the simple, non-markdown path)
+        self.assertEqual(self._texts("# Fabrication\nprose"), ["Fabrication", "prose"])
 
 
 if __name__ == "__main__":
