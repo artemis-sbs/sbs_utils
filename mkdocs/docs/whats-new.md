@@ -99,6 +99,43 @@ Anything that matches nothing says so, rather than quietly doing nothing.
 
 See the [LegendaryMissions addon reference](legendarymissions/addons/index.md).
 
+## 🖥️ "On screen" — science can finally answer the captain
+
+The captain says *"on screen"* and, until now, nobody could make it happen. A drop-down
+beside the science console's **Follow** checkbox hands the ship's main screen a shot of
+whatever science has selected.
+
+```
+[x] Follow   [ On Screen - Orbit   v ]
+                Off
+                On Screen - Dolly
+                On Screen - Orbit
+                Tactical 2D
+```
+
+**Dolly** pushes slowly in and out, **Orbit** turns around the contact, and **Tactical
+2D** puts the radar on it. Change the selection and the shot follows; destroy the
+contact and the viewer stands down.
+
+Beside the picture is a **data column** carrying what science actually knows: vitals
+(range, bearing, shields, hull), **every scanned tab together** — Scan, Status, Intel,
+Materials, Bio — recent comms with that contact, and any quest bound to it. It pages
+itself when there is more than one screenful, and skips pages that have nothing to say.
+A mission adds its own page with `viewscreen_page_register`.
+
+Nothing has to be co-ordinated with helm: the viewer writes the same main-screen state
+helm's own control does, so **last writer wins** — helm reaching for the control simply
+takes the screen back, and the drop-down falls back to *Off*. It is scoped per ship, so
+science on one bridge cannot change what another's crew is looking at.
+
+!!! warning "Writing your own main-screen console?"
+    While a shot runs, the console is **assigned to the subject** — the engine only
+    honors a camera change when the console and the lens ride the same object. So
+    `sbs.get_ship_of_client()` on a main screen answers with *the contact being filmed*.
+    Use `viewscreen_home_ship(client_id)` for "this console's own ship".
+
+See [On screen](cosmos/viewscreen.md).
+
 ## 🪝 Grav-tether
 
 A tractor beam for Weapons and fighters — one system, scaled by hull.

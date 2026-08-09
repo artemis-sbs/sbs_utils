@@ -104,7 +104,14 @@ def gui_console(console, is_jump=False):
         case "mainscreen":
             console =  "normal_main"
             # view = page.gui_task.get_variable("MAIN_SCREEN_VIEW", "3d_view")
-            ship_id = FrameContext.context.sbs.get_ship_of_client(FrameContext.client_id)
+            # NOT get_ship_of_client: while a console is driving this screen ("on
+            # screen", VIEWSCREEN_PLAN.md) the client is ASSIGNED to the SUBJECT - the
+            # engine only honors a camera change when the console and the lens ride the
+            # same object - so that call answers with the enemy being filmed, and this
+            # would pick its widget list from the enemy's main-screen state. Local
+            # import: viewscreen reaches back into this package.
+            from .viewscreen import viewscreen_home_ship
+            ship_id = viewscreen_home_ship(FrameContext.client_id)
             view = get_inventory_value(ship_id, "MAIN_SCREEN_VIEW", "3d_view")
             if view == "lrs":
                 #console =  "normal_main_lrs"

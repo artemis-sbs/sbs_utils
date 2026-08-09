@@ -9,8 +9,11 @@ def gui_drop_down(props, style=None, var=None, data=None):
     player selects an item, ``var`` is updated.
 
     Args:
-        props (str): Semicolon-separated option list and optional properties,
-            e.g. ``"items:Red,Green,Blue;"`` or ``"$items:Red,Green;color:white;"``.
+        props (str): Semicolon-separated properties. The options go in ``list:``
+            (comma separated) and the closed-state label in ``text:``, e.g.
+            ``"text:Red;list:Red,Green,Blue"``. NOT ``items:`` - a dropdown with no
+            ``list:`` has nothing to render and the engine dies allocating for it
+            (``MemoryError: bad allocation``), which reads as anything but a typo.
         style (str, optional): CSS-like style overrides. Defaults to None.
         var (str, optional): Variable name to read the initial selection from
             and update on change. Defaults to None.

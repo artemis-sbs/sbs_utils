@@ -340,7 +340,7 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             if other_id is None:
                     other_id = 0
 
-            signal_emit("comms_message", {"COMMS_MESSAGE": MastDataObject({
+            record = {
                 "player_id": from_id, 
                 "other_id": other_id,
                 "life_form_from_id": life_form_from_id,
@@ -355,9 +355,51 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                 "message": msg,
                 "message_color": color,
                 "time": FrameContext.context.sim.time_tick_counter
-            })})
+            }
+            comms_history_add(from_id, other_id, record)
+            signal_emit("comms_message", {"COMMS_MESSAGE": MastDataObject(record)})
             
             
+
+# --- Comms history ------------------------------------------------------------
+# comms_message EMITS and does not KEEP: the signal below carries `other_id`, and until
+# now every consumer that wanted "what have we said to this contact" built its own list
+# from it (LM's mike_comms prototype still does). The viewscreen's comms page needs the
+# same thing, so the store belongs here, next to the only function that can fill it.
+#
+# Keyed by the PAIR, because that is the question being asked - not "what has this ship
+# said" but "what have these two said to each other".
+_COMMS_HISTORY = {}
+COMMS_HISTORY_CAP = 40      # per pair; the log tab is where the full record lives
+
+
+def comms_history_add(player_id, other_id, entry):
+    """Record one exchange between a player ship and a contact."""
+    key = (query.to_id(player_id), query.to_id(other_id))
+    entries = _COMMS_HISTORY.setdefault(key, [])
+    entries.append(entry)
+    if len(entries) > COMMS_HISTORY_CAP:
+        del entries[:len(entries) - COMMS_HISTORY_CAP]
+    return entry
+
+
+def comms_history_for(player_id, other_id, limit=None):
+    """Exchanges between the two, oldest first. ``limit`` takes the most RECENT n."""
+    entries = _COMMS_HISTORY.get((query.to_id(player_id), query.to_id(other_id))) or []
+    if limit is not None and limit > 0:
+        return list(entries[-limit:])
+    return list(entries)
+
+
+def comms_history_clear():
+    """Per-mission state: last mission's conversations are not this one's."""
+    _COMMS_HISTORY.clear()
+
+
+def comms_history_size():
+    """Probe for the reset ledger."""
+    return len(_COMMS_HISTORY)
+
 
 def _comms_get_origin_id() -> int:
     #

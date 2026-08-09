@@ -998,6 +998,15 @@ def _auto_dwell(segment):
     return min(DWELL_MAX, max(DWELL_MIN, words / WORDS_PER_SECOND))
 
 
+def overlay_auto_dwell(text):
+    """Seconds to hold a piece of text: long enough to read, short enough to move on.
+
+    Public because the viewscreen's data column paces its pages the same way, and one
+    reading pace across every timed surface is the point.
+    """
+    return _auto_dwell(text)
+
+
 def _start_text_cycle(page, slot, kind, fields, field, segments, dwell, loop):
     """Show ``segments`` one at a time in ``slot``, advancing on a tick.
 

@@ -138,6 +138,10 @@ def reset_mission_state():
     _PLAYING.clear()
     rundown_clear()     # shots AND both desks - a stale program audience would
                         # aim the next mission's punches at dead client ids
+    viewscreen_reset()  # "on screen" shots. Records only - the consoles they name
+                        # belong to the sim being torn down, so nothing is re-aimed
+    comms_history_clear()   # who said what to whom. Per-mission by definition, and the
+                            # keys are object ids that the next mission RECYCLES
     overlay_live_clear()  # live overlays awaiting late joiners; the catch-up ticker
                           # is dropped by TickDispatcher.clear() above, and a record
                           # left behind would re-deliver last mission's card
@@ -254,6 +258,11 @@ register_reset_state("cutscenes",         lambda: len(_CUTSCENES))
 register_reset_state("cutscenes playing", lambda: len(_PLAYING))
 from .procedural.gui.rundown import _SHOTS as _RUNDOWN_SHOTS, rundown_clear
 register_reset_state("rundown shots",     lambda: len(_RUNDOWN_SHOTS))
+from .procedural.gui.viewscreen import (_VIEWERS as _VIEWSCREEN_SHOTS, viewscreen_reset,
+                                        viewscreen_helm_override)
+register_reset_state("viewscreen shots",  lambda: len(_VIEWSCREEN_SHOTS))
+from .procedural.comms import comms_history_clear, comms_history_size
+register_reset_state("comms history",     comms_history_size)
 from .procedural.gui.overlay import _LIVE as _OVERLAY_LIVE, overlay_live_clear
 register_reset_state("overlays live",     lambda: len(_OVERLAY_LIVE))
 from .procedural.amd_cutscene import (CUTSCENE_AMD, RUNDOWN_AMD, CUTSCENE_CAST,
@@ -495,6 +504,12 @@ def _cosmos_event_handler(sim, event):
                 set_inventory_value(origin, "MAIN_SCREEN_VIEW", event.sub_tag)
                 set_inventory_value(origin, "MAIN_SCREEN_FACING", event.value_tag)
                 set_inventory_value(origin, "MAIN_SCREEN_MODE", event.extra_tag)
+                # Helm reaching for the main-screen control takes the screen back from
+                # whoever was driving it - science's "on screen" (VIEWSCREEN_PLAN.md).
+                # Compared against what the viewer asked for, so a console replaying
+                # the state it is already in is not a takeover.
+                viewscreen_helm_override(origin, event.sub_tag, event.value_tag,
+                                         event.extra_tag)
                 Gui.on_event(event)
                 tick_the_rest(event)
             

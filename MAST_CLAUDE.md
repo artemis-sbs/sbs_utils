@@ -188,6 +188,20 @@ default shared PLAYER_COUNT = 2
 default shared SETTINGS = settings_get_defaults()
 ```
 
+### `shared`, `assigned`, `client`, `temp` are SCOPE KEYWORDS - never variable names
+
+The Assign rule is `(shared|assigned|client|temp)\s+<lhs> = <expr>`, so a variable with
+one of those names is parsed as **a scope with an empty target**:
+
+```
+assigned = sbs.get_ship_of_client(client_id)   # assigns to NOTHING. No error.
+ok = assigned == foe_id                        # NameError: 'assigned' is not defined
+```
+
+**The failure is reported against the line that READS it**, not the line that assigned
+it, so it reads as "this variable vanished". `client_id` and `shared_state` are fine -
+the keyword only matches with whitespace after it.
+
 ### Variable naming conventions
 
 - **CAPS_STYLE** (`SHIP_ID`, `COMMS_ORIGIN_ID`, `DAMAGE_TARGET_ID`) — system-defined context variables injected by the engine or route system. Don't use this style for script-defined variables.

@@ -484,6 +484,38 @@ def camera_move(to, subject, lens_from, lens_to, seconds, ease="in_out",
     return _drive(to, consoles, subject, seconds, _at, ease)
 
 
+def camera_dolly(to, subject, from_distance, to_distance, yaw=0.0, pitch=12.0,
+                 seconds=20.0, ease="in_out", consoles=None):
+    """Push the lens in (or pull it out) along a fixed angle, FOLLOWING the subject.
+
+    `camera_move` interpolates between two fixed WORLD points, which is right for a
+    station and wrong for a ship under way: the shot is left behind, and what began as a
+    push-in ends as a fly-past. This holds the ANGLE and changes only the distance,
+    recomputing from wherever the subject is each tick - the same trick `camera_orbit`
+    uses, and for the same reason.
+
+    Args:
+        from_distance / to_distance (float): radius at the start and the end. Give a
+            larger ``from`` for a push in, a larger ``to`` for a pull out.
+        yaw (float): degrees around the subject to sit at.
+        pitch (float): degrees above it. Slightly down reads better than dead level.
+
+    Returns:
+        Promise: resolves when the push ends.
+    """
+    from ..query import to_object
+    subj = to_object(subject)
+    a = float(from_distance)
+    b = float(to_distance)
+
+    def _at(u):
+        offset = camera_orbit_lens(a + (b - a) * u, yaw, pitch)
+        base = subj.pos if subj is not None else Vec3(0, 0, 0)
+        return Vec3(base.x + offset.x, base.y + offset.y, base.z + offset.z)
+
+    return _drive(to, consoles, subject, seconds, _at, ease)
+
+
 def camera_orbit(to, subject, distance, from_yaw=0.0, to_yaw=360.0, seconds=10.0,
                  pitch=15.0, ease="linear", consoles=None):
     """Swing the lens around `subject` at a fixed distance.
