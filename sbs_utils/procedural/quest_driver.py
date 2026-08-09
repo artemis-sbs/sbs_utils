@@ -20,7 +20,7 @@ Runs server-side (called from signal routes).
 from sbs_utils.procedural.quest import (
     quest_agent_quests, quest_get, quest_get_state, quest_get_data,
     quest_get_key, quest_set_key, quest_get_display_name, quest_add, QuestState,
-    quest_log_build_items)
+    quest_log_build_items, quest_run_action)
 from sbs_utils.procedural.roles import has_role, role
 from sbs_utils.procedural.query import (
     to_object, to_object_list, to_id, to_id_list, to_set, is_space_object_id)
@@ -296,6 +296,14 @@ def quest_mark_active(agent_id, quest_id):
     if quest_get_state(agent_id, quest_id) == QuestState.ACTIVE:
         return
     quest_set_key(agent_id, quest_id, "state", QuestState.ACTIVE)
+    # `Action:` fires when the beat STARTS. quest.quest_set_state runs it, but the
+    # DRIVER writes state directly - so the block was dead on every path an author
+    # actually uses: the Accept button, `Then: reveal`, a quest granted ACTIVE (the
+    # default for Beat/Arc/Objective), and a `Starts when:` swap-in. The one documented
+    # example in amd-format.md takes the swap-in path and never fired.
+    # Ordering matches quest_set_state: act first, so a route hearing the signal sees a
+    # world that has already changed rather than one it has to guess about.
+    quest_run_action(agent_id, quest_id)
     data = quest_get_data(agent_id, quest_id) or {}
     _quest_fire_overlays(agent_id, data, "accept_overlay", "on_accept")
     # Activation announcement, completing the set. The idempotence guard above runs
@@ -486,7 +494,14 @@ def quest_grant_amd(agent_id, doc, _prefix="", count_scale=1.0):
         else:
             targets = [Agent.SHARED_ID if scope == "shared" else agent_id]
         for target in targets:
-            if quest_get_state(target, qid) == QuestState.IDLE:  # skip already-granted
+            # ABSENT, not IDLE. quest_get_state returns IDLE for a quest that does not
+            # exist AND for one that exists and is merely OFFERED - so a re-grant ran
+            # quest_add over every unaccepted quest, and quest_add builds a FRESH node
+            # with "children": {}. Any nested arc step underneath it, however far along,
+            # was silently discarded. (A re-grant happens on the OU Continue path and on
+            # a map restart.) One behavior change: re-granting with a different
+            # count_scale no longer re-scales an already-offered quest.
+            if quest_get(target, qid) is None:
                 st = _STATE_NAMES.get(
                     str(data.get("state") or implied.get("state") or "idle").lower(),
                     QuestState.IDLE)
@@ -795,10 +810,12 @@ def quest_on_signal(name):
     this advances any ACTIVE quest (players + SHARED) whose on_signal {name} or
     on_comms {option} matches. Lets authors add beats with no new driver code.
     """
-    agents = [Agent.SHARED_ID]
-    for s in to_object_list(role("__player__")):
-        agents.append(s.id)
-    for aid in agents:
+    # _quest_holders(), like every sibling handler. This was the last place still
+    # using `[SHARED] + players`, which is the exact pattern _quest_holders was written
+    # to replace: it silently skips a quest granted to a station or a side, so a
+    # `Held by:` job's `Done when: signal` never advanced and its `Fails when: signal`
+    # never fired, with nothing logged because nothing looked.
+    for aid in _quest_holders():
         for qid, data in _active_quests(aid):
             trig = data.get("on_signal") or data.get("on_comms")
             if isinstance(trig, dict):
