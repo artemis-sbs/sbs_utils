@@ -521,6 +521,7 @@ def amd_register_archetype_traits(archetype, traits, domain=None):
     key = str(archetype).strip().lower()
     have = tuple(ARCHETYPE_TRAITS.get(key, ()))
     ARCHETYPE_TRAITS[key] = have + tuple(t for t in traits if t not in have)
+    _schema_changed()
 
 
 def amd_register_trait(name, table, domain=None):
@@ -535,6 +536,7 @@ def amd_register_trait(name, table, domain=None):
             who = " (from %s)" % domain if domain else ""
             raise ValueError("trait %r already declares %r differently%s" % (key, label, who))
         existing[lk] = descriptor
+    _schema_changed()
 
 
 def amd_trait_names():
@@ -832,6 +834,38 @@ def field_schema(label, archetype=None, traits=()):
     return d if d is not None else text()
 
 
+# --- lookup memos -----------------------------------------------------------
+# _declared is called THREE times per authored field line (amd_is_declared, then
+# amd_canonical_label -> _declared_under, then _declared again inside
+# amd_read_field) and each call is a triple-nested scan that re-normalizes every
+# declared label it walks. On a profile of a 6.5k-line document _norm_label was
+# the single largest cost in the parser at ~40k calls. The tables it walks only
+# ever change at REGISTRATION time, so all of it memoizes.
+_MISS = object()
+_NORM_CACHE = {}      # raw label -> normalized. PURE, so it is never invalidated.
+_DECLARED_MEMO = {}   # (key, archetype, traits) -> descriptor | _MISS
+_UNDER_MEMO = {}      # (norm_key, archetype) -> bool
+
+
+def _schema_changed():
+    """Every table mutation lands HERE, and every memo over those tables is
+    cleared HERE. One function on purpose: the previous shape had each registrar
+    clearing _ALIAS_CACHE by hand, and two of the three forgot - which is why a
+    trait registered after a lookup stayed invisible."""
+    _DECLARED_MEMO.clear()
+    _UNDER_MEMO.clear()
+    _ALIAS_CACHE.clear()
+
+
+def _traits_key(traits):
+    """Traits arrive as a tuple from one caller and a list from another. Normalize
+    to a hashable tuple here rather than reaching for lru_cache, which would raise
+    TypeError on the list form - at parse time, on an author's file."""
+    if not traits:
+        return ()
+    return tuple(str(t).strip().lower() for t in traits)
+
+
 def _declared(label, archetype=None, traits=()):
     """The declared descriptor for `label`, or None when nothing declares it.
 
@@ -842,6 +876,12 @@ def _declared(label, archetype=None, traits=()):
     while the author writes `Fail on signal` / `fail_on_signal` and all three land
     together. Aliases are tried after canonical names."""
     key = _norm_label(label)
+    memo_key = (key, archetype, _traits_key(traits))
+    hit = _DECLARED_MEMO.get(memo_key, _MISS)
+    if hit is not _MISS:
+        return hit
+    # NEGATIVE results are cached too, and they are the ones worth caching: an
+    # undeclared label is the case that walks every table to the end.
     tables = [ARCHETYPES.get(archetype) if archetype else None]
     # what it always is, then what this record says it ALSO does
     implicit = ARCHETYPE_TRAITS.get(str(archetype).strip().lower(), ()) if archetype else ()
@@ -854,7 +894,11 @@ def _declared(label, archetype=None, traits=()):
         for table in tables:
             for declared_label, descriptor in table.items():
                 if _norm_label(declared_label) == want:
+                    # The table's OWN descriptor object, exactly as before - the
+                    # memo stores that same reference, so it adds no aliasing.
+                    _DECLARED_MEMO[memo_key] = descriptor
                     return descriptor
+    _DECLARED_MEMO[memo_key] = None
     return None
 
 
@@ -971,10 +1015,17 @@ def amd_canonical_label(label, archetype=None):
 
 def _declared_under(norm_key, archetype):
     """True when `norm_key` is itself a declared (canonical) label, alias aside."""
+    memo_key = (norm_key, archetype)
+    hit = _UNDER_MEMO.get(memo_key)
+    if hit is not None:
+        return hit
+    found = False
     for table in (t for t in (ARCHETYPES.get(archetype) if archetype else None, GLOBAL) if t):
         if any(_norm_label(l) == norm_key for l in table):
-            return True
-    return False
+            found = True
+            break
+    _UNDER_MEMO[memo_key] = found
+    return found
 
 
 def amd_field_key(label, archetype=None):
@@ -988,6 +1039,16 @@ def amd_field_key(label, archetype=None):
 def _norm_label(label):
     """Field labels normalize like `amd_norm`: lowercase, hyphens/spaces -> `_`.
     Inlined (not imported) to keep this module's import graph empty."""
+    # Cached because the normalization is PURE and the same few hundred labels
+    # recur across every record of a document. Capped so a hostile file full of
+    # unique labels cannot grow it without bound.
+    if type(label) is str:
+        got = _NORM_CACHE.get(label)
+        if got is None:
+            got = str(label).strip().lower().replace("-", "_").replace(" ", "_")
+            if len(_NORM_CACHE) < 8192:
+                _NORM_CACHE[label] = got
+        return got
     return str(label).strip().lower().replace("-", "_").replace(" ", "_")
 
 
@@ -1108,7 +1169,7 @@ def amd_register_fields(archetype, table, domain=None):
                 f"AMD field '{label}'{who} is already declared by {where} with a different "
                 f"meaning. Pick another name, or register it on your own archetype.")
         existing[key] = descriptor
-    _ALIAS_CACHE.clear()
+    _schema_changed()
     return existing
 
 
@@ -1124,3 +1185,7 @@ def amd_register_section_names(names, archetype, domain=None):
             raise ValueError(
                 f"AMD section name '{n}'{who} already means '{prior}', not '{archetype}'.")
         _SECTION_ALIASES[key] = archetype
+    # Section names feed kind resolution rather than _declared, so no memo here
+    # depends on them today. Routed through the one invalidator anyway, so the
+    # next registrar added to this module cannot be the one that forgets.
+    _schema_changed()
