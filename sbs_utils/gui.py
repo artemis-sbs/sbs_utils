@@ -265,7 +265,7 @@ class Gui:
     #
     # A root clear drops every SUB-REGION the client had, and the engine only
     # honors send_gui_sub_region inside a root clear/complete bracket (see
-    # OVERLAY_PLAN.md). So anything that establishes a sub-region and then
+    # mkdocs cosmos/overlays.md). So anything that establishes a sub-region and then
     # updates it out-of-band -- overlays -- is caching a handle the engine can
     # revoke at any time, from a code path it never hears about (a page pop, an
     # error screen). Sending an out-of-band update into a revoked region does

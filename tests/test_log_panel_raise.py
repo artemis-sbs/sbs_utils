@@ -1,5 +1,5 @@
 """NOTHING raises the log tab by default, and the raise is still there for a mission
-that wants it (LOG_PANEL_PLAN.md step 5).
+that wants it (mkdocs build/messages.md).
 
 The plan's "collapse until the next content" became "raise on the content that matters",
 and then the ambient strip made even that unnecessary: every console shows the newest

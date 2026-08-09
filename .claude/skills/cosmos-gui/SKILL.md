@@ -126,6 +126,28 @@ gui_text_area("## Status\nAll systems nominal.\n- shields up\n- 1 contact")
 gui_text_area("![](image://logo?scale=0.5) Mission active")
 ```
 
+### Showing SOURCE, code or raw log text — turn the markdown OFF
+
+A text area **rewrites** anything that looks like markup, which is exactly wrong for
+source. Use `gui_text_area(..., markdown=False)` to render lines verbatim, and
+`line_styles=[…]` (one style key per line) to colorize them yourself. Do NOT reach for
+a listbox of one `gui_text` per line — that reimplements wrapping and the scrollbar
+badly, and forces a one-line row that a wrapped line overdraws.
+
+Five transformations that bite hardest when the content is code (all in
+`pages/layout/text_area.py`):
+
+| Input | Becomes | Why it bites |
+|---|---|---|
+| `# comment` | an h1 heading, marker stripped | **every MAST comment** |
+| `->END`, `-5`, `--` | a bullet, first token consumed | leading `-` is a list marker |
+| `item['key']`, `lines[0]` | a link reference; **the line is replaced by the remainder** | any `[...]` at all |
+| `` `code span` `` | ends the `$text:` quoting on the send path | a backtick anywhere in the content |
+| `^`, and a line starting with a digit | a newline; an ordered-list item | `^` is the newline escape |
+
+Plus: a line with **no** marker inherits the previous line's style, so one stray `#`
+restyles everything after it.
+
 ## Listboxes = the repeating-list pattern
 
 **Every repeating list is a `gui_list_box` + a context/detail panel** acting on the
@@ -143,6 +165,31 @@ lb = gui_list_box(items, "row-height: 2.2em;", item_template=row_fn,
 on change lb.value:
     sel = lb.get_value()
 ```
+
+### Keeping the selection on screen across a repaint — `reveal=` / `hint=`
+
+Both **opt-in**, and they fix two different complaints. A page that repaints *because*
+of the selection wants both.
+
+- **`reveal=True`** — scrolls the selection into view. Fixes *"selected but below the
+  fold"*, which `set_selected_index(i, False)` leaves behind after a rebuild.
+- **`hint=saved`** — keeps the selection in the SAME SLOT across a repaint. Fixes *"the
+  row moved out from under the mouse"*. Reveal alone does not: a repaint starts at
+  `cur=0`, so the clicked row lands at the bottom of the window. Save it with
+  `get_selection_hint()` and pass it back on the next build.
+
+Four contracts the build settled that are easy to get wrong:
+
+- **Reveal fires ONCE**, on view-(re)establish and on selection change — not every
+  present. Revealing every frame drags the view back and makes the list unscrollable. A
+  deliberate scroll disarms it: it is the later instruction and it wins.
+- **Indices are DISPLAY indices**, not unfiltered ones. A collapsible list has two index
+  spaces and they diverge the moment a header collapses.
+- **An explicit selection beats the hint's.** The caller sets the selection after
+  construction while the hint applies at present time, so a stale hint would otherwise
+  override a deliberate choice. The hint's job is the VIEW; its selection is a fallback.
+- **A stale hint is not an error** — `cur` is clamped and an out-of-range selection is
+  dropped silently, so a list that has since shrunk is safe.
 
 ## Handlers: gui_message / gui_click / change
 
@@ -364,6 +411,44 @@ unaffected.
 Pair with `sbs.suppress_client_connect_dialog(0)` (the flag is the DIALOG's state:
 `0` hides the connect nag, `1` brings it back) when a mission owns the server
 screen. That one is a genuine one-shot and is fine from the `@map` body.
+
+## The log panel — the mission's read-only stream
+
+The `text_waterfall` engine widget is **retired**; no console declares it any more (it
+could not be styled from script — fixed dark background). Its replacement is the log
+panel (`procedural/gui/log_panel_gui.py`).
+
+> **The rule: the panel is for what you READ. Anything you ACT on stays interactive.**
+
+That is why comms is deliberately NOT a tab — comms is where a human acts, and folding it
+into a scrollback pane turns participation into reading. Info cards stay put too: read-only
+but tied to a comms interaction.
+
+- **One front door: `log_notify()` / `log_notify_all()`.** They log the line, refresh the
+  strips, and raise if urgent. Every producer needs those three steps, and each one that
+  hand-rolled them got a different subset. Do not call the pieces individually.
+- **Nothing raises the tab by default** (`RAISE_ON = ()`). Raising switches away from the
+  ship data or message card the crew chose, with nothing to switch back — one warning used
+  to leave the panel stranded on the log. Kept as a dial, not deleted: a mission can set
+  `RAISE_ON = ("danger",)`, and `log_raise()` is still callable for a beat that earns it.
+- **Callout and category are two axes**, not one list — the category routes the line to a
+  tab, the callout decides how loud it looks.
+
+## Console and client gotchas (engine-confirmed)
+
+- **`has_role(0, ...)` is ALWAYS False** for the server client. `to_object()` has an
+  explicit `elif other == 0: return None`, so it resolves no agent and `has_role` returns
+  False without looking — even when the role IS set. Check with `role()` set membership
+  instead. This shows up as an assertion that passes while measuring nothing.
+- **Turning a console off does not unregister it.** `HELM_CONSOLE_ENABLED = False` only
+  removes it from the selection screen; `gui_console("helm")` still works. Set those flags
+  with a **plain assignment, not `default`** — LM's addon declares them `default … = True`
+  and addon load order is not deterministic, so only a plain assignment wins either way.
+- **Morphing a page into a console needs `gui_widget_list_clear()` first.** A console
+  leaves an engine widget list behind and the next page draws through it.
+- **`--exercise` clicks nothing on a custom screen** (`clicks 0`), so a green run proves
+  only that it DREW. Pass every button label to `--exercise-click` — and note that flag is
+  comma-separated, so a label containing a comma cannot be driven at all.
 
 ## Don't
 

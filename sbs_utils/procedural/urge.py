@@ -16,7 +16,7 @@ shared ticker walks every agent that has urges, picks at most one, and says it.
 
 **An urge carries no stakes of its own.** The consequence belongs to the quest it watches
 (`Fails when: after 30m`, `Penalty:`), so there is one deadline and one place to tune, and
-deleting an urge costs the drama but not the mechanics. See URGE_PLAN.md.
+deleting an urge costs the drama but not the mechanics. See DESIGN_RECORD.md s4.
 
 **Not a brain.** A behavior tree re-decides continuously because the world moved; an
 urge's world changes on clocks and events. A brain node spawns a MAST task per node per
@@ -25,7 +25,7 @@ have position and paths, and are correctly a tree.
 
 **Not a goal selector.** ``Weight:`` arbitrates one actor's OWN urges - the same
 fixed-priority fallback every brain root already does. It never arbitrates between two
-actors; that is the contest ``NPC_MOTIVATION_PLAN.md`` s8 surveyed and rejected.
+actors; that is the contest DESIGN_RECORD.md s5 surveyed and rejected.
 """
 import random
 
@@ -422,7 +422,7 @@ def urge_line(state):
 
 # --- speaking -----------------------------------------------------------------
 def urge_speak(actor_id, line, title=None):
-    """Say one line as this actor, routed by where the actor IS (URGE_PLAN.md s6).
+    """Say one line as this actor, routed by where the actor IS (DESIGN_RECORD.md s4).
 
     * hosted on a player ship -> an internal crew message from the actor
     * hosted elsewhere        -> a comms message from the host to the player ships

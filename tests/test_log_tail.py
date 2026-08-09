@@ -1,4 +1,4 @@
-"""The ambient log tail: newest FIRST, and only the last few (LOG_PANEL_PLAN.md).
+"""The ambient log tail: newest FIRST, and only the last few (mkdocs build/messages.md).
 
 Newest-first is not just simpler. The newest line stays in the SAME PLACE, so an ambient
 strip is read at a glance instead of tracking a line that moves - and it takes the strip

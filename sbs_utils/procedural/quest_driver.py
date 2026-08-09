@@ -152,7 +152,7 @@ def _quest_rep_holder(agent_id):
     quest would move DS1's own opinion of TSN - which no player can perceive and no
     author means. World stakes are world state (``Then:`` / ``Action:``). Silently
     ignoring the line would hide the mistake, so ``sbs lint`` rejects it at author time;
-    this is the runtime backstop. URGE_PLAN.md s7.1.
+    this is the runtime backstop. DESIGN_RECORD.md s4.
     """
     if agent_id == Agent.SHARED_ID:
         return True

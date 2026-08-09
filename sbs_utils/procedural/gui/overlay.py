@@ -4,7 +4,7 @@ An overlay is an independent absolute sub-region (a "slot") drawn above the page
 via ``draw_layer``, populated by a builder at present time (like the info panel's
 ``show`` callbacks), and updated out-of-band without a full page repaint.
 
-Architecture (see OVERLAY_PLAN.md):
+Architecture (see mkdocs cosmos/overlays.md):
 - Each slot is its OWN named sub-region (``$$ovl:<slot>``), not a section in the
   page's layout tree. Showing/clearing a slot brackets just that sub-region
   (send_gui_sub_region + clear ... complete) — no page ``swap_layout``, so no full
@@ -880,7 +880,7 @@ def overlay_hero(title, subtitle=None, image=None, face=None, ship=None, icon=No
 #
 # So the toast now writes to the ship's log instead of drawing. The ambient strip shows
 # the latest line where the toast used to appear, and the log tab keeps the history, so
-# the message is both more visible AND recoverable. See LOG_PANEL_PLAN.md.
+# the message is both more visible AND recoverable. See mkdocs build/messages.md.
 #
 # overlay_toast() and `toast <text>` (the AMD/quest directive) are DELIBERATELY still
 # callable - thirteen LM call sites and any number of authored directives use them, and

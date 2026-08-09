@@ -487,7 +487,7 @@ class TestDuplicateKeyIsAboutSiblings(unittest.TestCase):
 
 
 class UrgeLintTests(unittest.TestCase):
-    """Urge checks (URGE_PLAN.md phase 8). Every one is decidable from the file alone -
+    """Urge checks (DESIGN_RECORD.md s4). Every one is decidable from the file alone -
     the bound-quest check was tried and REMOVED because quest ids are routinely built at
     runtime, so it flagged correct shipped content."""
 

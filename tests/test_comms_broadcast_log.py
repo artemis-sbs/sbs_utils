@@ -1,4 +1,4 @@
-"""comms_broadcast -> log colors, through the REAL entry point (LOG_PANEL_PLAN.md).
+"""comms_broadcast -> log colors, through the REAL entry point (mkdocs build/messages.md).
 
 Two colour regressions came from testing below this line. The store and renderer were
 tested directly, so both passed while the actual path was broken:

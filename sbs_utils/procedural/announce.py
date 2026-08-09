@@ -30,7 +30,7 @@ level        overlay         durable twin
 ``status`` and ``minor`` used to draw a corner toast and keep NO record -- the one pair
 of levels that broke the house rule above, since the toast was carrying the information
 alone. They are now log lines: visible immediately in the ambient strip where the toast
-appeared, and still there afterwards. The toast is retired (LOG_PANEL_PLAN.md).
+appeared, and still there afterwards. The toast is retired (mkdocs build/messages.md).
 
 The overlay gets a **headline** (ASCII, clamped short); the twin gets the full
 text. Pass ``record=False`` to suppress the twin (it is already being sent another

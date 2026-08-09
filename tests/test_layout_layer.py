@@ -1,4 +1,4 @@
-"""The `layer:` style key and the draw_layer plumbing (GUI_LAYER_CLIP_PLAN.md Phase B).
+"""The `layer:` style key and the draw_layer plumbing (DESIGN_RECORD.md s6).
 
 The engine has no clip, so text that overruns its rect is drawn over its neighbours.
 Paint order plus an opaque fill is the only way to hide a spill that has already

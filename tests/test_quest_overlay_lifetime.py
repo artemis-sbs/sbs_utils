@@ -56,7 +56,7 @@ class DirectiveLifetimeTests(unittest.TestCase):
                                  f"{kind}: directive and announce disagree")
 
     def test_an_authored_toast_directive_never_reaches_the_overlay_layer(self):
-        """`On complete: toast ...` is a LOG line now (LOG_PANEL_PLAN.md). The directive
+        """`On complete: toast ...` is a LOG line now (mkdocs build/messages.md). The directive
         stays valid - authored content must not start failing - but the corner card that
         needed its own scrim and its own lifetime is gone, and with it the bug where an
         authored toast registered STICKY.

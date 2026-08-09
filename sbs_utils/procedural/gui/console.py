@@ -75,7 +75,7 @@ def gui_console(console, is_jump=False):
     # NOTE: no console declares `text_waterfall` any more. The engine widget could not
     # be styled from script - its background is fixed and too dark - so it is replaced
     # by gui_log_tail(), a text area the console owns showing the same traffic. See
-    # LOG_PANEL_PLAN.md. Removed HERE rather than hidden per console: this is where it
+    # mkdocs build/messages.md. Removed HERE rather than hidden per console: this is where it
     # was declared, and an engine widget cannot be un-declared once it has been sent.
     widgets = ""
     match console.lower():

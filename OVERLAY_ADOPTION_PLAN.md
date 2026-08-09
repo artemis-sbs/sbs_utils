@@ -9,7 +9,8 @@
 > `announce`, `announce_headline`, `announce_clear` and the traffic helpers, plus
 > `tests/test_announce.py`.
 
-Companion to [OVERLAY_PLAN.md](OVERLAY_PLAN.md) (which builds the system). This one
+Companion to the overlay system itself (built; documented in
+`mkdocs/docs/cosmos/overlays.md`). This one
 answers the *authoring* question: **given LM and HTBM as they exist today, what should
 become an overlay, what should stay, and what should become BOTH.**
 
@@ -168,7 +169,7 @@ history-keeping, engine-proven, reconnect-safe interaction for a transient one.
 
 ## Verification reality check — sequence the rollout around it
 
-Per [OVERLAY_PLAN.md](OVERLAY_PLAN.md), only **show + clear of the `hero` card** is
+Of the built system, only **show + clear of the `hero` card** is
 **engine-verified**. `toast`, `banner`, `lower_third`, `hud`, `letterbox`, `flash`,
 `choice`, `credits` are headless-green (suite ~1517) but **engine-pending**. Also
 engine-real, not mock-real: overlay stacking, the first-show repaint, and input over

@@ -12,7 +12,7 @@
 
 **Deferred.** Recorded now because it is the constraint that shaped the interior work, and
 because the survey in s5 should not have to be gathered twice. The active plan is
-`GRID_INTERIORS_PLAN.md`. Mechanics: `GRID_REFERENCE.md`.
+the interiors work, now done. Mechanics: `GRID_REFERENCE.md`.
 
 ---
 
@@ -39,7 +39,7 @@ Two rules that follow, and neither is negotiable:
 | **2. new ship, existing art** | reskins, variants | new | new | - | **yes** |
 | **3. new art** | art mods | new | new | files | **yes** + art placement (s6) |
 
-Tier 1 is what `GRID_INTERIORS_PLAN.md` delivers, and it is deliberately independent of
+Tier 1 is what the interiors work delivered, and it is deliberately independent of
 everything below.
 
 ---

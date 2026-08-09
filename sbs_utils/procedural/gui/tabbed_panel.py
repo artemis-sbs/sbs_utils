@@ -482,7 +482,7 @@ def gui_panel_ship_data_show(cid, left, top, width, height):
     """Ship data filling the panel.
 
     It used to give the bottom four lines to `text_waterfall` and shrink ship_data to
-    suit. That widget is gone (LOG_PANEL_PLAN.md) - it could not be styled from script -
+    suit. That widget is gone (mkdocs build/messages.md) - it could not be styled from script -
     and positioning it here brought it BACK on any console showing this tab, whatever the
     console's widget list said. ship_data now gets the whole panel.
     """

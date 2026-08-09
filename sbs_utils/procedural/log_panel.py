@@ -1,4 +1,4 @@
-"""Ship's log store and renderer - the data half of the Log Panel (LOG_PANEL_PLAN.md).
+"""Ship's log store and renderer - the data half of the Log Panel (mkdocs build/messages.md).
 
 The text waterfall became a dumping ground: everything wrote to one undifferentiated
 stream that nothing owned. This is its replacement's data layer - an append-only tagged

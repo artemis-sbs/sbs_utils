@@ -1,7 +1,7 @@
 # The ASCII grid format
 
 A public authoring format for ship interiors, requested as a **replacement for grid
-data**. Built in `GRID_INTERIORS_PLAN.md` phase 5, exercised by phase 6. Mechanics:
+data**. Built and exercised by the interiors work (done). Mechanics:
 `GRID_REFERENCE.md`.
 
 **Status: proposal.** New authoring syntax gets confirmed before it is built. s4 lists the
@@ -84,7 +84,7 @@ on. That converts the most common defect in the shipped data - `science_ship` at
 rooms one cell outside the hull - from a validator complaint into an unrepresentable
 state.
 
-**Where the outline comes from depends on context**, per `GRID_INTERIORS_PLAN.md` s1a: the
+**Where the outline comes from depends on context** (`GRID_REFERENCE.md` s2, s8): the
 engine's own `is_grid_point_open` when running in Cosmos, a PNG alpha decode in the mock
 and in offline tooling. Regenerating the outline when a mask changes is the same code.
 
@@ -206,7 +206,7 @@ fix rather than a tuning problem.
 is statistics, not design; a generator reproduces the averages and loses the reasons, and
 every ship comes out looking like the same ship.
 
-**The exception is systems-only** (`GRID_INTERIORS_PLAN.md` s3.2), which is genuinely
+**The exception is systems-only**, which is genuinely
 derivable rather than statistical - every node comes from shipData - and which *should*
 run at spawn from the engine's own hull map. That is a different thing wearing similar
 clothes: derivation, not imitation.

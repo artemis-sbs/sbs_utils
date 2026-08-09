@@ -420,8 +420,8 @@ class TestActionLint(unittest.TestCase):
 class DepartsAndSelfTests(unittest.TestCase):
     """`departs` on a NON-space actor, and `self` as an actor name.
 
-    Both surfaced when urges put `Action:` on lifeforms and stations (URGE_PLAN.md
-    phase 6): `delete_object` needs a SpaceObject, and a cast character is a bare Agent.
+    Both surfaced when urges put `Action:` on lifeforms and stations (DESIGN_RECORD.md s4):
+    `delete_object` needs a SpaceObject, and a cast character is a bare Agent.
     """
 
     def setUp(self):

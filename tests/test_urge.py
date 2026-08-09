@@ -1,4 +1,4 @@
-"""Urges: an actor's recurring want (URGE_PLAN.md phase 3).
+"""Urges: an actor's recurring want (DESIGN_RECORD.md s4).
 
 Covers the condition vocabulary, selection (cooldown / Until / Weight), the AMD reader,
 and the ticker's lifecycle guards.
@@ -235,7 +235,7 @@ class TickerTests(UrgeBase):
 
 
 class BudgetTests(UrgeBase):
-    """The speech budget (URGE_PLAN.md s5.2). Not an optimization - it is what decides
+    """The speech budget (DESIGN_RECORD.md s4). Not an optimization - it is what decides
     whether autonomous speech is pleasant or unbearable."""
 
     def setUp(self):
@@ -324,7 +324,7 @@ class BudgetTests(UrgeBase):
 class EscalationTests(UrgeBase):
     """`%` / `%%` / `%%%` are stages, and `Escalates: with deadline` takes the stage from
     the bound quest's remaining clock - so the drama curve IS the countdown that already
-    exists (URGE_PLAN.md s4.1)."""
+    exists (DESIGN_RECORD.md s4)."""
 
     def _staged(self, escalates, whenever="always"):
         a = make_agent()
@@ -471,7 +471,7 @@ class AmdEscalationTests(UrgeBase):
 
 
 class RealSpeechTests(unittest.TestCase):
-    """The REAL urge_speak, unmocked. URGE_PLAN.md s10.1: every phase here widens
+    """The REAL urge_speak, unmocked. DESIGN_RECORD.md s4: every phase here widens
     something a display path already touches, and the unit tests happily pass with a
     formatting bug sitting in it - so exercise the path, not just the parse."""
 
@@ -578,7 +578,7 @@ if __name__ == "__main__":
 
 
 class JitterTitleAndFaceTests(UrgeBase):
-    """The three things migrating a SHIPPED nagger needed (URGE_PLAN.md phase 7).
+    """The three things migrating a SHIPPED nagger needed (DESIGN_RECORD.md s4).
     LM's Florbin was `random.randint(180, 300)` with a "Passenger Request" card and his
     own portrait; a format that could not express those would have regressed him."""
 

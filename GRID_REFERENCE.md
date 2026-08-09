@@ -1,15 +1,16 @@
 # The engineering grid - verified mechanics
 
 Reference, not a plan. How ship interiors actually work, measured against the shipped
-data. The plans that act on this are `GRID_INTERIORS_PLAN.md`, `GRID_ASCII_FORMAT.md`
-and `SHIP_MOD_PLAN.md`.
+data. The format built on it is `GRID_ASCII_FORMAT.md`; the deferred mod
+packaging is `SHIP_MOD_PLAN.md`. (The interiors build plan is done and was deleted;
+its open probes are s9 below.)
 
 **s2 was wrong, and the engine said so.** The probe ran on 2026-08-04 and **refuted** the
 inferred mask rule: it reproduces the engine at only 0.79. The engine's hull map is
 narrower and vertically offset from anything derivable from the silhouette art. s2 now
 records what was tried and why it fails; the engine's own bitmap is the ground truth and
-is CAPTURED, not computed. This is the stop condition in `GRID_INTERIORS_PLAN.md` s6
-firing exactly as intended - before 200 rooms were authored against it.
+is CAPTURED, not computed. This is the interiors plan's stop condition firing exactly as
+intended - before 200 rooms were authored against it.
 
 ---
 
@@ -206,7 +207,7 @@ statistics, not design: it reproduces the averages and loses the reasons.
 
 ## 6. Known defects
 
-Fixed by `GRID_INTERIORS_PLAN.md`. Listed here because they are facts about how the
+Fixed by the interiors work. Listed here because they are facts about how the
 system behaves today.
 
 | # | Defect | Effect |
@@ -258,3 +259,35 @@ the bar sits at 0.97 rather than 1.0: the shipped data has real slop (`science_s
 
 **In the engine none of this runs.** `is_grid_point_open` is answered by the engine
 directly and is authoritative. The reconstruction exists so the mock is not blind.
+
+---
+
+## 9. Open engine probes
+
+Carried over from `GRID_INTERIORS_PLAN.md` when it was deleted (its build work is done;
+these questions are not). All of them write to a file - see
+`LM_TestRange/maps/test_hullmap_probe.mast` + `hmp_probe.py` for the pattern, and note that
+**headless a probe reports the mock's own reconstruction, not the engine** (s8). Only an
+engine run answers these.
+
+| # | Question | Status |
+|---|---|---|
+| 1 | Does `is_grid_point_open` match the bbox+flip rule of s2? | **ANSWERED** - the mock reconstruction agrees at 0.986 across 40 ships (s8) |
+| 2 | What does `symmetrical_flag` do? | **ANSWERED** - every hull is a perfect left-right mirror, all 63 with flag=1. The HULL is symmetric, the CONTENTS are not (17% of rooms have no counterpart), so layouts are authored full width and never half-mirrored |
+| 3 | `grid_scale` / `internalmapscale` - world units per cell? | **OPEN**. Affects hit mapping |
+| 4 | Can a ship have `warp_drive_active` and `jump_drive_active` at once? | **OPEN**. Blocks the refit below |
+
+## 10. Warp -> jump as a refit (unbuilt)
+
+Because drive type is derived from grid nodes (s4), a refit is **editing the map at
+runtime** - which would make the engineering map a surface mission state writes to rather
+than a static picture. Buy a jump drive at a black-market station and the interior visibly
+changes; damage it and you are sublight.
+
+`grid_set_layout(ship_id, "jump")` **does not exist**; this is a sketch, not an API.
+
+Two unknowns block it:
+
+- `grid_ai.mast` sets both blob flags when both node types are present, but its label logic
+  is a binary `"JUMP" if is_jump else "WARP"` with no third case.
+- Whether the engine honors both drives at once is probe 4 above.

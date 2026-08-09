@@ -86,7 +86,7 @@ def comms_broadcast(ids_or_obj, msg, color=None, category=None, severity=None) -
     ``send_message_to_client``.
 
     ALSO appends to the ship's log (``procedural.log_panel``), which is the waterfall's
-    replacement - see LOG_PANEL_PLAN.md. Both surfaces are written during the changeover
+    replacement - see mkdocs build/messages.md. Both surfaces are written during the changeover
     so they can be compared side by side; retiring the waterfall is then deleting the
     engine half of this function.
 

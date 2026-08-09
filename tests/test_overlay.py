@@ -331,7 +331,7 @@ class TestOverlayTransientAndBuilders(OverlayTestBase):
         return [a for a in self.calls("send_gui_text") if a[1] == tag]
 
     def test_the_toast_is_retired_and_draws_nothing(self):
-        """It writes to the ship's log now (LOG_PANEL_PLAN.md). Still CALLABLE - there
+        """It writes to the ship's log now (mkdocs build/messages.md). Still CALLABLE - there
         are call sites in the wild - it just no longer puts up a corner card."""
         from sbs_utils.tickdispatcher import TickDispatcher
         from sbs_utils.procedural.gui.overlay import overlay_toast

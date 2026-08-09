@@ -12,7 +12,8 @@
 
 `gui_list_box(..., reveal=True, hint=saved)` landed opt-in with the Control
 Gallery's index as its only caller (design and what the build changed:
-`LISTBOX_VIEW_PLAN.md`). This is the inventory of everywhere else it could go,
+the `gui_list_box` docstring and the cosmos-gui skill). This is the inventory of
+everywhere else it could go,
 **ranked**, with the engine check each one needs. One at a time.
 
 **Reminder of what the two parts do**, because it decides every row below:

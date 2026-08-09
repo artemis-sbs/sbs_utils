@@ -129,7 +129,7 @@ def kv(hint="kind=bio, range=medium"):
 
 def reward(hint="200 credits, 2 torpedoes, earns tsn honest +10"):
     """What a job pays: comma-separated credits / items / `earns <faction> <pole> <n>`.
-    A reputation clause is only meaningful on a player-held quest (URGE_PLAN.md s7.1)."""
+    A reputation clause is only meaningful on a player-held quest (DESIGN_RECORD.md s4)."""
     return _d("reward", hint=hint)
 
 def lines(hint="Kidnapper becomes a pirate"):
@@ -227,7 +227,7 @@ QUEST = {
     # ship" to any actor, so a station's resupply job is held by the station and its
     # deadline and penalty land on the world rather than on a passing crew. Resolved the
     # same way an `Action:` actor is (landmark key, then role); `shared` names the story
-    # agent. URGE_PLAN.md s7.2.
+    # agent. DESIGN_RECORD.md s4.
     "held by": field(text(hint="ds1"), key="held_by"),
     # `Reward:` over `Pays:`. Its partner is free - the failure side already exists in
     # code (quest_grant_penalty) with no authored word yet, and `Reward:`/`Penalty:`
@@ -447,7 +447,7 @@ SHOT = CUTSCENE     # one schema; "shot" and "cutscene" are two words for it
 
 # An URGE: what an actor keeps asking for. A condition, a cadence, a pool of lines in
 # the BODY, and optionally an `Action:`. It declares no stakes of its own - the
-# consequence belongs to the quest it watches (URGE_PLAN.md).
+# consequence belongs to the quest it watches (DESIGN_RECORD.md s4).
 URGE = {
     "actor": ref("node", hint="ds1  (a landmark key or a role)"),
     "whenever": text(hint="quest ds1_resupply active"),

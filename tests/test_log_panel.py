@@ -1,4 +1,4 @@
-"""Log Panel store + renderer (LOG_PANEL_PLAN.md).
+"""Log Panel store + renderer (mkdocs build/messages.md).
 
 The data half of the text waterfall's replacement. It is deliberately GUI-free so the
 part that decides what a player reads is testable at all - the waterfall never was.

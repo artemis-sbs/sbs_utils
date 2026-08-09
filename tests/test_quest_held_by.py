@@ -1,4 +1,4 @@
-"""A quest can be held by the world, not only by a crew (URGE_PLAN.md phase 2).
+"""A quest can be held by the world, not only by a crew (DESIGN_RECORD.md s4).
 
 `quest_add` always took agents rather than players, so granting a quest to a station was
 legal at the data layer - but every deadline/proximity watcher iterated
@@ -183,7 +183,7 @@ class HeldByGrantTests(unittest.TestCase):
         That is a PRE-EXISTING quirk (verified against the previous commit), not
         something this phase introduced, and it is pinned here so the next change to
         `quest_grant_amd` finds out immediately if it moves. Whether the drop should
-        warn is a separate question - see URGE_PLAN.md s10.2.
+        warn is a separate question - see DESIGN_RECORD.md s4.
         """
         ship = make_agent("__player__")
         QD.quest_grant_amd(ship.id, self._doc([

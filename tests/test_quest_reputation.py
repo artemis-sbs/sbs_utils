@@ -1,4 +1,4 @@
-"""Reputation as a quest consequence (URGE_PLAN.md phase 1).
+"""Reputation as a quest consequence (DESIGN_RECORD.md s4).
 
 `Pays:` / `Penalty:` can now shift standing, not just credits and items - but only where
 standing MEANS something. A world-held quest (a station, a side) carries no reputation:

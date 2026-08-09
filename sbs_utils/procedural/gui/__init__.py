@@ -88,7 +88,7 @@ from .gui import gui, gui_hide_choice, gui_screen_size, gui_screen_size_known, g
 from .tabbed_panel import gui_tabbed_panel, gui_panel_widget_show, gui_panel_widget_hide
 from .tabbed_panel import gui_panel_console_message, gui_panel_console_message_list,gui_panel_upgrade_list, gui_panel_console_message_tick
 from .tabbed_panel import gui_info_panel, gui_info_panel_send_message, gui_info_panel_add, gui_info_panel_remove
-# The ship's log as an info-panel tab (LOG_PANEL_PLAN.md) - the text waterfall's
+# The ship's log as an info-panel tab (mkdocs build/messages.md) - the text waterfall's
 # replacement. Exported here so a console can name it in gui_info_panel_add.
 from .log_panel_gui import (gui_panel_log, gui_panel_log_ship,
                             gui_panel_log_mission, gui_panel_log_tick,
