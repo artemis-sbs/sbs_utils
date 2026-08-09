@@ -5,11 +5,23 @@
 > `grav_tether/` addon registered in LM's `__lib__.json`, `missions/grav_tether_spike`, and
 > API docs at `api/procedural/grav_tether.md`.
 >
-> **The phase-3 fighter UI is absent** - no `nose` or `swing` reference anywhere in the LM
-> addon, so the one-button nose-cone pick and its synthesized popup are unbuilt. Phases 2
-> (tow/salvage), 4 (constraints) and 5 (growth) are untouched. The physics feel still needs a
-> real engine session: **the mock is blind to the native pull**, so a green headless run says
-> nothing about how this handles.
+> **Phase 3 is now BUILT.** The one-button fighter path is complete: nose-cone acquire,
+> act-at-once when the target is unambiguous, a synthesized `//popup/tether` when it is a
+> choice, Cycle target inside that popup, and toggle-to-release. `grav_tether/tether_fighter.py`
+> + the `//popup/tether` routes; the cockpit button (hangar) delegates to `lm_tether_press`
+> so the button and the menu cannot drift. 19/19 in ENGINE
+> (`LM_TestRange/maps/test_tether_fighter.mast`).
+>
+> (The earlier note here said the fighter UI was "absent - no nose or swing reference in the
+> LM addon". That was true of `grav_tether/` and wrong overall: the cockpit button and the
+> nose-cone pick already existed in the **hangar** addon. What was genuinely missing was the
+> popup half, which is what got built.)
+>
+> **Still open:** Phases 2 (tow/salvage), 4 (constraints) and 5 (growth) are untouched, and
+> the **feel** has never had a real session - reach, cone angle and swing radius are all
+> guesses. The mock now does simulate the pull well enough that the swing orbit was verified
+> in it, so a green headless run is no longer meaningless - but it still says nothing about
+> whether this is nice to fly.
 
 A beam that links two space objects and lets one drag, reel, lock, or swing the
 other. Gives **Weapons** (capital ships) and **pilots** (fighters) a new thing to
@@ -271,15 +283,29 @@ Two things the type stub / mock cannot answer, both requiring a real Cosmos sess
   (native or assisted per Phase 0). Settle toggle-vs-hold and the override question.
 - **Phase 4 — Constraints layer.** Mass gating, tug-of-war, power/heat, plus fighter
   recovery → docking.
-- **Phase 3 — Fighter swing: ORBIT WORKS (mock-verified), UI still to build.**
+- **Phase 3 — Fighter: DONE (engine-verified).** Orbit math + the one-button UI.
   `grav_tether_swing(anchor, ship, rope_len)` uses a **moving circle-point** pull: each
   tick it aims at the point on the rope_len circle at the ship's current bearing (radial-
   only correction), so it holds the radius and orbits instead of spiraling in. The first
   rope-toggle version spiraled (data harness: 758→663); the circle-point fix holds radius
   ~rope_len with the bearing advancing (verified in the mock now that it simulates the
-  pull). Player hull confirmed tractor-pullable. **Remaining:** the fighter one-button UI
-  (nose-cone acquire → synthesize popup), and a real-engine feel pass (now demoable in the
-  browser mock, not just the game).
+  pull). Player hull confirmed tractor-pullable.
+
+  The UI shipped as designed: **Path B**, so no select channel is consumed - the popup
+  event is fabricated, not clicked. One press releases if already tethered; otherwise it
+  nose-cone acquires and either acts at once (a rock is an anchor, a pod is a pickup -
+  confirming that is a menu for its own sake) or opens `//popup/tether` when the target is
+  genuinely a choice, e.g. a derelict that could be towed OR locked. **Cycle target** walks
+  outward through the cone and wraps. The tap-vs-hold split was NOT built: a GUI button
+  cannot distinguish them, and the act-or-ask rule covers the same ground.
+
+  One thing found on the way: the old inline call asked for `max_dist=8000` and silently
+  got ~4000, because `closest(max_dist=D)` narrows with a box of WIDTH D. `LM_TETHER_RANGE`
+  is now an honest 4000, which preserves exactly the old feel while meaning what it says -
+  raise it deliberately.
+
+  **Remaining:** a real-engine FEEL pass. Reach, cone half-angle and swing radius are
+  guesses that no test can judge.
 - **Phase 5 — Growth.** Enemy tethers, black-hole swing, rescue/escort quest hooks,
   admiral tug.
 
