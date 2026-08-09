@@ -24,6 +24,7 @@ from sbs_utils.mast.mast_node import MastDataObject
 # Addons this story declares, resolved to a source folder or a mastlib zip. Per-mission,
 # so it is on the reset ledger in handlerhooks.
 _DECLARED_ADDONS = []
+_ADDONS_RESOLVED = [False]   # 'we have looked', which [] alone cannot say
 
 
 def amd_declared_addons():
@@ -34,7 +35,11 @@ def amd_declared_addons():
     `addon_source_folder` so the two cannot drift - a second copy of that rule is exactly
     the class of bug this session spent its time on. Cached per mission; empty and
     harmless when there is no story.json (tests, tools)."""
-    if _DECLARED_ADDONS:
+    # The latch, not the list: an empty answer is a real answer. `if
+    # _DECLARED_ADDONS:` re-ran json.load(story.json) + an os.path.exists per lib
+    # on EVERY probe for a mission that declares none - which is every probe of a
+    # file that resolves in the mission folder.
+    if _ADDONS_RESOLVED[0]:
         return _DECLARED_ADDONS
     try:
         import json
@@ -43,6 +48,7 @@ def amd_declared_addons():
         script_dir = fs.get_script_dir()
         story = os.path.join(script_dir, "story.json")
         if not os.path.isfile(story):
+            _ADDONS_RESOLVED[0] = True
             return _DECLARED_ADDONS
         data = json.loads(amd_read_text(story)) or {}
         lib_dir = os.path.join(fs.get_missions_dir(), "__lib__")
@@ -51,6 +57,7 @@ def amd_declared_addons():
             path = src if src is not None else os.path.join(lib_dir, name)
             if os.path.exists(path):
                 _DECLARED_ADDONS.append(path)
+        _ADDONS_RESOLVED[0] = True
     except Exception:
         pass
     return _DECLARED_ADDONS
@@ -59,6 +66,8 @@ def amd_declared_addons():
 def amd_declared_addons_clear():
     """Drop the cached addon list - the per-mission reset."""
     _DECLARED_ADDONS.clear()
+    _ADDONS_RESOLVED[0] = False
+    amd_content_cache_clear()   # resolution answers were keyed against those addons
 
 
 def _read_from_addon(path, fname):
@@ -75,6 +84,43 @@ def _read_from_addon(path, fname):
                 return f.read().decode("utf-8")
     except Exception:
         return None
+
+
+# --- content-resolution cache ------------------------------------------------
+# `amd_read_content` probes three places and the third opens a MASTLIB ZIP per
+# attempt. `lore_document` reads every registered source on every Library tab open,
+# and `lore_register`/`lore_available` each ran the whole probe again through
+# `amd_has_content` just to answer yes/no.
+#
+# The KEY MUST INCLUDE THE SOURCE MAP. Step 2 resolves relative to the CALLING
+# label's addon, so the same `fname` legitimately resolves to different content from
+# two addons - keying on the name alone would be a correctness bug, not just a
+# sharper cache.
+_CONTENT_CACHE = {}
+
+
+def _content_key(fname):
+    # get_active_node_source_map() is the SAME accessor media_read_relative_file
+    # uses to resolve step 2. Anything else (a guessed attribute, a None fallback)
+    # collapses two addons onto one key, which is a wrong ANSWER, not a slower one.
+    try:
+        from sbs_utils.helpers import FrameContext
+        task = FrameContext.task
+        sm = task.get_active_node_source_map() if task is not None else None
+        if sm is not None:
+            return (fname, getattr(sm, "basedir", None), bool(getattr(sm, "is_lib", False)))
+    except Exception:
+        pass
+    # No running label: nothing to be relative to, so step 2 cannot resolve either.
+    return (fname, None, False)
+
+
+def amd_content_cache_clear():
+    _CONTENT_CACHE.clear()
+
+
+def amd_content_cache_size():
+    return len(_CONTENT_CACHE)
 
 
 def amd_read_content(fname, quiet=False):
@@ -95,6 +141,18 @@ def amd_read_content(fname, quiet=False):
     """
     if not fname:
         return None
+    key = _content_key(fname)
+    if key in _CONTENT_CACHE:
+        return _CONTENT_CACHE[key]
+    found = _amd_resolve_content(fname, quiet, key)
+    # A MISS is cached too - `amd_has_content` asks the same question per registered
+    # lore source on every tab open, and answering "no" used to cost a full probe
+    # including a zip open.
+    _CONTENT_CACHE[key] = found
+    return found
+
+
+def _amd_resolve_content(fname, quiet, key):
     mission_path = get_mission_dir_filename(fname)
     if mission_path is not None and os.path.isfile(mission_path):
         return amd_read_text(mission_path)
@@ -131,17 +189,10 @@ def amd_has_content(fname):
     right when something is trying to READ it and wrong when something is only asking
     whether to offer it at all.
     """
-    if not fname:
-        return False
-    mission_path = get_mission_dir_filename(fname)
-    if mission_path is not None and os.path.isfile(mission_path):
-        return True
-    try:
-        if media_read_relative_file(fname) is not None:
-            return True
-    except Exception:
-        pass
-    return any(_read_from_addon(p, fname) is not None for p in amd_declared_addons())
+    # ONE probe, shared with amd_read_content and memoized with it. This used to
+    # repeat the entire three-step resolution - opening the mastlib zip again - just
+    # to answer yes/no, once per registered lore source, on every tab open.
+    return amd_read_content(fname, quiet=True) is not None
 
 
 def amd_document(content, data_parser=None, title="Document"):

@@ -8,6 +8,7 @@ The tracking of quests are done by outside logic
 When a quest is activated or completed a signal is sent
 
 """
+from collections import OrderedDict as _OrderedDict
 from sbs_utils.procedural.query import to_id_list, to_object, to_id
 from sbs_utils.procedural.signal import signal_emit
 from sbs_utils.mast.mast_node import MastDataObject
@@ -1027,6 +1028,43 @@ def _amd_render_tree_links(toc):
     collect(toc, [])
     apply(toc)
 
+# --- parsed-document cache --------------------------------------------------
+# Parsing is linear and cheap (~3.4 us/line after the schema memo), but nothing
+# cached the RESULT - so `//gui/tab/library` re-read and re-parsed every registered
+# .amd on every tab open, `help_tab` did the same, and a hail re-parsed its scene.
+# The cost was never one parse; it was the same parse over and over.
+#
+# Every caller gets a private CLONE. That is not defensive habit, it is required:
+# `amd_doc.amd_splice` EXTENDS a section's children in place, and `quest_grant_amd`
+# hands `n.get("data")` to `quest_add` as the quest's LIVE dict, which
+# `_quest_swap_in_armed` then pops and updates. Handing out a shared tree would let
+# one mission's granted quest rewrite the document another console is reading.
+# Cloning keeps the contract exactly as it was: every call returns a fresh tree.
+_AMD_DOC_CACHE = _OrderedDict()
+_AMD_DOC_CACHE_MAX = 64
+
+
+def _amd_clone(v):
+    """A structural copy of a parsed tree. Hand-rolled rather than copy.deepcopy -
+    the tree is plain dict/list/scalar, and deepcopy's memo table would cost more
+    than the parse this is saving."""
+    t = type(v)
+    if t is dict:
+        return {k: _amd_clone(x) for k, x in v.items()}
+    if t is list:
+        return [_amd_clone(x) for x in v]
+    return v            # str/int/float/bool/None - immutable, nothing else appears
+
+
+def amd_doc_cache_clear():
+    """Per-mission: the next mission's files are different files."""
+    _AMD_DOC_CACHE.clear()
+
+
+def amd_doc_cache_size():
+    return len(_AMD_DOC_CACHE)
+
+
 def document_get_amd_file(file_path, root_display_text="", strip_comments=True, content=None, data_parser=None, allow_bare_headings=False):
     """Parse an AMD markdown file into a nested quest/document structure.
 
@@ -1059,8 +1097,36 @@ def document_get_amd_file(file_path, root_display_text="", strip_comments=True, 
         items = document_flatten(doc)
     """
     from sbs_utils.procedural import amd_error as _amd_err
+    from sbs_utils.procedural.amd import amd_read_text
+
+    # Resolve the FILE to text first, so one cache key covers both doors into the
+    # parser and an edited file is a different key rather than a stale hit. A failed
+    # read falls through with content=None and is reported by the parser, so there
+    # is still exactly one error path.
+    if content is None and file_path is not None:
+        try:
+            content = amd_read_text(file_path)
+        except Exception:
+            content = None
+
+    cacheable = content is not None
+    key = None
+    if cacheable:
+        key = (file_path, root_display_text, strip_comments, allow_bare_headings,
+               data_parser, content)
+        hit = _AMD_DOC_CACHE.get(key)
+        if hit is not None:
+            _AMD_DOC_CACHE.move_to_end(key)
+            return _amd_clone(hit)
+
     try:
-        return _document_get_amd_file(file_path, root_display_text, strip_comments, content, data_parser, allow_bare_headings)
+        tree = _document_get_amd_file(file_path, root_display_text, strip_comments, content, data_parser, allow_bare_headings)
+        if cacheable:
+            _AMD_DOC_CACHE[key] = tree
+            while len(_AMD_DOC_CACHE) > _AMD_DOC_CACHE_MAX:
+                _AMD_DOC_CACHE.popitem(last=False)
+            return _amd_clone(tree)
+        return tree
     except Exception as e:
         # The except STAYS: this is called from GUI build code, and a raise inside
         # a present takes the frame down for everyone. What changes is that the

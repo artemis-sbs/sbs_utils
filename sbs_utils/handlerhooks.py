@@ -165,7 +165,9 @@ def reset_mission_state():
     amd_cutscene_clear()  # declared scenes/rundowns AND the cast bindings
     landmarks_registry_clear()  # declared landmark records an `Action:` line places by name
     lore_clear()                # Library sources registered by addons
-    amd_declared_addons_clear()  # cached story.json addon list
+    amd_declared_addons_clear()  # cached story.json addon list (+ the resolution cache)
+    amd_doc_cache_clear()   # parsed .amd trees. Keyed on content, so a stale entry is
+                            # not wrong so much as unbounded across missions.
     overlay_amd_clear()   # DECLARED overlay records read out of the mission's .amd.
                           # Distinct from `overlay_live_clear()` above, which drops the
                           # live cards: this is the catalogue they are looked up in, and
@@ -301,7 +303,8 @@ register_reset_state("cutscene cast",     lambda: len(CUTSCENE_CAST))
 from .procedural.amd_landmarks import _RECORDS as _AMD_LANDMARKS, landmarks_registry_clear
 register_reset_state("amd landmarks",     lambda: len(_AMD_LANDMARKS))
 from .procedural.amd_doc import (lore_clear, lore_sources,
-                                 amd_declared_addons_clear, _DECLARED_ADDONS)
+                                 amd_declared_addons_clear, _DECLARED_ADDONS,
+                                 amd_content_cache_size)
 register_reset_state("lore sources",      lambda: len(lore_sources()))
 from .procedural.terrain import terrain_sow_pending
 register_reset_state("terrain sow",       terrain_sow_pending)
@@ -327,6 +330,9 @@ register_reset_state("conformance",       conformance_error_count)
 register_reset_state("amd declared addons", lambda: len(_DECLARED_ADDONS))
 from .procedural.amd_overlay import overlay_amd_clear, overlay_amd_count
 register_reset_state("amd overlays",      overlay_amd_count)
+from .procedural.quest import amd_doc_cache_clear, amd_doc_cache_size
+register_reset_state("amd doc cache",     amd_doc_cache_size)
+register_reset_state("amd content cache", amd_content_cache_size)
 from .procedural.quest import quest_consoles_clear, quest_consoles_count
 register_reset_state("quest consoles",    quest_consoles_count)
 
