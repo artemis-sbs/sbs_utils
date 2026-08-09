@@ -491,7 +491,7 @@ Comms fires automatically when a player selects an entity in the Cosmos engine, 
 ```
 //comms if has_roles(COMMS_ORIGIN_ID, "__player__")
     + "Hail":
-        << [green] "Hail"
+        <<[green] "Hail"
             % Greetings, commander.
             % How can I help you?
     + "Send Message" //comms/ship_to_ship
@@ -510,12 +510,12 @@ Comms fires automatically when a player selects an entity in the Cosmos engine, 
 `<<` = receive (incoming, NPC speaking). `>>` = transmit (outgoing, player speaking).
 
 ```
-<< [green] "Title"
+<<[green] "Title"
     % First possible line
     % Second possible line     # system picks one randomly
     % Third possible line
 
-<< [$raider] "Hostile Hail"
+<<[$raider] "Hostile Hail"
     % Go climb a tree!
     % You can't win!
 
@@ -525,6 +525,19 @@ Comms fires automatically when a player selects an entity in the Cosmos engine, 
 
 `%` lines are random dialogue options — one is picked at random each time.
 
+**Three syntax rules the examples above are easy to get wrong**, each measured against the
+compiler rather than inferred:
+
+- **No space between `<<`/`>>` and `[format]`.** `comms_message.py`'s `FORMAT_EXP` is
+  `(\[(?P<format>...)\])?` with no leading whitespace, so `<< [green] "Hi"` matches only the
+  bare `<<`, leaving `[green] "Hi"` to fail as *"Unrecognized syntax"* on its own line.
+  Write `<<[green] "Hi"`.
+- **No space after `=$`.** The rule is `\=\$(?P<name>\w+)`, so `=$ raider red, white` is
+  `invalid syntax (<string>, line 1)`. Write `=$raider red, white`.
+- **A `%` line cannot wrap.** MAST parses line by line, so an indented continuation of a long
+  `%` line is an orphan and fails as *"Unrecognized syntax"* reported against the
+  CONTINUATION, not against the `%`. Keep each `%` on one line however long it gets.
+
 Other types: `<all>` (broadcast), `<scan>` (science scan result), `()` (speech bubble).
 
 ### Color style variables
@@ -532,10 +545,10 @@ Other types: `<all>` (broadcast), `<scan>` (science scan result), `()` (speech b
 `=$` declares a named color/style for use in comms dialogue:
 
 ```
-=$ raider red, white
-=$ friendly green
+=$raider red, white
+=$friendly green
 
-<< [$raider] "Hail"
+<<[$raider] "Hail"
     % Hostile message here
 ```
 
