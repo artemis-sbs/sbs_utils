@@ -148,11 +148,8 @@ def _cond_quest(actor_id, operand):
     if state is None:
         _urge_log(f"{want!r} is not a quest state: idle/active/complete/failed/secret")
         return False
-    from sbs_utils.procedural.quest_driver import _quest_holders
-    for holder in _quest_holders():
-        if int(quest_get_state(holder, qid) or 0) == int(state):
-            return True
-    return False
+    from sbs_utils.procedural.quest_driver import quest_any_holder_state
+    return quest_any_holder_state(qid, state)
 
 
 def _cond_has_role(actor_id, operand):

@@ -560,6 +560,17 @@ def _collect_active_quests(children, prefix, out):
             _collect_active_quests(sub, path + "/", out)
 
 
+# `_active_quests` is called by four tick functions every 2 sim-seconds, per holder,
+# and each call walks the agent's ENTIRE tree - COMPLETE, FAILED and SECRET nodes
+# included - to build a fresh list of the active ones. On a tick where nothing
+# changed state, that is four identical walks. Keyed on the generation, so it is
+# exactly as fresh as the tree.
+_ACTIVE_CACHE = {}
+_ACTIVE_GEN = [-1]
+_ANY_STATE_CACHE = {}
+_ANY_STATE_GEN = [-1]
+
+
 def _quest_holders():
     """Every agent that actually holds a quest tree.
 
@@ -585,12 +596,48 @@ def _quest_holders():
 def _active_quests(agent_id):
     """(quest_id, data) for each ACTIVE quest on the agent, INCLUDING nested arc steps
     (quest_id is the full '/'-path). Every on_* trigger handler iterates this."""
+    from sbs_utils.procedural.quest import quest_generation
+    gen = quest_generation()
+    if _ACTIVE_GEN[0] != gen:
+        # Wholesale, not per-agent: it also means the cache never holds a dead
+        # agent's entry for more than one generation.
+        _ACTIVE_CACHE.clear()
+        _ACTIVE_GEN[0] = gen
+    hit = _ACTIVE_CACHE.get(agent_id)
+    if hit is not None:
+        return hit
     tree = quest_agent_quests(agent_id)
-    if tree is None:
-        return []
     out = []
-    _collect_active_quests(tree.get("children", {}), "", out)
+    if tree is not None:
+        _collect_active_quests(tree.get("children", {}), "", out)
+    # The list is now SHARED between callers. That is safe for the same reason it was
+    # safe before: callers mutate quest STATE, not this list, and any such write bumps
+    # the generation and invalidates on the next call. (_quest_holders returns a
+    # list(...) copy of the live set for the mirror-image reason - see its docstring.)
+    _ACTIVE_CACHE[agent_id] = out
     return out
+
+
+def quest_any_holder_state(qid, state):
+    """True while ANY quest holder has `qid` in `state`.
+
+    Behind the same generation guard as _active_quests. The urge system asks this per
+    actor per urge on every pass, and it grows with the holder set - Open Universe
+    makes every station with a waiting passenger a quest holder, so the scan grows
+    with the number of populated systems.
+    """
+    from sbs_utils.procedural.quest import quest_generation, quest_get_state
+    gen = quest_generation()
+    if _ANY_STATE_GEN[0] != gen:
+        _ANY_STATE_CACHE.clear()
+        _ANY_STATE_GEN[0] = gen
+    key = (qid, int(state))
+    hit = _ANY_STATE_CACHE.get(key)
+    if hit is None:
+        hit = any(int(quest_get_state(h, qid) or 0) == int(state)
+                  for h in _quest_holders())
+        _ANY_STATE_CACHE[key] = hit
+    return hit
 
 
 def _advance_count(agent_id, qid, data, need):
@@ -1188,16 +1235,16 @@ def quest_tab_state_sig(client_id, ship_id):
     Drive an `on change` off this to repaint the Quests tab when a quest's status changes
     from ANYWHERE - a kill/scan/dock completing it, a timer failing it, or another console
     accepting it - not just from this console's own buttons."""
-    sources = [Agent.SHARED_ID]
-    if client_id and client_id != 0:
-        sources.append(client_id)
-    if ship_id and ship_id != 0:
-        sources.append(ship_id)
-    parts = []
-    for aid in sources:
-        tree = quest_agent_quests(aid)
-        _quest_sig_walk(tree.get("children") if tree is not None else None, aid, parts)
-    return "|".join(parts)
+    # O(1). This used to walk all three trees and join every node's state, and it is
+    # driven by an `on change` in quest_tab.mast - so it ran EVERY FRAME on every
+    # console with the Quests tab open, growing with TOTAL quest nodes rather than
+    # active ones. Peacetime Remastered at 8 ships is ~270 nodes per console per frame.
+    #
+    # The trade, stated plainly: a quest changing on a tree this console does not
+    # display now costs one extra repaint. A repaint is idempotent; the walk was not
+    # free. (_quest_sig_walk is kept below as a debug helper.)
+    from sbs_utils.procedural.quest import quest_generation
+    return f"{client_id}:{ship_id}:{quest_generation()}"
 
 
 def quest_tab_accept(item):

@@ -49,6 +49,28 @@ def quest_agent_quests(agent_id):
         return None
     return agent.get_inventory_value("__quests__")
 
+# --- change generation -------------------------------------------------------
+# One counter, bumped by the four places that can change a quest tree. It exists
+# because the SHAPE of "has anything changed?" was a full walk: quest_tab_state_sig
+# walked THREE trees and built a join-string of every node, and it is driven by an
+# `on change` in quest_tab.mast - so it ran EVERY FRAME on every console with the
+# Quests tab open, scaling with total nodes rather than active ones.
+#
+# Deliberately NOT per-mission state and never reset. A cache keyed on a counter
+# that restarts at 0 can serve an entry from before the restart.
+_QUEST_GEN = [0]
+
+
+def quest_generation():
+    """A number that changes whenever any quest tree does. Drive an `on change` off
+    this instead of walking the trees."""
+    return _QUEST_GEN[0]
+
+
+def _quest_touch():
+    _QUEST_GEN[0] += 1
+
+
 def quest_transfer(from_agent_id, to_agent_id, quest_id):
     """Move a quest from one agent to another.
 
@@ -73,6 +95,7 @@ def quest_transfer(from_agent_id, to_agent_id, quest_id):
         if quests is None:
             return False
         quests.get("children")[child_id] = quest
+        _quest_touch()
         return True
     return False
 
@@ -226,6 +249,8 @@ def quest_remove(agent, quest_id):
     if quests is not None and child_id is not None:
         children = quests.get("children", {})
         child = children.pop(child_id, None)
+        if child is not None:
+            _quest_touch()
         return child
     return None
 
@@ -297,6 +322,7 @@ def quest_add(agents, quest_id, display_text, description, state=QuestState.IDLE
             children = {}
             quests["children"] = children
         children[child_id] =  quest
+        _quest_touch()
 
 
 def quest_activate(agents, quest_id):
@@ -549,6 +575,8 @@ def quest_set_key(agent, quest_id, key, value):
     if quest is None:
         return
     setattr(quest, key, value)
+    # The one that matters: every state write in quest_driver comes through here.
+    _quest_touch()
 
 def quest_add_yaml(agents, yaml_text):
     """Parse a YAML string and add all quests defined in it to one or more agents.
