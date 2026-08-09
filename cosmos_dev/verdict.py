@@ -31,6 +31,7 @@ class MastVerdict:
         self.errors: list = []   # [{source, message, label}]
         self._prev = None
         self._prev_compile = None
+        self._prev_amd = None
 
     # -- lifecycle ---------------------------------------------------------
     def install(self) -> "MastVerdict":
@@ -38,13 +39,22 @@ class MastVerdict:
         MastScheduler.on_runtime_error = self._record
         self._prev_compile = Mast.on_compile_error
         Mast.on_compile_error = self._record_compile
+        # Third seam, same shape as the other two. Without it a broken .amd could
+        # not fail anything: .amd has no compile step, so a document that does not
+        # parse rendered an empty panel and the run still reported PASS.
+        from sbs_utils.procedural import amd_error as _amd
+        self._prev_amd = _amd.on_amd_error
+        _amd.on_amd_error = self._record_amd
         return self
 
     def uninstall(self) -> None:
         MastScheduler.on_runtime_error = self._prev
         Mast.on_compile_error = self._prev_compile
+        from sbs_utils.procedural import amd_error as _amd
+        _amd.on_amd_error = self._prev_amd
         self._prev = None
         self._prev_compile = None
+        self._prev_amd = None
 
     def reset(self) -> None:
         self.errors.clear()
@@ -69,6 +79,17 @@ class MastVerdict:
         else:
             msg = str(errors)
         self.errors.append({"source": "compile", "message": msg, "label": file_name})
+
+    def _record_amd(self, message, file_path=None, line=None, severity="error") -> None:
+        """Record an AMD failure (via the amd_error.on_amd_error seam).
+
+        ERRORS only. AMD warnings are a linter concern - the shipped corpus has
+        legitimate ones - and counting them here would make every real mission fail
+        its own conformance run."""
+        if severity != "error":
+            return
+        where = f"{file_path}:{line}" if (file_path and line) else (file_path or None)
+        self.errors.append({"source": "amd", "message": str(message), "label": where})
 
     def record_exception(self, exc, where=None) -> None:
         """Record a Python exception the runner caught outside MAST (e.g. in an

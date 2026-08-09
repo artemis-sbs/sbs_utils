@@ -725,6 +725,7 @@ def _amd_slug(text):
 def _document_get_amd_file(file_path, root_display_text="", strip_comments=True, content=None, data_parser=None, allow_bare_headings=False):
     from sbs_utils.procedural.amd import (amd_parse_facts, amd_kind_line, KIND_KEY,
                                           FenceScanner, RE_HEADING, amd_read_text,
+                                          AmdErrors,
                                           BoneyardScanner, amd_body_synopsis)
     from sbs_utils.procedural.amd_schema import amd_resolve_kind
 
@@ -751,11 +752,16 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
             # identically. See amd_read_text for why the decode is shared.
             lines = amd_read_text(file_path).splitlines(True)
         except Exception as e:
-            print("no file")
+            # Was `print("no file")`. A document that does not exist is the single
+            # most common AMD failure and it used to leave nothing behind but a
+            # word on stdout and an empty panel.
+            from sbs_utils.procedural.amd_error import amd_error
+            amd_error(f"file not found or unreadable: {e}", file_path)
 
     scanner = FenceScanner()
     boneyard = BoneyardScanner()
     data_lines = []
+    fence_start_line = 0   # file line the open `---` sat on, for error offsets
     for i, line in enumerate(lines):
         # Cut text (`/* ... */`) comes out before anything else looks at the line -
         # the SAME pre-pass amd_core runs, so the game and the tooling cannot
@@ -771,6 +777,10 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
         action = scanner.feed(line, i + 1)
         if action == "open":
             data_lines = []
+            # The fence parser numbers lines within the BLOCK; remember where the
+            # block starts so a diagnostic points at line 147 of the file rather
+            # than line 3 of something the author cannot see.
+            fence_start_line = i + 1
             continue
         if action == "data":
             data_lines.append(line)
@@ -800,7 +810,17 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
                     own_kind=amd_kind_line(block), ancestors=ancestors,
                     field_labels=[lab for lab, _v in amd_fact_lines(block)],
                     own_section=section.get("key"))
-                parsed = amd_parse_facts(block, archetype=section["kind"])
+                # ASK for the parse problems. amd_core (the linter) has always
+                # passed a collector here; the runtime passed none, so `_err` returned
+                # immediately and every fence error was discarded - a mistyped field
+                # simply did not exist, with nothing said anywhere.
+                block_errors = AmdErrors(line_offset=fence_start_line)
+                parsed = amd_parse_facts(block, archetype=section["kind"],
+                                         errors=block_errors)
+                if block_errors.items:
+                    from sbs_utils.procedural.amd_error import amd_warn
+                    for _line, _msg in block_errors.items:
+                        amd_warn(_msg, file_path, _line)
             if isinstance(parsed, dict):
                 merged = section.get("data") or {}
                 merged.update(parsed)
@@ -1026,11 +1046,37 @@ def document_get_amd_file(file_path, root_display_text="", strip_comments=True, 
         doc = document_get_amd_file("consoles/quest.amd", "Quests")
         items = document_flatten(doc)
     """
+    from sbs_utils.procedural import amd_error as _amd_err
     try:
         return _document_get_amd_file(file_path, root_display_text, strip_comments, content, data_parser, allow_bare_headings)
     except Exception as e:
-        return {"key": "__root__", "file_path": file_path,
-            "children": [], "description":"", "display_text": e}
+        # The except STAYS: this is called from GUI build code, and a raise inside
+        # a present takes the frame down for everyone. What changes is that the
+        # failure now says so. It used to return a tree whose display_text was the
+        # EXCEPTION OBJECT and whose children were empty - so the panel rendered
+        # blank, nothing was logged, and a headless run still reported PASS.
+        _amd_err.amd_error(f"could not parse document: {e}", file_path)
+        if _amd_err.strict:
+            raise
+        return _amd_failed_tree(file_path, root_display_text, e)
+
+
+def _amd_error_body(where, err):
+    """The body text of the stub record: what failed, and where."""
+    nl = chr(10)
+    return str(where) + nl + nl + str(err) + nl
+
+
+def _amd_failed_tree(file_path, root_display_text, err):
+    """A document that says why it is empty, in the place the real one would have
+    rendered. Better than an error screen for this: a broken lore file in a tab
+    nobody has open must not pause the sim and take over console 0."""
+    where = file_path or "this document"
+    return {"key": "__root__", "file_path": file_path, "children": [
+                {"key": "__amd_error__", "display_text": "Could not read this document",
+                 "description": _amd_error_body(where, err),
+                 "children": [], "state": 0}],
+            "description": "", "display_text": root_display_text or "Unreadable document"}
 
 # --- Shared quest-log GUI ----------------------------------------------------
 # One renderer for BOTH the in-game quest tab and the end-game results tab, so the

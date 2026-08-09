@@ -77,7 +77,7 @@ def _read_from_addon(path, fname):
         return None
 
 
-def amd_read_content(fname):
+def amd_read_content(fname, quiet=False):
     """Read an AMD file (or an include) as text, in three steps:
 
     1. the CONSUMER MISSION folder, so a mission built on a library supplies its own;
@@ -101,10 +101,20 @@ def amd_read_content(fname):
     found = media_read_relative_file(fname)
     if found is not None:
         return found
-    for path in amd_declared_addons():
+    addons = amd_declared_addons()
+    for path in addons:
         found = _read_from_addon(path, fname)
         if found is not None:
             return found
+    # Nothing resolved. This used to return None in silence, and the None became an
+    # empty document - a flat, contentless page that looks broken while saying
+    # nothing about why. Name all three places that were tried, because "which of
+    # them did you mean?" is the actual question an author has here.
+    if not quiet:
+        from sbs_utils.procedural.amd_error import amd_error
+        amd_error(f"{fname!r} not found: not in the mission folder, not beside the "
+                  f"calling label, and not in any of the {len(addons)} declared addon(s)",
+                  fname)
     return None
 
 
