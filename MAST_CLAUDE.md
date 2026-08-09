@@ -361,6 +361,36 @@ import terrain_prefabs.mast
 
 `import filename.mast` looks for that file relative to the addon folder.
 
+### Prefix every function an addon defines
+
+Every top-level `def` in an addon's `.py` becomes a **MAST global in one flat,
+mission-wide namespace**, and `MastGlobals.register_mission_functions` assigns into it
+**unconditionally** - no warning, last loaded wins. Two addons that both define
+`market_sell_price` therefore compile clean and blow up at **runtime**, in whichever
+addon *lost*, with a signature error against a line that looks correct. Load order is
+non-deterministic, so it is intermittent.
+
+**Prefix every module-level function with the addon's name** - the `hangar` addon is the
+model: `hangar_get_stats`, `hangar_launch_craft`, private `_hangar_bump`. Reserve an
+unprefixed concept name (`market_*`) for the ONE addon that owns that concept, and never
+let two co-loaded addons share a prefix (`fleet_` was claimed by both LM `fleets` and OU
+`admiral` until the latter became `admiralty_fleet_*`).
+
+Three things that surprise people:
+
+- **A leading underscore is not private.** `_dist` is exported exactly like `dist`.
+- **Only functions are exported** - a module-level list/dict/constant is never a MAST
+  global, so every `.mast` touchpoint must be an accessor function.
+- **A re-export is not exported.** `from sbs_utils... import foo` keeps the library's
+  `__module__`, so it is not registered - which also makes "delete the local copy and
+  import the library one" the clean fix for a function that shadows a library global.
+
+`sbs lint` enforces this (`namespace_lint.py`): `ns-duplicate-function` and
+`ns-shadows-library` are errors, `ns-mast-var-collision` catches the
+`Variable assignment to a keyword` compile error that silently empties a whole story,
+and `ns-generic-name` warns on bare `get_`/`save_`/`build_` names. Suppress a
+deliberate one with `# lint: allow ns-generic-name`.
+
 ### Addon dependencies (`provides` / `requires` / `suggests`)
 
 Addons share one global MAST namespace and load in a **non-deterministic order**, so
