@@ -960,10 +960,12 @@ def hail_where_set(client_id, where):
         if want_main:
             _hail_presentation_apply(ship_id)
         else:
-            # The band is the conversation on an orbit shot, so it has to go with the
-            # screen - clearing only the SHOT would leave a name plate floating over a
-            # view nobody asked for.
-            _hail_band_drop(ship_id)
+            # Everything the hail put on the main screen goes with it. Routed through
+            # _hail_presentation_apply rather than dropping the band by hand: it already
+            # knows that "not on the main screen" means BOTH the band and the
+            # full-screen overlay come down, and doing it here by hand is what left the
+            # conversation on screen after the dial was set back to Off.
+            _hail_presentation_apply(ship_id)
             if _hail_get(ship_id, KEY_TOOK_VIEWER, False):
                 set_inventory_value(ship_id, KEY_TOOK_VIEWER, False)
                 try:

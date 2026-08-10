@@ -705,13 +705,20 @@ class OrbitBandTests(HailTestCase):
         self.shown, self.cleared = [], []
         self._show = hail_gui.hail_band_show
         self._clear = hail_gui.hail_band_clear
+        self.screen_shown, self.screen_cleared = [], []
+        self._sshow = hail_gui.hail_screen_show
+        self._sclear = hail_gui.hail_screen_clear
         hail_gui.hail_band_show = lambda ship, **kw: self.shown.append(ship) or True
         hail_gui.hail_band_clear = lambda ship, **kw: self.cleared.append(ship) or True
+        hail_gui.hail_screen_show = lambda ship, **kw: self.screen_shown.append(ship) or True
+        hail_gui.hail_screen_clear = lambda ship, **kw: self.screen_cleared.append(ship) or True
         self.main = _console(C_MAIN, self.ship, "console", "mainscreen")
 
     def tearDown(self):
         self.gui.hail_band_show = self._show
         self.gui.hail_band_clear = self._clear
+        self.gui.hail_screen_show = self._sshow
+        self.gui.hail_screen_clear = self._sclear
         super().tearDown()
 
     def _orbit(self):
@@ -750,6 +757,16 @@ class OrbitBandTests(HailTestCase):
         self.cleared.clear()
         H.hail_where_set(self.comms, "off")
         self.assertIn(self.ship, self.cleared)
+
+    def test_turning_the_dial_OFF_takes_the_conversation_off_the_screen(self):
+        # The dial cleared the orbit band by hand and left the full-screen overlay up,
+        # so a portrait stayed on the main screen after it was switched off.
+        H.hail_where_set(self.comms, "main")
+        self._offer(presentation="portrait")
+        H.hail_accept(self.ship)
+        self.cleared.clear()
+        H.hail_where_set(self.comms, "off")
+        self.assertIn(self.ship, self.screen_cleared)
 
     def test_a_late_resolved_subject_starts_no_shot(self):
         # A role or a cast name cannot be filmed until something binds it; the renderer

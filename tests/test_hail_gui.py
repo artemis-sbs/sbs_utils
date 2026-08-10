@@ -199,14 +199,14 @@ class HailListTests(HailViewBase):
         self.offer()                       # two beats
         H.hail_accept(self.ship)
         self.assertEqual([r["label"] for r in V.hail_rows(self.ship, self.comms)],
-                         ["Continue", "Back"])
+                         ["Back", "Continue"])
 
     def test_continue_gives_way_to_the_answers_on_the_last_beat(self):
         self.offer()
         H.hail_accept(self.ship)
         H.hail_advance(self.ship)
         self.assertEqual([r["hail_kind"] for r in V.hail_rows(self.ship, self.comms)],
-                         ["answer", "answer", "back"])
+                         ["back", "answer", "answer"])
 
     def test_a_console_that_may_not_answer_gets_no_list(self):
         self.open_to_choices()
@@ -226,6 +226,24 @@ class HailListTests(HailViewBase):
         for row in V.hail_rows(self.ship, self.comms):
             for key in row:
                 self.assertTrue(key in ("label",) or key.startswith("hail_"), key)
+
+    def test_Back_is_FIRST_so_it_never_moves(self):
+        # The answers beneath it change from scene to scene; Back must not.
+        self.open_to_choices()
+        self.assertEqual(V.hail_rows(self.ship, self.comms)[0]["hail_kind"], "back")
+
+    def test_an_item_does_not_open_a_row_of_its_own(self):
+        # The listbox already opens one per item. A second made every entry two rows
+        # tall - the text, then an empty row - which reads as a gap between choices.
+        from sbs_utils.procedural.gui import row as ROWMOD
+        seen = []
+        saved = ROWMOD.gui_row
+        ROWMOD.gui_row = lambda style=None: seen.append(style)
+        try:
+            V._hail_row({"label": "Take the case"})
+        finally:
+            ROWMOD.gui_row = saved
+        self.assertEqual(seen, [])
 
     def test_the_list_opens_its_OWN_row(self):
         # A listbox joins whatever row is open, so without this it lands beside the

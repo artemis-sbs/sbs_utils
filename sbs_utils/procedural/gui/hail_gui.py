@@ -134,10 +134,13 @@ def _hail_view_press(event, item):
 
 # --- the answer strip -------------------------------------------------------
 def _hail_row(entry):
-    """One row of the hail list. The row's own text; the listbox owns the frame."""
-    from .row import gui_row
+    """One row of the hail list.
+
+    NO `gui_row` here. The listbox already opens a row for each item, so adding one
+    made every entry two rows tall - the text, then an empty row - which read as a gap
+    between the choices. The template fills the row it is given.
+    """
     from .text import gui_text
-    gui_row("row-height: 1.6em;")
     gui_text(_hail_text(entry.get("label") or ""))
 
 
@@ -187,17 +190,17 @@ def hail_rows(ship, client_id=None):
                  "hail_id": record.get("id")}
                 for record in hail_pending(ship)]
     # `Back` steps out WITHOUT answering, so comms can read a hail through and re-open
-    # it later - on the main screen, when the captain is ready. Last, so it is never
-    # where an answer was a moment ago.
+    # it later - on the main screen, when the captain is ready. FIRST, so it sits in one
+    # constant place while the answers beneath it change from scene to scene.
     back = {"label": "Back", "hail_kind": "back", "hail_ship": ship,
             "hail_client": client_id, "hail_seq": hail_seq(ship)}
     if hail_more(ship):
-        return [{"label": "Continue", "hail_kind": "advance", "hail_ship": ship,
-                 "hail_client": client_id, "hail_seq": hail_seq(ship)}, back]
-    return [{"label": choice.label, "hail_kind": "answer", "hail_ship": ship,
-             "hail_client": client_id, "hail_index": choice.index,
-             "hail_seq": choice.seq}
-            for choice in hail_choices(ship)] + [back]
+        return [back, {"label": "Continue", "hail_kind": "advance", "hail_ship": ship,
+                       "hail_client": client_id, "hail_seq": hail_seq(ship)}]
+    return [back] + [{"label": choice.label, "hail_kind": "answer", "hail_ship": ship,
+                      "hail_client": client_id, "hail_index": choice.index,
+                      "hail_seq": choice.seq}
+                     for choice in hail_choices(ship)]
 
 
 def hail_list_title(ship):
