@@ -944,7 +944,9 @@ def hail_answer_label(record):
     """The text on an `Answer:` button. ASCII, and owned here so no console can drift."""
     rec = record or {}
     who = rec.get("name") or rec.get("speaker") or "Hail"
-    return f"Answer: {who}"
+    # No colon: a button label is a style-property string to the engine, so `:` and `;`
+    # in it are parsed rather than drawn.
+    return f"Answer {who}"
 
 
 def hail_console_cares(client_id):

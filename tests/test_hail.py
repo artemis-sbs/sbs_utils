@@ -411,9 +411,9 @@ class PlacementDialTests(HailTestCase):
 
 class ConsoleTextTests(HailTestCase):
     def test_the_answer_button_names_who_is_calling(self):
-        self.assertEqual(H.hail_answer_label({"name": "Ashfang"}), "Answer: Ashfang")
-        self.assertEqual(H.hail_answer_label({"speaker": "vex"}), "Answer: vex")
-        self.assertEqual(H.hail_answer_label({}), "Answer: Hail")
+        self.assertEqual(H.hail_answer_label({"name": "Ashfang"}), "Answer Ashfang")
+        self.assertEqual(H.hail_answer_label({"speaker": "vex"}), "Answer vex")
+        self.assertEqual(H.hail_answer_label({}), "Answer Hail")
 
     def test_only_comms_and_mainscreen_consoles_repaint(self):
         helm = _console(C_HELM, self.ship, "console", "helm")

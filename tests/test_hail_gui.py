@@ -171,7 +171,9 @@ class ChoiceStripTests(HailViewBase):
         self.offer(name="Ashfang")
         self.assertEqual(V.hail_choice_strip(self.ship, self.comms), 1)
         props = self.buttons()[0][1]
-        self.assertIn("Answer: Ashfang", props)
+        # No colon: the engine parses a button label as a style-property string.
+        self.assertIn("Answer Ashfang", props)
+        self.assertNotIn("`", props)
 
     def test_every_waiting_hail_gets_its_own_entry(self):
         for i in range(3):

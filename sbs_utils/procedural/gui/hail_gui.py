@@ -67,8 +67,24 @@ _STYLE_FACE_ROW = "row-height: 30%;"
 
 def _hail_text(value):
     """A `$text:` property with the value quoted, so a name or a line carrying `:` or
-    `;` is drawn rather than parsed as style."""
+    `;` is drawn rather than parsed as style. For TEXT widgets only."""
     return f"$text:{gui_text_escape(value)};"
+
+
+def _hail_label(value):
+    """A BUTTON label.
+
+    Plain text, and sanitized rather than quoted. The backtick quoting `gui_text_escape`
+    applies is understood by the style parser but NOT by the engine's button, which
+    draws the backticks - so a quoted label reads as ``Answer: DS 1`` with the marks
+    visible. A raw label cannot be quoted either, because `:` and `;` in it would be
+    parsed as style properties, so the characters that would need quoting are simply
+    removed. Names are display text; losing a colon from one costs nothing.
+    """
+    text = str(value or "")
+    for ch in (":", ";", "`", "$"):
+        text = text.replace(ch, " ")
+    return " ".join(text.split())
 
 
 def _hail_may_answer_here(client_id):
@@ -98,12 +114,17 @@ def _hail_view_press():
     item = task.get_variable("__ITEM__") if task is not None else None
     data = getattr(item, "data", None) or {}
     ship = data.get("hail_ship")
+    # The console that BUILT this button, not whatever the frame reports. `//gui/...`
+    # route bodies run as sub-tasks that are polled to completion, so by the time a
+    # press arrives the building task is gone; and a server-rendered frame reports
+    # client 0, which would fail the comms-console check for no visible reason.
+    client_id = data.get("hail_client") or FrameContext.client_id
     if data.get("hail_kind") == "accept":
-        hail_accept(ship, data.get("hail_id"), FrameContext.client_id)
+        hail_accept(ship, data.get("hail_id"), client_id)
     elif data.get("hail_kind") == "advance":
-        hail_advance(ship, FrameContext.client_id, seq=data.get("hail_seq"))
+        hail_advance(ship, client_id, seq=data.get("hail_seq"))
     else:
-        hail_answer(ship, data.get("hail_index"), FrameContext.client_id,
+        hail_answer(ship, data.get("hail_index"), client_id,
                     seq=data.get("hail_seq"))
 
 
@@ -136,8 +157,9 @@ def hail_choice_strip(ship, client_id=None, style=None):
             return 0
         for record in pending:
             gui_row(row_style)
-            gui_button(_hail_text(hail_answer_label(record)),
+            gui_button(_hail_label(hail_answer_label(record)),
                        data={"hail_kind": "accept", "hail_ship": ship,
+                             "hail_client": client_id,
                              "hail_id": record.get("id")},
                        on_press=_hail_view_press, is_sub_task=True)
         return len(pending)
@@ -150,8 +172,9 @@ def hail_choice_strip(ship, client_id=None, style=None):
         if not _hail_may_answer_here(client_id):
             return 0
         gui_row(row_style)
-        gui_button(_hail_text("Continue"),
+        gui_button(_hail_label("Continue"),
                    data={"hail_kind": "advance", "hail_ship": ship,
+                         "hail_client": client_id,
                          "hail_seq": hail_seq(ship)},
                    on_press=_hail_view_press, is_sub_task=True)
         return 1
@@ -161,8 +184,9 @@ def hail_choice_strip(ship, client_id=None, style=None):
         return 0
     for choice in choices:
         gui_row(row_style)
-        gui_button(_hail_text(choice.label),
+        gui_button(_hail_label(choice.label),
                    data={"hail_kind": "answer", "hail_ship": ship,
+                         "hail_client": client_id,
                          "hail_index": choice.index, "hail_seq": choice.seq},
                    on_press=_hail_view_press, is_sub_task=True)
     return len(choices)
@@ -390,7 +414,7 @@ def hail_panel_history(cid, left=0, top=0, width=0, height=0):
             hail_replay_stop(cid)          # the log rolled past it; fall through
         else:
             gui_row("row-height: 2em;")
-            gui_button(_hail_text("Back to hails"), data={"hail_client": cid},
+            gui_button(_hail_label("Back to hails"), data={"hail_client": cid},
                        on_press=_hail_replay_back, is_sub_task=True)
             gui_row("row-height: 1fr;")
             gui_text_area(hail_transcript_text(entry))
