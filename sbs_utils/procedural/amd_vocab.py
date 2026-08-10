@@ -17,6 +17,11 @@ import sys
 import zipfile
 
 
+# Which of a mission's modules declare AMD vocabulary. Matched by FILENAME, so a
+# mission opts in by naming a file rather than by registering anywhere.
+_VOCAB_MODULES = ("*_amd.py", "*_dialogue.py")
+
+
 def load_mission_vocabulary(mission):
     """Import the mission's own AMD field registrations, so its vocabulary is DECLARED
     before anything is linted.
@@ -28,9 +33,16 @@ def load_mission_vocabulary(mission):
     169 warnings on OU, 46 once its module is loaded. 123 false ones, all telling an
     author their correct file is wrong.
 
-    Convention over configuration: modules named `*_amd.py` are the ones that declare
-    vocabulary (`universe_amd.py`). Narrow on purpose - importing a mission's whole
-    Python would run spawn code and drag in the engine.
+    Convention over configuration: modules named `*_amd.py` or `*_dialogue.py` are the
+    ones that declare vocabulary. Narrow on purpose - importing a mission's whole Python
+    would run spawn code and drag in the engine.
+
+    `*_dialogue.py` is here because a choice's OUTCOMES are vocabulary too: Open Universe
+    registers `costs` and `earns` in `universe_dialogue.py`, and without them the linter
+    reads `; costs 200 credits` as a word nobody applies and reports a correct file.
+    (Adding the import to `universe_amd.py` instead does not work - these modules are
+    imported STANDALONE, with no package context, so a relative import raises and takes
+    the whole file's vocabulary down with it.)
 
     Never fatal. A mission whose module cannot import offline still lints, just without
     its own words - which is exactly today's behaviour, so this can only improve on it.
@@ -48,8 +60,9 @@ def load_mission_vocabulary(mission):
         except Exception:
             pass          # a module that needs the engine simply does not contribute
 
-    for path in sorted(glob.glob(os.path.join(root, "**", "*_amd.py"), recursive=True)):
-        _try(os.path.splitext(os.path.basename(path))[0], os.path.dirname(path), root)
+    for pattern in _VOCAB_MODULES:
+        for path in sorted(glob.glob(os.path.join(root, "**", pattern), recursive=True)):
+            _try(os.path.splitext(os.path.basename(path))[0], os.path.dirname(path), root)
 
     # ...and the mission's ADDONS. A mission authors the vocabulary of what it builds ON:
     # Storm's Beacon writes `Terrain:` and `Skybox:` because it uses the Open Universe
@@ -58,14 +71,16 @@ def load_mission_vocabulary(mission):
     # mastlib too: a zip on sys.path is importable.
     for addon in declared_addon_paths(root):
         if os.path.isdir(addon):
-            for path in sorted(glob.glob(os.path.join(addon, "**", "*_amd.py"),
-                                         recursive=True)):
-                _try(os.path.splitext(os.path.basename(path))[0],
-                     os.path.dirname(path), addon)
+            for pattern in _VOCAB_MODULES:
+                for path in sorted(glob.glob(os.path.join(addon, "**", pattern),
+                                             recursive=True)):
+                    _try(os.path.splitext(os.path.basename(path))[0],
+                         os.path.dirname(path), addon)
             continue
         try:
             with zipfile.ZipFile(addon) as z:
-                names = [n for n in z.namelist() if n.endswith("_amd.py")]
+                names = [n for n in z.namelist()
+                         if any(n.endswith(p[1:]) for p in _VOCAB_MODULES)]
         except Exception:
             continue
         for n in names:

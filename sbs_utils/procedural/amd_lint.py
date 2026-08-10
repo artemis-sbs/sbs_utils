@@ -985,6 +985,48 @@ def amd_lint_hails(doc):
     return findings + _lint_hails_verb(doc)
 
 
+def amd_lint_dialogue_outcomes(doc):
+    """Flag a choice outcome (`; <verb> ...`) no handler answers to. WARNING.
+
+    An unregistered verb is applied by nobody: `dialogue_apply` walks past it and the
+    choice does everything except the thing the author wrote after the semicolon. There
+    is no error and no log line, because nothing looked.
+
+    The known set is the RUNTIME registry, so a mission's own word (`costs`, `earns`)
+    counts as soon as its module is loaded - which is what `amd_lint_mission` does
+    before linting. A bare-file lint that has not loaded a mission cannot know those
+    words, so this pass runs only when a registry beyond the built-in exists; a lint
+    that flags correct files is how authors learn to ignore a linter.
+    """
+    try:
+        from sbs_utils.procedural.amd_dialogue import (dialogue_outcome_verbs,
+                                                       _dlg_parse_choice)
+    except Exception:
+        return []
+    known = set(dialogue_outcome_verbs())
+    if known <= {"signal"}:
+        return []                 # nothing but the built-in is loaded: cannot judge
+    findings = []
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").strip().lower() != "dialogue":
+            continue
+        for lineno, text in (node.body_lines or []):
+            line = text.strip()
+            if not (line.startswith("-") and "](" in line):
+                continue
+            ch = _dlg_parse_choice(line)
+            for outcome in (ch or {}).get("outcomes") or []:
+                verb = str(outcome[0]).lower()
+                if verb in known:
+                    continue
+                findings.append(AmdFinding(
+                    lineno, WARNING, "unknown-outcome-verb",
+                    f"`{verb}` is not an outcome verb, so nothing applies it - the "
+                    f"choice does everything except this. Known: "
+                    f"{', '.join(sorted(known))}."))
+    return findings
+
+
 def amd_lint_then(doc):
     """Flag a `Then:` whose first word is not a verb it knows. WARNING.
 
@@ -1198,6 +1240,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_urges(doc)
         findings += amd_lint_hails(doc)
         findings += amd_lint_then(doc)
+        findings += amd_lint_dialogue_outcomes(doc)
         findings += amd_lint_callouts(doc)
         findings += amd_lint_images(doc, file_path)
         if cross_file is not False:

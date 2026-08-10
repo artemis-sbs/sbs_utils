@@ -402,6 +402,17 @@ def dialogue_register_outcome(verb, fn):
     _OUTCOME_HANDLERS[verb] = fn
 
 
+def dialogue_outcome_verbs():
+    """Every verb a choice's `; ...` can use right now.
+
+    Read by the linter rather than a copy, so a mission that registers its own word is
+    lint-known for free - the same rule `amd_action_verbs` follows. `signal` is built
+    into `dialogue_apply` and so is not in the handler table; it is added here because
+    a linter asking "may an author write this" needs the answer to include it.
+    """
+    return sorted(set(_OUTCOME_HANDLERS) | {"signal"})
+
+
 # --- Runtime: guards, line pick, outcomes ------------------------------------
 def dialogue_guard_ok(guard, agent_id, speaker):
     """Evaluate a simple `lhs op number` guard (no guard -> True). Safe: only a resolved

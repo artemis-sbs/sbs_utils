@@ -310,5 +310,74 @@ class ThenVerbLintTests(unittest.TestCase):
         self.assertNotIn("unknown-then-verb", self._lint("step_two"))
 
 
+OUTCOME_DOC = """# [Mission](m)
+
+## [Voices](voices)
+
+### [A Deal](deal)
+---
+Speaker: ds1
+When: hail
+---
+Two hundred and it never happened.
+
+- [Pay up]() ; {outcome}
+- [Walk away]()
+"""
+
+
+class OutcomeVerbLintTests(unittest.TestCase):
+    """An unregistered outcome verb is applied by nobody: `dialogue_apply` walks past
+    it and the choice does everything except the thing written after the semicolon.
+
+    The known set is the RUNTIME registry, so a mission's own word counts as soon as
+    its module is loaded - which is the only reason this pass can exist without
+    flagging every correct Open Universe file.
+    """
+
+    @staticmethod
+    def _codes(outcome):
+        from sbs_utils.procedural.amd_lint import amd_lint
+        found = amd_lint(content=OUTCOME_DOC.replace("{outcome}", outcome),
+                         cross_file=False)
+        return [f.code for f in found]
+
+    def setUp(self):
+        # quest_driver registers accepts/completes/fails at import; without something
+        # beyond the built-in `signal` the pass declines to judge at all.
+        import sbs_utils.procedural.quest_driver  # noqa: F401
+
+    def test_a_library_verb_is_quiet(self):
+        self.assertNotIn("unknown-outcome-verb", self._codes("completes florbin/brief"))
+
+    def test_the_built_in_signal_is_quiet(self):
+        self.assertNotIn("unknown-outcome-verb", self._codes("signal case_opened"))
+
+    def test_a_typo_is_flagged(self):
+        self.assertIn("unknown-outcome-verb", self._codes("completez florbin/brief"))
+
+    def test_a_registered_mission_verb_is_quiet(self):
+        from sbs_utils.procedural.amd_dialogue import (dialogue_register_outcome,
+                                                       _OUTCOME_HANDLERS)
+        prev = dict(_OUTCOME_HANDLERS)
+        dialogue_register_outcome("costs", lambda a, s, t: True)
+        try:
+            self.assertNotIn("unknown-outcome-verb", self._codes("costs 200 credits"))
+        finally:
+            _OUTCOME_HANDLERS.clear()
+            _OUTCOME_HANDLERS.update(prev)
+
+    def test_it_declines_to_judge_with_nothing_but_the_builtin(self):
+        # A bare-file lint that has not loaded a mission cannot tell a typo from a word
+        # it simply has not met, and a linter that flags correct files gets ignored.
+        from sbs_utils.procedural.amd_dialogue import _OUTCOME_HANDLERS
+        prev = dict(_OUTCOME_HANDLERS)
+        _OUTCOME_HANDLERS.clear()
+        try:
+            self.assertNotIn("unknown-outcome-verb", self._codes("costs 200 credits"))
+        finally:
+            _OUTCOME_HANDLERS.update(prev)
+
+
 if __name__ == "__main__":
     unittest.main()
