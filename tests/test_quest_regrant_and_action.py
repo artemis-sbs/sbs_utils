@@ -205,5 +205,153 @@ class TestOnSignalSeesEveryHolder(Base):
         self.assertEqual(quest_get_state(self.agent.id, "patrol"), QuestState.ACTIVE)
 
 
+POSTED_DOC = """# [Posted on the board](posted)
+---
+Job
+At start: posting
+Done when: destroy 1 raider
+---
+"""
+
+
+class TestPostingIsARealState(Base):
+    """`At start: posting` was an authored enum value with no entry in _STATE_NAMES,
+    so it parsed, passed lint, and silently granted IDLE - i.e. it looked like it
+    worked and produced an ordinary acceptable job.
+
+    The state it should have granted is the one this feature needs: LISTED, but not
+    button-acceptable (`quest_tab_controls_gate` shows Accept only for IDLE). A board
+    posting you take by answering the call, not by pressing Accept.
+    """
+
+    def test_it_grants_POSTING_not_IDLE(self):
+        QD.quest_grant_amd(self.agent.id, _doc(POSTED_DOC))
+        self.assertEqual(quest_get_state(self.agent.id, "posted"), QuestState.POSTING)
+
+    def test_a_posted_quest_is_not_button_acceptable(self):
+        QD.quest_grant_amd(self.agent.id, _doc(POSTED_DOC))
+        item = {"agent_id": self.agent.id, "key": "posted",
+                "state": int(QuestState.POSTING)}
+        gate = QD.quest_tab_controls_gate("comms", item, "comms", False, "comms")
+        self.assertFalse(gate.get("show_accept"))
+        # ...and the same console DOES offer Accept for an ordinary available job,
+        # so this is the state talking and not the console gate.
+        item["state"] = int(QuestState.IDLE)
+        self.assertTrue(QD.quest_tab_controls_gate(
+            "comms", item, "comms", False, "comms").get("show_accept"))
+
+    def test_it_can_still_be_activated(self):
+        QD.quest_grant_amd(self.agent.id, _doc(POSTED_DOC))
+        QD.quest_mark_active(self.agent.id, "posted")
+        self.assertEqual(quest_get_state(self.agent.id, "posted"), QuestState.ACTIVE)
+
+
+CHAIN_DOC = """# [First](first)
+---
+Job
+Done when: signal one_done
+Then: signal act_two
+---
+
+# [Second](second)
+---
+Job
+Done when: signal act_two
+---
+"""
+
+
+class TestThenSignalIsAQuestMilestone(Base):
+    """`Then: signal X` emitted only the RAW signal, so one quest's completion could
+    not drive another quest's `Done when: signal X` - which is exactly what the two
+    lines read as if they do. Both spellings go out now: the raw one so a `//signal/X`
+    route still matches what the author wrote, and the normalized `quest_signal` the
+    driver actually compares against.
+    """
+
+    def _complete_first(self):
+        """Complete `first` and return every (signal, data) it emitted.
+
+        `quest_on_signal` is driven by a MAST route (`//shared/signal/quest_signal`),
+        not by the library, so what the library controls - and all this can assert
+        directly - is what goes OUT.
+        """
+        seen = []
+        from sbs_utils.procedural import quest_driver as _qd
+        real = _qd.signal_emit
+        _qd.signal_emit = lambda name, data=None: (seen.append((name, data or {})),
+                                                   real(name, data))[1]
+        try:
+            QD.quest_grant_amd(self.agent.id, _doc(CHAIN_DOC))
+            QD.quest_mark_active(self.agent.id, "first")
+            QD.quest_mark_active(self.agent.id, "second")
+            QD.quest_mark_complete(self.agent.id, "first")
+        finally:
+            _qd.signal_emit = real
+        return seen
+
+    def test_it_emits_a_quest_milestone_carrying_the_name(self):
+        milestones = [d.get("SIGNAL_NAME") for name, d in self._complete_first()
+                      if name == "quest_signal"]
+        self.assertIn("act_two", milestones,
+                      "Then: signal never reached the quest signal bus")
+
+    def test_the_raw_signal_still_goes_out(self):
+        # A `//signal/act_two` route matches what the author WROTE, so the raw emit
+        # cannot be replaced by the normalized one.
+        self.assertIn("act_two", [n for n, _ in self._complete_first()])
+
+    def test_the_milestone_completes_the_quest_waiting_on_it(self):
+        # The route's half, run by hand: this is what LM's //shared/signal/quest_signal
+        # does with the payload above.
+        self._complete_first()
+        QD.quest_on_signal("act_two")
+        self.assertEqual(quest_get_state(self.agent.id, "second"), QuestState.COMPLETE)
+
+
+ACTOR_DOC = """# [Beat](beat)
+---
+Job
+Action: anyone notes_actor
+---
+"""
+
+
+class TestTheHolderIsSelf(Base):
+    """A quest `Action:` block runs with the HOLDER as its actor.
+
+    Without it `self` resolved to nothing in a quest (it only ever worked in an urge),
+    and a verb could not tell a beat held by ONE player ship from one held by the
+    shared story agent - which is the whole audience question for `X hails Y`.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.seen = []
+        from sbs_utils.procedural import amd_action
+        self._prev = dict(amd_action._VERBS)
+        amd_action.amd_action_register(
+            "notes_actor",
+            lambda actor, operand, line=None: self.seen.append(amd_action.amd_action_actor()),
+            operand="none", domain="test")
+
+    def tearDown(self):
+        from sbs_utils.procedural import amd_action
+        amd_action._VERBS.clear()
+        amd_action._VERBS.update(self._prev)
+
+    def test_the_actor_is_the_quest_holder(self):
+        QD.quest_grant_amd(self.agent.id, _doc(ACTOR_DOC))
+        self.seen.clear()
+        QD.quest_mark_active(self.agent.id, "beat")
+        self.assertEqual(self.seen, [self.agent.id])
+
+    def test_the_actor_is_restored_afterwards(self):
+        from sbs_utils.procedural import amd_action
+        QD.quest_grant_amd(self.agent.id, _doc(ACTOR_DOC))
+        QD.quest_mark_active(self.agent.id, "beat")
+        self.assertIsNone(amd_action.amd_action_actor())
+
+
 if __name__ == "__main__":
     unittest.main()

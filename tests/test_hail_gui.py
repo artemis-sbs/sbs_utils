@@ -176,7 +176,7 @@ class HailListTests(HailViewBase):
     def test_a_waiting_hail_becomes_a_row(self):
         self.offer(name="Ashfang")
         self.assertEqual(V.hail_choice_strip(self.ship, self.comms), 1)
-        self.assertEqual(self.rows()[0]["label"], "Answer Ashfang")
+        self.assertEqual(self.rows()[0]["label"], "Ashfang")
 
     def test_the_queue_is_NOT_capped_because_a_list_scrolls(self):
         # The button strip stopped at four and silently dropped the fifth. That cap is

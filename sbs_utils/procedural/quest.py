@@ -468,7 +468,12 @@ def quest_run_action(agent, quest_id):
     if not value:
         return 0
     from .amd_action import amd_action_run
-    return amd_action_run(value, where=f"action in quest {quest_id!r}: ")
+    # The HOLDER is "self" for the block. That is what tells a verb whether the beat
+    # belongs to one player ship or to the shared story agent - `X hails Y` hails only
+    # that ship in the first case and every player in the second. It also makes `self`
+    # usable in a quest's Action:, where it previously resolved to nothing.
+    return amd_action_run(value, where=f"action in quest {quest_id!r}: ",
+                          actor_id=to_id(agent))
 
 
 def quest_get_data(agent, quest_id):

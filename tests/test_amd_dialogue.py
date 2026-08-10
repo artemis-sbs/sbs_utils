@@ -63,8 +63,17 @@ class DialogueSeamTests(unittest.TestCase):
         self.metrics = {"fearsome": 30, "credits": 100}
         D.dialogue_set_metric_resolver(lambda name, agent, spk: self.metrics.get(name, 0))
         self.applied = []
+        # Snapshot rather than clear: the library registers its OWN outcome verbs now
+        # (quest_driver's accepts/completes/fails), and wiping the registry left them
+        # gone for every test that ran afterwards - which passes alone and fails under
+        # discover, the worst shape of test failure.
+        self._prev_outcomes = dict(D._OUTCOME_HANDLERS)
         D._OUTCOME_HANDLERS.clear()
         D.dialogue_register_outcome("costs", lambda a, s, toks: self.applied.append(("costs", toks)))
+
+    def tearDown(self):
+        D._OUTCOME_HANDLERS.clear()
+        D._OUTCOME_HANDLERS.update(self._prev_outcomes)
 
     def test_guard_uses_metric_resolver(self):
         self.assertTrue(D.dialogue_guard_ok("fearsome > 20", 1, None))
@@ -112,6 +121,95 @@ class DialogueSeamTests(unittest.TestCase):
         self.assertEqual(ch["target"], "")
         self.assertEqual(ch["guard"], "credits >= 200")
         self.assertEqual(ch["outcomes"], [("costs", "200", "credits")])
+
+
+class SceneRegistryTests(unittest.TestCase):
+    """The registry that lets something with only a KEY find a scene.
+
+    A declarative `Action: DS1 hails ds1_brief` has a key and nothing else, and so does
+    `hail_offer(scene=...)` called without `scenes=`. Every mission already holds its
+    scenes in a MAST variable; this is the same dict, registered.
+    """
+
+    def setUp(self):
+        D.dialogue_scenes_registry_clear()
+
+    def tearDown(self):
+        D.dialogue_scenes_registry_clear()
+
+    @staticmethod
+    def _node(key, **data):
+        return {"key": key, "children": [], "data": dict(data), "description": ""}
+
+    def _section(self, *keys):
+        return {"key": "voices", "children": [self._node(k) for k in keys]}
+
+    def test_a_section_registers_its_scenes_and_is_returned(self):
+        scenes = D.dialogue_register_scenes(self._section("a", "b"))
+        self.assertEqual(sorted(scenes), ["a", "b"])       # the caller keeps its dict
+        self.assertIsNotNone(D.dialogue_scene("a"))
+
+    def test_a_whole_DOCUMENT_registers_the_leaves(self):
+        # `enemy_taunt.mast` hands dialogue_scenes() a whole document today, and a
+        # sectioned document nests one level deeper. Descending to the leaves is what
+        # tells the two apart without being told which was passed.
+        doc = {"key": "__root__", "children": [
+            {"key": "root", "children": [self._section("a", "b")]}]}
+        scenes = D.dialogue_register_scenes(doc)
+        self.assertEqual(sorted(scenes), ["a", "b"])
+
+    def test_an_already_built_dict_registers(self):
+        scenes = D.dialogue_register_scenes({"a": self._node("a")})
+        self.assertEqual(sorted(scenes), ["a"])
+        self.assertIsNotNone(D.dialogue_scene("a"))
+
+    def test_last_registration_wins_quietly(self):
+        # A document cache miss re-parses and re-registers DIFFERENT node objects for
+        # the same keys, so a collision is normal rather than an error.
+        first = self._node("a", title="one")
+        D.dialogue_register_scenes({"a": first})
+        D.dialogue_register_scenes({"a": self._node("a", title="two")})
+        self.assertEqual(D.dialogue_scene("a")["data"]["title"], "two")
+
+    def test_clear_empties_it(self):
+        D.dialogue_register_scenes({"a": self._node("a")})
+        D.dialogue_scenes_registry_clear()
+        self.assertIsNone(D.dialogue_scene("a"))
+        self.assertEqual(D.dialogue_registered_scenes(), {})
+
+    def test_none_and_unknown_are_not_errors(self):
+        self.assertEqual(D.dialogue_register_scenes(None), {})
+        self.assertIsNone(D.dialogue_scene("nope"))
+        self.assertIsNone(D.dialogue_scene(None))
+
+
+class EntryLookupTests(unittest.TestCase):
+    """`dialogue_entry_for` - which scene is this speaker's door."""
+
+    @staticmethod
+    def _scenes():
+        return {
+            "greet": {"key": "greet", "data": {"speaker": "DS 1", "when": "comms"}},
+            "call":  {"key": "call",  "data": {"speaker": "ds_1", "when": "hail"}},
+        }
+
+    def test_the_speaker_is_NORMALIZED_on_both_sides(self):
+        # This was the one comparison in the module that skipped _dlg_norm, so
+        # `Speaker: DS 1` did not match an actor written `DS-1` or `ds_1` - and a
+        # scene that is there reads as missing.
+        self.assertEqual(D.dialogue_entry_for(self._scenes(), "ds_1"), "greet")
+        self.assertEqual(D.dialogue_entry_for(self._scenes(), "DS-1"), "greet")
+
+    def test_when_selects_the_door(self):
+        scenes = self._scenes()
+        self.assertEqual(D.dialogue_entry_for(scenes, "DS 1", D.DIALOGUE_WHEN_HAIL), "call")
+        self.assertEqual(D.dialogue_entry_for(scenes, "DS 1", D.DIALOGUE_WHEN_COMMS), "greet")
+
+    def test_when_None_means_either_door(self):
+        self.assertIn(D.dialogue_entry_for(self._scenes(), "DS 1", None), ("greet", "call"))
+
+    def test_no_match_is_None(self):
+        self.assertIsNone(D.dialogue_entry_for(self._scenes(), "nobody"))
 
 
 if __name__ == "__main__":

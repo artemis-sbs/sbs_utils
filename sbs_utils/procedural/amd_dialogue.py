@@ -209,6 +209,14 @@ def _dlg_parse_outcomes(s):
 
 
 # --- Scene lookup ------------------------------------------------------------
+# The two `When:` values, named once. They used to be bare strings with two
+# different defaults - `dialogue_entry_for` looked for "comms", `hail_offer_amd`
+# for "hail" - so the same lookup meant different things depending on who called
+# it.
+DIALOGUE_WHEN_COMMS = "comms"       # the player selects the contact
+DIALOGUE_WHEN_HAIL = "hail"         # the script calls the player
+
+
 def dialogue_scenes(section):
     """key -> scene node for every scene in a dialogue SECTION node (empty if None). The
     caller resolves the section (e.g. amd_section(doc, "dialogue"))."""
@@ -223,14 +231,95 @@ def dialogue_get(scenes, key):
     return scenes.get(key)
 
 
-def dialogue_entry_for(scenes, speaker_key, when="comms"):
-    """The entry scene key whose Speaker == speaker_key and When == `when` (default comms),
-    or None. Used to open a character/faction's hail."""
+def dialogue_entry_for(scenes, speaker_key, when=DIALOGUE_WHEN_COMMS):
+    """The entry scene key whose Speaker == speaker_key and When == `when`, or None.
+
+    `when=None` means "either" - a caller that just wants this speaker's entry scene
+    and does not care which door it is.
+
+    Both sides of the speaker test are normalized, because everything else in this
+    module goes through `_dlg_norm` and this did not: `Speaker: DS 1` did not match
+    an actor written `DS-1` or `ds_1`, and a scene that is there reads as missing.
+    (`DS1` remains a DIFFERENT key from `DS 1` - normalization settles case, dashes
+    and spaces, not whether a name has one.)
+    """
+    want = _dlg_norm(speaker_key)
+    want_when = None if when is None else str(when).strip().lower()
     for key, n in scenes.items():
         data = n.get("data") or {}
-        if data.get("speaker") == speaker_key and str(data.get("when", "")).lower() == when:
+        if _dlg_norm(data.get("speaker")) != want:
+            continue
+        if want_when is None or str(data.get("when", "")).strip().lower() == want_when:
             return key
     return None
+
+
+# --- Scene registry ----------------------------------------------------------
+# A mission's scenes, by key, so something with no `scenes` dict in hand can still
+# find one. A declarative `Action: DS1 hails ds1_brief` has only the key, and so
+# does `hail_offer(scene=...)` called without `scenes=`.
+_SCENES = {}
+
+
+def dialogue_register_scenes(source, domain=None):
+    """Register a mission's scenes by key, and RETURN them.
+
+    `source` may be a dialogue section node, a whole document, or an already-built
+    `{key: node}` dict - `enemy_taunt.mast` hands `dialogue_scenes()` a whole document
+    today, so all three shapes are already in use.
+
+    Returning the dict is what makes this a one-word edit at every existing call site:
+    `SCENES = dialogue_register_scenes(amd_section(doc, "messages"))` keeps the MAST
+    variable and adds the registry.
+
+    Last registration wins, quietly. A document cache miss legitimately re-parses and
+    re-registers different node objects for the same keys, so a collision is normal
+    rather than an error.
+    """
+    if source is None:
+        return {}
+    if isinstance(source, dict) and "children" not in source:
+        scenes = dict(source)                       # already `{key: node}`
+    else:
+        # Descend until the leaves. A scene is a record and records do not nest, so
+        # anything WITH children is a container - which is what tells a section
+        # (children are scenes) from a document (children are sections) without
+        # having to be told which one was passed.
+        scenes = {}
+
+        def _collect(node):
+            kids = node.get("children") or []
+            if not kids:
+                key = node.get("key")
+                if key:
+                    scenes[key] = node
+                return
+            for kid in kids:
+                _collect(kid)
+
+        for kid in (source.get("children") or []):
+            _collect(kid)
+    for key, node in scenes.items():
+        if key:
+            _SCENES[str(key).strip().lower()] = node
+    return scenes
+
+
+def dialogue_scene(key):
+    """A registered scene node by key, or None."""
+    if not key:
+        return None
+    return _SCENES.get(str(key).strip().lower())
+
+
+def dialogue_registered_scenes():
+    """Every registered scene, keyed. The dict `hail_offer` falls back to."""
+    return _SCENES
+
+
+def dialogue_scenes_registry_clear():
+    """Drop the registry - the per-mission reset."""
+    _SCENES.clear()
 
 
 # --- Injected seams ----------------------------------------------------------
@@ -341,6 +430,13 @@ def dialogue_apply(agent_id, speaker, outcomes):
         if verb == "signal":
             if len(oc) >= 2:
                 signal_emit(oc[1])
+                # ...and again as a quest milestone. Emitting only the raw signal meant
+                # `; signal case_opened` could not drive `Done when: signal case_opened`
+                # - the two lines read as if they meet and they never did. The raw emit
+                # stays so a `//signal/case_opened` route still matches what was
+                # written; `quest_on_signal` compares against the normalized name.
+                from sbs_utils.procedural.amd import amd_signal_name
+                signal_emit("quest_signal", {"SIGNAL_NAME": amd_signal_name(oc[1])})
             continue
         fn = _OUTCOME_HANDLERS.get(verb)
         if fn is not None and fn(agent_id, speaker, tuple(oc[1:])) is False:

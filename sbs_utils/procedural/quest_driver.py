@@ -35,7 +35,7 @@ from sbs_utils.procedural.comms import comms_broadcast
 from sbs_utils.procedural.signal import signal_emit
 from sbs_utils.procedural.gui import gui_list_box_is_header
 from sbs_utils.procedural.amd_schema import amd_kind_defaults
-from sbs_utils.procedural.amd import KIND_KEY
+from sbs_utils.procedural.amd import KIND_KEY, amd_signal_name
 from sbs_utils.agent import Agent
 
 
@@ -332,6 +332,13 @@ def quest_mark_complete(agent_id, quest_id):
     sig = data.get("signal")
     if sig:
         signal_emit(sig, {"AGENT_ID": agent_id, "QUEST_ID": quest_id})
+        # ...and again as a quest milestone, because `Then: signal X` emitting only the
+        # raw signal meant one quest's completion could not drive another quest's
+        # `Done when: signal X` - which is what the words plainly say it does.
+        # `quest_on_signal` compares against the normalized name, so both spellings go
+        # out: the raw one keeps `//signal/X` routes matching what the author wrote.
+        signal_emit("quest_signal", {"SIGNAL_NAME": amd_signal_name(sig),
+                                     "AGENT_ID": agent_id, "QUEST_ID": quest_id})
     signal_emit("quest_succeeded", {"AGENT_ID": agent_id, "QUEST_ID": quest_id, "DATA": data})
     _quest_fire_overlays(agent_id, data, "complete_overlay", "on_complete")
     name = quest_get_display_name(agent_id, quest_id) or quest_id
@@ -359,6 +366,11 @@ _STATE_NAMES = {
     "offered": QuestState.IDLE, "available": QuestState.IDLE,
     "running": QuestState.ACTIVE, "hidden": QuestState.SECRET,
     "done": QuestState.COMPLETE,
+    # POSTING was an authored enum value (`At start: posting`) with no entry here, so
+    # it parsed, passed lint, and silently granted IDLE. It means LISTED BUT NOT
+    # BUTTON-ACCEPTABLE - `quest_tab_controls_gate` shows Accept only for IDLE - which
+    # is exactly "posted by a hail, accepted by answering it".
+    "posting": QuestState.POSTING, "posted": QuestState.POSTING,
 }
 
 # Goal keys whose `count` is a completion target a mission may want to scale by difficulty.
@@ -1288,3 +1300,83 @@ def quest_tab_abandon(item):
         return
     if item.get("state") == int(QuestState.ACTIVE):
         quest_mark_failed(item.get("agent_id"), item.get("key"))
+
+
+# --- answering a hail resolves a quest ---------------------------------------
+# The other half of `Action: <actor> hails <scene>`: a choice in the scene says what
+# taking it MEANS. Registered here rather than in amd_dialogue so that module stays
+# domain-free (it imports random, re, amd, signal and mast_node, and nothing else).
+#
+# These run inside `hail_answer`, which is server-side and arbitrated by a sequence
+# token, so an outcome fires EXACTLY ONCE however many consoles are connected. That is
+# the property the hand-rolled `//shared/signal/hail` bridge had to be careful about.
+
+def quest_holders_of(quest_id, prefer=None):
+    """Every agent holding `quest_id`, most-specific first.
+
+    A hail belongs to one player SHIP; a `Scope: shared` quest lives on the story
+    agent; a `Held by:` job lives on a station. So "who does this answer resolve for"
+    has no single answer and has to be looked up.
+
+    `prefer` (the ship that answered) comes first when it holds the quest, so two
+    bridges each carrying their own copy of a job resolve their own.
+    """
+    from sbs_utils.procedural.quest import quest_get
+    from ..agent import Agent
+    out = []
+    for agent_id in [prefer, Agent.SHARED_ID] + _quest_holders():
+        if agent_id is None or agent_id in out:
+            continue
+        if quest_get(agent_id, quest_id) is not None:
+            out.append(agent_id)
+    return out
+
+
+def _quest_driver_log(message):
+    try:
+        from sbs_utils.procedural.execution import log
+        log(message, "quest", "warning")
+    except Exception:
+        pass
+
+
+def _quest_outcome(verb, apply_fn):
+    """Build a dialogue outcome handler for `<verb> <quest_id>`.
+
+    Never returns False. Returning False from an outcome refuses the whole PICK
+    (`hail_answer` emits `refused` and nothing happens), so a quest id that does not
+    resolve would make the choice silently unpressable - the worst possible reading of
+    a typo. It logs and lets the answer through. Only a mission's own verb, which can
+    mean "you cannot afford this", should ever refuse.
+    """
+    def handler(agent_id, speaker, tokens):
+        quest_id = "/".join(str(t).strip() for t in tokens if str(t).strip())
+        if not quest_id:
+            _quest_driver_log(f"a choice says `{verb}` with no quest after it")
+            return True
+        holders = quest_holders_of(quest_id, prefer=agent_id)
+        if not holders:
+            _quest_driver_log(
+                f"nobody holds {quest_id!r}, so `{verb} {quest_id}` did nothing "
+                f"- is the quest granted before the hail goes out?")
+            return True
+        # The MOST SPECIFIC holder only. Resolving every holder would let one bridge
+        # answering a call complete another ship's own copy of the same job; a
+        # `Scope: shared` quest has exactly one holder anyway, so the specific rule
+        # costs that case nothing and protects the per-ship one.
+        apply_fn(holders[0], quest_id)
+        return True
+    return handler
+
+
+def _install_dialogue_outcomes():
+    from sbs_utils.procedural.amd_dialogue import dialogue_register_outcome
+    # `accepts` covers reveal too: quest_reveal IS quest_mark_active per id, and
+    # "accepts" is the word a person says about answering a call. `reveal` stays the
+    # quest-to-quest word on `Then:`.
+    dialogue_register_outcome("accepts", _quest_outcome("accepts", quest_mark_active))
+    dialogue_register_outcome("completes", _quest_outcome("completes", quest_mark_complete))
+    dialogue_register_outcome("fails", _quest_outcome("fails", quest_mark_failed))
+
+
+_install_dialogue_outcomes()

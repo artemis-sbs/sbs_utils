@@ -172,6 +172,7 @@ def reset_mission_state():
                           # left behind would re-deliver last mission's card
     amd_cutscene_clear()  # declared scenes/rundowns AND the cast bindings
     landmarks_registry_clear()  # declared landmark records an `Action:` line places by name
+    dialogue_scenes_registry_clear()  # declared dialogue scenes an `Action: X hails Y` opens
     lore_clear()                # Library sources registered by addons
     amd_declared_addons_clear()  # cached story.json addon list (+ the resolution cache)
     amd_doc_cache_clear()   # parsed .amd trees. Keyed on content, so a stale entry is
@@ -321,6 +322,9 @@ register_reset_state("amd rundowns",      lambda: len(RUNDOWN_AMD))
 register_reset_state("cutscene cast",     lambda: len(CUTSCENE_CAST))
 from .procedural.amd_landmarks import _RECORDS as _AMD_LANDMARKS, landmarks_registry_clear
 register_reset_state("amd landmarks",     lambda: len(_AMD_LANDMARKS))
+from .procedural.amd_dialogue import (_SCENES as _AMD_SCENES,
+                                      dialogue_scenes_registry_clear)
+register_reset_state("amd dialogue scenes", lambda: len(_AMD_SCENES))
 from .procedural.amd_doc import (lore_clear, lore_sources,
                                  amd_declared_addons_clear, _DECLARED_ADDONS,
                                  amd_content_cache_size)

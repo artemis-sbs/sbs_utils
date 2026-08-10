@@ -34,8 +34,8 @@ from ..futures import Promise, awaitable
 from ..helpers import FrameContext
 from ..mast.mast import DEBUG
 from ..mast.mast_node import MastDataObject
-from .amd_dialogue import (dialogue_apply, dialogue_beats, dialogue_choices,
-                           dialogue_entry_for, dialogue_parse)
+from .amd_dialogue import (DIALOGUE_WHEN_HAIL, dialogue_apply, dialogue_beats,
+                           dialogue_choices, dialogue_entry_for, dialogue_parse)
 from .inventory import get_inventory_value, set_inventory_value
 from .query import to_id, to_object
 from .roles import has_role
@@ -286,13 +286,17 @@ def hail_offer(ship, scene=None, speaker=None, subject=None, presentation=None,
         DEBUG(f"[hail] unknown presentation {presentation!r}; expected one of {HAIL_FORMS}")
         presentation = None
 
-    if scene and scenes:
+    if scene:
         # A named scene brings its own fence - `Title:`, `Audio:`, `Presentation:` and
         # the rest - so authoring a hail in AMD does not mean repeating every field at
         # the call site. An explicit argument still wins. Branching to a scene already
         # adopted its fields (`_hail_apply_scene_fields`); doing it here too means the
         # FIRST scene of a conversation behaves like every later one.
-        _d = ((scenes.get(scene) or {}).get("data") or {})
+        #
+        # `scenes` is optional: without it the mission's registry answers, which is what
+        # makes `hail_offer(scene="ds1_brief")` - and the declarative `hails` verb, which
+        # has nothing but a key - work.
+        _d = ((_hail_scenes({"scenes": scenes}).get(scene) or {}).get("data") or {})
         presentation = presentation if presentation is not None else _d.get("presentation")
         backdrop = backdrop if backdrop is not None else _d.get("backdrop")
         subject = subject if subject is not None else _d.get("subject")
@@ -330,21 +334,26 @@ def hail_offer(ship, scene=None, speaker=None, subject=None, presentation=None,
         # Without this they fall back to the raw key, so a mission that names its cast
         # in AMD (the point of authoring it there) still showed `Answer tsn_command`.
         record["name"] = hail_speaker(record["speaker"], ship_id).get("name") or None
-    q.append(record)
-    # Priority first, then the order they arrived - a stable sort keeps FIFO within a
-    # priority, which is what makes "the queue" predictable to a player.
+    q.insert(0, record)
+    # Priority first, then NEWEST first. A stable sort keeps the insert order within a
+    # priority, so the call that just came in sits at the top of the list where the
+    # crew is looking - a hail is a notification, and the interesting one is the one
+    # that just arrived. (`Priority:` still jumps the queue, which is what it is for.)
     q.sort(key=lambda r: -int(r.get("priority") or 0))
     set_inventory_value(ship_id, KEY_QUEUE, q)
     _hail_emit(ship_id, "offered", record)
     return hail_id
 
 
-def hail_offer_amd(ship, scenes, speaker_key, when="hail", **overrides):
+def hail_offer_amd(ship, scenes, speaker_key, when=DIALOGUE_WHEN_HAIL, **overrides):
     """Offer the hail a speaker's AMD scenes declare - the AMD front door.
 
     Finds the scene whose `Speaker:` is `speaker_key` and whose `When:` is `hail`, then
     reads its fence for the presentation fields. Anything passed as a keyword wins over
     the document, so a mission can film a different subject without editing the script.
+
+    `scenes` may be None, in which case the mission's registry answers. `when=None`
+    means "this speaker's entry scene, either door".
 
     Returns:
         int | None: the hail id, or None when that speaker declares no hail entry.
@@ -352,7 +361,7 @@ def hail_offer_amd(ship, scenes, speaker_key, when="hail", **overrides):
     ship_id = _hail_sid(ship)
     if ship_id is None:
         return None
-    scene_key = dialogue_entry_for(scenes or {}, speaker_key, when=when)
+    scene_key = dialogue_entry_for(_hail_scenes({"scenes": scenes}), speaker_key, when=when)
     if scene_key is None:
         return None
     # hail_offer reads the scene's fence itself now, so this is only the LOOKUP: which
@@ -488,6 +497,33 @@ def hail_is_active(ship):
 
 
 # --- driving the conversation ----------------------------------------------
+def _hail_scenes(record):
+    """The scene set this hail resolves against.
+
+    The record's own `scenes` when the caller supplied one, else the mission's
+    registry (`dialogue_register_scenes`). The fallback is what lets a declarative
+    `Action: DS1 hails ds1_brief` - which has a key and nothing else - and a bare
+    `hail_offer(scene=...)` work at all.
+
+    Resolved LAZILY, never snapshotted onto the record: a record lives in ship
+    inventory across the whole conversation, and a copy of the registry taken at
+    offer time would go stale the moment a document reloaded.
+    """
+    scenes = (record or {}).get("scenes")
+    if scenes:
+        return scenes
+    from .amd_dialogue import dialogue_registered_scenes
+    return dialogue_registered_scenes()
+
+
+def _hail_scene_node(record):
+    """The node for this record's current scene, or None."""
+    key = (record or {}).get("scene")
+    if not key:
+        return None
+    return _hail_scenes(record).get(key)
+
+
 def _hail_apply_scene_fields(record):
     """Adopt the fields the scene we have just BRANCHED to declares.
 
@@ -501,9 +537,7 @@ def _hail_apply_scene_fields(record):
     branch, not on resolve - the entry scene's fields are applied by `hail_offer_amd`,
     where an explicit override is still allowed to win.
     """
-    scenes, key = record.get("scenes"), record.get("scene")
-    node = (scenes or {}).get(key) if scenes else None
-    data = (node or {}).get("data") or {}
+    data = (_hail_scene_node(record) or {}).get("data") or {}
     for field in ("audio", "presentation", "backdrop", "subject", "title",
                   "face", "color"):
         value = data.get(field)
@@ -519,8 +553,7 @@ def _hail_resolve_scene(ship_id, record):
     flicker - and the choices a console renders have to be the same list the server
     arbitrates against.
     """
-    scenes, key = record.get("scenes"), record.get("scene")
-    node = (scenes or {}).get(key) if scenes else None
+    node = _hail_scene_node(record)
     if node is None:
         record["resolved"] = True
         return record
@@ -749,8 +782,7 @@ def hail_answer(ship, index, client_id=None, seq=None):
     # walks on to another scene has still ANSWERED, and a linear story wants to move.
     _hail_settle(rec, choice.get("label"), choice.get("target"), answered=True)
     target = choice.get("target")
-    scenes = rec.get("scenes") or {}
-    if target and target in scenes:
+    if target and target in _hail_scenes(rec):
         rec["scene"] = target
         rec["resolved"] = False
         _hail_apply_scene_fields(rec)
@@ -1123,12 +1155,21 @@ def hail_shows_here(client_id):
 
 # --- what the console says --------------------------------------------------
 def hail_answer_label(record):
-    """The text on an `Answer:` button. ASCII, and owned here so no console can drift."""
+    """The text on a waiting hail's row. ASCII, and owned here so no console can drift.
+
+    Who is calling, and what about: `DS 1 - Ambassador Kidnapped`. It used to read
+    `Answer DS 1`, which said the same word on every row of a list already titled
+    "Incoming Hails" - the verb is what the list IS, so spending the row's width on it
+    crowded out the one thing that tells two calls apart. The scene's `Title:` earns
+    that space instead.
+
+    No colon: a row label is a style-property string to the engine, so `:` and `;` in
+    it are parsed rather than drawn.
+    """
     rec = record or {}
     who = rec.get("name") or rec.get("speaker") or "Hail"
-    # No colon: a button label is a style-property string to the engine, so `:` and `;`
-    # in it are parsed rather than drawn.
-    return f"Answer {who}"
+    title = str(rec.get("title") or "").strip()
+    return f"{who} - {title}" if title else str(who)
 
 
 def hail_console_cares(client_id):

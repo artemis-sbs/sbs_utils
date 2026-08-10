@@ -91,6 +91,9 @@ def _console(cid, ship_id, *roles):
     return cid
 
 
+_OUTCOMES_AT_IMPORT = dict(D._OUTCOME_HANDLERS)
+
+
 class HailTestCase(unittest.TestCase):
     def setUp(self):
         mock_sbs.create_new_sim()
@@ -103,7 +106,10 @@ class HailTestCase(unittest.TestCase):
     def tearDown(self):
         FrameContext.context = None
         H.hail_reset()
+        # Restore, do not wipe: quest_driver registers accepts/completes/fails at
+        # import, and clearing them here left every later test without them.
         D._OUTCOME_HANDLERS.clear()
+        D._OUTCOME_HANDLERS.update(_OUTCOMES_AT_IMPORT)
 
     def _offer(self, **kw):
         kw.setdefault("scenes", SCENES)
@@ -139,11 +145,13 @@ class QueueTests(HailTestCase):
         H.hail_accept(self.ship)
         self.assertIsNone(self._offer(key="ashfang@1"))
 
-    def test_priority_wins_and_arrival_order_breaks_the_tie(self):
+    def test_priority_wins_and_the_NEWEST_leads_within_it(self):
+        # A hail is a notification: the interesting one is the one that just came in,
+        # so the list reads newest-first. `Priority:` still jumps the whole queue.
         a = self._offer(name="first")
         b = self._offer(name="second")
         c = self._offer(name="urgent", priority=10)
-        self.assertEqual([r.id for r in H.hail_pending(self.ship)], [c, a, b])
+        self.assertEqual([r.id for r in H.hail_pending(self.ship)], [c, b, a])
 
     def test_an_expired_hail_is_pruned_without_a_ticker(self):
         self._offer(expires=-1)          # already past, whatever the sim clock says
@@ -410,10 +418,20 @@ class PlacementDialTests(HailTestCase):
 
 
 class ConsoleTextTests(HailTestCase):
-    def test_the_answer_button_names_who_is_calling(self):
-        self.assertEqual(H.hail_answer_label({"name": "Ashfang"}), "Answer Ashfang")
-        self.assertEqual(H.hail_answer_label({"speaker": "vex"}), "Answer vex")
-        self.assertEqual(H.hail_answer_label({}), "Answer Hail")
+    def test_the_row_names_who_is_calling(self):
+        self.assertEqual(H.hail_answer_label({"name": "Ashfang"}), "Ashfang")
+
+    def test_the_row_says_what_the_call_is_about(self):
+        # The list is already titled "Incoming Hails", so repeating "Answer" on every
+        # row spends the width on the one word every row shares. The scene's `Title:`
+        # is what tells two waiting calls apart.
+        self.assertEqual(
+            H.hail_answer_label({"name": "DS 1", "title": "Ambassador Kidnapped"}),
+            "DS 1 - Ambassador Kidnapped")
+
+    def test_it_falls_back_through_speaker_to_something_pressable(self):
+        self.assertEqual(H.hail_answer_label({"speaker": "vex"}), "vex")
+        self.assertEqual(H.hail_answer_label({}), "Hail")
 
     def test_only_comms_and_mainscreen_consoles_repaint(self):
         helm = _console(C_HELM, self.ship, "console", "helm")
@@ -956,10 +974,10 @@ class NoAmdTests(HailTestCase):
 class TheNameOnTheListComesFromTheResolver(HailTestCase):
     """A hail authored entirely in AMD still has a NAME on the pending list.
 
-    The list and the `Answer X` button render BEFORE any beat does, and only a beat
+    The list and its rows render BEFORE any beat does, and only a beat
     builds a speaker card - so both read the record, which held nothing but the raw
     key. Every early call site passed `name=` and hid it; the moment a mission named
-    its cast in the document instead, the list read `Answer tsn_command`.
+    its cast in the document instead, the list read `tsn_command`.
     """
 
     def test_the_pending_record_carries_the_resolved_name(self):
@@ -967,7 +985,7 @@ class TheNameOnTheListComesFromTheResolver(HailTestCase):
         hid = self._offer(speaker="tsn_command")
         rec = [r for r in H.hail_pending(self.ship) if r.get("id") == hid][0]
         self.assertEqual(rec.get("name"), "TSN Command")
-        self.assertEqual(H.hail_answer_label(rec), "Answer TSN Command")
+        self.assertEqual(H.hail_answer_label(rec), "TSN Command")
 
     def test_an_explicit_name_still_wins(self):
         H.hail_set_speaker_resolver(lambda key, sid=None: {"name": "TSN Command"})
@@ -978,7 +996,7 @@ class TheNameOnTheListComesFromTheResolver(HailTestCase):
     def test_no_resolver_leaves_the_key_rather_than_inventing_a_name(self):
         hid = self._offer(speaker="tsn_command")
         rec = [r for r in H.hail_pending(self.ship) if r.get("id") == hid][0]
-        self.assertEqual(H.hail_answer_label(rec), "Answer tsn_command")
+        self.assertEqual(H.hail_answer_label(rec), "tsn_command")
 
 
 if __name__ == "__main__":

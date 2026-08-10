@@ -315,7 +315,10 @@ DIALOGUE = {
     # keeps parsing and no shipped file gains a finding.
     "when": enum("comms", "hail", open=True,
                  hint="comms = a selectable contact; hail = the ship is hailed"),
-    "file": text(hint="a sibling .amd to pull lines from"),
+    # (`File:` was declared here and never read by anything in the dialogue/hail path,
+    # with zero uses in any shipped .amd. Removed rather than left to be offered by
+    # completion - what missions actually use is amd_doc's multi-file loading and
+    # `![[key]]` transclusion.)
     # A scene the whole run shares. `Title:` is the comms title bar (2.8 called it the
     # message `type` - ALERT / FRIEND / STATION), `Side:` is who the hail is addressed
     # to. Both are per-message in 2.8 and per-SCENE here, which is exactly why a run

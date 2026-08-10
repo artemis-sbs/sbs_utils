@@ -53,13 +53,18 @@ def _action_norm(text):
 
 
 # --- the registry ------------------------------------------------------------
-def amd_action_register(phrase, fn, operand="required", domain=None):
+def amd_action_register(phrase, fn, operand="required", operand_ref=None, domain=None):
     """Declare a stage-direction verb.
 
     ``fn(actor, operand, line)`` applies it and returns False if it could not. ``actor``
     is the raw name as written (resolution is the verb's business - ``becomes`` wants a
     live object, ``arrives`` wants a landmark record). ``operand`` is
     ``required`` / ``optional`` / ``none``.
+
+    ``operand_ref`` says what KIND of thing the operand names, so the tooling can check
+    it. ``"node"`` means an AMD record key, which is the only kind so far - it is what
+    lets a mistyped ``DS1 hails ds1_breif`` be a lint finding and an editor completion
+    rather than a silence at runtime. The runtime ignores it entirely.
 
     Collisions are loud: re-registering a phrase with a different function raises, the
     same contract as ``amd_register_fields``. Re-registering the identical function is a
@@ -72,8 +77,13 @@ def amd_action_register(phrase, fn, operand="required", domain=None):
     if prior is not None and prior["fn"] is not fn:
         who = f" (from {domain})" if domain else ""
         raise ValueError(f"action verb {phrase!r}{who} is already registered by something else")
-    _VERBS[key] = {"fn": fn, "operand": operand}
+    _VERBS[key] = {"fn": fn, "operand": operand, "operand_ref": operand_ref}
     return key
+
+
+def amd_action_verb_spec(phrase):
+    """What a registered verb declares: ``{fn, operand, operand_ref}``, or None."""
+    return _VERBS.get(_action_norm(phrase))
 
 
 def amd_action_verbs():
@@ -141,14 +151,25 @@ def _parse_line(line):
         elif spec["operand"] == "none" and operand:
             error = f"{phrase!r} takes nothing after it, got {operand!r}"
         return {"actor": actor, "verb": phrase, "operand": operand,
-                "raw": line, "error": error}
-    return {"actor": None, "verb": None, "operand": None, "raw": line,
+                "operand_ref": spec.get("operand_ref"), "raw": line, "error": error}
+    return {"actor": None, "verb": None, "operand": None, "operand_ref": None,
+            "raw": line,
             "error": f"no action verb in {line!r} - known verbs: "
                      + ", ".join(amd_action_verbs())}
 
 
 # --- running -----------------------------------------------------------------
 _CURRENT_ACTOR = [None]
+
+
+def amd_action_actor():
+    """Whose block is running - the id "self" resolves to, or None.
+
+    A verb needs this when the ACTOR is not the target: `X hails Y` has to know
+    whether the block belongs to one player ship (hail that ship) or to the shared
+    story agent (hail everyone), and the actor is the only thing that says which.
+    """
+    return _CURRENT_ACTOR[0]
 
 
 def amd_action_run(value, where="", actor_id=None):
@@ -344,6 +365,66 @@ def _departs(actor, operand, line):
     return True
 
 
+def _hails(actor, operand, line):
+    """`DS 1 hails ds1_brief` - open an incoming hail.
+
+    The scene carries everything the hail looks like (`Title:`, `Presentation:`,
+    `Audio:`, `Backdrop:`, `Subject:`, `Priority:`, `Face:`, `Color:`) and everything
+    it says, so this only has to answer two questions: WHICH scene, and WHO gets
+    called.
+
+    Which scene: the operand, or - written bare - the scene whose `Speaker:` is this
+    actor and whose `When:` is `hail`. The registry answers, so the beat needs no
+    `scenes` dict in hand.
+
+    Who: the block's own actor. A `Scope: ship` quest runs its block once per holder,
+    so the beat calls that ship; a `Scope: shared` quest runs once on the story agent,
+    so it calls every player. An urge's actor is the character speaking, which is not a
+    ship, so that calls everyone too.
+
+    Idempotent per scene within a queue (`hail_offer(key=...)`), so a beat entered
+    twice in a frame does not stack two identical calls - the same identity rule
+    `arrives` uses. A hail already ANSWERED and archived can be offered again, also
+    deliberately: re-entering a beat means it is happening again.
+    """
+    from .amd_dialogue import (DIALOGUE_WHEN_HAIL, dialogue_entry_for,
+                               dialogue_registered_scenes, dialogue_scene)
+    from .hail import hail_offer
+    from .query import to_id_list, to_object
+    from .roles import role, has_role
+
+    speaker = _action_slug(actor)
+    scene = _action_slug(operand) if operand else dialogue_entry_for(
+        dialogue_registered_scenes(), speaker, when=DIALOGUE_WHEN_HAIL)
+    if not scene:
+        _action_log(f"{actor!r} declares no `When: hail` scene to open: {line!r}")
+        return False
+    node = dialogue_scene(scene)
+    if node is None:
+        _action_log(f"there is no dialogue scene called {scene!r} - is the document "
+                    f"registered with dialogue_register_scenes()? {line!r}")
+        return False
+    # The SCENE names its own speaker, and it wins. The actor is how a bare `DS1 hails`
+    # finds the scene, not an override - `DS-1 hails ds1_brief` would otherwise file the
+    # hail under `ds_1` while the document says `ds1`, and the speaker card would come
+    # back a stranger. A disagreement is worth telling the author about, which is lint's
+    # job (`hail-speaker-mismatch`), not a reason to overrule the document at runtime.
+    voice = ((node.get("data") or {}).get("speaker")) or speaker
+
+    actor_id = amd_action_actor()
+    if actor_id is not None and has_role(actor_id, "__player__"):
+        ships = [actor_id]
+    else:
+        ships = to_id_list(role("__player__"))
+    if not ships:
+        _action_log(f"no player ship to hail: {line!r}")
+        return False
+    for ship in ships:
+        if to_object(ship) is not None:
+            hail_offer(ship, scene=scene, speaker=voice, key=scene)
+    return True
+
+
 def _role_list(operand):
     """`a pirate` / `pirate, discovered` -> role tokens."""
     return [_action_slug(p) for p in str(operand).replace(",", " ").split() if p.strip()]
@@ -355,6 +436,12 @@ def _install_builtins():
     amd_action_register("joins", _joins, domain="core")
     amd_action_register("arrives", _arrives, operand="none", domain="core")
     amd_action_register("departs", _departs, operand="none", domain="core")
+    # Registered HERE rather than in hail.py on purpose: `amd_lint_actions` reads
+    # `amd_action_verbs()`, and the CLI linter imports amd_action without importing
+    # hail - so a verb installed over there would be unknown to lint and every correct
+    # file would report `unknown-action-verb`.
+    amd_action_register("hails", _hails, operand="optional", operand_ref="node",
+                        domain="core")
 
 
 _install_builtins()
