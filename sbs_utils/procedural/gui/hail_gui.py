@@ -62,7 +62,10 @@ def hail_panel_icon():
         return 84
 
 _STYLE_ROW = "row-height: 2.2em;"
-_STYLE_FACE_ROW = "row-height: 30%;"
+# NO PERCENT SIGN. A bare number IS a percentage to the style parser; `30%` raises
+# "Invalid syntax on token %" from LayoutAreaParser.lex, at RUNTIME, when the row
+# is built - so it only fires on the console that actually draws the conversation.
+_STYLE_FACE_ROW = "row-height: 30;"
 
 
 def _hail_text(value):
@@ -316,7 +319,7 @@ def hail_view(ship, client_id=None):
     name, line = _hail_speaker_line(ship)
 
     if form == "still" and record.backdrop:
-        gui_row("row-height: 55%;")
+        gui_row("row-height: 55;")
         gui_image_keep_aspect_ratio_center(record.backdrop)
     else:
         face = record.face or (hail_beat(ship) or {}).get("face") if record else None

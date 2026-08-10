@@ -381,6 +381,38 @@ class ConversationViewTests(HailViewBase):
         self.assertNotIn("1. Stand down", areas)
 
 
+class StyleStringTests(unittest.TestCase):
+    """Every style literal in the module must actually parse.
+
+    `row-height: 30%` raises "Invalid syntax on token %" from LayoutAreaParser - a bare
+    number already IS a percentage - and it raises at RUNTIME, when that row is built.
+    So it fired only on a console that actually drew the conversation, which is the one
+    path no headless run reaches. Parsing the literals needs no engine and no page.
+    """
+
+    def test_every_style_literal_parses(self):
+        import ast
+        import inspect
+        from sbs_utils.mast.parsers import StyleDefinition
+        import sbs_utils.procedural.gui.hail_gui as module
+
+        source = inspect.getsource(module)
+        keys = ("row-height", "col-width", "area:", "background", "padding", "margin")
+        checked = 0
+        for node in ast.walk(ast.parse(source)):
+            if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+                continue
+            text = node.value
+            if not any(k in text for k in keys):
+                continue
+            checked += 1
+            try:
+                StyleDefinition.parse(text)
+            except Exception as e:
+                self.fail(f"style literal {text!r} does not parse: {e}")
+        self.assertGreater(checked, 4, "expected to find style literals to check")
+
+
 class HistoryPanelTests(HailViewBase):
     def _archive(self, n=1):
         for i in range(n):
