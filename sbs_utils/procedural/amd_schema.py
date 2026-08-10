@@ -61,6 +61,7 @@ def enum(*values, **kw):
     keeps working while `available` (the word the player actually sees) becomes
     the one an author is shown."""
     return _d("enum", values=list(values), open=kw.get("open", False),
+              hint=kw.get("hint"),
               value_aka={str(k).lower(): v for k, v in (kw.get("aka") or {}).items()} or None)
 
 def ref(kind="node", csv=False, hint=None):
@@ -307,7 +308,13 @@ QUEST = {
 
 DIALOGUE = {
     "speaker": ref("node", hint="who says it"),
-    "when": text(hint="the condition this line plays under"),
+    # `comms` = a contact the player selects and hails; `hail` = the ship IS
+    # hailed, script- or AMD-initiated (procedural/hail.py). OPEN on purpose:
+    # enum_values() returns None for an open enum, so the field-value lint pass
+    # skips it exactly as it skipped text() - every value already in the corpus
+    # keeps parsing and no shipped file gains a finding.
+    "when": enum("comms", "hail", open=True,
+                 hint="comms = a selectable contact; hail = the ship is hailed"),
     "file": text(hint="a sibling .amd to pull lines from"),
     # A scene the whole run shares. `Title:` is the comms title bar (2.8 called it the
     # message `type` - ALERT / FRIEND / STATION), `Side:` is who the hail is addressed
@@ -319,6 +326,23 @@ DIALOGUE = {
     # the direct call passed 2 - harmless downstream, but it is a type change and the
     # conversion is supposed to be exact.
     "side": integer(hint="the 2.8 sideValue this is addressed to"),
+
+    # --- incoming hails (When: hail) --------------------------------------
+    # How the conversation is PRESENTED when a console puts it on screen. Closed:
+    # a brand-new field with no legacy values, so it can afford a real dropdown
+    # and real lint from day one. The crew picks WHERE it shows; this is the
+    # writer picking what it looks like.
+    "presentation": field(enum("portrait", "still", "orbit"), aka=("shot", "form")),
+    # NOT `Image:` - `image` is already a section word (_SECTION_ALIASES), and one
+    # label must never mean two things.
+    "backdrop": field(text(hint="an image key for a full still"), aka=("still",)),
+    # Resolved LATE, exactly like CUTSCENE's `Subject:` and for the same reason:
+    # the ship an orbit shot films is usually spawned at runtime and does not
+    # exist when the .amd loads. text(), not ref("node") - a ref would make lint
+    # dangle on every legitimate role-based subject.
+    "subject": text(hint="what an orbit shot films - cast name or a role"),
+    "audio": text(hint="a mission audio file, played when the scene starts"),
+    "priority": integer(hint="higher jumps the hail queue"),
 }
 
 LIFEFORM = {

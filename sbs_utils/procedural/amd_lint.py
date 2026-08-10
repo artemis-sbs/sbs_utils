@@ -874,6 +874,103 @@ def _sheet_resolver(file_path):
     return resolve, True
 
 
+def _hail_nodes(doc):
+    """(node, {label_lower: lineno}) for every dialogue scene, so a finding can point
+    at the offending fence line rather than the heading."""
+    out = []
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").strip().lower() != "dialogue":
+            continue
+        lines = {}
+        for lineno, raw, label, _value in _fence_fields(node):
+            if raw[:1] not in (" ", "	"):
+                lines[label.strip().lower()] = lineno
+        out.append((node, lines))
+    return out
+
+
+def amd_lint_hails(doc):
+    """Flag an incoming hail (`When: hail`) that cannot draw or cannot be answered.
+
+    A hail is PRESENTED - it takes over a screen - so the ways it fails are the ways a
+    blank screen happens, and none of them raises at runtime:
+
+    * `Presentation: orbit` with no `Subject:` - the shot has nothing to film, so the
+      main screen goes black with the conversation drawn over nothing. ERROR.
+    * `Presentation: still` with no `Backdrop:` - the same hole, one form along. ERROR.
+    * more than `HAIL_MAX_CHOICES` UNGUARDED choices - the answer strip is 1-4 buttons,
+      so a fifth ungated choice can never be pressed by anyone. Guarded choices are the
+      author's business (that is what a guard is for) and are not counted. WARNING.
+    * a hail with no lines AND no choices - it opens and instantly closes. A hail with
+      lines but no choices is deliberately fine: that is a one-way message. WARNING.
+
+    Two checks deliberately absent. `Audio:` file existence is NOT checked - the engine
+    resolves audio names loosely (shipped missions pass extension-less paths) and a
+    check that fires on a valid file is worse than no check. Reachability of a scene
+    carrying `Presentation:` is NOT checked either - `hail_offer(scene=...)` lets MAST
+    enter any scene directly, so "unreferenced in this document" does not mean dead.
+
+    The choice pattern is imported from the runtime parser rather than copied, so the
+    linter and the game cannot disagree about what a choice is - the same rule
+    `amd_lint_actions` and `amd_lint_urges` follow for verbs and conditions.
+    """
+    from sbs_utils.procedural.amd_dialogue import _CHOICE, _dlg_parse_choice
+    from sbs_utils.procedural.amd import RE_CUE, RE_DIRECTION
+    try:
+        from sbs_utils.procedural.hail import HAIL_MAX_CHOICES
+    except Exception:
+        HAIL_MAX_CHOICES = 4          # the strip is 1-4 buttons
+
+    findings = []
+    for node, at in _hail_nodes(doc):
+        data = node.data or {}
+        presentation = str(data.get("presentation") or "").strip().lower()
+        is_hail = str(data.get("when") or "").strip().lower() == "hail"
+
+        if presentation == "orbit" and not str(data.get("subject") or "").strip():
+            findings.append(AmdFinding(
+                at.get("presentation", node.span.line), ERROR, "hail-missing-subject",
+                f"`{node.key}` is `Presentation: orbit` but names no `Subject:` - an "
+                f"orbit shot with nothing to film renders a black screen."))
+        if presentation == "still" and not str(data.get("backdrop") or "").strip():
+            findings.append(AmdFinding(
+                at.get("presentation", node.span.line), ERROR, "hail-missing-backdrop",
+                f"`{node.key}` is `Presentation: still` but names no `Backdrop:` - "
+                f"there is no image to draw."))
+
+        if not is_hail:
+            continue
+
+        spoken = 0
+        unguarded = []
+        for lineno, text in (node.body_lines or []):
+            line = text.strip()
+            if not line or line.startswith("//"):
+                continue
+            if line.startswith("-") and "](" in line:
+                ch = _dlg_parse_choice(line)
+                if ch is not None and not ch.get("guard"):
+                    unguarded.append(lineno)
+                continue
+            if RE_CUE.match(line) or RE_DIRECTION.match(line):
+                continue
+            spoken += 1
+
+        if len(unguarded) > HAIL_MAX_CHOICES:
+            findings.append(AmdFinding(
+                unguarded[HAIL_MAX_CHOICES], WARNING, "hail-too-many-choices",
+                f"`{node.key}` offers {len(unguarded)} unguarded choices but the answer "
+                f"strip shows at most {HAIL_MAX_CHOICES} - this one can never be pressed. "
+                f"Gate it with `if ...`, or move it behind another scene."))
+
+        if not spoken and not unguarded:
+            findings.append(AmdFinding(
+                node.span.line, WARNING, "hail-empty",
+                f"`{node.key}` is `When: hail` but has no lines and no choices - it "
+                f"opens and closes again with nothing shown."))
+    return findings
+
+
 def amd_lint_images(doc, file_path=None):
     """Flag an atlas entry that cannot draw: no sheet, a sheet that is not on disk, an
     `At:` with nothing to measure a cell against, or a cell off the edge of the sheet.
@@ -988,6 +1085,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_field_values(doc)
         findings += amd_lint_actions(doc)
         findings += amd_lint_urges(doc)
+        findings += amd_lint_hails(doc)
         findings += amd_lint_callouts(doc)
         findings += amd_lint_images(doc, file_path)
         if cross_file is not False:

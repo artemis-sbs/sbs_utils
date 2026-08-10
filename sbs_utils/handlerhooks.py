@@ -163,6 +163,8 @@ def reset_mission_state():
                         # aim the next mission's punches at dead client ids
     viewscreen_reset()  # "on screen" shots. Records only - the consoles they name
                         # belong to the sim being torn down, so nothing is re-aimed
+    hail_reset()        # the injected speaker resolver; the queues, the open
+                        # conversation and the replay log are ship inventory
     comms_history_clear()   # who said what to whom. Per-mission by definition, and the
                             # keys are object ids that the next mission RECYCLES
     overlay_live_clear()  # live overlays awaiting late joiners; the catch-up ticker
@@ -302,6 +304,12 @@ register_reset_state("rundown shots",     lambda: len(_RUNDOWN_SHOTS))
 from .procedural.gui.viewscreen import (_VIEWERS as _VIEWSCREEN_SHOTS, viewscreen_reset,
                                         viewscreen_helm_override)
 register_reset_state("viewscreen shots",  lambda: len(_VIEWSCREEN_SHOTS))
+from .procedural.hail import _SPEAKER_RESOLVER as _HAIL_SPEAKER, hail_reset
+# A LATCH, not a container: the per-hail records live in ship inventory and go with
+# Agent.clear(). Only the injected resolver outlives a mission - and one registered
+# by the LAST mission resolves speaker keys against cast that no longer exists.
+register_reset_state("hail speaker resolver",
+                     lambda: 1 if _HAIL_SPEAKER[0] is not None else 0)
 from .procedural.comms import comms_history_clear, comms_history_size
 register_reset_state("comms history",     comms_history_size)
 from .procedural.gui.overlay import _LIVE as _OVERLAY_LIVE, overlay_live_clear

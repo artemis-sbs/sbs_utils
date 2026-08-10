@@ -1,5 +1,7 @@
 from ..mast_sbs.story_nodes.media import MediaLabel
-from ..fs import load_json_data, get_mission_dir_filename
+from ..fs import load_json_data, get_mission_dir_filename, get_mission_audio_file
+from ..mast.mast import DEBUG
+from .query import to_id
 from random import choice
 from sbs_utils.procedural.execution import sub_task_schedule
 from ..helpers import FrameContext
@@ -156,9 +158,43 @@ def media_read_file(basedir, file):
     # and the same mission read from a mastlib produce the same string.
     from sbs_utils.procedural.amd import amd_read_text
     return amd_read_text(os.path.join(basedir, file))
-    
 
 
-    
-    
+def media_play_audio(file, ids_or_obj=0, volume=1.0, pitch=1.0):
+    """Play an audio file NOW - a stinger, a voice line, an alarm.
 
+    Promoted out of HereThereBeMonsters, which called `sbs.play_audio_file` raw in
+    seven places behind its own enable flag. The engine call needs a path relative to
+    the Artemis audio directory, which is what `get_mission_audio_file` builds - a
+    mission should name its file the way it stores it (`audio/briefing_01`) and never
+    have to know that.
+
+    Args:
+        file (str): the file, relative to the mission folder.
+        ids_or_obj (int, optional): a client id, or 0 (the default) for everyone.
+        volume (float, optional): 0-1.
+        pitch (float, optional): 1.0 is unshifted.
+
+    Returns:
+        bool: whether the engine was asked to play it. Silent - not an exception - when
+        there is no engine or the mission disabled audio, because a missing sound must
+        never end the task that was telling the story.
+    """
+    if not file:
+        return False
+    ctx = FrameContext.context
+    if ctx is None:
+        return False
+    try:
+        from .execution import get_shared_variable
+        if get_shared_variable("MEDIA_AUDIO_ENABLED", True) is False:
+            return False
+    except Exception:
+        pass
+    try:
+        ctx.sbs.play_audio_file(to_id(ids_or_obj) or 0, get_mission_audio_file(file),
+                                float(volume), float(pitch))
+        return True
+    except Exception as e:
+        DEBUG(f"[media] audio {file!r} did not play: {e}")
+        return False

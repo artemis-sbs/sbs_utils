@@ -454,6 +454,11 @@ def _fence_hover(doc, pos, text):
     vals = enum_values(label, arch)
     if vals:
         val += "\n\none of: " + ", ".join("`%s`" % v for v in vals)
+    elif d.get("type") == "enum" and d.get("values"):
+        # Open: the listed values are the ones that MEAN something, but any word
+        # still parses. Say so, rather than showing nothing at all.
+        val += "\n\nusually: " + ", ".join("`%s`" % v for v in d["values"])
+        val += "  *(open - another value still parses)*"
     if amd_is_internal(label, arch):
         val += "\n\n*(still parses; a newer field says this now)*"
     return {"contents": {"kind": "markdown", "value": val}}
@@ -511,6 +516,9 @@ def _completion(index, doc=None, pos=None, text=""):
     from sbs_utils.procedural.amd_schema import (
         amd_kind_menu, template_fields, enum_values, field_schema)
     items = None
+    # An OPEN enum suggests rather than closes, so the client must keep asking as
+    # the author types a value outside the set - that is what isIncomplete is for.
+    incomplete = False
     if doc is not None and pos is not None:
         line0 = pos.get("line", 0)
         src = str(text or "").split(chr(10))
@@ -539,6 +547,13 @@ def _completion(index, doc=None, pos=None, text=""):
                 return {"isIncomplete": False, "items": items}
             vals = enum_values(label, arch) or []
             d = field_schema(label, arch)
+            if not vals and d.get("type") == "enum":
+                # enum_values() returns None for an OPEN enum - its values are
+                # suggestions, not a closed set, so the LINTER stays quiet about a
+                # value outside them. Completion still wants to offer them: `When:`
+                # has exactly two words worth knowing and no other way to find them.
+                vals = list(d.get("values", ()))
+                incomplete = True
             if not vals and d.get("type") == "trigger":
                 vals = ["signal ", "destroy ", "reach ", "dock ", "accepted", "revealed",
                         "at once", "all dead ", "5 minutes"]
@@ -546,7 +561,7 @@ def _completion(index, doc=None, pos=None, text=""):
     if not items:
         # Fall back to every node key across the mission. kind 6 = Variable.
         items = [{"label": k, "kind": 6} for k in sorted(index["known"])]
-    return {"isIncomplete": False, "items": [i for i in items if i.get("label")]}
+    return {"isIncomplete": incomplete, "items": [i for i in items if i.get("label")]}
 
 
 
