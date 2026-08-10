@@ -99,7 +99,18 @@ class EngineDriver:
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(2)   # let the OS release the port
 
-    def launch(self, extra_env=None):
+    def launch(self, extra_env=None, args=None, autostart=True, map=None):
+        """Start the engine ON THE MISSION, not at its main menu.
+
+        The exe takes space-separated `key=value` arguments (engine 1.3.5): without
+        `defaultmission=` it comes up at the menu, no mission is loaded, and the
+        devqueue - which lives IN the mission - never answers. That is a 90-second
+        timeout that looks like a broken queue.
+
+        `autostart` adds `autostartserver`; `map` adds `map=<name>`, which is not an
+        engine flag but survives to `sbs.command_line_dict()` for the mission to read.
+        `args` replaces the lot when a caller wants full control.
+        """
         # The fixed server port means stacked instances conflict - stop first.
         self.stop_engines()
         for p in (self.in_path, self.out_path):
@@ -112,7 +123,14 @@ class EngineDriver:
         env["COSMOS_DEV_QUEUE_DIR"] = self.queue_dir
         if extra_env:
             env.update(extra_env)
-        self.proc = subprocess.Popen([self.exe], cwd=self.cosmos_dir, env=env)
+        if args is None:
+            args = []
+            if autostart:
+                args.append("autostartserver")
+            args.append(f"defaultmission={self.mission}")
+            if map:
+                args.append(f"map={map}")
+        self.proc = subprocess.Popen([self.exe] + list(args), cwd=self.cosmos_dir, env=env)
         return self.proc
 
     def is_running(self):
