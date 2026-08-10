@@ -631,8 +631,15 @@ class Layout(Clickable):
             squares += 1 if col.square else 0
             col_font = effective_font(col, row_font)
             col_font_size = get_font_size(col_font)
+            # NOT `self`. A Layout's own `default_width` is how wide IT is in its
+            # parent row - a sub-section is both a column and a section, so
+            # `gui_sub_section("col-width:25;")` means "I take 25", never "every column
+            # inside me takes 25". Cascading it to children gave each of them 25 and
+            # spilled the last one straight out of the sub-section, over whatever came
+            # next. A top-level section never set default_width (it is placed by
+            # `area:`), which is why this only ever bit nested ones.
             raw_width = calc_float_attribute(
-                "default_width", col, row, self, aspect_ratio.x, col_font_size)
+                "default_width", col, row, None, aspect_ratio.x, col_font_size)
             if raw_width is None and AUTO_DEFAULT:
                 raw_width = AUTO
             default_width = resolved_size(raw_width)
