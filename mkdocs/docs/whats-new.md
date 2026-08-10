@@ -1301,6 +1301,106 @@ Docs: [Debugging your mission](tooling/mast-debugger.md).
     double-free. Scripts that already use `delete_object` / `obj.delete_object()`
     need no change — only direct `sbs.delete_object` calls should be swapped.
 
+## 📞 Incoming hails — the mission calls *you*
+
+Comms has always been something the crew starts: pick a contact, a menu opens. An
+**incoming hail** is the other direction. It arrives in an **Incoming Hails** list on the
+comms console, newest first, and waits until somebody answers it.
+
+Answering opens a short conversation with up to four things the crew can say back. `Back`
+steps out without answering, so comms can read a hail through and present it later, when
+the captain is ready. Answered conversations stay in the info panel and can be **replayed**
+— a replay can never change what was chosen.
+
+Beside the list is a dial that decides where the conversation is drawn — *Off*, *This
+Console*, *Main Screen*, or *Both* — and an **Audio** checkbox. Each console carries its
+own dial, so putting a hail on the main screen is a decision one officer makes, not
+something the mission forces on the bridge.
+
+While a hail is placed on a comms console, that console's **2D radar follows whoever is
+calling**, the way science points it at a scan target. It obeys the crew's existing Follow
+checkbox, and it hands the radar back afterwards.
+
+*Here There Be Monsters* is written this way end to end: twenty scenes in one document,
+each named by one line of the story.
+
+[Incoming hails](build/incoming-hails.md){ .md-button }
+
+## 📞 A beat that opens with a call
+
+The reason hails matter for authors: somebody calling is a natural way to hand out work,
+and taking the job is what you say back. Both halves are AMD.
+
+```
+#### [Take the Case](brief)
+---
+Scope: shared
+Starts when: revealed
+Action:
+  - ds1 hails ds1_brief
+Then: reveal florbin/trail
+---
+```
+
+```
+### [DS 1 Briefing](ds1_brief)
+---
+Speaker: ds1
+When: hail
+Title: Ambassador Kidnapped
+---
+Ambassador Florbin was taken off this station inside a cargo container.
+
+- [Take the case]() ; completes florbin/brief
+- [Not now]()
+```
+
+The scene carries the words, the title, the portrait and the recorded line, so the beat
+only names it. Written bare — `ds1 hails` — it opens that speaker's `When: hail` scene.
+**Who gets called follows `Scope:`** and you never say: a shared beat calls every player
+ship, a per-ship beat calls its own.
+
+What an answer *means* is written on the answer: `accepts`, `completes` or `fails` a
+quest, or `signal` for anything those three do not cover. It is resolved on the server, so
+it happens exactly once however many consoles are connected — no `//shared/signal` route
+to write, and no guarding against two officers pressing at the same moment.
+
+Peacetime's Florbin case now opens this way, and the two pieces of MAST that used to do it
+by hand are gone.
+
+Three smaller things came with it. **`At start: posting`** lists a quest without a working
+Accept button — a board you take by *answering the call that offers it*, not by pressing a
+button. **`Then: signal X`** now reaches other quests' `Done when: signal X`, which is what
+those two lines always looked like they did. And a mistyped scene key, an unknown outcome
+verb or an unrecognized `Then:` word are all **lint findings** now, instead of a beat that
+quietly does nothing.
+
+[Writing hails in AMD](build/amd-format.md#hails-the-beat-opens-with-an-incoming-call){ .md-button }
+
+## ⚠️ List boxes: `row-height` is the row's height
+
+**This one may move your layouts.** On a list box, `row-height` used to be the gap *added
+after* each item — the height came from whatever the item template opened. It now means
+what it says everywhere else: **the height of one item row**. The spacing between items is
+a new key, **`item-gap`**.
+
+```
+lb = gui_list_box(items, "row-height: 1.6em; item-gap: 0.1em;", item_template=row)
+```
+
+If you declared `row-height` and meant *spacing*, rename it to `item-gap` and nothing
+moves. If you declared it and the template already set its own row height, the list was
+rendering at **double pitch** and will now tighten up — including every `gui_table`, which
+handed one style string to both.
+
+It is a **floor**, not a cap: a two-line item still grows past it. Declare neither and
+nothing changes at all.
+
+Worth the churn because the old meaning was not only confusing, it was wrong in a way you
+could not see: an item's **click region** comes from its row box, so a list could draw text
+you could barely click, and a template whose rows declared no height collapsed to nothing
+and took its hit area with it.
+
 ---
 
 *Thanks for playing, building, and tinkering. There's more under the hood than ever

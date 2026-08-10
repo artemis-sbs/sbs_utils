@@ -89,6 +89,15 @@ changes with `on gui_message(widget):` (fires when the value changes) or
 Read a widget's value with `widget.get_value()` / `widget.value`; a list box also
 has `get_selected()`, `get_selected_index()`, and `set_selected_index(i)`.
 
+!!! note "A list box has two size keys, and they are different things"
+    **`row-height`** is the height of ONE item row — a floor, so a two-line item still
+    grows past it — and it is also the box each item is hit-tested in, so it is what
+    decides how much of a row you can click. **`item-gap`** is the spacing between
+    items. Declare neither and an item is exactly as tall as its template's rows, flush.
+
+    `row-height` used to mean the gap. If you have a list declaring it and meaning
+    spacing, rename it to `item-gap`.
+
 ## Rich text areas
 
 `gui_text` is a single styled line. For a **multi-line, formatted block** — help,
