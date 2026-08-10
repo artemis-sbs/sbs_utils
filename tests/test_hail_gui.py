@@ -23,6 +23,7 @@ from sbs_utils.procedural.gui import dropdown as DROPDOWN
 from sbs_utils.procedural.gui import face as FACE
 from sbs_utils.procedural.gui import image as IMAGE
 from sbs_utils.procedural.gui import message as MESSAGE
+from sbs_utils.procedural.gui import listbox as LISTBOX
 from sbs_utils.procedural.gui import row as ROW
 from sbs_utils.procedural.gui import text as TEXT
 from sbs_utils.procedural.inventory import set_inventory_value
@@ -55,6 +56,16 @@ SCENES = {
 class _FakeItem:
     def __init__(self, data):
         self.data = data
+
+
+class _FakeListbox:
+    """Stands in for the listbox: what matters is the row the user picked."""
+
+    def __init__(self, items):
+        self.items = list(items)
+
+    def get_value(self):
+        return self.items[0] if self.items else None
 
 
 class _FakeTask:
@@ -112,6 +123,12 @@ class HailViewBase(unittest.TestCase):
             t.append(("dropdown", props, data, item))
             return item
         patch(DROPDOWN, "gui_drop_down", _dd)
+
+        def _lb(items, style=None, **kw):
+            items = list(items)
+            t.append(("listbox", items))
+            return _FakeListbox(items)
+        patch(LISTBOX, "gui_list_box", _lb)
         patch(MESSAGE, "gui_message_callback",
               lambda item, cb: t.append(("callback", item, cb)))
 
@@ -336,6 +353,85 @@ class ConversationViewTests(HailViewBase):
         V.hail_view(self.ship, self.comms)
         areas = NL.join(e[1] for e in self.trace if e[0] == "text_area")
         self.assertNotIn("1. Stand down", areas)
+
+
+class HistoryPanelTests(HailViewBase):
+    def _archive(self, n=1):
+        for i in range(n):
+            self.offer(name=f"Caller{i}")
+            H.hail_accept(self.ship)
+            H.hail_close(self.ship)
+        self.trace.clear()
+
+    def test_an_empty_log_says_so_rather_than_drawing_nothing(self):
+        V.hail_panel_history(self.comms)
+        self.assertTrue(any("No hails yet." in e[1]
+                            for e in self.trace if e[0] == "text"))
+
+    def test_past_conversations_go_in_a_listbox(self):
+        self._archive(3)
+        V.hail_panel_history(self.comms)
+        boxes = [e for e in self.trace if e[0] == "listbox"]
+        self.assertEqual(len(boxes), 1)
+        self.assertEqual(len(boxes[0][1]), 3)
+
+    def test_choosing_a_row_starts_a_replay(self):
+        self._archive(1)
+        entry = H.hail_log(self.ship)[0]
+        V._hail_log_pick(FakeEvent(client_id=self.comms), _FakeListbox([entry]))
+        self.assertEqual(H.hail_replaying(self.comms), entry.id)
+
+    def test_a_replay_shows_the_transcript_and_no_list(self):
+        self._archive(1)
+        H.hail_replay_start(self.comms, H.hail_log(self.ship)[0].id)
+        self.trace.clear()
+        V.hail_panel_history(self.comms)
+        self.assertEqual([e for e in self.trace if e[0] == "listbox"], [])
+        self.assertTrue(any(e[0] == "text_area" for e in self.trace))
+
+    def test_a_replay_offers_no_control_that_could_answer(self):
+        # hail_answer refuses a replaying console anyway; not drawing anything that
+        # LOOKS answerable is the belt to that braces.
+        self._archive(1)
+        H.hail_replay_start(self.comms, H.hail_log(self.ship)[0].id)
+        self.trace.clear()
+        V.hail_panel_history(self.comms)
+        labels = [b[1] for b in self.buttons()]
+        self.assertEqual(len(labels), 1)
+        self.assertIn("Back to hails", labels[0])
+
+    def test_back_leaves_the_replay(self):
+        self._archive(1)
+        H.hail_replay_start(self.comms, H.hail_log(self.ship)[0].id)
+        task = _FakeTask()
+        task.set_variable("__ITEM__", _FakeItem({"hail_client": self.comms}))
+        FrameContext.task = task
+        V._hail_replay_back()
+        FrameContext.task = None
+        self.assertIsNone(H.hail_replaying(self.comms))
+
+    def test_a_replay_of_a_conversation_that_rolled_off_falls_back_to_the_list(self):
+        self._archive(1)
+        H.hail_replay_start(self.comms, 9999)
+        V.hail_panel_history(self.comms)
+        self.assertIsNone(H.hail_replaying(self.comms))
+
+
+class TranscriptTextTests(HailViewBase):
+    def test_a_line_carries_its_speaker(self):
+        text = V.hail_transcript_text(
+            {"transcript": [{"kind": "line", "name": "Ashfang", "text": "Hold."}]})
+        self.assertIn("Ashfang", text)
+        self.assertIn("Hold.", text)
+
+    def test_an_answer_is_marked_as_the_crews_own(self):
+        text = V.hail_transcript_text(
+            {"transcript": [{"kind": "choice", "name": "", "text": "Stand down"}]})
+        self.assertTrue(text.startswith(">"))
+        self.assertIn("Stand down", text)
+
+    def test_an_empty_conversation_still_renders(self):
+        self.assertIn("nothing was said", V.hail_transcript_text({}))
 
 
 class BandTests(HailViewBase):

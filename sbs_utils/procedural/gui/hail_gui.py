@@ -42,17 +42,36 @@ overlay_slot_define(HAIL_BAND_SLOT, HAIL_BAND_RECT, draw_layer=HAIL_BAND_LAYER)
 # layering cannot clip anything. The fill IS the clip.
 BAND_BACKGROUND = "#000c"
 
+def hail_panel_icon():
+    """The history tab's glyph.
+
+    A FUNCTION, not a constant, and that is load-bearing: only functions become MAST
+    globals, so a module-level `HAIL_PANEL_ICON` is invisible to every .mast file that
+    tries to use it - and invisible in a way a headless run does not catch, because the
+    console layout that would name it never renders there.
+
+    Resolved by MEANING rather than by sheet index, so a mission that re-skins the icon
+    sheet moves this with it and the console never carries a bare number it cannot
+    explain. Falls back to the messages glyph if the name is ever retired.
+    """
+    try:
+        from .icon_sheet import icon_resolve
+        index, _atlas = icon_resolve("talks")
+        return index if index is not None else 84
+    except Exception:
+        return 84
+
 _STYLE_ROW = "row-height: 2.2em;"
 _STYLE_FACE_ROW = "row-height: 30%;"
 
 
-def _text(value):
+def _hail_text(value):
     """A `$text:` property with the value quoted, so a name or a line carrying `:` or
     `;` is drawn rather than parsed as style."""
     return f"$text:{gui_text_escape(value)};"
 
 
-def _may_answer_here(client_id):
+def _hail_may_answer_here(client_id):
     """Whether THIS console is one that can press an answer.
 
     Mirrors the server-side check in `hail_answer` rather than re-deciding it: a console
@@ -111,22 +130,22 @@ def hail_choice_strip(ship, client_id=None, style=None):
 
     if not hail_is_active(ship):
         pending = hail_pending(ship)[:HAIL_MAX_CHOICES]
-        if not pending or not _may_answer_here(client_id):
+        if not pending or not _hail_may_answer_here(client_id):
             return 0
         for record in pending:
             gui_row(row_style)
-            gui_button(_text(hail_answer_label(record)),
+            gui_button(_hail_text(hail_answer_label(record)),
                        data={"hail_kind": "accept", "hail_ship": ship,
                              "hail_id": record.get("id")},
                        on_press=_hail_view_press, is_sub_task=True)
         return len(pending)
 
     choices = hail_choices(ship)
-    if not choices or not _may_answer_here(client_id):
+    if not choices or not _hail_may_answer_here(client_id):
         return 0
     for choice in choices:
         gui_row(row_style)
-        gui_button(_text(choice.label),
+        gui_button(_hail_text(choice.label),
                    data={"hail_kind": "answer", "hail_ship": ship,
                          "hail_index": choice.index, "hail_seq": choice.seq},
                    on_press=_hail_view_press, is_sub_task=True)
@@ -160,7 +179,7 @@ def hail_where_dropdown(client_id=None, style=None):
 
     if client_id is None:
         client_id = FrameContext.client_id
-    if not _may_answer_here(client_id):
+    if not _hail_may_answer_here(client_id):
         return None
     current = hail_where_label_for(hail_where(client_id))
     item = gui_drop_down(hail_where_props(current), style,
@@ -170,7 +189,7 @@ def hail_where_dropdown(client_id=None, style=None):
 
 
 # --- the conversation itself ------------------------------------------------
-def _speaker_line(ship):
+def _hail_speaker_line(ship):
     """(name, line) for the beat being spoken, or ("", "") between beats."""
     beat = hail_beat(ship)
     if beat is None:
@@ -179,7 +198,7 @@ def _speaker_line(ship):
     return (beat.name or beat.speaker or ""), (beat.text or "")
 
 
-def _choice_readout(ship):
+def _hail_choice_readout(ship):
     """The choices as read-only lines, for a console that may not press them.
 
     Numbered, because the point is that the bridge can follow what comms is deciding
@@ -212,7 +231,7 @@ def hail_view(ship, client_id=None):
         return form
 
     record = hail_active(ship)
-    name, line = _speaker_line(ship)
+    name, line = _hail_speaker_line(ship)
 
     if form == "still" and record.backdrop:
         gui_row("row-height: 55%;")
@@ -225,16 +244,16 @@ def hail_view(ship, client_id=None):
 
     if record.title:
         gui_row("row-height: 1.4em;")
-        gui_text(_text(record.title) + "justify:center;")
+        gui_text(_hail_text(record.title) + "justify:center;")
     gui_row("row-height: 1.6em;")
-    gui_text(_text(name) + "font:gui-3;")
+    gui_text(_hail_text(name) + "font:gui-3;")
     gui_row("row-height: 1fr;")
     # The line goes STRAIGHT into the widget. Dialogue text may contain `{`, and a
     # bare MAST assignment would re-format it as an f-string and fail against the
     # assignment line rather than against the text.
     gui_text_area(line)
 
-    readout = [] if _may_answer_here(client_id) else _choice_readout(ship)
+    readout = [] if _hail_may_answer_here(client_id) else _hail_choice_readout(ship)
     if readout:
         gui_row("row-height: content;")
         gui_text_area(chr(10).join(readout))
@@ -252,7 +271,7 @@ def _hail_band_builder(client_id, content):
     choices = content.get("choices") or []
 
     gui_row(f"row-height: 1.6em; background: {BAND_BACKGROUND};")
-    gui_text(_text(name) + "font:gui-3;padding:4px;")
+    gui_text(_hail_text(name) + "font:gui-3;padding:4px;")
     gui_row(f"row-height: 1fr; background: {BAND_BACKGROUND};")
     gui_text_area(line, "padding: 8px;")
     if choices:
@@ -271,10 +290,10 @@ def hail_band_show(ship, to=None, consoles="mainscreen"):
     """
     if not hail_is_active(ship):
         return False
-    name, line = _speaker_line(ship)
+    name, line = _hail_speaker_line(ship)
     overlay_show(HAIL_BAND_SLOT, HAIL_BAND_SLOT, to=to if to is not None else ship,
                  consoles=consoles, name=name, line=line,
-                 choices=_choice_readout(ship), seq=hail_seq(ship))
+                 choices=_hail_choice_readout(ship), seq=hail_seq(ship))
     return True
 
 
@@ -282,3 +301,90 @@ def hail_band_clear(ship, to=None, consoles="mainscreen"):
     """Take the band down."""
     overlay_clear(HAIL_BAND_SLOT, to=to if to is not None else ship, consoles=consoles)
     return True
+
+
+# --- the history tab, and replay --------------------------------------------
+def hail_transcript_text(entry):
+    """An archived conversation as markdown: every line in the order it was said, with
+    the answers the crew gave marked as theirs.
+
+    The answers are TEXT, deliberately. `hail_answer` refuses a replaying console, so a
+    button here would be refused anyway - but the surest way not to rewrite history is
+    not to draw a control that looks as though it could.
+    """
+    out = []
+    for item in (entry.get("transcript") or []):
+        text = item.get("text") or ""
+        if item.get("kind") == "choice":
+            out.append("> **" + text + "**")
+        else:
+            name = item.get("name") or ""
+            out.append(("**" + name + "**  " + text) if name else text)
+    return chr(10).join(out) or "(nothing was said)"
+
+
+def _hail_log_row(entry):
+    """One row of the history list: who called, and whether it was taken."""
+    from .row import gui_row
+    from .text import gui_text
+    who = entry.get("name") or entry.get("speaker") or "Unknown"
+    gui_row("row-height: 1.8em;")
+    gui_text(_hail_text(who + (" (declined)" if entry.get("declined") else "")))
+
+
+def _hail_log_pick(event, item):
+    """A row was chosen: replay it. The console comes from the event because an info
+    panel is always rendered for one client."""
+    from ..hail import hail_replay_start
+    client_id = getattr(event, "client_id", None) or FrameContext.client_id
+    entry = item.get_value() if hasattr(item, "get_value") else None
+    if entry is not None:
+        hail_replay_start(client_id, entry.get("id"))
+
+
+def _hail_replay_back():
+    """Leave the replay and go back to the list."""
+    from ..hail import hail_replay_stop
+    task = FrameContext.task
+    widget = task.get_variable("__ITEM__") if task is not None else None
+    data = getattr(widget, "data", None) or {}
+    hail_replay_stop(data.get("hail_client") or FrameContext.client_id)
+
+
+def hail_panel_history(cid, left=0, top=0, width=0, height=0):
+    """The comms info-panel tab: every conversation this ship has had, re-readable.
+
+    Two states in one tab - the list, and one conversation being replayed. The info
+    panel gives a builder no way to push a second tab, and a hail's history is one idea,
+    so the state lives on the console (`HAIL_REPLAY`) and this reads it.
+    """
+    from .row import gui_row
+    from .text import gui_text, gui_text_area
+    from .button import gui_button
+    from .listbox import gui_list_box
+    from .message import gui_message_callback
+    from .viewscreen import viewscreen_home_ship
+    from ..hail import hail_log, hail_log_entry, hail_replaying, hail_replay_stop
+
+    ship = viewscreen_home_ship(cid)
+    log_id = hail_replaying(cid)
+    if log_id is not None:
+        entry = hail_log_entry(ship, log_id)
+        if entry is None:
+            hail_replay_stop(cid)          # the log rolled past it; fall through
+        else:
+            gui_row("row-height: 2em;")
+            gui_button(_hail_text("Back to hails"), data={"hail_client": cid},
+                       on_press=_hail_replay_back, is_sub_task=True)
+            gui_row("row-height: 1fr;")
+            gui_text_area(hail_transcript_text(entry))
+            return
+
+    entries = hail_log(ship)
+    if not entries:
+        gui_row("row-height: 2em;")
+        gui_text(_hail_text("No hails yet."))
+        return
+    listbox = gui_list_box(entries, "row-height: 1.8em;",
+                           item_template=_hail_log_row, select=True)
+    gui_message_callback(listbox, _hail_log_pick)

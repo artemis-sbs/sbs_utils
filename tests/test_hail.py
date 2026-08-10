@@ -522,6 +522,113 @@ class HistoryAndReplayTests(HailTestCase):
         self.assertTrue(H.hail_log(self.ship)[0].declined)
 
 
+class AudioTests(HailTestCase):
+    """`Audio:` on a scene plays once, server-side - five consoles must not start five
+    copies of the same voice line."""
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural import media
+        self.media = media
+        self.played = []
+        self._real = media.media_play_audio
+        media.media_play_audio = lambda f, *a, **k: self.played.append(f) or True
+
+    def tearDown(self):
+        self.media.media_play_audio = self._real
+        super().tearDown()
+
+    def test_an_amd_scene_plays_its_audio_when_the_hail_opens(self):
+        scenes = {"open": {"data": {"speaker": "ashfang", "when": "hail",
+                                    "audio": "audio/intercept"},
+                           "description": "% Hello." + NL}}
+        H.hail_offer_amd(self.ship, scenes, "ashfang")
+        H.hail_accept(self.ship)
+        self.assertEqual(self.played, ["audio/intercept"])
+
+    def test_a_branch_plays_the_next_scenes_audio(self):
+        H.hail_offer(self.ship, speaker="a", lines="One.",
+                     choices=[("Go", "next")], scenes={
+                         "next": {"data": {"speaker": "a", "audio": "audio/second"},
+                                  "description": "% Two." + NL}}, scene="start")
+        H.hail_accept(self.ship)
+        H.hail_advance(self.ship)
+        self.played.clear()
+        H.hail_answer(self.ship, 0)
+        self.assertEqual(self.played, ["audio/second"])
+
+    def test_a_branch_can_change_how_the_hail_is_DRAWN(self):
+        # The confrontation is an orbit shot; the reply is a portrait. A record that
+        # kept the entry scene's fields forever could never do that.
+        # No subject: a subject id that names nothing is pruned before accept, and
+        # hail_form reports the form regardless.
+        H.hail_offer(self.ship, speaker="a", presentation="orbit",
+                     lines="One.", choices=[("Go", "next")], scene="start", scenes={
+                         "next": {"data": {"speaker": "a", "presentation": "portrait"},
+                                  "description": "% Two." + NL}})
+        H.hail_accept(self.ship)
+        H.hail_advance(self.ship)
+        H.hail_answer(self.ship, 0)
+        self.assertEqual(H.hail_form(self.ship), "portrait")
+
+    def test_a_branch_that_says_nothing_keeps_what_was_running(self):
+        H.hail_offer(self.ship, speaker="a", presentation="still", backdrop="neb",
+                     lines="One.", choices=[("Go", "next")], scene="start", scenes={
+                         "next": {"data": {"speaker": "a"},
+                                  "description": "% Two." + NL}})
+        H.hail_accept(self.ship)
+        H.hail_advance(self.ship)
+        H.hail_answer(self.ship, 0)
+        self.assertEqual(H.hail_form(self.ship), "still")
+
+    def test_a_hail_with_no_audio_plays_nothing(self):
+        self._offer()
+        H.hail_accept(self.ship)
+        self.assertEqual(self.played, [])
+
+    def test_audio_is_played_once_per_open_not_once_per_console(self):
+        _console(C_COMMS2, self.ship, "console", "comms")
+        _console(C_MAIN, self.ship, "console", "mainscreen")
+        scenes = {"open": {"data": {"speaker": "a", "when": "hail",
+                                    "audio": "audio/one"},
+                           "description": "% Hi." + NL}}
+        H.hail_offer_amd(self.ship, scenes, "a")
+        H.hail_accept(self.ship)
+        self.assertEqual(len(self.played), 1)
+
+
+class TranscriptTests(HailTestCase):
+    """A replay is only worth having if it is the WHOLE conversation."""
+
+    def test_the_transcript_spans_a_branch(self):
+        # `lines` holds one scene at a time - each new scene overwrites it - so a
+        # transcript built from it would show only the last thing said.
+        self._open()
+        H.hail_answer(self.ship, 0)          # -> backoff
+        while H.hail_advance(self.ship):
+            pass
+        H.hail_close(self.ship)
+        kinds = [t["kind"] for t in H.hail_log(self.ship)[0].transcript]
+        texts = [t["text"] for t in H.hail_log(self.ship)[0].transcript]
+        self.assertEqual(kinds, ["line", "line", "choice", "line"])
+        self.assertIn("Stand down", texts)   # the answer, in the order it was given
+        self.assertIn("Wise.", texts)        # and what the SECOND scene replied
+
+    def test_lines_are_recorded_as_spoken_not_as_resolved(self):
+        # Closing early must not archive words nobody heard.
+        self._offer()
+        H.hail_accept(self.ship)
+        H.hail_close(self.ship)
+        self.assertEqual(len(H.hail_log(self.ship)[0].transcript), 1)
+
+    def test_the_speaker_is_resolved_into_the_transcript(self):
+        H.hail_set_speaker_resolver(lambda key, ship: {"name": key.title()})
+        self._offer()
+        H.hail_accept(self.ship)
+        H.hail_close(self.ship)
+        self.assertEqual(H.hail_log(self.ship)[0].transcript[0]["name"], "Ashfang")
+
+
 class OrbitBandTests(HailTestCase):
     """An orbit hail draws nothing inline, so the band IS the conversation on screen -
     it has to follow the beats and go when the hail does."""

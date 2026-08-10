@@ -401,6 +401,29 @@ def hail_is_active(ship):
 
 
 # --- driving the conversation ----------------------------------------------
+def _hail_apply_scene_fields(record):
+    """Adopt the fields the scene we have just BRANCHED to declares.
+
+    A conversation is several scenes, and each is entitled to its own `Audio:`,
+    `Presentation:` and title - the confrontation can be an orbit shot and the reply a
+    portrait. Without this the record keeps the ENTRY scene's fields forever, so a
+    branch replays the first scene's sound and never changes how it is drawn.
+
+    Only fields the new scene actually declares are taken, so a scene that says nothing
+    about presentation keeps what the conversation was already using. Called on a
+    branch, not on resolve - the entry scene's fields are applied by `hail_offer_amd`,
+    where an explicit override is still allowed to win.
+    """
+    scenes, key = record.get("scenes"), record.get("scene")
+    node = (scenes or {}).get(key) if scenes else None
+    data = (node or {}).get("data") or {}
+    for field in ("audio", "presentation", "backdrop", "subject", "title",
+                  "face", "color"):
+        value = data.get(field)
+        if value not in (None, ""):
+            record[field] = value
+
+
 def _hail_resolve_scene(ship_id, record):
     """Cache this scene's beats and choices onto the record.
 
@@ -425,6 +448,28 @@ def _hail_resolve_scene(ship_id, record):
     record["beat"] = 0
     record["resolved"] = True
     return record
+
+
+def _hail_record_beat(ship_id, rec):
+    """Append the beat being spoken NOW to the conversation's transcript.
+
+    Recorded as it is SAID, not when a scene is resolved. A scene's beats are cached at
+    resolve time, but a conversation that branches resolves several scenes and a player
+    who closes early never hears the rest - so resolving is the wrong moment, and
+    `lines` (which each new scene overwrites) is the wrong list. This is what makes a
+    replay the whole conversation rather than only its last scene.
+    """
+    lines = rec.get("lines") or []
+    index = int(rec.get("beat") or 0)
+    if not (0 <= index < len(lines)):
+        return
+    beat = lines[index]
+    card = hail_speaker(beat.get("speaker") or rec.get("speaker"), ship_id)
+    rec.setdefault("transcript", []).append({
+        "kind": "line",
+        "name": rec.get("name") or card.get("name", "") or beat.get("speaker") or "",
+        "text": beat.get("text") or "",
+    })
 
 
 def hail_accept(ship, hail_id=None, client_id=None):
@@ -460,6 +505,7 @@ def hail_accept(ship, hail_id=None, client_id=None):
     if not record.get("resolved"):
         _hail_resolve_scene(ship_id, record)
     set_inventory_value(ship_id, KEY_ACTIVE, record)
+    _hail_record_beat(ship_id, record)
     _hail_bump_seq(ship_id)
     _hail_play_audio(record)
     _hail_presentation_apply(ship_id)
@@ -507,6 +553,7 @@ def hail_advance(ship):
     lines = rec.get("lines") or []
     index = int(rec.get("beat") or 0) + 1
     rec["beat"] = index
+    _hail_record_beat(ship_id, rec)
     set_inventory_value(ship_id, KEY_ACTIVE, rec)
     _hail_bump_seq(ship_id)
     _hail_presentation_apply(ship_id)   # the band shows the beat, so it moves with it
@@ -586,12 +633,16 @@ def hail_answer(ship, index, client_id=None, seq=None):
 
     rec.setdefault("taken", []).append(
         {"scene": rec.get("scene"), "label": choice.get("label")})
+    rec.setdefault("transcript", []).append(
+        {"kind": "choice", "name": "", "text": choice.get("label") or ""})
     target = choice.get("target")
     scenes = rec.get("scenes") or {}
     if target and target in scenes:
         rec["scene"] = target
         rec["resolved"] = False
+        _hail_apply_scene_fields(rec)
         _hail_resolve_scene(ship_id, rec)
+        _hail_record_beat(ship_id, rec)
         set_inventory_value(ship_id, KEY_ACTIVE, rec)
         _hail_play_audio(rec)
         _hail_presentation_apply(ship_id)
@@ -637,6 +688,7 @@ def hail_close(ship, declined=False):
                    "speaker": rec.get("speaker"), "name": rec.get("name"),
                    "title": rec.get("title"), "face": rec.get("face"),
                    "color": rec.get("color"), "lines": list(rec.get("lines") or []),
+                   "transcript": list(rec.get("transcript") or []),
                    "taken": list(rec.get("taken") or []),
                    "closed_at": _hail_now(), "declined": bool(declined)})
     set_inventory_value(ship_id, KEY_LOG, log[:HAIL_LOG_CAP])
