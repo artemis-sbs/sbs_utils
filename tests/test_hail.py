@@ -953,5 +953,33 @@ class NoAmdTests(HailTestCase):
         self.assertEqual(len(H.hail_choices(self.ship)), H.HAIL_MAX_CHOICES)
 
 
+class TheNameOnTheListComesFromTheResolver(HailTestCase):
+    """A hail authored entirely in AMD still has a NAME on the pending list.
+
+    The list and the `Answer X` button render BEFORE any beat does, and only a beat
+    builds a speaker card - so both read the record, which held nothing but the raw
+    key. Every early call site passed `name=` and hid it; the moment a mission named
+    its cast in the document instead, the list read `Answer tsn_command`.
+    """
+
+    def test_the_pending_record_carries_the_resolved_name(self):
+        H.hail_set_speaker_resolver(lambda key, sid=None: {"name": "TSN Command"})
+        hid = self._offer(speaker="tsn_command")
+        rec = [r for r in H.hail_pending(self.ship) if r.get("id") == hid][0]
+        self.assertEqual(rec.get("name"), "TSN Command")
+        self.assertEqual(H.hail_answer_label(rec), "Answer TSN Command")
+
+    def test_an_explicit_name_still_wins(self):
+        H.hail_set_speaker_resolver(lambda key, sid=None: {"name": "TSN Command"})
+        hid = self._offer(speaker="tsn_command", name="Fleet HQ")
+        rec = [r for r in H.hail_pending(self.ship) if r.get("id") == hid][0]
+        self.assertEqual(rec.get("name"), "Fleet HQ")
+
+    def test_no_resolver_leaves_the_key_rather_than_inventing_a_name(self):
+        hid = self._offer(speaker="tsn_command")
+        rec = [r for r in H.hail_pending(self.ship) if r.get("id") == hid][0]
+        self.assertEqual(H.hail_answer_label(rec), "Answer tsn_command")
+
+
 if __name__ == "__main__":
     unittest.main()

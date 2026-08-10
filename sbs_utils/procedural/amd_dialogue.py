@@ -35,7 +35,12 @@ from sbs_utils.procedural.amd import RE_CUE, RE_DIRECTION
 from sbs_utils.procedural.signal import signal_emit
 from sbs_utils.mast.mast_node import MastDataObject
 
-_CHOICE = re.compile(r"^-\s*\[(?P<label>.*?)\]\((?P<target>[\w.\-]+)\)\s*(?P<rest>.*?)\s*$")
+# An EMPTY target is legal and means "this answer ends the hail" - `hail_answer`
+# already closes on a falsy target, so `+` here only made an authored terminal
+# choice VANISH: the line looked like a choice, matched nothing, and was dropped
+# without a word. A conversation whose last beat is an acknowledgement is the
+# common case, so it must be writable.
+_CHOICE = re.compile(r"^-\s*\[(?P<label>.*?)\]\((?P<target>[\w.\-]*)\)\s*(?P<rest>.*?)\s*$")
 _GATE = re.compile(r"^%?\{(?P<gate>[^}]*)\}\s*(?P<text>.*)$")
 _GUARD = re.compile(r"^(?P<lhs>[\w ]+?)\s*(?P<op>>=|<=|==|!=|>|<)\s*(?P<num>-?\d+)$")
 

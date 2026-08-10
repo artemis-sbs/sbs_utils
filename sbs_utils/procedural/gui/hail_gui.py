@@ -25,7 +25,8 @@ from ...helpers import FrameContext, gui_text_escape
 from ..hail import (HAIL_MAX_CHOICES, hail_accept, hail_active, hail_advance,
                     hail_answer, hail_audio, hail_audio_set, hail_beat,
                     hail_answer_label, hail_choices, hail_defer, hail_form,
-                    hail_is_active, hail_more, hail_pending, hail_seq, hail_where,
+                    hail_close, hail_is_active, hail_more, hail_pending, hail_seq,
+                    hail_where,
                     hail_where_for, hail_where_label_for, hail_where_props)
 from .overlay import overlay_clear, overlay_register, overlay_show, overlay_slot_define
 
@@ -173,6 +174,8 @@ def _hail_row_pick(event, item):
         hail_answer(ship, entry.get("hail_index"), client_id, seq=entry.get("hail_seq"))
     elif kind == "back":
         hail_defer(ship, client_id, seq=entry.get("hail_seq"))
+    elif kind == "close":
+        hail_close(ship)
 
 
 def hail_rows(ship, client_id=None):
@@ -209,10 +212,17 @@ def hail_rows(ship, client_id=None):
     if hail_more(ship):
         return [back, {"label": "Continue", "hail_kind": "advance", "hail_ship": ship,
                        "hail_client": client_id, "hail_seq": hail_seq(ship)}]
-    return [back] + [{"label": choice.label, "hail_kind": "answer", "hail_ship": ship,
-                      "hail_client": client_id, "hail_index": choice.index,
-                      "hail_seq": choice.seq}
-                     for choice in hail_choices(ship)]
+    answers = [{"label": choice.label, "hail_kind": "answer", "hail_ship": ship,
+                "hail_client": client_id, "hail_index": choice.index,
+                "hail_seq": choice.seq}
+               for choice in hail_choices(ship)]
+    if not answers:
+        # A one-way message - a briefing, a log playback - authors no choices, and
+        # without this there is nothing that ENDS it: `Back` only defers, so the hail
+        # would sit in the list forever and an `await hail_ask` on it never settle.
+        answers = [{"label": "Close", "hail_kind": "close", "hail_ship": ship,
+                    "hail_client": client_id, "hail_seq": hail_seq(ship)}]
+    return [back] + answers
 
 
 def hail_list_title(ship):

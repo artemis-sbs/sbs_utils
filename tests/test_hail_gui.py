@@ -287,6 +287,22 @@ class HailListTests(HailViewBase):
         self.assertIn("background", box[3].get("title_section_style", ""))
         self.assertIn("background", box[2])
 
+    def test_a_one_way_message_still_has_a_way_out(self):
+        # A briefing or a log playback authors no choices. Without a Close there is
+        # nothing that ENDS it - Back only defers - so it would sit in the list for
+        # ever and an `await hail_ask` on it would never settle.
+        H.hail_offer(self.ship, speaker="command", lines="A briefing.")
+        H.hail_accept(self.ship)
+        kinds = [r["hail_kind"] for r in V.hail_rows(self.ship, self.comms)]
+        self.assertEqual(kinds, ["back", "close"])
+
+    def test_close_ends_the_conversation(self):
+        H.hail_offer(self.ship, speaker="command", lines="A briefing.")
+        H.hail_accept(self.ship)
+        row = [r for r in V.hail_rows(self.ship, self.comms) if r["hail_kind"] == "close"][0]
+        V._hail_row_pick(FakeEvent(client_id=self.comms), _FakeListbox([row]))
+        self.assertFalse(H.hail_is_active(self.ship))
+
     def test_the_list_owns_its_own_selection_handler(self):
         self.offer()
         V.hail_choice_strip(self.ship, self.comms)

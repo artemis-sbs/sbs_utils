@@ -286,6 +286,23 @@ def hail_offer(ship, scene=None, speaker=None, subject=None, presentation=None,
         DEBUG(f"[hail] unknown presentation {presentation!r}; expected one of {HAIL_FORMS}")
         presentation = None
 
+    if scene and scenes:
+        # A named scene brings its own fence - `Title:`, `Audio:`, `Presentation:` and
+        # the rest - so authoring a hail in AMD does not mean repeating every field at
+        # the call site. An explicit argument still wins. Branching to a scene already
+        # adopted its fields (`_hail_apply_scene_fields`); doing it here too means the
+        # FIRST scene of a conversation behaves like every later one.
+        _d = ((scenes.get(scene) or {}).get("data") or {})
+        presentation = presentation if presentation is not None else _d.get("presentation")
+        backdrop = backdrop if backdrop is not None else _d.get("backdrop")
+        subject = subject if subject is not None else _d.get("subject")
+        audio = audio if audio is not None else _d.get("audio")
+        title = title if title is not None else _d.get("title")
+        face = face if face is not None else _d.get("face")
+        color = color if color is not None else _d.get("color")
+        speaker = speaker if speaker is not None else _d.get("speaker")
+        priority = priority or _d.get("priority") or 0
+
     q = _hail_queue(ship_id)
     if key is not None:
         active = _hail_get(ship_id, KEY_ACTIVE, None)
@@ -307,6 +324,12 @@ def hail_offer(ship, scene=None, speaker=None, subject=None, presentation=None,
         "resolved": lines is not None or choices is not None,
         "taken": [],
     }
+    if record["name"] is None and record["speaker"]:
+        # Resolve the DISPLAY name now, because the pending list and the `Answer X`
+        # button render before any beat does - and only a beat builds a speaker card.
+        # Without this they fall back to the raw key, so a mission that names its cast
+        # in AMD (the point of authoring it there) still showed `Answer tsn_command`.
+        record["name"] = hail_speaker(record["speaker"], ship_id).get("name") or None
     q.append(record)
     # Priority first, then the order they arrived - a stable sort keeps FIFO within a
     # priority, which is what makes "the queue" predictable to a player.
@@ -332,17 +355,10 @@ def hail_offer_amd(ship, scenes, speaker_key, when="hail", **overrides):
     scene_key = dialogue_entry_for(scenes or {}, speaker_key, when=when)
     if scene_key is None:
         return None
-    node = (scenes or {}).get(scene_key) or {}
-    data = node.get("data") or {}
-    fields = {
-        "scene": scene_key, "speaker": speaker_key, "scenes": scenes,
-        "presentation": data.get("presentation"), "backdrop": data.get("backdrop"),
-        "subject": data.get("subject"), "audio": data.get("audio"),
-        "title": data.get("title"), "face": data.get("face"),
-        "color": data.get("color"), "priority": data.get("priority") or 0,
-    }
-    fields.update({k: v for k, v in overrides.items() if v is not None})
-    return hail_offer(ship_id, **fields)
+    # hail_offer reads the scene's fence itself now, so this is only the LOOKUP: which
+    # scene is this speaker's hail entry.
+    return hail_offer(ship_id, scene=scene_key, speaker=speaker_key, scenes=scenes,
+                      **{k: v for k, v in overrides.items() if v is not None})
 
 
 def _hail_expired(record, now):

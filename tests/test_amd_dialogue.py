@@ -92,6 +92,27 @@ class DialogueSeamTests(unittest.TestCase):
         D.dialogue_register_outcome("costs", lambda a, s, toks: False)
         self.assertFalse(D.dialogue_apply(1, None, [("costs", "999")]))
 
+    def test_a_choice_with_an_EMPTY_target_is_a_choice(self):
+        # `- [Accept Message]()` - an acknowledgement that ends the conversation.
+        # `hail_answer` closes the hail on a falsy target, so this is the ordinary
+        # shape of a last beat; the regex used to require a target and dropped the
+        # line without a word, which read as "my choice did not show up".
+        scene = D.dialogue_parse({"data": {}, "description":
+            """It is done.
+- [Accept Message]()
+"""})
+        self.assertEqual([c["label"] for c in scene["choices"]], ["Accept Message"])
+        self.assertEqual(scene["choices"][0]["target"], "")
+
+    def test_an_empty_target_still_carries_a_guard_and_outcomes(self):
+        scene = D.dialogue_parse({"data": {}, "description":
+            """- [Pay up]() if credits >= 200; costs 200 credits
+"""})
+        ch = scene["choices"][0]
+        self.assertEqual(ch["target"], "")
+        self.assertEqual(ch["guard"], "credits >= 200")
+        self.assertEqual(ch["outcomes"], [("costs", "200", "credits")])
+
 
 if __name__ == "__main__":
     unittest.main()
