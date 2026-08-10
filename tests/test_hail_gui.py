@@ -451,12 +451,20 @@ class ConversationViewTests(HailViewBase):
 
     def test_an_orbit_builds_NOTHING_inline(self):
         # A live 3D view cannot be layered over at any draw layer, so the band is an
-        # overlay and the console leaves its view alone.
+        # overlay and the console leaves its view alone. Asserted on the MAIN SCREEN,
+        # which is the only console an orbit is drawn on.
         self.offer(presentation="orbit", subject="raider_lead")
         H.hail_accept(self.ship)
-        set_inventory_value(self.ship, "HAIL_COMMS_ORBIT", True)
-        self.assertEqual(V.hail_view(self.ship, self.comms), "orbit")
+        self.assertEqual(V.hail_view(self.ship, self.main), "orbit")
         self.assertEqual(self.trace, [])
+
+    def test_an_orbit_on_COMMS_draws_a_face_instead(self):
+        # Settled, not deferred: comms has no 3D view, and giving it one means taking
+        # the client's ship assignment - which is what `comms_control` and
+        # `comms_sorted_list` are tied to.
+        self.offer(presentation="orbit", subject="raider_lead", name="Ashfang")
+        H.hail_accept(self.ship)
+        self.assertEqual(V.hail_view(self.ship, self.comms), "portrait")
 
     def test_a_portrait_draws_the_face_the_name_and_the_line(self):
         self.offer(presentation="portrait", face="ter #fff 0 0;", name="Ashfang")

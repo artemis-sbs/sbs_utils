@@ -942,19 +942,21 @@ def _hail_play_audio(record, ship_id=None):
 def hail_form(ship, client_id=None):
     """How the open hail should be drawn, or None.
 
-    On a COMMS console an `orbit` reads as `portrait` unless the comms orbit is turned
-    on: driving the engine camera from a console that is not the main screen is the one
-    unproven surface, so it degrades to a form that always works rather than risking a
-    black centre panel.
+    **On a COMMS console an `orbit` always reads as `portrait`.** That is settled, not
+    deferred: comms has no 3D view, and giving it one means taking the client's SHIP
+    ASSIGNMENT, which is what the engine ties `comms_control` and `comms_sorted_list`
+    to - the console would stop being able to do its own job in order to watch a camera
+    move. A face always works, and the console still LOOKS at the caller, because its
+    2D radar follows the subject (`hail_view`).
+
+    The cinematic shot belongs to the main screen, which is a screen and nothing else.
     """
-    ship_id = _hail_sid(ship)
-    rec = _hail_get(ship_id, KEY_ACTIVE, None)
+    rec = _hail_get(_hail_sid(ship), KEY_ACTIVE, None)
     if not rec:
         return None
     form = rec.get("presentation") or "portrait"
     if form == "orbit" and client_id is not None and has_role(client_id, "comms"):
-        if not _hail_get(ship_id, "HAIL_COMMS_ORBIT", False):
-            return "portrait"
+        return "portrait"
     return form
 
 
