@@ -61,6 +61,15 @@ def hail_panel_icon():
     except Exception:
         return 84
 
+# The listbox palette LegendaryMissions already uses for its own lists: a translucent
+# body, and a more opaque bar behind the title so the heading does not read as another
+# choice. Same values as the console-select and brain-scan lists, so a hail list looks
+# like every other list on the bridge.
+LIST_BACKGROUND = "#1572"
+LIST_TITLE_BACKGROUND = "#1578"
+LIST_TITLE_STYLE = ("row-height: 1.0;padding: 2px,2px,2px,2px;"
+                    f"background:{LIST_TITLE_BACKGROUND};")
+
 _STYLE_ROW = "row-height: 2.2em;"
 # NO PERCENT SIGN. A bare number IS a percentage to the style parser; `30%` raises
 # "Invalid syntax on token %" from LayoutAreaParser.lex, at RUNTIME, when the row
@@ -240,9 +249,11 @@ def hail_choice_strip(ship, client_id=None, style=None, row_style=None):
     if not rows:
         return 0
     gui_row(row_style or "row-height: 8em;")
-    listbox = gui_list_box(rows, style or "row-height: 1.6em;",
+    listbox = gui_list_box(rows,
+                           style or f"row-height: 1.6em;background:{LIST_BACKGROUND};",
                            item_template=_hail_row,
-                           title_template=hail_list_title(ship), select=True)
+                           title_template=hail_list_title(ship),
+                           title_section_style=LIST_TITLE_STYLE, select=True)
     gui_message_callback(listbox, _hail_row_pick)
     return len(rows)
 

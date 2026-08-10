@@ -131,7 +131,7 @@ class HailViewBase(unittest.TestCase):
 
         def _lb(items, style=None, **kw):
             items = list(items)
-            t.append(("listbox", items))
+            t.append(("listbox", items, style, kw))
             return _FakeListbox(items)
         patch(LISTBOX, "gui_list_box", _lb)
         patch(MESSAGE, "gui_message_callback",
@@ -271,6 +271,13 @@ class HailListTests(HailViewBase):
         V._hail_row_pick(FakeEvent(client_id=self.comms), _FakeListbox([back]))
         H.hail_accept(self.ship)
         self.assertEqual(H.hail_beat(self.ship).speaker, "ashfang")
+
+    def test_the_title_has_a_background_so_it_is_not_read_as_a_choice(self):
+        self.offer()
+        V.hail_choice_strip(self.ship, self.comms)
+        box = [e for e in self.trace if e[0] == "listbox"][0]
+        self.assertIn("background", box[3].get("title_section_style", ""))
+        self.assertIn("background", box[2])
 
     def test_the_list_owns_its_own_selection_handler(self):
         self.offer()
