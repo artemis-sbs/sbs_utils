@@ -414,10 +414,20 @@ the contract explicit and checkable at **compile time**:
 - **`provides <token>`** — this addon supplies a capability. Tokens are opaque strings
   (dotted by convention): `provides hangar`, `provides hangar.sortie_board`.
 - **`requires <token>`** — HARD dependency. If no loaded addon provides the token, the
-  story **fails to compile** (a clear error, surfaced by `sbs lint` / `--test` and as a
-  runtime error screen).
+  story **fails to compile**, and a story that does not compile **schedules no task at
+  all**: 0 labels, nothing spawned, both logs empty. `--test` reports it (it prints the
+  compiler's own message since 2026-08-11); `sbs lint` does **not** — this is a compile
+  check, not a lint one.
 - **`suggests <token>`** — SOFT dependency (optional augmentation). If unmet, a warning
   is logged and compilation continues.
+
+**Prefer `suggests` for anything widely loaded.** A hard requirement on an addon that
+most missions already load breaks every one of them until each `story.json` is updated —
+LM's `hangar` took 22 missions to zero labels that way, the `sbs create` template
+included. The guard is a runtime twin of `provides`: the provider sets
+`shared X = True` at its top level, the dependant declares `default shared X = False`,
+and the optional part is built behind `if X:`. Order-safe whichever top level runs
+first, because the other is a `default`.
 
 Put them at the top of the addon's `__init__.mast` (column 0, like `import`); multiple
 per line is fine (`provides casino, casino.bar`).

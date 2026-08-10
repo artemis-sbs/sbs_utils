@@ -472,8 +472,32 @@ def _detect_game_end(sbs):
 _NOTHING_RAN = (
     "FAIL - mission executed 0 labels\n"
     "  Nothing ran, not even the story's own main. Usually the story or one of its\n"
-    "  story.json mastlibs failed to load, or a parse error desynced the compiler.\n"
+    "  story.json mastlibs failed to load, an addon `requires` is unmet,\n"
+    "  or a parse error desynced the compiler.\n"
     "  Check mast.compile.log and that every declared lib is in __lib__.")
+
+
+def _compiler_errors():
+    """What the COMPILER said, or [].
+
+    Nothing else surfaces this. `StoryPage.start_story` creates the scheduler only when
+    there are no compiler errors, so a story that failed to compile schedules no task at
+    all: zero labels, nothing spawned, both logs empty - and the run still reports
+    "PASS - no runtime errors", because there were none. The message sits on the page
+    and nobody reads it.
+
+    That cost a long investigation once: an addon `requires` that no mission satisfied
+    took 22 missions to zero labels, and the hint above sent the search after a
+    multi-line literal instead.
+    """
+    try:
+        from sbs_utils.gui import Gui
+        holder = Gui.clients.get(0)
+        page = getattr(holder, "page", None) if holder is not None else None
+        return [str(e) for e in (getattr(page, "compiler_errors", None) or [])]
+    except Exception:
+        return []
+
 
 
 def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
@@ -496,7 +520,11 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
     # No map needed to judge this: the story's own top-level `main` runs regardless, so
     # zero means even that never happened.
     ran_nothing = bool(summ) and not summ.get("labels_hit") and not summ.get("nodes_entered")
-    ok = (verdict.ok if verdict is not None else True) and not ran_nothing
+    # A story that did not COMPILE is a failure whatever else the run looks like. It is
+    # not a runtime error - there was no runtime - so `verdict.ok` says nothing about it.
+    compile_errors = _compiler_errors()
+    ok = ((verdict.ok if verdict is not None else True)
+          and not ran_nothing and not compile_errors)
     name = os.path.basename(os.path.abspath(mission_folder))
 
     print("\n==== mission test report ====")
@@ -552,10 +580,28 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
         msg, is_win = game_end
         verdict_word = "WIN" if is_win else ("LOSE" if is_win is not None else "ENDED")
         print(f"game end: {verdict_word} - {msg!r}")
-    print(verdict.report() if verdict is not None else "no verdict")
+    if compile_errors and (verdict is None or verdict.ok):
+        # "PASS - no runtime errors" is TRUE here and reads as a lie: there was no
+        # runtime. Say which it is, above the compiler's own words.
+        print("no runtime errors - because there was no runtime")
+    else:
+        print(verdict.report() if verdict is not None else "no verdict")
     # Its own line, not folded into the verdict: "no errors" and "nothing ran" are
     # different diagnoses and want different next steps.
-    if ran_nothing:
+    # The compiler's own words FIRST, whenever it had any - they are the answer, and
+    # everything below them is a symptom. Printed even when the run otherwise looks
+    # fine, because a story CAN compile with errors, start nothing, and report no
+    # runtime errors, which is true and useless.
+    if compile_errors:
+        print("compiler errors - THE STORY NEVER STARTED:")
+        for e in compile_errors[:5]:
+            for line in str(e).strip().splitlines():
+                print(f"  {line}")
+        if len(compile_errors) > 5:
+            print(f"  ... and {len(compile_errors) - 5} more")
+    elif ran_nothing:
+        # Only guess when the compiler had nothing to say - otherwise the hint sends
+        # the reader looking for a parse desync that is not there.
         print(_NOTHING_RAN)
     print("=============================")
 
