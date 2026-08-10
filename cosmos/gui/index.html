@@ -1582,6 +1582,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -2488,6 +2492,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../build/incoming-hails/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../mast/objectives/" class="md-nav__link">
         
   
@@ -2580,6 +2612,34 @@
     
   
     Items & Upgrades
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../build/turrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Turrets
   
 
     
@@ -3816,6 +3876,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -4549,6 +4613,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/procedural/mount/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mount
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/procedural/objective/" class="md-nav__link">
         
   
@@ -5117,6 +5209,34 @@
     
   
     torpedoes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/turret/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    turret
   
 
     
@@ -7228,6 +7348,15 @@ on gui_click(ib):
 </div>
 <p>Read a widget's value with <code>widget.get_value()</code> / <code>widget.value</code>; a list box also
 has <code>get_selected()</code>, <code>get_selected_index()</code>, and <code>set_selected_index(i)</code>.</p>
+<div class="admonition note">
+<p class="admonition-title">A list box has two size keys, and they are different things</p>
+<p><strong><code>row-height</code></strong> is the height of ONE item row — a floor, so a two-line item still
+grows past it — and it is also the box each item is hit-tested in, so it is what
+decides how much of a row you can click. <strong><code>item-gap</code></strong> is the spacing between
+items. Declare neither and an item is exactly as tall as its template's rows, flush.</p>
+<p><code>row-height</code> used to mean the gap. If you have a list declaring it and meaning
+spacing, rename it to <code>item-gap</code>.</p>
+</div>
 <h2 id="rich-text-areas">Rich text areas</h2>
 <p><code>gui_text</code> is a single styled line. For a <strong>multi-line, formatted block</strong> — help,
 briefings, a log, a comms transcript — use <strong><code>gui_text_area</code></strong>, which parses a

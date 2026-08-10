@@ -1580,6 +1580,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -2334,6 +2338,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../build/incoming-hails/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../mast/objectives/" class="md-nav__link">
         
   
@@ -2426,6 +2458,34 @@
     
   
     Items & Upgrades
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/turrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Turrets
   
 
     
@@ -3577,6 +3637,10 @@
       
         
           
+        
+      
+        
+      
         
       
         
@@ -5448,6 +5512,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label=" gui_layout_widget">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.widgets.gui_layout_widget--sharing-one-row-with-a-checkbox" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sharing one row with a checkbox:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -6208,6 +6289,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../mount/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mount
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../objective/" class="md-nav__link">
         
   
@@ -6776,6 +6885,34 @@
     
   
     torpedoes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../turret/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    turret
   
 
     
@@ -9897,6 +10034,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label=" gui_layout_widget">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.widgets.gui_layout_widget--sharing-one-row-with-a-checkbox" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sharing one row with a checkbox:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -16438,6 +16592,47 @@ interpolation.</p>
                   <code>None</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>markdown</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Parse the mini-markdown. Pass <code>False</code> to
+render lines VERBATIM - the right choice for source code, a MAST
+error dump or a raw log, where the markup rules actively corrupt the
+content: <code>#</code> starts a heading (so every MAST comment becomes one),
+a leading <code>-</code> is consumed as a bullet (<code>-&gt;END</code>), any <code>[...]</code>
+is read as a link reference and replaces the line, and <code>^</code> becomes
+a newline. <code>{var}</code> interpolation is also skipped, since a brace in
+code is a brace. Defaults to True.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>line_styles</code>
+            </td>
+            <td>
+                  <code><span title="list">list</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>One style key per line, applied in order -
+how you colorize text that is no longer being parsed. Pairs with
+<code>markdown=False</code>. Defaults to None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -16467,7 +16662,8 @@ interpolation.</p>
 <details class="example" open>
   <summary>Example</summary>
   <p>gui_text_area("## Status\nAll systems nominal.")
-gui_text_area("<img alt="" src="image://logo?scale=0.5" /> Mission active")</p>
+gui_text_area("<img alt="" src="image://logo?scale=0.5" /> Mission active")
+gui_text_area(source, markdown=False, line_styles=per_line_keys)</p>
 </details>
 
     </div>
@@ -16589,6 +16785,16 @@ render as collapsible section dividers.</p>
             <td>
               <div class="doc-md-description">
                 <p>CSS-like style overrides for the listbox container.</p>
+<p><code>row-height</code> is the height of ONE item row, and a FLOOR - a template
+that needs more grows past it. It also sizes the box each item is measured
+and drawn in, so a template whose rows declare no height fills the item
+rather than collapsing, and the item's CLICK REGION is never smaller than
+the row you can see.</p>
+<p><code>item-gap</code> is the spacing BETWEEN items. This is what <code>row-height</code>
+used to mean here, which made a list declaring the height its template
+already used render at twice the pitch.</p>
+<p>Declare neither and an item is exactly as tall as its template's rows,
+with items flush - unchanged from before either key existed.</p>
               </div>
             </td>
             <td>
@@ -18499,7 +18705,7 @@ path is added as a value</p>
 
 
 <h2 id="sbs_utils.procedural.gui.widgets.gui_layout_widget" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">gui_layout_widget</span><span class="p">(</span><span class="n">widget</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">gui_layout_widget</span><span class="p">(</span><span class="n">widget</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -18540,8 +18746,31 @@ engine widget renders inside the defined area.</p>
                 <em>required</em>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>style</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Layout style for the PLACEHOLDER, as for any other
+widget - most usefully <code>col-width</code>. Defaults to None (the whole row).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
       </tbody>
     </table>
+        <p>DO NOT SHARE A ROW WITH MAST CONTROLS. The placeholder lays out correctly - measured:
+<code>red_alert</code> beside three checkboxes computes four clean quarters, and every rect is
+sent - but the ENGINE draws its widget at its own size, over the top of whatever MAST
+put beside it, so the controls simply vanish. Give an engine widget its own row (or
+its own section). <code>col-width</code> still shapes the rect the engine is GIVEN, which is
+worth having on its own; it just cannot stop the engine painting outside it.</p>
 
 
     <p><span class="doc-section-title">Returns:</span></p>
@@ -18570,6 +18799,9 @@ engine widget renders inside the defined area.</p>
   <summary>Example</summary>
   <p>gui_section(style="area:0,0,70,100;")
 gui_layout_widget("2dview")</p>
+<h3 id="sbs_utils.procedural.gui.widgets.gui_layout_widget--sharing-one-row-with-a-checkbox">sharing one row with a checkbox:</h3>
+<p>gui_checkbox("Follow", "col-width:90px;", var="follow_tag")
+gui_layout_widget("red_alert", "col-width:1fr;")</p>
 </details>
 
     </div>
@@ -19669,7 +19901,7 @@ gui_panel_ship_data_show.</p>
 
         <p>Ship data filling the panel.</p>
 <p>It used to give the bottom four lines to <code>text_waterfall</code> and shrink ship_data to
-suit. That widget is gone (LOG_PANEL_PLAN.md) - it could not be styled from script -
+suit. That widget is gone (mkdocs build/messages.md) - it could not be styled from script -
 and positioning it here brought it BACK on any console showing this tab, whatever the
 console's widget list said. ship_data now gets the whole panel.</p>
 

@@ -1582,6 +1582,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -2342,6 +2346,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../incoming-hails/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../mast/objectives/" class="md-nav__link">
         
   
@@ -2676,6 +2708,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#hails-the-beat-opens-with-an-incoming-call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hails — the beat opens with an incoming call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#when-it-applies-and-when-it-doesnt" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2809,6 +2852,34 @@
     
   
     Items & Upgrades
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../turrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Turrets
   
 
     
@@ -4045,6 +4116,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -4778,6 +4853,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/procedural/mount/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mount
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/procedural/objective/" class="md-nav__link">
         
   
@@ -5346,6 +5449,34 @@
     
   
     torpedoes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/turret/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    turret
   
 
     
@@ -7426,6 +7557,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#hails-the-beat-opens-with-an-incoming-call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hails — the beat opens with an incoming call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#when-it-applies-and-when-it-doesnt" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7968,6 +8110,10 @@ what tells you which one is acting.</p>
 <td><code>departs</code></td>
 <td>Removes it from the world</td>
 </tr>
+<tr>
+<td><code>hails</code></td>
+<td>Calls the crew — <code>DS 1 hails ds1_brief</code>. See below</td>
+</tr>
 </tbody>
 </table>
 <p><strong><code>Action:</code> fires when the beat starts. <code>Then:</code> fires when it finishes.</strong> That is the whole
@@ -7985,6 +8131,69 @@ misspelled verb before the mission ever runs.</p>
 <p><strong>Repeating is safe.</strong> A beat can start more than once — re-revealed, reloaded, a
 repeatable thread. Every verb above survives that: <code>arrives</code> is keyed to the landmark, so
 it will not place a second one, but it <em>will</em> re-place one that was destroyed.</p>
+<h4 id="hails-the-beat-opens-with-an-incoming-call"><code>hails</code> — the beat opens with an incoming call</h4>
+<p>An incoming hail is a conversation the <em>script</em> starts: it appears in the crew's Incoming
+Hails list, and answering it is a thing they do. That makes it a natural way to hand out a
+quest — somebody calls, and taking the job is what you say back.</p>
+<p>Write the conversation as a dialogue scene, and let the beat open it:</p>
+<div class="highlight"><pre><span></span><code>### [DS 1 Briefing](ds1_brief)
+---
+Speaker: ds1
+When: hail
+Title: Ambassador Kidnapped
+Presentation: portrait
+---
+Artemis, DS 1. Ambassador Florbin was taken off this station inside a cargo container.
+
+- [Take the case]() ; completes florbin/brief
+- [Not now]()
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>#### [Take the Case](brief)
+---
+Scope: shared
+Starts when: at once
+Action:
+  - DS1 hails ds1_brief
+Then: reveal florbin/trail
+---
+</code></pre></div>
+<p>The scene carries everything the hail looks like and everything it says, so the direction
+only has to name it. Written bare — <code>DS1 hails</code> — it opens that speaker's <code>When: hail</code>
+scene, so a character with one call to make needs no key at all.</p>
+<p><strong>Who gets called</strong> follows <code>Scope:</code>, and you do not have to think about it: a shared beat
+runs once and calls every player ship; a per-ship beat runs for its own ship and calls
+that one.</p>
+<p><strong>What an answer means</strong> is written on the choice, next to the words that earn it:</p>
+<table>
+<thead>
+<tr>
+<th>Written after <code>;</code></th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>accepts &lt;quest&gt;</code></td>
+<td>Starts it — the same thing the Accept button does</td>
+</tr>
+<tr>
+<td><code>completes &lt;quest&gt;</code></td>
+<td>Finishes it, with its <code>Reward:</code> and its <code>Then:</code></td>
+</tr>
+<tr>
+<td><code>fails &lt;quest&gt;</code></td>
+<td>Fails it, with its <code>Penalty:</code></td>
+</tr>
+<tr>
+<td><code>signal &lt;name&gt;</code></td>
+<td>Fires a signal, for anything the three above do not cover</td>
+</tr>
+</tbody>
+</table>
+<p>An answer is arbitrated on the server, so it happens exactly once however many consoles
+are connected — you do not have to guard against two officers pressing at the same moment.</p>
+<p><strong>A board you take by answering.</strong> <code>At start: posting</code> lists a quest without a working
+Accept button, so the only way to take it is to answer the call that offers it.</p>
 <h4 id="when-it-applies-and-when-it-doesnt">When it applies — and when it doesn't</h4>
 <p><code>Action:</code> is for a beat that <strong>causes</strong> a change in the world. Read it as: <em>this moment
 arrives, and because of it these things happen.</em> An ambush springs on a timer; a captain

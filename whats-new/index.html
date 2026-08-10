@@ -1090,6 +1090,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#incoming-hails-the-mission-calls-you" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📞 Incoming hails — the mission calls you
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-beat-that-opens-with-a-call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📞 A beat that opens with a call
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#list-boxes-row-height-is-the-rows-height" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ⚠️ List boxes: row-height is the row's height
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2128,6 +2161,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -2882,6 +2919,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../build/incoming-hails/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../mast/objectives/" class="md-nav__link">
         
   
@@ -2974,6 +3039,34 @@
     
   
     Items & Upgrades
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../build/turrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Turrets
   
 
     
@@ -4210,6 +4303,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -4943,6 +5040,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../api/procedural/mount/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mount
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../api/procedural/objective/" class="md-nav__link">
         
   
@@ -5511,6 +5636,34 @@
     
   
     torpedoes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/turret/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    turret
   
 
     
@@ -7845,6 +7998,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#incoming-hails-the-mission-calls-you" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📞 Incoming hails — the mission calls you
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-beat-that-opens-with-a-call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📞 A beat that opens with a call
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#list-boxes-row-height-is-the-rows-height" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ⚠️ List boxes: row-height is the row's height
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -9066,6 +9252,81 @@ elsewhere this tick still points at valid memory instead of crashing. It also
 double-free. Scripts that already use <code>delete_object</code> / <code>obj.delete_object()</code>
 need no change — only direct <code>sbs.delete_object</code> calls should be swapped.</p>
 </div>
+<h2 id="incoming-hails-the-mission-calls-you">📞 Incoming hails — the mission calls <em>you</em></h2>
+<p>Comms has always been something the crew starts: pick a contact, a menu opens. An
+<strong>incoming hail</strong> is the other direction. It arrives in an <strong>Incoming Hails</strong> list on the
+comms console, newest first, and waits until somebody answers it.</p>
+<p>Answering opens a short conversation with up to four things the crew can say back. <code>Back</code>
+steps out without answering, so comms can read a hail through and present it later, when
+the captain is ready. Answered conversations stay in the info panel and can be <strong>replayed</strong>
+— a replay can never change what was chosen.</p>
+<p>Beside the list is a dial that decides where the conversation is drawn — <em>Off</em>, <em>This
+Console</em>, <em>Main Screen</em>, or <em>Both</em> — and an <strong>Audio</strong> checkbox. Each console carries its
+own dial, so putting a hail on the main screen is a decision one officer makes, not
+something the mission forces on the bridge.</p>
+<p>While a hail is placed on a comms console, that console's <strong>2D radar follows whoever is
+calling</strong>, the way science points it at a scan target. It obeys the crew's existing Follow
+checkbox, and it hands the radar back afterwards.</p>
+<p><em>Here There Be Monsters</em> is written this way end to end: twenty scenes in one document,
+each named by one line of the story.</p>
+<p><a class="md-button" href="../build/incoming-hails/">Incoming hails</a></p>
+<h2 id="a-beat-that-opens-with-a-call">📞 A beat that opens with a call</h2>
+<p>The reason hails matter for authors: somebody calling is a natural way to hand out work,
+and taking the job is what you say back. Both halves are AMD.</p>
+<div class="highlight"><pre><span></span><code>#### [Take the Case](brief)
+---
+Scope: shared
+Starts when: revealed
+Action:
+  - ds1 hails ds1_brief
+Then: reveal florbin/trail
+---
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>### [DS 1 Briefing](ds1_brief)
+---
+Speaker: ds1
+When: hail
+Title: Ambassador Kidnapped
+---
+Ambassador Florbin was taken off this station inside a cargo container.
+
+- [Take the case]() ; completes florbin/brief
+- [Not now]()
+</code></pre></div>
+<p>The scene carries the words, the title, the portrait and the recorded line, so the beat
+only names it. Written bare — <code>ds1 hails</code> — it opens that speaker's <code>When: hail</code> scene.
+<strong>Who gets called follows <code>Scope:</code></strong> and you never say: a shared beat calls every player
+ship, a per-ship beat calls its own.</p>
+<p>What an answer <em>means</em> is written on the answer: <code>accepts</code>, <code>completes</code> or <code>fails</code> a
+quest, or <code>signal</code> for anything those three do not cover. It is resolved on the server, so
+it happens exactly once however many consoles are connected — no <code>//shared/signal</code> route
+to write, and no guarding against two officers pressing at the same moment.</p>
+<p>Peacetime's Florbin case now opens this way, and the two pieces of MAST that used to do it
+by hand are gone.</p>
+<p>Three smaller things came with it. <strong><code>At start: posting</code></strong> lists a quest without a working
+Accept button — a board you take by <em>answering the call that offers it</em>, not by pressing a
+button. <strong><code>Then: signal X</code></strong> now reaches other quests' <code>Done when: signal X</code>, which is what
+those two lines always looked like they did. And a mistyped scene key, an unknown outcome
+verb or an unrecognized <code>Then:</code> word are all <strong>lint findings</strong> now, instead of a beat that
+quietly does nothing.</p>
+<p><a class="md-button" href="../build/amd-format/#hails-the-beat-opens-with-an-incoming-call">Writing hails in AMD</a></p>
+<h2 id="list-boxes-row-height-is-the-rows-height">⚠️ List boxes: <code>row-height</code> is the row's height</h2>
+<p><strong>This one may move your layouts.</strong> On a list box, <code>row-height</code> used to be the gap <em>added
+after</em> each item — the height came from whatever the item template opened. It now means
+what it says everywhere else: <strong>the height of one item row</strong>. The spacing between items is
+a new key, <strong><code>item-gap</code></strong>.</p>
+<div class="highlight"><pre><span></span><code>lb = gui_list_box(items, &quot;row-height: 1.6em; item-gap: 0.1em;&quot;, item_template=row)
+</code></pre></div>
+<p>If you declared <code>row-height</code> and meant <em>spacing</em>, rename it to <code>item-gap</code> and nothing
+moves. If you declared it and the template already set its own row height, the list was
+rendering at <strong>double pitch</strong> and will now tighten up — including every <code>gui_table</code>, which
+handed one style string to both.</p>
+<p>It is a <strong>floor</strong>, not a cap: a two-line item still grows past it. Declare neither and
+nothing changes at all.</p>
+<p>Worth the churn because the old meaning was not only confusing, it was wrong in a way you
+could not see: an item's <strong>click region</strong> comes from its row box, so a list could draw text
+you could barely click, and a template whose rows declared no height collapsed to nothing
+and took its hit area with it.</p>
 <hr />
 <p><em>Thanks for playing, building, and tinkering. There's more under the hood than ever
 — go build something great.</em> 🚀</p>

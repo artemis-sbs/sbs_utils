@@ -1580,6 +1580,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -2334,6 +2338,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../build/incoming-hails/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../mast/objectives/" class="md-nav__link">
         
   
@@ -2426,6 +2458,34 @@
     
   
     Items & Upgrades
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/turrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Turrets
   
 
     
@@ -3675,6 +3735,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -4411,6 +4475,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../mount/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mount
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../objective/" class="md-nav__link">
         
   
@@ -4979,6 +5071,34 @@
     
   
     torpedoes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../turret/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    turret
   
 
     
@@ -7873,14 +7993,14 @@ Every: 5m
 </code></pre>
 <p><strong>An urge carries no stakes of its own.</strong> The consequence belongs to the quest it watches
 (<code>Fails when: after 30m</code>, <code>Penalty:</code>), so there is one deadline and one place to tune, and
-deleting an urge costs the drama but not the mechanics. See URGE_PLAN.md.</p>
+deleting an urge costs the drama but not the mechanics. See DESIGN_RECORD.md s4.</p>
 <p><strong>Not a brain.</strong> A behavior tree re-decides continuously because the world moved; an
 urge's world changes on clocks and events. A brain node spawns a MAST task per node per
 pass; an urge evaluates a condition. Grid lifeforms (damcons) keep their brains - they
 have position and paths, and are correctly a tree.</p>
 <p><strong>Not a goal selector.</strong> <code>Weight:</code> arbitrates one actor's OWN urges - the same
 fixed-priority fallback every brain root already does. It never arbitrates between two
-actors; that is the contest <code>NPC_MOTIVATION_PLAN.md</code> s8 surveyed and rejected.</p>
+actors; that is the contest DESIGN_RECORD.md s5 surveyed and rejected.</p>
 
 
 
@@ -8297,7 +8417,7 @@ again, silently, from run 2 onward.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Say one line as this actor, routed by where the actor IS (URGE_PLAN.md s6).</p>
+        <p>Say one line as this actor, routed by where the actor IS (DESIGN_RECORD.md s4).</p>
 <ul>
 <li>hosted on a player ship -&gt; an internal crew message from the actor</li>
 <li>hosted elsewhere        -&gt; a comms message from the host to the player ships</li>

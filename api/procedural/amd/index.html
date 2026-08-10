@@ -1580,6 +1580,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -2334,6 +2338,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../build/incoming-hails/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../mast/objectives/" class="md-nav__link">
         
   
@@ -2426,6 +2458,34 @@
     
   
     Items & Upgrades
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/turrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Turrets
   
 
     
@@ -3675,6 +3735,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -4145,6 +4209,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_pct
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_read_text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_read_text
       
     </span>
   </a>
@@ -4855,6 +4930,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../mount/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mount
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../objective/" class="md-nav__link">
         
   
@@ -5423,6 +5526,34 @@
     
   
     torpedoes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../turret/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    turret
   
 
     
@@ -7613,6 +7744,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_read_text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_read_text
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.amd.amd_render_wikilinks" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8443,6 +8585,29 @@ them loud. Returns <code>data</code>, carrying the kind line (when present) unde
     <div class="doc doc-contents ">
 
         <p>'40%' -&gt; 0.4; '0.4' -&gt; 0.4; a bare number -&gt; float; else the string.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.amd.amd_read_text" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">amd_read_text</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The text of one .amd (or any AMD-adjacent source), decoded the same way a
+mastlib read decodes it.</p>
+<p>UTF-8 first (with a BOM tolerated, since editors add one), falling back to
+cp1252 for a legacy file that predates that convention, and finally to a
+replacing UTF-8 decode - because a file that cannot be decoded should still
+parse into something an author can look at and fix, not vanish.</p>
 
 
     </div>

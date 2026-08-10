@@ -1582,6 +1582,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -2342,6 +2346,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../incoming-hails/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../mast/objectives/" class="md-nav__link">
         
   
@@ -2564,6 +2596,34 @@
     
   
     Items & Upgrades
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../turrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Turrets
   
 
     
@@ -3800,6 +3860,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -4533,6 +4597,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/procedural/mount/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mount
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/procedural/objective/" class="md-nav__link">
         
   
@@ -5101,6 +5193,34 @@
     
   
     torpedoes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/turret/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    turret
   
 
     
@@ -7076,6 +7196,10 @@ it is — is in <a href="../amd-format/">The AMD file format</a>.</p>
 <td>The older way of saying the same thing — <code>running</code> / <code>offered</code> / <code>hidden</code>, and <code>active</code> / <code>available</code> / <code>idle</code> / <code>secret</code> before that. All still parse.</td>
 </tr>
 <tr>
+<td><code>At start: posting</code></td>
+<td><strong>Posted, not acceptable.</strong> It is listed like an available job, but the Accept button does not show — the only way to take it is whatever else offers it, typically answering an <a href="../incoming-hails/">incoming hail</a>.</td>
+</tr>
+<tr>
 <td><code>Objective:</code></td>
 <td>The sentence the player reads in the quest log.</td>
 </tr>
@@ -7101,7 +7225,7 @@ it is — is in <a href="../amd-format/">The AMD file format</a>.</p>
 </tr>
 <tr>
 <td><code>Then:</code></td>
-<td>Follow-up on completion — <code>reveal &lt;quest&gt;</code> (unlock another) or <code>signal &lt;name&gt;</code>.</td>
+<td>Follow-up on completion — <code>reveal &lt;quest&gt;</code> (unlock another) or <code>signal &lt;name&gt;</code>. Those two words only; anything else is read as a reveal target, and the linter says so.</td>
 </tr>
 <tr>
 <td><code>Display:</code> / <code>Tier:</code></td>
@@ -7118,6 +7242,10 @@ it is — is in <a href="../amd-format/">The AMD file format</a>.</p>
 <tr>
 <td><code>Engage On:</code></td>
 <td>Restrict which consoles may <strong>Engage</strong> (travel to) this job — e.g. <code>helm</code>. Only meaningful when the mission enables the Engage button.</td>
+</tr>
+<tr>
+<td><code>Action:</code></td>
+<td>What the world does the moment this beat <strong>starts</strong> — including <code>&lt;who&gt; hails &lt;scene&gt;</code>, which calls the crew. See <a href="../amd-format/#action-stage-directions"><code>Action:</code></a>.</td>
 </tr>
 <tr>
 <td><code>Speaker:</code></td>
@@ -7408,6 +7536,13 @@ fails in total silence.</p>
 </tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="admonition-title"><code>Then: signal X</code> reaches other quests too</p>
+<p><code>Then: signal X</code> fires the raw signal <code>X</code> — so a <code>//signal/X</code> route still matches
+what you wrote — <strong>and</strong> the <code>quest_signal</code> milestone, so another quest's
+<code>Done when: signal X</code> advances. A choice in a hail written <code>; signal X</code> does the
+same. Before this the two lines read as if they met and never did.</p>
+</div>
 <div class="admonition warning">
 <p class="admonition-title"><code>quest_completed</code> is a request, not a notification</p>
 <p>To <em>react</em> to a quest finishing, listen for <strong><code>quest_succeeded</code></strong>. <code>quest_completed</code>

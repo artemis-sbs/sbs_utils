@@ -1580,6 +1580,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -2334,6 +2338,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../build/incoming-hails/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../mast/objectives/" class="md-nav__link">
         
   
@@ -2426,6 +2458,34 @@
     
   
     Items & Upgrades
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/turrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Turrets
   
 
     
@@ -3675,6 +3735,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -4431,6 +4495,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.media.media_play_audio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;media_play_audio
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.media.media_read_relative_file" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4559,6 +4634,34 @@
     
   
     modifiers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mount/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mount
   
 
     
@@ -5147,6 +5250,34 @@
     
   
     torpedoes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../turret/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    turret
   
 
     
@@ -7028,6 +7159,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.media.media_play_audio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;media_play_audio
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.media.media_read_relative_file" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7210,6 +7352,148 @@ music_schedule(&quot;battle&quot;)
 
 
 
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.media.media_play_audio" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">media_play_audio</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">ids_or_obj</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">volume</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">pitch</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Play an audio file NOW - a stinger, a voice line, an alarm.</p>
+<p>Promoted out of HereThereBeMonsters, which called <code>sbs.play_audio_file</code> raw in
+seven places behind its own enable flag. The engine call needs a path relative to
+the Artemis audio directory, which is what <code>get_mission_audio_file</code> builds - a
+mission should name its file the way it stores it (<code>audio/briefing_01</code>) and never
+have to know that.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>file</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the file, relative to the mission folder.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>ids_or_obj</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>a client id, or 0 (the default) for everyone.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>volume</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>0-1.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>pitch</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>1.0 is unshifted.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1.0</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>bool</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>whether the engine was asked to play it. Silent - not an exception - when</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>there is no engine or the mission disabled audio, because a missing sound must</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>never end the task that was telling the story.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
 
 <div class="doc doc-object doc-function">
 
