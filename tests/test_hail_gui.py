@@ -199,14 +199,14 @@ class HailListTests(HailViewBase):
         self.offer()                       # two beats
         H.hail_accept(self.ship)
         self.assertEqual([r["label"] for r in V.hail_rows(self.ship, self.comms)],
-                         ["Continue"])
+                         ["Continue", "Back"])
 
     def test_continue_gives_way_to_the_answers_on_the_last_beat(self):
         self.offer()
         H.hail_accept(self.ship)
         H.hail_advance(self.ship)
         self.assertEqual([r["hail_kind"] for r in V.hail_rows(self.ship, self.comms)],
-                         ["answer", "answer"])
+                         ["answer", "answer", "back"])
 
     def test_a_console_that_may_not_answer_gets_no_list(self):
         self.open_to_choices()
@@ -217,7 +217,8 @@ class HailListTests(HailViewBase):
         self.open_to_choices()
         rows = V.hail_rows(self.ship, self.comms)
         seq = H.hail_seq(self.ship)
-        self.assertEqual([r["hail_index"] for r in rows], [0, 1])
+        answers = [r for r in rows if r["hail_kind"] == "answer"]
+        self.assertEqual([r["hail_index"] for r in answers], [0, 1])
         self.assertTrue(all(r["hail_seq"] == seq for r in rows))
 
     def test_the_row_keys_cannot_clobber_the_consoles_own_variables(self):
@@ -233,6 +234,25 @@ class HailListTests(HailViewBase):
         V.hail_choice_strip(self.ship, self.comms)
         kinds = [e[0] for e in self.trace]
         self.assertEqual(kinds.index("row") + 1, kinds.index("listbox"))
+
+    def test_BACK_steps_out_without_answering(self):
+        # Read a hail through, step back out, re-open it later - on the main screen,
+        # when the captain is ready. Nothing is archived and no outcome runs.
+        self.open_to_choices()
+        rows = V.hail_rows(self.ship, self.comms)
+        back = [r for r in rows if r["hail_kind"] == "back"][0]
+        V._hail_row_pick(FakeEvent(client_id=self.comms), _FakeListbox([back]))
+        self.assertFalse(H.hail_is_active(self.ship))
+        self.assertEqual(H.hail_pending_count(self.ship), 1)
+        self.assertEqual(H.hail_log(self.ship), [])
+
+    def test_a_deferred_hail_re_opens_from_the_start(self):
+        self.open_to_choices()
+        rows = V.hail_rows(self.ship, self.comms)
+        back = [r for r in rows if r["hail_kind"] == "back"][0]
+        V._hail_row_pick(FakeEvent(client_id=self.comms), _FakeListbox([back]))
+        H.hail_accept(self.ship)
+        self.assertEqual(H.hail_beat(self.ship).speaker, "ashfang")
 
     def test_the_list_owns_its_own_selection_handler(self):
         self.offer()

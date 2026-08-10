@@ -31,7 +31,7 @@ CALLED_FROM_MAST = {
         "hail_is_active", "hail_shows_here", "hail_form", "hail_repaint_needed",
         "hail_offer", "hail_offer_amd", "hail_accept", "hail_answer", "hail_close",
         "hail_pending_count", "hail_where", "hail_where_set", "hail_console_cares",
-        "hail_console_revision", "hail_more", "hail_advance",
+        "hail_console_revision", "hail_more", "hail_advance", "hail_defer",
     ),
     "sbs_utils.procedural.gui": (
         "hail_choice_strip", "hail_where_dropdown", "hail_view",

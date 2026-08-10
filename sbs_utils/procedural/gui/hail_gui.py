@@ -23,9 +23,9 @@ without being able to press it.
 """
 from ...helpers import FrameContext, gui_text_escape
 from ..hail import (HAIL_MAX_CHOICES, hail_accept, hail_active, hail_advance,
-                    hail_answer, hail_beat, hail_answer_label, hail_choices, hail_form,
-                    hail_is_active, hail_more, hail_pending, hail_seq, hail_where,
-                    hail_where_for, hail_where_label_for, hail_where_props)
+                    hail_answer, hail_beat, hail_answer_label, hail_choices, hail_defer,
+                    hail_form, hail_is_active, hail_more, hail_pending, hail_seq,
+                    hail_where, hail_where_for, hail_where_label_for, hail_where_props)
 from .overlay import overlay_clear, overlay_register, overlay_show, overlay_slot_define
 
 
@@ -156,6 +156,8 @@ def _hail_row_pick(event, item):
         hail_advance(ship, client_id, seq=entry.get("hail_seq"))
     elif kind == "answer":
         hail_answer(ship, entry.get("hail_index"), client_id, seq=entry.get("hail_seq"))
+    elif kind == "back":
+        hail_defer(ship, client_id, seq=entry.get("hail_seq"))
 
 
 def hail_rows(ship, client_id=None):
@@ -184,13 +186,18 @@ def hail_rows(ship, client_id=None):
                  "hail_ship": ship, "hail_client": client_id,
                  "hail_id": record.get("id")}
                 for record in hail_pending(ship)]
+    # `Back` steps out WITHOUT answering, so comms can read a hail through and re-open
+    # it later - on the main screen, when the captain is ready. Last, so it is never
+    # where an answer was a moment ago.
+    back = {"label": "Back", "hail_kind": "back", "hail_ship": ship,
+            "hail_client": client_id, "hail_seq": hail_seq(ship)}
     if hail_more(ship):
         return [{"label": "Continue", "hail_kind": "advance", "hail_ship": ship,
-                 "hail_client": client_id, "hail_seq": hail_seq(ship)}]
+                 "hail_client": client_id, "hail_seq": hail_seq(ship)}, back]
     return [{"label": choice.label, "hail_kind": "answer", "hail_ship": ship,
              "hail_client": client_id, "hail_index": choice.index,
              "hail_seq": choice.seq}
-            for choice in hail_choices(ship)]
+            for choice in hail_choices(ship)] + [back]
 
 
 def hail_list_title(ship):
@@ -365,6 +372,79 @@ def _hail_band_builder(client_id, content):
 
 
 overlay_register(HAIL_BAND_SLOT, _hail_band_builder)
+
+
+HAIL_SCREEN_SLOT = "fullscreen"
+SCREEN_BACKGROUND = "#000e"
+
+
+def _hail_screen_builder(client_id, content):
+    """The whole conversation, drawn OVER the main screen.
+
+    An overlay rather than the page, because the alternative was pushing every engine
+    widget offscreen - and `gui_widget_offscreen` moves a widget to 100,100 and leaves it
+    there. Nothing puts it back, so the 3D view never returned; and any widget not
+    explicitly moved (ship_data) stayed on top of the conversation. An opaque overlay
+    covers all of them without touching one, and clearing it restores the screen exactly.
+    """
+    from .row import gui_row
+    from .text import gui_text, gui_text_area
+    from .face import gui_face
+    from .image import gui_image_keep_aspect_ratio_center
+
+    face = content.get("face")
+    backdrop = content.get("backdrop")
+    title = content.get("title") or ""
+    name = content.get("name") or ""
+    line = content.get("line") or ""
+    choices = content.get("choices") or []
+
+    if backdrop:
+        gui_row(f"row-height: 55; background: {SCREEN_BACKGROUND};")
+        gui_image_keep_aspect_ratio_center(backdrop)
+    elif face:
+        gui_row(f"row-height: 40; background: {SCREEN_BACKGROUND};")
+        gui_face(face)
+    if title:
+        gui_row(f"row-height: 1.6em; background: {SCREEN_BACKGROUND};")
+        gui_text(_hail_text(title) + "justify:center;")
+    gui_row(f"row-height: 1.8em; background: {SCREEN_BACKGROUND};")
+    gui_text(_hail_text(name) + "font:gui-3;padding:6px;")
+    gui_row(f"row-height: 1fr; background: {SCREEN_BACKGROUND};")
+    gui_text_area(line, "padding: 10px;")
+    if choices:
+        gui_row(f"row-height: content; background: {SCREEN_BACKGROUND};")
+        gui_text_area(chr(10).join(choices), "padding: 10px;")
+
+
+overlay_register("hail_screen", _hail_screen_builder)
+
+
+def hail_screen_show(ship, to=None, consoles="mainscreen"):
+    """Put the conversation over the main screen.
+
+    Only for the forms that OWN the screen. An orbit shot keeps the live view and gets
+    the smaller band instead.
+    """
+    if not hail_is_active(ship):
+        return False
+    record = hail_active(ship)
+    name, line = _hail_speaker_line(ship)
+    beat = hail_beat(ship)
+    overlay_show(HAIL_SCREEN_SLOT, "hail_screen",
+                 to=to if to is not None else ship, consoles=consoles,
+                 face=record.face or (beat.face if beat else None),
+                 backdrop=record.backdrop, title=record.title,
+                 name=name, line=line, choices=_hail_choice_readout(ship),
+                 seq=hail_seq(ship))
+    return True
+
+
+def hail_screen_clear(ship, to=None, consoles="mainscreen"):
+    """Take the conversation off the main screen, restoring it untouched."""
+    overlay_clear(HAIL_SCREEN_SLOT, to=to if to is not None else ship,
+                  consoles=consoles)
+    return True
 
 
 def hail_band_show(ship, to=None, consoles="mainscreen"):

@@ -683,6 +683,48 @@ def hail_answer(ship, index, client_id=None, seq=None):
     return True
 
 
+def hail_defer(ship, client_id=None, seq=None):
+    """Put the open conversation back in the list, unanswered.
+
+    The `Back` row. Comms can read a hail through, step back out, and re-open it later -
+    on the main screen, when the captain is ready for it. That is a different act from
+    declining: nothing is archived, no outcome runs, and the hail is still waiting.
+
+    It goes back to the START of its scene. A hail resumed mid-sentence would show the
+    captain the second half of a conversation nobody else heard, and the beats are
+    already cached, so replaying them costs nothing.
+
+    Arbitrated like an answer - two officers must not both step out of a hail that only
+    one of them is still in.
+
+    Returns:
+        bool: whether a conversation was put back.
+    """
+    ship_id = _hail_sid(ship)
+    if ship_id is None:
+        return False
+    rec = _hail_get(ship_id, KEY_ACTIVE, None)
+    if not rec:
+        return False
+    if client_id is not None:
+        if hail_replaying(client_id) or not _hail_may_answer(client_id):
+            return False
+    if seq is not None and int(seq) != int(_hail_get(ship_id, KEY_SEQ, 0) or 0):
+        return False
+
+    rec["beat"] = 0
+    set_inventory_value(ship_id, KEY_ACTIVE, None)
+    queue = list(_hail_get(ship_id, KEY_QUEUE, None) or [])
+    queue.insert(0, rec)                  # it was the one being read; keep it first
+    queue.sort(key=lambda r: -int(r.get("priority") or 0))
+    set_inventory_value(ship_id, KEY_QUEUE, queue)
+    _hail_bump_seq(ship_id)
+    _hail_band_drop(ship_id)
+    _hail_screen_drop(ship_id)
+    _hail_emit(ship_id, "deferred", rec, client_id=client_id)
+    return True
+
+
 def hail_decline(ship, hail_id=None):
     """Dismiss a hail without answering it - the crew simply does not pick up."""
     ship_id = _hail_sid(ship)
@@ -712,6 +754,7 @@ def hail_close(ship, declined=False):
     set_inventory_value(ship_id, KEY_ACTIVE, None)
     _hail_bump_seq(ship_id)
     _hail_band_drop(ship_id)
+    _hail_screen_drop(ship_id)
 
     log = list(_hail_get(ship_id, KEY_LOG, None) or [])
     log.insert(0, {"id": rec.get("id"), "scene": rec.get("scene"),
@@ -786,6 +829,15 @@ def _hail_band_drop(ship_id):
         DEBUG(f"[hail] could not clear the band: {e}")
 
 
+def _hail_screen_drop(ship_id):
+    """Take the conversation off the main screen. Safe when it was never there."""
+    try:
+        from .gui.hail_gui import hail_screen_clear
+        hail_screen_clear(ship_id)
+    except Exception as e:
+        DEBUG(f"[hail] could not clear the main screen: {e}")
+
+
 def _hail_presentation_apply(ship_id):
     """Make the main screen agree with the open hail.
 
@@ -796,10 +848,21 @@ def _hail_presentation_apply(ship_id):
     rec = _hail_get(ship_id, KEY_ACTIVE, None)
     if not rec or not _hail_get(ship_id, KEY_MAIN, False):
         _hail_band_drop(ship_id)
+        _hail_screen_drop(ship_id)
         return False
     if (rec.get("presentation") or "") != "orbit":
+        # A portrait or a still OWNS the screen, drawn as an opaque overlay. Not by
+        # moving engine widgets aside: gui_widget_offscreen parks a widget at 100,100
+        # and nothing puts it back, so the 3D view never returned - and anything not
+        # explicitly moved (ship_data) stayed on top of the conversation.
         _hail_band_drop(ship_id)
-        return False
+        try:
+            from .gui.hail_gui import hail_screen_show
+            return hail_screen_show(ship_id)
+        except Exception as e:
+            DEBUG(f"[hail] could not take the main screen: {e}")
+            return False
+    _hail_screen_drop(ship_id)
     subject = rec.get("subject")
     if not subject or isinstance(subject, str):
         return False                      # late-resolved; the renderer binds it
