@@ -130,69 +130,100 @@ def _hail_view_press(event, item):
 
 
 # --- the answer strip -------------------------------------------------------
+def _hail_row(entry):
+    """One row of the hail list. The row's own text; the listbox owns the frame."""
+    from .row import gui_row
+    from .text import gui_text
+    gui_row("row-height: 1.6em;")
+    gui_text(_hail_text(entry.get("label") or ""))
+
+
+def _hail_row_pick(event, item):
+    """A row was chosen. Same dispatch as a button press, off the row's own data."""
+    entry = item.get_value() if hasattr(item, "get_value") else None
+    if not entry:
+        return
+    ship = entry.get("hail_ship")
+    client_id = (entry.get("hail_client") or getattr(event, "client_id", None)
+                 or FrameContext.client_id)
+    kind = entry.get("hail_kind")
+    if kind == "accept":
+        hail_accept(ship, entry.get("hail_id"), client_id)
+    elif kind == "advance":
+        hail_advance(ship, client_id, seq=entry.get("hail_seq"))
+    elif kind == "answer":
+        hail_answer(ship, entry.get("hail_index"), client_id, seq=entry.get("hail_seq"))
+
+
+def hail_rows(ship, client_id=None):
+    """What the hail list should show right now, as plain rows.
+
+    Three states in one list, which is what lets a console draw it unconditionally:
+
+    | ship state                | rows                                    |
+    |---------------------------|-----------------------------------------|
+    | nothing pending or active | none - the list is not drawn            |
+    | hails waiting, none open  | one per waiting hail, best first        |
+    | a hail open, still talking| a single `Continue`                     |
+    | a hail open, beats done   | that scene's answers                    |
+
+    Waiting hails are NOT capped here. A listbox scrolls, so the queue cannot outgrow
+    the space - which was the whole reason the old button strip stopped at four and
+    silently dropped the fifth. The ANSWERS are still capped, because four is an
+    authored limit that `amd_lint_hails` enforces at write time.
+    """
+    if client_id is None:
+        client_id = FrameContext.client_id
+    if not _hail_may_answer_here(client_id):
+        return []
+    if not hail_is_active(ship):
+        return [{"label": hail_answer_label(record), "hail_kind": "accept",
+                 "hail_ship": ship, "hail_client": client_id,
+                 "hail_id": record.get("id")}
+                for record in hail_pending(ship)]
+    if hail_more(ship):
+        return [{"label": "Continue", "hail_kind": "advance", "hail_ship": ship,
+                 "hail_client": client_id, "hail_seq": hail_seq(ship)}]
+    return [{"label": choice.label, "hail_kind": "answer", "hail_ship": ship,
+             "hail_client": client_id, "hail_index": choice.index,
+             "hail_seq": choice.seq}
+            for choice in hail_choices(ship)]
+
+
+def hail_list_title(ship):
+    """The list's heading: who is talking, or what is waiting."""
+    if hail_is_active(ship):
+        name, _line = _hail_speaker_line(ship)
+        if name:
+            return _hail_label(name)
+    return "Incoming Hails"
+
+
 def hail_choice_strip(ship, client_id=None, style=None):
-    """The 1-4 button strip a console offers, in whichever of its three states applies.
+    """The hail list: waiting hails to answer, or the open conversation's replies.
 
-    | ship state                  | what is drawn                        |
-    |-----------------------------|--------------------------------------|
-    | nothing pending or active   | nothing at all                       |
-    | hails pending, none open    | one `Answer: <name>` per pending hail |
-    | a hail open, beats done     | that scene's choices                 |
-
-    All three live here so a console calls this once, unconditionally, and never
-    branches - which is also what makes the queue's user interface free.
+    A LISTBOX rather than a row of buttons. Three things follow from that, and all three
+    were problems with the buttons: the queue can be any length because the list
+    scrolls; the heading says what the list IS, so no separate text row is needed; and
+    there is ONE widget to rebuild rather than N, so a repaint cannot leave half a strip
+    behind.
 
     Returns:
-        int: how many buttons were drawn.
+        int: how many rows were drawn.
     """
-    from .row import gui_row
-    from .button import gui_button
+    from .listbox import gui_list_box
     from .message import gui_message_callback
 
     if client_id is None:
         client_id = FrameContext.client_id
-    row_style = style or _STYLE_ROW
-
-    if not hail_is_active(ship):
-        pending = hail_pending(ship)[:HAIL_MAX_CHOICES]
-        if not pending or not _hail_may_answer_here(client_id):
-            return 0
-        for record in pending:
-            gui_row(row_style)
-            button = gui_button(_hail_label(hail_answer_label(record)),
-                                data={"hail_kind": "accept", "hail_ship": ship,
-                                      "hail_client": client_id,
-                                      "hail_id": record.get("id")})
-            gui_message_callback(button, _hail_view_press)
-        return len(pending)
-
-    if hail_more(ship):
-        # The crew has to be able to read on. Without this a conversation of more than
-        # one beat opens, says its first line and stops: the choices are not live yet,
-        # so the strip would otherwise be empty and there is nothing else on the console
-        # that advances a hail.
-        if not _hail_may_answer_here(client_id):
-            return 0
-        gui_row(row_style)
-        button = gui_button(_hail_label("Continue"),
-                            data={"hail_kind": "advance", "hail_ship": ship,
-                                  "hail_client": client_id,
-                                  "hail_seq": hail_seq(ship)})
-        gui_message_callback(button, _hail_view_press)
-        return 1
-
-    choices = hail_choices(ship)
-    if not choices or not _hail_may_answer_here(client_id):
+    rows = hail_rows(ship, client_id)
+    if not rows:
         return 0
-    for choice in choices:
-        gui_row(row_style)
-        button = gui_button(_hail_label(choice.label),
-                            data={"hail_kind": "answer", "hail_ship": ship,
-                                  "hail_client": client_id,
-                                  "hail_index": choice.index,
-                                  "hail_seq": choice.seq})
-        gui_message_callback(button, _hail_view_press)
-    return len(choices)
+    listbox = gui_list_box(rows, style or "row-height: 1.6em;",
+                           item_template=_hail_row,
+                           title_template=hail_list_title(ship), select=True)
+    gui_message_callback(listbox, _hail_row_pick)
+    return len(rows)
 
 
 # --- the placement dial -----------------------------------------------------

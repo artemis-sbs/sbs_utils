@@ -963,6 +963,33 @@ def hail_console_cares(client_id):
     return hail_is_active(ship_id) or hail_pending_count(ship_id) > 0
 
 
+def hail_console_revision(client_id):
+    """A number that CHANGES whenever this console's hail area should be redrawn.
+
+    For `on change hail_console_revision(client_id): jump <this label>` - the polling
+    form, which is what a console should use. The `hail` signal is the right thing for a
+    story to react to, but a GUI task waiting in `await gui()` did not repaint from it,
+    and the symptom is nasty: the hail is queued, the strip WOULD draw it, and the button
+    only appears when something else happens to rebuild the page (switching console and
+    back). `on change` re-evaluates each tick and cannot miss a transition.
+
+    Cheap by construction - a few inventory reads, no allocation - because it is polled
+    per console per tick. It folds in everything the strip renders from: how many hails
+    wait, which one is open and how far through it is (`HAIL_SEQ` moves on every accept,
+    beat and answer), and this console's own placement and replay state.
+    """
+    ship_id = _hail_sid(_hail_home_ship(client_id))
+    if ship_id is None:
+        return 0
+    active = _hail_get(ship_id, KEY_ACTIVE, None)
+    return (len(_hail_get(ship_id, KEY_QUEUE, None) or ())
+            + 1000 * int(_hail_get(ship_id, KEY_SEQ, 0) or 0)
+            + (7 if active else 0)
+            + (13 if _hail_get(client_id, KEY_HERE, False) else 0)
+            + (17 if _hail_get(ship_id, KEY_MAIN, False) else 0)
+            + (23 if _hail_get(client_id, KEY_REPLAY, None) is not None else 0))
+
+
 def hail_repaint_needed(client_id):
     """Whether the `hail` signal being handled right now should repaint THIS console.
 

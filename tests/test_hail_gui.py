@@ -164,110 +164,81 @@ class HailViewBase(unittest.TestCase):
             pass
 
 
-class ChoiceStripTests(HailViewBase):
+class HailListTests(HailViewBase):
+    def rows(self):
+        boxes = [e for e in self.trace if e[0] == "listbox"]
+        return boxes[0][1] if boxes else []
+
     def test_an_idle_ship_draws_nothing_at_all(self):
         self.assertEqual(V.hail_choice_strip(self.ship, self.comms), 0)
         self.assertEqual(self.trace, [])
 
-    def test_a_waiting_hail_becomes_an_Answer_button(self):
+    def test_a_waiting_hail_becomes_a_row(self):
         self.offer(name="Ashfang")
         self.assertEqual(V.hail_choice_strip(self.ship, self.comms), 1)
-        props = self.buttons()[0][1]
-        # No colon: the engine parses a button label as a style-property string.
-        self.assertIn("Answer Ashfang", props)
-        self.assertNotIn("`", props)
+        self.assertEqual(self.rows()[0]["label"], "Answer Ashfang")
 
-    def test_every_waiting_hail_gets_its_own_entry(self):
-        for i in range(3):
-            self.offer(name=f"Caller{i}")
-        self.assertEqual(V.hail_choice_strip(self.ship, self.comms), 3)
-
-    def test_the_queue_never_draws_more_than_the_strip_can_show(self):
+    def test_the_queue_is_NOT_capped_because_a_list_scrolls(self):
+        # The button strip stopped at four and silently dropped the fifth. That cap is
+        # the whole reason this is a listbox.
         for i in range(7):
             self.offer(name=f"Caller{i}")
-        self.assertEqual(V.hail_choice_strip(self.ship, self.comms),
-                         H.HAIL_MAX_CHOICES)
+        self.assertEqual(V.hail_choice_strip(self.ship, self.comms), 7)
 
-    def test_nothing_is_ANSWERABLE_while_the_beats_run(self):
+    def test_the_title_says_what_the_list_is(self):
         self.offer()
-        H.hail_accept(self.ship)
         V.hail_choice_strip(self.ship, self.comms)
-        kinds = [b[2]["hail_kind"] for b in self.buttons()]
-        self.assertNotIn("answer", kinds)
+        self.assertEqual(V.hail_list_title(self.ship), "Incoming Hails")
+
+    def test_an_open_hail_titles_the_list_with_the_speaker(self):
+        self.offer(name="Ashfang")
+        H.hail_accept(self.ship)
+        self.assertEqual(V.hail_list_title(self.ship), "Ashfang")
 
     def test_a_multi_beat_hail_offers_a_way_to_READ_ON(self):
-        # Without this the conversation is a dead end: the choices are not live while
-        # beats remain, so the strip would be empty and nothing on the console advances
-        # a hail.
         self.offer()                       # two beats
         H.hail_accept(self.ship)
-        self.assertEqual(V.hail_choice_strip(self.ship, self.comms), 1)
-        self.assertIn("Continue", self.buttons()[0][1])
-        self.assertEqual(self.buttons()[0][2]["hail_kind"], "advance")
+        self.assertEqual([r["label"] for r in V.hail_rows(self.ship, self.comms)],
+                         ["Continue"])
 
-    def test_continue_gives_way_to_the_choices_on_the_last_beat(self):
+    def test_continue_gives_way_to_the_answers_on_the_last_beat(self):
         self.offer()
         H.hail_accept(self.ship)
-        H.hail_advance(self.ship)          # now on the final beat
-        self.trace.clear()
-        V.hail_choice_strip(self.ship, self.comms)
-        self.assertEqual([b[2]["hail_kind"] for b in self.buttons()],
+        H.hail_advance(self.ship)
+        self.assertEqual([r["hail_kind"] for r in V.hail_rows(self.ship, self.comms)],
                          ["answer", "answer"])
 
-    def test_a_console_that_may_not_answer_cannot_read_on_either(self):
-        self.offer()
-        H.hail_accept(self.ship)
-        self.assertEqual(V.hail_choice_strip(self.ship, self.main), 0)
-
-    def test_the_choices_appear_once_the_talking_stops(self):
-        self.open_to_choices()
-        self.assertEqual(V.hail_choice_strip(self.ship, self.comms), 2)
-        self.assertIn("Stand down", self.buttons()[0][1])
-        self.assertIn("Fight", self.buttons()[1][1])
-
-    def test_a_console_that_may_not_answer_gets_no_buttons(self):
+    def test_a_console_that_may_not_answer_gets_no_list(self):
         self.open_to_choices()
         self.assertEqual(V.hail_choice_strip(self.ship, self.main), 0)
-        self.assertEqual(self.buttons(), [])
+        self.assertEqual(self.rows(), [])
 
-    def test_every_button_shares_ONE_handler_object(self):
-        # A per-iteration closure is the classic for-loop handler trap: every button
-        # would capture the last value. One module-level callable cannot.
+    def test_every_row_carries_its_own_index_and_token(self):
         self.open_to_choices()
-        V.hail_choice_strip(self.ship, self.comms)
-        handlers = {id(b[3]) for b in self.buttons()}
-        # Every button is wired to the SAME module-level callable - a per-iteration
-        # closure would make each one answer for the last.
-        cbs = [e[2] for e in self.trace if e[0] == "callback"]
-        self.assertEqual(len(cbs), 2)
-        self.assertEqual({id(c) for c in cbs}, {id(V._hail_view_press)})
-
-    def test_each_button_carries_its_own_index(self):
-        self.open_to_choices()
-        V.hail_choice_strip(self.ship, self.comms)
-        self.assertEqual([b[2]["hail_index"] for b in self.buttons()], [0, 1])
-
-    def test_every_button_carries_the_current_token(self):
-        self.open_to_choices()
-        V.hail_choice_strip(self.ship, self.comms)
+        rows = V.hail_rows(self.ship, self.comms)
         seq = H.hail_seq(self.ship)
-        self.assertTrue(all(b[2]["hail_seq"] == seq for b in self.buttons()))
+        self.assertEqual([r["hail_index"] for r in rows], [0, 1])
+        self.assertTrue(all(r["hail_seq"] == seq for r in rows))
 
-    def test_the_data_keys_cannot_clobber_the_consoles_own_variables(self):
-        # A dict `data` is splatted into the task's variables, so an unprefixed `ship`
-        # or `index` would quietly overwrite what the console layout is using.
+    def test_the_row_keys_cannot_clobber_the_consoles_own_variables(self):
         self.open_to_choices()
+        for row in V.hail_rows(self.ship, self.comms):
+            for key in row:
+                self.assertTrue(key in ("label",) or key.startswith("hail_"), key)
+
+    def test_the_list_owns_its_own_selection_handler(self):
+        self.offer()
         V.hail_choice_strip(self.ship, self.comms)
-        for b in self.buttons():
-            for key in b[2]:
-                self.assertTrue(key.startswith("hail_"), key)
+        cbs = [e for e in self.trace if e[0] == "callback"]
+        self.assertEqual(len(cbs), 1)
+        self.assertIs(cbs[0][2], V._hail_row_pick)
 
 
 class PressDispatchTests(HailViewBase):
     def _press(self, data, client_id):
-        # Exactly how Column.on_message invokes it: (event, widget), from the LIVE gui
-        # task - no __ITEM__ and no dependence on the task that built the widget.
-        V._hail_view_press(FakeEvent(client_id=client_id), _FakeItem(data))
+        # Exactly how the listbox invokes it: (event, widget), from the LIVE gui task -
+        # the chosen row comes off the widget, not from any task variable.
+        V._hail_row_pick(FakeEvent(client_id=client_id), _FakeListbox([data]))
 
     def test_an_accept_press_opens_that_hail(self):
         hid = self.offer()
@@ -313,8 +284,8 @@ class PressDispatchTests(HailViewBase):
                      "hail_seq": stale}, self.comms)
         self.assertEqual(H.hail_beat(self.ship).speaker, "ashfang")
 
-    def test_a_press_with_no_data_does_not_raise(self):
-        V._hail_view_press(FakeEvent(client_id=self.comms), _FakeItem(None))
+    def test_a_press_with_no_row_does_not_raise(self):
+        V._hail_row_pick(FakeEvent(client_id=self.comms), _FakeListbox([]))
 
 
 class PlacementDialTests(HailViewBase):
