@@ -600,6 +600,33 @@ class AudioTests(HailTestCase):
         H.hail_answer(self.ship, 0)
         self.assertEqual(H.hail_form(self.ship), "still")
 
+    def test_audio_is_ON_by_default(self):
+        # A scene that ships a sound file expects to be heard.
+        self.assertTrue(H.hail_audio(self.ship))
+
+    def test_turning_audio_off_silences_a_scene_that_has_one(self):
+        H.hail_audio_set(self.ship, False)
+        scenes = {"open": {"data": {"speaker": "a", "when": "hail",
+                                    "audio": "audio/one"},
+                           "description": "% Hi." + NL}}
+        H.hail_offer_amd(self.ship, scenes, "a")
+        H.hail_accept(self.ship)
+        self.assertEqual(self.played, [])
+
+    def test_turning_it_back_on_restores_the_sound(self):
+        H.hail_audio_set(self.ship, False)
+        H.hail_audio_set(self.ship, True)
+        scenes = {"open": {"data": {"speaker": "a", "when": "hail",
+                                    "audio": "audio/one"},
+                           "description": "% Hi." + NL}}
+        H.hail_offer_amd(self.ship, scenes, "a")
+        H.hail_accept(self.ship)
+        self.assertEqual(self.played, ["audio/one"])
+
+    def test_setting_it_to_what_it_already_is_is_not_a_change(self):
+        self.assertFalse(H.hail_audio_set(self.ship, True))
+        self.assertTrue(H.hail_audio_set(self.ship, False))
+
     def test_a_hail_with_no_audio_plays_nothing(self):
         self._offer()
         H.hail_accept(self.ship)

@@ -23,9 +23,10 @@ without being able to press it.
 """
 from ...helpers import FrameContext, gui_text_escape
 from ..hail import (HAIL_MAX_CHOICES, hail_accept, hail_active, hail_advance,
-                    hail_answer, hail_beat, hail_answer_label, hail_choices, hail_defer,
-                    hail_form, hail_is_active, hail_more, hail_pending, hail_seq,
-                    hail_where, hail_where_for, hail_where_label_for, hail_where_props)
+                    hail_answer, hail_audio, hail_audio_set, hail_beat,
+                    hail_answer_label, hail_choices, hail_defer, hail_form,
+                    hail_is_active, hail_more, hail_pending, hail_seq, hail_where,
+                    hail_where_for, hail_where_label_for, hail_where_props)
 from .overlay import overlay_clear, overlay_register, overlay_show, overlay_slot_define
 
 
@@ -293,6 +294,44 @@ def hail_where_dropdown(client_id=None, style=None):
     item = gui_drop_down(hail_where_props(current), style,
                          data={"hail_client": client_id})
     gui_message_callback(item, _hail_where_changed)
+    return item
+
+
+def _hail_audio_toggled(event, item):
+    """The Audio box moved. Ship-wide, so the console it came from does not matter."""
+    from .viewscreen import viewscreen_home_ship
+    data = getattr(item, "data", None) or {}
+    client_id = (data.get("hail_client") or getattr(event, "client_id", None)
+                 or FrameContext.client_id)
+    hail_audio_set(viewscreen_home_ship(client_id), bool(getattr(item, "value", True)))
+
+
+def hail_audio_checkbox(client_id=None, style=None):
+    """`Audio` - ticked when hails may play their `Audio:`, which is the default.
+
+    Ticked means SOUND, not mute: a scene that ships a sound file expects to be heard,
+    and a box you have to tick to get the normal behaviour is a box people find only
+    after wondering why it is quiet.
+
+    Reads the SHIP's setting rather than remembering its own, so two comms consoles
+    always agree - the same reason the placement dial is derived.
+
+    Returns:
+        the checkbox layout item, or None where a hail cannot be placed.
+    """
+    from .checkbox import gui_checkbox
+    from .message import gui_message_callback
+    from .viewscreen import viewscreen_home_ship
+
+    if client_id is None:
+        client_id = FrameContext.client_id
+    if not _hail_may_answer_here(client_id):
+        return None
+    on = hail_audio(viewscreen_home_ship(client_id))
+    item = gui_checkbox(_hail_label("Audio"), style, data={"hail_client": client_id})
+    if item is not None:
+        item.value = on
+        gui_message_callback(item, _hail_audio_toggled)
     return item
 
 

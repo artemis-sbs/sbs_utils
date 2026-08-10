@@ -382,6 +382,52 @@ class PlacementDialTests(HailViewBase):
         self.assertEqual(H.hail_where(self.comms), "main")
 
 
+class AudioCheckboxTests(HailViewBase):
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural.gui import checkbox as CB
+        self.CB = CB
+        self._saved_cb = CB.gui_checkbox
+        t = self.trace
+
+        def _cb(msg, style=None, var=None, data=None):
+            item = _FakeItem(data)
+            item.value = False
+            t.append(("checkbox", msg, data, item))
+            return item
+        CB.gui_checkbox = _cb
+
+    def tearDown(self):
+        self.CB.gui_checkbox = self._saved_cb
+        super().tearDown()
+
+    def box(self):
+        return [e for e in self.trace if e[0] == "checkbox"][0]
+
+    def test_it_is_ticked_by_default_because_sound_is_the_default(self):
+        V.hail_audio_checkbox(self.comms)
+        self.assertTrue(self.box()[3].value)
+
+    def test_it_reads_the_SHIP_so_two_consoles_agree(self):
+        H.hail_audio_set(self.ship, False)
+        V.hail_audio_checkbox(self.comms)
+        self.assertFalse(self.box()[3].value)
+
+    def test_a_console_that_cannot_place_a_hail_gets_no_box(self):
+        self.assertIsNone(V.hail_audio_checkbox(self.main))
+        self.assertEqual(self.trace, [])
+
+    def test_unticking_it_silences_the_ship(self):
+        item = V.hail_audio_checkbox(self.comms)
+        item.value = False
+        V._hail_audio_toggled(FakeEvent(client_id=self.comms), item)
+        self.assertFalse(H.hail_audio(self.ship))
+
+    def test_the_label_says_Audio_not_Mute(self):
+        V.hail_audio_checkbox(self.comms)
+        self.assertIn("Audio", self.box()[1])
+
+
 class ConversationViewTests(HailViewBase):
     def test_nothing_is_built_when_no_hail_is_open(self):
         self.assertIsNone(V.hail_view(self.ship, self.comms))

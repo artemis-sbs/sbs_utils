@@ -73,6 +73,7 @@ KEY_LOG = "HAIL_LOG"                # answered conversations, newest first
 KEY_MAIN = "HAIL_MAIN"              # is the MAIN SCREEN showing the conversation
 KEY_NEXT_ID = "HAIL_NEXT_ID"        # monotonic id source
 KEY_TOOK_VIEWER = "HAIL_TOOK_VIEWER"  # this hail is what called viewscreen_set
+KEY_AUDIO = "HAIL_AUDIO"            # may a hail play its Audio: - default yes
 
 # Inventory keys on the CONSOLE (client), not the ship.
 KEY_HERE = "HAIL_HERE"              # does THIS console swap its own centre
@@ -514,7 +515,7 @@ def hail_accept(ship, hail_id=None, client_id=None):
     set_inventory_value(ship_id, KEY_ACTIVE, record)
     _hail_record_beat(ship_id, record)
     _hail_bump_seq(ship_id)
-    _hail_play_audio(record)
+    _hail_play_audio(record, ship_id)
     _hail_presentation_apply(ship_id)
     _hail_emit(ship_id, "accepted", record, client_id=client_id)
     return MastDataObject(dict(record))
@@ -674,7 +675,7 @@ def hail_answer(ship, index, client_id=None, seq=None):
         _hail_resolve_scene(ship_id, rec)
         _hail_record_beat(ship_id, rec)
         set_inventory_value(ship_id, KEY_ACTIVE, rec)
-        _hail_play_audio(rec)
+        _hail_play_audio(rec, ship_id)
         _hail_presentation_apply(ship_id)
         _hail_emit(ship_id, "answered", rec, client_id=client_id, choice=choice)
         return True
@@ -778,14 +779,16 @@ def hail_close(ship, declined=False):
 
 
 # --- audio and presentation -------------------------------------------------
-def _hail_play_audio(record):
+def _hail_play_audio(record, ship_id=None):
     """Play a scene's `Audio:` once, server-side.
 
-    Silent by design when there is no engine or no file: a missing sound must never end
-    the task that opened the conversation.
+    Silent by design when there is no engine, no file, or the ship has hail audio
+    turned off: a missing sound must never end the task that opened the conversation.
     """
     name = record.get("audio")
     if not name:
+        return False
+    if ship_id is not None and not hail_audio(ship_id):
         return False
     try:
         from .media import media_play_audio
@@ -907,6 +910,37 @@ def hail_where_label_for(value):
         if v == value:
             return text
     return HAIL_WHERE_LABELS[0][0]
+
+
+def hail_audio(ship):
+    """Whether hails may play their `Audio:` on this ship. Defaults to YES - a scene
+    that ships a sound file expects to be heard."""
+    ship_id = _hail_sid(ship)
+    if ship_id is None:
+        return True
+    return bool(_hail_get(ship_id, KEY_AUDIO, True))
+
+
+def hail_audio_set(ship, on):
+    """Turn hail audio on or off for a SHIP.
+
+    Ship-wide, not per console, because the sound is played once for the whole bridge
+    (`sbs.play_audio_file` to client 0). One sound, one switch - a per-console mute
+    would silence a speaker nobody owns. Same last-writer-wins as the main screen.
+
+    Returns:
+        bool: whether the setting changed.
+    """
+    ship_id = _hail_sid(ship)
+    if ship_id is None:
+        return False
+    on = bool(on)
+    if bool(_hail_get(ship_id, KEY_AUDIO, True)) == on:
+        return False
+    set_inventory_value(ship_id, KEY_AUDIO, on)
+    # Ship-wide, so every console repaints and sees the box agree with the ship.
+    _hail_emit(ship_id, "audio", _hail_get(ship_id, KEY_ACTIVE, None), client_id=None)
+    return True
 
 
 def hail_where(client_id):
@@ -1052,7 +1086,8 @@ def hail_console_revision(client_id):
             + (7 if active else 0)
             + (13 if _hail_get(client_id, KEY_HERE, False) else 0)
             + (17 if _hail_get(ship_id, KEY_MAIN, False) else 0)
-            + (23 if _hail_get(client_id, KEY_REPLAY, None) is not None else 0))
+            + (23 if _hail_get(client_id, KEY_REPLAY, None) is not None else 0)
+            + (29 if _hail_get(ship_id, KEY_AUDIO, True) else 0))
 
 
 def hail_repaint_needed(client_id):
