@@ -522,6 +522,72 @@ class HistoryAndReplayTests(HailTestCase):
         self.assertTrue(H.hail_log(self.ship)[0].declined)
 
 
+class OrbitBandTests(HailTestCase):
+    """An orbit hail draws nothing inline, so the band IS the conversation on screen -
+    it has to follow the beats and go when the hail does."""
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural.gui import hail_gui
+        self.gui = hail_gui
+        self.shown, self.cleared = [], []
+        self._show = hail_gui.hail_band_show
+        self._clear = hail_gui.hail_band_clear
+        hail_gui.hail_band_show = lambda ship, **kw: self.shown.append(ship) or True
+        hail_gui.hail_band_clear = lambda ship, **kw: self.cleared.append(ship) or True
+        self.main = _console(C_MAIN, self.ship, "console", "mainscreen")
+
+    def tearDown(self):
+        self.gui.hail_band_show = self._show
+        self.gui.hail_band_clear = self._clear
+        super().tearDown()
+
+    def _orbit(self):
+        raider = to_id(npc_spawn(500, 0, 0, "Raider", "raider", "battle", "behav_npcship"))
+        H.hail_where_set(self.comms, "main")
+        self._offer(presentation="orbit", subject=raider)
+        return raider
+
+    def test_an_orbit_hail_puts_the_band_up(self):
+        self._orbit()
+        H.hail_accept(self.ship)
+        self.assertEqual(self.shown, [self.ship])
+
+    def test_the_band_follows_each_beat(self):
+        self._orbit()
+        H.hail_accept(self.ship)
+        self.shown.clear()
+        H.hail_advance(self.ship)
+        self.assertEqual(self.shown, [self.ship])
+
+    def test_closing_takes_the_band_down(self):
+        self._orbit()
+        H.hail_accept(self.ship)
+        H.hail_close(self.ship)
+        self.assertIn(self.ship, self.cleared)
+
+    def test_a_portrait_never_raises_a_band(self):
+        H.hail_where_set(self.comms, "main")
+        self._offer(presentation="portrait")
+        H.hail_accept(self.ship)
+        self.assertEqual(self.shown, [])
+
+    def test_taking_it_off_the_main_screen_takes_the_band_with_it(self):
+        self._orbit()
+        H.hail_accept(self.ship)
+        self.cleared.clear()
+        H.hail_where_set(self.comms, "off")
+        self.assertIn(self.ship, self.cleared)
+
+    def test_a_late_resolved_subject_starts_no_shot(self):
+        # A role or a cast name cannot be filmed until something binds it; the renderer
+        # does that, so the library must not guess an id here.
+        H.hail_where_set(self.comms, "main")
+        self._offer(presentation="orbit", subject="raider_lead")
+        H.hail_accept(self.ship)
+        self.assertEqual(self.shown, [])
+
+
 class ResetTests(HailTestCase):
     def test_the_resolver_is_a_latch_the_ledger_can_see(self):
         from sbs_utils.handlerhooks import reset_mission_audit

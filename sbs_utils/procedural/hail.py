@@ -509,6 +509,7 @@ def hail_advance(ship):
     rec["beat"] = index
     set_inventory_value(ship_id, KEY_ACTIVE, rec)
     _hail_bump_seq(ship_id)
+    _hail_presentation_apply(ship_id)   # the band shows the beat, so it moves with it
     _hail_emit(ship_id, "beat", rec)
     return index < len(lines)
 
@@ -629,6 +630,7 @@ def hail_close(ship, declined=False):
         return False
     set_inventory_value(ship_id, KEY_ACTIVE, None)
     _hail_bump_seq(ship_id)
+    _hail_band_drop(ship_id)
 
     log = list(_hail_get(ship_id, KEY_LOG, None) or [])
     log.insert(0, {"id": rec.get("id"), "scene": rec.get("scene"),
@@ -693,6 +695,15 @@ def hail_subject(ship):
     return (rec or {}).get("subject") or 0
 
 
+def _hail_band_drop(ship_id):
+    """Take the orbit band down. Safe to call when there never was one."""
+    try:
+        from .gui.hail_gui import hail_band_clear
+        hail_band_clear(ship_id)
+    except Exception as e:
+        DEBUG(f"[hail] could not clear the band: {e}")
+
+
 def _hail_presentation_apply(ship_id):
     """Make the main screen agree with the open hail.
 
@@ -702,17 +713,24 @@ def _hail_presentation_apply(ship_id):
     """
     rec = _hail_get(ship_id, KEY_ACTIVE, None)
     if not rec or not _hail_get(ship_id, KEY_MAIN, False):
+        _hail_band_drop(ship_id)
         return False
     if (rec.get("presentation") or "") != "orbit":
+        _hail_band_drop(ship_id)
         return False
     subject = rec.get("subject")
     if not subject or isinstance(subject, str):
         return False                      # late-resolved; the renderer binds it
     try:
         from .gui.viewscreen import viewscreen_set
+        from .gui.hail_gui import hail_band_show
+        # viewscreen_set returns False when the shot is ALREADY what was asked for, so
+        # only the first call claims the viewer - but the band is refreshed every time,
+        # because the beat it is showing has usually moved on.
         if viewscreen_set(ship_id, "orbit", subject):
             set_inventory_value(ship_id, KEY_TOOK_VIEWER, True)
-            return True
+        hail_band_show(ship_id)
+        return True
     except Exception as e:
         DEBUG(f"[hail] could not start the orbit shot: {e}")
     return False
@@ -796,13 +814,18 @@ def hail_where_set(client_id, where):
         set_inventory_value(ship_id, KEY_MAIN, want_main)
         if want_main:
             _hail_presentation_apply(ship_id)
-        elif _hail_get(ship_id, KEY_TOOK_VIEWER, False):
-            set_inventory_value(ship_id, KEY_TOOK_VIEWER, False)
-            try:
-                from .gui.viewscreen import viewscreen_clear
-                viewscreen_clear(ship_id)
-            except Exception as e:
-                DEBUG(f"[hail] could not stand the viewer down: {e}")
+        else:
+            # The band is the conversation on an orbit shot, so it has to go with the
+            # screen - clearing only the SHOT would leave a name plate floating over a
+            # view nobody asked for.
+            _hail_band_drop(ship_id)
+            if _hail_get(ship_id, KEY_TOOK_VIEWER, False):
+                set_inventory_value(ship_id, KEY_TOOK_VIEWER, False)
+                try:
+                    from .gui.viewscreen import viewscreen_clear
+                    viewscreen_clear(ship_id)
+                except Exception as e:
+                    DEBUG(f"[hail] could not stand the viewer down: {e}")
     if ship_id is not None:
         _hail_emit(ship_id, "where", _hail_get(ship_id, KEY_ACTIVE, None),
               client_id=None if touched_main else client_id)
