@@ -101,6 +101,11 @@ def gui_table(items, columns=None, style="row-height: 1.6em;", select=False,
               header=True, font="gui-2", on_cell_change=None, headers=None, **kwargs):
     """Add a table (a selectable/scrollable gui_list_box) to the layout.
 
+    ``style`` is handed BOTH to the listbox and to each row's ``gui_row``. Under the
+    old listbox semantics that meant a row of `row-height` and a GAP of the same, so
+    every table rendered at twice its declared pitch; now both say the same thing and
+    a table is as tall as it says.
+
     Two forms:
 
     **Block form** — author the row yourself, like the other containers::

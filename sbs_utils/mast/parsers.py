@@ -299,6 +299,10 @@ class StyleDefinition:
                     ret[key]=StyleDefinition.parse_bounds(value)
                 case "row-height":
                     ret[key]=StyleDefinition.parse_height(value)
+                case "item-gap":
+                    # A listbox only. The spacing BETWEEN items - what `row-height`
+                    # used to be spent on there, before it came to mean what it says.
+                    ret[key]=StyleDefinition.parse_height(value)
                 case "col-width":
                     ret[key]=StyleDefinition.parse_width(value)
                 case "margin":

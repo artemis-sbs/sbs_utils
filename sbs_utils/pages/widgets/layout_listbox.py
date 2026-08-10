@@ -208,7 +208,13 @@ class LayoutListbox(layout.Column):
         self.read_only = read_only
         
         self.default_item_width = None
-        self.default_item_height = None
+        # The height of ONE row, and the spacing BETWEEN rows. These used to be a
+        # single value: `row-height` was stored here and then spent as the gap. So a
+        # list that declared the height its template already used rendered at twice the
+        # pitch, and a template with no declared height collapsed into a zero-tall item
+        # with a zero-tall CLICK REGION - visible, barely clickable.
+        self.item_row_height = None
+        self.item_gap = None
         self.select = select
         self.multi= multi
         # OPT-IN. A selection scrolled out of view is a real problem, but this
@@ -264,9 +270,12 @@ class LayoutListbox(layout.Column):
         self.last_tags = None
         self.horizontal = None
         self.client_id = None
+        # Documented as per-item padding but never applied - and it carried a 2px
+        # default, so the docs promised padding no list has ever had. Applied now, and
+        # the default is NOTHING: switching the default on would change the height of
+        # every row in every list, which is a separate decision from making the option
+        # work.
         self.section_style = section_style
-        if section_style is None:
-            self.section_style = "padding: 2px,2px,2px,2px;"
 
         self.title_section_style = title_section_style
         if title_section_style is None:
@@ -290,8 +299,29 @@ class LayoutListbox(layout.Column):
         self.mark_visual_dirty()
 
     def set_row_height(self, height):
-        # Row_height for a listbox is the gap height
-        self.default_item_height = height
+        """The height of ONE item row - what `row-height` means everywhere else.
+
+        A FLOOR, not a cap: a template that needs more space grows past it, so a
+        two-line row is never clipped into a one-line click region.
+        """
+        self.item_row_height = height
+
+    def set_item_gap(self, gap):
+        """The spacing BETWEEN items. This is what `row-height` used to mean here."""
+        self.item_gap = gap
+
+    def _listbox_size(self, value, aspect_axis):
+        """Resolve a style value against the LISTBOX's own font.
+
+        It was resolved against a hard-coded font size of 20, so `0.1em` on a listbox
+        was never 0.1 of anything on screen - while the same expression in one of its
+        rows used the row's real font.
+        """
+        if not value:
+            return 0
+        font = layout.effective_font(self, None)
+        return LayoutAreaParser.compute(value, None, aspect_axis,
+                                        layout.get_font_size(font))
 
     def set_col_width(self, width):
         # col_width for a listbox is the gap width
@@ -299,7 +329,11 @@ class LayoutListbox(layout.Column):
 
     def default_item_template(self, item):
         from ...procedural.gui import gui_row, gui_text
-        gui_row("row-height: 1.0;")
+        # A declared row-height has already sized the item, so an unstyled row fills
+        # it. Otherwise 1.6em, which is font-relative. This was `1.0` - a bare number
+        # is 1% of SCREEN HEIGHT, about 7px at 720p - so every list with no item
+        # template drew ~16px text in a 7px row, with a 7px click region.
+        gui_row(None if self.item_row_height else "row-height: 1.6em;")
         task = FrameContext.task
         task.set_variable("LB_ITEM", item)
         if self.item_template is not None:
@@ -348,6 +382,15 @@ class LayoutListbox(layout.Column):
         max_height = 0
         total_height = 0
         counted = 0
+        # Measure each item in a box the size it will actually be DRAWN in. It used to
+        # be a full-screen 100x100 for every item, which is fine for a template whose
+        # rows carry fixed heights (they measure the same in any box) and wrong for one
+        # whose rows flex: those filled the 100 and the packer concluded a single item
+        # filled the whole list. Falls back to 100 when nothing is declared, so every
+        # list that declares no row-height measures exactly as it did before.
+        row_floor = self._listbox_size(self.item_row_height,
+                                       get_client_aspect_ratio(CID).y)
+        measure_height = row_floor if row_floor else 100
         # Per-item heights, keyed by identity. The draw loop uses these to pack
         # exactly, instead of assuming every row is the tallest one.
         self._item_heights = {}
@@ -379,7 +422,7 @@ class LayoutListbox(layout.Column):
                     last_visual_indent = item.visual_indent
 
             
-            sec = layout.Layout("unused", None, 0, 0, 100, 100)
+            sec = layout.Layout("unused", None, 0, 0, 100, measure_height)
             sub_page.next_slot(slot, sec)
             slot+=1
             #
@@ -396,6 +439,7 @@ class LayoutListbox(layout.Column):
             # Listbox rows get_content_from_bounds
             # ONLY looks at rows
             max_height = max(max_height, 0.2)
+            max_height = max(max_height, row_floor)
             max_width = max(max_width, b.width)
 
             # This item's own height, for the average.
@@ -403,6 +447,9 @@ class LayoutListbox(layout.Column):
             if size is not None:
                 this_height = max(this_height, size)
             this_height = max(this_height, 0.2)
+            # The declared row height is a FLOOR here too, so the packer and the draw
+            # loop agree about how tall an item is. They used to be able to disagree.
+            this_height = max(this_height, row_floor)
             self._item_heights[id(item)] = this_height
             total_height += this_height
             counted += 1
@@ -467,21 +514,24 @@ class LayoutListbox(layout.Column):
 
         
         item_width = 0# self.bounds.width 
-        item_height = 0 #self.bounds.height
+        item_gap = 0 #self.bounds.height
         aspect_ratio = get_client_aspect_ratio(event.client_id)
         if not self.horizontal:
             item_width = self.bounds.width 
-            item_height = 0 #self.bounds.height
+            item_gap = 0 #self.bounds.height
         else:
             item_width = 0 #self.bounds.width 
-            item_height = self.bounds.height
+            item_gap = self.bounds.height
         
         if self.default_item_width:
-            item_width = LayoutAreaParser.compute(self.default_item_width, None, aspect_ratio.x, 20)
+            item_width = self._listbox_size(self.default_item_width, aspect_ratio.x)
             if self.horizontal is None:
                 self.horizontal = True
-        if self.default_item_height:
-            item_height = LayoutAreaParser.compute(self.default_item_height, None, aspect_ratio.y, 20)
+        if self.item_gap:
+            item_gap = self._listbox_size(self.item_gap, aspect_ratio.y)
+        # The floor every item section starts at. Zero when nothing is declared, which
+        # is exactly the previous behaviour for every list that declares nothing.
+        row_height = self._listbox_size(self.item_row_height, aspect_ratio.y)
         
         # At this point is should assume it is vertical
         if self.horizontal is None:
@@ -500,8 +550,8 @@ class LayoutListbox(layout.Column):
         cur_start = self.cur if self.cur and self.cur > 0 else 0
         
         max_item_width += item_width
-        max_item_height += item_height
-        avg_item_height += item_height
+        max_item_height += item_gap
+        avg_item_height += item_gap
         
         # This can be because len items == 0
         if max_item_width == 0:
@@ -527,7 +577,7 @@ class LayoutListbox(layout.Column):
             avail = self.bounds.bottom - top
             heights = [self._item_heights.get(id(it), avg_item_height)
                        for it in self.items]
-            max_slots = pack_slots(heights, avail, item_height, cur_start)
+            max_slots = pack_slots(heights, avail, item_gap, cur_start)
 
             # Opt-in, vertical only, never a carousel (whose window is one item
             # by definition), and never horizontal (a separate packing path with
@@ -541,8 +591,8 @@ class LayoutListbox(layout.Column):
                     except ValueError:
                         sel = None
                 if sel is not None:
-                    cur_start = reveal_cur(sel, cur_start, heights, avail, item_height)
-                    max_slots = pack_slots(heights, avail, item_height, cur_start)
+                    cur_start = reveal_cur(sel, cur_start, heights, avail, item_gap)
+                    max_slots = pack_slots(heights, avail, item_gap, cur_start)
                     self.cur = cur_start
                 self._reveal_pending = False
 
@@ -677,7 +727,12 @@ class LayoutListbox(layout.Column):
 
             tag = f"{self.tag_prefix}:{slot}"
             this_right =   left + item_indent #+item_width
-            this_bottom =   top #+item_height
+            # A REAL height, not zero. A zero-height section makes every flex row
+            # inside it resolve to 0 (the flex pass divides an available height of
+            # zero), so an item whose template declares no height vanished - and the
+            # click region, emitted from these bounds, went with it. The carousel
+            # branch below already had to solve this for itself.
+            this_bottom =   top + row_height
             
 
           
@@ -741,6 +796,8 @@ class LayoutListbox(layout.Column):
                     sec.background_color = self.select_color
                     sec.click_tag = collapse_tag
 
+            if self.section_style:
+                apply_control_styles("", self.section_style, sec, task)
             sub_page.next_slot(slot, sec)
             
             size = self.template_func(item, listbox=self, 
@@ -750,14 +807,14 @@ class LayoutListbox(layout.Column):
             # if self.horizontal:
             #     left+= item_width
             # else:
-            #     top+= item_height
+            #     top+= item_gap
 
             if size is None:
                 sec.resize_to_content()
                 if self.horizontal:
                     size = sec.bounds.width + item_width
                 else:
-                    size = sec.bounds.height + item_height
+                    size = sec.bounds.height + item_gap
             #
             # Draw the selection Tick
             #
@@ -909,7 +966,7 @@ class LayoutListbox(layout.Column):
         #index = int(sec[1]) +self.cur
 
         slot_index = int(sec[1])
-        if slot_index > len(self.sections):
+        if slot_index >= len(self.sections):
             self.represent(event)
             return
         
@@ -922,7 +979,7 @@ class LayoutListbox(layout.Column):
         # regardless of selection change
         self.click_time = FrameContext.sim_seconds
         
-        if index > len(self.items):
+        if index >= len(self.items):
             self.represent(event)
             return
         
@@ -955,7 +1012,7 @@ class LayoutListbox(layout.Column):
         #     self.represent(event)
         #     return
         slot_index = int(sec[1])
-        if slot_index > len(self.sections):
+        if slot_index >= len(self.sections):
             self.represent(event)
             return
         

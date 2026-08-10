@@ -233,8 +233,8 @@ class HailListTests(HailViewBase):
         self.assertEqual(V.hail_rows(self.ship, self.comms)[0]["hail_kind"], "back")
 
     def test_an_item_opens_its_own_row_or_it_is_not_selectable(self):
-        # LayoutListbox.default_item_template opens one, so that is the contract -
-        # without a row the item has nothing to be hit-tested in and selection dies.
+        # Without a row the item has nothing to be hit-tested in and selection dies.
+        # It declares no HEIGHT - the listbox's row-height sizes the item now.
         from sbs_utils.procedural.gui import row as ROWMOD
         seen = []
         saved = ROWMOD.gui_row
@@ -245,13 +245,13 @@ class HailListTests(HailViewBase):
             ROWMOD.gui_row = saved
         self.assertEqual(len(seen), 1)
 
-    def test_the_listbox_spacing_is_not_a_whole_line(self):
-        # row-height on the LISTBOX is the gap between items; 1.6em there put a blank
-        # line between every choice.
+    def test_the_listbox_sizes_the_row(self):
+        # `row-height` on the listbox is the height of ONE row now, so the item
+        # template declares none and there is one place that decides.
         self.offer()
         V.hail_choice_strip(self.ship, self.comms)
         style = [e for e in self.trace if e[0] == "listbox"][0][2]
-        self.assertIn("0.1em", style)
+        self.assertIn("row-height: 1.6em", style)
 
     def test_the_list_opens_its_OWN_row(self):
         # A listbox joins whatever row is open, so without this it lands beside the

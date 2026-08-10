@@ -69,6 +69,12 @@ def apply_style_def(style_def, layout_item, task):
     if height is not None:
         layout_item.set_row_height(height)        
     ###############
+    # Listbox only - the spacing between items. Guarded rather than declared on every
+    # layout item, so it stays inert on the widgets that have no such concept.
+    gap = style_def.get("item-gap")
+    if gap is not None and hasattr(layout_item, "set_item_gap"):
+        layout_item.set_item_gap(gap)
+    ###############
     width = style_def.get("col-width")
     if width is not None:
         layout_item.set_col_width(width)        
