@@ -124,9 +124,14 @@ def gui_layout_widget(widget, style=None):
         widget (str): Engine widget name, e.g. ``"2dview"`` or
             ``"helm_movement"``.
         style (str, optional): Layout style for the PLACEHOLDER, as for any other
-            widget - most usefully ``col-width``. Without it the placeholder takes the
-            whole row, so an engine widget sharing a row with a control drew over it.
-            Defaults to None (the whole row, as before).
+            widget - most usefully ``col-width``. Defaults to None (the whole row).
+
+    DO NOT SHARE A ROW WITH MAST CONTROLS. The placeholder lays out correctly - measured:
+    `red_alert` beside three checkboxes computes four clean quarters, and every rect is
+    sent - but the ENGINE draws its widget at its own size, over the top of whatever MAST
+    put beside it, so the controls simply vanish. Give an engine widget its own row (or
+    its own section). ``col-width`` still shapes the rect the engine is GIVEN, which is
+    worth having on its own; it just cannot stop the engine painting outside it.
 
     Returns:
         ConsoleWidget: The layout placeholder item.
