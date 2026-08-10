@@ -755,7 +755,8 @@ def amd_parse_facts(text, handler=None, default=amd_num, archetype=None, errors=
     `errors` may be a list - parse problems are appended to it in a writer's terms
     rather than raised, so a typo never takes a mission down; the linter is what makes
     them loud. Returns `data`, carrying the kind line (when present) under `KIND_KEY`."""
-    from sbs_utils.procedural.amd_schema import amd_is_declared, amd_read_field
+    from sbs_utils.procedural.amd_schema import (amd_is_declared, amd_read_field,
+                                                 amd_traits_of)
 
     lines = _meaningful(text)
     kind = amd_kind_line(text)
@@ -765,6 +766,15 @@ def amd_parse_facts(text, handler=None, default=amd_num, archetype=None, errors=
     raw_data = _parse_entries(lines, errors)
     if not isinstance(raw_data, dict):
         return raw_data
+
+    # The record's OWN `Also:` traits, read once from the raw entries. Without this
+    # the runtime knew nothing about traits, so a trait's fields were declared for the
+    # linter and undeclared for the game - the reader fell through to amd_num and a
+    # trait's `Reliability: high` silently became a string where the schema said enum.
+    # raw_data is keyed by the AUTHOR'S spelling ("Also"), not the normalized one,
+    # so look the trait line up the same way every other label is matched.
+    _also = next((v for k, v in raw_data.items() if amd_norm(k) == "also"), None)
+    traits = amd_traits_of({"also": _also}) if _also else ()
 
     data = {}
     for label, value in raw_data.items():
@@ -776,8 +786,8 @@ def amd_parse_facts(text, handler=None, default=amd_num, archetype=None, errors=
                 and handler(data, label.strip().lower(), value):
             continue
         # 2. the field registry, when this field is declared for this kind of record
-        if amd_is_declared(label, archetype):
-            key, parsed = amd_read_field(label, value, archetype)
+        if amd_is_declared(label, archetype, traits):
+            key, parsed = amd_read_field(label, value, archetype, traits)
             data[key] = parsed if isinstance(value, str) else value
             continue
         # 3. otherwise exactly what it does today

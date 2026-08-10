@@ -889,7 +889,7 @@ def _declared(label, archetype=None, traits=()):
     tables += [TRAITS.get(str(t).strip().lower()) for t in (traits or ())]
     tables.append(GLOBAL)
     tables = [t for t in tables if t]
-    canonical = _alias_index(archetype).get(key, key)
+    canonical = _alias_index(archetype, traits).get(key, key)
     for want in (key, canonical):
         for table in tables:
             for declared_label, descriptor in table.items():
@@ -989,38 +989,63 @@ def amd_is_internal(label, archetype=None):
 _ALIAS_CACHE = {}
 
 
-def _alias_index(archetype):
-    """`{alias -> canonical label}` for one archetype (plus GLOBAL), built on demand."""
-    cached = _ALIAS_CACHE.get(archetype)
+def _trait_tables(archetype, traits):
+    """The trait field tables in play: what the archetype ALWAYS has, then what this
+    record says it ALSO does. Same order _declared uses."""
+    out = []
+    implicit = ARCHETYPE_TRAITS.get(str(archetype).strip().lower(), ()) if archetype else ()
+    for t in tuple(implicit) + tuple(traits or ()):
+        table = TRAITS.get(str(t).strip().lower())
+        if table:
+            out.append(table)
+    return out
+
+
+def _alias_index(archetype, traits=()):
+    """`{alias -> canonical label}` for one archetype (plus its traits, plus GLOBAL).
+
+    TRAITS GO IN FIRST, which means LOWEST priority - later tables overwrite earlier
+    ones. That is the opposite of _declared's order (archetype, traits, GLOBAL) and it
+    is deliberate: an alias that resolves today must keep resolving to the same field,
+    so a trait can only fill in a name nothing else claims. Traits were absent from
+    this index entirely, which is why a trait's `aka` never resolved at all.
+    """
+    ckey = (archetype, _traits_key(traits))
+    cached = _ALIAS_CACHE.get(ckey)
     if cached is not None:
         return cached
     index = {}
-    for table in (GLOBAL, ARCHETYPES.get(archetype) or {}):
+    for table in tuple(_trait_tables(archetype, traits)) + (GLOBAL, ARCHETYPES.get(archetype) or {}):
         for canonical, d in table.items():
             for a in d.get("aka", ()):
                 index[_norm_label(a)] = _norm_label(canonical)
-    _ALIAS_CACHE[archetype] = index
+    _ALIAS_CACHE[ckey] = index
     return index
 
 
-def amd_canonical_label(label, archetype=None):
+def amd_canonical_label(label, archetype=None, traits=()):
     """The canonical spelling of `label` - itself when it is already canonical (or
     unknown), else the field it is an alias of. Underscore/space/hyphen tolerant, so
     `fail_on_signal`, `Fail on signal` and `fail-on-signal` all land together."""
     key = _norm_label(label)
-    if _declared_under(key, archetype):
+    if _declared_under(key, archetype, traits):
         return key
-    return _alias_index(archetype).get(key, key)
+    return _alias_index(archetype, traits).get(key, key)
 
 
-def _declared_under(norm_key, archetype):
-    """True when `norm_key` is itself a declared (canonical) label, alias aside."""
-    memo_key = (norm_key, archetype)
+def _declared_under(norm_key, archetype, traits=()):
+    """True when `norm_key` is itself a declared (canonical) label, alias aside.
+
+    Trait tables are consulted too, and LAST - a trait's own field must count as
+    canonical or its aliases could never resolve to it."""
+    memo_key = (norm_key, archetype, _traits_key(traits))
     hit = _UNDER_MEMO.get(memo_key)
     if hit is not None:
         return hit
     found = False
-    for table in (t for t in (ARCHETYPES.get(archetype) if archetype else None, GLOBAL) if t):
+    tables = [ARCHETYPES.get(archetype) if archetype else None, GLOBAL]
+    tables += _trait_tables(archetype, traits)
+    for table in (t for t in tables if t):
         if any(_norm_label(l) == norm_key for l in table):
             found = True
             break
@@ -1028,12 +1053,12 @@ def _declared_under(norm_key, archetype):
     return found
 
 
-def amd_field_key(label, archetype=None):
+def amd_field_key(label, archetype=None, traits=()):
     """The name the RUNTIME should store this field under: the descriptor's `key`
     when it declares one, else the canonical label. This is the one place the
     authored word and the stored word are allowed to differ."""
-    canonical = amd_canonical_label(label, archetype)
-    return field_schema(canonical, archetype).get("key", canonical)
+    canonical = amd_canonical_label(label, archetype, traits)
+    return field_schema(canonical, archetype, traits).get("key", canonical)
 
 
 def _norm_label(label):
@@ -1132,14 +1157,14 @@ def amd_coerce(descriptor, value):
     return raw
 
 
-def amd_read_field(label, value, archetype=None):
+def amd_read_field(label, value, archetype=None, traits=()):
     """One authored `Label: value` -> `(runtime_key, parsed_value)`.
 
     The whole point of the registry in one call: alias resolved, type coerced, stored
     under the runtime key - so the reader, the linter and the editor cannot disagree
     about what a line means."""
-    canonical = amd_canonical_label(label, archetype)
-    d = _declared(canonical, archetype)
+    canonical = amd_canonical_label(label, archetype, traits)
+    d = _declared(canonical, archetype, traits)
     if d is None:
         # undeclared: keep today's behavior exactly (amd_num), and let the linter
         # be the one that says "I don't know this field".
