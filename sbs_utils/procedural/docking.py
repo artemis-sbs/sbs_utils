@@ -182,10 +182,56 @@ def _docking_run_task(player, npc, brain, inner_label):
 
 
 
+#: Broad-phase search radius when every registered brain is station-sized. Kept as the
+#: FLOOR rather than the value so a mission that docks with nothing unusual behaves exactly
+#: as it always has.
+DOCKING_DEFAULT_REACH = 2000
+
+
+def _docking_gate(brain, npc):
+    """How close this brain wants the player before docking is offered, in CENTER distance.
+
+    Two ways to say it. ``distance`` is a plain center-to-center range and is what every
+    existing brain uses. ``surface_distance`` is measured from the object's exclusion
+    radius instead, which is the only workable answer for a body whose own radius dwarfs
+    any docking range - a gas giant's exclusion radius is twice its drawn radius, so a
+    center-distance gate would have to be re-derived for every differently sized giant, and
+    a ship could never satisfy the old 600 at all.
+    """
+    surface = brain.label.get_inventory_value("surface_distance", None)
+    if surface is None:
+        return brain.label.get_inventory_value("distance", 600)
+    radius = 0.0
+    if npc is not None:
+        try:
+            radius = float(npc.engine_object.exclusion_radius) or 0.0
+        except Exception:
+            radius = 0.0
+    return surface + radius
+
+
+def _docking_reach(pairs):
+    """Broad-phase radius wide enough for the most distant gate any of these brains wants.
+
+    ``closest`` prunes with a box of this size before measuring anything, so a gate larger
+    than the search is a gate that can never be met - which is what kept a gas giant
+    undockable: the player cannot get within 2000u of the center of a body 8000u across.
+    """
+    reach = DOCKING_DEFAULT_REACH
+    for npc_id, brain in pairs.items():
+        try:
+            gate = _docking_gate(brain, to_object(npc_id))
+        except Exception:
+            continue
+        if gate is not None and gate > reach:
+            reach = gate
+    return reach
+
+
 def _docking_handle_undocked(player_id, player, pairs):
     # Find the closest thing the player can dock with
     paired_ids = set(list(pairs.keys()))
-    npc_id = to_id(closest(player_id, paired_ids, 2000))
+    npc_id = to_id(closest(player_id, paired_ids, _docking_reach(pairs)))
     player.data_set.set("dock_base_id", 0)
     if npc_id==0:
         return
@@ -206,7 +252,7 @@ def _docking_handle_undocked(player_id, player, pairs):
     
     #
     # If label has a distance, try it
-    test = brain.label.get_inventory_value("distance", 600)
+    test = _docking_gate(brain, npc)
     distanceValue = sbs.distance_id(player.id, npc.id)
     if distanceValue > test:
         return

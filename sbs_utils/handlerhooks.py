@@ -141,6 +141,12 @@ def reset_mission_state():
     # grav_tether_clear_all now deletes only ITS OWN connections, nothing else would.
     from .procedural.mount import mount_clear_all
     mount_clear_all()
+    # Orbits are the same shape as mounts - links and inventory, no module dict - but they
+    # ALSO hold an engine weld and spawn a carrier object, so the release has to be run
+    # rather than left to the agents being cleared, or the next mission starts with an
+    # invisible ship flying a circle around nothing.
+    from .procedural.orbit import orbit_release_all
+    orbit_release_all()
     # Modifiers are a CLASS-level registry that nothing emptied, so a buff (or a tow drag)
     # applied in one mission was still live in the next one.
     from .procedural.modifiers import modifiers_reset
@@ -275,6 +281,11 @@ from .procedural.grav_tether import _TETHERS as _GRAV_TETHERS
 register_reset_state("grav tethers",       lambda: len(_GRAV_TETHERS))
 from .procedural.modifiers import modifiers_count
 register_reset_state("modifiers",          modifiers_count)
+# Orbits keep no module dict, so this counts the LIVE relationship (carrier role + rider
+# link). A carrier that outlived its reset shows up here by name instead of as a mystery
+# extra agent in the soak's count column.
+from .procedural.orbit import orbit_count
+register_reset_state("orbit carriers",     orbit_count)
 register_reset_state("ButtonPromise.navigation_map",
                      lambda: sum(len(v) for v in _button_promise().navigation_map.values()))
 register_reset_state("TickDispatcher",    lambda: len(TickDispatcher._dispatch_tick))
