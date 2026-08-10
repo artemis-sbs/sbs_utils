@@ -1,0 +1,284 @@
+"""What an incoming hail LOOKS like - the reusable half of the feature.
+
+`procedural/hail.py` owns the state; this owns every widget, every label and the one
+overlay slot. A console's job is reduced to saying WHERE these go, which is the test of
+whether the split is right: LegendaryMissions should be a handful of call sites and no
+wording of its own.
+
+Three surfaces, and the form decides which:
+
+* `portrait` / `still` build INLINE, wherever the console puts them. There is no live
+  engine view in the way, so the console pushes its own view widget offscreen and this
+  draws in the space.
+* `orbit` builds NOTHING inline. The engine renders the shot full-bleed and a live
+  3D view cannot be layered over - overflow cannot be hidden there at any draw layer
+  (mkdocs/docs/cosmos/gui_layer.md). So the name plate and the choices go in an OVERLAY
+  slot at a fixed rect with its own opaque fill, which is the same solution the
+  viewscreen data column already ships.
+
+The choices appear twice on purpose, and differently. A console that MAY answer gets
+real buttons (the answer strip). A console that may not - the main screen - gets the
+same list as read-only text, so the bridge can see what comms is choosing between
+without being able to press it.
+"""
+from ...helpers import FrameContext, gui_text_escape
+from ..hail import (HAIL_MAX_CHOICES, hail_accept, hail_active, hail_answer, hail_beat,
+                    hail_answer_label, hail_choices, hail_form, hail_is_active,
+                    hail_pending, hail_seq, hail_where, hail_where_for,
+                    hail_where_label_for, hail_where_props)
+from .overlay import overlay_clear, overlay_register, overlay_show, overlay_slot_define
+
+
+# The band that carries a hail over a LIVE orbit shot. Left of the viewscreen data
+# column's (72, 9, 99, 96) by two points, so a hail and the science read-out can share
+# the screen. Layer 22000 is above the view and BELOW hero cards and cutscenes (26000+),
+# so a story beat still takes the screen off a conversation.
+HAIL_BAND_SLOT = "hail_band"
+HAIL_BAND_RECT = (2.0, 70.0, 70.0, 98.0)
+HAIL_BAND_LAYER = 22000
+overlay_slot_define(HAIL_BAND_SLOT, HAIL_BAND_RECT, draw_layer=HAIL_BAND_LAYER)
+
+# Opaque, because this is the one place a panel sits over a live engine view and
+# layering cannot clip anything. The fill IS the clip.
+BAND_BACKGROUND = "#000c"
+
+_STYLE_ROW = "row-height: 2.2em;"
+_STYLE_FACE_ROW = "row-height: 30%;"
+
+
+def _text(value):
+    """A `$text:` property with the value quoted, so a name or a line carrying `:` or
+    `;` is drawn rather than parsed as style."""
+    return f"$text:{gui_text_escape(value)};"
+
+
+def _may_answer_here(client_id):
+    """Whether THIS console is one that can press an answer.
+
+    Mirrors the server-side check in `hail_answer` rather than re-deciding it: a console
+    that cannot answer must not be given buttons that will be refused.
+    """
+    from ..roles import has_role
+    return bool(client_id) and has_role(client_id, "comms")
+
+
+# --- the press handler ------------------------------------------------------
+def _hail_view_press():
+    """Every button in the feature presses through here.
+
+    ONE module-level callable, never a per-iteration closure and never a MAST label. A
+    closure would capture the loop variable and a label handler would `task.jump()`,
+    hijacking the `//gui/normal_comm` route task that is only trying to paint itself.
+    Which button was pressed comes from `__ITEM__.data`, which the button carries.
+
+    The data keys are `hail_`-prefixed because a dict `data` is ALSO splatted into the
+    task's variables - unprefixed `ship` or `index` would quietly overwrite the
+    console's own.
+    """
+    task = FrameContext.task
+    item = task.get_variable("__ITEM__") if task is not None else None
+    data = getattr(item, "data", None) or {}
+    ship = data.get("hail_ship")
+    if data.get("hail_kind") == "accept":
+        hail_accept(ship, data.get("hail_id"), FrameContext.client_id)
+    else:
+        hail_answer(ship, data.get("hail_index"), FrameContext.client_id,
+                    seq=data.get("hail_seq"))
+
+
+# --- the answer strip -------------------------------------------------------
+def hail_choice_strip(ship, client_id=None, style=None):
+    """The 1-4 button strip a console offers, in whichever of its three states applies.
+
+    | ship state                  | what is drawn                        |
+    |-----------------------------|--------------------------------------|
+    | nothing pending or active   | nothing at all                       |
+    | hails pending, none open    | one `Answer: <name>` per pending hail |
+    | a hail open, beats done     | that scene's choices                 |
+
+    All three live here so a console calls this once, unconditionally, and never
+    branches - which is also what makes the queue's user interface free.
+
+    Returns:
+        int: how many buttons were drawn.
+    """
+    from .row import gui_row
+    from .button import gui_button
+
+    if client_id is None:
+        client_id = FrameContext.client_id
+    row_style = style or _STYLE_ROW
+
+    if not hail_is_active(ship):
+        pending = hail_pending(ship)[:HAIL_MAX_CHOICES]
+        if not pending or not _may_answer_here(client_id):
+            return 0
+        for record in pending:
+            gui_row(row_style)
+            gui_button(_text(hail_answer_label(record)),
+                       data={"hail_kind": "accept", "hail_ship": ship,
+                             "hail_id": record.get("id")},
+                       on_press=_hail_view_press, is_sub_task=True)
+        return len(pending)
+
+    choices = hail_choices(ship)
+    if not choices or not _may_answer_here(client_id):
+        return 0
+    for choice in choices:
+        gui_row(row_style)
+        gui_button(_text(choice.label),
+                   data={"hail_kind": "answer", "hail_ship": ship,
+                         "hail_index": choice.index, "hail_seq": choice.seq},
+                   on_press=_hail_view_press, is_sub_task=True)
+    return len(choices)
+
+
+# --- the placement dial -----------------------------------------------------
+def _hail_where_changed(event, item):
+    """A dial moved. The console id comes off the button data rather than the event, so
+    a server-rendered frame cannot point this at client 0."""
+    data = getattr(item, "data", None) or {}
+    client_id = data.get("hail_client") or getattr(event, "client_id", None)
+    from ..hail import hail_where_set
+    hail_where_set(client_id, hail_where_for(getattr(event, "value_tag", "")))
+
+
+def hail_where_dropdown(client_id=None, style=None):
+    """The placement dial: Off / This Console / Main Screen / Both.
+
+    Deliberately the same shape as the science console's On-Screen drop-down, and it
+    sits in the same place - beside that console's Follow checkbox. The whole dial is
+    one call because the change handler lives here: a console that had to write its own
+    `on change` would be a console that could disagree with the library about what the
+    labels mean.
+
+    Returns:
+        the drop-down layout item, or None when this console cannot place a hail.
+    """
+    from .dropdown import gui_drop_down
+    from .message import gui_message_callback
+
+    if client_id is None:
+        client_id = FrameContext.client_id
+    if not _may_answer_here(client_id):
+        return None
+    current = hail_where_label_for(hail_where(client_id))
+    item = gui_drop_down(hail_where_props(current), style,
+                         data={"hail_client": client_id})
+    gui_message_callback(item, _hail_where_changed)
+    return item
+
+
+# --- the conversation itself ------------------------------------------------
+def _speaker_line(ship):
+    """(name, line) for the beat being spoken, or ("", "") between beats."""
+    beat = hail_beat(ship)
+    if beat is None:
+        record = hail_active(ship)
+        return ((record.name or record.speaker or "") if record else ""), ""
+    return (beat.name or beat.speaker or ""), (beat.text or "")
+
+
+def _choice_readout(ship):
+    """The choices as read-only lines, for a console that may not press them.
+
+    Numbered, because the point is that the bridge can follow what comms is deciding
+    between - not that anybody here can pick one.
+    """
+    return [f"{i + 1}. {c.label}" for i, c in enumerate(hail_choices(ship))]
+
+
+def hail_view(ship, client_id=None):
+    """Build the conversation into the CURRENT layout position.
+
+    `portrait` and `still` draw here. `orbit` draws NOTHING here and returns its name
+    anyway: the engine has the screen full-bleed and the band is an overlay, so a
+    console that gets `"orbit"` back should simply leave its view alone.
+
+    Returns:
+        str | None: the form that was built, or None when no hail is open.
+    """
+    from .row import gui_row
+    from .text import gui_text, gui_text_area
+    from .face import gui_face
+    from .image import gui_image_keep_aspect_ratio_center
+
+    if client_id is None:
+        client_id = FrameContext.client_id
+    if not hail_is_active(ship):
+        return None
+    form = hail_form(ship, client_id)
+    if form == "orbit":
+        return form
+
+    record = hail_active(ship)
+    name, line = _speaker_line(ship)
+
+    if form == "still" and record.backdrop:
+        gui_row("row-height: 55%;")
+        gui_image_keep_aspect_ratio_center(record.backdrop)
+    else:
+        face = record.face or (hail_beat(ship) or {}).get("face") if record else None
+        if face:
+            gui_row(_STYLE_FACE_ROW)
+            gui_face(face)
+
+    if record.title:
+        gui_row("row-height: 1.4em;")
+        gui_text(_text(record.title) + "justify:center;")
+    gui_row("row-height: 1.6em;")
+    gui_text(_text(name) + "font:gui-3;")
+    gui_row("row-height: 1fr;")
+    # The line goes STRAIGHT into the widget. Dialogue text may contain `{`, and a
+    # bare MAST assignment would re-format it as an f-string and fail against the
+    # assignment line rather than against the text.
+    gui_text_area(line)
+
+    readout = [] if _may_answer_here(client_id) else _choice_readout(ship)
+    if readout:
+        gui_row("row-height: content;")
+        gui_text_area(chr(10).join(readout))
+    return form
+
+
+# --- the band over a live orbit shot ----------------------------------------
+def _hail_band_builder(client_id, content):
+    """The name plate, the line, and (read-only) the choices, over a live shot."""
+    from .row import gui_row
+    from .text import gui_text, gui_text_area
+
+    name = content.get("name") or ""
+    line = content.get("line") or ""
+    choices = content.get("choices") or []
+
+    gui_row(f"row-height: 1.6em; background: {BAND_BACKGROUND};")
+    gui_text(_text(name) + "font:gui-3;padding:4px;")
+    gui_row(f"row-height: 1fr; background: {BAND_BACKGROUND};")
+    gui_text_area(line, "padding: 8px;")
+    if choices:
+        gui_row(f"row-height: content; background: {BAND_BACKGROUND};")
+        gui_text_area(chr(10).join(choices), "padding: 8px;")
+
+
+overlay_register(HAIL_BAND_SLOT, _hail_band_builder)
+
+
+def hail_band_show(ship, to=None, consoles="mainscreen"):
+    """Put the current beat over a live orbit shot.
+
+    Only meaningful for the `orbit` form - the other two draw inline, where a plain
+    section is enough and an overlay would just be a second thing to keep in step.
+    """
+    if not hail_is_active(ship):
+        return False
+    name, line = _speaker_line(ship)
+    overlay_show(HAIL_BAND_SLOT, HAIL_BAND_SLOT, to=to if to is not None else ship,
+                 consoles=consoles, name=name, line=line,
+                 choices=_choice_readout(ship), seq=hail_seq(ship))
+    return True
+
+
+def hail_band_clear(ship, to=None, consoles="mainscreen"):
+    """Take the band down."""
+    overlay_clear(HAIL_BAND_SLOT, to=to if to is not None else ship, consoles=consoles)
+    return True

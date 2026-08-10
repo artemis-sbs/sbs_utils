@@ -28,6 +28,13 @@ from .viewscreen import (viewscreen_set, viewscreen_clear, viewscreen_mode,
 from .viewscreen_pages import (viewscreen_page_register, viewscreen_page_remove,
                                viewscreen_page_names, viewscreen_pages,
                                viewscreen_hull_percent, viewscreen_relative_bearing)
+# The module is hail_gui, not hail_view, because it EXPORTS a function called
+# hail_view - and a submodule sharing a name with an exported function is
+# shadowed by it, so `from ...gui import hail_view` hands back the function.
+# (viewscreen_pages has that shape already; this one does not repeat it.)
+from .hail_gui import (hail_view, hail_choice_strip, hail_where_dropdown,
+                        hail_band_show, hail_band_clear,
+                        HAIL_BAND_SLOT, HAIL_BAND_RECT, HAIL_BAND_LAYER)
 from .rundown import (rundown_add, rundown_remove, rundown_clear, rundown_shots,
                       rundown_get, rundown_program, rundown_preview, rundown_live,
                       rundown_staged, rundown_punch, rundown_stage, rundown_take,

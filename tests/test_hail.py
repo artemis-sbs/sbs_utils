@@ -408,6 +408,62 @@ class ConsoleTextTests(HailTestCase):
         self.assertFalse(H.hail_console_cares(self.comms))
 
 
+class _FakeTask:
+    """Stands in for the task an `on signal hail:` route runs on - the signal payload
+    arrives as task variables, which is what hail_repaint_needed reads."""
+
+    def __init__(self, **variables):
+        self.vars = dict(variables)
+
+    def set_variable(self, name, value):
+        self.vars[name] = value
+
+    def get_variable(self, name, default=None):
+        return self.vars.get(name, default)
+
+
+class RepaintGuardTests(HailTestCase):
+    """One officer moving a dial must not rebuild every console on the bridge."""
+
+    def tearDown(self):
+        FrameContext.task = None
+        super().tearDown()
+
+    def _signal(self, **payload):
+        FrameContext.task = _FakeTask(**payload)
+
+    def test_a_signal_for_this_ship_repaints(self):
+        self._offer()
+        self._signal(HAIL_SHIP=self.ship, HAIL_CLIENT=None)
+        self.assertTrue(H.hail_repaint_needed(self.comms))
+
+    def test_a_signal_for_ANOTHER_ship_is_ignored(self):
+        self._offer()
+        other = to_id(player_spawn(9000, 0, 0, "Intrepid", "tsn", "battle"))
+        self._signal(HAIL_SHIP=other, HAIL_CLIENT=None)
+        self.assertFalse(H.hail_repaint_needed(self.comms))
+
+    def test_a_dial_move_repaints_only_the_console_that_moved_it(self):
+        other = _console(C_COMMS2, self.ship, "console", "comms")
+        self._offer()
+        self._signal(HAIL_SHIP=self.ship, HAIL_CLIENT=self.comms)
+        self.assertTrue(H.hail_repaint_needed(self.comms))
+        self.assertFalse(H.hail_repaint_needed(other))
+
+    def test_a_ship_wide_change_repaints_every_console(self):
+        other = _console(C_COMMS2, self.ship, "console", "comms")
+        self._offer()
+        self._signal(HAIL_SHIP=self.ship, HAIL_CLIENT=None)
+        self.assertTrue(H.hail_repaint_needed(self.comms))
+        self.assertTrue(H.hail_repaint_needed(other))
+
+    def test_a_console_with_nothing_to_show_never_repaints(self):
+        helm = _console(C_HELM, self.ship, "console", "helm")
+        self._offer()
+        self._signal(HAIL_SHIP=self.ship, HAIL_CLIENT=None)
+        self.assertFalse(H.hail_repaint_needed(helm))
+
+
 class HistoryAndReplayTests(HailTestCase):
     def test_a_closed_conversation_is_archived(self):
         self._open()

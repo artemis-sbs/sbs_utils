@@ -856,6 +856,33 @@ def hail_console_cares(client_id):
     return hail_is_active(ship_id) or hail_pending_count(ship_id) > 0
 
 
+def hail_repaint_needed(client_id):
+    """Whether the `hail` signal being handled right now should repaint THIS console.
+
+    The one guard an `on signal hail:` hook needs. It reads the signal's own payload off
+    the running task rather than making the console pass it, so a console cannot get the
+    test subtly wrong, and it answers no to all three ways a repaint is wasted:
+
+    * the signal is about another ship;
+    * the signal named ONE console (a dial moved) and it was not this one;
+    * this console is neither comms nor a main screen, or has nothing to show.
+
+    Without the second test, one officer moving their own dial would rebuild every
+    console on the bridge.
+    """
+    task = FrameContext.task
+    if task is None:
+        return hail_console_cares(client_id)
+    ship_id = _hail_sid(_hail_home_ship(client_id))
+    signal_ship = task.get_variable("HAIL_SHIP")
+    if signal_ship is not None and ship_id is not None and signal_ship != ship_id:
+        return False
+    only = task.get_variable("HAIL_CLIENT")
+    if only is not None and only != client_id:
+        return False
+    return hail_console_cares(client_id)
+
+
 def hail_consoles(ship, consoles="comms"):
     """The consoles of one ship that a hail addresses."""
     try:
