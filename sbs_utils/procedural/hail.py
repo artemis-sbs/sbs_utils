@@ -80,6 +80,7 @@ KEY_AUDIO = "HAIL_AUDIO"            # may a hail play its Audio: - default yes
 # Inventory keys on the CONSOLE (client), not the ship.
 KEY_HERE = "HAIL_HERE"              # does THIS console swap its own centre
 KEY_REPLAY = "HAIL_REPLAY"          # the log id being replayed here, or None
+KEY_RADAR = "HAIL_RADAR"            # subject THIS console's 2D view was aimed at by a hail
 
 # A mission may resolve a speaker key to a name/face/color card its own way (OU binds
 # captains, LM binds cast). A LATCH, not a container: a resolver registered by the LAST

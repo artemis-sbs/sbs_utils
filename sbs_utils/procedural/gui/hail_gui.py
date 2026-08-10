@@ -22,12 +22,15 @@ same list as read-only text, so the bridge can see what comms is choosing betwee
 without being able to press it.
 """
 from ...helpers import FrameContext, gui_text_escape
-from ..hail import (HAIL_MAX_CHOICES, hail_accept, hail_active, hail_advance,
-                    hail_answer, hail_audio, hail_audio_set, hail_beat,
+from ..hail import (HAIL_MAX_CHOICES, KEY_RADAR, hail_accept, hail_active,
+                    hail_advance, hail_answer, hail_audio, hail_audio_set, hail_beat,
                     hail_answer_label, hail_choices, hail_defer, hail_form,
                     hail_close, hail_is_active, hail_more, hail_pending, hail_seq,
-                    hail_where,
+                    hail_shows_here, hail_where,
                     hail_where_for, hail_where_label_for, hail_where_props)
+from ..inventory import get_inventory_value, set_inventory_value
+from ..query import to_id, to_object
+from ..roles import has_role
 from .overlay import overlay_clear, overlay_register, overlay_show, overlay_slot_define
 
 
@@ -364,6 +367,39 @@ def _hail_choice_readout(ship):
     return [f"{i + 1}. {c.label}" for i, c in enumerate(hail_choices(ship))]
 
 
+def _hail_radar_follow(ship, client_id):
+    """Aim a comms console's 2D radar at the hail's subject.
+
+    Only for a comms console, and only while the conversation is placed HERE - a
+    console that has the hail switched off keeps its own radar. Records what it aimed
+    at so `_hail_radar_release` only undoes a follow this hail started, the same
+    discipline `HAIL_TOOK_VIEWER` uses for the main screen.
+    """
+    if client_id is None or not has_role(client_id, "comms"):
+        return False
+    if not hail_shows_here(client_id):
+        _hail_radar_release(client_id)
+        return False
+    record = hail_active(ship)
+    subject = to_id(record.subject) if record else None
+    if not subject or to_object(subject) is None:
+        return False                      # a late-resolved or dead subject: leave it
+    from ..comms import comms_set_2dview_focus
+    comms_set_2dview_focus(client_id, subject)
+    set_inventory_value(client_id, KEY_RADAR, subject)
+    return True
+
+
+def _hail_radar_release(client_id):
+    """Give the radar back, if a hail was the thing holding it."""
+    if client_id is None or not get_inventory_value(client_id, KEY_RADAR, 0):
+        return False
+    from ..comms import comms_set_2dview_focus
+    comms_set_2dview_focus(client_id, 0)
+    set_inventory_value(client_id, KEY_RADAR, 0)
+    return True
+
+
 def hail_view(ship, client_id=None):
     """Build the conversation into the CURRENT layout position.
 
@@ -382,7 +418,19 @@ def hail_view(ship, client_id=None):
     if client_id is None:
         client_id = FrameContext.client_id
     if not hail_is_active(ship):
+        _hail_radar_release(client_id)
         return None
+    # Whatever it draws, a comms console can LOOK at whoever is calling: its own 2D
+    # radar follows the subject, the way science points it at a scan target. Cheap,
+    # reversible, and it obeys the crew's Follow checkbox rather than overriding it.
+    #
+    # Not tied to the `orbit` form on purpose. On comms an orbit already degrades to a
+    # portrait (`hail_form`), because driving the engine camera from a console that is
+    # not the main screen is unproven and a black centre panel is worse than a face. The
+    # radar is the part that needs none of that: no 3D view, and no taking the client's
+    # ship assignment - which is what `comms_control` and `comms_sorted_list` are tied
+    # to, so a console that gave it up would stop being able to do its own job.
+    _hail_radar_follow(ship, client_id)
     form = hail_form(ship, client_id)
     if form == "orbit":
         return form
