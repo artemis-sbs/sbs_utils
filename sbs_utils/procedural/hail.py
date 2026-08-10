@@ -30,6 +30,7 @@ This module keeps no GUI imports at module scope - the engine-facing calls are i
 inside the functions that need them - so lint, tooling and unit tests can import it with
 no engine present.
 """
+from ..futures import Promise, awaitable
 from ..helpers import FrameContext
 from ..mast.mast import DEBUG
 from ..mast.mast_node import MastDataObject
@@ -357,6 +358,65 @@ def _hail_subject_gone(record):
     return bool(subject) and not isinstance(subject, str) and to_object(subject) is None
 
 
+class HailPromise(Promise):
+    """Resolved when a hail is answered, deferred or closed."""
+
+
+def _hail_settle(record, label=None, target=None, answered=False):
+    """Hand an awaiting story the outcome, once.
+
+    Resolved on EVERY ending - answered, declined, closed, even cancelled - because a
+    story blocked on `await hail_ask(...)` that is never resolved simply stops, and a
+    mission that stops halfway is worse than one that hears the wrong answer. `.value`
+    is the label chosen, or None when the hail ended without one.
+    """
+    promise = (record or {}).get("promise")
+    if promise is None or promise.done():
+        return False
+    # Promise.done() tests `_result is not None`, so an unanswered ending still has to
+    # settle with an object rather than with None.
+    promise.set_result(MastDataObject({
+        "value": label, "target": target, "answered": bool(answered),
+        "id": (record or {}).get("id"), "key": (record or {}).get("key"),
+    }))
+    return True
+
+
+@awaitable
+def hail_ask(ship, **kwargs):
+    """Offer a hail and WAIT for the crew to answer it.
+
+    `hail_offer` is fire-and-forget, which suits a hail that interrupts whatever is
+    happening. A linear story is the other shape - it offers a message and cannot go on
+    until somebody takes it - and it was the shape with no primitive:
+
+        answer = await hail_ask(ship, name="TSN Command", lines=briefing,
+                                choices=["Acknowledge"], audio="audio/brief")
+        if answer.value == "Acknowledge":
+            ...
+
+    Takes exactly `hail_offer`'s arguments. Resolves with `{value, target, answered,
+    id, key}` where `value` is the chosen label - and resolves on every other ending
+    too, with `value` None, so the story continues rather than hanging.
+
+    Returns:
+        HailPromise | None: None if the ship is unknown or `key` names a hail that is
+        already waiting, exactly as `hail_offer` returns None.
+    """
+    ship_id = _hail_sid(ship)
+    hail_id = hail_offer(ship_id, **kwargs)
+    if hail_id is None:
+        return None
+    record = next((r for r in _hail_queue(ship_id) if r.get("id") == hail_id), None)
+    if record is None:
+        return None
+    promise = HailPromise()
+    # ON THE RECORD, not in a module dict: it goes with Agent.clear() like the rest of
+    # a hail's state, so there is nothing new for the restart ledger to police.
+    record["promise"] = promise
+    return promise
+
+
 def hail_pending(ship):
     """Hails waiting to be answered, best first.
 
@@ -392,6 +452,9 @@ def hail_cancel(ship, hail_id=None):
     keep = [] if hail_id is None else [r for r in q if r.get("id") != hail_id]
     if len(keep) == len(q):
         return False
+    for dropped in q:
+        if dropped not in keep:
+            _hail_settle(dropped)     # withdrawn before anyone saw it
     set_inventory_value(ship_id, KEY_QUEUE, keep)
     _hail_emit(ship_id, "declined")
     return True
@@ -666,6 +729,9 @@ def hail_answer(ship, index, client_id=None, seq=None):
         {"scene": rec.get("scene"), "label": choice.get("label")})
     rec.setdefault("transcript", []).append(
         {"kind": "choice", "name": "", "text": choice.get("label") or ""})
+    # Release an awaiting story on the answer itself, not on the close: a branch that
+    # walks on to another scene has still ANSWERED, and a linear story wants to move.
+    _hail_settle(rec, choice.get("label"), choice.get("target"), answered=True)
     target = choice.get("target")
     scenes = rec.get("scenes") or {}
     if target and target in scenes:
@@ -753,6 +819,7 @@ def hail_close(ship, declined=False):
     if not rec:
         return False
     set_inventory_value(ship_id, KEY_ACTIVE, None)
+    _hail_settle(rec)                 # closed or declined - value None, never a hang
     _hail_bump_seq(ship_id)
     _hail_band_drop(ship_id)
     _hail_screen_drop(ship_id)

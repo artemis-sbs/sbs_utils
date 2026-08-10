@@ -689,6 +689,67 @@ class SignalPayloadTests(HailTestCase):
         self.assertEqual(self._last("refused")["HAIL_CHOICE"], "Pay them off")
 
 
+class AwaitableHailTests(HailTestCase):
+    """`await hail_ask(...)` - the shape a LINEAR story needs.
+
+    HereThereBeMonsters is the case: it offers a message and cannot go on until somebody
+    takes it. Every ending settles, because a story blocked forever is worse than one
+    that hears the wrong answer.
+    """
+
+    def test_it_resolves_with_the_chosen_label(self):
+        prom = H.hail_ask(self.ship, scenes=SCENES, scene="open", speaker="ashfang")
+        self.assertFalse(prom.done())
+        H.hail_accept(self.ship)
+        while H.hail_advance(self.ship):
+            pass
+        H.hail_answer(self.ship, 0)
+        self.assertTrue(prom.done())
+        self.assertEqual(prom.result().value, "Stand down")
+        self.assertTrue(prom.result().answered)
+
+    def test_a_branch_still_releases_the_story(self):
+        # Answering navigated to another scene. The crew ANSWERED, so a linear story
+        # moves on even though the conversation carries on.
+        prom = H.hail_ask(self.ship, scenes=SCENES, scene="open", speaker="ashfang")
+        H.hail_accept(self.ship)
+        while H.hail_advance(self.ship):
+            pass
+        H.hail_answer(self.ship, 0)
+        self.assertTrue(H.hail_is_active(self.ship))
+        self.assertTrue(prom.done())
+
+    def test_closing_without_answering_still_settles(self):
+        prom = H.hail_ask(self.ship, scenes=SCENES, scene="open", speaker="ashfang")
+        H.hail_accept(self.ship)
+        H.hail_close(self.ship)
+        self.assertTrue(prom.done())
+        self.assertIsNone(prom.result().value)
+        self.assertFalse(prom.result().answered)
+
+    def test_declining_settles(self):
+        prom = H.hail_ask(self.ship, scenes=SCENES, scene="open", speaker="ashfang")
+        H.hail_accept(self.ship)
+        H.hail_decline(self.ship)
+        self.assertTrue(prom.done())
+
+    def test_cancelling_before_anyone_saw_it_settles(self):
+        prom = H.hail_ask(self.ship, scenes=SCENES, scene="open", speaker="ashfang")
+        H.hail_cancel(self.ship)
+        self.assertTrue(prom.done())
+        self.assertIsNone(prom.result().value)
+
+    def test_a_repeated_key_returns_no_promise_like_hail_offer(self):
+        self.assertIsNotNone(H.hail_ask(self.ship, lines="hi", choices=["ok"], key="k"))
+        self.assertIsNone(H.hail_ask(self.ship, lines="hi", choices=["ok"], key="k"))
+
+    def test_the_replay_log_does_not_carry_the_promise(self):
+        H.hail_ask(self.ship, scenes=SCENES, scene="open", speaker="ashfang")
+        H.hail_accept(self.ship)
+        H.hail_close(self.ship)
+        self.assertNotIn("promise", dict(H.hail_log(self.ship)[0].__dict__))
+
+
 class TranscriptTests(HailTestCase):
     """A replay is only worth having if it is the WHOLE conversation."""
 
