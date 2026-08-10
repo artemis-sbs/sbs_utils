@@ -32,7 +32,7 @@ it is — is in [The AMD file format](amd-format.md).
 |---|---|
 | `Scope:` | `shared` (one quest for the whole game) or per-ship. |
 | `At start:` | The older way of saying the same thing — `running` / `offered` / `hidden`, and `active` / `available` / `idle` / `secret` before that. All still parse. |
-| `At start: posting` | **Posted, not acceptable.** It is listed like an available job, but the Accept button does not show — the only way to take it is whatever else offers it, typically answering an [incoming hail](amd-format.md#hails--the-beat-opens-with-an-incoming-call). |
+| `At start: posting` | **Posted, not acceptable.** It is listed like an available job, but the Accept button does not show — the only way to take it is whatever else offers it, typically answering an [incoming hail](incoming-hails.md). |
 | `Objective:` | The sentence the player reads in the quest log. |
 | `Done when:` | The completion **trigger** (see [Triggers](#triggers)). |
 | `Starts when:` | **When it arms** — `at once`, `accepted` (the player takes it off the board), `revealed` (another quest reveals it). |
@@ -44,7 +44,7 @@ it is — is in [The AMD file format](amd-format.md).
 | `Show:` | **When** this quest is listed — `always` (default), `when done` (runs unseen, appears once it completes *or* fails, reading as history), `with children` (a grouping heading: a row only while something under it is listed), or `never` (drives its events invisibly). Not the same as `Starts when: revealed`, which also stops the triggers. |
 | `Accept On:` | Restrict which **consoles** may Accept/Abandon this job from the Quests tab — e.g. `comms`, or `comms, admiral`. Overrides the mission default (see [Console gating](#console-gating)). |
 | `Engage On:` | Restrict which consoles may **Engage** (travel to) this job — e.g. `helm`. Only meaningful when the mission enables the Engage button. |
-| `Action:` | What the world does the moment this beat **starts** — including `<who> hails <scene>`, which calls the crew. See [`Action:`](amd-format.md#action--stage-directions). |
+| `Action:` | What the world does the moment this beat **starts** — including `<who> hails <scene>`, which calls the crew. See [`Action:`](amd-format.md#action-stage-directions). |
 | `Speaker:` | **Who this quest talks as** — a character or ship key. Today it is the voice of the [deadline reminders](#deadline-reminders); anything else the quest needs to say uses it too. |
 | `Signal says:` | The words a deadline reminder transmits. `{time}` interpolates the clock — see [deadline reminders](#deadline-reminders). |
 
