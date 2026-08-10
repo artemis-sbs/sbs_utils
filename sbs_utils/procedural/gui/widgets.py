@@ -112,7 +112,8 @@ def gui_widget_list_clear():
     """    
     gui_widget_list("","")
 from ...pages.layout.console_widget import ConsoleWidget
-def gui_layout_widget(widget):
+from ..style import apply_control_styles
+def gui_layout_widget(widget, style=None):
     """Place a specific engine widget at a fixed position in the layout.
 
     Adds the named engine widget to the console widget list AND places a
@@ -122,6 +123,10 @@ def gui_layout_widget(widget):
     Args:
         widget (str): Engine widget name, e.g. ``"2dview"`` or
             ``"helm_movement"``.
+        style (str, optional): Layout style for the PLACEHOLDER, as for any other
+            widget - most usefully ``col-width``. Without it the placeholder takes the
+            whole row, so an engine widget sharing a row with a control drew over it.
+            Defaults to None (the whole row, as before).
 
     Returns:
         ConsoleWidget: The layout placeholder item.
@@ -129,13 +134,18 @@ def gui_layout_widget(widget):
     Example:
         gui_section(style="area:0,0,70,100;")
         gui_layout_widget("2dview")
-    """    
+        # sharing one row with a checkbox:
+        gui_checkbox("Follow", "col-width:90px;", var="follow_tag")
+        gui_layout_widget("red_alert", "col-width:1fr;")
+    """
     page = FrameContext.page
     if page is None:
         return None
-    
+
     page.add_console_widget(widget)
     control = ConsoleWidget(widget)
+    if style is not None:
+        apply_control_styles(".widget", style, control, FrameContext.task)
     page.add_content(control, None)
     return control
     
