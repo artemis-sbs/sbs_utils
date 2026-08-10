@@ -258,6 +258,12 @@ _CANONICAL_TO_LEGACY = {
 # The authored word -> the word the DRIVER reads. `At start:` is written in story
 # words (`hidden` / `offered` / `running`); QuestState is unchanged underneath, so a
 # rename here never reaches the state machine.
+# What `Then:` accepts. A tuple rather than a registry on purpose: `Then:` fires on
+# COMPLETION, and the things a mission wants there ("now they call you back") belong to
+# the beat that STARTS, which is `Action:`. Kept named so the linter checks the same set
+# the parser reads.
+THEN_VERBS = ("reveal", "signal")
+
 _STATE_ALIASES = {"available": "idle", "offered": "idle",
                   "running": "active", "hidden": "secret", "done": "complete"}
 
@@ -348,9 +354,13 @@ def amd_quest_facts(aliases=None):
                     data["objective"] = value[:1].upper() + value[1:]
         elif label == "then":
             toks = str(value).split()
-            if len(toks) >= 2 and toks[0].lower() in ("reveal", "signal"):
+            if len(toks) >= 2 and toks[0].lower() in THEN_VERBS:
                 data[toks[0].lower()] = toks[1]
             else:
+                # A bare value is a reveal target, which is what makes an unrecognized
+                # verb DANGEROUS rather than merely ignored: `Then: hail brief` means
+                # "reveal a quest called `hail brief`" and says nothing about it. That
+                # is what `unknown-then-verb` exists to tell the author.
                 data["reveal"] = value
         elif label == "pays":
             data["reward"] = amd_reward(value)

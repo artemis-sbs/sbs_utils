@@ -714,13 +714,19 @@ def _action_blocks(node):
     return out
 
 
-def amd_lint_actions(doc):
+def amd_lint_actions(doc, known_keys=frozenset()):
     """Flag a stage direction that will silently do nothing - an unknown verb, a
-    direction with no actor, or a missing/extra operand. WARNING.
+    direction with no actor, a missing/extra operand, or an operand that names a record
+    nothing declares. WARNING.
 
     The check is the runtime parser itself (`amd_action_parse`), which is pure and
     engine-free precisely so the linter and the runtime can never disagree about what a
     line means.
+
+    A verb registered with `operand_ref="node"` says its operand is an AMD record key -
+    `DS1 hails ds1_brief` names a dialogue scene - so a typo there can be caught the
+    same way `Then: reveal` and every other reference is. The verb declares this; the
+    linter does not know about any particular verb.
 
     Deliberately NOT checked: whether the ACTOR exists. An actor resolves to a declared
     landmark key or to a ROLE, and roles are minted in MAST (`add_role`), in spawn CSVs
@@ -732,10 +738,18 @@ def amd_lint_actions(doc):
     for node in doc.nodes:
         for lineno, text in _action_blocks(node):
             for act in amd_action_parse(text):
-                if not act.get("error"):
+                if act.get("error"):
+                    code = "unknown-action-verb" if act.get("verb") is None else "bad-action"
+                    findings.append(AmdFinding(lineno, WARNING, code, act["error"]))
                     continue
-                code = "unknown-action-verb" if act.get("verb") is None else "bad-action"
-                findings.append(AmdFinding(lineno, WARNING, code, act["error"]))
+                operand = str(act.get("operand") or "").strip()
+                if act.get("operand_ref") != "node" or not operand:
+                    continue
+                if not _resolves(doc, operand, known_keys):
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "dangling-action-ref",
+                        f"`{act['verb']} {operand}` names `{operand}`, which no record "
+                        f"in this document declares."))
     return findings
 
 
@@ -968,6 +982,103 @@ def amd_lint_hails(doc):
                 node.span.line, WARNING, "hail-empty",
                 f"`{node.key}` is `When: hail` but has no lines and no choices - it "
                 f"opens and closes again with nothing shown."))
+    return findings + _lint_hails_verb(doc)
+
+
+def amd_lint_then(doc):
+    """Flag a `Then:` whose first word is not a verb it knows. WARNING.
+
+    `Then:` takes `reveal <key>` or `signal <name>`, and ANYTHING else falls through to
+    "reveal a quest with this whole line as its key". So `Then: hail brief` parses,
+    lints clean, and silently means nothing - which is exactly the failure mode the AMD
+    tooling exists to end. This finding is what makes keeping `Then:` a closed set safe:
+    the author is told rather than left guessing.
+    """
+    from sbs_utils.procedural.amd_quest import THEN_VERBS
+    findings = []
+    for node in doc.nodes:
+        for lineno, raw, label, value in _fence_fields(node):
+            if label.strip().lower() != "then":
+                continue
+            toks = str(value).split()
+            if len(toks) < 2 or toks[0].lower() in THEN_VERBS:
+                continue
+            findings.append(AmdFinding(
+                lineno, WARNING, "unknown-then-verb",
+                f"`Then: {value}` - `{toks[0]}` is not a `Then:` verb, so this reads as "
+                f"`reveal {value}` and will look for a record by that whole name. "
+                f"`Then:` takes {' or '.join(THEN_VERBS)}."))
+    return findings
+
+
+def _lint_hails_verb(doc):
+    """Check every `Action: <actor> hails <scene>` against the scenes in the document.
+
+    `dangling-action-ref` already catches an operand naming NOTHING. These are the
+    three ways it can name something real and still be wrong, all of which end in a
+    call that never goes out:
+
+    * the key names a record that is not a dialogue scene at all (a quest, a lifeform);
+    * the bare form is written for a speaker who declares no `When: hail` scene, so
+      there is nothing to open;
+    * the named scene belongs to a different speaker than the actor, or is on the
+      `comms` door rather than the `hail` one. Both still run - the scene names its own
+      voice and the verb honours it - but they are almost always a copy-paste, so they
+      are warnings rather than errors.
+    """
+    from sbs_utils.procedural.amd_action import amd_action_parse
+    from sbs_utils.procedural.amd_dialogue import _dlg_norm
+
+    scenes = {}
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").strip().lower() == "dialogue":
+            scenes[str(node.key).strip().lower()] = node
+    if not scenes:
+        return []                 # a document with no scenes cannot be judged here
+
+    hail_entries = {}
+    for key, node in scenes.items():
+        data = node.data or {}
+        if str(data.get("when") or "").strip().lower() == "hail":
+            hail_entries.setdefault(_dlg_norm(data.get("speaker")), key)
+
+    findings = []
+    for node in doc.nodes:
+        for lineno, text in _action_blocks(node):
+            for act in amd_action_parse(text):
+                if act.get("verb") != "hails" or act.get("error"):
+                    continue
+                actor = _dlg_norm(act.get("actor"))
+                operand = str(act.get("operand") or "").strip().lower()
+                if not operand:
+                    if actor not in hail_entries:
+                        findings.append(AmdFinding(
+                            lineno, ERROR, "hail-no-entry",
+                            f"`{act['actor']} hails` with nothing after it opens that "
+                            f"speaker's `When: hail` scene, and none is declared for "
+                            f"`{actor}`."))
+                    continue
+                scene = scenes.get(operand)
+                if scene is None:
+                    if operand in doc.keys:
+                        findings.append(AmdFinding(
+                            lineno, ERROR, "hail-unknown-scene",
+                            f"`{operand}` is not a dialogue scene, so there is nothing "
+                            f"for `{act['actor']}` to say."))
+                    continue          # unknown entirely -> dangling-action-ref said so
+                data = scene.data or {}
+                voice = _dlg_norm(data.get("speaker"))
+                if voice and actor and voice != actor:
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "hail-speaker-mismatch",
+                        f"`{act['actor']} hails {operand}` but `{operand}` is spoken by "
+                        f"`{data.get('speaker')}` - the scene names the voice, so the "
+                        f"call goes out as `{data.get('speaker')}`."))
+                if str(data.get("when") or "").strip().lower() != "hail":
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "hail-not-a-hail",
+                        f"`{operand}` is not marked `When: hail` - it reads as a comms "
+                        f"scene the player opens, and this pushes it at them instead."))
     return findings
 
 
@@ -1083,9 +1194,10 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_keys(doc)
         findings += amd_lint_unknown_fields(doc)
         findings += amd_lint_field_values(doc)
-        findings += amd_lint_actions(doc)
+        findings += amd_lint_actions(doc, keys)
         findings += amd_lint_urges(doc)
         findings += amd_lint_hails(doc)
+        findings += amd_lint_then(doc)
         findings += amd_lint_callouts(doc)
         findings += amd_lint_images(doc, file_path)
         if cross_file is not False:

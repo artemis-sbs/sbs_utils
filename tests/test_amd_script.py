@@ -98,11 +98,21 @@ class TestSynopsis(unittest.TestCase):
         self.assertEqual(_node(parse(src), "doc").synopsis, "")
         self.assertIn("=$test", _rt(src)["doc"].get("description"))
 
-    def test_bare_equals_and_math_stay_prose(self):
-        self.assertIsNone(amd_body_synopsis("="))
+    def test_a_bare_equals_is_an_EMPTY_note_line(self):
+        # A paragraph break in a note block. It used to be prose, which quietly took
+        # the whole record with it: a body line before the `---` means the fence is no
+        # longer the record's first content, so it is read as prose and every field in
+        # it is lost. Peacetime's Florbin brief lost `Scope:`, `Starts when:`,
+        # `Action:` and `Then:` to one `=` on its own line, and nothing said a word.
+        self.assertEqual(amd_body_synopsis("="), "")
+        self.assertEqual(amd_body_synopsis("= a note"), "a note")
+
+    def test_math_and_setext_stay_prose(self):
+        # `===` is a markdown setext rule and `=x is 4` is arithmetic; neither is a
+        # note, and `=$name ...` (the line-style declaration) must keep meaning that.
         self.assertIsNone(amd_body_synopsis("==="))
         self.assertIsNone(amd_body_synopsis("=x is 4"))
-        self.assertEqual(amd_body_synopsis("= a note"), "a note")
+        self.assertIsNone(amd_body_synopsis("=$raider red, white"))
 
     def test_multiple_lines_join(self):
         node = _node(parse("# [A](a)\n= first\n= second\nbody\n"), "a")

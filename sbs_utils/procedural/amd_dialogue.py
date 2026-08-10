@@ -322,6 +322,69 @@ def dialogue_scenes_registry_clear():
     _SCENES.clear()
 
 
+# --- Slots -------------------------------------------------------------------
+# A `{name}` in a scene's body, filled when the scene is resolved.
+#
+# AMD bodies are static and some lines are not: "the last three haulers to leave were
+# {suspects}" is a list the mission builds at runtime. Comms had a moment for this
+# (`comms_receive` interpolates from task variables at send time) and an incoming hail
+# has none - its text is stored on the record when the hail is offered - so a mission
+# with one runtime word in a line had to build the whole line in Python and hand it in,
+# which is the opposite of authoring it in the document.
+#
+# Substitution is a plain `str.replace`, never an f-string: the text is authored data,
+# and `{` in it must not be able to execute anything or raise a SyntaxError.
+_SLOTS = {}
+
+
+def dialogue_register_slot(name, fn):
+    """Declare a `{name}` a scene body may use. `fn(agent_id, speaker) -> str`.
+
+    Collisions are loud, the same contract as `amd_action_register`: re-registering a
+    name with a different function raises, re-registering the same one is a no-op so
+    reloading is safe.
+    """
+    key = _dlg_norm(name)
+    prior = _SLOTS.get(key)
+    if prior is not None and prior is not fn:
+        raise ValueError(f"dialogue slot {name!r} is already registered by something else")
+    _SLOTS[key] = fn
+    return key
+
+
+def dialogue_slot_names():
+    """Every registered slot name, for lint and completion."""
+    return sorted(_SLOTS)
+
+
+def dialogue_slots_clear():
+    """Drop the registry - the per-mission reset."""
+    _SLOTS.clear()
+
+
+def dialogue_fill_slots(text, agent_id=None, speaker=None, values=None):
+    """Fill `{name}` in `text` from `values` first, then the registered resolvers.
+
+    Unknown braces are LEFT ALONE. A writer may have meant them literally, and a
+    half-substituted line is easier to recognize than one silently emptied.
+    """
+    out = str(text or "")
+    if "{" not in out:
+        return out
+    for name, value in (values or {}).items():
+        out = out.replace("{" + str(name) + "}", str(value))
+    for name, fn in _SLOTS.items():
+        token = "{" + name + "}"
+        if token not in out:
+            continue
+        try:
+            out = out.replace(token, str(fn(agent_id, speaker)))
+        except Exception as e:
+            from sbs_utils.mast.mast import DEBUG
+            DEBUG(f"[dialogue] slot {name!r} failed: {e}")
+    return out
+
+
 # --- Injected seams ----------------------------------------------------------
 _METRIC_RESOLVER = None
 _OUTCOME_HANDLERS = {}

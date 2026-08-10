@@ -415,6 +415,66 @@ def _fence_context(doc, line0, text_line, char):
     return ("kind" if first is None or line0 + 1 <= first else "label"), None, node
 
 
+def _in_action_block(node, line0):
+    """Is the cursor's line part of an `Action:` block?
+
+    A direction is a LIST ITEM, so it carries no colon and `_fence_context` classifies
+    it as "typing a field label" - which offered field names in the one place they can
+    never appear. Walk back to the nearest unindented `Label:` the way
+    `amd_lint._action_blocks` does and see whether it is `Action:`.
+    """
+    if node is None or not node.fence_lines:
+        return False
+    inside = False
+    for lineno, raw in node.fence_lines:
+        stripped = raw.strip()
+        if stripped and not stripped.startswith("//"):
+            if ":" in raw and raw[:1] not in (" ", "	"):
+                inside = raw.split(":", 1)[0].strip().lower() == "action"
+        if lineno == line0 + 1:
+            return inside
+    return False
+
+
+def _action_completion(index, doc, line0, text_line, char):
+    """What can be written at this point in a stage direction, or None.
+
+    A direction reads `<who> <verb> <what>`, so which of the three the cursor is in is
+    decided by what is to its left - the same rule `_body_completion` uses, and what
+    makes it work while the line is still half-typed.
+
+    The operand offers node keys only when the VERB says its operand is one
+    (`operand_ref="node"`). That is the same declaration `dangling-action-ref` checks,
+    so an author is offered exactly the values the linter will accept.
+    """
+    from sbs_utils.procedural.amd_action import amd_action_verbs, amd_action_verb_spec
+    node = _node_for_line(doc, line0)
+    if not _in_action_block(node, line0):
+        return None
+    left = (text_line or "")[:max(0, char)]
+    if ":" in left:                       # the inline `Action: ...` form
+        left = left.split(":", 1)[1]
+    left = left.lstrip()
+    if left.startswith("-"):
+        left = left[1:].lstrip()
+
+    padded = " " + " ".join(left.lower().split()) + " "
+    for phrase in amd_action_verbs():     # longest first, as the parser matches
+        if (" " + phrase + " ") in padded or padded.rstrip() == " " + phrase:
+            spec = amd_action_verb_spec(phrase) or {}
+            if spec.get("operand_ref") != "node":
+                return []
+            return [{"label": k, "kind": 6,                    # 6 = Variable
+                     "detail": _key_detail(index, k)} for k in sorted(index["known"])]
+
+    words = left.split()
+    if not words or (len(words) == 1 and not left.endswith(" ")):
+        # Still typing WHO acts. An actor is a landmark or cast key most of the time.
+        return [{"label": k, "kind": 6,
+                 "detail": _key_detail(index, k)} for k in sorted(index["known"])]
+    return [{"label": v, "kind": 3} for v in amd_action_verbs()]   # 3 = Function
+
+
 def _fence_hover(doc, pos, text):
     """What this fence line MEANS: the schema's own words for a field, or what a kind
     noun already implies. All of it was written down and none of it was reachable."""
@@ -528,6 +588,10 @@ def _completion(index, doc=None, pos=None, text=""):
         body = _body_completion(index, text_line or "", pos.get("character", 0))
         if body is not None:
             return {"isIncomplete": False, "items": body}
+        act = _action_completion(index, doc, line0, text_line or "",
+                                 pos.get("character", 0))
+        if act is not None:
+            return {"isIncomplete": False, "items": act}
         where, label, node = _fence_context(doc, line0, text_line or "", pos.get("character", 0))
         arch = getattr(node, "kind", None) if node is not None else None
         if where == "kind":

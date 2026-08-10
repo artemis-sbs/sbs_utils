@@ -107,5 +107,63 @@ class HoverExplainsTheFence(unittest.TestCase):
         self.assertIn("still parses", v.get("contents", {}).get("value", ""))
 
 
+ACTION_SRC = chr(10).join([
+    "# [The trap closes](ambush)",
+    "---",
+    "Beat",
+    "Action:",
+    "  - DS1 hails ds1_brief",
+    "  - ",
+    "Reward: 5 credits",
+    "---",
+    "Body text.",
+    "",
+])
+
+
+def _action_labels(line, char):
+    doc = parse(ACTION_SRC, "x.amd")
+    r = L._completion({"known": {"ds1_brief", "other_key"}}, doc,
+                      {"line": line, "character": char}, ACTION_SRC)
+    return [i["label"] for i in r["items"]]
+
+
+class CompletionInsideAnActionBlock(unittest.TestCase):
+    """A direction is a LIST ITEM, so it carries no colon and `_fence_context` read it
+    as "typing a field label" - offering field names in the one place a field name can
+    never go, and never offering the verbs or the scene keys that DO go there."""
+
+    def test_the_verbs_are_offered_after_the_actor(self):
+        labels = _action_labels(4, len("  - DS1 "))
+        self.assertIn("hails", labels)
+        self.assertIn("becomes", labels)
+        self.assertNotIn("Reward:", labels)
+
+    def test_node_keys_are_offered_after_a_node_typed_verb(self):
+        # `hails` declares operand_ref="node", which is the same thing
+        # `dangling-action-ref` checks - so completion offers exactly what lint accepts.
+        labels = _action_labels(4, len("  - DS1 hails "))
+        self.assertIn("ds1_brief", labels)
+        self.assertIn("other_key", labels)
+
+    def test_a_verb_that_names_no_record_offers_nothing(self):
+        # `becomes` takes a role, which is minted in MAST and in spawn CSVs - guessing
+        # would offer the wrong vocabulary confidently.
+        doc = parse(ACTION_SRC, "x.amd")
+        src = ACTION_SRC.replace("  - DS1 hails ds1_brief", "  - DS1 becomes a")
+        doc = parse(src, "x.amd")
+        r = L._completion({"known": {"ds1_brief"}}, doc,
+                          {"line": 4, "character": len("  - DS1 becomes ")}, src)
+        self.assertEqual(r["items"], [])
+
+    def test_an_empty_item_offers_who_acts(self):
+        labels = _action_labels(5, len("  - "))
+        self.assertIn("ds1_brief", labels)
+
+    def test_a_field_line_outside_the_block_is_unaffected(self):
+        labels = _action_labels(6, 0)
+        self.assertNotIn("hails", labels)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -35,7 +35,8 @@ from ..helpers import FrameContext
 from ..mast.mast import DEBUG
 from ..mast.mast_node import MastDataObject
 from .amd_dialogue import (DIALOGUE_WHEN_HAIL, dialogue_apply, dialogue_beats,
-                           dialogue_choices, dialogue_entry_for, dialogue_parse)
+                           dialogue_choices, dialogue_entry_for, dialogue_fill_slots,
+                           dialogue_parse)
 from .inventory import get_inventory_value, set_inventory_value
 from .query import to_id, to_object
 from .roles import has_role
@@ -200,9 +201,7 @@ def hail_speaker(speaker_key, ship_id=None):
         except Exception as e:
             DEBUG(f"[hail] speaker resolver failed for {key!r}: {e}")
     # lifeform_speaker_of takes an AGENT ID, not a key - so it only applies when the
-    # speaker IS a live agent (a spawned lifeform hailing on its own behalf). Resolving
-    # a cast KEY needs the mission's records, which is exactly what the resolver seam
-    # above is for; guessing here would fail silently and look like a missing face.
+    # speaker IS a live agent (a spawned lifeform hailing on its own behalf).
     if to_object(speaker_key) is not None:
         try:
             from .amd_lifeforms import lifeform_speaker_of
@@ -211,6 +210,23 @@ def hail_speaker(speaker_key, ship_id=None):
                 return card
         except Exception as e:
             DEBUG(f"[hail] lifeform speaker lookup failed for {key!r}: {e}")
+    # A KEY naming something in the world - a declared landmark, a cast character, or a
+    # plain role. This is not guessing: it is the same resolution `Action:` uses for the
+    # actor of a stage direction, so `ds1 hails ds1_brief` and `Speaker: ds1` mean the
+    # same `ds1` the rest of the document does. Without it a station that calls the crew
+    # is announced by its key ("ds1"), which is the failure the resolver seam existed to
+    # work around - every mission writing the same resolver.
+    try:
+        from .amd_action import amd_action_actors
+        for agent_id in amd_action_actors(key):
+            obj = to_object(agent_id)
+            if obj is None:
+                continue
+            from ..faces import get_face
+            return MastDataObject({"name": getattr(obj, "name", None) or key,
+                                   "face": get_face(agent_id), "color": None})
+    except Exception as e:
+        DEBUG(f"[hail] world lookup failed for {key!r}: {e}")
     return MastDataObject({"name": key, "face": None, "color": None})
 
 
@@ -260,7 +276,7 @@ def _hail_choices_from(choices):
 def hail_offer(ship, scene=None, speaker=None, subject=None, presentation=None,
                backdrop=None, audio=None, face=None, name=None, color=None,
                title=None, priority=0, expires=None, key=None, lines=None,
-               choices=None, scenes=None):
+               choices=None, scenes=None, slots=None):
     """Offer a hail to a ship. It waits in the queue until the crew answers it.
 
     Args:
@@ -274,6 +290,9 @@ def hail_offer(ship, scene=None, speaker=None, subject=None, presentation=None,
         lines / choices (optional): a MAST-driven hail with no AMD behind it.
         key (str, optional): an idempotency key. Offering the same key twice is a
             no-op, so a re-emitted setup signal cannot queue the same hail again.
+        slots (dict, optional): values for `{name}` in the scene's body. A registered
+            resolver (`dialogue_register_slot`) covers the declarative path; this is
+            the one-off.
 
     Returns:
         int | None: the hail id, or None if the ship is unknown or `key` is a repeat.
@@ -326,6 +345,7 @@ def hail_offer(ship, scene=None, speaker=None, subject=None, presentation=None,
         "offered_at": _hail_now(),
         "lines": _hail_lines_from(lines, speaker), "choices": _hail_choices_from(choices),
         "resolved": lines is not None or choices is not None,
+        "slots": dict(slots) if slots else None,
         "taken": [],
     }
     if record["name"] is None and record["speaker"]:
@@ -559,8 +579,13 @@ def _hail_resolve_scene(ship_id, record):
         return record
     parsed = dialogue_parse(node)
     card = hail_speaker(record.get("speaker"), ship_id)
+    slots = record.get("slots")
     record["lines"] = [{"speaker": b.get("speaker"), "surface": b.get("surface"),
-                        "direction": b.get("direction"), "text": b.get("text")}
+                        "direction": b.get("direction"),
+                        # `{name}` filled HERE, once, at the same moment the beats are
+                        # cached - so a repaint cannot re-run a mission's resolver and
+                        # a replay shows the words the crew actually heard.
+                        "text": dialogue_fill_slots(b.get("text"), ship_id, card, slots)}
                        for b in dialogue_beats(parsed, ship_id, card)]
     record["choices"] = [{"label": c.get("label"), "target": c.get("target"),
                           "outcomes": c.get("outcomes") or []}

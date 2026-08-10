@@ -200,5 +200,115 @@ class HailLspTests(unittest.TestCase):
         self.assertIn("one of:", self._hover(4))
 
 
+DOC_HAILS = """# [Mission](m)
+
+## [Voices](voices)
+
+### [DS 1 Briefing](ds1_brief)
+---
+Speaker: ds1
+When: hail
+---
+The ambassador was taken.
+
+- [Take the case]()
+
+### [DS 1 Market](ds1_market)
+---
+Speaker: ds1
+When: comms
+---
+What can we sell you?
+
+## [Beats](beats)
+
+### [Take the Case](brief)
+---
+Job
+Action: {action}
+---
+"""
+
+
+# Only what these tests are about. The fixture declares no cast section, so every
+# scene also raises `dangling-speaker` - a true finding about the fixture and noise here.
+HAIL_CODES = {"dangling-action-ref", "hail-unknown-scene", "hail-no-entry",
+              "hail-speaker-mismatch", "hail-not-a-hail", "unknown-action-verb",
+              "bad-action"}
+
+
+def _hail_findings(action, codes=HAIL_CODES):
+    from sbs_utils.procedural.amd_lint import amd_lint
+    found = amd_lint(content=DOC_HAILS.replace("{action}", action), cross_file=False)
+    return [f for f in found if f.code in codes]
+
+
+class HailsVerbLintTests(unittest.TestCase):
+    """`Action: X hails Y` is checkable before the mission ever runs, which is the
+    whole reason the verb declares `operand_ref="node"`."""
+
+    def test_a_correct_line_is_quiet(self):
+        self.assertEqual(_hail_findings("DS1 hails ds1_brief"), [])
+
+    def test_a_mistyped_scene_is_a_dangling_reference(self):
+        codes = [f.code for f in _hail_findings("DS1 hails ds1_breif")]
+        self.assertIn("dangling-action-ref", codes)
+
+    def test_naming_a_record_that_is_not_a_scene(self):
+        codes = [f.code for f in _hail_findings("DS1 hails brief")]
+        self.assertIn("hail-unknown-scene", codes)
+
+    def test_the_bare_form_needs_a_hail_entry(self):
+        codes = [f.code for f in _hail_findings("nobody hails")]
+        self.assertIn("hail-no-entry", codes)
+
+    def test_the_bare_form_is_quiet_when_one_exists(self):
+        self.assertEqual(_hail_findings("DS1 hails"), [])
+
+    def test_a_speaker_mismatch_is_a_warning_not_an_error(self):
+        found = _hail_findings("someone_else hails ds1_brief",
+                               codes={"hail-speaker-mismatch"})
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0].severity, "warning")
+
+    def test_pushing_a_comms_scene_at_the_crew_is_flagged(self):
+        codes = [f.code for f in _hail_findings("ds1 hails ds1_market")]
+        self.assertIn("hail-not-a-hail", codes)
+
+
+THEN_DOC = """# [Mission](m)
+
+## [Beats](beats)
+
+### [Step](step)
+---
+Job
+Then: {then}
+---
+"""
+
+
+class ThenVerbLintTests(unittest.TestCase):
+    """`Then:` silently means `reveal <the whole line>` for anything it does not know,
+    so an unrecognized verb is not ignored - it is misread."""
+
+    @staticmethod
+    def _lint(then):
+        from sbs_utils.procedural.amd_lint import amd_lint
+        doc = THEN_DOC.replace("{then}", then)
+        return [f.code for f in amd_lint(content=doc, cross_file=False)]
+
+    def test_reveal_and_signal_are_quiet(self):
+        self.assertNotIn("unknown-then-verb", self._lint("reveal step_two"))
+        self.assertNotIn("unknown-then-verb", self._lint("signal case_opened"))
+
+    def test_an_unknown_verb_is_flagged(self):
+        self.assertIn("unknown-then-verb", self._lint("hail ds1_brief"))
+
+    def test_a_bare_single_token_is_still_a_reveal_target(self):
+        # `Then: step_two` has always meant "reveal step_two" and must stay quiet.
+        self.assertNotIn("unknown-then-verb", self._lint("step_two"))
+
+
 if __name__ == "__main__":
     unittest.main()

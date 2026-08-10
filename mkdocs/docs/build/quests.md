@@ -32,17 +32,19 @@ it is — is in [The AMD file format](amd-format.md).
 |---|---|
 | `Scope:` | `shared` (one quest for the whole game) or per-ship. |
 | `At start:` | The older way of saying the same thing — `running` / `offered` / `hidden`, and `active` / `available` / `idle` / `secret` before that. All still parse. |
+| `At start: posting` | **Posted, not acceptable.** It is listed like an available job, but the Accept button does not show — the only way to take it is whatever else offers it, typically answering an [incoming hail](amd-format.md#hails--the-beat-opens-with-an-incoming-call). |
 | `Objective:` | The sentence the player reads in the quest log. |
 | `Done when:` | The completion **trigger** (see [Triggers](#triggers)). |
 | `Starts when:` | **When it arms** — `at once`, `accepted` (the player takes it off the board), `revealed` (another quest reveals it). |
 | `Fails when:` | What fails it — the same grammar, plus `all dead <role>` and a bare time (`5 minutes`). |
 | `Reward:` | What completing it gives — `500 credits`, an item key, … (`Pays:` also parses). |
 | `Penalty:` | What failing it costs — same grammar. Abandoning an accepted job fails it, so this is what walking away costs. |
-| `Then:` | Follow-up on completion — `reveal <quest>` (unlock another) or `signal <name>`. |
+| `Then:` | Follow-up on completion — `reveal <quest>` (unlock another) or `signal <name>`. Those two words only; anything else is read as a reveal target, and the linter says so. |
 | `Display:` / `Tier:` | Optional label / ordering for the log. |
 | `Show:` | **When** this quest is listed — `always` (default), `when done` (runs unseen, appears once it completes *or* fails, reading as history), `with children` (a grouping heading: a row only while something under it is listed), or `never` (drives its events invisibly). Not the same as `Starts when: revealed`, which also stops the triggers. |
 | `Accept On:` | Restrict which **consoles** may Accept/Abandon this job from the Quests tab — e.g. `comms`, or `comms, admiral`. Overrides the mission default (see [Console gating](#console-gating)). |
 | `Engage On:` | Restrict which consoles may **Engage** (travel to) this job — e.g. `helm`. Only meaningful when the mission enables the Engage button. |
+| `Action:` | What the world does the moment this beat **starts** — including `<who> hails <scene>`, which calls the crew. See [`Action:`](amd-format.md#action--stage-directions). |
 | `Speaker:` | **Who this quest talks as** — a character or ship key. Today it is the voice of the [deadline reminders](#deadline-reminders); anything else the quest needs to say uses it too. |
 | `Signal says:` | The words a deadline reminder transmits. `{time}` interpolates the clock — see [deadline reminders](#deadline-reminders). |
 
@@ -190,6 +192,12 @@ fails in total silence.
 | `quest_completed` | `AGENT_ID`, `QUEST_ID` | mark the quest complete |
 | `quest_failed` | `AGENT_ID`, `QUEST_ID` | mark the quest failed |
 | `quest_signal` | `SIGNAL_NAME` | advance any quest whose `Done when: signal <name>` matches |
+
+!!! note "`Then: signal X` reaches other quests too"
+    `Then: signal X` fires the raw signal `X` — so a `//signal/X` route still matches
+    what you wrote — **and** the `quest_signal` milestone, so another quest's
+    `Done when: signal X` advances. A choice in a hail written `; signal X` does the
+    same. Before this the two lines read as if they met and never did.
 
 !!! warning "`quest_completed` is a request, not a notification"
     To *react* to a quest finishing, listen for **`quest_succeeded`**. `quest_completed`

@@ -459,6 +459,7 @@ what tells you which one is acting.
 | `joins` | Changes side — `Xorn joins tsn` |
 | `arrives` | Places a landmark you declared — `Kessel Station arrives` |
 | `departs` | Removes it from the world |
+| `hails` | Calls the crew — `DS 1 hails ds1_brief`. See below |
 
 **`Action:` fires when the beat starts. `Then:` fires when it finishes.** That is the whole
 difference between them, and it is why both exist.
@@ -479,6 +480,62 @@ misspelled verb before the mission ever runs.
 **Repeating is safe.** A beat can start more than once — re-revealed, reloaded, a
 repeatable thread. Every verb above survives that: `arrives` is keyed to the landmark, so
 it will not place a second one, but it *will* re-place one that was destroyed.
+
+#### `hails` — the beat opens with an incoming call
+
+An incoming hail is a conversation the *script* starts: it appears in the crew's Incoming
+Hails list, and answering it is a thing they do. That makes it a natural way to hand out a
+quest — somebody calls, and taking the job is what you say back.
+
+Write the conversation as a dialogue scene, and let the beat open it:
+
+```
+### [DS 1 Briefing](ds1_brief)
+---
+Speaker: ds1
+When: hail
+Title: Ambassador Kidnapped
+Presentation: portrait
+---
+Artemis, DS 1. Ambassador Florbin was taken off this station inside a cargo container.
+
+- [Take the case]() ; completes florbin/brief
+- [Not now]()
+```
+
+```
+#### [Take the Case](brief)
+---
+Scope: shared
+Starts when: at once
+Action:
+  - DS1 hails ds1_brief
+Then: reveal florbin/trail
+---
+```
+
+The scene carries everything the hail looks like and everything it says, so the direction
+only has to name it. Written bare — `DS1 hails` — it opens that speaker's `When: hail`
+scene, so a character with one call to make needs no key at all.
+
+**Who gets called** follows `Scope:`, and you do not have to think about it: a shared beat
+runs once and calls every player ship; a per-ship beat runs for its own ship and calls
+that one.
+
+**What an answer means** is written on the choice, next to the words that earn it:
+
+| Written after `;` | What it does |
+|---|---|
+| `accepts <quest>` | Starts it — the same thing the Accept button does |
+| `completes <quest>` | Finishes it, with its `Reward:` and its `Then:` |
+| `fails <quest>` | Fails it, with its `Penalty:` |
+| `signal <name>` | Fires a signal, for anything the three above do not cover |
+
+An answer is arbitrated on the server, so it happens exactly once however many consoles
+are connected — you do not have to guard against two officers pressing at the same moment.
+
+**A board you take by answering.** `At start: posting` lists a quest without a working
+Accept button, so the only way to take it is to answer the call that offers it.
 
 #### When it applies — and when it doesn't
 

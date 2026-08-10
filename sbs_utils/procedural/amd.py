@@ -76,7 +76,13 @@ RE_FENCE = re.compile(r"\s*-{3,}\s*$")
 # REQUIRED: `=$name font:...;color:...` is the line-style declaration (14 uses in
 # the corpus), and `=` immediately followed by `$` must keep meaning that. No line
 # in the corpus matches `^=\s`, so this costs no migration.
-RE_SYNOPSIS = re.compile(r"^[ \t]*=(?=[ \t])[ \t]*(?P<text>.*?)[ \t\r]*$")
+#
+# A bare `=` is an EMPTY note line - how anyone writes a paragraph break in a note
+# block. It used to match nothing, fall through to the BODY, and take the whole
+# record with it: a body line before the `---` means the fence is no longer the
+# record's first content, so it is read as prose and every field in it is silently
+# lost. `data` comes back None and nothing says why.
+RE_SYNOPSIS = re.compile(r"^[ \t]*=(?=[ \t]|$)[ \t]*(?P<text>.*?)[ \t\r]*$")
 
 # `[[key]]` / `[[key|words]]` - an inline reference inside prose. Non-greedy and
 # newline-free so an unclosed `[[` cannot swallow the rest of the document.
