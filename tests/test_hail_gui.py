@@ -232,9 +232,9 @@ class HailListTests(HailViewBase):
         self.open_to_choices()
         self.assertEqual(V.hail_rows(self.ship, self.comms)[0]["hail_kind"], "back")
 
-    def test_an_item_does_not_open_a_row_of_its_own(self):
-        # The listbox already opens one per item. A second made every entry two rows
-        # tall - the text, then an empty row - which reads as a gap between choices.
+    def test_an_item_opens_its_own_row_or_it_is_not_selectable(self):
+        # LayoutListbox.default_item_template opens one, so that is the contract -
+        # without a row the item has nothing to be hit-tested in and selection dies.
         from sbs_utils.procedural.gui import row as ROWMOD
         seen = []
         saved = ROWMOD.gui_row
@@ -243,7 +243,15 @@ class HailListTests(HailViewBase):
             V._hail_row({"label": "Take the case"})
         finally:
             ROWMOD.gui_row = saved
-        self.assertEqual(seen, [])
+        self.assertEqual(len(seen), 1)
+
+    def test_the_listbox_spacing_is_not_a_whole_line(self):
+        # row-height on the LISTBOX is the gap between items; 1.6em there put a blank
+        # line between every choice.
+        self.offer()
+        V.hail_choice_strip(self.ship, self.comms)
+        style = [e for e in self.trace if e[0] == "listbox"][0][2]
+        self.assertIn("0.1em", style)
 
     def test_the_list_opens_its_OWN_row(self):
         # A listbox joins whatever row is open, so without this it lands beside the
@@ -443,9 +451,23 @@ class StyleStringTests(unittest.TestCase):
 
         source = inspect.getsource(module)
         keys = ("row-height", "col-width", "area:", "background", "padding", "margin")
+        tree = ast.parse(source)
+        # An f-string is split into fragments, and a fragment can end mid-property
+        # ("...;background:" with the value interpolated). Those are not styles on their
+        # own, so only whole literals are checked - the interpolated ones are covered by
+        # the tests that build a real widget.
+        interpolated = {id(part)
+                        for node in ast.walk(tree) if isinstance(node, ast.JoinedStr)
+                        for part in node.values}
         checked = 0
-        for node in ast.walk(ast.parse(source)):
+        for node in ast.walk(tree):
             if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+                continue
+            if id(node) in interpolated:
+                continue
+            # Docstrings mention style keys while explaining them. A style is one line,
+            # so prose is filtered by that rather than by trying to list every docstring.
+            if chr(10) in node.value:
                 continue
             text = node.value
             if not any(k in text for k in keys):

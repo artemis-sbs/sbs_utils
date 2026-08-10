@@ -145,11 +145,14 @@ def _hail_view_press(event, item):
 def _hail_row(entry):
     """One row of the hail list.
 
-    NO `gui_row` here. The listbox already opens a row for each item, so adding one
-    made every entry two rows tall - the text, then an empty row - which read as a gap
-    between the choices. The template fills the row it is given.
+    It DOES open its own row - `LayoutListbox.default_item_template` does the same, so
+    that is the contract, and without a row the item has nothing to be hit-tested in and
+    stops being selectable. `1.0` matches the default; the visible gap between entries
+    was never this, it was the LISTBOX's own row-height (see hail_choice_strip).
     """
+    from .row import gui_row
     from .text import gui_text
+    gui_row("row-height: 1.0;")
     gui_text(_hail_text(entry.get("label") or ""))
 
 
@@ -249,8 +252,11 @@ def hail_choice_strip(ship, client_id=None, style=None, row_style=None):
     if not rows:
         return 0
     gui_row(row_style or "row-height: 8em;")
+    # `row-height` on the LISTBOX is the spacing between items, not the height of one -
+    # 1.6em there is what put a blank line between the choices. LegendaryMissions' own
+    # lists use 0.1em / 0.5em.
     listbox = gui_list_box(rows,
-                           style or f"row-height: 1.6em;background:{LIST_BACKGROUND};",
+                           style or f"row-height: 0.1em;background:{LIST_BACKGROUND};",
                            item_template=_hail_row,
                            title_template=hail_list_title(ship),
                            title_section_style=LIST_TITLE_STYLE, select=True)
