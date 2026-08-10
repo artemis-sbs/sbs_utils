@@ -226,6 +226,14 @@ class HailListTests(HailViewBase):
             for key in row:
                 self.assertTrue(key in ("label",) or key.startswith("hail_"), key)
 
+    def test_the_list_opens_its_OWN_row(self):
+        # A listbox joins whatever row is open, so without this it lands beside the
+        # control above it - the placement dial.
+        self.offer()
+        V.hail_choice_strip(self.ship, self.comms)
+        kinds = [e[0] for e in self.trace]
+        self.assertEqual(kinds.index("row") + 1, kinds.index("listbox"))
+
     def test_the_list_owns_its_own_selection_handler(self):
         self.offer()
         V.hail_choice_strip(self.ship, self.comms)

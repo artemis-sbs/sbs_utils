@@ -199,7 +199,7 @@ def hail_list_title(ship):
     return "Incoming Hails"
 
 
-def hail_choice_strip(ship, client_id=None, style=None):
+def hail_choice_strip(ship, client_id=None, style=None, row_style=None):
     """The hail list: waiting hails to answer, or the open conversation's replies.
 
     A LISTBOX rather than a row of buttons. Three things follow from that, and all three
@@ -208,9 +208,16 @@ def hail_choice_strip(ship, client_id=None, style=None):
     there is ONE widget to rebuild rather than N, so a repaint cannot leave half a strip
     behind.
 
+    Args:
+        style (str, optional): the LISTBOX's own style - its item row height.
+        row_style (str, optional): the layout ROW the listbox sits in. It opens its own
+            row, because a listbox otherwise joins whatever row is currently open and
+            lands beside the control above it.
+
     Returns:
         int: how many rows were drawn.
     """
+    from .row import gui_row
     from .listbox import gui_list_box
     from .message import gui_message_callback
 
@@ -219,6 +226,7 @@ def hail_choice_strip(ship, client_id=None, style=None):
     rows = hail_rows(ship, client_id)
     if not rows:
         return 0
+    gui_row(row_style or "row-height: 8em;")
     listbox = gui_list_box(rows, style or "row-height: 1.6em;",
                            item_template=_hail_row,
                            title_template=hail_list_title(ship), select=True)
