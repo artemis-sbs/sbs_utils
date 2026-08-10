@@ -121,7 +121,7 @@ def _hail_bump_seq(ship_id):
     return seq
 
 
-def _hail_emit(ship_id, state, record=None, client_id=None, beat=None):
+def _hail_emit(ship_id, state, record=None, client_id=None, beat=None, choice=None):
     """One signal for every transition, so a listener is a single route rather than one
     per verb - the shape `viewscreen` already uses.
 
@@ -136,6 +136,13 @@ def _hail_emit(ship_id, state, record=None, client_id=None, beat=None):
         "HAIL_BEAT": (record or {}).get("beat") if beat is None else beat,
         "HAIL_SEQ": int(_hail_get(ship_id, KEY_SEQ, 0) or 0),
         "HAIL_CLIENT": client_id,
+        # WHICH answer was given, and where it led. Without these a mission can see that
+        # a hail was answered but not what the crew chose, which is the only part a
+        # story usually cares about.
+        "HAIL_CHOICE": (choice or {}).get("label"),
+        "HAIL_TARGET": (choice or {}).get("target"),
+        "HAIL_KEY": (record or {}).get("key"),
+        "HAIL_SCENE": (record or {}).get("scene"),
     })
 
 
@@ -539,8 +546,26 @@ def hail_beat(ship):
     return MastDataObject(beat)
 
 
-def hail_advance(ship):
-    """Move to the next beat.
+def hail_more(ship):
+    """Whether the conversation has another beat waiting to be heard.
+
+    What the console asks to decide between a `Continue` button and the answers. The
+    LAST beat is shown together with its choices - a line and the replies to it on
+    screen at once, which is how the reference conversations read - so this is false on
+    the final beat and a single-beat hail is answerable the moment it opens.
+    """
+    rec = _hail_get(_hail_sid(ship), KEY_ACTIVE, None)
+    if not rec:
+        return False
+    return int(rec.get("beat") or 0) < len(rec.get("lines") or []) - 1
+
+
+def hail_advance(ship, client_id=None, seq=None):
+    """Move to the next beat - the crew reading on.
+
+    Arbitrated exactly like `hail_answer`, and for the same reason: two officers
+    pressing Continue in the same frame must not skip a line between them. A scripted
+    or timed advance passes no `client_id` and so skips the console check.
 
     Returns:
         bool: True if another beat is now speaking; False when the beats are spent and
@@ -549,6 +574,11 @@ def hail_advance(ship):
     ship_id = _hail_sid(ship)
     rec = _hail_get(ship_id, KEY_ACTIVE, None)
     if not rec:
+        return False
+    if client_id is not None:
+        if hail_replaying(client_id) or not _hail_may_answer(client_id):
+            return False
+    if seq is not None and int(seq) != int(_hail_get(ship_id, KEY_SEQ, 0) or 0):
         return False
     lines = rec.get("lines") or []
     index = int(rec.get("beat") or 0) + 1
@@ -571,7 +601,7 @@ def hail_choices(ship):
     rec = _hail_get(ship_id, KEY_ACTIVE, None)
     if not rec:
         return []
-    if int(rec.get("beat") or 0) < len(rec.get("lines") or []):
+    if int(rec.get("beat") or 0) < len(rec.get("lines") or []) - 1:
         return []
     seq = int(_hail_get(ship_id, KEY_SEQ, 0) or 0)
     return [MastDataObject({"label": c.get("label"), "target": c.get("target"),
@@ -613,7 +643,7 @@ def hail_answer(ship, index, client_id=None, seq=None):
             return False
     if seq is not None and int(seq) != int(_hail_get(ship_id, KEY_SEQ, 0) or 0):
         return False
-    if int(rec.get("beat") or 0) < len(rec.get("lines") or []):
+    if int(rec.get("beat") or 0) < len(rec.get("lines") or []) - 1:
         return False                      # still talking; nothing is answerable yet
     choices = rec.get("choices") or []
     if not (0 <= int(index) < len(choices)):
@@ -628,7 +658,7 @@ def hail_answer(ship, index, client_id=None, seq=None):
         # A distinct state, not "answered": nothing was chosen, but the token HAS moved,
         # so every console still has to repaint - and a mission wants to be able to say
         # "you cannot afford that" without inspecting which branch it was.
-        _hail_emit(ship_id, "refused", rec, client_id=client_id)
+        _hail_emit(ship_id, "refused", rec, client_id=client_id, choice=choice)
         return False
 
     rec.setdefault("taken", []).append(
@@ -646,9 +676,9 @@ def hail_answer(ship, index, client_id=None, seq=None):
         set_inventory_value(ship_id, KEY_ACTIVE, rec)
         _hail_play_audio(rec)
         _hail_presentation_apply(ship_id)
-        _hail_emit(ship_id, "answered", rec, client_id=client_id)
+        _hail_emit(ship_id, "answered", rec, client_id=client_id, choice=choice)
         return True
-    _hail_emit(ship_id, "answered", rec, client_id=client_id)
+    _hail_emit(ship_id, "answered", rec, client_id=client_id, choice=choice)
     hail_close(ship_id)
     return True
 

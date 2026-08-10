@@ -22,10 +22,10 @@ same list as read-only text, so the bridge can see what comms is choosing betwee
 without being able to press it.
 """
 from ...helpers import FrameContext, gui_text_escape
-from ..hail import (HAIL_MAX_CHOICES, hail_accept, hail_active, hail_answer, hail_beat,
-                    hail_answer_label, hail_choices, hail_form, hail_is_active,
-                    hail_pending, hail_seq, hail_where, hail_where_for,
-                    hail_where_label_for, hail_where_props)
+from ..hail import (HAIL_MAX_CHOICES, hail_accept, hail_active, hail_advance,
+                    hail_answer, hail_beat, hail_answer_label, hail_choices, hail_form,
+                    hail_is_active, hail_more, hail_pending, hail_seq, hail_where,
+                    hail_where_for, hail_where_label_for, hail_where_props)
 from .overlay import overlay_clear, overlay_register, overlay_show, overlay_slot_define
 
 
@@ -100,6 +100,8 @@ def _hail_view_press():
     ship = data.get("hail_ship")
     if data.get("hail_kind") == "accept":
         hail_accept(ship, data.get("hail_id"), FrameContext.client_id)
+    elif data.get("hail_kind") == "advance":
+        hail_advance(ship, FrameContext.client_id, seq=data.get("hail_seq"))
     else:
         hail_answer(ship, data.get("hail_index"), FrameContext.client_id,
                     seq=data.get("hail_seq"))
@@ -139,6 +141,20 @@ def hail_choice_strip(ship, client_id=None, style=None):
                              "hail_id": record.get("id")},
                        on_press=_hail_view_press, is_sub_task=True)
         return len(pending)
+
+    if hail_more(ship):
+        # The crew has to be able to read on. Without this a conversation of more than
+        # one beat opens, says its first line and stops: the choices are not live yet,
+        # so the strip would otherwise be empty and there is nothing else on the console
+        # that advances a hail.
+        if not _hail_may_answer_here(client_id):
+            return 0
+        gui_row(row_style)
+        gui_button(_hail_text("Continue"),
+                   data={"hail_kind": "advance", "hail_ship": ship,
+                         "hail_seq": hail_seq(ship)},
+                   on_press=_hail_view_press, is_sub_task=True)
+        return 1
 
     choices = hail_choices(ship)
     if not choices or not _hail_may_answer_here(client_id):

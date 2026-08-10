@@ -241,6 +241,25 @@ class ConversationTests(HailTestCase):
         self.assertEqual([t["label"] for t in H.hail_log(self.ship)[0].taken],
                          ["Stand down"])
 
+    def test_a_ONE_beat_hail_is_answerable_the_moment_it_opens(self):
+        # The last beat is shown WITH its choices - a line and the replies to it on
+        # screen at once. Gating the choices until after the last beat made a one-beat
+        # hail a dead end: nothing more to read, and nothing answerable.
+        H.hail_offer(self.ship, speaker="a", lines="Respond.", choices=["Aye"])
+        H.hail_accept(self.ship)
+        self.assertFalse(H.hail_more(self.ship))
+        self.assertEqual([c.label for c in H.hail_choices(self.ship)], ["Aye"])
+        self.assertTrue(H.hail_answer(self.ship, 0))
+
+    def test_a_multi_beat_hail_has_more_to_read_until_the_last_one(self):
+        self._offer()                       # two beats
+        H.hail_accept(self.ship)
+        self.assertTrue(H.hail_more(self.ship))
+        self.assertEqual(H.hail_choices(self.ship), [])
+        H.hail_advance(self.ship)
+        self.assertFalse(H.hail_more(self.ship))
+        self.assertTrue(H.hail_choices(self.ship))
+
     def test_an_answer_is_refused_while_the_beats_are_still_running(self):
         self._offer()
         H.hail_accept(self.ship)
@@ -595,6 +614,52 @@ class AudioTests(HailTestCase):
         H.hail_offer_amd(self.ship, scenes, "a")
         H.hail_accept(self.ship)
         self.assertEqual(len(self.played), 1)
+
+
+class SignalPayloadTests(HailTestCase):
+    """A story reacts to WHICH answer was given, so the signal has to carry it."""
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural import signal as SIG
+        self.sig = SIG
+        self.seen = []
+        self._real = SIG.signal_emit
+        # hail.py imported signal_emit by name, so patch it where it is USED.
+        import sbs_utils.procedural.hail as HM
+        self._real_hail = HM.signal_emit
+        HM.signal_emit = lambda name, data=None: self.seen.append((name, data or {}))
+
+    def tearDown(self):
+        import sbs_utils.procedural.hail as HM
+        HM.signal_emit = self._real_hail
+        super().tearDown()
+
+    def _last(self, state):
+        for name, data in reversed(self.seen):
+            if name == "hail" and data.get("HAIL_STATE") == state:
+                return data
+        return None
+
+    def test_an_answer_names_the_choice_that_was_taken(self):
+        self._open()
+        H.hail_answer(self.ship, 0)
+        payload = self._last("answered")
+        self.assertEqual(payload["HAIL_CHOICE"], "Stand down")
+        self.assertEqual(payload["HAIL_TARGET"], "backoff")
+
+    def test_the_payload_identifies_WHICH_hail(self):
+        self._offer(key="fb_brief")
+        H.hail_accept(self.ship)
+        payload = self._last("accepted")
+        self.assertEqual(payload["HAIL_KEY"], "fb_brief")
+        self.assertEqual(payload["HAIL_SCENE"], "open")
+
+    def test_a_refusal_still_names_the_choice(self):
+        D.dialogue_register_outcome("costs", lambda a, s, t: False)
+        self._open()
+        H.hail_answer(self.ship, 1)
+        self.assertEqual(self._last("refused")["HAIL_CHOICE"], "Pay them off")
 
 
 class TranscriptTests(HailTestCase):

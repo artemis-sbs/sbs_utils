@@ -44,6 +44,9 @@ SCENES = {
             "@Ashfang",
             "% You are a long way from friends.",
             "",
+            "@Vell",
+            "Captain, their weapons are hot.",
+            "",
             "- [Stand down](backoff)",
             "- [Fight](backoff)",
         ]),
@@ -181,11 +184,36 @@ class ChoiceStripTests(HailViewBase):
         self.assertEqual(V.hail_choice_strip(self.ship, self.comms),
                          H.HAIL_MAX_CHOICES)
 
-    def test_nothing_is_answerable_while_the_beats_run(self):
+    def test_nothing_is_ANSWERABLE_while_the_beats_run(self):
         self.offer()
         H.hail_accept(self.ship)
-        self.assertEqual(V.hail_choice_strip(self.ship, self.comms), 0)
-        self.assertEqual(self.buttons(), [])
+        V.hail_choice_strip(self.ship, self.comms)
+        kinds = [b[2]["hail_kind"] for b in self.buttons()]
+        self.assertNotIn("answer", kinds)
+
+    def test_a_multi_beat_hail_offers_a_way_to_READ_ON(self):
+        # Without this the conversation is a dead end: the choices are not live while
+        # beats remain, so the strip would be empty and nothing on the console advances
+        # a hail.
+        self.offer()                       # two beats
+        H.hail_accept(self.ship)
+        self.assertEqual(V.hail_choice_strip(self.ship, self.comms), 1)
+        self.assertIn("Continue", self.buttons()[0][1])
+        self.assertEqual(self.buttons()[0][2]["hail_kind"], "advance")
+
+    def test_continue_gives_way_to_the_choices_on_the_last_beat(self):
+        self.offer()
+        H.hail_accept(self.ship)
+        H.hail_advance(self.ship)          # now on the final beat
+        self.trace.clear()
+        V.hail_choice_strip(self.ship, self.comms)
+        self.assertEqual([b[2]["hail_kind"] for b in self.buttons()],
+                         ["answer", "answer"])
+
+    def test_a_console_that_may_not_answer_cannot_read_on_either(self):
+        self.offer()
+        H.hail_accept(self.ship)
+        self.assertEqual(V.hail_choice_strip(self.ship, self.main), 0)
 
     def test_the_choices_appear_once_the_talking_stops(self):
         self.open_to_choices()
@@ -263,6 +291,23 @@ class PressDispatchTests(HailViewBase):
         self._press({"hail_kind": "answer", "hail_ship": self.ship,
                      "hail_index": 0, "hail_seq": seq}, self.main)
         self.assertEqual(H.hail_active(self.ship).scene, "open")
+
+    def test_a_continue_press_moves_to_the_next_beat(self):
+        self.offer()
+        H.hail_accept(self.ship)
+        self._press({"hail_kind": "advance", "hail_ship": self.ship,
+                     "hail_seq": H.hail_seq(self.ship)}, self.comms)
+        self.assertEqual(H.hail_beat(self.ship).speaker, "vell")
+
+    def test_a_stale_continue_cannot_skip_a_line(self):
+        # Two officers pressing Continue in the same frame must not skip a beat
+        # between them.
+        self.offer()
+        H.hail_accept(self.ship)
+        stale = H.hail_seq(self.ship) - 1
+        self._press({"hail_kind": "advance", "hail_ship": self.ship,
+                     "hail_seq": stale}, self.comms)
+        self.assertEqual(H.hail_beat(self.ship).speaker, "ashfang")
 
     def test_a_press_with_no_item_does_not_raise(self):
         FrameContext.task = _FakeTask()
