@@ -98,27 +98,28 @@ def _hail_may_answer_here(client_id):
 
 
 # --- the press handler ------------------------------------------------------
-def _hail_view_press():
+def _hail_view_press(event, item):
     """Every button in the feature presses through here.
 
-    ONE module-level callable, never a per-iteration closure and never a MAST label. A
-    closure would capture the loop variable and a label handler would `task.jump()`,
-    hijacking the `//gui/normal_comm` route task that is only trying to paint itself.
-    Which button was pressed comes from `__ITEM__.data`, which the button carries.
+    Attached with `gui_message_callback`, NOT with `on_press`, and that is the whole
+    reason these buttons work. `on_press` routes through MessageHandler, which begins by
+    writing `__ITEM__` onto the task that BUILT the widget - and a `//gui/<console>`
+    route body is a sub-task that `task_all(..., sub_tasks=True)` polls to completion, so
+    that task is finished by the time anyone clicks. `on_message_cb` is invoked from the
+    LAYOUT pass instead (Column.on_message), inside the live GUI task, and hands the
+    widget straight to the callback - no task variable in the path at all. The
+    placement drop-down beside this strip always worked for exactly this reason.
 
-    The data keys are `hail_`-prefixed because a dict `data` is ALSO splatted into the
-    task's variables - unprefixed `ship` or `index` would quietly overwrite the
-    console's own.
+    ONE module-level callable, never a per-iteration closure: a closure would capture the
+    loop variable and every button would answer for the last one. Which button was
+    pressed comes from its own `data`.
     """
-    task = FrameContext.task
-    item = task.get_variable("__ITEM__") if task is not None else None
     data = getattr(item, "data", None) or {}
     ship = data.get("hail_ship")
-    # The console that BUILT this button, not whatever the frame reports. `//gui/...`
-    # route bodies run as sub-tasks that are polled to completion, so by the time a
-    # press arrives the building task is gone; and a server-rendered frame reports
-    # client 0, which would fail the comms-console check for no visible reason.
-    client_id = data.get("hail_client") or FrameContext.client_id
+    # The console that BUILT this button. A server-rendered frame reports client 0,
+    # which would fail the comms-console check with nothing to show for it.
+    client_id = (data.get("hail_client") or getattr(event, "client_id", None)
+                 or FrameContext.client_id)
     if data.get("hail_kind") == "accept":
         hail_accept(ship, data.get("hail_id"), client_id)
     elif data.get("hail_kind") == "advance":
@@ -146,6 +147,7 @@ def hail_choice_strip(ship, client_id=None, style=None):
     """
     from .row import gui_row
     from .button import gui_button
+    from .message import gui_message_callback
 
     if client_id is None:
         client_id = FrameContext.client_id
@@ -157,11 +159,11 @@ def hail_choice_strip(ship, client_id=None, style=None):
             return 0
         for record in pending:
             gui_row(row_style)
-            gui_button(_hail_label(hail_answer_label(record)),
-                       data={"hail_kind": "accept", "hail_ship": ship,
-                             "hail_client": client_id,
-                             "hail_id": record.get("id")},
-                       on_press=_hail_view_press, is_sub_task=True)
+            button = gui_button(_hail_label(hail_answer_label(record)),
+                                data={"hail_kind": "accept", "hail_ship": ship,
+                                      "hail_client": client_id,
+                                      "hail_id": record.get("id")})
+            gui_message_callback(button, _hail_view_press)
         return len(pending)
 
     if hail_more(ship):
@@ -172,11 +174,11 @@ def hail_choice_strip(ship, client_id=None, style=None):
         if not _hail_may_answer_here(client_id):
             return 0
         gui_row(row_style)
-        gui_button(_hail_label("Continue"),
-                   data={"hail_kind": "advance", "hail_ship": ship,
-                         "hail_client": client_id,
-                         "hail_seq": hail_seq(ship)},
-                   on_press=_hail_view_press, is_sub_task=True)
+        button = gui_button(_hail_label("Continue"),
+                            data={"hail_kind": "advance", "hail_ship": ship,
+                                  "hail_client": client_id,
+                                  "hail_seq": hail_seq(ship)})
+        gui_message_callback(button, _hail_view_press)
         return 1
 
     choices = hail_choices(ship)
@@ -184,11 +186,12 @@ def hail_choice_strip(ship, client_id=None, style=None):
         return 0
     for choice in choices:
         gui_row(row_style)
-        gui_button(_hail_label(choice.label),
-                   data={"hail_kind": "answer", "hail_ship": ship,
-                         "hail_client": client_id,
-                         "hail_index": choice.index, "hail_seq": choice.seq},
-                   on_press=_hail_view_press, is_sub_task=True)
+        button = gui_button(_hail_label(choice.label),
+                            data={"hail_kind": "answer", "hail_ship": ship,
+                                  "hail_client": client_id,
+                                  "hail_index": choice.index,
+                                  "hail_seq": choice.seq})
+        gui_message_callback(button, _hail_view_press)
     return len(choices)
 
 
@@ -382,13 +385,12 @@ def _hail_log_pick(event, item):
         hail_replay_start(client_id, entry.get("id"))
 
 
-def _hail_replay_back():
+def _hail_replay_back(event, item):
     """Leave the replay and go back to the list."""
     from ..hail import hail_replay_stop
-    task = FrameContext.task
-    widget = task.get_variable("__ITEM__") if task is not None else None
-    data = getattr(widget, "data", None) or {}
-    hail_replay_stop(data.get("hail_client") or FrameContext.client_id)
+    data = getattr(item, "data", None) or {}
+    hail_replay_stop(data.get("hail_client") or getattr(event, "client_id", None)
+                     or FrameContext.client_id)
 
 
 def hail_panel_history(cid, left=0, top=0, width=0, height=0):
@@ -414,8 +416,9 @@ def hail_panel_history(cid, left=0, top=0, width=0, height=0):
             hail_replay_stop(cid)          # the log rolled past it; fall through
         else:
             gui_row("row-height: 2em;")
-            gui_button(_hail_label("Back to hails"), data={"hail_client": cid},
-                       on_press=_hail_replay_back, is_sub_task=True)
+            back = gui_button(_hail_label("Back to hails"),
+                              data={"hail_client": cid})
+            gui_message_callback(back, _hail_replay_back)
             gui_row("row-height: 1fr;")
             gui_text_area(hail_transcript_text(entry))
             return

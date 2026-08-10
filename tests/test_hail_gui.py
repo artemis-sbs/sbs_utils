@@ -117,9 +117,11 @@ class HailViewBase(unittest.TestCase):
         patch(FACE, "gui_face", lambda f, style=None: t.append(("face", f)))
         patch(IMAGE, "gui_image_keep_aspect_ratio_center",
               lambda f, style=None: t.append(("image", f)))
-        patch(BUTTON, "gui_button",
-              lambda props, style=None, data=None, on_press=None, is_sub_task=False:
-              t.append(("button", props, data, on_press)))
+        def _btn(props, style=None, data=None, on_press=None, is_sub_task=False):
+            item = _FakeItem(data)
+            t.append(("button", props, data, item))
+            return item
+        patch(BUTTON, "gui_button", _btn)
 
         def _dd(props, style=None, var=None, data=None):
             item = _FakeItem(data)
@@ -234,8 +236,11 @@ class ChoiceStripTests(HailViewBase):
         self.open_to_choices()
         V.hail_choice_strip(self.ship, self.comms)
         handlers = {id(b[3]) for b in self.buttons()}
-        self.assertEqual(len(handlers), 1)
-        self.assertIs(self.buttons()[0][3], V._hail_view_press)
+        # Every button is wired to the SAME module-level callable - a per-iteration
+        # closure would make each one answer for the last.
+        cbs = [e[2] for e in self.trace if e[0] == "callback"]
+        self.assertEqual(len(cbs), 2)
+        self.assertEqual({id(c) for c in cbs}, {id(V._hail_view_press)})
 
     def test_each_button_carries_its_own_index(self):
         self.open_to_choices()
@@ -260,12 +265,9 @@ class ChoiceStripTests(HailViewBase):
 
 class PressDispatchTests(HailViewBase):
     def _press(self, data, client_id):
-        task = _FakeTask()
-        task.set_variable("__ITEM__", _FakeItem(data))
-        FrameContext.task = task
-        FrameContext.context.event.client_id = client_id
-        V._hail_view_press()
-        FrameContext.task = None
+        # Exactly how Column.on_message invokes it: (event, widget), from the LIVE gui
+        # task - no __ITEM__ and no dependence on the task that built the widget.
+        V._hail_view_press(FakeEvent(client_id=client_id), _FakeItem(data))
 
     def test_an_accept_press_opens_that_hail(self):
         hid = self.offer()
@@ -311,10 +313,8 @@ class PressDispatchTests(HailViewBase):
                      "hail_seq": stale}, self.comms)
         self.assertEqual(H.hail_beat(self.ship).speaker, "ashfang")
 
-    def test_a_press_with_no_item_does_not_raise(self):
-        FrameContext.task = _FakeTask()
-        V._hail_view_press()
-        FrameContext.task = None
+    def test_a_press_with_no_data_does_not_raise(self):
+        V._hail_view_press(FakeEvent(client_id=self.comms), _FakeItem(None))
 
 
 class PlacementDialTests(HailViewBase):
@@ -450,11 +450,8 @@ class HistoryPanelTests(HailViewBase):
     def test_back_leaves_the_replay(self):
         self._archive(1)
         H.hail_replay_start(self.comms, H.hail_log(self.ship)[0].id)
-        task = _FakeTask()
-        task.set_variable("__ITEM__", _FakeItem({"hail_client": self.comms}))
-        FrameContext.task = task
-        V._hail_replay_back()
-        FrameContext.task = None
+        V._hail_replay_back(FakeEvent(client_id=self.comms),
+                            _FakeItem({"hail_client": self.comms}))
         self.assertIsNone(H.hail_replaying(self.comms))
 
     def test_a_replay_of_a_conversation_that_rolled_off_falls_back_to_the_list(self):
