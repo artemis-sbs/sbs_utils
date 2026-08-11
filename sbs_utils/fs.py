@@ -232,7 +232,13 @@ def get_mission_dir_filename(filename):
     Returns:
         str: The full path to the file in the mission directory.
     """
-    return get_script_dir()+"\\"+filename        
+    # os.path.join, not a hardcoded backslash. On Windows the two are identical,
+    # so nothing the engine sees changes. On POSIX they are not: a hardcoded "\\"
+    # is an ordinary character, so `os.path.dirname` of the result silently
+    # returns the mission's PARENT - which is how a media pack went undiscovered
+    # and a lookup fell back to the wrong folder, on CI only, where this library's
+    # host-side tooling and tests actually run.
+    return os.path.join(get_script_dir(), filename)
 
 
 #
