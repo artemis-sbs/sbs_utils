@@ -74,8 +74,11 @@ def amd_include_expand(text, base_dir):
     crlf = "\r\n" in text
     body = text.replace("\r\n", "\n")
     report = []
+    fenced = _fenced_spans(body)
 
     def sub(m):
+        if _inside(m.start(), fenced):
+            return m.group(0)
         directive = m.group("directive").strip()
         fresh = "\n" + amd_include_render(directive, base_dir).rstrip("\n") + "\n"
         report.append((directive, fresh != m.group("body")))
@@ -84,6 +87,33 @@ def amd_include_expand(text, base_dir):
 
     body = RE_BLOCK.sub(sub, body)
     return (body.replace("\n", "\r\n") if crlf else body), report
+
+
+RE_FENCE = re.compile(r"^[ \t]*(?P<ticks>`{3,}|~{3,})", re.MULTILINE)
+
+
+def _fenced_spans(body):
+    """`[(start, end)]` for every fenced code block.
+
+    A MARKER INSIDE A FENCE IS AN EXAMPLE, NOT AN INSTRUCTION. The page that documents
+    this syntax has to show it, and without this the generator reads its own
+    documentation as work to do - then fails, because the example names a file that
+    exists in some other repo. Anything explaining the marker hits this."""
+    spans, open_at, fence = [], None, None
+    for m in RE_FENCE.finditer(body):
+        ticks = m.group("ticks")
+        if open_at is None:
+            open_at, fence = m.start(), ticks[0] * 3
+        elif ticks.startswith(fence):
+            spans.append((open_at, m.end()))
+            open_at, fence = None, None
+    if open_at is not None:
+        spans.append((open_at, len(body)))
+    return spans
+
+
+def _inside(pos, spans):
+    return any(start <= pos < end for start, end in spans)
 
 
 def amd_include_render(directive, base_dir):
@@ -103,9 +133,12 @@ def amd_include_render(directive, base_dir):
 
 
 def amd_include_directives(text):
-    """Every directive in a page, in order. For `--check` and for reporting."""
-    return [m.group("directive").strip()
-            for m in RE_BLOCK.finditer(text.replace("\r\n", "\n"))]
+    """Every live directive in a page, in order - examples inside a code fence
+    excluded, same as `amd_include_expand`. For `--check` and for reporting."""
+    body = text.replace("\r\n", "\n")
+    fenced = _fenced_spans(body)
+    return [m.group("directive").strip() for m in RE_BLOCK.finditer(body)
+            if not _inside(m.start(), fenced)]
 
 
 # --- excerpt: quote the source, exactly ------------------------------------

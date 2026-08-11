@@ -127,6 +127,7 @@ nav:
     - Debugging your mission: tooling/mast-debugger.md
     - AMD authoring tools: tooling/amd-tools.md
     - Printing a mission (sbs docs): tooling/amd-docs.md
+    - Publishing AMD (sbs site): tooling/site.md
     - Checking your setup (sbs doctor): tooling/doctor.md
     - GUI Editor: tooling/gui-editor.md
     - Serving web pages: tooling/web-proxy.md

@@ -273,6 +273,50 @@ class TestTheSplice(_Fixture):
                          ["fields quest --only objective"])
 
 
+class TestDocumentingTheSyntax(_Fixture):
+    """A marker inside a code fence is an EXAMPLE, not an instruction.
+
+    The page that documents this syntax has to show it. Without this the generator
+    reads its own documentation as work to do - and then fails, because the example
+    names a file that lives in some other repo. Found exactly that way."""
+
+    FENCED = ("Use it like this:\n\n"
+              "```markdown\n"
+              "<!-- amd:begin excerpt maps/bosses/warlord.amd#warlord -->\n"
+              "<!-- amd:end -->\n"
+              "```\n")
+
+    def test_a_marker_inside_a_fence_is_left_alone(self):
+        out, report = inc.amd_include_expand(self.FENCED, self.base)
+        self.assertEqual(out, self.FENCED)
+        self.assertEqual(report, [])
+
+    def test_it_is_not_listed_as_a_directive_either(self):
+        self.assertEqual(inc.amd_include_directives(self.FENCED), [])
+
+    def test_a_real_marker_after_a_fence_still_runs(self):
+        page = (self.FENCED + "\n"
+                "<!-- amd:begin fields quest --only objective -->\n"
+                "old\n"
+                "<!-- amd:end -->\n")
+        out, report = inc.amd_include_expand(page, self.base)
+        self.assertEqual(len(report), 1)
+        self.assertIn("`Objective:`", out)
+        self.assertIn("maps/bosses/warlord.amd", out)   # the example, untouched
+        self.assertNotIn("old", out)
+
+    def test_a_tilde_fence_counts_too(self):
+        page = "~~~\n<!-- amd:begin fields quest -->\n<!-- amd:end -->\n~~~\n"
+        self.assertEqual(inc.amd_include_directives(page), [])
+
+    def test_an_unclosed_fence_swallows_the_rest_of_the_page(self):
+        # Conservative on purpose: inside an unterminated fence everything reads as
+        # example text, so the generator does nothing rather than acting on what may
+        # be a listing.
+        page = "```\n<!-- amd:begin fields quest -->\n<!-- amd:end -->\n"
+        self.assertEqual(inc.amd_include_directives(page), [])
+
+
 class TestTableBuilder(_Fixture):
     def test_a_pipe_in_a_cell_is_escaped(self):
         out = inc.amd_table([("A", "B"), ("x|y", "z")])
