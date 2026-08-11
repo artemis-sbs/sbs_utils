@@ -120,30 +120,39 @@ The engine learns your ships from **your own file**, in the media pack:
     missing `hull_port_sets` or `torpedostart` has **crashed the engine at load**. This is
     not a place to be minimal.
 
-Hand it to the engine from your add-on:
+Name it from your add-on. One line, nothing written:
 
 ```mast title="dw_races/__init__.mast"
 provides dw_races
 
-dw_ships_file = media_shared("dw_ships.yaml")
-sbs.add_extra_ship_data("dw_ships", dw_pack_dir(dw_ships_file))
+ship_data_add_extra("dw_races/dw_ships", mod="dw_races")
 ```
 
-`add_extra_ship_data(name, folder)` takes the name **without an extension** — the engine
-tries `.yaml` then `.json` itself, so you can change format without changing the call.
+The name takes **no extension** — the engine tries `.yaml` then `.json` itself, so you
+can change format without changing the call. It may include a logical folder, and with
+no path it is looked for where the media system already looks: this mission, then each
+media pack it pinned.
 
-!!! note "Two consumers, not one"
-    That call tells the **engine**. It does not populate sbs_utils' own ship table, which is
-    what `filter_ship_data_by_side` (how a prefab finds a hull) and `get_ship_name` (what a
-    console displays) read. So a mod also calls `merge_mod_ship_yaml` with the same text.
-    Guard it with a presence check — headless already merges, the engine does not, and one
-    guard covers both.
+!!! tip "Put the file in your media pack, not your mastlib"
+    A mastlib is a **zip**, and the engine cannot read inside one. A media pack is
+    unpacked to disk once, so the engine can be handed a real folder. This is the whole
+    reason the older route had to generate a file.
 
-!!! warning "Do not generate `extraShipData.json`"
-    There is an older route that reaches the engine by writing `extraShipData.json` into the
-    *mission* folder. It works, but the file stays on disk, and on the next run the library
-    reads it back **and** your add-on merges the same entries again — measured at 51 hulls
-    becoming 102 from run 2 onward. Point the engine at your own file and write nothing.
+!!! note "Two consumers, one call"
+    Your ships have to reach **two** places: the engine (which resolves `artfileroot`,
+    and is what makes a `behav_station` fire at all) and sbs_utils' own table (which is
+    what `filter_ship_data_by_side` and `get_ship_name` read, and what headless and the
+    mock use). `ship_data_add_extra` does both from the one file, so they cannot drift.
+
+    Turning the engine half off with `ship_data_extra_enable(False)` leaves the library
+    merge in place, so headless keeps behaving identically.
+
+!!! warning "Do not use `ship_data_merge_mod` — it is broken"
+    The older route reaches the engine by **generating** `extraShipData.json` in the
+    *mission* folder. That file stays on disk, and on the next run `get_ship_data()`
+    prepends it whole — `#mod` entries and all — while your add-on declares the same
+    entries again. Measured at **51 hulls becoming 102** from run 2 onward. The file the
+    feature generates is the input that breaks it.
 
 ## Races
 

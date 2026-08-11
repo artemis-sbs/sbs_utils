@@ -1403,5 +1403,62 @@ and took its hit area with it.
 
 ---
 
+## 📄 Read your mission on paper — `sbs docs`
+
+Your `.amd` files hold the quests, the dialogue, the cast, the lore. Until now the only
+thing that could read them was the game, so reviewing a script meant opening a code
+editor.
+
+```
+sbs docs . --lens all --pdf
+```
+
+**Four editions**, because an `.amd` file is a different document depending on who is
+reading it: **prose** (a manual or story book), **catalog** (a sourcebook, where every
+field is rendered as its *type* — a color as a swatch, a reference as a working link),
+**screenplay** (a script you could read aloud), and **bible** (the quest spine, its
+triggers, and a map of the branches).
+
+`--profile player` leaves out everything a player should never see — author notes,
+the condition on a dialogue choice, what a choice secretly costs — and genuinely leaves
+it out of the file, so you can hand the PDF to someone. The bible has no player profile
+and says so: the bible *is* the spoiler.
+
+PDFs need no extra install; `--pdf` drives the headless browser you already have.
+Character faces composite properly into the page. See [Printing a
+mission](tooling/amd-docs.md).
+
+## 🩺 `sbs doctor` — check your setup
+
+Reports what is installed, what a mission expects, and what is missing — with the
+command that fixes each one. It checks your *setup*, never your writing; for that there
+is still `sbs lint`. See [Checking your setup](tooling/doctor.md).
+
+## 🚢 Add-on ships: a file that exists, not a file that gets written
+
+An add-on that adds hulls used to hand the library its ship data and let the library
+**generate** `extraShipData.json` in your mission folder just before the sim was
+created. That route is now known **broken**: the generated file stays on disk, and on
+the next run `get_ship_data()` prepends it whole while the add-on declares the same
+entries again — measured at **51 hulls becoming 102** from run 2 onward.
+
+Now an add-on ships its ship data in its **media pack** and names it:
+
+```
+ship_data_add_extra("turrets/extraShipData_turrets", mod="MyMod")
+```
+
+One call points **both** readers at that one file: the engine (which resolves
+`artfileroot`, and is what makes a `behav_station` fire at all) and sbs_utils' own table
+(which is what `filter_ship_data_by_side` and headless use). Nothing is written.
+
+It has to be a media pack rather than a mastlib because a mastlib is a **zip** and the
+engine cannot read inside one — which is exactly what the writing was working around.
+
+**If you maintain a mod that calls `ship_data_merge_mod`, move it.** See [Making a
+mod](build/making-a-mod.md).
+
+---
+
 *Thanks for playing, building, and tinkering. There's more under the hood than ever
 — go build something great.* 🚀

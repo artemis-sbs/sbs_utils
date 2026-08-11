@@ -93,7 +93,8 @@ the pack still builds from the real art.
 
 A pack is the natural home for **anything the engine opens directly**, because it unpacks to
 a real folder on disk and a `.mastlib` is a zip. A mod puts its **ship data** there as well
-as its meshes, and points the engine at it with `sbs.add_extra_ship_data`. See
+as its meshes, and names it with `ship_data_add_extra` — which points both the engine
+and sbs_utils at that one file, with nothing written. See
 [Making a mod](making-a-mod.md).
 
 ## Things worth knowing
