@@ -286,12 +286,26 @@ def _compound(value, d, ctx):
 
 
 def amd_markdown_blocks(blocks, ctx, depth=0):
-    """Typed blocks -> markdown, in order."""
-    out = []
+    """Typed blocks -> markdown, in order.
+
+    A RUN OF CHOICES IS ONE LIST. Each choice is its own block, so separating them by a
+    blank line the way every other pair of blocks is separated turns a menu of three
+    options into three one-item lists - which is both wrong about the fiction and looks
+    wrong. Joining the run is an ORDER decision, which is what this module owns."""
+    out, run = [], []
     for block in blocks or ():
         piece = _block(block, ctx, depth)
-        if piece:
-            out.append(piece)
+        if not piece:
+            continue
+        if block.get("type") == "choice":
+            run.append(piece)
+            continue
+        if run:
+            out.append("\n".join(run))
+            run = []
+        out.append(piece)
+    if run:
+        out.append("\n".join(run))
     return "\n\n".join(out)
 
 
