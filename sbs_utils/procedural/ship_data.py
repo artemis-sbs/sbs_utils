@@ -312,6 +312,9 @@ def ship_data_reset_for_mission():
     global ship_data_cache
     ship_data_cache = None
     reset_ship_data_caches()
+    # The record of which extra files were loaded belongs to the mission that
+    # loaded them; carried over, a soak run reports the previous mission's.
+    ship_data_extra_reset()
 
 
 def ship_data_is_loaded() -> int:
@@ -727,3 +730,101 @@ def torgoth_ship_keys():
         torgoth_ship_keys_cache =filter_ship_data_by_side(None, "Torgoth", "ship", True)
     return torgoth_ship_keys_cache
 
+
+
+# --- the engine's extra-ship-data hook, wrapped ------------------------------
+# `sbs.add_extra_ship_data(filename, path)` (engine 1.3.5) points the engine at a
+# second ship-data file for this mission. It was being called RAW from mission
+# code, which left three problems with nowhere to live:
+#
+#   * it is newer than some engines a mission may meet, so a bare call is an
+#     AttributeError on an older one;
+#   * it is not fully landed, and there is no way to stop using it without
+#     editing every caller;
+#   * the ENGINE learning about the ships and SBS_UTILS learning about them are
+#     two different things, and a mission needs both - the library is what
+#     answers `get_ship_data_for`, drives the mock, and fills in stats headless.
+#
+# So this always merges into the library's own list, and gates only the engine
+# call. Turning it off therefore costs you the engine-side effects (art, and
+# anything the engine resolves itself) and keeps the stats - which is the same
+# split the runtime-mod work already measured: stats travel through the library,
+# artfileroot does not.
+
+_EXTRA_SHIP_DATA_ENGINE = True      # is the engine call allowed?
+_extra_ship_data_loaded = []        # (filename, path, reached_engine) per call
+
+
+def ship_data_extra_enable(enabled=True):
+    """Allow or forbid the ENGINE side of `ship_data_add_extra`.
+
+    Off, the ships are still merged into sbs_utils, so headless runs and every
+    library lookup behave the same; only the engine is not told. Use it to take
+    the engine path out of play without touching any caller."""
+    global _EXTRA_SHIP_DATA_ENGINE
+    _EXTRA_SHIP_DATA_ENGINE = bool(enabled)
+    return _EXTRA_SHIP_DATA_ENGINE
+
+
+def ship_data_extra_enabled():
+    """Is the engine call currently allowed?"""
+    return _EXTRA_SHIP_DATA_ENGINE
+
+
+def ship_data_extra_loaded():
+    """`[(filename, path, reached_engine)]` for every call so far, so a report can
+    say what was loaded and whether the engine actually heard about it."""
+    return list(_extra_ship_data_loaded)
+
+
+def ship_data_extra_reset():
+    """Forget the record. Called by the per-mission reset, not by missions."""
+    _extra_ship_data_loaded.clear()
+
+
+def ship_data_add_extra(filename, path=None, mod=None):
+    """Load another ship-data file for this mission.
+
+    `filename` has **no extension** - the engine tries `.yaml` then `.json`
+    itself, which is the more useful form because a mod can change format
+    without the caller changing. `path` defaults to this mission's folder, so
+    the common case is one argument.
+
+    Returns True when the engine was told, False when only the library was.
+    Missing files are not fatal, matching the engine's habit: a mod with a
+    broken path should be a ship with no stats, not a dead mission."""
+    if path is None:
+        path = get_mission_dir()
+    reached = False
+
+    text = _read_extra_ship_data(filename, path)
+    if text is not None:
+        merge_mod_ship_yaml(text, mod or "add_extra_ship_data")
+
+    if _EXTRA_SHIP_DATA_ENGINE:
+        try:
+            import sbs
+            sbs.add_extra_ship_data(str(filename), str(path))
+            reached = True
+        except AttributeError:
+            # Older engine. The library merge above already happened, so the
+            # ships exist as far as sbs_utils is concerned.
+            pass
+        except Exception as e:                  # noqa: BLE001
+            from .execution import log
+            log(f"add_extra_ship_data({filename}) failed: {e}", "ship_data", "warning")
+
+    _extra_ship_data_loaded.append((str(filename), str(path), reached))
+    return reached
+
+
+def _read_extra_ship_data(filename, path):
+    """The file's text, trying the same extensions the engine tries, or None."""
+    stem = os.path.join(str(path), str(filename))
+    for candidate in (stem, stem + ".yaml", stem + ".json"):
+        try:
+            with open(candidate, "r", encoding="utf-8") as f:
+                return f.read()
+        except OSError:
+            continue
+    return None
