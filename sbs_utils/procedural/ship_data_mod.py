@@ -1,5 +1,35 @@
 """Let an addon declare ships the ENGINE will know, with no build step.
 
+SUPERSEDED. Use :func:`sbs_utils.procedural.ship_data.add_extra` instead - an addon
+SHIPS a ship-data file in its media pack and names it, and nothing is written at
+any point::
+
+    add_extra("turrets/extraShipData_turrets", mod="MyMod")
+
+This route is kept working for anything that still calls it, and should not be
+used by anything new.
+
+WHY IT WAS SUPERSEDED - and note this contradicts a guarantee made further down
+this docstring, which was true of the writer and false of the loader. There are
+TWO readers of `extraShipData.json` and only one of them drops mod entries:
+
+* the FLUSH's reader (`_read_mission_entries`) drops `#mod` entries before
+  merging, so flushing twice really is not additive - that much held;
+* `ship_data.get_ship_data()` prepends the file's whole `#ship-list`
+  **unconditionally**, `#mod` and all.
+
+So run 1 writes N generated entries to disk, and run 2 loads those N back AND the
+addon declares the same N again. Measured on the TNG mod: 51 hulls became 102 from
+the second run onward. The file the feature generates is the input that breaks it,
+and no amount of care in the writer can fix a loader that does not know to ignore
+its output.
+
+The replacement avoids the class entirely by never writing: a media pack is
+unpacked to disk once, so the engine can be handed a real folder, and the same
+file is merged into the library. A mastlib cannot serve this because it is a zip
+and the engine cannot read inside one - which is what the writing was working
+around in the first place.
+
 THE RULE THIS IS BUILT ON, measured rather than assumed: the engine reads a mission's
 `extraShipData.json` **inside `create_new_sim()`**. Not at executable start, not at mission
 load - at sim creation. Confirmed on engine 1.3.4 with a file that did not exist when
@@ -29,8 +59,10 @@ WHAT IT WILL NOT DO:
 
 * **Overwrite a hand-authored file.** A mission's own entries are read, kept, and win any
   key collision - the mod's version is dropped and reported by name.
-* **Accumulate across runs.** Generated entries carry ``#mod``, and the reader drops those
-  before merging, so flushing twice is not additive.
+* **Accumulate across runs** *when only the flush is looked at*. Generated entries carry
+  ``#mod`` and the FLUSH's reader drops them, so writing twice is not additive. This does
+  NOT hold end to end: ``get_ship_data()`` is a different reader and prepends the file
+  whole, so the entries come back on the next run anyway. See SUPERSEDED, above.
 * **Write when nothing asked for it.** No mod entries, no file touched.
 * **Touch `data/shipData.yaml`.** Ever. That is the game's own table.
 """
@@ -71,6 +103,14 @@ _last_written = None   # the exact text last written, so a re-flush is a no-op
 
 def ship_data_merge_mod(content, mod=None):
     """Declare ship entries for the engine, from JSON/YAML text.
+
+    .. deprecated::
+        Use :func:`sbs_utils.procedural.ship_data.add_extra`, which points both the
+        engine and the library at a file the addon SHIPS rather than generating one.
+        This route reaches the engine by writing ``extraShipData.json``, which
+        ``get_ship_data()`` then loads back on the next run while the addon declares
+        the same entries again - measured at 51 hulls becoming 102 from run 2. Kept
+        working for existing callers.
 
     Pair with ``media_read_relative_file`` so it works from a packaged ``.mastlib``::
 

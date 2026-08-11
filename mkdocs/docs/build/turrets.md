@@ -62,8 +62,18 @@ the market and the deploy route all discover it.
 Measured on 1.3.5 by `LM_TestRange/maps/test_turret_probe.mast` and friends.
 
 !!! warning "A turret must use a hull the mission ships itself"
-    A `behav_station` fires **only** from a hull declared through `ship_data_merge_mod`.
+    A `behav_station` fires **only** from a hull the mission declared to the engine.
     Stock starbase art produces a turret that never shoots.
+
+    The turret hulls live in `media/turrets/extraShipData_turrets.yaml` and are
+    registered with `ship_data_add_extra`, which points the engine and the library at
+    the same file. They ride the **media pack** rather than the turrets mastlib
+    because a mastlib is a zip and the engine cannot read inside one; a media pack is
+    unpacked to disk once, so the engine can be handed a real folder.
+
+    Do **not** use `ship_data_merge_mod` for this. It reaches the engine by generating
+    `extraShipData.json`, which `get_ship_data()` then loads back on the next run
+    while the addon declares the same entries again - 51 hulls became 102 from run 2.
 
 !!! warning "Beam stats are fixed at the hull"
     `beamRange` / `beamCount` / `beamDamage` are not readable or writable on a live object

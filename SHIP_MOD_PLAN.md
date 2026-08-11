@@ -1,5 +1,15 @@
 # Mod libraries - shipData, art, and the race as a unit
 
+> **Superseded in part (2026-08-11):** the RUNTIME route this doc measured -
+> `ship_data_merge_mod` plus the `sim_create()` flush - is now known broken end to
+> end, and addons use `ship_data.add_extra` instead. The flush's own reader drops
+> `#mod` entries, but `get_ship_data()` is a second reader that prepends the file
+> whole, so run 2 loads back what run 1 generated while the addon declares it again
+> (51 hulls -> 102, TNG). An addon now SHIPS its ship-data file in its media pack -
+> unpacked to disk, so the engine can be handed a folder - and nothing is written.
+> The s6a finding below (the engine reads the file inside `create_new_sim()`) still
+> holds and is what the replacement relies on.
+>
 > **Status: DEFERRED (2026-08-09) - by design, not by neglect.** Nothing in tiers 2 and 3 is
 > built: there is no `extraShipData` generator anywhere in `sbs_cli/src/`. Probes 5, 6 and 7
 > are unanswered, and **probe 7 is worth running while this stays parked** - it is cheap and
