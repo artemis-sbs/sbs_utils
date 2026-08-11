@@ -63,6 +63,17 @@ def objective_reset():
     __brain_tick_task = None
     __objectives_slice_task = None
 
+    # The registered end-game conditions are per-MISSION state too, and they are worse
+    # than a stale latch: each one holds a promise built around a specific object id, so
+    # after a restart they are watching objects the reset just deleted. A
+    # `destroyed_any(phoenix_id)` condition from the previous run resolves the instant it
+    # is next evaluated, and the fresh mission ends a few seconds in, reporting the OLD
+    # run's message ("Starbase Phoenix has been destroyed.") with no error anywhere.
+    # That is what made the results screen's replay button look like it did nothing.
+    global __end_game_promise, __end_game_ids
+    __end_game_promise = []
+    __end_game_ids = 100
+
 
 def objective_ticks_stale() -> bool:
     """True if we think the tick tasks are scheduled but the dispatcher has lost them.
@@ -121,6 +132,16 @@ def game_end_condition_remove(id):
     global __end_game_promise
     new_cond = [cond for cond in __end_game_promise if cond[0]!=id]
     __end_game_promise = new_cond
+
+
+def game_end_conditions_count() -> int:
+    """How many end-game conditions are registered.
+
+    Exists so the restart soak's reset audit can probe this container by name. An
+    unregistered container is invisible to that audit, which is why a --runs soak
+    reported STABLE while stale conditions were ending every replay early.
+    """
+    return len(__end_game_promise)
 
 
 def game_end_run_all(tt):

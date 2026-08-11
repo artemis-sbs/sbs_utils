@@ -433,6 +433,12 @@ register_reset_state("brain.stalled",
 # task means brains and objectives are dead for the rest of the process.
 register_reset_state("objective.ticks_stale",
                      lambda: 1 if __import__("sbs_utils.procedural.objective", fromlist=["x"]).objective_ticks_stale() else 0)
+# A real container, not a latch: every registered end condition holds a promise around a
+# specific object id, so a survivor watches an object the reset already deleted and
+# resolves the moment it is evaluated. That ended each REPLAY about three seconds in,
+# quoting the previous run's message, with nothing in any log.
+register_reset_state("game end conditions",
+                     lambda: __import__("sbs_utils.procedural.objective", fromlist=["x"]).game_end_conditions_count())
 # The urge ticker's latch, for the same reason: set-but-unscheduled means no actor ever
 # speaks again, with no error to show for it.
 register_reset_state("urge.ticks_stale",
