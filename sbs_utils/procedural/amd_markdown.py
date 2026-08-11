@@ -205,7 +205,7 @@ def amd_markdown_facts(node, ctx):
     fields = _fence_fields(node)
     if not fields:
         return ""
-    arch = (node.data or {}).get("__kind__")
+    arch = _archetype(node, fields)
     traits = tuple(amd_schema.amd_traits_of(node.data or {}) or ())
 
     canonical = [(amd_schema.amd_canonical_label(label, arch, traits) or label, value)
@@ -219,6 +219,24 @@ def amd_markdown_facts(node, ctx):
     for _i, (label, value) in ranked:
         rows.append((_title(label), _fact_value(label, value, arch, traits, ctx)))
     return _table(rows)
+
+
+def _archetype(node, fields):
+    """What KIND of record this is - declared if it says so, inferred if not.
+
+    Most records never write a bare kind line: a beat under `## Narrative` is a quest
+    because of the words in its fence, and `infer_archetype` is the function that knows
+    that. Reading `__kind__` alone leaves the archetype None for those, and then nothing
+    resolves - `State:` stays `State:` instead of `At start:`, and `Then: reveal x`
+    renders as flat text instead of a link to x. The whole typed layer silently switches
+    off for exactly the records that make up most of a story."""
+    declared = (node.data or {}).get("__kind__")
+    if declared:
+        return declared
+    parent = getattr(node, "parent", None)
+    section = getattr(parent, "key", None) if parent is not None else None
+    return amd_schema.infer_archetype([label for label, _v in fields],
+                                      section_key=section)
 
 
 def _fence_fields(node):

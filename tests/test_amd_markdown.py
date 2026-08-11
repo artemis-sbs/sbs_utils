@@ -174,6 +174,33 @@ class TestFacts(unittest.TestCase):
         out, _ = _render("# [Bare](bare)\nJust prose.\n", rel="bare.amd")
         self.assertNotIn("| Fact |", out)
 
+    def test_the_kind_is_inferred_when_the_record_does_not_declare_one(self):
+        """Most records never write a bare kind line.
+
+        A beat under `## Narrative` is a quest because of the words in its fence, and
+        reading `__kind__` alone leaves the archetype None for every one of those -
+        which silently switches the whole typed layer off for the records that make up
+        most of a story. `State:` stays `State:` instead of `At start:`, and
+        `Then: reveal x` renders as flat text instead of a link to x."""
+        source = ("# [Narrative](narrative)\n\n"
+                  "## [A Cold Lane](beat_1)\n"
+                  "---\n"
+                  "Scope: shared\n"
+                  "State: active\n"
+                  "Done when: reach -4, 2\n"
+                  "Then: reveal beat_2\n"
+                  "---\n"
+                  "Prose.\n\n"
+                  "## [Ash on the Manifest](beat_2)\n"
+                  "---\n"
+                  "Scope: shared\n"
+                  "---\n"
+                  "More prose.\n")
+        out, _ = _render(source, rel="story.amd")
+        self.assertIn("| At start |", out)          # canonicalized
+        self.assertNotIn("| State |", out)
+        self.assertIn("`reveal` [Ash on the Manifest](#narrative-beat-2)", out)
+
 
 class TestThePlayerProfile(unittest.TestCase):
     """A hard filter, not a stylesheet class."""
