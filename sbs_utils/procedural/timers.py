@@ -82,8 +82,10 @@ def timer_add_time(id_or_obj, name, seconds=0, minutes=0):
         return
     if time <= 0:
         return
-    time = time + seconds + (minutes * 60)
-    set_inventory_value(id_or_obj, f"__timer__{name}", time)
+    seconds += minutes*60
+    new_time = time + seconds
+    new_time *= TICK_PER_SECONDS
+    set_inventory_value(id_or_obj, f"__timer__{name}", new_time)
     signal_emit("timer_updated", {"id":id_or_obj, "timer_name":name})
 
 
