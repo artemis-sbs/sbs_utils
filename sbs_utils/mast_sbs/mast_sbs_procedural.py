@@ -99,6 +99,11 @@ MastGlobals.import_python_module('sbs_utils.procedural.amd_mission')
 MastGlobals.import_python_module('sbs_utils.procedural.amd_overlay')
 MastGlobals.import_python_module('sbs_utils.procedural.amd_drops')
 MastGlobals.import_python_module('sbs_utils.procedural.markers')
+# Particle effects. Registered HERE for the same reason as amd_cutscene below: this is
+# the ONLY thing that makes a function callable from MAST, and every caller of this
+# layer (a //damage route, a jump label, a prefab) writes MAST.
+MastGlobals.import_python_module('sbs_utils.procedural.particles')
+MastGlobals.import_python_module('sbs_utils.procedural.amd_effects')
 # Declarative cinematics. Registered HERE because that is the only thing that makes
 # a function callable from MAST - importing it in a mission's own .py does NOT (the
 # mission's imports are not merged into the global namespace, only the functions it

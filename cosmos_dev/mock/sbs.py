@@ -76,13 +76,37 @@ _BEAM_DEFAULT_PLAYER = 8.5
 # Behavior dispatch: tick_type string → callable(space_object, dt_seconds)
 _behavior_registry: dict = {}
 
+# Particle emitters: bookkeeping ONLY, no rendering.
+#
+# The engine owns the picture (and owns explosions, exhaust and impact flashes
+# outright - do not model those here or anywhere else). What the mock owes is the
+# handle contract the API documents, so an emitter that is never deleted shows up
+# in a test instead of in a playtest. Ids start at 1 because 0 is falsy.
+_emittors: dict = {}
+_emittor_next: list = [1]
+
 
 def add_client_tag() -> None:
     """stub; does nothing yet."""
 
 def add_particle_emittor(spaceObject: space_object, lifeSpan: int, descriptorString: str) -> int:
-    """creates a complex particle emittor and attaches it to a space object."""
-    return 0
+    """creates a complex particle emittor and attaches it to a space object.
+
+    Mock note: particles are client-render-only, so there is nothing to draw here.
+    What IS modeled is the BOOKKEEPING the API's own docstrings promise - handing
+    out a real handle, honoring delete, and answering particle_emittor_exists - so
+    a lifecycle or leak bug is catchable headlessly. It used to return a constant
+    0, which is falsy: every `if emittor_id:` cleanup silently skipped under test.
+    """
+    eid = _emittor_next[0]
+    _emittor_next[0] = eid + 1
+    _emittors[eid] = {
+        "id": eid,
+        "obj_id": getattr(spaceObject, "unique_ID", None),
+        "life": lifeSpan,
+        "desc": descriptorString,
+    }
+    return eid
 
 def app_milliseconds() -> int:
     global seconds
@@ -236,6 +260,10 @@ def create_new_sim() -> None:
     # stale nodes on top of the new ones (e.g. a fresh 3-node ship reading 7). Blank it so a new
     # sim starts with no grid state.
     hull_map_objects.clear()
+    # Particle emitters die with the sim they were attached to. The id counter is NOT
+    # reset: a recycled handle would let a stale delete_particle_emittor from the old
+    # mission reach into the new one's table.
+    _emittors.clear()
     return sim
 
 
@@ -262,6 +290,7 @@ def _register_reset_probes() -> None:
     register_reset_state("mock.active_ids",       lambda: len(sim._active_ids) if sim else 0)
     register_reset_state("mock.terrain_ids",      lambda: len(sim._terrain_ids) if sim else 0)
     register_reset_state("mock.nav_points",       lambda: len(sim.nav_points) if sim else 0)
+    register_reset_state("mock.particle_emittors", lambda: len(_emittors))
 
 
 _register_reset_probes()
@@ -302,7 +331,13 @@ def delete_grid_object(spaceObjectID: int, gridObjID: int) -> None:
                 break
 
 def delete_object(ID: int) -> None:
-    """deletes a space object by its ID"""
+    """deletes a space object by its ID
+
+    Mock note: this deliberately does NOT reap that object's particle emitters.
+    Whether the engine does is unverified, and leaving them is what gives the
+    library's emitter janitor something to reconcile - reap them here and the
+    test that proves the janitor works passes for the wrong reason.
+    """
     global sim
     if sim is not None:
         with sim._lock:
@@ -312,7 +347,11 @@ def delete_object(ID: int) -> None:
         _orphan_clients_of_ship(ID)
 
 def delete_particle_emittor(emittorID: int) -> None:
-    """deletes a particle emittor by ID."""
+    """deletes a particle emittor by ID.
+
+    An unknown id is a silent no-op, so double-deleting cannot throw.
+    """
+    _emittors.pop(emittorID, None)
 
 def distance(arg0: space_object, arg1: space_object) -> float:
     """returns the distance between two space objects; arguments are two spaceObjects"""
@@ -804,7 +843,14 @@ def particle_at(position: vec3, descriptorString: str) -> None:
 
 def particle_emittor_exists(emittorID: int) -> bool:
     """checks for the existence of a particle emittor."""
-    return False
+    return emittorID in _emittors
+
+def particle_emittors() -> dict:
+    """Mock-only: the live emitter table, so a test can assert nothing leaked.
+
+    Not part of the engine API - never call this from library or mission code.
+    """
+    return dict(_emittors)
 
 def particle_on(spaceObject: space_object, descriptorString: str) -> None:
     """emit some particles in space from a space object."""

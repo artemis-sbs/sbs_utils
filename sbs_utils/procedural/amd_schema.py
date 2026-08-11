@@ -497,11 +497,44 @@ DROP = {
     "drops": text(hint="salvage x2-4, contraband 20%   (or `none`)"),
 }
 
+# A LOOK: a named particle effect, referenced by many records.
+#
+# An archetype rather than a trait, because a look is a whole thing with a name that
+# several records point AT - two sides can share one, a derelict can wear the one a
+# quest marker uses. A trait adds fields to a record that already exists, which would
+# mean authoring the look inside each side and copying it to share it.
+#
+# `Look:` names a Python preset (procedural/particles.py) as the BASE; every other
+# field overrides it. So the built-in table stays the library and this is how an
+# author varies it, rather than the two duplicating each other.
+#
+# A ramp is written `A -> B`, the same arrow a cutscene `Move:` already uses.
+EFFECT = {
+    "look": text(hint="a preset name: sparks, smoke, charge, ember"),
+    "size": text(hint="9, or 0.6 -> 2.0 to ramp"),
+    "count": text(hint="60, or 10 -> 80 to ramp"),
+    "speed": text(hint="0, or 0.5 -> 3.0 to ramp"),
+    "lifespan": integer(hint="how long ONE particle lives, in frames (30/sec)"),
+    "cell": field(text(hint="sprite cell 0-15: 4, or 0,3 for a random range"),
+                  key="image_cell", aka=("image cell",)),
+    # `hull` emits over the whole plating; the rest are the engine's own shape words.
+    "on": enum("hull", "point", "ring_x", "ring_y", "ring_z",
+               "cone_x", "cone_y", "cone_z", "line_x", "line_y", "line_z", open=True),
+    "offset": text(hint="0, 0, 200 - where a point emitter sits, or A -> B to close in"),
+    "smoke": boolean(),
+    "grows over": field(duration(hint="3.5 seconds"), key="ramp_seconds"),
+    "steps": integer(hint="how many stages a ramp is drawn in (default 6)"),
+    # `color` comes from GLOBAL - do NOT redeclare it here, and note a comma PAIR is
+    # the grammar's "random between", while `A -> B` on the other fields is a ramp.
+}
+
+
 ARCHETYPES = {
     "quest": QUEST, "lifeform": LIFEFORM, "item": ITEM, "side": SIDE,
     "scan": SCAN, "landmark": LANDMARK, "region": REGION, "map": MAP,
     "dialogue": DIALOGUE, "image": IMAGE,
     "cutscene": CUTSCENE, "urge": URGE, "drop": DROP,
+    "effect": EFFECT,
 }
 
 # TRAITS: a concern a record ALSO has, on top of what it is.
@@ -619,6 +652,9 @@ _SECTION_ALIASES = {
     "maps": "map", "map": "map",
     "dialogue": "dialogue", "lines": "dialogue",
     "urges": "urge", "urge": "urge",
+    # A LOOK. The kind line is the bare noun `Effect`, resolving here - NOT
+    # `Kind: effect`, which would infer landmark (see ("kind","landmark") below).
+    "effects": "effect", "effect": "effect", "looks": "effect", "fx": "effect",
     "drops": "drop", "drop": "drop", "loot": "drop", "drop tables": "drop",
     # An icon IS an atlas cell that resolves in the icon domain - one archetype, two
     # section words, so a mission's card deck and its icon sheet read the same way.
@@ -691,6 +727,7 @@ def amd_kind_show_default(noun):
 # record carries identifies its archetype. Order = specificity (most telling
 # first), since a record may legitimately carry several.
 _DISCRIMINATORS = (
+    ("look", "effect"),
     ("scan of", "scan"),
     ("scan_of", "scan"),
     # quest-only fields, checked early: the FLAT a2x files (1444 records directly

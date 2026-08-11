@@ -151,6 +151,16 @@ def reset_mission_state():
     # applied in one mission was still live in the next one.
     from .procedural.modifiers import modifiers_reset
     modifiers_reset()
+    # Particle emitters. These hold ENGINE handles, so the clear has to RUN - emptying
+    # the dict alone would pass the audit below and still leave every emitter burning
+    # on objects the next mission recycles the ids of. Also drops mission-defined
+    # presets: a look declared by one mission must not resolve in the next.
+    from .procedural.particles import particle_clear_all
+    particle_clear_all()
+    # DECLARED looks read out of the mission's .amd - the catalogue the effects above
+    # are looked up in, distinct from the live emitters particle_clear_all() drops.
+    from .procedural.amd_effects import amd_effects_clear
+    amd_effects_clear()
     # Camera + cutscene state. TickDispatcher.clear() above drops their DRIVER
     # tasks, but the dicts that say who owns which console outlive it - and a
     # stale owner makes the next mission's first move think it is being
@@ -285,6 +295,13 @@ from .procedural.grav_tether import _TETHERS as _GRAV_TETHERS
 register_reset_state("grav tethers",       lambda: len(_GRAV_TETHERS))
 from .procedural.modifiers import modifiers_count
 register_reset_state("modifiers",          modifiers_count)
+from .procedural.particles import particle_count as _particle_count, particle_presets_mission_count
+register_reset_state("particle emitters",  _particle_count)
+register_reset_state("particle presets (mission)", particle_presets_mission_count)
+from .procedural.particles import particle_charge_count
+register_reset_state("particle charge-ups", particle_charge_count)
+from .procedural.amd_effects import amd_effects_count
+register_reset_state("amd effects",       amd_effects_count)
 # Orbits keep no module dict, so this counts the LIVE relationship (carrier role + rider
 # link). A carrier that outlived its reset shows up here by name instead of as a mystery
 # extra agent in the soak's count column.
