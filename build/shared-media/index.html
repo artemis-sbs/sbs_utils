@@ -3063,6 +3063,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -3244,6 +3248,62 @@
     
   
     AMD authoring tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tooling/amd-docs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Printing a mission (sbs docs)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tooling/doctor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checking your setup (sbs doctor)
   
 
     
@@ -3836,6 +3896,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -3905,6 +3971,90 @@
     
   
     amd
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/amd_assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    amd_assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/amd_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    amd_blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/amd_render/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    amd_render
   
 
     
@@ -7187,7 +7337,8 @@ the pack still builds from the real art.</p>
 <h2 id="not-only-images">Not only images</h2>
 <p>A pack is the natural home for <strong>anything the engine opens directly</strong>, because it unpacks to
 a real folder on disk and a <code>.mastlib</code> is a zip. A mod puts its <strong>ship data</strong> there as well
-as its meshes, and points the engine at it with <code>sbs.add_extra_ship_data</code>. See
+as its meshes, and names it with <code>ship_data_add_extra</code> — which points both the engine
+and sbs_utils at that one file, with nothing written. See
 <a href="../making-a-mod/">Making a mod</a>.</p>
 <h2 id="things-worth-knowing">Things worth knowing</h2>
 <ul>

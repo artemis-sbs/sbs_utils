@@ -1123,6 +1123,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#read-your-mission-on-paper-sbs-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📄 Read your mission on paper — sbs docs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs-doctor-check-your-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🩺 sbs doctor — check your setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-on-ships-a-file-that-exists-not-a-file-that-gets-written" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🚢 Add-on ships: a file that exists, not a file that gets written
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3534,6 +3567,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -3715,6 +3752,62 @@
     
   
     AMD authoring tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tooling/amd-docs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Printing a mission (sbs docs)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tooling/doctor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checking your setup (sbs doctor)
   
 
     
@@ -4307,6 +4400,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -4376,6 +4475,90 @@
     
   
     amd
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/amd_assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    amd_assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/amd_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    amd_blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/amd_render/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    amd_render
   
 
     
@@ -8031,6 +8214,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#read-your-mission-on-paper-sbs-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📄 Read your mission on paper — sbs docs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs-doctor-check-your-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🩺 sbs doctor — check your setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-on-ships-a-file-that-exists-not-a-file-that-gets-written" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🚢 Add-on ships: a file that exists, not a file that gets written
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -9327,6 +9543,45 @@ nothing changes at all.</p>
 could not see: an item's <strong>click region</strong> comes from its row box, so a list could draw text
 you could barely click, and a template whose rows declared no height collapsed to nothing
 and took its hit area with it.</p>
+<hr />
+<h2 id="read-your-mission-on-paper-sbs-docs">📄 Read your mission on paper — <code>sbs docs</code></h2>
+<p>Your <code>.amd</code> files hold the quests, the dialogue, the cast, the lore. Until now the only
+thing that could read them was the game, so reviewing a script meant opening a code
+editor.</p>
+<div class="highlight"><pre><span></span><code>sbs docs . --lens all --pdf
+</code></pre></div>
+<p><strong>Four editions</strong>, because an <code>.amd</code> file is a different document depending on who is
+reading it: <strong>prose</strong> (a manual or story book), <strong>catalog</strong> (a sourcebook, where every
+field is rendered as its <em>type</em> — a color as a swatch, a reference as a working link),
+<strong>screenplay</strong> (a script you could read aloud), and <strong>bible</strong> (the quest spine, its
+triggers, and a map of the branches).</p>
+<p><code>--profile player</code> leaves out everything a player should never see — author notes,
+the condition on a dialogue choice, what a choice secretly costs — and genuinely leaves
+it out of the file, so you can hand the PDF to someone. The bible has no player profile
+and says so: the bible <em>is</em> the spoiler.</p>
+<p>PDFs need no extra install; <code>--pdf</code> drives the headless browser you already have.
+Character faces composite properly into the page. See <a href="../tooling/amd-docs/">Printing a
+mission</a>.</p>
+<h2 id="sbs-doctor-check-your-setup">🩺 <code>sbs doctor</code> — check your setup</h2>
+<p>Reports what is installed, what a mission expects, and what is missing — with the
+command that fixes each one. It checks your <em>setup</em>, never your writing; for that there
+is still <code>sbs lint</code>. See <a href="../tooling/doctor/">Checking your setup</a>.</p>
+<h2 id="add-on-ships-a-file-that-exists-not-a-file-that-gets-written">🚢 Add-on ships: a file that exists, not a file that gets written</h2>
+<p>An add-on that adds hulls used to hand the library its ship data and let the library
+<strong>generate</strong> <code>extraShipData.json</code> in your mission folder just before the sim was
+created. That route is now known <strong>broken</strong>: the generated file stays on disk, and on
+the next run <code>get_ship_data()</code> prepends it whole while the add-on declares the same
+entries again — measured at <strong>51 hulls becoming 102</strong> from run 2 onward.</p>
+<p>Now an add-on ships its ship data in its <strong>media pack</strong> and names it:</p>
+<div class="highlight"><pre><span></span><code>ship_data_add_extra(&quot;turrets/extraShipData_turrets&quot;, mod=&quot;MyMod&quot;)
+</code></pre></div>
+<p>One call points <strong>both</strong> readers at that one file: the engine (which resolves
+<code>artfileroot</code>, and is what makes a <code>behav_station</code> fire at all) and sbs_utils' own table
+(which is what <code>filter_ship_data_by_side</code> and headless use). Nothing is written.</p>
+<p>It has to be a media pack rather than a mastlib because a mastlib is a <strong>zip</strong> and the
+engine cannot read inside one — which is exactly what the writing was working around.</p>
+<p><strong>If you maintain a mod that calls <code>ship_data_merge_mod</code>, move it.</strong> See <a href="../build/making-a-mod/">Making a
+mod</a>.</p>
 <hr />
 <p><em>Thanks for playing, building, and tinkering. There's more under the hood than ever
 — go build something great.</em> 🚀</p>

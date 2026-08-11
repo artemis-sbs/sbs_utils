@@ -2953,6 +2953,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -3134,6 +3138,62 @@
     
   
     AMD authoring tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../tooling/amd-docs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Printing a mission (sbs docs)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../tooling/doctor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checking your setup (sbs doctor)
   
 
     
@@ -5651,6 +5711,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cosmos_dev.mock.sbs.particle_emittors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;particle_emittors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cosmos_dev.mock.sbs.particle_on" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6724,6 +6795,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -6796,6 +6873,90 @@
     
   
     amd
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/amd_assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    amd_assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/amd_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    amd_blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/amd_render/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    amd_render
   
 
     
@@ -12111,6 +12272,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cosmos_dev.mock.sbs.particle_emittors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;particle_emittors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cosmos_dev.mock.sbs.particle_on" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -16418,6 +16590,11 @@ dead mission.</p>
     <div class="doc doc-contents ">
 
         <p>creates a complex particle emittor and attaches it to a space object.</p>
+<p>Mock note: particles are client-render-only, so there is nothing to draw here.
+What IS modeled is the BOOKKEEPING the API's own docstrings promise - handing
+out a real handle, honoring delete, and answering particle_emittor_exists - so
+a lifecycle or leak bug is catchable headlessly. It used to return a constant
+0, which is falsy: every <code>if emittor_id:</code> cleanup silently skipped under test.</p>
 
 
     </div>
@@ -16691,6 +16868,10 @@ delete leaked; <code>hullmap.delete_grid_object</code> already removed from both
     <div class="doc doc-contents ">
 
         <p>deletes a space object by its ID</p>
+<p>Mock note: this deliberately does NOT reap that object's particle emitters.
+Whether the engine does is unverified, and leaving them is what gives the
+library's emitter janitor something to reconcile - reap them here and the
+test that proves the janitor works passes for the wrong reason.</p>
 
 
     </div>
@@ -16709,6 +16890,7 @@ delete leaked; <code>hullmap.delete_grid_object</code> already removed from both
     <div class="doc doc-contents ">
 
         <p>deletes a particle emittor by ID.</p>
+<p>An unknown id is a silent no-op, so double-deleting cannot throw.</p>
 
 
     </div>
@@ -17280,6 +17462,25 @@ tests pass it explicitly).</p>
     <div class="doc doc-contents ">
 
         <p>checks for the existence of a particle emittor.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="cosmos_dev.mock.sbs.particle_emittors" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">particle_emittors</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Mock-only: the live emitter table, so a test can assert nothing leaked.</p>
+<p>Not part of the engine API - never call this from library or mission code.</p>
 
 
     </div>

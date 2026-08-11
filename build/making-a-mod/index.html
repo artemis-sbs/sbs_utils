@@ -3146,6 +3146,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -3327,6 +3331,62 @@
     
   
     AMD authoring tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tooling/amd-docs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Printing a mission (sbs docs)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tooling/doctor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checking your setup (sbs doctor)
   
 
     
@@ -3919,6 +3979,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -3988,6 +4054,90 @@
     
   
     amd
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/amd_assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    amd_assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/amd_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    amd_blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/amd_render/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    amd_render
   
 
     
@@ -7407,28 +7557,37 @@ never be installed together, and nothing can spawn both. Add ships; do not repla
 missing <code>hull_port_sets</code> or <code>torpedostart</code> has <strong>crashed the engine at load</strong>. This is
 not a place to be minimal.</p>
 </div>
-<p>Hand it to the engine from your add-on:</p>
+<p>Name it from your add-on. One line, nothing written:</p>
 <div class="highlight"><span class="filename">dw_races/__init__.mast</span><pre><span></span><code>provides dw_races
 
-dw_ships_file = media_shared(&quot;dw_ships.yaml&quot;)
-sbs.add_extra_ship_data(&quot;dw_ships&quot;, dw_pack_dir(dw_ships_file))
+ship_data_add_extra(&quot;dw_races/dw_ships&quot;, mod=&quot;dw_races&quot;)
 </code></pre></div>
-<p><code>add_extra_ship_data(name, folder)</code> takes the name <strong>without an extension</strong> — the engine
-tries <code>.yaml</code> then <code>.json</code> itself, so you can change format without changing the call.</p>
+<p>The name takes <strong>no extension</strong> — the engine tries <code>.yaml</code> then <code>.json</code> itself, so you
+can change format without changing the call. It may include a logical folder, and with
+no path it is looked for where the media system already looks: this mission, then each
+media pack it pinned.</p>
+<div class="admonition tip">
+<p class="admonition-title">Put the file in your media pack, not your mastlib</p>
+<p>A mastlib is a <strong>zip</strong>, and the engine cannot read inside one. A media pack is
+unpacked to disk once, so the engine can be handed a real folder. This is the whole
+reason the older route had to generate a file.</p>
+</div>
 <div class="admonition note">
-<p class="admonition-title">Two consumers, not one</p>
-<p>That call tells the <strong>engine</strong>. It does not populate sbs_utils' own ship table, which is
-what <code>filter_ship_data_by_side</code> (how a prefab finds a hull) and <code>get_ship_name</code> (what a
-console displays) read. So a mod also calls <code>merge_mod_ship_yaml</code> with the same text.
-Guard it with a presence check — headless already merges, the engine does not, and one
-guard covers both.</p>
+<p class="admonition-title">Two consumers, one call</p>
+<p>Your ships have to reach <strong>two</strong> places: the engine (which resolves <code>artfileroot</code>,
+and is what makes a <code>behav_station</code> fire at all) and sbs_utils' own table (which is
+what <code>filter_ship_data_by_side</code> and <code>get_ship_name</code> read, and what headless and the
+mock use). <code>ship_data_add_extra</code> does both from the one file, so they cannot drift.</p>
+<p>Turning the engine half off with <code>ship_data_extra_enable(False)</code> leaves the library
+merge in place, so headless keeps behaving identically.</p>
 </div>
 <div class="admonition warning">
-<p class="admonition-title">Do not generate <code>extraShipData.json</code></p>
-<p>There is an older route that reaches the engine by writing <code>extraShipData.json</code> into the
-<em>mission</em> folder. It works, but the file stays on disk, and on the next run the library
-reads it back <strong>and</strong> your add-on merges the same entries again — measured at 51 hulls
-becoming 102 from run 2 onward. Point the engine at your own file and write nothing.</p>
+<p class="admonition-title">Do not use <code>ship_data_merge_mod</code> — it is broken</p>
+<p>The older route reaches the engine by <strong>generating</strong> <code>extraShipData.json</code> in the
+<em>mission</em> folder. That file stays on disk, and on the next run <code>get_ship_data()</code>
+prepends it whole — <code>#mod</code> entries and all — while your add-on declares the same
+entries again. Measured at <strong>51 hulls becoming 102</strong> from run 2 onward. The file the
+feature generates is the input that breaks it.</p>
 </div>
 <h2 id="races">Races</h2>
 <p>A <strong>race</strong> is the gating name a mission uses to turn your content on. Add yours to the

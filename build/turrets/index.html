@@ -3074,6 +3074,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -3255,6 +3259,62 @@
     
   
     AMD authoring tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tooling/amd-docs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Printing a mission (sbs docs)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tooling/doctor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checking your setup (sbs doctor)
   
 
     
@@ -3847,6 +3907,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -3916,6 +3982,90 @@
     
   
     amd
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/amd_assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    amd_assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/amd_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    amd_blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/amd_render/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    amd_render
   
 
     
@@ -7191,8 +7341,16 @@ the market and the deploy route all discover it.</p>
 <p>Measured on 1.3.5 by <code>LM_TestRange/maps/test_turret_probe.mast</code> and friends.</p>
 <div class="admonition warning">
 <p class="admonition-title">A turret must use a hull the mission ships itself</p>
-<p>A <code>behav_station</code> fires <strong>only</strong> from a hull declared through <code>ship_data_merge_mod</code>.
+<p>A <code>behav_station</code> fires <strong>only</strong> from a hull the mission declared to the engine.
 Stock starbase art produces a turret that never shoots.</p>
+<p>The turret hulls live in <code>media/turrets/extraShipData_turrets.yaml</code> and are
+registered with <code>ship_data_add_extra</code>, which points the engine and the library at
+the same file. They ride the <strong>media pack</strong> rather than the turrets mastlib
+because a mastlib is a zip and the engine cannot read inside one; a media pack is
+unpacked to disk once, so the engine can be handed a real folder.</p>
+<p>Do <strong>not</strong> use <code>ship_data_merge_mod</code> for this. It reaches the engine by generating
+<code>extraShipData.json</code>, which <code>get_ship_data()</code> then loads back on the next run
+while the addon declares the same entries again - 51 hulls became 102 from run 2.</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Beam stats are fixed at the hull</p>
