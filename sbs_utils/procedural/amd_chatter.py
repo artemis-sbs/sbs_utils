@@ -21,7 +21,7 @@ stay in OU; this loader is content-agnostic.
 """
 import random
 import re
-from sbs_utils.procedural.amd import amd_parse_facts
+from sbs_utils.procedural.amd import amd_parse_facts, amd_variant_pool
 
 # {field} placeholder, matched only for python-identifier field names (a stray brace passes through).
 _CHATTER_INTERP = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}")
@@ -35,20 +35,10 @@ def amd_chatter_data(text):
     return amd_parse_facts(text)
 
 
-def _chatter_body_lines(desc):
-    """Body prose -> list of chatter lines. Each non-empty, non-comment line is one pool line; a
-    leading ``%`` (the random-variant marker, as in dialogue) is stripped. One line -> one fixed
-    bark; several -> pick-one-at-random per call (chatter_line)."""
-    out = []
-    for raw in (desc or "").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("//"):
-            continue
-        if line.startswith("%"):
-            line = line[1:].strip()
-        if line:
-            out.append(line)
-    return out
+# Body prose -> list of chatter lines. One line -> one fixed bark; several ->
+# pick-one-at-random per call (chatter_line). Same rule as a scan's variant pool,
+# and now the same code: one owner in `amd`.
+_chatter_body_lines = amd_variant_pool
 
 
 def chatter_scenes(section):

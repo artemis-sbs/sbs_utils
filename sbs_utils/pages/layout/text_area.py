@@ -6,7 +6,21 @@ from ...gui import get_client_aspect_ratio
 from textwrap import TextWrapper
 
 import re
-image_pattern = re.compile(r"""!\[(?P<alt>\w+)?\]\((?P<name>\w+)://(?P<url>.*)\)""")
+# The body-mark GRAMMAR has one owner, `procedural.amd`, so a second renderer
+# (the AMD exporter) cannot come to read the same bytes differently. What lives
+# here is the RENDERING - measuring, wrapping, building a TableLine, talking to
+# the engine; what lives there is which lines were a table at all.
+#
+# `amd` is `re` + `fs` deep, so unlike the callout styles (lazy, because most
+# text areas never use them) these are imported at module scope: every markdown
+# text area reads them on every line.
+#
+# A module-level `image_pattern` used to sit here. Nothing in any repo used it,
+# and it was a near-miss lookalike of `RE_LINK_REF` (the rule actually applied,
+# below) - exactly the drift this import exists to prevent - so it is gone.
+from ...procedural.amd import (RE_STYLE_DEF, RE_STYLE_REF, RE_LINK_DEF,
+                               RE_LINK_REF, RE_REF_LINK, RE_TABLE_SEP,
+                               amd_parse_url, amd_table_scan, amd_table_rows)
 
 
 from ..widgets.control import Control
@@ -19,22 +33,7 @@ class TextLine:
         self.width = width
         self.is_sec_end = is_sec_end
 
-def parse_url(text):
-    ret = {}
-
-    url = text.split("?")
-    text = url[0]
-    ret["url"] = text
-    
-    if len(url)>1:
-        values = url[1].split("&")
-        for value in values:
-            kv = value.split("=")
-            if len(kv)==2:
-                key = kv[0].strip()
-                value = kv[1].strip()
-                ret[key] = value
-    return ret
+parse_url = amd_parse_url      # one owner: procedural.amd
 
 def to_float(text, defa):
     if text is None:
@@ -273,13 +272,12 @@ class TextArea(Control):
         "_" :{"style":  "font:gui-2;color:white;", "prepend": "", "indent": 0, "height": 20}
         }
     
-    # Old style system
-    rule_style_def = re.compile(r"=\$(?P<style_name>\w+)[ \t]*(?P<remainder>.*)")
-    rule_style_ref = re.compile(r"\$(?P<style_name>\w+)[ \t]*(?P<remainder>.*)")
-    # New markdown system style, image,face, ship
-    rule_link_def = re.compile(r"!?\[(?P<link_name>\w*)\]:[ \t]+(?P<ns>\w+):(//)?(?P<urn>.*)")
-    # The ! is optional
-    rule_link_ref = re.compile(r"!?\[(?P<link_name>\w+)?\](\((?P<ns>\w+):(//)?(?P<urn>.+)\))?(?P<remainder>.+)?")
+    # Old style system / new markdown system (style, image, face, ship).
+    # One owner: procedural.amd.
+    rule_style_def = RE_STYLE_DEF
+    rule_style_ref = RE_STYLE_REF
+    rule_link_def = RE_LINK_DEF
+    rule_link_ref = RE_LINK_REF
     
     
     def __init__(self, tag, message, markdown=True, line_styles=None) -> None:
@@ -530,17 +528,12 @@ class TextArea(Control):
                 calc_height += ln.height
                 continue
 
-            # GFM pipe table: 2+ consecutive lines starting with '|' become a
-            # TableLine block. A lone '|' line falls through to normal text.
-            if (self.markdown
-                    and line.strip().startswith("|") and i + 1 < len(content_lines)
-                    and content_lines[i + 1].strip().startswith("|")):
-                traw = []
-                j = i
-                while j < len(content_lines) and content_lines[j].strip().startswith("|"):
-                    traw.append(content_lines[j].strip())
-                    j += 1
-                table_skip = j
+            # GFM pipe table -> a TableLine block. Which lines ARE a table is
+            # `amd_table_scan`'s rule (2+ consecutive `|` lines; a lone one is
+            # prose); how tall the block is, is this widget's.
+            scan = amd_table_scan(content_lines, i) if self.markdown else None
+            if scan is not None:
+                traw, table_skip = scan
                 tbl = self._build_table(traw, ar, pixel_width)
                 if tbl is not None and tbl.height > 0:
                     self.lines.append(tbl)
@@ -779,25 +772,14 @@ class TextArea(Control):
             self.scroll_line = max(0, min(prev_scroll, tail))
         
 
-    _table_sep_re = re.compile(r"^:?-{2,}:?$")
-    _whole_link_re = re.compile(r"^\[(?P<disp>[^\]]+)\]\((?:ref|link)://(?P<key>[^)]+)\)$")
+    _table_sep_re = RE_TABLE_SEP
+    _whole_link_re = RE_REF_LINK
 
     def _build_table(self, raw_rows, ar, pixel_width):
         """Parse GFM pipe rows into a TableLine. The |:--|--:| separator row (if
         present) supplies per-column alignment and is dropped from the data; a
         table with no separator row just renders all-left with row 0 as header."""
-        rows = []
-        aligns = []
-        for rr in raw_rows:
-            cells = [c.strip() for c in rr.strip().strip("|").split("|")]
-            non_empty = [c for c in cells if c != ""]
-            if non_empty and all(TextArea._table_sep_re.match(c) for c in non_empty):
-                aligns = []
-                for c in cells:
-                    lft, rgt = c.startswith(":"), c.endswith(":")
-                    aligns.append("c" if lft and rgt else "r" if rgt else "l")
-                continue
-            rows.append(cells)
+        rows, aligns = amd_table_rows(raw_rows)
         if not rows:
             return None
         return TableLine(rows, aligns, ar, pixel_width, FrameContext.context.sbs)

@@ -23,7 +23,7 @@ science LAYER on top, mirroring ``amd_quest``.
 (A flat ``Scan: <text>`` / ``Bio: <text>`` fence form was retired on v1.4.0_dev in favour of
 this single dialogue-native form; ``science_define_scan`` is the underlying registry API.)
 """
-from sbs_utils.procedural.amd import amd_parse_facts
+from sbs_utils.procedural.amd import amd_parse_facts, amd_variant_pool
 from sbs_utils.procedural.science import science_define_scan
 
 
@@ -35,20 +35,10 @@ def amd_scan_data(text):
     return amd_parse_facts(text)
 
 
-def _scan_body_lines(desc):
-    """Body prose -> list of scan variants. Each non-empty, non-comment line is a variant; a
-    leading ``%`` (the random-variant marker, as in dialogue) is stripped. One line -> one
-    fixed variant; several -> pick-one-at-random at scan time (science_scan_tab)."""
-    out = []
-    for raw in (desc or "").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("//"):
-            continue
-        if line.startswith("%"):
-            line = line[1:].strip()
-        if line:
-            out.append(line)
-    return out
+# Body prose -> list of scan variants. One line -> one fixed variant; several ->
+# pick-one-at-random at scan time (science_scan_tab). One owner: the rule was
+# copied byte for byte into amd_chatter and inlined a third time in amd_lsp.
+_scan_body_lines = amd_variant_pool
 
 
 def science_define_scan_amd(doc):

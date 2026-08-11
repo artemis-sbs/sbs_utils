@@ -136,6 +136,39 @@ RE_CALLOUT = re.compile(r"^[ \t]*>[ \t]*\[!(?P<kind>[A-Za-z]+)\][ \t]*"
 # A continuation line of a callout block: `>` and the rest of the paragraph.
 RE_CALLOUT_BODY = re.compile(r"^[ \t]*>[ \t]?(?P<text>[^\r\n]*?)[ \t\r]*$")
 
+# `- [Say something](scene_key) if standing > 10 ; earns vex kind 5`
+# A player option: a label, the record it leads to, an optional `if` guard and an
+# optional `; outcomes` tail.
+#
+# FOUR copies of this rule existed - amd_core's (for reference spans), amd_lsp's
+# (for the choice editor), amd_lint's (imported from amd_dialogue) and
+# amd_dialogue's own (for the runtime) - and they disagreed in two ways that had
+# not bitten only because nobody had yet written the line that exposes them.
+# amd_dialogue's target class was `[\w.\-]*`, which cannot match a PATH target
+# (`florbin/recover`), and its anchor was `^-`, which cannot match an INDENTED
+# choice. Both are things a writer may reasonably type, and either would have
+# failed at RUNTIME while the linter and the editor stayed happy about the same
+# line - the tooling and the game reading the same bytes differently again.
+#
+# The label is `[^\]]*`, the same strictness `RE_HEADING` uses for its display
+# text and for the same reason: `- [a]b](k)` is not a choice exactly as
+# `# [a]b](k)` is not a heading. The target is permissive (`[^)]*`) because it
+# carries paths. An EMPTY target is legal and means "this answer ends the hail" -
+# a conversation whose last beat is an acknowledgement is the common case, and a
+# stricter class silently DROPPED those lines rather than reporting them.
+RE_CHOICE = re.compile(r"^[ \t]*-[ \t]*\[(?P<label>[^\]]*)\]"
+                       r"\((?P<target>[^)]*)\)(?P<rest>.*)$")
+
+# `%` opens an NPC speech variant, one of several lines the renderer picks between.
+# `%{gate}` (or a bare `{gate}`) gates that variant on a condition.
+#
+# The `%` was optional and hand-tested with `line.startswith("%")` in five modules
+# - amd_dialogue, amd_science, amd_chatter, amd_urge and amd_lsp - each stripping
+# and gate-matching slightly differently. Only amd_dialogue understood gates, so
+# the same `%{standing < -20} ...` line was a gated variant in a hail and a
+# variant whose text literally began `{standing < -20}` everywhere else.
+RE_GATE = re.compile(r"^%?\{(?P<gate>[^}]*)\}[ \t]*(?P<text>.*)$")
+
 
 def amd_body_transition(line):
     """The transition a body line names (`CUT TO:`), or None.
@@ -156,6 +189,95 @@ def amd_body_synopsis(line):
     """The text of a `= ` synopsis line, or None when this is not one."""
     m = RE_SYNOPSIS.match(line or "")
     return m.group("text") if m is not None else None
+
+
+def amd_outcomes(s):
+    """`'costs 200 credits, earns vex kind 5, signal paid'` -> `[(verb, *tokens), ...]`.
+
+    Tokens are interpreted by the mission's registered outcome handler (only
+    `signal` is built in), so the grammar of costs/earns/etc. lives with the
+    mission rather than here."""
+    out = []
+    for item in [x.strip() for x in str(s or "").split(",") if x.strip()]:
+        toks = item.split()
+        if toks:
+            out.append(tuple([toks[0].lower()] + toks[1:]))
+    return out
+
+
+def amd_choice(line):
+    """A `- [label](target) if guard ; outcomes` line -> dict, or None.
+
+    Returns `{"label", "target", "guard", "outcomes"}`. `guard` is None when the
+    choice is unconditional; `outcomes` is `amd_outcomes`' list of tuples.
+
+    The `; outcomes` tail splits FIRST, before the `if` guard is read, because a
+    guard is free text and would otherwise swallow the whole tail - `if standing >
+    10 ; earns kind 5` would become the guard `standing > 10 ; earns kind 5`,
+    which no evaluator can answer and which loses the outcome without a word."""
+    m = RE_CHOICE.match(line or "")
+    if m is None:
+        return None
+    rest = m.group("rest").strip()
+    guard = None
+    outcomes = []
+    if ";" in rest:
+        rest, outpart = rest.split(";", 1)
+        outcomes = amd_outcomes(outpart)
+        rest = rest.strip()
+    if rest.lower().startswith("if "):
+        guard = rest[3:].strip()
+    return {"label": m.group("label").strip(), "target": m.group("target").strip(),
+            "guard": guard, "outcomes": outcomes}
+
+
+def amd_body_variant(line):
+    """A `%` speech-variant line -> `(text, gate)`, or None when it is not one.
+
+    `gate` is the condition in `%{...}` / `{...}`, or None. The leading `%` is
+    optional in a dialogue body, so this returns a pair for ANY line once the
+    caller has decided it is in speech position - it is the shared *stripping and
+    gate* rule, not the decision that a line is speech. Callers that require the
+    sigil test `line.startswith("%")` themselves."""
+    if line is None:
+        return None
+    text = line.strip()
+    if text.startswith("%"):
+        text = text[1:].strip()
+    m = RE_GATE.match(text) if text.startswith("{") else None
+    if m is not None:
+        return m.group("text").strip(), m.group("gate").strip()
+    return text, None
+
+
+def amd_variant_pool(text):
+    """A record body -> its list of ungated variants, one per line.
+
+    Each non-empty, non-comment line is one variant with a leading `%` stripped:
+    one line is a fixed string, several are pick-one-at-random at use time. This
+    is the pool a scan tab, a chatter bark or any other "say one of these" field
+    reads, and it is deliberately NOT `amd_body_variant`: there are two variant
+    rules in AMD and conflating them would be a silent behavior change.
+
+      * this one   - strip the sigil. A `{...}` prefix is ordinary text.
+      * `amd_body_variant` - strip the sigil AND read a `%{gate}` condition.
+
+    Only DIALOGUE evaluates gates, because only dialogue has a speaker whose
+    standing can be tested. A scan line reading `{lifesigns} faint` is a sentence
+    about lifesigns, and must stay one.
+
+    (`amd_urge` reads a third rule off the same sigil - it COUNTS `%` to number a
+    stage, so `%%` is stage 2 - and cannot share this one.)"""
+    out = []
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        if not line or RE_COMMENT.match(line):
+            continue
+        if line.startswith("%"):
+            line = line[1:].strip()
+        if line:
+            out.append(line)
+    return out
 
 
 def amd_wikilinks(line):
@@ -193,6 +315,93 @@ def amd_render_wikilinks(text, display_of=None):
                 return str(shown)
         return target
     return RE_WIKILINK.sub(sub, text or "")
+
+
+# --- rich-text marks --------------------------------------------------------
+# The marks below describe how a BODY is displayed rather than what it means, so
+# they lived in the in-game renderer (`pages/layout/text_area.py`) and nowhere
+# else. That was fine while the game was the only thing that drew an AMD body.
+# It stops being fine the moment a second renderer exists, because then "what a
+# media reference looks like" is being decided twice - the failure the callout
+# grammar was already moved here to avoid.
+#
+# What moves is the RULE (the pattern, and the pure text->data helpers). What
+# stays in text_area is the RENDERING - measuring a line, building a TableLine,
+# talking to the engine. A renderer may disagree about how wide a column is; it
+# may not disagree about which lines were a table.
+
+# `=$name font:gui-2;color:white;` declares a named line style; `$name text`
+# uses one.
+RE_STYLE_DEF = re.compile(r"=\$(?P<style_name>\w+)[ \t]*(?P<remainder>.*)")
+RE_STYLE_REF = re.compile(r"\$(?P<style_name>\w+)[ \t]*(?P<remainder>.*)")
+
+# `![name]: image://key` - a reference-style media definition, and
+# `![name](image://key?scale=0.5) trailing words` - a use of one. `ns` is the
+# scheme (`image`, `ship`, `face`, `style`, `ref`); `//` is optional because both
+# spellings appear in the corpus.
+RE_LINK_DEF = re.compile(r"!?\[(?P<link_name>\w*)\]:[ \t]+(?P<ns>\w+):(//)?(?P<urn>.*)")
+RE_LINK_REF = re.compile(r"!?\[(?P<link_name>\w+)?\](\((?P<ns>\w+):(//)?(?P<urn>.+)\))?(?P<remainder>.+)?")
+
+# A whole line that is only `[Display](ref://key)` - an in-document hyperlink,
+# as opposed to a media reference that sits inside a sentence.
+RE_REF_LINK = re.compile(r"^\[(?P<disp>[^\]]+)\]\((?:ref|link)://(?P<key>[^)]+)\)$")
+
+# The `|:--|--:|` alignment row of a GFM pipe table.
+RE_TABLE_SEP = re.compile(r"^:?-{2,}:?$")
+
+
+def amd_parse_url(text):
+    """`key?scale=0.5&align=center` -> `{"url": "key", "scale": "0.5", ...}`.
+
+    Values stay STRINGS; every caller coerces to what it needs. Malformed pairs
+    are skipped rather than raising - a mistyped option should cost the option,
+    not the image."""
+    ret = {}
+    url = str(text or "").split("?")
+    ret["url"] = url[0]
+    if len(url) > 1:
+        for value in url[1].split("&"):
+            kv = value.split("=")
+            if len(kv) == 2:
+                ret[kv[0].strip()] = kv[1].strip()
+    return ret
+
+
+def amd_table_scan(lines, i):
+    """A GFM pipe table starting at `lines[i]` -> `(rows, next_index)`, else None.
+
+    A table is **2 or more** consecutive lines starting with `|`. The pair is
+    required deliberately: a lone `|` line is prose (a table drawn in words, an
+    ASCII diagram, a sentence about a pipe) and must stay prose."""
+    def is_row(n):
+        return 0 <= n < len(lines) and str(lines[n]).strip().startswith("|")
+    if not (is_row(i) and is_row(i + 1)):
+        return None
+    rows, j = [], i
+    while is_row(j):
+        rows.append(str(lines[j]).strip())
+        j += 1
+    return rows, j
+
+
+def amd_table_rows(raw_rows):
+    """Raw `|a|b|` lines -> `(rows, aligns)`.
+
+    `aligns` is one of `l`/`c`/`r` per column, taken from the `|:--|--:|`
+    separator row, which is dropped from the data. A table with no separator
+    renders all-left with row 0 as the header, so the separator is optional."""
+    rows, aligns = [], []
+    for rr in raw_rows or ():
+        cells = [c.strip() for c in str(rr).strip().strip("|").split("|")]
+        non_empty = [c for c in cells if c != ""]
+        if non_empty and all(RE_TABLE_SEP.match(c) for c in non_empty):
+            aligns = []
+            for c in cells:
+                lft, rgt = c.startswith(":"), c.endswith(":")
+                aligns.append("c" if lft and rgt else "r" if rgt else "l")
+            continue
+        rows.append(cells)
+    return rows, aligns
 
 
 class BoneyardScanner:

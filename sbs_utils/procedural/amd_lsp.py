@@ -22,7 +22,7 @@ import glob
 from urllib.parse import urlparse, unquote
 
 from sbs_utils.procedural.amd_lint import mast_source_index
-from sbs_utils.procedural.amd import amd_read_text
+from sbs_utils.procedural.amd import amd_read_text, RE_CHOICE, amd_variant_pool
 from sbs_utils.procedural.amd_timeline import (records, resolve_ref,
                                                signal_edges_for)
 
@@ -1179,7 +1179,7 @@ def _mission_symbols(index):
     return {"node": nodes, "side": sorted(sides) or nodes, "signal": sorted(sig)}
 
 
-_RE_CHOICE = re.compile(r"^\s*-\s*\[(?P<label>[^\]]*)\]\((?P<target>[^)]*)\)(?P<rest>.*)$")
+_RE_CHOICE = RE_CHOICE      # one owner: sbs_utils.procedural.amd
 
 
 def _choice_at(index, uri, line):
@@ -1327,15 +1327,13 @@ def _node_preview(index, key):
                     "choices": [{"label": c["label"], "target": c["target"],
                                  "guard": c.get("guard")} for c in scene["choices"]]}
         if "scan of" in data or "scan_of" in data:
-            # Scan variant lines (mirrors amd_science._scan_body_lines) - inlined so
-            # the server stays dependency-light (importing amd_science drags the heavy
-            # science / story_nodes chain and circular-imports under the LSP env).
-            lines = []
-            for raw in body.splitlines():
-                s = raw.strip()
-                if not s or s.startswith("//"):
-                    continue
-                lines.append(s[1:].strip() if s.startswith("%") else s)
+            # Scan variant lines. This used to be an inlined copy of
+            # amd_science._scan_body_lines, because importing amd_science drags the
+            # heavy science / story_nodes chain and circular-imports under the LSP
+            # env. `amd` has no such chain and the server already imports it, so the
+            # rule can be shared without paying for the module that used to own it -
+            # and the preview can no longer drift from what the game reads.
+            lines = amd_variant_pool(body)
             return {"kind": "scan", "key": key,
                     "role": data.get("scan of") or data.get("scan_of"),
                     "tab": data.get("tab", "scan"), "lines": lines}
