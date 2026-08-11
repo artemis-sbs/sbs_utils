@@ -38,6 +38,14 @@ class _Fixture(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.addCleanup(sd.ship_data_reset_for_mission)
         self.addCleanup(sd.extra_enable, True)
+        sd.ship_data_reset_for_mission()
+        # Seed the cache so nothing here needs the COSMOS INSTALL. `get_ship_data`
+        # loads `shipData` from `get_artemis_data_dir()`, which exists on a
+        # developer machine and not in this repo - so these tests passed locally
+        # and failed the moment the data dir was taken away, which is what CI is.
+        # A non-None cache short-circuits that load, and `merge_mod_ship_yaml`
+        # prepends into it, which is exactly the path under test.
+        sd.ship_data_cache = {"#ship-list": []}
         sd.extra_reset()
         sd.extra_enable(True)
 
@@ -74,10 +82,25 @@ class TestTheSwitch(_Fixture):
 
     def test_on_calls_the_engine_with_filename_and_path(self):
         name = self.write()
-        with mock.patch("sbs.add_extra_ship_data", create=True) as engine:
+        # Pin the install root somewhere unrelated to the temp dir. `_engine_path`
+        # rewrites a path UNDER the install into the root-relative form the engine
+        # wants, so without pinning this the assertion silently depends on where
+        # tempfile happens to live - it passed here and failed on a machine whose
+        # temp dir sat inside the faked root.
+        with mock.patch("sbs_utils.fs.get_artemis_dir",
+                        return_value=os.path.join(self.tmp.name, "no", "such")),              mock.patch("sbs.add_extra_ship_data", create=True) as engine:
             reached = sd.add_extra(name, self.tmp.name)
         self.assertTrue(reached)
         engine.assert_called_once_with(name, self.tmp.name)
+
+    def test_an_absolute_path_under_the_install_is_made_root_relative(self):
+        # The engine's own example is ("extraShipDataAAA", "data/missions/BeamArcTest") -
+        # relative to the Cosmos root, not absolute and not relative to the mission.
+        root = self.tmp.name
+        folder = os.path.join(root, "data", "missions", "Demo")
+        os.makedirs(folder, exist_ok=True)
+        with mock.patch("sbs_utils.fs.get_artemis_dir", return_value=root):
+            self.assertEqual(sd._engine_path(folder), "data/missions/Demo")
 
 
 class TestRobustness(_Fixture):

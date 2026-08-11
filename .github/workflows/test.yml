@@ -34,3 +34,10 @@ jobs:
         run: |
           python -m unittest tests.test_amd_parse_golden -v
           python -m unittest tests.test_signal_lint tests.test_namespace_lint -v
+
+      - name: Ship data wrapper
+        # Named rather than globbed: it falls outside `test_amd*`, and the point of
+        # the wrapper it covers is that add-ons stop generating extraShipData.json.
+        # It seeds the ship-data cache so it needs no Cosmos install - without that
+        # it passed on a developer machine and failed here.
+        run: python -m unittest tests.test_ship_data_extra -v
