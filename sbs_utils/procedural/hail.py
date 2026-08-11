@@ -1170,6 +1170,21 @@ def _hail_home_ship(client_id):
         return None
 
 
+def hail_placed_here(client_id):
+    """Whether this console is SET to show hails - whether or not one is open yet.
+
+    The difference from `hail_shows_here` is the whole point. That one also asks
+    whether a conversation is ACTIVE, which is the right question for "should I swap
+    my centre panel out for a face" and the wrong one for "should I draw the waiting
+    queue at all": a console that hid its queue on `hail_shows_here` would never show
+    a call ARRIVING, because a call that is merely waiting is not active.
+
+    A console with a real Off state - a single-seat cockpit, where there is no other
+    surface for the conversation to appear on - needs this one.
+    """
+    return hail_where(client_id) in ("console", "both")
+
+
 def hail_shows_here(client_id):
     """Whether THIS console should be drawing the conversation instead of its normal
     centre - the dial on a comms console, the ship's `HAIL_MAIN` on a main screen."""

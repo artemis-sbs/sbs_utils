@@ -33,6 +33,7 @@ from .viewscreen_pages import (viewscreen_page_register, viewscreen_page_remove,
 # shadowed by it, so `from ...gui import hail_view` hands back the function.
 # (viewscreen_pages has that shape already; this one does not repeat it.)
 from .hail_gui import (hail_view, hail_choice_strip, hail_where_dropdown,
+                        hail_where_checkbox,
                         hail_band_show, hail_band_clear,
                         hail_panel_history, hail_transcript_text, hail_panel_icon,
                         hail_rows, hail_list_title, hail_screen_show, hail_screen_clear,
@@ -47,7 +48,7 @@ from .clickable import gui_click
 from .content import gui_content
 from .dropdown import gui_drop_down
 from .face import gui_face
-from .icon import gui_icon_name, gui_icon_add_atlas, gui_icon_add_atlas_grid, gui_icon, gui_icon_button
+from .icon import gui_icon_name, gui_icon_add_atlas, gui_icon_add_atlas_grid, gui_icon, gui_icon_button, gui_icon_recolor
 from .image import gui_image_add_atlas_grid, gui_image, gui_image_absolute, gui_image_keep_aspect_ratio, gui_image_keep_aspect_ratio_center, gui_image_stretch, gui_image_add_atlas,gui_image_size,gui_image_get_atlas
 from .input import gui_input
 from .options_button import gui_options_button, gui_options_button_flag, gui_options_button_clear

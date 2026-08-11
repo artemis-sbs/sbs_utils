@@ -417,6 +417,43 @@ class PlacementDialTests(HailTestCase):
         self.assertFalse(H.hail_shows_here(self.comms))
 
 
+class PlacedHereTests(HailTestCase):
+    """`hail_placed_here` - the placement alone, with the "is one open" question left
+    out. A console with a real Off state (a single-seat cockpit) hides its whole hail
+    area on this; hiding it on `hail_shows_here` instead would hide the queue too, so
+    a call could never be seen ARRIVING."""
+
+    def test_off_by_default(self):
+        self.assertFalse(H.hail_placed_here(self.comms))
+
+    def test_true_once_the_console_is_placed(self):
+        H.hail_where_set(self.comms, "console")
+        self.assertTrue(H.hail_placed_here(self.comms))
+
+    def test_true_for_BOTH_because_this_console_is_one_of_them(self):
+        H.hail_where_set(self.comms, "both")
+        self.assertTrue(H.hail_placed_here(self.comms))
+
+    def test_false_when_only_the_MAIN_SCREEN_is_showing_it(self):
+        H.hail_where_set(self.comms, "main")
+        self.assertFalse(H.hail_placed_here(self.comms))
+
+    def test_it_does_NOT_wait_for_a_hail_to_be_active(self):
+        """The whole difference from hail_shows_here, pinned: with a call merely
+        WAITING, this is already true and hail_shows_here is still false."""
+        H.hail_where_set(self.comms, "console")
+        self._offer(name="Ashfang")
+        self.assertTrue(H.hail_placed_here(self.comms))
+        self.assertFalse(H.hail_shows_here(self.comms))
+
+    def test_both_agree_once_the_call_is_open(self):
+        H.hail_where_set(self.comms, "console")
+        self._offer(name="Ashfang")
+        H.hail_accept(self.ship)
+        self.assertTrue(H.hail_placed_here(self.comms))
+        self.assertTrue(H.hail_shows_here(self.comms))
+
+
 class ConsoleTextTests(HailTestCase):
     def test_the_row_names_who_is_calling(self):
         self.assertEqual(H.hail_answer_label({"name": "Ashfang"}), "Ashfang")

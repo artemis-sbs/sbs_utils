@@ -22,5 +22,9 @@ class IconButton(Column):
     def value(self, v):
         self.props = v
     def update(self, props):
+        """Same contract as `Icon.update`: change the look AND say so, or the new
+        look sits in the object waiting for a rebuild that may never come."""
         self.props = props
+        if not self.is_hidden_by_script:
+            self.mark_value_dirty()
 

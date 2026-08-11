@@ -79,6 +79,13 @@ _STYLE_ROW = "row-height: 2.2em;"
 # NO PERCENT SIGN. A bare number IS a percentage to the style parser; `30%` raises
 # "Invalid syntax on token %" from LayoutAreaParser.lex, at RUNTIME, when the row
 # is built - so it only fires on the console that actually draws the conversation.
+#
+# And the percentage is of the SCREEN, not of the panel this is drawn into - every
+# length in the layout resolves against the screen axis. 30 therefore means "most of a
+# bridge console's tall centre column", which is what it was measured for, and means
+# "taller than the whole panel" to anything smaller. A console with less room passes
+# its own `face_style` to hail_view rather than inheriting a number tuned for a
+# different shape.
 _STYLE_FACE_ROW = "row-height: 30;"
 
 
@@ -310,6 +317,52 @@ def hail_where_dropdown(client_id=None, style=None):
     return item
 
 
+def _hail_where_toggled(event, item):
+    """The Off/On box moved on a console that is the ship's ONLY console."""
+    from ..hail import hail_where, hail_where_set
+    data = getattr(item, "data", None) or {}
+    client_id = data.get("hail_client") or getattr(event, "client_id", None)
+    on = bool(getattr(item, "value", False))
+    # The main-screen half of the placement is left exactly as it was. This console
+    # is only entitled to say whether IT shows the conversation, and deriving the
+    # other half rather than clearing it means a checkbox and a drop-down can coexist
+    # on the same ship without one silently undoing the other.
+    main = hail_where(client_id) in ("main", "both")
+    if on:
+        where = "both" if main else "console"
+    else:
+        where = "main" if main else "off"
+    hail_where_set(client_id, where)
+
+
+def hail_where_checkbox(client_id=None, style=None, label="Hails"):
+    """The placement dial reduced to Off/On, for a ship with ONE console.
+
+    A fighter's cockpit is the whole bridge: there is no main screen to send a hail
+    to and no second officer to disagree with, so three of the drop-down's four
+    entries name places that do not exist. Ticked means "show incoming calls here",
+    which is `console` placement - the same value the drop-down writes, through the
+    same `hail_where_set`, so the two controls are interchangeable and a ship that
+    grows a main screen later can swap back with no state to migrate.
+
+    Returns:
+        the checkbox layout item, or None when this console cannot place a hail.
+    """
+    from .checkbox import gui_checkbox
+    from .message import gui_message_callback
+
+    if client_id is None:
+        client_id = FrameContext.client_id
+    if not _hail_may_answer_here(client_id):
+        return None
+    from ..hail import hail_where
+    item = gui_checkbox(_hail_label(label), style, data={"hail_client": client_id})
+    if item is not None:
+        item.value = hail_where(client_id) in ("console", "both")
+        gui_message_callback(item, _hail_where_toggled)
+    return item
+
+
 def _hail_audio_toggled(event, item):
     """The Audio box moved. Ship-wide, so the console it came from does not matter."""
     from .viewscreen import viewscreen_home_ship
@@ -400,12 +453,20 @@ def _hail_radar_release(client_id):
     return True
 
 
-def hail_view(ship, client_id=None):
+def hail_view(ship, client_id=None, face_style=None):
     """Build the conversation into the CURRENT layout position.
 
     `portrait` and `still` draw here. `orbit` draws NOTHING here and returns its name
     anyway: the engine has the screen full-bleed and the band is an overlay, so a
     console that gets `"orbit"` back should simply leave its view alone.
+
+    Args:
+        face_style (str, optional): the layout row the portrait sits in. The default is
+            sized for a bridge console's centre column and is a percentage of the
+            SCREEN, so a panel shorter than that gets a face taller than itself and
+            every row beneath it - the name, the line, the answers - is pushed out of
+            the panel entirely. A small panel passes its own height here. Sizing it is
+            the console's call because only the console knows how much room it gave.
 
     Returns:
         str | None: the form that was built, or None when no hail is open.
@@ -444,7 +505,7 @@ def hail_view(ship, client_id=None):
     else:
         face = record.face or (hail_beat(ship) or {}).get("face") if record else None
         if face:
-            gui_row(_STYLE_FACE_ROW)
+            gui_row(face_style or _STYLE_FACE_ROW)
             gui_face(face)
 
     if record.title:

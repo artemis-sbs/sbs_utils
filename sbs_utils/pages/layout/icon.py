@@ -24,5 +24,16 @@ class Icon(Column):
         self.icon= v
 
     def update(self, props):
+        """Change what the glyph looks like - a new index, or a recolor.
+
+        The dirty mark is the whole point: the props alone are only what the NEXT
+        present would send, and a present only happens when something else rebuilds
+        the page. A status icon that recolors on damage would have gone on drawing
+        its old color until the console was left and re-entered.
+        """
         self.props = props
+        if not self.is_hidden_by_script:
+            # Visual-only: a glyph is square and sized by its row, so its props
+            # cannot move the layout the way a text change can.
+            self.mark_value_dirty()
 

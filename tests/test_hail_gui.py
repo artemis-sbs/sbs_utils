@@ -444,6 +444,116 @@ class AudioCheckboxTests(HailViewBase):
         self.assertIn("Audio", self.box()[1])
 
 
+class FaceSizingTests(HailViewBase):
+    """The portrait row is a percentage of the SCREEN, not of the panel it is drawn
+    into. At the bridge default that is most of a tall centre column; dropped into a
+    cockpit panel a third that height it was taller than the panel, so the name, the
+    line and the answers were all laid out past the bottom edge and the console showed
+    a face and nothing else."""
+
+    def rows(self):
+        return [e[1] for e in self.trace if e[0] == "row"]
+
+    def test_the_default_is_unchanged_for_every_console_that_had_one(self):
+        self.offer(face="a face")
+        H.hail_accept(self.ship)
+        V.hail_view(self.ship, self.comms)
+        self.assertIn(V._STYLE_FACE_ROW, self.rows())
+
+    def test_a_console_can_size_the_portrait_to_its_own_panel(self):
+        self.offer(face="a face")
+        H.hail_accept(self.ship)
+        V.hail_view(self.ship, self.comms, face_style="row-height: 9;")
+        self.assertIn("row-height: 9;", self.rows())
+        self.assertNotIn(V._STYLE_FACE_ROW, self.rows())
+
+    def test_it_only_touches_the_FACE_row(self):
+        """The rows under it are em- and fr-sized and already fit any panel; a console
+        overriding the portrait must not have to restate them."""
+        self.offer(face="a face", title="Bay Clearance")
+        H.hail_accept(self.ship)
+        V.hail_view(self.ship, self.comms, face_style="row-height: 9;")
+        self.assertIn("row-height: 1.4em;", self.rows())
+        self.assertIn("row-height: 1.6em;", self.rows())
+        self.assertIn("row-height: 1fr;", self.rows())
+
+    def test_a_hail_with_no_face_is_unaffected(self):
+        self.offer()
+        H.hail_accept(self.ship)
+        V.hail_view(self.ship, self.comms, face_style="row-height: 9;")
+        self.assertNotIn("row-height: 9;", self.rows())
+
+
+class WhereCheckboxTests(HailViewBase):
+    """The placement dial reduced to Off/On, for a ship with ONE console (a fighter)."""
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural.gui import checkbox as CB
+        self.CB = CB
+        self._saved_cb = CB.gui_checkbox
+        t = self.trace
+
+        def _cb(msg, style=None, var=None, data=None):
+            item = _FakeItem(data)
+            item.value = False
+            t.append(("checkbox", msg, data, item))
+            return item
+        CB.gui_checkbox = _cb
+
+    def tearDown(self):
+        self.CB.gui_checkbox = self._saved_cb
+        super().tearDown()
+
+    def box(self):
+        return [e for e in self.trace if e[0] == "checkbox"][0]
+
+    def test_it_starts_unticked_because_Off_is_the_default_placement(self):
+        V.hail_where_checkbox(self.comms)
+        self.assertFalse(self.box()[3].value)
+
+    def test_ticking_it_places_the_hail_on_THIS_console(self):
+        item = V.hail_where_checkbox(self.comms)
+        item.value = True
+        V._hail_where_toggled(FakeEvent(client_id=self.comms), item)
+        self.assertEqual(H.hail_where(self.comms), "console")
+
+    def test_unticking_it_takes_the_hail_off_again(self):
+        H.hail_where_set(self.comms, "console")
+        item = V.hail_where_checkbox(self.comms)
+        self.assertTrue(item.value)
+        item.value = False
+        V._hail_where_toggled(FakeEvent(client_id=self.comms), item)
+        self.assertEqual(H.hail_where(self.comms), "off")
+
+    def test_it_leaves_the_MAIN_SCREEN_half_of_the_placement_alone(self):
+        # A checkbox is only entitled to say whether ITS console shows the call. If a
+        # ship does have a main screen, ticking the box must not steal it and unticking
+        # must not stand it down - or a cockpit and a bridge could not coexist.
+        H.hail_where_set(self.comms, "main")
+        item = V.hail_where_checkbox(self.comms)
+        item.value = True
+        V._hail_where_toggled(FakeEvent(client_id=self.comms), item)
+        self.assertEqual(H.hail_where(self.comms), "both")
+        item.value = False
+        V._hail_where_toggled(FakeEvent(client_id=self.comms), item)
+        self.assertEqual(H.hail_where(self.comms), "main")
+
+    def test_it_writes_what_the_DROPDOWN_writes_so_the_two_are_interchangeable(self):
+        item = V.hail_where_checkbox(self.comms)
+        item.value = True
+        V._hail_where_toggled(FakeEvent(client_id=self.comms), item)
+        by_checkbox = H.hail_where(self.comms)
+        H.hail_where_set(self.comms, "off")
+        dd = V.hail_where_dropdown(self.comms)
+        V._hail_where_changed(FakeEvent(client_id=0, value_tag="This Console"), dd)
+        self.assertEqual(by_checkbox, H.hail_where(self.comms))
+
+    def test_a_console_that_cannot_answer_gets_no_box(self):
+        self.assertIsNone(V.hail_where_checkbox(self.main))
+        self.assertEqual(self.trace, [])
+
+
 class ConversationViewTests(HailViewBase):
     def test_nothing_is_built_when_no_hail_is_open(self):
         self.assertIsNone(V.hail_view(self.ship, self.comms))
