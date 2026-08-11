@@ -1,3 +1,4 @@
+from .signal import signal_emit
 from .inventory import get_inventory_value, set_inventory_value
 from ..helpers import FrameContext
 from ..futures import Promise, awaitable
@@ -64,6 +65,27 @@ def is_timer_finished(id_or_obj, name):
     if now > target:
         return True
     return False
+
+def timer_add_time(id_or_obj, name, seconds=0, minutes=0):
+    """
+    Add time to an existing timer. Will do nothing if timer does not exist or if it is already finished.
+    Times may be positive or negative integers.
+
+    Args:
+        id_or_obj (Agent | int): Agent ID or object.
+        name (str): Timer name.
+        seconds (int, optional): The number of seconds to add. Optional, default is 0.
+        minutes (int, optional): The number of minutes to add. Optional, default is 0.
+    """
+    time = get_time_remaining(id_or_obj, name)
+    if time is None:
+        return
+    if time <= 0:
+        return
+    time = time + seconds + (minutes * 60)
+    set_inventory_value(id_or_obj, f"__timer__{name}", time)
+    signal_emit("timer_updated", {"id":id_or_obj, "timer_name":name})
+
 
 def format_time_remaining(id_or_obj, name):
     """Return the time remaining on a timer as a ``M:SS`` string.
