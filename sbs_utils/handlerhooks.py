@@ -284,8 +284,8 @@ def _probe_ship_data_extra():
 
     An unregistered per-mission container is invisible to the soak audit, and
     the whole point of the ledger is that nothing gets to be invisible."""
-    from .procedural.ship_data import ship_data_extra_loaded
-    return len(ship_data_extra_loaded())
+    from .procedural.ship_data import extra_loaded
+    return len(extra_loaded())
 
 
 register_reset_state("Agent.all", _probe_agents)

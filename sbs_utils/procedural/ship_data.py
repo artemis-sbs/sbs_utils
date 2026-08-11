@@ -314,7 +314,7 @@ def ship_data_reset_for_mission():
     reset_ship_data_caches()
     # The record of which extra files were loaded belongs to the mission that
     # loaded them; carried over, a soak run reports the previous mission's.
-    ship_data_extra_reset()
+    extra_reset()
 
 
 def ship_data_is_loaded() -> int:
@@ -755,8 +755,8 @@ _EXTRA_SHIP_DATA_ENGINE = True      # is the engine call allowed?
 _extra_ship_data_loaded = []        # (filename, path, reached_engine) per call
 
 
-def ship_data_extra_enable(enabled=True):
-    """Allow or forbid the ENGINE side of `ship_data_add_extra`.
+def extra_enable(enabled=True):
+    """Allow or forbid the ENGINE side of `add_extra`.
 
     Off, the ships are still merged into sbs_utils, so headless runs and every
     library lookup behave the same; only the engine is not told. Use it to take
@@ -766,35 +766,46 @@ def ship_data_extra_enable(enabled=True):
     return _EXTRA_SHIP_DATA_ENGINE
 
 
-def ship_data_extra_enabled():
+def extra_enabled():
     """Is the engine call currently allowed?"""
     return _EXTRA_SHIP_DATA_ENGINE
 
 
-def ship_data_extra_loaded():
+def extra_loaded():
     """`[(filename, path, reached_engine)]` for every call so far, so a report can
     say what was loaded and whether the engine actually heard about it."""
     return list(_extra_ship_data_loaded)
 
 
-def ship_data_extra_reset():
+def extra_reset():
     """Forget the record. Called by the per-mission reset, not by missions."""
     _extra_ship_data_loaded.clear()
 
 
-def ship_data_add_extra(filename, path=None, mod=None):
+def add_extra(name, path=None, mod=None):
     """Load another ship-data file for this mission.
 
-    `filename` has **no extension** - the engine tries `.yaml` then `.json`
-    itself, which is the more useful form because a mod can change format
-    without the caller changing. `path` defaults to this mission's folder, so
-    the common case is one argument.
+    `name` has **no extension** - the engine tries `.yaml` then `.json` itself,
+    which is the more useful form because a mod can change format without the
+    caller changing. It may include a logical folder
+    (`"turrets/extraShipData_turrets"`).
+
+    With no `path`, the file is looked for where the media system already looks:
+    this mission's folder first, then each media pack it pinned. That matters
+    because an ADD-ON cannot put a file where the engine can read it - a mastlib
+    is a zip - while a media pack is unpacked to disk once. So an addon ships its
+    hulls in its media pack and names them here, and neither it nor the library
+    has to write anything.
 
     Returns True when the engine was told, False when only the library was.
-    Missing files are not fatal, matching the engine's habit: a mod with a
-    broken path should be a ship with no stats, not a dead mission."""
+    Missing files are not fatal, matching the engine's habit: a mod with a broken
+    path should be a ship with no stats, not a dead mission."""
+    folder, _, stem = str(name).replace(chr(92), "/").rpartition("/")
+    filename = stem or str(name)
     if path is None:
-        path = get_mission_dir()
+        path = _find_extra_root(folder, filename)
+    elif folder:
+        path = os.path.join(path, *folder.split("/"))
     reached = False
 
     text = _read_extra_ship_data(filename, path)
@@ -804,7 +815,7 @@ def ship_data_add_extra(filename, path=None, mod=None):
     if _EXTRA_SHIP_DATA_ENGINE:
         try:
             import sbs
-            sbs.add_extra_ship_data(str(filename), str(path))
+            sbs.add_extra_ship_data(str(filename), _engine_path(path))
             reached = True
         except AttributeError:
             # Older engine. The library merge above already happened, so the
@@ -816,6 +827,59 @@ def ship_data_add_extra(filename, path=None, mod=None):
 
     _extra_ship_data_loaded.append((str(filename), str(path), reached))
     return reached
+
+
+def _find_extra_root(folder, filename):
+    """The folder holding a logical ship-data path: the mission, then each media
+    root, in the order `media_paths` already searches.
+
+    Chosen by whether the FILE is there, not whether the folder is. An addon's
+    logical folder name usually matches its own source folder - `turrets/` is both
+    the mastlib's name and a real directory in the mission - so picking the first
+    directory that exists silently picks the addon folder, which is exactly where
+    the file no longer is.
+
+    Falls back to the mission folder, so a genuinely missing file still reports
+    against somewhere a person can go and look."""
+    mission = get_mission_dir()
+    roots = [mission]
+    try:
+        from .media_paths import media_roots
+        roots += [r for r in (media_roots() or []) if r]
+    except Exception:
+        pass
+    for root in roots:
+        cand = os.path.join(root, *folder.split("/")) if folder else root
+        if not os.path.isabs(cand):
+            cand = os.path.normpath(os.path.join(mission, cand))
+        stem = os.path.join(cand, filename)
+        if any(os.path.isfile(stem + e) for e in ("", ".yaml", ".json")):
+            return cand
+    return os.path.join(mission, *folder.split("/")) if folder else mission
+
+
+def _engine_path(path):
+    """A path in the form the ENGINE wants: relative to the Cosmos root.
+
+    Their own example is `add_extra_ship_data("extraShipDataAAA",
+    "data/missions/BeamArcTest")` - root-relative, not absolute, and not relative
+    to the mission. Every caller building that string by hand would get it wrong
+    in a different way, and a wrong path is not an error here: the engine is
+    forgiving about data it cannot find, so it fails as ships with no stats.
+
+    An absolute path under the install is converted; anything else is passed
+    through, since a caller who wrote a relative path already knew what it meant."""
+    text = str(path)
+    if not os.path.isabs(text):
+        return text
+    try:
+        from ..fs import get_artemis_dir
+        rel = os.path.relpath(text, get_artemis_dir())
+    except Exception:
+        return text
+    if rel.startswith(".."):
+        return text             # outside the install - leave it alone
+    return rel.replace(os.sep, "/")
 
 
 def _read_extra_ship_data(filename, path):
