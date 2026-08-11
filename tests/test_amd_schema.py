@@ -304,5 +304,96 @@ class TestExtensionRegistry(unittest.TestCase):
             S.amd_register_section_names(("items",), "quest")
 
 
+class TestTheAuthoredLabelOfAStoredKey(unittest.TestCase):
+    """`amd_authored_label` - the inverse of `amd_field_key`.
+
+    Anything that PUBLISHES a parsed record has to go through this. A record written
+    with `Done when:` / `Part of:` stores `goal` / `parent`, so a table that titles the
+    stored keys prints `Goal` and `Parent` - teaching authors, in the project's own
+    documentation, the exact spellings the rename existed to retire."""
+
+    def test_the_stored_key_comes_back_as_the_word_an_author_writes(self):
+        self.assertEqual(S.amd_authored_label("goal", "quest"), "done when")
+        self.assertEqual(S.amd_authored_label("parent", "quest"), "part of")
+        self.assertEqual(S.amd_authored_label("state", "quest"), "at start")
+        self.assertEqual(S.amd_authored_label("when", "quest"), "starts when")
+
+    def test_a_field_whose_key_is_its_label_round_trips(self):
+        self.assertEqual(S.amd_authored_label("reward", "quest"), "reward")
+
+    def test_an_undeclared_key_is_None_not_a_guess(self):
+        # A caller must be able to tell "the schema does not know this" from a real
+        # answer - otherwise an unknown key silently prints as though it were declared.
+        self.assertIsNone(S.amd_authored_label("no_such_field", "quest"))
+
+    def test_it_is_the_exact_inverse_of_amd_field_key(self):
+        for label in S.template_fields("quest"):
+            key = S.amd_field_key(label, "quest")
+            self.assertEqual(S.amd_authored_label(key, "quest"), label,
+                             f"{label} -> {key} did not come back")
+
+
+class TestFieldProse(unittest.TestCase):
+    """`doc=` - what a field MEANS, kept beside its type so it cannot drift from it."""
+
+    def test_the_two_triggers_say_which_end_they_are(self):
+        # The whole reason `doc=` exists: two hand-written documentation pages taught
+        # `When:` as the COMPLETION trigger when it is an alias of `Starts when:`, the
+        # START one. A quest written that way arms on the trigger and then waits on a
+        # `Done when:` it does not have, so it never completes.
+        self.assertIn("COMPLETION", S.amd_field_doc("done when", "quest"))
+        self.assertIn("ARMS", S.amd_field_doc("starts when", "quest"))
+
+    def test_an_alias_reaches_its_fields_prose(self):
+        self.assertEqual(S.amd_field_doc("when", "quest"),
+                         S.amd_field_doc("starts when", "quest"))
+        self.assertEqual(S.amd_field_doc("goal", "quest"),
+                         S.amd_field_doc("done when", "quest"))
+
+    def test_the_same_label_means_different_things_per_archetype(self):
+        # `When:` is a start trigger on a quest and a comms/hail surface on dialogue.
+        # A flat table structurally cannot say this, which is why the schema is
+        # archetype-keyed and why the generated tables have to be too.
+        quest, dialogue = S.amd_field_doc("when", "quest"), S.amd_field_doc("when", "dialogue")
+        self.assertIsNotNone(dialogue)
+        self.assertNotEqual(quest, dialogue)
+        self.assertIn("SURFACE", dialogue)
+
+    def test_prose_carries_no_links(self):
+        # The schema owns what a field means; each PAGE owns its own cross-references.
+        # A markdown link baked in here would point at whichever page it was written
+        # for and break on every other one that generates the same table.
+        for arch in ("quest", "dialogue"):
+            for label in S.template_fields(arch):
+                doc = S.amd_field_doc(label, arch)
+                if doc:
+                    with self.subTest(field=f"{arch}.{label}"):
+                        self.assertNotIn("](", doc)
+
+    def test_a_field_with_no_prose_says_so_rather_than_inventing_it(self):
+        self.assertIsNone(S.amd_field_doc("no_such_field", "quest"))
+
+
+class TestAliasesReadForwards(unittest.TestCase):
+    """The parser needs alias -> canonical; anything explaining a field to a human
+    needs canonical -> aliases. One table, read two ways."""
+
+    def test_the_retired_spellings_are_listed_under_the_word_that_replaced_them(self):
+        aliases = S.amd_field_aliases("quest")
+        self.assertEqual(aliases.get("starts_when"), ["when"])
+        self.assertEqual(aliases.get("done_when"), ["goal"])
+        self.assertEqual(aliases.get("reward"), ["pays"])
+        self.assertEqual(aliases.get("part_of"), ["parent"])
+
+    def test_a_field_nothing_aliases_is_simply_absent(self):
+        self.assertNotIn("objective", S.amd_field_aliases("quest"))
+
+    def test_every_alias_resolves_back_to_the_field_it_is_listed_under(self):
+        for canonical, spellings in S.amd_field_aliases("quest").items():
+            for alias in spellings:
+                with self.subTest(alias=alias):
+                    self.assertEqual(S.amd_canonical_label(alias, "quest"), canonical)
+
+
 if __name__ == "__main__":
     unittest.main()

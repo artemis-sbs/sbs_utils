@@ -145,10 +145,18 @@ def trigger(hint="5 drone_down  |  reach 6, 4  |  destroy 4 raiders"):
 
 
 # --- field descriptors: type + alias + runtime key ---------------------------
-def field(descriptor, key=None, aka=None, internal=True if False else None):
-    """Wrap a type descriptor with the two things a table entry also has to own:
+def field(descriptor, key=None, aka=None, internal=True if False else None, doc=None):
+    """Wrap a type descriptor with the things a table entry also has to own:
     `key` - the name the RUNTIME stores it under, when that differs from the authored
-    label (`Pays:` -> `reward`), and `aka` - every other spelling that means this field.
+    label (`Pays:` -> `reward`), `aka` - every other spelling that means this field,
+    and `doc` - one sentence saying what the field MEANS.
+
+    WHY `doc` LIVES HERE. `hint` is example values; it never says what a field does. So
+    every consumer that had to explain a field wrote its own prose, by hand, on a
+    documentation page - and those pages drifted from the table until one of them taught
+    `When:` as the COMPLETION trigger when it is an alias of `Starts when:`, the START
+    one. Prose kept beside the type cannot drift from it. Keep it link-free: the schema
+    owns what a field means, each page owns its own cross-references.
 
     Owning aliases here is what makes renaming safe forever: a rename is one line in
     this table and no `.amd` file in the world has to change.
@@ -164,6 +172,8 @@ def field(descriptor, key=None, aka=None, internal=True if False else None):
         d["key"] = key
     if aka:
         d["aka"] = [str(a).strip().lower() for a in aka]
+    if doc:
+        d["doc"] = " ".join(str(doc).split())
     if internal:
         # Valid to write, never OFFERED. Either the implementation form of an author
         # word (`on kill` under `Done when:`) or a shape a newer field absorbed - both
@@ -200,8 +210,12 @@ QUEST = {
                            aka={"active": "running", "idle": "offered",
                                 "available": "offered", "secret": "hidden",
                                 "complete": "done"}),
-                      key="state", aka=("state",)),
-    "objective": text(hint="the sentence the player reads"),
+                      key="state", aka=("state",),
+                      doc="What condition this record is in when the mission BEGINS. "
+                          "`posting` is listed like an available job but shows no Accept "
+                          "button - something else has to offer it."),
+    "objective": field(text(hint="the sentence the player reads"),
+                       doc="The sentence the player reads in the quest log."),
     # `Goal:` used to set BOTH the completion trigger and the objective TEXT, so a
     # job's quest log read "Signal 5 drone_down". Split: Objective is the prose,
     # Done when is the trigger.
@@ -211,25 +225,43 @@ QUEST = {
     # This replaces seven differently-shaped fields (At start / Complete after /
     # Fail after / Fail on signal / Fail on all dead, and the two spellings of the
     # first two). An author learns one grammar and can answer all three.
-    "done when": field(trigger(), key="goal", aka=("goal",)),
+    "done when": field(trigger(), key="goal", aka=("goal",),
+                       doc="The COMPLETION trigger - what has to happen for this quest "
+                           "to be done."),
     "starts when": field(trigger(hint="signal X | accepted | revealed | destroy 6 raiders"),
-                         key="when", aka=("when",)),
+                         key="when", aka=("when",),
+                         doc="When it ARMS - `at once`, `accepted` (the player takes it "
+                             "off the board), `revealed` (another quest reveals it). Not "
+                             "what completes it; that is `Done when:`."),
     "fails when": field(trigger(hint="signal X | all dead convoy | 5 minutes"),
-                        key="fails_when"),
-    "then": compound({"reveal": ref("node"), "signal": signal()},
-                     hint="reveal KEY  |  signal NAME"),
+                        key="fails_when",
+                        doc="What FAILS it - the same trigger grammar, plus "
+                            "`all dead <role>` and a bare time."),
+    "then": field(compound({"reveal": ref("node"), "signal": signal()},
+                           hint="reveal KEY  |  signal NAME"),
+                  doc="Follow-up on COMPLETION - `reveal <quest>` to unlock another, or "
+                      "`signal <name>`. Those two verbs only; anything else is read as a "
+                      "reveal target."),
     # What happens the MOMENT this record starts. `Then:` is the other end - it fires on
     # completion - and the two were being conflated because there was no entry slot.
     # Lines are simultaneous; see procedural/amd_action.py.
-    "action": lines(),
-    "part of": field(ref("node"), key="parent", aka=("parent",)),
-    "scope": enum("shared", "ship"),
+    "action": field(lines(),
+                    doc="What the world does the moment this beat STARTS - one stage "
+                        "direction per line, all simultaneous. `Then:` is the other end."),
+    "part of": field(ref("node"), key="parent", aka=("parent",),
+                     doc="The quest this one belongs under, by key."),
+    "scope": field(enum("shared", "ship"),
+                   doc="Who holds it - `shared` is one quest for the whole game, `ship` "
+                       "gives every player ship its own copy."),
     # WHO owns the quest, named outright - `Scope:` generalized from "the crew or this
     # ship" to any actor, so a station's resupply job is held by the station and its
     # deadline and penalty land on the world rather than on a passing crew. Resolved the
     # same way an `Action:` actor is (landmark key, then role); `shared` names the story
     # agent. DESIGN_RECORD.md s4.
-    "held by": field(text(hint="ds1"), key="held_by"),
+    "held by": field(text(hint="ds1"), key="held_by",
+                     doc="WHO owns the quest - a landmark key or a role, so a station's "
+                         "resupply job is held by the station and its deadline lands on "
+                         "the world rather than on a passing crew."),
     # `Reward:` over `Pays:`. Its partner is free - the failure side already exists in
     # code (quest_grant_penalty) with no authored word yet, and `Reward:`/`Penalty:`
     # mirrors the two functions, while `Pays:`/`Costs:` collides with what you spend to
@@ -237,11 +269,16 @@ QUEST = {
     # is wrong for a rescue or a story beat that simply hands you salvage. `Pays:` still
     # parses. (A record speaks in the JOB's voice - a job pays, a crew earns - so
     # `Earns:` is the wrong voice whichever word wins.)
-    "reward": field(reward(), key="reward", aka=("pays",)),
+    "reward": field(reward(), key="reward", aka=("pays",),
+                    doc="What COMPLETING it gives - credits, an item key, or a "
+                        "reputation clause."),
     # The failure side has had code since the beginning (quest_grant_penalty) and no
     # word. `Reward:` / `Penalty:` is the pair.
-    "penalty": field(reward(hint="100 credits, earns tsn diplomatic -15"), key="penalty"),
-    "tier": integer(),
+    "penalty": field(reward(hint="100 credits, earns tsn diplomatic -15"), key="penalty",
+                     doc="What FAILING it costs - the same grammar as `Reward:`. "
+                         "Abandoning an accepted job fails it, so this is what walking "
+                         "away costs."),
+    "tier": field(integer(), doc="Optional ordering for the quest log."),
     # WHO speaks for this quest. Same word DIALOGUE and LIFEFORM already use, extended
     # to a quest rather than a new one invented for it - the vocabulary is meant to be
     # one language. Today it names the voice for deadline reminders (the shuttle crew
@@ -251,7 +288,9 @@ QUEST = {
     # Optional by design. Unset falls back to `Held by:` when that resolves to a real
     # agent - a station's job speaks with the station's face for nothing - and then to
     # whatever voice the mission registered for dispatch.
-    "speaker": ref("node", hint="who says it - falls back to Held by:, then dispatch"),
+    "speaker": field(ref("node", hint="who says it - falls back to Held by:, then dispatch"),
+                     doc="WHO this quest talks as - a character or ship key. The voice of "
+                         "its deadline reminders, and of anything else it needs to say."),
     # What the SIGNAL reads out, the way `Scan says:` is what a scan reads out. The line
     # sent as a deadline closes in, so an automated distress beacon sounds like one
     # instead of like a person reporting the time. `{time}` interpolates the remaining
@@ -261,27 +300,36 @@ QUEST = {
     # name, this one is the thing transmitting. Same word, and the only reason it is safe
     # is that one is a field LABEL and the other a field VALUE.
     "signal says": field(multiline(hint="LIFE SUPPORT CRITICAL. {time} TO FAILURE."),
-                         key="reminder"),
+                         key="reminder",
+                         doc="The words a deadline reminder transmits. `{time}` "
+                             "interpolates the remaining clock."),
     "fail on signal": field(signal(), internal=True),
     "fail on all dead": field(ref("role"), internal=True),
     "fail after": field(duration(), internal=True),
     "complete after": field(duration(), internal=True),
-    "on accept": text(hint="toast <message>"),
-    "on complete": text(hint="toast <message>"),
-    "required": boolean(),
+    "on accept": field(text(hint="toast <message>"),
+                       doc="What to say the moment the player accepts it."),
+    "on complete": field(text(hint="toast <message>"),
+                         doc="What to say the moment it completes."),
+    "required": field(boolean(),
+                      doc="Whether the mission needs this one completed to succeed."),
     # Failing this ENDS the mission - "critical" said how much it mattered, not what
     # happens.
-    "fatal": field(boolean(), key="critical", aka=("critical",)),
-    "win": boolean(),
-    "lose": boolean(),
+    "fatal": field(boolean(), key="critical", aka=("critical",),
+                   doc="Failing this ENDS the mission."),
+    "win": field(boolean(), doc="Completing this WINS the mission."),
+    "lose": field(boolean(), doc="Completing this LOSES the mission."),
     # `Win:` / `Lose:` carry their own prose; these are what that prose is STORED as.
     "win text": field(text(hint="the end-screen line"), internal=True),
     "lose text": field(text(hint="the end-screen line"), internal=True),
-    "citation": multiline(hint="the commendation read out at the end"),
+    "citation": field(multiline(hint="the commendation read out at the end"),
+                      doc="The commendation read out on the end screen."),
     # `Then: reveal <quest>` UNLOCKS; this is what a scan READS OUT. Same word, two
     # concepts - the author-facing one says which.
     "scan says": field(multiline(hint="what a scan of the target returns"),
-                       key="reveals", aka=("reveals", "scan text")),
+                       key="reveals", aka=("reveals", "scan text"),
+                       doc="What a SCAN of the target reads out. Not `Then: reveal`, "
+                           "which unlocks another quest - same word, two concepts."),
     # WHEN this quest is listed in the log. `when done` runs it unseen and shows it
     # once it resolves (complete OR failed) - a story beat is history, not a to-do.
     # `with children` is for a pure GROUPING heading: it earns a row only while
@@ -289,10 +337,18 @@ QUEST = {
     # A job that HAS steps but is a quest in its own right (accept it, it pays) stays
     # `always` - which is why this is declared, not guessed from the shape of the tree.
     # NOT the same as State: secret, which also stops the triggers.
-    "show": enum("always", "when done", "with children", "never",
-                 aka={"when children": "with children"}),
-    "accept on": csv(hint="comms, admiral"),
-    "engage on": csv(hint="helm"),
+    "show": field(enum("always", "when done", "with children", "never",
+                       aka={"when children": "with children"}),
+                  doc="WHEN this quest is listed. `when done` runs it unseen and shows it "
+                      "once it resolves, reading as history; `with children` earns a row "
+                      "only while something under it is listed; `never` drives its events "
+                      "invisibly. Not the same as `Starts when: revealed`, which also "
+                      "stops the triggers."),
+    "accept on": field(csv(hint="comms, admiral"),
+                       doc="Restrict which CONSOLES may Accept or Abandon this job, "
+                           "overriding the mission default."),
+    "engage on": field(csv(hint="helm"),
+                       doc="Restrict which consoles may ENGAGE (travel to) this job."),
     # The quest driver's own advancement triggers. Authored as a flow value
     # (`on_kill: { role: raider, count: 5 }`), so the reader has already parsed
     # them by the time anything reads the descriptor.
@@ -303,18 +359,22 @@ QUEST = {
     "on scan": field(text(), internal=True),
     "on dock": field(text(), internal=True),
     "reveal": field(ref("node"), internal=True),   # what `Then: reveal X` stores
-    "cockpit": text(hint="the craft a sortie is flown in"),
+    "cockpit": field(text(hint="the craft a sortie is flown in"),
+                     doc="The craft a sortie is flown in."),
 }
 
 DIALOGUE = {
-    "speaker": ref("node", hint="who says it"),
+    "speaker": field(ref("node", hint="who says it"), doc="WHO says it."),
     # `comms` = a contact the player selects and hails; `hail` = the ship IS
     # hailed, script- or AMD-initiated (procedural/hail.py). OPEN on purpose:
     # enum_values() returns None for an open enum, so the field-value lint pass
     # skips it exactly as it skipped text() - every value already in the corpus
     # keeps parsing and no shipped file gains a finding.
-    "when": enum("comms", "hail", open=True,
-                 hint="comms = a selectable contact; hail = the ship is hailed"),
+    "when": field(enum("comms", "hail", open=True,
+                       hint="comms = a selectable contact; hail = the ship is hailed"),
+                  doc="Which SURFACE this dialogue appears on - `comms` is a contact the "
+                      "player selects and hails, `hail` is the ship being hailed. Nothing "
+                      "to do with a quest's `When:`, which is a start trigger."),
     # (`File:` was declared here and never read by anything in the dialogue/hail path,
     # with zero uses in any shipped .amd. Removed rather than left to be offered by
     # completion - what missions actually use is amd_doc's multi-file loading and
@@ -1123,6 +1183,66 @@ def amd_field_key(label, archetype=None, traits=()):
     authored word and the stored word are allowed to differ."""
     canonical = amd_canonical_label(label, archetype, traits)
     return field_schema(canonical, archetype, traits).get("key", canonical)
+
+
+def amd_authored_label(runtime_key, archetype=None, traits=()):
+    """The canonical AUTHORED label for a key found in a parsed record's `data` -
+    the inverse of `amd_field_key`, and `None` when nothing declares it.
+
+    WHY THIS IS NEEDED. A record parsed from `Done when:` / `Part of:` stores `goal` /
+    `parent`, because renaming the authored word must never move the stored key. So
+    anything that PUBLISHES a parsed record - a fact table, a web page - and titles the
+    stored keys prints `Goal` and `Parent`: the exact retired spellings the rename
+    existed to remove, taught back to authors by the tooling. Go through here instead."""
+    key = _norm_label(runtime_key)
+    for label in _labels_of(archetype, traits):
+        if _norm_label(amd_field_key(label, archetype, traits)) == key:
+            return label
+    return None
+
+
+def amd_field_doc(label, archetype=None, traits=()):
+    """The one-sentence meaning of a field, or `None` when it has none yet.
+
+    Callers should degrade to the `hint` rather than inventing prose: a generated field
+    table with a blank cell says "nobody has explained this yet", which is true and
+    fixable in one line. Prose invented at the point of display is how the last set of
+    hand-written tables drifted."""
+    return field_schema(label, archetype, traits).get("doc")
+
+
+def amd_field_aliases(archetype=None, traits=()):
+    """`{canonical label -> [other spellings]}` for one archetype.
+
+    The alias index runs alias -> canonical because that is the direction a PARSER
+    needs. Anything explaining a field to a human needs the other direction: which
+    older words still work. Both are the same table, read two ways."""
+    out = {}
+    for alias, canonical in _alias_index(archetype, traits).items():
+        out.setdefault(canonical, []).append(alias)
+    for canonical in out:
+        out[canonical].sort()
+    return out
+
+
+def _labels_of(archetype, traits=()):
+    """Every declared label in play for an archetype, most specific table first - the
+    same precedence `_declared` resolves with.
+
+    Labels come back exactly as the tables spell them (`at start`, not `at_start`), so
+    this composes with `template_fields`. Matching is still done on the normalized form
+    everywhere else; only what is HANDED BACK keeps the authored shape."""
+    seen, out = set(), []
+    tables = [ARCHETYPES.get(archetype) if archetype else None]
+    tables += list(_trait_tables(archetype, traits))
+    tables.append(GLOBAL)
+    for table in (t for t in tables if t):
+        for label in table:
+            norm = _norm_label(label)
+            if norm not in seen:
+                seen.add(norm)
+                out.append(label)
+    return out
 
 
 def _norm_label(label):

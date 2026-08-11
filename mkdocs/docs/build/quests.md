@@ -28,25 +28,43 @@ it is — is in [The AMD file format](amd-format.md).
 
 ### Quest fields
 
-| Field | Meaning |
-|---|---|
-| `Scope:` | `shared` (one quest for the whole game) or per-ship. |
-| `At start:` | The older way of saying the same thing — `running` / `offered` / `hidden`, and `active` / `available` / `idle` / `secret` before that. All still parse. |
-| `At start: posting` | **Posted, not acceptable.** It is listed like an available job, but the Accept button does not show — the only way to take it is whatever else offers it, typically answering an [incoming hail](incoming-hails.md). |
-| `Objective:` | The sentence the player reads in the quest log. |
-| `Done when:` | The completion **trigger** (see [Triggers](#triggers)). |
-| `Starts when:` | **When it arms** — `at once`, `accepted` (the player takes it off the board), `revealed` (another quest reveals it). |
-| `Fails when:` | What fails it — the same grammar, plus `all dead <role>` and a bare time (`5 minutes`). |
-| `Reward:` | What completing it gives — `500 credits`, an item key, … (`Pays:` also parses). |
-| `Penalty:` | What failing it costs — same grammar. Abandoning an accepted job fails it, so this is what walking away costs. |
-| `Then:` | Follow-up on completion — `reveal <quest>` (unlock another) or `signal <name>`. Those two words only; anything else is read as a reveal target, and the linter says so. |
-| `Display:` / `Tier:` | Optional label / ordering for the log. |
-| `Show:` | **When** this quest is listed — `always` (default), `when done` (runs unseen, appears once it completes *or* fails, reading as history), `with children` (a grouping heading: a row only while something under it is listed), or `never` (drives its events invisibly). Not the same as `Starts when: revealed`, which also stops the triggers. |
-| `Accept On:` | Restrict which **consoles** may Accept/Abandon this job from the Quests tab — e.g. `comms`, or `comms, admiral`. Overrides the mission default (see [Console gating](#console-gating)). |
-| `Engage On:` | Restrict which consoles may **Engage** (travel to) this job — e.g. `helm`. Only meaningful when the mission enables the Engage button. |
-| `Action:` | What the world does the moment this beat **starts** — including `<who> hails <scene>`, which calls the crew. See [`Action:`](amd-format.md#action-stage-directions). |
-| `Speaker:` | **Who this quest talks as** — a character or ship key. Today it is the voice of the [deadline reminders](#deadline-reminders); anything else the quest needs to say uses it too. |
-| `Signal says:` | The words a deadline reminder transmits. `{time}` interpolates the clock — see [deadline reminders](#deadline-reminders). |
+<!-- amd:begin fields quest -->
+| Field | Meaning | Also |
+|---|---|---|
+| `At start:` | What condition this record is in when the mission BEGINS. `posting` is listed like an available job but shows no Accept button - something else has to offer it. | `State:` |
+| `Objective:` | The sentence the player reads in the quest log. |  |
+| `Done when:` | The COMPLETION trigger - what has to happen for this quest to be done. | `Goal:` |
+| `Starts when:` | When it ARMS - `at once`, `accepted` (the player takes it off the board), `revealed` (another quest reveals it). Not what completes it; that is `Done when:`. | `When:` |
+| `Fails when:` | What FAILS it - the same trigger grammar, plus `all dead <role>` and a bare time. |  |
+| `Then:` | Follow-up on COMPLETION - `reveal <quest>` to unlock another, or `signal <name>`. Those two verbs only; anything else is read as a reveal target. |  |
+| `Action:` | What the world does the moment this beat STARTS - one stage direction per line, all simultaneous. `Then:` is the other end. |  |
+| `Part of:` | The quest this one belongs under, by key. | `Parent:` |
+| `Scope:` | Who holds it - `shared` is one quest for the whole game, `ship` gives every player ship its own copy. |  |
+| `Held by:` | WHO owns the quest - a landmark key or a role, so a station's resupply job is held by the station and its deadline lands on the world rather than on a passing crew. |  |
+| `Reward:` | What COMPLETING it gives - credits, an item key, or a reputation clause. | `Pays:` |
+| `Penalty:` | What FAILING it costs - the same grammar as `Reward:`. Abandoning an accepted job fails it, so this is what walking away costs. |  |
+| `Tier:` | Optional ordering for the quest log. |  |
+| `Speaker:` | WHO this quest talks as - a character or ship key. The voice of its deadline reminders, and of anything else it needs to say. |  |
+| `Signal says:` | The words a deadline reminder transmits. `{time}` interpolates the remaining clock. |  |
+| `On accept:` | What to say the moment the player accepts it. |  |
+| `On complete:` | What to say the moment it completes. |  |
+| `Required:` | Whether the mission needs this one completed to succeed. |  |
+| `Fatal:` | Failing this ENDS the mission. | `Critical:` |
+| `Win:` | Completing this WINS the mission. |  |
+| `Lose:` | Completing this LOSES the mission. |  |
+| `Citation:` | The commendation read out on the end screen. |  |
+| `Scan says:` | What a SCAN of the target reads out. Not `Then: reveal`, which unlocks another quest - same word, two concepts. | `Reveals:`, `Scan text:` |
+| `Show:` | WHEN this quest is listed. `when done` runs it unseen and shows it once it resolves, reading as history; `with children` earns a row only while something under it is listed; `never` drives its events invisibly. Not the same as `Starts when: revealed`, which also stops the triggers. |  |
+| `Accept on:` | Restrict which CONSOLES may Accept or Abandon this job, overriding the mission default. |  |
+| `Engage on:` | Restrict which consoles may ENGAGE (travel to) this job. |  |
+| `Cockpit:` | The craft a sortie is flown in. |  |
+<!-- amd:end -->
+
+`At start: posting` is worth calling out: the job is listed like an available one,
+but the Accept button does not show - the only way to take it is whatever else
+offers it, typically answering an [incoming hail](incoming-hails.md). And a record
+that calls itself a **`Beat`** or an **`Arc`** already implies its `Show:` value -
+see [screenplay words](amd-format.md#screenplay-words).
 
 !!! tip "Say `Beat` or `Arc` instead"
     A record that calls itself a **`Beat`** (a moment the crew lives through) already
