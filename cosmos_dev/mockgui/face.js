@@ -44,6 +44,24 @@
     img.src = _resolveUrl(filename);
   }
 
+  // Seed the cache from an image the HOST already loaded.
+  //
+  // getSheet above answers SYNCHRONOUSLY once entry.img is set, so a caller that
+  // warms every sheet a page needs makes the whole draw synchronous - there is
+  // then no pending image load for a renderer to snapshot the page in front of.
+  // That is what a static print host needs: a headless browser asked to print
+  // will not wait for work it cannot see, so "the atlases are already decoded"
+  // has to be a guarantee rather than a race that usually wins.
+  function warm(alias, img) {
+    if (!FACE_ALIAS[alias] || !img) return;
+    if (!_cache[alias]) _cache[alias] = { img: null, cbs: null };
+    const entry = _cache[alias];
+    if (entry.img) return;
+    entry.img = img;
+    const q = entry.cbs; entry.cbs = null;
+    if (q) q.forEach(f => f(img));
+  }
+
   function parse(str) {
     return (str || '').split(';').map(layer => {
       const p = layer.trim().split(/\s+/);
@@ -126,5 +144,5 @@
     [...new Set(parse(str).map(l => l.alias))].forEach(a => getSheet(a, () => {}));
   }
 
-  global.FaceRender = { ALIAS: FACE_ALIAS, setSheetResolver, parse, draw, drawString, preload, parseColor };
+  global.FaceRender = { ALIAS: FACE_ALIAS, setSheetResolver, parse, draw, drawString, preload, warm, parseColor };
 })(typeof window !== 'undefined' ? window : this);

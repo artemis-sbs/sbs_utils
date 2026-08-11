@@ -46,6 +46,11 @@ def _urge_pool(desc):
     more than one stage. So the marker count IS the escalation curve - no second field to
     keep in sync with the words, and the author keeps the dial.
     """
+    # NOT amd.amd_variant_pool, deliberately. That rule strips ONE `%` and is
+    # shared by scans, chatter and dialogue; this one COUNTS them, so `%%` is
+    # stage 2. Three rules ride the same sigil and only two of them are the
+    # same rule - sharing this one would silently flatten every escalation curve
+    # in the corpus to stage 1.
     pool, stages = [], {}
     for raw in (desc or "").splitlines():
         line = raw.strip()

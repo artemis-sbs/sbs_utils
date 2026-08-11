@@ -16,6 +16,10 @@ line. Run `sbs <command> --help` for full options.
 | `sbs compile <mission>` | Compile-check the MAST |
 | `sbs lint <mission>` | **Validate** the mission's `.amd` files (headings, references, signals) |
 | `sbs fmt <mission>` | **Format** the mission's `.amd` files (canonical, prose-safe) |
+| `sbs docs <mission>` | **Print** the mission's `.amd` as a paper-ready HTML document ([four lenses](amd-docs.md)) |
+| `sbs docs <mission> --pdf` | ...and a **PDF**, via a headless browser or the weasyprint CLI |
+| `sbs doctor` | **Check the setup** - tools, libraries, mission health ([details](doctor.md)) |
+| `sbs deps install <pkg>` | Optional Python libraries, on an interpreter that cannot `pip` ([why](doctor.md)) |
 | `sbs swap <name>` | Switch which `missions_*` set Cosmos loads |
 | `sbs fetch` / `sbs update` | Fetch missions / update the tool |
 

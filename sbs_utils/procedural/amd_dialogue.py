@@ -31,17 +31,20 @@ card itself and passes that record in.
 """
 import random
 import re
-from sbs_utils.procedural.amd import RE_CUE, RE_DIRECTION
+from sbs_utils.procedural.amd import (RE_CUE, RE_DIRECTION, RE_CHOICE, RE_GATE,
+                                      amd_choice, amd_outcomes, amd_body_variant)
 from sbs_utils.procedural.signal import signal_emit
 from sbs_utils.mast.mast_node import MastDataObject
 
-# An EMPTY target is legal and means "this answer ends the hail" - `hail_answer`
-# already closes on a falsy target, so `+` here only made an authored terminal
-# choice VANISH: the line looked like a choice, matched nothing, and was dropped
-# without a word. A conversation whose last beat is an acknowledgement is the
-# common case, so it must be writable.
-_CHOICE = re.compile(r"^-\s*\[(?P<label>.*?)\]\((?P<target>[\w.\-]*)\)\s*(?P<rest>.*?)\s*$")
-_GATE = re.compile(r"^%?\{(?P<gate>[^}]*)\}\s*(?P<text>.*)$")
+# Grammar - ONE definition, imported from `amd`. These aliases keep the existing
+# local names working (amd_lint imports `_CHOICE` from here).
+#
+# The local copies were subtly narrower than every other reader's: the target was
+# `[\w.\-]*`, which cannot match a PATH target (`florbin/recover`), and the anchor
+# was `^-`, which cannot match an INDENTED choice. Both parsed clean everywhere
+# else and vanished here, at runtime.
+_CHOICE = RE_CHOICE
+_GATE = RE_GATE
 _GUARD = re.compile(r"^(?P<lhs>[\w ]+?)\s*(?P<op>>=|<=|==|!=|>|<)\s*(?P<num>-?\d+)$")
 
 
@@ -162,13 +165,7 @@ def dialogue_parse(node):
             pending = drc.group("text").strip() or None
             continue
         # An NPC speech variant. `%` is optional; `%{gate}` / `{gate}` gates the line.
-        if line.startswith("%"):
-            line = line[1:].strip()
-        m = _GATE.match(line) if line.startswith("{") else None
-        if m is not None:
-            text, gate = m.group("text").strip(), m.group("gate").strip()
-        else:
-            text, gate = line, None
+        text, gate = amd_body_variant(line)
         if current is None:
             current = open_beat(default_speaker)
         current["lines"].append((text, gate, pending))
@@ -178,34 +175,8 @@ def dialogue_parse(node):
             "lines": lines, "choices": choices, "beats": beats}
 
 
-def _dlg_parse_choice(line):
-    m = _CHOICE.match(line)
-    if m is None:
-        return None
-    rest = m.group("rest").strip()
-    guard = None
-    outcomes = []
-    # `; outcomes` first (so a guard can't swallow them), then a leading `if guard`.
-    if ";" in rest:
-        rest, outpart = rest.split(";", 1)
-        outcomes = _dlg_parse_outcomes(outpart)
-        rest = rest.strip()
-    if rest.lower().startswith("if "):
-        guard = rest[3:].strip()
-    return {"label": m.group("label").strip(), "target": m.group("target").strip(),
-            "guard": guard, "outcomes": outcomes}
-
-
-def _dlg_parse_outcomes(s):
-    """'costs 200 credits, earns ashfang selfish +5, signal paid' -> [(verb, *tokens), ...].
-    Tokens are interpreted by the registered outcome handler (only `signal` is built in), so
-    the grammar of costs/earns/etc. lives with the mission, not here."""
-    out = []
-    for item in [x.strip() for x in str(s).split(",") if x.strip()]:
-        toks = item.split()
-        if toks:
-            out.append(tuple([toks[0].lower()] + toks[1:]))
-    return out
+_dlg_parse_choice = amd_choice       # one owner: sbs_utils.procedural.amd
+_dlg_parse_outcomes = amd_outcomes
 
 
 # --- Scene lookup ------------------------------------------------------------

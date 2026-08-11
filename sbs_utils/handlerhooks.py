@@ -279,7 +279,17 @@ def _probe_agents() -> int:
     return max(0, len(Agent.all) - 1)
 
 
+def _probe_ship_data_extra():
+    """Reset-ledger probe: how many extra ship-data files this mission loaded.
+
+    An unregistered per-mission container is invisible to the soak audit, and
+    the whole point of the ledger is that nothing gets to be invisible."""
+    from .procedural.ship_data import ship_data_extra_loaded
+    return len(ship_data_extra_loaded())
+
+
 register_reset_state("Agent.all", _probe_agents)
+register_reset_state("ship_data_extra", _probe_ship_data_extra)
 register_reset_state("Gui.clients",       lambda: len(Gui.clients))
 register_reset_state("Gui.web_client_ids", lambda: len(Gui.web_client_ids))
 register_reset_state("Gui.widget_list_sent", lambda: len(Gui.widget_list_sent))

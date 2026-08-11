@@ -20,13 +20,13 @@ from sbs_utils.procedural.amd import (amd_parse_facts, amd_kind_line, KIND_KEY,
                                       FenceScanner, RE_HEADING, RE_FENCE, AmdErrors,
                                       amd_read_text,
                                       BoneyardScanner, amd_body_synopsis, amd_wikilinks,
-                                      RE_CUE, RE_DIRECTION, amd_norm)
+                                      RE_CUE, RE_DIRECTION, RE_CHOICE, amd_norm)
 
 # Grammar - ONE definition, imported from `amd` and shared with the runtime reader
 # in quest.py. These aliases keep the existing local names working.
 _RE_SECTION = RE_HEADING
 _RE_DATA_FENCE = RE_FENCE
-_RE_CHOICE = re.compile(r"^(?P<pre>\s*-\s*\[(?P<label>[^\]]*)\]\()(?P<target>[^)]*)\)(?P<rest>.*)$")
+_RE_CHOICE = RE_CHOICE      # one owner: sbs_utils.procedural.amd
 _RE_SIGNAL = re.compile(r"\bsignal\s+(?P<name>[A-Za-z0-9_]+)")
 
 # Reference-bearing metadata verbs, keyed by the fence label they live under.
