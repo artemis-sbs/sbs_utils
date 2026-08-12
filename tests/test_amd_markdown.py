@@ -103,9 +103,14 @@ class TestThePageModel(unittest.TestCase):
         self.assertEqual(pages[0]["path"], "maps/bosses/warlord.md")
 
     def test_every_record_is_an_anchor_on_it(self):
+        # `{: #id}`, not `{#id}` - attr_list reads both identically, but mkdocs runs
+        # pages through the macros plugin first and Jinja reads a bare `{#` as the start
+        # of a comment. Every generated heading used to open one that never closed, so
+        # every site build logged a macro error per records page.
         out, _ = _render()
-        for anchor in ("{#reach}", "{#warlord}", "{#warlord-detail}"):
+        for anchor in ("{: #reach}", "{: #warlord}", "{: #warlord-detail}"):
             self.assertIn(anchor, out)
+        self.assertNotIn("{#", out, "a bare {# is a Jinja comment opener")
 
     def test_anchors_come_from_the_path_not_the_key(self):
         # Bare keys repeat across the corpus (40 of 374); `path_of` does not.
@@ -117,7 +122,7 @@ class TestThePageModel(unittest.TestCase):
     def test_a_lone_titled_root_owns_the_h1(self):
         one = "# [Solo](solo)\n---\nQuest\n---\nBody.\n"
         out, _ = _render(one, rel="solo.amd")
-        self.assertEqual(out.splitlines()[0], "# Solo {#solo}")
+        self.assertEqual(out.splitlines()[0], "# Solo {: #solo}")
         self.assertEqual(out.count("\n# "), 0)   # no second h1
 
     def test_several_roots_get_a_synthetic_h1_and_become_h2(self):
@@ -126,8 +131,8 @@ class TestThePageModel(unittest.TestCase):
                "# [B](b)\n---\nQuest\n---\nSecond.\n")
         out, _ = _render(two, rel="raider_hails.amd")
         self.assertEqual(out.splitlines()[0], "# Raider Hails")
-        self.assertIn("## A {#a}", out)
-        self.assertIn("## B {#b}", out)
+        self.assertIn("## A {: #a}", out)
+        self.assertIn("## B {: #b}", out)
 
     def test_a_split_is_declared_never_inferred(self):
         # A record-count threshold would silently change a page's URL the day a file

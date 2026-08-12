@@ -167,7 +167,11 @@ def amd_markdown_record(node, ctx, shift=0):
     level = min(6, max(1, node.level + shift))
     display = node.display or node.key or ""
     anchor = amd_markdown_anchor(node)
-    out.append(f"{'#' * level} {_esc(display)} {{#{anchor}}}")
+    # `{: #id}`, not `{#id}`. Both are attr_list and both produce the same anchor, but
+    # mkdocs runs pages through the macros plugin FIRST, and Jinja reads `{#` as the
+    # start of a comment - so every generated heading opened a comment that never
+    # closed, and every OU records page logged a macro error on every site build.
+    out.append(f"{'#' * level} {_esc(display)} {{: #{anchor}}}")
     out.append("")
     facts = amd_markdown_facts(node, ctx)
     if facts:
