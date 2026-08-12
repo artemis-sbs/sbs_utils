@@ -108,6 +108,32 @@ class MastGlobals:
             sca = import_module(mod_name)
         if sca:
             for (name, func) in getmembers(sca,isfunction):
+                # A leading underscore means "private to this module" - do NOT publish it
+                # as a MAST global.
+                #
+                # This is a BULK, implicit export: every function in the module, whether
+                # its author meant it to be part of the MAST surface or not. Publishing
+                # the helpers too is actively harmful, because MAST globals and MAST
+                # variables share one flat namespace - so a mission script assigning to a
+                # variable that happens to match a library helper gets
+                # "Variable assignment to a keyword <name>", which fails the COMPILE, and
+                # a story that does not compile runs ZERO labels. That is exactly how a
+                # helper named `_dist` in procedural/volume.py silently killed every
+                # mission loading LegendaryMissions' ai addon (2026-08-12).
+                #
+                # Measured before adding this: 266 underscore functions across 82 modules
+                # were reaching the globals - 261 distinct names, 31 of them short generic
+                # words like _log, _now, _val, _vec - and four were already colliding with
+                # EACH OTHER (_num from three modules, _lerp/_truthy/_sbs from two), where
+                # the loop below merely prints a warning and lets the last one win.
+                # A scan of all 611 .mast files on the dev machine found ZERO calls to any
+                # of them, so nothing depended on them being published.
+                #
+                # Deliberately NOT applied to import_python_function: that is an explicit,
+                # one-at-a-time export where the caller names the function on purpose, and
+                # the base globals legitimately carry dunders like __build_class__.
+                if name.startswith("_"):
+                    continue
                 # actual_mod = getmodule(func).__name__
                 # # This is a work around where importing
                 # # A python file in MAST was re adding 
