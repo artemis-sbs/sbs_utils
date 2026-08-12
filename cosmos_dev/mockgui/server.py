@@ -238,7 +238,8 @@ async def _broadcast(payload: dict, _record_only: bool = False):
     # clear/complete carry the region tag in 'tag'; widget commands carry it in 'parent'
     region_tag = payload.get("tag", "") if cmd in ("clear", "complete") else payload.get("parent", "")
 
-    if cmd in ("log", "radar", "radar_terrain", "widget_rect", "cinematic", "skybox", "colors"):
+    if cmd in ("log", "radar", "radar_terrain", "widget_rect", "cinematic", "skybox",
+               "colors", "reticle"):
         # Transient messages: broadcast to all live browsers but never recorded
         # in frames (must not replay to a newly connected tab).
         async with _get_lock():

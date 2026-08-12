@@ -264,6 +264,7 @@ def create_new_sim() -> None:
     # reset: a recycled handle would let a stale delete_particle_emittor from the old
     # mission reach into the new one's table.
     _emittors.clear()
+    _science_scans.clear()
     return sim
 
 
@@ -291,6 +292,7 @@ def _register_reset_probes() -> None:
     register_reset_state("mock.terrain_ids",      lambda: len(sim._terrain_ids) if sim else 0)
     register_reset_state("mock.nav_points",       lambda: len(sim.nav_points) if sim else 0)
     register_reset_state("mock.particle_emittors", lambda: len(_emittors))
+    register_reset_state("mock.science_scans",    lambda: len(_science_scans))
 
 
 _register_reset_probes()
@@ -596,17 +598,69 @@ def get_hull_map(spaceObjectID: int, forceCreate: bool = False) -> hullmap:
         hull_map_objects[spaceObjectID] = hull_map
     return hull_map
 
+# Parsed preferences.json, loaded once. NOT per-mission state - it is a cache of a file
+# on disk that no mission writes - so it is deliberately not on the reset ledger.
+_preferences: "dict | None" = None
+
+
+def _load_preferences() -> dict:
+    """Read data/preferences.json.
+
+    The file is HJSON, not JSON: it carries `//` comments (its own header says so). Rather
+    than take a dependency, strip line comments that are OUTSIDE strings and drop trailing
+    commas, then hand it to json. Anything unparseable yields {} - a missing preference
+    must never take a mission down."""
+    global _preferences
+    if _preferences is not None:
+        return _preferences
+    _preferences = {}
+    try:
+        import io as _io, json, re as _re
+        from sbs_utils.fs import get_artemis_data_dir_filename
+        raw = _io.open(get_artemis_data_dir_filename("preferences.json"),
+                       encoding="utf-8").read()
+        out = []
+        for line in raw.splitlines():
+            in_str = False
+            cut = len(line)
+            i = 0
+            while i < len(line) - 1:
+                c = line[i]
+                if c == '"' and (i == 0 or line[i - 1] != "\\"):
+                    in_str = not in_str
+                elif not in_str and c == "/" and line[i + 1] == "/":
+                    cut = i
+                    break
+                i += 1
+            out.append(line[:cut])
+        text = "\n".join(out)
+        # Trailing commas before a closing brace/bracket are legal HJSON, not JSON.
+        text = _re.sub(r",(\s*[}\]])", r"\1", text)
+        _preferences = json.loads(text) or {}
+    except Exception as e:
+        print(f"[mock] could not read preferences.json ({e}); preferences read as empty")
+        _preferences = {}
+    return _preferences
+
+
 def get_preference_float(key: str) -> float:
     """Gets a value from preferences.json"""
-    return 0.0
+    try:
+        return float(_load_preferences().get(key, 0.0))
+    except (TypeError, ValueError):
+        return 0.0
 
 def get_preference_int(key: str) -> int:
     """Gets a value from preferences.json"""
-    return 0
+    try:
+        return int(float(_load_preferences().get(key, 0)))
+    except (TypeError, ValueError):
+        return 0
 
 def get_preference_string(key: str) -> str:
     """Gets a value from preferences.json"""
-    return ""
+    v = _load_preferences().get(key, "")
+    return "" if v is None else str(v)
 
 def get_screen_size() -> vec2:
     """returns a VEC2, with the width and height of the display in pixels"""
@@ -961,6 +1015,12 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
             ds.set("drone_damage", _DRONE_DAMAGE)
         if not (ds.get("drone_launch_max_range") or 0):
             ds.set("drone_launch_max_range", _DRONE_RANGE)
+
+    # Warp drive — the throttle widget's WARP band is gated on data_set `warp` == 1.0
+    # (ENGINE_WIDGETS.md). shipData has no explicit flag, but only a hull with a warp
+    # drive has a cost to run it.
+    if float(data.get("warp_energy_cost", 0) or 0) > 0:
+        ds.set("warp", 1.0)
 
     # Shields — per-facing array
     shields = data.get("shields")
@@ -1882,6 +1942,7 @@ _DATA_SET_DEFAULTS = {
     "overgrid_offset_x": 0.0, "overgrid_offset_z": 0.0,
     "percent": 0.0, "playerSPitch": 0.0, "playerSRoll": 0.0, "playerSYaw": 0.0,
     "playerThrottle": 0.0, "quick_jump_recharge_rate": 0.0, "quick_jump_recharge_state": 0.0,
+    "warp": 0.0,
     "reference_ring_3d_brightness": 0.0,
     "repair_rate_armor": 0.0, "repair_rate_shields": 0.0, "repair_rate_systems": 0.0,
     "scan_strength_coeff": 0.0,
@@ -2142,6 +2203,13 @@ class simulation(object): ### from pybind
         obj._data_tag = dataTag
         obj._tick_type = aiTag
         _try_populate_from_ship_data(obj)
+        if aiTag == "behav_playership":
+            # The engine reports a player ship that is not docked as "undocked" (it is
+            # what ship_data shows as State), and procedural/docking.py rests there too.
+            # The mock left it "", so every mission gating on dock_state saw a state that
+            # is neither docked nor undocked - LM's //select/weapons route reads it to
+            # decide whether targeting is allowed, and silently cleared every selection.
+            obj.data_set.set("dock_state", "undocked", 0)
         with self._lock:
             self.space_objects[id] = obj
             if abits & 0x30:
@@ -3155,6 +3223,121 @@ def _offense_factor(obj) -> float:
     if amax > 0.0:                                        # station (armor death)
         return max(_OFFENSE_FLOOR, (ds.get("armor") or 0.0) / amax)
     return 1.0
+
+
+# Science scans, as a QUEUE per scanning ship: {scanner_id: [ {target, tab, pct}, ... ]}.
+# The head of each queue is the ACTIVE scan and the only one that advances; the rest wait
+# their turn, and completing one pops it so the next starts automatically.  An entry is
+# (target, tab): a contact can be queued once per tab, and each tab is a separate scan.
+#
+# The engine keeps its own queue and advances it BY DISTANCE, publishing the active scan
+# in the scanning ship's data_set (cur_scan_ID / cur_scan_type / cur_scan_percent) and
+# firing science_scan_complete at the end (ENGINE_WIDGETS.md, science_data).  Nothing
+# advanced any of that in the mock, so the science console could never finish a scan.
+_science_scans: dict = {}
+
+# A scan at or inside the ship's own sensor range takes this long; further out it slows
+# proportionally, so range is what makes a scan expensive, as in the engine.
+_SCAN_SECONDS = 5.0
+_SCAN_MIN_RATE = 0.2        # never slower than 5x the close-range time, or it reads as hung
+
+
+def start_science_scan(ship_id: int, target_id: int, tab: str = "scan") -> bool:
+    """Queue a scan of `target_id`'s `tab` for `ship_id`.  True if it was added.
+
+    This is what the science_data widget's "Start Scan" button does.  The engine has no
+    script API for it, so the mock owns the whole life cycle.  Queuing the same
+    (target, tab) twice is a no-op rather than a duplicate entry."""
+    if sim is None:
+        return False
+    if sim.space_objects.get(ship_id) is None or sim.space_objects.get(target_id) is None:
+        return False
+    q = _science_scans.setdefault(int(ship_id), [])
+    if any(e["target"] == int(target_id) and e["tab"] == tab for e in q):
+        return False
+    q.append({"target": int(target_id), "tab": tab, "pct": 0.0})
+    _publish_active_scan(int(ship_id))
+    return True
+
+
+def stop_science_scan(ship_id: int, target_id: int, tab: str = "scan") -> bool:
+    """Drop a queued scan - the "Stop Scan" the button becomes once queued.  Removing the
+    ACTIVE entry simply promotes the next one."""
+    q = _science_scans.get(int(ship_id))
+    if not q:
+        return False
+    keep = [e for e in q if not (e["target"] == int(target_id) and e["tab"] == tab)]
+    if len(keep) == len(q):
+        return False
+    _science_scans[int(ship_id)] = keep
+    _publish_active_scan(int(ship_id))
+    return True
+
+
+def science_scan_queue(ship_id: int) -> list:
+    """This ship's scan queue, head first.  Entry 0 is the one actually scanning."""
+    return list(_science_scans.get(int(ship_id), ()))
+
+
+def _publish_active_scan(ship_id: int) -> None:
+    """Mirror the head of the queue into the ship's data_set, where the engine puts it."""
+    o = sim.space_objects.get(ship_id) if sim is not None else None
+    if o is None:
+        return
+    q = _science_scans.get(ship_id) or []
+    if not q:
+        o.data_set.set("cur_scan_ID", 0, 0)
+        o.data_set.set("cur_scan_type", "", 0)
+        o.data_set.set("cur_scan_percent", 0, 0)
+        return
+    head = q[0]
+    o.data_set.set("cur_scan_ID", head["target"], 0)
+    o.data_set.set("cur_scan_type", head["tab"], 0)
+    o.data_set.set("cur_scan_percent", int(head["pct"]), 0)
+
+
+def _physics_science_scans(sim, dt: float) -> None:
+    """Advance the head of each ship's queue and fire science_scan_complete when it lands.
+
+    The completion event is the REAL one (the tag, origin/selected and extra/value tags
+    science.py itself builds), so mission //select and science routes run exactly as they
+    would in Cosmos rather than against a mock-only signal."""
+    if not _science_scans:
+        return
+    for ship_id in list(_science_scans.keys()):
+        q = _science_scans.get(ship_id) or []
+        o = sim.space_objects.get(ship_id)
+        if o is None:
+            _science_scans.pop(ship_id, None)      # scanner gone: the whole queue goes
+            continue
+        # Drop entries whose target has died, wherever they sit in the queue.
+        q = [e for e in q if sim.space_objects.get(e["target"]) is not None]
+        if not q:
+            _science_scans.pop(ship_id, None)
+            _publish_active_scan(ship_id)
+            continue
+        _science_scans[ship_id] = q
+        head = q[0]
+        t = sim.space_objects[head["target"]]
+        dx = t._pos.x - o._pos.x
+        dy = t._pos.y - o._pos.y
+        dz = t._pos.z - o._pos.z
+        dist = math.sqrt(dx * dx + dy * dy + dz * dz)
+        rng = float(o.data_set.get("ship_base_scan_range", 0) or 0.0) or 25000.0
+        rate = max(_SCAN_MIN_RATE, min(1.0, rng / dist if dist > 1.0 else 1.0))
+        head["pct"] += (100.0 / _SCAN_SECONDS) * rate * dt
+        if head["pct"] < 100.0:
+            _publish_active_scan(ship_id)
+            continue
+        q.pop(0)                                    # done: the next entry starts next tick
+        if q:
+            _science_scans[ship_id] = q
+        else:
+            _science_scans.pop(ship_id, None)
+        _publish_active_scan(ship_id)
+        _pending_physics_events.put(
+            ("science_scan_complete", "", ship_id, head["target"], 0, "",
+             {"extra_tag": head["tab"], "value_tag": getattr(o, "_side", "") or ""}))
 
 
 def _physics_beams(sim, active: list, dt: float) -> None:
@@ -4306,6 +4489,7 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         _physics_projectiles(sim, dt)
         _physics_blasts(sim, dt)
         _physics_heat(active, dt)
+        _physics_science_scans(sim, dt)
 
         # 4. Passive systems — shield regen + APU energy, active objects only.
         for _id, obj in active:

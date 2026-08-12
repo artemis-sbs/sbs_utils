@@ -4,7 +4,7 @@
 // own fullscreen canvas and renders the mock's live objects (terrain + dynamic) as INSTANCED
 // 3D meshes — using the REAL game art (/ships/<art>.obj + <art>_diffuse.png), one instanced
 // draw per art. Reads mock state through the window.__mockField() bridge, so Three.js is
-// untouched. Press 'g' to toggle; drag to orbit, wheel to zoom.
+// untouched. 'g' toggles the stats panel, shift+G the whole overlay; drag to orbit, wheel to zoom.
 //
 // Matches the mock's transform: world = (posBuf[i*3], meta.y, posBuf[i*3+1]), oriented by
 // meta.q, scaled by meta.meshscale on the native (centered) mesh. Nebulae (meta.nebula) are
@@ -20,13 +20,20 @@ async function start(){
   canvas.id="webgpu-field";
   canvas.style.cssText="position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:0;background:#05070c;display:none";   // background layer (like the WebGL 3dview at z-1); HUDs/GUI at higher z draw on top
   document.body.appendChild(canvas);
-  let visible=true; const MODES=["chase","orbit","cinematic"]; let modeUserSet=false; let modeIx=0, shipSel=0, npcSel=0, focusNpc=false, showGrid=true;
+  // Two independent toggles: `visible` is the field VIEW, `hudVisible` is the stats
+  // panel. They used to be one flag, so the only way to dismiss the stats was to hide
+  // the whole 3D view along with them. 'g' now takes the stats (the key is labelled
+  // inside that panel, so that is what a reader pressing it expects); shift+G takes the
+  // whole overlay, which is what 'g' used to do.
+  let visible=true, hudVisible=true; const MODES=["chase","orbit","cinematic"]; let modeUserSet=false; let modeIx=0, shipSel=0, npcSel=0, focusNpc=false, showGrid=true;
   let fps=60, fpsFrames=0, fpsT=performance.now();
   const hud=document.createElement("div");
   hud.style.cssText="position:fixed;top:10px;right:12px;z-index:2147483001;font:12px/1.5 ui-monospace,Consolas,monospace;color:#e7ebf2;background:rgba(10,12,17,.62);border:1px solid #232833;border-radius:8px;padding:8px 11px;pointer-events:none;white-space:pre;text-align:right";
   document.body.appendChild(hud);
   window.addEventListener("keydown",e=>{
-    if(e.key==="g"){ visible=!visible; canvas.style.display=visible?"block":"none"; hud.style.display=visible?"block":"none"; }
+    if(e.key==="g"){ hudVisible=!hudVisible; hud.style.display=hudVisible?"block":"none"; }   // stats panel only
+    if(e.key==="G"){ visible=!visible; canvas.style.display=visible?"block":"none";           // the whole overlay
+                     hud.style.display=(visible&&hudVisible)?"block":"none"; }
     if(e.key==="c"){ modeIx=(modeIx+1)%MODES.length; modeUserSet=true; }   // cycle chase -> orbit -> cinematic (and stop auto-picking)
     if(e.key==="v"){ focusNpc=false; shipSel++; }        // cycle which PLAYER ship the chase follows
     if(e.key==="n"){ focusNpc=true; npcSel++; }          // cycle NON-player ships (find a far / cloaked NPC)
@@ -846,12 +853,12 @@ async function start(){
   function frameInner(){
     const b2=bridge();
     // Dock as the mock's 3dview: visible only while the cinematic 3dview is active, sized to its canvas rect
-    // (the ship_data/target HUDs and the GUI sit at higher z-index, so they draw on top). 'g' still force-hides.
+    // (the ship_data/target HUDs and the GUI sit at higher z-index, so they draw on top). shift+G still force-hides.
     const el=b2&&b2.view3dEl, r=el?el.getBoundingClientRect():null;
     const show=!!(b2&&b2.active&&visible&&r&&r.width>2&&r.height>2);
     if(!show){ if(canvas.style.display!=="none"){ canvas.style.display="none"; hud.style.display="none"; } return; }
     if(canvas.style.display!=="block") canvas.style.display="block";
-    hud.style.display="block";
+    hud.style.display=hudVisible?"block":"none";   // respect the 'g' stats toggle
     canvas.style.left=r.left+"px"; canvas.style.top=r.top+"px"; canvas.style.width=r.width+"px"; canvas.style.height=r.height+"px";
     ensure(); fnum++;
     const skyName=b2?b2.skyName:null;
@@ -1046,11 +1053,11 @@ async function start(){
       +`\nSHARE ${nebShare?"ON ":"OFF"} · ${logicalSlots}→${physicalSlots} slab${physicalSlots<logicalSlots?" ⚠cap":""} · ${nebBaked?"BAKED":"live"} · ${nebStepMode?`~${Math.round(1.9/NEB_STEP_FRAC)}`:nebSteps} steps · ${canTS?nebGpuMs.toFixed(2)+"ms/3D":"gpu n/a"}`
       +`\n data ${fmtB(shareB)} shared vs ${fmtB(uniqB)} unique = ${(uniqB/shareB).toFixed(1)}× less · N=${effN}${nebStress>1?` ×${nebStress}`:``} · cover ${nebCover}`
       +`\n vram ${physicalSlots}×${nebBakedRES}³=${(physicalSlots*slabMB).toFixed(1)}MB vs unique N=${effN}→${(effN*slabMB).toFixed(0)}MB (r16f ½)`
-      +`\n'c'cam 'v'ship 'n'npc 'b'grid · neb: 's'share 'k'bake 'f'step 't'steps 'm'stress 'r'res 'x'cover · 'g'hide`;
+      +`\n'c'cam 'v'ship 'n'npc 'b'grid · neb: 's'share 'k'bake 'f'step 't'steps 'm'stress 'r'res 'x'cover · 'g'stats 'G'view`;
   }
   function frame(){ try{ frameInner(); }catch(e){ wlog("frame error: "+(e&&e.message||e)); } requestAnimationFrame(frame); }   // one bad frame logs and retries, never black-screens
   requestAnimationFrame(frame);
-  wlog("overlay active — real-mesh instancing by art; press 'g' to toggle");
+  wlog("overlay active — real-mesh instancing by art; 'g' toggles these stats, shift+G the whole view");
 
   function bindOrbit(){
     let drag=false,px=0,py=0;

@@ -760,6 +760,23 @@ function dispatch(msg) {
     case 'comms_wf':     cmdCommsWf(msg);     break;
     case 'radar_zoom':   cmdRadarZoom(msg);   break;
     case 'comms_list':   cmdCommsList(msg);   break;
+    case 'reticle':      cmdReticle(msg);     break;
+    // Engine console widgets (helm / weapons / science) - see enginePanel().
+    case 'throttle':        _pThrottle.cmd(msg);   break;
+    case 'helm_move':       _pHelmMove.cmd(msg);   break;
+    case 'shield_ctrl':     _pShield.cmd(msg);     break;
+    case 'dock_ctrl':       _pDock.cmd(msg);       break;
+    case 'mainscreen_ctrl': _pMainScreen.cmd(msg); break;
+    case 'helm_jump':       _pHelmJump.cmd(msg);   break;
+    case 'quick_jump':      _pQuickJump.cmd(msg);  break;
+    case 'weapon_ctrl':     _pWeaponCtl.cmd(msg);  break;
+    case 'beam_freq':       _pBeamFreq.cmd(msg);   break;
+    case 'beam_speed':      _pBeamSpeed.cmd(msg);  break;
+    case 'torp_conv':       _pTorpConv.cmd(msg);   break;
+    case 'sci_list':        _pSciList.cmd(msg);    break;
+    case 'sci_data':        _pSciData.cmd(msg);    break;
+    case 'sci_tabs':        _pSciTabs.cmd(msg);    break;
+    case 'sci_freq':        _pSciFreq.cmd(msg);    break;
     case 'story_dialog': cmdStoryDialog(msg); break;
     case 'hud_rect':     cmdHudRect(msg);     break;
     case 'batch':        msg.items.forEach(dispatch); break;
@@ -810,6 +827,9 @@ _syncRadarCanvasSize();
 // Zoom via scroll wheel anywhere on the page — radar canvas has pointer-events:none
 // so the listener must live on window.
 window.addEventListener('wheel', e => {
+  // Over a console-widget overlay: it scrolls, or handles its own wheel (the steering
+  // ring uses it for altitude). Before preventDefault, so native scrolling still works.
+  if (_clickOnOverlay(e)) return;
   e.preventDefault();
   // Over the active 3dview (not the radar): zoom the orbit camera instead.
   if (_view3dActive && !_pointInRadarView(e.clientX, e.clientY)) {
@@ -854,12 +874,24 @@ let _panArmed = false, _panDownX = 0, _panDownY = 0;
 const _LONG_PRESS_MS = 500;
 let _longPressTimer = null, _longPressFired = false;
 
-// A click on an overlay control (radar zoom/mode buttons, comms panels, red-alert button)
-// must NOT be treated as a radar select even though it geometrically sits over the 2D view.
+// Mount a console-widget overlay in the game area. gui-root, NOT document.body: body is
+// position:fixed and sits under the mock topbar, while gui-root is position:absolute so
+// percent coords match send_gui_*. Everything mounted here is tagged `engine-panel`,
+// which is what keeps the radar's window-level handlers off it (below) - tagging at the
+// mount point means a NEW overlay is excluded automatically instead of having to be
+// remembered in a list, which is how the throttle and helm ring lost their clicks.
+function _mountOverlay(el) {
+  el.classList.add('engine-panel');
+  (document.getElementById('gui-root') || document.body).appendChild(el);
+  return el;
+}
+
+// An interaction with an overlay control (throttle, steering ring, comms panels, zoom
+// buttons, red alert) must NOT reach the 2D view underneath, even though it sits over it
+// geometrically: the radar's select / pan / zoom / recentre handlers are all on `window`.
 function _clickOnOverlay(e) {
   const t = e.target;
-  return !!(t && t.closest && t.closest(
-    '#radarZoomCtrl,#commsControl,#commsFace,#commsWaterfall,#commsSortedList,#redAlertBtn'));
+  return !!(t && t.closest && t.closest('.engine-panel'));
 }
 
 window.addEventListener('mousedown', e => {
@@ -925,6 +957,7 @@ window.addEventListener('contextmenu', e => {
 
 // Double-click recentres the radar (clears the pan offset).
 window.addEventListener('dblclick', e => {
+  if (_clickOnOverlay(e)) return;
   if (!_pointInRadarView(e.clientX, e.clientY)) return;
   _radarPanX = 0; _radarPanZ = 0;
   _requestRadarRender();
@@ -1325,6 +1358,7 @@ function cmdWorldReset(msg) {
   if (_dynamicPoints) _dynamicPoints.geometry.setDrawRange(0, 0);
   // Terrain (asteroids, nebulae, …).
   _terrainMap.clear(); _terrainRevMap.clear(); _terrainMeta.clear();
+  _reticle = null;   // the selection belonged to the mission that just ended
   _terrainCount = 0;
   _terrainVersion++;   // force the WebGPU overlay to re-gather: it caches terrain (incl. the
                        // planet / black-hole bodies) until the version moves, so without this a
@@ -1627,7 +1661,7 @@ function _ensureRedAlertEl() {
     'font:600 13px/1 monospace;letter-spacing:2px;color:#fff;' +
     'background:rgba(180,0,0,.85);padding:5px 12px;border-radius:3px;' +
     'text-shadow:0 1px 2px #000;">RED ALERT</div>';
-  (document.getElementById('gui-root') || document.body).appendChild(el);
+  _mountOverlay(el);
   _redAlertEl = el;
   return el;
 }
@@ -1656,7 +1690,7 @@ function _ensureRedAlertBtnEl() {
     sendEvent('red_alert_toggle', '', CLIENT_ID !== null ? CLIENT_ID : 0,
               { on: !_redAlertBtnMsg.on });
   });
-  (document.getElementById('gui-root') || document.body).appendChild(el);
+  _mountOverlay(el);
   _redAlertBtnEl = el;
   return el;
 }
@@ -1702,7 +1736,7 @@ function _ensureCommsCtrlEl() {
   _commsCtrlList.style.cssText = 'flex:1 1 auto;overflow-y:auto;min-height:0;';
   el.appendChild(_commsCtrlHdr);
   el.appendChild(_commsCtrlList);
-  (document.getElementById('gui-root') || document.body).appendChild(el);
+  _mountOverlay(el);
   _commsCtrlEl = el;
   return el;
 }
@@ -1777,7 +1811,7 @@ function _ensureCommsFaceEl() {
     'padding:3px 4px 0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
   box.appendChild(faceWrap);
   box.appendChild(title);
-  (document.getElementById('gui-root') || document.body).appendChild(box);
+  _mountOverlay(box);
   _commsFaceEl = box;
   _commsFaceCanvas = c;
   _commsFaceTitle = title;
@@ -1839,7 +1873,7 @@ function _ensureCommsWfEl() {
   _commsWfThreadEl.style.cssText = 'flex:1 1 auto;min-width:0;overflow-y:auto;padding:6px;';
   el.appendChild(_commsWfListEl);
   el.appendChild(_commsWfThreadEl);
-  (document.getElementById('gui-root') || document.body).appendChild(el);
+  _mountOverlay(el);
   _commsWfEl = el;
   return el;
 }
@@ -1958,7 +1992,7 @@ function _ensureRadarZoomEl() {
   mode.addEventListener('mouseleave', () => mode.style.background = '#16202c');
   mode.addEventListener('click', _toggleRadarColorMode);
   box.appendChild(mode);
-  (document.getElementById('gui-root') || document.body).appendChild(box);
+  _mountOverlay(box);
   _radarZoomEl = box;
   return box;
 }
@@ -1988,7 +2022,7 @@ function _ensureCommsListEl() {
   el.style.cssText = 'position:absolute;z-index:47;display:none;box-sizing:border-box;' +
     'overflow-y:auto;background:rgba(8,14,22,.9);border:1px solid #2a3a4a;border-radius:5px;' +
     'font:12px/1.3 monospace;';
-  (document.getElementById('gui-root') || document.body).appendChild(el);
+  _mountOverlay(el);
   _commsListEl = el;
   return el;
 }
@@ -2020,6 +2054,607 @@ function cmdCommsList(msg) {
   el.style.width = Math.max(0, r.right - r.left) + '%';
   el.style.height = Math.max(0, r.bottom - r.top) + '%';
   el.style.display = 'block';
+}
+
+// ── Engine console widget panels (Family B) ──────────────────────────────────
+// gui_console()/gui_layout_widget() name native C++ views the real engine paints into
+// a reserved rectangle; nothing about their CONTENT crosses the MAST boundary. Here
+// each is a DOM overlay in that rectangle, fed by a per-tick stream from the mock.
+//
+// They share enginePanel() because they all need the same four things: lazy creation,
+// placement, hide, and merging the PARTIAL payloads _push_delta sends (only changed
+// fields are on the wire, so state has to be retained here).
+//
+// Placement arrives one of two ways:
+//   op:'rect'    — screen percent, from a mission's gui_layout_widget. Comms, science
+//                  and engineering lay themselves out this way.
+//   op:'defrect' — anchor corner + CAPTURE PIXELS, the mock's built-in default for the
+//                  two consoles the engine lays out in C++ and never tells us about
+//                  (helm, weapons). Scaled by viewport HEIGHT and pinned to the named
+//                  corner, so proportions measured off an engine capture survive a
+//                  differently shaped window instead of stretching.
+// A defrect resets any stored rect and vice versa, so a console change can't leave a
+// widget wearing the previous console's placement.
+const _enginePanels = [];
+const EP_BG   = 'rgba(10,14,28,.86)';
+const EP_EDGE = '#3a4570';
+const EP_FG   = '#b9c2f0';
+const EP_SEL  = '#aeb6e8';
+
+// Rebuilding a panel's DOM between mousedown and mouseup destroys the node the press
+// started on; the browser then fires `click` on a surviving ancestor, the delegated
+// [data-act] lookup finds nothing, and the press vanishes. The throttle re-renders on
+// EVERY tick once the ship is moving (SPD changes), which is why it took exactly one
+// click and then looked dead - the bar, WARP and REV alike. So: hold renders while a
+// button is down, and flush after the click has been dispatched.
+let _epPressing = false;
+const _epPending = new Set();
+window.addEventListener('mousedown', () => { _epPressing = true; }, true);
+window.addEventListener('mouseup', () => {
+  _epPressing = false;
+  // setTimeout, not here: `click` is dispatched right after mouseup in this same task,
+  // and rebuilding before it lands would drop the press exactly as before.
+  setTimeout(() => {
+    for (const p of _epPending) p.redraw();
+    _epPending.clear();
+  }, 0);
+}, true);
+
+// Write only when the markup actually differs. A panel whose payload changed in a field
+// it does not draw (or not at all) then keeps its nodes, which keeps hover state and
+// keeps churn off the main thread.
+function _epSet(el, html) {
+  if (el._epHtml === html) return;
+  el._epHtml = html;
+  el.innerHTML = html;
+}
+
+function enginePanel(id, css, render, onAct) {
+  // The panel's own display mode, so place() can show it WITHOUT overwriting the
+  // display:flex most of them rely on to fill their rectangle.
+  const disp = (css.match(/display\s*:\s*([\w-]+)/) || [, 'block'])[1];
+  const p = {
+    el: null, rect: null, def: null, state: {}, disp,
+    ensure() {
+      if (p.el) return p.el;
+      const el = document.createElement('div');
+      el.id = id;
+      // gui-root, NOT document.body: gui-root is the game area below the mock topbar
+      // and is position:absolute, so percent coords match send_gui_* exactly.
+      el.style.cssText = 'position:absolute;z-index:47;display:none;box-sizing:border-box;' +
+        'font:12px/1.35 monospace;color:' + EP_FG + ';' + css;
+      _mountOverlay(el);
+      if (onAct) el.addEventListener('click', (ev) => {
+        // Delegated: render() rebuilds innerHTML, which would drop per-element
+        // listeners. Actions are declared with data-act instead.
+        const hit = ev.target.closest('[data-act]');
+        if (hit && !hit.hasAttribute('data-off')) onAct(hit.getAttribute('data-act'), hit, p.state);
+      });
+      p.el = el;
+      return el;
+    },
+    place() {
+      const el = p.ensure();
+      if (p.rect) {
+        const r = p.rect;
+        el.style.left = r.left + '%';
+        el.style.top = r.top + '%';
+        el.style.width = Math.max(0, r.right - r.left) + '%';
+        el.style.height = Math.max(0, r.bottom - r.top) + '%';
+        el.style.display = p.disp;
+        return true;
+      }
+      if (p.def) {
+        const d = p.def;
+        const host = document.getElementById('gui-root') || document.body;
+        const W = host.clientWidth || window.innerWidth;
+        const H = host.clientHeight || window.innerHeight;
+        const s = H / (d.refh || 1355);   // uniform scale — never distort the capture
+        const w = d.w * s, h = d.h * s, dx = d.dx * s, dy = d.dy * s;
+        el.style.left = ((d.anchor[1] === 'l') ? dx : W - dx - w) + 'px';
+        el.style.top = ((d.anchor[0] === 't') ? dy : H - dy - h) + 'px';
+        el.style.width = w + 'px';
+        el.style.height = h + 'px';
+        el.style.display = p.disp;
+        return true;
+      }
+      el.style.display = 'none';
+      return false;
+    },
+    cmd(msg) {
+      if (msg.op === 'hide' || msg.active === false) {
+        if (p.el) p.el.style.display = 'none';
+        return;
+      }
+      if (msg.op === 'rect') { p.rect = { left: msg.left, top: msg.top, right: msg.right, bottom: msg.bottom }; p.def = null; }
+      else if (msg.op === 'defrect') { p.def = msg; p.rect = null; }
+      else if (msg.op === 'list') { p.state.items = msg.items || []; }
+      else { Object.assign(p.state, msg); }
+      if (!p.place()) return;
+      if (_epPressing) { _epPending.add(p); return; }
+      render(p.el, p.state);
+    },
+    redraw() { if (p.place()) render(p.el, p.state); },
+  };
+  _enginePanels.push(p);
+  return p;
+}
+
+// A defrect is resolved against the live viewport, so it has to be re-resolved when
+// the window changes shape. Percent rects reflow on their own.
+window.addEventListener('resize', () => {
+  for (const p of _enginePanels) if (p.def && p.el && p.el.style.display !== 'none') p.redraw();
+});
+
+function _epCtl(type, detail) {
+  sendEvent(type, '', CLIENT_ID !== null ? CLIENT_ID : 0, detail);
+}
+function _epBtn(label, act, on, off) {
+  // The engine's button look: dark slab, lavender text, filled + dark text when active.
+  return '<div data-act="' + act + '"' + (off ? ' data-off="1"' : '') +
+    ' style="flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:center;' +
+    'border:1px solid ' + EP_EDGE + ';border-radius:3px;cursor:' + (off ? 'default' : 'pointer') + ';' +
+    'padding:2px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' +
+    (on ? 'background:' + EP_SEL + ';color:#0b1020;font-weight:700;'
+        : 'background:rgba(30,38,70,.7);' + (off ? 'color:#5a6288;' : '')) + '">' + label + '</div>';
+}
+function _epTitle(t) {
+  return '<div style="flex:0 0 auto;padding:1px 4px;color:#8f98c8;font-size:11px;">' + t + '</div>';
+}
+function _esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+}
+
+// ── throttle ─────────────────────────────────────────────────────────────────
+// The engine widget is a vertical bar with a SPD readout, a WARP button on top and REV
+// at the bottom; those two buttons change what the BAR MEANS rather than setting a speed
+// (ENGINE_WIDGETS.md: "REV and WARP buttons toggle how the bar is used").  Three modes:
+//
+//   impulse  18 segments, click one for playerThrottle 0..1 as a fraction of the bar
+//   reverse  the same bar read as 0..-1 (REV); -1 is full astern
+//   warp     FOUR sections, warp 1-4 = playerThrottle 2,3,4,5
+//
+// All three write `playerThrottle`, which is all the engine widget does, so a mission
+// polling it sees what it would see in Cosmos.  The WARP band is offered only when the
+// hull's data_set `warp` == 1.0.
+const THROTTLE_SEGS = 18;
+// Warp band colours, bottom-up (warp 1 -> 4), matching the engine's warp-mode bar.
+const WARP_COLORS = ['#22d3d3', '#2a44d0', '#d8d322', '#d02a2a'];
+
+function _throttleMode(s) {
+  // Reality wins over the local toggle: a ship already at warp (or astern) shows the bar
+  // that describes it, so the widget can never disagree with the ship it is driving.
+  const thr = s.throttle || 0;
+  if (thr > 1) return 'warp';
+  if (thr < 0) return 'rev';
+  return s.mode || 'impulse';
+}
+
+const _pThrottle = enginePanel('epThrottle',
+  'background:' + EP_BG + ';border:1px solid ' + EP_EDGE + ';border-radius:4px;' +
+  'display:flex;flex-direction:column;padding:2px;gap:2px;',
+  (el, s) => {
+    const thr = s.throttle || 0, mode = _throttleMode(s);
+    let h = '<div style="flex:0 0 auto;text-align:center;font-size:11px;color:#cfd6ff;">SPD ' +
+      (s.speed == null ? '0' : s.speed) + '</div>';
+    h += '<div style="flex:0 0 22px;display:flex;">' +
+      _epBtn('WARP', 'warp', mode === 'warp', !s.warp_ok) + '</div>';
+    // column-reverse so index 0 is the BOTTOM of the bar, as the engine draws it.
+    h += '<div style="flex:1 1 auto;display:flex;flex-direction:column-reverse;gap:1px;min-height:0;">';
+    if (mode === 'warp') {
+      const level = Math.max(1, Math.min(4, Math.round(thr) - 1));   // pt 2..5 -> warp 1..4
+      for (let i = 0; i < 4; i++) {
+        const on = (i + 1) === level;
+        h += '<div data-act="w' + (i + 1) + '" style="flex:1 1 0;min-height:2px;cursor:pointer;' +
+          'display:flex;align-items:center;justify-content:center;font:700 11px monospace;' +
+          'color:#0b1020;background:' + WARP_COLORS[i] + ';' +
+          (on ? 'box-shadow:inset 0 0 0 2px #fff;' : 'opacity:.55;') + '">' + (i + 1) + '</div>';
+      }
+    } else {
+      // Reverse reads the same bar as 0..-1, so the lit fraction is |throttle| either way.
+      const lit = Math.min(1, Math.abs(thr));
+      for (let i = 0; i < THROTTLE_SEGS; i++) {
+        const frac = (i + 1) / THROTTLE_SEGS;         // this segment's share of the bar
+        const on = frac <= lit + 1e-6;
+        const hue = 90 - 60 * frac;                   // green at rest -> yellow at full
+        h += '<div data-act="t' + frac.toFixed(4) + '" style="flex:1 1 0;min-height:2px;' +
+          'cursor:pointer;background:' +
+          (on ? 'hsl(' + hue + ',85%,45%)' : 'rgba(40,48,80,.55)') + ';"></div>';
+      }
+    }
+    h += '</div>';
+    h += '<div style="flex:0 0 22px;display:flex;">' +
+      _epBtn('REV', 'rev', mode === 'rev') + '</div>';
+    _epSet(el, h);
+  },
+  (act, node, s) => {
+    const mode = _throttleMode(s);
+    // Set the throttle AND adopt the value locally. _throttleMode re-derives the mode
+    // from s.throttle, which the server only refreshes on its next push - so without the
+    // optimistic write, leaving warp redrew the warp bar anyway for ~200ms and a second
+    // click just toggled the mode back. The next push confirms or corrects it.
+    const set = (v) => { s.throttle = v; _epCtl('helm_control', { key: 'playerThrottle', value: v }); };
+    if (act === 'warp' || act === 'rev') {
+      // A mode button only changes what the bar MEANS. But leaving a mode while the ship
+      // sits in its range would leave the bar unable to describe the current speed, so
+      // the throttle is pulled back into the new mode's range.
+      const want = act === 'warp' ? 'warp' : 'rev';
+      s.mode = (mode === want) ? 'impulse' : want;
+      if (mode === 'warp' && s.mode !== 'warp' && (s.throttle || 0) > 1) set(1);
+      else if (mode === 'rev' && s.mode !== 'rev' && (s.throttle || 0) < 0) set(0);
+      _pThrottle.redraw();
+      return;
+    }
+    // 'w1'-'w4' are the warp sections; checked before the 't' segments and after the
+    // 'warp' button above, which also begins with a w.
+    if (act[0] === 'w') {
+      set(parseInt(act.slice(1), 10) + 1);         // warp 1-4 -> playerThrottle 2-5
+      _pThrottle.redraw();
+      return;
+    }
+    if (act[0] === 't') {
+      const frac = parseFloat(act.slice(1));
+      set(+(mode === 'rev' ? -frac : frac).toFixed(4));
+      _pThrottle.redraw();
+    }
+  });
+
+// ── helm_movement ────────────────────────────────────────────────────────────
+// The steering ring (screen_shots/helm_movement.png): an ellipse in perspective with
+// ANG/ALT/AZI readouts and surrounding contacts as markers. Click or drag the ring to
+// pick a heading; the vertical strip on the right nudges the target altitude.
+// Both write steerToDirD{X,Y,Z} + steeringToDirFlag, which the mock's _playership_drive
+// already honors (it is the same channel the autoplay AI steers through).
+const _pHelmMove = enginePanel('epHelmMove',
+  'background:' + EP_BG + ';border:1px solid ' + EP_EDGE + ';border-radius:4px;padding:2px;',
+  (el, s) => {
+    let c = el.querySelector('canvas');
+    if (!c) {
+      el.innerHTML = '<canvas style="position:absolute;inset:0;width:100%;height:100%;cursor:crosshair;"></canvas>';
+      c = el.querySelector('canvas');
+      c.addEventListener('mousedown', (ev) => _helmRingAim(c, ev));
+      c.addEventListener('mousemove', (ev) => { if (ev.buttons & 1) _helmRingAim(c, ev); });
+      c.addEventListener('wheel', (ev) => {
+        // Wheel = altitude, the ALT half of the widget. 200u per notch.
+        ev.preventDefault();
+        _epCtl('helm_steer', { alt: (s.alt || 0) - Math.sign(ev.deltaY) * 200 });
+      }, { passive: false });
+    }
+    const w = c.clientWidth || 1, h = c.clientHeight || 1;
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+    const ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+    const cx = w / 2, cy = h / 2, rx = w * 0.42, ry = h * 0.30;
+    ctx.strokeStyle = '#8f98c8';
+    for (const k of [0.34, 0.66]) {           // the inner rings
+      ctx.beginPath(); ctx.ellipse(cx, cy, rx * k, ry * k, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.strokeStyle = '#c0392b';              // the outer heading ring, as in the engine
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
+    // Contacts, placed by bearing on the ring. _dynamicMeta is the same object set the
+    // 2D radar draws, so the ring agrees with the radar without a second stream.
+    // _dynamicMap holds a BUFFER INDEX, not a position: x is [i*3], world z is [i*3+1].
+    const me = _myShipId, mineIdx = me == null ? undefined : _dynamicMap.get(me);
+    if (mineIdx !== undefined && _dynamicPosBuf) {
+      const mx = _dynamicPosBuf[mineIdx * 3], mz = _dynamicPosBuf[mineIdx * 3 + 1];
+      for (const [id, meta] of _dynamicMeta) {
+        if (id === me) continue;
+        const i = _dynamicMap.get(id);
+        if (i === undefined) continue;
+        const a = Math.atan2(_dynamicPosBuf[i * 3] - mx, _dynamicPosBuf[i * 3 + 1] - mz);
+        const px = cx + Math.sin(a) * rx, py = cy - Math.cos(a) * ry;
+        ctx.fillStyle = _objColor(meta.side, meta.tint);
+        ctx.fillRect(px - 4, py - 4, 8, 8);
+      }
+    }
+    // Own ship at the centre, and the heading spoke.
+    const ang = (s.ang || 0) * Math.PI / 180;
+    ctx.strokeStyle = '#2ecc40'; ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.sin(ang) * rx, cy - Math.cos(ang) * ry); ctx.stroke();
+    ctx.fillStyle = '#2ecc40';
+    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.font = '13px monospace'; ctx.fillStyle = EP_FG;
+    ctx.textAlign = 'left'; ctx.fillText('ANG ' + Math.round(s.ang || 0), 4, 14);
+    ctx.textAlign = 'right'; ctx.fillText('ALT ' + Math.round(s.alt || 0), w - 4, 14);
+    ctx.textAlign = 'left'; ctx.fillText('AZI ' + Math.round(s.azi || 0), 4, h - 4);
+    if (s.steering) { ctx.textAlign = 'right'; ctx.fillStyle = '#2ecc40'; ctx.fillText('AUTO', w - 4, h - 4); }
+  });
+
+function _helmRingAim(c, ev) {
+  const r = c.getBoundingClientRect();
+  const dx = (ev.clientX - r.left) - r.width / 2;
+  const dy = (ev.clientY - r.top) - r.height / 2;
+  // Undo the ring's perspective squash so a click reads as the heading it looks like.
+  const ang = (Math.atan2(dx / (r.width * 0.42 || 1), -dy / (r.height * 0.30 || 1)) * 180 / Math.PI + 360) % 360;
+  _epCtl('helm_steer', { ang: +ang.toFixed(1) });
+}
+
+// ── shield_control ───────────────────────────────────────────────────────────
+// One SHIELDS button writing shields_raised_flag (screen_shots/shield_control.png).
+// NOTE: the mock's damage model does not read that flag, so raising shields here is
+// visible and script-observable but does not yet reduce damage taken — see
+// MOCK_WIDGET_PARITY.md. The engine widget fires no event either; it is a bare write.
+const _pShield = enginePanel('epShield',
+  'background:' + EP_BG + ';border:1px solid ' + EP_EDGE + ';border-radius:4px;display:flex;padding:3px;',
+  (el, s) => { _epSet(el, _epBtn(s.up ? 'SHIELDS UP' : 'SHIELDS', 'toggle', !!s.up)); },
+  (act, node, s) => _epCtl('helm_control', { key: 'shields_raised_flag', value: s.up ? 0 : 1 }));
+
+// ── request_dock ─────────────────────────────────────────────────────────────
+// INITIATE DOCK, becoming the release control once docked
+// (screen_shots/"request_dock (release dock).png"). The script starts docking by
+// setting dock_base_id; the runner picks the helm selection as the base.
+const _pDock = enginePanel('epDock',
+  'background:' + EP_BG + ';border:1px solid ' + EP_EDGE + ';border-radius:4px;display:flex;padding:3px;',
+  (el, s) => {
+    const st = s.state || '';
+    const docked = st === 'docked';
+    const busy = st === 'docking' || st === 'docking_start';
+    _epSet(el, _epBtn(docked ? 'RELEASE DOCK' : busy ? ('DOCKING… ' + st) : 'INITIATE DOCK',
+                      docked ? 'undock' : 'dock', docked || busy));
+  },
+  (act) => _epCtl('dock_request', { release: act === 'undock' }));
+
+// ── main_screen_control ──────────────────────────────────────────────────────
+// Facing dial (FRONT/LEFT/RIGHT/BACK), camera mode (INSIDE/CHASE/TRACK) and the view
+// buttons TACT/LRS/DATA (screen_shots/main_screen_control.png). Unlike the rest of helm
+// this one fires a real engine event, main_screen_change, which handlerhooks turns into
+// the MAIN_SCREEN_* inventory values gui_console() reads back.
+const _pMainScreen = enginePanel('epMainScreen',
+  'background:' + EP_BG + ';border:1px solid ' + EP_EDGE + ';border-radius:4px;' +
+  'display:flex;gap:3px;padding:3px;',
+  (el, s) => {
+    const facing = s.facing || 'front', mode = s.mode || 'chase', view = s.view || '3d_view';
+    let h = '<div style="flex:2 1 0;display:flex;flex-direction:column;gap:2px;min-width:0;">';
+    h += '<div style="flex:1;display:flex;">' + _epBtn('FRONT', 'f:front', facing === 'front') + '</div>';
+    h += '<div style="flex:1;display:flex;gap:2px;">' +
+      _epBtn('LEFT', 'f:left', facing === 'left') +
+      '<div style="flex:2 1 0;display:flex;flex-direction:column;gap:2px;">' +
+      _epBtn('INSIDE', 'm:inside', mode === 'inside') +
+      _epBtn('CHASE', 'm:chase', mode === 'chase') +
+      _epBtn('TRACK', 'm:track', mode === 'track') + '</div>' +
+      _epBtn('RIGHT', 'f:right', facing === 'right') + '</div>';
+    h += '<div style="flex:1;display:flex;">' + _epBtn('BACK', 'f:back', facing === 'back') + '</div>';
+    h += '</div><div style="flex:1 1 0;display:flex;flex-direction:column;gap:2px;min-width:0;">' +
+      _epBtn('TACT', 'v:tactical', view === 'tactical') +
+      _epBtn('LRS', 'v:lrs', view === 'lrs') +
+      _epBtn('DATA', 'v:data', view === 'data') + '</div>';
+    _epSet(el, h);
+  },
+  (act, node, s) => {
+    const kind = act[0], val = act.slice(2);
+    // The DIAL (facing + INSIDE/CHASE/TRACK) drives the 3D camera, so touching it also
+    // returns the main screen TO that camera - otherwise picking FRONT while the screen
+    // is on LRS changes a facing nobody can see. TACT/LRS/DATA switch away from it, and
+    // pressing the current one again comes back.
+    _epCtl('main_screen_change', {
+      view: kind === 'v' ? (s.view === val ? '3d_view' : val) : '3d_view',
+      facing: kind === 'f' ? val : (s.facing || 'front'),
+      mode: kind === 'm' ? val : (s.mode || 'chase'),
+    });
+  });
+
+// ── helm_jump / quick_jump ───────────────────────────────────────────────────
+// Drawn so the console is not a hole, but INERT. ENGINE_WIDGETS.md open questions 2-3
+// leave the jump-drive data_set/event delivery unconfirmed, and guessing at a key would
+// be worse than saying plainly that the mock does not emulate these.
+function _inertPanel(id, label) {
+  return enginePanel(id,
+    'background:rgba(10,14,28,.5);border:1px dashed ' + EP_EDGE + ';border-radius:4px;' +
+    'display:flex;align-items:center;justify-content:center;color:#5a6288;text-align:center;',
+    (el) => { _epSet(el, '<div>' + label + '<br><span style="font-size:10px;">not emulated by the mock</span></div>'); });
+}
+const _pHelmJump = _inertPanel('epHelmJump', 'JUMP DRIVE');
+const _pQuickJump = _inertPanel('epQuickJump', 'QUICK JUMP');
+
+// ── weap_beam_freq ───────────────────────────────────────────────────────────
+// Bands A-E writing scan_type_for_shld_freq (0.0-1.0), with the target's weak band
+// marked the way science_data_freq reports it (screen_shots/weap_beam_frea.png).
+const _pBeamFreq = enginePanel('epBeamFreq',
+  'background:' + EP_BG + ';border:1px solid ' + EP_EDGE + ';border-radius:4px;' +
+  'display:flex;flex-direction:column;padding:2px;',
+  (el, s) => {
+    let h = _epTitle('Beam Frequency') + '<div style="flex:1;display:flex;gap:2px;">';
+    for (let i = 0; i < 5; i++) {
+      const weak = s.weak === i;
+      h += _epBtn((weak ? '<span style="font-size:9px;">weak</span><br>' : '') + 'ABCDE'[i],
+                  'f' + i, s.index === i);
+    }
+    _epSet(el, h + '</div>');
+  },
+  (act) => _epCtl('weapon_control', { op: 'freq', index: parseInt(act.slice(1), 10) }));
+
+// ── weap_beam_speed ──────────────────────────────────────────────────────────
+// "Beam Fire Rate" 1X-4X: faster cycling, less damage per shot. Writes beamCycleTime
+// (base/rate), which the mock's _physics_beams already reads, so the rate genuinely
+// changes how often beams fire (screen_shots/weap_beam_speed.png).
+const _pBeamSpeed = enginePanel('epBeamSpeed',
+  'background:' + EP_BG + ';border:1px solid ' + EP_EDGE + ';border-radius:4px;' +
+  'display:flex;flex-direction:column;padding:2px;',
+  (el, s) => {
+    let h = _epTitle('Beam Fire Rate') + '<div style="flex:1;display:flex;gap:2px;">';
+    for (let i = 1; i <= 4; i++) h += _epBtn(i + 'X', 'r' + i, s.rate === i);
+    _epSet(el, h + '</div>');
+  },
+  (act) => _epCtl('weapon_control', { op: 'rate', rate: parseInt(act.slice(1), 10) }));
+
+// ── weap_torp_conversion ─────────────────────────────────────────────────────
+// Trade a torpedo for energy or spend energy building one; greyed when unaffordable
+// or when there is nothing to scrap (screen_shots/weap_trop_conversion.png).
+const _pTorpConv = enginePanel('epTorpConv',
+  'background:' + EP_BG + ';border:1px solid ' + EP_EDGE + ';border-radius:4px;' +
+  'display:flex;flex-direction:column;padding:2px;overflow-y:auto;',
+  (el, s) => {
+    let h = _epTitle('Energy ' + (s.energy == null ? '' : s.energy));
+    for (const o of (s.offers || [])) {
+      h += '<div style="flex:0 0 auto;display:flex;gap:2px;margin-bottom:2px;">' +
+        _epBtn(_esc(o.kind) + ' to energy (+' + o.value + ')', 'sc:' + o.kind, false, !o.can_scrap) +
+        _epBtn('Energy to ' + _esc(o.kind) + ' (-' + o.cost + ')', 'bu:' + o.kind, false, !o.can_build) +
+        '</div>';
+    }
+    _epSet(el, h);
+  },
+  (act) => _epCtl('weapon_control', {
+    op: act.slice(0, 2) === 'sc' ? 'scrap' : 'build', kind: act.slice(3) }));
+
+// ── weapon_control ───────────────────────────────────────────────────────────
+// Torpedo TYPE picker plus a Load/FIRE row per tube (screen_shots/weapon_control.png).
+// FIRE goes through the mock's own sim.launch_torpedo, which spends the round, spawns
+// the projectile AND emits player_launches_missile — so //launch/missile fires exactly
+// as it would in the engine. NOTE load/fire are not scriptable in Cosmos today
+// (ENGINE_WIDGETS.md), so here the mock is ahead of the engine's script API.
+const _pWeaponCtl = enginePanel('epWeaponCtl',
+  'background:' + EP_BG + ';border:1px solid ' + EP_EDGE + ';border-radius:4px;' +
+  'display:flex;flex-direction:column;padding:3px;gap:3px;overflow-y:auto;',
+  (el, s) => {
+    const types = s.types || [], stock = s.stock || {};
+    const pick = s.pick || types[0] || '';
+    let h = '<div style="flex:0 0 auto;display:flex;gap:2px;">';
+    for (const t of types) {
+      h += _epBtn(_esc(t) + ' ' + (stock[t] || 0), 'ty:' + t, t === pick, !(stock[t] > 0));
+    }
+    h += '</div>';
+    (s.tubes || []).forEach((loaded, i) => {
+      h += '<div style="flex:0 0 auto;display:flex;gap:2px;align-items:stretch;height:26px;">' +
+        '<div style="flex:0 0 46px;display:flex;align-items:center;color:#8f98c8;">T' + (i + 1) + '</div>' +
+        _epBtn(loaded ? _esc(loaded) : 'Load', loaded ? 'ul:' + i : 'ld:' + i, !!loaded,
+               !loaded && !(stock[pick] > 0)) +
+        _epBtn('FIRE', 'fi:' + i, false, !loaded) + '</div>';
+    });
+    if (!(s.tubes || []).length) h += '<div style="color:#5a6288;">no tubes</div>';
+    _epSet(el, h);
+  },
+  (act, node, s) => {
+    const op = act.slice(0, 2), arg = act.slice(3);
+    if (op === 'ty') { s.pick = arg; _pWeaponCtl.redraw(); return; }
+    if (op === 'ld') _epCtl('weapon_control', { op: 'load', tube: parseInt(arg, 10), kind: s.pick || '' });
+    else if (op === 'ul') _epCtl('weapon_control', { op: 'unload', tube: parseInt(arg, 10) });
+    else if (op === 'fi') _epCtl('weapon_control', { op: 'fire', tube: parseInt(arg, 10) });
+  });
+
+// ── science_sorted_list ──────────────────────────────────────────────────────
+// Same widget shape as comms_sorted_list — the engine builds both internally and they
+// differ only in which console the row click routes through, which the select event
+// already carries (consoledispatcher maps "sci" to the science selection).
+const _pSciList = enginePanel('epSciList',
+  'background:' + EP_BG + ';border:1px solid ' + EP_EDGE + ';border-radius:4px;overflow-y:auto;',
+  (el, s) => {
+    let h = '';
+    for (const it of (s.items || [])) {
+      h += '<div data-act="s:' + it.id + '" style="padding:4px 8px;cursor:pointer;' +
+        'border-bottom:1px solid #1a2632;white-space:nowrap;overflow:hidden;' +
+        'text-overflow:ellipsis;color:' + _sideColor(it.side) + ';">' + _esc(it.name) + '</div>';
+    }
+    _epSet(el, h);
+  },
+  (act) => sendEvent('select_space_object', '', CLIENT_ID !== null ? CLIENT_ID : 0,
+                     { id: act.slice(2), wx: 0, wy: 0, wz: 0, button: 'lmb',
+                       widget: 'science_sorted_list' }));
+
+// ── science_data_tabs ────────────────────────────────────────────────────────
+// scan / status / intel / bio. Kept MOCK-LOCAL: ENGINE_WIDGETS.md records that the
+// engine sends the tab in a select_space_object extra_tag and that ConsoleDispatcher
+// does not read it yet (a library TODO). Firing a half-supported event would be worse
+// than switching which tab this console renders.
+const _pSciTabs = enginePanel('epSciTabs',
+  'background:' + EP_BG + ';border:1px solid ' + EP_EDGE + ';border-radius:4px;' +
+  'display:flex;gap:3px;padding:3px;',
+  (el, s) => {
+    const tabs = s.tabs || ['scan'];
+    const done = s.done || [];
+    const cur = tabs.indexOf(_sciTab) >= 0 ? _sciTab : tabs[0];
+    // A dot marks a tab that already holds scan data for our side. The list itself only
+    // grows once the initial scan lands - scan_type_list is what the initial scan fills
+    // in, so before it there is nothing but "scan" to offer.
+    _epSet(el, tabs.map(t =>
+      _epBtn(_esc(t) + (done.indexOf(t) >= 0 ? ' &bull;' : ''), 'tab:' + t, t === cur)).join(''));
+  },
+  (act) => { _sciTab = act.slice(4); _pSciTabs.redraw(); _pSciData.redraw(); });
+let _sciTab = 'scan';
+
+// ── science_data_freq ────────────────────────────────────────────────────────
+// Read-only A-E signal strengths with the weak band called out — the readout that
+// tells weapons which frequency to tune to (screen_shots/science_data_freq.png).
+const _pSciFreq = enginePanel('epSciFreq',
+  'background:' + EP_BG + ';border:1px solid ' + EP_EDGE + ';border-radius:4px;' +
+  'display:flex;gap:2px;padding:2px;',
+  (el, s) => {
+    const bands = s.bands || [];
+    _epSet(el, bands.map((v, i) => {
+      const weak = s.weak === i;
+      return '<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;' +
+        'border:1px solid ' + EP_EDGE + ';background:rgba(30,38,70,.5);position:relative;">' +
+        '<div style="position:absolute;top:2px;left:0;right:0;text-align:center;font-weight:700;">' +
+        (weak ? '<span style="font-size:9px;color:#cfd6ff;">weak</span><br>' : '') + 'ABCDE'[i] + '</div>' +
+        '<div style="height:' + Math.round(v * 40) + '%;background:' +
+        (weak ? '#c9782b' : '#6d9e3f') + ';"></div></div>';
+    }).join(''));
+  });
+
+// ── science_data ─────────────────────────────────────────────────────────────
+// Scanning is a QUEUE, one entry per (contact, tab), owned by the scanning ship. Only the
+// head advances; the rest wait and start automatically as it completes. So each tab of
+// each contact is in exactly one of four states, and the button says which:
+//
+//   not scanned, not queued  ->  "Start Scan"  (the initial one is "Start Initial Scan")
+//   queued, head of queue    ->  progress bar + "Stop Scan"
+//   queued, further back     ->  "Stop Scan" + "queued N of M"
+//   scanned                  ->  the readout
+//
+// screen_shots/"science_data (start scan).png" / "science_data (scanned).png".
+const _pSciData = enginePanel('epSciData',
+  'background:' + EP_BG + ';border:1px solid ' + EP_EDGE + ';border-radius:4px;padding:4px;overflow:auto;',
+  (el, s) => {
+    if (!s.name) { _epSet(el, '<div style="color:#5a6288;">no contact selected</div>'); return; }
+    const st = (s.tab_state || {})[_sciTab] || { scanned: false, queued: 0 };
+    let h = '<div style="display:flex;justify-content:space-between;">' +
+      '<span style="color:#cfd6ff;">' + _esc(s.name) + '</span><span>' + _esc(s.side) + '</span></div>';
+
+    if (st.queued === 1) {
+      // The active scan - the only entry whose percentage is meaningful.
+      h += '<div style="margin-top:6px;">SCANNING ' + _esc(_sciTab) + ' ' + (s.percent || 0) + '%' +
+        '<div style="height:8px;border:1px solid ' + EP_EDGE + ';margin-top:3px;">' +
+        '<div style="height:100%;width:' + (s.percent || 0) + '%;background:#2ecc40;"></div></div></div>' +
+        _stopScanBtn();
+    } else if (st.queued > 1) {
+      h += '<div style="margin-top:6px;color:#8f98c8;">queued ' + st.queued +
+        ' of ' + (s.queue_len || st.queued) + '</div>' + _stopScanBtn();
+    } else if (!st.scanned) {
+      h += '<div data-act="scan" style="margin-top:8px;padding:6px;text-align:center;cursor:pointer;' +
+        'background:#1d6b2a;border:1px solid #2ecc40;border-radius:3px;color:#dfffe0;font-weight:700;">' +
+        (_sciTab === 'scan' ? 'Start Initial Scan' : 'Start ' + _esc(_sciTab) + ' Scan') + '</div>';
+    }
+
+    if (st.scanned) {
+      h += '<div style="display:flex;justify-content:space-between;margin-top:2px;">' +
+        '<span>RANGE: ' + s.range + '</span><span>BEARING: ' + s.bearing + '</span></div>';
+      h += '<div>' + Math.abs(s.altitude || 0) + 'm ' +
+        ((s.altitude || 0) >= 0 ? 'Above You' : 'Below You') + '</div>';
+      const sh = s.shields || [];
+      if (sh.length) {
+        h += '<div style="display:flex;justify-content:space-around;margin-top:4px;">' +
+          '<span>FRNT SHLD ' + sh[0] + '</span>' +
+          (sh.length > 1 ? '<span>REAR SHLD ' + sh[1] + '</span>' : '') + '</div>';
+      }
+      const sys = s.systems || [];
+      if (sys.length) {
+        h += '<div style="display:flex;flex-wrap:wrap;margin-top:4px;">' + sys.map(x =>
+          '<div style="flex:0 0 50%;display:flex;justify-content:space-between;padding-right:8px;">' +
+          '<span>' + _esc(x.name) + '</span><span>' + x.pct + '%</span></div>').join('') + '</div>';
+      }
+    }
+    _epSet(el, h);
+  },
+  (act) => {
+    // Both carry the tab: the queue keys on (contact, tab), and the console's tab is
+    // browser-local, so the server cannot infer which one the button meant.
+    if (act === 'scan') _epCtl('science_scan', { tab: _sciTab });
+    else if (act === 'stopscan') _epCtl('science_scan_stop', { tab: _sciTab });
+  });
+
+function _stopScanBtn() {
+  return '<div data-act="stopscan" style="margin-top:6px;padding:5px;text-align:center;' +
+    'cursor:pointer;background:#6b1d1d;border:1px solid #d04040;border-radius:3px;' +
+    'color:#ffdede;font-weight:700;">Stop Scan</div>';
 }
 
 // ── cmdRadar — delta update for active (NPC/PLAYER) objects ──────────────────
@@ -2268,6 +2903,71 @@ function _radarBox(W, H, rect, isCorner) {
 
 // Uniform-scale world→pixel projection for a box. The outer ring (radius
 // halfSpan) maps to fit/2 px; the longer box axis shows proportionally more world.
+// ── selection reticle ────────────────────────────────────────────────────────
+// How a 2D view shows what the console has selected: a reticle from reticle-set.png in
+// that console's colour from preferences.json (gui-color-{weapon,science,comms}-reticle),
+// sized by lock-reticle-size-2D.
+//
+// The sheet is a 5x4 grid of 266px cells, and the art is BLACK line work on transparent -
+// so recolouring has to be a source-in fill. A multiply (what the white-on-transparent
+// grid-icon-sheet uses) would leave every reticle black.
+const _RETICLE_COLS = 5, _RETICLE_CELL = 266;
+let _reticleImg = null, _reticleReady = false;
+const _reticleTinted = new Map();    // "cell|colour" -> pre-tinted canvas
+let _reticle = null;                 // {id, color, size, cell}
+
+(function _loadReticleSheet() {
+  const img = new Image();
+  img.onload = () => { _reticleReady = true; _requestRadarRender(); };
+  img.onerror = () => console.error('[reticle] failed to load reticle-set.png');
+  img.src = 'reticle-set.png';
+  _reticleImg = img;
+})();
+
+function _reticleSprite(cell, color) {
+  const key = cell + '|' + color;
+  const hit = _reticleTinted.get(key);
+  if (hit) return hit;
+  if (!_reticleReady) return null;
+  const c = document.createElement('canvas');
+  c.width = c.height = _RETICLE_CELL;
+  const g = c.getContext('2d');
+  const sx = (cell % _RETICLE_COLS) * _RETICLE_CELL;
+  const sy = Math.floor(cell / _RETICLE_COLS) * _RETICLE_CELL;
+  g.drawImage(_reticleImg, sx, sy, _RETICLE_CELL, _RETICLE_CELL,
+              0, 0, _RETICLE_CELL, _RETICLE_CELL);
+  g.globalCompositeOperation = 'source-in';   // recolour the ink, keep its alpha
+  g.fillStyle = color;
+  g.fillRect(0, 0, _RETICLE_CELL, _RETICLE_CELL);
+  _reticleTinted.set(key, c);
+  return c;
+}
+
+function cmdReticle(msg) {
+  _reticle = (msg && msg.id) ? { id: String(msg.id), color: msg.color || '#ccf',
+                                 size: msg.size || 60, cell: msg.cell || 0 } : null;
+  _requestRadarRender();
+}
+
+// Drawn over the dots, in the same projection, so it tracks a moving contact.
+function _drawReticle(ctx, box, cx, cz, halfSpan) {
+  if (!_reticle) return;
+  let wx, wz;
+  const di = _dynamicMap.get(_reticle.id);
+  if (di !== undefined && _dynamicPosBuf && di < _dynamicCount) {
+    wx = _dynamicPosBuf[di * 3]; wz = _dynamicPosBuf[di * 3 + 1];
+  } else {
+    const ti = _terrainMap.get(_reticle.id);
+    if (ti === undefined || !_terrainPosBuf || ti >= _terrainCount) return;
+    wx = _terrainPosBuf[ti * 3]; wz = _terrainPosBuf[ti * 3 + 1];
+  }
+  const spr = _reticleSprite(_reticle.cell, _reticle.color);
+  if (!spr) return;
+  const { toX, toY } = _radarProj(box, cx, cz, halfSpan);
+  const s = _reticle.size;
+  ctx.drawImage(spr, toX(wx) - s / 2, toY(wz) - s / 2, s, s);
+}
+
 function _radarProj(box, cx, cz, halfSpan) {
   const scale = box.fit / (2 * halfSpan);
   const cxp = box.bx0 + box.bw / 2;
@@ -2596,6 +3296,15 @@ function _renderRadar() {
 
   // 2D overlays: navpoints, heading arrows, labels, border.
   for (const rect of views) _drawRadarOverlay(_radarCtx, W, H, rect, cx, cz, halfSpan, isCorner);
+
+  // Selection reticle, over the dots. Console views only - the corner minimap is not a
+  // selection surface (the same rule _pickState applies).
+  if (!isCorner) {
+    for (const rect of views) {
+      const box = _radarBox(W, H, rect, isCorner);
+      if (box) _drawReticle(_radarCtx, box, cx, cz, halfSpan);
+    }
+  }
 
   // NO SIGNAL overlay when corner radar has nothing.
   if (isCorner && _dynamicCount === 0 && _radarNavpoints.length === 0

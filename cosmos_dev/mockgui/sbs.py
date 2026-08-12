@@ -66,10 +66,14 @@ def create_new_sim():
         # mission's registration here only streams cameras nobody is showing.
         _view3d_widget_clients.clear()
         _view3d_rects.clear()
-        _view_shipdata_clients.clear()
+        # Every registered engine widget, not a hand-kept subset: a client set left
+        # populated here streams the previous mission's widgets into the next run.
+        for _w in _ENGINE_WIDGETS.values():
+            _w.clients.clear()
         _view_target_clients.clear()
-        _view_text_clients.clear()
         _hud_cache.clear()          # drop stale HUD diff baselines from the old mission
+        _unknown_widgets_seen.clear()   # re-report unemulated widgets for the new run
+        _reticle_sent.clear()           # else run 2 keeps run 1's selection reticle
         _force_terrain_push()
         _last_fx_nonempty = False
         # Tell every browser to wipe leftover 2D radar / 3D cinematic state.
@@ -349,61 +353,14 @@ def send_client_widget_rects(clientID: int, widgetName: str,
             _view3d_rects[clientID] = (round(l1, 2), round(t1, 2), round(r1, 2), round(b1, 2))
         return
 
-    # red_alert toggle button — position it where the layout placed the widget (screen %).
-    if widgetName == "red_alert":
-        if gui_queue is not None:
-            _send(clientID, "red_alert_btn", active=True,
-                  left=round(l1, 2), top=round(t1, 2),
-                  right=round(r1, 2), bottom=round(b1, 2))
-        return
-
-    # comms_control action-menu panel — position it where the layout placed the widget.
-    if widgetName == "comms_control":
-        if gui_queue is not None:
-            _send(clientID, "comms_control", op="rect",
-                  left=round(l1, 2), top=round(t1, 2),
-                  right=round(r1, 2), bottom=round(b1, 2))
-        return
-
-    # comms_face portrait — position it where the layout placed the widget.
-    if widgetName == "comms_face":
-        if gui_queue is not None:
-            _send(clientID, "comms_face", op="rect",
-                  left=round(l1, 2), top=round(t1, 2),
-                  right=round(r1, 2), bottom=round(b1, 2))
-        return
-
-    # comms_waterfall message list — position it where the layout placed the widget.
-    if widgetName == "comms_waterfall":
-        if gui_queue is not None:
-            _send(clientID, "comms_wf", op="rect",
-                  left=round(l1, 2), top=round(t1, 2),
-                  right=round(r1, 2), bottom=round(b1, 2))
-        return
-
-    # radar_zoom_ctrl slider — position it where the layout placed the widget.
-    if widgetName == "radar_zoom_ctrl":
-        if gui_queue is not None:
-            _send(clientID, "radar_zoom", op="rect",
-                  left=round(l1, 2), top=round(t1, 2),
-                  right=round(r1, 2), bottom=round(b1, 2))
-        return
-
-    # comms_sorted_list — position it where the layout placed the widget.
-    if widgetName == "comms_sorted_list":
-        if gui_queue is not None:
-            _send(clientID, "comms_list", op="rect",
-                  left=round(l1, 2), top=round(t1, 2),
-                  right=round(r1, 2), bottom=round(b1, 2))
-        return
-
-    # Mock HUD overlays (ship_data, text_waterfall) default to a screen corner;
-    # when a script positions them via a rect, move them to it.
-    if widgetName in _HUD_WIDGETS:
-        if explicit and gui_queue is not None:
-            _send(clientID, "hud_rect", widget=widgetName,
-                  left=round(l1, 2), top=round(t1, 2),
-                  right=round(r1, 2), bottom=round(b1, 2))
+    # Every other engine widget the browser can draw is described in _ENGINE_WIDGETS,
+    # which says how to forward its rect.  Mock HUD overlays ("hud") own a default
+    # screen corner, so only a real (non-degenerate) rect moves them; the rest are
+    # positioned entirely by the layout and take the rect as sent.
+    w = _ENGINE_WIDGETS.get(widgetName)
+    if w is not None and w.rect:
+        if gui_queue is not None and (w.rect != "hud" or explicit):
+            _send_rect(clientID, w, l1, t1, r1, b1)
         return
 
     if widgetName not in _2D_VIEW_WIDGETS or gui_queue is None:
@@ -625,14 +582,187 @@ _COMMS_LIST_INTERVAL: int = 15   # rebuild ~twice a second (physics thread is 30
 # whose console has no red_alert widget). Leave unset for normal behavior.
 _FORCE_RED_ALERT = os.environ.get("MOCK_FORCE_RED_ALERT", "") not in ("", "0", "false", "False")
 
-# HUD overlays the browser draws for mock-only widgets; given an explicit rect via
-# send_client_widget_rects they reposition (else they sit in a default corner).
-_HUD_WIDGETS = frozenset({"ship_data", "text_waterfall"})
-
 # Per-client console NAME (from send_client_widget_list's consoleType == page.console).
 # Used to fill event.sub_tag on a radar-click selection so consoledispatcher routes it
 # to the right console selection (a name with "comm" -> comms, "sci"/"admiral" -> science).
 _console_name: dict = {}
+
+# ---------------------------------------------------------------------------
+# Engine (Family B) widget registry
+# ---------------------------------------------------------------------------
+# One descriptor per engine console widget the browser can draw.  Adding a widget
+# is one entry here plus a `cmd<Name>` renderer in client.html.  Before this table
+# the same facts were spread across three parallel if-cascades (widget list, widget
+# rects, per-tick push) that had to be edited in lockstep - which is how they drifted.
+#
+#   cmd       browser command name.
+#   clients   clientIDs whose console currently declares this widget.
+#   rect      how a script layout rect is forwarded to the browser:
+#               "op"     -> {op:"rect", left..bottom}    (the comms_* family)
+#               "active" -> {active:True, left..bottom}  (the red_alert button)
+#               "hud"    -> the shared hud_rect command  (ship_data, text_waterfall);
+#                           forwarded only when the rect is non-degenerate
+#   hide      how a removal is signalled: "op" -> {op:"hide"}, "active" -> {active:False}
+#   defaults  fallback placement per console name for widgets the mission never lays
+#             out, as (anchor, dx, dy, w, h) in CAPTURE pixels - see _CAPTURE_W/H and
+#             _DEFAULT_RECTS below.  "*" applies to any console.
+#   on_change per-client cleanup run when the widget is declared OR removed.
+#
+# Only helm and weapons need `defaults`: LM lays comms/science/engineering out with
+# gui_layout_widget (so real rects already arrive), but leaves helm and weapons to the
+# engine's internal C++ layout, which never reaches the mock.
+
+# Reference resolution of the engine console captures the default rects were measured
+# from.  The browser scales these by its own viewport height and anchors to the named
+# edge, so the proportions hold at any window size instead of stretching.
+_CAPTURE_W, _CAPTURE_H = 2552.0, 1355.0
+
+
+class _EngineWidget:
+    """A Family-B engine widget the browser mock knows how to draw."""
+    __slots__ = ("name", "cmd", "rect", "hide", "defaults", "clients", "on_change")
+
+    def __init__(self, name, cmd, rect=None, hide=None, defaults=None,
+                 clients=None, on_change=None):
+        self.name = name
+        self.cmd = cmd
+        self.rect = rect
+        self.hide = hide
+        self.defaults = defaults or {}
+        self.clients = clients if clients is not None else set()
+        self.on_change = on_change
+
+    def default_for(self, console):
+        """The fallback rect for this console, or None to leave placement to the script."""
+        return self.defaults.get(console) or self.defaults.get("*")
+
+
+_ENGINE_WIDGETS: dict = {}
+
+
+def _register(w: _EngineWidget) -> _EngineWidget:
+    _ENGINE_WIDGETS[w.name] = w
+    return w
+
+
+def _hide_widget(clientID: int, w: _EngineWidget) -> None:
+    """Tell the browser this client's console no longer shows the widget."""
+    if gui_queue is None or not w.hide:
+        return
+    if w.hide == "op":
+        _send(clientID, w.cmd, op="hide")
+    else:
+        _send(clientID, w.cmd, active=False)
+
+
+def _send_rect(clientID: int, w: _EngineWidget,
+               l1: float, t1: float, r1: float, b1: float) -> None:
+    """Forward a script-set layout rect (already resolved to screen percent)."""
+    coords = dict(left=round(l1, 2), top=round(t1, 2),
+                  right=round(r1, 2), bottom=round(b1, 2))
+    if w.rect == "op":
+        _send(clientID, w.cmd, op="rect", **coords)
+    elif w.rect == "active":
+        _send(clientID, w.cmd, active=True, **coords)
+    elif w.rect == "hud":
+        # Mock-only HUD overlays share one reposition command keyed by widget name.
+        _send(clientID, "hud_rect", widget=w.name, **coords)
+
+
+def _send_default_rect(clientID: int, w: _EngineWidget, console: str) -> None:
+    """Place a widget the mission never laid out, using the engine capture defaults.
+
+    Sent in CAPTURE pixels plus the reference size; the browser scales by its own
+    viewport and anchors to the named edge.  A later script rect simply overwrites
+    it, so sending this unconditionally is safe."""
+    d = w.default_for(console or "")
+    if d is None or gui_queue is None or w.rect != "op":
+        return
+    anchor, dx, dy, ww, hh = d
+    _send(clientID, w.cmd, op="defrect", anchor=anchor,
+          dx=dx, dy=dy, w=ww, h=hh, refw=_CAPTURE_W, refh=_CAPTURE_H)
+
+
+# --- the widgets the browser already draws -------------------------------------
+# ship_data / text_waterfall are mock HUD overlays: they sit in a screen corner by
+# default and only move when a script sizes them, so their rect is forwarded only
+# when non-degenerate.
+_register(_EngineWidget("ship_data", "ship_data", rect="hud", hide="active",
+                        clients=_view_shipdata_clients))
+_register(_EngineWidget("text_waterfall", "text_active", rect="hud", hide="active",
+                        clients=_view_text_clients))
+# The red-alert TOGGLE BUTTON (the vignette is driven separately, per ship).
+_register(_EngineWidget("red_alert", "red_alert_btn", rect="active", hide="active",
+                        clients=_view_redalert_clients,
+                        on_change=lambda cid: _redalert_btn_state.pop(cid, None)))
+_register(_EngineWidget("comms_control", "comms_control", rect="op", hide="op",
+                        clients=_view_comms_control_clients))
+_register(_EngineWidget("comms_face", "comms_face", rect="op", hide="op",
+                        clients=_view_comms_face_clients))
+_register(_EngineWidget("comms_waterfall", "comms_wf", rect="op", hide="op",
+                        clients=_view_comms_wf_clients))
+_register(_EngineWidget("radar_zoom_ctrl", "radar_zoom", rect="op", hide="op",
+                        clients=_view_radar_zoom_clients))
+_register(_EngineWidget("comms_sorted_list", "comms_list", rect="op", hide="op",
+                        clients=_view_comms_list_clients))
+
+
+# --- helm / weapons controls ---------------------------------------------------
+# These two consoles are the ones LM never lays out (layout_widgets.mast //gui/normal_helm
+# and //gui/normal_weap place no engine widgets at all), so the engine positions them in
+# C++ and the mock is handed nothing.  The `defaults` below were measured off engine
+# console captures with the widget-bounds overlay on; the numbers are CAPTURE PIXELS at
+# _CAPTURE_W x _CAPTURE_H, anchored to a screen corner ("tl"/"tr"/"bl"/"br").
+#
+# Pixels rather than percent because the two captures disagree on percentages while
+# agreeing on pixels - ship_data measures ~306x492 px in both, at different resolutions.
+# The engine sizes these in pixels and anchors them to edges; the browser rescales by its
+# own viewport height so the proportions survive a differently shaped window.
+
+_register(_EngineWidget("throttle", "throttle", rect="op", hide="op", defaults={
+    "normal_helm": ("bl", 0, 22, 134, 542)}))
+_register(_EngineWidget("helm_movement", "helm_move", rect="op", hide="op", defaults={
+    "normal_helm": ("bl", 128, 3, 331, 295)}))
+_register(_EngineWidget("shield_control", "shield_ctrl", rect="op", hide="op", defaults={
+    "normal_helm": ("tr", 13, 342, 325, 85),
+    "normal_weap": ("tr", 22, 645, 660, 65)}))
+_register(_EngineWidget("request_dock", "dock_ctrl", rect="op", hide="op", defaults={
+    "normal_helm": ("tr", 13, 434, 325, 76)}))
+_register(_EngineWidget("main_screen_control", "mainscreen_ctrl", rect="op", hide="op",
+                        defaults={
+    "normal_helm": ("tr", 13, 61, 373, 252),
+    "normal_weap": ("tr", 22, 78, 535, 247)}))
+# Jump drives: drawn so the console is not a hole, but inert - ENGINE_WIDGETS.md open
+# questions 2-3 leave their delivery unconfirmed, and guessing a data_set key would be
+# worse than saying plainly that the mock does not emulate them.
+_register(_EngineWidget("helm_jump", "helm_jump", rect="op", hide="op", defaults={
+    "normal_helm": ("bl", 453, 28, 1435, 83)}))
+_register(_EngineWidget("quick_jump", "quick_jump", rect="op", hide="op", defaults={
+    "normal_helm": ("bl", 1400, 111, 418, 134)}))
+
+_register(_EngineWidget("weapon_control", "weapon_ctrl", rect="op", hide="op", defaults={
+    "normal_weap": ("br", 22, 0, 570, 295)}))
+_register(_EngineWidget("weap_beam_freq", "beam_freq", rect="op", hide="op", defaults={
+    "normal_weap": ("tr", 22, 715, 660, 75)}))
+_register(_EngineWidget("weap_beam_speed", "beam_speed", rect="op", hide="op", defaults={
+    "normal_weap": ("tr", 22, 795, 660, 75)}))
+_register(_EngineWidget("weap_torp_conversion", "torp_conv", rect="op", hide="op", defaults={
+    "normal_weap": ("tr", 22, 875, 660, 95)}))
+
+# --- science -------------------------------------------------------------------
+# No defaults: LM lays every science widget out with gui_layout_widget
+# (layout_widgets.mast //gui/normal_sci), so real rects already reach the mock - the
+# names were simply being dropped.
+_register(_EngineWidget("science_data", "sci_data", rect="op", hide="op"))
+_register(_EngineWidget("science_data_tabs", "sci_tabs", rect="op", hide="op"))
+_register(_EngineWidget("science_data_freq", "sci_freq", rect="op", hide="op"))
+_register(_EngineWidget("science_sorted_list", "sci_list", rect="op", hide="op"))
+
+
+# Engine widget names seen in a widget list that the mock has no renderer for.
+# Reported once each so an unimplemented widget is distinguishable from a broken
+# one - previously both looked like an empty rectangle.
+_unknown_widgets_seen: set = set()
 
 
 def get_client_console_name(clientID: int) -> str:
@@ -685,15 +815,26 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
     else:
         _view2d_widget_clients.pop(clientID, None)
 
-    # ship_data HUD — _push_ship_data streams the player ship's vitals each tick.
-    if "ship_data" in widgets:
-        _view_shipdata_clients.add(clientID)
-    elif clientID in _view_shipdata_clients:
-        _view_shipdata_clients.discard(clientID)
-        _send(clientID, "ship_data", active=False)
-        _hud_cache.pop((clientID, "ship_data"), None)   # re-show later sends a full payload
+    # Every remaining engine widget is table-driven: declare it and the browser starts
+    # drawing it, drop it and the browser is told to hide it.  Widgets the mission never
+    # lays out (helm and weapons - LM leaves both to the engine's C++ layout) also get
+    # their capture-measured default placement here; a later script rect overrides it.
+    for w in _ENGINE_WIDGETS.values():
+        shown = w.name in widgets
+        if not shown and clientID not in w.clients:
+            continue
+        _hud_cache.pop((clientID, w.cmd), None)   # force a FULL state re-send on return
+        if w.on_change is not None:
+            w.on_change(clientID)
+        if shown:
+            w.clients.add(clientID)
+            _send_default_rect(clientID, w, consoleType)
+        else:
+            w.clients.discard(clientID)
+            _hide_widget(clientID, w)
 
-    # target_data HUD — only on the main-screen console ("normal_main").
+    # target_data HUD — mock-only, and keyed on the console NAME rather than a widget
+    # name, so it stays outside the table.
     if consoleType == "normal_main":
         _view_target_clients.add(clientID)
     elif clientID in _view_target_clients:
@@ -701,59 +842,16 @@ def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) ->
         _send(clientID, "target_data", active=False)
         _hud_cache.pop((clientID, "target_data"), None)
 
-    # text_waterfall — visible while the console declares it; hidden otherwise.
-    if "text_waterfall" in widgets:
-        _view_text_clients.add(clientID)
-    elif clientID in _view_text_clients:
-        _view_text_clients.discard(clientID)
-        _send(clientID, "text_active", active=False)
-
-    # red_alert TOGGLE BUTTON — shown on consoles whose widget list declares it (comms).
-    # Its screen position arrives via send_client_widget_rects (ConsoleWidget layout); its
-    # on-state is streamed by _push_red_alert. (The vignette is driven separately, per ship.)
-    if "red_alert" in widgets:
-        _view_redalert_clients.add(clientID)
-        _redalert_btn_state.pop(clientID, None)   # force a fresh state push next tick
-    elif clientID in _view_redalert_clients:
-        _view_redalert_clients.discard(clientID)
-        _redalert_btn_state.pop(clientID, None)
-        _send(clientID, "red_alert_btn", active=False)
-
-    # comms_control — the comms action menu. Position arrives via widget rects; content
-    # via the send_comms_* overrides below, keyed on the comms origin.
-    if "comms_control" in widgets:
-        _view_comms_control_clients.add(clientID)
-    elif clientID in _view_comms_control_clients:
-        _view_comms_control_clients.discard(clientID)
-        _send(clientID, "comms_control", op="hide")
-
-    # comms_face — the selected target's portrait (fed by send_comms_selection_info).
-    if "comms_face" in widgets:
-        _view_comms_face_clients.add(clientID)
-    elif clientID in _view_comms_face_clients:
-        _view_comms_face_clients.discard(clientID)
-        _send(clientID, "comms_face", op="hide")
-
-    # comms_waterfall — the comms dialogue stream (iMessage-style message list).
-    if "comms_waterfall" in widgets:
-        _view_comms_wf_clients.add(clientID)
-    elif clientID in _view_comms_wf_clients:
-        _view_comms_wf_clients.discard(clientID)
-        _send(clientID, "comms_wf", op="hide")
-
-    # radar_zoom_ctrl — the 2D-view zoom slider (browser-local).
-    if "radar_zoom_ctrl" in widgets:
-        _view_radar_zoom_clients.add(clientID)
-    elif clientID in _view_radar_zoom_clients:
-        _view_radar_zoom_clients.discard(clientID)
-        _send(clientID, "radar_zoom", op="hide")
-
-    # comms_sorted_list — the comms-target list (mock builds + streams it each second).
-    if "comms_sorted_list" in widgets:
-        _view_comms_list_clients.add(clientID)
-    elif clientID in _view_comms_list_clients:
-        _view_comms_list_clients.discard(clientID)
-        _send(clientID, "comms_list", op="hide")
+    # An engine widget with no descriptor draws nothing.  Say so once per name, so an
+    # unimplemented widget is distinguishable from a broken one - both used to look
+    # like an empty rectangle with no explanation anywhere.
+    for name in widgets:
+        if (not name or name in _ENGINE_WIDGETS or name in _2D_VIEW_WIDGETS
+                or name == "3dview" or name in _unknown_widgets_seen):
+            continue
+        _unknown_widgets_seen.add(name)
+        print(f"[mock] engine widget {name!r} is not emulated - its rectangle "
+              f"will be blank in the browser")
 
 
 def _push_2dview_rects() -> None:
@@ -1042,17 +1140,407 @@ def send_comms_message_to_player_ship(playerID, otherID, faceDesc, titleText, ti
 
 
 def _push_comms_list() -> None:
-    """Stream each comms_sorted_list console a list of nearby comms-target ships (sided active
-    objects, nearest first). The engine builds this widget internally; the mock approximates
-    it. A row click reuses the select_space_object path (routed to comms by console name)."""
-    s = _base_mock.sim
-    if s is None or gui_queue is None or not _view_comms_list_clients:
+    """Stream each comms_sorted_list console a list of nearby comms-target ships (sided
+    active objects, nearest first). The engine builds this widget internally; the mock
+    approximates it. A row click reuses the select_space_object path (routed to comms by
+    console name)."""
+    _push_contact_list(_ENGINE_WIDGETS["comms_sorted_list"].clients, "comms_list")
+
+def _push_delta(cid: int, panel: str, payload, ident=None) -> None:
+    """Stream a panel payload, sending only the fields that CHANGED since last time.
+
+    Generalises the diff half of _push_stat_panel for the console-widget panels.
+    `ident` is what the panel is tracking (a ship id, a selection id): when it changes
+    the payload is re-sent in FULL, because the browser's merged state describes the
+    previous subject.  payload None -> one active=False, sent once."""
+    key = (cid, panel)
+    prev = _hud_cache.get(key)
+    if payload is None:
+        if prev is not None:
+            _send(cid, panel, active=False)
+            _hud_cache[key] = None
         return
-    with s._lock:   # snapshot under the lock (MAST thread spawns/deletes) — see _push_radar
+    same = prev is not None and prev.get("oid") == ident
+    last = prev["payload"] if same else None
+    if last is None:
+        _send(cid, panel, active=True, **payload)
+    else:
+        delta = {k: v for k, v in payload.items() if last.get(k) != v}
+        if not delta:
+            return
+        _send(cid, panel, active=True, **delta)
+    _hud_cache[key] = {"oid": ident, "gen": None, "speed": None, "payload": payload}
+
+
+def _client_ship(cid: int):
+    """The space object this client is flying, or None."""
+    s = _base_mock.sim
+    if s is None:
+        return None
+    return s.space_objects.get(_base_mock.get_ship_of_client(cid))
+
+
+def _heading_deg(o) -> float:
+    """Compass heading of a space object in degrees (0 = +Z, 90 = +X), matching the
+    bearings the 2D radar labels."""
+    f = o.forward_vector()
+    return round(math.degrees(math.atan2(f.x, f.z)) % 360.0, 1)
+
+
+def _base_beam_cycle(o) -> float:
+    """The hull's UNMODIFIED primary-beam cycle time, from shipData.
+
+    Read back from the hull rather than cached, so the weapons fire-rate widget stays
+    stateless: the live beamCycleTime is always base/rate, so the selected rate is
+    recoverable by division and nothing has to survive a mission reload."""
+    try:
+        from sbs_utils.procedural.ship_data import get_ship_data_for
+        info = get_ship_data_for(getattr(o, "_data_tag", "") or "") or {}
+        beams = info.get("hull_port_sets", {}).get("beam Primary Beams", [])
+        if beams:
+            return float(beams[0].get("cycle_time", 6.0)) or 6.0
+    except Exception:
+        pass
+    return 6.0
+
+
+def _deactivate(cid: int, panels) -> None:
+    """Blank a set of console panels for a client with no ship (destroyed, unassigned)."""
+    for panel in panels:
+        _push_delta(cid, panel, None)
+
+
+# ---------------------------------------------------------------------------
+# Helm
+# ---------------------------------------------------------------------------
+def _push_helm() -> None:
+    """Stream the helm control widgets' state: speed and throttle, heading and
+    altitude, shield and dock state, and the main-screen selection.  Every value is
+    read straight off the ship's data_set - the same keys the engine widgets write -
+    so what the browser shows is what a mission script would poll."""
+    if _base_mock.sim is None or gui_queue is None:
+        return
+    w_thr = _ENGINE_WIDGETS["throttle"].clients
+    w_mov = _ENGINE_WIDGETS["helm_movement"].clients
+    w_shd = _ENGINE_WIDGETS["shield_control"].clients
+    w_dok = _ENGINE_WIDGETS["request_dock"].clients
+    w_mss = _ENGINE_WIDGETS["main_screen_control"].clients
+    every = set(w_thr) | set(w_mov) | set(w_shd) | set(w_dok) | set(w_mss)
+    if not every:
+        return
+    for cid in every:
+        o = _client_ship(cid)
+        sid = _base_mock.get_ship_of_client(cid)
+        if o is None:
+            _deactivate(cid, ("throttle", "helm_move", "shield_ctrl",
+                              "dock_ctrl", "mainscreen_ctrl"))
+            continue
+        ds = o.data_set
+        if cid in w_thr:
+            # `warp` gates the WARP band exactly as the engine widget does: a throttle
+            # above 1.0 only means anything on a ship that has a warp drive.
+            _push_delta(cid, "throttle", {
+                "throttle": round(float(ds.get("playerThrottle", 0) or 0.0), 2),
+                "speed": round(float(getattr(o, "_cur_speed", 0.0)), 2),
+                "warp_ok": bool(float(ds.get("warp", 0) or 0.0) == 1.0),
+            }, sid)
+        if cid in w_mov:
+            f = o.forward_vector()
+            _push_delta(cid, "helm_move", {
+                "ang": _heading_deg(o),
+                "alt": round(float(o._pos.y), 0),
+                "azi": round(math.degrees(math.asin(max(-1.0, min(1.0, f.y)))), 1),
+                "steering": bool(ds.get("steeringToDirFlag", 0) or 0),
+            }, sid)
+        if cid in w_shd:
+            _push_delta(cid, "shield_ctrl", {
+                "up": bool(ds.get("shields_raised_flag", 0) or 0)}, sid)
+        if cid in w_dok:
+            _push_delta(cid, "dock_ctrl", {
+                "state": str(ds.get("dock_state", 0) or "")}, sid)
+        if cid in w_mss:
+            from sbs_utils.procedural.inventory import get_inventory_value
+            _push_delta(cid, "mainscreen_ctrl", {
+                "view": str(get_inventory_value(sid, "MAIN_SCREEN_VIEW", "3d_view")),
+                "facing": str(get_inventory_value(sid, "MAIN_SCREEN_FACING", "front")),
+                "mode": str(get_inventory_value(sid, "MAIN_SCREEN_MODE", "chase")),
+            }, sid)
+
+
+# ---------------------------------------------------------------------------
+# Weapons
+# ---------------------------------------------------------------------------
+def _push_weapons() -> None:
+    """Stream the weapons console widgets: beam frequency, beam fire rate, torpedo
+    tubes and stock, and the energy<->torpedo conversion offers."""
+    if _base_mock.sim is None or gui_queue is None:
+        return
+    w_frq = _ENGINE_WIDGETS["weap_beam_freq"].clients
+    w_spd = _ENGINE_WIDGETS["weap_beam_speed"].clients
+    w_ctl = _ENGINE_WIDGETS["weapon_control"].clients
+    w_cnv = _ENGINE_WIDGETS["weap_torp_conversion"].clients
+    every = set(w_frq) | set(w_spd) | set(w_ctl) | set(w_cnv)
+    if not every:
+        return
+    space = _base_mock.sim.space_objects
+    for cid in every:
+        o = _client_ship(cid)
+        sid = _base_mock.get_ship_of_client(cid)
+        if o is None:
+            _deactivate(cid, ("beam_freq", "beam_speed", "weapon_ctrl", "torp_conv"))
+            continue
+        ds = o.data_set
+        if cid in w_frq:
+            # scan_type_for_shld_freq spans the five bands A-E over 0.0-1.0.
+            f = float(ds.get("scan_type_for_shld_freq", 0) or 0.0)
+            _push_delta(cid, "beam_freq", {
+                "index": max(0, min(4, int(round(f * 4.0)))),
+                "weak": _target_weak_freq(ds, space),
+            }, sid)
+        if cid in w_spd:
+            cyc = float(ds.get("beamCycleTime", 0) or 0.0)
+            base = _base_beam_cycle(o)
+            rate = 1 if cyc <= 0 else max(1, min(4, int(round(base / cyc))))
+            _push_delta(cid, "beam_speed", {"rate": rate, "cycle": round(cyc, 2)}, sid)
+        if cid in w_ctl:
+            loaded = [x.strip() for x in str(ds.get("tube_contents", 0) or "").split(",")]
+            tubes = int(ds.get("torpedo_tube_count", 0) or 0)
+            types = _torp_types(ds)
+            _push_delta(cid, "weapon_ctrl", {
+                "types": types,
+                "stock": {t: int(ds.get(t + "_NUM", 0) or 0) for t in types},
+                "tubes": [loaded[i] if i < len(loaded) else "" for i in range(tubes)],
+            }, sid)
+        if cid in w_cnv:
+            _push_delta(cid, "torp_conv", {
+                "energy": round(float(ds.get("energy", 0) or 0.0), 1),
+                "offers": [_torp_conversion_offer(ds, t) for t in _torp_types(ds)],
+            }, sid)
+
+
+def _torp_types(ds) -> list:
+    """The torpedo type names this ship can carry, in the ship's own order."""
+    raw = str(ds.get("torpedo_types_available", 0) or "")
+    return [x.strip() for x in raw.split(",") if x.strip()]
+
+
+def _torp_conversion_offer(ds, kind: str) -> dict:
+    """One row of the weap_torp_conversion widget: what this torpedo type is worth as
+    energy, and what it costs to build one.  Values come from the torpedo's own style
+    string (energy_conversion_value / energy_to_torp_cost), as the engine widget does."""
+    val = _torp_prop(kind, "energy_conversion_value", 100.0)
+    cost = val + _torp_prop(kind, "energy_to_torp_cost", 50.0)
+    have = int(ds.get(kind + "_NUM", 0) or 0)
+    mx = int(ds.get(kind + "_MAX", 0) or 0)
+    energy = float(ds.get("energy", 0) or 0.0)
+    return {"kind": kind, "value": val, "cost": cost,
+            "can_scrap": have > 0, "can_build": energy >= cost and have < mx}
+
+
+def _torp_prop(kind: str, prop: str, default: float) -> float:
+    """Read a numeric property out of a torpedo type's shared style string."""
+    try:
+        s = _base_mock.get_shared_string(kind) or ""
+    except Exception:
+        return default
+    for part in s.split(";"):
+        k, _, v = part.partition(":")
+        if k.strip() == prop:
+            try:
+                return float(v.strip())
+            except ValueError:
+                return default
+    return default
+
+
+def _target_weak_freq(ds, space) -> int:
+    """Which beam band (0-4 = A-E) the current weapons target is weakest to, or -1 with
+    no target.  Derived from the target id because the mock has no per-hull frequency
+    profile to read - stable per contact rather than flickering each tick."""
+    tid = ds.get("weapon_target_UID", 0) or ds.get("target_id", 0) or 0
+    if not tid or space.get(tid) is None:
+        return -1
+    return int(tid) % 5
+
+
+# ---------------------------------------------------------------------------
+# Science
+# ---------------------------------------------------------------------------
+def _push_science() -> None:
+    """Stream the science console widgets: the contact list, the selected contact's
+    data panel, its scan tabs, and the frequency readout."""
+    if _base_mock.sim is None or gui_queue is None:
+        return
+    w_lst = _ENGINE_WIDGETS["science_sorted_list"].clients
+    w_dat = _ENGINE_WIDGETS["science_data"].clients
+    w_tab = _ENGINE_WIDGETS["science_data_tabs"].clients
+    w_frq = _ENGINE_WIDGETS["science_data_freq"].clients
+    if not (w_lst or w_dat or w_tab or w_frq):
+        return
+    space = _base_mock.sim.space_objects
+    if w_lst:
+        _push_contact_list(w_lst, "sci_list")
+    for cid in set(w_dat) | set(w_tab) | set(w_frq):
+        o = _client_ship(cid)
+        tid = int(o.data_set.get("science_target_UID", 0) or 0) if o is not None else 0
+        t = space.get(tid) if tid else None
+        if cid in w_dat:
+            _push_delta(cid, "sci_data", _science_payload(o, t, tid), tid)
+        if cid in w_tab:
+            # Which tabs exist AND which are already scanned, so the strip can mark them.
+            _push_delta(cid, "sci_tabs", None if t is None else {
+                "tabs": _science_tabs(t),
+                "done": [tab for tab in _science_tabs(t) if _tab_scanned(o, t, tab)],
+            }, tid)
+        if cid in w_frq:
+            # Band strengths are a stable function of the contact, so the readout holds
+            # steady while a contact is selected instead of dancing every tick.
+            _push_delta(cid, "sci_freq", None if t is None else {
+                "weak": int(tid) % 5,
+                "bands": [round(0.35 + 0.16 * ((int(tid) // (5 ** i)) % 4), 2)
+                          for i in range(5)],
+            }, tid)
+
+
+def _science_tabs(t) -> list:
+    """The scan tabs this contact exposes (scan_type_list), always including 'scan'."""
+    raw = str(t.data_set.get("scan_type_list", 0) or "")
+    tabs = [x.strip() for x in raw.split(",") if x.strip()]
+    return ["scan"] + [x for x in tabs if x != "scan"]
+
+
+def _science_payload(o, t, tid: int):
+    """The science_data panel for the selected contact.
+
+    Scan state is per (target, TAB, side) - science_get_scan_data reads the tab off the
+    target's blob keyed by the scanning ship's side - so this reports every tab, not a
+    single "scanned" flag, plus where each queued tab sits in the ship's scan queue."""
+    if o is None or t is None:
+        return None
+    dx = t._pos.x - o._pos.x
+    dy = t._pos.y - o._pos.y
+    dz = t._pos.z - o._pos.z
+    ds = t.data_set
+    n_sh = int(ds.get("shield_count", 0) or 0)
+    queue = _base_mock.science_scan_queue(o.unique_ID)
+    # Per tab: scanned yet, and its queue position (1 = the one actually scanning).
+    tabs = _science_tabs(t)
+    state = {}
+    for tab in tabs:
+        pos = next((i + 1 for i, e in enumerate(queue)
+                    if e["target"] == tid and e["tab"] == tab), 0)
+        state[tab] = {"scanned": _tab_scanned(o, t, tab), "queued": pos}
+    return {
+        "name": (ds.get("name_tag") or ds.get("display_text")
+                 or getattr(t, "_data_tag", "") or "?"),
+        "side": getattr(t, "_side", "") or "",
+        "range": int(math.sqrt(dx * dx + dy * dy + dz * dz)),
+        "bearing": int(math.degrees(math.atan2(dx, dz)) % 360.0),
+        "altitude": int(dy),
+        "shields": [round(float(ds.get("shield_val", i) or 0.0), 0) for i in range(n_sh)],
+        "systems": _systems_health(ds),
+        "tab_state": state,
+        "queue_len": len(queue),
+        # Progress belongs to the head of the queue, whatever the console is looking at.
+        "percent": int(o.data_set.get("cur_scan_percent", 0) or 0),
+    }
+
+
+def _tab_scanned(o, t, tab: str) -> bool:
+    """Whether the scanning ship's SIDE already holds scan data for this tab of this
+    contact.  Asks the real science store (data lives on the TARGET, keyed by tab and
+    side) rather than keeping a parallel one that could disagree with the mission."""
+    if o is None or t is None:
+        return False
+    try:
+        from sbs_utils.procedural.science import science_get_scan_data
+        # unique_ID, not .id: the mock's space_object has no `id`, and reaching for one
+        # inside a broad try/except is how this silently answered "unscanned" forever.
+        v = science_get_scan_data(o.unique_ID, t.unique_ID, tab)
+    except Exception:
+        return False
+    if v is None:
+        return False
+    v = str(v).strip()
+    # science_is_unknown treats these placeholders as "not scanned"; match it per tab.
+    return v not in ("", "no data", "Default Scan")
+
+
+# The 2D view marks the console's selection with a reticle, in that console's own colour
+# from preferences.json.  Each console type reads a different selection UID and a different
+# colour key - the same split consoledispatcher makes when it routes a 2D-view click.
+#   console name contains -> (selection UID, preferences colour key)
+_RETICLE_BY_CONSOLE = (
+    ("weap",    ("weapon_target_UID",  "gui-color-weapon-reticle")),
+    ("sci",     ("science_target_UID", "gui-color-science-reticle")),
+    ("admiral", ("science_target_UID", "gui-color-science-reticle")),
+    ("comm",    ("comms_target_UID",   "gui-color-comms-reticle")),
+)
+# Helm/normal has no reticle colour in preferences.json, so it takes the main GUI colour.
+_RETICLE_DEFAULT = ("normal_target_UID", "gui-color-main")
+
+# Which cell of reticle-set.png (a 5x4 grid) each console draws.  One knob per console so
+# they can be set independently once the engine's choices are known.
+_RETICLE_CELL = {"weapon": 1, "science": 19, "comms": 6, "normal": 10}
+
+# Same knob as the runner's select trace (MOCK_LOG_SELECT=1).
+_LOG_SELECT = os.environ.get("MOCK_LOG_SELECT", "") not in ("", "0", "false", "False")
+_reticle_sent: dict = {}
+
+
+def _reticle_for(console: str):
+    """(selection UID key, colour, cell) for a console name."""
+    cn = (console or "").lower()
+    uid, colour_key = _RETICLE_DEFAULT
+    kind = "normal"
+    for token, pair in _RETICLE_BY_CONSOLE:
+        if token in cn:
+            uid, colour_key = pair
+            kind = {"weap": "weapon", "sci": "science",
+                    "admiral": "science", "comm": "comms"}[token]
+            break
+    colour = _base_mock.get_preference_string(colour_key) or "#ccf"
+    return uid, colour, _RETICLE_CELL.get(kind, 0)
+
+
+def _push_reticle() -> None:
+    """Stream each 2D-view console its current selection, so the browser can draw the
+    reticle over it.  Sent on change only - the browser retains it."""
+    if _base_mock.sim is None or gui_queue is None or not _view2d_widget_clients:
+        return
+    size = _base_mock.get_preference_int("lock-reticle-size-2D") or 60
+    for cid in list(_view2d_widget_clients.keys()):
+        o = _client_ship(cid)
+        uid_key, colour, cell = _reticle_for(_console_name.get(cid, ""))
+        sel = int(o.data_set.get(uid_key, 0) or 0) if o is not None else 0
+        snap = (sel, colour, cell, size)
+        if _reticle_sent.get(cid) == snap:
+            continue
+        _reticle_sent[cid] = snap
+        if _LOG_SELECT:
+            # Pairs with the runner's [select] line: that one says what the CLICK derived,
+            # this one says what the ship's blob actually holds a moment later. A click
+            # that traces fine but shows sel=0 here means the selection never stored.
+            print(f"[reticle] client={cid} console={_console_name.get(cid, '')!r} "
+                  f"uid={uid_key} sel={sel} colour={colour} cell={cell}")
+        _send(cid, "reticle", id=str(sel) if sel else "",
+              color=colour, cell=cell, size=size)
+
+
+def _push_contact_list(clients, cmd: str) -> None:
+    """Stream a nearest-first list of sided contacts to each client in `clients`.
+
+    Shared by comms_sorted_list and science_sorted_list: the engine builds both
+    internally and they differ only in which console a row click routes through, which
+    the select event already carries."""
+    s = _base_mock.sim
+    if s is None or gui_queue is None or not clients:
+        return
+    with s._lock:   # snapshot under the lock (MAST thread spawns/deletes) - see _push_radar
         objs = dict(s.space_objects)
         active = list(set(s._active_ids) & objs.keys())
         client_ships = dict(s.client_ships)
-    for cid in list(_view_comms_list_clients):
+    for cid in list(clients):
         oid = client_ships.get(cid, 0)
         oo = objs.get(oid)
         ox = oo._pos.x if oo is not None else 0.0
@@ -1070,7 +1558,7 @@ def _push_comms_list() -> None:
                     or getattr(o, "_data_tag", "") or "?")
             items.append((dx * dx + dz * dz, {"id": str(i), "name": name, "side": o._side}))
         items.sort(key=lambda t: t[0])
-        _send(cid, "comms_list", op="list", items=[it for _, it in items[:60]])
+        _send(cid, cmd, op="list", items=[it for _, it in items[:60]])
 
 
 _last_colors_sent = None
@@ -1119,10 +1607,17 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         _push_target_data()
         _push_text_active()
         _push_red_alert()
+        # Console control widgets (helm / weapons / science).  Each is a no-op unless a
+        # connected console actually declares one of its widgets, so a mission that
+        # never opens those consoles pays nothing for them.
+        _push_helm()
+        _push_weapons()
+        _push_reticle()
         _comms_list_tick += 1
         if _comms_list_tick >= _COMMS_LIST_INTERVAL:
             _comms_list_tick = 0
             _push_comms_list()
+            _push_science()
             _push_colors()
         _push_skybox()
 
@@ -1409,6 +1904,7 @@ def _force_terrain_push() -> None:
     _last_per_ship = {}
     _last_skybox_sent = "\0"   # force the skybox to re-broadcast to the new client
     _last_colors_sent = None   # force the colour config to re-broadcast to the new client
+    _reticle_sent.clear()      # ditto the selection reticle (also sent on change only)
 
 
 def radar_resync_ids(ids) -> int:

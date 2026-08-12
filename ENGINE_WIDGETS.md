@@ -3,8 +3,8 @@
 Companion to [AUTOPLAY_PLAN.md](AUTOPLAY_PLAN.md). These are the **engine gameplay
 widgets** streamed via `send_client_widget_list` (helm/weapons/science/comms/eng
 consoles) - a separate interaction channel from `send_gui_*` layout widgets
-(driven by `on gui_message`). The mock does **not** emulate them yet; the
-test-mode autoplayer must be able to drive them.
+(driven by `on gui_message`). The browser mock now emulates most of them - see
+**Mock status** below - and the test-mode autoplayer must be able to drive them.
 
 Names/descriptions seeded from `data/GUIWidgetList.txt`; per-console grouping from
 `procedural/gui/console.py`; **User actions** from the per-widget screenshots in
@@ -283,6 +283,25 @@ What the mock must reproduce so mission `//` routes fire during a run. Event -> 
 - **shield_control event** - consider emitting one (data_set-only today).
 
 ---
+
+## Mock status (cosmos_dev browser mock)
+
+Helm, weapons, science and comms are drivable in the mock; engineering is not. The
+mock reproduces each control the way this document describes it - a throttle click
+writes `playerThrottle`, so a script polling it sees what it would see in Cosmos.
+Details, the widget-by-widget table and the known gaps are in
+[cosmos_dev/MOCK_WIDGET_PARITY.md](cosmos_dev/MOCK_WIDGET_PARITY.md).
+
+Three notes that bear on this document:
+
+- **`helm_jump` / `quick_jump` are drawn but inert** in the mock, precisely because
+  open questions 2-3 below are unresolved. Answer those and they can be wired up.
+- **Torpedo load/fire**: the mock implements them (it owns the simulation), so it is
+  ahead of the engine's script API here rather than mirroring it. That makes the
+  "weapons load/fire scripting" item under *Library work surfaced* testable in the
+  mock before the engine gains it.
+- **`science_data_tabs`**: the mock switches tabs locally rather than firing a
+  `select_space_object` whose `extra_tag` `ConsoleDispatcher` does not read yet.
 
 ## Open questions (Doug)
 Route/event triggers resolved (see "Route & event triggers"). Remaining (low priority):

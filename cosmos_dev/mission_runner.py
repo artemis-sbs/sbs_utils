@@ -15,6 +15,7 @@ CLI (run from inside missions/sbs_utils/ or pass the full path):
 """
 
 import json
+import math
 import os
 import queue as _queue_mod
 import re
@@ -385,6 +386,203 @@ class _TeeWriter:
 
     def __getattr__(self, name):
         return getattr(self._original, name)
+
+
+# Dev knob: trace 2D-view selections (see the select branch in the event drain).
+_LOG_SELECT = os.environ.get("MOCK_LOG_SELECT", "") not in ("", "0", "false", "False")
+
+
+def _console_control(sbs, cid: int, etype: str, gev: dict) -> bool:
+    """Apply a browser console-widget action to the client's ship.  True if handled.
+
+    Most engine console controls fire NO event: the native widget writes a data_set key
+    and mission scripts poll it (ENGINE_WIDGETS.md, "Confirmed actuation patterns").  So
+    the faithful mock of a throttle is a throttle write - _playership_drive picks it up
+    on the next physics tick exactly as it picks up the autoplay AI's.  The two controls
+    that DO have an engine event (main_screen_control, red_alert) go through the normal
+    FakeEvent path in the caller instead.
+    """
+    ship_id = 0
+    try:
+        ship_id = sbs.get_ship_of_client(cid) or 0
+    except Exception:
+        pass
+    o = sbs.sim.space_objects.get(ship_id) if ship_id else None
+    if o is None:
+        return True                       # console with no ship: swallow, nothing to drive
+    ds = o.data_set
+
+    if etype == "helm_control":
+        # throttle / shields: a plain data_set write, which is all the engine widget does.
+        key = str(gev.get("key", ""))
+        if key in ("playerThrottle", "shields_raised_flag"):
+            ds.set(key, float(gev.get("value", 0) or 0), 0)
+        return True
+
+    if etype == "helm_steer":
+        # The steering ring writes a DIRECTION, not a heading: steerToDirD{X,Y,Z} plus
+        # steeringToDirFlag, the channel _playership_drive already honors.  A heading
+        # keeps the current altitude target; an altitude change keeps the heading.
+        f = o.forward_vector()
+        if "ang" in gev:
+            a = math.radians(float(gev.get("ang", 0) or 0))
+            dx, dz = math.sin(a), math.cos(a)
+        else:
+            dx, dz = f.x, f.z
+        run = 1000.0                      # horizontal run the climb angle is measured against
+        if "alt" in gev:
+            dy = max(-run, min(run, float(gev.get("alt", 0) or 0) - o._pos.y))
+        else:
+            dy = f.y * run
+        ds.set("steerToDirDX", dx * run, 0)
+        ds.set("steerToDirDY", dy, 0)
+        ds.set("steerToDirDZ", dz * run, 0)
+        ds.set("steeringToDirFlag", 1, 0)
+        return True
+
+    if etype == "dock_request":
+        # The script side of docking: set dock_base_id and let procedural/docking.py walk
+        # dock_state.  Cancel is the documented "dock_base_id = 0, dock_state = unknown".
+        if gev.get("release"):
+            ds.set("dock_base_id", 0, 0)
+            ds.set("dock_state", "unknown", 0)
+            return True
+        base = int(ds.get("normal_target_UID", 0) or 0)
+        if not base:
+            print("[mock] INITIATE DOCK: nothing selected on helm - pick a base first")
+            return True
+        ds.set("dock_base_id", base, 0)
+        ds.set("dock_state", "docking", 0)
+        return True
+
+    if etype == "weapon_control":
+        return _weapon_control(sbs, o, ds, gev)
+
+    return False
+
+
+def _weapon_control(sbs, o, ds, gev: dict) -> bool:
+    """Weapons console actions: beam tuning, torpedo tubes, energy conversion."""
+    op = str(gev.get("op", ""))
+
+    if op == "freq":
+        # Bands A-E over the 0.0-1.0 range of scan_type_for_shld_freq.
+        ds.set("scan_type_for_shld_freq", max(0, min(4, int(gev.get("index", 0)))) / 4.0, 0)
+        return True
+
+    if op == "rate":
+        # Fire rate divides the hull's base cycle time, so 4X really does fire 4x as
+        # often - the mock's _physics_beams reads beamCycleTime directly.
+        rate = max(1, min(4, int(gev.get("rate", 1))))
+        base = 6.0
+        try:
+            from sbs_utils.procedural.ship_data import get_ship_data_for
+            beams = (get_ship_data_for(getattr(o, "_data_tag", "") or "")
+                     or {}).get("hull_port_sets", {}).get("beam Primary Beams", [])
+            if beams:
+                base = float(beams[0].get("cycle_time", 6.0)) or 6.0
+        except Exception:
+            pass
+        ds.set("beamCycleTime", base / rate, 0)
+        return True
+
+    tubes = int(ds.get("torpedo_tube_count", 0) or 0)
+    loaded = [x.strip() for x in str(ds.get("tube_contents", 0) or "").split(",")]
+    loaded = [(loaded[i] if i < len(loaded) else "") for i in range(tubes)]
+    idx = int(gev.get("tube", 0) or 0)
+
+    if op == "load" and 0 <= idx < tubes:
+        kind = str(gev.get("kind", ""))
+        if int(ds.get(kind + "_NUM", 0) or 0) > 0:
+            loaded[idx] = kind
+            ds.set("tube_contents", ",".join(loaded), 0)
+        return True
+
+    if op == "unload" and 0 <= idx < tubes:
+        loaded[idx] = ""
+        ds.set("tube_contents", ",".join(loaded), 0)
+        return True
+
+    if op == "fire" and 0 <= idx < tubes and loaded[idx]:
+        # launch_torpedo spends the round, spawns the projectile AND emits
+        # player_launches_missile, so //launch/missile fires as it does in the engine.
+        # Its tube_index selects the torpedo TYPE (the mock keys ammo by type).
+        types = [x.strip() for x in str(ds.get("torpedo_types_available", 0) or "").split(",")]
+        try:
+            kind_index = types.index(loaded[idx])
+        except ValueError:
+            kind_index = 0
+        loaded[idx] = ""
+        ds.set("tube_contents", ",".join(loaded), 0)
+        try:
+            sbs.sim.launch_torpedo(o, kind_index, False)
+        except Exception as e:
+            _log_exc(f"torpedo launch failed: {e}")
+        return True
+
+    if op in ("scrap", "build"):
+        kind = str(gev.get("kind", ""))
+        val, cost = _torp_energy_values(sbs, kind)
+        have = int(ds.get(kind + "_NUM", 0) or 0)
+        mx = int(ds.get(kind + "_MAX", 0) or 0)
+        energy = float(ds.get("energy", 0) or 0.0)
+        if op == "scrap" and have > 0:
+            ds.set(kind + "_NUM", have - 1, 0)
+            ds.set("energy", energy + val, 0)
+        elif op == "build" and energy >= cost and have < mx:
+            ds.set(kind + "_NUM", have + 1, 0)
+            ds.set("energy", energy - cost, 0)
+        return True
+
+    return True
+
+
+def _torp_energy_values(sbs, kind: str):
+    """(scrap value, build cost) for a torpedo type, from its own style string -
+    energy_conversion_value is what it is worth, plus energy_to_torp_cost to build."""
+    val, extra = 100.0, 50.0
+    try:
+        s = sbs.get_shared_string(kind) or ""
+    except Exception:
+        s = ""
+    for part in s.split(";"):
+        k, _, v = part.partition(":")
+        k = k.strip()
+        if k in ("energy_conversion_value", "energy_to_torp_cost"):
+            try:
+                if k == "energy_conversion_value":
+                    val = float(v.strip())
+                else:
+                    extra = float(v.strip())
+            except ValueError:
+                pass
+    return val, val + extra
+
+
+def _science_scan_button(sbs, cid: int, etype: str, gev: dict) -> None:
+    """The science_data Start/Stop Scan button, for the tab the console is showing.
+
+    Scanning is a queue owned by the scanning SHIP and keyed by (contact, tab), so both
+    halves need the tab - which lives in the browser, since the console's current tab is
+    not something the server tracks."""
+    try:
+        ship_id = sbs.get_ship_of_client(cid) or 0
+    except Exception:
+        return
+    o = sbs.sim.space_objects.get(ship_id) if ship_id else None
+    if o is None:
+        return
+    target = int(o.data_set.get("science_target_UID", 0) or 0)
+    if not target or sbs.sim.space_objects.get(target) is None:
+        print("[mock] science scan: nothing selected on science")
+        return
+    tab = str(gev.get("tab", "scan") or "scan")
+    if etype == "science_scan_stop":
+        fn = getattr(sbs, "stop_science_scan", None)
+    else:
+        fn = getattr(sbs, "start_science_scan", None)
+    if fn is not None:
+        fn(ship_id, target, tab)
 
 
 def _drain_physics_events(sim, cosmos_event_handler, FakeEvent) -> None:
@@ -1728,7 +1926,31 @@ def _run(
                             _field_stats[cid] = dict(gev)
                             _field_stats[cid]["wall"] = time.time()
                             continue
-                        if etype == "screen_size":
+                        if etype in ("helm_control", "helm_steer", "dock_request",
+                                     "weapon_control"):
+                            # Engine console controls that write a data_set key and fire
+                            # no event - handled in place, nothing to dispatch.
+                            _console_control(sbs, cid, etype, gev)
+                            continue
+                        if etype in ("science_scan", "science_scan_stop"):
+                            _science_scan_button(sbs, cid, etype, gev)
+                            continue
+                        if etype == "main_screen_change":
+                            # The one helm control with a real engine event; handlerhooks
+                            # turns it into the MAIN_SCREEN_* values gui_console reads back.
+                            # handlerhooks keys the MAIN_SCREEN_* inventory off origin_id
+                            # (the SHIP), not the client - the screen belongs to the ship.
+                            _ms_origin = 0
+                            try:
+                                _ms_origin = sbs.get_ship_of_client(cid) or 0
+                            except Exception:
+                                _ms_origin = 0
+                            gev_ev = FakeEvent(client_id=cid, tag="main_screen_change",
+                                               sub_tag=str(gev.get("view", "3d_view")),
+                                               origin_id=_ms_origin)
+                            gev_ev.value_tag = str(gev.get("facing", "front"))
+                            gev_ev.extra_tag = str(gev.get("mode", "chase"))
+                        elif etype == "screen_size":
                             gev_ev = FakeEvent(client_id=cid, tag="screen_size")
                             gev_ev.source_point = Vec3(gev.get("width", 1024),
                                                        gev.get("height", 768), 0)
@@ -1807,6 +2029,14 @@ def _run(
                             gev_ev.source_point = Vec3(gev.get("wx", 0.0),
                                                        gev.get("wy", 0.0),
                                                        gev.get("wz", 0.0))
+                            # MOCK_LOG_SELECT=1 traces what a 2D-view click derived.
+                            # Selection routing depends on the console NAME, so when a
+                            # click "does nothing" this one line says whether the event
+                            # arrived and which UID it will be stored under. Off by
+                            # default: --exercise drives selections every tick.
+                            if _LOG_SELECT:
+                                print(f"[select] client={cid} console={console!r} "
+                                      f"widget={_widget} uid={_uid} selected={sel}")
                         elif etype == "hold_click":
                             # Right-click / long-press on a 2D view → the engine's hold_click
                             # event (popup / move-camera path, distinct from selection). sub_tag
@@ -1852,6 +2082,19 @@ def _run(
                             elif etype in ("change", "submit") and val != "":
                                 gev_ev.value_tag = str(val)
                         cosmos_event_handler(sbs.sim, gev_ev)
+                        if _LOG_SELECT and etype == "select_space_object":
+                            # What the shared do_select actually STORED. A click that
+                            # traces a real id but stores 0 has been vetoed downstream -
+                            # most likely the console's selection-disable counter.
+                            _o = sbs.sim.space_objects.get(origin)
+                            _stored = _o.data_set.get(_uid, 0) if _o is not None else None
+                            _dis = 0
+                            try:
+                                from sbs_utils.procedural.inventory import get_inventory_value
+                                _dis = get_inventory_value(origin, _uid, 0)
+                            except Exception:
+                                pass
+                            print(f"[select]   -> stored={_stored} disable_count={_dis}")
                     except Exception as e:
                         _log_exc(f"gui event error: {e}")
 

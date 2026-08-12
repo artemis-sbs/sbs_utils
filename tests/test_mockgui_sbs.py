@@ -666,6 +666,533 @@ class TestMockguiFxCulling(unittest.TestCase):
         self.assertEqual(len(self._fx().get("beams") or []), 0,
                          "a beam neither end of which is near a client cannot be drawn")
 
+class TestEngineConsoleWidgets(unittest.TestCase):
+    """The Family-B console widgets (gui_console's engine widget list): registration,
+    default placement, the state streams, and the browser controls that drive them.
+
+    These cover the "the mock is unplayable" gap - helm/weapons/science declared widgets
+    the browser silently dropped, and nothing in the browser could write playerThrottle.
+    """
+
+    def setUp(self):
+        mockgui.gui_queue = _queue.Queue()
+        mockgui.create_new_sim()
+        mockgui.gui_queue = _queue.Queue()
+        for w in mockgui._ENGINE_WIDGETS.values():
+            w.clients.clear()
+        mockgui._view2d_widget_clients.clear()
+        mockgui._view3d_widget_clients.clear()
+        mockgui._explicit_2d_rects.clear()
+        mockgui._hud_cache.clear()
+        mockgui._unknown_widgets_seen.clear()
+
+    def _drain(self):
+        items = []
+        while not mockgui.gui_queue.empty():
+            items.append(mockgui.gui_queue.get_nowait())
+        return items
+
+    def _cmds(self, cmd):
+        return [m for m in self._drain() if m["cmd"] == cmd]
+
+    def _assign_player(self, cid=5):
+        sid = mockgui.sim.create_space_object("behav_playership", "test", 0x20)
+        mockgui.sim.space_objects[sid]._pos = mockgui.vec3(0, 0, 0)
+        mockgui.sim.client_ships[cid] = sid
+        return sid
+
+    # -- registration + placement ------------------------------------------
+
+    def test_helm_widgets_are_registered(self):
+        """Every widget gui_console("helm") declares has a descriptor - the whole point
+        of the change is that none of them is silently dropped any more."""
+        for name in ("throttle", "helm_movement", "shield_control", "request_dock",
+                     "main_screen_control", "helm_jump", "quick_jump"):
+            self.assertIn(name, mockgui._ENGINE_WIDGETS, name)
+
+    def test_helm_console_streams_default_rects(self):
+        """Helm is laid out by the engine in C++ and never calls gui_layout_widget, so
+        the mock has to supply the placement or the console is blank."""
+        mockgui.send_client_widget_list(5, "normal_helm", "2dview^throttle^helm_movement")
+        thr = [m for m in self._drain()
+               if m["cmd"] == "throttle" and m.get("op") == "defrect"]
+        self.assertTrue(thr, "throttle got no default rect")
+        self.assertEqual(thr[-1]["anchor"], "bl")
+        self.assertGreater(thr[-1]["h"], 0)
+
+    def test_science_console_gets_no_default_rect(self):
+        """Science lays itself out in MAST (layout_widgets.mast //gui/normal_sci), so a
+        built-in default would fight the mission's own rect."""
+        mockgui.send_client_widget_list(5, "normal_sci", "science_2d_view^science_data")
+        self.assertEqual([m for m in self._drain() if m.get("op") == "defrect"], [])
+
+    def test_script_rect_is_forwarded(self):
+        mockgui.send_client_widget_list(5, "normal_sci", "science_data")
+        self._drain()
+        mockgui.send_client_widget_rects(5, "science_data", 10, 20, 90, 80,
+                                         10, 20, 90, 80)
+        rect = [m for m in self._cmds("sci_data") if m.get("op") == "rect"]
+        self.assertTrue(rect)
+        self.assertEqual((rect[-1]["left"], rect[-1]["bottom"]), (10, 80))
+
+    def test_dropping_a_widget_hides_it(self):
+        mockgui.send_client_widget_list(5, "normal_helm", "throttle")
+        self._drain()
+        mockgui.send_client_widget_list(5, "normal_comm", "comms_control")
+        self.assertTrue([m for m in self._cmds("throttle") if m.get("op") == "hide"])
+
+    def test_empty_widget_list_clears_then_restores(self):
+        """A console with no engine widgets (a GUI tab) sends an EMPTY list; that has to
+        hide them, and coming back has to bring them back with their state.
+
+        The restore is the subtle half: _push_delta sends only CHANGED fields, so without
+        invalidating the cache on declare/drop the payload looks unchanged, nothing is
+        sent, and the browser keeps whatever it had when it was hidden."""
+        sid = self._assign_player()
+        mockgui.sim.space_objects[sid].data_set.set("playerThrottle", 0.5, 0)
+        helm = "2dview^throttle^shield_control"
+        mockgui.send_client_widget_list(5, "normal_helm", helm)
+        mockgui.physics_tick(dt=0.5)
+        self._drain()
+
+        mockgui.send_client_widget_list(5, "quest", "")
+        hides = [m for m in self._cmds("throttle") if m.get("op") == "hide"]
+        self.assertTrue(hides, "an empty widget list must hide the widgets")
+        self.assertNotIn(5, mockgui._ENGINE_WIDGETS["throttle"].clients)
+
+        mockgui.send_client_widget_list(5, "normal_helm", helm)
+        mockgui.physics_tick(dt=0.5)
+        back = self._cmds("throttle")
+        self.assertTrue([m for m in back if m.get("op") == "defrect"], "no placement on return")
+        state = [m for m in back if "throttle" in m]
+        self.assertTrue(state, "returning console got no state re-sent")
+        self.assertIn("warp_ok", state[-1], "state came back as a partial delta, not in full")
+
+    def test_unemulated_widget_is_reported_once(self):
+        """An unimplemented widget used to be indistinguishable from a broken one."""
+        mockgui.send_client_widget_list(5, "normal_engi", "eng_power_controls")
+        self.assertIn("eng_power_controls", mockgui._unknown_widgets_seen)
+
+    # -- state streams ------------------------------------------------------
+
+    def test_throttle_state_is_streamed(self):
+        sid = self._assign_player()
+        mockgui.sim.space_objects[sid].data_set.set("playerThrottle", 0.5, 0)
+        mockgui.send_client_widget_list(5, "normal_helm", "throttle")
+        self._drain()
+        mockgui.physics_tick(dt=0.5)
+        thr = [m for m in self._cmds("throttle") if "throttle" in m]
+        self.assertTrue(thr)
+        self.assertAlmostEqual(thr[-1]["throttle"], 0.5)
+
+    def test_science_data_reports_per_tab_scan_state(self):
+        """Scan state is per (target, TAB, side), not one flag per target: science stores
+        each tab's text on the target keyed by the scanning ship's side."""
+        sid = self._assign_player()
+        tid = mockgui.sim.create_space_object("behav_npcship", "target", 0)
+        mockgui.sim.space_objects[tid]._pos = mockgui.vec3(1000, 0, 0)
+        mockgui.sim.space_objects[sid].data_set.set("science_target_UID", tid, 0)
+        mockgui.send_client_widget_list(5, "normal_sci", "science_data")
+        self._drain()
+        for _ in range(mockgui._COMMS_LIST_INTERVAL + 1):
+            mockgui.physics_tick(dt=0.1)
+        data = [m for m in self._cmds("sci_data") if "tab_state" in m]
+        self.assertTrue(data)
+        self.assertEqual(data[-1]["range"], 1000)
+        self.assertFalse(data[-1]["tab_state"]["scan"]["scanned"])
+        self.assertEqual(data[-1]["tab_state"]["scan"]["queued"], 0)
+
+
+class TestMockScienceScanQueue(unittest.TestCase):
+    """The science scan QUEUE the mock gained so the science console can finish a scan.
+
+    cur_scan_percent existed in the data_set schema but nothing ever advanced it and
+    science_scan_complete was never fired, so "Start Scan" could not work at all. The
+    queue is owned by the scanning SHIP; entries are (target, tab); only the head
+    advances, and completing one starts the next.
+    """
+
+    def setUp(self):
+        mockgui.create_new_sim()
+        self.ship = mockgui.sim.create_space_object("behav_playership", "test", 0x20)
+        self.a = mockgui.sim.create_space_object("behav_npcship", "a", 0)
+        self.b = mockgui.sim.create_space_object("behav_npcship", "b", 0)
+        mockgui.sim.space_objects[self.ship]._pos = mockgui.vec3(0, 0, 0)
+        mockgui.sim.space_objects[self.a]._pos = mockgui.vec3(500, 0, 0)
+        mockgui.sim.space_objects[self.b]._pos = mockgui.vec3(600, 0, 0)
+        while not _base_mock._pending_physics_events.empty():
+            _base_mock._pending_physics_events.get_nowait()
+
+    def _events(self):
+        out = []
+        while not _base_mock._pending_physics_events.empty():
+            out.append(_base_mock._pending_physics_events.get_nowait())
+        return out
+
+    def _run(self, seconds=12):
+        for _ in range(seconds):
+            _base_mock._physics_science_scans(mockgui.sim, 1.0)
+
+    def test_queue_is_fifo_and_only_the_head_advances(self):
+        _base_mock.start_science_scan(self.ship, self.a, "scan")
+        _base_mock.start_science_scan(self.ship, self.b, "scan")
+        q = _base_mock.science_scan_queue(self.ship)
+        self.assertEqual([e["target"] for e in q], [self.a, self.b])
+        _base_mock._physics_science_scans(mockgui.sim, 1.0)
+        q = _base_mock.science_scan_queue(self.ship)
+        self.assertGreater(q[0]["pct"], 0, "the head should be scanning")
+        self.assertEqual(q[1]["pct"], 0, "a waiting entry must not advance")
+
+    def test_active_scan_is_published_to_the_ship(self):
+        """The engine publishes the active scan in the SHIP's data_set; scripts poll it."""
+        _base_mock.start_science_scan(self.ship, self.a, "scan")
+        ds = mockgui.sim.space_objects[self.ship].data_set
+        self.assertEqual(ds.get("cur_scan_ID", 0), self.a)
+        self.assertEqual(ds.get("cur_scan_type", 0), "scan")
+
+    def test_completing_one_entry_starts_the_next(self):
+        _base_mock.start_science_scan(self.ship, self.a, "scan")
+        _base_mock.start_science_scan(self.ship, self.b, "scan")
+        self._run(6)          # long enough for the HEAD only (a scan takes ~5s in range)
+        done = [e for e in self._events() if e[0] == "science_scan_complete"]
+        self.assertTrue(done, "the head never completed")
+        self.assertEqual(done[0][3], self.a)
+        self.assertEqual(done[0][-1]["extra_tag"], "scan")
+        q = _base_mock.science_scan_queue(self.ship)
+        self.assertTrue(q and q[0]["target"] == self.b, "the next entry did not start")
+        self.assertEqual(mockgui.sim.space_objects[self.ship].data_set.get("cur_scan_ID", 0),
+                         self.b)
+
+    def test_each_tab_is_its_own_entry(self):
+        _base_mock.start_science_scan(self.ship, self.a, "scan")
+        _base_mock.start_science_scan(self.ship, self.a, "intel")
+        self.assertEqual(len(_base_mock.science_scan_queue(self.ship)), 2)
+
+    def test_queueing_the_same_tab_twice_is_a_no_op(self):
+        self.assertTrue(_base_mock.start_science_scan(self.ship, self.a, "scan"))
+        self.assertFalse(_base_mock.start_science_scan(self.ship, self.a, "scan"))
+        self.assertEqual(len(_base_mock.science_scan_queue(self.ship)), 1)
+
+    def test_stop_removes_an_entry_and_promotes_the_next(self):
+        _base_mock.start_science_scan(self.ship, self.a, "scan")
+        _base_mock.start_science_scan(self.ship, self.b, "scan")
+        self.assertTrue(_base_mock.stop_science_scan(self.ship, self.a, "scan"))
+        q = _base_mock.science_scan_queue(self.ship)
+        self.assertEqual([e["target"] for e in q], [self.b])
+        self.assertEqual(mockgui.sim.space_objects[self.ship].data_set.get("cur_scan_ID", 0),
+                         self.b)
+        self.assertEqual(self._events(), [], "a cancelled scan must not complete")
+
+    def test_stopping_the_last_entry_clears_the_active_scan(self):
+        _base_mock.start_science_scan(self.ship, self.a, "scan")
+        _base_mock.stop_science_scan(self.ship, self.a, "scan")
+        self.assertEqual(mockgui.sim.space_objects[self.ship].data_set.get("cur_scan_ID", 0), 0)
+
+    def test_entries_for_a_dead_target_are_dropped(self):
+        _base_mock.start_science_scan(self.ship, self.a, "scan")
+        _base_mock.start_science_scan(self.ship, self.b, "scan")
+        del mockgui.sim.space_objects[self.a]
+        _base_mock._physics_science_scans(mockgui.sim, 1.0)
+        q = _base_mock.science_scan_queue(self.ship)
+        self.assertEqual([e["target"] for e in q], [self.b])
+        self.assertEqual(self._events(), [])
+
+    def test_world_reset_clears_the_queue(self):
+        """A queued scan belongs to the mission that started it - carrying one into the
+        next run is exactly the reused-interpreter bug the reset ledger exists for."""
+        _base_mock.start_science_scan(self.ship, self.a, "scan")
+        self.assertTrue(_base_mock._science_scans)
+        mockgui.create_new_sim()
+        self.assertFalse(_base_mock._science_scans)
+
+
+class TestConsoleControlRoundTrip(unittest.TestCase):
+    """Browser console control -> data_set -> mock physics.
+
+    The engine's helm/weapons widgets mostly fire NO event: they write a data_set key
+    that scripts poll (ENGINE_WIDGETS.md).  So these assert the write, and - for the
+    throttle - that the write actually MOVES the ship, which is the whole point of the
+    change: before it, nothing in the browser could write playerThrottle at all.
+    """
+
+    def setUp(self):
+        mockgui.gui_queue = _queue.Queue()
+        mockgui.create_new_sim()
+        self.cid = 5
+        self.sid = mockgui.sim.create_space_object("behav_playership", "tsn_light_cruiser", 0x20)
+        self.o = mockgui.sim.space_objects[self.sid]
+        self.o._pos = mockgui.vec3(0, 0, 0)
+        mockgui.sim.client_ships[self.cid] = self.sid
+        ds = self.o.data_set
+        ds.set("torpedo_tube_count", 2, 0)
+        ds.set("torpedo_types_available", "Homing,Nuke", 0)
+        ds.set("Homing_NUM", 8, 0)
+        ds.set("Homing_MAX", 8, 0)
+        ds.set("energy", 950, 0)
+        while not _base_mock._pending_physics_events.empty():
+            _base_mock._pending_physics_events.get_nowait()
+
+    def _ctl(self, etype, gev):
+        from cosmos_dev.mission_runner import _console_control
+        return _console_control(mockgui, self.cid, etype, gev)
+
+    def test_throttle_write_moves_the_ship(self):
+        self._ctl("helm_control", {"key": "playerThrottle", "value": 0.75})
+        self.assertAlmostEqual(self.o.data_set.get("playerThrottle", 0), 0.75)
+        _base_mock.resume_sim()
+        for _ in range(90):                        # 3 sim-seconds at the physics rate
+            _base_mock.physics_tick(1 / 30)
+        self.assertGreater(self.o._cur_speed, 50, "throttle did not spin the drive up")
+        self.assertGreater(abs(self.o._pos.z), 100, "ship did not actually move")
+
+    def test_steering_writes_the_direction_channel(self):
+        """The ring writes a DIRECTION + flag, the same channel the autoplay AI uses and
+        the only one _playership_drive reads for players."""
+        self._ctl("helm_steer", {"ang": 90})
+        ds = self.o.data_set
+        self.assertTrue(ds.get("steeringToDirFlag", 0))
+        self.assertGreater(ds.get("steerToDirDX", 0), 0)     # 90 deg -> +X
+        self.assertAlmostEqual(ds.get("steerToDirDZ", 0), 0, places=3)
+
+    def test_shields_and_beam_frequency_write_their_keys(self):
+        self._ctl("helm_control", {"key": "shields_raised_flag", "value": 1})
+        self.assertTrue(self.o.data_set.get("shields_raised_flag", 0))
+        self._ctl("weapon_control", {"op": "freq", "index": 4})
+        self.assertAlmostEqual(self.o.data_set.get("scan_type_for_shld_freq", 0), 1.0)
+
+    def test_beam_rate_divides_the_hull_cycle_time(self):
+        self._ctl("weapon_control", {"op": "rate", "rate": 4})
+        quarter = self.o.data_set.get("beamCycleTime", 0)
+        self._ctl("weapon_control", {"op": "rate", "rate": 1})
+        full = self.o.data_set.get("beamCycleTime", 0)
+        self.assertAlmostEqual(quarter, full / 4.0, places=4)
+
+    def test_load_then_fire_spends_the_round_and_emits_the_launch_event(self):
+        """FIRE goes through the mock's own launch_torpedo, so //launch/missile fires
+        exactly as it does in the engine rather than through a mock-only signal."""
+        self._ctl("weapon_control", {"op": "load", "tube": 0, "kind": "Homing"})
+        self.assertEqual(self.o.data_set.get("tube_contents", 0).split(",")[0], "Homing")
+        self._ctl("weapon_control", {"op": "fire", "tube": 0})
+        self.assertEqual(self.o.data_set.get("Homing_NUM", 0), 7)
+        self.assertEqual(self.o.data_set.get("tube_contents", 0).split(",")[0], "")
+        tags = []
+        while not _base_mock._pending_physics_events.empty():
+            tags.append(_base_mock._pending_physics_events.get_nowait()[0])
+        self.assertIn("player_launches_missile", tags)
+
+    def test_firing_an_empty_tube_does_nothing(self):
+        self._ctl("weapon_control", {"op": "fire", "tube": 1})
+        self.assertEqual(self.o.data_set.get("Homing_NUM", 0), 8)
+
+    def test_torpedo_scrap_and_build_move_energy(self):
+        self._ctl("weapon_control", {"op": "scrap", "kind": "Homing"})
+        self.assertEqual(self.o.data_set.get("Homing_NUM", 0), 7)
+        self.assertGreater(self.o.data_set.get("energy", 0), 950)
+        before = self.o.data_set.get("energy", 0)
+        self._ctl("weapon_control", {"op": "build", "kind": "Homing"})
+        self.assertEqual(self.o.data_set.get("Homing_NUM", 0), 8)
+        self.assertLess(self.o.data_set.get("energy", 0), before)
+
+    def test_build_is_refused_when_the_racks_are_full(self):
+        self.o.data_set.set("energy", 99999, 0)
+        self._ctl("weapon_control", {"op": "build", "kind": "Homing"})
+        self.assertEqual(self.o.data_set.get("Homing_NUM", 0), 8)   # already at _MAX
+
+    def test_dock_request_needs_a_helm_selection(self):
+        self._ctl("dock_request", {})
+        self.assertFalse(self.o.data_set.get("dock_base_id", 0))
+        base = mockgui.sim.create_space_object("behav_station", "base", 0)
+        self.o.data_set.set("normal_target_UID", base, 0)
+        self._ctl("dock_request", {})
+        self.assertEqual(self.o.data_set.get("dock_base_id", 0), base)
+        self.assertEqual(self.o.data_set.get("dock_state", 0), "docking")
+        # Cancel is the documented dock_base_id = 0 / dock_state = unknown.
+        self._ctl("dock_request", {"release": True})
+        self.assertFalse(self.o.data_set.get("dock_base_id", 0))
+        self.assertEqual(self.o.data_set.get("dock_state", 0), "unknown")
+
+    def test_player_ship_starts_undocked(self):
+        """The engine reports a non-docked player ship as "undocked" (ship_data shows it
+        as State), and procedural/docking.py rests there. The mock left it "", so every
+        mission gating on dock_state saw a state that was neither docked nor undocked -
+        LM's //select/weapons route reads it to decide whether targeting is allowed and
+        silently cleared every weapons selection."""
+        self.assertEqual(self.o.data_set.get("dock_state", 0), "undocked")
+        npc = mockgui.sim.create_space_object("behav_npcship", "tsn_light_cruiser", 0)
+        self.assertEqual(mockgui.sim.space_objects[npc].data_set.get("dock_state", 0), "",
+                         "dock_state is a player concept; NPCs should not gain one")
+
+    def test_warp_availability_comes_from_the_hull(self):
+        """The throttle's WARP band is gated on data_set `warp` == 1.0
+        (ENGINE_WIDGETS.md). The mock never set that key, so the band was permanently
+        unavailable; it is now derived from the hull's warp_energy_cost."""
+        _base_mock.player_ship_setup_defaults(self.o)
+        self.assertEqual(self.o.data_set.get("warp", 0), 1.0)
+
+    def test_warp_throttle_values_are_written_through(self):
+        """Warp 1-4 are playerThrottle 2-5; the mock's player drive reads >1 as warp."""
+        for warp, pt in ((1, 2), (4, 5)):
+            self._ctl("helm_control", {"key": "playerThrottle", "value": pt})
+            self.assertAlmostEqual(self.o.data_set.get("playerThrottle", 0), pt,
+                                   msg="warp %d" % warp)
+
+    def test_reverse_throttle_is_accepted(self):
+        """REV reads the impulse bar as 0..-1; -1 is full astern."""
+        self._ctl("helm_control", {"key": "playerThrottle", "value": -1})
+        self.assertAlmostEqual(self.o.data_set.get("playerThrottle", 0), -1.0)
+
+    def test_a_console_with_no_ship_is_swallowed(self):
+        del mockgui.sim.client_ships[self.cid]
+        self.assertTrue(self._ctl("helm_control", {"key": "playerThrottle", "value": 1}))
+
+
+class TestSciencePerTabState(unittest.TestCase):
+    """Per-tab scan state, read through the REAL science store.
+
+    Scan text lives on the TARGET keyed by (tab, scanning side), so "scanned" is a fact
+    about a tab, not about a contact. This drives the science_data button, and it is where
+    a silent bug hid: the reader reached for `o.id`, which the mock's space_object does
+    not have, inside a broad try/except - so it answered "unscanned" forever.
+    """
+
+    def setUp(self):
+        import sbs_utils.mast_sbs.story_nodes  # noqa: F401  (breaks a circular import)
+        from sbs_utils.helpers import FrameContext, Context
+        from sbs_utils.spaceobject import SpaceObject
+        from sbs_utils.procedural.spawn import npc_spawn
+        from sbs_utils.procedural.query import to_id
+
+        class _Ev:
+            client_id = 0; tag = ""; sub_tag = ""; origin_id = 0; selected_id = 0
+            parent_id = 0; value_tag = ""; extra_tag = ""; extra_extra_tag = ""
+            sub_float = 0.0; source_point = None; event_time = 0
+
+        mockgui.gui_queue = _queue.Queue()
+        mockgui.create_new_sim()
+        FrameContext.context = Context(mockgui.sim, mockgui, _Ev())
+        SpaceObject.clear()
+        self.ship = to_id(npc_spawn(0, 0, 0, "Artemis", "tsn",
+                                    "tsn_light_cruiser", "behav_playership"))
+        self.tgt = to_id(npc_spawn(0, 0, 500, "Denmark", "civ",
+                                   "tsn_light_cruiser", "behav_npcship"))
+        self.o = mockgui.sim.space_objects[self.ship]
+        self.t = mockgui.sim.space_objects[self.tgt]
+
+    def test_unscanned_contact_reports_nothing_and_offers_only_the_scan_tab(self):
+        self.assertFalse(mockgui._tab_scanned(self.o, self.t, "scan"))
+        self.assertEqual(mockgui._science_tabs(self.t), ["scan"])
+
+    def test_initial_scan_marks_only_the_scan_tab(self):
+        from sbs_utils.procedural.science import science_set_scan_data
+        science_set_scan_data(self.ship, self.tgt, "A civilian transport.")
+        self.assertTrue(mockgui._tab_scanned(self.o, self.t, "scan"))
+        self.assertFalse(mockgui._tab_scanned(self.o, self.t, "intel"))
+
+    def test_other_tabs_appear_only_once_scanned(self):
+        """scan_type_list is what the initial scan fills in, which is why the console
+        cannot offer status/intel/bio before it."""
+        from sbs_utils.procedural.science import science_set_scan_data
+        self.assertEqual(mockgui._science_tabs(self.t), ["scan"])
+        science_set_scan_data(self.ship, self.tgt,
+                              {"scan": "A civilian transport.", "intel": "Wanted."})
+        self.assertIn("intel", mockgui._science_tabs(self.t))
+        self.assertTrue(mockgui._tab_scanned(self.o, self.t, "intel"))
+
+    def test_placeholder_text_still_counts_as_unscanned(self):
+        """science_is_unknown treats these as "no data"; the per-tab reader must agree,
+        or a placeholder would render as a completed scan."""
+        for placeholder in ("", "no data", "Default Scan"):
+            self.t.data_set.set("scan", placeholder, "tsn")
+            self.assertFalse(mockgui._tab_scanned(self.o, self.t, "scan"), placeholder)
+
+
+class TestPreferencesAndReticle(unittest.TestCase):
+    """preferences.json, and the selection reticle the 2D view draws from it.
+
+    get_preference_float/int/string were STUBS returning 0/"" - every preference any
+    mission asked for came back empty. The file is HJSON (it carries // comments), so it
+    needs the comments stripped before json will take it.
+    """
+
+    def setUp(self):
+        mockgui.gui_queue = _queue.Queue()
+        mockgui.create_new_sim()
+        mockgui.gui_queue = _queue.Queue()
+        mockgui._reticle_sent.clear()
+        mockgui._view2d_widget_clients.clear()
+
+    def test_preferences_actually_parse(self):
+        prefs = _base_mock._load_preferences()
+        self.assertGreater(len(prefs), 50, "preferences.json parsed as empty")
+        self.assertEqual(_base_mock.get_preference_string("gui-color-weapon-reticle"), "#f30")
+        self.assertEqual(_base_mock.get_preference_int("lock-reticle-size-2D"), 60)
+        # A float preference must not come back as an int-ish 0.
+        self.assertGreater(_base_mock.get_preference_float("player-fuel-use-coeff"), 0)
+
+    def test_missing_preference_is_empty_not_an_error(self):
+        self.assertEqual(_base_mock.get_preference_string("no-such-key"), "")
+        self.assertEqual(_base_mock.get_preference_int("no-such-key"), 0)
+        self.assertEqual(_base_mock.get_preference_float("no-such-key"), 0.0)
+
+    def test_each_console_gets_its_own_selection_and_colour(self):
+        """A console reads a different selection UID and a different colour - the same
+        split consoledispatcher makes when routing a 2D-view click."""
+        cases = {
+            "normal_weap": ("weapon_target_UID", "#f30"),
+            "normal_sci": ("science_target_UID", "#0f0"),
+            "normal_comm": ("comms_target_UID", "#03f"),
+            "gamemaster_overseer_comms": ("comms_target_UID", "#03f"),
+        }
+        for console, (uid, colour) in cases.items():
+            got_uid, got_colour, _cell = mockgui._reticle_for(console)
+            self.assertEqual(got_uid, uid, console)
+            self.assertEqual(got_colour, colour, console)
+
+    def test_helm_falls_back_to_the_main_gui_colour(self):
+        """preferences.json defines no helm reticle colour, so it takes gui-color-main
+        rather than an invented one."""
+        uid, colour, _cell = mockgui._reticle_for("normal_helm")
+        self.assertEqual(uid, "normal_target_UID")
+        self.assertEqual(colour, _base_mock.get_preference_string("gui-color-main"))
+
+    def test_reticle_streams_the_selection_and_only_on_change(self):
+        sid = mockgui.sim.create_space_object("behav_playership", "test", 0x20)
+        tid = mockgui.sim.create_space_object("behav_npcship", "target", 0)
+        mockgui.sim.client_ships[5] = sid
+        mockgui.send_client_widget_list(5, "normal_weap", "weapon_2d_view")
+        mockgui.sim.space_objects[sid].data_set.set("weapon_target_UID", tid, 0)
+        mockgui.gui_queue = _queue.Queue()
+        mockgui._push_reticle()
+        sent = [m for m in self._drain() if m["cmd"] == "reticle"]
+        self.assertTrue(sent, "no reticle streamed")
+        self.assertEqual(sent[-1]["id"], str(tid))
+        self.assertEqual(sent[-1]["color"], "#f30")
+        self.assertEqual(sent[-1]["size"], 60)
+        mockgui._push_reticle()
+        self.assertEqual([m for m in self._drain() if m["cmd"] == "reticle"], [],
+                         "an unchanged selection must not re-stream every tick")
+
+    def test_clearing_the_selection_streams_an_empty_id(self):
+        sid = mockgui.sim.create_space_object("behav_playership", "test", 0x20)
+        tid = mockgui.sim.create_space_object("behav_npcship", "target", 0)
+        mockgui.sim.client_ships[5] = sid
+        mockgui.send_client_widget_list(5, "normal_sci", "science_2d_view")
+        ds = mockgui.sim.space_objects[sid].data_set
+        ds.set("science_target_UID", tid, 0)
+        mockgui._push_reticle()
+        self._drain()
+        ds.set("science_target_UID", 0, 0)
+        mockgui._push_reticle()
+        sent = [m for m in self._drain() if m["cmd"] == "reticle"]
+        self.assertTrue(sent)
+        self.assertEqual(sent[-1]["id"], "")
+
+    def _drain(self):
+        items = []
+        while not mockgui.gui_queue.empty():
+            items.append(mockgui.gui_queue.get_nowait())
+        return items
+
 
 if __name__ == "__main__":
     unittest.main()
