@@ -4,6 +4,7 @@ Task-focused recipes for building a mission with MAST and the `sbs_utils`
 library &mdash; "how do I do X".
 
 - [World building](world-building.md) &mdash; spawn stations, ships, and terrain
+- [Relic interiors](relics.md) &mdash; a structure a ship flies *inside*
 - [GUI](../cosmos/gui.md) &mdash; screens, widgets, and layout
 - [Comms](../cosmos/comms.md) &mdash; hails, menus, and dialogue
 - [Science](../cosmos/science.md) &mdash; scans and science handlers

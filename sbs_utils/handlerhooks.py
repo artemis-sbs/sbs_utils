@@ -130,6 +130,10 @@ def reset_mission_state():
     # last mission's chambers would silently contain this mission's ships.
     from .procedural.volume import volume_clear
     volume_clear()
+    # Relic records read from AMD. Per-mission by definition - last mission's ruins
+    # would still answer relic_record() in this one.
+    from .procedural.amd_relics import relics_clear
+    relics_clear()
     from .procedural.amd_drops import drops_clear
     drops_clear()
     # Grav tethers. The engine holds the connections and _TETHERS holds the enforcement
@@ -311,6 +315,8 @@ register_reset_state("volumes", _volume_count)
 register_reset_state("volume watchers", _volume_watch_count)
 from .procedural.volume import volume_anchor_count as _volume_anchor_count
 register_reset_state("volume anchors", _volume_anchor_count)
+from .procedural.amd_relics import relics_count as _relics_count
+register_reset_state("relic records", _relics_count)
 from .procedural.grav_tether import _TETHERS as _GRAV_TETHERS
 register_reset_state("grav tethers",       lambda: len(_GRAV_TETHERS))
 from .procedural.modifiers import modifiers_count

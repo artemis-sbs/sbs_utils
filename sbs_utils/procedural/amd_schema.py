@@ -589,12 +589,48 @@ EFFECT = {
 }
 
 
+# A RELIC: a structure a ship flies INSIDE - a hollow ruin, a canyon, a docking throat.
+#
+# ONE archetype for the relic AND its parts, exactly as SHOT = CUTSCENE. A section
+# resolves to a single archetype, so splitting the container from its chambers would
+# leave half of every relic file untyped and lint calling its fields unknown.
+#
+# A record carrying `Relic:` is a PART; one carrying neither is the relic itself. Which
+# kind of part follows from the field it carries - `Chamber:`, `Box:` or `Solid:`.
+#
+# Coordinates are RELATIVE to the relic's `Loc:`, which is what lets one authored layout
+# be dropped at two places in a system.
+#
+# NOTE there is deliberately no `Kind:` here: the bare label `kind` infers LANDMARK (see
+# ("kind","landmark") below), the trap that already cost the cutscene design a redesign.
+RELIC = {
+    # -- the relic itself
+    "loc": coord2(),
+    "system": text(),
+    "atmosphere": text(hint="a nebula colour: purple, blue, ... or `none` for no murk"),
+    "containment": enum("tractor", "clamp", "none",
+                        hint="tractor holds with engine physics; clamp teleports"),
+    "scrape band": integer(hint="units past the wall before a scrape becomes a breach"),
+    "margin": integer(hint="how far inside the wall a held ship is put"),
+    "speed limit": text(hint="0.5 for half impulse; usually unset - the nebula does this"),
+    "forbid jump": boolean(),
+    "art": csv(hint="prop art keys to dress the walls with"),
+    "seed": integer(),
+    # -- a part
+    "relic": ref("node"),
+    "chamber": text(hint="x, y, z, radius"),
+    "box": text(hint="x, y, z, hx, hy, hz   (HALF-extents)"),
+    "solid": text(hint="sphere, x, y, z, r  |  box, x, y, z, hx, hy, hz  |  capsule, ..."),
+    "passage to": text(hint="hub 300, gallery 240"),
+}
+
+
 ARCHETYPES = {
     "quest": QUEST, "lifeform": LIFEFORM, "item": ITEM, "side": SIDE,
     "scan": SCAN, "landmark": LANDMARK, "region": REGION, "map": MAP,
     "dialogue": DIALOGUE, "image": IMAGE,
     "cutscene": CUTSCENE, "urge": URGE, "drop": DROP,
-    "effect": EFFECT,
+    "effect": EFFECT, "relic": RELIC,
 }
 
 # TRAITS: a concern a record ALSO has, on top of what it is.
@@ -716,6 +752,9 @@ _SECTION_ALIASES = {
     # `Kind: effect`, which would infer landmark (see ("kind","landmark") below).
     "effects": "effect", "effect": "effect", "looks": "effect", "fx": "effect",
     "drops": "drop", "drop": "drop", "loot": "drop", "drop tables": "drop",
+    # A RELIC and its chambers share one section and one archetype (see RELIC above).
+    # The kind line is the bare noun `Relic`, resolving here - NOT `Kind: relic`.
+    "relics": "relic", "relic": "relic", "ruins": "relic", "interiors": "relic",
     # An icon IS an atlas cell that resolves in the icon domain - one archetype, two
     # section words, so a mission's card deck and its icon sheet read the same way.
     "images": "image", "image": "image", "art": "image", "atlas": "image",
@@ -810,6 +849,9 @@ _DISCRIMINATORS = (
     ("face", "lifeform"), ("scene", "lifeform"),
     ("drops", "drop"),
     ("speaker", "dialogue"),
+    # Relic parts before the landmark rules: a chamber record carries no `Kind:`, but
+    # being explicit here keeps a flat file (no section heading) classifiable.
+    ("chamber", "relic"), ("passage to", "relic"), ("passage_to", "relic"),
     ("at", "landmark"), ("kind", "landmark"),
     ("state", "quest"), ("when", "quest"), ("then", "quest"),
     ("parent", "quest"), ("fail on signal", "quest"),
@@ -909,8 +951,8 @@ def _kind_to_archetype(noun):
 KIND_MENU = (
     ("Story", ("beat", "cue", "arc")),
     ("Work", ("objective", "job", "quest")),
-    ("Content", ("character", "item", "side", "scan", "landmark", "region", "map",
-                 "dialogue")),
+    ("Content", ("character", "item", "side", "scan", "landmark", "region", "relic",
+                 "map", "dialogue")),
 )
 
 

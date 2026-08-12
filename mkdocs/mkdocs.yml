@@ -103,6 +103,7 @@ nav:
     - Quests: build/quests.md
     - Items & Upgrades: build/items-upgrades.md
     - Turrets: build/turrets.md
+    - Relic interiors: build/relics.md
     - Adding an item or upgrade: build/custom-upgrades.md
     - Web pages: build/web-pages.md
     - The Library (in-game reading): build/library.md
@@ -198,6 +199,7 @@ nav:
       - turret: api/procedural/turret.md
       - upgrades: api/procedural/upgrades.md
       - urge: api/procedural/urge.md
+      - volume: api/procedural/volume.md
       - web: api/procedural/web.md
     - Dispatch:
       - api/dispatch/index.md

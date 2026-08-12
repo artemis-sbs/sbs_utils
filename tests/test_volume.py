@@ -882,3 +882,89 @@ class TestFlightEnvelope(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPlacement(unittest.TestCase):
+    """`origin` places a layout, so one authored relic can be dropped twice.
+
+    Without it a layout is welded to the absolute coordinates it was written at, and a
+    second copy means editing every number - which is exactly what declarative
+    authoring exists to avoid.
+
+    Two fixtures on purpose. SHAPES has no solids, so a probe measures the primitive it
+    is aimed at; CARVED exists only to move solids around. A single fixture with both
+    kept putting a pillar exactly where a probe asserted open space.
+    """
+
+    SHAPES = {
+        "chambers": {"hub": [0, 0, 0, 500], "far": [2000, 0, 0, 400]},
+        "passages": [["hub", "far", 150], [[0, 0, 0], [0, 0, 900], 120]],
+        "boxes": {"hall": [0, 0, 3000, 300, 200, 300]},
+    }
+    CARVED = {
+        "chambers": {"room": [0, 0, 0, 800]},
+        "solids": [["sphere", 0, 0, 0, 200],
+                   ["capsule", [600, -300, 0], [600, 300, 0], 90]],
+    }
+
+    def setUp(self):
+        volume_clear()
+
+    def test_no_origin_is_unchanged(self):
+        volume_load("a", self.SHAPES)
+        self.assertAlmostEqual(volume_depth("a", (0, 0, 0 - 250)), -250.0)
+
+    def test_chambers_move(self):
+        volume_load("a", self.SHAPES, origin=(10000, 0, 10000))
+        self.assertFalse(volume_contains("a", (0, 0, 0 - 250)))
+        self.assertTrue(volume_contains("a", (10000, 0, 10000 - 250)))
+
+    def test_radii_are_sizes_not_positions(self):
+        # Shifting a radius would resize the chamber instead of moving it. Probed along
+        # -z, the one axis no passage or box reaches down.
+        volume_load("a", self.SHAPES, origin=(10000, 0, 10000))
+        self.assertTrue(volume_contains("a", (10000, 0, 10000 - 499)))
+        self.assertFalse(volume_contains("a", (10000, 0, 10000 - 501)))
+
+    def test_named_passage_endpoints_follow_their_chambers(self):
+        volume_load("a", self.SHAPES, origin=(10000, 0, 10000))
+        self.assertTrue(volume_contains("a", (11000, 0, 10000)))
+
+    def test_explicit_passage_points_move(self):
+        volume_load("a", self.SHAPES, origin=(10000, 0, 10000))
+        self.assertTrue(volume_contains("a", (10000, 0, 10850)))
+        self.assertFalse(volume_contains("a", (0, 0, 850)))
+
+    def test_boxes_move_and_keep_their_extents(self):
+        volume_load("a", self.SHAPES, origin=(10000, 0, 10000))
+        self.assertTrue(volume_contains("a", (10000, 0, 13000)))
+        self.assertTrue(volume_contains("a", (10290, 190, 13290)))     # near corner
+        self.assertFalse(volume_contains("a", (10400, 0, 13000)))      # past the x face
+
+    def test_sphere_solid_moves_with_the_layout(self):
+        # A pillar left behind at the origin would carve a hole out of empty space and
+        # leave the placed relic with no pillar at all.
+        volume_load("c", self.CARVED, origin=(10000, 0, 10000))
+        self.assertFalse(volume_contains("c", (10000, 0, 10000)))      # in the pillar
+        self.assertTrue(volume_contains("c", (10000, 0, 10400)))       # room around it
+        self.assertTrue(volume_contains("c", (0 + 0, 0, 0)) is False)  # nothing left behind
+
+    def test_capsule_solid_moves_both_endpoints(self):
+        volume_load("c", self.CARVED, origin=(10000, 0, 10000))
+        self.assertFalse(volume_contains("c", (10600, 0, 10000)))      # in the bar
+        self.assertTrue(volume_contains("c", (10600, 0, 10200)))       # clear of it
+
+    def test_the_same_layout_placed_twice_is_congruent(self):
+        # The property that makes placement worth having at all.
+        for layout, probes in ((self.SHAPES, ((0, 0, -250), (1000, 0, 0), (0, 0, 3000),
+                                              (0, 0, 850), (9999, 0, 0))),
+                               (self.CARVED, ((0, 0, 0), (0, 0, 400), (600, 0, 0)))):
+            volume_clear()
+            volume_load("one", layout, origin=(0, 0, 0))
+            volume_load("two", layout, origin=(50000, 1000, -20000))
+            for p in probes:
+                q = (p[0] + 50000, p[1] + 1000, p[2] - 20000)
+                self.assertEqual(volume_contains("one", p), volume_contains("two", q),
+                                 f"{p} vs {q}")
+                self.assertAlmostEqual(volume_depth("one", p), volume_depth("two", q),
+                                       places=4)

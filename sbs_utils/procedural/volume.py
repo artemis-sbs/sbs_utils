@@ -474,7 +474,15 @@ class Volume:
 # `cosmos_dev` reuses one interpreter across missions, so last mission's chambers
 # would still be here on run 2.
 
-def volume_define(name, chambers=None, passages=None, boxes=None, solids=None):
+def _vol_shift(point, origin):
+    """Translate an (x, y, z) by the origin. Identity when there is no origin."""
+    if origin is None:
+        return point
+    return (point[0] + origin[0], point[1] + origin[1], point[2] + origin[2])
+
+
+def volume_define(name, chambers=None, passages=None, boxes=None, solids=None,
+                  origin=None):
     """Create (or replace) a named volume.
 
     Declarative form - `chambers` maps a name to (x, y, z, radius), `passages` is a
@@ -483,6 +491,13 @@ def volume_define(name, chambers=None, passages=None, boxes=None, solids=None):
         volume_define("relic",
                       chambers={"hub": (0, 0, 0, 1200)},
                       passages=[("hub", "spine", 300)])
+
+    `origin` PLACES the whole layout: every coordinate is treated as relative to it.
+    That is what lets one authored layout be dropped at two different points in a
+    system - without it a layout is welded to the absolute coordinates it was written
+    at, and a second copy means editing every number. Radii and half-extents are
+    sizes, not positions, so they are never shifted; a passage naming a chamber needs
+    no shift either, since the chamber it names has already moved.
     """
     vol = Volume(name)
     # Chambers first, always, so a declarative block does not have to be ordered -
@@ -492,24 +507,46 @@ def volume_define(name, chambers=None, passages=None, boxes=None, solids=None):
             raise ValueError(
                 f"volume {name!r}: chamber {cname!r} needs (x, y, z, radius), "
                 f"got {c!r}")
-        vol.add_chamber(cname, c[0], c[1], c[2], c[3])
+        cx, cy, cz = _vol_shift((c[0], c[1], c[2]), origin)
+        vol.add_chamber(cname, cx, cy, cz, c[3])
     for p in (passages or []):
         if len(p) < 3:
             raise ValueError(
                 f"volume {name!r}: passage needs (a, b, radius), got {p!r}")
-        vol.add_passage(p[0], p[1], p[2])
+        # A named endpoint resolves to a chamber that has already been placed; only an
+        # explicit point needs shifting.
+        a = p[0] if isinstance(p[0], str) else _vol_shift(_vol_xyz(p[0]), origin)
+        b = p[1] if isinstance(p[1], str) else _vol_shift(_vol_xyz(p[1]), origin)
+        vol.add_passage(a, b, p[2])
     for bname, b in (boxes or {}).items():
         if len(b) < 6:
             raise ValueError(
                 f"volume {name!r}: box {bname!r} needs (x, y, z, hx, hy, hz), got {b!r}")
-        vol.add_box(bname, b[0], b[1], b[2], b[3], b[4], b[5])
+        bx, by, bz = _vol_shift((b[0], b[1], b[2]), origin)
+        vol.add_box(bname, bx, by, bz, b[3], b[4], b[5])
     for sl in (solids or []):
         if not sl:
             raise ValueError(f"volume {name!r}: empty solid entry")
         _VOLUMES[name] = vol          # volume_solid resolves by name
-        volume_solid(name, sl[0], *sl[1:])
+        volume_solid(name, sl[0], *_vol_shift_solid(sl[0], sl[1:], origin))
     _VOLUMES[name] = vol
     return vol
+
+
+def _vol_shift_solid(kind, args, origin):
+    """Translate a solid's POSITION arguments, leaving its size arguments alone.
+
+    Each kind carries a different arg shape, which is why this cannot be one generic
+    slice: sphere is (x, y, z, r), box is (x, y, z, hx, hy, hz), and capsule is two
+    POINTS plus a radius.
+    """
+    if origin is None:
+        return args
+    if kind == "capsule":
+        a, b, r = args
+        return (_vol_shift(_vol_xyz(a), origin), _vol_shift(_vol_xyz(b), origin), r)
+    x, y, z = _vol_shift((args[0], args[1], args[2]), origin)
+    return (x, y, z) + tuple(args[3:])
 
 
 def volume_box(volume, name, x, y, z, hx, hy, hz):
@@ -556,7 +593,7 @@ def volume_solid(volume, kind, *args):
         f"(expected 'sphere', 'capsule' or 'box')")
 
 
-def volume_load(name, data):
+def volume_load(name, data, origin=None):
     """Define a volume from one parsed block - a MAST `metadata:` yaml section, or a
     mission yaml file.
 
@@ -584,7 +621,7 @@ def volume_load(name, data):
     """
     data = data or {}
     return volume_define(name, data.get("chambers"), data.get("passages"),
-                         data.get("boxes"), data.get("solids"))
+                         data.get("boxes"), data.get("solids"), origin=origin)
 
 
 def volume_get(name):

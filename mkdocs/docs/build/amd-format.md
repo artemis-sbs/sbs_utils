@@ -308,7 +308,7 @@ Most of the time you never say — the **section name** already does:
 ```
 
 `Jobs`, `Goals`, `Narrative`, `Characters`, `Cast`, `Crew`, `Landmarks`, `Regions`,
-`Items`, `Drops`, `Sides`, `Scans`, `Dialogue` and their singular forms are all
+`Items`, `Drops`, `Sides`, `Scans`, `Dialogue`, `Relics` and their singular forms are all
 understood, and a mission can teach the format its own names (`Contracts`, `Bounties`)
 so it never has to say this twice.
 

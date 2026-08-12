@@ -840,6 +840,42 @@ A tractor beam for Weapons and fighters — one system, scaled by hull.
 Built on the engine's native tractor.
 API: [grav_tether](api/procedural/grav_tether.md).
 
+## 🏛️ Fly *inside* a relic
+
+A structure your ship goes **into** — a hollow ruin, a canyon, a docking throat.
+
+The obvious way to build one is to make the walls out of solid objects, and it does not
+work. The engine has exactly one collision primitive: a **keep-out sphere**. A hollow
+shell is the opposite of a sphere, so approximating one takes hundreds of them, and the
+boundary still never lines up with the art — you clip through corners, or stop dead in
+what looks like open space.
+
+So a relic describes the **space** instead of the walls. Chambers are spheres, passages
+are capsules, boxes are rooms with real corners, and solids are subtracted — the pillar in
+the middle of the hall. A dozen branching chambers is about **thirty primitives instead of
+ten thousand voxels**, and no engine collision is involved anywhere.
+
+- **The walls are scenery.** Every prop is `exclusion_radius: 0` — visible, not solid.
+  Delete them all and containment behaves identically; their job is making an invisible
+  boundary legible.
+- **Getting caught is graded.** Scrape the wall and it hurts but you fly on; push past it
+  and you are held. The hold is an engine-side **tractor**, because the obvious version —
+  teleport the ship back each tick — is right on the server and looks wrong from the seat:
+  the client predicts its own position, so you visibly leave before snapping back.
+- **The atmosphere does the speed limiting.** Fill a relic with nebula and the engine caps
+  warp by itself — no per-tick throttle writes, nothing for the helm to fight. One nebula
+  covers a whole relic.
+- **Author it as data.** A `Relics` section in an `.amd` file, with coordinates relative
+  to the relic's `Loc:` so the same layout can be dropped twice.
+
+Measured on the real engine while building this, and both numbers surprised us: the MAST
+task cadence is **15 Hz, not the 5 Hz everyone quotes**, and a ship at full warp travels
+**60 units per tick** — not the 216 the old assumption predicts. That is the entire
+tunneling budget, which is why a wall only has to be about 120 units thick to be
+uncrossable.
+
+Docs: [Relic interiors](build/relics.md). API: [volume](api/procedural/volume.md).
+
 ## 🛰️ Sensor Beacons & the Fabricator
 
 Engineering has a new job. A **Fabricate** tab turns materials into gear over a **build

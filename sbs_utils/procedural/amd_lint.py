@@ -766,6 +766,108 @@ def _urge_nodes(doc):
     return out
 
 
+
+def _relic_nodes(doc):
+    """(node, {label_lower: (lineno, value)}) for every record in a relic section."""
+    out = []
+    for node in doc.nodes:
+        fields = {}
+        for lineno, raw, label, value in _fence_fields(node):
+            if raw[:1] not in (" ", "	"):
+                fields[label.strip().lower()] = (lineno, value)
+        if str(getattr(node, "kind", "") or "").strip().lower() == "relic":
+            out.append((node, fields))
+    return out
+
+
+def _relic_nums(value):
+    out = []
+    for part in str(value).replace(",", " ").split():
+        try:
+            out.append(float(part))
+        except ValueError:
+            pass
+    return out
+
+
+def amd_lint_relics(doc):
+    """Flag a relic layout that will build into something other than it reads as. WARNING.
+
+    Four things go wrong silently, and none of them raises:
+
+    * a ``Passage to:`` naming a chamber no record declares - the corridor simply is not
+      built, so the relic has an unreachable wing and looks like a pathfinding bug;
+    * a part naming a relic that does not exist - the whole part is dropped;
+    * a non-positive radius or half-extent, which builds a chamber enclosing nothing or a
+      passage nothing can fly down; and
+    * too few numbers on a ``Chamber:`` / ``Box:`` / ``Solid:``, where the part is skipped
+      rather than half-built.
+
+    Deliberately NOT checked here: whether the relic fits inside one nebula. That is a
+    judgement about atmosphere cost, not a correctness claim, and the number depends on
+    the shader - a linter asserting it would go stale.
+    """
+    findings = []
+    relic_keys = set()
+    chamber_names = {}          # relic key -> {part names}
+    parts = []
+    for node, fields in _relic_nodes(doc):
+        key = str(getattr(node, "key", "") or "")
+        owner = fields.get("relic")
+        if owner is None:
+            relic_keys.add(key)
+            chamber_names.setdefault(key, set())
+        else:
+            parts.append((node, fields, str(owner[1]).strip()))
+    for node, fields, owner in parts:
+        name = str(getattr(node, "key", "") or "")
+        if "chamber" in fields or "box" in fields:
+            chamber_names.setdefault(owner, set()).add(name)
+    for node, fields, owner in parts:
+        lineno = fields["relic"][0]
+        if owner not in relic_keys:
+            findings.append(AmdFinding(
+                lineno, "warning", "relic-dangling-parent",
+                f"'{owner}' is not a relic in this file, so this part is dropped"))
+            continue
+        for label, need in (("chamber", 4), ("box", 6)):
+            if label in fields:
+                ln, value = fields[label]
+                nums = _relic_nums(value)
+                if len(nums) < need:
+                    findings.append(AmdFinding(
+                        ln, "warning", "relic-short-part",
+                        f"'{label}' needs {need} numbers, got {len(nums)}"))
+                elif label == "chamber" and nums[3] <= 0:
+                    findings.append(AmdFinding(
+                        ln, "warning", "relic-bad-radius",
+                        "a chamber radius must be positive or it encloses nothing"))
+                elif label == "box" and min(nums[3:6]) <= 0:
+                    findings.append(AmdFinding(
+                        ln, "warning", "relic-bad-radius",
+                        "box half-extents must be positive"))
+        if "passage to" in fields:
+            ln, value = fields["passage to"]
+            for group in str(value).split(","):
+                words = [w for w in group.replace(",", " ").split()
+                         if not _relic_nums(w)]
+                if not words:
+                    continue
+                target = words[0]
+                known = chamber_names.get(owner, set())
+                if target not in known:
+                    findings.append(AmdFinding(
+                        ln, "warning", "relic-dangling-passage",
+                        f"'{target}' is not a chamber of '{owner}' - "
+                        f"this passage is not built"))
+                nums = _relic_nums(group)
+                if nums and nums[0] <= 0:
+                    findings.append(AmdFinding(
+                        ln, "warning", "relic-bad-radius",
+                        "a passage radius must be positive or nothing can fly down it"))
+    return findings
+
+
 def amd_lint_urges(doc):
     """Flag an urge that will never speak, or will speak wrongly. WARNING.
 
@@ -1238,6 +1340,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_field_values(doc)
         findings += amd_lint_actions(doc, keys)
         findings += amd_lint_urges(doc)
+        findings += amd_lint_relics(doc)
         findings += amd_lint_hails(doc)
         findings += amd_lint_then(doc)
         findings += amd_lint_dialogue_outcomes(doc)
