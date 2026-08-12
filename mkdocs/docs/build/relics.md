@@ -152,7 +152,12 @@ running:
 - **Plan** - top-down, the authoring view. Drag a chamber to move it, edit its numbers,
   SHIFT-drag between two to connect them. Height cannot be drawn on a top-down plan, so a
   vertical shaft is a dot and the `y` is a label.
-- **3D** - drag to orbit, SHIFT-drag to pan, wheel to zoom. Read-only; edit in the Plan.
+- **3D** - drag to orbit, SHIFT-drag to pan, wheel to zoom. Click a part to select it
+  and drag one of the three axis handles to move it; ESC deselects. **This is the only
+  view that can move a chamber's height** - a top-down plan cannot express a vertical
+  move. An axis pointing at the camera fades and refuses the drag, because its screen
+  direction has collapsed and a pixel of mouse would become thousands of units; orbit
+  a little and it comes back.
 
 Looking straight down in 3D reproduces the plan exactly, which is what makes the two
 legible as the same relic.
