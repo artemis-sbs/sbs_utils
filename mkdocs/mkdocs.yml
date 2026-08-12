@@ -150,6 +150,7 @@ nav:
       - amd: api/procedural/amd.md
       - amd_assets: api/procedural/amd_assets.md
       - amd_blocks: api/procedural/amd_blocks.md
+      - amd_relics: api/procedural/amd_relics.md
       - amd_render: api/procedural/amd_render.md
       - behavior: api/procedural/behavior.md
       - brain: api/procedural/brain.md

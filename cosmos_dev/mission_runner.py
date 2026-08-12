@@ -1334,6 +1334,13 @@ def _run(
             print(f"[runner] web client {cid} -> //web/{path}")
 
     # ---- /debug control channel (mockgui /ws/debug) ---------------------------
+    # The request id of the debug command being handled, if it came in over HTTP.
+    # Replies are broadcast to /debug websocket tabs, which the HTTP poster is not - so
+    # without echoing this, an `{"error": ...}` reply is invisible to the tool that asked
+    # and a failed command looks exactly like a successful one. That is how "no story is
+    # running yet" never once reached the relic editor.
+    _reply_rid = {"v": None}
+
     def _debug_reply(cid: int, data: dict) -> None:
         """Send a control-plane reply to one /debug tab. The fixed tag makes
         repeat replies replace in place in the server's frame state instead of
@@ -1341,6 +1348,8 @@ def _run(
         try:
             payload = {"cmd": "debug_status", "clientID": cid, "tag": "status"}
             payload.update(data)
+            if _reply_rid["v"] is not None:
+                payload["_rid"] = _reply_rid["v"]
             sbs.gui_queue.put(payload)
         except Exception as e:
             _log_exc(f"debug reply error: {e}")
@@ -1614,10 +1623,34 @@ def _run(
         except Exception:
             return None
 
+    def _establish_mast_context():
+        """Put a MAST context in place for a debug command. True if one is now live.
+
+        Debug commands are drained from the BARE TICK LOOP - outside
+        cosmos_event_handler - so `FrameContext.mast` is whatever the last tick left
+        behind, usually nothing. Anything that emits a signal or runs library code
+        expecting a story therefore has to establish it first, or it silently does
+        nothing and the caller still gets an ack.
+
+        Factored out because this is the THIRD place that needs it: _try_auto_start_map
+        for "game_started", the `signal` action, and now `relic_reload`.
+        """
+        page = _server_page_guess()
+        sched = getattr(page, "story_scheduler", None) if page else None
+        if sched is None or getattr(sched, "mast", None) is None:
+            return False
+        FrameContext.mast = sched.mast
+        if getattr(sched, "tasks", None):
+            FrameContext.task = sched.tasks[0]
+        return True
+
     def _handle_debug_command(cev: dict) -> None:
         nonlocal map_arg
         cid    = cev.get("clientID", 0)
         data   = cev.get("data") or {}
+        # Set for the whole handler so every _debug_reply below carries it, including the
+        # ones inside `except` branches - those are the replies that matter most.
+        _reply_rid["v"] = data.get("_rid")
         action = str(data.get("action", "")).strip().lower()
         if action == "status":
             _debug_reply(cid, {"status": _debug_status()})
@@ -1675,6 +1708,35 @@ def _run(
                                             + (f", shown on {len(live)} browser(s)" if live else " — open /web/gui_preview")})
             except Exception as e:
                 _debug_reply(cid, {"error": f"gui_preview failed: {e}"})
+        elif action == "relic_reload":
+            # Rebuild a relic from its .amd, live. The GENERIC half of what used to be a
+            # per-mission `//shared/signal/relic_reload` route: geometry comes back with
+            # no mission code at all, the same as `preview` and `gui_preview`. A mission
+            # that scatters props over the walls answers the `relic_rebuilt` signal this
+            # emits and re-dresses - that part is its art and cannot live here.
+            if not _establish_mast_context():
+                _debug_reply(cid, {"error": "relic reload: no story is running yet "
+                                            "(start a map first)"})
+                return
+            try:
+                from sbs_utils.procedural.amd_relics import (
+                    relic_reload, relics_reload_all, relic_keys)
+                key = str(data.get("key", "") or "").strip()
+                built = [relic_reload(key)] if key else relics_reload_all()
+                built = [b for b in built if b]
+                if not built:
+                    known = relic_keys()
+                    _debug_reply(cid, {"error":
+                        (f"relic reload: no relic named {key!r}"
+                         if key else "relic reload: no relic was loaded from a file")
+                        + (f" (loaded: {', '.join(known)})" if known
+                           else " - this mission has not built one")})
+                    return
+                _debug_reply(cid, {"ack": "rebuilt " + "; ".join(
+                    f"{b['key']}: {b['chambers']} chambers, {b['passages']} passages"
+                    for b in built)})
+            except Exception as e:
+                _debug_reply(cid, {"error": f"relic reload failed: {e}"})
         elif action == "signal":
             name = str(data.get("name", "")).strip()
             if not name:
@@ -1692,16 +1754,11 @@ def _run(
                 # This is the same fix _try_auto_start_map already carries for
                 # "game_started"; it just was not applied to this path. Found when the
                 # relic editor's Preview button appeared to do nothing.
-                _page = _server_page_guess()
-                sched = getattr(_page, "story_scheduler", None) if _page else None
-                if sched is None or getattr(sched, "mast", None) is None:
+                if not _establish_mast_context():
                     _debug_reply(cid, {"error":
                                        f"signal '{name}' NOT emitted: no story is "
                                        f"running yet (start a map first)"})
                     return
-                FrameContext.mast = sched.mast
-                if getattr(sched, "tasks", None):
-                    FrameContext.task = sched.tasks[0]
                 signal_emit(name, sig_data)
                 _debug_reply(cid, {"ack": f"signal '{name}' emitted"})
             except Exception as e:

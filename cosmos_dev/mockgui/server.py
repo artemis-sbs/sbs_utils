@@ -58,6 +58,40 @@ def _read_package_bytes(name):
 # ---------------------------------------------------------------------------
 # Injected by run_server() before the event loop starts
 # ---------------------------------------------------------------------------
+# HTTP callers that asked to WAIT for the runner's answer: request id -> Future.
+#
+# A debug command POSTed over HTTP is queued and answered "200 {ok:true}" immediately,
+# while the runner's real reply goes out over the /debug WEBSOCKET - which an HTTP caller
+# is not on. So an `{"error": ...}` was unreachable by the tool that asked, and a command
+# that failed looked exactly like one that worked. That is how "no story is running yet"
+# never reached the relic editor. Opt-in via `"wait": true`, so every existing caller
+# behaves byte for byte as before.
+_pending_replies: dict = {}
+
+
+def _debug_reply_future(rid: str):
+    """Register interest in the reply to request `rid`. Returns the Future."""
+    fut = asyncio.get_event_loop().create_future()
+    _pending_replies[rid] = fut
+    return fut
+
+
+def _resolve_debug_reply(payload: dict) -> bool:
+    """If `payload` is the reply someone is waiting for, hand it over. True if it was.
+
+    Deliberately does NOT consume the payload - it goes on to the websockets as well, so
+    the /debug page keeps showing everything it always did.
+    """
+    if not _pending_replies or not isinstance(payload, dict):
+        return False
+    rid = payload.get("_rid")
+    fut = _pending_replies.get(rid) if rid else None
+    if fut is None or fut.done():
+        return False
+    fut.set_result(payload)
+    return True
+
+
 _gui_queue:          Optional[multiprocessing.Queue] = None
 _client_event_queue: Optional[multiprocessing.Queue] = None
 _gui_event_queue:    Optional[multiprocessing.Queue] = None
@@ -347,6 +381,9 @@ async def _queue_dispatcher() -> None:
         # JSON-ready wires per writer, preserving order.
         per_writer = {}   # writer -> [wire, ...]
         for payload in batch:
+            # A reply an HTTP caller is blocked on. Resolved here because this is the one
+            # place every runner-originated frame passes through.
+            _resolve_debug_reply(payload)
             targets, wire = await _record(payload)
             for w in targets:
                 per_writer.setdefault(w, []).append(wire)
@@ -565,6 +602,30 @@ async def _handle_connection(reader: asyncio.StreamReader,
             if payload is None:
                 await _http_send(writer, "400 Bad Request",
                                  "application/json", '{"error":"bad json"}')
+            elif payload.get("wait"):
+                # The caller wants the runner's ANSWER, not just an acknowledgement that
+                # we queued it. Tag the command, wait briefly for the matching reply off
+                # the frame pump, and hand it back as the HTTP body.
+                import uuid
+                rid = uuid.uuid4().hex
+                payload["_rid"] = rid
+                fut = _debug_reply_future(rid)
+                try:
+                    if _client_event_queue is not None:
+                        _client_event_queue.put(
+                            {"event": "debug", "clientID": 0, "data": payload})
+                    # Below any sane client timeout. A command is handled on the next
+                    # tick, so this is normally a few milliseconds; the budget is for a
+                    # paused sim or a restart, where the honest answer is "still pending"
+                    # rather than a made-up failure.
+                    reply = await asyncio.wait_for(fut, 1.5)
+                    await _http_send(writer, "200 OK", "application/json",
+                                     json.dumps(reply))
+                except asyncio.TimeoutError:
+                    await _http_send(writer, "200 OK", "application/json",
+                                     '{"ok":true,"pending":true}')
+                finally:
+                    _pending_replies.pop(rid, None)
             else:
                 if _client_event_queue is not None:
                     _client_event_queue.put({"event": "debug", "clientID": 0, "data": payload})

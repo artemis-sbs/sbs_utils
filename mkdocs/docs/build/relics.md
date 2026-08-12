@@ -144,6 +144,59 @@ that does not exist, a part naming a relic that does not exist, a radius of zero
 `Chamber:` with too few numbers. All of them build *something*, just not what you wrote,
 so they surface as a pathfinding bug rather than a typo.
 
+## Live preview
+
+Open the file with **Artemis AMD: Show Relic Plan**, start the mission with `sbs debug`,
+and press **Preview** - the running session re-reads the `.amd` and rebuilds the relic
+where it stands. No restart, and **no code in your mission**: the rebuild is a debug
+action the library answers, the same way previewing a dialogue node is. Turn on **Live**
+and every drag previews by itself.
+
+What comes back for free:
+
+- the volume is **replaced in place**, under the same name, so anything addressing the
+  relic goes on addressing it;
+- **containment follows the rebuild by itself.** A watch is keyed by the volume's name
+  and re-resolves every tick, so it keeps its margin and its hold. Do not unwatch and
+  re-arm around a rebuild - that drops the tractor and fires a spurious `volume_recovered`
+  at every ship inside;
+- if you started containment with `relic_contain`, editing `Margin:`, `Scrape band:`,
+  `Containment:` or `Forbid jump:` takes effect on the **same** Preview as moving a
+  chamber. If you called `volume_watch` by hand instead, your numbers are left alone.
+
+### Your half: the art
+
+The props scattered over the walls are yours, and nothing in the library knows what they
+are. After a rebuild it emits `relic_rebuilt`, carrying `key`, `volume` and `file`:
+
+```
+//shared/signal/relic_rebuilt
+    relic_undress()          # delete your props FIRST
+    relic_dress()
+    relic_atmosphere()
+```
+
+Order matters. Delete before you build, so an identity guard (*if the walls are already
+here, do nothing*) sees an empty role and rebuilds instead of no-opping. `delete_object`
+clears role membership as it goes, so the two are safe back to back.
+
+A mission with no such route is not broken - its geometry rebuilds and its old walls stay
+standing. That is the deal: **geometry is free, art is opt-in.**
+
+### Only a relic read from a file can be reloaded
+
+`relics_build` / `relics_load` remember the path they read and the volume they built. A
+relic assembled in code has nothing to re-read, and Preview will say so rather than
+pretend. The same goes for the other two failures worth naming: no session on the port,
+and a key that no longer exists in the file.
+
+From MAST or Python, the same thing without the editor:
+
+```
+relic_reload("ossuary")     # one relic, by key
+relics_reload_all()         # every relic that came from a file
+```
+
 ## See also
 
 - [Volume API](../api/procedural/volume.md) — the functions behind all of this.

@@ -209,6 +209,23 @@ class TestRegistry(unittest.TestCase):
         self.assertEqual(volume_count(), 1)
         self.assertAlmostEqual(volume_depth("v", (0, 0, 0)), -5000.0)
 
+    def test_a_bad_redefine_leaves_the_GOOD_volume_standing(self):
+        """A raise partway through a re-define must not take the live volume with it.
+
+        `volume_solid` used to be resolved BY NAME, which meant the half-built volume had
+        to be published into the registry mid-loop - so a solid that raised left the
+        partial registered and the good one already discarded. Fine when a volume is built
+        once at map setup; not fine once the relic editor re-defines on every drag, where
+        a radius typed through zero would destroy the relic on screen.
+        """
+        volume_define("v", chambers={"hub": (0, 0, 0, 1000)})
+        with self.assertRaises(ValueError):
+            volume_define("v", chambers={"hub": (0, 0, 0, 40)},
+                          solids=[["sphere", 0, 0, 0, 0]])   # radius 0 raises
+        self.assertEqual(volume_count(), 1)
+        self.assertAlmostEqual(volume_depth("v", (0, 0, 0)), -1000.0,
+                               msg="the failed re-define replaced the live volume")
+
     def test_unknown_volume_is_all_wall(self):
         # Never silently contained - a typo in a volume name must fail closed.
         self.assertEqual(volume_depth("nope", (0, 0, 0)), float("inf"))

@@ -47,8 +47,10 @@ key, a heading and a source span, which is what an editor needs to write one cha
 from sbs_utils.procedural.amd import amd_parse_facts, amd_coords
 from sbs_utils.procedural.amd_doc import amd_section
 from sbs_utils.procedural.volume import (
-    volume_define, volume_get, volume_watch, HOLD_TRACTOR, HOLD_CLAMP, HOLD_NONE,
+    volume_define, volume_get, volume_watch, volume_watching,
+    HOLD_TRACTOR, HOLD_CLAMP, HOLD_NONE,
 )
+from sbs_utils.procedural.signal import signal_emit
 from sbs_utils.mast.mast_node import MastDataObject
 
 # Declared relic records by key, so a relic can be BUILT later on a story cue rather than
@@ -141,11 +143,16 @@ def amd_relic_data(text):
     return amd_parse_facts(text, amd_relic_facts())
 
 
-def relics_from_section(section):
+def relics_from_section(section, source=None, section_key=None):
     """Relic records from a section node's children, each with its parts attached.
 
     Grouping mirrors the cutscene reader: a record naming a relic is a part of it,
     collected in DOCUMENT ORDER; a record naming none is the relic itself.
+
+    `source` and `section_key` are carried onto every record so the relic can be REBUILT
+    from its file later - see `relic_reload`. They are the reader's own arguments, not
+    anything the author writes; without them a record is a snapshot with no way back to
+    the text it came from, and a live preview has to be written per mission.
     """
     relics = {}
     order = []
@@ -161,6 +168,10 @@ def relics_from_section(section):
             continue
         relics[key] = MastDataObject({
             "key": key,
+            "source": source,          # the .amd this was read from, for relic_reload
+            "section": section_key,    # and which section of it
+            "volume": None,            # set by relic_volume when the volume is built
+            "contained": False,        # set by relic_contain; see relic_reload
             "name": n.get("display_text"),
             "desc": (n.get("description") or "").strip(),
             "loc": data.get("loc"),
@@ -215,7 +226,8 @@ def relics_load(file_path, section_key="relics"):
     from sbs_utils.procedural.quest import document_get_amd_file
     doc = document_get_amd_file(file_path,
                                 data_parser=lambda t: amd_parse_facts(t, amd_relic_facts()))
-    return relics_register(amd_section(doc, section_key))
+    return relics_register(amd_section(doc, section_key),
+                           source=file_path, section_key=section_key)
 
 
 def relics_build(file_path, section_key="relics", name=None):
@@ -231,14 +243,14 @@ def relics_build(file_path, section_key="relics", name=None):
     return (rec, relic_volume(rec, name=name))
 
 
-def relics_register(section):
+def relics_register(section, source=None, section_key=None):
     """Remember every relic record in ``section`` by key, without building any.
 
     Separate from ``relics_build`` for the same reason landmarks are: a mission builds
     most of its relics at setup, but a story beat reveals one on cue, and both need the
     same record.
     """
-    out = relics_from_section(section)
+    out = relics_from_section(section, source=source, section_key=section_key)
     for rec in out:
         _RELIC_RECORDS[rec.get("key")] = rec
     return out
@@ -274,12 +286,30 @@ def relic_volume(record, name=None):
     """
     key = name or record.get("key")
     origin = relic_pos(record)
-    return volume_define(key,
-                         chambers=record.get("chambers"),
-                         passages=record.get("passages"),
-                         boxes=record.get("boxes"),
-                         solids=record.get("solids"),
-                         origin=origin)
+    vol = volume_define(key,
+                        chambers=record.get("chambers"),
+                        passages=record.get("passages"),
+                        boxes=record.get("boxes"),
+                        solids=record.get("solids"),
+                        origin=origin)
+    # Remember WHICH volume this record built. A mission may name it something other than
+    # the record's key, and when it does, everything keyed on the record key - reload,
+    # and `relic_contain` - silently finds nothing.
+    setattr(record, "volume", key)
+    return vol
+
+
+def relic_volume_name(record, name=None):
+    """Which volume a record's geometry lives in: an explicit name, else the one the
+    record actually BUILT, else its key.
+
+    The middle term is the one that matters. A mission is free to build a relic under a
+    name of its own (`relics_build(..., name="relic")`), and when it does, anything that
+    guesses the record's key instead - containment, reload - silently addresses a volume
+    that does not exist and does nothing at all. That is not hypothetical: it is why the
+    Ossuary's authored `Scrape band: 120` never once reached its watcher.
+    """
+    return name or record.get("volume") or record.get("key")
 
 
 def relic_contain(record, name=None):
@@ -287,7 +317,7 @@ def relic_contain(record, name=None):
 
     Returns the watcher, or None if the volume has not been built yet.
     """
-    key = name or record.get("key")
+    key = relic_volume_name(record, name)
     if volume_get(key) is None:
         return None
     hold = _HOLDS.get(str(record.get("containment") or "tractor").lower(), HOLD_TRACTOR)
@@ -302,7 +332,88 @@ def relic_contain(record, name=None):
             kw["speed_limit"] = float(limit)
         except (TypeError, ValueError):
             pass
+    # Mark the watch as OURS. A reload re-applies the authored fields only for a watch
+    # this function installed - see relic_reload.
+    setattr(record, "contained", True)
     return volume_watch(key, **kw)
+
+
+def relic_reload(key):
+    """Re-read one relic's `.amd` and rebuild its volume in place. Returns a summary dict.
+
+    THE POINT: this is what a live preview needs, and until now every mission had to write
+    it. The editor's Preview button can only ring a doorbell over the debug channel; the
+    rebuild has to happen inside the running mission, so it belongs here rather than in
+    the tool. See `cosmos_dev.mission_runner`'s `relic_reload` debug action, which calls
+    this and needs no mission code at all.
+
+    Geometry only. The props a mission scatters over the walls are its own art, and this
+    cannot know what they are - so it emits `relic_rebuilt` afterwards and a mission that
+    draws walls re-dresses on that signal.
+
+    Rebuilds UNDER THE SAME VOLUME NAME, so a watcher, a brain, or a stored id that
+    addresses the relic keeps addressing it. Containment is re-applied from the AUTHORED
+    fields (`relic_contain`), so an edit to `Margin:` or `Containment:` takes effect on
+    the same Preview as an edit to a chamber - which is the whole promise of authoring it
+    declaratively.
+
+    Returns `{"key", "volume", "source", "chambers", "passages", "boxes", "solids"}`, or
+    `None` if the key is unknown or the record has no source (built in code, not read
+    from a file - there is nothing to re-read).
+    """
+    rec = _RELIC_RECORDS.get(key)
+    if rec is None:
+        return None
+    source = rec.get("source")
+    if not source:
+        return None
+    # Re-read under the name the OLD record built, before it is replaced: a fresh read
+    # only knows the key the author wrote, and the mission may have built it as something
+    # else. Losing this is how a reload quietly builds a second volume beside the live one.
+    volume = relic_volume_name(rec)
+    section_key = rec.get("section") or "relics"
+    # Was this volume's watch installed from the AUTHORED fields, by relic_contain?
+    ours = bool(rec.get("contained")) and volume_watching(volume)
+
+    relics_load(source, section_key)
+    rec = _RELIC_RECORDS.get(key)
+    if rec is None:                     # the key vanished from the file mid-edit
+        return None
+    vol = relic_volume(rec, name=volume)
+    # DO NOT UNWATCH. A watcher is keyed by volume NAME and re-resolves the volume every
+    # tick, so it follows a rebuild by itself, keeping its margin, hold and block_jump -
+    # measured, not assumed. Tearing it down and re-arming would drop the tractor and
+    # emit a spurious `volume_recovered` for every ship inside.
+    if ours:
+        # Re-apply only OUR watch, so an edit to `Margin:` or `Containment:` goes live on
+        # the same Preview as an edit to a chamber. A mission that called volume_watch by
+        # hand keeps its own numbers - overriding those would be the library quietly
+        # winning an argument the author did not know they were having.
+        setattr(rec, "contained", True)
+        relic_contain(rec, name=volume)
+    out = {
+        "key": key, "volume": volume, "source": source,
+        "chambers": len(vol.chambers), "passages": len(vol.passages),
+        "boxes": len(vol.boxes), "solids": len(vol.solids),
+    }
+    # A no-op when there is no MAST context (a bare tick loop, a unit test), which is why
+    # the caller in mission_runner establishes one first.
+    signal_emit("relic_rebuilt", dict(out))
+    return out
+
+
+def relics_reload_all():
+    """Re-read every relic that came from a file. Returns a list of summaries.
+
+    What the editor's Preview posts when it does not name one - the common case of a
+    mission with a single relic, where naming it would only be a way to get it wrong.
+    """
+    out = []
+    for key in list(_RELIC_RECORDS.keys()):
+        got = relic_reload(key)
+        if got is not None:
+            out.append(got)
+    return out
 
 
 def relics_clear():

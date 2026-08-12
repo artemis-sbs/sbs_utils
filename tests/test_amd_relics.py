@@ -4,6 +4,7 @@ Parses a real AMD document rather than hand-built dicts: the point of the featur
 an author's text becomes a volume, so a test that skips the text tests nothing.
 """
 
+import io
 import unittest
 
 from sbs_utils.fs import test_set_exe_dir
@@ -14,9 +15,11 @@ from sbs_utils.procedural.amd_doc import amd_document, amd_section
 from sbs_utils.procedural.amd_relics import (
     relics_from_section, relics_register, relic_record, relic_keys, relic_pos,
     relic_volume, relics_clear, relics_count, amd_relic_data, amd_relic_facts,
+    relics_load, relic_reload, relics_reload_all, relic_volume_name, relic_contain,
 )
 from sbs_utils.procedural.volume import (
     volume_contains, volume_depth, volume_path, volume_get, volume_clear,
+    volume_watching, volume_watch,
 )
 
 DOC = """
@@ -230,6 +233,215 @@ class TestRegistry(unittest.TestCase):
         self.assertEqual(relics_count(), 1)
         relics_clear()
         self.assertEqual(relics_count(), 0)
+
+
+class TestReloadFromFile(unittest.TestCase):
+    """A relic can be rebuilt from the file it came from - the live-preview contract.
+
+    Until this existed, nothing in the library remembered a relic's SOURCE, so a reload
+    had to be written per mission: the mission held the file path in a constant, tore its
+    own relic down and rebuilt it. That is ~35 lines of teardown per relic mission, and it
+    is exactly where `sim.delete_object` (a method that does not exist) and the identity
+    guards bit. The editor's Preview button can only ring a doorbell over the debug
+    channel; the rebuild has to happen inside the running mission, so it belongs here.
+    """
+
+    def setUp(self):
+        relics_clear()
+        volume_clear()
+        import tempfile, os
+        fd, self.path = tempfile.mkstemp(suffix=".amd")
+        os.close(fd)
+        self._write(DOC)
+
+    def tearDown(self):
+        import os
+        relics_clear()
+        volume_clear()
+        try:
+            os.remove(self.path)
+        except OSError:
+            pass
+
+    def _write(self, text):
+        with io.open(self.path, "w", encoding="utf-8") as f:
+            f.write(text)
+
+    def test_a_loaded_record_remembers_where_it_came_from(self):
+        relics_load(self.path)
+        rec = relic_record("ossuary")
+        self.assertEqual(rec.get("source"), self.path)
+        self.assertEqual(rec.get("section"), "relics")
+
+    def test_a_record_remembers_which_volume_it_built(self):
+        relics_load(self.path)
+        rec = relic_record("ossuary")
+        self.assertIsNone(rec.get("volume"), "nothing is built until relic_volume runs")
+        relic_volume(rec, name="relic")
+        self.assertEqual(rec.get("volume"), "relic")
+        self.assertEqual(relic_volume_name(rec), "relic")
+
+    def test_reload_picks_up_an_edit_to_the_file(self):
+        relics_load(self.path)
+        relic_volume(relic_record("ossuary"))
+        self.assertEqual(volume_get("ossuary").chambers["hub"][3], 900.0)
+        self._write(DOC.replace("Chamber: 0, 0, 0, 900", "Chamber: 0, 0, 0, 1450"))
+        out = relic_reload("ossuary")
+        self.assertEqual(out["key"], "ossuary")
+        self.assertEqual(volume_get("ossuary").chambers["hub"][3], 1450.0)
+
+    def test_reload_rebuilds_under_the_MISSION_S_volume_name(self):
+        # A mission may build a relic under a name of its own. A reload that used the
+        # record's key instead would leave the live volume untouched and quietly build a
+        # second one beside it - the relic would look frozen, not broken.
+        relics_load(self.path)
+        relic_volume(relic_record("ossuary"), name="relic")
+        self._write(DOC.replace("Chamber: 0, 0, 0, 900", "Chamber: 0, 0, 0, 1450"))
+        out = relic_reload("ossuary")
+        self.assertEqual(out["volume"], "relic")
+        self.assertIsNone(volume_get("ossuary"), "reload built a stray second volume")
+        self.assertEqual(volume_get("relic").chambers["hub"][3], 1450.0)
+
+    def _mock_sim(self):
+        from cosmos_dev.mock import sbs
+        from tests.reset_helper import reset_mock
+        return reset_mock(sbs)
+
+    def test_reload_re_applies_the_AUTHORED_containment(self):
+        # volume_watch keys on the NAME, so an untouched watcher would go on enforcing the
+        # old margin against the new geometry - and an edit to `Margin:` would do nothing.
+        self._mock_sim()
+        relics_load(self.path)
+        rec = relic_record("ossuary")
+        relic_volume(rec)
+        relic_contain(rec)
+        self.assertTrue(volume_watching("ossuary"))
+        relic_reload("ossuary")
+        self.assertTrue(volume_watching("ossuary"))
+
+    def test_a_watcher_SURVIVES_a_rebuild_and_follows_the_new_geometry(self):
+        """Measured, not assumed - and it is why reload never unwatches.
+
+        A watcher is keyed by volume NAME and re-resolves the volume every tick, so a
+        rebuild slides the new geometry underneath it with margin, hold and block_jump
+        intact. Tearing it down and re-arming would drop the tractor and fire a spurious
+        `volume_recovered` at every ship inside the relic.
+        """
+        from sbs_utils.procedural.volume import _WATCHERS, volume_depth
+        self._mock_sim()
+        relics_load(self.path)
+        relic_volume(relic_record("ossuary"))
+        volume_watch("ossuary", margin=60, block_jump=True)
+        before = _WATCHERS.get("ossuary")
+        self._write(DOC.replace("Chamber: 0, 0, 0, 900", "Chamber: 0, 0, 0, 4000"))
+        relic_reload("ossuary")
+        after = _WATCHERS.get("ossuary")
+        self.assertIs(before, after, "the rebuild replaced the watcher")
+        self.assertEqual(after.margin, 60.0)
+        self.assertLess(volume_depth("ossuary", (10000, 0, -5000 + 3000)), 0,
+                        "the surviving watcher is judging the OLD geometry")
+
+    def test_editing_the_authored_margin_goes_LIVE(self):
+        """The whole promise of authoring containment declaratively.
+
+        `Margin:` is as much part of the relic as a chamber radius, so an edit to it must
+        take effect on the same Preview - otherwise half the file is live and half needs
+        a restart, with nothing saying which half.
+        """
+        from sbs_utils.procedural.volume import _WATCHERS
+        self._mock_sim()
+        relics_load(self.path)
+        rec = relic_record("ossuary")
+        relic_volume(rec)
+        relic_contain(rec)
+        self.assertEqual(_WATCHERS["ossuary"].margin, 60.0)
+        self._write(DOC.replace("Margin: 60", "Margin: 250"))
+        relic_reload("ossuary")
+        self.assertEqual(_WATCHERS["ossuary"].margin, 250.0)
+
+    def test_a_HAND_TUNED_watch_is_left_alone(self):
+        # The mission said margin=200 in its own code. Re-applying the authored fields
+        # over that would be the library quietly winning an argument the author did not
+        # know they were having.
+        self._mock_sim()
+        relics_load(self.path)
+        relic_volume(relic_record("ossuary"))
+        volume_watch("ossuary", margin=200.0)
+        relic_reload("ossuary")
+        from sbs_utils.procedural.volume import _WATCHERS
+        self.assertEqual(_WATCHERS["ossuary"].margin, 200.0)
+
+    def test_an_unwatched_relic_is_not_watched_BY_a_reload(self):
+        # Preview rebuilds geometry; it does not decide that a relic should start holding
+        # ships in. That is the mission's call and it may not have made it yet.
+        self._mock_sim()
+        relics_load(self.path)
+        relic_volume(relic_record("ossuary"))
+        relic_reload("ossuary")
+        self.assertFalse(volume_watching("ossuary"))
+
+    def test_a_relic_built_in_CODE_has_nothing_to_reload(self):
+        doc = amd_document(DOC, data_parser=lambda t: amd_parse_facts(t, amd_relic_facts()))
+        relics_register(amd_section(doc, "relics"))       # no source
+        self.assertIsNone(relic_reload("ossuary"))
+        self.assertEqual(relics_reload_all(), [])
+
+    def test_reload_all_covers_every_relic_read_from_a_file(self):
+        relics_load(self.path)
+        relic_volume(relic_record("ossuary"))
+        out = relics_reload_all()
+        self.assertEqual([o["key"] for o in out], ["ossuary"])
+        self.assertEqual(out[0]["chambers"], len(volume_get("ossuary").chambers))
+
+    def test_an_unknown_key_reloads_nothing(self):
+        relics_load(self.path)
+        self.assertIsNone(relic_reload("no_such_relic"))
+
+    def test_a_rebuild_needs_NO_mission_route(self):
+        """The whole point of moving this into the library.
+
+        A mission that authored a relic in AMD and wrote nothing else gets its geometry
+        rebuilt: the file is re-read, the volume replaced. `relic_rebuilt` is emitted for
+        a mission that wants to re-scatter its props, and NOTHING listening to it is a
+        perfectly good outcome - the walls simply stay as they were.
+        """
+        from sbs_utils.mast.mast import Mast
+        from sbs_utils.helpers import FrameContext
+
+        class _RecordingMast(Mast):
+            def __init__(self):
+                super().__init__()
+                self.delivered = []
+
+            def signal_emit(self, name, sender_task, data):
+                self.delivered.append((name, data))
+                return super().signal_emit(name, sender_task, data)
+
+        mast = _RecordingMast()
+        self.assertEqual(mast.compile('logger(var="out")\n', "no_relic_route", mast), [])
+        relics_load(self.path)
+        relic_volume(relic_record("ossuary"))
+        self._write(DOC.replace("Chamber: 0, 0, 0, 900", "Chamber: 0, 0, 0, 1450"))
+        FrameContext.mast = mast
+        try:
+            out = relic_reload("ossuary")
+        finally:
+            FrameContext.mast = None
+        self.assertEqual(volume_get("ossuary").chambers["hub"][3], 1450.0)
+        self.assertEqual([n for n, _ in mast.delivered], ["relic_rebuilt"])
+        self.assertEqual(mast.delivered[0][1]["volume"], "ossuary")
+        self.assertEqual(out["chambers"], len(volume_get("ossuary").chambers))
+
+    def test_a_rebuild_with_no_MAST_context_still_rebuilds(self):
+        # A probe, a unit test, a bare tick loop. `signal_emit` no-ops without a context
+        # by design, so the geometry half must not depend on one.
+        from sbs_utils.helpers import FrameContext
+        FrameContext.mast = None
+        relics_load(self.path)
+        relic_volume(relic_record("ossuary"))
+        self._write(DOC.replace("Chamber: 0, 0, 0, 900", "Chamber: 0, 0, 0, 1450"))
+        self.assertIsNotNone(relic_reload("ossuary"))
+        self.assertEqual(volume_get("ossuary").chambers["hub"][3], 1450.0)
 
 
 class TestSchemaIsRegistered(unittest.TestCase):

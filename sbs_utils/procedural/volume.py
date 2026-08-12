@@ -527,8 +527,15 @@ def volume_define(name, chambers=None, passages=None, boxes=None, solids=None,
     for sl in (solids or []):
         if not sl:
             raise ValueError(f"volume {name!r}: empty solid entry")
-        _VOLUMES[name] = vol          # volume_solid resolves by name
-        volume_solid(name, sl[0], *_vol_shift_solid(sl[0], sl[1:], origin))
+        # Pass the OBJECT, not the name (`_vol_resolve` takes either). Publishing mid-loop
+        # so that `volume_solid` could look the name up meant a solid that raised - a zero
+        # radius, say - left a HALF-BUILT volume registered with the previous good one
+        # already discarded. Harmless when a volume is built once at map setup; not
+        # harmless once the relic editor re-defines on every drag, where a number typed
+        # through zero would destroy the relic you were looking at.
+        volume_solid(vol, sl[0], *_vol_shift_solid(sl[0], sl[1:], origin))
+    # Publish once, fully built. Until this line the previous volume of this name is still
+    # the live one, so a raise anywhere above leaves it untouched.
     _VOLUMES[name] = vol
     return vol
 
