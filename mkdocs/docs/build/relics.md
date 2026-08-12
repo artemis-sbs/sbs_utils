@@ -146,21 +146,30 @@ so they surface as a pathfinding bug rather than a typo.
 
 ## Looking at one
 
-**Artemis AMD: Show Relic Plan** gives two views of the file, and neither needs anything
-running:
+**Artemis AMD: Show Relic Plan** opens the relic, and nothing needs to be running:
 
-- **Plan** - top-down, the authoring view. Drag a chamber to move it, edit its numbers,
-  SHIFT-drag between two to connect them. Height cannot be drawn on a top-down plan, so a
-  vertical shaft is a dot and the `y` is a label.
-- **3D** - drag to orbit, SHIFT-drag to pan, wheel to zoom. Click a part to select it
-  and drag one of the three axis handles to move it; ESC deselects. **This is the only
-  view that can move a chamber's height** - a top-down plan cannot express a vertical
-  move. An axis pointing at the camera fades and refuses the drag, because its screen
-  direction has collapsed and a pixel of mouse would become thousands of units; orbit
-  a little and it comes back.
+- **click** a part to select it; **drag a handle** to move it along one axis or to change
+  its radius; **SHIFT-drag** between two parts to connect them; **right-click** for a menu
+  that can add a chamber exactly where you clicked.
+- **MIDDLE-drag** orbits, **SHIFT-middle** pans, the **wheel** zooms - Blender's
+  convention, which is what leaves the left button free for all of the above.
+- the corner **navigation gizmo** points the view down an axis; clicking the axis you are
+  already looking down flips to the far side. **Top**, **Front** and **Right** do the
+  same from the toolbar.
+- the inspector types exact numbers when a drag will not do.
 
-Looking straight down in 3D reproduces the plan exactly, which is what makes the two
-legible as the same relic.
+**The axes are not Blender's.** Blender is Z-up; Cosmos is Y-up, because a chamber's
+second number is its altitude. So the ball meaning *look down from above* is **Y** here
+and Z there:
+
+| ball | view | you see |
+|---|---|---|
+| Y | Top | X across, Z into the screen |
+| Z | Front | X across, Y up |
+| X | Right | Z across, Y up |
+
+Top is the old plan view exactly - same axes, same +Z up the screen. It is a camera angle,
+not a separate editor.
 
 **Why the editor draws it rather than the game.** A relic can sit 80,000 units from the
 spawn, or not exist until a quest spawns it, so starting the mission and flying over is
