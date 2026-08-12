@@ -45,6 +45,7 @@ one fence, but inner names are unschema'd and unlinted by design - and a record 
 key, a heading and a source span, which is what an editor needs to write one chamber back.
 """
 from sbs_utils.procedural.amd import amd_parse_facts, amd_coords
+from sbs_utils.procedural.amd_doc import amd_section
 from sbs_utils.procedural.volume import (
     volume_define, volume_get, volume_watch, HOLD_TRACTOR, HOLD_CLAMP, HOLD_NONE,
 )
@@ -197,6 +198,37 @@ def relics_from_section(section):
         for other, radius in (data.get("passage_to") or []):
             rec.passages.append([name, other, radius if radius else 200.0])
     return [relics[k] for k in order]
+
+
+def relics_load(file_path, section_key="relics"):
+    """Read relics straight from an `.amd` file. The verb a mission actually wants.
+
+    Without this every mission repeats the same three lines - load the document with the
+    relic fence handler wired in, find the section, walk it - and the fence handler is
+    the part that is easy to forget. Miss it and every field silently falls through to
+    the default coercion, so `Chamber: 0, 0, 0, 900` becomes a string and the relic
+    builds as nothing.
+
+    Returns the records; they are registered too, so `relic_record(key)` finds them
+    later on a story cue.
+    """
+    from sbs_utils.procedural.quest import document_get_amd_file
+    doc = document_get_amd_file(file_path,
+                                data_parser=lambda t: amd_parse_facts(t, amd_relic_facts()))
+    return relics_register(amd_section(doc, section_key))
+
+
+def relics_build(file_path, section_key="relics", name=None):
+    """Load a file, build the first relic's volume, and return (record, volume).
+
+    The whole declarative path in one call, for the common case of a mission with one
+    relic. `name` overrides the volume's name; it defaults to the relic's own key.
+    """
+    records = relics_load(file_path, section_key)
+    if not records:
+        return (None, None)
+    rec = records[0]
+    return (rec, relic_volume(rec, name=name))
 
 
 def relics_register(section):

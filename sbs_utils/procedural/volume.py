@@ -533,6 +533,23 @@ def volume_define(name, chambers=None, passages=None, boxes=None, solids=None,
     return vol
 
 
+def _vol_capsule_args(args):
+    """Accept a capsule as either two POINTS plus a radius, or seven FLAT numbers.
+
+    The Python API reads better as points - `volume_solid(v, "capsule", (0,-800,0),
+    (0,800,0), 60)` - but a declarative source has no tuples: an authored
+    `Solid: capsule, 0, -800, 0, 0, 800, 0, 60` arrives as a flat row. Supporting both
+    here means the AMD reader needs no special case and neither does the caller.
+    """
+    if len(args) == 3:
+        return args
+    if len(args) >= 7:
+        return ((args[0], args[1], args[2]), (args[3], args[4], args[5]), args[6])
+    raise ValueError(
+        "a solid capsule needs two points and a radius, or seven numbers; got "
+        + repr(args))
+
+
 def _vol_shift_solid(kind, args, origin):
     """Translate a solid's POSITION arguments, leaving its size arguments alone.
 
@@ -543,7 +560,7 @@ def _vol_shift_solid(kind, args, origin):
     if origin is None:
         return args
     if kind == "capsule":
-        a, b, r = args
+        a, b, r = _vol_capsule_args(args)
         return (_vol_shift(_vol_xyz(a), origin), _vol_shift(_vol_xyz(b), origin), r)
     x, y, z = _vol_shift((args[0], args[1], args[2]), origin)
     return (x, y, z) + tuple(args[3:])
@@ -576,7 +593,7 @@ def volume_solid(volume, kind, *args):
             raise ValueError(f"volume {vol.name!r}: solid sphere radius must be positive")
         return vol.add_solid(("sphere", (float(x), float(y), float(z)), float(r)))
     if kind == "capsule":
-        a, b, r = args
+        a, b, r = _vol_capsule_args(args)
         if not float(r) > 0.0:
             raise ValueError(f"volume {vol.name!r}: solid capsule radius must be positive")
         return vol.add_solid(("capsule", _vol_xyz(a), _vol_xyz(b), float(r)))

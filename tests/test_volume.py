@@ -462,6 +462,32 @@ class TestSolids(unittest.TestCase):
         self.assertTrue(volume_contains("d", (600, 0, 0)))
         self.assertTrue(volume_contains("d", (2900, 0, 0)))
 
+
+    def test_a_capsule_solid_accepts_seven_flat_numbers(self):
+        # A declarative source has no tuples: an authored
+        # `Solid: capsule, 0, -800, 0, 0, 800, 0, 60` arrives as a flat row. Supporting
+        # only the two-point form meant every AMD relic with a capsule solid died with
+        # "too many values to unpack" - found by wiring a real .amd file, because no test
+        # had a capsule in it.
+        volume_define("f", chambers={"room": (0, 0, 0, 900)})
+        volume_solid("f", "capsule", 0, -800, 0, 0, 800, 0, 60)
+        self.assertFalse(volume_contains("f", (0, 0, 0)))
+        self.assertTrue(volume_contains("f", (400, 0, 0)))
+
+    def test_both_capsule_forms_agree(self):
+        volume_define("pts", chambers={"room": (0, 0, 0, 900)})
+        volume_solid("pts", "capsule", (0, -800, 0), (0, 800, 0), 60)
+        volume_define("flat", chambers={"room": (0, 0, 0, 900)})
+        volume_solid("flat", "capsule", 0, -800, 0, 0, 800, 0, 60)
+        for p in ((0, 0, 0), (400, 0, 0), (0, 400, 0), (100, 0, 0)):
+            self.assertEqual(volume_contains("pts", p), volume_contains("flat", p), str(p))
+
+    def test_a_short_capsule_is_rejected_with_a_readable_error(self):
+        volume_define("f")
+        with self.assertRaises(ValueError) as cm:
+            volume_solid("f", "capsule", 1, 2, 3, 4)
+        self.assertIn("seven numbers", str(cm.exception))
+
     def test_unknown_solid_kind_is_rejected(self):
         with self.assertRaises(ValueError) as cm:
             volume_solid("v", "pyramid", 0, 0, 0, 100)
