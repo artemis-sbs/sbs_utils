@@ -823,6 +823,24 @@ class TestTractorHold(unittest.TestCase):
         volume_clear()
         self.assertEqual(volume_anchor_count(), 0)
 
+    def test_the_anchor_OBJECT_is_deleted_too(self):
+        # The test above counts the DICT, which is exactly the blind spot that let this
+        # ship broken: `_vol_anchors_clear` called `sim.delete_object`, a method the
+        # simulation does not have, straight into a bare `except: pass`. The dict emptied,
+        # the anchor did not, and every unwatch left one invisible object behind - one
+        # per watched ship, on every mission reload.
+        volume_watch("v")
+        self._set_pos(5000, 0, 0)
+        volume_containment_tick()
+        from sbs_utils.procedural.query import to_object
+        from sbs_utils.procedural.roles import role
+        anchors = list(role("volume_anchor"))
+        self.assertEqual(len(anchors), 1)
+        volume_clear()
+        self.assertIsNone(to_object(anchors[0]),
+                          "the anchor dict emptied but the object is still in the sim")
+        self.assertEqual(len(role("volume_anchor")), 0)
+
     def test_hold_none_does_nothing_positional(self):
         volume_watch("v", hold="none", govern=False)
         self._set_pos(5000, 0, 0)

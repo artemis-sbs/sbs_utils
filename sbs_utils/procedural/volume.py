@@ -978,16 +978,22 @@ def _vol_tractor_release(ship_id):
 
 
 def _vol_anchors_clear():
-    """Release every tractor and delete every anchor object."""
+    """Release every tractor and delete every anchor object.
+
+    Deletion is `space_objects.delete_object`, NOT `sim.delete_object` - the simulation
+    has no such method, so the old call raised AttributeError straight into the `except`
+    below and every anchor survived: invisible (nothing draws them), unowned, and one
+    more per watched ship on every unwatch and every mission reload.
+
+    The `except` stays, because releasing a tractor on a ship that has since been
+    destroyed is a legitimate no-op, but it no longer covers the delete.
+    """
     from .query import to_object
-    from ..helpers import FrameContext
+    from .space_objects import delete_object
     for ship_id, aid in list(_ANCHORS.items()):
         _vol_tractor_release(ship_id)
-        try:
-            if to_object(aid) is not None:
-                FrameContext.context.sim.delete_object(aid)
-        except Exception:
-            pass
+        if to_object(aid) is not None:
+            delete_object(aid)
     _ANCHORS.clear()
 
 
