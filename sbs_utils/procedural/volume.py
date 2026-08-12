@@ -8,15 +8,23 @@ sphere. Approximating one with many spheres is not merely expensive - the bounda
 never lines up with the art. Inscribe the spheres and corners are passable;
 circumscribe them and the ship stops in empty space.
 
-So this module describes the **navigable space** instead:
+So this module describes the **navigable space** instead, as signed distance fields:
 
     chamber  = a sphere   (center, radius)
     passage  = a capsule  (endpoint A, endpoint B, radius)
+    box      = an axis-aligned rectangle (center, half-extents)
+    solid    = any of the above, SUBTRACTED - the pillar in the middle of the room
 
-A ship is inside the volume if it is inside ANY chamber or passage; everything else
-is wall. A dozen branching chambers is ~30 primitives rather than ~10,000 voxels,
-the boundary is smooth, and **no engine collision is involved at all** - every prop
-that dresses the structure ships `exclusion_radius = 0`.
+A ship is inside the volume if it is inside any navigable primitive and outside every
+solid. A dozen branching chambers is ~30 primitives rather than ~10,000 voxels, the
+boundary is smooth, and **no engine collision is involved at all** - every prop that
+dresses the structure ships `exclusion_radius = 0`.
+
+**The engine's sphere-only limit does not apply here.** `exclusion_radius` is the
+engine's single collider, but nothing in this module uses engine collision, so the
+shape vocabulary is only limited by what has a signed distance function. Spheres and
+capsules came first because they match rooms and corridors; boxes read as BUILT rather
+than eroded; subtraction is the one thing a union can never fake.
 
 Two consequences worth knowing:
 
@@ -105,16 +113,126 @@ def _push_out(p, anchor, radius):
             anchor[2] + (p[2] - anchor[2]) * k)
 
 
-class Volume:
-    """A navigable space: chambers (spheres) joined by passages (capsules)."""
+# -- primitives -------------------------------------------------------------------
+#
+# Every shape is a signed distance function: negative inside, zero on the surface,
+# positive outside. That is the whole reason this module is not stuck with spheres -
+# the ENGINE only has one collision sphere per object, but nothing here uses engine
+# collision, so any shape with an SDF is available.
+#
+# A primitive is a plain tuple tagged by kind:
+#   ("sphere",  (x, y, z), radius)
+#   ("capsule", a_xyz, b_xyz, radius)
+#   ("box",     (x, y, z), (hx, hy, hz))     axis-aligned, HALF-extents
 
-    __slots__ = ("name", "chambers", "passages", "_bound")
+
+def _sdf(prim, p):
+    """Signed distance from p to the primitive's surface. Negative inside."""
+    kind = prim[0]
+    if kind == "sphere":
+        return _dist(p, prim[1]) - prim[2]
+    if kind == "capsule":
+        return _seg_closest(p, prim[1], prim[2])[0] - prim[3]
+    # Box: the standard exact SDF. `q` is the per-axis overshoot past the half-extent;
+    # the outside term is the length of its positive part, the inside term is the
+    # largest (least negative) axis, which is the distance to the nearest FACE.
+    c, h = prim[1], prim[2]
+    qx = abs(p[0] - c[0]) - h[0]
+    qy = abs(p[1] - c[1]) - h[1]
+    qz = abs(p[2] - c[2]) - h[2]
+    ox, oy, oz = max(qx, 0.0), max(qy, 0.0), max(qz, 0.0)
+    outside = math.sqrt(ox * ox + oy * oy + oz * oz)
+    inside = min(max(qx, qy, qz), 0.0)
+    return outside + inside
+
+
+def _project(prim, p, margin=0.0):
+    """The nearest point INSIDE the primitive by at least `margin`.
+
+    Per-kind on purpose. A box cannot be projected by pushing towards a centre - that
+    would collapse a rectangular hall to its inscribed sphere and make the corners
+    unreachable. Clamping per axis is both exact and cheaper.
+    """
+    kind = prim[0]
+    if kind == "sphere":
+        keep = prim[2] - margin
+        return _push_out(p, prim[1], keep if keep > 0.0 else prim[2] * 0.5)
+    if kind == "capsule":
+        c = _seg_closest(p, prim[1], prim[2])[1]
+        keep = prim[3] - margin
+        return _push_out(p, c, keep if keep > 0.0 else prim[3] * 0.5)
+    c, h = prim[1], prim[2]
+    out = []
+    for i in range(3):
+        half = h[i] - margin
+        if half <= 0.0:
+            half = h[i] * 0.5
+        lo, hi = c[i] - half, c[i] + half
+        out.append(lo if p[i] < lo else (hi if p[i] > hi else p[i]))
+    return (out[0], out[1], out[2])
+
+
+def _push_solid_out(prim, p, margin=0.0):
+    """The nearest point at least `margin` OUTSIDE a solid - how you leave a pillar."""
+    kind = prim[0]
+    if kind == "sphere":
+        return _push_out(p, prim[1], prim[2] + margin)
+    if kind == "capsule":
+        c = _seg_closest(p, prim[1], prim[2])[1]
+        return _push_out(p, c, prim[3] + margin)
+    # Box: leave by the NEAREST face, which is the axis with the least penetration.
+    c, h = prim[1], prim[2]
+    best_axis, best_pen = 0, None
+    for i in range(3):
+        pen = (h[i] + margin) - abs(p[i] - c[i])     # how far in, on this axis
+        if best_pen is None or pen < best_pen:
+            best_axis, best_pen = i, pen
+    out = [p[0], p[1], p[2]]
+    reach = h[best_axis] + margin
+    out[best_axis] = c[best_axis] + (reach if p[best_axis] >= c[best_axis] else -reach)
+    return (out[0], out[1], out[2])
+
+
+def _rope(prim, p, margin=0.0):
+    """``(anchor, rope_len)`` for a tractor hold against this primitive.
+
+    Sphere and capsule return the MEDIAL AXIS point and the primitive's radius, so a
+    rope of that length about that point IS the containment constraint - the shape the
+    engine run validated, kept exactly.
+
+    A box has no such single sphere, so it returns the projected interior point with a
+    short rope: while breached the ship is outside anyway, and the tether is released
+    the moment it is back inside, so pulling it to the nearest safe point is the same
+    behavior expressed for a shape that has no centre-and-radius.
+    """
+    kind = prim[0]
+    if kind == "sphere":
+        keep = prim[2] - margin
+        return (prim[1], keep if keep > 0.0 else prim[2] * 0.5)
+    if kind == "capsule":
+        c = _seg_closest(p, prim[1], prim[2])[1]
+        keep = prim[3] - margin
+        return (c, keep if keep > 0.0 else prim[3] * 0.5)
+    target = _project(prim, p, margin)
+    return (target, max(margin, 1.0))
+
+
+class Volume:
+    """A navigable space built from primitives, minus any solids carved out of it.
+
+    Navigable: `chambers` (spheres), `passages` (capsules), `boxes` (axis-aligned).
+    `solids` are SUBTRACTED - the pillar in the middle of the room.
+    """
+
+    __slots__ = ("name", "chambers", "passages", "boxes", "solids", "_bound")
 
     def __init__(self, name):
         self.name = name
         self.chambers = {}     # name -> (x, y, z, radius)
         self.passages = []     # (a_xyz, b_xyz, radius, a_name, b_name)
-        self._bound = None     # ((x, y, z), radius) - early-out sphere
+        self.boxes = {}        # name -> ((x, y, z), (hx, hy, hz))
+        self.solids = []       # primitives subtracted from the navigable space
+        self._bound = None     # ((x, y, z), radius) - whole-volume bounding sphere
 
     # -- construction ------------------------------------------------------------
 
@@ -162,75 +280,144 @@ class Volume:
 
     # -- geometry ----------------------------------------------------------------
 
+    def add_box(self, name, x, y, z, hx, hy, hz):
+        """An axis-aligned rectangular space. Half-extents, so hx is HALF the width.
+
+        A box reads as BUILT rather than eroded - a vault with flat walls and real
+        corners, which spheres and capsules cannot express at all. Not rotatable:
+        arbitrary orientation needs a quaternion in the SDF, and every relic so far
+        wanted axis-aligned rooms.
+        """
+        for label, h in (("hx", hx), ("hy", hy), ("hz", hz)):
+            if not float(h) > 0.0:
+                raise ValueError(
+                    f"volume {self.name!r}: box {name!r} has {label}={h!r}; half-extents "
+                    f"must be positive (they are HALF the width, not the width)")
+        self.boxes[name] = ((float(x), float(y), float(z)),
+                            (float(hx), float(hy), float(hz)))
+        self._bound = None
+        return self
+
+    def add_solid(self, prim):
+        """SUBTRACT a shape from the navigable space - a pillar, a spire, a solid hub.
+
+        Union alone can only ever ADD space, so without this a chamber with a column
+        in the middle has to be faked by routing capsules around where the column
+        goes. Takes any primitive tuple; see `volume_solid` for the friendly form.
+        """
+        self.solids.append(prim)
+        self._bound = None
+        return self
+
+    def primitives(self):
+        """Every NAVIGABLE primitive, uniformly tagged."""
+        out = []
+        for (x, y, z, r) in self.chambers.values():
+            out.append(("sphere", (x, y, z), r))
+        for (a, b, r, _an, _bn) in self.passages:
+            out.append(("capsule", a, b, r))
+        for (c, h) in self.boxes.values():
+            out.append(("box", c, h))
+        return out
+
     def bound(self):
-        """Bounding sphere of the whole volume, for a cheap early-out."""
+        """Bounding sphere of the whole volume.
+
+        Used to size a relic's nebula. NOT wired into `nearest` as an early-out - at
+        tens of primitives the walk is already noise, and a stale claim that it was
+        would be worse than none. If a volume ever reaches thousands, this is the hook.
+        """
         if self._bound is not None:
             return self._bound
-        pts = [(c[0], c[1], c[2], c[3]) for c in self.chambers.values()]
-        for a, b, r, _an, _bn in self.passages:
-            pts.append((a[0], a[1], a[2], r))
-            pts.append((b[0], b[1], b[2], r))
+        pts = []
+        for prim in self.primitives():
+            if prim[0] == "sphere":
+                pts.append((prim[1], prim[2]))
+            elif prim[0] == "capsule":
+                pts.append((prim[1], prim[3]))
+                pts.append((prim[2], prim[3]))
+            else:
+                c, h = prim[1], prim[2]
+                pts.append((c, math.sqrt(h[0] ** 2 + h[1] ** 2 + h[2] ** 2)))
         if not pts:
             self._bound = ((0.0, 0.0, 0.0), 0.0)
             return self._bound
-        cx = sum(p[0] for p in pts) / len(pts)
-        cy = sum(p[1] for p in pts) / len(pts)
-        cz = sum(p[2] for p in pts) / len(pts)
-        c = (cx, cy, cz)
-        self._bound = (c, max(_dist(c, (p[0], p[1], p[2])) + p[3] for p in pts))
+        n = len(pts)
+        c = (sum(q[0][0] for q in pts) / n,
+             sum(q[0][1] for q in pts) / n,
+             sum(q[0][2] for q in pts) / n)
+        self._bound = (c, max(_dist(c, q[0]) + q[1] for q in pts))
         return self._bound
 
     def nearest(self, pos):
-        """``(depth, anchor, radius)`` for the nearest primitive.
+        """``(depth, anchor, rope)`` - signed depth plus a tractor hold target.
 
-        `anchor` is the point on the MEDIAL AXIS - a chamber's center, or the closest
-        point on a passage's axis - and `radius` is that primitive's radius. Together
-        they are the local containment sphere, which is exactly what a tractor hold
-        needs: a rope of `radius` about `anchor` IS the constraint.
+        Depth is the SDF of the whole volume: the union of the navigable primitives,
+        with every solid subtracted. In SDF algebra, subtracting S is
+        ``max(d_union, -d_S)`` - so a point inside a pillar reports positive (outside
+        the navigable space), and a point near one correctly measures its distance to
+        the pillar as its distance to the nearest wall.
+
+        A point inside a solid is anchored AGAINST THE SOLID, not the room it sits in:
+        the way out of a pillar is away from the pillar.
         """
         p = _xyz(pos)
         if p is None:
             return (float("inf"), None, 0.0)
         best_d = float("inf")
-        best_anchor = None
-        best_r = 0.0
-        for x, y, z, r in self.chambers.values():
-            d = _dist(p, (x, y, z)) - r
+        best = (None, 0.0)
+        for prim in self.primitives():
+            d = _sdf(prim, p)
             if d < best_d:
-                best_d, best_anchor, best_r = d, (x, y, z), r
-        for a, b, r, _an, _bn in self.passages:
-            sd, c = _seg_closest(p, a, b)
-            d = sd - r
-            if d < best_d:
-                best_d, best_anchor, best_r = d, c, r
-        return (best_d, best_anchor, best_r)
+                best_d, best = d, _rope(prim, p, 0.0)
+        for solid in self.solids:
+            ds = _sdf(solid, p)
+            if -ds > best_d:
+                best_d = -ds
+                # Push clear of the solid's surface rather than towards a room centre.
+                anchor, _r = _rope(solid, p, 0.0)
+                best = (anchor, 0.0)
+        return (best_d, best[0], best[1])
 
     def depth(self, pos):
         """Signed distance to the boundary. NEGATIVE inside, positive outside.
 
-        The union of primitives, so the nearest one wins. An empty volume is all
-        wall, which reports +inf rather than pretending everything is contained.
+        An empty volume is all wall, reporting +inf rather than pretending everything
+        is contained.
         """
         return self.nearest(pos)[0]
 
     def nearest_inside(self, pos, margin=0.0):
         """The closest point that is inside by at least `margin`.
 
-        Returns the position unchanged when it already satisfies that, so this is
-        safe to call every tick. A HARD geometric projection, deliberately - not a
+        Returns the position unchanged when it already satisfies that, so this is safe
+        to call every tick. A HARD geometric projection, deliberately - not a
         proportional pull. `orbit.py` measured a proportional-only controller
         spiralling against real engine 1.3.5 rather than settling.
         """
         p = _xyz(pos)
         if p is None:
             return None
-        best_d, anchor, radius = self.nearest(p)
-        if anchor is None:
+        prims = self.primitives()
+        if not prims:
             return p
-        if best_d <= -margin:
+        if self.depth(p) <= -margin:
             return p
-        keep = radius - margin
-        return _push_out(p, anchor, keep if keep > 0.0 else radius * 0.5)
+        # Inside a solid, the only correct move is out of THAT solid - projecting onto
+        # the enclosing room would leave the ship still buried in the pillar.
+        for solid in self.solids:
+            ds = _sdf(solid, p)
+            if ds < margin:
+                out = _push_solid_out(solid, p, margin)
+                if out is not None:
+                    return out
+        best_d = float("inf")
+        best = None
+        for prim in prims:
+            d = _sdf(prim, p)
+            if d < best_d:
+                best_d, best = d, prim
+        return _project(best, p, margin)
 
     # -- the navmesh half --------------------------------------------------------
 
@@ -274,7 +461,7 @@ class Volume:
 # `cosmos_dev` reuses one interpreter across missions, so last mission's chambers
 # would still be here on run 2.
 
-def volume_define(name, chambers=None, passages=None):
+def volume_define(name, chambers=None, passages=None, boxes=None, solids=None):
     """Create (or replace) a named volume.
 
     Declarative form - `chambers` maps a name to (x, y, z, radius), `passages` is a
@@ -298,8 +485,62 @@ def volume_define(name, chambers=None, passages=None):
             raise ValueError(
                 f"volume {name!r}: passage needs (a, b, radius), got {p!r}")
         vol.add_passage(p[0], p[1], p[2])
+    for bname, b in (boxes or {}).items():
+        if len(b) < 6:
+            raise ValueError(
+                f"volume {name!r}: box {bname!r} needs (x, y, z, hx, hy, hz), got {b!r}")
+        vol.add_box(bname, b[0], b[1], b[2], b[3], b[4], b[5])
+    for sl in (solids or []):
+        if not sl:
+            raise ValueError(f"volume {name!r}: empty solid entry")
+        _VOLUMES[name] = vol          # volume_solid resolves by name
+        volume_solid(name, sl[0], *sl[1:])
     _VOLUMES[name] = vol
     return vol
+
+
+def volume_box(volume, name, x, y, z, hx, hy, hz):
+    """Add an axis-aligned rectangular space. Half-extents, not widths."""
+    vol = _resolve(volume)
+    return None if vol is None else vol.add_box(name, x, y, z, hx, hy, hz)
+
+
+def volume_solid(volume, kind, *args):
+    """SUBTRACT a shape from the navigable space.
+
+    Three forms - a pillar, a bar, a block::
+
+        volume_solid(v, "sphere",  x, y, z, radius)
+        volume_solid(v, "capsule", (ax, ay, az), (bx, by, bz), radius)
+        volume_solid(v, "box",     x, y, z, hx, hy, hz)
+
+    Union alone can only ADD space, so this is what buys a column in the middle of a
+    chamber, a spire, or a torus with a genuinely solid hub.
+    """
+    vol = _resolve(volume)
+    if vol is None:
+        return None
+    if kind == "sphere":
+        x, y, z, r = args
+        if not float(r) > 0.0:
+            raise ValueError(f"volume {vol.name!r}: solid sphere radius must be positive")
+        return vol.add_solid(("sphere", (float(x), float(y), float(z)), float(r)))
+    if kind == "capsule":
+        a, b, r = args
+        if not float(r) > 0.0:
+            raise ValueError(f"volume {vol.name!r}: solid capsule radius must be positive")
+        return vol.add_solid(("capsule", _xyz(a), _xyz(b), float(r)))
+    if kind == "box":
+        x, y, z, hx, hy, hz = args
+        for label, h in (("hx", hx), ("hy", hy), ("hz", hz)):
+            if not float(h) > 0.0:
+                raise ValueError(
+                    f"volume {vol.name!r}: solid box {label}={h!r} must be positive")
+        return vol.add_solid(("box", (float(x), float(y), float(z)),
+                              (float(hx), float(hy), float(hz))))
+    raise ValueError(
+        f"volume {vol.name!r}: unknown solid kind {kind!r} "
+        f"(expected 'sphere', 'capsule' or 'box')")
 
 
 def volume_load(name, data):
@@ -319,9 +560,18 @@ def volume_load(name, data):
 
     then ``volume_load("relic", {"chambers": chambers, "passages": passages})`` - or
     pass the whole parsed mapping straight in.
+
+    Two more keys, both optional::
+
+        boxes:                             # axis-aligned, x y z then HALF-extents
+            vault: [4000, 0, 0, 900, 400, 900]
+        solids:                            # SUBTRACTED - pillars, spires, solid hubs
+            - [sphere, 4000, 0, 0, 250]
+            - [box, 0, 0, 0, 100, 800, 100]
     """
     data = data or {}
-    return volume_define(name, data.get("chambers"), data.get("passages"))
+    return volume_define(name, data.get("chambers"), data.get("passages"),
+                         data.get("boxes"), data.get("solids"))
 
 
 def volume_get(name):

@@ -14,7 +14,7 @@ test_set_exe_dir()
 from sbs_utils.procedural.volume import (
     volume_define, volume_get, volume_chamber, volume_passage,
     volume_depth, volume_contains, volume_nearest_inside, volume_path,
-    volume_names, volume_count, volume_clear, volume_load,
+    volume_names, volume_count, volume_clear, volume_load, volume_box, volume_solid,
     volume_tier, volume_watch, volume_unwatch, volume_watching,
     volume_watch_count, volume_containment_tick, volume_anchor, volume_anchor_count,
     TIER_INSIDE, TIER_SCRAPE, TIER_BREACH,
@@ -315,6 +315,170 @@ class TestDeclarative(unittest.TestCase):
     def test_explicit_points_still_work_as_endpoints(self):
         volume_load("relic", {"passages": [[[0, 0, 0], [1000, 0, 0], 200]]})
         self.assertTrue(volume_contains("relic", (500, 0, 0)))
+
+
+class TestBoxGeometry(unittest.TestCase):
+    """Rectangular spaces - flat walls and real corners, which spheres cannot express."""
+
+    def setUp(self):
+        volume_clear()
+        # 2000 x 800 x 2000 overall: half-extents are HALF the width.
+        volume_define("v", boxes={"vault": (0, 0, 0, 1000, 400, 1000)})
+
+    def test_inside(self):
+        self.assertTrue(volume_contains("v", (0, 0, 0)))
+        self.assertTrue(volume_contains("v", (999, 399, 999)))
+
+    def test_outside_on_each_axis(self):
+        self.assertFalse(volume_contains("v", (1001, 0, 0)))
+        self.assertFalse(volume_contains("v", (0, 401, 0)))
+        self.assertFalse(volume_contains("v", (0, 0, 1001)))
+
+    def test_corners_are_reachable(self):
+        # THE reason boxes exist. Any sphere covering this room would either exclude
+        # the corners or bulge far past the flat walls.
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                for sz in (-1, 1):
+                    p = (sx * 995, sy * 395, sz * 995)
+                    self.assertTrue(volume_contains("v", p), f"corner {p}")
+
+    def test_depth_inside_is_distance_to_nearest_face(self):
+        # At the centre the nearest face is the y one, 400 away - not the x one.
+        self.assertAlmostEqual(volume_depth("v", (0, 0, 0)), -400.0)
+        self.assertAlmostEqual(volume_depth("v", (0, 300, 0)), -100.0)
+
+    def test_depth_outside_is_euclidean(self):
+        self.assertAlmostEqual(volume_depth("v", (1300, 0, 0)), 300.0)
+        # Diagonally off two faces: 300 and 400 out -> 500.
+        self.assertAlmostEqual(volume_depth("v", (1300, 800, 0)), 500.0)
+
+    def test_projection_clamps_per_axis(self):
+        got = volume_nearest_inside("v", (5000, 0, 0))
+        self.assertAlmostEqual(got[0], 1000.0)
+        self.assertAlmostEqual(got[1], 0.0)
+
+    def test_projection_keeps_a_corner_a_corner(self):
+        # Projecting towards a centre would drag this to the middle of a face.
+        got = volume_nearest_inside("v", (5000, 5000, 5000))
+        self.assertAlmostEqual(got[0], 1000.0)
+        self.assertAlmostEqual(got[1], 400.0)
+        self.assertAlmostEqual(got[2], 1000.0)
+
+    def test_projected_point_is_inside(self):
+        for p in ((5000, 0, 0), (0, -900, 0), (2000, 2000, 2000), (-1100, 0, 500)):
+            got = volume_nearest_inside("v", p, margin=10)
+            self.assertLessEqual(volume_depth("v", got), 0.0, f"from {p}")
+
+    def test_half_extents_must_be_positive(self):
+        with self.assertRaises(ValueError) as cm:
+            volume_define("bad", boxes={"flat": (0, 0, 0, 100, 0, 100)})
+        self.assertIn("hy", str(cm.exception))
+
+    def test_box_joins_the_union(self):
+        volume_define("v", chambers={"hub": (0, 0, 0, 300)},
+                      boxes={"hall": (2000, 0, 0, 800, 200, 200)})
+        self.assertTrue(volume_contains("v", (0, 0, 0)))          # sphere
+        self.assertTrue(volume_contains("v", (2700, 0, 0)))       # box
+        self.assertFalse(volume_contains("v", (1000, 0, 0)))      # wall between
+
+
+class TestSolids(unittest.TestCase):
+    """Subtraction - the pillar in the middle of the room.
+
+    Union alone can only ADD space, so without this a chamber with a column has to be
+    faked by routing capsules around where the column goes.
+    """
+
+    def setUp(self):
+        volume_clear()
+        volume_define("v", chambers={"hub": (0, 0, 0, 1000)})
+
+    def test_pillar_removes_its_own_space(self):
+        self.assertTrue(volume_contains("v", (0, 0, 0)))
+        volume_solid("v", "sphere", 0, 0, 0, 300)
+        self.assertFalse(volume_contains("v", (0, 0, 0)))
+
+    def test_room_around_the_pillar_survives(self):
+        volume_solid("v", "sphere", 0, 0, 0, 300)
+        self.assertTrue(volume_contains("v", (600, 0, 0)))
+        self.assertTrue(volume_contains("v", (0, 0, -700)))
+
+    def test_depth_near_a_pillar_measures_the_pillar(self):
+        # Standing 400 from the centre of a 300 pillar in a 1000 room: the nearest wall
+        # is the PILLAR at 100, not the shell at 600.
+        volume_solid("v", "sphere", 0, 0, 0, 300)
+        self.assertAlmostEqual(volume_depth("v", (400, 0, 0)), -100.0)
+
+    def test_projection_leaves_the_pillar_not_the_room(self):
+        # Buried in the column, the way out is AWAY from the column. Projecting onto
+        # the enclosing room would leave the ship still inside the pillar.
+        volume_solid("v", "sphere", 0, 0, 0, 300)
+        got = volume_nearest_inside("v", (100, 0, 0), margin=10)
+        self.assertGreaterEqual(math.sqrt(sum(c * c for c in got)), 310.0 - 1e-6)
+        self.assertLessEqual(volume_depth("v", got), 0.0)
+
+    def test_a_solid_makes_its_interior_breach(self):
+        volume_solid("v", "sphere", 0, 0, 0, 300)
+        self.assertEqual(volume_tier("v", (0, 0, 0)), TIER_BREACH)
+
+    def test_solid_box(self):
+        volume_solid("v", "box", 0, 0, 0, 200, 900, 200)   # a square column, floor to roof
+        self.assertFalse(volume_contains("v", (0, 0, 0)))
+        self.assertTrue(volume_contains("v", (500, 0, 0)))
+
+    def test_solid_box_projection_leaves_by_the_nearest_face(self):
+        volume_solid("v", "box", 0, 0, 0, 200, 900, 200)
+        got = volume_nearest_inside("v", (150, 0, 50), margin=5)
+        self.assertGreaterEqual(abs(got[0]), 205.0 - 1e-6)   # left by the x face
+        self.assertLessEqual(volume_depth("v", got), 0.0)
+
+    def test_solid_capsule_as_a_spine(self):
+        volume_solid("v", "capsule", (0, -800, 0), (0, 800, 0), 150)
+        self.assertFalse(volume_contains("v", (0, 0, 0)))
+        self.assertFalse(volume_contains("v", (100, 400, 0)))
+        self.assertTrue(volume_contains("v", (500, 0, 0)))
+
+    def test_torus_with_a_solid_hub(self):
+        # A ring of passages around a subtracted centre - expressible now, and the hub
+        # is genuinely solid rather than merely unvisited.
+        volume_define("t", chambers={
+            "n": (0, 0, 1200, 300), "e": (1200, 0, 0, 300),
+            "s": (0, 0, -1200, 300), "w": (-1200, 0, 0, 300)},
+            passages=[("n", "e", 200), ("e", "s", 200),
+                      ("s", "w", 200), ("w", "n", 200)])
+        volume_solid("t", "sphere", 0, 0, 0, 600)
+        self.assertTrue(volume_contains("t", (0, 0, 1200)))     # on the ring
+        self.assertFalse(volume_contains("t", (0, 0, 0)))       # solid hub
+        self.assertEqual(volume_path("t", "n", "s"), ["n", "e", "s"])
+
+    def test_solids_are_declarative_too(self):
+        volume_load("d", {"chambers": {"hub": [0, 0, 0, 1000]},
+                          "boxes": {"hall": [2500, 0, 0, 600, 300, 300]},
+                          "solids": [["sphere", 0, 0, 0, 250],
+                                     ["box", 2500, 0, 0, 100, 100, 100]]})
+        self.assertFalse(volume_contains("d", (0, 0, 0)))       # pillar
+        self.assertFalse(volume_contains("d", (2500, 0, 0)))    # block in the hall
+        self.assertTrue(volume_contains("d", (600, 0, 0)))
+        self.assertTrue(volume_contains("d", (2900, 0, 0)))
+
+    def test_unknown_solid_kind_is_rejected(self):
+        with self.assertRaises(ValueError) as cm:
+            volume_solid("v", "pyramid", 0, 0, 0, 100)
+        self.assertIn("pyramid", str(cm.exception))
+
+    def test_zero_size_solid_is_rejected(self):
+        with self.assertRaises(ValueError):
+            volume_solid("v", "sphere", 0, 0, 0, 0)
+
+    def test_bound_still_encloses_everything_with_boxes(self):
+        volume_define("v", chambers={"a": (0, 0, 0, 400)},
+                      boxes={"b": (6000, 0, 0, 500, 500, 500)})
+        (c, r) = volume_get("v").bound()
+        self.assertGreaterEqual(r, 0.0)
+        for p in ((400, 0, 0), (6500, 0, 0)):
+            self.assertLessEqual(math.sqrt(sum((c[i] - p[i]) ** 2 for i in range(3))),
+                                 r + 1e-6)
 
 
 class TestTiers(unittest.TestCase):
