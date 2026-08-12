@@ -144,6 +144,25 @@ that does not exist, a part naming a relic that does not exist, a radius of zero
 `Chamber:` with too few numbers. All of them build *something*, just not what you wrote,
 so they surface as a pathfinding bug rather than a typo.
 
+## Looking at one
+
+**Artemis AMD: Show Relic Plan** gives two views of the file, and neither needs anything
+running:
+
+- **Plan** - top-down, the authoring view. Drag a chamber to move it, edit its numbers,
+  SHIFT-drag between two to connect them. Height cannot be drawn on a top-down plan, so a
+  vertical shaft is a dot and the `y` is a label.
+- **3D** - drag to orbit, SHIFT-drag to pan, wheel to zoom. Read-only; edit in the Plan.
+
+Looking straight down in 3D reproduces the plan exactly, which is what makes the two
+legible as the same relic.
+
+**Why the editor draws it rather than the game.** A relic can sit 80,000 units from the
+spawn, or not exist until a quest spawns it, so starting the mission and flying over is
+not a way to check a chamber radius. The views above work on the file alone. Use the live
+preview below when the question is how it *feels* - whether the wall catches you - which
+is the one thing a drawing cannot answer.
+
 ## Live preview
 
 Open the file with **Artemis AMD: Show Relic Plan** and press **Preview** - the running
