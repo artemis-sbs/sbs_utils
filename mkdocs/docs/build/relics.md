@@ -146,11 +146,16 @@ so they surface as a pathfinding bug rather than a typo.
 
 ## Live preview
 
-Open the file with **Artemis AMD: Show Relic Plan**, start the mission with `sbs debug`,
-and press **Preview** - the running session re-reads the `.amd` and rebuilds the relic
-where it stands. No restart, and **no code in your mission**: the rebuild is a debug
-action the library answers, the same way previewing a dialogue node is. Turn on **Live**
-and every drag previews by itself.
+Open the file with **Artemis AMD: Show Relic Plan** and press **Preview** - the running
+session re-reads the `.amd` and rebuilds the relic where it stands. No restart, and **no
+code in your mission**: the rebuild is a debug action the library answers, the same way
+previewing a dialogue node is. Turn on **Live** and every drag previews by itself.
+
+**You do not have to start the session first.** With nothing listening, Preview starts
+`sbs debug` for the file's own mission. It opens at the map picker, so the first Preview
+after a cold start will tell you to pick the map that builds the relic - a session cannot
+guess which one that is. After that every Preview lands. (The **Live** toggle never starts
+a session: spawning a mission process in the middle of a drag would be a surprise.)
 
 What comes back for free:
 
