@@ -1594,6 +1594,26 @@ def _run(
                       f"shield={_g('shield_val'):.0f}/{_g('shield_max_val', 0, 1):.0f} "
                       f"turn_coeff={_g('turn_damage_coeff', 0, 1):.2f}")
 
+    def _server_page_guess():
+        """The server console's page (client_id 0), or None.
+
+        Two sources because they fail in different situations: Gui.clients is what the
+        rest of this file already reads (compiler errors, the test report), while
+        FrameContext.server_page goes through Agent.get(0) and needs a live frame
+        context. Whichever answers first is fine - both hand back the same StoryPage.
+        """
+        try:
+            holder = Gui.clients.get(0)
+            page = getattr(holder, "page", None) if holder is not None else None
+            if page is not None:
+                return page
+        except Exception:
+            pass
+        try:
+            return FrameContext.server_page
+        except Exception:
+            return None
+
     def _handle_debug_command(cev: dict) -> None:
         nonlocal map_arg
         cid    = cev.get("clientID", 0)
@@ -1663,8 +1683,25 @@ def _run(
             from sbs_utils.procedural.signal import signal_emit
             sig_data = data.get("data") if isinstance(data.get("data"), dict) else None
             try:
-                # Best-effort: FrameContext.mast is whatever the last MAST tick
-                # left in place; before the first tick this is a no-op.
+                # signal_emit() RETURNS EARLY when FrameContext.mast is None, and debug
+                # commands are drained in the bare tick loop - outside
+                # cosmos_event_handler - where it normally is. So emitting here without
+                # establishing the context is a silent no-op: the caller gets an "ack",
+                # nothing runs, and the bug looks like the route is broken.
+                #
+                # This is the same fix _try_auto_start_map already carries for
+                # "game_started"; it just was not applied to this path. Found when the
+                # relic editor's Preview button appeared to do nothing.
+                _page = _server_page_guess()
+                sched = getattr(_page, "story_scheduler", None) if _page else None
+                if sched is None or getattr(sched, "mast", None) is None:
+                    _debug_reply(cid, {"error":
+                                       f"signal '{name}' NOT emitted: no story is "
+                                       f"running yet (start a map first)"})
+                    return
+                FrameContext.mast = sched.mast
+                if getattr(sched, "tasks", None):
+                    FrameContext.task = sched.tasks[0]
                 signal_emit(name, sig_data)
                 _debug_reply(cid, {"ack": f"signal '{name}' emitted"})
             except Exception as e:
