@@ -54,10 +54,23 @@ than ten float ops. The cost does not matter: 8 players x 30 primitives at 15 Hz
 
 import math
 
+# EVERY module-level function here becomes a MAST global, in one flat mission-wide
+# namespace - and a LEADING UNDERSCORE IS NOT PRIVATE. An unprefixed helper therefore
+# collides with any script variable of the same name, and the failure is brutal: MAST
+# reports "Variable assignment to a keyword <name>", the file fails to COMPILE, and a
+# story that does not compile runs ZERO labels.
+#
+# This is not hypothetical. A helper called `_dist` here broke
+# LegendaryMissions/ai/npc_brains.mast:202 (`_dist = _pos - _target_point`) and with it
+# every mission loading LM's ai addon. Hence the `_vol_` prefix on all of them, and note
+# grav_tether.py uses `_distance` rather than `_dist` for exactly this reason.
+#
+# `sbs lint` catches this as ns-mast-var-collision. Run it after adding a helper.
+
 _VOLUMES = {}
 
 
-def _xyz(p):
+def _vol_xyz(p):
     """Coerce a position: Vec3, tuple/list, engine vec3, Agent, or agent id."""
     if p is None:
         return None
@@ -73,7 +86,7 @@ def _xyz(p):
     return None if pos is None else (float(pos.x), float(pos.y), float(pos.z))
 
 
-def _seg_closest(p, a, b):
+def _vol_seg_closest(p, a, b):
     """Closest point on segment AB to P. Returns (distance, (cx, cy, cz)).
 
     Clamped to the segment - that is what makes a capsule a capsule rather than an
@@ -91,12 +104,12 @@ def _seg_closest(p, a, b):
     return (math.sqrt(dx * dx + dy * dy + dz * dz), c)
 
 
-def _dist(p, q):
+def _vol_dist(p, q):
     dx, dy, dz = p[0] - q[0], p[1] - q[1], p[2] - q[2]
     return math.sqrt(dx * dx + dy * dy + dz * dz)
 
 
-def _push_out(p, anchor, radius):
+def _vol_push_out(p, anchor, radius):
     """A point on the sphere of `radius` about `anchor`, in the direction of p.
 
     When p IS the anchor there is no direction to preserve, so +x is chosen - an
@@ -104,7 +117,7 @@ def _push_out(p, anchor, radius):
     a primitive's exact center, which is the zero-distance case that NaNs AI
     objects.
     """
-    d = _dist(p, anchor)
+    d = _vol_dist(p, anchor)
     if d <= 1e-9:
         return (anchor[0] + radius, anchor[1], anchor[2])
     k = radius / d
@@ -126,13 +139,13 @@ def _push_out(p, anchor, radius):
 #   ("box",     (x, y, z), (hx, hy, hz))     axis-aligned, HALF-extents
 
 
-def _sdf(prim, p):
+def _vol_sdf(prim, p):
     """Signed distance from p to the primitive's surface. Negative inside."""
     kind = prim[0]
     if kind == "sphere":
-        return _dist(p, prim[1]) - prim[2]
+        return _vol_dist(p, prim[1]) - prim[2]
     if kind == "capsule":
-        return _seg_closest(p, prim[1], prim[2])[0] - prim[3]
+        return _vol_seg_closest(p, prim[1], prim[2])[0] - prim[3]
     # Box: the standard exact SDF. `q` is the per-axis overshoot past the half-extent;
     # the outside term is the length of its positive part, the inside term is the
     # largest (least negative) axis, which is the distance to the nearest FACE.
@@ -146,7 +159,7 @@ def _sdf(prim, p):
     return outside + inside
 
 
-def _project(prim, p, margin=0.0):
+def _vol_project(prim, p, margin=0.0):
     """The nearest point INSIDE the primitive by at least `margin`.
 
     Per-kind on purpose. A box cannot be projected by pushing towards a centre - that
@@ -156,11 +169,11 @@ def _project(prim, p, margin=0.0):
     kind = prim[0]
     if kind == "sphere":
         keep = prim[2] - margin
-        return _push_out(p, prim[1], keep if keep > 0.0 else prim[2] * 0.5)
+        return _vol_push_out(p, prim[1], keep if keep > 0.0 else prim[2] * 0.5)
     if kind == "capsule":
-        c = _seg_closest(p, prim[1], prim[2])[1]
+        c = _vol_seg_closest(p, prim[1], prim[2])[1]
         keep = prim[3] - margin
-        return _push_out(p, c, keep if keep > 0.0 else prim[3] * 0.5)
+        return _vol_push_out(p, c, keep if keep > 0.0 else prim[3] * 0.5)
     c, h = prim[1], prim[2]
     out = []
     for i in range(3):
@@ -172,14 +185,14 @@ def _project(prim, p, margin=0.0):
     return (out[0], out[1], out[2])
 
 
-def _push_solid_out(prim, p, margin=0.0):
+def _vol_push_solid_out(prim, p, margin=0.0):
     """The nearest point at least `margin` OUTSIDE a solid - how you leave a pillar."""
     kind = prim[0]
     if kind == "sphere":
-        return _push_out(p, prim[1], prim[2] + margin)
+        return _vol_push_out(p, prim[1], prim[2] + margin)
     if kind == "capsule":
-        c = _seg_closest(p, prim[1], prim[2])[1]
-        return _push_out(p, c, prim[3] + margin)
+        c = _vol_seg_closest(p, prim[1], prim[2])[1]
+        return _vol_push_out(p, c, prim[3] + margin)
     # Box: leave by the NEAREST face, which is the axis with the least penetration.
     c, h = prim[1], prim[2]
     best_axis, best_pen = 0, None
@@ -193,7 +206,7 @@ def _push_solid_out(prim, p, margin=0.0):
     return (out[0], out[1], out[2])
 
 
-def _rope(prim, p, margin=0.0):
+def _vol_rope(prim, p, margin=0.0):
     """``(anchor, rope_len)`` for a tractor hold against this primitive.
 
     Sphere and capsule return the MEDIAL AXIS point and the primitive's radius, so a
@@ -210,10 +223,10 @@ def _rope(prim, p, margin=0.0):
         keep = prim[2] - margin
         return (prim[1], keep if keep > 0.0 else prim[2] * 0.5)
     if kind == "capsule":
-        c = _seg_closest(p, prim[1], prim[2])[1]
+        c = _vol_seg_closest(p, prim[1], prim[2])[1]
         keep = prim[3] - margin
         return (c, keep if keep > 0.0 else prim[3] * 0.5)
-    target = _project(prim, p, margin)
+    target = _vol_project(prim, p, margin)
     return (target, max(margin, 1.0))
 
 
@@ -256,7 +269,7 @@ class Volume:
                     f"(known chambers: {known}). A bare KeyError here used to be the "
                     f"only clue that a relic had a typo in one passage.")
             return self.chambers[e][:3]
-        p = _xyz(e)
+        p = _vol_xyz(e)
         if p is None:
             raise ValueError(
                 f"volume {self.name!r}: passage endpoint {e!r} is neither a chamber "
@@ -346,7 +359,7 @@ class Volume:
         c = (sum(q[0][0] for q in pts) / n,
              sum(q[0][1] for q in pts) / n,
              sum(q[0][2] for q in pts) / n)
-        self._bound = (c, max(_dist(c, q[0]) + q[1] for q in pts))
+        self._bound = (c, max(_vol_dist(c, q[0]) + q[1] for q in pts))
         return self._bound
 
     def nearest(self, pos):
@@ -361,21 +374,21 @@ class Volume:
         A point inside a solid is anchored AGAINST THE SOLID, not the room it sits in:
         the way out of a pillar is away from the pillar.
         """
-        p = _xyz(pos)
+        p = _vol_xyz(pos)
         if p is None:
             return (float("inf"), None, 0.0)
         best_d = float("inf")
         best = (None, 0.0)
         for prim in self.primitives():
-            d = _sdf(prim, p)
+            d = _vol_sdf(prim, p)
             if d < best_d:
-                best_d, best = d, _rope(prim, p, 0.0)
+                best_d, best = d, _vol_rope(prim, p, 0.0)
         for solid in self.solids:
-            ds = _sdf(solid, p)
+            ds = _vol_sdf(solid, p)
             if -ds > best_d:
                 best_d = -ds
                 # Push clear of the solid's surface rather than towards a room centre.
-                anchor, _r = _rope(solid, p, 0.0)
+                anchor, _r = _vol_rope(solid, p, 0.0)
                 best = (anchor, 0.0)
         return (best_d, best[0], best[1])
 
@@ -395,7 +408,7 @@ class Volume:
         proportional pull. `orbit.py` measured a proportional-only controller
         spiralling against real engine 1.3.5 rather than settling.
         """
-        p = _xyz(pos)
+        p = _vol_xyz(pos)
         if p is None:
             return None
         prims = self.primitives()
@@ -406,18 +419,18 @@ class Volume:
         # Inside a solid, the only correct move is out of THAT solid - projecting onto
         # the enclosing room would leave the ship still buried in the pillar.
         for solid in self.solids:
-            ds = _sdf(solid, p)
+            ds = _vol_sdf(solid, p)
             if ds < margin:
-                out = _push_solid_out(solid, p, margin)
+                out = _vol_push_solid_out(solid, p, margin)
                 if out is not None:
                     return out
         best_d = float("inf")
         best = None
         for prim in prims:
-            d = _sdf(prim, p)
+            d = _vol_sdf(prim, p)
             if d < best_d:
                 best_d, best = d, prim
-        return _project(best, p, margin)
+        return _vol_project(best, p, margin)
 
     # -- the navmesh half --------------------------------------------------------
 
@@ -501,7 +514,7 @@ def volume_define(name, chambers=None, passages=None, boxes=None, solids=None):
 
 def volume_box(volume, name, x, y, z, hx, hy, hz):
     """Add an axis-aligned rectangular space. Half-extents, not widths."""
-    vol = _resolve(volume)
+    vol = _vol_resolve(volume)
     return None if vol is None else vol.add_box(name, x, y, z, hx, hy, hz)
 
 
@@ -517,7 +530,7 @@ def volume_solid(volume, kind, *args):
     Union alone can only ADD space, so this is what buys a column in the middle of a
     chamber, a spire, or a torus with a genuinely solid hub.
     """
-    vol = _resolve(volume)
+    vol = _vol_resolve(volume)
     if vol is None:
         return None
     if kind == "sphere":
@@ -529,7 +542,7 @@ def volume_solid(volume, kind, *args):
         a, b, r = args
         if not float(r) > 0.0:
             raise ValueError(f"volume {vol.name!r}: solid capsule radius must be positive")
-        return vol.add_solid(("capsule", _xyz(a), _xyz(b), float(r)))
+        return vol.add_solid(("capsule", _vol_xyz(a), _vol_xyz(b), float(r)))
     if kind == "box":
         x, y, z, hx, hy, hz = args
         for label, h in (("hx", hx), ("hy", hy), ("hz", hz)):
@@ -579,19 +592,19 @@ def volume_get(name):
     return _VOLUMES.get(name)
 
 
-def _resolve(volume):
+def _vol_resolve(volume):
     return volume if isinstance(volume, Volume) else _VOLUMES.get(volume)
 
 
 def volume_chamber(volume, name, x, y, z, radius):
     """Add one chamber to a volume (by object or by name)."""
-    vol = _resolve(volume)
+    vol = _vol_resolve(volume)
     return None if vol is None else vol.add_chamber(name, x, y, z, radius)
 
 
 def volume_passage(volume, a, b, radius):
     """Join two chambers (or two points) with a capsule."""
-    vol = _resolve(volume)
+    vol = _vol_resolve(volume)
     return None if vol is None else vol.add_passage(a, b, radius)
 
 
@@ -601,7 +614,7 @@ def volume_depth(volume, pos):
     The number the graded response is built on - scrape near zero, govern the
     throttle further out, clamp as the backstop.
     """
-    vol = _resolve(volume)
+    vol = _vol_resolve(volume)
     return float("inf") if vol is None else vol.depth(pos)
 
 
@@ -612,13 +625,13 @@ def volume_contains(volume, pos):
 
 def volume_nearest_inside(volume, pos, margin=0.0):
     """Closest point inside by at least `margin`; the position itself if already so."""
-    vol = _resolve(volume)
+    vol = _vol_resolve(volume)
     return None if vol is None else vol.nearest_inside(pos, margin)
 
 
 def volume_path(volume, start, goal):
     """Chamber names from start to goal inclusive, or [] if unreachable."""
-    vol = _resolve(volume)
+    vol = _vol_resolve(volume)
     return [] if vol is None else vol.path(start, goal)
 
 
@@ -636,7 +649,7 @@ def volume_clear():
     """Drop every volume and stop every watcher. Called by reset_mission_state()."""
     for name in list(_WATCHERS.keys()):
         volume_unwatch(name)
-    _anchors_clear()
+    _vol_anchors_clear()
     _VOLUMES.clear()
 
 
@@ -714,7 +727,7 @@ class _Watcher:
         self.tiers = {}        # agent id -> last tier, so signals fire on CHANGE only
 
 
-def _default_agents():
+def _vol_default_agents():
     """Players and fighters, minus anything docked.
 
     The candidate set LM's black-hole lethal ticker uses: LM strips `__player__`
@@ -725,9 +738,9 @@ def _default_agents():
     return any_role("__player__,cockpit") - role("standby")
 
 
-def _resolve_agents(agents):
+def _vol_resolve_agents(agents):
     if agents is None:
-        return _default_agents()
+        return _vol_default_agents()
     if callable(agents):
         return agents()
     return agents
@@ -759,7 +772,7 @@ def volume_watch(volume, agents=None, scrape_band=120.0, margin=0.0,
     Route the consequences: ``//shared/signal/volume_scrape`` for damage or scoring
     (server-once), ``//signal/volume_scrape`` only for per-console display.
     """
-    vol = _resolve(volume)
+    vol = _vol_resolve(volume)
     if vol is None:
         return None
     volume_unwatch(vol.name)
@@ -792,7 +805,7 @@ def volume_watch_count():
     return len(_WATCHERS)
 
 
-def _govern_throttle(so, cap=1.0):
+def _vol_govern_throttle(so, cap=1.0):
     """Cap a player's throttle. Only ever lowers it, never raises.
 
     Engine-measured: ONE write is enough, because `playerThrottle` stays where it is
@@ -812,14 +825,12 @@ def _govern_throttle(so, cap=1.0):
     return False
 
 
-def _block_jump(so):
+def _vol_block_jump(so):
     """Try to hold the jump/warp drives inactive.
 
-    UNVERIFIED IN THE ENGINE. These are real data_set keys, but whether writing them
-    actually prevents a helm from engaging the drive - as opposed to just reporting
-    state - has not been measured. Opt-in for that reason, and a seat test settles it
-    in ten seconds. If it does nothing, escaping a volume by jumping needs a different
-    answer (most likely a `//signal` on the jump attempt).
+    ENGINE-VERIFIED (2026-08-12, from the helm seat): writing these DOES stop the drive
+    engaging, so a volume can genuinely forbid jumping out. Still opt-in, because
+    confiscating a drive is a gameplay decision rather than a containment necessity.
     """
     try:
         so.data_set.set("jump_drive_active", 0, 0)
@@ -831,7 +842,7 @@ def _block_jump(so):
 def volume_anchor(volume, pos):
     """``(depth, anchor, radius)`` of the nearest primitive - the local containment
     sphere. Exposed because a tractor hold needs the anchor, not just the projection."""
-    vol = _resolve(volume)
+    vol = _vol_resolve(volume)
     return (float("inf"), None, 0.0) if vol is None else vol.nearest(pos)
 
 
@@ -840,7 +851,7 @@ def volume_anchor_count():
     return len(_ANCHORS)
 
 
-def _anchor_object(ship_id):
+def _vol_anchor_object(ship_id):
     """The invisible object a ship's containment tractor pulls against.
 
     One per ship, kept alive for the duration of the watch - spawning and deleting one
@@ -872,7 +883,7 @@ def _anchor_object(ship_id):
     return obj.id
 
 
-def _tractor_hold(vol, ship_id, pos, margin):
+def _vol_tractor_hold(vol, ship_id, pos, margin):
     """Hold a ship inside the volume with an engine-side tractor.
 
     Why not `set_pos`: measured from the helm seat, a per-tick teleport clamp is
@@ -888,7 +899,7 @@ def _tractor_hold(vol, ship_id, pos, margin):
     _depth, anchor_pt, radius = vol.nearest(pos)
     if anchor_pt is None:
         return False
-    aid = _anchor_object(ship_id)
+    aid = _vol_anchor_object(ship_id)
     if aid is None:
         return False
     from .space_objects import set_pos
@@ -901,7 +912,7 @@ def _tractor_hold(vol, ship_id, pos, margin):
     return True
 
 
-def _tractor_release(ship_id):
+def _vol_tractor_release(ship_id):
     aid = _ANCHORS.get(ship_id)
     if aid is None:
         return
@@ -912,12 +923,12 @@ def _tractor_release(ship_id):
         pass
 
 
-def _anchors_clear():
+def _vol_anchors_clear():
     """Release every tractor and delete every anchor object."""
     from .query import to_object
     from ..helpers import FrameContext
     for ship_id, aid in list(_ANCHORS.items()):
-        _tractor_release(ship_id)
+        _vol_tractor_release(ship_id)
         try:
             if to_object(aid) is not None:
                 FrameContext.context.sim.delete_object(aid)
@@ -940,11 +951,11 @@ def volume_containment_tick(t=None):
             volume_unwatch(name)
             continue
         live = set()
-        for agent in _resolve_agents(w.agents):
+        for agent in _vol_resolve_agents(w.agents):
             so = to_object(agent)
             if so is None:
                 continue
-            pos = _xyz(so)
+            pos = _vol_xyz(so)
             if pos is None:
                 continue
             aid = so.id
@@ -954,21 +965,21 @@ def volume_containment_tick(t=None):
             # only when it misbehaves: a relic is a tight space, and a slower ship also
             # has a smaller tunneling budget to defeat the containment with.
             if w.speed_limit is not None:
-                _govern_throttle(so, w.speed_limit)
+                _vol_govern_throttle(so, w.speed_limit)
             if w.block_jump:
-                _block_jump(so)
+                _vol_block_jump(so)
             if tier == TIER_BREACH:
                 if w.govern:
-                    _govern_throttle(so)
+                    _vol_govern_throttle(so)
                 if w.hold == HOLD_TRACTOR:
-                    _tractor_hold(vol, aid, pos, w.margin)
+                    _vol_tractor_hold(vol, aid, pos, w.margin)
                 elif w.hold == HOLD_CLAMP and w.clamp:
                     target = vol.nearest_inside(pos, w.margin)
                     if target is not None:
                         set_pos(aid, target[0], target[1], target[2])
             elif aid in _ANCHORS:
                 # Back inside: let go, so the ship is not still roped while it flies.
-                _tractor_release(aid)
+                _vol_tractor_release(aid)
             was = w.tiers.get(aid, TIER_INSIDE)
             if tier != was:
                 w.tiers[aid] = tier
