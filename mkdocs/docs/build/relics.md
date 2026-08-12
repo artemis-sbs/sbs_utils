@@ -156,7 +156,12 @@ so they surface as a pathfinding bug rather than a typo.
 - the corner **navigation gizmo** points the view down an axis; clicking the axis you are
   already looking down flips to the far side. **Top**, **Front** and **Right** do the
   same from the toolbar.
-- the inspector types exact numbers when a drag will not do.
+- the **properties** panel, bottom right, types exact numbers when a drag will not do -
+  and renames a part. Its **key** is shown but not editable: passages name their ends
+  by key, so renaming one would silently orphan every corridor reaching it.
+- **Undo** is a button, because CTRL-Z pressed over a webview never reaches the
+  document your edits landed on. Every edit here - typed, dragged or renamed - is one
+  line of the `.amd` and one undo step.
 
 **The axes are not Blender's.** Blender is Z-up; Cosmos is Y-up, because a chamber's
 second number is its altitude. So the ball meaning *look down from above* is **Y** here
