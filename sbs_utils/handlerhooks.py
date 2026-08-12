@@ -126,6 +126,10 @@ def reset_mission_state():
     # A voice registered by the LAST mission names an agent that no longer exists.
     from .procedural.quest_driver import quest_dispatch_voice_clear
     quest_dispatch_voice_clear()
+    # Navigable volumes (relic interiors and the like). Per-mission by definition:
+    # last mission's chambers would silently contain this mission's ships.
+    from .procedural.volume import volume_clear
+    volume_clear()
     from .procedural.amd_drops import drops_clear
     drops_clear()
     # Grav tethers. The engine holds the connections and _TETHERS holds the enforcement
@@ -301,6 +305,12 @@ register_reset_state("quest dispatch voice",
                      lambda: 1 if _QUEST_DISPATCH_VOICE[0] is not None else 0)
 from .procedural.amd_drops import drops_size as _drops_size
 register_reset_state("drop tables", _drops_size)
+from .procedural.volume import volume_count as _volume_count
+from .procedural.volume import volume_watch_count as _volume_watch_count
+register_reset_state("volumes", _volume_count)
+register_reset_state("volume watchers", _volume_watch_count)
+from .procedural.volume import volume_anchor_count as _volume_anchor_count
+register_reset_state("volume anchors", _volume_anchor_count)
 from .procedural.grav_tether import _TETHERS as _GRAV_TETHERS
 register_reset_state("grav tethers",       lambda: len(_GRAV_TETHERS))
 from .procedural.modifiers import modifiers_count
