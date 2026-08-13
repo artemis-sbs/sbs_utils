@@ -1494,6 +1494,30 @@ engine cannot read inside one — which is exactly what the writing was working 
 **If you maintain a mod that calls `ship_data_merge_mod`, move it.** See [Making a
 mod](build/making-a-mod.md).
 
+## 🔘 A button's handler no longer dies with the task that built it
+
+A widget's handler belongs to the task that *built* the widget: `on gui_message(w):`
+compiles to an inline block inside that task's label, and `on_press=<label>` is a jump
+on that task. So a builder that was scheduled and then ended took its handlers with it
+— the button drew, the click did nothing, and **nothing was logged anywhere**. That
+silence was most of the problem.
+
+```
+    await task_schedule(build_panel)     # this REQUIRES the builder to end
+```
+
+Handlers now run in that case, and if one still cannot, a warning naming the source
+site goes to `mast.runtime.log`.
+
+A second fix rides along and reaches further: an `on ...:` block whose body **falls off
+its end** (no `jump`, no `->END`) never gave the task back, so it never returned to its
+`await`. The visible face of that was a **self-repainting panel — a live countdown, a
+refreshing status — freezing permanently on the first press**. If a block of yours ends
+in `jump`, it always escaped this and is unchanged.
+
+`gui_message_callback(widget, fn)` remains the option with no task in the path at all,
+and is still the safest choice for a handler built somewhere awkward.
+
 ---
 
 *Thanks for playing, building, and tinkering. There's more under the hood than ever
