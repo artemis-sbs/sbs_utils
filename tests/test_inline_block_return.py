@@ -93,10 +93,15 @@ hits.append("resumed")
 
 
 class TestInlineBlockReturn(unittest.TestCase):
+    """Behavior with the inline-block pop DISABLED -- pinned, not inherited."""
+
     def setUp(self):
         Agent.clear()
+        self._flag = OnChangeRuntimeNode.pop_inline_block_on_end
+        OnChangeRuntimeNode.pop_inline_block_on_end = False
 
     def tearDown(self):
+        OnChangeRuntimeNode.pop_inline_block_on_end = self._flag
         FrameContext.task = None
         FrameContext.page = None
         FrameContext.mast = None
@@ -154,13 +159,8 @@ class TestInlineBlockReturnFixed(TestInlineBlockReturn):
     """
 
     def setUp(self):
-        super().setUp()
-        self._flag = OnChangeRuntimeNode.pop_inline_block_on_end
+        super().setUp()                      # saves the real default
         OnChangeRuntimeNode.pop_inline_block_on_end = True
-
-    def tearDown(self):
-        OnChangeRuntimeNode.pop_inline_block_on_end = self._flag
-        super().tearDown()
 
     def test_block_that_falls_off_the_end_never_gives_the_task_back(self):
         # FIXED: the block pops, the await resumes, the task finishes.

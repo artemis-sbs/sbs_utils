@@ -700,7 +700,7 @@ class MastAsyncTask(Agent, Promise):
     # already ended is dropped exactly as it always was; ON means the task is
     # woken to run it. Off by default until the A/B conformance runs say what
     # flipping it wakes up. See LM issue #707.
-    revive_ended_handlers = False
+    revive_ended_handlers = True
 
     def __init__(self, main: 'MastScheduler', inputs=None, name= None):
         super().__init__()

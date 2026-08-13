@@ -67,7 +67,7 @@ class OnChangeRuntimeNode(MastRuntimeNode):
     # of only when this instance's is_running is set -- which it never is, see
     # poll(). Default OFF until the A/B conformance runs measure what it wakes.
     # See LM issue #707.
-    pop_inline_block_on_end = False
+    pop_inline_block_on_end = True
 
     def enter(self, mast:'Mast', task:'MastAsyncTask', node: OnChange):
         self.task = task

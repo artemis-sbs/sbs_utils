@@ -109,6 +109,7 @@ class _Base(unittest.TestCase):
         FrameContext.mast = None
         FrameContext.context = None
         HITS.clear()
+        self._restore_flags()
 
     def present(self, n=1):
         for _ in range(n):
@@ -151,6 +152,18 @@ class _Base(unittest.TestCase):
         """Just the dispatch, for asserting on the state before the tick."""
         Gui.on_message(FakeEvent(client_id=CID, tag="gui_message",
                                  sub_tag=self.find_tag(text)))
+
+    def setUp(self):
+        # Characterization classes describe behavior with the #707 fix DISABLED.
+        # Pin it: these must not silently start testing the default.
+        self._revive = MastAsyncTask.revive_ended_handlers
+        self._pop = OnChangeRuntimeNode.pop_inline_block_on_end
+        MastAsyncTask.revive_ended_handlers = False
+        OnChangeRuntimeNode.pop_inline_block_on_end = False
+
+    def _restore_flags(self):
+        MastAsyncTask.revive_ended_handlers = self._revive
+        OnChangeRuntimeNode.pop_inline_block_on_end = self._pop
 
     def builder(self):
         """The MessageTrigger's task -- whichever task built the widget."""
@@ -495,15 +508,9 @@ class _Fixed(_Base):
     """Both behavior flags ON -- this is what the fix does."""
 
     def setUp(self):
-        self._revive = MastAsyncTask.revive_ended_handlers
-        self._pop = OnChangeRuntimeNode.pop_inline_block_on_end
+        super().setUp()                      # saves the real defaults
         MastAsyncTask.revive_ended_handlers = True
         OnChangeRuntimeNode.pop_inline_block_on_end = True
-
-    def tearDown(self):
-        MastAsyncTask.revive_ended_handlers = self._revive
-        OnChangeRuntimeNode.pop_inline_block_on_end = self._pop
-        super().tearDown()
 
 
 class TestRevivedInlineBlock(_Fixed):
