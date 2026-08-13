@@ -17,7 +17,7 @@ from sbs_utils.procedural.volume import (
     volume_names, volume_count, volume_clear, volume_load, volume_box, volume_solid,
     volume_tier, volume_watch, volume_unwatch, volume_watching,
     volume_watch_count, volume_containment_tick, volume_anchor, volume_anchor_count,
-    TIER_INSIDE, TIER_SCRAPE, TIER_BREACH,
+    TIER_INSIDE, TIER_SCRAPE, TIER_BREACH, volume_engaged,
 )
 
 
@@ -612,6 +612,14 @@ class TestWatcherLifecycle(unittest.TestCase):
         self.assertEqual(volume_watch_count(), 0)
 
 
+# A BREACH, not a departure. The chamber these tests use has radius 1000, so 5000 - which
+# is what this used to be - is five relic-radii away: a ship there has left, and
+# containment now says so and lets go (see volume_watch's ENGAGEMENT note). 1500 is a real
+# breach: 500 past the wall, well beyond the 120u scrape band, and inside the release
+# distance. It is also the only kind a ship can reach in flight, since the hold puts a
+# breaching ship back every tick.
+BREACH_X = 1500
+
 class TestEnforcement(unittest.TestCase):
     """End to end against a mock sim: a real ship, really clamped.
 
@@ -659,26 +667,26 @@ class TestEnforcement(unittest.TestCase):
 
     def test_breach_is_clamped_back_inside(self):
         volume_watch("v", hold="clamp")
-        self._set_pos(5000, 0, 0)
+        self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
         self.assertLessEqual(volume_depth("v", self._pos()), 0.0)
 
     def test_clamp_respects_margin(self):
         volume_watch("v", margin=200, hold="clamp")
-        self._set_pos(5000, 0, 0)
+        self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
         self.assertAlmostEqual(self._pos()[0], 800.0, places=3)
 
     def test_clamp_can_be_disabled(self):
         volume_watch("v", clamp=False, hold="clamp")
-        self._set_pos(5000, 0, 0)
+        self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
-        self.assertAlmostEqual(self._pos()[0], 5000)
+        self.assertAlmostEqual(self._pos()[0], BREACH_X)
 
     def test_governor_caps_warp_on_breach(self):
         volume_watch("v")
         self.ship.data_set.set("playerThrottle", 3.0, 0)
-        self._set_pos(5000, 0, 0)
+        self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
         self.assertAlmostEqual(self.ship.data_set.get("playerThrottle", 0), 1.0)
 
@@ -686,7 +694,7 @@ class TestEnforcement(unittest.TestCase):
         # Cap, never raise, and never touch a ship that is already sub-warp.
         volume_watch("v")
         self.ship.data_set.set("playerThrottle", 0.5, 0)
-        self._set_pos(5000, 0, 0)
+        self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
         self.assertAlmostEqual(self.ship.data_set.get("playerThrottle", 0), 0.5)
 
@@ -724,7 +732,7 @@ class TestEnforcement(unittest.TestCase):
             self.assertEqual(seen, ["volume_scrape"])
             volume_containment_tick()
             self.assertEqual(seen, ["volume_scrape"])     # no repeat while unchanged
-            self._set_pos(5000, 0, 0)
+            self._set_pos(BREACH_X, 0, 0)
             volume_containment_tick()
             self.assertEqual(seen, ["volume_scrape", "volume_breach"])
             self._set_pos(0, 0, 0)
@@ -735,18 +743,137 @@ class TestEnforcement(unittest.TestCase):
 
     def test_explicit_agent_set_is_honored(self):
         volume_watch("v", agents=set())      # watch nobody
-        self._set_pos(5000, 0, 0)
+        self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
-        self.assertAlmostEqual(self._pos()[0], 5000)
+        self.assertAlmostEqual(self._pos()[0], BREACH_X)
 
     def test_callable_agent_set_is_re_evaluated(self):
         # A callable is the point: ships arriving mid-mission need no wiring.
+        #
+        # The ship joins the set while it is INSIDE, which is what a ship arriving in a
+        # relic actually does. Adding it while it is already outside would prove nothing
+        # about the callable - containment would decline either way, because a ship that
+        # has never been in the relic is not the relic's business (volume_watch, ENGAGEMENT).
         holder = {"ids": set()}
         volume_watch("v", agents=lambda: holder["ids"], hold="clamp")
-        self._set_pos(5000, 0, 0)
+        self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
-        self.assertAlmostEqual(self._pos()[0], 5000)      # not watched yet
+        self.assertAlmostEqual(self._pos()[0], BREACH_X)      # not watched yet
+        self._set_pos(0, 0, 0)
         holder["ids"] = {self.ship.id}
+        volume_containment_tick()                             # seen inside: engaged
+        self._set_pos(BREACH_X, 0, 0)
+        volume_containment_tick()
+        self.assertLessEqual(volume_depth("v", self._pos()), 0.0)
+
+
+class TestEngagement(unittest.TestCase):
+    """Who containment applies to - which is not the same question as who it watches.
+
+    A tier is a pure depth test, so a ship that has never been near the relic reads BREACH
+    exactly like one that just punched through a wall. Measured before this existed: a ship
+    80,000 units from a relic at the origin came back BREACH and, under the default agent
+    set of every player, was tractored toward it. The demo never showed it because its map
+    spawns the crew inside an otherwise empty world.
+
+    That is what makes an entrance possible: you cannot fly IN to something that is already
+    reeling you in from the next postcode.
+    """
+
+    def setUp(self):
+        from cosmos_dev.mock import sbs
+        from tests.reset_helper import reset_mock
+        self.sim = reset_mock(sbs)
+        from sbs_utils.procedural.spawn import player_spawn
+        from sbs_utils.procedural.query import to_object
+        self.ship = to_object(player_spawn(0, 0, 0, "Probe", "tsn", "tsn_light_cruiser"))
+        volume_define("v", chambers={"hub": (0, 0, 0, 1000)})
+
+    def tearDown(self):
+        volume_clear()
+
+    def _put(self, x, y, z):
+        from sbs_utils.procedural.space_objects import set_pos
+        set_pos(self.ship.id, x, y, z)
+
+    def _pos(self):
+        from sbs_utils.procedural.space_objects import get_pos
+        p = get_pos(self.ship.id)
+        return (p.x, p.y, p.z)
+
+    def test_a_ship_that_never_entered_is_left_alone(self):
+        self._put(80000, 0, 0)
+        volume_watch("v", hold="clamp")
+        volume_containment_tick()
+        self.assertAlmostEqual(self._pos()[0], 80000,
+                               msg="a passer-by was dragged toward the relic")
+
+    def test_it_still_reads_as_a_breach_geometrically(self):
+        # The tier is unchanged - it is a fact about the position. What changed is who
+        # containment acts on, so the two must not be conflated.
+        self.assertEqual(volume_tier("v", (80000, 0, 0)), TIER_BREACH)
+
+    def test_a_passer_by_fires_no_signals(self):
+        # Worse than being moved: a mission would hear volume_breach for a ship that has
+        # never seen the place.
+        heard = []
+        import sbs_utils.procedural.signal as sig
+        real = sig.signal_emit
+        sig.signal_emit = lambda n, d=None: heard.append(n)
+        try:
+            self._put(80000, 0, 0)
+            volume_watch("v")
+            volume_containment_tick()
+        finally:
+            sig.signal_emit = real
+        self.assertEqual(heard, [])
+
+    def test_a_ship_that_went_in_is_held(self):
+        volume_watch("v", hold="clamp")          # latched: it is inside at watch time
+        self._put(BREACH_X, 0, 0)
+        volume_containment_tick()
+        self.assertLessEqual(volume_depth("v", self._pos()), 0.0)
+
+    def test_flying_in_engages_it(self):
+        # The entrance case: start outside, arrive, then misbehave.
+        self._put(80000, 0, 0)
+        volume_watch("v", hold="clamp")
+        volume_containment_tick()
+        self._put(0, 0, 0)
+        volume_containment_tick()                # seen inside
+        self._put(BREACH_X, 0, 0)
+        volume_containment_tick()
+        self.assertLessEqual(volume_depth("v", self._pos()), 0.0)
+
+    def test_leaving_entirely_lets_go(self):
+        # A whole relic clear of it, not merely outside the wall - releasing at the bound
+        # would let go exactly when containment is meant to grip.
+        volume_watch("v", hold="clamp")
+        self.assertIn(self.ship.id, volume_engaged("v"))
+        self._put(9000, 0, 0)
+        volume_containment_tick()
+        self.assertNotIn(self.ship.id, volume_engaged("v"))
+        self.assertAlmostEqual(self._pos()[0], 9000, msg="it was hauled back after leaving")
+
+    def test_engaged_reports_who_is_in_the_relic(self):
+        # A mission asks this for its own reasons - a quest that starts on arrival, a door
+        # that closes behind you - so it is public rather than a private set.
+        self._put(80000, 0, 0)
+        volume_watch("v")
+        volume_containment_tick()
+        self.assertEqual(volume_engaged("v"), frozenset())
+        self._put(0, 0, 0)
+        volume_containment_tick()
+        self.assertEqual(volume_engaged("v"), frozenset({self.ship.id}))
+
+    def test_engaged_is_empty_for_a_volume_nobody_watches(self):
+        self.assertEqual(volume_engaged("v"), frozenset())
+        self.assertEqual(volume_engaged("no_such_volume"), frozenset())
+
+    def test_engage_always_restores_the_old_reach(self):
+        # For a volume that IS the playfield rather than a place inside one.
+        self._put(80000, 0, 0)
+        volume_watch("v", hold="clamp", engage="always")
         volume_containment_tick()
         self.assertLessEqual(volume_depth("v", self._pos()), 0.0)
 
@@ -794,7 +921,7 @@ class TestTractorHold(unittest.TestCase):
 
     def test_breach_creates_an_anchor_and_a_tether(self):
         volume_watch("v")
-        self._set_pos(5000, 0, 0)
+        self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
         self.assertEqual(volume_anchor_count(), 1)
         self.assertEqual(len(self._connections()), 1)
@@ -803,7 +930,7 @@ class TestTractorHold(unittest.TestCase):
         # For a chamber that is its center, so a rope of the chamber radius about it IS
         # the containment constraint. This is why `nearest` returns the anchor at all.
         volume_watch("v")
-        self._set_pos(5000, 0, 0)
+        self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
         from sbs_utils.procedural.query import to_object
         from sbs_utils.procedural.space_objects import get_pos
@@ -816,7 +943,7 @@ class TestTractorHold(unittest.TestCase):
 
     def test_anchor_is_reused_not_respawned(self):
         volume_watch("v")
-        self._set_pos(5000, 0, 0)
+        self._set_pos(BREACH_X, 0, 0)
         for _ in range(5):
             volume_containment_tick()
         self.assertEqual(volume_anchor_count(), 1)
@@ -824,7 +951,7 @@ class TestTractorHold(unittest.TestCase):
     def test_returning_inside_releases_the_tether(self):
         # Otherwise the ship flies around still roped to an anchor.
         volume_watch("v")
-        self._set_pos(5000, 0, 0)
+        self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
         self.assertEqual(len(self._connections()), 1)
         self._set_pos(0, 0, 0)
@@ -834,7 +961,7 @@ class TestTractorHold(unittest.TestCase):
     def test_anchors_are_cleared_on_reset(self):
         # Anchors are spawned OBJECTS, so a leak is worse than a stale dict entry.
         volume_watch("v")
-        self._set_pos(5000, 0, 0)
+        self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
         self.assertEqual(volume_anchor_count(), 1)
         volume_clear()
@@ -847,7 +974,7 @@ class TestTractorHold(unittest.TestCase):
         # the anchor did not, and every unwatch left one invisible object behind - one
         # per watched ship, on every mission reload.
         volume_watch("v")
-        self._set_pos(5000, 0, 0)
+        self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
         from sbs_utils.procedural.query import to_object
         from sbs_utils.procedural.roles import role
@@ -860,18 +987,18 @@ class TestTractorHold(unittest.TestCase):
 
     def test_hold_none_does_nothing_positional(self):
         volume_watch("v", hold="none", govern=False)
-        self._set_pos(5000, 0, 0)
+        self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
         self.assertEqual(volume_anchor_count(), 0)
         from sbs_utils.procedural.space_objects import get_pos
-        self.assertAlmostEqual(get_pos(self.ship.id).x, 5000)
+        self.assertAlmostEqual(get_pos(self.ship.id).x, BREACH_X)
 
     def test_governor_still_applies_under_the_tractor(self):
         # The two are independent: the tractor holds position, the governor stops the
         # ship fighting it at warp.
         volume_watch("v")
         self.ship.data_set.set("playerThrottle", 3.0, 0)
-        self._set_pos(5000, 0, 0)
+        self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
         self.assertAlmostEqual(self.ship.data_set.get("playerThrottle", 0), 1.0)
 

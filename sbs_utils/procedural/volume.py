@@ -769,12 +769,17 @@ def volume_tier(volume, pos, scrape_band=120.0):
     return TIER_BREACH
 
 
+ENGAGE_ENTERED = "entered"
+ENGAGE_ALWAYS = "always"
+
+
 class _Watcher:
     __slots__ = ("volume", "agents", "scrape_band", "margin", "govern", "clamp",
-                 "hold", "speed_limit", "block_jump", "task", "tiers")
+                 "hold", "speed_limit", "block_jump", "task", "tiers", "engage",
+                 "inside")
 
     def __init__(self, volume, agents, scrape_band, margin, govern, clamp, hold,
-                 speed_limit, block_jump):
+                 speed_limit, block_jump, engage=ENGAGE_ENTERED):
         self.volume = volume
         self.agents = agents
         self.scrape_band = scrape_band
@@ -784,6 +789,10 @@ class _Watcher:
         self.hold = hold
         self.speed_limit = speed_limit
         self.block_jump = block_jump
+        self.engage = engage
+        # Ids that have BEEN inside this volume. A ship is contained once it has been in,
+        # and released when it leaves the bounding sphere - see volume_watch.
+        self.inside = set()
         self.task = None
         self.tiers = {}        # agent id -> last tier, so signals fire on CHANGE only
 
@@ -809,8 +818,24 @@ def _vol_resolve_agents(agents):
 
 def volume_watch(volume, agents=None, scrape_band=120.0, margin=0.0,
                  govern=True, clamp=True, seconds=0, hold=HOLD_TRACTOR,
-                 speed_limit=None, block_jump=False):
+                 speed_limit=None, block_jump=False, engage=ENGAGE_ENTERED):
     """Start enforcing containment for a volume. Replaces any existing watch.
+
+    ENGAGEMENT - who this applies to, which is not the same question as who is watched.
+
+    A tier is a pure depth test, so a ship that has never been near the relic reads
+    BREACH exactly like one that just punched through a wall: measured, a ship 80,000
+    units away came back BREACH and, under the default agent set of every player, was
+    tractored toward the relic. That is not containment, it is a fishing net.
+
+    So a ship is contained ONCE IT HAS BEEN INSIDE, and released when it leaves the
+    bounding sphere. Fly in through a mouth - a chamber or passage that reaches out past
+    the hull - and you are inside the volume before you are deep in it, so the latch
+    catches without a breach ever happening. Fly out and away and it lets go. A ship that
+    never entered is never touched, which is what makes an entrance possible at all and
+    what stops a relic in one corner of a system grabbing everything in it.
+
+    `engage="always"` restores the old behaviour for a volume that IS the playfield.
 
     Args:
         volume: Volume or its name.
@@ -838,8 +863,18 @@ def volume_watch(volume, agents=None, scrape_band=120.0, margin=0.0,
         return None
     volume_unwatch(vol.name)
     w = _Watcher(vol.name, agents, float(scrape_band), float(margin), govern, clamp,
-                 hold, speed_limit, block_jump)
+                 hold, speed_limit, block_jump, engage)
     _WATCHERS[vol.name] = w
+    # Latch whoever is ALREADY inside, now, rather than waiting for a tick to notice.
+    # A mission places its crew in the relic and then starts the watch - if the first tick
+    # is what engages them, a ship that is moved out in the same frame is never contained.
+    if w.engage == ENGAGE_ENTERED:
+        from .query import to_object
+        for agent in _vol_resolve_agents(agents):
+            so = to_object(agent)
+            pos = _vol_xyz(so) if so is not None else None
+            if pos is not None and vol.depth(pos) < 0.0:
+                w.inside.add(so.id)
     from ..tickdispatcher import TickDispatcher
     w.task = TickDispatcher.do_interval(volume_containment_tick, seconds)
     return w
@@ -854,6 +889,21 @@ def volume_unwatch(name):
         except Exception:
             pass
     return w is not None
+
+
+def volume_engaged(volume):
+    """The ids containment is currently applying to - the ships that are IN this relic.
+
+    Also the answer to a question missions ask for their own reasons: is the crew inside
+    the ruin yet? A quest that starts when they arrive, a door that closes behind them, an
+    ambush that waits until they are committed - all of them want this set, and computing
+    it from depth per tick would duplicate the latch the watcher already keeps.
+
+    Empty for an unwatched volume, and for `engage="always"`, where the question does not
+    apply because containment is not gated on having been inside.
+    """
+    w = _WATCHERS.get(_vol_resolve(volume).name if _vol_resolve(volume) else volume)
+    return frozenset(w.inside) if w is not None else frozenset()
 
 
 def volume_watching(name):
@@ -1028,6 +1078,29 @@ def volume_containment_tick(t=None):
             aid = so.id
             live.add(aid)
             tier = volume_tier(vol, pos, w.scrape_band)
+
+            # THE LATCH. Inside means engaged, from now until it leaves the relic's
+            # bounding sphere entirely - which is the only "away" a volume can define,
+            # since the volume itself is a graph of rooms rather than a ball.
+            if w.engage == ENGAGE_ENTERED:
+                if tier == TIER_INSIDE:
+                    w.inside.add(aid)
+                elif aid in w.inside:
+                    # Released a WHOLE RELIC clear of it, not merely outside the wall.
+                    # The bounding sphere of a one-room volume IS that room, so releasing
+                    # at the bound would let go exactly when containment is supposed to
+                    # grip - the ship is breaching, which is the case this exists for.
+                    # Twice the bound is unambiguous: a held ship never gets there,
+                    # because the hold puts it back inside every tick.
+                    (bc, br) = vol.bound()
+                    if _vol_dist(pos, bc) > br * 2.0:
+                        w.inside.discard(aid)
+                        _vol_tractor_release(aid)
+                        w.tiers.pop(aid, None)
+                if aid not in w.inside:
+                    # Never been in. Not our ship: no envelope, no hold, and NO tier
+                    # signals either - a passer-by must not fire volume_breach.
+                    continue
             # The flight ENVELOPE applies the whole time a ship is in the volume, not
             # only when it misbehaves: a relic is a tight space, and a slower ship also
             # has a smaller tunneling budget to defeat the containment with.
@@ -1059,6 +1132,10 @@ def volume_containment_tick(t=None):
                 signal_emit(event, {"volume": name, "id": aid,
                                     "depth": vol.depth(pos)})
         # Forget agents that left the candidate set, or the tier map grows unbounded
-        # across a long mission and a returning ship carries a stale tier.
+        # across a long mission and a returning ship carries a stale tier. The latch goes
+        # with it: a destroyed or docked ship is not still "inside", and an id can be
+        # recycled onto something that has never been near the relic.
         for gone in [k for k in w.tiers if k not in live]:
             del w.tiers[gone]
+        for gone in [k for k in w.inside if k not in live]:
+            w.inside.discard(gone)
