@@ -575,6 +575,56 @@ class TestRevivedInlineBlock(_Fixed):
                          "the inline push must be balanced by a pop")
 
 
+class TestRapidClicks(_Fixed):
+    """Two or more clicks landing BETWEEN ticks -- an open defect, tracked here.
+
+    push_inline_block queues a jump; the block's end queues a pop. MastTicker.tick
+    gives pending_jump precedence and CLEARS pending_pop, so a click arriving
+    before the previous block's return has been taken throws that return away
+    and the task parks on the end node with nothing to resume.
+
+    It is not caused by either #707 flag -- it reproduces with
+    pop_inline_block_on_end alone -- but it has to be settled before the
+    defaults flip, because with both flags off the task parks on EVERY click
+    anyway and nobody could tell.
+
+    A real fix belongs in the ticker's push/pop accounting. Settling the pop at
+    the dispatch site instead was measured and rejected: it fixes the live path
+    at every click count but drops a click on the revived path.
+    """
+
+    def test_two_clicks_between_ticks_are_both_handled(self):
+        self.start(LIVE)
+        self.click()
+        self.click()
+        self.present(3)
+        self.assertEqual(HITS, ["ran", "ran"])
+        self.assertEqual(len(self.page.gui_task.label_stack), 0)
+
+    @unittest.expectedFailure
+    def test_three_clicks_between_ticks_leave_the_task_parked(self):
+        # OPEN: the gui task ends up on the block's end node instead of back in
+        # its await. Remove the expectedFailure when the ticker is fixed.
+        self.start(LIVE)
+        for _ in range(3):
+            self.click()
+        self.present(3)
+        node = type(self.page.gui_task.active_ticker.runtime_node).__name__
+        self.assertNotEqual(node, "OnChangeRuntimeNode",
+                            "the task must return to what it was doing")
+
+    @unittest.expectedFailure
+    def test_three_clicks_between_ticks_do_not_strand_a_revived_builder(self):
+        # OPEN: same root cause on the revived path -- the builder is left alive,
+        # still parented to the gui task and still in the Agent registry.
+        self.start(DEAD_TASK_SCHEDULE)
+        builder = self.builder()
+        for _ in range(3):
+            self.click()
+        self.present(3)
+        self.assertTrue(builder.done())
+
+
 class TestReviveRefusals(_Fixed):
     """A task that died badly stays dead."""
 
