@@ -697,17 +697,25 @@ def relic_contents_can_trigger(phrase):
     return kind in RELIC_TRIGGERS
 
 def _relic_place_role_markers(rec, relic_key):
-    """Spawn an invisible, selectable marker at every point carrying `Roles:`.
+    """Put a measuring post at every point carrying `Roles:`.
 
     This is the plumbing behind `Starts when: reach <role>`. The quest driver's reach test
     measures a player against OBJECTS HOLDING A ROLE, so a role written on a point is only
     half the sentence until something is standing there. An author should never have to
     know that, so arming supplies the other half.
 
+    IT IS NOT MAP FURNITURE. These were `marker_object`s at first - selectable, radar-gold
+    - which put a blip on every room, every cache and every trigger in the ruin. A dungeon
+    that draws its own floor plan on your radar is not a dungeon; the crew arrives already
+    knowing where the treasure is and which rooms matter. So a post is invisible on the
+    main screen, unselectable on radar, and carries no exclusion radius that could shove a
+    ship off course. Nothing renders it and nothing can click it - it is a place to measure
+    from, and a mission that wants a VISIBLE mark puts one there itself.
+
     Marked with `relic_marker` and keyed by (relic, part) so a reload replaces rather than
     accumulates - the same identity rule the contents use.
     """
-    from .markers import marker_object
+    from .spawn import terrain_spawn
     base = relic_pos(rec)
     for name, pt in (rec.get("points") or {}).items():
         roles = pt[3] or []
@@ -717,8 +725,13 @@ def _relic_place_role_markers(rec, relic_key):
         if key in _ARMED:
             continue
         try:
-            obj = marker_object(base[0] + pt[0], base[1] + pt[1], base[2] + pt[2],
-                                name, roles=",".join(["relic_marker"] + list(roles)))
+            obj = terrain_spawn(base[0] + pt[0], base[1] + pt[1], base[2] + pt[2], "",
+                                "#," + ",".join(["relic_marker"] + list(roles)),
+                                "generic-sphere", "behav_asteroid")
+            obj.data_set.set("elite_main_scn_invis", 1, 0)
+            obj.blob.set("unselectable", 1)
+            # A prop with a radius pushes ships around; a measuring post must not.
+            obj.engine_object.exclusion_radius = 0
         except Exception as e:
             log(f"relic '{relic_key}': could not mark point '{name}': {e}",
                 "relics", "warning")
