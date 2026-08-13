@@ -800,7 +800,8 @@ def amd_lint_relics(doc):
     * a part naming a relic that does not exist - the whole part is dropped;
     * a non-positive radius or half-extent, which builds a chamber enclosing nothing or a
       passage nothing can fly down; and
-    * too few numbers on a ``Chamber:`` / ``Box:`` / ``Solid:``, where the part is skipped
+    * too few numbers on a ``Chamber:`` / ``Box:`` / ``Solid:`` / ``Point:``, where the part
+      is skipped
       rather than half-built.
 
     Deliberately NOT checked here: whether the relic fits inside one nebula. That is a
@@ -830,6 +831,14 @@ def amd_lint_relics(doc):
                 lineno, "warning", "relic-dangling-parent",
                 f"'{owner}' is not a relic in this file, so this part is dropped"))
             continue
+        if "point" in fields:
+            ln, value = fields["point"]
+            nums = _relic_nums(value)
+            if len(nums) < 3:
+                findings.append(AmdFinding(
+                    ln, "warning", "relic-short-point",
+                    f"'point' needs 3 numbers, got {len(nums)} - "
+                    f"the part is skipped rather than half-placed"))
         for label, need in (("chamber", 4), ("box", 6)):
             if label in fields:
                 ln, value = fields[label]

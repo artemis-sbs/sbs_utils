@@ -126,6 +126,11 @@ def amd_relic_facts():
                 _amd_relic_numbers(value)
         elif label in ("passage to", "passage_to"):
             data["passage_to"] = _amd_relic_pairs(value)
+        elif label == "point":
+            nums = _amd_relic_numbers(value)
+            data["point"] = nums[:3] if len(nums) >= 3 else None
+        elif label == "roles":
+            data["roles"] = [w.strip().lower() for w in str(value).split(",") if w.strip()]
         elif label in ("scrape band", "scrape_band", "margin", "seed"):
             nums = _amd_relic_numbers(value)
             data[label.replace(" ", "_")] = nums[0] if nums else None
@@ -188,6 +193,7 @@ def relics_from_section(section, source=None, section_key=None):
             "passages": [],
             "boxes": {},
             "solids": [],
+            "points": {},
             "parts": [],
             "data": data,   # carry the raw fence for mission-specific extras
         })
@@ -206,6 +212,12 @@ def relics_from_section(section, source=None, section_key=None):
             rec.boxes[name] = [b[0], b[1], b[2], b[3], b[4], b[5]]
         if data.get("solid"):
             rec.solids.append(data["solid"])
+        if data.get("point"):
+            # A place, not a shape: it adds no navigable space and nothing subtracts. What
+            # it is FOR is `Roles:` - an entrance, a cache, a spawn - which the mission
+            # reads, because the library has no opinion about what gets put there.
+            pt = data["point"]
+            rec.points[name] = [pt[0], pt[1], pt[2], data.get("roles") or []]
         for other, radius in (data.get("passage_to") or []):
             rec.passages.append([name, other, radius if radius else 200.0])
     return [relics[k] for k in order]
@@ -276,6 +288,57 @@ def relic_pos(record):
     """
     loc = record.get("loc")
     return [float(loc[0]), float(loc[1]), float(loc[2])] if loc else [0.0, 0.0, 0.0]
+
+
+def relic_point(relic_key, name):
+    """The WORLD position of a named point in a relic, or None.
+
+    Points are authored RELATIVE to the relic's `Loc:`, like every other part, so this
+    shifts them - which is the whole reason a point belongs in the relic rather than being
+    a landmark of its own. Move the relic and its cache, its entrance and its ambush move
+    with it; a landmark's `Loc:` is absolute and would stay behind.
+
+    What goes there is the mission's business::
+
+        item_spawn("relic_core", *relic_point("ossuary", "cache"), qty=2)
+        npc_spawn(*relic_point("ossuary", "picket"), "Sentry", "raider", ...)
+        marker_point(*relic_point("ossuary", "mouth"), "The Ossuary")
+    """
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        return None
+    pt = (rec.get("points") or {}).get(name)
+    if pt is None:
+        return None
+    base = relic_pos(rec)
+    return (base[0] + pt[0], base[1] + pt[1], base[2] + pt[2])
+
+
+def relic_points(relic_key, role=None):
+    """Every point in a relic as `{name: (x, y, z)}` in world coordinates.
+
+    `role` narrows to one purpose - `relic_points("ossuary", "spawn")` for every place an
+    NPC may appear, `"entrance"` for the ways in. Roles are matched lowercased, the way
+    they are authored.
+    """
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        return {}
+    want = None if role is None else str(role).strip().lower()
+    base = relic_pos(rec)
+    out = {}
+    for name, pt in (rec.get("points") or {}).items():
+        if want is not None and want not in (pt[3] or []):
+            continue
+        out[name] = (base[0] + pt[0], base[1] + pt[1], base[2] + pt[2])
+    return out
+
+
+def relic_point_roles(relic_key, name):
+    """The roles authored on one point, lowercased. Empty when it has none."""
+    rec = _RELIC_RECORDS.get(relic_key)
+    pt = (rec.get("points") or {}).get(name) if rec is not None else None
+    return list(pt[3]) if pt else []
 
 
 def relic_volume(record, name=None):

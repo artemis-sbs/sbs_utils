@@ -16,11 +16,14 @@ from sbs_utils.procedural.amd_relics import (
     relics_from_section, relics_register, relic_record, relic_keys, relic_pos,
     relic_volume, relics_clear, relics_count, amd_relic_data, amd_relic_facts,
     relics_load, relic_reload, relics_reload_all, relic_volume_name, relic_contain,
+    relic_point, relic_points, relic_point_roles,
 )
 from sbs_utils.procedural.volume import (
     volume_contains, volume_depth, volume_path, volume_get, volume_clear,
     volume_watching, volume_watch,
 )
+
+NL = chr(10)
 
 DOC = """
 # [Test Relics](testrelics)
@@ -442,6 +445,94 @@ class TestReloadFromFile(unittest.TestCase):
         self._write(DOC.replace("Chamber: 0, 0, 0, 900", "Chamber: 0, 0, 0, 1450"))
         self.assertIsNotNone(relic_reload("ossuary"))
         self.assertEqual(volume_get("ossuary").chambers["hub"][3], 1450.0)
+
+
+class TestPoints(unittest.TestCase):
+    """`Point:` - a named place inside a relic, for an item, a spawn, or the way in.
+
+    It is a part like any other, so it lives in the file with the geometry it belongs to,
+    is authored RELATIVE to the relic's `Loc:`, and is drawn by the editor. That relative
+    coordinate is the whole argument for it: a landmark is the existing named-place
+    concept, but a landmark's `Loc:` is absolute, so moving a relic would leave its cache,
+    its entrance and its ambush behind.
+
+    A point adds no navigable space and subtracts none. What it is FOR is `Roles:`, which
+    only the mission interprets.
+    """
+
+    DOC = NL.join([
+        "# [Doc](doc)", "",
+        "## [Relics](relics)", "",
+        "### [The Ossuary](ossuary)", "---", "Loc: 10000, 0, -5000", "---", "",
+        "### [hub](hub)", "---", "Relic: ossuary", "Chamber: 0, 0, 0, 900", "---", "",
+        "### [the cache](cache)", "---", "Relic: ossuary",
+        "Point: 120, 0, -300", "Roles: item, quest", "---", "",
+        "### [the mouth](mouth)", "---", "Relic: ossuary",
+        "Point: -900, 0, 0", "Roles: entrance", "---", "",
+        "### [unmarked](plain_point)", "---", "Relic: ossuary", "Point: 5, 6, 7", "---",
+    ])
+
+    def setUp(self):
+        relics_clear()
+        volume_clear()
+        doc = amd_document(self.DOC,
+                           data_parser=lambda t: amd_parse_facts(t, amd_relic_facts()))
+        relics_register(amd_section(doc, "relics"))
+
+    def tearDown(self):
+        relics_clear()
+        volume_clear()
+
+    def test_a_point_resolves_to_a_world_position(self):
+        self.assertEqual(relic_point("ossuary", "cache"), (10120.0, 0.0, -5300.0))
+
+    def test_it_moves_with_the_relic(self):
+        # The reason a point is a relic part and not a landmark.
+        rec = relic_record("ossuary")
+        setattr(rec, "loc", [0.0, 0.0, 0.0])
+        self.assertEqual(relic_point("ossuary", "cache"), (120.0, 0.0, -300.0))
+
+    def test_every_point_at_once(self):
+        pts = relic_points("ossuary")
+        self.assertEqual(sorted(pts), ["cache", "mouth", "plain_point"])
+
+    def test_narrowing_by_role(self):
+        self.assertEqual(list(relic_points("ossuary", "entrance")), ["mouth"])
+        self.assertEqual(list(relic_points("ossuary", "item")), ["cache"])
+        self.assertEqual(relic_points("ossuary", "nosuchrole"), {})
+
+    def test_roles_are_matched_lowercased(self):
+        self.assertEqual(list(relic_points("ossuary", "ENTRANCE")), ["mouth"])
+
+    def test_a_point_needs_no_roles(self):
+        self.assertEqual(relic_point_roles("ossuary", "plain_point"), [])
+        self.assertIn("plain_point", relic_points("ossuary"))
+
+    def test_a_point_is_not_geometry(self):
+        # It must not add navigable space, or an author would be building rooms by
+        # accident every time they marked a spot.
+        relic_volume(relic_record("ossuary"))
+        v = volume_get("ossuary")
+        self.assertEqual(len(v.chambers), 1)
+        self.assertEqual((len(v.boxes), len(v.solids), len(v.passages)), (0, 0, 0))
+
+    def test_an_unknown_name_or_relic_is_None_not_an_error(self):
+        self.assertIsNone(relic_point("ossuary", "nope"))
+        self.assertIsNone(relic_point("no_such_relic", "cache"))
+        self.assertEqual(relic_points("no_such_relic"), {})
+
+    def _relic_findings(self, text):
+        # Through `amd_lint`, the way the linter is actually run - it builds the typed
+        # document itself, which is what the rules read.
+        from sbs_utils.procedural.amd_lint import amd_lint
+        return [f for f in amd_lint(content=text) if str(f.code).startswith("relic-")]
+
+    def test_lint_catches_a_short_point(self):
+        bad = self.DOC.replace("Point: 120, 0, -300", "Point: 120, 0")
+        self.assertIn("relic-short-point", [f.code for f in self._relic_findings(bad)])
+
+    def test_a_good_point_lints_clean(self):
+        self.assertEqual([f.code for f in self._relic_findings(self.DOC)], [])
 
 
 class TestSchemaIsRegistered(unittest.TestCase):

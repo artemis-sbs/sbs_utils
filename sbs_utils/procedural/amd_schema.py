@@ -622,6 +622,8 @@ RELIC = {
     "box": text(hint="x, y, z, hx, hy, hz   (HALF-extents)"),
     "solid": text(hint="sphere, x, y, z, r  |  box, x, y, z, hx, hy, hz  |  capsule, ..."),
     "passage to": text(hint="hub 300, gallery 240"),
+    "point": text(hint="x, y, z   - a named place: an item, a spawn, the way in"),
+    "roles": csv(hint="entrance, item, spawn   - what this point is FOR"),
 }
 
 
