@@ -63,6 +63,12 @@ from ...futures import Trigger
 
 @mast_runtime_node(OnChange)
 class OnChangeRuntimeNode(MastRuntimeNode):
+    # Behavior flag: pop the inline block when it reaches its end node, instead
+    # of only when this instance's is_running is set -- which it never is, see
+    # poll(). Default OFF until the A/B conformance runs measure what it wakes.
+    # See LM issue #707.
+    pop_inline_block_on_end = False
+
     def enter(self, mast:'Mast', task:'MastAsyncTask', node: OnChange):
         self.task = task
         self.node = node
@@ -99,7 +105,17 @@ class OnChangeRuntimeNode(MastRuntimeNode):
         pass
 
     def poll(self, mast:'Mast', task:'MastAsyncTask', node: OnChange):
-        if node.is_end and self.is_running:
+        # The end node is only ever REACHED by running the block: normal flow
+        # jumps over it from the start node below. So popping here is sound.
+        #
+        # `self.is_running` cannot be the gate: MastTicker.next() builds a fresh
+        # runtime node for every command, so the instance that reaches the end
+        # node is never the instance run() set is_running on. The pop was
+        # therefore dead code, and a block that fell off its end left the task
+        # parked on this node forever -- never resuming its await, never ending,
+        # and growing label_stack once per trip through the block.
+        if node.is_end and (OnChangeRuntimeNode.pop_inline_block_on_end
+                            or self.is_running):
             self.task.pop_label(False)
             self.is_running = False
             # This is run again intentionally

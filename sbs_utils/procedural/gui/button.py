@@ -1,6 +1,7 @@
 from ...helpers import FrameContext
 from ..style import apply_control_styles
 from ...futures import Promise
+from .message import gui_host_task, host_handler_sub_task, warn_dead_handler
 
 
 class ButtonResult:
@@ -27,6 +28,11 @@ class MessageHandler:
 
     def on_message(self, event):
         if event.sub_tag == self.layout_item.tag:
+            # Whether the owning task was already finished BEFORE this click.
+            # A label handler is a jump on that task, so a dead one needs waking
+            # -- and a task we just woke has to be ticked here, because nothing
+            # else is going to tick it. See LM issue #707.
+            was_dead = self.task.done() or self.task.active_ticker.done
             restore = FrameContext.task
             FrameContext.task = self.task
 
@@ -45,10 +51,28 @@ class MessageHandler:
             elif callable(self.handler):
                 self.handler()
             elif not self.is_sub_task and self.handler is not None:
-                self.task.jump(self.handler)
+                if was_dead and not self.task.revive_for_handler(
+                        gui_host_task(self.task)):
+                    # jump() alone never runs anything -- it queues pending_jump
+                    # and waits for a tick that a finished task never gets.
+                    warn_dead_handler(self.task, self.handler, 0,
+                                      "gui_button on_press handler")
+                else:
+                    self.task.jump(self.handler)
+                    if was_dead:
+                        # Nothing else will tick a task we just woke. A LIVE
+                        # task keeps its existing ordering: the scheduler picks
+                        # the jump up on the next tick.
+                        self.task.tick_in_context()
             else:
                 sub_task = self.task.start_sub_task(self.handler, inputs=self.layout_item.data, defer=True)
                 sub_task.set_variable("__ITEM__", self.layout_item)
+                if was_dead and not host_handler_sub_task(self.task, sub_task):
+                    # Not stopped: one tick on a dead parent is what this has
+                    # always done, and single-tick handlers depend on it. It
+                    # still stalls if it awaits -- that is what the warning says.
+                    warn_dead_handler(self.task, self.handler, 0,
+                                      "gui_button on_press handler")
                 sub_task.tick_in_context()
             
                 

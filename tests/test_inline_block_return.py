@@ -25,6 +25,7 @@ import unittest
 from sbs_utils.mast.mast import Mast
 from sbs_utils.mast.mastscheduler import MastScheduler, MastAsyncTask
 from sbs_utils.mast_sbs import story_nodes  # noqa: F401  (registers Cosmos nodes)
+from sbs_utils.mast.core_nodes.on_change import OnChangeRuntimeNode
 from sbs_utils.agent import Agent, clear_shared
 from sbs_utils.mast.mast_globals import MastGlobals
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
@@ -111,8 +112,12 @@ class TestInlineBlockReturn(unittest.TestCase):
     def test_block_that_falls_off_the_end_runs_once(self):
         runner, task = self._start(FALL_OFF)
         _tick(runner, 3)
-        self.assertEqual(task.get_variable("hits"), [1],
+        hits = task.get_variable("hits")
+        # Flag-agnostic: what follows the block differs, the block itself must
+        # run exactly once either way.
+        self.assertEqual(hits[:1], [1],
                          "the on-change block body must run when the value changes")
+        self.assertEqual(hits.count(1), 1)
 
     def test_block_that_falls_off_the_end_never_gives_the_task_back(self):
         # AS OF TODAY: the task parks on the `on_end` node forever -- the await
@@ -139,6 +144,46 @@ class TestInlineBlockReturn(unittest.TestCase):
         _tick(runner, 6)
         self.assertEqual(task.get_variable("hits"), [1, "jumped"])
         self.assertTrue(task.done(), "a block that jumps out ends normally")
+
+
+class TestInlineBlockReturnFixed(TestInlineBlockReturn):
+    """The same stories with OnChangeRuntimeNode.pop_inline_block_on_end ON.
+
+    Inherits the fixtures but overrides every assertion that changes, so a case
+    nobody remembered to override is still exercised against the flag.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self._flag = OnChangeRuntimeNode.pop_inline_block_on_end
+        OnChangeRuntimeNode.pop_inline_block_on_end = True
+
+    def tearDown(self):
+        OnChangeRuntimeNode.pop_inline_block_on_end = self._flag
+        super().tearDown()
+
+    def test_block_that_falls_off_the_end_never_gives_the_task_back(self):
+        # FIXED: the block pops, the await resumes, the task finishes.
+        runner, task = self._start(FALL_OFF)
+        _tick(runner, 20)
+        self.assertEqual(task.get_variable("hits"), [1, "resumed"],
+                         "the await must resume once the block ends")
+        self.assertTrue(task.done(), "and the task must finish")
+        self.assertNotIn(task, runner.tasks, "and leave the scheduler")
+
+    def test_block_that_falls_off_the_end_leaks_a_label_stack_entry(self):
+        # FIXED: the push is balanced by a pop.
+        runner, task = self._start(FALL_OFF)
+        _tick(runner, 5)
+        self.assertEqual(len(task.label_stack), 0)
+        self.assertEqual(task.active_ticker.pop_on_jump, 0)
+
+    def test_block_runs_once_per_change_not_repeatedly(self):
+        # The pop must not re-enter the block: resuming at the same command
+        # would run the body again on every tick.
+        runner, task = self._start(FALL_OFF)
+        _tick(runner, 20)
+        self.assertEqual(task.get_variable("hits").count(1), 1)
 
 
 if __name__ == "__main__":

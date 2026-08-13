@@ -30,9 +30,14 @@ from sbs_utils.mast_sbs import story_nodes  # noqa: F401  (registers route/gui n
 from sbs_utils.mast_sbs.maststorypage import StoryPage
 from sbs_utils.mast.mastscheduler import MastScheduler
 from sbs_utils.mast.mast_globals import MastGlobals
+from sbs_utils.mast.mastscheduler import MastAsyncTask
+from sbs_utils.mast.core_nodes.on_change import OnChangeRuntimeNode
+from sbs_utils.agent import Agent
 from sbs_utils.agent import clear_shared
 from sbs_utils.gui import Gui
 from sbs_utils.helpers import FrameContext, Context, FakeEvent, props_display_text
+from sbs_utils.procedural.gui.message import (dead_handler_sites_clear,
+                                              dead_handler_site_count)
 
 CID = 1
 
@@ -69,6 +74,7 @@ class _Base(unittest.TestCase):
 
     def start(self, code):
         HITS.clear()
+        dead_handler_sites_clear()
         clear_shared()
         Gui.clients = {}
         Gui.widget_list_sent = {}
@@ -309,18 +315,33 @@ class TestInlineBlock(_Base):
         self.click()
         self.assertEqual(HITS, [])
 
-    def test_dead_click_mutates_the_corpse(self):
-        # push_inline_block runs BEFORE the done check that discards the jump,
-        # so every dead click leaves pending_jump set and grows label_stack by
-        # one PushData that nothing will ever pop.
+    def test_dead_click_does_not_mutate_the_corpse(self):
+        # push_inline_block used to run BEFORE the done check that discards the
+        # jump, so every dead click left pending_jump set and grew label_stack
+        # by one PushData that nothing would ever pop.
         self.start(DEAD_TASK_SCHEDULE)
         builder = self.builder()
         self.click()
         self.click()
-        self.assertEqual(len(builder.label_stack), 2,
-                         "TODAY: each dead click leaks a label_stack entry")
-        self.assertIsNotNone(builder.active_ticker.pending_jump,
-                             "TODAY: the jump stays queued forever")
+        self.assertEqual(len(builder.label_stack), 0,
+                         "a dropped click must not touch the finished task")
+        self.assertIsNone(builder.active_ticker.pending_jump)
+
+    def test_dead_click_warns_once_per_site(self):
+        # The silence is most of what made #707 hard to place. One warning per
+        # SOURCE SITE, not per click and not per rebuilt widget.
+        self.start(DEAD_TASK_SCHEDULE)
+        dead_handler_sites_clear()
+        with self.assertLogs("mast.runtime", level="WARNING") as caught:
+            self.click()
+        self.assertEqual(len(caught.output), 1)
+        self.assertIn("already ended", caught.output[0])
+        self.assertIn("gui_message_callback", caught.output[0],
+                      "the warning must name the way out")
+        self.assertEqual(dead_handler_site_count(), 1)
+        self.click()
+        self.click()
+        self.assertEqual(dead_handler_site_count(), 1, "still one site, not three")
 
     def test_live_block_never_gives_the_gui_task_back(self):
         # Same root cause as tests/test_inline_block_return.py, on the GUI path:
@@ -377,6 +398,14 @@ class TestCallbackForms(_Base):
         self.click()
         self.assertEqual(HITS, ["cb"])
 
+    def test_dead_on_press_sub_task_runs_one_tick_then_stalls(self):
+        self.start(DEAD_ON_PRESS_SUB_TASK_SLOW)
+        self.click()
+        self.assertEqual(HITS, ["start"])
+        self.present(10)
+        self.assertEqual(HITS, ["start"],
+                         "TODAY: the sub-task is parented to a corpse")
+
     def test_dead_gui_message_label_runs_one_tick_then_stalls(self):
         # start_sub_task + tick_in_context gets exactly ONE tick regardless of
         # the parent's state, so a trivial handler looks like it works. The
@@ -388,6 +417,211 @@ class TestCallbackForms(_Base):
         self.present(10)
         self.assertEqual(HITS, ["start"],
                          "TODAY: it never resumes -- the parent that would tick it is dead")
+
+
+DEAD_ON_PRESS_SUB_TASK_SLOW = """
+gui_section("area: 5,5,95,95;")
+await task_schedule(builder)
+await gui()
+
+== builder ==
+    gui_row()
+    b = gui_button("Press", on_press=slow_handler, is_sub_task=True)
+    ->END
+
+== slow_handler ==
+    probe_hit("start")
+    await delay_sim(seconds=1)
+    probe_hit("finished")
+    ->END
+"""
+
+DEAD_SCOPE = """
+gui_section("area: 5,5,95,95;")
+await task_schedule(builder)
+await gui()
+
+== builder ==
+    local = 10
+    gui_row()
+    b = gui_button("Press")
+    on gui_message(b):
+        probe_hit(local)
+        local = local + 1
+    ->END
+"""
+
+TWO_SCREENS = """
+jump screen_one
+
+== screen_one ==
+    gui_section("area: 5,5,95,95;")
+    await task_schedule(builder)
+    gui_row()
+    n = gui_button("Next", on_press=screen_two)
+    await gui()
+
+== builder ==
+    gui_row()
+    b = gui_button("Press")
+    on gui_message(b):
+        probe_hit("start")
+        await delay_sim(seconds=5)
+        probe_hit("finished")
+    ->END
+
+== screen_two ==
+    gui_section("area: 5,5,95,95;")
+    gui_row()
+    gui_text("SECOND")
+    await gui()
+"""
+
+
+class _Fixed(_Base):
+    """Both behavior flags ON -- this is what the fix does."""
+
+    def setUp(self):
+        self._revive = MastAsyncTask.revive_ended_handlers
+        self._pop = OnChangeRuntimeNode.pop_inline_block_on_end
+        MastAsyncTask.revive_ended_handlers = True
+        OnChangeRuntimeNode.pop_inline_block_on_end = True
+
+    def tearDown(self):
+        MastAsyncTask.revive_ended_handlers = self._revive
+        OnChangeRuntimeNode.pop_inline_block_on_end = self._pop
+        super().tearDown()
+
+
+class TestRevivedInlineBlock(_Fixed):
+    def test_dead_builder_runs_the_block(self):
+        self.start(DEAD_TASK_SCHEDULE)
+        self.click()
+        self.assertEqual(HITS, ["ran"])
+        self.assertEqual(self.errors, [])
+
+    def test_it_runs_once_per_click_not_twice(self):
+        # The revive and the pop both touch the same push/jump machinery; a
+        # double-fire is the obvious way for them to interact badly.
+        self.start(DEAD_TASK_SCHEDULE)
+        self.click()
+        self.click()
+        self.click()
+        self.assertEqual(HITS, ["ran", "ran", "ran"])
+
+    def test_every_dead_form_runs(self):
+        for code in (DEAD_TASK_SCHEDULE, DEAD_SUB_TASK_SCHEDULE,
+                     DEAD_GUI_SUB_TASK_YIELD):
+            with self.subTest(code=code.splitlines()[3]):
+                self.start(code)
+                self.click()
+                self.assertEqual(HITS, ["ran"])
+
+    def test_the_block_still_sees_the_builders_scope(self):
+        # This is why the task is revived in place rather than replaced: the
+        # block was written against the builder's locals, and writes have to
+        # land where its author expects.
+        self.start(DEAD_SCOPE)
+        builder = self.builder()
+        self.click()
+        self.click()
+        self.assertEqual(HITS, [10, 11])
+        self.assertEqual(builder.get_variable("local"), 12)
+
+    def test_an_awaiting_block_finishes(self):
+        self.start(DEAD_INLINE_BLOCK_SLOW)
+        self.click()
+        self.assertEqual(HITS, ["start"])
+        self.present(4)
+        self.assertEqual(HITS, ["start", "finished"],
+                         "a revived task must keep getting ticks")
+
+    def test_the_builder_ends_again_and_is_disposed(self):
+        self.start(DEAD_TASK_SCHEDULE)
+        builder = self.builder()
+        self.click()
+        self.present(3)
+        self.assertTrue(builder.done(), "it must not be left running")
+        self.assertNotIn(builder, self.page.gui_task.sub_tasks,
+                         "and must not stay parented to the gui task")
+        self.assertNotIn(builder.id, Agent.all,
+                         "and must leave the Agent registry again")
+
+    def test_repeat_clicks_do_not_stack_up_sub_tasks(self):
+        self.start(DEAD_TASK_SCHEDULE)
+        for _ in range(5):
+            self.click()
+            self.present(1)
+        self.assertLessEqual(len(self.page.gui_task.sub_tasks), 1)
+
+    def test_a_new_gui_ends_a_handler_still_awaiting(self):
+        self.start(TWO_SCREENS)
+        self.click("Press")
+        self.assertEqual(HITS, ["start"])
+        revived = self.builder()
+        self.click("Next")          # rebuilds the page onto screen_two
+        self.present(3)
+        self.assertTrue(revived.done(),
+                        "a revived handler belongs to the GUI that owned the widget")
+        self.assertEqual(HITS, ["start"], "so it must not finish after the swap")
+
+    def test_live_builder_is_unaffected_and_returns_to_await_gui(self):
+        self.start(LIVE)
+        gui_task = self.page.gui_task
+        self.click()
+        self.click()
+        self.assertEqual(HITS, ["ran", "ran"])
+        self.assertEqual(len(gui_task.label_stack), 0,
+                         "the inline push must be balanced by a pop")
+
+
+class TestReviveRefusals(_Fixed):
+    """A task that died badly stays dead."""
+
+    def test_a_crashed_builder_is_not_revived(self):
+        self.start(DEAD_TASK_SCHEDULE)
+        builder = self.builder()
+        builder.active_ticker.errored = True
+        with self.assertLogs("mast.runtime", level="WARNING"):
+            self.click()
+        self.assertEqual(HITS, [], "a task that crashed must not be resumed")
+
+    def test_a_canceled_builder_is_not_revived(self):
+        self.start(DEAD_TASK_SCHEDULE)
+        builder = self.builder()
+        builder._canceled = True
+        with self.assertLogs("mast.runtime", level="WARNING"):
+            self.click()
+        self.assertEqual(HITS, [], "a deliberately killed task must stay dead")
+
+
+class TestRevivedOtherForms(_Fixed):
+    def test_dead_on_press_label_runs(self):
+        self.start(DEAD_ON_PRESS_LABEL)
+        self.click()
+        self.assertEqual(HITS, ["on_press"])
+
+    def test_dead_gui_message_label_finishes_instead_of_stalling(self):
+        self.start(DEAD_GUI_MESSAGE_LABEL_SLOW)
+        self.click()
+        self.assertEqual(HITS, ["start"])
+        self.present(4)
+        self.assertEqual(HITS, ["start", "finished"])
+
+    def test_dead_on_press_sub_task_finishes_instead_of_stalling(self):
+        self.start(DEAD_ON_PRESS_SUB_TASK_SLOW)
+        self.click()
+        self.assertEqual(HITS, ["start"])
+        self.present(4)
+        self.assertEqual(HITS, ["start", "finished"])
+
+    def test_the_task_free_paths_are_untouched(self):
+        self.start(DEAD_ON_PRESS_CALLABLE)
+        self.click()
+        self.assertEqual(HITS, ["callable"])
+        self.start(DEAD_GUI_MESSAGE_CALLBACK)
+        self.click()
+        self.assertEqual(HITS, ["cb"])
 
 
 if __name__ == "__main__":

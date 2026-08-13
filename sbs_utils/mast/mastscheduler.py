@@ -107,6 +107,10 @@ class MastTicker:
 
     def __init__(self, task, main):
         self.done = False
+        # Set by runtime_error(). A task that CRASHED must never be revived to
+        # run a GUI handler -- it stopped mid-statement, so its scope is
+        # whatever the exception left behind.
+        self.errored = False
         self.runtime_node = None
         self.last_poll_result = None
         self.active_label = None
@@ -394,6 +398,7 @@ class MastTicker:
         logger.error(s)
 
         self.main.runtime_error(s)
+        self.errored = True
         self.done = True
 
     def call_leave(self):
@@ -690,7 +695,13 @@ class MastAsyncTask(Agent, Promise):
     # of registry traffic), keeps that index narrow for everyone else, and stops
     # a query like has_inventory("ship_id") returning task ids next to ships.
     _mirror_inventory = False
-    
+
+    # Behavior flag for revive_for_handler(). OFF means a GUI handler whose task
+    # already ended is dropped exactly as it always was; ON means the task is
+    # woken to run it. Off by default until the A/B conformance runs say what
+    # flipping it wakes up. See LM issue #707.
+    revive_ended_handlers = False
+
     def __init__(self, main: 'MastScheduler', inputs=None, name= None):
         super().__init__()
         self.id = get_task_id()
@@ -1256,6 +1267,48 @@ class MastAsyncTask(Agent, Promise):
         self.jump(label, activate_cmd)
         self.tick_in_context()
 
+    def revive_for_handler(self, host=None):
+        """Wake a task that ENDED NORMALLY so a GUI handler it registered can run.
+
+        A widget's handler is owned by the task that BUILT the widget: an
+        `on gui_message(w):` block is an inline block in that task's label, and
+        `on_press=<label>` is a jump on that task. When the builder was
+        scheduled and then ended (->END / yield success) the handler had no way
+        to run at all -- push_inline_block only queues pending_jump, and tick()
+        returns at its leading `if self.done:` before ever reading it. The click
+        was discarded silently. See LM issue #707.
+
+        Returns True when the task is runnable afterwards.
+
+        Reviving in place rather than spawning a fresh task keeps the builder's
+        own scope, active_label and identity, so the block still closes over the
+        locals its author wrote it against -- and, with the inline block pop
+        fixed, the woken task pops back to its own ->END and finishes again.
+
+        `host` is the task that will TICK the revived one (the page's gui_task),
+        so a handler that awaits still gets ticks. It is a ticking parent only:
+        is_sub_task/root_task are deliberately left alone, because changing them
+        would change variable scoping.
+        """
+        ticker = self.active_ticker
+        if not (self.done() or ticker.done):
+            return True                      # still live -- nothing to do
+        if not MastAsyncTask.revive_ended_handlers:
+            return False
+        if self.canceled() or getattr(ticker, "errored", False):
+            # Deliberately killed, or crashed. Neither should come back.
+            return False
+        # A task is a Promise, and both MastScheduler.tick and tick_subtasks
+        # drop it on done(); clearing the result is what makes it schedulable
+        # again. jump_restart_task does the same three things for the same
+        # reason -- add() re-registers it after dispose() unregistered it.
+        self.set_result(None)
+        ticker.done = False
+        self.add()
+        self._revived_handler = True
+        if host is not None and host is not self and self not in host.sub_tasks:
+            host.sub_tasks.append(self)
+        return True
 
     def tick(self):
         # if self.name is not None:

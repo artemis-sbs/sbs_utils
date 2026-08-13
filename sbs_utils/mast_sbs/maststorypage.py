@@ -298,8 +298,14 @@ class StoryPage(Page):
         from ..procedural.gui.options_button import gui_options_button_flag
         FrameContext.context.sbs.transparent_options_button(
             self.client_id, gui_options_button_flag(self.client_id))
-        for sub_task in self.gui_task.sub_tasks:
-            if sub_task.has_role("end_on_new_gui"):
+        for sub_task in list(self.gui_task.sub_tasks):
+            # A revived handler task (revive_for_handler) is parented here only
+            # so it can be TICKED. It belongs to the GUI that owned the widget,
+            # so it dies with that GUI -- an attribute, not a role, because any
+            # role beyond __mast_task__ makes is_data_record() true and turns
+            # dispose() into a no-op.
+            if sub_task.has_role("end_on_new_gui") or getattr(
+                    sub_task, "_revived_handler", False):
                 sub_task.end()
         # 
         # Clear tags

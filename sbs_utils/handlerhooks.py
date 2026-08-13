@@ -140,6 +140,12 @@ def reset_mission_state():
     signal_observers_clear()
     from .procedural.amd_drops import drops_clear
     drops_clear()
+    # Sites already warned about for a GUI handler on a finished task. Warn-once
+    # is per mission: the same site in the next run deserves to be reported
+    # again, and an uncleared latch is exactly the run-2 bug the ledger exists
+    # to catch.
+    from .procedural.gui.message import dead_handler_sites_clear
+    dead_handler_sites_clear()
     # Grav tethers. The engine holds the connections and _TETHERS holds the enforcement
     # state that drives them - neither was cleared, so a tether from the LAST mission
     # survived the reload and its per-tick enforcer kept capping a ship's throttle in
@@ -313,6 +319,8 @@ register_reset_state("quest dispatch voice",
                      lambda: 1 if _QUEST_DISPATCH_VOICE[0] is not None else 0)
 from .procedural.amd_drops import drops_size as _drops_size
 register_reset_state("drop tables", _drops_size)
+from .procedural.gui.message import dead_handler_site_count as _dead_handler_sites
+register_reset_state("dead GUI handler warnings", _dead_handler_sites)
 from .procedural.volume import volume_count as _volume_count
 from .procedural.volume import volume_watch_count as _volume_watch_count
 register_reset_state("volumes", _volume_count)
