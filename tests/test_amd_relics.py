@@ -28,7 +28,7 @@ from sbs_utils.helpers import FrameContext, Context
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.delete_queue import DeleteQueue
 from sbs_utils.procedural.roles import role
-from sbs_utils.procedural.query import to_object_list
+from sbs_utils.procedural.query import to_object_list, to_object
 from sbs_utils.procedural.spawn import player_spawn
 from sbs_utils.procedural.space_objects import set_pos
 
@@ -778,7 +778,7 @@ class TestArming(unittest.TestCase):
         self.R = R
         self._place, self._marks = R._relic_place_contents, R._relic_place_role_markers
         R._relic_place_contents = lambda c: self.placed.append(c["part"])
-        R._relic_place_role_markers = lambda rec, key: self.marks.append(key)
+        R._relic_place_role_markers = lambda rec, key, **kw: self.marks.append(key)
         R._ARM_TASK = None
         relics_register(_section(CONTENTS_DOC))
 
@@ -993,7 +993,7 @@ class TestPlaceAndRelease(unittest.TestCase):
         placed, marks = [], []
         keep_place, keep_marks = R._relic_place_contents, R._relic_place_role_markers
         R._relic_place_contents = lambda c: placed.append(c["part"])
-        R._relic_place_role_markers = lambda rec, key: marks.append(key)
+        R._relic_place_role_markers = lambda rec, key, **kw: marks.append(key)
         R._ARM_TASK = None
         try:
             relic_contents_arm("ossuary")
@@ -1019,3 +1019,81 @@ class TestPlaceAndRelease(unittest.TestCase):
         self.assertTrue(volume_watching("ossuary"))
         relic_release("ossuary")
         self.assertFalse(volume_watching("ossuary"))
+
+
+class TestMarkersRevealAsYouReachThem(unittest.TestCase):
+    """The ruin draws its own map, in the order you fly it.
+
+    Visible from the start hands the crew a floor plan and the location of the loot before
+    they have flown anything; invisible for good leaves them with no record of where they
+    have been, in a structure whose whole problem is that every room looks like the last.
+    So a marker is dark until a ship reaches it, and then it stays lit.
+    """
+
+    def setUp(self):
+        sbs.create_new_sim()
+        SpaceObject.clear()
+        relics_clear()
+        volume_clear()
+        relic_contents_clear()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        import sbs_utils.procedural.amd_relics as R
+        self.R = R
+        R._ARM_TASK = None
+        relics_register(_section(CONTENTS_DOC))
+        relic_contents_arm("ossuary")
+
+    def tearDown(self):
+        relic_contents_clear()
+        SpaceObject.clear()
+        DeleteQueue.clear()
+        FrameContext.context = None
+
+    def _post(self, part):
+        return self.R._ARMED[("marker", "ossuary", part)]
+
+    def _lit(self, part):
+        obj = to_object(self._post(part).get("id"))
+        return obj is not None and obj.data_set.get("unselectable", 0) == 0
+
+    def test_a_marker_starts_dark(self):
+        self.assertFalse(self._lit("vaultmark"))
+        self.assertFalse(self._post("vaultmark")["shown"])
+
+    def test_reaching_it_lights_it(self):
+        ship = player_spawn(50000, 0, 50000, "Test", "tsn", "tsn_light_cruiser")
+        self.R._relic_contents_tick()
+        self.assertFalse(self._lit("vaultmark"))       # 50,000u away: still dark
+        # The door is at Loc 1000,0,2000 + 100,0,0. Inside the reveal range, not on it.
+        set_pos(ship.id, 1100.0 + 800.0, 0.0, 2000.0)
+        self.R._relic_contents_tick()
+        self.assertTrue(self._lit("vaultmark"))
+
+    def test_it_stays_lit_when_you_leave(self):
+        # The point of the map is that it is a RECORD. A marker that goes dark again
+        # would tell the crew nothing about where they have already been.
+        ship = player_spawn(1100.0 + 800.0, 0.0, 2000.0, "Test", "tsn", "tsn_light_cruiser")
+        self.R._relic_contents_tick()
+        self.assertTrue(self._lit("vaultmark"))
+        set_pos(ship.id, 90000.0, 0.0, 90000.0)
+        self.R._relic_contents_tick()
+        self.assertTrue(self._lit("vaultmark"))
+
+    def test_reaching_one_place_does_not_light_the_others(self):
+        # The failure the whole design is against: arriving and being handed the floor
+        # plan. Standing at the vault door says nothing about the reliquary.
+        player_spawn(1100.0 + 800.0, 0.0, 2000.0, "Test", "tsn", "tsn_light_cruiser")
+        self.R._relic_contents_tick()
+        self.assertTrue(self._lit("vaultmark"))
+        for other in ("cache", "floor", "ambush"):
+            key = ("marker", "ossuary", other)
+            if key in self.R._ARMED:
+                self.assertFalse(self._lit(other), other)
+
+    def test_a_mission_can_turn_the_whole_thing_off(self):
+        relic_contents_clear()
+        self.R._ARM_TASK = None
+        relic_contents_arm("ossuary", reveal=0)
+        player_spawn(1100.0, 0.0, 2000.0, "Test", "tsn", "tsn_light_cruiser")
+        self.R._relic_contents_tick()
+        self.assertFalse(self._lit("vaultmark"))

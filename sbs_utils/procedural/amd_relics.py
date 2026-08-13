@@ -231,7 +231,11 @@ def relics_from_section(section, source=None, section_key=None):
             # it is FOR is `Roles:` - an entrance, a cache, a spawn - which the mission
             # reads, because the library has no opinion about what gets put there.
             pt = data["point"]
-            rec.points[name] = [pt[0], pt[1], pt[2], data.get("roles") or []]
+            # [x, y, z, roles, display]. The display name is APPENDED, so every existing
+            # reader of [0..3] is unaffected; it is what a revealed marker is labelled
+            # with, and "the transmitter bay" reads better on a radar than "at_bay".
+            rec.points[name] = [pt[0], pt[1], pt[2], data.get("roles") or [],
+                                node.get("display_text") or name]
         # CONTENTS may hang off any part - a point marks a spot, but a chamber carrying
         # `Item:` means "somewhere in this room", which is how an author thinks about a
         # ruin. The position is resolved at arm time, from whichever part it is on.
@@ -574,6 +578,16 @@ def relics_reload_all():
 
 # Armed content records, by (relic key, part name). Per-mission, so it is on the reset
 # ledger with everything else.
+# How close a ship has to get before a named place lights up on the radar. Roughly a
+# room: near enough that you are IN the place rather than passing it at range, far enough
+# that you do not have to fly through the exact point to be credited with finding it.
+# `relic_contents_arm(reveal=0)` turns the whole behaviour off.
+RELIC_REVEAL_RANGE = 1200.0
+
+# Gold, the same color the library's own map markers use - a place the crew has found
+# should read as map furniture, not as a contact.
+RELIC_MARK_COLOR = "gold"
+
 _ARMED = {}
 _ARM_TASK = None
 
@@ -616,7 +630,8 @@ def _relic_part_pos(rec, name, base=None):
     return None
 
 
-def relic_contents_arm(relic_key, radius_default=900.0):
+def relic_contents_arm(relic_key, radius_default=900.0,
+                       reveal=RELIC_REVEAL_RANGE):
     """Arm a relic's authored contents. Returns how many are waiting on a trigger.
 
     Three things happen, in this order:
@@ -636,7 +651,7 @@ def relic_contents_arm(relic_key, radius_default=900.0):
     rec = _RELIC_RECORDS.get(relic_key)
     if rec is None:
         return 0
-    _relic_place_role_markers(rec, relic_key)
+    _relic_place_role_markers(rec, relic_key, reveal=reveal)
     waiting = 0
     for c in relic_contents(relic_key):
         key = (relic_key, c["part"])
@@ -660,6 +675,55 @@ def relic_contents_arm(relic_key, radius_default=900.0):
         waiting += 1
     _relic_arm_tick()
     return waiting
+
+
+def _relic_reveal_tick():
+    """Light up the markers the crew has reached. The ruin drawing its own map.
+
+    Runs on the same shared tick as the contents triggers, and for the same reason: one
+    tick for every relic beats a watcher per point.
+
+    A revealed marker STAYS revealed - it is a record of where the crew has been, which is
+    the whole value of it in a structure where every room looks like the last one.
+    """
+    from .query import to_object_list, to_object
+    from .roles import role
+    posts = [(k, v) for k, v in _ARMED.items()
+             if len(k) == 3 and not v.get("shown") and v.get("pos") is not None
+             and (v.get("reveal") or 0) > 0]
+    if not posts:
+        return
+    players = to_object_list(role("__player__"))
+    if not players:
+        return
+    for key, rec in posts:
+        r = float(rec.get("reveal") or RELIC_REVEAL_RANGE)
+        r2 = r * r
+        p0 = rec["pos"]
+        near = False
+        for p in players:
+            pp = p.pos
+            dx, dy, dz = pp.x - p0[0], pp.y - p0[1], pp.z - p0[2]
+            if dx * dx + dy * dy + dz * dz <= r2:
+                near = True
+                break
+        if not near:
+            continue
+        obj = to_object(rec.get("id"))
+        if obj is None:
+            rec["shown"] = True        # gone; nothing to light
+            continue
+        try:
+            # `data_set`, not `blob`. They are the SAME store under two names - a spawn
+            # hands back SpawnData whose `.blob` IS the agent's `data_set` - but only the
+            # id survives to here, and what an id resolves to is the agent. Reaching for
+            # `.blob` on it raises, inside a try, which would have made every marker
+            # quietly refuse to light.
+            obj.data_set.set("unselectable", 0, 0)
+            obj.data_set.set("radar_color_override", RELIC_MARK_COLOR, 0)
+        except Exception as e:
+            log(f"relic marker would not light: {e}", "relics", "warning")
+        rec["shown"] = True
 
 
 def _relic_trigger(phrase):
@@ -696,7 +760,7 @@ def relic_contents_can_trigger(phrase):
     kind = trig[0] if isinstance(trig, (list, tuple)) else None
     return kind in RELIC_TRIGGERS
 
-def _relic_place_role_markers(rec, relic_key):
+def _relic_place_role_markers(rec, relic_key, reveal=None):
     """Put a measuring post at every point carrying `Roles:`.
 
     This is the plumbing behind `Starts when: reach <role>`. The quest driver's reach test
@@ -704,13 +768,15 @@ def _relic_place_role_markers(rec, relic_key):
     half the sentence until something is standing there. An author should never have to
     know that, so arming supplies the other half.
 
-    IT IS NOT MAP FURNITURE. These were `marker_object`s at first - selectable, radar-gold
-    - which put a blip on every room, every cache and every trigger in the ruin. A dungeon
-    that draws its own floor plan on your radar is not a dungeon; the crew arrives already
-    knowing where the treasure is and which rooms matter. So a post is invisible on the
-    main screen, unselectable on radar, and carries no exclusion radius that could shove a
-    ship off course. Nothing renders it and nothing can click it - it is a place to measure
-    from, and a mission that wants a VISIBLE mark puts one there itself.
+    IT STARTS INVISIBLE AND EARNS ITS PLACE ON THE RADAR. These were `marker_object`s at
+    first - selectable, radar-gold - which put a blip on every room, every cache and every
+    trigger the moment the ruin was built. A dungeon that draws its own floor plan is not a
+    dungeon; the crew arrives already knowing which rooms matter and where the treasure is.
+
+    Invisible for good is no better - the crew has no record of where they have been, in a
+    structure whose whole problem is that it all looks alike. So a post is dark until a
+    ship reaches it, and then it lights up and stays lit: the ruin draws its own map, in
+    the order you fly it. `_relic_reveal_tick` is the other half.
 
     Marked with `relic_marker` and keyed by (relic, part) so a reload replaces rather than
     accumulates - the same identity rule the contents use.
@@ -724,19 +790,24 @@ def _relic_place_role_markers(rec, relic_key):
         key = ("marker", relic_key, name)
         if key in _ARMED:
             continue
+        pos = (base[0] + pt[0], base[1] + pt[1], base[2] + pt[2])
+        label = pt[4] if len(pt) > 4 and pt[4] else name
         try:
-            obj = terrain_spawn(base[0] + pt[0], base[1] + pt[1], base[2] + pt[2], "",
+            # Named at SPAWN: an invisible object's name costs nothing, and it is the
+            # label the marker wears the moment it is revealed.
+            obj = terrain_spawn(pos[0], pos[1], pos[2], str(label),
                                 "#," + ",".join(["relic_marker"] + list(roles)),
-                                "generic-sphere", "behav_asteroid")
+                                "generic-sphere", "behav_selection")
             obj.data_set.set("elite_main_scn_invis", 1, 0)
-            obj.blob.set("unselectable", 1)
+            obj.data_set.set("unselectable", 1, 0)
             # A prop with a radius pushes ships around; a measuring post must not.
             obj.engine_object.exclusion_radius = 0
         except Exception as e:
             log(f"relic '{relic_key}': could not mark point '{name}': {e}",
                 "relics", "warning")
             continue
-        _ARMED[key] = {"done": True, "id": getattr(obj, "id", None)}
+        _ARMED[key] = {"done": True, "id": getattr(obj, "id", None),
+                       "pos": pos, "shown": False, "reveal": reveal}
 
 
 def _relic_place_contents(c):
@@ -854,7 +925,9 @@ def _relic_arm_tick():
 
 
 def _relic_contents_tick(t=None):
-    """Place every armed record whose trigger has now fired."""
+    """Place every armed record whose trigger has now fired, and light up the places the
+    crew has reached."""
+    _relic_reveal_tick()
     pending = [(k, v) for k, v in _ARMED.items() if not v.get("done")]
     if not pending:
         return
