@@ -801,6 +801,34 @@ def _relic_nums(value):
     return out
 
 
+def _relic_dist3(a, b):
+    return sum((float(a[i]) - float(b[i])) ** 2 for i in range(3)) ** 0.5
+
+
+def _relic_solid_holds(kind, nums, p):
+    """Is point `p` inside this solid? The shapes `Solid:` accepts, and nothing else."""
+    if kind == "sphere" and len(nums) >= 4:
+        return _relic_dist3(p, nums[0:3]) < nums[3]
+    if kind == "box" and len(nums) >= 6:
+        return all(abs(float(p[i]) - nums[i]) < nums[3 + i] for i in range(3))
+    if kind == "capsule" and len(nums) >= 7:
+        return _relic_seg_dist(p, nums[0:3], nums[3:6]) < nums[6]
+    return False
+
+
+def _relic_seg_dist(p, a, b):
+    """Distance from a point to a segment - what a capsule measures against."""
+    ax, ay, az = (float(v) for v in a[:3])
+    bx, by, bz = (float(v) for v in b[:3])
+    dx, dy, dz = bx - ax, by - ay, bz - az
+    dd = dx * dx + dy * dy + dz * dz
+    if dd <= 0:
+        return _relic_dist3(p, (ax, ay, az))
+    t = ((float(p[0]) - ax) * dx + (float(p[1]) - ay) * dy + (float(p[2]) - az) * dz) / dd
+    t = max(0.0, min(1.0, t))
+    return _relic_dist3(p, (ax + dx * t, ay + dy * t, az + dz * t))
+
+
 def amd_lint_relics(doc):
     """Flag a relic layout that will build into something other than it reads as. WARNING.
 
@@ -838,6 +866,43 @@ def amd_lint_relics(doc):
         name = str(getattr(node, "key", "") or "")
         if "chamber" in fields or "box" in fields:
             chamber_names.setdefault(owner, set()).add(name)
+    # A NAMED PLACE INSIDE A SUBTRACTED MASS. `Point:` is where a mission puts something -
+    # an item, a spawn, a quest target, the marker `reach <role>` measures against - so a
+    # point buried in rock is a thing no ship can ever get to, and nothing says so: the
+    # relic builds, the item spawns inside the mass, and the objective simply never
+    # completes.
+    #
+    # This is the most repeated mistake in authoring a relic. It is easy to make because
+    # the obvious place for a marker is the middle of a room, and the obvious place for a
+    # pillar is also the middle of a room. It is invisible in the plan view, where a solid
+    # is drawn as a hole rather than as a wall.
+    #
+    # NOT flagged: a solid over a chamber's CENTRE. That is the suspended-core pattern -
+    # a mass hanging in a room you fly around - and it is correct.
+    solids = []           # (relic, kind, numbers)
+    for node, fields, owner in parts:
+        if "solid" in fields:
+            value = fields["solid"][1]
+            words = [w for w in str(value).replace(",", " ").split() if not _relic_nums(w)]
+            solids.append((owner, (words[0].lower() if words else "sphere"),
+                           _relic_nums(value)))
+    for node, fields, owner in parts:
+        if "point" not in fields:
+            continue
+        ln, value = fields["point"]
+        pt = _relic_nums(value)
+        if len(pt) < 3:
+            continue
+        for sowner, kind, nums in solids:
+            if sowner != owner or not _relic_solid_holds(kind, nums, pt):
+                continue
+            findings.append(AmdFinding(
+                ln, "warning", "relic-point-in-solid",
+                f"this point is inside a subtracted mass - no ship can reach it, so "
+                f"anything placed here is unreachable and a `reach` trigger on it never "
+                f"fires. Move it off the mass"))
+            break
+
     for node, fields, owner in parts:
         lineno = fields["relic"][0]
         if owner not in relic_keys:

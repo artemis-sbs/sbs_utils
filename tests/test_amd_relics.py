@@ -1097,3 +1097,86 @@ class TestMarkersRevealAsYouReachThem(unittest.TestCase):
         player_spawn(1100.0, 0.0, 2000.0, "Test", "tsn", "tsn_light_cruiser")
         self.R._relic_contents_tick()
         self.assertFalse(self._lit("vaultmark"))
+
+
+class TestPointInSolidLint(unittest.TestCase):
+    """The mistake an author actually makes, and the one that only looks like it.
+
+    A point buried in a subtracted mass is a place no ship can reach - so the item spawns
+    inside rock and the `reach` trigger on it never fires, with nothing said. It is easy to
+    make because the obvious place for a marker is the middle of a room and the obvious
+    place for a pillar is also the middle of a room, and the plan view hides it: a solid is
+    drawn as a hole, not as a wall.
+    """
+
+    def _lint(self, content):
+        from sbs_utils.procedural.amd_lint import amd_lint_relics
+        from sbs_utils.procedural.amd_core import parse
+        return [f.code for f in amd_lint_relics(parse(content))]
+
+    BASE = """# [T](t)
+
+## [Relics](relics)
+
+### [R](r)
+---
+Loc: 0,0,0
+---
+
+### [hub](hub)
+---
+Relic: r
+Chamber: 0, 0, 0, 900
+---
+
+### [the core](core)
+---
+Relic: r
+Solid: sphere, 0, 0, 0, 320
+---
+
+### [a place](spot)
+---
+Relic: r
+Point: {point}
+---
+"""
+
+    def test_a_point_inside_a_pillar_is_flagged(self):
+        self.assertIn("relic-point-in-solid",
+                      self._lint(self.BASE.format(point="100, 0, 0")))
+
+    def test_a_point_beside_it_is_fine(self):
+        self.assertNotIn("relic-point-in-solid",
+                         self._lint(self.BASE.format(point="600, 0, 0")))
+
+    def test_the_suspended_core_pattern_is_not_flagged(self):
+        # A mass hanging in the middle of a room you fly around is CORRECT - it is what
+        # the Ossuary does. Only the point matters, not the solid's position.
+        codes = self._lint(self.BASE.format(point="600, 0, 0"))
+        self.assertEqual(codes, [])
+
+    def test_a_capsule_catches_it_too(self):
+        doc = self.BASE.replace("Solid: sphere, 0, 0, 0, 320",
+                                "Solid: capsule, 0, -900, 0, 0, 900, 0, 220")
+        self.assertIn("relic-point-in-solid", self._lint(doc.format(point="100, 0, 0")))
+        self.assertNotIn("relic-point-in-solid", self._lint(doc.format(point="600, 0, 0")))
+
+    def test_a_box_catches_it_too(self):
+        doc = self.BASE.replace("Solid: sphere, 0, 0, 0, 320",
+                                "Solid: box, 0, 0, 0, 300, 200, 300")
+        self.assertIn("relic-point-in-solid", self._lint(doc.format(point="100, 0, 100")))
+        self.assertNotIn("relic-point-in-solid", self._lint(doc.format(point="600, 0, 0")))
+
+    def test_the_shipped_relics_are_clean(self):
+        # The four this rule was written for. All of them had a point in rock at some
+        # stage of authoring; none of them may have one now.
+        import io as _io, os
+        from sbs_utils.fs import get_mission_dir_filename
+        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for name in ("voice", "lens", "ash_warren"):
+            path = os.path.join(here, "..", "StormsBeacon", "relics", name + ".amd")
+            if not os.path.exists(path):
+                continue
+            codes = self._lint(_io.open(path, encoding="utf-8").read())
+            self.assertNotIn("relic-point-in-solid", codes, name)
