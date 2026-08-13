@@ -811,6 +811,18 @@ def add_extra(name, path=None, mod=None):
     text = _read_extra_ship_data(filename, path)
     if text is not None:
         merge_mod_ship_yaml(text, mod or "add_extra_ship_data")
+    else:
+        # SAY SO. A missing file is not fatal - but silence here costs a whole
+        # afternoon, because the failure surfaces far away and looks like something
+        # else entirely: every ship in the file spawns with no stats, so a monster
+        # has beamCount 0 and reads as "combat is broken" rather than "the hulls
+        # were never loaded". The usual cause is a mission that loads the ADDON but
+        # not the media pack the addon keeps its hulls in, so name that too.
+        from .execution import log
+        log(f"extra ship data not found: {filename} (looked in {path}). "
+            f"Ships from this file will have no stats. If it belongs to an add-on, "
+            f"the mission's story.json probably needs that add-on's shared_media zip.",
+            "ship_data", "warning")
 
     if _EXTRA_SHIP_DATA_ENGINE:
         try:

@@ -194,3 +194,38 @@ class TestTheRecord(_Fixture):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestItSaysWhenItFoundNothing(unittest.TestCase):
+    """A missing extra-ship-data file must not be silent.
+
+    It stayed silent for a day and cost an afternoon: LegendaryMissions moved its
+    monster hulls out of the mastlib and into its media pack, LM_TestRange never
+    declared that pack, and the whole failure surfaced as seven conformance
+    assertions reporting `beamCount 0` - which reads as "combat is broken", not as
+    "the file was never found".
+    """
+
+    def test_a_missing_file_is_logged_with_where_it_looked(self):
+        with mock.patch("sbs_utils.procedural.ship_data.get_mission_dir",
+                        return_value=os.path.join("nowhere", "at", "all")), \
+             mock.patch("sbs.add_extra_ship_data", create=True), \
+             mock.patch("sbs_utils.procedural.execution.log") as logged:
+            sd.add_extra("prefabs/extraShipData_monsters", mod="LM")
+        said = " ".join(str(c) for c in logged.call_args_list)
+        self.assertIn("extraShipData_monsters", said)
+        self.assertIn("shared_media", said)
+
+    def test_a_file_that_is_there_says_nothing(self):
+        with mock.patch("sbs_utils.procedural.ship_data.get_mission_dir",
+                        return_value=self.tmp.name), \
+             mock.patch("sbs.add_extra_ship_data", create=True), \
+             mock.patch("sbs_utils.procedural.execution.log") as logged:
+            sd.add_extra("hulls", mod="LM")
+        self.assertEqual(logged.call_args_list, [])
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        with open(os.path.join(self.tmp.name, "hulls.yaml"), "w", encoding="utf-8") as f:
+            f.write("#ship-list:\n  - key: t_hull\n    name: T\n    hullpoints: 10\n")
