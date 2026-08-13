@@ -115,7 +115,12 @@ class TestMockDamage(unittest.TestCase):
         ev = _drain()
         self.assertEqual(ev, [
             ("damage", "destroyed", 999, oid),
-            ("npc_killed", "", oid, oid),
+            # origin = WHAT DEALT THE DAMAGE, selected = the victim. Measured raw
+            # against engine 1.3.5 (data/missions/event_probe): a beam kill carries
+            # origin=the shooter; a torpedo kill carries origin=the torpedo and
+            # parent=the launching ship. This asserted the victim in BOTH fields,
+            # which made "who killed it" unanswerable in the mock alone.
+            ("npc_killed", "", 999, oid),
         ])
         self.assertNotIn(oid, self.sim.space_objects)
 

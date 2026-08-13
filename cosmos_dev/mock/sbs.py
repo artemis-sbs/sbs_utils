@@ -352,10 +352,17 @@ def delete_object(ID: int) -> None:
     library's emitter janitor something to reconcile - reap them here and the
     test that proves the janitor works passes for the wrong reason.
     """
+    side = ""
+    if sim is not None:
+        obj = sim.space_objects.get(ID)
+        if obj is not None:
+            side = getattr(obj, "side", "") or ""
     existed = _delete_object_quiet(ID)
     if existed:
         # No attacker: origin 0, victim = ID. A script delete is nobody's kill.
-        _pending_physics_events.put(("damage", "destroyed", 0, ID))
+        # `value_tag` carries the victim's SIDE - measured raw in engine 1.3.5, and the
+        # only part of the victim still readable once it is gone.
+        _pending_physics_events.put(("damage", "destroyed", 0, ID, 0, "", {"value_tag": side}))
 
 
 def _delete_object_quiet(ID: int) -> bool:
@@ -3207,7 +3214,19 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0, kind: str = 
                for i in range(4))
     if dead:
         _dmg(destroyed=True)
-        _pending_physics_events.put(("npc_killed", "", target_id, target_id))
+        # origin = WHAT DEALT THE DAMAGE, selected = the victim. Measured raw in engine
+        # 1.3.5: a beam kill carries origin=the shooter, parent=0; a torpedo kill carries
+        # origin=the TORPEDO and parent=the launching ship. The mock had the victim in
+        # BOTH id fields, so "who killed it" was unanswerable here and answerable in the
+        # engine - the exact kind of gap this whole exercise exists to close.
+        #
+        # KNOWN RESIDUAL: the mock does not give a projectile its own space-object id, so
+        # its torpedo kills report origin=the SHOOTER and parent=0, i.e. the beam shape.
+        # A mission reading parent-then-origin (which is what the engine requires) gets
+        # the right ship either way; one reading origin alone gets the ship here and the
+        # torpedo in the engine. Fixing it properly means modelling projectiles as real
+        # objects, which is a bigger change than this one deserves on its own.
+        _pending_physics_events.put(("npc_killed", "", source_id or target_id, target_id))
         _bump_exciting(sim.space_objects.get(source_id), _EXCITE_KILL)
         _delete_object_quiet(target_id)     # the death is already announced above
     else:
