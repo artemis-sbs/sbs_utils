@@ -334,6 +334,19 @@ missions ask for their own reasons: a quest that starts on arrival, a door that 
 behind you. Pass `engage="always"` for a volume that IS the playfield rather than a place
 inside one.
 
+Two consequences worth knowing before you debug a relic that "isn't holding anything":
+
+- **A ship you teleport to a test position outside the relic will be ignored**, correctly.
+  To exercise containment, put the ship inside, let one tick run so it engages, and *then*
+  move it where you want it. This is what `LM_TestRange`'s `test_relic_volume` does, and
+  what it did not do when it was written a few hours before the rule existed - so it
+  spent a day asserting the behavior that had been removed on purpose.
+- **Inside a subtracted `Solid:` counts as never having been inside.** A solid is wall, and
+  wall is outside the volume, so a ship parked in the middle of a pillar is not engaged and
+  will not be pushed clear. Only a ship that reached open space first is contained. It is
+  the same rule, but it does not look like it when the ship is visibly in the middle of
+  your relic.
+
 ## Checking it
 
 `sbs lint` catches the faults that are otherwise silent — a `Passage to:` naming a chamber

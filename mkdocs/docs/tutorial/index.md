@@ -375,8 +375,8 @@ In the last section, we learned about route labels. Remember how I said that rou
 
 Everything below was measured against the engine rather than reasoned about, by two
 probes you can re-run: `LM_TestRange/maps/test_damage_routes.mast` for what a MISSION sees,
-and `data/missions/event_probe` - which loads no libraries at all - for what the ENGINE
-actually sends.
+and [`event_probe`](https://github.com/artemis-sbs/event_probe) - a mission that loads no
+libraries at all, so what it records is the engine with nothing of ours in between.
 
 **`//damage/killed` is the kill.** It fires for NPCs only - the engine's event is literally
 called `npc_killed`, and it names the VICTIM, so it fires whether an NPC or the CREW made
