@@ -1,5 +1,5 @@
 # MAST Tutorial
-A tutorial describing how to write a simple mission that utilizes many of the tools MAST has to offer.
+A tutorial that builds a simple mission from nothing, using most of what MAST has to offer along the way.
 ## Tutorial Goals
 ### General Goals
 Upon completion of this tutorial, you will have learned to:
@@ -25,10 +25,10 @@ For this tutorial, we are writing a mission about finding and recovering a lost 
 1.  The players will need to fight off scavengers while they search.  
 2.  They will need to scan asteroids to find the treasure.  
 3.  They will need to shoot at the asteroid to remove debris from the treasure.  
-4.  They will need to collect the treasure by giving instructions to a specialist team retrieve it.
+4.  They will need to collect the treasure by giving instructions to a specialist team to retrieve it.
 
 ### What you will NOT learn
-MAST is loosely based on, and for Cosmos is compiled by, Python. Python is a popular programming language which integrates with the Cosmos game engine to allow for flexible mission scripting. This tutorial is not a python tutorial, and we will touch on some aspects of the language, but if you want a more thorough understanding of python there are loads of resources online.
+MAST is built on Python: your mission is compiled by it, and Python is what talks to the Cosmos engine underneath. That is what makes mission scripting as flexible as it is. This tutorial is not a python tutorial, and we will touch on some aspects of the language, but if you want a more thorough understanding of python there are loads of resources online.
 
 ## 1. Setting up your first mission
 
@@ -328,7 +328,7 @@ We have another important step before we begin adding science scans:
 ```python
 //science if has_role(SCIENCE_SELECTED_ID, "treasure")
 ```
-The `//enable/science` route is necessary whenever we need to use a `//science` route. We don't need to know how or why it works in any detail, but just know that it is very important to include.
+The two work as a pair. `//enable/science` decides whether an object can be scanned at all; `//science` decides what the scan says. Without the enable route the science console never offers the scan, and the text you write below is never reached.
 Now, on the scan text area of the science console, there are some buttons: "scan", "status", or "info", for example. Buttons are easily added to scan info using the plus sign, followed by the name in quotes:
 ```python
     + "scan"
@@ -355,22 +355,50 @@ I'm going to add this as well, to guide the players towards shooting the asteroi
         <scan> # Give a hint as to how to access the treasure
             % The asteroid has a dense core, surrounded by large quantities of normal asteroid material. Maybe we can blast some of it away...
 ```
-Go ahead and add at least one more button with some more scan information of your own. This is a good time to remind you, if you haven't noticed it out already, that python and MAST, use indentation to designate blocks of code. Note that the button, scan, and scan text sections are sequentially indented. All of these scan buttons should have the same indentation.
+Go ahead and add at least one more button with some more scan information of your own. This is a good time to point out, if you haven't already noticed, that both Python and MAST use indentation to mark blocks of code. Note that the button, scan, and scan text sections are sequentially indented. All of these scan buttons should have the same indentation.
 
 ## 10. Damage and Destruction
-In the last section, we learned about route labels. Remember how I said that routes run whenever the conditions are met? Well, there's routes for damage - several, in fact. Here's the list of damage routes:
+In the last section, we learned about route labels. Remember how I said that routes run whenever the conditions are met? Well, there are routes for damage - several, in fact. Here's the list:
 ```python
-# When an object takes damage and is destroyed
-//damage/destroy
-# When damage is taken due to overheating
-//damage/heat
-# When an engineering node takes damage (aside from heat)
-//damage/internal
-# Documentation is unclear on this, but I think it's when a crew member (DamCon) is killed
-//damage/killed
-# Object took damage that doesn't meet the other criteria
+# Something took weapons damage - and see the warning below, because a script
+# DELETING an object looks exactly like this too
 //damage/object
+# An NPC has been killed and is about to be removed from the engine
+//damage/killed
+# ANYTHING is being removed - NPC, player ship, station, terrain - for any reason
+//damage/destroy
+# A player ship is taking damage from overheating
+//damage/heat
+# An engineering node on a player ship is damaged by something other than heat
+//damage/internal
 ```
+
+Everything below was measured against the engine rather than reasoned about - the probe
+is `LM_TestRange/maps/test_damage_routes.mast` if you ever want to re-ask it.
+
+**`//damage/killed` is the kill.** It fires for NPCs only - the engine's event is literally
+called `npc_killed`, and it names the VICTIM, so it fires whether an NPC or the CREW made
+the kill. A player ship's own death never fires it; that arrives as the
+`player_ship_destroyed` signal instead.
+
+**`//damage/destroy` is the removal**, and it is not fussy: an NPC, a *player ship*, a
+station, a rock - anything leaving the game fires it, including an object your own script
+deletes.
+
+!!! warning "A script delete looks like weapons damage"
+    `sbs.delete_object()` fires **both** `//damage/destroy` and `//damage/object`. So a
+    mission that tidies up - unused player slots at startup, a spent pickup, last
+    chapter's scenery - trips every damage route it has written. This is not theoretical:
+    a mission counted losses on `//damage/destroy` and reported casualties before anyone
+    had been shot at.
+
+!!! tip "Crediting a kill: read both attacker fields"
+    The attacker turns up in a **different field depending on the weapon**. A player
+    torpedo kill puts the ship in `DAMAGE_PARENT_ID` and the torpedo - already gone - in
+    `DAMAGE_SOURCE_ID`. An NPC beam kill leaves `DAMAGE_PARENT_ID` at `0` and puts the
+    shooter in `DAMAGE_SOURCE_ID`. Read parent first and fall back to source, or half your
+    kills are credited to nobody.
+
 We want the players for our mission to shoot at the asteroid, and to detect when that happens, we'll use the `//damage/object` route. Once it's been hit, we're going to get rid of the asteroid and replace it with the treasure.
 ```python
 //damage/object if has_role(DAMAGE_TARGET_ID, "treasure")
@@ -385,6 +413,11 @@ pickup_spawn(x, y, z, "tauron_focuser")
 But wait, how do we know what coordinates to use? Let's go back to right before we delete the asteroid and get its position:
 ```python
 //damage/object if has_role(DAMAGE_TARGET_ID, "treasure")
+    # Take the role off FIRST - this is the warning above, biting this very example.
+    # Deleting the asteroid fires //damage/object again for it, and a deleted object
+    # KEEPS its roles, so the guard still matches and the route runs a second time:
+    # two treasures, the second one wherever a deleted object reports its position.
+    remove_role(DAMAGE_TARGET_ID, "treasure")
     pos = get_pos(DAMAGE_TARGET_ID)  # This line gets the position of an object.
     sbs.delete_object(DAMAGE_TARGET_ID)
     pickup_spawn(pos.x, pos.y, pos.z, "tauron_focuser")
@@ -400,9 +433,9 @@ treasure = terrain_spawn(200,0,150,None,"#,asteroid","plain_asteroid_9","behav_a
 ```
 Now only one asteroid will spawn, and it'll be right next to the ship, so we don't need to warp around trying to find it while we test.  
 Fire up Cosmos, check the science scans. All good?  
-Now flip over to weapons and target the asteroid... and we get an error like this, with a whole lot more in addition.  
+Now flip over to weapons and target the asteroid... and we get an error like this, with a good deal more besides.  
 ![The Error](image.png)  
-Errors are an unavoidable part of mission writing for Cosmos. Fortunately, crashes are very rare, and we can easily restart the mission after we fix the issue. This particular error is a bit of an edge case. It's caused by `resource_gather.py`, which is part of the commerce addon in LegendaryMissions. There's a couple ways to get around this, but for now the simplest is to go into story.json and remove the commerce module. It's not used for anything yet anyways.  
+Errors are an unavoidable part of mission writing for Cosmos. Fortunately, crashes are very rare, and we can easily restart the mission after we fix the issue. This particular error is a bit of an edge case. It's caused by `resource_gather.py`, which is part of the commerce addon in LegendaryMissions. There are a couple of ways around this. The simplest for now is to open `story.json` and remove the commerce module - nothing in the mission uses it yet.  
 Note that if we use `terrain_asteroid_clusters()`, this is not an issue and we can use the commerce addon as normal.  
 ### Debug logging
 It is often useful to log the value of variable or other bits of information to verify that your code works properly, or to help isolate the cause of an issue. MAST has a built-in [logger](../mast/syntax.md#logging) system, but I prefer to get a message in-game. I usually use the `comms_broadcast()` function. This function can send a message to the server (and all clients), or it can send the message to only a specific client if necessary.
@@ -463,7 +496,7 @@ Now let's figure out where enemies should spawn. We want them to spawn about 15k
 pos = get_pos(ship)
 points = scatter_arc(1, pos.x, pos.y, pos.z, 15000, 280, 320)
 ```
-The various scatter functions return a number of locations, specified by the first argument. In this case, we only want one spawn location. The last two arguments here are the start and end of the arc, in degrees, and it will choose a random location between this arc.  
+The various scatter functions return a number of locations, specified by the first argument. In this case, we only want one spawn location. The last two arguments are the start and end of the arc in degrees, and the function picks a random point within it.  
 We can now spawn our enemies. We've learned a couple different ways to do this, but for now we'll stick with using the existing `prefab_fleet_raider` prefab. This is only slightly more complicated because we used a scatter function:
 ```python
 for point in points:
