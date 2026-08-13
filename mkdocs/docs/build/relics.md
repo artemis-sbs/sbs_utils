@@ -191,6 +191,10 @@ A point adds no navigable space and subtracts none. It is authored **relative to
 relic's `Loc:`**, like every other part, so it travels with the relic - which is why it is
 a relic part rather than a landmark, whose `Loc:` is absolute and would stay behind.
 
+**In the editor:** press **Add point** (or right-click where you want it), then type
+its roles in the properties panel - `item`, `spawn`, `entrance`, or whatever your
+mission looks for. The roles are yours; nothing in the library interprets them.
+
 What goes there is the mission's call:
 
 ```
@@ -228,10 +232,12 @@ so they surface as a pathfinding bug rather than a typo.
 
 **Artemis AMD: Show Relic Plan** opens the relic, and nothing needs to be running:
 
-- **Add chamber / Add box / Add solid** build the three shapes; the properties panel's
+- **Add chamber / Add box / Add solid / Add point** build the four parts, and the
+  right-click menu places one exactly where you clicked; the properties panel's
   **subtracted** tick flips a chamber or box into a solid and back, which is lossless
   because the numbers are the same. A point is drawn small with a ring - cyan for an
-  entrance - and moves like anything else, but has no size to drag.
+  entrance - and moves like anything else, but has no size to drag. Its **roles** box
+  in the properties panel is what makes it an item, a spawn, or the way in.
 - **click** a part to select it; **drag a handle** to move it along one axis or to change
   its radius; **SHIFT-drag** between two parts to connect them; **right-click** for a menu
   that can add a chamber exactly where you clicked.
