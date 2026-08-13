@@ -136,6 +136,19 @@ class _Base(unittest.TestCase):
         return out
 
     def click(self, text="Press"):
+        """A click the way the engine delivers one.
+
+        handlerhooks._cosmos_event_handler does `Gui.on_message(event)` and then
+        `tick_the_rest(event)` in the same breath, so a tick ALWAYS follows a
+        click and two clicks can never land between ticks. Dispatching without
+        the tick produces states the engine cannot reach -- which is exactly the
+        mistake that made an unreachable "rapid click" defect look real.
+        """
+        self.click_raw(text)
+        self.present(1)                      # tick_the_rest -> Gui.present
+
+    def click_raw(self, text="Press"):
+        """Just the dispatch, for asserting on the state before the tick."""
         Gui.on_message(FakeEvent(client_id=CID, tag="gui_message",
                                  sub_tag=self.find_tag(text)))
 
@@ -575,54 +588,36 @@ class TestRevivedInlineBlock(_Fixed):
                          "the inline push must be balanced by a pop")
 
 
-class TestRapidClicks(_Fixed):
-    """Two or more clicks landing BETWEEN ticks -- an open defect, tracked here.
+class TestRepeatClicks(_Fixed):
+    """Pressing the same button over and over.
 
-    push_inline_block queues a jump; the block's end queues a pop. MastTicker.tick
-    gives pending_jump precedence and CLEARS pending_pop, so a click arriving
-    before the previous block's return has been taken throws that return away
-    and the task parks on the end node with nothing to resume.
-
-    It is not caused by either #707 flag -- it reproduces with
-    pop_inline_block_on_end alone -- but it has to be settled before the
-    defaults flip, because with both flags off the task parks on EVERY click
-    anyway and nobody could tell.
-
-    A real fix belongs in the ticker's push/pop accounting. Settling the pop at
-    the dispatch site instead was measured and rejected: it fixes the live path
-    at every click count but drops a click on the revived path.
+    An earlier version of this file dispatched clicks without the tick the
+    engine always performs, and found a state where the task parked on the
+    block's end node with nothing to resume. That state is unreachable:
+    handlerhooks calls tick_the_rest immediately after Gui.on_message, so a
+    second click cannot arrive before the first block's return has been taken.
+    The scenario was an artifact of the harness.
     """
 
-    def test_two_clicks_between_ticks_are_both_handled(self):
+    def test_repeat_clicks_stay_correct(self):
         self.start(LIVE)
-        self.click()
-        self.click()
-        self.present(3)
-        self.assertEqual(HITS, ["ran", "ran"])
-        self.assertEqual(len(self.page.gui_task.label_stack), 0)
-
-    @unittest.expectedFailure
-    def test_three_clicks_between_ticks_leave_the_task_parked(self):
-        # OPEN: the gui task ends up on the block's end node instead of back in
-        # its await. Remove the expectedFailure when the ticker is fixed.
-        self.start(LIVE)
-        for _ in range(3):
+        for _ in range(10):
             self.click()
-        self.present(3)
-        node = type(self.page.gui_task.active_ticker.runtime_node).__name__
-        self.assertNotEqual(node, "OnChangeRuntimeNode",
-                            "the task must return to what it was doing")
+        self.assertEqual(HITS, ["ran"] * 10)
+        self.assertEqual(len(self.page.gui_task.label_stack), 0,
+                         "every push must be balanced by a pop")
 
-    @unittest.expectedFailure
-    def test_three_clicks_between_ticks_do_not_strand_a_revived_builder(self):
-        # OPEN: same root cause on the revived path -- the builder is left alive,
-        # still parented to the gui task and still in the Agent registry.
+    def test_repeat_clicks_on_a_revived_builder_leave_nothing_behind(self):
         self.start(DEAD_TASK_SCHEDULE)
         builder = self.builder()
-        for _ in range(3):
+        for _ in range(10):
             self.click()
-        self.present(3)
-        self.assertTrue(builder.done())
+        self.present(2)
+        self.assertEqual(HITS, ["ran"] * 10)
+        self.assertTrue(builder.done(), "it must end again after each wake")
+        self.assertEqual(len(builder.label_stack), 0)
+        self.assertNotIn(builder, self.page.gui_task.sub_tasks)
+        self.assertNotIn(builder.id, Agent.all, "and not accumulate in the registry")
 
 
 class TestReviveRefusals(_Fixed):
