@@ -18,7 +18,8 @@ from sbs_utils.procedural.amd_relics import (
     relics_load, relic_reload, relics_reload_all, relic_volume_name, relic_contain,
     relic_point, relic_points, relic_point_roles,
     relic_contents, relic_contents_arm, relic_contents_can_trigger,
-    relic_contents_clear,
+    relic_contents_clear, relic_contents_state,
+    relic_place, relic_release,
 )
 # The live half of these tests needs a sim: markers are real objects and `reach` is a
 # real distance between them.
@@ -918,3 +919,103 @@ class TestContentsInTheWorld(unittest.TestCase):
         relic_contents_arm("ossuary")
         relic_contents_arm("ossuary")
         self.assertEqual(len(to_object_list(role("vault_door"))), 1)
+
+
+class TestPlaceAndRelease(unittest.TestCase):
+    """Putting a relic somewhere the .amd could not know, and taking it away again.
+
+    This is the galaxy case: an Open Universe cell has a transient world origin, is built
+    on arrival and destroyed on departure, and the NEXT cell is already being built while
+    the last one comes down. Whole-registry verbs are the wrong tools there.
+    """
+
+    def setUp(self):
+        # A sim, because containment installs a real tick.
+        sbs.create_new_sim()
+        SpaceObject.clear()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        relics_clear()
+        volume_clear()
+        relics_register(_section(CONTENTS_DOC))
+
+    def tearDown(self):
+        relics_clear()
+        volume_clear()
+        SpaceObject.clear()
+        DeleteQueue.clear()
+        FrameContext.context = None
+
+    def test_placing_moves_the_geometry(self):
+        rec = relic_record("ossuary")
+        relic_place(rec, 500000.0, 0.0, -250000.0)
+        vol = relic_volume(rec)
+        # The vault is authored at 400, 0, 0 with radius 300 - so it is navigable around
+        # the NEW origin and nowhere near the authored one.
+        self.assertTrue(volume_contains(vol, (500400.0, 0.0, -250000.0)))
+        self.assertFalse(volume_contains(vol, (1400.0, 0.0, 2000.0)))
+
+    def test_placing_moves_the_points_and_the_contents_with_it(self):
+        # The whole reason this is one verb rather than a translated volume: a relic
+        # placed by its geometry alone would leave its loot and its markers behind.
+        relic_place("ossuary", 500000.0, 0.0, -250000.0)
+        self.assertEqual(relic_point("ossuary", "cache"), (500400.0, 0.0, -250000.0))
+        got = {c["part"]: c for c in relic_contents("ossuary")}
+        self.assertEqual(tuple(got["cache"]["pos"]), (500400.0, 0.0, -250000.0))
+
+    def test_placing_takes_a_key_as_well_as_a_record(self):
+        self.assertIsNotNone(relic_place("ossuary", 1.0, 2.0, 3.0))
+        self.assertIsNone(relic_place("no_such_relic", 1.0, 2.0, 3.0))
+
+    def test_releasing_drops_the_volume_but_keeps_the_record(self):
+        rec = relic_record("ossuary")
+        relic_volume(rec)
+        self.assertIsNotNone(volume_get("ossuary"))
+        self.assertTrue(relic_release("ossuary"))
+        self.assertIsNone(volume_get("ossuary"))
+        # The mission still knows about this relic and will rebuild it on the next visit.
+        self.assertIsNotNone(relic_record("ossuary"))
+        self.assertFalse(relic_release("ossuary"))     # idempotent
+
+    def test_releasing_one_relic_leaves_the_other_standing(self):
+        # The failure this verb exists to prevent: tearing down a departed system taking
+        # the relic the crew is currently inside.
+        other = relics_register(_section(CONTENTS_DOC.replace("ossuary", "second")))
+        relic_volume(relic_record("ossuary"))
+        relic_volume(relic_record("second"))
+        relic_release("ossuary")
+        self.assertIsNone(volume_get("ossuary"))
+        self.assertIsNotNone(volume_get("second"))
+        self.assertEqual(len(other), 1)
+
+    def test_releasing_forgets_only_that_relic_s_armed_contents(self):
+        relics_register(_section(CONTENTS_DOC.replace("ossuary", "second")))
+        import sbs_utils.procedural.amd_relics as R
+        placed, marks = [], []
+        keep_place, keep_marks = R._relic_place_contents, R._relic_place_role_markers
+        R._relic_place_contents = lambda c: placed.append(c["part"])
+        R._relic_place_role_markers = lambda rec, key: marks.append(key)
+        R._ARM_TASK = None
+        try:
+            relic_contents_arm("ossuary")
+            relic_contents_arm("second")
+            self.assertEqual(relic_contents_state("ossuary", "floor"), "placed")
+            self.assertEqual(relic_contents_state("second", "floor"), "placed")
+            relic_release("ossuary")
+            self.assertEqual(relic_contents_state("ossuary", "floor"), "unarmed")
+            self.assertEqual(relic_contents_state("second", "floor"), "placed")
+            # Re-arming a released relic places it again - which is what a return visit
+            # to a rebuilt system has to do.
+            relic_contents_arm("ossuary")
+            self.assertEqual(placed.count("floor"), 3)
+        finally:
+            R._relic_place_contents = keep_place
+            R._relic_place_role_markers = keep_marks
+            relic_contents_clear()
+
+    def test_releasing_stops_containment(self):
+        rec = relic_record("ossuary")
+        relic_volume(rec)
+        relic_contain(rec)
+        self.assertTrue(volume_watching("ossuary"))
+        relic_release("ossuary")
+        self.assertFalse(volume_watching("ossuary"))

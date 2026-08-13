@@ -1118,14 +1118,37 @@ def volume_watch(volume, agents=None, scrape_band=120.0, margin=0.0,
 
 
 def volume_unwatch(name):
-    """Stop enforcing containment for a volume."""
+    """Stop enforcing containment for a volume.
+
+    Anything this watcher was HOLDING is let go first. A tractor hold is an anchor object
+    plus a live engine connection, and neither belongs to the watcher's task - so dropping
+    the task alone leaves a ship roped to an invisible post that nothing will ever release,
+    which reads in play as a ship that cannot fly after the ruin around it is gone.
+    """
     w = _WATCHERS.pop(name, None)
-    if w is not None and w.task is not None:
+    if w is None:
+        return False
+    for aid in list(w.tiers.keys()):
+        if aid in _ANCHORS:
+            _vol_anchor_drop(aid)
+    if w.task is not None:
         try:
             w.task.stop()
         except Exception:
             pass
-    return w is not None
+    return True
+
+
+def volume_remove(name):
+    """Drop ONE volume: stop its watcher, let go of anything it held, forget the geometry.
+
+    `volume_clear()` drops every volume, which is right for a mission reset and wrong for a
+    galaxy. An Open Universe cell is torn down while the next one is already being built,
+    so clearing everything there would delete the relic the crew is standing in. Returns
+    True if there was something to remove.
+    """
+    had_watch = volume_unwatch(name)
+    return _VOLUMES.pop(name, None) is not None or had_watch
 
 
 def volume_engaged(volume):
@@ -1269,6 +1292,19 @@ def _vol_tractor_release(ship_id):
         grav_tether_release(aid, ship_id)
     except Exception:
         pass
+
+
+def _vol_anchor_drop(ship_id):
+    """Release one ship's tractor and delete its anchor. The unit `_vol_anchors_clear`
+    repeats for every ship - shared so the two paths cannot drift apart."""
+    from .query import to_object
+    from .space_objects import delete_object
+    # RELEASE BEFORE POP - _vol_tractor_release looks the anchor up in _ANCHORS, so
+    # popping first would silently skip the engine call and leave the tractor attached.
+    _vol_tractor_release(ship_id)
+    aid = _ANCHORS.pop(ship_id, None)
+    if aid is not None and to_object(aid) is not None:
+        delete_object(aid)
 
 
 def _vol_anchors_clear():

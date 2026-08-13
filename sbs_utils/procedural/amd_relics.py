@@ -242,13 +242,17 @@ def relics_from_section(section, source=None, section_key=None):
                 "qty": int(data.get("qty") or 1),
                 "spawn": data.get("spawn") or [],
                 "starts_when": data.get("starts_when"),
+                # Carried so a placed thing can wear the roles of its place, and know
+                # which ruin it is standing in - see _relic_mark_placed.
+                "roles": data.get("roles") or [],
+                "relic": owner,
             })
         for other, radius in (data.get("passage_to") or []):
             rec.passages.append([name, other, radius if radius else 200.0])
     return [relics[k] for k in order]
 
 
-def relics_load(file_path, section_key="relics"):
+def relics_load(file_path, section_key="relics", content=None):
     """Read relics straight from an `.amd` file. The verb a mission actually wants.
 
     Without this every mission repeats the same three lines - load the document with the
@@ -259,9 +263,14 @@ def relics_load(file_path, section_key="relics"):
 
     Returns the records; they are registered too, so `relic_record(key)` finds them
     later on a story cue.
+
+    `content` is the text, for a caller that has already read it - an addon inside a
+    packaged `.mastlib` cannot open its own files by path, so it resolves them with its
+    own reader and hands the text over. `file_path` is still recorded as the source, so a
+    live editor reload knows what to re-read.
     """
     from sbs_utils.procedural.quest import document_get_amd_file
-    doc = document_get_amd_file(file_path,
+    doc = document_get_amd_file(file_path, content=content,
                                 data_parser=lambda t: amd_parse_facts(t, amd_relic_facts()))
     return relics_register(amd_section(doc, section_key),
                            source=file_path, section_key=section_key)
@@ -313,6 +322,52 @@ def relic_pos(record):
     """
     loc = record.get("loc")
     return [float(loc[0]), float(loc[1]), float(loc[2])] if loc else [0.0, 0.0, 0.0]
+
+
+def relic_place(record, x, y, z):
+    """Put a relic somewhere at RUNTIME, overriding its authored `Loc:`.
+
+    An `.amd` cannot know where a relic will stand when the world decides that late. An
+    Open Universe cell has a transient world origin - the same system lands at a different
+    slot on a different visit - so a galaxy relic has to be placed when the cell is built,
+    not when the file is read.
+
+    Every reader goes through `relic_pos`, so setting `loc` here moves the geometry, the
+    points, the contents and the containment together. Anything already built keeps the
+    position it was built at: place BEFORE `relic_volume`.
+
+    Takes the record (or a key) and returns it, so it reads as one step in a build.
+    """
+    if not isinstance(record, MastDataObject):
+        record = _RELIC_RECORDS.get(record)
+    if record is None:
+        return None
+    setattr(record, "loc", [float(x), float(y), float(z)])
+    return record
+
+
+def relic_release(key):
+    """Tear ONE relic down: stop its containment, drop its volume, forget what was armed.
+
+    The counterpart to building a relic into a world that comes and goes. A galaxy tears a
+    system down while the next one is already being built, so the whole-registry verbs
+    (`volume_clear`, `relics_clear`) are the wrong tools there - they would take the relic
+    the crew is currently inside.
+
+    The RECORD stays registered: the relic is a thing the mission still knows about and
+    may rebuild on the next visit. Objects are not deleted either - whoever tore the world
+    down did that, and a relic outliving its props is not this function's business.
+    """
+    rec = _RELIC_RECORDS.get(key)
+    name = rec.get("volume") if rec is not None else None
+    if name is None:
+        name = key
+    from .volume import volume_remove
+    removed = volume_remove(name)
+    relic_contents_clear(key)
+    if rec is not None:
+        setattr(rec, "contained", False)
+    return removed
 
 
 def relic_point(relic_key, name):
@@ -683,12 +738,40 @@ def _relic_place_contents(c):
     if c.get("item"):
         try:
             from .items import item_spawn
-            item_spawn(c["item"], pos[0], pos[1], pos[2], qty=int(c.get("qty") or 1))
+            obj = item_spawn(c["item"], pos[0], pos[1], pos[2],
+                             qty=int(c.get("qty") or 1))
+            _relic_mark_placed(obj, c)
         except Exception as e:
             log(f"relic contents: item '{c['item']}' at '{c['part']}' failed: {e}",
                 "relics", "warning")
     for phrase in (c.get("spawn") or []):
         _relic_spawn_phrase(phrase, pos, c)
+
+
+def _relic_mark_placed(obj, c):
+    """Give a placed thing the ROLES of the place it was placed, and its relic's key.
+
+    An author already says what a spot is for - `Roles: vault_door, relic_piece` - and
+    saying it twice, once for the marker and once for the thing sitting there, is how the
+    two drift apart. So the roles carry over, and the object knows which ruin it is in.
+
+    That second half is what makes "carry it OUT" answerable at all: the containment latch
+    tracks ships, and a thing on the end of a tether is not one, so the only way to ask
+    whether the treasure has left is to ask the treasure which ruin to measure against.
+    """
+    if obj is None:
+        return
+    for r in (c.get("roles") or []):
+        try:
+            obj.add_role(r)
+        except Exception:
+            pass
+    try:
+        from .inventory import set_inventory_value
+        set_inventory_value(obj.id, "relic_key", c.get("relic"))
+        set_inventory_value(obj.id, "relic_part", c.get("part"))
+    except Exception:
+        pass
 
 
 def _relic_spawn_phrase(phrase, pos, c):
@@ -831,10 +914,26 @@ def relic_contents_state(relic_key, part):
     return "placed" if rec.get("done") else "waiting"
 
 
-def relic_contents_clear():
-    """Forget what has been armed and placed (mission reset). Does not delete objects -
-    a mission reset tears the world down anyway."""
+def relic_contents_clear(relic_key=None):
+    """Forget what has been armed and placed. Does not delete objects.
+
+    With no key this is the mission reset: everything, including the signal observer and
+    the shared tick, since the world is going away anyway.
+
+    With a KEY it forgets one relic - the galaxy case, where a system is torn down while
+    other systems are still live. The observer and the tick stay, because the relics that
+    are still standing are still waiting on them.
+    """
     global _ARM_TASK
+    if relic_key is not None:
+        # Two key shapes live in _ARMED: a content record is (relic, part) and a role
+        # marker is ("marker", relic, point). Spelled out rather than indexed cleverly,
+        # because a filter that silently matched neither would leak the whole relic.
+        for k in [k for k in _ARMED
+                  if (len(k) == 2 and k[0] == relic_key)
+                  or (len(k) == 3 and k[1] == relic_key)]:
+            del _ARMED[k]
+        return
     _ARMED.clear()
     _SIGNALS_SEEN.clear()
     _ARM_TASK = None

@@ -17,6 +17,7 @@ from sbs_utils.procedural.volume import (
     volume_names, volume_count, volume_clear, volume_load, volume_box, volume_solid,
     volume_tier, volume_watch, volume_unwatch, volume_watching,
     volume_watch_count, volume_containment_tick, volume_anchor, volume_anchor_count,
+    volume_remove,
     TIER_INSIDE, TIER_SCRAPE, TIER_BREACH, volume_engaged,
     volume_surface_points, volume_inside_points, volume_solid_points,
 )
@@ -1283,3 +1284,52 @@ class TestPlacement(unittest.TestCase):
                                  f"{p} vs {q}")
                 self.assertAlmostEqual(volume_depth("one", p), volume_depth("two", q),
                                        places=4)
+
+
+class TestRemoveOneVolume(unittest.TestCase):
+    """`volume_remove` - the galaxy verb.
+
+    An Open Universe cell is built on arrival and torn down on departure, and the NEXT
+    cell is already being built while the last one comes down. So `volume_clear()` is the
+    wrong tool there: it would take the relic the crew is standing in.
+    """
+
+    def setUp(self):
+        from cosmos_dev.mock import sbs
+        from tests.reset_helper import reset_mock
+        self.sim = reset_mock(sbs)
+        from sbs_utils.procedural.spawn import player_spawn
+        from sbs_utils.procedural.query import to_object
+        self.ship = to_object(player_spawn(0, 0, 0, "Probe", "tsn", "tsn_light_cruiser"))
+        volume_define("here", chambers={"hub": (0, 0, 0, 1000)})
+        volume_define("there", chambers={"hub": (500000, 0, 0, 1000)})
+
+    def tearDown(self):
+        volume_clear()
+
+    def test_it_takes_one_and_leaves_the_other(self):
+        volume_watch("here")
+        volume_watch("there")
+        self.assertTrue(volume_remove("here"))
+        self.assertIsNone(volume_get("here"))
+        self.assertFalse(volume_watching("here"))
+        self.assertIsNotNone(volume_get("there"))
+        self.assertTrue(volume_watching("there"))
+
+    def test_removing_what_is_not_there_says_so(self):
+        self.assertFalse(volume_remove("no_such_volume"))
+
+    def test_a_held_ship_is_let_go(self):
+        # The failure this covers: a tractor hold is an anchor OBJECT plus a live engine
+        # connection, and neither belongs to the watcher's task. Dropping the task alone
+        # left a ship roped to an invisible post nothing would ever release - a ship that
+        # cannot fly, in a system that no longer exists.
+        from sbs_utils.procedural.space_objects import set_pos
+        volume_watch("here")
+        set_pos(self.ship.id, BREACH_X, 0, 0)
+        volume_containment_tick()
+        self.assertEqual(volume_anchor_count(), 1)
+        self.assertEqual(len(self.sim.tractor_connections), 1)
+        volume_remove("here")
+        self.assertEqual(volume_anchor_count(), 0)
+        self.assertEqual(dict(self.sim.tractor_connections), {})
