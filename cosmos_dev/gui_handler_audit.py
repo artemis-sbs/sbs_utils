@@ -99,9 +99,12 @@ def report(path=None):
     print(f"sites observed: {len(_sites)}   dead-builder: {len(dead)}")
     print(f"sampled: calls={_seen['calls']} clients={_seen['clients']} pages={_seen['pages']} tag-entries={_seen['entries']} "
           f"handler-nodes={_seen['nodes']} unresolvable={_seen['unkeyed']}")
-    for (f, line, label), v in sorted(dead.items(), key=lambda kv: str(kv[0])):
-        print(f"  DEAD {v['kind']:<16} {f}:{line}  label={label} "
-              f"({v['dead']}/{v['visible']} ticks)")
+    # Every site, not just the dead ones: runs are unioned by hand across maps
+    # and missions, and "which sites did this map even build?" is half of that.
+    for (f, line, label), v in sorted(_sites.items(), key=lambda kv: str(kv[0])):
+        mark = "DEAD" if v["dead"] else "live"
+        print(f"  {mark} {v['kind']:<16} {f}:{line}  label={label} "
+              f"({v['dead']}/{v['visible']} ticks dead)")
     if not dead:
         print("  no site was ever visible while its owning task was finished")
     print("=====================================")
