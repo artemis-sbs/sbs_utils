@@ -335,18 +335,45 @@ def delete_grid_object(spaceObjectID: int, gridObjID: int) -> None:
 def delete_object(ID: int) -> None:
     """deletes a space object by its ID
 
+    ANNOUNCES IT, the way the engine does. Measured in engine 1.3.5 with
+    LM_TestRange's `test_damage_routes` probe: deleting an object from script makes the
+    engine send `tag='damage', sub_tag='destroyed'` with no attacker - which fires BOTH
+    `//damage/destroy` (the lifetime half) and `//damage/object` (the damage half), for an
+    NPC, a PLAYER SHIP and a piece of terrain alike.
+
+    The mock used to remove the object in silence, so a headless run could not see any of
+    that: a mission whose cleanup quietly triggered its own destroy handling looked fine
+    until it reached the engine. Missions rely on this - LM's `damage/destroy.mast` reacts
+    to allied losses, and the over-count that came from deleting unused player slots is
+    the same event arriving where nobody expected it.
+
     Mock note: this deliberately does NOT reap that object's particle emitters.
     Whether the engine does is unverified, and leaving them is what gives the
     library's emitter janitor something to reconcile - reap them here and the
     test that proves the janitor works passes for the wrong reason.
     """
+    existed = _delete_object_quiet(ID)
+    if existed:
+        # No attacker: origin 0, victim = ID. A script delete is nobody's kill.
+        _pending_physics_events.put(("damage", "destroyed", 0, ID))
+
+
+def _delete_object_quiet(ID: int) -> bool:
+    """Remove an object WITHOUT announcing it. Returns whether it was there.
+
+    For the paths that have already queued their own `destroyed` event - a combat kill
+    announces the death and then removes the body, and announcing twice would fire every
+    destroy route twice for one death.
+    """
     global sim
-    if sim is not None:
-        with sim._lock:
-            sim.space_objects.pop(ID, None)
-            sim._active_ids.discard(ID)
-            sim._terrain_ids.discard(ID)
-        _orphan_clients_of_ship(ID)
+    if sim is None:
+        return False
+    with sim._lock:
+        existed = sim.space_objects.pop(ID, None) is not None
+        sim._active_ids.discard(ID)
+        sim._terrain_ids.discard(ID)
+    _orphan_clients_of_ship(ID)
+    return existed
 
 def delete_particle_emittor(emittorID: int) -> None:
     """deletes a particle emittor by ID.
@@ -3159,7 +3186,7 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0, kind: str = 
         _dmg(destroyed=True)
         _pending_physics_events.put(("station_killed", "", target_id, target_id))
         _bump_exciting(sim.space_objects.get(source_id), _EXCITE_KILL)
-        delete_object(target_id)
+        _delete_object_quiet(target_id)     # the death is already announced above
         return
 
     # NPC ship: distribute the hit as node damage across the 4 SHPSYS (filling the
@@ -3182,7 +3209,7 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0, kind: str = 
         _dmg(destroyed=True)
         _pending_physics_events.put(("npc_killed", "", target_id, target_id))
         _bump_exciting(sim.space_objects.get(source_id), _EXCITE_KILL)
-        delete_object(target_id)
+        _delete_object_quiet(target_id)     # the death is already announced above
     else:
         _dmg()
 

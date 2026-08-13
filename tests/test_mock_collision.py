@@ -143,7 +143,11 @@ class TestMockCollision(unittest.TestCase):
         self.assertEqual(self._tags(_drain()), ["interactive_collision_start"])
         sbs.delete_object(p_id)                                 # collected
         sbs._physics_collision(self.sim, [(a_id, a)])           # pickup gone
-        self.assertEqual(_drain(), [])                          # no end event
+        # No COLLISION event. The delete announces `damage`/`destroyed` of its own now
+        # (the engine does too), so this asks about collisions rather than about the
+        # whole queue - the blanket assertion was really testing that the mock deleted
+        # in silence, which the engine never did.
+        self.assertEqual([t for t in self._tags(_drain()) if "collision" in t], [])
 
     def test_ship_is_not_stopped_by_a_pickup(self):
         # A pickup must NOT physically stop or slow a ship: mock collision only emits

@@ -188,7 +188,11 @@ class TestMockProjectiles(unittest.TestCase):
         _drain()
         sbs.delete_object(tid)                            # target removed mid-flight
         sbs._physics_projectiles(self.sim, dt=0.5)
-        self.assertEqual([e for e in _drain() if e[0] == "damage"], [])
+        # No damage from the FIZZLE. The delete queues its own `damage`/`destroyed`
+        # (the engine does the same), so that one is filtered out: what this test is
+        # about is that a drone with nothing left to hit does not hit anything.
+        self.assertEqual([e for e in _drain()
+                          if e[0] == "damage" and e[1] != "destroyed"], [])
         self.assertEqual(len(sbs._projectiles), 0)
 
     def test_homing_reacquires_nearest_when_target_gone(self):
