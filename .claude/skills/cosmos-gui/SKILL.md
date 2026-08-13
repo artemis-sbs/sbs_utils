@@ -49,6 +49,9 @@ gotchas that **bite repeatedly** — read it before building a console or panel.
   Ugly-but-readable beats clever-but-cramped (the first Admiral-console review note).
 - **Prefer `on_press=` / `data=` on buttons** over loop-registered `on gui_message`
   (see the for-loop trap) — it's the reliable path for per-item handlers.
+- **A handler outlives nothing.** If the task that BUILT the widget ends, its
+  `on gui_message` block and `on_press=<label>` die with it — see "A handler dies
+  with the task that built it". Use `gui_message_callback` when in doubt.
 - **Size sections deliberately.** `gui_section(area: …)` in percent; give panels the
   space their content needs (a build-status panel wants real height, not a strip).
 - **Verify tiers in order:** `--test` (compiles / doesn't crash) → `--exercise`
@@ -201,6 +204,47 @@ Four contracts the build settled that are easy to get wrong:
   `lb.value`, `get_data_set_value(...)`, a function call). This is the repaint/watch
   hook.
 - Inject locals into a handler with `data={}`; the firing widget is `__ITEM__`.
+
+## A handler dies with the task that BUILT it (LM #707)
+
+A widget's handler belongs to the task that built the widget. `on gui_message(w):`
+compiles to an **inline block inside that task's label**, and `on_press=<label>` is a
+**jump on that task**. So a builder that was scheduled and then ended has taken its
+handlers with it:
+
+```
+    with gui_section("area:50,50,60,60;"):
+        await task_schedule(build_panel)     # <- this REQUIRES the builder to end
+    await gui()
+
+== build_panel ==
+    b = gui_button("Hello")
+    on gui_message(b):
+        print("never runs")
+    ->END                                    # <- and here the handler dies
+```
+
+`await task_schedule(...)` is self-defeating for this: the only way the parent
+resumes is for the builder to finish, which is exactly what destroys the handler.
+
+**Three ways out**, in order of preference:
+
+- **`gui_message_callback(widget, py_fn)`** — the only form with no task in the path
+  at all. `Column.on_message` calls it directly during the layout pass. Read state
+  from `widget.data`.
+- **Don't let the builder end** — park it (`--- loop / await delay_sim(1) / jump loop`)
+  and schedule it with `gui_sub_task_schedule` (NOT `await task_schedule`, which
+  would block the parent forever). It then dies with the page.
+- **Build in the GUI label itself**, where the task stays alive in `await gui()`.
+
+Since 2026-08-12 this is no longer silent: a click that lands on a finished task
+logs a warning once per source site to `mast.runtime.log` naming the site and
+`gui_message_callback`. `--audit-gui-handlers` reports which of a mission's handler
+sites have a finished builder, without needing anyone to click.
+
+`//gui/<console>` and comms route bodies are this case **by construction** — their
+builder is polled to completion while the panel is drawn — unless the body itself
+awaits.
 
 ## The for-loop handler trap (bites every time)
 
