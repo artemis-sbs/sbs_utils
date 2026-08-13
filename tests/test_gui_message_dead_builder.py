@@ -627,6 +627,51 @@ class TestRepeatClicks(_Fixed):
         self.assertNotIn(builder.id, Agent.all, "and not accumulate in the registry")
 
 
+SELF_TICKING_PANEL = """
+jump repaint
+
+== repaint ==
+    gui_section("area: 5,5,95,95;")
+    gui_row()
+    b = gui_button("Press")
+    on gui_message(b):
+        probe_hit("pressed")
+    await gui(timeout=delay_sim(seconds=1))
+    probe_hit("tick")
+    jump repaint
+"""
+
+
+class TestSelfTickingPanel(_Fixed):
+    """The user-visible face of the inline-block pop.
+
+    A panel that repaints itself -- a live countdown, a refreshing status --
+    only advances because the task comes back to `await gui(timeout=...)`. A
+    handler block that falls off its end used to park the task on the block's
+    end node, so ONE press froze the panel permanently.
+
+    Measured: without the pop, self-ticks after a press go 3 -> 0. With it, the
+    panel keeps ticking.
+
+    Note what HIDES this: an `on signal ...:` block ending in `jump` escapes
+    before reaching the end node and un-parks the task. LegendaryMissions'
+    items/item_gui.mast has exactly that, which is why its Activate countdown
+    kept working either way -- and why this shape, not that one, is the
+    regression test.
+    """
+
+    def test_a_press_does_not_freeze_the_self_tick(self):
+        self.start(SELF_TICKING_PANEL)
+        self.present(4)
+        before = HITS.count("tick")
+        self.assertGreater(before, 0, "the panel must be self-ticking to begin with")
+        self.click()
+        self.present(6)
+        self.assertGreater(HITS.count("tick") - before, 0,
+                           "pressing a button must not stop the panel repainting")
+        self.assertIn("pressed", HITS)
+
+
 class TestReviveRefusals(_Fixed):
     """A task that died badly stays dead."""
 
