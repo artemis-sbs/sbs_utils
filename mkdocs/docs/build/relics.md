@@ -206,6 +206,119 @@ marker_point(*relic_point("ossuary", "mouth"), "The Ossuary")
 `relic_points("ossuary", "spawn")` gives every point with a role, for when there are
 several.
 
+## What is in it
+
+A relic can hold things, and say when they turn up. That is the half of a ruin the plan
+view cannot show you: the Red Beacon in the vault, the power cells on the shaft floor, the
+raiders that wake when you reach the core.
+
+Contents hang off the **part they are at**. A point names a spot; a chamber means
+"somewhere in this room".
+
+```
+### [the reliquary](cache)
+---
+Relic: ossuary
+Point: 4651, 0, 3188
+Item: red_beacon
+Qty: 1
+Starts when: reach vault_door 900
+---
+Something worth the trip. Nothing here until the crew reaches the vault door.
+```
+
+| field | means |
+|---|---|
+| `Item:` | an authored item is found here - a key from the `Items` section |
+| `Qty:` | how many of it |
+| `Spawn:` | what wakes up here - `raider x2`, `skaraan 4` |
+| `Starts when:` | when any of it appears. Leave it out and it is simply there |
+
+`Item:` is a **reference**, not free text, so a typo is a lint error with a line number
+rather than a beacon that never appears:
+
+```
+  relic-unknown-item  `cache` holds `red_becon`, which is not a defined item
+```
+
+### When it appears
+
+`Starts when:` is the **same trigger grammar quests use** - not a second way to say the
+same thing. A relic watches three of its phrases:
+
+| phrase | fires when |
+|---|---|
+| `reach <role> [radius]` | a player comes within `radius` of anything holding that role (default 900) |
+| `signal <name>` | `signal_emit("<name>")` runs, whoever emits it |
+| `<n> minutes` / `<n> seconds` | that long after the relic was armed |
+| *(nothing)* | placed immediately - the common case |
+
+Anything else parses, but a relic cannot evaluate it, so `sbs lint` refuses it rather than
+letting you wait for a beacon that is never coming:
+
+```
+  relic-when-unwatchable  a relic cannot watch for 'accepted' - it understands reach,
+                          signal and a delay; contents with this phrase would never appear
+```
+
+### Giving `reach` something to measure
+
+`reach` measures against **objects holding a role**, and a point is only a place until
+something is standing on it. Arming does that for you: every point carrying `Roles:` gets
+an invisible, selectable marker with those roles.
+
+So the trigger above needs one more part, and nothing else:
+
+```
+### [the vault door](vault_door)
+---
+Relic: ossuary
+Point: 2682, 0, 2482
+Roles: vault_door
+---
+```
+
+### Arming it
+
+The mission writes one line:
+
+```
+relic_items()                      # if the items live in the same .amd - see below
+relic_contents_arm("ossuary")
+```
+
+Contents with no trigger are placed now; the rest wait on their phrase. Each record is
+placed **once**, keyed by its part, so re-arming - or a live preview reload - does not
+litter the ruin with a second beacon. The return value is how many are still waiting.
+
+It stays an explicit call rather than something `relics_build` does by itself: a mission
+may want the relic standing with nothing in it yet, and loot that spawns as a side effect
+of loading geometry is the kind of thing nobody can find later.
+
+**Items are declared separately.** `Items` is its own section with its own reader, so the
+mission joins the two:
+
+```python
+from sbs_utils.procedural.amd_items import items_declare_amd
+from sbs_utils.procedural.amd_doc import amd_section
+items_declare_amd(amd_section(doc, "items"))
+```
+
+### Asking what is where
+
+```
+relic_contents("ossuary")                    # every record, with its world position
+relic_contents_state("ossuary", "cache")     # "placed" | "waiting" | "unarmed"
+```
+
+`waiting` and `unarmed` both look like "the loot is not there", and only one of them is a
+bug - which is why they are different words.
+
+**In the editor:** select a part and fill in **item**, **qty**, **spawn** and **when** at
+the bottom of the properties panel. The item box completes from the file's own `Items`
+section. A part that holds something is marked in the view, so "which rooms are furnished"
+is answerable at a glance instead of by clicking through every part.
+
 ## The way in, and who gets held
 
 **Containment only applies to a ship that has been inside**, and lets go once it is a whole
@@ -225,8 +338,9 @@ inside one.
 
 `sbs lint` catches the faults that are otherwise silent — a `Passage to:` naming a chamber
 that does not exist, a part naming a relic that does not exist, a radius of zero, a
-`Chamber:` with too few numbers. All of them build *something*, just not what you wrote,
-so they surface as a pathfinding bug rather than a typo.
+`Chamber:` with too few numbers, an `Item:` naming nothing, a `Starts when:` a relic
+cannot watch. All of them build *something*, just not what you wrote, so they surface as a
+pathfinding bug - or an empty room - rather than a typo.
 
 ## Looking at one
 

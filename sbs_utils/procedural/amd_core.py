@@ -450,6 +450,15 @@ def _extract_data_refs(node, fence_lines):
         node.refs.extend(_token_spans(fence_lines, "Drops", amd_drop_keys(drops),
                                       key, "drop"))
 
+    # `Item: red_beacon` on a relic part - the same question `Drops:` asks, so it gets a
+    # ref of its own kind and the same item-universe check. A typo here is a beacon that
+    # never appears, and free text would make it silent.
+    item = _di(data, "Item")
+    if item:
+        r = _token_span(fence_lines, "Item", str(item).strip(), key, "item")
+        if r:
+            node.refs.append(r)
+
 
 def _is_top_level(node):
     """True when nothing but the synthetic root is above this node - the flat-file shape

@@ -134,6 +134,10 @@ def reset_mission_state():
     # would still answer relic_record() in this one.
     from .procedural.amd_relics import relics_clear
     relics_clear()
+    # Signal OBSERVERS - library watchers registered on signal_emit. A relic's contents
+    # watcher registers one, and it holds a reference into the last mission's records.
+    from .procedural.signal import signal_observers_clear
+    signal_observers_clear()
     from .procedural.amd_drops import drops_clear
     drops_clear()
     # Grav tethers. The engine holds the connections and _TETHERS holds the enforcement
@@ -317,6 +321,8 @@ from .procedural.volume import volume_anchor_count as _volume_anchor_count
 register_reset_state("volume anchors", _volume_anchor_count)
 from .procedural.amd_relics import relics_count as _relics_count
 register_reset_state("relic records", _relics_count)
+from .procedural.amd_relics import relic_contents_count as _relic_contents_count
+register_reset_state("relic contents", _relic_contents_count)
 from .procedural.grav_tether import _TETHERS as _GRAV_TETHERS
 register_reset_state("grav tethers",       lambda: len(_GRAV_TETHERS))
 from .procedural.modifiers import modifiers_count

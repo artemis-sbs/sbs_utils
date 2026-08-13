@@ -51,6 +51,7 @@ from sbs_utils.procedural.volume import (
     HOLD_TRACTOR, HOLD_CLAMP, HOLD_NONE,
 )
 from sbs_utils.procedural.signal import signal_emit
+from sbs_utils.procedural.execution import log
 from sbs_utils.mast.mast_node import MastDataObject
 
 # Declared relic records by key, so a relic can be BUILT later on a story cue rather than
@@ -131,6 +132,18 @@ def amd_relic_facts():
             data["point"] = nums[:3] if len(nums) >= 3 else None
         elif label == "roles":
             data["roles"] = [w.strip().lower() for w in str(value).split(",") if w.strip()]
+        elif label == "item":
+            data["item"] = str(value).strip()
+        elif label == "qty":
+            nums = _amd_relic_numbers(value)
+            data["qty"] = int(nums[0]) if nums else 1
+        elif label == "spawn":
+            data["spawn"] = [w.strip() for w in str(value).split(",") if w.strip()]
+        elif label in ("starts when", "starts_when", "when"):
+            # Stored RAW. Parsing is amd_quest.amd_trigger's job, and it is imported at
+            # arm time rather than here so a relic file still reads without the quest
+            # layer loaded.
+            data["starts_when"] = str(value).strip()
         elif label in ("scrape band", "scrape_band", "margin", "seed"):
             nums = _amd_relic_numbers(value)
             data[label.replace(" ", "_")] = nums[0] if nums else None
@@ -194,6 +207,7 @@ def relics_from_section(section, source=None, section_key=None):
             "boxes": {},
             "solids": [],
             "points": {},
+            "contents": [],
             "parts": [],
             "data": data,   # carry the raw fence for mission-specific extras
         })
@@ -218,6 +232,17 @@ def relics_from_section(section, source=None, section_key=None):
             # reads, because the library has no opinion about what gets put there.
             pt = data["point"]
             rec.points[name] = [pt[0], pt[1], pt[2], data.get("roles") or []]
+        # CONTENTS may hang off any part - a point marks a spot, but a chamber carrying
+        # `Item:` means "somewhere in this room", which is how an author thinks about a
+        # ruin. The position is resolved at arm time, from whichever part it is on.
+        if data.get("item") or data.get("spawn"):
+            rec.contents.append({
+                "part": name,
+                "item": data.get("item"),
+                "qty": int(data.get("qty") or 1),
+                "spawn": data.get("spawn") or [],
+                "starts_when": data.get("starts_when"),
+            })
         for other, radius in (data.get("passage_to") or []):
             rec.passages.append([name, other, radius if radius else 200.0])
     return [relics[k] for k in order]
@@ -479,11 +504,356 @@ def relics_reload_all():
     return out
 
 
+# ---------------------------------------------------------------------------
+# CONTENTS - what is in a relic, and when it appears.
+#
+# An author writing an adventure module writes "the vault holds the Red Beacon", not a
+# spawn call. So contents hang off the part they are at, and WHEN they appear reuses the
+# trigger grammar quests already use - `Starts when:` - rather than inventing a second way
+# to say the same thing.
+#
+# Nothing here is automatic. A mission calls `relic_contents_arm(key)` once; magic that
+# spawns loot as a side effect of loading geometry is the kind of thing nobody can find
+# later.
+# ---------------------------------------------------------------------------
+
+# Armed content records, by (relic key, part name). Per-mission, so it is on the reset
+# ledger with everything else.
+_ARMED = {}
+_ARM_TASK = None
+
+
+def relic_contents(relic_key):
+    """Every authored content record for a relic, with its world position resolved.
+
+    `[{part, item, qty, spawn, starts_when, pos}]`. The position comes from whichever part
+    carries it - a point marks a spot, a chamber means "somewhere in this room" and
+    resolves to its centre.
+    """
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        return []
+    base = relic_pos(rec)
+    out = []
+    for c in (rec.get("contents") or []):
+        pos = _relic_part_pos(rec, c["part"], base)
+        if pos is None:
+            continue
+        d = dict(c)
+        d["pos"] = pos
+        out.append(d)
+    return out
+
+
+def _relic_part_pos(rec, name, base=None):
+    """Where a named part is, in world coordinates - point, chamber or box."""
+    if base is None:
+        base = relic_pos(rec)
+    pt = (rec.get("points") or {}).get(name)
+    if pt is not None:
+        return (base[0] + pt[0], base[1] + pt[1], base[2] + pt[2])
+    ch = (rec.get("chambers") or {}).get(name)
+    if ch is not None:
+        return (base[0] + ch[0], base[1] + ch[1], base[2] + ch[2])
+    bx = (rec.get("boxes") or {}).get(name)
+    if bx is not None:
+        return (base[0] + bx[0], base[1] + bx[1], base[2] + bx[2])
+    return None
+
+
+def relic_contents_arm(relic_key, radius_default=900.0):
+    """Arm a relic's authored contents. Returns how many are waiting on a trigger.
+
+    Three things happen, in this order:
+
+    1. Every point carrying `Roles:` gets a **role marker** - an invisible, selectable
+       object at that spot holding those roles. That is what makes `Starts when: reach
+       <role>` work at all, since the quest driver's reach test measures against OBJECTS
+       holding a role, and it is the plumbing an author should never have to think about.
+    2. Contents with no trigger are placed now. That is the common case - a ruin with
+       things in it - and it needs no word in the file.
+    3. The rest are armed and checked by ONE shared tick, in the pattern
+       `quest_tick_reach` established: a watcher per item would be the same work done
+       many times.
+
+    Idempotent by (relic, part): re-arming, or a live reload, places nothing twice.
+    """
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        return 0
+    _relic_place_role_markers(rec, relic_key)
+    waiting = 0
+    for c in relic_contents(relic_key):
+        key = (relic_key, c["part"])
+        if key in _ARMED:
+            continue
+        trig = _relic_trigger(c.get("starts_when"))
+        if trig is None:
+            _relic_place_contents(c)
+            _ARMED[key] = {"done": True}
+            continue
+        kind = trig[0] if isinstance(trig, (list, tuple)) else None
+        if kind not in RELIC_TRIGGERS:
+            # It parsed, so lint would have caught it - but a mission can be run without
+            # linting, and a phrase that never fires is invisible at runtime. Say so once,
+            # here, rather than leaving an author to wonder where the beacon went.
+            log(f"relic '{relic_key}': '{c['part']}' waits on "
+                f"'{c.get('starts_when')}', which a relic cannot watch - its contents "
+                f"will never appear", "relics", "warning")
+        _ARMED[key] = {"done": False, "trig": trig, "content": c,
+                       "radius_default": radius_default}
+        waiting += 1
+    _relic_arm_tick()
+    return waiting
+
+
+def _relic_trigger(phrase):
+    """Parse a `Starts when:` phrase, or None when there is none.
+
+    Uses the quest layer's own parser, so the vocabulary is the one the author already
+    knows. An unevaluable phrase is NOT silently swallowed - `relic_contents_can_trigger`
+    is what lint calls to say so before the mission ever runs.
+    """
+    if not phrase:
+        return None
+    try:
+        from .amd_quest import amd_trigger
+    except Exception:
+        return None
+    try:
+        got = amd_trigger(phrase)
+    except Exception:
+        return None
+    return got or None
+
+
+# The phrases this watcher knows how to answer. Anything else parses fine and would simply
+# never fire, so lint refuses it rather than letting an author wait for a beacon that is
+# never coming.
+RELIC_TRIGGERS = ("on_reach", "on_signal", "after")
+
+
+def relic_contents_can_trigger(phrase):
+    """True when `phrase` is one this can actually evaluate. What lint asks."""
+    trig = _relic_trigger(phrase)
+    if trig is None:
+        return not phrase
+    kind = trig[0] if isinstance(trig, (list, tuple)) else None
+    return kind in RELIC_TRIGGERS
+
+def _relic_place_role_markers(rec, relic_key):
+    """Spawn an invisible, selectable marker at every point carrying `Roles:`.
+
+    This is the plumbing behind `Starts when: reach <role>`. The quest driver's reach test
+    measures a player against OBJECTS HOLDING A ROLE, so a role written on a point is only
+    half the sentence until something is standing there. An author should never have to
+    know that, so arming supplies the other half.
+
+    Marked with `relic_marker` and keyed by (relic, part) so a reload replaces rather than
+    accumulates - the same identity rule the contents use.
+    """
+    from .markers import marker_object
+    base = relic_pos(rec)
+    for name, pt in (rec.get("points") or {}).items():
+        roles = pt[3] or []
+        if not roles:
+            continue
+        key = ("marker", relic_key, name)
+        if key in _ARMED:
+            continue
+        try:
+            obj = marker_object(base[0] + pt[0], base[1] + pt[1], base[2] + pt[2],
+                                name, roles=",".join(["relic_marker"] + list(roles)))
+        except Exception as e:
+            log(f"relic '{relic_key}': could not mark point '{name}': {e}",
+                "relics", "warning")
+            continue
+        _ARMED[key] = {"done": True, "id": getattr(obj, "id", None)}
+
+
+def _relic_place_contents(c):
+    """Put one content record in the world: its item, then its spawns.
+
+    Failures are logged and stepped over rather than raised. Half a placed ruin beats a
+    tick that dies on the first unregistered key and silently places nothing after it.
+    """
+    pos = c.get("pos")
+    if pos is None:
+        return
+    if c.get("item"):
+        try:
+            from .items import item_spawn
+            item_spawn(c["item"], pos[0], pos[1], pos[2], qty=int(c.get("qty") or 1))
+        except Exception as e:
+            log(f"relic contents: item '{c['item']}' at '{c['part']}' failed: {e}",
+                "relics", "warning")
+    for phrase in (c.get("spawn") or []):
+        _relic_spawn_phrase(phrase, pos, c)
+
+
+def _relic_spawn_phrase(phrase, pos, c):
+    """`raider x2`, `skaraan 4`, `raider` - the `Guards:` grammar, one entry.
+
+    Scattered rather than stacked: several NPCs on one point would spawn inside each
+    other. The spread is small on purpose - they should read as being IN the room the
+    author put them in, not near it.
+    """
+    import random
+    words = [w for w in str(phrase).replace("x", " ").split() if w]
+    count, race = 1, None
+    for w in words:
+        if w.isdigit():
+            count = int(w)
+        elif race is None:
+            race = w
+    if not race:
+        return
+    try:
+        from .spawn import npc_spawn
+    except Exception:
+        return
+    rnd = random.Random(hash((c.get("part"), race)) & 0xFFFF)
+    for i in range(max(1, count)):
+        j = (pos[0] + rnd.uniform(-120, 120), pos[1] + rnd.uniform(-60, 60),
+             pos[2] + rnd.uniform(-120, 120))
+        try:
+            npc_spawn(j[0], j[1], j[2], "", race, "", "behav_npcship")
+        except Exception as e:
+            log(f"relic contents: spawn '{phrase}' at '{c.get('part')}' failed: {e}",
+                "relics", "warning")
+            return
+
+
+# ---------------------------------------------------------------------------
+# The watcher.
+#
+# ONE tick for every armed record in every relic, in the pattern quest_tick_reach
+# established - a watcher per item is the same work done many times over. Signals do not
+# poll at all: they arrive on an observer and set a flag the tick reads, so a signal that
+# fires and is gone between two ticks is not missed.
+# ---------------------------------------------------------------------------
+_SIGNALS_SEEN = set()
+
+
+def _relic_signal_observer(name, data=None):
+    _SIGNALS_SEEN.add(str(name))
+
+
+def _relic_arm_tick():
+    """Start the shared tick, once, and only while something is waiting on it."""
+    global _ARM_TASK
+    if _ARM_TASK is not None:
+        return
+    from .signal import signal_observe
+    # The observer goes on FIRST and unconditionally. A signal fired before the tick
+    # exists still has to be remembered, or a relic armed early misses its own trigger.
+    signal_observe(_relic_signal_observer)
+    from ..tickdispatcher import TickDispatcher
+    try:
+        _ARM_TASK = TickDispatcher.do_interval(_relic_contents_tick, 1)
+    except Exception:
+        # No sim yet. Arming is legal here (a mission may arm as it loads) and the next
+        # arm starts the tick, so this is a retry rather than a failure.
+        _ARM_TASK = None
+
+
+def _relic_contents_tick(t=None):
+    """Place every armed record whose trigger has now fired."""
+    pending = [(k, v) for k, v in _ARMED.items() if not v.get("done")]
+    if not pending:
+        return
+    for key, rec in pending:
+        if _relic_trigger_fired(rec):
+            _relic_place_contents(rec["content"])
+            rec["done"] = True
+
+
+def _relic_trigger_fired(rec):
+    kind, args = rec["trig"][0], (rec["trig"][1] or {})
+    if kind == "on_signal":
+        return str(args.get("name")) in _SIGNALS_SEEN
+    if kind == "after":
+        return _relic_timer_done(rec, args)
+    if kind == "on_reach":
+        return _relic_reached(rec, args)
+    return False
+
+
+def _relic_timer_done(rec, args):
+    """`5 minutes` - measured from the moment the record was ARMED, not from mission
+    start, so a relic armed late still gives its full delay."""
+    from ..helpers import FrameContext
+    now = FrameContext.sim_seconds
+    if now is None:
+        return False
+    if "t0" not in rec:
+        rec["t0"] = now
+        return False
+    secs = float(args.get("seconds") or 0) + float(args.get("minutes") or 0) * 60.0
+    return (now - rec["t0"]) >= secs
+
+
+def _relic_reached(rec, args):
+    """The same test quest_tick_reach runs: any player within radius of any object
+    holding the role."""
+    from .query import to_object_list
+    from .roles import role
+    want = args.get("role")
+    if not want:
+        return False
+    players = to_object_list(role("__player__"))
+    if not players:
+        return False
+    targets = to_object_list(role(str(want)))
+    if not targets:
+        return False
+    radius = float(args.get("radius") or rec.get("radius_default") or 900.0)
+    r2 = radius * radius
+    for p in players:
+        pp = p.pos
+        for t in targets:
+            tp = t.pos
+            dx, dy, dz = pp.x - tp.x, pp.y - tp.y, pp.z - tp.z
+            if dx * dx + dy * dy + dz * dz <= r2:
+                return True
+    return False
+
+
+def relic_contents_state(relic_key, part):
+    """`"placed"`, `"waiting"` or `"unarmed"` for one content record.
+
+    What a report or a test asks. Distinguishing WAITING from UNARMED matters: both look
+    like "the loot is not there", and only one of them is a bug.
+    """
+    rec = _ARMED.get((relic_key, part))
+    if rec is None:
+        return "unarmed"
+    return "placed" if rec.get("done") else "waiting"
+
+
+def relic_contents_clear():
+    """Forget what has been armed and placed (mission reset). Does not delete objects -
+    a mission reset tears the world down anyway."""
+    global _ARM_TASK
+    _ARMED.clear()
+    _SIGNALS_SEEN.clear()
+    _ARM_TASK = None
+    from .signal import signal_unobserve
+    signal_unobserve(_relic_signal_observer)
+
+
 def relics_clear():
     """Drop every registered relic record. Called by reset_mission_state()."""
     _RELIC_RECORDS.clear()
+    relic_contents_clear()
 
 
 def relics_count():
     """Number of registered relic records. The reset-ledger probe."""
     return len(_RELIC_RECORDS)
+
+
+def relic_contents_count():
+    """How many content records are armed. The reset-ledger probe - an armed record that
+    survives a mission reset would place loot in the NEXT mission."""
+    return len(_ARMED)

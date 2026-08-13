@@ -624,6 +624,21 @@ RELIC = {
     "passage to": text(hint="hub 300, gallery 240"),
     "point": text(hint="x, y, z   - a named place: an item, a spawn, the way in"),
     "roles": csv(hint="entrance, item, spawn   - what this point is FOR"),
+    # -- what is AT a part, and when it appears
+    #
+    # `item` is a reference rather than free text on purpose: a typo in `Roles:` is
+    # silent, while an unresolvable ref is a lint error with a line number. It names a
+    # record in the mission's `Items` section, which amd_items already reads.
+    "item": field(ref("node", hint="red_beacon   - a record in the Items section"),
+                  doc="An authored item is found here."),
+    "qty": integer(hint="how many of it"),
+    "spawn": csv(hint="raider x2, skaraan 4   - what wakes up here"),
+    # THE SAME trigger grammar quests use, not a second one. Absent means it is simply
+    # there from the start, which is the common case and needs no word.
+    "starts when": field(trigger(hint="reach vault_door 900 | signal X | 5 minutes"),
+                         key="when", aka=("when",),
+                         doc="When the contents appear. Without it they are there from "
+                             "the moment the relic is armed."),
 }
 
 

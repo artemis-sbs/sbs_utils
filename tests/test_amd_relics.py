@@ -17,7 +17,33 @@ from sbs_utils.procedural.amd_relics import (
     relic_volume, relics_clear, relics_count, amd_relic_data, amd_relic_facts,
     relics_load, relic_reload, relics_reload_all, relic_volume_name, relic_contain,
     relic_point, relic_points, relic_point_roles,
+    relic_contents, relic_contents_arm, relic_contents_can_trigger,
+    relic_contents_clear,
 )
+# The live half of these tests needs a sim: markers are real objects and `reach` is a
+# real distance between them.
+from cosmos_dev.mock import sbs
+from sbs_utils.helpers import FrameContext, Context
+from sbs_utils.spaceobject import SpaceObject
+from sbs_utils.delete_queue import DeleteQueue
+from sbs_utils.procedural.roles import role
+from sbs_utils.procedural.query import to_object_list
+from sbs_utils.procedural.spawn import player_spawn
+from sbs_utils.procedural.space_objects import set_pos
+
+
+class FakeEvent:
+    """The minimum an event needs to be: a client id and empty tags."""
+    client_id = 0
+    tag = ""
+    sub_tag = ""
+    value_tag = ""
+    origin_id = 0
+    selected_id = 0
+    parent_id = 0
+    sub_float = 0.0
+
+
 from sbs_utils.procedural.volume import (
     volume_contains, volume_depth, volume_path, volume_get, volume_clear,
     volume_watching, volume_watch,
@@ -625,3 +651,270 @@ Chamber: 0, 0, 0, 100
 
 if __name__ == "__main__":
     unittest.main()
+
+
+CONTENTS_DOC = """
+# [Contents Test](contentstest)
+
+## [Relics](relics)
+
+### [The Ossuary](ossuary)
+---
+Loc: 1000, 0, 2000
+---
+
+### [vault](vault)
+---
+Relic: ossuary
+Chamber: 400, 0, 0, 300
+---
+
+### [the reliquary](cache)
+---
+Relic: ossuary
+Point: 400, 0, 0
+Item: red_beacon
+Qty: 2
+Starts when: reach vault_door 900
+---
+
+### [the vault door](vaultmark)
+---
+Relic: ossuary
+Point: 100, 0, 0
+Roles: vault_door
+---
+
+### [the shaft floor](floor)
+---
+Relic: ossuary
+Point: 0, -200, 0
+Item: power_cell
+---
+
+### [the ambush](ambush)
+---
+Relic: ossuary
+Point: 0, 0, 500
+Spawn: raider x2
+Starts when: signal woke_up
+---
+"""
+
+
+class TestContentsParsing(unittest.TestCase):
+    """The AMD side: what an author writes becomes content records on the relic."""
+
+    def setUp(self):
+        relics_clear()
+        volume_clear()
+
+    def _rec(self):
+        relics_register(_section(CONTENTS_DOC))
+        return relic_record("ossuary")
+
+    def test_contents_hang_off_the_part_that_carries_them(self):
+        self._rec()
+        got = {c["part"]: c for c in relic_contents("ossuary")}
+        self.assertEqual(sorted(got), ["ambush", "cache", "floor"])
+        self.assertEqual(got["cache"]["item"], "red_beacon")
+        self.assertEqual(got["cache"]["qty"], 2)
+        self.assertEqual(got["ambush"]["spawn"], ["raider x2"])
+        # A part with neither is not a content record at all.
+        self.assertNotIn("vaultmark", got)
+
+    def test_a_position_is_resolved_relative_to_the_relic(self):
+        # The whole reason contents belong to the relic: move the ruin and its loot
+        # moves with it. Loc is 1000, 0, 2000 and the point is 400, 0, 0.
+        self._rec()
+        got = {c["part"]: c for c in relic_contents("ossuary")}
+        self.assertEqual(tuple(got["cache"]["pos"]), (1400.0, 0.0, 2000.0))
+
+    def test_contents_may_hang_off_a_chamber_not_only_a_point(self):
+        doc = CONTENTS_DOC.replace(
+            "Chamber: 400, 0, 0, 300", "Chamber: 400, 0, 0, 300" + NL + "Item: torch")
+        relics_register(_section(doc))
+        got = {c["part"]: c for c in relic_contents("ossuary")}
+        self.assertIn("vault", got)                       # a room, not a point
+        self.assertEqual(tuple(got["vault"]["pos"]), (1400.0, 0.0, 2000.0))
+
+    def test_a_trigger_is_stored_raw_and_absence_means_no_trigger(self):
+        self._rec()
+        got = {c["part"]: c for c in relic_contents("ossuary")}
+        self.assertEqual(got["cache"]["starts_when"], "reach vault_door 900")
+        self.assertIsNone(got["floor"]["starts_when"])
+
+
+class TestTriggerVocabulary(unittest.TestCase):
+    """What the watcher will and will not answer - the claim lint makes."""
+
+    def test_the_phrases_a_relic_can_watch(self):
+        for phrase in ("reach vault_door 900", "signal woke_up", "5 minutes"):
+            self.assertTrue(relic_contents_can_trigger(phrase), phrase)
+
+    def test_a_phrase_it_cannot_watch_is_reported_not_swallowed(self):
+        # `accepted` is a QUEST concept - a thing sitting in a room is never accepted -
+        # so it parses fine and would silently never fire. Lint refuses it.
+        self.assertFalse(relic_contents_can_trigger("accepted"))
+        self.assertFalse(relic_contents_can_trigger("destroy 6 raiders"))
+
+    def test_no_phrase_at_all_is_fine(self):
+        self.assertTrue(relic_contents_can_trigger(None))
+        self.assertTrue(relic_contents_can_trigger(""))
+
+
+class TestArming(unittest.TestCase):
+    """Placement. The mock stands in for item_spawn/npc_spawn so the test is about WHEN
+    a thing is placed, not about what the spawn call does."""
+
+    def setUp(self):
+        relics_clear()
+        volume_clear()
+        relic_contents_clear()
+        self.placed = []
+        self.marks = []
+        import sbs_utils.procedural.amd_relics as R
+        self.R = R
+        self._place, self._marks = R._relic_place_contents, R._relic_place_role_markers
+        R._relic_place_contents = lambda c: self.placed.append(c["part"])
+        R._relic_place_role_markers = lambda rec, key: self.marks.append(key)
+        R._ARM_TASK = None
+        relics_register(_section(CONTENTS_DOC))
+
+    def tearDown(self):
+        self.R._relic_place_contents = self._place
+        self.R._relic_place_role_markers = self._marks
+        relic_contents_clear()
+
+    def test_untriggered_contents_are_placed_at_once(self):
+        # The common case - a ruin with things in it - and it needs no word in the file.
+        waiting = relic_contents_arm("ossuary")
+        self.assertEqual(self.placed, ["floor"])
+        self.assertEqual(waiting, 2)
+
+    def test_arming_twice_places_nothing_twice(self):
+        # A live reload re-arms. Littering the ruin with a second beacon every time the
+        # author saves is the failure this identity rule exists to prevent.
+        relic_contents_arm("ossuary")
+        relic_contents_arm("ossuary")
+        self.assertEqual(self.placed, ["floor"])
+
+    def test_a_signal_places_its_record_once_and_only_once(self):
+        from sbs_utils.procedural.signal import signal_emit
+        relic_contents_arm("ossuary")
+        self.R._relic_contents_tick()
+        self.assertNotIn("ambush", self.placed)      # nothing has happened yet
+        signal_emit("woke_up")
+        self.R._relic_contents_tick()
+        self.assertIn("ambush", self.placed)
+        self.R._relic_contents_tick()                # the signal is still remembered
+        self.assertEqual(self.placed.count("ambush"), 1)
+
+    def test_a_signal_between_two_ticks_is_not_missed(self):
+        # Signals are observed, not polled. A signal emitted and gone inside one tick
+        # interval would be invisible to a watcher that asked "is it firing now".
+        from sbs_utils.procedural.signal import signal_emit
+        relic_contents_arm("ossuary")
+        signal_emit("woke_up")
+        signal_emit("something_else")
+        self.R._relic_contents_tick()
+        self.assertIn("ambush", self.placed)
+
+    def test_reach_places_nothing_until_a_player_is_inside_the_radius(self):
+        relic_contents_arm("ossuary")
+        rec = [v for k, v in self.R._ARMED.items()
+               if not v.get("done") and v.get("content", {}).get("part") == "cache"][0]
+        # No player and no marker: the trigger cannot fire, and must not.
+        self.assertFalse(self.R._relic_trigger_fired(rec))
+
+
+class TestContentsLint(unittest.TestCase):
+    def _lint(self, content):
+        # Lint reads the RAW document (amd_core.parse), not the fact-parsed one - it
+        # reports line numbers, so it needs the text as written.
+        from sbs_utils.procedural.amd_lint import amd_lint_relics
+        from sbs_utils.procedural.amd_core import parse
+        return amd_lint_relics(parse(content))
+
+    def test_an_unwatchable_phrase_is_flagged_with_its_line(self):
+        doc = CONTENTS_DOC.replace("Starts when: reach vault_door 900",
+                                   "Starts when: accepted")
+        codes = [f.code for f in self._lint(doc)]
+        self.assertIn("relic-when-unwatchable", codes)
+
+    def test_a_watchable_phrase_is_clean(self):
+        codes = [f.code for f in self._lint(CONTENTS_DOC)]
+        self.assertNotIn("relic-when-unwatchable", codes)
+
+    def test_a_trigger_with_nothing_to_trigger_is_flagged(self):
+        doc = CONTENTS_DOC.replace("Roles: vault_door",
+                                   "Roles: vault_door" + NL + "Starts when: signal x")
+        codes = [f.code for f in self._lint(doc)]
+        self.assertIn("relic-when-without-contents", codes)
+
+
+class TestContentsInTheWorld(unittest.TestCase):
+    """The whole path with REAL objects: markers spawn, a ship flies in, the loot appears.
+
+    The mocked TestArming above proves the WHEN; this proves the trigger can actually see
+    the world - that `Roles:` on a point becomes something `reach` can measure against.
+    That join is the piece an author never writes and would never think to check.
+    """
+
+    def setUp(self):
+        sbs.create_new_sim()
+        SpaceObject.clear()
+        relics_clear()
+        volume_clear()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        import sbs_utils.procedural.amd_relics as R
+        self.R = R
+        R._ARM_TASK = None
+        # Item spawning is the items registry's job and is tested there. Here it only has
+        # to record that something was placed AT ALL, and where.
+        self.placed = []
+        self._place = R._relic_place_contents
+        R._relic_place_contents = lambda c: self.placed.append((c["part"], c["pos"]))
+        relics_register(_section(CONTENTS_DOC))
+
+    def tearDown(self):
+        self.R._relic_place_contents = self._place
+        relic_contents_clear()
+        SpaceObject.clear()
+        DeleteQueue.clear()
+        FrameContext.context = None
+
+    def test_a_point_with_roles_becomes_something_reach_can_measure(self):
+        relic_contents_arm("ossuary")
+        marks = to_object_list(role("vault_door"))
+        self.assertEqual(len(marks), 1)
+        # It stands where the author put it, in WORLD coordinates - Loc 1000,0,2000 plus
+        # the point's 100,0,0. A marker at the relic's local origin would fire the
+        # trigger in the wrong place, and nothing would look wrong until you flew there.
+        self.assertAlmostEqual(marks[0].pos.x, 1100.0, places=3)
+        self.assertAlmostEqual(marks[0].pos.z, 2000.0, places=3)
+
+    def test_the_loot_appears_when_the_ship_arrives_and_not_before(self):
+        relic_contents_arm("ossuary")
+        ship = player_spawn(50000, 0, 50000, "Test", "tsn", "tsn_light_cruiser")
+        self.placed.clear()
+        self.R._relic_contents_tick()
+        self.assertEqual(self.placed, [])              # 50,000u away: nothing
+
+        # set_pos, not `.pos =`: on a mock playership the physics thread owns the
+        # position and a bare attribute write does not survive to the next read.
+        set_pos(ship.id, 1100.0 + 400.0, 0.0, 2000.0)  # 400u from the door, inside 900
+        self.R._relic_contents_tick()
+        self.assertEqual([p[0] for p in self.placed], ["cache"])
+        # And it lands at the reliquary, not at the door that triggered it.
+        self.assertAlmostEqual(self.placed[0][1][0], 1400.0, places=3)
+
+        self.R._relic_contents_tick()                  # still inside the radius
+        self.assertEqual(len(self.placed), 1)          # placed once, not every tick
+
+    def test_arming_twice_leaves_one_marker_not_two(self):
+        # A live reload re-arms. Two markers at the same spot is not a visible bug - the
+        # relic looks right - it just leaks one object per save.
+        relic_contents_arm("ossuary")
+        relic_contents_arm("ossuary")
+        self.assertEqual(len(to_object_list(role("vault_door"))), 1)

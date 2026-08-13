@@ -1,6 +1,7 @@
 from ..helpers import FrameContext
 from ..futures import Promise, awaitable
 from ..mast.pollresults import PollResults
+from .execution import log
 
 class SignalLabelInfo:
     def __init__(self, is_jump, label, loc, server) -> None:
@@ -24,6 +25,7 @@ def signal_emit(name, data=None):
     # Resolve any one-shot awaiters first (signal_next); independent of MAST
     # context so a wait still resolves even if no //signal routes are active.
     _resolve_signal_waiters(name, data)
+    _notify_signal_observers(name, data)
 
     mast = FrameContext.mast
     task = FrameContext.task
@@ -226,6 +228,48 @@ def _resolve_signal_waiters(name, data):
 def signal_waiters_clear():
     """Drop all pending signal_next waiters (call on mission reset)."""
     _signal_waiters.clear()
+
+
+# ---------------------------------------------------------------------------
+# Observers - plain python callables notified of every emit.
+#
+# A `//signal` route needs a MAST task and a `signal_next` waiter needs a task to suspend,
+# so neither is available to a LIBRARY watcher that has to work with no MAST context at
+# all (a relic arming its contents does exactly this). An observer is the third case: it
+# runs before the MAST dispatch, so it is unaffected by whether any story is loaded.
+#
+# This is NOT for missions. A mission wanting to react to a signal writes a route.
+# ---------------------------------------------------------------------------
+_signal_observers = []
+
+
+def signal_observe(fn):
+    """Call `fn(name, data)` on every emit. Returns `fn`, so it can be used as a
+    decorator. Registering the same callable twice registers it once."""
+    if fn not in _signal_observers:
+        _signal_observers.append(fn)
+    return fn
+
+
+def signal_unobserve(fn):
+    """Stop calling `fn`. Safe when it was never registered."""
+    if fn in _signal_observers:
+        _signal_observers.remove(fn)
+
+
+def signal_observers_clear():
+    """Drop every observer (mission reset)."""
+    _signal_observers.clear()
+
+
+def _notify_signal_observers(name, data):
+    # One observer raising must not swallow the emit for the others, or for the routes
+    # that have not run yet - a watcher's bug would silently break the story's signals.
+    for fn in list(_signal_observers):
+        try:
+            fn(name, data)
+        except Exception as e:
+            log(f"signal observer failed on '{name}': {e}", "signal", "warning")
 
 
 @awaitable

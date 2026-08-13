@@ -452,6 +452,17 @@ def amd_lint_references(doc, known_keys=frozenset(), items=None):
                 findings.append(AmdFinding.at(
                     ref.span, WARNING, "dangling-drop",
                     f"`{ref.owner}` drops `{ref.value}`, which is not a defined item"))
+        elif ref.kind == "item":
+            # A relic part's `Item:`. Same reasoning as `drop` above, including the
+            # refusal to guess when nothing in reach declares any items at all.
+            if not _item_universe_known(doc, items):
+                continue
+            if ref.value in (items or ()):
+                continue
+            if not _resolves(doc, ref.value, known_keys):
+                findings.append(AmdFinding.at(
+                    ref.span, WARNING, "relic-unknown-item",
+                    f"`{ref.owner}` holds `{ref.value}`, which is not a defined item"))
         elif ref.kind == "link":
             # A `[[link]]` to something unwritten is a NOTE TO SELF, not a mistake -
             # drafting a mission as prose and letting the linter list what is still
@@ -793,7 +804,7 @@ def _relic_nums(value):
 def amd_lint_relics(doc):
     """Flag a relic layout that will build into something other than it reads as. WARNING.
 
-    Four things go wrong silently, and none of them raises:
+    Six things go wrong silently, and none of them raises:
 
     * a ``Passage to:`` naming a chamber no record declares - the corridor simply is not
       built, so the relic has an unreachable wing and looks like a pathfinding bug;
@@ -802,7 +813,10 @@ def amd_lint_relics(doc):
       passage nothing can fly down; and
     * too few numbers on a ``Chamber:`` / ``Box:`` / ``Solid:`` / ``Point:``, where the part
       is skipped
-      rather than half-built.
+      rather than half-built;
+    * a Starts when: phrase the relic watcher cannot evaluate, so authored contents
+      never appear; and
+    * a Qty:/Starts when: with nothing to apply to.
 
     Deliberately NOT checked here: whether the relic fits inside one nebula. That is a
     judgement about atmosphere cost, not a correctness claim, and the number depends on
@@ -855,6 +869,28 @@ def amd_lint_relics(doc):
                     findings.append(AmdFinding(
                         ln, "warning", "relic-bad-radius",
                         "box half-extents must be positive"))
+        # CONTENTS. An item is a ref, so the resolver already catches a typo in the key -
+        # what it cannot catch is a `Starts when:` phrase that PARSES but that the relic
+        # watcher does not evaluate. That failure is the worst kind: the file reads
+        # correctly, lint is clean, and the beacon simply never appears.
+        if "starts when" in fields or "when" in fields:
+            ln, value = fields.get("starts when") or fields["when"]
+            if "item" not in fields and "spawn" not in fields:
+                findings.append(AmdFinding(
+                    ln, "warning", "relic-when-without-contents",
+                    "'starts when' with no 'item' or 'spawn' has nothing to trigger"))
+            else:
+                from .amd_relics import relic_contents_can_trigger, RELIC_TRIGGERS
+                if not relic_contents_can_trigger(str(value)):
+                    findings.append(AmdFinding(
+                        ln, "warning", "relic-when-unwatchable",
+                        f"a relic cannot watch for '{value}' - it understands "
+                        f"reach, signal and a delay ({', '.join(RELIC_TRIGGERS)}); "
+                        f"contents with this phrase would never appear"))
+        if "qty" in fields and "item" not in fields:
+            findings.append(AmdFinding(
+                fields["qty"][0], "warning", "relic-qty-without-item",
+                "'qty' says how many of an 'item', and there is no item here"))
         if "passage to" in fields:
             ln, value = fields["passage to"]
             for group in str(value).split(","):
