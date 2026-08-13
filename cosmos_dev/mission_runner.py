@@ -1009,6 +1009,9 @@ def _run(
     use_working_tree: bool = False,
     seed: int | None = None,
     audit_layout: bool = False,
+    audit_gui_handlers: bool = False,
+    gui_handler_revive: bool = False,
+    inline_block_pop: bool = False,
     aspect: str | None = None,
     dap_port: int | None = None,
     dap_wait: bool = False,
@@ -1151,6 +1154,17 @@ def _run(
         from cosmos_dev import layout_audit
         layout_audit.install(sbs, aspect=_aspect_wh or (1024, 768))
         print("[runner] layout audit installed")
+
+    # LM #707 behavior flags. Both default OFF in the library; these switches
+    # exist so an A/B conformance run is exactly one flag apart, with the seed
+    # and everything else identical.
+    if gui_handler_revive or inline_block_pop:
+        from sbs_utils.mast.mastscheduler import MastAsyncTask
+        from sbs_utils.mast.core_nodes.on_change import OnChangeRuntimeNode
+        MastAsyncTask.revive_ended_handlers = bool(gui_handler_revive)
+        OnChangeRuntimeNode.pop_inline_block_on_end = bool(inline_block_pop)
+        print(f"[runner] #707 flags: revive={gui_handler_revive} "
+              f"inline_pop={inline_block_pop}")
 
     # Make this process look like script.py (handlerhooks expects it)
     sys.modules["script"] = sys.modules.get("__main__")
@@ -2354,6 +2368,13 @@ def _run(
             if _exerciser is not None and _map_started and run_mast and not sbs.sim._paused:
                 _exerciser.step()
 
+            # LM #707: classify each visible GUI handler as live- or
+            # dead-builder. Sampled per tick because a site is classified as
+            # soon as its page BUILDS it -- no click required.
+            if audit_gui_handlers and _map_started:
+                from cosmos_dev import gui_handler_audit
+                gui_handler_audit.sample()
+
             # Record the first game-end (win/lose) the mission's logic triggers.
             if _test and _game_end is None:
                 _game_end = _detect_game_end(sbs)
@@ -2396,6 +2417,9 @@ def _run(
         if audit_layout:
             from cosmos_dev import layout_audit
             print(layout_audit.report())
+        if audit_gui_handlers:
+            from cosmos_dev import gui_handler_audit
+            gui_handler_audit.report()
     return _test_exit
 
 
@@ -2494,6 +2518,15 @@ if __name__ == "__main__":
     ap.add_argument("--audit-layout", action="store_true",
                     help="Tap the emitted GUI rect stream and report widget "
                          "overflow / overlap (read-only; prints at end of run)")
+    ap.add_argument("--audit-gui-handlers", action="store_true",
+                    help="LM #707: report which GUI handler sites belong to a "
+                         "task that has already ended (read-only)")
+    ap.add_argument("--gui-handler-revive", action="store_true",
+                    help="LM #707: wake a task that ended so a GUI handler it "
+                         "registered still runs (A/B against the default off)")
+    ap.add_argument("--inline-block-pop", action="store_true",
+                    help="LM #707: pop an `on ...:` inline block when it reaches "
+                         "its end, so the task resumes what it was doing")
     ap.add_argument("--aspect", default=None, metavar="WxH",
                     help="Force the client screen size (e.g. 1280x720) so layouts "
                          "build at it — with --audit-layout, sweep sizes to find "
@@ -2570,6 +2603,9 @@ if __name__ == "__main__":
         use_working_tree=args.use_working_tree,
         seed=args.seed,
         audit_layout=args.audit_layout,
+        audit_gui_handlers=args.audit_gui_handlers,
+        gui_handler_revive=args.gui_handler_revive,
+        inline_block_pop=args.inline_block_pop,
         aspect=args.aspect,
         dap_port=args.dap_port,
         dap_wait=args.dap_wait,
