@@ -18,6 +18,7 @@ from sbs_utils.procedural.volume import (
     volume_tier, volume_watch, volume_unwatch, volume_watching,
     volume_watch_count, volume_containment_tick, volume_anchor, volume_anchor_count,
     TIER_INSIDE, TIER_SCRAPE, TIER_BREACH, volume_engaged,
+    volume_surface_points, volume_inside_points, volume_solid_points,
 )
 
 
@@ -765,6 +766,132 @@ class TestEnforcement(unittest.TestCase):
         self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
         self.assertLessEqual(volume_depth("v", self._pos()), 0.0)
+
+
+class TestSampling(unittest.TestCase):
+    """The maths that turns a described space into a visible one.
+
+    It lives in the library because it is geometry - the same primitives walked the other
+    way round - and because every relic mission would otherwise copy it. What stays in the
+    mission is art: which prop, what scale, which roles. Nothing here spawns anything.
+    """
+
+    def setUp(self):
+        volume_clear()
+        volume_define("v",
+                      chambers={"hub": (0, 0, 0, 900), "far": (4000, 0, 0, 600)},
+                      passages=[("hub", "far", 300)],
+                      boxes={"hall": (2000, 0, 2000, 900, 260, 380)},
+                      solids=[["sphere", 0, 0, 0, 320]])
+
+    def tearDown(self):
+        volume_clear()
+
+    # -- the shell -----------------------------------------------------------
+    def test_the_shell_lands_on_the_boundary(self):
+        pts = volume_surface_points("v", 300, seed=7)
+        self.assertTrue(pts)
+        for p in pts:
+            d = volume_depth("v", p[:3])
+            self.assertGreater(d, -2.0, "a prop buried in open space")
+            self.assertLess(d, 200.0, "a prop floating off the wall")
+
+    def test_normals_are_unit_and_point_outward(self):
+        for p in volume_surface_points("v", 200, seed=3):
+            n = math.sqrt(p[3] ** 2 + p[4] ** 2 + p[5] ** 2)
+            self.assertAlmostEqual(n, 1.0, places=6)
+
+    def test_the_same_seed_gives_the_same_shell(self):
+        # A relic must look the same every run, and a rebuild after an edit must change
+        # only what the edit changed.
+        self.assertEqual(volume_surface_points("v", 200, seed=7),
+                         volume_surface_points("v", 200, seed=7))
+        self.assertNotEqual(volume_surface_points("v", 200, seed=7),
+                            volume_surface_points("v", 200, seed=8))
+
+    def test_the_budget_is_split_by_area(self):
+        # A chamber twice the size gets about twice the props, so density reads as uniform
+        # across a relic rather than per part.
+        volume_clear()
+        volume_define("two", chambers={"small": (0, 0, 0, 100),
+                                       "big": (100000, 0, 0, 400)})
+        pts = volume_surface_points("two", 500, seed=1, clip=False)
+        near_small = [p for p in pts if p[0] < 50000]
+        near_big = [p for p in pts if p[0] >= 50000]
+        # 16x the area, so well over 5x the points - the exact ratio is not the contract.
+        self.assertGreater(len(near_big), len(near_small) * 5)
+
+    def test_buried_points_are_clipped(self):
+        # Each primitive is sampled on its OWN surface, so where two overlap one wall runs
+        # through the other's open space - rock in the middle of a corridor. The shell
+        # wanted is the outside of the union.
+        loose = volume_surface_points("v", 400, seed=7, clip=False)
+        tight = volume_surface_points("v", 400, seed=7, clip=True)
+        self.assertLess(len(tight), len(loose))
+        self.assertLess(min(volume_depth("v", p[:3]) for p in loose), -50.0)
+        self.assertGreater(min(volume_depth("v", p[:3]) for p in tight), -2.0)
+
+    def test_kinds_narrows_to_one_shape(self):
+        only = volume_surface_points("v", 200, seed=1, kinds=("box",))
+        for p in only:
+            # every point on the hall's own faces, which are nowhere near the hub
+            self.assertGreater(abs(p[2]), 100.0)
+
+    def test_a_vertical_capsule_is_dressed_as_a_tube(self):
+        # The case an axis-naive frame gets wrong: with the helper axis not swapped, the
+        # cross product collapses and a shaft comes out as a flat disc.
+        volume_clear()
+        volume_define("shaft", chambers={"a": (0, -2000, 0, 100), "b": (0, 2000, 0, 100)},
+                      passages=[("a", "b", 300)])
+        pts = volume_surface_points("shaft", 120, seed=5, kinds=("capsule",), clip=False)
+        self.assertTrue(pts)
+        ys = [p[1] for p in pts]
+        self.assertGreater(max(ys) - min(ys), 2000.0, "the tube collapsed to a disc")
+
+    def test_an_empty_or_silly_ask_returns_nothing(self):
+        self.assertEqual(volume_surface_points("v", 0), [])
+        self.assertEqual(volume_surface_points("nope", 100), [])
+
+    # -- the fill ------------------------------------------------------------
+    def test_inside_points_are_all_inside(self):
+        pts = volume_inside_points("v", 150, seed=7)
+        self.assertTrue(pts)
+        for p in pts:
+            self.assertLess(volume_depth("v", p), 0.0)
+
+    def test_the_fill_respects_a_subtracted_solid(self):
+        # The whole reason rejection sampling is worth its waste: nothing may land inside
+        # the pillar, and only depth() knows where the pillar is.
+        for p in volume_inside_points("v", 300, seed=2):
+            self.assertGreater(math.dist(p, (0, 0, 0)), 320.0)
+
+    def test_a_margin_keeps_the_fill_clear_of_the_walls(self):
+        for p in volume_inside_points("v", 150, seed=4, margin=100.0):
+            self.assertLess(volume_depth("v", p), -100.0)
+
+    def test_the_fill_is_deterministic(self):
+        self.assertEqual(volume_inside_points("v", 80, seed=9),
+                         volume_inside_points("v", 80, seed=9))
+
+    def test_a_volume_with_no_room_returns_short_rather_than_hanging(self):
+        volume_clear()
+        volume_define("tight", chambers={"c": (0, 0, 0, 100)},
+                      solids=[["sphere", 0, 0, 0, 100]])
+        self.assertEqual(volume_inside_points("tight", 50, seed=1, tries=2), [])
+
+    # -- the solids ----------------------------------------------------------
+    def test_solid_points_sit_on_the_pillar(self):
+        # An undressed solid is an invisible obstacle: containment stops you at something
+        # with nothing there to see.
+        pts = volume_solid_points("v", 40, seed=7)
+        self.assertTrue(pts)
+        for p in pts:
+            self.assertLessEqual(math.dist(p[:3], (0, 0, 0)), 320.0)
+
+    def test_a_volume_with_no_solids_has_none(self):
+        volume_clear()
+        volume_define("plain", chambers={"c": (0, 0, 0, 500)})
+        self.assertEqual(volume_solid_points("plain", 20), [])
 
 
 class TestEngagement(unittest.TestCase):

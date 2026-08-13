@@ -53,6 +53,7 @@ than ten float ops. The cost does not matter: 8 players x 30 primitives at 15 Hz
 """
 
 import math
+import random
 
 # EVERY module-level function here becomes a MAST global, in one flat mission-wide
 # namespace - and a LEADING UNDERSCORE IS NOT PRIVATE. An unprefixed helper therefore
@@ -694,6 +695,242 @@ def volume_path(volume, start, goal):
     """Chamber names from start to goal inclusive, or [] if unreachable."""
     vol = _vol_resolve(volume)
     return [] if vol is None else vol.path(start, goal)
+
+
+# ---------------------------------------------------------------------------
+# Sampling
+#
+# A volume says where space IS. To make it visible a mission scatters props over that
+# boundary - and the maths for "evenly, over a sphere, a capsule at any orientation, and
+# the faces of a box" is the part that is hard, general, and easy to get subtly wrong.
+# So the LIBRARY samples and the MISSION decorates: nothing here chooses art, scale, roles
+# or behaviours, and nothing here spawns anything.
+#
+# It lives beside the geometry because it IS geometry: the same primitives, walked the
+# other way round.
+# ---------------------------------------------------------------------------
+
+# How far inside the union a sampled point may be before it counts as buried in
+# another primitive rather than sitting on the shell.
+_VOL_BURIED = 1.0
+
+
+def _vol_even_sphere(n):
+    """`n` roughly-even directions on the unit sphere - a golden-angle spiral.
+
+    Even beats random here, and the difference is visible: uniform sampling clumps, and a
+    clumped shell has holes you can see straight out through. `scatter.sphere` already
+    samples a shell but draws pitch as `uniform(-pi, pi)`, which piles points at the poles
+    and covers the equator twice - this is the sampler that defect calls for.
+    """
+    out = []
+    step = math.pi * (3.0 - math.sqrt(5.0))
+    for i in range(n):
+        y = 1.0 - (2.0 * i + 1.0) / n
+        r = math.sqrt(max(0.0, 1.0 - y * y))
+        a = step * i
+        out.append((math.cos(a) * r, y, math.sin(a) * r))
+    return out
+
+
+def _vol_frame(u):
+    """Two unit vectors perpendicular to `u`, and to each other.
+
+    The helper axis is swapped when `u` is near vertical, because the cross product of two
+    parallel vectors is zero and the frame collapses. Getting this wrong is why a vertical
+    capsule can end up dressed as a flat disc - the axis-naive version assumes a corridor
+    is never a shaft.
+    """
+    ux, uy, uz = u
+    hx, hy, hz = (0.0, 1.0, 0.0) if abs(uy) < 0.9 else (1.0, 0.0, 0.0)
+    px, py, pz = (uy * hz - uz * hy, uz * hx - ux * hz, ux * hy - uy * hx)
+    pl = math.sqrt(px * px + py * py + pz * pz) or 1.0
+    px, py, pz = px / pl, py / pl, pz / pl
+    qx, qy, qz = (uy * pz - uz * py, uz * px - ux * pz, ux * py - uy * px)
+    return (px, py, pz), (qx, qy, qz)
+
+
+def _vol_prim_area(prim):
+    """Rough surface area of a primitive, for splitting a budget between them.
+
+    Rough is the point: it decides how many props each room gets, so a chamber twice the
+    size gets about twice as many. Exactness would buy nothing a author would notice.
+    """
+    kind = prim[0]
+    if kind == "sphere":
+        return 4.0 * math.pi * prim[2] * prim[2]
+    if kind == "capsule":
+        a, b, r = prim[1], prim[2], prim[3]
+        length = _vol_dist(a, b)
+        return 2.0 * math.pi * r * length + 4.0 * math.pi * r * r
+    if kind == "box":
+        hx, hy, hz = prim[2]
+        return 8.0 * (hx * hy + hy * hz + hz * hx)
+    return 0.0
+
+
+def _vol_share(prims, n):
+    """Split `n` points between primitives by area, giving every one at least 1."""
+    areas = [_vol_prim_area(p) for p in prims]
+    total = sum(areas)
+    if total <= 0.0 or not prims:
+        return [0] * len(prims)
+    out = [max(1, int(round(n * a / total))) for a in areas]
+    return out
+
+
+def _vol_sphere_surface(prim, count, rng, out):
+    c, r = prim[1], prim[2]
+    for (dx, dy, dz) in _vol_even_sphere(count):
+        j = r * out * rng.uniform(0.99, 1.02)
+        yield (c[0] + dx * j, c[1] + dy * j, c[2] + dz * j, dx, dy, dz)
+
+
+def _vol_capsule_surface(prim, count, rng, out, per_ring=6):
+    a, b, r = prim[1], prim[2], prim[3]
+    length = _vol_dist(a, b)
+    u = [(b[i] - a[i]) / max(length, 1e-6) for i in range(3)]
+    p, q = _vol_frame(u)
+    rings = max(2, int(count / max(1, per_ring)))
+    for ring in range(rings + 1):
+        t = ring / float(rings)
+        c = [a[i] + (b[i] - a[i]) * t for i in range(3)]
+        for k in range(per_ring):
+            # The twist stops rings lining up into visible corridors down the tube.
+            ang = (2.0 * math.pi * k / per_ring) + ring * 0.4
+            rr = r * out * rng.uniform(0.99, 1.04)
+            nx = p[0] * math.cos(ang) + q[0] * math.sin(ang)
+            ny = p[1] * math.cos(ang) + q[1] * math.sin(ang)
+            nz = p[2] * math.cos(ang) + q[2] * math.sin(ang)
+            yield (c[0] + nx * rr, c[1] + ny * rr, c[2] + nz * rr, nx, ny, nz)
+
+
+def _vol_box_surface(prim, count, rng, out):
+    """FACES, not a shell. A box dressed as a sphere of props reads as a cave again and
+    hides the corners that are the whole reason it is a box."""
+    c, h = prim[1], prim[2]
+    per_face = max(1, count // 6)
+    for axis in range(3):
+        for sign in (1.0, -1.0):
+            for _ in range(per_face):
+                p = [0.0, 0.0, 0.0]
+                n = [0.0, 0.0, 0.0]
+                for i in range(3):
+                    if i == axis:
+                        p[i] = c[i] + sign * h[i] * out * rng.uniform(0.99, 1.02)
+                        n[i] = sign
+                    else:
+                        p[i] = c[i] + rng.uniform(-h[i], h[i])
+                yield (p[0], p[1], p[2], n[0], n[1], n[2])
+
+def volume_surface_points(volume, n, seed=None, out=1.06, kinds=None, clip=True):
+    """`n` points spread over the volume's BOUNDARY, with an outward normal each.
+
+    Returns `[(x, y, z, nx, ny, nz)]` in world coordinates. This is the shell: what a
+    mission scatters props over to turn a described space into a visible one.
+
+    The budget is split between primitives BY AREA, so a chamber twice the size gets about
+    twice the props and density reads as uniform across the whole relic rather than per
+    part. `out` pushes points just clear of the true surface - props belong outside the
+    space you fly in, or they are obstacles you cannot see coming.
+
+    Deterministic in `(seed, n)`: the same call gives the same shell, so a relic looks the
+    same every time a mission runs, and a rebuild after an edit only changes what the edit
+    changed.
+
+    `kinds` narrows to some of `"sphere"`, `"capsule"`, `"box"` - the chambers alone, say.
+
+    `clip` drops points that are BURIED - inside the union rather than on the outside of
+    it. Each primitive is sampled on its own surface, so where two overlap, one shape's
+    wall runs through the other's open space: the ring where a passage meets a chamber puts
+    rock in the middle of the corridor. The shell wanted is the outside of the union, not
+    the union of the surfaces. Costs one depth() per point and returns fewer than `n`,
+    which is the honest trade - ask for more if a count matters.
+    """
+    vol = _vol_resolve(volume)
+    if vol is None or n <= 0:
+        return []
+    prims = [p for p in vol.primitives() if kinds is None or p[0] in kinds]
+    if not prims:
+        return []
+    rng = random.Random(seed)
+    counts = _vol_share(prims, n)
+    pts = []
+    for prim, count in zip(prims, counts):
+        if count <= 0:
+            continue
+        if prim[0] == "sphere":
+            pts.extend(_vol_sphere_surface(prim, count, rng, out))
+        elif prim[0] == "capsule":
+            pts.extend(_vol_capsule_surface(prim, count, rng, out))
+        elif prim[0] == "box":
+            pts.extend(_vol_box_surface(prim, count, rng, out))
+    if clip:
+        # A tolerance, not zero: a point ON its own surface reads as a hair inside or out
+        # depending on floating point, and dropping half a shell to rounding would be a
+        # cure worse than the disease.
+        pts = [p for p in pts if vol.depth(p[:3]) > -_VOL_BURIED]
+    return pts
+
+
+def volume_inside_points(volume, n, seed=None, margin=0.0, tries=40):
+    """`n` points INSIDE the volume - the fill, for debris, cargo, anything floating.
+
+    Rejection sampled in the bounding sphere against `depth(p) < -margin`, which is
+    wasteful in principle and exact in practice: it is the only test that respects
+    subtracted solids, so nothing lands inside a pillar. A relic is mostly empty bounding
+    sphere, so `tries` caps the work rather than looping forever on a layout with no room
+    in it; a short return means the volume could not hold that many.
+
+    Deterministic in `(seed, n)`, like the shell.
+    """
+    vol = _vol_resolve(volume)
+    if vol is None or n <= 0:
+        return []
+    (cx, cy, cz), br = vol.bound()
+    if br <= 0.0:
+        return []
+    rng = random.Random(seed)
+    pts = []
+    for _ in range(n * max(1, tries)):
+        if len(pts) >= n:
+            break
+        # Cube-root of a uniform draw, or the points pile up near the middle.
+        u = rng.random() ** (1.0 / 3.0) * br
+        yy = rng.uniform(-1.0, 1.0)
+        rr = math.sqrt(max(0.0, 1.0 - yy * yy))
+        aa = rng.uniform(0.0, 2.0 * math.pi)
+        p = (cx + math.cos(aa) * rr * u, cy + yy * u, cz + math.sin(aa) * rr * u)
+        if vol.depth(p) < -margin:
+            pts.append(p)
+    return pts
+
+
+def volume_solid_points(volume, n, seed=None, inward=0.94):
+    """`n` points on the surface of the SUBTRACTED masses, facing outward.
+
+    A solid that is not dressed is an invisible obstacle: containment stops you at
+    something with nothing there to see, which reads as the relic being broken rather than
+    as a pillar. `inward` keeps the props just inside the solid's own surface, because you
+    look at a pillar from outside it - the opposite of the shell, where they sit just
+    outside the space you fly in.
+    """
+    vol = _vol_resolve(volume)
+    if vol is None or n <= 0 or not vol.solids:
+        return []
+    rng = random.Random(seed)
+    counts = _vol_share(vol.solids, n)
+    pts = []
+    for prim, count in zip(vol.solids, counts):
+        if count <= 0:
+            continue
+        if prim[0] == "sphere":
+            pts.extend(_vol_sphere_surface(prim, count, rng, inward))
+        elif prim[0] == "capsule":
+            pts.extend(_vol_capsule_surface(prim, count, rng, inward))
+        elif prim[0] == "box":
+            pts.extend(_vol_box_surface(prim, count, rng, inward))
+    return pts
 
 
 def volume_names():
