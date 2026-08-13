@@ -137,6 +137,86 @@ once on the server rather than once per console.
     log(f"hull scrape at depth {depth}", "relic")
 ```
 
+## Filling it in
+
+A volume says where space **is**. What you see is ordinary props scattered over that
+boundary - and the library does the sampling, so a mission only chooses art:
+
+```
+# the shell: props on the walls, with an outward normal each
+for (x, y, z, nx, ny, nz) in volume_surface_points("ossuary", 600, seed=7):
+    p = terrain_spawn(x, y, z, "", "#,relic_wall", art, "behav_asteroid")
+    p.engine_object.exclusion_radius = 0
+
+# the pillars, which MUST be dressed or they are invisible obstacles
+volume_solid_points("ossuary", 50, seed=7)
+
+# and anything floating in the rooms
+volume_inside_points("ossuary", 40, seed=7, margin=200)
+```
+
+Three things it does that are easy to get wrong by hand:
+
+- **Even, not random.** A sphere is sampled on a golden-angle spiral. Uniform sampling
+  clumps, and a clumped shell has holes you can see straight out through.
+- **A box is sampled on its FACES**, not as a shell - a box dressed like a sphere reads as
+  a cave again and hides the corners that are the whole reason it is a box.
+- **The shell is clipped to the outside of the union.** Each shape is sampled on its own
+  surface, so where two overlap one wall runs through the other's open space. On the demo
+  layout that was 54 of 403 points, several more than 280 units deep: rock in the middle
+  of a corridor.
+
+Budgets split by area, so a chamber twice the size gets about twice the props. Everything
+is deterministic in `(seed, n)`, so a relic looks the same every run and a rebuild after an
+edit changes only what the edit changed. `Seed:` and `Art:` on the relic are what the file
+uses to say so.
+
+**Verify any art key against shipData.** An unknown key does not fail - it silently renders
+the `unknown` mesh, so a typo shows up as a relic built out of question marks.
+
+## Places inside it
+
+`Point:` names a spot - somewhere an item is found, where NPCs arrive, the way in:
+
+```
+### [the reliquary](cache)
+---
+Relic: ossuary
+Point: 4651, 0, 3188
+Roles: item, quest
+---
+```
+
+A point adds no navigable space and subtracts none. It is authored **relative to the
+relic's `Loc:`**, like every other part, so it travels with the relic - which is why it is
+a relic part rather than a landmark, whose `Loc:` is absolute and would stay behind.
+
+What goes there is the mission's call:
+
+```
+item_spawn("relic_core", *relic_point("ossuary", "cache"), qty=2)
+npc_spawn(*relic_point("ossuary", "picket"), "Sentry", "raider", ...)
+marker_point(*relic_point("ossuary", "mouth"), "The Ossuary")
+```
+
+`relic_points("ossuary", "spawn")` gives every point with a role, for when there are
+several.
+
+## The way in, and who gets held
+
+**Containment only applies to a ship that has been inside**, and lets go once it is a whole
+relic clear. A ship that never entered is never touched.
+
+That is what makes an entrance possible: the tier is a pure depth test, so before this a
+ship 80,000 units away read as a breach and was tractored toward the relic. Fly in through
+a mouth - a chamber or passage reaching out past the hull - and you are inside the volume
+before you are deep in it, so containment engages without a breach ever happening.
+
+`volume_engaged("ossuary")` is who is in there now, which is also the answer to a question
+missions ask for their own reasons: a quest that starts on arrival, a door that closes
+behind you. Pass `engage="always"` for a volume that IS the playfield rather than a place
+inside one.
+
 ## Checking it
 
 `sbs lint` catches the faults that are otherwise silent — a `Passage to:` naming a chamber
@@ -148,6 +228,10 @@ so they surface as a pathfinding bug rather than a typo.
 
 **Artemis AMD: Show Relic Plan** opens the relic, and nothing needs to be running:
 
+- **Add chamber / Add box / Add solid** build the three shapes; the properties panel's
+  **subtracted** tick flips a chamber or box into a solid and back, which is lossless
+  because the numbers are the same. A point is drawn small with a ring - cyan for an
+  entrance - and moves like anything else, but has no size to drag.
 - **click** a part to select it; **drag a handle** to move it along one axis or to change
   its radius; **SHIFT-drag** between two parts to connect them; **right-click** for a menu
   that can add a chamber exactly where you clicked.
