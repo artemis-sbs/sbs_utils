@@ -373,8 +373,10 @@ In the last section, we learned about route labels. Remember how I said that rou
 //damage/internal
 ```
 
-Everything below was measured against the engine rather than reasoned about - the probe
-is `LM_TestRange/maps/test_damage_routes.mast` if you ever want to re-ask it.
+Everything below was measured against the engine rather than reasoned about, by two
+probes you can re-run: `LM_TestRange/maps/test_damage_routes.mast` for what a MISSION sees,
+and `data/missions/event_probe` - which loads no libraries at all - for what the ENGINE
+actually sends.
 
 **`//damage/killed` is the kill.** It fires for NPCs only - the engine's event is literally
 called `npc_killed`, and it names the VICTIM, so it fires whether an NPC or the CREW made
@@ -392,12 +394,19 @@ deletes.
     a mission counted losses on `//damage/destroy` and reported casualties before anyone
     had been shot at.
 
-!!! tip "Crediting a kill: read both attacker fields"
-    The attacker turns up in a **different field depending on the weapon**. A player
-    torpedo kill puts the ship in `DAMAGE_PARENT_ID` and the torpedo - already gone - in
-    `DAMAGE_SOURCE_ID`. An NPC beam kill leaves `DAMAGE_PARENT_ID` at `0` and puts the
-    shooter in `DAMAGE_SOURCE_ID`. Read parent first and fall back to source, or half your
-    kills are credited to nobody.
+    Worth knowing why, because it explains the shape of all of this: the ENGINE sends one
+    event for a removal (`damage` with `sub_tag` `destroyed`, carrying the victim's side
+    and no attacker). MAST fans that single event out to both routes. So this is true for you
+    as an author, and it is not the engine sending two things.
+
+!!! tip "Crediting a kill: read parent first, then source"
+    One rule covers every weapon: **`DAMAGE_SOURCE_ID` is whatever dealt the damage, and
+    `DAMAGE_PARENT_ID` is the ship behind it.** A beam has no projectile, so the shooter
+    IS the source and parent is `0`. A torpedo is its own object, so source is the
+    torpedo - already gone by the time you look - and parent is the ship that fired it.
+
+    So read **parent, then fall back to source**. Read source alone and every torpedo kill
+    is credited to a torpedo; read parent alone and every beam kill is credited to nobody.
 
 We want the players for our mission to shoot at the asteroid, and to detect when that happens, we'll use the `//damage/object` route. Once it's been hit, we're going to get rid of the asteroid and replace it with the treasure.
 ```python
