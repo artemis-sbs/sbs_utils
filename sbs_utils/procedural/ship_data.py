@@ -782,6 +782,44 @@ def extra_reset():
     _extra_ship_data_loaded.clear()
 
 
+def _art_that_is_not_there(text):
+    """Which `artfileroot` values in this file have no art in the install?
+
+    A hull whose art is missing spawns FINE on the server - nothing raises, the object
+    exists, the mission carries on - and then kills the first client that has to draw it:
+
+        Assertion failed! art3D && "the artfileroot of this ship was not found."
+        ObjectTypeDrawData.cpp:40
+
+    That is a modal dialog on the player's machine, from a typo in a data file. LM's turret
+    entries asked for `tsn-fighter` when the art is `TSNfighter`, and it went unnoticed for
+    as long as the engine was rejecting that whole file for unrelated reasons (2026-08-14).
+
+    Quiet when it cannot check. Art lives in the Artemis install, not in the repo, so a CI
+    runner has nothing to compare against - and a check that reported every hull as broken
+    because it could not find the game would be worse than no check at all."""
+    try:
+        import yaml
+        from ..fs import get_artemis_dir
+        ships = os.path.join(get_artemis_dir(), "data", "graphics", "ships")
+        if not os.path.isdir(ships):
+            return []
+        have = set()
+        for name in os.listdir(ships):
+            have.add(name.split(".")[0].lower())
+        data = yaml.safe_load(str(text))
+        missing = []
+        for entry in (data or {}).get("#ship-list", []) or []:
+            if not isinstance(entry, dict):
+                continue
+            root = str(entry.get("artfileroot", "") or "")
+            if root and root.lower() not in have:
+                missing.append((str(entry.get("key", "?")), root))
+        return missing
+    except Exception:                               # noqa: BLE001
+        return []                                   # never let a check break a load
+
+
 def _looks_like_hjson(text):
     """Is this extra ship data in a shape the ENGINE can read?
 
@@ -837,6 +875,11 @@ def add_extra(name, path=None, mod=None):
     text = _read_extra_ship_data(filename, path)
     if text is not None:
         merge_mod_ship_yaml(text, mod or "add_extra_ship_data")
+        for key, root in _art_that_is_not_there(text):
+            from .execution import log
+            log(f"{filename}: hull '{key}' asks for artfileroot '{root}', which is not in "
+                f"data/graphics/ships. It will spawn on the server and then ASSERT on the "
+                f"first client that draws it.", "ship_data", "warning")
         if not _looks_like_hjson(text):
             why = "block YAML - the engine reads HJSON and will reject this file"
             from .execution import log

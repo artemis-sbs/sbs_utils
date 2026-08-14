@@ -294,3 +294,41 @@ class TestItSaysWhenTheEngineCannotReadTheShape(unittest.TestCase):
         self.assertTrue(sd._looks_like_hjson(_JSON_HULLS))
         self.assertTrue(sd._looks_like_hjson("# only comments"))
         self.assertFalse(sd._looks_like_hjson(_BLOCK_HULLS))
+
+
+class TestItSaysWhenTheArtIsNotThere(unittest.TestCase):
+    """A hull whose artfileroot does not exist spawns fine on the server and then asserts
+    on the first client that draws it - a modal dialog on a player's machine, from a typo.
+    LM's turrets asked for `tsn-fighter` when the art is `TSNfighter`."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.install = tempfile.TemporaryDirectory()
+        self.addCleanup(self.install.cleanup)
+        self.ships = os.path.join(self.install.name, "data", "graphics", "ships")
+        os.makedirs(self.ships)
+        for name in ("TSNfighter.obj", "TSNfighter_diffuse.png"):
+            open(os.path.join(self.ships, name), "w").close()
+
+    def _check(self, art):
+        text = ('{"#ship-list": [{"key": "t", "name": "T", "artfileroot": "' + art
+                + '"}]}')
+        with mock.patch("sbs_utils.fs.get_artemis_dir", return_value=self.install.name):
+            return sd._art_that_is_not_there(text)
+
+    def test_art_that_exists_is_not_reported(self):
+        self.assertEqual(self._check("TSNfighter"), [])
+
+    def test_the_case_does_not_have_to_match(self):
+        self.assertEqual(self._check("tsnfighter"), [])
+
+    def test_art_that_is_missing_is_named_with_its_hull(self):
+        self.assertEqual(self._check("tsn-fighter"), [("t", "tsn-fighter")])
+
+    def test_it_stays_quiet_with_no_install_to_check(self):
+        with mock.patch("sbs_utils.fs.get_artemis_dir", return_value="/nowhere/at/all"):
+            found = sd._art_that_is_not_there(
+                '{"#ship-list": [{"key": "t", "artfileroot": "whatever"}]}')
+        self.assertEqual(found, [])
+
