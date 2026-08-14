@@ -332,3 +332,46 @@ class TestItSaysWhenTheArtIsNotThere(unittest.TestCase):
                 '{"#ship-list": [{"key": "t", "artfileroot": "whatever"}]}')
         self.assertEqual(found, [])
 
+
+class TestItSurvivesTheSimBeingRebuilt(_Fixture):
+    """`create_new_sim()` rebuilds the engine's ship data table and drops everything
+    `add_extra_ship_data` was told beforehand - and a mission registers at story load,
+    which is always before its first map calls sim_create. Nothing reports the loss: the
+    library keeps its merged copy, so the ships look fine until a spawn asks the engine
+    for one. LM's monsters were unspawnable from the first map start for exactly this
+    reason (2026-08-14)."""
+
+    def test_every_file_is_told_to_the_engine_again(self):
+        with mock.patch("sbs.add_extra_ship_data", create=True):
+            sd.add_extra("extraProbe", path="some/where")
+            sd.add_extra("extraOther", path="else/where")
+        with mock.patch("sbs.add_extra_ship_data", create=True) as told:
+            count = sd.extra_replay()
+        self.assertEqual(count, 2)
+        self.assertEqual([c.args[0] for c in told.call_args_list],
+                         ["extraProbe", "extraOther"])
+
+    def test_it_says_nothing_and_does_nothing_with_no_files(self):
+        with mock.patch("sbs.add_extra_ship_data", create=True) as told:
+            self.assertEqual(sd.extra_replay(), 0)
+        self.assertEqual(told.call_args_list, [])
+
+    def test_the_switch_still_wins(self):
+        with mock.patch("sbs.add_extra_ship_data", create=True):
+            sd.add_extra("extraProbe", path="some/where")
+        sd.extra_enable(False)
+        self.addCleanup(sd.extra_enable, True)
+        with mock.patch("sbs.add_extra_ship_data", create=True) as told:
+            self.assertEqual(sd.extra_replay(), 0)
+        self.assertEqual(told.call_args_list, [])
+
+    def test_sim_create_replays_them(self):
+        from sbs_utils.procedural import cosmos
+        with mock.patch("sbs.add_extra_ship_data", create=True):
+            sd.add_extra("extraProbe", path="some/where")
+        with (mock.patch("sbs.add_extra_ship_data", create=True) as told,
+              mock.patch("sbs_utils.procedural.ship_data_mod.ship_data_flush_mod_file"),
+              mock.patch("sbs_utils.helpers.FrameContext.context", mock.MagicMock())):
+            cosmos.sim_create()
+        self.assertEqual([c.args[0] for c in told.call_args_list], ["extraProbe"])
+

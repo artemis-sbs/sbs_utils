@@ -20,10 +20,19 @@ def sim_create() -> None:
 
     No-ops when no add-on contributed anything, so a mission that never asked for this does
     not find its folder written to.
+
+    Re-registers add-on ship data AFTERWARDS, for the same reason and in the same spirit.
+    Rebuilding the table is how the engine loses everything `add_extra_ship_data` was told
+    before this point, and a mission registers at story load - which is always before its
+    first map calls this. Nothing reports the loss; it arrives later as a spawn failing for
+    a hull the engine no longer has. Replaying here makes it an ordering fact rather than
+    something every add-on has to remember.
     """
     from .ship_data_mod import ship_data_flush_mod_file
+    from .ship_data import extra_replay
     ship_data_flush_mod_file()
     FrameContext.context.sbs.create_new_sim()
+    extra_replay()
     
 
 def sim_pause() -> None:

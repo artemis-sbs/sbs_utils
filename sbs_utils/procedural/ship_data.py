@@ -771,6 +771,40 @@ def extra_enabled():
     return _EXTRA_SHIP_DATA_ENGINE
 
 
+def extra_replay():
+    """Tell the engine again about every extra ship data file it has been given.
+
+    `create_new_sim()` REBUILDS the engine's ship data table - it reads the mission's
+    `extraShipData.json` inside that call - and everything `add_extra_ship_data` registered
+    beforehand is gone. Nothing reports it. The library keeps its own merged copy, so the
+    ships still have stats everywhere sbs_utils can see, and the loss surfaces later as
+    `MemoryError: bad allocation` from a spawn, against whichever mission line asked for
+    one of those hulls.
+
+    Missions register at story load, which is BEFORE the first map calls `sim_create()`, so
+    this is the ordinary case rather than an edge one. LegendaryMissions declares its
+    monsters with a top-level `shared`, which by design runs once and then becomes a no-op,
+    so nothing ever re-issued them: every monster in the game was unspawnable from the first
+    map start onward, and had been for as long as anyone could remember (measured
+    2026-08-14 - inside LM every hull fails and re-issuing this exact call fixes all five).
+
+    Replayed from the record rather than from the files: the library merge already happened
+    and only the engine forgot."""
+    if not _EXTRA_SHIP_DATA_ENGINE:
+        return 0
+    told = 0
+    for filename, path, _reached in list(_extra_ship_data_loaded):
+        try:
+            import sbs
+            sbs.add_extra_ship_data(str(filename), _engine_path(path))
+            told += 1
+        except Exception as e:                      # noqa: BLE001
+            from .execution import log
+            log(f"could not re-register {filename} after the sim was created: {e}. "
+                f"Ships from it will fail to spawn.", "ship_data", "warning")
+    return told
+
+
 def extra_loaded():
     """`[(filename, path, reached_engine)]` for every call so far, so a report can
     say what was loaded and whether the engine actually heard about it."""
