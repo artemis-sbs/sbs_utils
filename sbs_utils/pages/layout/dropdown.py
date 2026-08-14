@@ -1,5 +1,6 @@
 from .column import Column
-from ...helpers import FrameContext
+from ...helpers import (FrameContext, gui_text_escape, merge_props,
+                        props_display_text, split_props)
 
 
 class Dropdown(Column):
@@ -7,9 +8,11 @@ class Dropdown(Column):
         super().__init__()
         self.values = props
         self.tag = tag
-        #TODO: Prase out default ?
-        self._value = ""
-        
+        # The label the closed box is showing. Seeded from the props' own
+        # text: so `.value` reports what is on screen before any click, rather
+        # than "" -- and so it stays truthful after update() replaces the props.
+        self._value = props_display_text(props)
+
     def measure(self, client_id, mode, avail_px, font, ar):
         """Deliberately unmeasurable -- do not "fix" this to measure the list.
 
@@ -30,11 +33,27 @@ class Dropdown(Column):
         
     def on_message(self, event):
         if event.sub_tag == self.tag:
-            self.value = event.value_tag
+            # The engine is already drawing this selection, so record it
+            # WITHOUT dirty-marking: a repaint here would re-send the widget
+            # mid-interaction to show what it is showing already.
+            self._set_value(event.value_tag, repaint=False)
         super().on_message(event)
 
     def update(self, props):
-        self.props = props
+        """Replace the whole props string -- the option list AND the selection.
+
+        Writes `values`, which is the string `_present` sends. It used to write
+        a `props` attribute nothing reads, so `update()` -- and `gui_update()`
+        with it, since that calls this -- was a silent no-op on a dropdown
+        (LM #568).
+        """
+        self.values = props
+        self._value = props_display_text(props)
+        if not self.is_hidden_by_script:
+            # Deliberately NOT is_hidden: a dropdown merely clipped by its
+            # parent this frame must still register the change, or it scrolls
+            # back into view showing the old selection.
+            self.mark_value_dirty()
 
     @property
     def value(self):
@@ -42,5 +61,23 @@ class Dropdown(Column):
        
     @value.setter
     def value(self, v):
-        self._value= v
+        self._set_value(v, repaint=True)
+
+    def _set_value(self, v, repaint):
+        """Select `v`, in the props string as well as in `_value`.
+
+        Holding the selection only in `_value` was the other half of LM #568:
+        `_present` sends `values`, so a value the props string did not know
+        about never reached the screen -- and was undone the next time the
+        layout was presented.
+        """
+        self._value = v
+        props = split_props(self.values, "$text")
+        # Whichever spelling the author used is the one the engine reads; adding
+        # the other would leave two answers in one string.
+        key = "text" if "text" in props and "$text" not in props else "$text"
+        props[key] = gui_text_escape(v)
+        self.values = merge_props(props)
         self.update_variable()
+        if repaint and not self.is_hidden_by_script:
+            self.mark_value_dirty()

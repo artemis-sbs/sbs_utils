@@ -21,6 +21,17 @@
 
 ### sbs_utils
 
+- Dropdown: a selection set from script now reaches the screen (LM #568). A
+  dropdown's rendered state lives in one string - the props `_present` sends -
+  and neither writer landed there. `update()` set a `props` attribute nothing
+  reads (so `gui_update()` by tag was dead on a dropdown too), and the `value`
+  setter set only `_value`, so `.value` read back correctly while the box still
+  showed the old label. Both now write the props string and mark the widget
+  dirty, and a selection the PLAYER makes is recorded there as well, so it
+  survives the next present instead of reverting. `.value` is also seeded from
+  the initial `text:` rather than `""`, so it reports what is on screen before
+  anyone clicks.
+
 - A MAST expression that RAISES no longer looks like one that returned None.
   `None` is a legal MAST value, so the old "report the error, then hand the node
   None anyway" laundered a failure into data: the assignment wrote None (into a

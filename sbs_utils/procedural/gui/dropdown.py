@@ -5,8 +5,10 @@ from ...pages.layout.dropdown import Dropdown
 def gui_drop_down(props, style=None, var=None, data=None):
     """Add a drop-down list to the current GUI layout.
 
-    The current value of ``var`` sets the initially selected option. When the
-    player selects an item, ``var`` is updated.
+    When the player selects an item, ``var`` is updated. ``var`` is written, not
+    read: the INITIAL selection comes from ``text:`` in ``props``, so interpolate
+    the variable there yourself -- ``f"text:{speed};list:Slow,Medium,Fast;"`` --
+    or set it afterwards with ``.value``.
 
     Args:
         props (str): Semicolon-separated properties. The options go in ``list:``
@@ -15,8 +17,8 @@ def gui_drop_down(props, style=None, var=None, data=None):
             ``list:`` has nothing to render and the engine dies allocating for it
             (``MemoryError: bad allocation``), which reads as anything but a typo.
         style (str, optional): CSS-like style overrides. Defaults to None.
-        var (str, optional): Variable name to read the initial selection from
-            and update on change. Defaults to None.
+        var (str, optional): Variable name to write the selection to when it
+            changes. Defaults to None.
         data (object, optional): Arbitrary data passed to the event handler.
             Defaults to None.
 
@@ -24,7 +26,8 @@ def gui_drop_down(props, style=None, var=None, data=None):
         Dropdown: The layout item created.
 
     Example:
-        gui_drop_down("items:Slow,Medium,Fast;", var="speed_setting")
+        speed = gui_drop_down("text:Medium;list:Slow,Medium,Fast;", var="speed_setting")
+        speed.value = "Fast"      # move the selection from script
     """    
     page = FrameContext.page
     task = FrameContext.task
