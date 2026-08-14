@@ -829,15 +829,33 @@ def add_extra(name, path=None, mod=None):
             import sbs
             sbs.add_extra_ship_data(str(filename), _engine_path(path))
             reached = True
-        except AttributeError:
-            # Older engine. The library merge above already happened, so the
-            # ships exist as far as sbs_utils is concerned.
-            pass
+        except AttributeError as e:
+            # Older engine. The library merge above already happened, so the ships exist
+            # as far as sbs_utils is concerned - but SAY SO. "engine told: False" with no
+            # reason is the same silence that hid the path bug above: the hulls are in
+            # the library, the mission looks fine, and the engine kills a spawn minutes
+            # later for a ship type it was never given.
+            from .execution import log
+            log(f"add_extra_ship_data({filename}) unavailable on this engine: {e}. "
+                f"Ships from this file exist in sbs_utils but NOT in the engine, so "
+                f"spawning one will fail inside the engine.", "ship_data", "warning")
         except Exception as e:                  # noqa: BLE001
             from .execution import log
             log(f"add_extra_ship_data({filename}) failed: {e}", "ship_data", "warning")
 
     _extra_ship_data_loaded.append((str(filename), str(path), reached))
+    # SAY WHAT HAPPENED, to debug.log - the one channel that survives an engine session.
+    # Everything about this call is invisible from inside the game: whether the file was
+    # found, what path the ENGINE was handed, and whether it accepted the call. When the
+    # hulls do not arrive, the symptom is a spawn dying inside the engine several minutes
+    # later with `bad allocation`, and nothing connects the two.
+    try:
+        from ..mast.mast import DEBUG
+        DEBUG("add_extra(%s): file %s in %r -> engine path %r, engine told: %s"
+              % (filename, "FOUND" if text is not None else "MISSING", path,
+                 _engine_path(path), reached))
+    except Exception:                                   # noqa: BLE001
+        pass
     return reached
 
 
@@ -851,6 +869,25 @@ def _find_extra_root(folder, filename):
     directory that exists silently picks the addon folder, which is exactly where
     the file no longer is.
 
+    THE UNPACKED MEDIA PACK WINS. An addon developed in place has the same file twice -
+    once in its source `media/` folder and once in the pack unpacked under `__lib__` -
+    and the engine can only read the second. ENGINE-MEASURED 1.3.5, the whole of a
+    morning:
+
+        add_extra_ship_data("extraShipData_monsters",
+                            "data/missions/__lib__/media/<pack>/prefabs")  -> works
+        add_extra_ship_data("extraShipData_monsters",
+                            "data/missions/LegendaryMissions/media/prefabs") -> silently
+                            loads NOTHING
+
+    The call does not fail either way, and the LIBRARY reads the file fine from both, so
+    everything looks correct: the mission runs, the mock is happy, `sbs lint` is happy.
+    The bill arrives when something spawns one of those hulls and the ENGINE is asked for
+    a ship type it never received - `MemoryError: bad allocation` from
+    `create_space_object`, minutes later, in a mission that never mentions ship data.
+    (Measured harder still: asking the engine to build one directly is an access
+    violation, not an exception.)
+
     Falls back to the mission folder, so a genuinely missing file still reports
     against somewhere a person can go and look."""
     mission = get_mission_dir()
@@ -860,13 +897,20 @@ def _find_extra_root(folder, filename):
         roots += [r for r in (media_roots() or []) if r]
     except Exception:
         pass
+    found = []
     for root in roots:
         cand = os.path.join(root, *folder.split("/")) if folder else root
         if not os.path.isabs(cand):
             cand = os.path.normpath(os.path.join(mission, cand))
         stem = os.path.join(cand, filename)
         if any(os.path.isfile(stem + e) for e in ("", ".yaml", ".json")):
+            found.append(cand)
+    for cand in found:
+        norm = cand.replace(chr(92), "/")
+        if "/__lib__/media/" in norm:
             return cand
+    if found:
+        return found[0]
     return os.path.join(mission, *folder.split("/")) if folder else mission
 
 
