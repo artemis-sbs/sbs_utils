@@ -674,10 +674,13 @@ class TestEnforcement(unittest.TestCase):
         self.assertLessEqual(volume_depth("v", self._pos()), 0.0)
 
     def test_clamp_respects_margin(self):
+        # 1000 chamber, 200 margin, and the ship's own 50-unit hull: the margin is how
+        # far the HULL is kept off the wall, not the centre point, so the ship lands at
+        # 750 rather than 800. Containment measures a sphere, not a dot.
         volume_watch("v", margin=200, hold="clamp")
         self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
-        self.assertAlmostEqual(self._pos()[0], 800.0, places=3)
+        self.assertAlmostEqual(self._pos()[0], 750.0, places=3)
 
     def test_clamp_can_be_disabled(self):
         volume_watch("v", clamp=False, hold="clamp")
@@ -685,20 +688,52 @@ class TestEnforcement(unittest.TestCase):
         volume_containment_tick()
         self.assertAlmostEqual(self._pos()[0], BREACH_X)
 
+    def test_a_wall_takes_way_off_the_ship(self):
+        # Hitting something should COST speed. A cap alone never stops anything - it
+        # holds the ship against the plating at full impulse, pushing, which is what
+        # made the hold feel like a rubber band rather than a wall.
+        volume_watch("v", hold="tractor")
+        volume_containment_tick()
+        self.ship.data_set.set("playerThrottle", 3.0, 0)
+        self._set_pos(BREACH_X, 0, 0)
+        seen = []
+        for _ in range(4):
+            volume_containment_tick()
+            seen.append(self.ship.data_set.get("playerThrottle", 0))
+        self.assertLess(seen[0], 1.01, "warp is capped the moment the hull is in a wall")
+        for a, b in zip(seen, seen[1:]):
+            self.assertLess(b, a, "and it keeps bleeding while the ship is in contact")
+
+    def test_the_helm_gets_its_throttle_back_once_clear(self):
+        volume_watch("v", hold="tractor")
+        volume_containment_tick()
+        self.ship.data_set.set("playerThrottle", 3.0, 0)
+        self._set_pos(BREACH_X, 0, 0)
+        volume_containment_tick()
+        self._set_pos(0, 0, 0)                      # back inside, hull clear
+        self.ship.data_set.set("playerThrottle", 0.8, 0)
+        volume_containment_tick()
+        self.assertAlmostEqual(self.ship.data_set.get("playerThrottle", 0), 0.8,
+                               msg="drag is contact, not confiscation")
+
     def test_governor_caps_warp_on_breach(self):
+        # Warp is gone the moment the hull is in a wall. It is then bled further by the
+        # drag - hitting something costs speed - so the assertion is the CEILING, not an
+        # exact value.
         volume_watch("v")
         self.ship.data_set.set("playerThrottle", 3.0, 0)
         self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
-        self.assertAlmostEqual(self.ship.data_set.get("playerThrottle", 0), 1.0)
+        self.assertLessEqual(self.ship.data_set.get("playerThrottle", 0), 1.0)
 
-    def test_governor_leaves_impulse_alone(self):
-        # Cap, never raise, and never touch a ship that is already sub-warp.
+    def test_the_wall_never_raises_a_throttle(self):
+        # The rule that matters: containment only ever LOWERS. A ship already crawling
+        # is slowed by contact, never sped up.
         volume_watch("v")
         self.ship.data_set.set("playerThrottle", 0.5, 0)
         self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
-        self.assertAlmostEqual(self.ship.data_set.get("playerThrottle", 0), 0.5)
+        self.assertLessEqual(self.ship.data_set.get("playerThrottle", 0), 0.5)
 
     def test_governor_does_not_fire_inside(self):
         volume_watch("v")
@@ -1151,12 +1186,13 @@ class TestTractorHold(unittest.TestCase):
 
     def test_governor_still_applies_under_the_tractor(self):
         # The two are independent: the tractor holds position, the governor stops the
-        # ship fighting it at warp.
+        # ship fighting it at warp - and the drag then takes the way off, so this is a
+        # ceiling rather than an exact value.
         volume_watch("v")
         self.ship.data_set.set("playerThrottle", 3.0, 0)
         self._set_pos(BREACH_X, 0, 0)
         volume_containment_tick()
-        self.assertAlmostEqual(self.ship.data_set.get("playerThrottle", 0), 1.0)
+        self.assertLessEqual(self.ship.data_set.get("playerThrottle", 0), 1.0)
 
 
 class TestFlightEnvelope(unittest.TestCase):

@@ -1127,13 +1127,19 @@ _ANCHORS = {}
 _WATCHERS = {}
 
 
-def volume_tier(volume, pos, scrape_band=120.0):
+def volume_tier(volume, pos, scrape_band=120.0, radius=0.0):
     """Which response tier a position falls in. Pure - the testable seam.
 
     `scrape_band` defaults to 120u: two ticks of warp travel at the measured 60
     u/tick, so a glancing clip scrapes while a determined exit breaches.
+
+    `radius` is the SHIP, not a point. A hull is a sphere of its `exclusion_radius`,
+    and testing only its centre lets half the ship stand in the wall before anything
+    reacts - 50 units of light cruiser against a 60-unit scrape band, so the hull is
+    110 units through the plating at the moment the centre first counts as breaching.
+    That is the difference between scraping a wall and visibly passing through it.
     """
-    d = volume_depth(volume, pos)
+    d = volume_depth(volume, pos) + float(radius or 0.0)
     if d < 0.0:
         return TIER_INSIDE
     if d < scrape_band:
@@ -1331,6 +1337,31 @@ def _vol_govern_throttle(so, cap=1.0):
     return False
 
 
+#: How much of its throttle a ship keeps per tick while its hull is IN the wall. At
+#: ~15 MAST ticks a second this bleeds full impulse away in about half a second - long
+#: enough to feel like scraping to a halt, short enough that nobody grinds along a wall
+#: at speed. A cap alone never stops anything: it just holds the ship against the plating
+#: forever, pushing, which is what made the hold feel like a rubber band.
+VOL_WALL_DRAG = 0.75
+
+
+def _vol_bleed_throttle(so, keep=VOL_WALL_DRAG, floor=0.0):
+    """Take way off a ship that is in the wall. Only ever lowers, like the governor.
+
+    Hitting something should COST you speed. The helm can open the throttle again the
+    moment the hull is clear - this is drag while in contact, not a confiscation.
+    """
+    try:
+        thr = so.data_set.get("playerThrottle", 0) or 0.0
+        if thr <= floor:
+            return False
+        nxt = thr * float(keep)
+        so.data_set.set("playerThrottle", floor if nxt < 0.02 else nxt, 0)
+        return True
+    except Exception:                                   # noqa: BLE001
+        return False
+
+
 def _vol_block_jump(so):
     """Try to hold the jump/warp drives inactive.
 
@@ -1389,7 +1420,15 @@ def _vol_anchor_object(ship_id):
     return obj.id
 
 
-def _vol_tractor_hold(vol, ship_id, pos, margin, scrape_band=120.0):
+def _vol_ship_radius(so):
+    """A ship's own radius, so containment can treat it as a hull rather than a dot."""
+    try:
+        return float(so.engine_object.exclusion_radius) or 0.0
+    except Exception:                                   # noqa: BLE001
+        return 0.0
+
+
+def _vol_tractor_hold(vol, ship_id, pos, margin, scrape_band=120.0, radius=0.0):
     """Hold a ship inside the volume with an engine-side tractor.
 
     Why not `set_pos`: measured from the helm seat, a per-tick teleport clamp is
@@ -1418,7 +1457,7 @@ def _vol_tractor_hold(vol, ship_id, pos, margin, scrape_band=120.0):
     nudge and one driving hard at it gets something immovable, instead of one constant
     that is wrong at both ends.
     """
-    depth, anchor_pt, radius = vol.nearest(pos)
+    depth, anchor_pt, reach = vol.nearest(pos)
     if anchor_pt is None:
         return False
     aid = _vol_anchor_object(ship_id)
@@ -1430,14 +1469,16 @@ def _vol_tractor_hold(vol, ship_id, pos, margin, scrape_band=120.0):
         return False
     from .space_objects import set_pos
     set_pos(aid, anchor_pt[0], anchor_pt[1], anchor_pt[2])
-    rope = radius - margin
+    # The rope keeps the HULL inside, not the ship's centre point: a 50-unit hull held
+    # exactly at the wall is half buried in it.
+    rope = reach - margin - radius
     if rope <= 0.0:
-        rope = radius * 0.5
+        rope = max(reach * 0.5 - radius, 1.0)
     try:
         ctx.sim.DeleteTractorConnection(aid, ship_id)
         con = ctx.sim.AddTractorConnection(aid, ship_id, ctx.sbs.vec3(0.0, 0.0, 0.0),
                                            float(rope))
-        con.offset = _vol_hold_stiffness(depth, scrape_band)
+        con.offset = _vol_hold_stiffness(depth + radius, scrape_band)
     except Exception:                                   # noqa: BLE001
         return False
     return True
@@ -1529,14 +1570,15 @@ def volume_containment_tick(t=None):
                 continue
             aid = so.id
             live.add(aid)
-            tier = volume_tier(vol, pos, w.scrape_band)
+            hull = _vol_ship_radius(so)
+            tier = volume_tier(vol, pos, w.scrape_band, hull)
 
             # THE LATCH. Inside means engaged, from now until it leaves the relic's
             # bounding sphere entirely - which is the only "away" a volume can define,
             # since the volume itself is a graph of rooms rather than a ball.
             if w.engage == ENGAGE_ENTERED:
                 if tier == TIER_INSIDE:
-                    w.inside.add(aid)
+                    w.inside.add(aid)      # wholly in - tier already allows for the hull
                 elif aid in w.inside:
                     # Released a WHOLE RELIC clear of it, not merely outside the wall.
                     # The bounding sphere of a one-room volume IS that room, so releasing
@@ -1560,13 +1602,19 @@ def volume_containment_tick(t=None):
                 _vol_govern_throttle(so, w.speed_limit)
             if w.block_jump:
                 _vol_block_jump(so)
+            if tier == TIER_SCRAPE and w.govern:
+                # The hull is IN the wall: cap to impulse and bleed speed off, so a ship
+                # scrapes to a stop instead of grinding along the plating at full power.
+                _vol_govern_throttle(so)
+                _vol_bleed_throttle(so)
             if tier == TIER_BREACH:
                 if w.govern:
                     _vol_govern_throttle(so)
+                    _vol_bleed_throttle(so)
                 if w.hold == HOLD_TRACTOR:
-                    _vol_tractor_hold(vol, aid, pos, w.margin, w.scrape_band)
+                    _vol_tractor_hold(vol, aid, pos, w.margin, w.scrape_band, hull)
                 elif w.hold == HOLD_CLAMP and w.clamp:
-                    target = vol.nearest_inside(pos, w.margin)
+                    target = vol.nearest_inside(pos, w.margin + hull)
                     if target is not None:
                         set_pos(aid, target[0], target[1], target[2])
             elif aid in _ANCHORS:
@@ -1582,7 +1630,7 @@ def volume_containment_tick(t=None):
                 else:
                     event = "volume_breach"
                 signal_emit(event, {"volume": name, "id": aid,
-                                    "depth": vol.depth(pos)})
+                                    "depth": vol.depth(pos) + hull})
         # Forget agents that left the candidate set, or the tier map grows unbounded
         # across a long mission and a returning ship carries a stale tier. The latch goes
         # with it: a destroyed or docked ship is not still "inside", and an id can be
