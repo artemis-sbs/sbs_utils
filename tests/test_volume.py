@@ -1040,6 +1040,34 @@ class TestTractorHold(unittest.TestCase):
     def _connections(self):
         return dict(self.sim.tractor_connections)
 
+    def test_a_ship_at_warp_is_still_held(self):
+        # THE regression. The hold used to go through `grav_tether`, a TOWING library
+        # that refuses a target moving faster than a grab-speed limit - and
+        # LegendaryMissions installs that limit at half impulse. A ship driving at a wall
+        # is above half impulse by definition, so the hold was declined every tick. The
+        # symptom was "the tractor is not strong enough"; the truth was no tractor.
+        volume_watch("v")
+        volume_containment_tick()                       # latch it as inside
+        self.ship.data_set.set("playerThrottle", 3.0, 0)
+        self._set_pos(1400, 0, 0)
+        volume_containment_tick()
+        held = [k for k in self._connections() if k[1] == self.ship.id]
+        self.assertEqual(len(held), 1, "a wall does not negotiate with a fast ship")
+
+    def test_the_hold_tightens_with_depth(self):
+        # `tractor_connection.offset` is INVERTED - the engine calls it "how much the
+        # target is pulled towards the offset every tick", and 0 is an infinite pull. So
+        # a deeper breach must produce a SMALLER number.
+        from sbs_utils.procedural.volume import _vol_hold_stiffness
+        band = 120.0
+        at_wall = _vol_hold_stiffness(band, band)
+        deeper = _vol_hold_stiffness(band * 1.5, band)
+        leaving = _vol_hold_stiffness(band * 3.0, band)
+        self.assertGreater(at_wall, deeper)
+        self.assertGreater(deeper, leaving)
+        self.assertEqual(leaving, 0.0,
+                         "past twice the band a ship is not scraping, it is leaving")
+
     def test_no_anchor_until_a_breach(self):
         volume_watch("v")
         self._set_pos(500, 0, 0)

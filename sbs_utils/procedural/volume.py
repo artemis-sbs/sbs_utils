@@ -1389,7 +1389,7 @@ def _vol_anchor_object(ship_id):
     return obj.id
 
 
-def _vol_tractor_hold(vol, ship_id, pos, margin):
+def _vol_tractor_hold(vol, ship_id, pos, margin, scrape_band=120.0):
     """Hold a ship inside the volume with an engine-side tractor.
 
     Why not `set_pos`: measured from the helm seat, a per-tick teleport clamp is
@@ -1397,35 +1397,79 @@ def _vol_tractor_hold(vol, ship_id, pos, margin):
     position, so the ship visibly leaves the volume and snaps back. A tractor moves
     the ship inside the engine's own physics, so client prediction follows it.
 
-    `grav_tether_rope`, not a raw connection: engine-confirmed, a STATIC tether reels
-    the target fully in regardless of `pull_distance` (1500 -> ~165). The rope-toggle
-    pulls only when beyond the rope length and releases inside it, which held
-    798/801/801 at `rope_len=800` - so inside the volume the ship still flies free.
+    THE ENGINE CALL DIRECTLY, not `grav_tether`. That library is a TOWING model, and
+    containment inherited three of its rules by reusing it:
+
+      * it REFUSES a target moving faster than a grab-speed limit, and LegendaryMissions
+        installs that limit at half impulse. A ship flying at a wall is above half
+        impulse by definition, so the hold was declined every tick - emitting
+        `grav_tether_too_fast` instead of holding anything. That is the whole of "the
+        tractor is not strong enough": there was usually no tractor.
+      * its impulse enforcement caps the SOURCE, which here is our own invisible anchor;
+      * it keeps a shared registry, so a mission towing something and a wall holding a
+        ship would argue over one entry.
+
+    `orbit.py` reached the same conclusion for the same reasons and calls the engine
+    directly; this is that decision applied to the other user of the tractor.
+
+    STRENGTH SCALES WITH DEPTH. `tractor_connection.offset` is the engine's only dial -
+    "how much the target is pulled towards the offset every tick", where 0 is an
+    infinite pull that locks the target. So a ship a hair past the wall gets a soft
+    nudge and one driving hard at it gets something immovable, instead of one constant
+    that is wrong at both ends.
     """
-    _depth, anchor_pt, radius = vol.nearest(pos)
+    depth, anchor_pt, radius = vol.nearest(pos)
     if anchor_pt is None:
         return False
     aid = _vol_anchor_object(ship_id)
     if aid is None:
         return False
+    from ..helpers import FrameContext
+    ctx = FrameContext.context
+    if ctx is None or ctx.sim is None or ctx.sbs is None:
+        return False
     from .space_objects import set_pos
-    from .grav_tether import grav_tether_rope
     set_pos(aid, anchor_pt[0], anchor_pt[1], anchor_pt[2])
     rope = radius - margin
     if rope <= 0.0:
         rope = radius * 0.5
-    grav_tether_rope(aid, ship_id, rope)
+    try:
+        ctx.sim.DeleteTractorConnection(aid, ship_id)
+        con = ctx.sim.AddTractorConnection(aid, ship_id, ctx.sbs.vec3(0.0, 0.0, 0.0),
+                                           float(rope))
+        con.offset = _vol_hold_stiffness(depth, scrape_band)
+    except Exception:                                   # noqa: BLE001
+        return False
     return True
 
 
+def _vol_hold_stiffness(depth, scrape_band):
+    """The engine's pull dial for a breach this deep: soft at the wall, locked past it.
+
+    `offset` is inverted - 0 is an INFINITE pull. So this walks from a taut-tow 5.0 at
+    the scrape band down to 0 at twice the band, which is where a ship is no longer
+    scraping along a wall but leaving through it.
+    """
+    band = max(float(scrape_band), 1.0)
+    over = (float(depth) - band) / band          # 0 at the band, 1 at twice it
+    if over <= 0.0:
+        return 5.0
+    return max(0.0, 5.0 * (1.0 - min(over, 1.0)))
+
+
 def _vol_tractor_release(ship_id):
+    """Drop this ship's containment tractor. The engine call directly, to match the hold -
+    going through `grav_tether_release` would look up a registry entry we never made."""
     aid = _ANCHORS.get(ship_id)
     if aid is None:
         return
+    from ..helpers import FrameContext
+    ctx = FrameContext.context
+    if ctx is None or ctx.sim is None:
+        return
     try:
-        from .grav_tether import grav_tether_release
-        grav_tether_release(aid, ship_id)
-    except Exception:
+        ctx.sim.DeleteTractorConnection(aid, ship_id)
+    except Exception:                                   # noqa: BLE001
         pass
 
 
@@ -1520,7 +1564,7 @@ def volume_containment_tick(t=None):
                 if w.govern:
                     _vol_govern_throttle(so)
                 if w.hold == HOLD_TRACTOR:
-                    _vol_tractor_hold(vol, aid, pos, w.margin)
+                    _vol_tractor_hold(vol, aid, pos, w.margin, w.scrape_band)
                 elif w.hold == HOLD_CLAMP and w.clamp:
                     target = vol.nearest_inside(pos, w.margin)
                     if target is not None:
