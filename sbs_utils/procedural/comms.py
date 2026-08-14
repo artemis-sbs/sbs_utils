@@ -1081,7 +1081,7 @@ class CommsPromise(ButtonPromise):
 
 
 
-from .execution import AWAIT, task_all, labels_get_type
+from .execution import AWAIT, task_all, labels_get_type, log
 ################
 ## This is a PyMAST label used to run comms
 def create_comms_label():
@@ -1480,7 +1480,7 @@ def comms_navigate_override(ids_or_obj, sel_ids_or_obj, path=None, path_must_mat
 
 from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
 from sbs_utils.helpers import FrameContext
-from sbs_utils.procedural.query import to_object, get_comms_selection, to_object_list
+from sbs_utils.procedural.query import to_object, get_comms_selection, to_object_list, is_alt_ship_target
 
 
 def comms_set_2dview_focus(client_id, focus_id=0, EVENT=None):
@@ -1510,6 +1510,12 @@ def comms_set_2dview_focus(client_id, focus_id=0, EVENT=None):
     set_id = focus_id
     if not follow:
         set_id = 0
+
+    # See is_alt_ship_target: a task / fleet / side id takes the CLIENT down with a modal
+    # assert about a vertex index, which names nothing that would lead you back here.
+    if not is_alt_ship_target(set_id):
+        log(f"comms_set_2dview_focus ignoring {set_id}: not a space object", "comms", "warning")
+        return
 
     previous = get_inventory_value(client_id, "2dview_alt_ship_prev", 0)
     if previous != set_id:

@@ -30,7 +30,7 @@ as helm overriding anything; a genuine change of view OR of facing must.
 from ...helpers import FrameContext
 from ...mast.mast import DEBUG
 from ..inventory import get_inventory_value, set_inventory_value
-from ..query import to_id, to_object
+from ..query import to_id, to_object, is_alt_ship_target
 from ..signal import signal_emit
 from .camera import camera_assign, camera_auto, camera_dolly, camera_move_stop, camera_orbit
 from .overlay import (consoles_of, overlay_auto_dwell, overlay_clear, overlay_register,
@@ -403,6 +403,13 @@ def _alt_ship(cid, focus_id):
     """
     focus_id = focus_id or 0
     if get_inventory_value(cid, KEY_ALT, 0) == focus_id:
+        return
+    # See is_alt_ship_target: a subject that is not a space object kills the client.
+    # Imported here rather than at module scope - procedural.execution reaches back into
+    # the gui package, and this module is already deep in that import chain.
+    if not is_alt_ship_target(focus_id):
+        from ..execution import log
+        log(f"viewscreen subject {focus_id} is not a space object; not showing it", "viewscreen", "warning")
         return
     FrameContext.context.sbs.assign_client_to_alt_ship(cid, focus_id)
     set_inventory_value(cid, KEY_ALT, focus_id)

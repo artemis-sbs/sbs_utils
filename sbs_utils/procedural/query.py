@@ -377,6 +377,36 @@ def is_space_object_id(id):
         return False
     return (id & 0x4000000000000000)!=0
 
+def is_alt_ship_target(id):
+    """Return whether an ID is safe to hand to ``assign_client_to_alt_ship``.
+
+    ``0`` means "clear the focus" and is always allowed. Anything else must be a
+    SPACE-object id. A Fleet, side, task or grid id is script-only - the engine never
+    created it - and pointing a console at one crashes the client: measured 5 runs out of
+    5 as either a modal ``vertexIndex < numVerts`` assert out of ``DX11PAXVertList.cpp``
+    or an access violation reading off the end of a vertex list. The engine takes the id
+    as a ship, indexes a mesh it does not have, and reads whatever is there.
+
+    A dead-but-well-formed space id is deliberately still allowed: the engine handles a
+    deleted ship cleanly (measured), and rejecting it here would drop legitimate focus
+    changes on a target that is merely mid-teardown. This guards the class the engine
+    cannot survive, not staleness. ``object_exists`` already applies the same reasoning
+    before calling ``space_object_exists``.
+
+    Args:
+        id (Agent | int): Agent ID or object.
+
+    Returns:
+        bool: ``True`` if the id is 0 or a space-object id.
+    """
+    id = to_id(id)
+    if id is None:
+        return False
+    if id == 0:
+        return True
+    return is_space_object_id(id)
+
+
 def is_grid_object_id(id):
     """Return whether an ID belongs to an engineering-grid object.
 

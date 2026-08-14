@@ -591,7 +591,7 @@ def science_navigate(path):
 
 
 from ..mast.pollresults import PollResults
-from .execution import AWAIT, task_all, labels_get_type
+from .execution import AWAIT, task_all, labels_get_type, log
 ################
 ## This is a PyMAST label used to run comms
 def create_scan_label():
@@ -858,7 +858,7 @@ def science_ensure_scan(ids_or_objs, target_ids_or_objs, tabs="scan"):
 
 from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
 from sbs_utils.helpers import FrameContext
-from sbs_utils.procedural.query import to_object
+from sbs_utils.procedural.query import to_object, is_alt_ship_target
 
 
 #
@@ -883,6 +883,14 @@ def science_set_2dview_focus(client_id, focus_id=0):
     set_id = focus_id
     if not follow:
         set_id = 0
+
+    # An id the engine never made is fatal to the CLIENT, not to us - see
+    # is_alt_ship_target. Name it and drop it rather than passing it on: the crash it
+    # causes surfaces as a modal assert about a vertex index, which says nothing about
+    # the selection that caused it.
+    if not is_alt_ship_target(set_id):
+        log(f"science_set_2dview_focus ignoring {set_id}: not a space object", "science", "warning")
+        return
 
     previous = get_inventory_value(client_id, "science_2dview_alt_ship_prev", 0)
     if previous != set_id:
