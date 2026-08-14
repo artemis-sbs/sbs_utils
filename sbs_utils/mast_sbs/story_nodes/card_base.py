@@ -1,3 +1,4 @@
+from ...mast.mast_node import mast_compile, EVAL_ERROR
 from ...mast.core_nodes.decorator_label import DecoratorLabel
 
 class CardLabelBase(DecoratorLabel):
@@ -19,7 +20,7 @@ class CardLabelBase(DecoratorLabel):
         if self.if_exp is not None:
             self.if_exp = if_exp.strip()
             try:
-                self.code = compile(self.if_exp, "<string>", "eval")
+                self.code = mast_compile(self.if_exp, "eval")
             except:
                 raise Exception(f"Syntax error '{if_exp}'")
             
@@ -34,7 +35,10 @@ class CardLabelBase(DecoratorLabel):
     def test(self, task):
         if self.code is None:
             return True
-        return task.eval_code(self.code)
+        value = task.eval_code_checked(self.code)
+        # A condition that RAISED is reported and read as "not shown" - it is
+        # never quietly treated as true.
+        return False if value is EVAL_ERROR else value
 
     def generate_label_end_cmds(self, compile_info=None):
         super().generate_label_end_cmds(compile_info)

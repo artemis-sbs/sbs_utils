@@ -1,4 +1,4 @@
-from ..mast_node  import MastNode, mast_node, BLOCK_START
+from ..mast_node import MastNode, mast_node, BLOCK_START, mast_compile, EVAL_ERROR
 import re
 
 
@@ -36,7 +36,7 @@ class Await(MastNode):
 
         if if_exp:
             if_exp = if_exp.lstrip()
-            self.code = compile(if_exp, "<string>", "eval")
+            self.code = mast_compile(if_exp, "eval")
         else:
             self.code = None
 
@@ -95,7 +95,9 @@ class AwaitRuntimeNode(MastRuntimeNode):
         self.promise = None
         if node.is_end:
             return
-        value = task.eval_code(node.code)
+        value = task.eval_code_checked(node.code)
+        if value is EVAL_ERROR:
+            return
         if isinstance(value, Promise):
             self.promise = value
             self.promise.inlines = node.inlines
@@ -119,7 +121,9 @@ class AwaitRuntimeNode(MastRuntimeNode):
             else:
                 return PollResults.OK_RUN_AGAIN
         
-        value = task.eval_code(node.code)
+        value = task.eval_code_checked(node.code)
+        if value is EVAL_ERROR:
+            return PollResults.OK_END
         if value:
             task.jump(task.active_label, node.dedent_loc)
             return PollResults.OK_JUMP

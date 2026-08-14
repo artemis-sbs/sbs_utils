@@ -1,4 +1,4 @@
-from ..mast_node import MastNode, mast_node, BLOCK_START
+from ..mast_node import MastNode, mast_node, BLOCK_START, mast_compile, EVAL_ERROR
 import re
 
 
@@ -13,7 +13,7 @@ class IfStatements(MastNode):
         self.code = None
         if if_exp:
             if_exp = if_exp.lstrip()
-            self.code = compile(if_exp, "<string>", "eval")
+            self.code = mast_compile(if_exp, "eval")
 
         self.end = end
         self.if_op = if_op
@@ -69,6 +69,10 @@ class IfStatementsRuntimeNode(MastRuntimeNode):
         # if this is THE if, find the first true branch
         if node.if_op == "if":
             activate = self.first_true(task, node)
+            # A test that raised is not a test that came back false - taking the
+            # else: branch here would run the wrong code with no clue why.
+            if activate is EVAL_ERROR:
+                return PollResults.OK_END
             if activate is not None:
                 task.jump(task.active_label, activate.loc+1, respect_inline=True)
                 return PollResults.OK_JUMP
@@ -81,11 +85,14 @@ class IfStatementsRuntimeNode(MastRuntimeNode):
             print("DEDENT IS NONE IN AN IF")
 
     def first_true(self, task: 'MastAsyncTask', node: IfStatements):
+        """The branch to run, or None for "no branch". EVAL_ERROR if a test raised."""
         cmd_to_run = None
         for i in node.if_chain:
             test_node = i # task.mast_ticker.cmds[i]
             if test_node.code:
-                value = task.eval_code(test_node.code)
+                value = task.eval_code_checked(test_node.code)
+                if value is EVAL_ERROR:
+                    return EVAL_ERROR
                 if value:
                     cmd_to_run = i
                     break
@@ -128,10 +135,10 @@ class MatchStatements(MastNode):
         elif exp:
             exp = exp.lstrip()
             if exp == "_":
-                self.code = compile('True', "<string>", "eval")
+                self.code = mast_compile('True', "eval")
             else:
                 exp = self.match_node.match_exp +"==" + exp
-                self.code = compile(exp, "<string>", "eval")
+                self.code = mast_compile(exp, "eval")
         else:
             self.code = None
 
@@ -173,19 +180,25 @@ class MatchStatementsRuntimeNode(MastRuntimeNode):
         # if this is THE if, find the first true branch
         if node.op == "match":
             activate = self.first_true(task, node)
+            # A case test that raised must not fall through to `case _`.
+            if activate is EVAL_ERROR:
+                return PollResults.OK_END
             if activate is not None:
                 task.jump(task.active_label, activate.loc+1)
                 return PollResults.OK_JUMP
-            
+
         task.jump(task.active_label, node.match_node.dedent_loc)
         return PollResults.OK_JUMP
 
     def first_true(self, task: 'MastAsyncTask', node: MatchStatements):
+        """The case to run, or None for "no case". EVAL_ERROR if a test raised."""
         cmd_to_run = None
         for i in node.chain:
             test_node = i # task.mast_ticker.cmds[i]
             if test_node.code:
-                value = task.eval_code(test_node.code)
+                value = task.eval_code_checked(test_node.code)
+                if value is EVAL_ERROR:
+                    return EVAL_ERROR
                 if value:
                     cmd_to_run = i
                     break

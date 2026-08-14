@@ -1,4 +1,4 @@
-from ..mast_node  import MastNode, mast_node, BLOCK_START, OPT_DATA_REGEX, IF_EXP_REGEX
+from ..mast_node import MastNode, mast_node, BLOCK_START, OPT_DATA_REGEX, IF_EXP_REGEX, mast_compile, EVAL_ERROR
 import re
 
 
@@ -19,13 +19,13 @@ class Jump(MastNode):
         self.label = jump_name
         if if_exp:
             if_exp = if_exp.lstrip()
-            self.if_code = compile(if_exp, "<string>", "eval")
+            self.if_code = mast_compile(if_exp, "eval")
         else:
             self.if_code = None
         self.data = data
         if data is not None:
             data = data.lstrip()
-            self.data = compile(data, "<string>", "eval")
+            self.data = mast_compile(data, "eval")
 
 from ..pollresults import PollResults
 from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node
@@ -39,7 +39,10 @@ if TYPE_CHECKING:
 class JumpRuntimeNode(MastRuntimeNode):
     def poll(self, mast:'Mast', task:'MastAsyncTask', node:Jump):
         if node.if_code:
-            value = task.eval_code(node.if_code)
+            value = task.eval_code_checked(node.if_code)
+            # A test that raised is not a test that said "don't jump".
+            if value is EVAL_ERROR:
+                return PollResults.OK_END
             if not value:
                 return PollResults.OK_ADVANCE_TRUE
         

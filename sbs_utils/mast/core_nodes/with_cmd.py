@@ -1,4 +1,4 @@
-from ..mast_node import MastNode, mast_node, BLOCK_START, ParseData
+from ..mast_node import MastNode, mast_node, BLOCK_START, ParseData, mast_compile, EVAL_ERROR
 import re
 
 
@@ -21,7 +21,7 @@ class WithStart(MastNode):
     def __init__(self, obj=None, name=None, loc=None, compile_info=None):
         super().__init__()
         if obj:
-            self.code = compile(obj, "<string>", "eval")
+            self.code = mast_compile(obj, "eval")
         else:
             self.code = None
         self.name = name
@@ -84,7 +84,10 @@ if TYPE_CHECKING:
 @mast_runtime_node(WithStart)
 class WithStartRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:WithStart):
-        value = task.eval_code(node.code)
+        value = task.eval_code_checked(node.code)
+        # A `with` whose object expression raised has nothing to enter.
+        if value is EVAL_ERROR:
+            return PollResults.OK_END
         if value is None:
             return PollResults.OK_ADVANCE_TRUE
 

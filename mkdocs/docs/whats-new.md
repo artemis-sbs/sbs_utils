@@ -1518,6 +1518,56 @@ in `jump`, it always escaped this and is unchanged.
 `gui_message_callback(widget, fn)` remains the option with no task in the path at all,
 and is still the safest choice for a handler built somewhere awkward.
 
+## 💥 A broken expression stops, instead of quietly becoming `None`
+
+`None` is a perfectly good MAST value — `default ship_art = None` is ordinary — so
+when an expression *blew up*, the runtime had no way to say so. It logged the error
+and then handed the line `None` anyway, and the line ran with it:
+
+```
+    range_to_base = ship.pos.distance(base_pos)   # `ship` is a typo
+    if range_to_base < 5000:                      # None -> takes the ELSE
+        ...
+```
+
+The assignment wrote `None` — and if it was `shared`, every other task in the story
+now read `None` too. An `if` slid into its `else:`. Worst of all, `for x in <broken>:`
+went on to do `iter(None)` and reported a **second** error, on the same line, about a
+`NoneType` — and that second one is the one people saw. The real cause was three
+messages up, if it was still on screen at all.
+
+**Now the line simply does not run.** The assignment does not happen, the `if` does not
+choose a branch, the loop does not iterate, `jump X if <broken>` neither jumps nor
+falls through. The task ends there, and **the first error in `mast.runtime.log` is the
+real one**.
+
+The message improved too. It names the exception, quotes your expression, and no longer
+prints the word `None` where the offending code should be:
+
+```
+mast RUNTIME ERROR
+      line: 12 in file: story.mast
+      label: patrol_logic
+
+NameError in expression:
+     ship.pos.distance(base_pos)
+name 'ship' is not defined
+```
+
+And it knows about the trap that reads as "my variable vanished":
+
+```
+    assigned = sbs.get_ship_of_client(client_id)   # assigns to NOTHING
+    ok = assigned == foe_id                        # NameError, reported HERE
+```
+
+`shared`, `assigned`, `client` and `temp` are **scope keywords**, so `assigned = x`
+parses as the `assigned` scope with an empty target. The error now says so by name
+instead of leaving you to find it. (Rename the variable — `assigned_ship` is fine.)
+
+**Nothing to change in your scripts.** A mission with no broken expressions behaves
+exactly as it did; a mission with one now tells you which one.
+
 ---
 
 *Thanks for playing, building, and tinkering. There's more under the hood than ever

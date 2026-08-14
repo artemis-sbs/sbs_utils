@@ -1,4 +1,4 @@
-from ..mast_node  import MastNode, mast_node
+from ..mast_node import MastNode, mast_node, mast_compile
 import re
 
 from ...agent import Agent
@@ -16,7 +16,7 @@ class PyCode(MastNode):
         self.loc = loc
         if py_cmds:
             py_cmds= py_cmds.lstrip()
-            self.code = compile(py_cmds, "<string>", "exec")
+            self.code = mast_compile(py_cmds, "exec")
 
 @mast_runtime_node(PyCode)
 class PyCodeRuntimeNode(MastRuntimeNode):

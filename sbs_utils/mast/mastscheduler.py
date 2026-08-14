@@ -14,6 +14,9 @@ from .core_nodes.inline_label import InlineLabel
 
 from .mast_runtime_node import MastRuntimeNode
 from .mast_globals import MastGlobals
+from .mast_node import EVAL_ERROR, mast_expr_source
+import logging
+import sys
 
 # Cached eval/exec globals wrapper. Variables resolve from the LOCALS arg
 # (get_symbols()); this dict only carries __builtins__. MastGlobals.globals is
@@ -22,6 +25,37 @@ from .mast_globals import MastGlobals
 # fresh {"__builtins__": ...} dict on every eval_code/format_string call (~one
 # per expression eval, hundreds of thousands per second under load).
 _EVAL_GLOBALS = {"__builtins__": MastGlobals.globals}
+
+# `shared x = 1` is a SCOPE keyword plus a target; `shared = 1` therefore assigns
+# to nothing at all, and the NameError lands on the line that READS the variable.
+# See MAST_CLAUDE.md - it is a common enough trap to name in the error itself.
+_SCOPE_KEYWORDS = ("shared", "assigned", "client", "temp")
+
+
+def describe_eval_failure(code):
+    """Header describing the live exception for a MAST eval/exec failure.
+
+    Called from inside an ``except`` block, so ``sys.exc_info()`` is still live.
+    Names the exception TYPE (a bare message hides whether it was a NameError or
+    a TypeError), quotes the MAST expression the code object came from, and adds
+    a hint for the scope-keyword trap.
+    """
+    err = sys.exc_info()[1]
+    if err is None:
+        return ""
+    s = f"{type(err).__name__} in expression:"
+    source = mast_expr_source(code)
+    if source:
+        for line in source.splitlines():
+            s += f"\n     {line}"
+    else:
+        s += "\n     (source unavailable)"
+    name = getattr(err, "name", None)
+    if isinstance(err, NameError) and name in _SCOPE_KEYWORDS:
+        s += (f"\n     hint: '{name}' is a MAST scope keyword, not a variable."
+              f"\n           `{name} = value` assigns to NOTHING - it parses as the"
+              f"\n           '{name}' scope with an empty target. Rename the variable.")
+    return s
 
 
 class ChangeRuntimeNode(MastRuntimeNode):
@@ -313,6 +347,15 @@ class MastTicker:
                     print(f"Mast command {this_cmd.__class__} {this_cmd.line_num}")
                     print(f"code  {this_cmd.line}")
                     break
+
+                # A runtime error can be raised by the node's enter(), which runs
+                # inside the next()/do_jump above - INSIDE this iteration, after
+                # the `while not self.done` test. Without this the errored node is
+                # still polled, and it polls with whatever half-state enter() left
+                # behind, producing a second error that hides the real one.
+                if self.errored:
+                    self.done = True
+                    return PollResults.FAIL_END if is_sub_task else PollResults.OK_END
 
                 if self.runtime_node:
                     cmd = self.cmds[self.active_cmd]
@@ -1102,8 +1145,10 @@ class MastAsyncTask(Agent, Promise):
             value = eval(message, _EVAL_GLOBALS, allowed)
             return value
         except Exception as err:
-            s =  f"FORMAT String error:\n\t f'{message}'\n"
-            s += str(err)
+            # `message` here is a CODE OBJECT, so printing it directly says only
+            # "<code object <module> ...>". Quote the template text instead.
+            s = f"FORMAT String error:\n\t{mast_expr_source(message) or message}\n"
+            s += f"{type(err).__name__}: {err}"
             self.runtime_error(s)
         return ""
         
@@ -1117,43 +1162,50 @@ class MastAsyncTask(Agent, Promise):
 
 
 
-    def eval_code(self, code, end_on_exception=True):
-        value = None
+    def eval_code_checked(self, code, end_on_exception=True):
+        """Evaluate a MAST expression, returning EVAL_ERROR if it raised.
+
+        Prefer this over ``eval_code`` anywhere the VALUE is used: ``None`` is a
+        legal MAST value, so it cannot carry "this blew up" - see EVAL_ERROR.
+        """
         try:
             allowed = self.get_symbols()
-            value = eval(code, _EVAL_GLOBALS, allowed)
+            return eval(code, _EVAL_GLOBALS, allowed)
         except Exception:
-            err = format_exception("", "Mast eval level Runtime Error:")
+            err = format_exception(describe_eval_failure(code), "Mast eval level Runtime Error:")
             if end_on_exception:
-                # self.runtime_error(f"Mast eval level Runtime Error:\n{err}")
                 self.runtime_error(err)
                 self.end()
             else:
-                print(err)
-        finally:
-            pass
-        return value
+                # Non-fatal path: still report it. A bare print() never reaches
+                # mast.runtime.log, which is where everyone looks.
+                logging.getLogger("mast.runtime").warning(err)
+            return EVAL_ERROR
+
+    def eval_code(self, code, end_on_exception=True):
+        """Backward-compatible wrapper: a failed expression still returns None.
+
+        Kept so every existing caller (including mission code) behaves exactly as
+        before. Library nodes use eval_code_checked so they can stop instead.
+        """
+        value = self.eval_code_checked(code, end_on_exception)
+        return None if value is EVAL_ERROR else value
 
     def exec_code(self, code, vars, gbls):
         try:
             if vars is not None:
                 allowed = vars | self.get_symbols()
-            else:                
+            else:
                 allowed = self.get_symbols()
             if gbls is not None:
                 exec(code, {"__builtins__": MastGlobals.globals | gbls}, allowed)
             else:
                 exec(code, _EVAL_GLOBALS, allowed)
         except Exception:
-            #err = traceback.format_exc()
-            #err = format_exception("", "Mast exec level Runtime Error:")
-            #self.runtime_error("Mast exec level Runtime Error:\n")
-            err = format_exception("", "Mast eval level Runtime Error:")
+            err = format_exception(describe_eval_failure(code), "Mast exec level Runtime Error:")
             self.runtime_error(err)
             self.end()
-        finally:
-            pass
-        
+
 
     def start_task(self, label = "main", inputs=None, task_name=None, defer=False, inherit=True, unscheduled=False)->MastAsyncTask:
         # Sub task share data noe need to inherit
@@ -1260,6 +1312,11 @@ class MastAsyncTask(Agent, Promise):
         """
         self.set_result(None)
         self.active_ticker.done = False
+        # An explicit restart re-arms the task, crash and all: the caller is asking
+        # for a DIFFERENT label to run. (revive_for_handler deliberately refuses an
+        # errored task; this is the other case.) Without this the ticker's
+        # errored-bail would end the restarted task before it ran a command.
+        self.active_ticker.errored = False
         # Revive: if this task already finished it was disposed out of Agent.all,
         # so re-register before it runs again (add() is keyed by id, so a task
         # that was never disposed just re-registers itself harmlessly).

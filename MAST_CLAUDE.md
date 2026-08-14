@@ -200,7 +200,28 @@ ok = assigned == foe_id                        # NameError: 'assigned' is not de
 
 **The failure is reported against the line that READS it**, not the line that assigned
 it, so it reads as "this variable vanished". `client_id` and `shared_state` are fine -
-the keyword only matches with whitespace after it.
+the keyword only matches with whitespace after it. (Since 2026-08-14 the runtime error
+for this names the keyword and explains it.)
+
+### A failing expression STOPS the command (2026-08-14)
+
+When an expression raises, the error is reported and **the command does not run**:
+the assignment does not happen, the `if` does not take its `else:`, the `for` does
+not iterate, `jump X if <broken>` neither jumps nor falls through. The task ends
+there.
+
+Before this, a failed expression came back as `None` and the command ran with it -
+so a `shared` variable quietly became `None` for every other task, and the error the
+author actually saw was usually the SECOND one (`iter(None)`), pointing at the same
+line for the wrong reason. Nothing to change in scripts; it means the first error in
+`mast.runtime.log` is now the real one. The message names the exception type and
+quotes the expression:
+
+```
+NameError in expression:
+     ship.pos.distance(base_pos)
+name 'ship' is not defined
+```
 
 ### Variable naming conventions
 

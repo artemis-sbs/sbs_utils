@@ -1,4 +1,4 @@
-from ..mast_node  import MastNode, mast_node
+from ..mast_node import MastNode, mast_node, mast_compile, EVAL_ERROR
 import re
 
 
@@ -20,7 +20,7 @@ class FuncCommand(MastNode):
         self.is_await = is_await != None
         if py_cmds:
             py_cmds= py_cmds.lstrip()
-            self.code = compile(py_cmds, "<string>", "eval")
+            self.code = mast_compile(py_cmds, "eval")
 
 @mast_runtime_node(FuncCommand)
 class FuncCommandRuntimeNode(MastRuntimeNode):
@@ -30,8 +30,10 @@ class FuncCommandRuntimeNode(MastRuntimeNode):
         
     def enter(self, mast, task:MastAsyncTask, node:FuncCommand):
         self.is_await = node.is_await
-        value = task.eval_code(node.code)
+        value = task.eval_code_checked(node.code)
         self.promise = None
+        if value is EVAL_ERROR:
+            return
         if isinstance(value, Promise):
             self.promise = value
 
@@ -49,7 +51,9 @@ class FuncCommandRuntimeNode(MastRuntimeNode):
             else:
                 return PollResults.OK_RUN_AGAIN
 
-        value = task.eval_code(node.code)
+        value = task.eval_code_checked(node.code)
+        if value is EVAL_ERROR:
+            return PollResults.OK_END
         if value:
             return PollResults.OK_ADVANCE_TRUE
 
@@ -86,7 +90,7 @@ class AwaitExpression(MastNode):
         super().__init__()
         self.loc = loc
         self.is_await = True
-        self.code = compile(py_cmds.strip(), "<string>", "eval")
+        self.code = mast_compile(py_cmds.strip(), "eval")
 
 
 @mast_runtime_node(AwaitExpression)

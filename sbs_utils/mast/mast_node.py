@@ -1,7 +1,94 @@
 from enum import Enum
 from .mast_globals import MastGlobals
 from functools import lru_cache
+import linecache
 import random
+
+
+class _EvalError:
+    """Unique "this expression raised" marker returned by ``eval_code_checked``.
+
+    ``None`` is a perfectly legal MAST value (``default ship_art = None``), so a
+    node that got ``None`` back could never tell a real result from a blown-up
+    expression - it went on to assign None, take the ``else:`` branch, or iterate
+    None into a second, unrelated error. This sentinel is never a legal value, so
+    the node can stop at the FIRST failure, which is the one worth reporting.
+    """
+    __slots__ = ()
+
+    def __repr__(self):
+        return "<mast eval error>"
+
+    def __bool__(self):
+        # Falsy, so a caller that forgets to check still behaves as it does today
+        # (a failed condition reads as false) rather than newly reading as true.
+        return False
+
+
+EVAL_ERROR = _EvalError()
+
+
+# Source text for every expression compiled through mast_compile(), keyed by the
+# pseudo-filename baked into the code object. Per-mission (see mast_expr_sources_clear).
+_MAST_EXPR_SOURCE = {}
+# source text -> pseudo-filename, so identical expressions share one entry.
+_MAST_EXPR_NAMES = {}
+
+
+def mast_compile(source, mode="eval", filename=None):
+    """``compile()`` for MAST expressions, with the source kept for tracebacks.
+
+    Compiling against the shared ``"<string>"`` filename leaves Python with no
+    source for the frame, so ``traceback.extract_tb`` reports the offending line
+    as ``None`` - which is exactly the useless report a MAST author sees today.
+    Compiling against a unique pseudo-filename and registering the text in
+    ``linecache`` makes every traceback (eval and ``~~`` exec alike) print the
+    real expression, and lets eval_code quote the WHOLE expression even when the
+    deepest frame is inside some library function.
+
+    An ``mtime`` of ``None`` in the linecache tuple is the documented "loaded by
+    a __loader__" form: ``linecache.checkcache`` skips those, so the entry is
+    never invalidated out from under us.
+    """
+    name = _MAST_EXPR_NAMES.get(source)
+    if name is None:
+        name = f"<mast:{len(_MAST_EXPR_NAMES)}>"
+        _MAST_EXPR_NAMES[source] = name
+        _MAST_EXPR_SOURCE[name] = source
+        linecache.cache[name] = (len(source), None, source.splitlines(True), name)
+    return compile(source, filename or name, mode)
+
+
+def mast_expr_source(code):
+    """The MAST source text a code object was compiled from, or None.
+
+    ``eval``/``exec`` also accept a raw string (a few nodes build one on the
+    fly), in which case the source IS the argument.
+    """
+    if isinstance(code, str):
+        return code
+    name = getattr(code, "co_filename", None)
+    if name is None:
+        return None
+    return _MAST_EXPR_SOURCE.get(name)
+
+
+def mast_expr_source_count():
+    return len(_MAST_EXPR_SOURCE)
+
+
+def mast_expr_sources_clear():
+    """Drop every registered expression source (per-mission reset).
+
+    cosmos_dev reuses one interpreter across run_next_mission, so this dict and
+    its linecache entries would otherwise accumulate mission after mission.
+    """
+    for name in _MAST_EXPR_SOURCE:
+        linecache.cache.pop(name, None)
+    _MAST_EXPR_SOURCE.clear()
+    _MAST_EXPR_NAMES.clear()
+    compile_format_string.cache_clear()
+
 
 class ParseData:
     def __init__(self, start, end, data):
@@ -94,7 +181,7 @@ def compile_format_string(message):
     else:
         raise Exception(f"Cannot compile format string (mixed triple quotes): {message!r}")
     try:
-        return compile(f'f{delim}{message}{delim}', "<string>", "eval")
+        return mast_compile(f'f{delim}{message}{delim}', "eval")
     except SyntaxError as e:
         raise Exception(f"Invalid format string {message!r}: {e}")
 

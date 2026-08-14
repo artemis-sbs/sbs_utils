@@ -1,4 +1,4 @@
-from ..mast_node import MastNode, mast_node, ParseData
+from ..mast_node import MastNode, mast_node, ParseData, mast_compile, EVAL_ERROR
 from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node
 from ..pollresults import PollResults
 import re
@@ -17,12 +17,12 @@ class Yield(MastNode):
         self.code = exp
         if exp is not None:
             exp = exp.lstrip()
-            self.code = compile(exp, "<string>", "eval")
+            self.code = mast_compile(exp, "eval")
             #self.result  = "code"
 
         if if_exp:
             if_exp = if_exp.lstrip()
-            self.if_code = compile(if_exp, "<string>", "eval")
+            self.if_code = mast_compile(if_exp, "eval")
         else:
             self.if_code = None
 
@@ -55,11 +55,16 @@ class Yield(MastNode):
 class YieldRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:Yield):
         if node.if_code:
-            value = task.eval_code(node.if_code)
+            value = task.eval_code_checked(node.if_code)
+            if value is EVAL_ERROR:
+                return PollResults.OK_END
             if not value:
                 return PollResults.OK_ADVANCE_TRUE
         if node.code is not None:
-            value = task.eval_code(node.code)
+            value = task.eval_code_checked(node.code)
+            # Do not hand a brain/objective a None result it never computed.
+            if value is EVAL_ERROR:
+                return PollResults.OK_END
             task.yield_results = value
         if node.result.lower() == 'fail':
             return PollResults.FAIL_END

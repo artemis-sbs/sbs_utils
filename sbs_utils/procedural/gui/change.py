@@ -1,3 +1,4 @@
+from ...mast.mast_node import mast_compile
 from ...helpers import FrameContext
 from ...futures import Trigger
 import re
@@ -18,9 +19,9 @@ class ChangeTrigger(Trigger):
 
         if val is None:
             self.value = False
-            self.code = compile("True", "<string>", "eval")
+            self.code = mast_compile("True", "eval")
         else:
-            self.code = compile(val, "<string>", "eval")
+            self.code = mast_compile(val, "eval")
             self.value = self.task.eval_code(self.code) 
 
         # What to jump to one past the inline node

@@ -1,4 +1,4 @@
-from ...mast.mast_node import IF_EXP_REGEX, STRING_REGEX_NAMED, mast_node
+from ...mast.mast_node import IF_EXP_REGEX, STRING_REGEX_NAMED, mast_node, mast_compile, EVAL_ERROR
 from ...mast.core_nodes.decorator_label import DecoratorLabel
 import re
 
@@ -44,7 +44,7 @@ class MediaLabel(DecoratorLabel):
         if if_exp is not None:
             if_exp = if_exp.strip()
             try:
-                self.code = compile(if_exp, "<string>", "eval")
+                self.code = mast_compile(if_exp, "eval")
             except:
                 raise Exception(f"Syntax error '{if_exp}'")
         
@@ -117,7 +117,9 @@ class MediaLabel(DecoratorLabel):
 
     def test(self, task):
         if self.code is not None:
-            if not task.eval_code(self.code):
+            value = task.eval_code_checked(self.code)
+            # A condition that RAISED is reported and read as "not shown".
+            if value is EVAL_ERROR or not value:
                 return False
         return self.test_file()
 

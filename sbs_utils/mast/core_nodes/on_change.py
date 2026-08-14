@@ -1,4 +1,4 @@
-from ..mast_node import MastNode, mast_node, BLOCK_START
+from ..mast_node import MastNode, mast_node, BLOCK_START, mast_compile
 from .await_cmd import Await
 import re
 
@@ -17,7 +17,7 @@ class OnChange(MastNode):
         self.loc = loc
         self.value = val
         if val:
-            self.value = compile(val, "<string>", "eval")
+            self.value = mast_compile(val, "eval")
 
         self.is_end = False
         #

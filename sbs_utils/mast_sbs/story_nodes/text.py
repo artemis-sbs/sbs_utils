@@ -1,4 +1,4 @@
-from ...mast.mast_node import IF_EXP_REGEX, MastNode, mast_node
+from ...mast.mast_node import IF_EXP_REGEX, MastNode, mast_node, mast_compile, EVAL_ERROR
 import re
 #
 # Runtime import
@@ -23,7 +23,7 @@ class Text(MastNode):
         self.message = self.compile_formatted_string(message)
         if if_exp is not None:
             if_exp = if_exp.lstrip()
-            self.code = compile(if_exp, "<string>", "eval")
+            self.code = mast_compile(if_exp, "eval")
         else:
             self.code = None
         self.style = style 
@@ -40,7 +40,9 @@ class TextRuntimeNode(MastRuntimeNode):
         value = True
         TextRuntimeNode.current = self
         if node.code is not None:
-            value = task.eval_code(node.code)
+            value = task.eval_code_checked(node.code)
+            if value is EVAL_ERROR:
+                return
         if value:
             msg = task.format_string(node.message)
             #msg = node.message
@@ -59,7 +61,7 @@ class AppendText(MastNode):
         self.message = self.compile_formatted_string(message)
         if if_exp is not None:
             if_exp = if_exp.lstrip()
-            self.code = compile(if_exp, "<string>", "eval")
+            self.code = mast_compile(if_exp, "eval")
         else:
             self.code = None
 @mast_runtime_node(AppendText)
@@ -68,7 +70,9 @@ class AppendTextRuntimeNode(MastRuntimeNode):
         msg = ""
         value = True
         if node.code is not None:
-            value = task.eval_code(node.code)
+            value = task.eval_code_checked(node.code)
+            if value is EVAL_ERROR:
+                return
         if value:
             msg = task.format_string(node.message)
             text = TextRuntimeNode.current

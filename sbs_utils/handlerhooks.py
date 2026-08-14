@@ -240,6 +240,12 @@ def reset_mission_state():
                                     # next mission has its own mission dir and its own
                                     # mods; inheriting these spawns ships it never asked
                                     # for and hides ones it did.
+    from .mast.mast_node import mast_expr_sources_clear
+    mast_expr_sources_clear()   # every MAST expression's source text (+ its linecache
+                                # entry), kept so a runtime error can quote the line that
+                                # failed. Compiled per mission, so this grows once per
+                                # reload - and the code objects it describes die with the
+                                # old compile anyway.
     from .procedural.gui_record import gui_record_reset
     gui_record_reset()      # the transcript belongs to the mission that was recording
     from .procedural.conformance import conformance_reset
@@ -487,6 +493,11 @@ register_reset_state("urge.ticks_stale",
 # actors for the first 45 seconds of it, for no reason anyone could see.
 register_reset_state("urge.speech clocks",
                      lambda: len(__import__("sbs_utils.procedural.urge", fromlist=["x"])._last_actor_spoke))
+# Source text for every compiled MAST expression, kept so a runtime error can quote the
+# line that failed. Grows with each compile, so it belongs in the ledger like any other
+# per-mission container.
+from .mast.mast_node import mast_expr_source_count as _mast_expr_source_count
+register_reset_state("mast expr sources", _mast_expr_source_count)
 
 
 #	client_id"

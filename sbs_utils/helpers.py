@@ -195,7 +195,11 @@ def format_exception(message, source):
         except Exception:
             pass
         filename, lineno, func_name, line = lines[-1]
-        return f"{source}\n\n{message}\n{error}\n{line}\nfunction: {func_name}\nline: {lineno}\nFile: {filename}"
+        # `line` is None when Python has no source for that frame (anything
+        # compiled from a string). Printing it verbatim put the word "None"
+        # where the offending code should be, which reads as a real value.
+        code = f"{line}\n" if line else ""
+        return f"{source}\n\n{message}\n{error}\n{code}function: {func_name}\nline: {lineno}\nFile: {filename}"
     return f"{source}\n\n{message}\n"
 
 

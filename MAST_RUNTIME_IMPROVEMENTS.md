@@ -285,6 +285,28 @@ ships without its own approval.** Listed so they're tracked, not lost.
   was flat/noise (rigorous git-stash A/B). `get_symbols` self-time is inherent
   per-key copy cost, not allocation overhead — micro-opt doesn't pay. Working
   tree restored to `afedb08`; 365 tests OK. Negative result recorded under P1.
+- 2026-08-14 — **Eval failure stopped being data.** `eval_code()` reported a
+  raising expression and then returned `None` to the node anyway; `None` is a
+  legal MAST value, so the node could not tell a failure from a result and
+  carried on (assign wrote None, `if` took `else:`, `for` did `iter(None)` and
+  reported a second error that hid the first). Added `EVAL_ERROR` +
+  `eval_code_checked()` ([mast_node.py](sbs_utils/mast/mast_node.py),
+  [mastscheduler.py](sbs_utils/mast/mastscheduler.py)); the value-bearing nodes
+  (assign, if/match, for/while/break, jump-if, yield, await, with, inline call,
+  the story-node gates) stop on it. `eval_code()` kept its old signature AND its
+  `None` return, so no existing caller changed.
+  Also: `MastTicker.tick()` now bails when `errored` is set right after
+  `next()`/`do_jump` — an error raised inside a node's `enter()` used to be
+  followed by that same node's `poll()`, in the same iteration, before the
+  `while not self.done` test came round again.
+  Reporting: expressions compile through `mast_compile()`, which registers the
+  source in `linecache` under a per-expression pseudo-filename, so tracebacks
+  quote the MAST expression instead of printing `None` for the source line; the
+  message names the exception type and adds a hint for the scope-keyword trap.
+  Registry joins the reset ledger (`mast expr sources`).
+  [tests/test_mast_eval_errors.py](tests/test_mast_eval_errors.py) (15);
+  suite **4298 OK**; LM `--test 30 --map 0` PASS and `--runs 3` STABLE with a
+  clean reset audit.
 - **Next / awaiting:** (a) decide whether to pursue the only remaining perf
   lever — **caching get_symbols across watchers per tick** (behavior-sensitive,
   overlaps T3, needs sign-off); (b) Tier 1 clarity docs (safe, no logic change);

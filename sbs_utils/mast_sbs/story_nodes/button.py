@@ -1,4 +1,4 @@
-from ...mast.mast_node import MastNode, mast_node, BLOCK_START, OPT_DATA_REGEX, IF_EXP_REGEX, ParseData
+from ...mast.mast_node import MastNode, mast_node, BLOCK_START, OPT_DATA_REGEX, IF_EXP_REGEX, ParseData, mast_compile
 from ...mast.core_nodes.await_cmd import Await
 from ...mast.core_nodes.yield_cmd import Yield
 import re
@@ -84,7 +84,7 @@ class Button(MastNode):
         self.data = data
         if data is not None and isinstance(data, str):
             data = data.lstrip()
-            self.data = compile(data, "<string>", "eval")
+            self.data = mast_compile(data, "eval")
         self.path = None
         #
         # path from regex could be a path or a label
@@ -98,7 +98,7 @@ class Button(MastNode):
 
         if if_exp:
             if_exp = if_exp.lstrip()
-            self.code = compile(if_exp, "<string>", "eval")
+            self.code = mast_compile(if_exp, "eval")
         else:
             self.code = None
 

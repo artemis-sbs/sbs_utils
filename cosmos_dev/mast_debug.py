@@ -367,9 +367,17 @@ class MastDebugCore:
         from sbs_utils.mast.mastscheduler import MastAsyncTask
         self._stop_in = stop_in or default_stop_filter(extra_dirs)
         if self._orig_eval_code is None:
+            # Wrap the method that actually RUNS the eval. Since eval_code became a
+            # thin wrapper over eval_code_checked (the library's nodes call the
+            # checked form), wrapping eval_code alone would never be reached.
+            # getattr keeps this working against an older packaged .sbslib.
+            self._eval_attr = ("eval_code_checked"
+                               if hasattr(MastAsyncTask, "eval_code_checked")
+                               else "eval_code")
             # Always wrap the REAL method (unwrap any prior wrapper) so repeated
             # enable/disable never nests wrappers.
-            base_eval = getattr(MastAsyncTask.eval_code, "_mast_orig", MastAsyncTask.eval_code)
+            _cur_eval = getattr(MastAsyncTask, self._eval_attr)
+            base_eval = getattr(_cur_eval, "_mast_orig", _cur_eval)
             base_exec = getattr(MastAsyncTask.exec_code, "_mast_orig", MastAsyncTask.exec_code)
             self._orig_eval_code = base_eval
             self._orig_exec_code = base_exec
@@ -383,14 +391,15 @@ class MastDebugCore:
 
             eval_code._mast_orig = base_eval
             exec_code._mast_orig = base_exec
-            MastAsyncTask.eval_code = eval_code
+            setattr(MastAsyncTask, self._eval_attr, eval_code)
             MastAsyncTask.exec_code = exec_code
         self._py_enabled = True
 
     def disable_python_step(self):
         from sbs_utils.mast.mastscheduler import MastAsyncTask
         if self._orig_eval_code is not None:
-            MastAsyncTask.eval_code = self._orig_eval_code
+            setattr(MastAsyncTask, getattr(self, "_eval_attr", "eval_code"),
+                    self._orig_eval_code)
             MastAsyncTask.exec_code = self._orig_exec_code
             self._orig_eval_code = self._orig_exec_code = None
         self._py_enabled = False

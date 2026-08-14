@@ -1,4 +1,4 @@
-from ..mast_node import MastNode, mast_node, Scope, MULTI_LINE_STRING_REGEX
+from ..mast_node import MastNode, mast_node, Scope, MULTI_LINE_STRING_REGEX, mast_compile, EVAL_ERROR
 from ..mast_runtime_node import MastRuntimeNode, mast_runtime_node
 from ..pollresults import PollResults
 from ...futures import Promise
@@ -52,7 +52,7 @@ class Assign(MastNode):
             self.yaml = self.yaml.strip()
             self.code = None
         else:
-            self.code = compile(exp, "<string>", "eval")
+            self.code = mast_compile(exp, "eval")
         self.is_await = a_wait is not None
         
                 
@@ -117,7 +117,13 @@ class AssignRuntimeNode(MastRuntimeNode):
             return PollResults.OK_ADVANCE_TRUE
 
         if not self.promise:
-            value = task.eval_code(node.code)
+            value = task.eval_code_checked(node.code)
+            # The expression blew up (already reported). Assigning its "value"
+            # would put None in the variable - and a `shared` one is None for
+            # every other task from here on, which is how one bad expression
+            # turns into a pile of unrelated errors elsewhere.
+            if value is EVAL_ERROR:
+                return PollResults.OK_END
             if node.is_await and isinstance(value, Promise):
                 self.promise = value
             elif isinstance(value, str):
@@ -135,7 +141,9 @@ class AssignRuntimeNode(MastRuntimeNode):
         if node.oper != Assign.EQUALS or node.is_default:
             # Value should be set by here
             if "." in node.lhs or "[" in node.lhs:
-                start = task.eval_code(f"""{node.lhs}""")
+                start = task.eval_code_checked(f"""{node.lhs}""")
+                if start is EVAL_ERROR:
+                    return PollResults.OK_END
             else:
                 start = task.get_variable(node.lhs, (None,))
                 if node.is_default and start!= (None,): 

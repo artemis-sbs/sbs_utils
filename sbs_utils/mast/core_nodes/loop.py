@@ -1,4 +1,4 @@
-from ..mast_node import MastNode, mast_node, BLOCK_START, IF_EXP_REGEX
+from ..mast_node import MastNode, mast_node, BLOCK_START, IF_EXP_REGEX, mast_compile, EVAL_ERROR
 import re
 
 
@@ -23,7 +23,7 @@ class LoopStart(MastNode):
         super().__init__()
         if cond:
             cond = cond.lstrip()
-            self.code = compile(cond, "<string>", "eval")
+            self.code = mast_compile(cond, "eval")
         else:
             self.code = None
         self.name = name
@@ -90,7 +90,7 @@ class LoopBreak(MastNode):
         self.loc = loc
         if if_exp:
             if_exp = if_exp.lstrip()
-            self.if_code = compile(if_exp, "<string>", "eval")
+            self.if_code = mast_compile(if_exp, "eval")
         else:
             self.if_code = None
 
@@ -115,7 +115,12 @@ class LoopStartRuntimeNode(MastRuntimeNode):
                 task.set_value(node.name, -1, Scope.TEMP)
                 task.set_value(node.name+"__iter", True, Scope.TEMP)
             else:
-                value = task.eval_code(node.code)
+                value = task.eval_code_checked(node.code)
+                # The iterable expression raised (already reported). Falling
+                # through would do iter(None) and report a second, unrelated
+                # TypeError against the same line. The task is already ending.
+                if value is EVAL_ERROR:
+                    return
                 try:
                     _iter = iter(value)
                     task.set_value(node.name+"__iter", _iter, Scope.TEMP)
@@ -131,7 +136,9 @@ class LoopStartRuntimeNode(MastRuntimeNode):
             current += 1
             task.set_value(node.name, current, Scope.TEMP)
             if node.code:
-                value = task.eval_code(node.code)
+                value = task.eval_code_checked(node.code)
+                if value is EVAL_ERROR:
+                    return PollResults.OK_END
                 if value == False:
                     inline_label = f"{task.active_label}:{node.name}"
                     # End loop clear value
@@ -186,7 +193,9 @@ class LoopBreakRuntimeNode(MastRuntimeNode):
 
     def poll(self, mast, task, node:LoopBreak):
         if node.if_code:
-            value = task.eval_code(node.if_code)
+            value = task.eval_code_checked(node.if_code)
+            if value is EVAL_ERROR:
+                return PollResults.OK_END
             if not value:
                 return PollResults.OK_ADVANCE_TRUE
             

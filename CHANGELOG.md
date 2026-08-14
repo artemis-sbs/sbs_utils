@@ -21,6 +21,20 @@
 
 ### sbs_utils
 
+- A MAST expression that RAISES no longer looks like one that returned None.
+  `None` is a legal MAST value, so the old "report the error, then hand the node
+  None anyway" laundered a failure into data: the assignment wrote None (into a
+  `shared` variable, for every other task), the `if` took its `else:`, and
+  `for x in <broken>` did `iter(None)` and reported a SECOND error against the
+  same line - which is the one the author saw. `eval_code_checked()` returns a
+  distinct `EVAL_ERROR` sentinel and the nodes stop on it, so the first error
+  reported is the real one. `eval_code()` is unchanged (still returns None) for
+  every existing caller.
+- MAST runtime errors now name the exception type, quote the failing expression,
+  and - for the `shared`/`assigned`/`client`/`temp` scope-keyword trap - say so.
+  Expressions compile against a per-expression pseudo-filename registered in
+  `linecache`, so the offending MAST source appears in tracebacks instead of the
+  literal word "None" where the code should be.
 - Urges: a recurring want held by any agent (a lifeform, a station, a side),
   authored as an `Urge` record - a `Whenever:` condition, an `Every:` cadence
   (`3-5m` to jitter), and a pool of lines in the body. One shared ticker walks
