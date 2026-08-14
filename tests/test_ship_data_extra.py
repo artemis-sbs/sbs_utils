@@ -326,6 +326,14 @@ class TestItSaysWhenTheArtIsNotThere(unittest.TestCase):
     def test_art_that_is_missing_is_named_with_its_hull(self):
         self.assertEqual(self._check("tsn-fighter"), [("t", "tsn-fighter")])
 
+    def test_a_path_to_mod_art_is_not_judged(self):
+        """A mod keeping its own graphics folder writes a relative PATH as its artfileroot.
+        That resolves somewhere this check does not look, so it must not be called missing -
+        VisualTestRange keeps `modart_relpath` as the specimen."""
+        self.assertEqual(
+            self._check("../../missions/anime_mods/anime_ships/graphics/ships/God_Phoenix"),
+            [])
+
     def test_it_stays_quiet_with_no_install_to_check(self):
         with mock.patch("sbs_utils.fs.get_artemis_dir", return_value="/nowhere/at/all"):
             found = sd._art_that_is_not_there(
@@ -374,4 +382,3 @@ class TestItSurvivesTheSimBeingRebuilt(_Fixture):
               mock.patch("sbs_utils.helpers.FrameContext.context", mock.MagicMock())):
             cosmos.sim_create()
         self.assertEqual([c.args[0] for c in told.call_args_list], ["extraProbe"])
-

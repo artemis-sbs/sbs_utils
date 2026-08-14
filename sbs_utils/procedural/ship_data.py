@@ -847,6 +847,13 @@ def _art_that_is_not_there(text):
             if not isinstance(entry, dict):
                 continue
             root = str(entry.get("artfileroot", "") or "")
+            # An artfileroot may be a PATH to art outside the install - a mod keeping its
+            # own graphics folder writes something like
+            # `../../missions/<mod>/graphics/ships/<name>`. That resolves somewhere this
+            # check does not look, so a bare-name catalog says nothing about it. Only plain
+            # roots are ours to judge.
+            if "/" in root or "\\" in root:
+                continue
             if root and root.lower() not in have:
                 missing.append((str(entry.get("key", "?")), root))
         return missing
