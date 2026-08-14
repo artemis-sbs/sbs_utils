@@ -1,4 +1,4 @@
-from ...helpers import FrameContext
+from ...helpers import FrameContext, gui_text_escape
 from ..style import apply_control_styles
 from ...pages.layout.text_input import TextInput
 def gui_input(props, style=None, var=None, data=None):
@@ -38,15 +38,13 @@ def gui_input(props, style=None, var=None, data=None):
         val = task.get_variable(var, "")
 
     if "$text:" not in props:
-        # Wrap the value in backticks so any ':' or ';' in it is treated as
-        # literal text rather than a style delimiter (issue #569). An EMPTY
-        # value must NOT be wrapped: `` renders as a stray ` in the box
-        # (issue #641) which then seeds the #569 corruption once the player
-        # types into it.
-        if val:
-            props = f"$text:`{val}`;{props}"
-        else:
-            props = f"$text:;{props}"
+        # gui_text_escape wraps the value in backticks so any ':' or ';' in it
+        # is treated as literal text rather than a style delimiter (issue #569),
+        # strips a literal backtick (which would close the quote early), and
+        # returns "" for an EMPTY value so the box renders blank rather than
+        # showing a stray ` (issue #641) that then seeds the #569 corruption
+        # once the player types into it.
+        props = f"$text:{gui_text_escape(val)};{props}"
 
     layout_item = TextInput(tag, props)
     layout_item.data = data

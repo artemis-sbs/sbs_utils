@@ -7,7 +7,7 @@ no separate registration call — the MAST-native, sugar form of overlay_registe
 
     //overlay/hero_card
         gui_row("row-height: content;")
-        gui_text(f"$text:`{title}`;justify:center;font:gui-6")
+        gui_text(f"$text:{gui_text_escape(title)};justify:center;font:gui-6")
 
     # then anywhere: overlay_show("center_hero", "hero_card", title="CHAPTER TWO")
 

@@ -21,7 +21,7 @@ and the AMD/quest bindings layer on top of this without changing it.
 """
 import traceback
 
-from ...helpers import FrameContext, FakeEvent, FrameContextOverride
+from ...helpers import FrameContext, FakeEvent, FrameContextOverride, gui_text_escape
 from ...pages.layout import layout as layout
 from ...pages.widgets.layout_listbox import SubPage
 from .gui import gui_page_for_client
@@ -149,7 +149,7 @@ def overlay_register_label(kind, label):
 
         === my_hero_card
             gui_row("row-height: content;")
-            gui_text(f"$text:`{title}`;justify:center;font:gui-6")
+            gui_text(f"$text:{gui_text_escape(title)};justify:center;font:gui-6")
             ->END
 
         overlay_register_label("my_hero", my_hero_card)
@@ -767,10 +767,10 @@ def _hero_builder(client_id, content):
         with gui_sub_section():
             gui_image_keep_aspect_ratio_center(image)
     gui_row(f"row-height: content;{row_bg}")
-    gui_text(f"$text:`{title}`;justify:center;font:gui-6;color:#fff")
+    gui_text(f"$text:{gui_text_escape(title)};justify:center;font:gui-6;color:#fff")
     if subtitle:
         gui_row(f"row-height: content;{row_bg}")
-        gui_text(f"$text:`{subtitle}`;justify:center;font:gui-3;color:#8cf")
+        gui_text(f"$text:{gui_text_escape(subtitle)};justify:center;font:gui-3;color:#8cf")
 
 
 overlay_register("hero", _hero_builder)
@@ -1129,7 +1129,7 @@ def _banner_builder(client_id, content):
     bg = content.get("background", "#000a")
     row_bg = f"background: {bg};" if bg else ""
     gui_row(f"row-height: content;{row_bg}")
-    gui_text(f"$text:`{text}`;justify:center;font:gui-4;color:{color}")
+    gui_text(f"$text:{gui_text_escape(text)};justify:center;font:gui-4;color:{color}")
 
 
 overlay_register("banner", _banner_builder)
@@ -1170,9 +1170,9 @@ def _lower_third_builder(client_id, content):
     line = content.get("line", "")
     if name:
         gui_row("row-height: content;")
-        gui_text(f"$text:`{name}`;font:gui-4;color:#8cf")
+        gui_text(f"$text:{gui_text_escape(name)};font:gui-4;color:#8cf")
     gui_row("row-height: content;")
-    gui_text(f"$text:`{line}`;font:gui-3;color:#fff")
+    gui_text(f"$text:{gui_text_escape(line)};font:gui-3;color:#fff")
 
 
 overlay_register("lower_third", _lower_third_builder)
@@ -1311,9 +1311,9 @@ def _lower_third_portrait_builder(client_id, content):
         with gui_sub_section():
             if name:
                 gui_row("row-height: content;")
-                gui_text(f"$text:`{name}`;justify:{just};font:gui-4;color:{color}")
+                gui_text(f"$text:{gui_text_escape(name)};justify:{just};font:gui-4;color:{color}")
             gui_row("row-height: content;")
-            gui_text(f"$text:`{line}`;justify:{just};font:gui-3;color:#fff")
+            gui_text(f"$text:{gui_text_escape(line)};justify:{just};font:gui-3;color:#fff")
 
     gui_row(f"row-height: {PORTRAIT_EM}em;" + (f"background: {bg};" if bg else ""))
     # The text hangs off the portrait, so the columns swap with the face.
@@ -1359,7 +1359,7 @@ def _lower_third_portrait_builder(client_id, content):
             # data + on_press, never a closure over the loop variable: the builder
             # re-runs on every repaint, and a per-iteration handler is the for-loop
             # trap. The pressed label arrives as __ITEM__.data / ButtonResult.data.
-            gui_button(f"$text:`{label}`;justify:center;", "col-width: content;",
+            gui_button(f"$text:{gui_text_escape(label)};justify:center;", "col-width: content;",
                        data=label, on_press=press)
         if not right:
             gui_blank()
@@ -1518,10 +1518,10 @@ def _credits_builder(client_id, content):
     entries = content.get("entries", [])
     if title:
         gui_row("row-height: content;")
-        gui_text(f"$text:`{title}`;justify:center;font:gui-6;color:#fff")
+        gui_text(f"$text:{gui_text_escape(title)};justify:center;font:gui-6;color:#fff")
     for entry in entries:
         gui_row("row-height: content;")
-        gui_text(f"$text:`{entry}`;justify:center;font:gui-3;color:#cde")
+        gui_text(f"$text:{gui_text_escape(entry)};justify:center;font:gui-3;color:#cde")
 
 
 overlay_register("credits", _credits_builder)
@@ -1575,12 +1575,12 @@ def _choice_builder(client_id, content):
     prom = content.get("_promise")
     if title:
         gui_row("row-height: content;")
-        gui_text(f"$text:`{title}`;justify:center;font:gui-5;color:#fff")
+        gui_text(f"$text:{gui_text_escape(title)};justify:center;font:gui-5;color:#fff")
     for label in buttons:
         # each button on its own row; on_press=<Promise> resolves it on click,
         # data=label -> ButtonResult.data. data/on_press is the for-loop-safe path.
         gui_row("row-height: content;")
-        gui_button(f"$text:`{label}`;justify:center;", data=label, on_press=prom)
+        gui_button(f"$text:{gui_text_escape(label)};justify:center;", data=label, on_press=prom)
 
 
 overlay_register("choice", _choice_builder)
@@ -1623,17 +1623,17 @@ def _hud_builder(client_id, content):
 
     if title:
         gui_row("row-height: content;")
-        gui_text(f"$text:`{title}`;font:gui-3;color:#8cf")
+        gui_text(f"$text:{gui_text_escape(title)};font:gui-3;color:#8cf")
     for label, value in rows:
         # one text per row ("label: value") — reliable in the SubPage build
         # and cheap to re-fill; value updates flow through OverlayManager.patch.
         gui_row("row-height: content;")
-        gui_text(f"$text:`{label}: {value}`;font:gui-2;color:#cff")
+        gui_text(f"$text:{gui_text_escape(str(label) + ': ' + str(value))};font:gui-2;color:#cff")
     for ctrl in controls:
         # persistent control: on_press as a sub-task so a toggle doesn't hijack
         # the console's own gui task. `action` is a MAST label or a callable.
         gui_row("row-height: content;")
-        gui_button(f"$text:`{ctrl.get('label', '')}`;justify:center;",
+        gui_button(f"$text:{gui_text_escape(ctrl.get('label', ''))};justify:center;",
                    data=ctrl.get("data"), on_press=ctrl.get("action"), is_sub_task=True)
 
 
@@ -1680,7 +1680,7 @@ def _letterbox_builder(client_id, content):
     gui_blank()
     gui_row("")                        # flex middle fills between the bars
     if line:
-        gui_text(f"$text:`{line}`;justify:center;font:gui-3;color:#fff")
+        gui_text(f"$text:{gui_text_escape(line)};justify:center;font:gui-3;color:#fff")
     else:
         gui_blank()
     gui_row(f"row-height: {bar}em; background: #000;")    # bottom bar

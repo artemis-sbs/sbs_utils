@@ -1,7 +1,7 @@
 from ...gui import get_client_aspect_ratio
 from ..layout import layout as layout
 from ..layout.clickable import Clickable
-from ...helpers import FrameContext, FakeEvent
+from ...helpers import FrameContext, FakeEvent, gui_text_escape
 from ...mast.parsers import LayoutAreaParser
 #from ...mast.core_nodes.label import Label
 from ...procedural.style import apply_control_styles
@@ -403,11 +403,11 @@ class LayoutListbox(layout.Column):
         collapsable =  isinstance(item, LayoutListBoxHeader)
         if collapsable:
             if not item.collapse:
-                gui_text(f"$text:`{item.label}`;justify: center;color:#02FF;", "background: #FFFC")
+                gui_text(f"$text:{gui_text_escape(item.label)};justify: center;color:#02FF;", "background: #FFFC")
             else:
-                gui_text(f"$text:`{item.label}`;justify: center;color:#FFF;", "background: #0173")
+                gui_text(f"$text:{gui_text_escape(item.label)};justify: center;color:#FFF;", "background: #0173")
         else:
-            gui_text(f"$text:`{msg}`;justify: left;")
+            gui_text(f"$text:{gui_text_escape(msg)};justify: left;")
         # gui_text(msg)
 
     # def label_item_template(self, item):

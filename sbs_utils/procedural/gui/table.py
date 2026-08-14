@@ -1,4 +1,4 @@
-from ...helpers import FrameContext
+from ...helpers import FrameContext, gui_text_escape
 from ...pages.layout.measure import measure_line_width
 from .listbox import gui_list_box
 
@@ -49,8 +49,10 @@ def _widget_value(sender):
 
 
 def _disp(value):
-    """Display text for a $text:`...` cell. Empty renders as a space so the
-    backtick-quoted value is never empty (`$text:``;` shows a stray backtick)."""
+    """Display text for a cell. An empty cell renders as a space rather than as
+    nothing: a table reserves the row whether or not the cell has content, so a
+    blank keeps the row height its neighbors have. The call site hands this to
+    gui_text_escape, which does the ':'/';' quoting (#569 / #641)."""
     s = str(value)
     return s if s != "" else " "
 
@@ -198,7 +200,7 @@ def gui_table(items, columns=None, style="row-height: 1.6em;", select=False,
                         on_cell_change(_i, _k, None)
                 gui_message_callback(btn, press)
             else:  # "text" — read-only display
-                gui_text(f"$text:`{_disp(val)}`;justify:{c['just']};font:{font};", w)
+                gui_text(f"$text:{gui_text_escape(_disp(val))};justify:{c['just']};font:{font};", w)
 
     title_template = None
     if header:
@@ -206,7 +208,7 @@ def gui_table(items, columns=None, style="row-height: 1.6em;", select=False,
             from . import gui_row, gui_text
             gui_row(style)
             for c in cols:
-                gui_text(f"$text:`{_disp(c['label'])}`;justify:{c['just']};color:#bbb;font:{font};",
+                gui_text(f"$text:{gui_text_escape(_disp(c['label']))};justify:{c['just']};color:#bbb;font:{font};",
                          f"col-width:{c['width']};")
 
     return gui_list_box(items, style, item_template=row_template,

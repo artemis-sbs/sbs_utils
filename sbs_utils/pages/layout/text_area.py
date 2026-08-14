@@ -1,7 +1,7 @@
 from .layout import Column, Bounds, get_font_size
 from .measure import (measure_line_width, measure_line_height, wrap_to_width,
                       measure_block_height, measure_props)
-from ...helpers import FrameContext, split_props, merge_props
+from ...helpers import FrameContext, split_props, merge_props, gui_text_escape
 from ...gui import get_client_aspect_ratio
 from textwrap import TextWrapper
 
@@ -199,7 +199,7 @@ class TableLine:
                 a = self.aligns[c] if c < len(self.aligns) else "l"
                 style = f"font:{f};justify:{just_map.get(a, 'left')};color:{color}"
                 SBS.send_gui_text(client_id, region_tag, f"{tag}:r{ri}c{c}",
-                                  f"$text:`{r[c]}`;{style}",
+                                  f"$text:{gui_text_escape(r[c])};{style}",
                                   x, y, x + col_pct[c], y + row_h)
                 x += col_pct[c] + pad_pct
             y += row_h
@@ -234,7 +234,7 @@ class LinkLine:
 
     def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
         SBS.send_gui_text(client_id, region_tag, tag,
-                          f"$text:`{self.display}`;color:#6cf;font:{self.font}",
+                          f"$text:{gui_text_escape(self.display)};color:#6cf;font:{self.font}",
                           left, top, right, bottom)
         # transparent hit area on top; its click_tag carries the target key
         SBS.send_gui_clickregion(client_id, region_tag, self.click_tag,
@@ -996,7 +996,7 @@ class TextArea(Control):
         message = self.content[0]
         if "$text:" not in message:
             if "text:" not in message:
-                message = f"$text:`{message}`;"
+                message = f"$text:{gui_text_escape(message)};"
 
         message += self.get_cascade_props(True, True, True, True, message)
 
@@ -1055,7 +1055,7 @@ class TextArea(Control):
                 background = style_obj.get("background")
                 
                 indent = style_obj.get("indent", 0) 
-                message = f"$text:`{text_line.text}`;{style}"
+                message = f"$text:{gui_text_escape(text_line.text)};{style}"
                 # if bounds.top < 900:
                 #     print(f"Sending line {message} {bounds} {self.local_region_tag}")
                 space_width = measure_line_width("gui-2", "X") / ar.x *100
