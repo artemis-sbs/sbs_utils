@@ -32,6 +32,11 @@ def gui_section(style=None):
     page.add_section()
     layout_item = page.get_pending_layout() 
     apply_control_styles(".section", style, layout_item, task)
+    # Same as gui_row: a section is not add_content'ed, so register its `tag:` name
+    # here or it is unreachable (LM #349).
+    add_alias = getattr(page, "add_alias", None)
+    if add_alias is not None:
+        add_alias(layout_item)
     return layout_item
 
 class PageSubSection:

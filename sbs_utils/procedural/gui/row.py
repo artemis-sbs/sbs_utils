@@ -28,5 +28,11 @@ def gui_row(style=None):
     page.add_row()
     layout_item = page.get_pending_row()
     apply_control_styles(".row", style, layout_item, task)
+    # A row never goes through add_content, so nothing else would register an
+    # author's `tag:` name for it -- which is why a named row could not be reached
+    # by gui_update at all (LM #349).
+    add_alias = getattr(page, "add_alias", None)
+    if add_alias is not None:
+        add_alias(layout_item)
     return layout_item
 

@@ -75,6 +75,11 @@ class Column:
         self.default_layer = None
         
         self.tag = None
+        # The author's `tag:` style name (LM #349). Held BESIDE the engine tag, not
+        # in place of it: the page registers it as an extra tag_map key so
+        # gui_update() can find this widget by name, while the engine keeps the
+        # library-managed tag it needs for region and slot identity.
+        self.alias = None
         self.region_tag = ""
         self.click_text = None
         self.click_color = None

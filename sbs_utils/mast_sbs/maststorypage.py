@@ -95,6 +95,10 @@ class StoryPage(Page):
         self.pending_row.tag = self.get_tag()
         self.pending_tag_map = {}
         self.tag_map = {}
+        # alias -> the layout item that claimed it, for THIS build only. Used solely
+        # to notice two widgets asking for the same `tag:` name; the aliases
+        # themselves live in tag_map beside the real tags.
+        self.pending_alias_owner = {}
         self.pending_gui = True
         # Active gui_grid() contexts (a stack, so grids can nest). Each entry is
         # {"columns": N, "count": M}; add_content auto-breaks to a new row every N.
@@ -276,6 +280,7 @@ class StoryPage(Page):
             self.pending_row = Row()
             self.pending_row.tag = self.get_tag()
             self.pending_tag_map = {}
+            self.pending_alias_owner = {}
             self.pending_console = ""
             self.pending_widgets = ""
             self.pending_info_panel = None
@@ -351,6 +356,33 @@ class StoryPage(Page):
         if hasattr(layout_item, 'click_tag'):
             if layout_item.click_tag is not None:
                 self.pending_tag_map[layout_item.click_tag] = (layout_item, runtime_node)
+        self.add_alias(layout_item, runtime_node)
+
+    def add_alias(self, layout_item, runtime_node=None):
+        """Register an author's `tag:` name so gui_update() can resolve it.
+
+        An extra key in the SAME tag_map, exactly as click_tag has always earned a
+        second entry -- so every consumer that resolves by tag_map (gui_update,
+        message routing, the log panel's liveness check) picks it up with no further
+        change. The engine keeps the library-managed tag (LM #349).
+
+        Called from add_tag for widgets, and directly from gui_row/gui_section, which
+        never reach add_tag -- which is why a named ROW was unreachable before.
+        """
+        alias = getattr(layout_item, "alias", None)
+        if not alias:
+            return
+        prev = self.pending_alias_owner.get(alias)
+        if prev is not None and prev is not layout_item:
+            # A row template that names every row the same thing: only the last one
+            # built is reachable. Say so rather than letting three of four rows
+            # silently ignore an update.
+            from ..procedural.execution import log
+            log(f"tag '{alias}' was claimed by more than one widget in this layout. "
+                f"Only the last one can be reached by gui_update -- make the name "
+                f"unique, e.g. \"tag:{alias}-{{item}}\".", "gui", "warning")
+        self.pending_alias_owner[alias] = layout_item
+        self.pending_tag_map[alias] = (layout_item, runtime_node)
 
     def push_sub_section(self, style, layout_item, is_rebuild):
         #
@@ -386,6 +418,7 @@ class StoryPage(Page):
             self.is_processing_rebuild = False
             self.tag_map.update(self.pending_tag_map)
             self.pending_tag_map = {}
+            self.pending_alias_owner = {}
             
             self.on_click.extend(self.pending_on_click)
             self.pending_on_click = []
@@ -624,6 +657,13 @@ class StoryPage(Page):
 
 
     def update_props_by_tag(self, tag, props, test):
+        """Apply props to the widget registered under `tag`.
+
+        Returns True when a widget was found and updated. A miss is not an error --
+        the tag may name a listbox row that is currently scrolled out of view, and
+        those are built only while visible -- but the caller can now tell, which it
+        could not before.
+        """
         # get item by tag
         item = self.tag_map.get(tag)
         present = True
@@ -632,7 +672,7 @@ class StoryPage(Page):
             present = False
             item = self.pending_tag_map.get(tag)
         if item is None:
-            return
+            return False
 
         #
         # Test allows one to pass values they need to be 
@@ -646,14 +686,24 @@ class StoryPage(Page):
 
                 this = self.gui_task.get_variable(k)
                 if this != expected:
-                    return
+                    return False
 
         item = item[0]
         item.update(props)
+        #
+        # A container that rebuilds its children from a template throws this update
+        # away the next time it draws. Hand the props back to the owner so it can
+        # re-apply them after the template runs (LM #349).
+        #
+        remember = getattr(getattr(item, "_alias_owner", None),
+                           "remember_alias_props", None)
+        if remember is not None:
+            remember(tag, props)
         # present it
         if present:
             event = FakeEvent(self.client_id, "", "")
             item.present(event)
+        return True
 
     
     def present(self, event):

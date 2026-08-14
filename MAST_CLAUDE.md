@@ -742,6 +742,33 @@ widget.value = new_value
 # The dirty system automatically re-renders changed widgets — gui_represent() is deprecated (safe but redundant)
 ```
 
+### `tag:` names a widget for the SCRIPT, not for the engine
+
+`tag:` in a style gives a widget a name `gui_update` can find it by. The engine keeps
+its own tag — a listbox row, a click region and a sub-region all derive identity from
+it, so an author name is held beside it, never in place of it.
+
+```
+gui_text("$text:`waiting`;", style="tag:status;")
+gui_update("status", "$text:`ready`;")     # True when it found something
+```
+
+Prefer a held reference (`w = gui_text(...)`, then `w.value = ...`). `gui_update` is for
+widgets the updating code cannot reach — mainly **inside a listbox `item_template`**,
+where it used to do nothing at all. Two rules there:
+
+- **Only rows on screen exist.** A name for a scrolled-away row resolves to nothing and
+  `gui_update` returns `False`. Ordinary, not an error.
+- **Make the name unique per row** (`f"tag:row-{item};"`). Name every row the same and
+  only the last one drawn answers, and which row that is moves as the list scrolls. The
+  library warns when it sees this.
+
+An update to a row is re-applied when the template rebuilds it, so it survives
+scrolling; it does not survive `lb.items = [...]`. The template is the source of truth.
+
+`click_tag:` is NOT aliased — it is a real engine tag that `gui_click` matches against
+`event.sub_tag`.
+
 ### Full GUI rebuild
 
 ```

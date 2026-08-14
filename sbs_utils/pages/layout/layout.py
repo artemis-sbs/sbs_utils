@@ -258,6 +258,11 @@ class Layout(Clickable):
         self.border_color = None
 
         self.tag = tag
+        # The author's `tag:` style name (LM #349). Held BESIDE the engine tag, not
+        # in place of it: the page registers it as an extra tag_map key so
+        # gui_update() can find this widget by name, while the engine keeps the
+        # library-managed tag it needs for region and slot identity.
+        self.alias = None
         self.parent_region_tag = ""
         
         self.click_text  = None

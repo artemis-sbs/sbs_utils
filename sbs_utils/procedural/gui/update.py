@@ -155,8 +155,18 @@ def gui_update(tag, props, shared=False, test=None):
     ``shared=True``) and updates its properties in-place without rebuilding the
     full layout.
 
+    The tag is a SCRIPT-SIDE name, not the string the engine knows the widget by.
+    Set it with a ``tag:`` style (``gui_text("hi", style="tag:status;")``) and the
+    page records it beside the engine's own tag, so naming a widget never disturbs
+    the tag the engine, a listbox, or a click region depends on.
+
+    A name set inside a listbox ``item_template`` resolves too, but note two things:
+    only rows that are currently ON SCREEN exist, so a tag naming a scrolled-away row
+    finds nothing; and the name must be unique per row (put the item in it, e.g.
+    ``f"tag:row-{item};"``) or only the last row drawn is reachable.
+
     Args:
-        tag (str): The element tag to find and update.
+        tag (str): The element name to find and update.
         props (str): New property string for the element, e.g.
             ``"$text:Firing!;color:red;"``.
         shared (bool, optional): Apply the update to all client pages, not just
@@ -164,6 +174,11 @@ def gui_update(tag, props, shared=False, test=None):
         test (dict | None, optional): Only apply the update when any variable
             in ``test`` has changed since the last update. Defaults to None
             (always update).
+
+    Returns:
+        bool: True when a widget was found and updated. False is not an error --
+        an off-screen listbox row is the ordinary case -- but it lets a caller tell
+        a miss from a hit. Always False for ``shared=True``, which fans out.
 
     Example:
         gui_update(status_tag, "$text:OK;color:green;")
@@ -175,8 +190,14 @@ def gui_update(tag, props, shared=False, test=None):
     props = task.compile_and_format_string(props)
     if shared:
         task.main.mast.update_shared_props_by_tag(tag, props, test)
-    else:
-        page.update_props_by_tag(tag, props, test)
+        return False
+    # A listbox row template runs against a SubPage shim, which has no such method.
+    # Calling gui_update from inside a template used to raise AttributeError; there
+    # is nothing sensible to update mid-build, so say nothing and move on.
+    update = getattr(page, "update_props_by_tag", None)
+    if update is None:
+        return False
+    return update(tag, props, test)
 
 def gui_update_shared(tag, props, test=None):
     """Update a GUI element by tag on all client pages.

@@ -19,8 +19,17 @@ def accepts_kwargs(func):
 class SubPage:
     """A class for use with the layout listbox to make using the procedural gui function work
     """
-    def __init__(self, tag_prefix, region_tag, task, client_id) -> None:
+    def __init__(self, tag_prefix, region_tag, task, client_id,
+                 owner=None, register=True) -> None:
         self.tags = set()
+        # The widget this sub-page builds for (the listbox / overlay / tabbed panel).
+        # An author's `tag:` name resolves to a widget this thing rebuilds from a
+        # template, so it is the owner that has to re-apply an update afterwards.
+        self.owner = owner
+        # False for a MEASURE pass. calc_max runs the template for EVERY item just to
+        # size it and throws the widgets away -- registering those would fill the real
+        # page's tag_map with dead widgets for rows that were never drawn.
+        self.register = register
         self.tag_prefix = tag_prefix
         self.tag = 0
         self.active_layout = None
@@ -33,6 +42,11 @@ class SubPage:
         self.gui_task = task
         self.region_tag = region_tag
         self.tag_map = {}
+        # alias -> layout item, for the duplicate-name warning only.
+        self.alias_owner = {}
+        # Aliases registered since the last next_slot(), so the owner knows which
+        # names belong to the slot it just built.
+        self.aliases = []
 
     def get_tag(self):
         self.tag += 1
@@ -42,12 +56,49 @@ class SubPage:
     
     def add_tag(self, layout_item, runtime_node):
         self.tag_map[layout_item.tag] = (layout_item, runtime_node)
+        click_tag = getattr(layout_item, "click_tag", None)
+        if click_tag is not None:
+            # StoryPage.add_tag has always registered this second key; this shim
+            # never did, so a click region built by a row template was not resolvable.
+            self.tag_map[click_tag] = (layout_item, runtime_node)
+        self.add_alias(layout_item, runtime_node)
+
+    def add_alias(self, layout_item, runtime_node=None):
+        """Register an author's `tag:` name for a widget built inside this sub-page.
+
+        Same idiom as StoryPage.add_alias: an extra key in the same tag_map, which
+        the owner then merges into the real page. The engine tag stays the
+        slot-namespaced one this shim hands out, so the owner's
+        `sub_tag.startswith(tag_prefix)` routing keeps working (LM #349).
+        """
+        alias = getattr(layout_item, "alias", None)
+        if not alias:
+            return
+        if not self.register:
+            # Measure pass. It runs the template for every item, so a name that is
+            # perfectly unique per row would still be seen many times here -- warning
+            # from this pass would be pure noise about code that is fine.
+            return
+        prev = self.alias_owner.get(alias)
+        if prev is not None and prev is not layout_item:
+            # One template naming every row the same thing: only the last row built
+            # is reachable, and which row that is moves as the list scrolls.
+            from ...procedural.execution import log
+            log(f"tag '{alias}' was claimed by more than one row of this list. Only "
+                f"the last one drawn can be reached by gui_update, and which row that "
+                f"is changes as the list scrolls -- put something item-unique in the "
+                f"name, e.g. \"tag:{alias}-{{item}}\".", "gui", "warning")
+        self.alias_owner[alias] = layout_item
+        self.aliases.append(alias)
+        layout_item._alias_owner = self.owner
+        self.tag_map[alias] = (layout_item, runtime_node)
     
     def next_slot(self, slot, section):
         self.active_layout = section
         self.layouts.append(section)
         self.slot = slot
         self.pending_row = None
+        self.aliases = []
 
 
     def add_content(self, layout_item, runtime_node):
@@ -191,6 +242,12 @@ class LayoutListbox(layout.Column):
 
         self.tag_prefix = tag_prefix
         self.tag  = tag_prefix
+        # What THIS listbox last merged into the page's tag_map, so the next draw can
+        # take back the entries for rows that are no longer on screen.
+        self._merged = {}
+        # alias -> props handed to gui_update, re-applied after the template rebuilds
+        # a row, so an update survives a repaint (LM #349).
+        self._alias_overrides = {}
         self.gui_state = "blank"
         self.region = None
         self.local_region_tag = tag_prefix+"$$"
@@ -296,6 +353,9 @@ class LayoutListbox(layout.Column):
     def items(self, items):
         self.unfiltered_items = items
         self._items = items
+        # New data: whatever gui_update() had pinned to the old rows no longer
+        # describes anything.
+        self._alias_overrides = {}
         self.mark_visual_dirty()
 
     def set_row_height(self, height):
@@ -396,7 +456,8 @@ class LayoutListbox(layout.Column):
         self._item_heights = {}
 
         restore = FrameContext.page
-        sub_page = SubPage(self.tag_prefix, self.local_region_tag, restore.gui_task, CID)
+        sub_page = SubPage(self.tag_prefix, self.local_region_tag, restore.gui_task, CID,
+                           register=False)
         FrameContext.page = sub_page
         
         
@@ -476,7 +537,8 @@ class LayoutListbox(layout.Column):
 
         restore = FrameContext.page
         task = restore.gui_task
-        sub_page = SubPage(self.tag_prefix, self.local_region_tag, restore.gui_task, event.client_id)
+        sub_page = SubPage(self.tag_prefix, self.local_region_tag, restore.gui_task,
+                           event.client_id, owner=self)
         FrameContext.page = sub_page
 
 
@@ -802,6 +864,19 @@ class LayoutListbox(layout.Column):
             
             size = self.template_func(item, listbox=self, 
                         selected=is_sel, section=sec, click_tag=click_tag, collapse_tag=collapse_tag)
+            #
+            # The template just rebuilt this row from the item data, discarding
+            # anything gui_update() had put there. Put it back before the row is
+            # measured and drawn, so an update survives scrolling away and back.
+            #
+            if self._alias_overrides:
+                for alias in sub_page.aliases:
+                    props = self._alias_overrides.get(alias)
+                    if props is None:
+                        continue
+                    entry = sub_page.tag_map.get(alias)
+                    if entry is not None:
+                        entry[0].update(props)
             sec.calc(CID)
 
             # if self.horizontal:
@@ -844,6 +919,7 @@ class LayoutListbox(layout.Column):
         
         sub_page.present(event)   
         FrameContext.page = restore
+        self._merge_tags(CID, sub_page)
         
 
     def present(self, event):
@@ -1193,6 +1269,44 @@ class LayoutListbox(layout.Column):
         #     i+=1
         self.mark_visual_dirty()
     
+    def _merge_tags(self, client_id, sub_page):
+        """Publish this draw's row widgets to the real page, and retract the last one's.
+
+        The other two SubPage users (overlay, tabbed panel) have always done the
+        merge; the listbox never did, which is the whole of LM #349 -- gui_update
+        resolves against page.tag_map, and the row widgets were never in it.
+
+        The retraction is the part they are missing. A row that scrolled off the
+        screen leaves an entry pointing at a widget that is no longer drawn; a later
+        update would call present() on it and paint at coordinates that belong to
+        nothing. Only entries THIS listbox put there and did not build again are
+        taken back, so a same-named widget elsewhere on the page is untouched.
+        """
+        from ...procedural.gui.gui import gui_page_for_client
+        # `or restore` for the same reason tabbed_panel.py:122 does it: the lookup is
+        # documented nullable and really is None while a client's page is still being
+        # established, and when listboxes NEST the enclosing page is a SubPage that
+        # never appears in that registry. Its own owner merges it upward in turn.
+        page = gui_page_for_client(client_id) or FrameContext.page
+        tag_map = getattr(page, "tag_map", None)
+        if tag_map is None:
+            return
+        fresh = sub_page.tag_map
+        for k, v in self._merged.items():
+            if k not in fresh and tag_map.get(k) is v:
+                del tag_map[k]
+        tag_map |= fresh
+        self._merged = fresh
+
+    def remember_alias_props(self, alias, props):
+        """Hold what gui_update() wrote to a row, so the next draw can re-apply it.
+
+        Without this the update lasts only until the list next draws -- the template
+        rebuilds the row from the item data and the change is gone. Cleared whenever
+        `items` is replaced, since new data makes old overrides meaningless.
+        """
+        self._alias_overrides[alias] = props
+
     def update(self, props):
         pass
 

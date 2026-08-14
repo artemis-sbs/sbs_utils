@@ -194,6 +194,46 @@ Four contracts the build settled that are easy to get wrong:
 - **A stale hint is not an error** — `cur` is clamped and an out-of-range selection is
   dropped silently, so a list that has since shrunk is safe.
 
+## Naming a widget: `tag:` and `gui_update`
+
+`tag:` in a style string gives a widget a **script-side name**. It is not the tag the
+engine knows the widget by -- the library keeps that for itself, because a listbox row,
+a click region and a sub-region all derive identity from it.
+
+```
+gui_text("$text:`waiting`;", style="tag:status;")
+...
+gui_update("status", "$text:`ready`;")      # returns True when it found something
+```
+
+Prefer a held reference (`w = gui_text(...)` then `w.value = ...`) -- it is direct and
+cannot go stale. `gui_update` earns its place when the widget is built somewhere the
+updating code cannot reach, which is mostly **inside a listbox `item_template`**.
+
+**Naming a row.** This works now (it silently did nothing before), with two rules that
+come from how a listbox draws:
+
+- **Only rows currently ON SCREEN exist.** The listbox builds widgets for visible slots
+  only, so a name for a scrolled-away row resolves to nothing and `gui_update` returns
+  `False`. That is the ordinary case, not an error.
+- **The name must be unique per row.** Put the item in it. Name every row the same and
+  only the last one drawn answers -- and which row that is moves as the list scrolls.
+  The library logs a warning when it sees this.
+
+```
+def row_template(item, **kwargs):
+    gui_row("row-height: 1.2em;")
+    gui_text(f"$text:`{item}`;", style=f"tag:row-{item};")   # unique per row
+```
+
+An update to a row is re-applied after the template rebuilds it, so it survives
+scrolling away and back. It does **not** survive `lb.items = [...]` -- new data means
+the old text no longer describes anything. **The template stays the source of truth**;
+`gui_update` is a touch-up between rebuilds, not a place to keep state.
+
+`click_tag:` is NOT a script-side name -- it is a real engine tag, matched against
+`event.sub_tag` by `gui_click`. Leave it alone.
+
 ## Handlers: gui_message / gui_click / change
 
 - `on gui_message(widget):` — fires when the widget's **value changes** (button,

@@ -195,8 +195,24 @@ def apply_style_def(style_def, layout_item, task):
 
     tag = style_def.get("tag")
     if tag is not None:
+        # A SCRIPT-SIDE NAME, not the engine's tag (LM #349).
+        #
+        # This used to overwrite layout_item.tag, which is the string handed to the
+        # engine. That made an author's name the widget's engine identity, and inside
+        # a container it broke the container: a listbox routes events with
+        # `event.sub_tag.startswith(self.tag_prefix)`, so a renamed row widget stopped
+        # being recognized as its own, and the engine tag it took over
+        # (`prefix:slot:n`) is reused by a different item as the list scrolls.
+        #
+        # The name now lives beside the tag. `add_tag` registers it in the page's
+        # tag_map as an extra key -- exactly how click_tag has always earned a second
+        # entry -- so gui_update() and everything else that resolves by tag_map find
+        # it, while the engine keeps the library-managed ordinal.
+        #
+        # click_tag above is deliberately NOT aliased: it is a real engine identity
+        # that ClickableTrigger matches by the author's own string.
         tag = compile_formatted_string(tag)
-        layout_item.tag = task.format_string(tag).strip()
+        layout_item.alias = task.format_string(tag).strip()
 
 def apply_control_styles(control_name, extra_style, layout_item, task):
         """Apply a named control style and optional overrides to a layout item.
