@@ -128,6 +128,12 @@ class ButtonPromise(AwaitBlockPromise):
     fail_rule = re.compile(r'fail')
 
     navigation_map = {}
+    # Declared, not just assigned in build_navigation_buttons: button.py,
+    # comms.py and science.py all READ this to decide whether a button with no
+    # await block has anywhere to go. Before any navigation had ever been built
+    # the attribute did not exist at all, so those reads raised AttributeError
+    # rather than seeing "no navigation in progress" (LM #124).
+    navigating_promise = None
 
     def __init__(self, path, task, timeout=None) -> None:
         super().__init__(timeout)
@@ -428,31 +434,42 @@ class ButtonPromise(AwaitBlockPromise):
         restore_page = FrameContext.page 
         FrameContext.task = self.task
         FrameContext.page= self.task.main.page
-        p = task_all(*path_labels, sub_tasks=True)
+        #
+        # try/finally, because p.poll() runs arbitrary route bodies: anything an
+        # add-on's //comms or //science label does can raise. An escape used to
+        # leave navigating_promise pointing at this dead promise for the rest of
+        # the session, so every later stand-alone button was collected into a
+        # promise nobody presents -- buttons silently vanishing, with the error
+        # that caused it long gone. FrameContext went with it. (LM #124)
+        #
+        p = None
+        try:
+            p = task_all(*path_labels, sub_tasks=True)
 
-        p.poll()
-        #
-        # This could get into a lock
-        # but the expectation is this runs in one pass
-        #
-        count = 0
-        while not p.done():
             p.poll()
+            #
+            # This could get into a lock
+            # but the expectation is this runs in one pass
+            #
+            count = 0
+            while not p.done():
+                p.poll()
 
-            if p.is_idle:
-                break
+                if p.is_idle:
+                    break
 
-            if count > 100000:
-                print(f"path {self.path} caused hang build navigation {self.__class__.__name__}")
-                break
-            count += 1
-        #
-        # Sub Tasks are still running
-        #
-        self.nav_sub_task_promise = p # if not p.done() else None
-        ButtonPromise.navigating_promise = None
-        FrameContext.task = t
-        FrameContext.page = restore_page
+                if count > 100000:
+                    print(f"path {self.path} caused hang build navigation {self.__class__.__name__}")
+                    break
+                count += 1
+        finally:
+            #
+            # Sub Tasks are still running
+            #
+            self.nav_sub_task_promise = p # if not p.done() else None
+            ButtonPromise.navigating_promise = None
+            FrameContext.task = t
+            FrameContext.page = restore_page
 
     def build_promise_buttons(self):
         return []

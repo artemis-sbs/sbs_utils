@@ -1144,6 +1144,35 @@ class Mast():
                         # blocks).
                         #
                         if len(compile_ctx.await_stack) > 0:
+                            # Clearing it silently is what made this class of bug so
+                            # hard to find (LM #124): the stack stayed dirty and the
+                            # NEXT node that needed it failed against a line that was
+                            # not the cause.
+                            #
+                            # Report only an await with no `dedent_loc`. Being open at
+                            # a label boundary is NOT by itself a fault: the widespread
+                            #     await gui():
+                            #     + "Resume":
+                            # shape (button at the await's own indent, so no block is
+                            # ever pushed) leaves the await on the stack, and the button
+                            # still attaches and still sets dedent_loc. That works, and
+                            # warning on it would be noise on shipped missions. With no
+                            # dedent_loc there is genuinely nowhere to resume: the
+                            # promise can never carry the task past the block.
+                            #
+                            # A warning, not an error -- failing the compile here would
+                            # take the whole story down (a story that does not compile
+                            # schedules no task at all), over one bad block.
+                            for open_await in compile_ctx.await_stack:
+                                if open_await.dedent_loc is not None:
+                                    continue
+                                open_line = getattr(open_await, "line_num", None)
+                                compile_logger.warning(
+                                    f"{file_name}:{open_line}: 'await' block is never "
+                                    f"closed -- nothing is indented under it and no "
+                                    f"button or '=' inline label attached before label "
+                                    f"'{label_name}' starts. The task will wait here "
+                                    f"forever.")
                             compile_ctx.await_stack.clear()
                         ##
                         ##

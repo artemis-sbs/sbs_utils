@@ -30,6 +30,16 @@ class Await(MastNode):
             self.buttons = []
             await_stack.append(self)
         else:
+            # The end node is only ever built by create_end_node on an await that
+            # IS on the stack, so an empty stack here means the stack was corrupted
+            # -- historically by an unbalanced block earlier in the file. Say that,
+            # rather than letting a bare IndexError surface as "list index out of
+            # range" against a line that is not the cause (LM #124).
+            if not await_stack:
+                raise Exception(
+                    "'await' block end with no matching open 'await'. The await "
+                    "stack is unbalanced -- check the indentation of the "
+                    "'await ...:' block this line is meant to close.")
             await_stack[-1].end_await_node = self
             await_stack.pop()
 
@@ -62,6 +72,16 @@ class AwaitInlineLabel(MastNode):
         self.loc = loc
         self.inline = val
         await_stack = compile_info.ctx.await_stack
+        # An '=' inline label only means something inside an await block -- it is
+        # how `await` names a branch to resume at. Written outside one (or after a
+        # block whose indentation left the stack unbalanced) this used to raise a
+        # bare IndexError, reported against THIS line with no hint that the real
+        # fault is the await above it (LM #124).
+        if not await_stack:
+            raise Exception(
+                f"'={val}:' inline label has no open 'await' block. An '=' inline "
+                "label must be indented inside an 'await ...:' block; an await "
+                "block left unbalanced earlier in the label is the usual cause.")
         self.await_node = await_stack[-1]
         await_stack[-1].add_inline(self)
 

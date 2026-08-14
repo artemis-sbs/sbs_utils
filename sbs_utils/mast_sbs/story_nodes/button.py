@@ -243,6 +243,23 @@ class ButtonRuntimeNode(MastRuntimeNode):
                 clone = node.clone()
                 clone.resolve_data_context(task)
                 p.add_nav_button(clone)
+            elif not getattr(node, "no_target_warned", False):
+                # No await block AND no navigation being built: there is nowhere
+                # for this button to go, so it is discarded and the console simply
+                # shows nothing. Silence here is the runtime half of LM #124 -- the
+                # author sees a missing button with no error anywhere. Warn once per
+                # button node (the latch lives on the compiled node, so it dies with
+                # the story and needs no reset registration).
+                node.no_target_warned = True
+                from ...procedural.execution import log
+                from ...mast.mast import Mast
+                # A button built in python (comms_add_button) never went through the
+                # compile loop, so it carries no file_num/line_num at all.
+                src = Mast.get_source_file_name(getattr(node, "file_num", None))
+                log(f"Button at {src}:{getattr(node, 'line_num', '?')} is not inside an "
+                    f"'await ...:' block and no comms/science navigation is being "
+                    f"built, so it will never be shown. Indent it under an await "
+                    f"block, or use gui_button() outside one.", "mast", "warning")
     def poll(self, mast:'Mast', task:'MastAsyncTask', node: Button):
         if node.await_node:
             task.jump(self.node_label, node.await_node.end_await_node.dedent_loc)
