@@ -782,6 +782,31 @@ def extra_reset():
     _extra_ship_data_loaded.clear()
 
 
+def _looks_like_hjson(text):
+    """Is this extra ship data in a shape the ENGINE can read?
+
+    The engine parses these files as **HJSON**, not YAML - its own
+    `data/shipData.yaml` says so in the header. HJSON is JSON with comments, so
+    a key cannot contain whitespace and there are no block sequences: a perfectly
+    valid `- key: thing` list, or a `"beam Primary Beams":` block mapping, is a
+    parse error.
+
+    And it fails in SILENCE. `add_extra_ship_data` raises, we carry on, and the
+    library still merges the file with PyYAML - which accepts both shapes - so
+    every headless run, every unit test and every library lookup sees the ships.
+    Only the engine does not, and the bill arrives later as a hull it was never
+    given: LegendaryMissions' turrets spawned and never fired for exactly this
+    reason (found 2026-08-14).
+
+    So check the shape at load, where the file is in front of us."""
+    for line in str(text).splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        return stripped.startswith("{")
+    return True                 # empty file - a different complaint
+
+
 def add_extra(name, path=None, mod=None):
     """Load another ship-data file for this mission.
 
@@ -807,10 +832,18 @@ def add_extra(name, path=None, mod=None):
     elif folder:
         path = os.path.join(path, *folder.split("/"))
     reached = False
+    why = ""
 
     text = _read_extra_ship_data(filename, path)
     if text is not None:
         merge_mod_ship_yaml(text, mod or "add_extra_ship_data")
+        if not _looks_like_hjson(text):
+            why = "block YAML - the engine reads HJSON and will reject this file"
+            from .execution import log
+            log(f"{filename} is block YAML. The engine parses extra ship data as HJSON "
+                f"(JSON with comments): no `- item` sequences, no whitespace in a key. "
+                f"sbs_utils reads it fine, so the ships work everywhere EXCEPT the engine "
+                f"- where spawning one fails. Write it as JSON.", "ship_data", "warning")
     else:
         # SAY SO. A missing file is not fatal - but silence here costs a whole
         # afternoon, because the failure surfaces far away and looks like something
@@ -830,6 +863,7 @@ def add_extra(name, path=None, mod=None):
             sbs.add_extra_ship_data(str(filename), _engine_path(path))
             reached = True
         except AttributeError as e:
+            why = "AttributeError: %s" % e
             # Older engine. The library merge above already happened, so the ships exist
             # as far as sbs_utils is concerned - but SAY SO. "engine told: False" with no
             # reason is the same silence that hid the path bug above: the hulls are in
@@ -840,6 +874,7 @@ def add_extra(name, path=None, mod=None):
                 f"Ships from this file exist in sbs_utils but NOT in the engine, so "
                 f"spawning one will fail inside the engine.", "ship_data", "warning")
         except Exception as e:                  # noqa: BLE001
+            why = "%s: %s" % (type(e).__name__, e)
             from .execution import log
             log(f"add_extra_ship_data({filename}) failed: {e}", "ship_data", "warning")
 
@@ -851,9 +886,9 @@ def add_extra(name, path=None, mod=None):
     # later with `bad allocation`, and nothing connects the two.
     try:
         from ..mast.mast import DEBUG
-        DEBUG("add_extra(%s): file %s in %r -> engine path %r, engine told: %s"
+        DEBUG("add_extra(%s): file %s in %r -> engine path %r, engine told: %s%s"
               % (filename, "FOUND" if text is not None else "MISSING", path,
-                 _engine_path(path), reached))
+                 _engine_path(path), reached, why and (" (%s)" % why) or ""))
     except Exception:                                   # noqa: BLE001
         pass
     return reached

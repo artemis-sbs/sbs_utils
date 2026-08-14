@@ -228,4 +228,69 @@ class TestItSaysWhenItFoundNothing(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         with open(os.path.join(self.tmp.name, "hulls.yaml"), "w", encoding="utf-8") as f:
-            f.write("#ship-list:\n  - key: t_hull\n    name: T\n    hullpoints: 10\n")
+            f.write(_JSON_HULLS)
+
+
+# The engine reads extra ship data as HJSON, so a fixture written as block YAML is not a
+# neutral choice - it is the bug. Keep the good shape here, and test the bad one on purpose.
+
+# The engine reads extra ship data as HJSON, so a fixture written as block YAML is not a
+# neutral choice - it is the bug. Keep the good shape here, and test the bad one on purpose.
+_JSON_HULLS = """{
+  "#ship-list": [
+    {"key": "t_hull", "name": "T", "hullpoints": 10}
+  ]
+}
+"""
+
+_BLOCK_HULLS = """#ship-list:
+  - key: t_hull
+    name: T
+    hullpoints: 10
+"""
+
+_COMMENTED = """# a comment that comes first
+
+""" + _JSON_HULLS
+
+
+class TestItSaysWhenTheEngineCannotReadTheShape(unittest.TestCase):
+    """The engine parses extra ship data as HJSON: no `- item` sequences, no whitespace in
+    a key. PyYAML accepts both shapes, so a block-YAML file works in every test and every
+    headless run and is rejected only by the engine - silently, until a spawn fails for a
+    hull it was never given. Measured on LegendaryMissions' turrets, 2026-08-14."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def _write(self, text):
+        with open(os.path.join(self.tmp.name, "hulls.yaml"), "w", encoding="utf-8") as f:
+            f.write(text)
+
+    def _load(self):
+        with (mock.patch("sbs_utils.procedural.ship_data.get_mission_dir",
+                         return_value=self.tmp.name),
+              mock.patch("sbs.add_extra_ship_data", create=True),
+              mock.patch("sbs_utils.procedural.execution.log") as logged):
+            sd.add_extra("hulls", mod="LM")
+        return " ".join(str(c) for c in logged.call_args_list)
+
+    def test_block_yaml_is_called_out(self):
+        self._write(_BLOCK_HULLS)
+        said = self._load()
+        self.assertIn("HJSON", said)
+        self.assertIn("hulls", said)
+
+    def test_json_passes_without_comment(self):
+        self._write(_JSON_HULLS)
+        self.assertEqual(self._load(), "")
+
+    def test_comments_before_the_brace_are_fine(self):
+        self._write(_COMMENTED)
+        self.assertEqual(self._load(), "")
+
+    def test_the_shape_test_itself(self):
+        self.assertTrue(sd._looks_like_hjson(_JSON_HULLS))
+        self.assertTrue(sd._looks_like_hjson("# only comments"))
+        self.assertFalse(sd._looks_like_hjson(_BLOCK_HULLS))
