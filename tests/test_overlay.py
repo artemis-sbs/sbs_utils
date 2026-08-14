@@ -43,11 +43,28 @@ class _FakeMain:
         self.page = page
 
 
+class _FakeTicker:
+    """The real task's active_ticker, for the one field a handler reads."""
+    def __init__(self):
+        self.done = False
+
+
 class _FakeGuiTask:
     """Minimal stand-in for the client's GUI task — enough for style parsing
-    (`task.main.page.client_id`) and variable set/get during a builder."""
+    (`task.main.page.client_id`), variable set/get during a builder, and the
+    liveness pair a widget handler checks before it fires.
+
+    `done()` / `active_ticker.done` are the two halves of MessageHandler's
+    `was_dead` (gui/button.py, gui/message.py): a handler on a FINISHED task has
+    to wake it, because nothing else will tick it (LM #707). This task is the
+    console's live GUI task, so both are False -- the handler runs on the spot.
+    """
     def __init__(self, page):
         self.main = _FakeMain(page)
+        self.active_ticker = _FakeTicker()
+
+    def done(self):
+        return False
 
     def set_variable(self, *a, **k):
         pass
@@ -730,6 +747,7 @@ class _FakeBuilderSubTask:
     def __init__(self, main, run):
         self.main = main
         self._run = run
+        self.disposed = False
 
     def tick_in_context(self):
         saved = FrameContext.page
@@ -737,16 +755,26 @@ class _FakeBuilderSubTask:
         self._run()
         FrameContext.page = saved
 
+    def dispose(self):
+        # An unscheduled builder task never enters scheduler.tasks, so the normal
+        # done-task disposal never sees it -- _label_builder unregisters it by
+        # hand or every overlay rebuild leaks one task into Agent.all. Recorded
+        # rather than ignored so the test can assert it happened.
+        self.disposed = True
+
 
 class _SchedGuiTask(_FakeGuiTask):
     def __init__(self, page):
         super().__init__(page)
         self.main = _FakeScheduler(page)
+        self.started = []
 
     def start_task(self, label, inputs=None, task_name=None, defer=False,
                    inherit=True, unscheduled=False):
         # in the test the "label" is a python build fn(inputs)
-        return _FakeBuilderSubTask(self.main, lambda: label(inputs))
+        st = _FakeBuilderSubTask(self.main, lambda: label(inputs))
+        self.started.append(st)
+        return st
 
 
 class TestOverlayLabelBuilder(unittest.TestCase):
@@ -791,6 +819,13 @@ class TestOverlayLabelBuilder(unittest.TestCase):
                  and a[1][1] == self.HERO and "MAST BUILT" in a[1][3]]
         self.assertTrue(texts, "label built into the slot region")
         self.assertIs(self.gtask.main.page, self.page, "scheduler page restored")
+        # The other half of "cleans up": the one-shot builder task is unscheduled,
+        # so _label_builder has to dispose() it by hand or each rebuild leaks one
+        # task into Agent.all. _label_builder swallows exceptions, so without this
+        # assert a builder that stopped disposing would still pass.
+        self.assertTrue(self.gtask.started, "builder task started")
+        self.assertTrue(all(st.disposed for st in self.gtask.started),
+                        "builder task disposed after its one tick")
 
 
 class TestOverlayRouteNode(unittest.TestCase):
