@@ -159,6 +159,14 @@ def signal_register(name, label, server=False, task=None, loc=0, is_jump=True, i
         return
     info = SignalLabelInfo(is_jump, label, loc, server)
     mast.signal_register(name, task, info)
+    # An inline handler (`on signal x:`) is GUI-transient: it dies with the GUI
+    # build that registered it. Record which build owns it so the teardown can
+    # take that build's handlers and leave the next one's alone (LM #589).
+    # A jump handler (a //signal route) is not transient and is never tracked.
+    if not is_jump:
+        from ..mast.mastscheduler import MastAsyncTask
+        if MastAsyncTask.buffer_inline_signals:
+            task.queue_inline_signal(name, info)
 
 
 # --- one-shot await of a signal ----------------------------------------------

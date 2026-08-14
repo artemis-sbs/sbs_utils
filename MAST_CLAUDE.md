@@ -686,6 +686,28 @@ on signal signal_name:
     update_display()
 ```
 
+#### How long an `on` handler lives (2026-08-14)
+
+An `on` handler belongs to the GUI build that registered it, and dies when the
+**next** build replaces that one. Its position in the label does not matter — an
+`on signal` above the first widget lives exactly as long as one below it.
+
+That was not true before 2026-08-14. There is no `gui_begin()`: the system notices
+a new build from the first **tagged widget**, and the teardown there used to drop
+every `on signal` block the GUI task owned — including the ones the new build had
+just registered. So a handler written above the first widget was silently dead,
+and switching screens could leave *no* handler at all (LM #589, #579). A
+`gui_section` or `gui_row` never counted, because neither is a tagged widget,
+which is why moving one to the top never helped.
+
+`on change`, `on gui_message` and `on gui_click` were always immune — they are
+double-buffered and swapped at present time.
+
+Still true, and unchanged: `signal_register(name, label)` (a jump handler, the
+same form a `//signal` route compiles to) is **not** GUI-transient. It lives as
+long as its task does. Registering one on each visit to a screen registers it
+again each time.
+
 ### GUI layout
 
 ```

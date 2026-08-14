@@ -554,6 +554,30 @@ class Mast():
                 del info[task]
                 self.signal_observers[name] = info
 
+    def signal_unregister_info(self, name, task, info):
+        """Drop ONE registration, by identity.
+
+        `signal_unregister_all_inline` removes every inline handler a task owns,
+        which is too blunt once a task holds handlers from two different GUI
+        builds at the same time -- the moment the new build starts, its already
+        registered `on signal` blocks are indistinguishable from the old build's
+        (LM #589). Removing the exact SignalLabelInfo the caller is tracking keeps
+        the two apart.
+        """
+        task_map = self.signal_observers.get(name)
+        if task_map is None:
+            return
+        info_list = task_map.get(task)
+        if not info_list:
+            return
+        # Identity, not equality: SignalLabelInfo has no __eq__, and two
+        # registrations of the same label/loc are legitimately distinct owners.
+        info_list = [i for i in info_list if i is not info]
+        if info_list:
+            task_map[task] = info_list
+        else:
+            del task_map[task]
+
     def signal_unregister_all_inline(self, task):
         # Look for any signal using the task
         for name in self.signal_observers:

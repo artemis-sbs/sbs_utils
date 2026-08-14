@@ -745,6 +745,11 @@ class MastAsyncTask(Agent, Promise):
     # flipping it wakes up. See LM issue #707.
     revive_ended_handlers = True
 
+    # Behavior flag for the inline-signal buffers below. OFF restores the old
+    # wholesale purge, where StoryPage.on_new_gui dropped EVERY inline signal
+    # handler the GUI task owned. See LM issue #589.
+    buffer_inline_signals = True
+
     def __init__(self, main: 'MastScheduler', inputs=None, name= None):
         super().__init__()
         self.id = get_task_id()
@@ -778,6 +783,14 @@ class MastAsyncTask(Agent, Promise):
         self.on_change_items = []
         # So far this is used only of on change processing
         self.is_gui_task = False
+
+        # `on signal x:` registrations this task owns, as (name, SignalLabelInfo)
+        # pairs, double-buffered exactly like on_change_items so the GUI build
+        # that registered one can be told from the build before it (LM #589).
+        # These record OWNERSHIP only -- the handler is registered live the
+        # moment it runs, see queue_inline_signal().
+        self.inline_signals = []
+        self.pending_inline_signals = []
 
         # P2: get_symbols() cache, scoped strictly to a run_on_change() pass.
         # When _symbols_caching is True, the first get_symbols() build is stored
@@ -843,6 +856,49 @@ class MastAsyncTask(Agent, Promise):
 
             self.on_change_items= self.pending_on_change_items
         self.pending_on_change_items = []
+
+    #
+    # Inline signal ownership (`on signal x:`) -- LM #589.
+    #
+    # Deliberately NOT shaped like queue_on_change/swap_on_change in one respect:
+    # the handler is registered with the story IMMEDIATELY and these lists only
+    # record who owns it. An `on change` watcher is merely tested each tick, so
+    # holding it back until present costs nothing; a signal handler must be able
+    # to fire before then. A GUI task that registers `on signal` and then parks on
+    # `yield idle` without ever reaching `await gui()` is a working script today,
+    # and deferring activation would silently break it.
+    #
+    def queue_inline_signal(self, name, info):
+        if self.is_gui_task:
+            self.pending_inline_signals.append((name, info))
+        else:
+            self.inline_signals.append((name, info))
+
+    def purge_inline_signals(self):
+        """Unregister the handlers owned by the build that is being replaced.
+
+        Called from StoryPage.on_new_gui, at the same moment the wholesale purge
+        used to run. The build now under construction has its registrations in
+        pending_inline_signals, so they survive this -- which is the whole of the
+        #589 fix. Idempotent: safe if the swap already ran.
+        """
+        if not self.inline_signals:
+            return
+        mast = self.main.mast if self.main is not None else None
+        if mast is not None:
+            for name, info in self.inline_signals:
+                mast.signal_unregister_info(name, self, info)
+        self.inline_signals = []
+
+    def swap_inline_signals(self):
+        """Promote this build's registrations, at present time."""
+        if self.is_gui_task:
+            # Normally a no-op: on_new_gui purged on the first tagged widget. A
+            # build that added no tagged widget never fired it, so the previous
+            # build's handlers are still live and are dropped here instead.
+            self.purge_inline_signals()
+            self.inline_signals = self.pending_inline_signals
+        self.pending_inline_signals = []
 
     def emit_signal(self, name, sender_task, label_info, data):
         # if sender_task == self:

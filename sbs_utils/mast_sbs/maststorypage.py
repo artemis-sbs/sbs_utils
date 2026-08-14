@@ -19,6 +19,7 @@ from..fs import get_mission_name, get_startup_mission_name, is_dev_build
 from .story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
 
 from ..mast.maststory import  MastStory
+from ..mast.mastscheduler import MastAsyncTask
 from .maststoryscheduler import StoryScheduler
 
 # Keep for runtime supprt
@@ -250,6 +251,7 @@ class StoryPage(Page):
 
 
         self.gui_task.swap_on_change()
+        self.gui_task.swap_inline_signals()
         self.on_click = self.pending_on_click
         self.pending_on_click = []
         self.layouts = self.pending_layouts
@@ -312,12 +314,21 @@ class StoryPage(Page):
             if sub_task.has_role("end_on_new_gui") or getattr(
                     sub_task, "_revived_handler", False):
                 sub_task.end()
-        # 
+        #
         # Clear tags
         #
         # Need to purge any "on signal" commands
         #
-        self.story.signal_unregister_all_inline(self.gui_task)
+        # Only the handlers the PREVIOUS build registered. This fires on the first
+        # tagged widget, which is partway through the new build -- so an
+        # `on signal` written above that widget was already registered, and the
+        # old wholesale purge took it out along with the ones it was aimed at
+        # (LM #589). The new build's registrations are held in
+        # pending_inline_signals until swap_layout promotes them.
+        if MastAsyncTask.buffer_inline_signals:
+            self.gui_task.purge_inline_signals()
+        else:
+            self.story.signal_unregister_all_inline(self.gui_task)
 
 
 

@@ -286,6 +286,33 @@ sites have a finished builder, without needing anyone to click.
 builder is polled to completion while the panel is drawn — unless the body itself
 awaits.
 
+## A handler belongs to its GUI build, wherever it sits (LM #589)
+
+An `on` handler lives until the **next** GUI build replaces the one that registered
+it. Where it sits in the label does not matter, so this is fine:
+
+```
+== my_screen ==
+    on signal fleet_arrived:      # above the first widget -- lives just as long
+        gui_task_jump("my_screen")
+    gui_section("area:10,10,90,90;")
+    gui_text("Fleet status")
+    await gui()
+```
+
+Before 2026-08-14 that block was **silently dead**. There is no `gui_begin()`: the
+system notices a new build from the first **tagged widget**, and the teardown there
+dropped every `on signal` the GUI task owned -- including the ones the build had
+just registered a few lines earlier. Switching between two screens that each did
+this left *no* handler at all. `gui_section` and `gui_row` never triggered it
+(neither is a tagged widget), which is why moving a section to the top never fixed
+it. `on change` / `on gui_message` / `on gui_click` were never affected.
+
+Unchanged: **`signal_register(name, label)` is not GUI-transient.** It lives as long
+as its task, so calling it on each visit to a screen stacks up a handler per visit.
+For a listener that should die with the screen, use `on signal`; to scope one
+manually, register it on a `gui_sub_task_schedule` task.
+
 ## The for-loop handler trap (bites every time)
 
 **`on gui_message(widget):` registered inside a `for` loop is flaky** — and an
