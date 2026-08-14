@@ -6,6 +6,7 @@ an author's text becomes a volume, so a test that skips the text tests nothing.
 
 import io
 import unittest
+from unittest import mock
 
 from sbs_utils.fs import test_set_exe_dir
 test_set_exe_dir()
@@ -845,12 +846,29 @@ class TestContentsLint(unittest.TestCase):
     def test_an_art_key_that_is_not_in_shipdata_is_flagged(self):
         # It does not fail at runtime - the engine renders the `unknown` question-mark
         # mesh - so a typo builds a ruin out of question marks and says nothing.
+        #
+        # The catalog is STUBBED, deliberately. Reading the real shipData makes this test
+        # pass on a machine with the game installed and fail on one without, which is
+        # what CI is for and what caught it: the rule is "an unknown key is reported",
+        # not "this developer owns Artemis".
         doc = self._look_doc("Art: generic-rectangle, generic-nonsense")
-        findings = {f.code: f.message for f in self._lint(doc)}
+        with mock.patch("sbs_utils.procedural.amd_lint._relic_known_art",
+                        return_value={"generic-rectangle", "plain_asteroid_6"}):
+            findings = {f.code: f.message for f in self._lint(doc)}
         self.assertIn("relic-unknown-art", findings)
         self.assertIn("generic-nonsense", findings["relic-unknown-art"])
         self.assertNotIn("generic-rectangle", findings["relic-unknown-art"],
                          "a key that IS in shipData must not be reported")
+
+    def test_nothing_is_said_when_there_is_no_shipdata_to_ask(self):
+        # The other half of the same rule: `sbs lint` runs outside the game, where the
+        # art catalog may not be reachable at all. A linter that reported every key as
+        # unknown because it could not find the file would be worse than a quiet one.
+        doc = self._look_doc("Art: generic-nonsense")
+        with mock.patch("sbs_utils.procedural.amd_lint._relic_known_art",
+                        return_value=set()):
+            codes = [f.code for f in self._lint(doc)]
+        self.assertNotIn("relic-unknown-art", codes)
 
     def test_a_wall_style_nobody_defined_is_flagged(self):
         # Same shape of failure as a bad art key: it falls back to plain rock, so a
