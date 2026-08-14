@@ -11,10 +11,12 @@ under a different event -- clicking next/prev, loading a preset. Measured on
 LM's server mission picker with the headless layout audit: 0 item sections
 before, 13 after.
 
-The bail was standing in for "this frame does not own the panel", which is now
-asked directly (no gui task -> nothing to write; no such panel on that task ->
-nothing to write) and enforced at the source by binding a synthetic route's
-frame -- see tests/test_synthetic_route_frame.py.
+The bail is narrowed, not removed. It was standing in for "this frame does not
+own the panel", and the half that is genuinely that -- a follow_route_select_comms
+running a comms route on the SERVER's frame, where writing would overwrite the
+panel a console is already showing -- still bails. What separates the two is
+whether the panel has ever been presented: a listbox whose client_id is still
+None can only be one this build just created. Both halves are pinned below.
 """
 import unittest
 
