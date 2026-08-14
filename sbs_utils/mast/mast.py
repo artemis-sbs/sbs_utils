@@ -314,6 +314,12 @@ class Mast():
         # (token, kind, file_name, line_no, line) where kind is "requires"|"suggests".
         self.provides = set()
         self.requires = []
+        # Every hard assignment's target name, as (lhs, file, line, source). Collected on
+        # the ROOT during compile and cross-checked against label_symbols once the whole
+        # story is in (see _validate_label_names) -- the same order-independent shape as
+        # provides/requires, which is what makes this checkable at all: a label later in
+        # the file, or in another addon, is not known when the assignment compiles.
+        self.assignments = []
 
 
         if cmds is None:
@@ -450,6 +456,12 @@ class Mast():
 
         # self.vars = {"mast": self}
         self.labels = {}
+        # The names a MAST expression can resolve to a label -- `task_schedule(watcher)`.
+        # Held HERE, not in Agent.SHARED, so `watcher = 0` cannot destroy the label
+        # (LM #544). Accumulated on the ROOT story, like provides/requires, so imported
+        # addons land in the same table.
+        self.label_symbols = {}
+        self._eval_globals_cache = None
         self.inline_labels = {}
         main = Label("main")
         if root is not None:
@@ -776,6 +788,7 @@ class Mast():
                 # Every addon has now compiled, so the `provides` union is complete.
                 # Validate declared `requires`/`suggests` (order-independent barrier).
                 errors.extend(self._validate_requirements())
+            errors.extend(self._validate_label_names())
 
         return errors
             
@@ -861,6 +874,25 @@ class Mast():
                         self.labels[label] = node
             return errors
 
+    @property
+    def eval_globals(self):
+        """The globals dict every MAST expression is eval'd against.
+
+        `{"__builtins__": MastGlobals.globals}` plus this story's label names. Python
+        resolves a bare name locals -> globals -> builtins, so putting labels here gives
+        them exactly the precedence they should have: `task_schedule(watcher)` resolves,
+        and a task variable of the same name shadows it for reads.
+
+        Built ONCE and cached, because eval_code runs on every expression in the game --
+        merging the label table per eval would put a dict build of every label in the
+        story on the hottest path there is. The builtins entry holds a REFERENCE to
+        MastGlobals.globals, so functions registered later are still visible.
+        """
+        if self._eval_globals_cache is None:
+            from .mast_globals import MastGlobals as _MG
+            self._eval_globals_cache = {"__builtins__": _MG.globals} | self.label_symbols
+        return self._eval_globals_cache
+
     def get_manifest(self):
         """The addon dependency manifest collected during compile: the set of
         `provides` tokens and the list of `requires`/`suggests` declarations.
@@ -868,6 +900,32 @@ class Mast():
         runtime validates - both go through the same collection in compile()."""
         return {"provides": set(self.provides),
                 "requires": list(self.requires)}
+
+    def _validate_label_names(self):
+        """Order-independent guard: an assignment must not take a label's name.
+
+        `watcher = 0` alongside `=== watcher` used to DESTROY the label -- it lived in
+        Agent.SHARED, so the assign resolved to Scope.SHARED and overwrote it for every
+        task. Labels now have their own namespace, so the write only shadows; but a
+        shadow still means `task_schedule(watcher)` in that task gets 0 and dies in
+        do_jump with `AttributeError: 'int' object has no attribute 'name'`, pointing at
+        neither the label nor the assignment. Name it here instead. (LM #544)
+
+        Runs at the same hook as _validate_requirements, where the label table holds
+        every label in the story -- so it does not matter whether the label compiled
+        before the assignment, or in a different addon entirely.
+        """
+        errs = []
+        for lhs, file_name, line_no, line in self.assignments:
+            if lhs not in self.label_symbols:
+                continue
+            errs.append(
+                f"\nError: '{lhs}' is a label, so assigning it here hides the "
+                f"label for the rest of this task -- `task_schedule({lhs})` would be "
+                f"handed the value instead. Rename the variable, or use "
+                f"`default {lhs} = ...` if this is a deliberate fallback."
+                f"\nat {file_name} Line {line_no} - '{line}'\n\n")
+        return errs
 
     def _validate_requirements(self):
         """Order-independent dependency barrier. Run once after the whole story
@@ -1200,8 +1258,18 @@ class Mast():
                             errors.append(error)
                             break
 
-                        # Sets a variable for the label
-                        Agent.SHARED.set_inventory_value(label_name, active)
+                        # Make the label resolvable by name in an expression.
+                        #
+                        # This used to be `Agent.SHARED.set_inventory_value(...)` -- the
+                        # label WAS a shared variable named after itself. That is what let
+                        # `watcher = 0` destroy `=== watcher`: an unscoped assign asks
+                        # set_value_keep_scope where the name lives, finds the Label in
+                        # Agent.SHARED, concludes Scope.SHARED, and overwrites it, for every
+                        # task, permanently. In its own table get_value never finds it, so
+                        # that write lands in task scope and merely shadows. (LM #544)
+                        _sym_root = root if root is not None else self
+                        _sym_root.label_symbols[label_name] = active
+                        _sym_root._eval_globals_cache = None
 
                         self.cmd_stack.pop()
                         self.cmd_stack.append(active)
@@ -1271,6 +1339,15 @@ class Mast():
                             obj = node_cls(compile_info=info,loc=loc, **data)
                             obj.file_num = file_num
                             obj.line_num = line_no
+                            if node_cls.__name__ == "Assign" and not obj.is_default:
+                                # `default x = ...` is exempt, matching the sibling guard
+                                # in Assign.__init__ and `sbs lint`: it is the legitimate
+                                # "may not be loaded" fallback.
+                                _lhs = obj.lhs if isinstance(obj.lhs, str) else None
+                                if _lhs and _lhs.isidentifier():
+                                    _a_root = root if root is not None else self
+                                    _a_root.assignments.append(
+                                        (_lhs, file_name, line_no, line))
 
                         except Exception as e:
                             compile_logger.error(f"Exception: {e}")

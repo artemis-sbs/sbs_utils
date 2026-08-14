@@ -203,6 +203,33 @@ it, so it reads as "this variable vanished". `client_id` and `shared_state` are 
 the keyword only matches with whitespace after it. (Since 2026-08-14 the runtime error
 for this names the keyword and explains it.)
 
+### A label's name is reserved (2026-08-14)
+
+A top-level `== label ==` can be used as a value - that is how `task_schedule(watcher)`
+works - so its name is spoken for. Assigning to it is a compile error:
+
+```
+== setup ==
+    watcher = 0        # Error: 'watcher' is a label
+
+== watcher ==
+```
+
+The check runs after the WHOLE story compiles, so it does not matter whether the label
+is later in the file or in another addon. `default watcher = ...` is exempt, matching the
+same carve-out for MAST globals. `sbs lint` reports it as `ns-label-collision`.
+
+Labels are **not** variables, though: they live in their own per-story table and reach
+expressions as eval globals. So a task variable of the same name would only shadow the
+label for that task - it can no longer destroy it. (Before 2026-08-14 a label WAS a
+shared variable named after itself, so `watcher = 0` overwrote it for every task,
+permanently, and the error surfaced later and elsewhere as
+`AttributeError: 'int' object has no attribute 'name'`.)
+
+Only top-level `==` labels are affected. Inline `---` labels live in their parent
+label's own table, and routes and `@` decorator labels are keyed by mangled names no
+assignment can spell.
+
 ### A failing expression STOPS the command (2026-08-14)
 
 When an expression raises, the error is reported and **the command does not run**:

@@ -1,11 +1,14 @@
 """Recompiling a story in one process needs a fresh shared/agent state.
 
-A label registers its name into Agent.SHARED (so MAST can reference labels as
-values), and the compiler errors if that name already exists ("Label conflicts
-with shared name"). The engine gets a fresh process per mission, but the dev
-runner's run_next_mission recompiles IN-PROCESS - so it must reset Agent.clear()
-+ clear_shared() first, or the previous compile's label names collide. This pins
-that contract (the bug surfaced the first time run_next_mission was exercised).
+LABELS NO LONGER TAKE PART IN THIS (LM #544). A label used to register its name
+into Agent.SHARED -- it WAS a shared variable named after itself -- so a second
+in-process compile hit "Label conflicts with shared name" from the FIRST compile's
+leftovers, and `watcher = 0` could destroy `=== watcher`. Labels now live in the
+per-story `Mast.label_symbols`, which dies with its Mast, so an in-process
+recompile is clean by construction rather than by remembering to reset.
+
+The reset contract still matters for everything else Agent.SHARED holds (shared
+variables, agents, dispatchers) -- that is what the rest of this file pins.
 """
 from sbs_utils.fs import test_set_exe_dir
 test_set_exe_dir()
@@ -27,11 +30,23 @@ class TestRecompileSharedReset(unittest.TestCase):
         Agent.clear()
         clear_shared()
 
-    def test_recompile_without_reset_conflicts(self):
+    def test_recompile_without_reset_is_clean(self):
+        """The second-run trap this file was written for, now closed at the source.
+
+        A label lives in its own Mast, so nothing of the first compile is left to
+        collide with -- no reset required, and none of the "works once, fails on
+        run 2" class that a process-global namespace invites.
+        """
         self.assertEqual(_compile_label(), [])                 # first compile clean
-        errs = _compile_label()                                # recompile, no reset
-        self.assertTrue(any("conflicts with shared name" in e for e in errs),
-                        "recompiling the same label without clearing SHARED should conflict")
+        self.assertEqual(_compile_label(), [])                 # ...and again, no reset
+
+    def test_a_label_is_not_a_shared_variable(self):
+        """The mechanism behind LM #544: while the label was IN Agent.SHARED, an
+        unscoped `watcher = 0` resolved to Scope.SHARED and overwrote it."""
+        self.assertEqual(_compile_label(), [])
+        self.assertIsNone(
+            Agent.SHARED.get_inventory_value("admiral_move_camera_sync"),
+            "a label must not occupy the shared variable namespace")
 
     def test_recompile_after_reset_is_clean(self):
         self.assertEqual(_compile_label(), [])

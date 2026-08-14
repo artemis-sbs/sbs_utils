@@ -1142,7 +1142,7 @@ class MastAsyncTask(Agent, Promise):
         #     if k == "myslot":
         #         logger.info(f"{k}: {v}")
         try:
-            value = eval(message, _EVAL_GLOBALS, allowed)
+            value = eval(message, self.eval_globals(), allowed)
             return value
         except Exception as err:
             # `message` here is a CODE OBJECT, so printing it directly says only
@@ -1162,6 +1162,20 @@ class MastAsyncTask(Agent, Promise):
 
 
 
+    def eval_globals(self):
+        """Globals for an expression: builtins plus this story's LABEL names.
+
+        Labels used to live in Agent.SHARED, i.e. in the variable namespace, which is how
+        `watcher = 0` destroyed `=== watcher` (LM #544). As globals they still resolve --
+        `task_schedule(watcher)` works -- but a write can never land on one, and a task
+        variable of the same name shadows it for reads, which is the sane reading.
+
+        Falls back to the module constant when no story is reachable (bare-scheduler
+        tests, and any caller that predates a compiled Mast).
+        """
+        mast = getattr(self.main, "mast", None)
+        return _EVAL_GLOBALS if mast is None else mast.eval_globals
+
     def eval_code_checked(self, code, end_on_exception=True):
         """Evaluate a MAST expression, returning EVAL_ERROR if it raised.
 
@@ -1170,7 +1184,7 @@ class MastAsyncTask(Agent, Promise):
         """
         try:
             allowed = self.get_symbols()
-            return eval(code, _EVAL_GLOBALS, allowed)
+            return eval(code, self.eval_globals(), allowed)
         except Exception:
             err = format_exception(describe_eval_failure(code), "Mast eval level Runtime Error:")
             if end_on_exception:
@@ -1200,7 +1214,7 @@ class MastAsyncTask(Agent, Promise):
             if gbls is not None:
                 exec(code, {"__builtins__": MastGlobals.globals | gbls}, allowed)
             else:
-                exec(code, _EVAL_GLOBALS, allowed)
+                exec(code, self.eval_globals(), allowed)
         except Exception:
             err = format_exception(describe_eval_failure(code), "Mast exec level Runtime Error:")
             self.runtime_error(err)

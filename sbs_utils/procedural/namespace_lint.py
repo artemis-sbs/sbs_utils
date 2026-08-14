@@ -7,13 +7,20 @@ each define `market_sell_price` compile clean and then fail at RUNTIME, in which
 addon did NOT get overwritten. Addon load order is non-deterministic, so the failure is
 intermittent: it works until the two happen to load the other way around.
 
-Four collision classes, in descending severity:
+Five collision classes, in descending severity:
 
 - ``ns-mast-var-collision`` (ERROR) - a .mast HARD-assigns a name that is also a
   function. This is the compile error "Variable assignment to a keyword <x>" and it
   DESYNCS the whole story (labels 0/N, still reporting PASS). `default x = ...` is
   exempt - core_nodes/assign.py allows it deliberately as a "module may not be loaded"
   fallback.
+- ``ns-label-collision`` (ERROR) - a .mast HARD-assigns a name that is also a top-level
+  `== label ==`. The label is then hidden for the rest of that task, so
+  `task_schedule(<x>)` is handed the value and dies in do_jump with
+  `AttributeError: 'int' object has no attribute 'name'` - pointing at neither the label
+  nor the assignment (LM #544). The compiler catches this too, once the whole story is
+  in; this catches it in the editor, per file. Inline `--- labels` are NOT included:
+  they live in their parent label's own table and were never in the namespace.
 - ``ns-duplicate-function`` (ERROR) - the same function name defined in two addons.
 - ``ns-shadows-library`` (ERROR) - a mission function overrides an `sbs_utils.procedural`
   global. Note a Python-level call inside the defining module still resolves to itself,
@@ -74,6 +81,23 @@ def _hard_assigns(content):
     return out
 
 
+# A top-level label. Deliberately NOT `---` / `+++`: an inline label lives in its parent
+# label's own dict (core_nodes/inline_label.py) and never enters the namespace, so
+# flagging it would be a false positive. Route and `@` decorator labels are registered
+# under mangled names carrying `/` and an id, which no assignment target can spell.
+_MAST_LABEL = re.compile(r"^={2,}\s*(?P<name>[A-Za-z_]\w*)")
+
+
+def _label_sites(content):
+    """[(name, line)] for every top-level `== label ==` in one .mast source."""
+    out = []
+    for i, ln in enumerate(content.splitlines(), 1):
+        m = _MAST_LABEL.match(ln)
+        if m:
+            out.append((m.group("name"), i))
+    return out
+
+
 def namespace_lint_project(py_sources, mast_sources=(), lib_globals=()):
     """Whole-mission namespace collisions - no single file can see these.
 
@@ -99,6 +123,12 @@ def namespace_lint_project(py_sources, mast_sources=(), lib_globals=()):
         rows = lines_by_path.get(path) or []
         return rows[line - 1] if 0 < line <= len(rows) else ""
 
+    mast_lines = {p: c.splitlines() for p, c in mast_sources}
+
+    def _mast_line(path, line):
+        rows = mast_lines.get(path) or []
+        return rows[line - 1] if 0 < line <= len(rows) else ""
+
     def _addon(path):
         return str(path).replace("\\", "/").split("/")[0]
 
@@ -117,6 +147,29 @@ def namespace_lint_project(py_sources, mast_sources=(), lib_globals=()):
                 "desyncs the whole story (labels 0/N, still reporting PASS). Rename the "
                 "variable, or use `default " + name + " = ...` if this is a "
                 "module-may-not-be-loaded fallback.")))
+
+    # --- a .mast hard-assigns a LABEL name -> the label is hidden for that task ---
+    #
+    # Whole-mission, like every rule here: the label may be in a different file or a
+    # different addon from the assignment, which is exactly why a per-file check cannot
+    # see it.
+    labels = {}
+    for path, content in mast_sources:
+        for name, line in _label_sites(content):
+            labels.setdefault(name, []).append((path, line))
+    for path, content in mast_sources:
+        for name, line in _hard_assigns(content):
+            if name not in labels:
+                continue
+            if _allowed(_mast_line(path, line), "ns-label-collision"):
+                continue
+            where = ", ".join(p + ":" + str(ln) for p, ln in labels[name])
+            findings.append((path, AmdFinding(
+                line, ERROR, "ns-label-collision",
+                "\"" + name + "\" is a label (" + where + "), so assigning it here hides "
+                "the label for the rest of this task - `task_schedule(" + name + ")` "
+                "would be handed the value instead. Rename the variable, or use "
+                "`default " + name + " = ...` if this is a deliberate fallback.")))
 
     for name in sorted(defs):
         sites = defs[name]
