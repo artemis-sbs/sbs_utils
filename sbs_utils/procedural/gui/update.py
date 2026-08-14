@@ -14,31 +14,41 @@ def gui_represent(layout_item):
         gui_represent(my_section)
     """    
     
-    #
-    # This get the client ID from the event
-    # To get the true client ID
-    # There was confusion when comms runs on  client_id 0
-    # but want to update the client's GUI
-    #
     frame_event = FrameContext.context.event
     if frame_event is None:
         return
-    
 
+    #
+    # WHICH client should this be drawn to? The widget itself is the only
+    # source that always knows: present() stamps the id of the client it was
+    # drawn for onto the item, so an item that has ever been on screen carries
+    # its owner. Ask it first.
+    #
+    # The event and the page disagree often enough that guessing between them
+    # was the old approach, and it is wrong whenever NEITHER is the server
+    # (LM #571): a signal route runs once per console, so the page is the
+    # console being painted while the event still carries the console that
+    # emitted -- and max() then picks whichever of the two connected LATER.
+    # With two clients that silently sends one client's widget to the other
+    # and leaves the first showing stale text.
+    #
     event = frame_event
-    event_cl = FrameContext.context.event.client_id
-    page_cl = FrameContext.page.client_id
-    # Sometimes the event and page don' match
-    # if one is 0 the other is more likely correct
-    # Example: Manual beams Event is 0, but page is right
-    # Property Grid event is right, Page is wrong
-    if event_cl != page_cl:
-        actual_cl = max(event_cl, page_cl)
-        event = FakeEvent(actual_cl)
+    item_cl = getattr(layout_item, "client_id", None)
+    if item_cl is not None:
+        if frame_event.client_id != item_cl:
+            event = FakeEvent(item_cl)
+    else:
+        # Never presented, so it has no owner yet. Fall back to the old guess
+        # between event and page, which is right for the case it was written
+        # for: one of the two is the server and the other is the real console.
+        # Example: manual beams' event is 0 but its page is right; the property
+        # grid's event is right but its page is wrong.
+        event_cl = frame_event.client_id
+        page = FrameContext.page
+        page_cl = page.client_id if page is not None else None
+        if page_cl is not None and event_cl != page_cl:
+            event = FakeEvent(max(event_cl, page_cl))
 
-    
-    #print(f"E: {event_cl} P: {page_cl}")
-    # region_cl = region.page.client_id
     layout_item.represent(event)
 
 
