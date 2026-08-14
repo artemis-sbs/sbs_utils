@@ -837,6 +837,34 @@ class TestContentsLint(unittest.TestCase):
         from sbs_utils.procedural.amd_core import parse
         return amd_lint_relics(parse(content))
 
+    def _look_doc(self, *lines):
+        """A minimal relic whose fence carries whatever look fields are being tested."""
+        head = ["# T", "", "## [Relics](relics)", "", "### [The Hole](hole)", "---"]
+        return "\n".join(head + list(lines) + ["---", "A hole.", ""])
+
+    def test_an_art_key_that_is_not_in_shipdata_is_flagged(self):
+        # It does not fail at runtime - the engine renders the `unknown` question-mark
+        # mesh - so a typo builds a ruin out of question marks and says nothing.
+        doc = self._look_doc("Art: generic-rectangle, generic-nonsense")
+        findings = {f.code: f.message for f in self._lint(doc)}
+        self.assertIn("relic-unknown-art", findings)
+        self.assertIn("generic-nonsense", findings["relic-unknown-art"])
+        self.assertNotIn("generic-rectangle", findings["relic-unknown-art"],
+                         "a key that IS in shipData must not be reported")
+
+    def test_a_wall_style_nobody_defined_is_flagged(self):
+        # Same shape of failure as a bad art key: it falls back to plain rock, so a
+        # plated hall quietly is not one and nothing says why.
+        codes = [f.code for f in self._lint(self._look_doc("Walls: plaits"))]
+        self.assertIn("relic-unknown-walls", codes)
+
+    def test_a_real_wall_style_is_quiet(self):
+        doc = self._look_doc("Walls: plates") + "\n".join([
+            "### [room](room)", "---", "Relic: hole", "Chamber: 0, 0, 0, 900",
+            "Walls: ribs", "---", "A room.", ""])
+        codes = [f.code for f in self._lint(doc)]
+        self.assertNotIn("relic-unknown-walls", codes)
+
     def test_an_unwatchable_phrase_is_flagged_with_its_line(self):
         doc = CONTENTS_DOC.replace("Starts when: reach vault_door 900",
                                    "Starts when: accepted")

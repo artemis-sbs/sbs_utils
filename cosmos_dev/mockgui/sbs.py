@@ -1811,6 +1811,39 @@ def _mesh_scale_for(obj) -> float:
     return base
 
 
+def _mesh_scale_axes_for(obj) -> list:
+    """The engine's PER-AXIS mesh scale, as `[sx, sy, sz]`.
+
+    The scalar `_mesh_scale_for` averages the three coefficients, which was fine while
+    the only thing using them was an asteroid roughened by +/-20%. It is not fine for a
+    wall: a plate is a 100 x 100 x 1.25 slab stretched wide and left thin, and averaged
+    into one number it draws as a small cube. The whole point of looking at a relic in
+    the browser is judging whether the walls read as walls, so the stretch has to travel.
+    """
+    tag = getattr(obj, "_data_tag", "") or ""
+    base = 1.0
+    if tag:
+        try:
+            from sbs_utils.procedural.ship_data import get_ship_data_for
+            info = get_ship_data_for(tag) or {}
+            base = float(info.get("meshscale", 1.0))
+        except Exception:
+            base = 1.0
+    try:
+        ds = obj.data_set
+        axes = [ds.get("local_scale_x_coeff", 0) or 0.0,
+                ds.get("local_scale_y_coeff", 0) or 0.0,
+                ds.get("local_scale_z_coeff", 0) or 0.0]
+    except Exception:
+        axes = [0.0, 0.0, 0.0]
+    if not any(a > 0.0 for a in axes):
+        return [base, base, base]
+    # A missing axis means "same as the others", not "flat": an object with only x set
+    # would otherwise collapse to a plane.
+    fill = sum(a for a in axes if a > 0.0) / max(1, len([a for a in axes if a > 0.0]))
+    return [base * (a if a > 0.0 else fill) for a in axes]
+
+
 def _exhaust_ports_for(obj) -> list:
     """Engine-port (exhaust) local positions from shipData's ``hull_port_sets.exhaust``,
     so the 3dview vents engine smoke from the REAL ports rather than the hull center.
@@ -2110,6 +2143,7 @@ def _push_radar() -> None:
             else:
                 rec["art"]       = _art_root_for(obj)
                 rec["meshscale"] = _mesh_scale_for(obj)
+                rec["scale"]     = _mesh_scale_axes_for(obj)
             terrain_objects.append(rec)
         try:
             gui_queue.put_nowait({
@@ -2225,6 +2259,7 @@ def _push_radar() -> None:
                     "art":       _art_root_for(obj),
                     "y":         y,
                     "meshscale": _mesh_scale_for(obj),
+                    "scale":     _mesh_scale_axes_for(obj),
                     "q":         _quat_of(obj),
                     "exhaust":   _exhaust_ports_for(obj),   # engine-port local positions (static per art)
                     "beamports": _beam_ports_for(obj),      # beam-emitter local positions (static per art)

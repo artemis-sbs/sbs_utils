@@ -201,7 +201,15 @@ def relics_from_section(section, source=None, section_key=None):
             "speed_limit": data.get("speed_limit"),
             "forbid_jump": bool(data.get("forbid_jump")),
             "art": data.get("art"),
+            "walls": data.get("walls"),
+            "debris": data.get("debris"),
+            "plate": data.get("plate"),
+            "gaps": data.get("gaps"),
             "seed": data.get("seed"),
+            # Per-PART look, filled in below. A relic is rarely one material all
+            # through: a plated hall opens into a cave that came down on top of it.
+            "part_art": {},
+            "part_walls": {},
             "chambers": {},
             "passages": [],
             "boxes": {},
@@ -218,6 +226,13 @@ def relics_from_section(section, source=None, section_key=None):
             continue
         name = node.get("key") or node.get("display_text")
         rec.parts.append(node)
+        # A part may name its own look. This was PARSED and silently dropped before -
+        # `Art:` on a chamber passed lint, read cleanly, and then nothing ever looked at
+        # it, so "this room is different" quietly meant nothing at all.
+        if data.get("art"):
+            rec.part_art[name] = data.get("art")
+        if data.get("walls"):
+            rec.part_walls[name] = data.get("walls")
         if data.get("chamber"):
             c = data["chamber"]
             rec.chambers[name] = [c[0], c[1], c[2], c[3]]

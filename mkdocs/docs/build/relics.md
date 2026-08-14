@@ -96,6 +96,81 @@ asteroid at 80x reads as "more of a tunnel than a room", and one blown-up mesh h
 texel density and one obviously repeated silhouette. Scatter ordinary-scale props over the
 chamber's boundary instead.
 
+## What the walls are made of
+
+A relic is built the way a level is: the volume is the **blockout**, and the walls are
+**wall primitives placed on it** — one plane, or one flattened cube, scaled to each wall,
+floor and ceiling. A plain room is therefore **six pieces**. Where one room opens into
+another there is no wall at all, only the pieces around the hole, which is what a door
+primitive leaves behind. A subtracted mass is one primitive too: a box pillar is a cube, a
+fallen span is a cylinder.
+
+A surface is then **laid up out of plates** on a regular grid rather than being one huge
+quad, for two reasons that are not decoration: the engine does not cope with big planes
+overlapping — one enormous quad meeting another is where z-fighting lives — and a ruin
+should be missing some. `Gaps:` drops a fraction of the plates, which is a hole you can
+see through and the difference between a wall and a wreck. `Plate:` sets how big one is
+(0 fits them to the room).
+
+Plates are coplanar, axis-aligned and exactly adjacent: they **tile** the surface and
+never overlap. That is the whole distinction from scattering, where props are deliberately
+oversized so they overlap and are rolled at random. The Voice is 139 plates of 530–1000
+units, where it used to be 564 rocks.
+
+`Walls:` names a look. It goes on the relic, and on any part that differs:
+
+| style | the primitive | reads as |
+|---|---|---|
+| `rock` | asteroid meshes scattered over the surface | a cave, erosion, a natural void — **the default** |
+| `plates` | `generic-rectangle`, one plane per surface | hull plating, a built interior |
+| `blocks` | `generic-cube`, the same but with real thickness | masonry, a vault, a doorway with a reveal |
+| `ribs` | plating with cylinder frames laid across it | a bored shaft, a lift tube |
+| `none` | nothing | a relic whose atmosphere is the whole of it |
+
+Only `rock` scatters. The built styles place one piece per surface, so the prop budget
+(`n`) does not change how a room's walls look — it only feeds the scattered styles and the
+curved parts, which cannot be one primitive.
+
+```
+### [The Voice](voice)
+---
+Atmosphere: violet
+Walls: plates
+---
+
+### [the shaft](shaft)
+---
+Relic: voice
+Box: 600, -1600, 0, 380, 1400, 380
+Walls: ribs
+---
+```
+
+A part with no `Walls:` inherits the relic's, so a mixed ruin is written by saying only
+where it changes. `Art:` still names meshes directly and **beats a style** — an author who
+names a mesh means it. Both are checked: `sbs lint` reports an art key that is not in
+shipData (`relic-unknown-art`, which otherwise renders as the question-mark `unknown`
+mesh) and a `Walls:` value that is not a style.
+
+The built styles use the game's own generic primitives — `generic-rectangle` is a
+100 x 100 x 1.25 slab, `generic-cube` is 40 a side — stretched per axis and rotated onto
+the surface. No mod, no media pack, no new art.
+
+### Two rules the SCATTERED style encodes, worth knowing even if you never write one
+
+These govern `rock`, and they are why a scattered wall is harder than it looks.
+
+**A prop is sized to its SPACING, not to its room.** Sized to the room, a 600-prop shell
+in a Torgoth station gave 400-unit boulders 385 units apart: every rock bigger than the
+gap beside it, protruding half a corridor into the lane you fly down. Sized to the
+spacing, the same count tiles the surface — and asking for more props now makes them
+smaller rather than denser.
+
+**An oriented prop faces the wall it sits on.** The sampler returns an outward normal with
+every point; the flat meshes are thin in local +Z, so aligning +Z to the *inward* normal
+turns the face toward the crew. That single step is most of the difference between a wall
+and a heap of rubble near a wall.
+
 ## Two size rules
 
 | rule | limit | why |
@@ -143,19 +218,22 @@ A volume says where space **is**. What you see is ordinary props scattered over 
 boundary - and the library does the sampling, so a mission only chooses art:
 
 ```
-# the shell: props on the walls, with an outward normal each
-for (x, y, z, nx, ny, nz) in volume_surface_points("ossuary", 600, seed=7):
-    p = terrain_spawn(x, y, z, "", "#,relic_wall", art, "behav_asteroid")
-    p.engine_object.exclusion_radius = 0
+# the whole shell, in one call: art, size, orientation and the pillars
+volume_dress("ossuary", n=600, seed=7, style="plates", roles="relic_wall")
 
-# the pillars, which MUST be dressed or they are invisible obstacles
-volume_solid_points("ossuary", 50, seed=7)
+# a mixed ruin - the hall is plated, the cave it fell into is not
+volume_dress("ossuary", n=600, seed=7, style="plates", roles="relic_wall",
+             part_styles={"gallery": "rock"})
 
-# and anything floating in the rooms
+# and anything floating in the rooms is still yours to place
 volume_inside_points("ossuary", 40, seed=7, margin=200)
 ```
 
-Three things it does that are easy to get wrong by hand:
+A relic built from an `.amd` never calls this - `Walls:` and `Art:` are read for you. The
+samplers underneath (`volume_surface_points`, `volume_solid_points`) stay public for a
+mission that wants to decorate its own way, and they are where the awkward parts live.
+
+Three things the sampling does that are easy to get wrong by hand:
 
 - **Even, not random.** A sphere is sampled on a golden-angle spiral. Uniform sampling
   clumps, and a clumped shell has holes you can see straight out through.
@@ -168,11 +246,8 @@ Three things it does that are easy to get wrong by hand:
 
 Budgets split by area, so a chamber twice the size gets about twice the props. Everything
 is deterministic in `(seed, n)`, so a relic looks the same every run and a rebuild after an
-edit changes only what the edit changed. `Seed:` and `Art:` on the relic are what the file
-uses to say so.
-
-**Verify any art key against shipData.** An unknown key does not fail - it silently renders
-the `unknown` mesh, so a typo shows up as a relic built out of question marks.
+edit changes only what the edit changed. `Seed:`, `Walls:` and `Art:` on the relic are what
+the file uses to say so.
 
 ## Places inside it
 

@@ -1304,7 +1304,7 @@ function cmdRadarTerrain(msg) {
     _terrainMap.set(o.id, i);
     _terrainRevMap.set(i, o.id);
     _terrainMeta.set(o.id, {
-      art: o.art || '', meshscale: o.meshscale ?? 1, y: o.y ?? 0, q: o.q || null, tick_type: o.tick_type || '',
+      art: o.art || '', meshscale: o.meshscale ?? 1, scale: o.scale || null, y: o.y ?? 0, q: o.q || null, tick_type: o.tick_type || '',
       name: o.name || '', tint: o.tint || null, nosel: !!o.nosel, side: o.side,
       icon_index: (o.icon_index ? +o.icon_index : null),   // 0 = blank glyph = "no icon"; normalize to null so mesh objects aren't misread as 2D markers
       icon_scale: (o.icon_scale != null ? +o.icon_scale : null),
@@ -2763,7 +2763,7 @@ function cmdRadar(msg) {
         _dynamicMeta.set(o.id, {
           side: o.side, tick_type: o.tick_type,
           fx: o.fx ?? 0, fz: o.fz ?? 0, name: o.name || '', art: o.art || '',
-          y: o.y ?? 0, meshscale: o.meshscale ?? 1, q: o.q || null,
+          y: o.y ?? 0, meshscale: o.meshscale ?? 1, scale: o.scale || null, q: o.q || null,
           exhaust: o.exhaust || null,   // engine-port local positions (for the 3dview smoke trail)
           beamports: o.beamports || null,   // beam-emitter local positions (for 3dview beam origins)
           shp: o.shp ?? -1, shpf: o.shpf ?? -1, shpa: o.shpa ?? -1, nosel: !!o.nosel,
@@ -3709,14 +3709,14 @@ function _view3dSyncInstances() {
     if (idx === undefined || idx >= _dynamicCount || !meta.art) continue;
     const b = idx * 3;
     consider(id, meta.art, _dynamicDispBuf[b], meta.y || 0, _dynamicDispBuf[b+1],
-             meta.meshscale || 1, meta.q, meta.fx, meta.fz, true);
+             meta.scale || meta.meshscale || 1, meta.q, meta.fx, meta.fz, true);
   }
   for (const [id, meta] of _terrainMeta) {
     const idx = _terrainMap.get(id);
     if (idx === undefined || idx >= _terrainCount || !meta.art) continue;
     const b = idx * 3;
     consider(id, meta.art, _terrainPosBuf[b], meta.y || 0, _terrainPosBuf[b+1],
-             meta.meshscale || 1, meta.q, 0, 1, false);
+             meta.scale || meta.meshscale || 1, meta.q, 0, 1, false);
   }
 
   for (const [art, g] of _instArt) {
@@ -3740,7 +3740,12 @@ function _view3dSyncInstances() {
         else dq.slerp(_qTarget, _DYN_ROT_LERP);
         rot = dq;
       }
-      _vscale.set(o.sc, o.sc, o.sc);
+      // `sc` is either one number or [sx, sy, sz]. Per-axis is what makes a wall panel
+      // a slab rather than a small cube - the engine scales each axis separately
+      // (local_scale_{x,y,z}_coeff) and the browser has to as well, or a relic dressed
+      // in plates looks nothing like the one you will fly through.
+      if (Array.isArray(o.sc)) _vscale.set(o.sc[0], o.sc[1], o.sc[2]);
+      else                     _vscale.set(o.sc, o.sc, o.sc);
       _m4.compose(_vpos, rot, _vscale);
       inst.setMatrixAt(i, _m4);
     }

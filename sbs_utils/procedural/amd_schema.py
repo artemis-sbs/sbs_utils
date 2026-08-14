@@ -615,6 +615,17 @@ RELIC = {
     "speed limit": text(hint="0.5 for half impulse; usually unset - the nebula does this"),
     "forbid jump": boolean(),
     "art": csv(hint="prop art keys to dress the walls with"),
+    # Named looks, so an author picks "plated" without having to know that the mesh is
+    # called generic-rectangle. Works on the RELIC and on any PART - a hall can be
+    # plated while the cave it collapsed into stays rock. `Art:` still wins where it is
+    # given, because naming a mesh is a deliberate act.
+    "walls": enum("rock", "plates", "blocks", "ribs", "none", open=True,
+                  hint="rock (default), plates, blocks, ribs, none"),
+    "debris": integer(hint="loose rocks drifting inside the rooms (default 60)"),
+    "plate": integer(hint="how big one piece of wall is, in units (0 = fit the room)"),
+    # text() rather than integer(), the same way `speed limit` is: it is a fraction, and
+    # the schema has no float type.
+    "gaps": text(hint="0 to 1 - the fraction of wall plates missing. It is a ruin."),
     "seed": integer(),
     # -- a part
     "relic": ref("node"),

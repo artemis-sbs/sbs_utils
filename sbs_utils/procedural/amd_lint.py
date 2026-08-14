@@ -975,7 +975,65 @@ def amd_lint_relics(doc):
                     findings.append(AmdFinding(
                         ln, "warning", "relic-bad-radius",
                         "a passage radius must be positive or nothing can fly down it"))
+    # THE LOOK. Both of these fail silently and visibly - the relic builds, the mission
+    # runs, and what you fly into is wrong. An unknown art key does not raise: the engine
+    # falls back to the `unknown` mesh, so a typo is a ruin built out of question marks.
+    # An unknown `Walls:` value falls back to plain rock, so a plated hall quietly is not.
+    known_art = _relic_known_art()
+    for node, fields in _relic_nodes(doc):
+        if "art" in fields and known_art:
+            ln, value = fields["art"]
+            for key in [k.strip() for k in str(value).split(",") if k.strip()]:
+                if key not in known_art:
+                    findings.append(AmdFinding(
+                        ln, "warning", "relic-unknown-art",
+                        f"'{key}' is not a shipData key - it renders as the `unknown` "
+                        f"question-mark mesh rather than failing"))
+        # ATMOSPHERE. Same silent fallback as the two above, and it cost a look: an
+        # unknown colour is not an error, it quietly becomes YELLOW - so a ruin authored
+        # `violet` filled with a dirty yellow haze and nothing said why.
+        if "atmosphere" in fields:
+            ln, value = fields["atmosphere"]
+            want = str(value).strip().lower()
+            if want and want not in ("none", "no", "off"):
+                try:
+                    from .terrain import _neb_colors
+                    known = tuple(sorted(_neb_colors.keys()))
+                except Exception:                       # noqa: BLE001
+                    known = ()
+                if known and want not in known:
+                    findings.append(AmdFinding(
+                        ln, "warning", "relic-unknown-atmosphere",
+                        f"'{value}' is not a nebula colour ({', '.join(known)}) - "
+                        f"it falls back to yellow rather than failing"))
+        if "walls" in fields:
+            ln, value = fields["walls"]
+            style = str(value).strip().lower()
+            try:
+                from .volume_dress import volume_style_names
+                styles = volume_style_names()
+            except Exception:                           # noqa: BLE001
+                styles = ()
+            if styles and style and style not in styles:
+                findings.append(AmdFinding(
+                    ln, "warning", "relic-unknown-walls",
+                    f"'{value}' is not a wall style ({', '.join(styles)}) - "
+                    f"this part falls back to plain rock"))
     return findings
+
+
+def _relic_known_art():
+    """Every shipData key, or an empty set when there is no shipData to ask.
+
+    Empty means SAY NOTHING. `sbs lint` runs outside the game, where the art catalog may
+    not be reachable at all, and a linter that reports every key as unknown because it
+    could not find the file is worse than one that stays quiet.
+    """
+    try:
+        from .ship_data import get_ship_index
+        return set((get_ship_index() or {}).keys())
+    except Exception:                                   # noqa: BLE001
+        return set()
 
 
 def amd_lint_urges(doc):

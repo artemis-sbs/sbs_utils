@@ -334,6 +334,23 @@ class Volume:
             out.append(("box", c, h))
         return out
 
+    def named_primitives(self):
+        """Every navigable primitive as `(name, prim)`.
+
+        `primitives()` drops the names, which is right for sampling and wrong for
+        dressing: a relic wants THIS hall plated and THAT cave left as rock, and the
+        only handle an author has on a room is the name they gave it. A passage is
+        named for the two rooms it joins, since it never had a name of its own.
+        """
+        out = []
+        for name, (x, y, z, r) in self.chambers.items():
+            out.append((name, ("sphere", (x, y, z), r)))
+        for (a, b, r, an, bn) in self.passages:
+            out.append((f"{an}>{bn}", ("capsule", a, b, r)))
+        for name, (c, h) in self.boxes.items():
+            out.append((name, ("box", c, h)))
+        return out
+
     def bound(self):
         """Bounding sphere of the whole volume.
 
@@ -750,6 +767,48 @@ def _vol_frame(u):
     return (px, py, pz), (qx, qy, qz)
 
 
+def volume_align_quat(direction, roll=0.0):
+    """A quaternion `(w, x, y, z)` rotating local **+Z** onto `direction`.
+
+    This is what turns a sampled normal into an oriented prop. The flat generic meshes -
+    `rectangle`, `disk`, `hexagon` - are thin in local +Z, so aligning +Z to a wall's
+    INWARD normal turns the face towards the crew and the slab lies on the wall.
+
+    `roll` spins the prop about that axis, in radians. A shell of panels all rolled
+    identically reads as printed wallpaper; a random roll per prop reads as plating.
+
+    Geometry, not decoration: it converts a direction into a rotation and knows nothing
+    about art, which is why it belongs beside the sampler rather than in the dresser.
+    """
+    ux, uy, uz = direction
+    length = math.sqrt(ux * ux + uy * uy + uz * uz)
+    if length <= 0.0:
+        return (1.0, 0.0, 0.0, 0.0)
+    u = (ux / length, uy / length, uz / length)
+    p, q = _vol_frame(u)
+    if roll:
+        cr, sr = math.cos(roll), math.sin(roll)
+        p, q = (tuple(p[i] * cr + q[i] * sr for i in range(3)),
+                tuple(q[i] * cr - p[i] * sr for i in range(3)))
+    # Columns are where local x, y, z end up. (p, q, u) is right-handed because
+    # _vol_frame builds q as u x p.
+    m00, m01, m02 = p[0], q[0], u[0]
+    m10, m11, m12 = p[1], q[1], u[1]
+    m20, m21, m22 = p[2], q[2], u[2]
+    trace = m00 + m11 + m22
+    if trace > 0.0:
+        f = math.sqrt(trace + 1.0) * 2.0
+        return (0.25 * f, (m21 - m12) / f, (m02 - m20) / f, (m10 - m01) / f)
+    if m00 > m11 and m00 > m22:
+        f = math.sqrt(1.0 + m00 - m11 - m22) * 2.0
+        return ((m21 - m12) / f, 0.25 * f, (m01 + m10) / f, (m02 + m20) / f)
+    if m11 > m22:
+        f = math.sqrt(1.0 + m11 - m00 - m22) * 2.0
+        return ((m02 - m20) / f, (m01 + m10) / f, 0.25 * f, (m12 + m21) / f)
+    f = math.sqrt(1.0 + m22 - m00 - m11) * 2.0
+    return ((m10 - m01) / f, (m02 + m20) / f, (m12 + m21) / f, 0.25 * f)
+
+
 def _vol_prim_area(prim):
     """Rough surface area of a primitive, for splitting a budget between them.
 
@@ -781,9 +840,10 @@ def _vol_share(prims, n):
 
 def _vol_sphere_surface(prim, count, rng, out):
     c, r = prim[1], prim[2]
+    step = math.sqrt(4.0 * math.pi * r * r / max(1, count))
     for (dx, dy, dz) in _vol_even_sphere(count):
         j = r * out * rng.uniform(0.99, 1.02)
-        yield (c[0] + dx * j, c[1] + dy * j, c[2] + dz * j, dx, dy, dz)
+        yield (c[0] + dx * j, c[1] + dy * j, c[2] + dz * j, dx, dy, dz, step)
 
 
 def _vol_capsule_surface(prim, count, rng, out, per_ring=6):
@@ -792,6 +852,8 @@ def _vol_capsule_surface(prim, count, rng, out, per_ring=6):
     u = [(b[i] - a[i]) / max(length, 1e-6) for i in range(3)]
     p, q = _vol_frame(u)
     rings = max(2, int(count / max(1, per_ring)))
+    step = math.sqrt((2.0 * math.pi * r * length + 4.0 * math.pi * r * r)
+                     / max(1, (rings + 1) * per_ring))
     for ring in range(rings + 1):
         t = ring / float(rings)
         c = [a[i] + (b[i] - a[i]) * t for i in range(3)]
@@ -802,28 +864,67 @@ def _vol_capsule_surface(prim, count, rng, out, per_ring=6):
             nx = p[0] * math.cos(ang) + q[0] * math.sin(ang)
             ny = p[1] * math.cos(ang) + q[1] * math.sin(ang)
             nz = p[2] * math.cos(ang) + q[2] * math.sin(ang)
-            yield (c[0] + nx * rr, c[1] + ny * rr, c[2] + nz * rr, nx, ny, nz)
+            yield (c[0] + nx * rr, c[1] + ny * rr, c[2] + nz * rr, nx, ny, nz, step)
 
 
 def _vol_box_surface(prim, count, rng, out):
     """FACES, not a shell. A box dressed as a sphere of props reads as a cave again and
-    hides the corners that are the whole reason it is a box."""
+    hides the corners that are the whole reason it is a box.
+
+    Each face is a JITTERED GRID, for the reason `_vol_even_sphere` exists: uniform
+    random over a face clumps, and a clumped wall has holes you can see straight out
+    through. A flat face is where that shows worst - the eye reads a plane and finds the
+    gaps. The grid is proportioned to the face (a long thin wall gets a long thin
+    lattice, not a square one), and each point is jittered inside its own cell so the
+    lattice never reads as wallpaper.
+    """
     c, h = prim[1], prim[2]
-    per_face = max(1, count // 6)
+    # SPLIT BY FACE AREA, not evenly. A corridor is a long box: its side walls are several
+    # times the area of its end caps, and giving every face the same count left the big
+    # ones covered a third as densely - holes you could see, and fly, straight through.
+    faces = []
     for axis in range(3):
+        u, v = [i for i in range(3) if i != axis]
+        faces.append((axis, u, v, 4.0 * h[u] * h[v]))
+    total = sum(a for _x, _u, _v, a in faces) or 1.0
+    for axis, u, v, area in faces:
+        per_face = max(1, int(round((count / 2.0) * area / total)))
+        hu, hv = h[u], h[v]
+        # Proportional lattice: cols/rows in the ratio of the face's own sides.
+        aspect = (hu / hv) if hv > 0.0 else 1.0
+        cols = max(1, int(round(math.sqrt(per_face * aspect))))
+        rows = max(1, int(math.ceil(per_face / float(cols))))
+        # EVERY CELL, not `per_face` of them. cols*rows rounds UP, so stopping at the
+        # requested count left the last row partly empty - a systematic bald strip along
+        # one edge of every face, in the same place every run.
+        cells = cols * rows
+        # How far apart these points are ON THIS FACE - a long wall sampled at the same
+        # density as a small one still gets its own answer.
+        step = math.sqrt(area / max(1, cells))
         for sign in (1.0, -1.0):
-            for _ in range(per_face):
+            for cell in range(cells):
+                cu, cv = cell % cols, cell // cols
                 p = [0.0, 0.0, 0.0]
                 n = [0.0, 0.0, 0.0]
-                for i in range(3):
-                    if i == axis:
-                        p[i] = c[i] + sign * h[i] * out * rng.uniform(0.99, 1.02)
-                        n[i] = sign
-                    else:
-                        p[i] = c[i] + rng.uniform(-h[i], h[i])
-                yield (p[0], p[1], p[2], n[0], n[1], n[2])
+                p[axis] = c[axis] + sign * h[axis] * out * rng.uniform(0.99, 1.02)
+                n[axis] = sign
+                # Cell centre, then jitter within the cell - never past its edge, or the
+                # evenness the grid bought is given straight back.
+                # Jitter kept well inside the cell. At +/-0.3 of a cell two neighbours
+                # could drift apart by 0.6 of the pitch, which opens a gap no sane prop
+                # width covers - and a gap in a wall is a hole you fly through.
+                #
+                # The lattice is also stretched so the OUTER cells sit on the face's
+                # edge rather than half a cell inside it. Every remaining hole in a
+                # measured relic was on an edge and none was mid-face: two faces each
+                # stopping half a cell short leaves the seam between them bare, and a
+                # seam runs the whole length of the room.
+                p[u] = c[u] + (2.0 * (cu + rng.uniform(0.35, 0.65)) / cols - 1.0) * hu * (1.0 + 1.0 / cols)
+                p[v] = c[v] + (2.0 * (cv + rng.uniform(0.35, 0.65)) / rows - 1.0) * hv * (1.0 + 1.0 / rows)
+                yield (p[0], p[1], p[2], n[0], n[1], n[2], step)
 
-def volume_surface_points(volume, n, seed=None, out=1.06, kinds=None, clip=True):
+def volume_surface_points(volume, n, seed=None, out=1.06, kinds=None, clip=True,
+                          with_spacing=False, names=None):
     """`n` points spread over the volume's BOUNDARY, with an outward normal each.
 
     Returns `[(x, y, z, nx, ny, nz)]` in world coordinates. This is the shell: what a
@@ -839,6 +940,14 @@ def volume_surface_points(volume, n, seed=None, out=1.06, kinds=None, clip=True)
     changed.
 
     `kinds` narrows to some of `"sphere"`, `"capsule"`, `"box"` - the chambers alone, say.
+    `names` narrows to particular PARTS, which is how one room is dressed differently
+    from the next. Clipping still sees the whole volume, so a wall sampled for one room
+    is still dropped where the room next door has opened it up.
+
+    `with_spacing=True` appends how far apart the points are on that primitive, giving
+    `(x, y, z, nx, ny, nz, spacing)`. That is what a prop sizes itself to: sized to the
+    ROOM instead, a shell puts 400-unit boulders 385 units apart and the wall becomes a
+    gravel field you fly through rather than past.
 
     `clip` drops points that are BURIED - inside the union rather than on the outside of
     it. Each primitive is sampled on its own surface, so where two overlap, one shape's
@@ -850,7 +959,12 @@ def volume_surface_points(volume, n, seed=None, out=1.06, kinds=None, clip=True)
     vol = _vol_resolve(volume)
     if vol is None or n <= 0:
         return []
-    prims = [p for p in vol.primitives() if kinds is None or p[0] in kinds]
+    if names is None:
+        prims = [p for p in vol.primitives() if kinds is None or p[0] in kinds]
+    else:
+        want = set(names)
+        prims = [p for (nm, p) in vol.named_primitives()
+                 if nm in want and (kinds is None or p[0] in kinds)]
     if not prims:
         return []
     rng = random.Random(seed)
@@ -860,11 +974,19 @@ def volume_surface_points(volume, n, seed=None, out=1.06, kinds=None, clip=True)
         if count <= 0:
             continue
         if prim[0] == "sphere":
-            pts.extend(_vol_sphere_surface(prim, count, rng, out))
+            got = list(_vol_sphere_surface(prim, count, rng, out))
         elif prim[0] == "capsule":
-            pts.extend(_vol_capsule_surface(prim, count, rng, out))
+            got = list(_vol_capsule_surface(prim, count, rng, out))
         elif prim[0] == "box":
-            pts.extend(_vol_box_surface(prim, count, rng, out))
+            got = list(_vol_box_surface(prim, count, rng, out))
+        else:
+            continue
+        # Every generator reports the spacing of the surface it sampled - per FACE on a
+        # box, not per primitive, because a corridor's side wall and its end cap are not
+        # the same density and a prop sized to the average fits neither.
+        if not with_spacing:
+            got = [pt[:6] for pt in got]
+        pts.extend(got)
     if clip:
         # A tolerance, not zero: a point ON its own surface reads as a hair inside or out
         # depending on floating point, and dropping half a shell to rounding would be a
@@ -906,7 +1028,8 @@ def volume_inside_points(volume, n, seed=None, margin=0.0, tries=40):
     return pts
 
 
-def volume_solid_points(volume, n, seed=None, inward=0.94):
+def volume_solid_points(volume, n, seed=None, inward=0.94, with_spacing=False,
+                        only=None):
     """`n` points on the surface of the SUBTRACTED masses, facing outward.
 
     A solid that is not dressed is an invisible obstacle: containment stops you at
@@ -914,22 +1037,34 @@ def volume_solid_points(volume, n, seed=None, inward=0.94):
     as a pillar. `inward` keeps the props just inside the solid's own surface, because you
     look at a pillar from outside it - the opposite of the shell, where they sit just
     outside the space you fly in.
+
+    `only` narrows to particular solid primitives. A caller that can build some masses
+    from a single primitive - a box mass is just the cube - uses it to ask for a shell
+    over the rest rather than over everything.
     """
     vol = _vol_resolve(volume)
     if vol is None or n <= 0 or not vol.solids:
         return []
     rng = random.Random(seed)
-    counts = _vol_share(vol.solids, n)
+    masses = list(only) if only is not None else vol.solids
+    if not masses:
+        return []
+    counts = _vol_share(masses, n)
     pts = []
-    for prim, count in zip(vol.solids, counts):
+    for prim, count in zip(masses, counts):
         if count <= 0:
             continue
         if prim[0] == "sphere":
-            pts.extend(_vol_sphere_surface(prim, count, rng, inward))
+            got = list(_vol_sphere_surface(prim, count, rng, inward))
         elif prim[0] == "capsule":
-            pts.extend(_vol_capsule_surface(prim, count, rng, inward))
+            got = list(_vol_capsule_surface(prim, count, rng, inward))
         elif prim[0] == "box":
-            pts.extend(_vol_box_surface(prim, count, rng, inward))
+            got = list(_vol_box_surface(prim, count, rng, inward))
+        else:
+            continue
+        if not with_spacing:
+            got = [pt[:6] for pt in got]
+        pts.extend(got)
     return pts
 
 
