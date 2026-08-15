@@ -17,6 +17,7 @@ test_set_exe_dir()
 import os
 import tempfile
 import unittest
+import builtins
 from unittest import mock
 
 import sbs_utils.mast_sbs.story_nodes  # noqa: F401 - import first, circular import
@@ -196,7 +197,7 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class TestItSaysWhenItFoundNothing(unittest.TestCase):
+class TestItSaysWhenItFoundNothing(_Fixture):
     """A missing extra-ship-data file must not be silent.
 
     It stayed silent for a day and cost an afternoon: LegendaryMissions moved its
@@ -225,14 +226,14 @@ class TestItSaysWhenItFoundNothing(unittest.TestCase):
         self.assertEqual(logged.call_args_list, [])
 
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
+        # _Fixture seeds the ship-data cache, so `add_extra` can merge without the Cosmos
+        # install. Without it this class read the real shipData on a developer machine and
+        # nothing at all on CI, where the miss now reports itself and broke the
+        # "says nothing" assertion below.
+        super().setUp()
         with open(os.path.join(self.tmp.name, "hulls.yaml"), "w", encoding="utf-8") as f:
             f.write(_JSON_HULLS)
 
-
-# The engine reads extra ship data as HJSON, so a fixture written as block YAML is not a
-# neutral choice - it is the bug. Keep the good shape here, and test the bad one on purpose.
 
 # The engine reads extra ship data as HJSON, so a fixture written as block YAML is not a
 # neutral choice - it is the bug. Keep the good shape here, and test the bad one on purpose.
@@ -254,15 +255,11 @@ _COMMENTED = """# a comment that comes first
 """ + _JSON_HULLS
 
 
-class TestItSaysWhenTheEngineCannotReadTheShape(unittest.TestCase):
+class TestItSaysWhenTheEngineCannotReadTheShape(_Fixture):
     """The engine parses extra ship data as HJSON: no `- item` sequences, no whitespace in
     a key. PyYAML accepts both shapes, so a block-YAML file works in every test and every
     headless run and is rejected only by the engine - silently, until a spawn fails for a
     hull it was never given. Measured on LegendaryMissions' turrets, 2026-08-14."""
-
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
 
     def _write(self, text):
         with open(os.path.join(self.tmp.name, "hulls.yaml"), "w", encoding="utf-8") as f:
@@ -326,6 +323,23 @@ class TestItSaysWhenTheArtIsNotThere(unittest.TestCase):
     def test_art_that_is_missing_is_named_with_its_hull(self):
         self.assertEqual(self._check("tsn-fighter"), [("t", "tsn-fighter")])
 
+    def test_it_still_checks_without_pyyaml_installed(self):
+        """Parsing must go through the BUNDLED `sbs_utils.yaml`. A bare `import yaml`
+        reaches site-packages PyYAML, which exists on a developer machine and NOWHERE this
+        actually runs - not in the embedded engine (site is off), not on a CI runner that
+        installs nothing. The broad `except` in the check would then turn that ImportError
+        into "no art is missing", so the check silently did nothing everywhere it mattered
+        and only ever passed locally (2026-08-15)."""
+        real = builtins.__import__
+
+        def no_pyyaml(name, g=None, l=None, fl=(), lvl=0):
+            if name == "yaml" and lvl == 0:
+                raise ImportError("No module named yaml")
+            return real(name, g, l, fl, lvl)
+
+        with mock.patch.object(builtins, "__import__", no_pyyaml):
+            self.assertEqual(self._check("tsn-fighter"), [("t", "tsn-fighter")])
+
     def test_a_path_to_mod_art_is_not_judged(self):
         """A mod keeping its own graphics folder writes a relative PATH as its artfileroot.
         That resolves somewhere this check does not look, so it must not be called missing -
@@ -382,3 +396,37 @@ class TestItSurvivesTheSimBeingRebuilt(_Fixture):
               mock.patch("sbs_utils.helpers.FrameContext.context", mock.MagicMock())):
             cosmos.sim_create()
         self.assertEqual([c.args[0] for c in told.call_args_list], ["extraProbe"])
+
+
+class TestItSaysWhenTheInstallCannotBeRead(_Fixture):
+    """`get_ship_data` used to return None when `shipData` was missing or unreadable, and
+    every caller subscripts what it returns - so the failure was spent somewhere else, as
+    `TypeError: 'NoneType' object is not subscriptable` from whichever line looked next,
+    naming neither the file nor the install. CI reproduced it exactly, having no Cosmos
+    install at all (2026-08-15)."""
+
+    def test_a_missing_ship_data_file_is_named(self):
+        sd.ship_data_cache = None
+        with (mock.patch.object(sd, "load_data", return_value=None),
+              mock.patch("sbs_utils.procedural.execution.log") as logged):
+            data = sd.get_ship_data()
+        self.assertEqual(data, {"#ship-list": []})
+        said = " ".join(str(c) for c in logged.call_args_list)
+        self.assertIn("shipData", said)
+
+    def test_a_merge_after_that_reports_instead_of_crashing(self):
+        """The path CI actually died on: an add-on prepending its hulls into a cache that
+        was never loaded."""
+        sd.ship_data_cache = None
+        with (mock.patch.object(sd, "load_data", return_value=None),
+              mock.patch("sbs_utils.procedural.execution.log")):
+            out = sd.merge_mod_ship_yaml('{"#ship-list": [{"key": "x"}]}', "probe")
+        self.assertEqual([e["key"] for e in out["#ship-list"]], ["x"])
+
+    def test_extra_ship_data_without_a_ship_list_is_not_fatal(self):
+        sd.ship_data_cache = None
+        with (mock.patch.object(sd, "load_data", return_value={"something": "else"}),
+              mock.patch("sbs_utils.procedural.execution.log") as logged):
+            data = sd.get_ship_data()
+        self.assertEqual(data["#ship-list"], [])
+        self.assertIn("#ship-list", " ".join(str(c) for c in logged.call_args_list))
