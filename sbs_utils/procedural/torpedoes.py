@@ -207,10 +207,10 @@ def torpedo_get_count_for_ship(id, key) -> tuple[int,int]:
         count = get_data_set_value(id, f"{key}_NUM")
         if count is None:
             count = 0
-        max = get_data_set_value(id, f"{key}_MAX")
-        if max is None:
-            max = 0
-        return (count, max)
+        _max = get_data_set_value(id, f"{key}_MAX")
+        if _max is None:
+            _max = 0
+        return (count, _max)
     return (0,0)
 
 def torpedo_get_available_types_for_ship(id) -> list[str]:
