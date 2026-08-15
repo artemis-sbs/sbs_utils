@@ -7,6 +7,17 @@ class TextInput(Column):
     def __init__(self, tag, props) -> None:
         super().__init__()
         self._value = ""
+        self.props = ""
+        self._take_props(props)
+        self.tag = tag
+
+    def _take_props(self, props):
+        """Split a props string into the VALUE and everything else.
+
+        Shared by __init__ and update() so a widget built from a props string
+        and one restyled by gui_update() can never disagree about how that
+        string was read.
+        """
         if "text:" in props:
             # Pull the $text: value out of the props and store it RAW (no
             # backticks). gui_input wraps the initial value in backticks so any
@@ -17,12 +28,9 @@ class TextInput(Column):
             if m is None:
                 m = re.search(r"\$?text:(?P<text>[^;]*);?", props)
             if m is not None:
-                text = self._sanitize(m.group('text'))
-                if text:
-                    self._value = text
+                self._value = self._sanitize(m.group('text'))
                 props = props[:m.start()] + props[m.end():]
 
-        self.tag = tag
         self.props = props
 
     @staticmethod
@@ -71,10 +79,31 @@ class TextInput(Column):
             self.tag, props,
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
+    def update(self, props):
+        """Restyle / re-value this input from a props string.
+
+        Without this override Column.update's `pass` ran, so gui_update() on a
+        gui_input was a silent no-op: the widget was re-sent with its OLD props
+        and the author's new font / desc / value never arrived.
+
+        A props string carrying no `text:` leaves the VALUE alone. The text in
+        a typein belongs to the player, and restyling the box must not wipe
+        what someone is in the middle of typing -- which is why this cannot
+        just forward to the value setter the way Button.update does.
+        """
+        self._take_props(props)
+        # Same region quirk as Button/Checkbox: inside a section/region a
+        # visual-only mark paints wrong.
+        self.mark_value_dirty(force_layout=self.region_tag != "")
+
     def on_message(self, event):
         if event.sub_tag == self.tag:
-            self.value = event.value_tag
-            if self.value != event.value_tag:
+            # Assigned through _value, NOT the property: the player can already
+            # see what they typed, and re-sending the box on every keystroke
+            # fights their cursor. Only a value we had to CHANGE is pushed back.
+            self._value = self._sanitize(event.value_tag)
+            self.update_variable()
+            if self._value != event.value_tag:
                 # A character had to be stripped (a backtick); push the
                 # corrected value back so the box matches what we stored.
                 self.mark_value_dirty()
@@ -86,5 +115,10 @@ class TextInput(Column):
 
     @value.setter
     def value(self, v):
+        # A SCRIPT-side assignment repaints, like every other value-bearing
+        # widget (Text/Button/Checkbox/Dropdown). Without this the new text sat
+        # in _value until something else forced a full repaint. The player-typing
+        # path goes through on_message and deliberately does not come here.
         self._value = self._sanitize(v)
         self.update_variable()
+        self.mark_value_dirty(force_layout=self.region_tag != "")

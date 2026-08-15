@@ -268,8 +268,7 @@ class StoryPage(Page):
         
         
         
-        self.tag = self.rebuild_tag + 100 % 100000
-        self.rebuild_tag = self.tag + 2000
+        self.advance_tag_generation()
         
         if self.layouts:
             for layout_obj in self.layouts:
@@ -331,6 +330,21 @@ class StoryPage(Page):
             self.story.signal_unregister_all_inline(self.gui_task)
 
 
+
+    def advance_tag_generation(self):
+        """Move the widget-tag counters on to the next GUI build.
+
+        The +2000 gap is what keeps a new build's tags clear of the build still
+        on screen; only the previous build is ever live, so the numbers may
+        safely wrap once they get large.
+
+        The modulo used to be written `self.rebuild_tag + 100 % 100000`, which
+        Python binds as `+ (100 % 100000)` == `+ 100` -- so the wrap never
+        happened and the tags grew without bound. Measured against the engine, a
+        GUI redrawn ten times was already handing it tags near 20,000.
+        """
+        self.tag = (self.rebuild_tag + 100) % 100000
+        self.rebuild_tag = self.tag + 2000
 
     def get_tag(self):
         if self.is_processing_rebuild:
