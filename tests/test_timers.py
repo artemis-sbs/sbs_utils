@@ -657,6 +657,62 @@ class TestTimerSignals(unittest.TestCase):
         _signals_tick()
         self.assertEqual(self.emits, [])
 
+    # ------------------------------------------------------------------
+    # Reaching the ROUTES, not just the observers
+    #
+    # Every test above asserts through signal_observe, which runs before
+    # signal_emit even looks at the MAST context - so all of them passed while
+    # no //signal route ran at all. These two watch the handoff itself.
+    # ------------------------------------------------------------------
+
+    def test_a_timer_emit_is_not_attributed_to_a_finished_task(self):
+        """The scheduler leaves its last task in FrameContext.task and never restores
+        it, so by the time the timer tick runs that task is usually DONE. Passing it
+        as the sender makes MastAsyncTask.emit_signal drop the emit at its
+        `sender_task.done()` guard: the signal fires and every route silently does
+        nothing. A timer speaks for no task."""
+        agent = make_agent()
+        set_timer(agent.id, "repair", seconds=5, signal="repair_done")
+        seen = []
+
+        class _FinishedTask:
+            def done(self):
+                return True
+
+        class _RecordingMast:
+            def signal_emit(self, name, sender_task, data):
+                seen.append((name, sender_task, data))
+
+        held_mast, held_task = FrameContext.mast, FrameContext._task
+        FrameContext.mast, FrameContext._task = _RecordingMast(), _FinishedTask()
+        try:
+            advance_sim(10)
+            _signals_tick()
+        finally:
+            FrameContext.mast, FrameContext._task = held_mast, held_task
+
+        self.assertEqual(len(seen), 1, "the emit never reached the story")
+        name, sender, data = seen[0]
+        self.assertEqual(name, "repair_done")
+        self.assertIsNone(
+            sender, "a finished sender task makes emit_signal drop every route")
+        self.assertEqual(data["TIMER_NAME"], "repair")
+
+    def test_the_timer_tick_leaves_the_frame_task_as_it_found_it(self):
+        """Overriding the sender must not leak: the tick runs inside someone else's
+        frame, and the next thing to read FrameContext.task is not ours."""
+        agent = make_agent()
+        set_interval(agent.id, "patrol", "beat", seconds=5)
+        marker = object()
+        held = FrameContext._task
+        FrameContext._task = marker
+        try:
+            advance_sim(10)
+            _signals_tick()
+            self.assertIs(FrameContext._task, marker)
+        finally:
+            FrameContext._task = held
+
 
 if __name__ == '__main__':
     unittest.main()

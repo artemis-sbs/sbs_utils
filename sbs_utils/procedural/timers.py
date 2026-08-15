@@ -496,10 +496,22 @@ def _signals_tick(t=None):
         # own tick and never restores - so the live story is still there during the
         # dispatch_tick phase this runs in. game_end_run_all's "show_game_results"
         # emit rides the same thing. Do not "fix" this by requiring a task.
+        #
+        # ...but the scheduler leaves FrameContext.TASK behind too, and by the time
+        # this runs that task is usually FINISHED. signal_emit passes it as the
+        # sender, and MastAsyncTask.emit_signal drops any emit whose sender is done
+        # - so the signal was emitted and every //signal route silently did nothing.
+        # A timer is not speaking on behalf of a task; say so, and the routes run.
+        # Only the TASK is overridden: the page and event still belong to the frame.
         from .signal import signal_emit
-        signal_emit(signal, {"TIMER_AGENT_ID": agent_id,
-                             "TIMER_NAME": name,
-                             "TIMER_COUNT": count})
+        held = FrameContext._task
+        FrameContext._task = None
+        try:
+            signal_emit(signal, {"TIMER_AGENT_ID": agent_id,
+                                 "TIMER_NAME": name,
+                                 "TIMER_COUNT": count})
+        finally:
+            FrameContext._task = held
     _signal_recompute()
 
 
