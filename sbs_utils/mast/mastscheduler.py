@@ -775,6 +775,8 @@ class MastAsyncTask(Agent, Promise):
         self.is_sub_task = False
         self.sub_tasks = []
         self.root_task = self
+        # Re-entrancy guard for tick() -- see the comment there (LM #634).
+        self._ticking = False
 
         self.add()
         self.add_role("__MAST_TASK__")
@@ -1440,20 +1442,41 @@ class MastAsyncTask(Agent, Promise):
     def tick(self):
         # if self.name is not None:
         #     print(f"ticking {self.name}")
-        restore = FrameContext.task
-        page = FrameContext.page
-        FrameContext.task = self
-        FrameContext.page = self.main.page
-        res = self.active_ticker.tick()
-        FrameContext.task = restore
-        FrameContext.page = page
-        if self.active_ticker.done:
-            if self.active_ticker.last_poll_result == PollResults.OK_YIELD:
-                self.set_result(self.yield_results)
-            else:
-                self.set_result(self.active_ticker.last_poll_result)
-        self.tick_subtasks()
-        return res
+        if self._ticking:
+            # Re-entrant tick: something this task is running has called back
+            # into it. The path from LM #634 is a gui_message(w, label) handler
+            # that reroutes: the handler runs as a sub-task, gui_reroute_* ticks
+            # the page's gui_task in the same frame, and the tick_subtasks()
+            # below walks straight back into the handler that is still running.
+            # For a pymast handler that re-enters a live generator and raises
+            # "generator already executing"; for a MAST one it re-enters a
+            # ticker mid-command, which is unsound whether or not it shows.
+            # Every task is ticked every frame, so declining here defers by one
+            # frame -- the same thing the `await delay_app(0.01)` workaround on
+            # that issue does by hand. OK_RUN_AGAIN and not a terminal result:
+            # MastScheduler.tick retires a task on OK_END and tick_subtasks on
+            # FAIL_END, either of which would delete it instead of deferring it.
+            return PollResults.OK_RUN_AGAIN
+        self._ticking = True
+        try:
+            restore = FrameContext.task
+            page = FrameContext.page
+            FrameContext.task = self
+            FrameContext.page = self.main.page
+            res = self.active_ticker.tick()
+            FrameContext.task = restore
+            FrameContext.page = page
+            if self.active_ticker.done:
+                if self.active_ticker.last_poll_result == PollResults.OK_YIELD:
+                    self.set_result(self.yield_results)
+                else:
+                    self.set_result(self.active_ticker.last_poll_result)
+            self.tick_subtasks()
+            return res
+        finally:
+            # ALWAYS release it. A guard left stuck on would silently stop this
+            # task from ever ticking again, which is far worse than the crash.
+            self._ticking = False
         
 
     def jump(self, label = "main", activate_cmd=0, respect_inline=False):
