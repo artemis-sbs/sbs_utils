@@ -759,9 +759,17 @@ def torgoth_ship_keys():
 
 
 # --- the engine's extra-ship-data hook, wrapped ------------------------------
-# `sbs.add_extra_ship_data(filename, path)` (engine 1.3.5) points the engine at a
-# second ship-data file for this mission. It was being called RAW from mission
-# code, which left three problems with nowhere to live:
+# `sbs.add_extra_ship_data(file)` points the engine at a second ship-data file for
+# this mission. The 2026-08-15 exe takes ONE argument - "a fully-pathed filename
+# (plus suffix)" - where 1.3.5 took a name and a folder and did its own extension
+# search. That is a hard break, and it broke in the worst way available: pybind
+# raises TypeError, the wrapper below logs it and carries on, the LIBRARY still has
+# every stat, and the bill arrives minutes later as a spawn dying inside the engine.
+# Every LegendaryMissions monster and turret was unspawnable for exactly that reason.
+# sbs_utils targets the new form only.
+#
+# It was being called RAW from mission code, which left three problems with nowhere
+# to live:
 #
 #   * it is newer than some engines a mission may meet, so a bare call is an
 #     AttributeError on an older one;
@@ -778,7 +786,7 @@ def torgoth_ship_keys():
 # artfileroot does not.
 
 _EXTRA_SHIP_DATA_ENGINE = True      # is the engine call allowed?
-_extra_ship_data_loaded = []        # (filename, path, reached_engine) per call
+_extra_ship_data_loaded = []        # (filename, path, reached_engine, engine_arg) per call
 
 
 def extra_enable(enabled=True):
@@ -819,10 +827,12 @@ def extra_replay():
     if not _EXTRA_SHIP_DATA_ENGINE:
         return 0
     told = 0
-    for filename, path, _reached in list(_extra_ship_data_loaded):
+    for filename, _path, _reached, engine_arg in list(_extra_ship_data_loaded):
+        if not engine_arg:
+            continue                # nothing was ever found; there is nothing to replay
         try:
             import sbs
-            sbs.add_extra_ship_data(str(filename), _engine_path(path))
+            sbs.add_extra_ship_data(engine_arg)
             told += 1
         except Exception as e:                      # noqa: BLE001
             from .execution import log
@@ -832,8 +842,9 @@ def extra_replay():
 
 
 def extra_loaded():
-    """`[(filename, path, reached_engine)]` for every call so far, so a report can
-    say what was loaded and whether the engine actually heard about it."""
+    """`[(filename, path, reached_engine, engine_arg)]` for every call so far, so a
+    report can say what was loaded, what exact file the ENGINE was pointed at, and
+    whether it heard about it. `engine_arg` is None when no file was found."""
     return list(_extra_ship_data_loaded)
 
 
@@ -867,30 +878,59 @@ def _art_that_is_not_there(text):
     which is the failure mode it exists to prevent."""
     try:
         from ..fs import get_artemis_dir
-        ships = os.path.join(get_artemis_dir(), "data", "graphics", "ships")
-        if not os.path.isdir(ships):
+        graphics = os.path.join(get_artemis_dir(), "data", "graphics")
+        if not os.path.isdir(graphics):
             return []
-        have = set()
-        for name in os.listdir(ships):
-            have.add(name.split(".")[0].lower())
         data = load_yaml_string(str(text))
         missing = []
         for entry in (data or {}).get("#ship-list", []) or []:
             if not isinstance(entry, dict):
                 continue
             root = str(entry.get("artfileroot", "") or "")
-            # An artfileroot may be a PATH to art outside the install - a mod keeping its
-            # own graphics folder writes something like
-            # `../../missions/<mod>/graphics/ships/<name>`. That resolves somewhere this
-            # check does not look, so a bare-name catalog says nothing about it. Only plain
-            # roots are ours to judge.
-            if "/" in root or "\\" in root:
-                continue
-            if root and root.lower() not in have:
+            if root and not _art_root_exists(graphics, root):
                 missing.append((str(entry.get("key", "?")), root))
         return missing
     except Exception:                               # noqa: BLE001
         return []                                   # never let a check break a load
+
+
+def _art_root_exists(graphics, root):
+    """Is there art for this `artfileroot` in the install?
+
+    BOTH SPELLINGS COUNT. The 2026-08-15 engine regenerated `data/shipData.yaml` with
+    every entry reading `ships/<name>`, moving the base up from `data/graphics/ships` to
+    `data/graphics` - while every extra ship-data file that mods and LegendaryMissions
+    ship still carries the bare `<name>`. Those files version separately from the engine,
+    so the two forms coexist for as long as any pack does.
+
+    This check used to SKIP any root containing a slash, on the reasoning that a path
+    pointed somewhere it could not see. Under the new convention that is every stock root,
+    so the check quietly stopped checking anything - which is precisely the silence it was
+    written to prevent. A path is now followed instead of skipped, and only a root that
+    escapes the install (`../..`, or absolute) is left alone, since that really is art this
+    function cannot judge.
+
+    Matching is on the base name before the first dot, because one root covers a family:
+    `<name>.paxmesh`, `<name>1024.png`, `<name>_diffuse.png`.
+    """
+    rel = root.replace(chr(92), "/")
+    if rel.startswith("..") or os.path.isabs(rel):
+        return True                 # outside the install - not ours to judge
+    parts = rel.split("/")
+    stem = parts[-1].lower()
+    folders = [os.path.join(graphics, *parts[:-1])]
+    if len(parts) == 1:
+        # A bare root is the legacy spelling and means `ships/<name>`. Look there too,
+        # so a pack written before the engine changed still validates.
+        folders.append(os.path.join(graphics, "ships"))
+    for folder in folders:
+        try:
+            for name in os.listdir(folder):
+                if name.split(".")[0].lower() == stem:
+                    return True
+        except OSError:
+            continue
+    return False
 
 
 def _looks_like_hjson(text):
@@ -921,10 +961,12 @@ def _looks_like_hjson(text):
 def add_extra(name, path=None, mod=None):
     """Load another ship-data file for this mission.
 
-    `name` has **no extension** - the engine tries `.yaml` then `.json` itself,
-    which is the more useful form because a mod can change format without the
-    caller changing. It may include a logical folder
-    (`"turrets/extraShipData_turrets"`).
+    `name` has **no extension** - `.yaml` or `.json` is found here, so a mod can
+    change format without the caller changing. It may include a logical folder
+    (`"turrets/extraShipData_turrets"`). The engine now wants the fully-pathed
+    file WITH its suffix, so the extension search that used to be the engine's job
+    happens in `_read_extra_ship_data` and its answer is what the engine is handed
+    - one decision, not two that can disagree.
 
     With no `path`, the file is looked for where the media system already looks:
     this mission's folder first, then each media pack it pinned. That matters
@@ -945,7 +987,7 @@ def add_extra(name, path=None, mod=None):
     reached = False
     why = ""
 
-    text = _read_extra_ship_data(filename, path)
+    text, found_file = _read_extra_ship_data(filename, path)
     if text is not None:
         merge_mod_ship_yaml(text, mod or "add_extra_ship_data")
         for key, root in _art_that_is_not_there(text):
@@ -973,10 +1015,15 @@ def add_extra(name, path=None, mod=None):
             f"the mission's story.json probably needs that add-on's shared_media zip.",
             "ship_data", "warning")
 
-    if _EXTRA_SHIP_DATA_ENGINE:
+    # The engine is told the FILE we actually read. With nothing read there is nothing
+    # to point it at, so the call is skipped rather than sent a guess - a path the
+    # engine cannot open is silent, and the missing-file warning above already said it.
+    engine_arg = _engine_path(found_file) if found_file else None
+
+    if _EXTRA_SHIP_DATA_ENGINE and engine_arg:
         try:
             import sbs
-            sbs.add_extra_ship_data(str(filename), _engine_path(path))
+            sbs.add_extra_ship_data(engine_arg)
             reached = True
         except AttributeError as e:
             why = "AttributeError: %s" % e
@@ -994,7 +1041,7 @@ def add_extra(name, path=None, mod=None):
             from .execution import log
             log(f"add_extra_ship_data({filename}) failed: {e}", "ship_data", "warning")
 
-    _extra_ship_data_loaded.append((str(filename), str(path), reached))
+    _extra_ship_data_loaded.append((str(filename), str(path), reached, engine_arg))
     # SAY WHAT HAPPENED, to debug.log - the one channel that survives an engine session.
     # Everything about this call is invisible from inside the game: whether the file was
     # found, what path the ENGINE was handed, and whether it accepted the call. When the
@@ -1004,7 +1051,7 @@ def add_extra(name, path=None, mod=None):
         from ..mast.mast import DEBUG
         DEBUG("add_extra(%s): file %s in %r -> engine path %r, engine told: %s%s"
               % (filename, "FOUND" if text is not None else "MISSING", path,
-                 _engine_path(path), reached, why and (" (%s)" % why) or ""))
+                 engine_arg, reached, why and (" (%s)" % why) or ""))
     except Exception:                                   # noqa: BLE001
         pass
     return reached
@@ -1090,12 +1137,20 @@ def _engine_path(path):
 
 
 def _read_extra_ship_data(filename, path):
-    """The file's text, trying the same extensions the engine tries, or None."""
+    """`(text, file)` for the file, trying the extensions the engine tries, or
+    `(None, None)`.
+
+    The FILE matters as much as the text now. The engine used to be handed a name
+    and a folder and do its own extension search; it now wants "a fully-pathed
+    filename (plus suffix)", so somebody has to decide whether this is the `.yaml`
+    or the `.json`. Deciding it twice - once to read, once to tell the engine -
+    is how the two drift apart, so it is decided once, here, by which file
+    actually opened."""
     stem = os.path.join(str(path), str(filename))
     for candidate in (stem, stem + ".yaml", stem + ".json"):
         try:
             with open(candidate, "r", encoding="utf-8") as f:
-                return f.read()
+                return f.read(), candidate
         except OSError:
             continue
-    return None
+    return None, None

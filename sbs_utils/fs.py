@@ -172,34 +172,71 @@ def get_artemis_graphics_dir():
     data = get_artemis_data_dir()
     return data+"\\graphics"        
 
-def get_mission_graphics_file(file):
-    """Get the relative path to a graphics file from the mission directory.
-    
-    Args:
-        file (str): The relative file path from the graphics directory.
-    
-    Returns:
-        str: The relative path from graphics directory to the file.
+def engine_file(path):
+    """A path in the shape the ENGINE resolves: relative to the Cosmos root.
+
+    THE ONE PATH HELPER. Every asset class used to compute its own shape against its own
+    base - audio against `data/audio`, images against `data/graphics`, a skybox as an
+    absolute path for a mission asset but a bare name for a stock one, ship data already
+    root-relative. Five spellings of the same idea, and only a run of the game could say
+    which of them a given engine would open.
+
+    The 2026-08-15 engine resolves ONE shape for all of them, measured against it
+    (`data/missions/mediapath_probe`): a path from the Cosmos root, or an absolute path.
+    Both open. What does NOT open is a bare name, or a path relative to the asset's own
+    old base - `../missions/<m>/<file>` against `data/audio` is what this library built
+    for audio until now, and on this engine it silently plays nothing.
+
+    NOTE ON EXTENSIONS, because it is the opposite of what the shape suggests: the engine
+    appends the extension itself, and passing one can make the lookup FAIL. A `.wav` on an
+    audio path was measured not to open while the same path without it did. So callers
+    name assets the way they always have - without a suffix - and this does not add one.
+
+    An absolute path outside the install is passed through unchanged: it is still a path
+    the engine accepts, and rewriting it to `../../..` would only make it fragile.
     """
-    start = get_artemis_graphics_dir()
-    mission = get_mission_dir()
-    rel = os.path.relpath(mission, start)
-    return f"{rel}/{file}"
+    text = str(path)
+    if not os.path.isabs(text):
+        # Already relative - a caller who wrote one already knew what it meant.
+        return text.replace("\\", "/")
+    try:
+        rel = os.path.relpath(text, get_artemis_dir())
+    except (ValueError, OSError):
+        return text.replace("\\", "/")      # different drive - absolute is still valid
+    if rel.startswith(".."):
+        return text.replace("\\", "/")      # outside the install - leave it alone
+    return rel.replace(os.sep, "/").replace("\\", "/")
+
+
+def get_mission_graphics_file(file):
+    """The path the engine wants for a graphics file kept in this mission.
+
+    Now the same shape as everything else - see :func:`engine_file`. It was safe to move
+    only once two things were measured on engine 1.3.6: that images open from an
+    exe-relative path (the `image_probe` mission, judged by eye - an image is loaded when
+    it is DRAWN, so an access-time probe on the server screen answers nothing), and that
+    `ImageAtlas` no longer routes through this function, so changing it cannot disturb
+    the fallback chain that finds the art in the first place.
+
+    Args:
+        file (str): The file, relative to the mission folder, WITHOUT its extension.
+
+    Returns:
+        str: A Cosmos-root-relative path.
+    """
+    return engine_file(os.path.join(get_mission_dir(), file))
 
 def get_mission_audio_file(file):
-    """Get the relative path to an audio file from the mission directory.
-    
+    """The path the engine wants for an audio file kept in this mission.
+
     Args:
-        file (str): The relative file path from the audio directory.
-    
+        file (str): The file, relative to the mission folder, WITHOUT its extension.
+
     Returns:
-        str: The relative path from audio directory to the file.
+        str: A Cosmos-root-relative path - see :func:`engine_file`.
     """
-    start = get_artemis_audio_dir()
-    mission = get_mission_dir()
-    rel = os.path.relpath(mission, start)
-    return f"{rel}/{file}"
-    
+    return engine_file(os.path.join(get_mission_dir(), file))
+
 
 
 

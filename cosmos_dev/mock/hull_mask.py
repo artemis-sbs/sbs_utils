@@ -204,6 +204,37 @@ def _cells_from_alpha(width, height, alpha, w, h):
 _cache = {}
 
 
+def _art_1024(art_file_root, ships_dir=None):
+    """Where the `<root>1024.png` silhouette for an artfileroot lives.
+
+    `artfileroot` IS A PATH NOW. The 2026-08-15 engine regenerated `data/shipData.yaml`
+    with every entry reading `ships/<name>` where the previous build wrote `<name>`, so
+    the base moved up from `data/graphics/ships` to `data/graphics`. Joining the old base
+    to the new root gives `graphics/ships/ships/<name>1024.png`, which exists nowhere -
+    and because a missing mask is deliberately read as "unknown" rather than "solid", it
+    fails as every hull in the mock quietly losing its interior instead of as an error.
+
+    Both spellings are accepted. Bare roots are still all over the extra ship-data files
+    that mods and LegendaryMissions ship, and those files are versioned separately from
+    the engine, so the two forms will coexist for as long as any pack does.
+
+    `ships_dir`, when a caller passes one, keeps its old meaning: the folder holding the
+    art. It is tried first so existing callers and tests are unaffected.
+    """
+    from sbs_utils import fs
+    leaf = f"{art_file_root}1024.png"
+    graphics = os.path.join(fs.get_artemis_data_dir(), "graphics")
+    candidates = []
+    if ships_dir is not None:
+        candidates.append(os.path.join(ships_dir, leaf))
+    candidates.append(os.path.join(graphics, *leaf.replace(chr(92), "/").split("/")))
+    candidates.append(os.path.join(graphics, "ships", leaf))
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    return candidates[0]        # report against the first place we looked
+
+
 def open_cells(art_file_root, w, h, ships_dir=None, ship_key=None):
     """Open-cell grid for one hull, or ``None`` if it cannot be determined.
 
@@ -234,10 +265,8 @@ def open_cells(art_file_root, w, h, ships_dir=None, ship_key=None):
         _cache[key] = None
         return None
 
-    if ships_dir is None:
-        from sbs_utils import fs
-        ships_dir = os.path.join(fs.get_artemis_data_dir(), "graphics", "ships")
-    path = os.path.join(ships_dir, f"{art_file_root}1024.png")
+    path = _art_1024(art_file_root, ships_dir)
+
 
     cells = None
     if os.path.exists(path):

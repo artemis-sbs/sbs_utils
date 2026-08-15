@@ -94,26 +94,65 @@ class MediaLabel(DecoratorLabel):
         return False
     
     def true_path(self):
+        """What the ENGINE is handed for this media label.
+
+        THE TWO KINDS ARE NOT THE SAME, and that was measured rather than assumed
+        (`data/missions/skybox_probe`, `data/missions/music_probe`, engine 1.3.6):
+
+        * **Skybox** takes a PATH. Exe-relative, absolute, with or without `.png`, or a
+          bare stock name - all four open the file. So a skybox may live in the mission
+          or in a shared media pack, and is named the same way as everything else.
+
+        * **Music takes a BARE NAME ONLY.** `set_music_folder` resolves it under
+          `data/audio/music/`, and handing it a path does not merely fail - it HANGS THE
+          ENGINE. Not an exception, not a silent fallback: the call never returns, which
+          from outside is a frozen game. Even `data/audio/music/default`, the exe-relative
+          spelling of the very folder that works as the bare name `default`, hangs it.
+
+        That is why this used to be a live bug rather than a limitation: the music branch
+        returned an ABSOLUTE path whenever it found the folder in the mission or in a
+        pack, so any mission shipping its own music would freeze Cosmos the moment the
+        label was scheduled. It now always returns a bare name, and says so when it had
+        to ignore a folder it found.
+        """
         if self.kind == "skybox":
+            from ...fs import engine_file
             for root in self._media_roots():
                 file_name = path.join(root, self.kind, self.path)
-                if path.isfile(file_name+".png"):
-                    return file_name
+                if path.isfile(file_name + ".png"):
+                    return engine_file(file_name)
             if path.isfile(path.join(get_artemis_graphics_dir(), self.path) + ".png"):
-                return self.path
+                return engine_file(path.join(get_artemis_graphics_dir(), self.path))
             return "sky1"
-        #
-        #
-        #
+
         elif self.kind == "music":
-            for root in self._media_roots():
-                file_name = path.join(root, self.kind, self.path)
-                if path.isdir(file_name):
-                    return file_name
+            # A bare name, always - see the docstring. The engine has no way to be told
+            # about music anywhere but its own folder.
             if path.isdir(path.join(get_artemis_audio_dir(), "music", self.path)):
                 return self.path
+            for root in self._media_roots():
+                if path.isdir(path.join(root, self.kind, self.path)):
+                    self._warn_music_unreachable(path.join(root, self.kind, self.path))
+                    break
             return "default"
 
+    def _warn_music_unreachable(self, found):
+        """Say when music was found somewhere the engine cannot be pointed at.
+
+        Silence here would be the worst of both: the author sees their folder on disk,
+        the label passes `test_file`, and the game plays the default track with no
+        explanation. Warned once per label."""
+        if getattr(self, "_warned_music", False):
+            return
+        self._warned_music = True
+        try:
+            from ...procedural.execution import log
+            log(f"@media/music/{self.path}: found at {found}, but the engine only accepts "
+                f"music by BARE NAME under data/audio/music - a path hangs it. Playing "
+                f"'default' instead. Copy the folder into data/audio/music to use it.",
+                "media", "warning")
+        except Exception:
+            pass
 
     def test(self, task):
         if self.code is not None:

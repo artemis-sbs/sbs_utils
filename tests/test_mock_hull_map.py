@@ -138,7 +138,12 @@ class TestMockHullMap(unittest.TestCase):
         hm = mock.get_hull_map(self._ship("tsn_light_cruiser"))
         self.assertEqual((hm.w, hm.h), (10, 17))
         self.assertEqual(hm.symmetrical_flag, 1)
-        self.assertEqual(hm.art_file_root, "tsn_light_cruiser")
+        # The install owns the spelling, and it changed: the 2026-08-15 engine writes
+        # `ships/tsn_light_cruiser` in shipData.yaml where earlier builds wrote the bare
+        # name. Assert what the value has to MEAN - it names this hull's art - rather than
+        # which of the two spellings the installed game happens to use today.
+        self.assertIn(hm.art_file_root,
+                      ("tsn_light_cruiser", "ships/tsn_light_cruiser"))
 
     def test_a_hull_has_a_shape_not_a_rectangle(self):
         """The whole point: some cells are outside the ship."""

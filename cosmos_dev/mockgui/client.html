@@ -477,7 +477,11 @@ function loadShipMesh(art) {
   if (!art || typeof THREE === 'undefined') return Promise.resolve(null);
   let p = _shipMeshCache.get(art);
   if (p) return p;
-  const root = 'ships/' + art;
+  // `artfileroot` IS A PATH NOW - the 2026-08-15 engine writes `ships/<name>` in
+  // shipData.yaml where earlier builds wrote `<name>`. Prefixing unconditionally
+  // asked for `ships/ships/<name>.obj`, so every ship in the 3D view lost its mesh.
+  // Bare roots still arrive from mod and mission ship-data files, so accept both.
+  const root = art.indexOf('/') >= 0 ? art : 'ships/' + art;
   p = fetch('/' + root + '.obj')
     .then(r => { if (!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.text(); })
     .then(text => {
