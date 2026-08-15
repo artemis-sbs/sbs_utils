@@ -25,6 +25,23 @@
 
 ### sbs_utils
 
+- Timers and counters can emit a signal instead of being polled.
+  `set_timer(id, name, seconds=30, signal="repair_done")` emits once when the timer
+  expires; new `set_interval(id, name, signal, seconds=30)` emits every interval until
+  `clear_interval` (it runs on a counter, so `get_counter_elapsed_seconds` reads it and
+  `clear_counter` also stops it). Each emit carries `TIMER_AGENT_ID`, `TIMER_NAME` and
+  `TIMER_COUNT`; use `//shared/signal` for anything with a side effect, since a plain
+  `//signal` route runs once per console. Opt-in by design: an unarmed timer is still
+  just an inventory value costing nothing, and the watcher schedules no tick task at
+  all until something is armed. Armed entries are cached by earliest deadline, so a
+  tick is one integer compare regardless of how many are running -- less work than the
+  watcher task per timer this replaces. The timer itself is untouched, so polling
+  (`is_timer_set_and_finished`, `format_time_remaining`) keeps working alongside the
+  signal. Clearing a timer, re-setting it without `signal`, or deleting its agent
+  cancels quietly; `timer_add_time` moves the signal with the deadline; interval beats
+  are scheduled from the start so they do not drift, and beats missed while the sim was
+  paused are skipped rather than delivered in a burst.
+
 - Every `gui_message` handler on a widget now runs, not just the last one
   registered (LM #614). Both registration slots -- the page's tag map (used by
   `on gui_message`, `gui_message(w, label)` and `gui_button(on_press=)`) and the

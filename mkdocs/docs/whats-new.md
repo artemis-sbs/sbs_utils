@@ -986,6 +986,47 @@ download, so a fetch no longer drags along 27 MB nothing reads.
 
 **272 MB reclaimed.** Guide: **[Shared media](build/shared-media.md)**.
 
+## ⏰ Timers can tell you when they are done
+
+A timer was always something you had to **ask about**. You set one, then wrote a loop that
+woke up to check it, or an `await delay_sim` in a task that existed for no other reason
+than to hold the wait. Now a timer can just say so:
+
+```
+== start_repairs ==
+    set_timer(SHIP_ID, "repair", seconds=30, signal="repair_done")
+    ->END
+
+//shared/signal/repair_done
+    repair_ship(TIMER_AGENT_ID)
+    ->END
+```
+
+And `set_interval` is the same idea on a loop — a heartbeat that keeps its period until
+you call `clear_interval`:
+
+```
+set_interval(SHIP_ID, "patrol", "patrol_beat", seconds=30)
+```
+
+Each emit carries `TIMER_AGENT_ID`, `TIMER_NAME` and `TIMER_COUNT`. Handle it with
+`//shared/signal` if it *does* anything — a plain `//signal` route runs once per console,
+which for an interval means one beat per console per beat.
+
+**It is opt-in on purpose, and that is what makes it cheap.** Timers stay what they always
+were — one number in an agent's inventory, costing nothing — and only the ones you ask to
+speak are watched. Because an armed timer knows its deadline as a number, the library
+keeps just the earliest one and a tick costs a single comparison, no matter how many are
+running. That is *less* work than the watcher task it replaces, which had to be resumed
+every tick for as long as it waited.
+
+The timer itself is unchanged, so a countdown widget reading `format_time_remaining` and a
+route waiting on the signal can share one timer. Clearing it, re-setting it without a
+signal, or deleting the agent all cancel quietly; `timer_add_time` carries the signal along
+with the deadline.
+
+See [Timers and counters](api/procedural/timers.md#signals-instead-of-polling).
+
 ## 🌐 Web pages, written in MAST
 
 - Author browser pages with `//web/<path>` routes using the same `gui_*` layout you

@@ -7,8 +7,11 @@ from sbs_utils.procedural.timers import (
     set_timer, is_timer_set, is_timer_finished, is_timer_set_and_finished,
     clear_timer, get_time_remaining, format_time_remaining, timer_add_time,
     start_counter, get_counter_elapsed_seconds, clear_counter,
+    set_interval, clear_interval,
+    timer_signals_clear, timer_signals_count, _signals_tick,
     TICK_PER_SECONDS,
 )
+from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.procedural.inventory import get_inventory_value
 from sbs_utils.procedural.signal import signal_observe, signal_unobserve
 import unittest
@@ -413,6 +416,246 @@ class TestTimerAddTime(unittest.TestCase):
         for _ in range(60):                    # 4.5s total
             sbs.physics_tick(1 / 30)
         self.assertTrue(is_timer_finished(agent.id, "warmup"))
+
+
+
+class TestTimerSignals(unittest.TestCase):
+    """set_timer(signal=) and start_counter(signal=, interval=)."""
+
+    def setUp(self):
+        SpaceObject.clear()
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        timer_signals_clear()
+        TickDispatcher.clear()
+        self.emits = []
+        self.observer = lambda name, data: self.emits.append((name, data))
+        signal_observe(self.observer)
+
+    def tearDown(self):
+        signal_unobserve(self.observer)
+        timer_signals_clear()
+        TickDispatcher.clear()
+
+    def fired(self, name):
+        return [d for n, d in self.emits if n == name]
+
+    # ------------------------------------------------------------------
+    # Timer completion
+    # ------------------------------------------------------------------
+
+    def test_no_signal_without_the_argument(self):
+        agent = make_agent()
+        set_timer(agent.id, "repair", seconds=5)
+        self.assertEqual(timer_signals_count(), 0)
+        advance_sim(10)
+        _signals_tick()
+        self.assertEqual(self.fired("repair_done"), [])
+
+    def test_fires_once_at_expiry(self):
+        agent = make_agent()
+        set_timer(agent.id, "repair", seconds=5, signal="repair_done")
+        advance_sim(10)
+        _signals_tick()
+        done = self.fired("repair_done")
+        self.assertEqual(len(done), 1)
+        self.assertEqual(done[0]["TIMER_AGENT_ID"], agent.id)
+        self.assertEqual(done[0]["TIMER_NAME"], "repair")
+        self.assertEqual(done[0]["TIMER_COUNT"], 1)
+        # and never again
+        advance_sim(60)
+        _signals_tick()
+        self.assertEqual(len(self.fired("repair_done")), 1)
+
+    def test_does_not_fire_early(self):
+        agent = make_agent()
+        set_timer(agent.id, "repair", seconds=5, signal="repair_done")
+        advance_sim(4)
+        _signals_tick()
+        self.assertEqual(self.fired("repair_done"), [])
+        self.assertEqual(timer_signals_count(), 1)
+
+    def test_polling_still_works_alongside(self):
+        """The signal is additive - it must not disturb the inventory value."""
+        agent = make_agent()
+        set_timer(agent.id, "repair", seconds=5, signal="repair_done")
+        advance_sim(10)
+        _signals_tick()
+        self.assertTrue(is_timer_set(agent.id, "repair"))
+        self.assertTrue(is_timer_set_and_finished(agent.id, "repair"))
+
+    def test_clear_timer_suppresses(self):
+        agent = make_agent()
+        set_timer(agent.id, "repair", seconds=5, signal="repair_done")
+        clear_timer(agent.id, "repair")
+        self.assertEqual(timer_signals_count(), 0)
+        advance_sim(10)
+        _signals_tick()
+        self.assertEqual(self.fired("repair_done"), [])
+
+    def test_reset_without_signal_disarms(self):
+        agent = make_agent()
+        set_timer(agent.id, "repair", seconds=5, signal="repair_done")
+        set_timer(agent.id, "repair", seconds=5)
+        self.assertEqual(timer_signals_count(), 0)
+        advance_sim(10)
+        _signals_tick()
+        self.assertEqual(self.fired("repair_done"), [])
+
+    def test_deleted_agent_suppresses(self):
+        agent = make_agent()
+        set_timer(agent.id, "repair", seconds=5, signal="repair_done")
+        agent.remove()
+        advance_sim(10)
+        _signals_tick()
+        self.assertEqual(self.fired("repair_done"), [])
+        self.assertEqual(timer_signals_count(), 0)
+
+    def test_extension_defers_the_signal(self):
+        agent = make_agent()
+        set_timer(agent.id, "repair", seconds=5, signal="repair_done")
+        timer_add_time(agent.id, "repair", seconds=10)
+        advance_sim(8)
+        _signals_tick()
+        self.assertEqual(self.fired("repair_done"), [])
+        advance_sim(10)
+        _signals_tick()
+        self.assertEqual(len(self.fired("repair_done")), 1)
+
+    def test_shortening_fires_early(self):
+        agent = make_agent()
+        set_timer(agent.id, "repair", minutes=5, signal="repair_done")
+        advance_sim(5)
+        timer_add_time(agent.id, "repair", minutes=-5)
+        _signals_tick()
+        self.assertEqual(len(self.fired("repair_done")), 1)
+
+    def test_two_timers_on_one_agent_are_independent(self):
+        agent = make_agent()
+        set_timer(agent.id, "repair", seconds=5, signal="repair_done")
+        set_timer(agent.id, "cooldown", seconds=20, signal="cooldown_done")
+        advance_sim(10)
+        _signals_tick()
+        self.assertEqual(len(self.fired("repair_done")), 1)
+        self.assertEqual(self.fired("cooldown_done"), [])
+        advance_sim(20)
+        _signals_tick()
+        self.assertEqual(len(self.fired("cooldown_done")), 1)
+
+    # ------------------------------------------------------------------
+    # Counter heartbeat
+    # ------------------------------------------------------------------
+
+    def test_counter_beats_on_the_interval(self):
+        agent = make_agent()
+        set_interval(agent.id, "patrol", "beat", seconds=10)
+        advance_sim(9)
+        _signals_tick()
+        self.assertEqual(self.fired("beat"), [])
+        advance_sim(2)
+        _signals_tick()
+        self.assertEqual(len(self.fired("beat")), 1)
+        advance_sim(10)
+        _signals_tick()
+        beats = self.fired("beat")
+        self.assertEqual(len(beats), 2)
+        self.assertEqual([b["TIMER_COUNT"] for b in beats], [1, 2])
+        self.assertEqual(beats[0]["TIMER_NAME"], "patrol")
+
+    def test_counter_beat_does_not_drift(self):
+        """Beats are scheduled from the counter's start, not from when the tick
+        happened to notice - a late tick must not push every later beat out."""
+        agent = make_agent()
+        set_interval(agent.id, "patrol", "beat", seconds=10)
+        advance_sim(19)          # noticed 9s late
+        _signals_tick()
+        self.assertEqual(len(self.fired("beat")), 1)
+        advance_sim(2)           # 21s in: the 20s beat is due
+        _signals_tick()
+        self.assertEqual(len(self.fired("beat")), 2)
+
+    def test_counter_missed_beats_are_skipped_not_caught_up(self):
+        agent = make_agent()
+        set_interval(agent.id, "patrol", "beat", seconds=10)
+        advance_sim(100)         # ten periods in one jump (e.g. a long pause)
+        _signals_tick()
+        self.assertEqual(len(self.fired("beat")), 1)
+
+    def test_clear_counter_stops_the_beat(self):
+        agent = make_agent()
+        set_interval(agent.id, "patrol", "beat", seconds=10)
+        advance_sim(11)
+        _signals_tick()
+        clear_counter(agent.id, "patrol")
+        self.assertEqual(timer_signals_count(), 0)
+        advance_sim(30)
+        _signals_tick()
+        self.assertEqual(len(self.fired("beat")), 1)
+
+    def test_counter_reading_still_works(self):
+        agent = make_agent()
+        set_interval(agent.id, "patrol", "beat", seconds=10)
+        advance_sim(15)
+        self.assertEqual(int(get_counter_elapsed_seconds(agent.id, "patrol")), 15)
+
+    def test_zero_period_is_refused(self):
+        agent = make_agent()
+        self.assertFalse(set_interval(agent.id, "patrol", "beat"))
+        self.assertEqual(timer_signals_count(), 0)
+
+    def test_clear_interval_stops_the_beat(self):
+        agent = make_agent()
+        set_interval(agent.id, "patrol", "beat", seconds=10)
+        clear_interval(agent.id, "patrol")
+        self.assertEqual(timer_signals_count(), 0)
+        advance_sim(30)
+        _signals_tick()
+        self.assertEqual(self.fired("beat"), [])
+
+    def test_restarting_the_counter_restarts_the_beat(self):
+        agent = make_agent()
+        set_interval(agent.id, "patrol", "beat", seconds=10)
+        advance_sim(9)
+        start_counter(agent.id, "patrol")     # re-anchor 1s before the beat
+        advance_sim(2)           # 11s since the FIRST start, 2s since the restart
+        _signals_tick()
+        self.assertEqual(self.fired("beat"), [])
+        advance_sim(9)
+        _signals_tick()
+        self.assertEqual(len(self.fired("beat")), 1)
+
+    # ------------------------------------------------------------------
+    # The tick task is lazy
+    # ------------------------------------------------------------------
+
+    def test_no_tick_task_when_unused(self):
+        agent = make_agent()
+        set_timer(agent.id, "repair", seconds=5)
+        start_counter(agent.id, "docked")
+        TickDispatcher.dispatch_tick()
+        self.assertEqual(len(TickDispatcher._dispatch_tick), 0)
+
+    def test_tick_task_is_created_and_then_stops(self):
+        agent = make_agent()
+        set_timer(agent.id, "repair", seconds=5, signal="repair_done")
+        TickDispatcher.dispatch_tick()
+        self.assertEqual(len(TickDispatcher._dispatch_tick), 1)
+        advance_sim(10)
+        TickDispatcher.dispatch_tick()          # fires, disarms, stops itself
+        self.assertEqual(len(self.fired("repair_done")), 1)
+        TickDispatcher.dispatch_tick()
+        self.assertEqual(len(TickDispatcher._dispatch_tick), 0)
+
+    def test_clear_drops_everything(self):
+        agent = make_agent()
+        set_timer(agent.id, "repair", seconds=5, signal="repair_done")
+        set_interval(agent.id, "patrol", "beat", seconds=10)
+        self.assertEqual(timer_signals_count(), 2)
+        timer_signals_clear()
+        self.assertEqual(timer_signals_count(), 0)
+        advance_sim(60)
+        _signals_tick()
+        self.assertEqual(self.emits, [])
 
 
 if __name__ == '__main__':

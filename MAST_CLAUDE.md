@@ -1052,6 +1052,12 @@ set_timer(id, "cooldown", minutes=2)
 yield fail if not is_timer_finished(id, "warmup")
 jump loop if not is_timer_finished(id, "meeting_count")
 t = format_time_remaining(id, "warmup")
+
+# Or let the timer tell you, instead of polling it (opt-in, and cheaper than a
+# watcher task - see api/procedural/timers.md). set_interval is the repeating form.
+set_timer(id, "repair", seconds=30, signal="repair_done")
+set_interval(id, "patrol", "patrol_beat", seconds=30)   # clear_interval() stops it
+# handler gets TIMER_AGENT_ID / TIMER_NAME / TIMER_COUNT; use //shared/signal to ACT
 ```
 
 ### Object existence check
