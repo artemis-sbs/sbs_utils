@@ -54,6 +54,7 @@ def sample():
     from sbs_utils.gui import Gui
     from sbs_utils.procedural.gui.message import MessageTrigger
     from sbs_utils.procedural.gui.button import MessageHandler
+    from sbs_utils.message_chain import message_handlers
     _seen["calls"] += 1
     for client in list(getattr(Gui, "clients", {}).values()):
         _seen["clients"] += 1
@@ -76,21 +77,25 @@ def sample():
         for entry in entries:
             _seen["entries"] += 1
             node = entry[1] if isinstance(entry, tuple) and len(entry) > 1 else entry
-            if not isinstance(node, (MessageTrigger, MessageHandler)):
-                continue
-            _seen["nodes"] += 1
-            key = _site_key(node)
-            if key is None:
-                _seen["unkeyed"] += 1
-                continue
-            rec = _sites.setdefault(key, {"kind": _kind(node), "visible": 0, "dead": 0})
-            rec["visible"] += 1
-            task = node.task
-            try:
-                if task.done() or task.active_ticker.done:
-                    rec["dead"] += 1
-            except Exception:
-                pass
+            # A widget can hold several handlers now (LM #614), and they arrive
+            # here wrapped in a MessageChain. Flatten, or every handler past the
+            # first is invisible to this audit.
+            for node in message_handlers(node):
+                if not isinstance(node, (MessageTrigger, MessageHandler)):
+                    continue
+                _seen["nodes"] += 1
+                key = _site_key(node)
+                if key is None:
+                    _seen["unkeyed"] += 1
+                    continue
+                rec = _sites.setdefault(key, {"kind": _kind(node), "visible": 0, "dead": 0})
+                rec["visible"] += 1
+                task = node.task
+                try:
+                    if task.done() or task.active_ticker.done:
+                        rec["dead"] += 1
+                except Exception:
+                    pass
 
 
 def report(path=None):

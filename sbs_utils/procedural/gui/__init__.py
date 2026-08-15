@@ -89,7 +89,7 @@ else:
     gui_clipboard_put = _gui_win_only("gui_clipboard_put")
 from .client_string import gui_request_client_string
 
-from .message import gui_message, gui_message_label, gui_message_callback
+from .message import gui_message, gui_message_label, gui_message_callback, gui_message_clear
 from .change import gui_change
 
 

@@ -25,6 +25,18 @@
 
 ### sbs_utils
 
+- Every `gui_message` handler on a widget now runs, not just the last one
+  registered (LM #614). Both registration slots -- the page's tag map (used by
+  `on gui_message`, `gui_message(w, label)` and `gui_button(on_press=)`) and the
+  widget's `on_message_cb` (used by `gui_message_callback` / `gui_message_label`)
+  -- were plain assignments, so attaching a second handler silently discarded the
+  first. They chain instead, firing in registration order; a handler that raises
+  is logged and the rest still run. Two consequences worth naming:
+  `gui_button("Go", on_press=lbl)` followed by `on gui_message(btn):` no longer
+  destroys the `on_press`, and `gui_message_callback` / `gui_message_label` on a
+  `gui_section()` no longer raises AttributeError on the first click. New
+  `gui_message_clear(widget)` detaches every handler when you want to replace
+  rather than add. `on gui_click` is unchanged -- still first-match-wins.
 - Damcons no longer vanish on a grid REBUILD (LM #381). `grid_restore_damcons`
   decided "this team already exists" from an engine name lookup, but
   `grid_delete_object` only tombstones the agent and defers the native free to the

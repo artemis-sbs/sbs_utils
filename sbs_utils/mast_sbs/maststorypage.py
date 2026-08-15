@@ -1,5 +1,6 @@
 from ..gui import Gui, Page
 from ..helpers import FakeEvent, FrameContext, FrameContextOverride
+from ..message_chain import compose_handler
 from ..procedural.inventory import get_inventory_value, set_inventory_value, has_inventory_value
 from ..procedural.links import linked_to
 from ..procedural.gui.navigation import gui_reroute_client
@@ -373,14 +374,33 @@ class StoryPage(Page):
             self.pending_gui = True
 
         if self.pending_gui == True:
+            # Registration is NOT free: the first add_tag of a build tears down
+            # the previous build's inline `on signal` blocks. Nothing below may
+            # move above this. (LM #589)
             self.on_new_gui()
-        
+
 
         if hasattr(layout_item, 'tag'):
-            self.pending_tag_map[layout_item.tag] = (layout_item, runtime_node)
+            tag = layout_item.tag
+            if tag is None:
+                # A gui_sub_section() has no tag until `with` enters it, so a
+                # handler registered on the wrapper first would land under the
+                # key None and be unreachable. Say so rather than pretending.
+                if runtime_node is not None:
+                    log("a gui_message handler was attached to a sub-section "
+                        "before its `with` block, so it has no tag yet and "
+                        "nothing can reach it. Register it inside the `with`.",
+                        "gui", "warning")
+            else:
+                # compose, not assign: a widget can carry several handlers now,
+                # so attaching a second one must not discard the first. (#614)
+                self.pending_tag_map[tag] = compose_handler(
+                    self.pending_tag_map.get(tag), layout_item, runtime_node)
         if hasattr(layout_item, 'click_tag'):
             if layout_item.click_tag is not None:
-                self.pending_tag_map[layout_item.click_tag] = (layout_item, runtime_node)
+                click_tag = layout_item.click_tag
+                self.pending_tag_map[click_tag] = compose_handler(
+                    self.pending_tag_map.get(click_tag), layout_item, runtime_node)
         self.add_alias(layout_item, runtime_node)
 
     def add_alias(self, layout_item, runtime_node=None):
@@ -407,7 +427,8 @@ class StoryPage(Page):
                 f"Only the last one can be reached by gui_update -- make the name "
                 f"unique, e.g. \"tag:{alias}-{{item}}\".", "gui", "warning")
         self.pending_alias_owner[alias] = layout_item
-        self.pending_tag_map[alias] = (layout_item, runtime_node)
+        self.pending_tag_map[alias] = compose_handler(
+            self.pending_tag_map.get(alias), layout_item, runtime_node)
 
     def push_sub_section(self, style, layout_item, is_rebuild):
         #

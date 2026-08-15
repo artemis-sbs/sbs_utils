@@ -703,6 +703,29 @@ which is why moving one to the top never helped.
 `on change`, `on gui_message` and `on gui_click` were always immune — they are
 double-buffered and swapped at present time.
 
+#### Every handler on a widget runs (2026-08-14)
+
+A widget can carry as many handlers as you attach, in any mix of forms, and they
+all fire in **registration order** — which is source order:
+
+```
+b = gui_button("Go", on_press=fire)
+on gui_message(b):          # BOTH run now. This used to destroy on_press.
+    log("also me")
+```
+
+The `gui_message_callback` / `gui_message_label` family always runs **before** the
+rest, because the page walks the layout tree before it looks the tag up in its
+tag map. A handler that raises is logged to `mast.runtime` and the remaining ones
+still run.
+
+Before this, every registration was a plain assignment, so the LAST one attached
+silently discarded the earlier ones — and which one that was depended on load
+order once two addons touched the same widget (LM #614). To REPLACE rather than
+add, call `gui_message_clear(widget)` first; it detaches everything.
+
+**`on gui_click` is unchanged** — it still runs only the first matching handler.
+
 Still true, and unchanged: `signal_register(name, label)` (a jump handler, the
 same form a `//signal` route compiles to) is **not** GUI-transient. It lives as
 long as its task does. Registering one on each visit to a screen registers it
@@ -1196,7 +1219,9 @@ class SimpleAiPage(StoryPage):
 
 ### GUI callbacks
 
-`gui_message_callback(widget, fn)` registers a Python function for widget events (replaces MAST's `on gui_message`):
+`gui_message_callback(widget, fn)` registers a Python function for widget events (an
+alternative to MAST's `on gui_message`; both can be attached to the same widget and
+both will run):
 
 ```python
 lb = gui_list_box(items, "", item_template=render, select=True)

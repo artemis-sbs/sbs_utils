@@ -1,5 +1,6 @@
 from ...gui import get_client_aspect_ratio
 from ...helpers import FrameContext
+from ...message_chain import invoke_message_cb
 from ...mast.parsers import LayoutAreaParser, ContentSize, MIN_CONTENT, AUTO
 
 from enum import IntEnum
@@ -1455,7 +1456,9 @@ class Layout(Clickable):
         if self.runtime_node is not None:
             self.runtime_node.on_message(event)
         if self.on_message_cb is not None:
-            self.on_message_cb.on_message(event, self)
+            # Was `.on_message(event, self)`, which raised AttributeError for the
+            # plain function gui_message_callback assigns. (LM #614)
+            invoke_message_cb(self.on_message_cb, event, self)
         # Else propagate messages
         row:Row
         for row in self.rows:

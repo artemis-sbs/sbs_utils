@@ -65,6 +65,20 @@ class PageSubSection:
     def click_tag(self, v):
         if self.sub_section is not None:
             self.sub_section.click_tag = v
+
+    @property
+    def on_message_cb(self):
+        # Without this forward, gui_message_callback / gui_message_label on a
+        # gui_sub_section() landed on this wrapper, which nothing reads -- the
+        # example in gui_message_label's own docstring was a silent no-op.
+        if self.sub_section is not None:
+            return self.sub_section.on_message_cb
+        return None
+
+    @on_message_cb.setter
+    def on_message_cb(self, v):
+        if self.sub_section is not None:
+            self.sub_section.on_message_cb = v
     
     def is_message_for(self, event):
         """Used by MessageTrigger i.e. gui_message to know if message is for this object

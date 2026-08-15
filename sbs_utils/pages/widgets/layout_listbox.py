@@ -2,6 +2,7 @@ from ...gui import get_client_aspect_ratio
 from ..layout import layout as layout
 from ..layout.clickable import Clickable
 from ...helpers import FrameContext, FakeEvent, gui_text_escape
+from ...message_chain import compose_handler, invoke_message_cb
 from ...mast.parsers import LayoutAreaParser
 #from ...mast.core_nodes.label import Label
 from ...procedural.style import apply_control_styles
@@ -55,12 +56,16 @@ class SubPage:
         return tag
     
     def add_tag(self, layout_item, runtime_node):
-        self.tag_map[layout_item.tag] = (layout_item, runtime_node)
+        # compose, not assign -- see StoryPage.add_tag and message_chain (LM #614)
+        tag = layout_item.tag
+        self.tag_map[tag] = compose_handler(
+            self.tag_map.get(tag), layout_item, runtime_node)
         click_tag = getattr(layout_item, "click_tag", None)
         if click_tag is not None:
             # StoryPage.add_tag has always registered this second key; this shim
             # never did, so a click region built by a row template was not resolvable.
-            self.tag_map[click_tag] = (layout_item, runtime_node)
+            self.tag_map[click_tag] = compose_handler(
+                self.tag_map.get(click_tag), layout_item, runtime_node)
         self.add_alias(layout_item, runtime_node)
 
     def add_alias(self, layout_item, runtime_node=None):
@@ -91,7 +96,8 @@ class SubPage:
         self.alias_owner[alias] = layout_item
         self.aliases.append(alias)
         layout_item._alias_owner = self.owner
-        self.tag_map[alias] = (layout_item, runtime_node)
+        self.tag_map[alias] = compose_handler(
+            self.tag_map.get(alias), layout_item, runtime_node)
     
     def next_slot(self, slot, section):
         self.active_layout = section
@@ -974,7 +980,7 @@ class LayoutListbox(layout.Column):
         if event.sub_tag.endswith("__click"):
             self.on_click(event)
             if self.on_message_cb is not None:
-                self.on_message_cb(event, self)
+                invoke_message_cb(self.on_message_cb, event, self)
             Clickable.clicked[event.client_id] = self
             return
         

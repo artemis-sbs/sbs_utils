@@ -24,7 +24,16 @@ class MessageHandler:
         self.handler = handler
         self.task = task
         self.is_sub_task = is_sub_task
-        
+
+    def is_inert(self):
+        """True when this handler has nothing to run.
+
+        gui_button() builds one of these even with no on_press, because the
+        click also sets __ITEM__ and unpacks the widget's data. With no handler
+        it falls through to start_sub_task(None, ...), so it must not become a
+        link in a chain -- see message_chain.compose_handler. (LM #614)
+        """
+        return self.handler is None
 
     def on_message(self, event):
         if event.sub_tag == self.layout_item.tag:

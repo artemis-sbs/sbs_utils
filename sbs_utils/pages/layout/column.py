@@ -1,6 +1,7 @@
 from .bounds import Bounds
 from .measure import backdrop_props
 from ...helpers import FrameContext
+from ...message_chain import invoke_message_cb
 from ...agent import Agent
 from ...mast.parsers import SQUARE
 from .clickable import Clickable
@@ -377,7 +378,9 @@ class Column:
         if  not is_click_tag and not is_tag:
             return 
         if self.on_message_cb is not None:
-            self.on_message_cb(event, self)
+            invoke_message_cb(self.on_message_cb, event, self)
+            # Still return: this is what suppresses Clickable.clicked, i.e. a
+            # widget with a callback does not ALSO fire `on gui_click`.
             return
         if is_click_tag:
             Clickable.clicked[event.client_id] = self

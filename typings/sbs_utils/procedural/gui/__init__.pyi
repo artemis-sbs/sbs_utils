@@ -1299,6 +1299,18 @@ def gui_message_label (layout_item, label):
     Example:
         section = gui_sub_section(style="col-width:30%;")
         gui_message_label(section, handle_section_click)"""
+def gui_message_clear (layout_item):
+    """Drop EVERY gui_message handler attached to a widget, on both channels.
+    
+    Handlers accumulate now (LM #614), so replacing rather than adding takes an
+    explicit step: clear, then register. Before #614 a plain re-registration
+    did this implicitly, by throwing the previous handler away.
+    
+    Args:
+        layout_item: the widget to detach every handler from.
+    
+    Returns:
+        int: how many registrations were removed."""
 def gui_options_button (transparent=True, client_id=None):
     """Make the engine Options button transparent (or normal) for a client, and
     keep it that way across page rebuilds.

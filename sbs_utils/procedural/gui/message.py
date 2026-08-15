@@ -2,6 +2,7 @@ import logging
 
 from ...helpers import FrameContext
 from ...futures import Trigger
+from ...message_chain import MessageChain, message_cb_add
 
 # Source sites already reported, so a button someone keeps pressing warns once
 # instead of once per click. Keyed by the SITE, not the widget: a GUI rebuild
@@ -93,7 +94,7 @@ class MessageTrigger(Trigger):
         # This is an outlier 
         # Your in a sub page 
         #
-        if page != task.main.page:
+        if page is not task.main.page:
             page.add_tag(layout_item, self)
 
         self.task = task
@@ -190,7 +191,7 @@ def gui_message_callback(layout_item, cb):
         btn = gui_button("Fire!", on_press=None)
         gui_message_callback(btn, lambda e, item: fire_torpedo(SHIP_ID))
     """
-    layout_item.on_message_cb = cb
+    return message_cb_add(layout_item, cb)
 
 
 def gui_message_label(layout_item, label):
@@ -209,5 +210,44 @@ def gui_message_label(layout_item, label):
         gui_message_label(section, handle_section_click)
     """
     from ..execution import gui_sub_task_schedule
-    layout_item.on_message_cb = lambda e, s: gui_sub_task_schedule(label)
+    return message_cb_add(layout_item, lambda e, s: gui_sub_task_schedule(label))
 
+
+
+def gui_message_clear(layout_item):
+    """Drop EVERY gui_message handler attached to a widget, on both channels.
+
+    Handlers accumulate now (LM #614), so replacing rather than adding takes an
+    explicit step: clear, then register. Before #614 a plain re-registration
+    did this implicitly, by throwing the previous handler away.
+
+    Args:
+        layout_item: the widget to detach every handler from.
+
+    Returns:
+        int: how many registrations were removed.
+    """
+    removed = 0
+    cb = getattr(layout_item, "on_message_cb", None)
+    if cb is not None:
+        removed += len(cb) if isinstance(cb, MessageChain) else 1
+        layout_item.on_message_cb = None
+
+    task = FrameContext.task
+    pages = [FrameContext.page, getattr(getattr(task, "main", None), "page", None)]
+    seen = []
+    for page in pages:
+        if page is None or any(page is p for p in seen):
+            continue
+        seen.append(page)
+        for name in ("tag_map", "pending_tag_map"):
+            tag_map = getattr(page, name, None)
+            if not tag_map:
+                continue
+            for tag, entry in list(tag_map.items()):
+                if entry is None or entry[0] is not layout_item or entry[1] is None:
+                    continue
+                node = entry[1]
+                removed += len(node) if isinstance(node, MessageChain) else 1
+                tag_map[tag] = (layout_item, None)
+    return removed

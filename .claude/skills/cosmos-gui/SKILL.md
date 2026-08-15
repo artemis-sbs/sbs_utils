@@ -48,7 +48,9 @@ gotchas that **bite repeatedly** — read it before building a console or panel.
 - **Legible over pretty.** Generous `row-height`, real contrast, `$text:` first.
   Ugly-but-readable beats clever-but-cramped (the first Admiral-console review note).
 - **Prefer `on_press=` / `data=` on buttons** over loop-registered `on gui_message`
-  (see the for-loop trap) — it's the reliable path for per-item handlers.
+  (see the for-loop trap) — it's the reliable path for per-item handlers. The
+  closure/flakiness trap is the reason; `on gui_message` no longer *destroys* an
+  `on_press` on the same button (LM #614), so the two can coexist.
 - **A handler outlives nothing.** If the task that BUILT the widget ends, its
   `on gui_message` block and `on_press=<label>` die with it — see "A handler dies
   with the task that built it". Use `gui_message_callback` when in doubt.
@@ -245,6 +247,21 @@ the old text no longer describes anything. **The template stays the source of tr
   hook.
 - Inject locals into a handler with `data={}`; the firing widget is `__ITEM__`.
 
+**Every handler on a widget fires** (LM #614). Attach as many as you like, in any
+mix of forms -- `on gui_message(w):`, `gui_message(w, label)`, `on_press=`,
+`gui_message_callback`, `gui_message_label`. They run in **registration order**,
+which is source order, with one wrinkle: the `gui_message_callback` /
+`gui_message_label` family always runs **before** the rest, because the page walks
+the layout tree before it looks the tag up. A handler that raises is logged to
+`mast.runtime` and the others still run.
+
+Before #614 the last registration silently discarded the earlier ones, so
+`gui_button("Go", on_press=lbl)` followed by `on gui_message(btn):` quietly lost the
+`on_press`. If you actually want to REPLACE rather than add, say so:
+`gui_message_clear(widget)` detaches everything on both channels.
+
+`on gui_click` is still first-match-wins -- only `gui_message` was fixed.
+
 ## A handler dies with the task that BUILT it (LM #707)
 
 A widget's handler belongs to the task that built the widget. `on gui_message(w):`
@@ -320,7 +337,9 @@ inline block captures the loop var at its **last** value (closure trap). Proven
 fixes:
 
 - **`on_press=` / `data=` on `gui_button`** (a MessageHandler) works fine in a plain
-  `for` loop — the proven path.
+  `for` loop — the proven path. (Unchanged by LM #614: multiple handlers now
+  coexist, but a block registered in a loop still captures the loop var at its last
+  value.)
 - Or read **`__ITEM__`** in the block instead of the loop var; or **unroll** fixed
   counts (e.g. a 5-card hand).
 - Comms `+` buttons in a loop: use a **handler label + data dict**
