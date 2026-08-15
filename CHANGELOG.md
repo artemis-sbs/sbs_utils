@@ -36,7 +36,11 @@
   destroys the `on_press`, and `gui_message_callback` / `gui_message_label` on a
   `gui_section()` no longer raises AttributeError on the first click. New
   `gui_message_clear(widget)` detaches every handler when you want to replace
-  rather than add. `on gui_click` is unchanged -- still first-match-wins.
+  rather than add.
+- `on gui_click` gained the same rule (LM #614). Its dispatch returned on the
+  first handler that matched, so two blocks for one tag ran only the first --
+  and a catch-all `gui_click()`, which matches every click, silently shadowed
+  every handler registered after it.
 - Damcons no longer vanish on a grid REBUILD (LM #381). `grid_restore_damcons`
   decided "this team already exists" from an engine name lookup, but
   `grid_delete_object` only tombstones the agent and defers the native free to the

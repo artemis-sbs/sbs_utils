@@ -724,7 +724,9 @@ silently discarded the earlier ones — and which one that was depended on load
 order once two addons touched the same widget (LM #614). To REPLACE rather than
 add, call `gui_message_clear(widget)` first; it detaches everything.
 
-**`on gui_click` is unchanged** — it still runs only the first matching handler.
+**`on gui_click` works the same way** — every handler whose name matches runs.
+A catch-all `on gui_click():` (no name) matches every click, so it used to
+shadow every handler registered after it; now they all run, catch-all first.
 
 Still true, and unchanged: `signal_register(name, label)` (a jump handler, the
 same form a `//signal` route compiles to) is **not** GUI-transient. It lives as

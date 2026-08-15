@@ -260,7 +260,9 @@ Before #614 the last registration silently discarded the earlier ones, so
 `on_press`. If you actually want to REPLACE rather than add, say so:
 `gui_message_clear(widget)` detaches everything on both channels.
 
-`on gui_click` is still first-match-wins -- only `gui_message` was fixed.
+`on gui_click` follows the same rule: every matching handler runs. Watch for a
+catch-all `gui_click()` -- no name, so it matches every click -- which used to
+shadow every handler registered after it and now runs alongside them.
 
 ## A handler dies with the task that BUILT it (LM #707)
 

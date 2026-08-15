@@ -947,9 +947,12 @@ class StoryPage(Page):
             
         if clicked is not None:
             Layout.clicked[self.client_id] = None
-            for click in self.on_click:
-                if click.click(clicked.click_tag):
-                    return
+            # Every matching handler runs, the same rule gui_message now
+            # follows (LM #614). This used to return on the first match, so a
+            # catch-all gui_click() -- which matches everything -- silently
+            # shadowed every handler registered after it.
+            for click in list(self.on_click):
+                click.click(clicked.click_tag)
             
         if refresh:
             self.gui_state = "refresh"
