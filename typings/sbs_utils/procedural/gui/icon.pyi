@@ -13,15 +13,20 @@ def apply_control_styles (control_name, extra_style, layout_item, task):
             parsed dict applied after the base style.
         layout_item (LayoutItem): Layout item to receive the style.
         task (MastAsyncTask): GUI task used for string formatting."""
-def gui_icon (props, style=None):
+def gui_icon (props, style=None, data=None):
     """Add an icon image to the current GUI layout.
     
-    Renders a non-interactive icon from the atlas or media path.
+    Renders an icon from the atlas or media path. It is not clickable on its
+    own, but a ``click_tag:`` in the style makes it so - which is why it can
+    carry ``data`` like any other widget.
     
     Args:
         props (str): Icon key, atlas name, or image property string, e.g.
             ``"icons/torpedo"`` or ``"image:icons/torpedo;color:yellow;"``.
         style (str, optional): CSS-like style overrides. Defaults to None.
+        data (object, optional): Arbitrary data carried by the widget, read
+            back in a handler as ``__ITEM__.data`` and - when it is a dict -
+            unpacked into the handler's variables. Defaults to None.
     
     Returns:
         Icon: The layout item created.
@@ -42,22 +47,35 @@ def gui_icon_add_atlas (name, image, left=None, top=None, right=None, bottom=Non
 def gui_icon_add_atlas_grid (image, cols, rows=None, names=None, cell=None, color=None, start=0):
     """Claim a whole sheet of icon names at once - `gui_image_add_atlas_grid` in the icon
     domain. Names are laid out row-major; a `None` entry skips a cell."""
-def gui_icon_button (props, style=None):
+def gui_icon_button (props, style=None, data=None, on_press=None, is_sub_task=False):
     """Add a clickable icon button to the current GUI layout.
     
-    Like ``gui_icon`` but the rendered item accepts click events.
+    Like ``gui_icon`` but the rendered item accepts click events. Takes
+    ``data`` and ``on_press`` exactly as ``gui_button`` does, so a row of icon
+    buttons built in a loop can each say which row they belong to (LM #708).
     
     Args:
         props (str): Icon key, atlas name, or image property string, e.g.
             ``"icons/fire"`` or ``"image:icons/fire;color:red;"``.
         style (str, optional): CSS-like style overrides. Defaults to None.
+        data (object, optional): Arbitrary data carried by the widget. The
+            handler reads it as ``__ITEM__.data``; a dict is also unpacked
+            into the handler's variables. Defaults to None.
+        on_press (label | callable | Promise, optional): What to do when the
+            icon is pressed. A label is jumped to; a callable is called; a
+            Promise has its result set. Defaults to None - attach the handler
+            with ``gui_message`` / ``gui_click`` instead.
+        is_sub_task (bool, optional): When ``True`` an ``on_press`` label runs
+            as an independent sub-task. Defaults to False.
     
     Returns:
         IconButton: The layout item created.
     
     Example:
-        btn = gui_icon_button("icons/fire")
-        gui_click(btn, on_fire_clicked)"""
+        btn = gui_icon_button("icons/fire", data={"slot": i})
+        gui_message(btn, on_fire_clicked)
+        ///on_fire_clicked
+            fire_torpedo(SHIP_ID, slot)"""
 def gui_icon_name (name, color=None, style=None, props=None):
     """Draw an icon by NAME rather than by sheet index.
     

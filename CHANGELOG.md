@@ -37,6 +37,13 @@
   `gui_section()` no longer raises AttributeError on the first click. New
   `gui_message_clear(widget)` detaches every handler when you want to replace
   rather than add.
+- `gui_icon_button` takes `data` and `on_press`, matching `gui_button` (LM #708).
+  An icon button had no way to say which row it belonged to, so a loop that built
+  one per item could only close over the loop variable - every handler then read
+  it at its final value. `gui_icon_button("icon_index:1;", data={"slot": i})`
+  reaches the handler as `__ITEM__.data` and, for a dict, as unpacked variables,
+  exactly as it does for every other widget. `gui_icon` takes `data` too, for an
+  icon made clickable with a `click_tag:`.
 - `on gui_click` gained the same rule (LM #614). Its dispatch returned on the
   first handler that matched, so two blocks for one tag ran only the first --
   and a catch-all `gui_click()`, which matches every click, silently shadowed
