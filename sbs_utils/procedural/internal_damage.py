@@ -441,7 +441,14 @@ def grid_restore_damcons(id_or_obj, layout=None):
             _test_go = None
 
         if _test_go is not None:
-            used.add((int(_test_go.data_set.get("curx", -1)), int(_test_go.data_set.get("cury", -1))))
+            # data_set.get's second argument is the INDEX, not a default - index 0 is the
+            # slot everything writes curx/cury to. Asking for index -1 makes the ENGINE
+            # return None (int(None) -> TypeError on the first dock); the mock's defaults
+            # table answered anyway, which is why this only ever failed in the engine.
+            _cx = _test_go.data_set.get("curx", 0)
+            _cy = _test_go.data_set.get("cury", 0)
+            if _cx is not None and _cy is not None:
+                used.add((int(_cx), int(_cy)))
             _id = _test_go.unique_ID # _test_go is an object from the engine
             _blob = to_blob(_test_go.unique_ID)
             if _blob is not None:
