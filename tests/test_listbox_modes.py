@@ -302,9 +302,13 @@ class TestScrolling(ListboxModeBase):
         lb.set_selected_index(0, False)
         lb._present(FakeEvent())            # reveal fires once, view at the top
 
-        self._scroll_to(lb, 20)
+        # 15, not 20: this list's scroll range is 19 (40 items, a 21-row window),
+        # and _scroll_to(20) synthesises sub_float -0.5 -- below the slider's own
+        # `low: 0.0`, so it is a drag the engine cannot send. The view now clamps
+        # to the range, which made the old target assert on an impossible input.
+        self._scroll_to(lb, 15)
         lb._present(FakeEvent())            # must NOT snap back
-        self.assertEqual(lb.cur, 20)
+        self.assertEqual(lb.cur, 15)
         self.assertNotIn(0, self._shown(lb))
 
     def test_a_new_selection_re_arms_the_reveal(self):
@@ -344,6 +348,173 @@ class TestScrolling(ListboxModeBase):
         self._scroll_to(lb, 15)
         lb._present(FakeEvent())
         self.assertEqual(lb.cur, 15)
+
+
+class TestScrollRangeIsStable(ListboxModeBase):
+    """The scrollbar's own range, read off the slider the listbox sends.
+
+    Every other class here asserts on which rows are SHOWN. That misses this
+    entirely: the range came from `len(items) - pack_slots(start=cur)`, which
+    counts the rows that fit from where the view already is. So the track
+    rescaled as you scrolled, and nothing clamped `cur` -- the list scrolled off
+    its own end while the thumb sat pinned at the bottom, which is the
+    out-of-range bar in LM #428.
+
+    40 items in a 21-row window: the range is 19.
+    """
+
+    RANGE = 19
+
+    def _slider(self, lb):
+        """(value, low, high) of the scroll slider this present sent, or None."""
+        sent = []
+        sbs = FrameContext.context.sbs
+        original = sbs.send_gui_slider
+
+        def spy(client_id, region, tag, value, style, *args, **kwargs):
+            if tag.endswith("cur"):
+                props = dict(
+                    part.split(":", 1) for part in style.split(";") if ":" in part)
+                sent.append((value,
+                             float(props["low"]),
+                             float(props[" high"] if " high" in props else props["high"])))
+            return original(client_id, region, tag, value, style, *args, **kwargs)
+
+        sbs.send_gui_slider = spy
+        try:
+            lb._present(FakeEvent())
+        finally:
+            sbs.send_gui_slider = original
+        return sent[-1] if sent else None
+
+    def test_the_range_is_the_same_wherever_the_view_is(self):
+        """The defect. `high` used to read 19.5, then 20.5, 30.5, 39.5."""
+        lb = self._lb([f"item {i}" for i in range(40)])
+        highs = set()
+        for cur in (0, 5, 10, 20, 30, 39):
+            lb.cur = cur
+            highs.add(self._slider(lb)[2])
+        self.assertEqual(len(highs), 1,
+                         f"the track rescaled as the view moved: {sorted(highs)}")
+
+    @staticmethod
+    def _varied_template(item, **kwargs):
+        """Every third row three times the height of its neighbours.
+
+        A UNIFORM list hides the range defect: clamping `cur` alone already makes
+        `len(items) - pack_slots(start=cur)` constant there, because the same
+        number of equal rows fits from every position in range. It takes real
+        per-row heights for that count -- and so the track -- to move while the
+        view stays inside its range.
+        """
+        from sbs_utils.procedural.gui import gui_row, gui_text
+        n = int(str(item).split()[-1])
+        gui_row("row-height: 3.0em;" if n % 3 == 0 else "row-height: 1.0em;")
+        gui_text(f"$text:`{item}`;font:gui-2;")
+        return None
+
+    def _varied_lb(self):
+        # Taller box than PANEL: this geometry shows 3-5 rows depending on where
+        # the view sits, which is the wobble being pinned.
+        bounds = Bounds(2.0, 10.0, 30.0, 34.0)
+        lb = LayoutListbox(bounds.left, bounds.top, "lb",
+                           [f"item {i}" for i in range(40)],
+                           item_template=self._varied_template)
+        lb.tag = "lb"
+        lb.bounds = bounds
+        lb.client_id = 0
+        return lb
+
+    def test_the_range_is_stable_with_REAL_per_row_heights(self):
+        """The range change, isolated from the clamp.
+
+        Uniform rows cannot tell the two apart -- see _varied_template.
+        """
+        lb = self._varied_lb()
+        lb._present(FakeEvent())
+        shown = set()
+        highs = set()
+        for cur in range(0, 40):
+            lb.cur = cur
+            highs.add(self._slider(lb)[2])
+            shown.add(len(self._shown(lb)))
+        self.assertGreater(len(shown), 1,
+                           "this geometry must show a different number of rows "
+                           "at different positions, or it pins nothing")
+        self.assertEqual(len(highs), 1,
+                         f"the track rescaled as the view moved: {sorted(highs)}")
+
+    def test_variable_rows_still_reach_the_end_and_stay_in_track(self):
+        lb = self._varied_lb()
+        lb.cur = 39
+        lb._present(FakeEvent())
+        self.assertIn(39, self._shown(lb), "the last row is still reachable")
+        value, low, high = self._slider(lb)
+        self.assertGreaterEqual(value, low)
+        self.assertLessEqual(value, high)
+
+    def test_the_thumb_never_leaves_its_track(self):
+        lb = self._lb([f"item {i}" for i in range(40)])
+        for cur in (0, 5, 10, 20, 30, 39):
+            lb.cur = cur
+            value, low, high = self._slider(lb)
+            self.assertGreaterEqual(value, low, f"below the track at cur={cur}")
+            self.assertLessEqual(value, high, f"above the track at cur={cur}")
+
+    def test_the_thumb_actually_travels(self):
+        """A stable range is worthless if the value is pinned. It is inverted for
+        a vertical list, so it counts DOWN as the view moves down."""
+        lb = self._lb([f"item {i}" for i in range(40)])
+        seen = []
+        for cur in (0, 5, 10, 15, self.RANGE):
+            lb.cur = cur
+            seen.append(self._slider(lb)[0])
+        self.assertEqual(seen, sorted(seen, reverse=True))
+        self.assertEqual(len(set(seen)), len(seen), "the thumb must move each time")
+
+    def test_the_view_cannot_scroll_past_the_end(self):
+        lb = self._lb([f"item {i}" for i in range(40)])
+        lb.cur = 39
+        lb._present(FakeEvent())
+        self.assertEqual(lb.cur, self.RANGE)
+        self.assertIn(39, self._shown(lb), "the last row is still on screen")
+
+    def test_set_selected_index_no_longer_overshoots(self):
+        """LM #428's stated workaround, which is what produced the screenshot:
+        set_selected_index(i) sets the scroll offset to `i` with no clamp, so
+        picking row 35 of 40 scrolled 16 rows past the end of the list."""
+        lb = self._lb([f"item {i}" for i in range(40)], select=True)
+        lb._present(FakeEvent())
+        lb.set_selected_index(35)
+        lb._present(FakeEvent())
+        self.assertEqual(lb.cur, self.RANGE)
+        self.assertIn(35, self._shown(lb), "the selection is on screen")
+        value, low, high = self._slider(lb)
+        self.assertGreaterEqual(value, low)
+        self.assertLessEqual(value, high)
+
+    def test_a_drag_round_trips(self):
+        """on_scroll inverts about the range the last draw published, so a stable
+        range is what makes the decode agree with the encode."""
+        lb = self._lb([f"item {i}" for i in range(40)])
+        lb._present(FakeEvent())
+        for target in (0, 3, 12, self.RANGE):
+            event = FakeEvent()
+            event.sub_tag = f"{lb.tag_prefix}cur"
+            event.sub_float = float(-target + lb.extra_slot_count + 0.5)
+            lb.on_message(event)
+            lb._present(FakeEvent())
+            self.assertEqual(lb.cur, target)
+
+    def test_a_list_that_all_fits_has_no_scrollbar(self):
+        lb = self._lb([f"item {i}" for i in range(4)])
+        self.assertIsNone(self._slider(lb))
+
+    def test_extra_slot_count_exists_before_the_first_draw(self):
+        """on_scroll reads it unguarded, and a draw with no scrollbar never sets
+        it."""
+        lb = self._lb([f"item {i}" for i in range(4)])
+        self.assertEqual(lb.extra_slot_count, 0)
 
 
 class TestHintKeepsTheRowUnderTheMouse(ListboxModeBase):

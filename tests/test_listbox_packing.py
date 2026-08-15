@@ -19,7 +19,7 @@ import cosmos_dev.mock.sbs as mock_sbs
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
 from sbs_utils.vec import Vec3
 import sbs_utils.procedural.gui  # noqa: F401  (circular-import order)
-from sbs_utils.pages.widgets.layout_listbox import LayoutListbox
+from sbs_utils.pages.widgets.layout_listbox import LayoutListbox, max_cur, reveal_cur
 
 
 def pack(heights, avail, item_height=0.0, start=0, avg=None):
@@ -99,6 +99,74 @@ class TestUniformListsDoNotMove(unittest.TestCase):
         # average is the least-wrong one available.
         heights = []
         self.assertEqual(pack(heights, 50.0), 0)
+
+
+class TestMaxCurIsTheScrollRange(unittest.TestCase):
+    """max_cur = the largest `cur` that still shows the LAST row.
+
+    The scrollbar's `high` came from `len(items) - pack_slots(start=cur)`, which
+    counts the rows that fit FROM WHERE THE VIEW IS. With real per-row heights
+    that count moves as you scroll, so the track rescaled under the thumb and
+    nothing stopped `cur` running off the end of the list. These pin the property
+    the old expression did not have: the answer does not depend on `cur`.
+    """
+
+    UNIFORM = [1.0] * 40
+    # Every third row double height -- where the old expression wobbled.
+    VARIED = [2.0 if i % 3 == 0 else 1.0 for i in range(40)]
+    AVAIL = 21.0
+
+    def test_uniform_range_reaches_the_last_row(self):
+        m = max_cur(self.UNIFORM, self.AVAIL)
+        self.assertEqual(m, 19)
+        self.assertEqual(m + pack(self.UNIFORM, self.AVAIL, start=m), 40,
+                         "the view starting at max_cur must reach the end")
+
+    def test_one_past_the_range_would_overshoot(self):
+        """19 is the LARGEST such index, not merely one that works."""
+        m = max_cur(self.UNIFORM, self.AVAIL)
+        self.assertLess(m - 1 + pack(self.UNIFORM, self.AVAIL, start=m - 1), 40,
+                        "max_cur-1 must NOT already reach the end")
+
+    def test_the_range_does_not_depend_on_where_the_view_is(self):
+        """The defect, isolated. The old expression gave 25/24/25 here."""
+        m = max_cur(self.VARIED, self.AVAIL)
+        old = [len(self.VARIED) - pack(self.VARIED, self.AVAIL, start=c)
+               for c in (0, 10, 25)]
+        self.assertGreater(len(set(old)), 1,
+                           "if the old expression were stable this pins nothing")
+        for c in (0, 5, 10, 20, 30, 39):
+            self.assertEqual(max_cur(self.VARIED, self.AVAIL), m,
+                             f"range moved when the view sat at {c}")
+
+    def test_varied_range_reaches_the_last_row(self):
+        m = max_cur(self.VARIED, self.AVAIL)
+        self.assertEqual(m + pack(self.VARIED, self.AVAIL, start=m), 40)
+
+    def test_a_list_that_all_fits_has_no_range(self):
+        self.assertEqual(max_cur([1.0] * 5, 50.0), 0)
+
+    def test_an_exact_fit_has_no_range(self):
+        self.assertEqual(max_cur([1.0] * 21, 21.0), 0)
+
+    def test_empty(self):
+        self.assertEqual(max_cur([], 50.0), 0)
+
+    def test_a_single_row_taller_than_the_box_is_still_reachable(self):
+        # pack_slots always draws one row rather than none; the range agrees.
+        self.assertEqual(max_cur([100.0], 21.0), 0)
+        self.assertEqual(max_cur([1.0, 1.0, 100.0], 21.0), 2)
+
+    def test_the_item_gap_counts_against_the_space(self):
+        self.assertGreater(max_cur(self.UNIFORM, self.AVAIL, 0.5),
+                           max_cur(self.UNIFORM, self.AVAIL, 0.0),
+                           "gaps mean fewer rows fit, so the range is longer")
+
+    def test_matches_reveal_cur_for_the_last_row(self):
+        """Both are the same back-pack; revealing the last row IS the range."""
+        m = max_cur(self.VARIED, self.AVAIL)
+        self.assertEqual(reveal_cur(len(self.VARIED) - 1, 0, self.VARIED,
+                                    self.AVAIL), m)
 
 
 class TestCalcMaxReportsAverage(unittest.TestCase):

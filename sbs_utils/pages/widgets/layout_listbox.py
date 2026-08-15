@@ -197,6 +197,35 @@ def pack_slots(heights, avail, item_height=0.0, start=0):
     return slots
 
 
+def _back_pack(heights, avail, item_height, sel):
+    """The topmost row that can start the view while row `sel` still fits at the
+    BOTTOM. Packs upward from `sel`, taking rows until the next one overflows."""
+    used = 0.0
+    first = sel
+    for back in range(sel, -1, -1):
+        h = heights[back] + item_height
+        if used + h > avail and back != sel:
+            break
+        used += h
+        first = back
+    return max(0, first)
+
+
+def max_cur(heights, avail, item_height=0.0):
+    """The largest `cur` that still shows the LAST row -- the scroll RANGE.
+
+    Not `len(heights) - pack_slots(..., start=cur)`. That counts how many rows fit
+    *from where the view happens to be*, which with real per-row heights changes as
+    you scroll: the same 40-item list reported a range of 19 at cur=0 and 39 at
+    cur=39, so the scrollbar's own `high` moved under the thumb and the list could
+    scroll off its own end. This answer does not depend on `cur` at all.
+    """
+    count = len(heights)
+    if count == 0:
+        return 0
+    return _back_pack(heights, avail, item_height, count - 1)
+
+
 def reveal_cur(sel, cur, heights, avail, item_height=0.0):
     """Where the view must start so row `sel` is visible, moving the LEAST.
 
@@ -222,15 +251,7 @@ def reveal_cur(sel, cur, heights, avail, item_height=0.0):
         return sel
     if sel < cur + slots:
         return cur                      # already visible: do not move
-    used = 0.0
-    first = sel
-    for back in range(sel, -1, -1):
-        h = heights[back] + item_height
-        if used + h > avail and back != sel:
-            break
-        used += h
-        first = back
-    return max(0, first)
+    return _back_pack(heights, avail, item_height, sel)
 
 
 class LayoutListbox(layout.Column):
@@ -266,6 +287,10 @@ class LayoutListbox(layout.Column):
         self.select_color = "#bbb5"
         self.click_color = "black"
         self.cur = 0
+        # The scroll range the last draw published. on_scroll inverts the slider
+        # about it, and a draw with no scrollbar never sets it -- so it needs a
+        # value from the start rather than an AttributeError.
+        self.extra_slot_count = 0
         self.carousel = carousel
         self.collapsible = collapsible
         self.read_only = read_only
@@ -645,6 +670,23 @@ class LayoutListbox(layout.Column):
             avail = self.bounds.bottom - top
             heights = [self._item_heights.get(id(it), avg_item_height)
                        for it in self.items]
+
+            # The scroll RANGE, and the only place that knows the geometry it
+            # depends on. Every path that moves the view -- set_selected_index,
+            # apply_selection_hint, on_scroll, a bare `lb.cur = n` -- funnels
+            # through here, so this is the one clamp instead of several that
+            # would each need `heights` and `avail`. Without it
+            # set_selected_index(35) of 40 scrolled past the end of the list and
+            # the scrollbar grew its own `high` to cover for it.
+            #
+            # Not a carousel: its window is one item BY DEFINITION, so `cur`
+            # picks which item rather than where a window starts, and a packed
+            # range would pin it to the first one. Same carve-out as the reveal
+            # below.
+            scroll_max = max_cur(heights, avail, item_gap)
+            if not self.carousel:
+                cur_start = min(cur_start, scroll_max)
+                self.cur = cur_start
             max_slots = pack_slots(heights, avail, item_gap, cur_start)
 
             # Opt-in, vertical only, never a carousel (whose window is one item
@@ -668,7 +710,12 @@ class LayoutListbox(layout.Column):
         max_slots = int(max_slots)
         if self.carousel:
             max_slots = 1
-        extra_slot_count = len(self._items)-max_slots
+        if self.horizontal or self.carousel:
+            # Uniform widths, and a carousel window is one item by definition --
+            # both counts are already independent of where the view is.
+            extra_slot_count = len(self._items)-max_slots
+        else:
+            extra_slot_count = scroll_max
 
         if extra_slot_count <0:
             extra_slot_count = 0
