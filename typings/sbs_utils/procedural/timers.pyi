@@ -234,6 +234,25 @@ def timeout_sim (seconds=0, minutes=0) -> sbs_utils.procedural.timers.Delay:
     
     Example:
         await comms(timeout=timeout_sim(minutes=2))"""
+def timer_add_time (id_or_obj, name, seconds=0, minutes=0):
+    """Add (or subtract) time on a timer that is currently running.
+
+    A no-op when the timer was never set or has already expired - use ``set_timer``
+    to start a fresh one. Times may be negative, which shortens the timer and can
+    expire it outright.
+
+    Args:
+        id_or_obj (Agent | int): Agent ID or object.
+        name (str): Timer name.
+        seconds (int, optional): Seconds to add. Negative shortens. Defaults to 0.
+        minutes (int, optional): Additional minutes to add. Defaults to 0.
+
+    Returns:
+        bool: ``True`` if a running timer was adjusted.
+
+    Example:
+        set_timer(SHIP_ID, "repair", seconds=30)
+        timer_add_time(SHIP_ID, "repair", seconds=15)   # damaged mid-repair"""
 class Delay(Promise):
     """class Delay"""
     def __init__ (self, seconds, minutes, sim) -> None:

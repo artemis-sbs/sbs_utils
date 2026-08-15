@@ -38,6 +38,13 @@
   `gui_message_clear(widget)` detaches every handler when you want to replace
   rather than add.
 - `gui_icon_button` takes `data` and `on_press`, matching `gui_button` (LM #708).
+- New `timer_add_time(id_or_obj, name, seconds, minutes)` extends or shortens a
+  timer that is already running, without the read-remaining/re-set round trip
+  (contributed by astrolamb-gaming, PR #60). It adjusts the stored expiry tick
+  directly, so no fraction of a second is lost per call. Negative values shorten
+  and may expire the timer; a timer that was never set, or has already finished,
+  is left alone and the call returns False. Each adjustment emits
+  `timer_updated` with `TIMER_AGENT_ID` and `TIMER_NAME`.
   An icon button had no way to say which row it belonged to, so a loop that built
   one per item could only close over the loop variable - every handler then read
   it at its final value. `gui_icon_button("icon_index:1;", data={"slot": i})`

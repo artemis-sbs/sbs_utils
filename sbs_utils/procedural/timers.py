@@ -1,4 +1,3 @@
-from .signal import signal_emit
 from .inventory import get_inventory_value, set_inventory_value
 from ..helpers import FrameContext
 from ..futures import Promise, awaitable
@@ -67,26 +66,48 @@ def is_timer_finished(id_or_obj, name):
     return False
 
 def timer_add_time(id_or_obj, name, seconds=0, minutes=0):
-    """
-    Add time to an existing timer. Will do nothing if timer does not exist or if it is already finished.
-    Times may be positive or negative integers.
+    """Add (or subtract) time on a timer that is currently running.
+
+    A no-op when the timer was never set or has already expired - use ``set_timer``
+    to start a fresh one. Times may be negative, which shortens the timer and can
+    expire it outright.
 
     Args:
         id_or_obj (Agent | int): Agent ID or object.
         name (str): Timer name.
-        seconds (int, optional): The number of seconds to add. Optional, default is 0.
-        minutes (int, optional): The number of minutes to add. Optional, default is 0.
+        seconds (int, optional): Seconds to add. Negative shortens. Defaults to 0.
+        minutes (int, optional): Additional minutes to add. Defaults to 0.
+
+    Returns:
+        bool: ``True`` if a running timer was adjusted.
+
+    Example:
+        set_timer(SHIP_ID, "repair", seconds=30)
+        timer_add_time(SHIP_ID, "repair", seconds=15)   # damaged mid-repair
     """
-    time = get_time_remaining(id_or_obj, name)
-    if time is None:
-        return
-    if time <= 0:
-        return
-    seconds += minutes*60
-    new_time = time + seconds
-    new_time *= TICK_PER_SECONDS
-    set_inventory_value(id_or_obj, f"__timer__{name}", new_time)
-    signal_emit("timer_updated", {"id":id_or_obj, "timer_name":name})
+    # Timers store an ABSOLUTE sim tick (see set_timer), so the adjustment is made
+    # against that tick in ticks. Going via get_time_remaining would both drop the
+    # `now` offset and truncate to whole seconds, shedding up to a second per call.
+    target = get_inventory_value(id_or_obj, f"__timer__{name}")
+    if target is None or target == 0:
+        return False
+    now = FrameContext.context.sim.time_tick_counter
+    if now > target:
+        # Already finished. Extending an expired timer would silently resurrect it.
+        return False
+    target += (seconds + minutes*60) * TICK_PER_SECONDS
+    # A stored 0 reads as "never set" to every other function here, so a large
+    # negative adjustment has to leave the timer FINISHED, never UNSET.
+    target = max(target, 1)
+    set_inventory_value(id_or_obj, f"__timer__{name}", target)
+    # Imported here, not at module scope: signal.py already lazy-imports Delay from
+    # this module, and both stub.py and MastGlobals.import_python_module re-export
+    # whatever sits in this namespace - a top-level import would publish a second
+    # signal_emit into the stubs and the MAST global table.
+    from .signal import signal_emit
+    from .query import to_id
+    signal_emit("timer_updated", {"TIMER_AGENT_ID": to_id(id_or_obj), "TIMER_NAME": name})
+    return True
 
 
 def format_time_remaining(id_or_obj, name):
