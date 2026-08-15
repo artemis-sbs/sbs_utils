@@ -524,6 +524,43 @@ def grid_get_theme_name(ship_key, layout=None):
     return entry.get("theme")
 
 
+def grid_get_damcons(ship_key, layout=None):
+    """The damcon-team declaration for a hull (or one of its layouts), or ``None``.
+
+    ``None`` - which is what every hull that says nothing returns, and that is nearly all
+    of them - means "three teams, wherever the engine puts them", exactly as before. That
+    sentinel is what keeps the shipped floor plans and every third-party hull working
+    unchanged.
+
+    Otherwise ``{"count": int, "posts": [[x, y], ...]}``: how many damage-control teams
+    this interior has, and where they are stationed. Fewer posts than teams is fine - the
+    rest are engine-placed. A post is also the team's permanent rally point, because the
+    prefab spawns the rally marker on the cell it is given, so posting a team by the
+    nacelles is all it takes to keep it there.
+
+    Read as a sibling of ``grid_objects``/``theme``, at the entry level or inside a named
+    layout, most specific winning - the same shape :func:`grid_get_theme_name` uses. A
+    layout expressed as a bare list has nowhere to hold one and falls back to the entry.
+
+    Args:
+        ship_key (str): Ship key as defined in shipData.
+        layout (str, optional): Layout name. Defaults to ``"default"``.
+
+    Returns:
+        dict | None: Normalized declaration, or ``None`` when the hull declares nothing.
+    """
+    from .grid_ascii import grid_normalize_damcons
+    entry = grid_get_grid_data().get(ship_key)
+    if not isinstance(entry, dict):
+        return None
+    layouts = entry.get("layouts")
+    if isinstance(layouts, dict):
+        chosen = layouts.get(layout or "default")
+        if isinstance(chosen, dict) and chosen.get("damcons") is not None:
+            return grid_normalize_damcons(chosen.get("damcons"))
+    return grid_normalize_damcons(entry.get("damcons"))
+
+
 _grid_theme = None
 def grid_get_grid_theme():
     """Get the grid data from all the grid_data.json files

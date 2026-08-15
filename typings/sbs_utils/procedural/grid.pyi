@@ -111,6 +111,22 @@ def grid_detailed_status (id_or_obj, status, color=None):
         status (str): Status string to display.
         color (str, optional): Text color. ``None`` keeps the current value.
             Defaults to None."""
+def grid_get_damcons (ship_key, layout=None):
+    """The damcon-team declaration for a hull (or one of its layouts), or ``None``.
+    
+    ``None`` - which is what every hull that says nothing returns, and that is nearly all
+    of them - means "three teams, wherever the engine puts them", exactly as before.
+    
+    Otherwise ``{"count": int, "posts": [[x, y], ...]}``: how many damage-control teams
+    this interior has, and where they are stationed. A post is also the team's permanent
+    rally point.
+    
+    Args:
+        ship_key (str): Ship key as defined in shipData.
+        layout (str, optional): Layout name. Defaults to ``"default"``.
+    
+    Returns:
+        dict | None: Normalized declaration, or ``None`` when the hull declares nothing."""
 def grid_get_grid_current_theme ():
     """Get the currently active grid theme data.
     

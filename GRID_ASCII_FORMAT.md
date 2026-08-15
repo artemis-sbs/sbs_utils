@@ -88,6 +88,48 @@ state.
 engine's own `is_grid_point_open` when running in Cosmos, a PNG alpha decode in the mock
 and in offline tooling. Regenerating the outline when a mask changes is the same code.
 
+### 3.1 `damcons:` - how many teams, and where they stand
+
+LegendaryMissions #381 asked for two things: a grid that needs no hallway, and damage
+control teams as part of the grid data. The declaration is a **header key**, not a map
+character:
+
+```
+damcons: <token> [<token> ...]      # a bare int is the COUNT; "x,y" is a POST
+
+damcons: 3                          # three teams, engine-placed (today, written down)
+damcons: 5                          # five teams, engine-placed
+damcons: 3,2  1,4  5,4              # three posts -> count 3
+damcons: 5  3,2  1,4                # five teams; DC1/DC2 posted, the rest engine-placed
+```
+
+**Why not a map character.** A post *coexists* with whatever occupies its cell, and the
+map is one character per cell - so a post character would have to delete a room to make
+space for it. On a hull with no hallway that is every cell, which is precisely the state
+#381 exists to support. `' '` and `'.'` are reserved and rejected as legend keys, an
+overlay map doubles the file, and the header already holds the other whole-ship facts
+(`size:`, `theme:`).
+
+Compatibility falls out of that choice: the parser collects unknown header keys and
+ignores them, so an **older** parser reading a file with `damcons:` still loads every
+room. An unknown *map* character, by contrast, is a hard `GridAsciiError`.
+
+**Absent is not the same as `3`.** A plan with no `damcons:` line round-trips to an entry
+with no `damcons` key, and `grid_get_damcons` returns `None` - the sentinel that keeps
+every shipped floor plan and every third-party hull on exactly the old code path. Posts
+above the stated count raise the count (four posts and `3` is a typo whose only sane
+reading is four).
+
+**A post is also the rally point.** `prefab_lifeform_damcons` spawns the team's rally
+marker on the cell it is handed and seeds `blackboard:idle_pos` from it, so posting a team
+by the nacelles keeps it there - no separate rally declaration, and no change to the brain.
+
+**A bad coordinate is an authoring error, never a runtime one.** `grid_ascii_validate`
+reports a post that is off the grid or off the hull as an *error*; at runtime
+`grid_restore_damcons` logs a warning and lets the engine choose instead, because one typo
+must never leave a ship with no damage control. An *occupied* post is accepted silently -
+that is the whole point.
+
 ---
 
 ## 4. Open design questions

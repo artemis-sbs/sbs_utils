@@ -18,7 +18,8 @@ test_set_exe_dir()
 import unittest
 
 from sbs_utils.procedural.grid_ascii import (GridAsciiError, grid_ascii_parse,
-                                             grid_ascii_render, grid_ascii_validate)
+                                             grid_ascii_parse_damcons, grid_ascii_render,
+                                             grid_ascii_validate, grid_normalize_damcons)
 from sbs_utils.procedural.grid_rooms import grid_room_roles
 
 
@@ -229,6 +230,90 @@ class TestValidator(unittest.TestCase):
                          {"tsn_missile_cruiser": 17, "science_ship": 5,
                           "starbase_industry": 4, "transport_ship": 2},
                          "the set of off-hull rooms in the shipped data changed")
+
+
+class TestDamconsHeader(unittest.TestCase):
+    """The `damcons:` declaration - the second half of LM #381.
+
+    The load-bearing property is that ABSENT is not the same as 3. A plan that says nothing
+    must round-trip to an entry with NO damcons key, because that sentinel is what keeps all
+    63 shipped floor plans and every third-party hull on exactly the old code path.
+    """
+
+    PLAN = """ship: t
+layout: default
+size: 3x1
+{dc}legend:
+  i: impulse
+---
+iii
+"""
+
+    def _parse(self, dc_line=""):
+        return grid_ascii_parse(self.PLAN.format(dc=dc_line))
+
+    def _room(self):
+        return [{"x": 0, "y": 0, "name": "impulse", "roles": grid_room_roles("impulse")}]
+
+    def test_no_header_declares_nothing(self):
+        self.assertNotIn("damcons", self._parse()["entry"])
+
+    def test_a_bare_number_is_the_count(self):
+        self.assertEqual(self._parse("damcons: 5\n")["entry"]["damcons"],
+                         {"count": 5, "posts": []})
+
+    def test_posts_alone_set_the_count(self):
+        self.assertEqual(self._parse("damcons: 1,0  2,0\n")["entry"]["damcons"],
+                         {"count": 2, "posts": [[1, 0], [2, 0]]})
+
+    def test_count_and_posts_together(self):
+        self.assertEqual(self._parse("damcons: 5  1,0  2,0\n")["entry"]["damcons"],
+                         {"count": 5, "posts": [[1, 0], [2, 0]]})
+
+    def test_more_posts_than_the_count_raises_the_count(self):
+        """Four posts and "3" is a typo whose only sane reading is four."""
+        entry = self._parse("damcons: 3  0,0  1,0  2,0  1,0\n")["entry"]
+        self.assertEqual(entry["damcons"]["count"], 4)
+
+    def test_unreadable_tokens_are_an_error_not_a_guess(self):
+        for bad in ("damcons: two\n", "damcons: x,0\n", "damcons: 1,\n"):
+            with self.assertRaises(GridAsciiError):
+                self._parse(bad)
+
+    def test_json_short_forms_normalize(self):
+        self.assertEqual(grid_normalize_damcons(5), {"count": 5, "posts": []})
+        self.assertEqual(grid_normalize_damcons([[3, 2], [1, 4]]),
+                         {"count": 2, "posts": [[3, 2], [1, 4]]})
+        self.assertIsNone(grid_normalize_damcons(None))
+        self.assertIsNone(grid_ascii_parse_damcons(None))
+
+    def test_render_round_trips_a_declaration(self):
+        dc = {"count": 5, "posts": [[1, 0], [2, 0]]}
+        text = grid_ascii_render("t", self._room(), 3, 1, damcons=dc)
+        self.assertIn("damcons: 5  1,0  2,0", text)
+        self.assertEqual(grid_ascii_parse(text)["entry"]["damcons"], dc)
+
+    def test_render_writes_no_header_when_nothing_is_declared(self):
+        """Writing today's default out explicitly would migrate every shipped plan."""
+        text = grid_ascii_render("t", self._room(), 3, 1)
+        self.assertNotIn("damcons", text)
+        self.assertNotIn("damcons", grid_ascii_parse(text)["entry"])
+
+    def test_a_post_off_the_grid_or_off_the_hull_is_an_error(self):
+        cells = [[True, True, False]]
+        def levels(dc):
+            return [lvl for lvl, _ in
+                    grid_ascii_validate(self._room(), 3, 1, cells, damcons=dc)]
+        self.assertIn("error", levels({"count": 1, "posts": [[9, 9]]}))
+        self.assertIn("error", levels({"count": 1, "posts": [[2, 0]]}))
+        self.assertNotIn("error", levels({"count": 1, "posts": [[1, 0]]}))
+
+    def test_duplicate_posts_warn_and_zero_teams_warns(self):
+        out = grid_ascii_validate(self._room(), 3, 1,
+                                  damcons={"count": 2, "posts": [[1, 0], [1, 0]]})
+        self.assertIn("warn", [lvl for lvl, _ in out])
+        out = grid_ascii_validate(self._room(), 3, 1, damcons={"count": 0, "posts": []})
+        self.assertIn("warn", [lvl for lvl, _ in out])
 
 
 if __name__ == "__main__":

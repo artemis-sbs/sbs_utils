@@ -79,7 +79,31 @@ Files are named **race first** (`myrace_cruiser.grid`, `myrace_fleets.yaml`) so 
 for one race sorts together â€” a mastlib zip is flat, so names must be unique across the
 whole add-on.
 
-Floor plans are ASCII grid files (`.grid`). Fleet ladders are YAML, and have a page of
+Floor plans are ASCII grid files (`.grid`) — a header, a room legend, then the map, one
+character per grid cell:
+
+```
+ship: myrace_cruiser
+layout: default
+size: 7x7
+damcons: 3  3,2  1,4  5,4       # optional: how many teams, and where they stand
+legend:
+  e: crew-quarters
+  m: impulse
+---
+  pbp
+ itfSi
+ epepe
+```
+
+A plan may fill **every** open cell with rooms — a hull needs no hallway, and the damage
+control teams are placed on room cells. `damcons:` is optional: a bare number is the team
+count, an `x,y` is a post assigned in team order (`DC1`, `DC2`, …), and a post is also that
+team's permanent rally point, so you can station one by the nacelles. Say nothing and the
+hull gets the usual three, wherever the engine puts them. Full format:
+`GRID_ASCII_FORMAT.md`.
+
+Fleet ladders are YAML, and have a page of
 their own â€” the file format, the difficulty encoding and per-faction sides are all in
 **[Fleets & raiding](fleets.md)**.
 

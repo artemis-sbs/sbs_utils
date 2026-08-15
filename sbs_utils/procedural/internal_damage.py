@@ -5,7 +5,7 @@ from .inventory import get_inventory_value, set_inventory_value
 from .grid import (grid_objects, grid_objects_at, grid_closest, grid_get_grid_data,
                    grid_get_item_theme_data, grid_get_grid_current_theme,
                    grid_get_grid_named_theme, grid_get_layout, grid_get_theme_name,
-                   grid_delete_object, grid_valid_blob)
+                   grid_delete_object, grid_valid_blob, grid_get_damcons)
 from .spawn import grid_spawn
 from .comms import comms_broadcast
 from .settings import settings_get_defaults
@@ -13,12 +13,17 @@ from .prefab import prefab_spawn
 
 from .space_objects import get_pos
 from .signal import signal_emit
+from .execution import log
 from ..helpers import FrameContext
 from ..agent import Agent
 from ..fs import is_dev_build
 
 import random
 
+
+# Teams on a hull whose interior data does not say. Every shipped floor plan and every
+# third-party hull is in that case, so this is the number that must not change.
+DEFAULT_DAMCON_COUNT = 3
 
 _MAX_HP = 6
 def grid_set_max_hp(max_hp):
@@ -194,30 +199,38 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None, layout=None):
     # set_damage_coefficients is in internal_damage
     #
     set_damage_coefficients(ship_id)
-    grid_restore_damcons(ship_id)
+    # Pass the layout we resolved: the ship's own "grid_layout" may not be the one this
+    # rebuild was asked for, and the damcon declaration lives per layout.
+    grid_restore_damcons(ship_id, layout)
 
     #
     # Create marker
     #
-    v = SBS.vec3(0.5,0,0.5)
-    loc = SBS.find_valid_grid_point_for_vector3(ship_id, v, 5)
-    if len(loc)==0:
+    hm = SBS.get_hull_map(ship_id)
+    # The marker and the EPad used to make the IDENTICAL unfiltered call with no state
+    # change between them, so they landed on the same cell on every hull, always. Sharing
+    # the damcons' resolver keeps them apart.
+    placed = set()
+    loc = _grid_resolve_point(SBS, ship_id, hm, None, placed, prefer_empty=False,
+                              who="marker")
+    if loc is None:
         return
+    placed.add((loc[0], loc[1]))
     loc_x = loc[0]
     loc_y = loc[1]
     ship = ship_id & 0xFFFFFFFF
     marker_tag = f"marker:{ship}"
     # marker is named hallway
     # 23 flag, 101-filled square, 111
-    marker_go = grid_spawn(ship_id, "marker", marker_tag, int(loc_x),int(loc_y), 101, "#9994", "#,marker") 
+    marker_go = grid_spawn(ship_id, "marker", marker_tag, int(loc_x),int(loc_y), 101, "#9994", "#,marker")
     marker_go.blob.set("icon_scale",1.5,0)
     marker_go.engine_object.layer = 6
     marker_go_id =  to_id(marker_go)
     set_inventory_value(ship_id, "marker_id", marker_go_id)
     # Create EPAD
-    v = SBS.vec3(0.5,0,0.5)
-    loc = SBS.find_valid_grid_point_for_vector3(ship_id, v, 5)
-    if len(loc)==0:
+    loc = _grid_resolve_point(SBS, ship_id, hm, None, placed, prefer_empty=False,
+                              who="epad")
+    if loc is None:
         return
     loc_x = loc[0]
     loc_y = loc[1]
@@ -231,11 +244,152 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None, layout=None):
     set_inventory_value(ship_id, "epad_id", epad_go.id)
 
 
-def grid_restore_damcons(id_or_obj):
-    """Restore all damcon teams on a ship to full health, creating them if missing.
+def _grid_retire_extra_damcons(hm, ship_id, count):
+    """Delete DC teams above ``count`` - a hull whose declaration shrank, or a refit.
+
+    Matches ``DC<n>`` carrying the ``damcons`` role only, so nothing else on the grid can
+    be caught by a name that happens to look like one.
+    """
+    n = count + 1
+    while True:
+        go = hm.get_grid_object_by_name(f"DC{n}")
+        if go is None:
+            break
+        gid = go.unique_ID
+        if to_object(gid) is not None and has_role(gid, "damcons"):
+            grid_delete_object(ship_id, gid)
+        n += 1
+
+
+def _grid_resolve_point(SBS, ship_id, hm, declared, used=None, prefer_empty=True, who=""):
+    """Where to put one grid object: the declared cell if it is usable, else the engine's.
+
+    ``None`` only when the hull has no usable cell at all.
+
+    A DECLARED cell that is occupied is accepted without comment - that is the entire
+    point of an interior with no hallway (LM #381), and damcons walk over room cells
+    constantly. A declared cell that is off the hull is a WARNING and falls through to the
+    finder: one bad coordinate must never leave a ship without damage control, and a
+    shipData resize can invalidate a good declaration without anyone touching the floor
+    plan. ``grid_ascii_validate`` is where an author is told loudly.
+
+    Args:
+        SBS: The sbs module.
+        ship_id (int): The host ship.
+        hm: Its hull map.
+        declared (list | None): ``[x, y]`` the interior asked for, if any.
+        used (set, optional): ``(x, y)`` cells already taken in this pass, to spread.
+        prefer_empty (bool): Try the unoccupied finder before the tolerant one.
+        who (str): Name for the warning, e.g. ``"DC2"``.
+
+    Returns:
+        list[int] | None: ``[x, y]``.
+    """
+    used = set() if used is None else used
+    if declared is not None:
+        x, y = int(declared[0]), int(declared[1])
+        w = getattr(hm, "w", 0) or 0
+        h = getattr(hm, "h", 0) or 0
+        if 0 <= x < w and 0 <= y < h and hm.is_grid_point_open(x, y):
+            return [x, y]
+        log(f"declared damcon post {who} at {x},{y} is not on this hull "
+            f"({w}x{h}) - letting the engine choose instead", "grid", "warning")
+
+    v = SBS.vec3(0.5, 0, 0.5)
+    point = []
+    if prefer_empty:
+        point = SBS.find_valid_unoccupied_grid_point_for_vector3(ship_id, v, 5)
+    # A hull whose every open cell holds a room has no unoccupied cell at all - a
+    # legitimate floor plan (LM #381), not an error - so fall back to a finder that only
+    # requires the cell to be on the hull.
+    if len(point) == 0:
+        point = SBS.find_valid_grid_point_for_vector3(ship_id, v, 5)
+    if len(point) == 0:
+        return None
+    return _grid_unused_point(hm, point, used)
+
+
+def _grid_unused_point(hm, point, used):
+    """The nearest open cell to ``point`` that is not already in ``used``.
+
+    ``point`` itself when it is free, and ``point`` again when the hull has no free cell
+    left - a ship with fewer open cells than damcon teams still gets its teams, stacked,
+    rather than losing one.
+
+    Only reached when the occupancy-tolerant finder had to be used, i.e. on a hull with no
+    empty cell. The engine's finders take no "avoid these" argument and have no memory
+    across a loop, so spreading the teams is the caller's job.
+
+    Args:
+        hm: The ship's hull map.
+        point (list[int]): ``[x, y]`` the engine chose.
+        used (set): ``(x, y)`` cells already taken in this pass.
+
+    Returns:
+        list[int]: ``[x, y]``.
+    """
+    if (point[0], point[1]) not in used:
+        return point
+    w = getattr(hm, "w", 0) or 0
+    h = getattr(hm, "h", 0) or 0
+    if w <= 0 or h <= 0:
+        return point
+    for r in range(1, w + h + 1):
+        for dy in range(-r, r + 1):
+            for dx in range(-r, r + 1):
+                # Ring only, so nearer cells win.
+                if max(abs(dx), abs(dy)) != r:
+                    continue
+                x, y = point[0] + dx, point[1] + dy
+                if x < 0 or y < 0 or x >= w or y >= h:
+                    continue
+                if (x, y) in used:
+                    continue
+                if not hm.is_grid_point_open(x, y):
+                    continue
+                return [x, y]
+    return point
+
+
+def grid_damcon_count(id_or_obj, layout=None):
+    """How many damcon teams this ship's interior declares.
+
+    ``3`` for every hull that declares nothing, which is nearly all of them.
 
     Args:
         id_or_obj (Agent | int): The player ship agent ID or object.
+        layout (str, optional): Layout name. Defaults to the ship's ``grid_layout``.
+
+    Returns:
+        int: The team count.
+    """
+    decl = _grid_damcon_decl(to_id(id_or_obj), layout)
+    return DEFAULT_DAMCON_COUNT if decl is None else decl["count"]
+
+
+def _grid_damcon_decl(ship_id, layout=None):
+    """The hull's damcon declaration, or ``None`` when it declares nothing."""
+    so = to_object(ship_id)
+    if so is None:
+        return None
+    if layout is None:
+        layout = get_inventory_value(ship_id, "grid_layout", None)
+    return grid_get_damcons(so.art_id, layout)
+
+
+def grid_restore_damcons(id_or_obj, layout=None):
+    """Restore all damcon teams on a ship to full health, creating them if missing.
+
+    How many teams there are, and where they stand, come from the hull's interior data
+    when it says (``grid_get_damcons``); otherwise three teams wherever the engine puts
+    them, exactly as before. A declared post is also the team's permanent rally point,
+    because the prefab spawns the rally marker on the cell it is handed.
+
+    Args:
+        id_or_obj (Agent | int): The player ship agent ID or object.
+        layout (str, optional): Layout name. Defaults to the ship's ``grid_layout``
+            inventory value. Pass it explicitly when rebuilding into a layout the ship has
+            not been switched to yet.
     """
     SBS = FrameContext.context.sbs
     ship_id = to_id(id_or_obj)
@@ -244,6 +398,10 @@ def grid_restore_damcons(id_or_obj):
 
     hm = SBS.get_hull_map(ship_id)
     if hm is None: return
+
+    decl = _grid_damcon_decl(ship_id, layout)
+    count = DEFAULT_DAMCON_COUNT if decl is None else decl["count"]
+    posts = [] if decl is None else decl["posts"]
 
     item_theme_data = grid_get_item_theme_data("damcons")
     rally_theme_data = grid_get_item_theme_data("rally_point")
@@ -261,12 +419,29 @@ def grid_restore_damcons(id_or_obj):
     # Create damcons/lifeforms
     #
     color_count = len(colors)
-    for i in range(3):
+    # Cells already handed out in THIS call. The engine's finder has no memory across the
+    # loop, so on a hull with no empty cell it returns the SAME cell three times and all
+    # three teams (and their rally markers) stack, reading as one team on the engineering
+    # display. On a hull with hallways the unoccupied finder spreads them for free, because
+    # each new team occupies the cell it took.
+    used = set()
+    _grid_retire_extra_damcons(hm, ship_id, count)
+    for i in range(count):
         # See if damcon exists
         _name = f"DC{i+1}"
         _test_go = hm.get_grid_object_by_name(_name)
-        
+        # A name lookup asks the ENGINE, which still lists a grid object whose native free
+        # is only queued. grid_delete_object tombstones the Agent now and defers the free to
+        # the end of the event handler, so during a REBUILD (which deletes every grid object
+        # and then calls us) the old DC1..DC3 are still findable by name. Healing one of
+        # those instead of creating a team leaves the ship with NO damage control at all once
+        # the queue drains - every rebuild after the first: player respawn, hangar craft,
+        # any mission that swaps a layout.
+        if _test_go is not None and to_object(_test_go.unique_ID) is None:
+            _test_go = None
+
         if _test_go is not None:
+            used.add((int(_test_go.data_set.get("curx", -1)), int(_test_go.data_set.get("cury", -1))))
             _id = _test_go.unique_ID # _test_go is an object from the engine
             _blob = to_blob(_test_go.unique_ID)
             if _blob is not None:
@@ -275,16 +450,12 @@ def grid_restore_damcons(id_or_obj):
             hp = grid_get_max_hp()
             grid_set_hp(ship_id, _id, hp)
         else:
-            v = SBS.vec3(0.5,0,0.5)
-            point = SBS.find_valid_unoccupied_grid_point_for_vector3(ship_id, v, 5)
-            # Allow it to spawn somewhere
-            if len(point) == 0:
-                point = SBS.find_valid_grid_point_for_vector3(ship_id, v, 5)
-                
-            if len(point) == 0:
+            point = _grid_resolve_point(SBS, ship_id, hm,
+                                        posts[i] if i < len(posts) else None,
+                                        used, prefer_empty=True, who=_name)
+            if point is None:
                 break
-            icon = item_theme_data.icon
-            scale = item_theme_data.scale
+            used.add((point[0], point[1]))
 
             dc = None
             color = colors[i%color_count]
@@ -292,12 +463,21 @@ def grid_restore_damcons(id_or_obj):
 
 
             if interns:
+                # The prefab does the whole job: it grid_spawns the team, its rally marker,
+                # and seeds "blackboard:idle_pos" (LM ai/grid_brains.mast). It contains no
+                # await, so its task is always done() in-frame and dc is the team.
                 dc_task = prefab_spawn(prefab_label, {"ship_id": ship_id, "NAME":_name, "START_X": point[0], "START_Y": point[1], "COLOR": color, "DAMAGE_COLOR":damage_color})
+                if dc_task is None:
+                    # Bad PREFAB_DAMCONS override, or the LM "ai" mastlib is not loaded.
+                    log(f"damcon prefab '{prefab_label}' not found - {_name} not created", "grid", "error")
+                    continue
                 if dc_task.done():
                     dc = dc_task.result()
-                if dc is not None:
+                if dc is None:
+                    log(f"damcon prefab '{prefab_label}' yielded no result for {_name}", "grid", "error")
                     continue
-                
+                continue
+
 #region TODO: Old Damcons remove
             # if not interns and dc is None:
             #     icon = 2
@@ -318,18 +498,13 @@ def grid_restore_damcons(id_or_obj):
             #     _blob.set("icon_scale", rally_scale, 0)
             #     set_inventory_value(_id, "idle_marker", to_id(idle_marker))
 #endregion
-            
-            dc.engine_object.layer = 4
-            dc.blob.set("icon_scale", scale,0 )
-            _id = to_id(dc)
-            _go = to_object(dc)
-            set_inventory_value(_id, "color", colors[i%color_count])
-            set_inventory_value(_id, "damage_color", damage_colors[i%color_count])
-            set_inventory_value(_id, "idle_pos", (point[0], point[1]) )
-            # Hit points == MAX_HP
-            grid_set_hp(ship_id, _id, grid_get_max_hp())
-            
-            
+
+            # Only reachable with interns off, which no longer builds anything. Say so
+            # rather than leaving a ship silently without damage control.
+            log(f"damcons disabled (interns off) - {_name} not created", "grid", "error")
+
+
+
 def grid_apply_system_damage(id_or_obj):
     """Update system-damage counts and coefficients; explode the ship if all nodes are damaged.
 

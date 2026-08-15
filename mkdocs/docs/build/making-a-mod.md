@@ -215,6 +215,11 @@ Three things that bite when writing plans:
   shield into an aft one.
 - **The interior decides the drive.** Warp-vs-jump is derived from whether the plan has
   `warp` or `jump` nodes, not from shipData.
+- **A hull needs no hallway.** A plan may fill every open cell with rooms; the damage
+  control teams are placed on room cells. You can also say how many teams the hull has and
+  where they stand, with an optional `damcons:` header — `damcons: 5  3,2  1,4` is five
+  teams with the first two posted. A post is also the team's rally point. Say nothing and
+  the hull gets the usual three, engine-placed.
 
 Match beam and torpedo **cell** counts to what the hull actually carries, or the ship gets a
 weapons damage pool its guns do not match.

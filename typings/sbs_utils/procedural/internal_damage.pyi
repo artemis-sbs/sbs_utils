@@ -97,6 +97,17 @@ def grid_count_grid_data (ship_key, role, default=0):
     
     Returns:
         int: Number of grid items with the specified role."""
+def grid_damcon_count (id_or_obj, layout=None):
+    """How many damcon teams this ship's interior declares.
+    
+    ``3`` for every hull that declares nothing, which is nearly all of them.
+    
+    Args:
+        id_or_obj (Agent | int): The player ship agent ID or object.
+        layout (str, optional): Layout name. Defaults to the ship's ``grid_layout``.
+    
+    Returns:
+        int: The team count."""
 def grid_damage_grid_object (ship_id, grid_id, damage_color):
     """Mark a grid object as damaged and apply a damage color to its icon.
     
@@ -269,11 +280,17 @@ def grid_repair_system_damage (id_or_obj, the_system=None):
     Returns:
         bool: ``True`` if a node was repaired; ``False`` if no damaged nodes
             remain for that system."""
-def grid_restore_damcons (id_or_obj):
+def grid_restore_damcons (id_or_obj, layout=None):
     """Restore all damcon teams on a ship to full health, creating them if missing.
     
+    How many teams there are, and where they stand, come from the hull's interior data
+    when it says (``grid_get_damcons``); otherwise three teams wherever the engine puts
+    them, exactly as before. A declared post is also the team's permanent rally point.
+    
     Args:
-        id_or_obj (Agent | int): The player ship agent ID or object."""
+        id_or_obj (Agent | int): The player ship agent ID or object.
+        layout (str, optional): Layout name. Defaults to the ship's ``grid_layout``
+            inventory value."""
 def grid_set_hp (ship_id, GRID_OBJECT_ID, hp):
     """Set the HP of a damcon-team grid object and emit the ``life_form_hp_changed`` signal.
     

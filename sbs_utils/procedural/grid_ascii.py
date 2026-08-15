@@ -10,6 +10,7 @@ FORMAT::
     ship: tsn_light_cruiser
     layout: default
     size: 10x17
+    damcons: 3  3,2  1,4  5,4           # optional: team COUNT and where they stand
     theme: cosmos                       # optional
     legend:
       q: crew-quarters                  # roles come from the room registry
@@ -43,6 +44,11 @@ DELIBERATE OMISSIONS, each with a reason recorded in ``GRID_ASCII_FORMAT.md``:
 * **No roles, normally.** Name -> roles is a function across the corpus (60 names, one
   exception, and that one is two authoring mistakes), so roles live in the registry and
   the legend only overrides.
+* **Damcons are a HEADER key, not a map character.** A team's post coexists with whatever
+  occupies its cell, and the map is one character per cell - so a post character would
+  have to delete a room to make space, which on a hallway-free hull is the whole point of
+  the feature. An absent ``damcons:`` declares NOTHING (not "3"), which is what keeps every
+  existing floor plan on the old path. See ``GRID_ASCII_FORMAT.md`` s3.1.
 
 Stdlib only: this parses inside Cosmos's embedded Python.
 """
@@ -186,8 +192,94 @@ def grid_ascii_parse(text, ship_key=None):
     entry = {"grid_objects": objects}
     if header.get("theme"):
         entry["theme"] = header["theme"]
+    damcons = grid_ascii_parse_damcons(header.get("damcons"))
+    if damcons is not None:
+        entry["damcons"] = damcons
     return {"ship": ship, "layout": header.get("layout", "default"),
             "w": w, "h": h, "entry": entry}
+
+
+def grid_ascii_parse_damcons(text):
+    """Read a ``damcons:`` header value into ``{"count": int, "posts": [[x, y], ...]}``.
+
+    ``None`` for an absent header, which is what keeps every existing floor plan on the
+    old path: no declaration means "three teams, wherever the engine puts them".
+
+    A damcon post COEXISTS with whatever occupies its cell, and the map is one character
+    per cell - so a post cannot be a map character without deleting a room to make room
+    for it, which is exactly the state issue #381 exists to support. Hence a header key.
+
+    Whitespace-separated tokens, one rule covering both facts a hull needs to state::
+
+        damcons: 3                  # three teams, engine-placed (today, written down)
+        damcons: 5                  # five teams, engine-placed
+        damcons: 3,2  1,4  5,4      # three posts -> count 3
+        damcons: 5  3,2  1,4        # five teams; DC1/DC2 posted, the rest engine-placed
+
+    More posts than the stated count raises the count: declaring four posts and asking for
+    three is a typo whose only sane reading is four.
+    """
+    if text is None:
+        return None
+    count = None
+    posts = []
+    for token in str(text).split():
+        if "," in token:
+            sx, _, sy = token.partition(",")
+            try:
+                posts.append([int(sx), int(sy)])
+            except ValueError:
+                raise GridAsciiError(
+                    f"cannot read damcon post {token!r}, expected X,Y")
+        else:
+            try:
+                count = int(token)
+            except ValueError:
+                raise GridAsciiError(
+                    f"cannot read damcon count {token!r}, expected a number or X,Y")
+    if count is None:
+        count = len(posts)
+    count = max(count, len(posts))
+    if count < 0:
+        raise GridAsciiError(f"damcon count {count} is negative")
+    return {"count": count, "posts": posts}
+
+
+def grid_ascii_render_damcons(damcons):
+    """The canonical ``damcons:`` header value, or ``None`` when there is nothing to say.
+
+    Count first, then posts in team order, so a re-render diffs clean.
+    """
+    damcons = grid_normalize_damcons(damcons)
+    if damcons is None:
+        return None
+    parts = [str(damcons["count"])]
+    parts += [f"{int(x)},{int(y)}" for x, y in damcons["posts"]]
+    return "  ".join(parts)
+
+
+def grid_normalize_damcons(damcons):
+    """Accept the short forms a JSON author will write; return the canonical dict.
+
+    ``5`` -> ``{"count": 5, "posts": []}``; ``[[3,2],[1,4]]`` ->
+    ``{"count": 2, "posts": [[3,2],[1,4]]}``. ``None`` stays ``None``, which is the
+    sentinel for "this hull declares nothing".
+    """
+    if damcons is None:
+        return None
+    if isinstance(damcons, bool):
+        return None
+    if isinstance(damcons, int):
+        return {"count": max(0, damcons), "posts": []}
+    if isinstance(damcons, (list, tuple)):
+        posts = [[int(p[0]), int(p[1])] for p in damcons]
+        return {"count": len(posts), "posts": posts}
+    if isinstance(damcons, dict):
+        posts = [[int(p[0]), int(p[1])] for p in damcons.get("posts", [])]
+        count = damcons.get("count")
+        count = len(posts) if count is None else max(0, int(count))
+        return {"count": max(count, len(posts)), "posts": posts}
+    return None
 
 
 # Characters a human reading a floor plan can mistake for each other. Two rooms must
@@ -229,12 +321,17 @@ def _assign_chars(names):
 
 
 def grid_ascii_render(ship_key, objects, w, h, layout="default", theme=None,
-                      open_cells=None):
+                      open_cells=None, damcons=None):
     """Write a floor plan.
 
     ``open_cells`` is the hull shape (rows of booleans, row 0 first) - from the engine
     capture, so the author gets the real outline to paint inside. Without it every
     non-room cell is drawn as hallway, which is honest but loses the silhouette.
+
+    ``damcons`` is the team declaration (see :func:`grid_ascii_parse_damcons`). ``None``
+    writes no header at all rather than writing today's default out explicitly - a plan
+    that declares nothing must round-trip to an entry with no ``damcons`` key, which is
+    what keeps the shipped floor plans and every third-party hull on the old path.
     """
     by_cell = {}
     for o in objects:
@@ -273,6 +370,9 @@ def grid_ascii_render(ship_key, objects, w, h, layout="default", theme=None,
         rows.append("".join(row).rstrip() or OFF_HULL)
 
     head = [f"ship: {ship_key}", f"layout: {layout}", f"size: {w}x{h}"]
+    dc_text = grid_ascii_render_damcons(damcons)
+    if dc_text is not None:
+        head.append(f"damcons: {dc_text}")
     if theme:
         head.append(f"theme: {theme}")
     head.append("legend:")
@@ -286,7 +386,40 @@ def grid_ascii_render(ship_key, objects, w, h, layout="default", theme=None,
 # matters: port/starboard asymmetry is NORMAL in the shipped data (17% of rooms have no
 # counterpart), so flagging it as an error would bury an author in false positives.
 
-def grid_ascii_validate(objects, w, h, open_cells=None, ship_data=None):
+def _validate_damcons(damcons, w, h, open_cells):
+    """Findings for the ``damcons:`` declaration.
+
+    A bad coordinate must be an AUTHORING-time failure, because at runtime the only sane
+    response is to log it and let the engine pick a cell instead - one typo can never be
+    allowed to leave a ship with no damage control.
+    """
+    damcons = grid_normalize_damcons(damcons)
+    if damcons is None:
+        return []
+    out = []
+    seen = set()
+    for i, (x, y) in enumerate(damcons["posts"]):
+        who = f"damcon post DC{i + 1}"
+        if not (0 <= x < w and 0 <= y < h):
+            out.append(("error", f"{who} at {x},{y} is outside the {w}x{h} grid"))
+            continue
+        if open_cells is not None and 0 <= y < len(open_cells) and 0 <= x < len(open_cells[y]):
+            if not open_cells[y][x]:
+                out.append(("error", f"{who} at {x},{y} is outside the hull"))
+                continue
+        if (x, y) in seen:
+            # They stack, and so do their rally markers - one team is what the engineering
+            # display then shows.
+            out.append(("warn", f"{who} shares cell {x},{y} with an earlier team"))
+        seen.add((x, y))
+    if damcons["count"] == 0:
+        out.append(("warn", "0 damcon teams - this ship can never repair itself"))
+    elif damcons["count"] > 6:
+        out.append(("hint", f"{damcons['count']} damcon teams is a lot for one grid"))
+    return out
+
+
+def grid_ascii_validate(objects, w, h, open_cells=None, ship_data=None, damcons=None):
     """Check a layout. Returns a list of ``(level, message)``.
 
     Args:
@@ -294,8 +427,10 @@ def grid_ascii_validate(objects, w, h, open_cells=None, ship_data=None):
         w, h (int): grid dimensions.
         open_cells (list, optional): hull shape, rows of booleans, row 0 first.
         ship_data (dict, optional): the shipData entry, for the weapon-count checks.
+        damcons (dict, optional): the team declaration, as parsed.
     """
     out = []
+    out += _validate_damcons(damcons, w, h, open_cells)
     cells = {}
     for o in objects:
         x, y = int(o["x"]), int(o["y"])
