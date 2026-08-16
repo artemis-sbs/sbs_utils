@@ -56,6 +56,73 @@ await count_goal("enemies_killed", 10)
     reset_count("patrols_complete")
     ```
 
+## Signals instead of polling
+
+A timer is one value in an agent's inventory and nothing runs on its behalf, which is
+why a mission can hold hundreds of them for free — but it also means a script has to
+**ask** whether one is finished. Pass `signal` to `set_timer` and the library emits that
+signal once, when it expires, so a route can react instead:
+
+```
+== start_repairs ==
+    set_timer(SHIP_ID, "repair", seconds=30, signal="repair_done")
+    ->END
+
+//shared/signal/repair_done
+    repair_ship(TIMER_AGENT_ID)
+    ->END
+```
+
+`set_interval` is the repeating sibling — it emits every so often until it is cleared:
+
+```
+== begin_patrol ==
+    set_interval(SHIP_ID, "patrol", "patrol_beat", seconds=30)
+    ->END
+
+//shared/signal/patrol_beat
+    pick_new_patrol_point(TIMER_AGENT_ID)
+    ->END
+
+== stand_down ==
+    clear_interval(SHIP_ID, "patrol")
+    ->END
+```
+
+Every emit carries three variables:
+
+| Variable | Meaning |
+|---|---|
+| `TIMER_AGENT_ID` | The agent the timer or interval is on |
+| `TIMER_NAME` | The timer or interval name |
+| `TIMER_COUNT` | Which beat this is — always `1` for a `set_timer` completion |
+
+!!! warning "Use `//shared/signal` for anything that acts"
+    A plain `//signal/<name>` route runs **once per connected console**, so a five-console
+    bridge repairs the ship five times — and an interval does it five times a beat. Only
+    per-console *display* belongs in `//signal`. See [Signals](../../mast/routes/signals.md).
+
+**Why it is worth using.** The alternative — a watcher task per timer — costs a task
+resumption every tick, forever, for each one. An armed timer knows its deadline as a
+number, so the library keeps only the earliest and a tick costs a single comparison. A
+mission that arms none schedules nothing at all.
+
+### What does and does not fire
+
+- **Nothing fires early.** The signal lands on the same tick `is_timer_finished` starts
+  answering `True`.
+- **The timer is untouched.** `is_timer_set_and_finished`, `get_time_remaining` and
+  `format_time_remaining` all behave exactly as they do without a signal, so a countdown
+  widget and a route can share one timer.
+- **Cleared, re-set without a signal, or its agent deleted → no signal.** Re-setting with
+  `signal` again re-arms it.
+- **`timer_add_time` moves the signal with the deadline** — extend a repair and the
+  completion follows; shorten it past zero and it fires at once.
+- **A paused sim does not expire timers**, and interval beats missed while paused are
+  skipped rather than delivered in a burst on resume.
+- **Beats do not drift.** Each one is scheduled from the interval's start, not from when
+  the last one happened to be noticed.
+
 ## Real time vs simulation time
 
 | Function | Time base | Pauses with sim? |

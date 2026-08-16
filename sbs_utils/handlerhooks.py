@@ -169,6 +169,11 @@ def reset_mission_state():
     # applied in one mission was still live in the next one.
     from .procedural.modifiers import modifiers_reset
     modifiers_reset()
+    # Armed timer/counter signals. They name an agent id the next mission recycles, and
+    # a counter heartbeat re-arms itself forever - so an uncleared one would keep beating
+    # into the following mission against whatever inherited the id.
+    from .procedural.timers import timer_signals_clear
+    timer_signals_clear()
     # Particle emitters. These hold ENGINE handles, so the clear has to RUN - emptying
     # the dict alone would pass the audit below and still leave every emitter burning
     # on objects the next mission recycles the ids of. Also drops mission-defined
@@ -341,6 +346,8 @@ from .procedural.grav_tether import _TETHERS as _GRAV_TETHERS
 register_reset_state("grav tethers",       lambda: len(_GRAV_TETHERS))
 from .procedural.modifiers import modifiers_count
 register_reset_state("modifiers",          modifiers_count)
+from .procedural.timers import timer_signals_count
+register_reset_state("timer signals",      timer_signals_count)
 from .procedural.particles import particle_count as _particle_count, particle_presets_mission_count
 register_reset_state("particle emitters",  _particle_count)
 register_reset_state("particle presets (mission)", particle_presets_mission_count)

@@ -18,12 +18,38 @@ def get_ship_data():
         return ship_data_cache
     
     # Base name (no extension) so load_data picks shipData.yaml or shipData.json.
-    ship_data_cache = load_data( os.path.join(get_artemis_data_dir(), "shipData"))
+    base = os.path.join(get_artemis_data_dir(), "shipData")
+    ship_data_cache = load_data(base)
+
+    # Every caller subscripts `#ship-list` off what this returns, so a load that did not
+    # produce one has to be normalized HERE. Returning None (or a dict without the key)
+    # spent the failure somewhere else entirely: `merge_mod_ship_yaml` prepending an
+    # add-on's hulls died on `'NoneType' object is not subscriptable`, naming neither the
+    # file nor the install. Name the path, then carry an EMPTY table so the symptom is
+    # "no ships" rather than a TypeError from the next line that happens to look.
+    if not isinstance(ship_data_cache, dict):
+        from .execution import log
+        log(f"could not read ship data from {base}(.yaml/.json). No ships will be found; "
+            f"anything that spawns one will fail. Check the Artemis install path.",
+            "ship_data", "error")
+        ship_data_cache = {"#ship-list": []}
+    elif "#ship-list" not in ship_data_cache:
+        from .execution import log
+        log(f"ship data at {base}(.yaml/.json) has no '#ship-list'. No ships will be "
+            f"found; anything that spawns one will fail.", "ship_data", "error")
+        ship_data_cache["#ship-list"] = []
 
     # extraShipData may be supplied as .yaml or .json.
     script_ship_data = load_data( os.path.join(get_mission_dir(), "extraShipData"))
     if script_ship_data is not None:
-        ship_data_cache["#ship-list"] = script_ship_data["#ship-list"] + ship_data_cache["#ship-list"]
+        # A file that parsed but carries no `#ship-list` is a shape error, not a crash.
+        extra = script_ship_data.get("#ship-list") if isinstance(script_ship_data, dict) else None
+        if extra is None:
+            from .execution import log
+            log("extraShipData was read but has no '#ship-list' - ignoring it. "
+                "The mission's ships will be missing.", "ship_data", "error")
+        else:
+            ship_data_cache["#ship-list"] = extra + ship_data_cache["#ship-list"]
         # ship_data_cache |= script_ship_data
 
     return ship_data_cache
@@ -831,9 +857,15 @@ def _art_that_is_not_there(text):
 
     Quiet when it cannot check. Art lives in the Artemis install, not in the repo, so a CI
     runner has nothing to compare against - and a check that reported every hull as broken
-    because it could not find the game would be worse than no check at all."""
+    because it could not find the game would be worse than no check at all.
+
+    Parsed with `load_yaml_string`, which uses the BUNDLED `sbs_utils.yaml`. A bare
+    `import yaml` reaches PyYAML in site-packages, which exists on a developer machine and
+    nowhere else: not in the embedded engine (site is off) and not on a CI runner that
+    installs nothing. The `except` below would then swallow the ImportError and return "no
+    art is missing" - so this check silently did nothing everywhere it was meant to run,
+    which is the failure mode it exists to prevent."""
     try:
-        import yaml
         from ..fs import get_artemis_dir
         ships = os.path.join(get_artemis_dir(), "data", "graphics", "ships")
         if not os.path.isdir(ships):
@@ -841,7 +873,7 @@ def _art_that_is_not_there(text):
         have = set()
         for name in os.listdir(ships):
             have.add(name.split(".")[0].lower())
-        data = yaml.safe_load(str(text))
+        data = load_yaml_string(str(text))
         missing = []
         for entry in (data or {}).get("#ship-list", []) or []:
             if not isinstance(entry, dict):

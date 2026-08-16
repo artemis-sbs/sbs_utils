@@ -4,27 +4,54 @@ from ..futures import Promise, awaitable
 from ..mast.pollresults import PollResults
 
 TICK_PER_SECONDS = 30
-def set_timer(id_or_obj, name, seconds=0, minutes=0):
+def set_timer(id_or_obj, name, seconds=0, minutes=0, signal=None):
     """Start a named countdown timer on an agent.
 
     Records the expiry tick in the agent's inventory. Use ``is_timer_finished``
     or ``get_time_remaining`` to check progress.
+
+    Pass ``signal`` to have the library emit that signal once, when the timer
+    expires, instead of polling for it. The emit carries ``TIMER_AGENT_ID`` and
+    ``TIMER_NAME``. It is purely additive - the timer is still an ordinary timer
+    afterwards, so ``is_timer_set_and_finished`` and ``format_time_remaining``
+    behave exactly as they do without it. Handle it with
+    ``//shared/signal/<name>`` for anything with a side effect; a plain
+    ``//signal/<name>`` runs once per console (see SIGNAL_ROUTING.md).
+
+    No signal is emitted if the timer is cleared, re-set without ``signal``, or
+    its agent is deleted before it expires. A paused sim does not advance the
+    timer, so it does not expire while paused.
 
     Args:
         id_or_obj (Agent | int): The agent to set the timer on.
         name (str): Unique timer name for this agent.
         seconds (int, optional): Duration in seconds. Defaults to 0.
         minutes (int, optional): Additional duration in minutes. Defaults to 0.
+        signal (str, optional): Signal to emit once when the timer expires.
+            Defaults to None (no signal - poll it instead).
 
     Example:
         set_timer(SHIP_ID, "repair", seconds=30)
         if is_timer_finished(SHIP_ID, "repair"):
             "Repairs complete!"
+
+        set_timer(SHIP_ID, "repair", seconds=30, signal="repair_done")
+        # //shared/signal/repair_done runs on the server when it expires
     """    
     seconds += minutes*60
     seconds *= TICK_PER_SECONDS
     seconds += FrameContext.context.sim.time_tick_counter
     set_inventory_value(id_or_obj, f"__timer__{name}", seconds)
+    if signal is not None:
+        from .query import to_id
+        _signal_arm(to_id(id_or_obj), f"__timer__{name}", name,
+                    due=seconds, signal=signal, every=None, anchor=seconds)
+    else:
+        # Re-setting a timer WITHOUT a signal disarms the previous one. Otherwise
+        # the old entry would sit on a deadline the inventory no longer holds, and
+        # the re-validation in the tick would drop it silently - which reads as
+        # "the signal randomly stopped firing" rather than as a deliberate cancel.
+        _signal_disarm(id_or_obj, f"__timer__{name}")
 
 def is_timer_set(id_or_obj, name):
     """Return whether a named timer exists on an agent.
@@ -100,6 +127,7 @@ def timer_add_time(id_or_obj, name, seconds=0, minutes=0):
     # negative adjustment has to leave the timer FINISHED, never UNSET.
     target = max(target, 1)
     set_inventory_value(id_or_obj, f"__timer__{name}", target)
+    _signal_retime(id_or_obj, f"__timer__{name}", target)
     # Imported here, not at module scope: signal.py already lazy-imports Delay from
     # this module, and both stub.py and MastGlobals.import_python_module re-export
     # whatever sits in this namespace - a top-level import would publish a second
@@ -203,12 +231,17 @@ def clear_timer(id_or_obj, name):
     """    
 
     set_inventory_value(id_or_obj, f"__timer__{name}", None)
+    _signal_disarm(id_or_obj, f"__timer__{name}")
 
 def start_counter(id_or_obj, name):
     """Record the current sim tick as the start of a named counter.
 
     Use ``get_counter_elapsed_seconds`` to read how many seconds have passed
-    since the counter was started.
+    since the counter was started. Use ``set_interval`` for a counter that emits
+    a signal every so often instead of being read.
+
+    Restarting a counter that ``set_interval`` armed restarts its beat too - the
+    next one lands a full interval from now.
 
     Args:
         id_or_obj (Agent | int): Agent ID or object.
@@ -218,9 +251,76 @@ def start_counter(id_or_obj, name):
         start_counter(SHIP_ID, "docked")
         # later...
         secs = get_counter_elapsed_seconds(SHIP_ID, "docked")
-    """    
+    """
 
-    set_inventory_value(id_or_obj, f"__counter__{name}", FrameContext.context.sim.time_tick_counter)
+    now = FrameContext.context.sim.time_tick_counter
+    set_inventory_value(id_or_obj, f"__counter__{name}", now)
+    # An armed interval is anchored to the counter's start value, so moving the
+    # start has to move the anchor with it or the next beat would find a value it
+    # did not recognize and silently disarm.
+    _signal_reanchor(id_or_obj, f"__counter__{name}", now)
+
+
+def set_interval(id_or_obj, name, signal, seconds=0, minutes=0):
+    """Emit a signal on an agent every ``seconds``, until it is cleared.
+
+    The repeating sibling of ``set_timer``. Beats are scheduled from the start,
+    not from when the last one fired, so the period does not drift. Each emit
+    carries ``TIMER_AGENT_ID``, ``TIMER_NAME`` and ``TIMER_COUNT`` (1 for the
+    first beat). Handle it with ``//shared/signal/<name>`` for anything with a
+    side effect - a plain ``//signal/<name>`` runs once per console, so a beat
+    becomes one per console per beat (see SIGNAL_ROUTING.md).
+
+    Runs on a counter, so ``get_counter_elapsed_seconds(id, name)`` reads the
+    time since it started and ``clear_interval`` (or ``clear_counter``) stops it.
+    Stops on its own if the agent is deleted. A paused sim does not advance the
+    beat, and beats missed while paused are skipped rather than caught up on.
+
+    Args:
+        id_or_obj (Agent | int): The agent to run the interval on.
+        name (str): Unique interval name for this agent.
+        signal (str): Signal to emit on every beat.
+        seconds (int, optional): Seconds between beats. Defaults to 0.
+        minutes (int, optional): Additional minutes between beats. Defaults to 0.
+
+    Example:
+        set_interval(SHIP_ID, "patrol", "patrol_beat", seconds=30)
+        # //shared/signal/patrol_beat runs on the server every 30 seconds
+        clear_interval(SHIP_ID, "patrol")
+    """
+    every = (seconds + minutes*60) * TICK_PER_SECONDS
+    if every <= 0:
+        # A zero period would emit on every single tick forever. That is never what
+        # the caller meant, and it would be found as a frame-rate bug, not as a
+        # scripting one - so refuse it here where the message names the interval.
+        # Local import for the same reason signal_emit is imported locally below.
+        from .execution import log
+        log(f"set_interval('{name}') needs a period greater than 0 - not started",
+            "timers", "warning")
+        return False
+    now = FrameContext.context.sim.time_tick_counter
+    set_inventory_value(id_or_obj, f"__counter__{name}", now)
+    from .query import to_id
+    _signal_arm(to_id(id_or_obj), f"__counter__{name}", name,
+                due=now + every, signal=signal, every=every, anchor=now)
+    return True
+
+
+def clear_interval(id_or_obj, name):
+    """Stop an interval started by ``set_interval``.
+
+    Identical to ``clear_counter`` - an interval IS a counter - and named for
+    symmetry so a script that starts one can stop it by the same word.
+
+    Args:
+        id_or_obj (Agent | int): Agent ID or object.
+        name (str): Interval name.
+
+    Example:
+        clear_interval(SHIP_ID, "patrol")
+    """
+    clear_counter(id_or_obj, name)
+
 
 def get_counter_elapsed_seconds(id_or_obj, name, default_value=None):
     """Return the number of seconds elapsed since a counter was started.
@@ -257,6 +357,161 @@ def clear_counter(id_or_obj, name):
         clear_counter(SHIP_ID, "docked")
     """    
     set_inventory_value(id_or_obj, f"__counter__{name}", None)
+    _signal_disarm(id_or_obj, f"__counter__{name}")
+
+
+# ---------------------------------------------------------------------------
+# Opt-in signals for timers and counters
+#
+# A timer is an int in an agent's inventory and nothing ever runs - which is what
+# makes timers free: a mission with 500 of them costs the same per frame as one
+# with none. Sweeping every timer looking for expired ones would spend that on
+# behalf of every GUI countdown nobody listens to, so signals are OPT-IN: only
+# set_timer(signal=) and set_interval() register here.
+#
+# Armed entries are still nearly free, because the deadline is a known integer at
+# arm time. `_NEXT_DUE` caches the earliest one, so a tick costs one integer
+# compare and the dict is only walked on a frame where something is actually due.
+# That is cheaper than the pattern this replaces: a watcher task per timer costs a
+# generator resume through task.tick() PLUS a run_on_change pass, each, every tick.
+#
+# The tick task is created with the first armed entry and stopped when the last one
+# leaves (the DripQueue pattern), so a mission that never uses this schedules
+# nothing at all. Deliberately not an "already scheduled" latch - those survive
+# TickDispatcher.clear() and are why brains stopped ticking on every run after the
+# first.
+#
+# entry: (agent_id, inv_key) ->
+#     [due_tick, signal, every_ticks_or_None, anchor, name, beats_so_far]
+# `anchor` is the inventory value the entry was armed against, re-read at fire
+# time: it is how a cleared timer, a deleted agent, a value rewritten behind our
+# back, and a RECYCLED agent id all fail to emit. `every` is None for a one-shot
+# timer completion and the beat period for a counter heartbeat.
+# ---------------------------------------------------------------------------
+_SIGNALS = {}
+_NEXT_DUE = None
+_TICK_TASK = None
+
+
+def _signal_stop_task():
+    global _TICK_TASK
+    if _TICK_TASK is not None:
+        try:
+            _TICK_TASK.stop()
+        except Exception:
+            pass
+        _TICK_TASK = None
+
+
+def _signal_recompute():
+    """Re-cache the earliest deadline; park the tick task when nothing is armed."""
+    global _NEXT_DUE
+    if _SIGNALS:
+        _NEXT_DUE = min(entry[0] for entry in _SIGNALS.values())
+    else:
+        _NEXT_DUE = None
+        _signal_stop_task()
+
+
+def _signal_arm(agent_id, inv_key, name, due, signal, every, anchor):
+    global _TICK_TASK
+    _SIGNALS[(agent_id, inv_key)] = [due, signal, every, anchor, name, 0]
+    _signal_recompute()
+    if _TICK_TASK is None:
+        # Local import: tickdispatcher pulls in the agent layer, and this module is
+        # imported early and re-exported wholesale into the MAST global table.
+        from ..tickdispatcher import TickDispatcher
+        _TICK_TASK = TickDispatcher.do_interval(_signals_tick, 0)
+
+
+def _signal_disarm(id_or_obj, inv_key):
+    # Cheap guard first: a mission using no signals never resolves an id here.
+    if not _SIGNALS:
+        return
+    from .query import to_id
+    if _SIGNALS.pop((to_id(id_or_obj), inv_key), None) is not None:
+        _signal_recompute()
+
+
+def _signal_retime(id_or_obj, inv_key, target):
+    """Follow a deadline that moved under an armed entry (timer_add_time)."""
+    if not _SIGNALS:
+        return
+    from .query import to_id
+    entry = _SIGNALS.get((to_id(id_or_obj), inv_key))
+    if entry is None:
+        return
+    entry[0] = target
+    entry[3] = target
+    _signal_recompute()
+
+
+def _signal_reanchor(id_or_obj, inv_key, anchor):
+    """Follow an anchor value that was rewritten (start_counter restarting)."""
+    if not _SIGNALS:
+        return
+    from .query import to_id
+    entry = _SIGNALS.get((to_id(id_or_obj), inv_key))
+    if entry is None:
+        return
+    entry[3] = anchor
+    entry[0] = anchor + entry[2]
+    _signal_recompute()
+
+
+def _signals_tick(t=None):
+    if not _SIGNALS:
+        _signal_stop_task()
+        return
+    now = FrameContext.context.sim.time_tick_counter
+    if _NEXT_DUE is not None and now <= _NEXT_DUE:
+        return
+    # `now > due` is the same test is_timer_finished uses. A signal must not claim
+    # a timer is done on a tick where polling it would still say it is running.
+    due = [key for key, entry in _SIGNALS.items() if now > entry[0]]
+    for key in due:
+        entry = _SIGNALS.get(key)
+        if entry is None:
+            continue
+        deadline, signal, every, anchor, name, count = entry
+        agent_id, inv_key = key
+        stored = get_inventory_value(agent_id, inv_key)
+        if stored is None or stored != anchor:
+            # Cleared, re-set, or its agent was deleted. No signal, and stop
+            # watching - whoever rewrote it re-armed if they wanted one.
+            del _SIGNALS[key]
+            continue
+        count += 1
+        if every is None:
+            del _SIGNALS[key]
+        else:
+            # Schedule from the previous deadline, not from `now`, so a heartbeat
+            # keeps its period instead of drifting by a tick every beat. A beat
+            # missed while the sim was paused is skipped, not caught up on.
+            while deadline <= now:
+                deadline += every
+            entry[0] = deadline
+            entry[5] = count
+        # signal_emit needs FrameContext.mast, which the MastScheduler sets on its
+        # own tick and never restores - so the live story is still there during the
+        # dispatch_tick phase this runs in. game_end_run_all's "show_game_results"
+        # emit rides the same thing. Do not "fix" this by requiring a task.
+        from .signal import signal_emit
+        signal_emit(signal, {"TIMER_AGENT_ID": agent_id,
+                             "TIMER_NAME": name,
+                             "TIMER_COUNT": count})
+    _signal_recompute()
+
+
+def timer_signals_clear():
+    """Drop every armed timer/counter signal (mission reset)."""
+    _SIGNALS.clear()
+    _signal_recompute()
+
+
+def timer_signals_count():
+    """How many timers/counters are armed to emit a signal (reset audit)."""
+    return len(_SIGNALS)
 
 
 class Delay(Promise):
