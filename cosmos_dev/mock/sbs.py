@@ -622,10 +622,10 @@ def _populate_hull_map(hull_map, spaceObjectID) -> None:
         hull_map._h = int(h)
         hull_map._grid_scale = float(data.get("internalmapscale", 1.0) or 1.0)
         hull_map._sym = int(data.get("internalsymmetry", 0) or 0)
+        # `artfileroot` IS THE WHOLE PATH. There is no companion `artfilepath` key - it is
+        # not needed and is not read. The root is resolved against data/graphics, so
+        # `ships/<name>` is stock art and `../missions/<...>/<name>` is a mission's own.
         hull_map._art_file_root = data.get("artfileroot", "") or ""
-        # `artfilepath` - no underscores, like every other shipData key - is the folder the
-        # art lives in. New in 1.3.5; absent from every older entry, hence the plain default.
-        hull_map._art_file_path = data.get("artfilepath", "") or ""
         hull_map._ship_key = key
     except Exception:
         # A hull map that fails to populate is a degraded mock, never a broken run.
@@ -1586,7 +1586,6 @@ class hullmap(object): ### from pybind
     """class hullmap"""
     def __init__(self) -> None:
         self._art_file_root = ""
-        self._art_file_path = ""
         self._desc = ""
         self._name = ""
         self.grid_items = []
@@ -1597,48 +1596,6 @@ class hullmap(object): ### from pybind
         # shipData key, so the engine CAPTURE can be looked up. NOT artfileroot -
         # they differ on about half the ships, and the capture is keyed by key.
         self._ship_key = ""
-
-    @property
-    def art_file_root(self: hullmap) -> str:
-        """string, file name, used to get top-down image from disk"""
-        return self._art_file_root
-
-    @art_file_root.setter
-    def art_file_root(self: hullmap, arg0: str) -> None:
-        self._art_file_root = arg0
-
-    def _art_dir(self):
-        """Where this hull's art lives, or None for the stock graphics folder.
-
-        Stored as a string that is a FOLDER relative to the exe. Returning None rather than
-        the stock path keeps `open_cells` in charge of its own default.
-        """
-        if not self._art_file_path:
-            return None
-        import os
-        if os.path.isabs(self._art_file_path):
-            return self._art_file_path
-        from sbs_utils import fs
-        return os.path.join(fs.get_artemis_dir(), *self._art_file_path.replace("\\", "/").split("/"))
-
-    @property
-    def art_file_path(self: hullmap) -> str:
-        """string, file path, used to get top-down image from disk (engine 1.3.5).
-
-        A FOLDER, holding art named by `art_file_root` - the two work together rather than
-        one replacing the other. Relative paths resolve against the EXE directory, which is
-        the engine's rule, confirmed from its own example:
-
-            "artfileroot": "tsn_light_cr",
-            "artfilepath": "data/missions/BeamArcTest/extraShipGraphicData"
-
-        Empty means the stock `data/graphics/ships`.
-        """
-        return self._art_file_path
-
-    @art_file_path.setter
-    def art_file_path(self: hullmap, arg0: str) -> None:
-        self._art_file_path = arg0 or ""
 
     def create_grid_object(self: hullmap, name: str, tag: str, type: str) -> grid_object:
         """returns a gridobject, after creating it"""
@@ -1659,6 +1616,15 @@ class hullmap(object): ### from pybind
             self.grid_items.remove(arg0)
             return True
         return False
+
+    @property
+    def art_file_root(self: hullmap) -> str:
+        """string, file name, used to get top-down image from disk"""
+        return self._art_file_root
+
+    @art_file_root.setter
+    def art_file_root(self: hullmap, arg0: str) -> None:
+        self._art_file_root = arg0
 
     @property
     def desc(self: hullmap) -> str:
@@ -1740,7 +1706,6 @@ class hullmap(object): ### from pybind
             return 0
         from . import hull_mask
         cells = hull_mask.open_cells(self._art_file_root, self._w, self._h,
-                                    ships_dir=self._art_dir(),
                                     ship_key=self._ship_key)
         if cells is None:
             return 1                    # art unreadable -> unknown, so stay permissive

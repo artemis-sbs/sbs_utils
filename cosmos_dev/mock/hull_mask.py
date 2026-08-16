@@ -218,8 +218,10 @@ def _art_1024(art_file_root, ships_dir=None):
     that mods and LegendaryMissions ship, and those files are versioned separately from
     the engine, so the two forms will coexist for as long as any pack does.
 
-    `ships_dir`, when a caller passes one, keeps its old meaning: the folder holding the
-    art. It is tried first so existing callers and tests are unaffected.
+    `ships_dir` is a caller-supplied override, tried first. Nothing in the mock passes one
+    any more - the hullmap used to hand over a folder taken from a shipData `artfilepath`
+    key, which does not exist: `artfileroot` carries the whole path and no companion field
+    is needed. Kept for tests that want to point the resolver at a temp folder.
     """
     from sbs_utils import fs
     leaf = f"{art_file_root}1024.png"
