@@ -895,20 +895,25 @@ def _art_that_is_not_there(text):
 
 
 def _art_root_exists(graphics, root):
-    """Is there art for this `artfileroot` in the install?
+    """Is there art for this `artfileroot`, named the way the engine now resolves it?
 
-    BOTH SPELLINGS COUNT. The 2026-08-15 engine regenerated `data/shipData.yaml` with
-    every entry reading `ships/<name>`, moving the base up from `data/graphics/ships` to
-    `data/graphics` - while every extra ship-data file that mods and LegendaryMissions
-    ship still carries the bare `<name>`. Those files version separately from the engine,
-    so the two forms coexist for as long as any pack does.
+    A BARE ROOT IS NO LONGER VALID, and this is the check that has to say so. Engine
+    1.3.6 regenerated `data/shipData.yaml` with every entry reading `ships/<name>`: the
+    base moved up from `data/graphics/ships` to `data/graphics`, and a bare `<name>` no
+    longer resolves. MEASURED, one hull per run so the failure could be attributed
+    (`data/missions/artroot_probe`): `ships/monster2` drew and its mesh was opened, while
+    bare `monster1` put up
 
-    This check used to SKIP any root containing a slash, on the reasoning that a path
-    pointed somewhere it could not see. Under the new convention that is every stock root,
-    so the check quietly stopped checking anything - which is precisely the silence it was
-    written to prevent. A path is now followed instead of skipped, and only a root that
-    escapes the install (`../..`, or absolute) is left alone, since that really is art this
-    function cannot judge.
+        Assertion failed!  false && "the artfileroot of this ship was not found."
+        ObjectTypeDrawData.cpp:44
+
+    - a modal dialog on the player's machine. The hull spawns fine on the server; the
+    bill is paid by the first client that has to draw it. So a bare root is reported as
+    missing even when the art is sitting right there under `graphics/ships`, because
+    "the file exists" and "the engine can find it" have stopped being the same question.
+
+    Left alone: a root that escapes the install (`../..`, or absolute). That really is
+    art this function cannot judge.
 
     Matching is on the base name before the first dot, because one root covers a family:
     `<name>.paxmesh`, `<name>1024.png`, `<name>_diffuse.png`.
@@ -916,20 +921,16 @@ def _art_root_exists(graphics, root):
     rel = root.replace(chr(92), "/")
     if rel.startswith("..") or os.path.isabs(rel):
         return True                 # outside the install - not ours to judge
+    if "/" not in rel:
+        return False                # bare - asserts on the first client that draws it
     parts = rel.split("/")
     stem = parts[-1].lower()
-    folders = [os.path.join(graphics, *parts[:-1])]
-    if len(parts) == 1:
-        # A bare root is the legacy spelling and means `ships/<name>`. Look there too,
-        # so a pack written before the engine changed still validates.
-        folders.append(os.path.join(graphics, "ships"))
-    for folder in folders:
-        try:
-            for name in os.listdir(folder):
-                if name.split(".")[0].lower() == stem:
-                    return True
-        except OSError:
-            continue
+    try:
+        for name in os.listdir(os.path.join(graphics, *parts[:-1])):
+            if name.split(".")[0].lower() == stem:
+                return True
+    except OSError:
+        pass
     return False
 
 
