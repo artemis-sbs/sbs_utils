@@ -354,13 +354,34 @@ class TestItSaysWhenTheArtIsNotThere(unittest.TestCase):
             return sd._art_that_is_not_there(text)
 
     def test_art_that_exists_is_not_reported(self):
-        self.assertEqual(self._check("TSNfighter"), [])
+        self.assertEqual(self._check("ships/TSNfighter"), [])
 
     def test_the_case_does_not_have_to_match(self):
-        self.assertEqual(self._check("tsnfighter"), [])
+        self.assertEqual(self._check("ships/tsnfighter"), [])
 
     def test_art_that_is_missing_is_named_with_its_hull(self):
-        self.assertEqual(self._check("tsn-fighter"), [("t", "tsn-fighter")])
+        self.assertEqual(self._check("ships/tsn-fighter"), [("t", "ships/tsn-fighter")])
+
+    def test_a_bare_root_is_reported_even_though_the_art_is_right_there(self):
+        """The rule this check exists to enforce, and it is not about the file existing.
+
+        `TSNfighter.obj` is sitting in graphics/ships in this fixture. On engine 1.3.6 a
+        BARE artfileroot still asserts - artfileroot resolves against data/graphics now,
+        so the name has to carry `ships/`. The hull spawns fine on the server and kills
+        the first client that draws it, so "the art is there" is the wrong question."""
+        self.assertEqual(self._check("TSNfighter"), [("t", "TSNfighter")])
+
+    def test_a_path_out_of_graphics_is_followed_not_skipped(self):
+        """A mod reaches art it ships itself by climbing out of data/graphics, and that
+        is the one spelling engine 1.3.6 opens. The check used to SKIP any root with a
+        slash, which under the new convention is every root - so it validated nothing."""
+        import os
+        pack = os.path.join(self.install.name, "data", "missions", "pack", "ships")
+        os.makedirs(pack)
+        open(os.path.join(pack, "God_Phoenix.obj"), "w").close()
+        self.assertEqual(self._check("../missions/pack/ships/God_Phoenix"), [])
+        self.assertEqual(self._check("../missions/pack/ships/nope"),
+                         [("t", "../missions/pack/ships/nope")])
 
     def test_it_still_checks_without_pyyaml_installed(self):
         """Parsing must go through the BUNDLED `sbs_utils.yaml`. A bare `import yaml`
@@ -379,13 +400,27 @@ class TestItSaysWhenTheArtIsNotThere(unittest.TestCase):
         with mock.patch.object(builtins, "__import__", no_pyyaml):
             self.assertEqual(self._check("tsn-fighter"), [("t", "tsn-fighter")])
 
-    def test_a_path_to_mod_art_is_not_judged(self):
-        """A mod keeping its own graphics folder writes a relative PATH as its artfileroot.
-        That resolves somewhere this check does not look, so it must not be called missing -
-        VisualTestRange keeps `modart_relpath` as the specimen."""
+    def test_a_path_to_mod_art_IS_judged_now(self):
+        """The opposite of what this test used to assert, and deliberately.
+
+        It read: "a mod keeping its own graphics folder writes a relative PATH, that
+        resolves somewhere this check does not look, so it must not be called missing."
+        On engine 1.3.6 that reasoning inverts. `../missions/<pack>/ships/<name>` is the
+        ONE spelling the engine opens for mod-carried art (measured, one copy of the art
+        per candidate), so it lands inside the install and is perfectly checkable - and
+        it is the art MOST worth checking, because a mod ships its own and a pack that
+        failed to unpack looks exactly like one that did until a client draws a hull.
+
+        The old path in that assertion also no longer exists: `anime_mods/anime_ships`
+        was retired when the mod moved to a media pack."""
         self.assertEqual(
-            self._check("../../missions/anime_mods/anime_ships/graphics/ships/God_Phoenix"),
-            [])
+            self._check("../missions/nowhere_at_all/ships/God_Phoenix"),
+            [("t", "../missions/nowhere_at_all/ships/God_Phoenix")])
+
+    def test_art_genuinely_outside_the_install_is_still_left_alone(self):
+        """The carve-out that survives: a root climbing clear of the install really is
+        somewhere this function cannot judge, so it must not be reported as missing."""
+        self.assertEqual(self._check("../../../elsewhere/ships/God_Phoenix"), [])
 
     def test_it_stays_quiet_with_no_install_to_check(self):
         with mock.patch("sbs_utils.fs.get_artemis_dir", return_value="/nowhere/at/all"):

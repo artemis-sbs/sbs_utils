@@ -919,14 +919,24 @@ def _art_root_exists(graphics, root):
     `<name>.paxmesh`, `<name>1024.png`, `<name>_diffuse.png`.
     """
     rel = root.replace(chr(92), "/")
-    if rel.startswith("..") or os.path.isabs(rel):
-        return True                 # outside the install - not ours to judge
+    if os.path.isabs(rel):
+        return True                 # not ours to judge
     if "/" not in rel:
         return False                # bare - asserts on the first client that draws it
-    parts = rel.split("/")
-    stem = parts[-1].lower()
+
+    # A `..` root is CHECKED, not waved through. It used to be treated as "somewhere this
+    # function cannot see", which was true when nothing could reach out of data/graphics.
+    # It is now the ONE spelling a mod uses for art it ships itself
+    # (`../missions/__lib__/media/<pack>/ships/<name>`), so waving it through would exempt
+    # exactly the files most likely to be missing - a mod ships its own art, and a pack
+    # that failed to unpack looks identical to one that did until a client draws a hull.
+    full = os.path.normpath(os.path.join(graphics, *rel.split("/")))
+    install = os.path.dirname(os.path.dirname(graphics))    # <install>/data/graphics
+    if os.path.commonpath([os.path.normpath(install), full]) != os.path.normpath(install):
+        return True                 # genuinely outside the install - not ours to judge
+    folder, stem = os.path.dirname(full), os.path.basename(full).lower()
     try:
-        for name in os.listdir(os.path.join(graphics, *parts[:-1])):
+        for name in os.listdir(folder):
             if name.split(".")[0].lower() == stem:
                 return True
     except OSError:
