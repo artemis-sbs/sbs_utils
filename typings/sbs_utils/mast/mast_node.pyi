@@ -8,6 +8,32 @@ def STRING_REGEX_NAMED_3 (name):
     ...
 def lru_cache (maxsize=128, typed=False):
     ...
+def mast_compile (source, mode='eval', filename=None):
+    """``compile()`` for MAST expressions, with the source kept for tracebacks.
+    
+    Compiling against the shared ``"<string>"`` filename leaves Python with no
+    source for the frame, so ``traceback.extract_tb`` reports the offending line
+    as ``None`` - which is exactly the useless report a MAST author sees today.
+    Compiling against a unique pseudo-filename and registering the text in
+    ``linecache`` makes every traceback (eval and ``~~`` exec alike) print the
+    real expression, and lets eval_code quote the WHOLE expression even when the
+    deepest frame is inside some library function.
+    
+    An ``mtime`` of ``None`` in the linecache tuple is the documented "loaded by
+    a __loader__" form: ``linecache.checkcache`` skips those, so the entry is
+    never invalidated out from under us."""
+def mast_expr_source (code):
+    """The MAST source text a code object was compiled from, or None.
+    
+    ``eval``/``exec`` also accept a raw string (a few nodes build one on the
+    fly), in which case the source IS the argument."""
+def mast_expr_source_count ():
+    ...
+def mast_expr_sources_clear ():
+    """Drop every registered expression source (per-mission reset).
+    
+    cosmos_dev reuses one interpreter across run_next_mission, so this dict and
+    its linecache entries would otherwise accumulate mission after mission."""
 def mast_node (append=True):
     ...
 class DescribableNode(MastNode):
@@ -73,3 +99,15 @@ class Scope(Enum):
     SHARED : 1
     SUB_TASK_LOCAL : 99
     UNKNOWN : 100
+class _EvalError(object):
+    """Unique "this expression raised" marker returned by ``eval_code_checked``.
+    
+    ``None`` is a perfectly legal MAST value (``default ship_art = None``), so a
+    node that got ``None`` back could never tell a real result from a blown-up
+    expression - it went on to assign None, take the ``else:`` branch, or iterate
+    None into a second, unrelated error. This sentinel is never a legal value, so
+    the node can stop at the FIRST failure, which is the one worth reporting."""
+    def __bool__ (self):
+        ...
+    def __repr__ (self):
+        """Return repr(self)."""

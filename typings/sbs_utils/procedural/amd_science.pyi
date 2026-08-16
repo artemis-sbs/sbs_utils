@@ -1,8 +1,22 @@
-def _scan_body_lines (desc):
-    """Body prose -> list of scan variants. Each non-empty, non-comment line is a variant; a
-    leading ``%`` (the random-variant marker, as in dialogue) is stripped. One line -> one
-    fixed variant; several -> pick-one-at-random at scan time (science_scan_tab)."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000011CF6E5F4C0>, archetype=None, errors=None):
+def _scan_body_lines (text):
+    """A record body -> its list of ungated variants, one per line.
+    
+    Each non-empty, non-comment line is one variant with a leading `%` stripped:
+    one line is a fixed string, several are pick-one-at-random at use time. This
+    is the pool a scan tab, a chatter bark or any other "say one of these" field
+    reads, and it is deliberately NOT `amd_body_variant`: there are two variant
+    rules in AMD and conflating them would be a silent behavior change.
+    
+      * this one   - strip the sigil. A `{...}` prefix is ordinary text.
+      * `amd_body_variant` - strip the sigil AND read a `%{gate}` condition.
+    
+    Only DIALOGUE evaluates gates, because only dialogue has a speaker whose
+    standing can be tested. A scan line reading `{lifesigns} faint` is a sentence
+    about lifesigns, and must stay one.
+    
+    (`amd_urge` reads a third rule off the same sigil - it COUNTS `%` to number a
+    stage, so `%%` is stage 2 - and cannot share this one.)"""
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000028640FEBF60>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to
@@ -19,6 +33,24 @@ def amd_scan_data (text):
     via the default value coercion). Use as the ``data_parser`` for a scan-only .amd file; a
     consolidated mission file uses ``amd_mission_data`` instead. The scan TEXT is read from the
     fence body by ``science_define_scan_amd``, not from here."""
+def amd_variant_pool (text):
+    """A record body -> its list of ungated variants, one per line.
+    
+    Each non-empty, non-comment line is one variant with a leading `%` stripped:
+    one line is a fixed string, several are pick-one-at-random at use time. This
+    is the pool a scan tab, a chatter bark or any other "say one of these" field
+    reads, and it is deliberately NOT `amd_body_variant`: there are two variant
+    rules in AMD and conflating them would be a silent behavior change.
+    
+      * this one   - strip the sigil. A `{...}` prefix is ordinary text.
+      * `amd_body_variant` - strip the sigil AND read a `%{gate}` condition.
+    
+    Only DIALOGUE evaluates gates, because only dialogue has a speaker whose
+    standing can be tested. A scan line reading `{lifesigns} faint` is a sentence
+    about lifesigns, and must stay one.
+    
+    (`amd_urge` reads a third rule off the same sigil - it COUNTS `%` to number a
+    stage, so `%%` is stage 2 - and cannot share this one.)"""
 def science_define_scan (role, tabs):
     """Register declarative science-scan content for a ROLE.
     

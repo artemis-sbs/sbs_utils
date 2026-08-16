@@ -1,5 +1,11 @@
-def _alias_index (archetype):
-    """`{alias -> canonical label}` for one archetype (plus GLOBAL), built on demand."""
+def _alias_index (archetype, traits=()):
+    """`{alias -> canonical label}` for one archetype (plus its traits, plus GLOBAL).
+    
+    TRAITS GO IN FIRST, which means LOWEST priority - later tables overwrite earlier
+    ones. That is the opposite of _declared's order (archetype, traits, GLOBAL) and it
+    is deliberate: an alias that resolves today must keep resolving to the same field,
+    so a trait can only fill in a name nothing else claims. Traits were absent from
+    this index entirely, which is why a trait's `aka` never resolved at all."""
 def _as_lines (raw):
     """A stage-direction block -> a list of lines. A single-line value is still a list of
     one, so a caller never has to test which shape it got."""
@@ -14,18 +20,49 @@ def _declared (label, archetype=None, traits=()):
     Lookup is normalized on BOTH sides, so a table may spell a key `fail on signal`
     while the author writes `Fail on signal` / `fail_on_signal` and all three land
     together. Aliases are tried after canonical names."""
-def _declared_under (norm_key, archetype):
-    """True when `norm_key` is itself a declared (canonical) label, alias aside."""
+def _declared_under (norm_key, archetype, traits=()):
+    """True when `norm_key` is itself a declared (canonical) label, alias aside.
+    
+    Trait tables are consulted too, and LAST - a trait's own field must count as
+    canonical or its aliases could never resolve to it."""
 def _install_core_parsers ():
     """Wire the generic value grammars from `amd` (stdlib-only, no engine)."""
 def _kind_to_archetype (noun):
     """A bare-noun kind line -> an archetype. Singular or plural both work, so an
     author writes `Character` over one record and `Characters` over a section
     without being told there is a difference."""
+def _labels_of (archetype, traits=()):
+    """Every declared label in play for an archetype, most specific table first - the
+    same precedence `_declared` resolves with.
+    
+    Labels come back exactly as the tables spell them (`at start`, not `at_start`), so
+    this composes with `template_fields`. Matching is still done on the normalized form
+    everywhere else; only what is HANDED BACK keeps the authored shape."""
 def _norm_label (label):
     """Field labels normalize like `amd_norm`: lowercase, hyphens/spaces -> `_`.
     Inlined (not imported) to keep this module's import graph empty."""
-def amd_canonical_label (label, archetype=None):
+def _schema_changed ():
+    """Every table mutation lands HERE, and every memo over those tables is
+    cleared HERE. One function on purpose: the previous shape had each registrar
+    clearing _ALIAS_CACHE by hand, and two of the three forgot - which is why a
+    trait registered after a lookup stayed invisible."""
+def _trait_tables (archetype, traits):
+    """The trait field tables in play: what the archetype ALWAYS has, then what this
+    record says it ALSO does. Same order _declared uses."""
+def _traits_key (traits):
+    """Traits arrive as a tuple from one caller and a list from another. Normalize
+    to a hashable tuple here rather than reaching for lru_cache, which would raise
+    TypeError on the list form - at parse time, on an author's file."""
+def amd_authored_label (runtime_key, archetype=None, traits=()):
+    """The canonical AUTHORED label for a key found in a parsed record's `data` -
+    the inverse of `amd_field_key`, and `None` when nothing declares it.
+    
+    WHY THIS IS NEEDED. A record parsed from `Done when:` / `Part of:` stores `goal` /
+    `parent`, because renaming the authored word must never move the stored key. So
+    anything that PUBLISHES a parsed record - a fact table, a web page - and titles the
+    stored keys prints `Goal` and `Parent`: the exact retired spellings the rename
+    existed to remove, taught back to authors by the tooling. Go through here instead."""
+def amd_canonical_label (label, archetype=None, traits=()):
     """The canonical spelling of `label` - itself when it is already canonical (or
     unknown), else the field it is an alias of. Underscore/space/hyphen tolerant, so
     `fail_on_signal`, `Fail on signal` and `fail-on-signal` all land together."""
@@ -36,7 +73,20 @@ def amd_coerce (descriptor, value):
     turns the written text into it. Unknown types fall back to the historical default
     (int -> float -> the trimmed string), so an undeclared field behaves exactly as
     it does today."""
-def amd_field_key (label, archetype=None):
+def amd_field_aliases (archetype=None, traits=()):
+    """`{canonical label -> [other spellings]}` for one archetype.
+    
+    The alias index runs alias -> canonical because that is the direction a PARSER
+    needs. Anything explaining a field to a human needs the other direction: which
+    older words still work. Both are the same table, read two ways."""
+def amd_field_doc (label, archetype=None, traits=()):
+    """The one-sentence meaning of a field, or `None` when it has none yet.
+    
+    Callers should degrade to the `hint` rather than inventing prose: a generated field
+    table with a blank cell says "nobody has explained this yet", which is true and
+    fixable in one line. Prose invented at the point of display is how the last set of
+    hand-written tables drifted."""
+def amd_field_key (label, archetype=None, traits=()):
     """The name the RUNTIME should store this field under: the descriptor's `key`
     when it declares one, else the canonical label. This is the one place the
     authored word and the stored word are allowed to differ."""
@@ -66,7 +116,7 @@ def amd_kind_show_default (noun):
 def amd_known_kinds ():
     """Every noun an author may legally write as a kind line - what the error
     message offers when they write something else."""
-def amd_read_field (label, value, archetype=None):
+def amd_read_field (label, value, archetype=None, traits=()):
     """One authored `Label: value` -> `(runtime_key, parsed_value)`.
     
     The whole point of the registry in one call: alias resolved, type coerced, stored
@@ -127,6 +177,23 @@ def amd_trait_names ():
     """Every trait a record may claim in `Also:`."""
 def amd_traits_of (data):
     """The traits a record claims, from its `Also:` value (a comma list)."""
+def amd_vocabulary_restore (snap):
+    """Put back an `amd_vocabulary_snapshot`, and drop every memo over it."""
+def amd_vocabulary_snapshot ():
+    """Everything `amd_register_*` can change, copied deeply enough to put back.
+    
+    For a caller that has to LOAD a mission's vocabulary without KEEPING it. The
+    pre-flight lint gate is the reason this exists: it imports the mission's
+    `*_amd.py` so its words are declared before linting, and it runs in the same
+    process that is about to run the mission - so without a restore it pre-registers
+    fields the mission then re-registers, and any pair that disagrees raises at
+    startup on a mission that was fine a moment ago. (Measured: linting
+    LegendaryMissions in-process turned a passing run into `AMD field 'call sign'
+    is already declared ... with a different meaning`, because loading `lm_amd.py`
+    early let it collide with `casino/bar_content.py`, which the gate does not load.)
+    
+    It also stops one mission's words leaking into the next one linted in the same
+    process, which is how OpenUniverse briefly inherited LegendaryMissions' fields."""
 def archetype_for_section (section_key):
     """The archetype a conventionally-named `## section` key maps to, or None.
     Case/trailing-`s` tolerant (`Items`, `items`, `Item` all -> item)."""
@@ -164,10 +231,18 @@ def enum_values (label, archetype=None):
     """The allowed values for an enum field, or None if the field isn't a closed
     enum (so the linter only value-checks genuine enums). An `open` enum returns
     None here too - its values are suggestions, not a closed set."""
-def field (descriptor, key=None, aka=None, internal=None):
-    """Wrap a type descriptor with the two things a table entry also has to own:
+def field (descriptor, key=None, aka=None, internal=None, doc=None):
+    """Wrap a type descriptor with the things a table entry also has to own:
     `key` - the name the RUNTIME stores it under, when that differs from the authored
-    label (`Pays:` -> `reward`), and `aka` - every other spelling that means this field.
+    label (`Pays:` -> `reward`), `aka` - every other spelling that means this field,
+    and `doc` - one sentence saying what the field MEANS.
+    
+    WHY `doc` LIVES HERE. `hint` is example values; it never says what a field does. So
+    every consumer that had to explain a field wrote its own prose, by hand, on a
+    documentation page - and those pages drifted from the table until one of them taught
+    `When:` as the COMPLETION trigger when it is an alias of `Starts when:`, the START
+    one. Prose kept beside the type cannot drift from it. Keep it link-free: the schema
+    owns what a field means, each page owns its own cross-references.
     
     Owning aliases here is what makes renaming safe forever: a rename is one line in
     this table and no `.amd` file in the world has to change.
@@ -208,7 +283,7 @@ def ref (kind='node', csv=False, hint=None):
     `side` (a side key), or `role`. `csv=True` for a comma list of them."""
 def reward (hint='200 credits, 2 torpedoes, earns tsn honest +10'):
     """What a job pays: comma-separated credits / items / `earns <faction> <pole> <n>`.
-    A reputation clause is only meaningful on a player-held quest (URGE_PLAN.md s7.1)."""
+    A reputation clause is only meaningful on a player-held quest (DESIGN_RECORD.md s4)."""
 def signal ():
     """A signal name (`Then: signal X`, `Fail on signal: Y`) - dropdown of the
     mission's emitted / routed signals."""

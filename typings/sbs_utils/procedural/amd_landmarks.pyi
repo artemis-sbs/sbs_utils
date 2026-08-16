@@ -11,7 +11,7 @@ def amd_landmark_data (text):
 def amd_landmark_facts ():
     """amd_parse_facts handler for landmark fences: kind/side/roles/art/behavior (text),
     loc (3 floats), system (2 ints). Unknown labels return None (chain / default coercion)."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000011CF6E5F4C0>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000028640FEBF60>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to

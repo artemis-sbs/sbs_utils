@@ -11,7 +11,7 @@ def amd_item_data (text):
     are strings, Tier/Price/Duration come back as ints via ``amd_num``). Use as the ``data_parser``
     for an items-only .amd; a consolidated mission file uses ``amd_mission_data`` and its item
     fences fall through to the same default coercion."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000011CF6E5F4C0>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000028640FEBF60>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to

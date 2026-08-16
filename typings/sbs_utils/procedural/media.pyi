@@ -1,5 +1,7 @@
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast_sbs.story_nodes.media import MediaLabel
+def DEBUG (msg):
+    ...
 def _media_schedule (kind, label, ID=0):
     """Apply a media label to the engine and schedule it as a sub-task.
     
@@ -12,6 +14,14 @@ def _media_schedule (kind, label, ID=0):
     
     Returns:
         MediaLabel: The label that was scheduled."""
+def get_mission_audio_file (file):
+    """The path the engine wants for an audio file kept in this mission.
+    
+    Args:
+        file (str): The file, relative to the mission folder, WITHOUT its extension.
+    
+    Returns:
+        str: A Cosmos-root-relative path - see :func:`engine_file`."""
 def get_mission_dir_filename (filename):
     """Get the full path to a file in the current mission directory.
     
@@ -31,6 +41,25 @@ def load_json_data (file):
     
     Returns:
         dict or None: Parsed JSON data, or None if loading fails."""
+def media_play_audio (file, ids_or_obj=0, volume=1.0, pitch=1.0):
+    """Play an audio file NOW - a stinger, a voice line, an alarm.
+    
+    Promoted out of HereThereBeMonsters, which called `sbs.play_audio_file` raw in
+    seven places behind its own enable flag. The engine call needs a path relative to
+    the Artemis audio directory, which is what `get_mission_audio_file` builds - a
+    mission should name its file the way it stores it (`audio/briefing_01`) and never
+    have to know that.
+    
+    Args:
+        file (str): the file, relative to the mission folder.
+        ids_or_obj (int, optional): a client id, or 0 (the default) for everyone.
+        volume (float, optional): 0-1.
+        pitch (float, optional): 1.0 is unshifted.
+    
+    Returns:
+        bool: whether the engine was asked to play it. Silent - not an exception - when
+        there is no engine or the mission disabled audio, because a missing sound must
+        never end the task that was telling the story."""
 def media_read_file (basedir, file):
     ...
 def media_read_from_zip (zip_file, file, as_utf8=True):
@@ -104,3 +133,11 @@ def sub_task_schedule (label, data=None, var=None) -> 'MastAsyncTask':
     
     Returns:
         MastAsyncTask: The sub-task created, or None outside a task context."""
+def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
+    """Extract the integer ID from an agent, ``CloseData``, ``SpawnData``, or bare int.
+    
+    Args:
+        other (Agent | CloseData | SpawnData | int): Value to convert.
+    
+    Returns:
+        int: The integer agent ID."""

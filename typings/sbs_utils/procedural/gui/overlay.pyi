@@ -26,6 +26,29 @@ def _hud_builder (client_id, content):
     ...
 def _letterbox_builder (client_id, content):
     ...
+def _live_catchup (t):
+    """Deliver every live overlay to consoles that have since joined its audience."""
+def _live_drop (slot=None):
+    ...
+def _live_now ():
+    ...
+def _live_set (slot, kind, content, to, consoles, seconds=None, replay=None):
+    """Remember an overlay as live so late joiners get it.
+    
+    ``replay(page, remaining)`` overrides how it is delivered to one late console —
+    needed by kinds whose presentation is measured against the SCREEN (the split
+    single-line kinds), where replaying a stored content dict would hand the new
+    console a layout computed for somebody else's width."""
+def _live_start ():
+    ...
+def _log_scopes (to, consoles):
+    """Log scopes for an overlay audience.
+    
+    Resolved through consoles_of, so a side / role query / ship / console id is read the
+    same way the overlay read it - then each console is mapped back to its SHIP where it
+    has one. Ship scope on purpose: it is the crew's shared log, so a console that
+    connects later still finds the line, which is the whole difference between this and
+    the toast it replaces."""
 def _lower_third_builder (client_id, content):
     ...
 def _lower_third_portrait_builder (client_id, content):
@@ -62,13 +85,22 @@ def _reply_emitter (signal_name, prom):
 def _schedule_dismiss (page, slot, gen, seconds):
     """Auto-clear ``page``'s ``slot`` after ``seconds`` — but only if it still holds
     generation ``gen`` (i.e. it wasn't re-shown / updated / already cleared in the
-    meantime). One-shot tick; runs in the target page's FrameContext."""
-def _schedule_toast_remove (page, slot, tid, seconds):
-    ...
+    meantime). One-shot tick; runs in the target page's FrameContext.
+    
+    ``gen`` may be a CALLABLE returning the generation to match. A caller that keeps
+    repainting the slot itself — the text cycle — has to be able to move the target,
+    or its own next segment reads as "somebody else took the slot" and the lifetime
+    it asked for never arrives."""
 def _show_maybe_cycled (slot, kind, to, consoles, seconds, fields, field, font, cycle, dwell, loop, width_frac=None):
     """Show a single-line overlay, splitting into timed parts when it will not fit.
     
     The split is PER CLIENT, because "does it fit" depends on that screen's width."""
+def _show_one_page_cycled (page, slot, kind, seconds, fields, field, font, cycle, dwell, loop, width_frac):
+    """Show a single-line overlay on ONE page, splitting if it will not fit there.
+    
+    Per page because "does it fit" is a property of that screen. Returns True if
+    the text had to be split. Also the late-joiner replay: a console that arrives
+    while the banner is up runs exactly this, measured against ITS screen."""
 def _show_transient (slot, kind, to, seconds, content, consoles=None):
     """Show an overlay and, if ``seconds`` is set, auto-clear it after that long.
     The dismiss is generation-guarded per target page, so re-showing the slot before
@@ -94,10 +126,6 @@ def _start_text_cycle (page, slot, kind, fields, field, segments, dwell, loop):
     Generation-guarded: every show bumps the region's generation, so if anything
     else claims the slot (a newer banner, a clear) the cycle notices its own
     generation is stale and stops instead of fighting for the strip."""
-def _toast_builder (client_id, content):
-    ...
-def _toast_push (ov, slot, item):
-    ...
 def consoles_of (to, consoles=None):
     """Resolve an audience expression to a set of console client ids.
     
@@ -122,6 +150,23 @@ def gui_page_for_client (client_id):
         page = gui_page_for_client(CLIENT_ID)
         if page is not None:
             ~~ page.dirty() ~~"""
+def gui_text_escape (s):
+    """Quote a dynamic value for safe inclusion as a ``$text:`` style value.
+    
+    Wraps ``s`` in backticks so any ``:`` or ``;`` it contains is treated as
+    literal text by the style parser rather than a style property (issue #569).
+    A literal backtick -- the quoting delimiter itself -- is stripped. An empty
+    or ``None`` value returns ``""`` so the caller emits ``$text:;`` with no
+    stray backtick in the box (issue #641).
+    
+    Use this ONLY on the dynamic value, e.g. ``f"$text:{gui_text_escape(name)};color:red;"``
+    -- never on a whole authored props string, so the author's own ``:``/``;``
+    styling is left untouched."""
+def overlay_auto_dwell (text):
+    """Seconds to hold a piece of text: long enough to read, short enough to move on.
+    
+    Public because the viewscreen's data column paces its pages the same way, and one
+    reading pace across every timed surface is the point."""
 def overlay_banner (text, color='#fd0', slot='top_banner', to=None, consoles=None, seconds=None, background='#000a', cycle=True, dwell=None, loop=None):
     """Full-width top strip (alert / countdown). Auto-dismiss after ``seconds`` if set.
     Re-call it to update in place (generation-guarded) - a countdown needs no new API.
@@ -195,6 +240,13 @@ def overlay_kind (kind, to=None, consoles=None, slot=None, seconds=None, **field
 def overlay_letterbox (line=None, bar=4, to=None, consoles=None, slot='fullscreen', seconds=None):
     """Cinematic letterbox: black bars top+bottom (``bar`` em each) with an optional
     centered line. Sticky by default; pass ``seconds`` to auto-lift."""
+def overlay_live_clear ():
+    """Drop every live-overlay record and the catch-up ticker (mission reset).
+    
+    Registered in handlerhooks' reset ledger. The ticker itself is already dropped
+    by TickDispatcher.clear(), but the HANDLE has to go with it or _live_start()
+    sees a task that no longer runs and never schedules a new one — the "already
+    scheduled" latch that outlives the dispatcher."""
 def overlay_lower_third (name, line, slot='lower_third', to=None, consoles=None, seconds=None, cycle=True, dwell=None, loop=None):
     """Bottom name-plate + subtitle line (someone speaking over the live view).
     
@@ -294,7 +346,7 @@ def overlay_register_label (kind, label):
     
         === my_hero_card
             gui_row("row-height: content;")
-            gui_text(f"$text:`{title}`;justify:center;font:gui-6")
+            gui_text(f"$text:{gui_text_escape(title)};justify:center;font:gui-6")
             ->END
     
         overlay_register_label("my_hero", my_hero_card)
@@ -311,16 +363,31 @@ def overlay_show (slot, kind, to=None, consoles=None, **content):
             role query mixing them. See ``consoles_of``.
         consoles (str, optional): narrow the audience to consoles with these roles,
             e.g. ``"mainscreen"``.
-        **content: fields passed through to the builder."""
+        **content: fields passed through to the builder.
+    
+    A console that joins the audience while this is still up gets it too — see
+    the late-joiner note above. ``to=None`` means "the console calling", which has
+    no audience to join, so it is not tracked."""
 def overlay_signal_clear (to=None, slot=None):
     """Signal-route forwarder for clear."""
 def overlay_signal_show (to, slot, kind, fields=None):
     """Signal-route forwarder: overlay_show with content supplied as a dict."""
 def overlay_slot_define (slot, rect, draw_layer=28000, input='passthrough'):
     """Define or override a slot's default rect / draw_layer / input mode."""
-def overlay_toast (text, icon=None, seconds=3, to=None, consoles=None, slot='corner_toast'):
-    """Small transient corner notification. Toasts STACK — several coexist, each
-    auto-clearing after its own ``seconds`` (default 3), capped at TOAST_MAX."""
+def overlay_toast (text, icon=None, seconds=3, to=None, consoles=None, slot='corner_toast', color=None, category=None, severity=None):
+    """Notify the crew. RETIRED as an overlay -- writes to the ship's log instead.
+    
+    The line appears immediately in the ambient strip on every console of the addressed
+    ship, and stays in the log tab afterwards. ``icon``, ``seconds`` and ``slot`` are
+    accepted and ignored: they described a transient corner card that no longer exists,
+    and removing them would break every existing caller for no gain.
+    
+    Args:
+        color (str, optional): line color; defaults to the category's.
+        category (str, optional): which log tab -- ``ship`` or ``mission``. Everything
+            shows in ``log`` regardless.
+        severity (str, optional): ``tip`` | ``warning`` | ``danger``. A warning or danger
+            line renders as a callout and raises the log tab."""
 def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """Normalize any agent-like value or collection into a set of integer IDs.
     
@@ -346,20 +413,39 @@ class OverlayManager(object):
         ...
     def _request_repaint (self):
         """Force a full page repaint so present_all can ESTABLISH the sub-region
-        (establishment is gated on the root clear("")). Used only the first time a
-        slot is shown; subsequent updates go out-of-band."""
+        (establishment is gated on the root clear("")). Used the first time a slot
+        is shown, and whenever a root clear has revoked a live one; subsequent
+        updates go out-of-band."""
     def clear (self, slot=None):
         ...
+    def needs_repaint (self):
+        """True when a slot is holding content the engine no longer has on screen.
+        
+        A root clear from outside the page's own repaint (a page pop, an error
+        screen) drops every sub-region. The slot still has content, so nothing
+        will ask for it again -- without this the card just vanishes for the rest
+        of its lifetime. Cheap: almost every page has no slots at all."""
     def patch (self, slot, fields):
         """Merge ``fields`` into a live slot's content and redraw it — the cheap
         update path for a sticky HUD (out-of-band if established, else a repaint).
         No-op if the slot was never shown."""
     def present_all (self, event):
         """Called inside the page's repaint (after root clear("")), so this is
-        where sub-regions get ESTABLISHED. Draw every slot that has content in
-        draw_layer order (low → high so higher slots emit last). Empty slots are
-        dropped by the root clear and marked un-established so a later show
-        re-establishes them via a repaint."""
+        where sub-regions get ESTABLISHED. Every known slot is re-established in
+        draw_layer order (low → high so higher slots emit last); empty ones get
+        only the invisible placeholder.
+        
+        EMPTY SLOTS ARE ESTABLISHED TOO, and that is the point. Establishment is
+        gated on a repaint, so a slot left un-established meant the NEXT card on
+        this console had to wait for one -- while a console that happened not to
+        have repainted since still had its region live and updated instantly. Same
+        card, two consoles, different arrival, decided by unrelated repaint
+        history: the out-of-sync opening cards. Keeping the regions live makes
+        every show after the first out-of-band everywhere, so they land together.
+        
+        Only slots the mission has actually used exist here (they are created
+        lazily), so this is a handful of commands per repaint, not one per
+        declared slot."""
     def show (self, slot, kind, content):
         ...
 class OverlayRegion(object):
@@ -376,10 +462,37 @@ class OverlayRegion(object):
         
         The engine only swaps the back buffer forward on `complete` when it holds
         SOMETHING; an empty back buffer isn't swapped (stale content stays). So an
-        empty slot still emits one placeholder (a space renders nothing)."""
+        empty slot still emits one placeholder (a space renders nothing).
+        
+        The placeholder is deliberately TINY rather than filling the region. An empty
+        slot is now kept established (see present_all), so this widget is on screen
+        for as long as the mission runs -- and `input: passthrough` is plumbed but not
+        yet honored by the engine, so a full-screen one sitting at draw_layer 30000
+        over a main screen is a hit-test hazard waiting to happen. A 1% corner is
+        still "something" for the buffer swap without covering anything."""
     def establish (self, event):
         """Full-repaint path: (re)register the sub-region under root, then fill it.
         Only valid while the page's root region is being rebuilt."""
+    @property
+    def established (self):
+        """True only while the engine still holds this sub-region.
+        
+        Not a latch — "the root has not been cleared since establish() ran".
+        Updating a revoked region is the failure this guards: the engine does
+        not reject it, it re-parents the widgets to ROOT, where they are on
+        screen and no clear on the region tag can ever reach them again (a
+        stuck overlay). Stale here simply means the next show goes back through
+        a repaint, which re-establishes and re-draws."""
+    @established.setter
+    def established (self, value):
+        """True only while the engine still holds this sub-region.
+        
+        Not a latch — "the root has not been cleared since establish() ran".
+        Updating a revoked region is the failure this guards: the engine does
+        not reject it, it re-parents the widgets to ROOT, where they are on
+        screen and no clear on the region tag can ever reach them again (a
+        stuck overlay). Stale here simply means the next show goes back through
+        a repaint, which re-establishes and re-draws."""
     @property
     def is_empty (self):
         ...

@@ -1,3 +1,17 @@
+def is_out_of_bounds (child, parent, tolerance=0.0):
+    """Check if the child's bounds are within the parent's bounds, with an acceptable tolerance.
+    
+    This is a separate check from is_hidden() or equivalents. It shouldn't be used in scripting at all, it should be used in lower-level python to ensure that a child element is only visible when within the bounds its parent.
+    
+    Does not make any changes to anything, is purely a helper function.
+    
+    Args:
+        child (layout_item): The child layout item
+        parent (layout_item): The parent layout item
+        tolerance (float, optional): The amount that the child is allowed to be outside its parent and still be visible. Default is 0.0.
+    
+    Returns:
+        bool: True if it is out of bounds, False if it is within bounds."""
 class Bounds(object):
     """Represents a 2D rectangular bounding box with left, top, right, and bottom coordinates.
     

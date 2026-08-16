@@ -11,6 +11,28 @@ def apply_control_styles (control_name, extra_style, layout_item, task):
             parsed dict applied after the base style.
         layout_item (LayoutItem): Layout item to receive the style.
         task (MastAsyncTask): GUI task used for string formatting."""
+def engine_file (path):
+    """A path in the shape the ENGINE resolves: relative to the Cosmos root.
+    
+    THE ONE PATH HELPER. Every asset class used to compute its own shape against its own
+    base - audio against `data/audio`, images against `data/graphics`, a skybox as an
+    absolute path for a mission asset but a bare name for a stock one, ship data already
+    root-relative. Five spellings of the same idea, and only a run of the game could say
+    which of them a given engine would open.
+    
+    The 2026-08-15 engine resolves ONE shape for all of them, measured against it
+    (`data/missions/mediapath_probe`): a path from the Cosmos root, or an absolute path.
+    Both open. What does NOT open is a bare name, or a path relative to the asset's own
+    old base - `../missions/<m>/<file>` against `data/audio` is what this library built
+    for audio until now, and on this engine it silently plays nothing.
+    
+    NOTE ON EXTENSIONS, because it is the opposite of what the shape suggests: the engine
+    appends the extension itself, and passing one can make the lookup FAIL. A `.wav` on an
+    audio path was measured not to open while the same path without it did. So callers
+    name assets the way they always have - without a suffix - and this does not add one.
+    
+    An absolute path outside the install is passed through unchanged: it is still a path
+    the engine accepts, and rewriting it to `../../..` would only make it fragile."""
 def get_artemis_data_dir ():
     """Get the path to the Artemis Cosmos data directory.
     
@@ -40,14 +62,6 @@ def get_mission_dir_filename (filename):
     
     Returns:
         str: The full path to the file in the mission directory."""
-def get_mission_graphics_file (file):
-    """Get the relative path to a graphics file from the mission directory.
-    
-    Args:
-        file (str): The relative file path from the graphics directory.
-    
-    Returns:
-        str: The relative path from graphics directory to the file."""
 def gui_image (props, style=None, fit=0, color=None):
     """Add an image to the current GUI layout.
     

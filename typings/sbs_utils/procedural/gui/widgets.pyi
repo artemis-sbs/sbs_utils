@@ -1,6 +1,18 @@
 from sbs_utils.pages.layout.console_widget import ConsoleWidget
 from sbs_utils.helpers import FrameContext
-def gui_layout_widget (widget):
+def apply_control_styles (control_name, extra_style, layout_item, task):
+    """Apply a named control style and optional overrides to a layout item.
+    
+    ``extra_style`` may be a raw CSS-style string (``"key:value;..."``) or
+    a style name. It is applied on top of the base ``control_name`` style.
+    
+    Args:
+        control_name (str): Base control style name.
+        extra_style (str | dict | None): Additional style string, name, or
+            parsed dict applied after the base style.
+        layout_item (LayoutItem): Layout item to receive the style.
+        task (MastAsyncTask): GUI task used for string formatting."""
+def gui_layout_widget (widget, style=None):
     """Place a specific engine widget at a fixed position in the layout.
     
     Adds the named engine widget to the console widget list AND places a
@@ -10,13 +22,25 @@ def gui_layout_widget (widget):
     Args:
         widget (str): Engine widget name, e.g. ``"2dview"`` or
             ``"helm_movement"``.
+        style (str, optional): Layout style for the PLACEHOLDER, as for any other
+            widget - most usefully ``col-width``. Defaults to None (the whole row).
+    
+    DO NOT SHARE A ROW WITH MAST CONTROLS. The placeholder lays out correctly - measured:
+    `red_alert` beside three checkboxes computes four clean quarters, and every rect is
+    sent - but the ENGINE draws its widget at its own size, over the top of whatever MAST
+    put beside it, so the controls simply vanish. Give an engine widget its own row (or
+    its own section). ``col-width`` still shapes the rect the engine is GIVEN, which is
+    worth having on its own; it just cannot stop the engine painting outside it.
     
     Returns:
         ConsoleWidget: The layout placeholder item.
     
     Example:
         gui_section(style="area:0,0,70,100;")
-        gui_layout_widget("2dview")"""
+        gui_layout_widget("2dview")
+        # sharing one row with a checkbox:
+        gui_checkbox("Follow", "col-width:90px;", var="follow_tag")
+        gui_layout_widget("red_alert", "col-width:1fr;")"""
 def gui_update_widget_list (add_widgets=None, remove_widgets=None):
     """Add or remove widgets from the current client's active widget list.
     
@@ -65,3 +89,19 @@ def gui_widget_list_clear ():
     
     Example:
         gui_widget_list_clear()"""
+def gui_widget_offscreen (widget, client_id=None):
+    """Push an engine widget out of view.
+    
+    The ONLY reliable way to be rid of an engine widget. It cannot be un-declared: the
+    console's widget list is what the engine draws from, and the engine keeps what it has
+    been given, so simply not asking for it is not always enough on a console that has
+    already shown it. gui_hide() does even less - it clears `_show` on the layout
+    placeholder while the engine carries on rendering.
+    
+    So this does what `gui_panel_widget_hide` has always quietly done: sends the widget a
+    rect at 100,100, off the visible area. Named, because "hide the waterfall" was
+    attempted three different wrong ways before anyone found the one that works.
+    
+    Args:
+        widget (str): engine widget name, e.g. ``"text_waterfall"``.
+        client_id (int, optional): defaults to the current client."""

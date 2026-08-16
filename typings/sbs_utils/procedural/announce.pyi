@@ -12,7 +12,8 @@ def announce (text, title=None, level='status', to=None, ship=None, consoles=Non
         title (str, optional): speaker / header line. Used as the hero card's
             title and the lower third's name.
         level (str): ``chapter`` | ``hail`` | ``alert`` | ``status`` | ``minor``
-            (see the table in the module docstring). Defaults to ``status``.
+            (see the table in the module docstring). Defaults to ``status``, which
+            is a log line and no overlay.
         to: the audience — a console id, a **ship**, a **side**, or a set/role
             query. See ``consoles_of``.
         ship: shorthand for "this ship's crew" — used for ``to`` when ``to`` is

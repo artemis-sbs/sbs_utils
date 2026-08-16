@@ -59,6 +59,23 @@ def camera_auto (to=None, consoles=None):
     
     Returns:
         int: how many consoles were released."""
+def camera_dolly (to, subject, from_distance, to_distance, yaw=0.0, pitch=12.0, seconds=20.0, ease='in_out', consoles=None):
+    """Push the lens in (or pull it out) along a fixed angle, FOLLOWING the subject.
+    
+    `camera_move` interpolates between two fixed WORLD points, which is right for a
+    station and wrong for a ship under way: the shot is left behind, and what began as a
+    push-in ends as a fly-past. This holds the ANGLE and changes only the distance,
+    recomputing from wherever the subject is each tick - the same trick `camera_orbit`
+    uses, and for the same reason.
+    
+    Args:
+        from_distance / to_distance (float): radius at the start and the end. Give a
+            larger ``from`` for a push in, a larger ``to`` for a pull out.
+        yaw (float): degrees around the subject to sit at.
+        pitch (float): degrees above it. Slightly down reads better than dead level.
+    
+    Returns:
+        Promise: resolves when the push ends."""
 def camera_lens (to=None, consoles=None):
     """Where the lens is right now on the first of these consoles, or None.
     
@@ -135,8 +152,8 @@ def camera_shot (to, subject, lens_world, consoles=None):
     """Put the lens at an ABSOLUTE world position, looking at `subject`.
     
     The natural way to write a shot - "camera over here, pointed at that" - is to pass two
-    different objects as dolly and target. That shape does not render (see CINEMATIC_PLAN.md
-    section 0); what renders is one object named twice, with the lens offset away from it,
+    different objects as dolly and target. That shape does not render (see
+    DESIGN_RECORD.md s7); what renders is one object named twice, with the lens offset away from it,
     which is what the Game Master does.
     
     That constraint costs nothing, because the offsets are WORLD-space: any camera position is

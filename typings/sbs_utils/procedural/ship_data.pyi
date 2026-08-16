@@ -1,5 +1,140 @@
+def _art_root_exists (graphics, root):
+    """Is there art for this `artfileroot`, named the way the engine now resolves it?
+    
+    A BARE ROOT IS NO LONGER VALID, and this is the check that has to say so. Engine
+    1.3.6 regenerated `data/shipData.yaml` with every entry reading `ships/<name>`: the
+    base moved up from `data/graphics/ships` to `data/graphics`, and a bare `<name>` no
+    longer resolves. MEASURED, one hull per run so the failure could be attributed
+    (`data/missions/artroot_probe`): `ships/monster2` drew and its mesh was opened, while
+    bare `monster1` put up
+    
+        Assertion failed!  false && "the artfileroot of this ship was not found."
+        ObjectTypeDrawData.cpp:44
+    
+    - a modal dialog on the player's machine. The hull spawns fine on the server; the
+    bill is paid by the first client that has to draw it. So a bare root is reported as
+    missing even when the art is sitting right there under `graphics/ships`, because
+    "the file exists" and "the engine can find it" have stopped being the same question.
+    
+    Left alone: a root that escapes the install (`../..`, or absolute). That really is
+    art this function cannot judge.
+    
+    Matching is on the base name before the first dot, because one root covers a family:
+    `<name>.paxmesh`, `<name>1024.png`, `<name>_diffuse.png`."""
+def _art_that_is_not_there (text):
+    """Which `artfileroot` values in this file have no art in the install?
+    
+    A hull whose art is missing spawns FINE on the server - nothing raises, the object
+    exists, the mission carries on - and then kills the first client that has to draw it:
+    
+        Assertion failed! art3D && "the artfileroot of this ship was not found."
+        ObjectTypeDrawData.cpp:40
+    
+    That is a modal dialog on the player's machine, from a typo in a data file. LM's turret
+    entries asked for `tsn-fighter` when the art is `TSNfighter`, and it went unnoticed for
+    as long as the engine was rejecting that whole file for unrelated reasons (2026-08-14).
+    
+    Quiet when it cannot check. Art lives in the Artemis install, not in the repo, so a CI
+    runner has nothing to compare against - and a check that reported every hull as broken
+    because it could not find the game would be worse than no check at all.
+    
+    Parsed with `load_yaml_string`, which uses the BUNDLED `sbs_utils.yaml`. A bare
+    `import yaml` reaches PyYAML in site-packages, which exists on a developer machine and
+    nowhere else: not in the embedded engine (site is off) and not on a CI runner that
+    installs nothing. The `except` below would then swallow the ImportError and return "no
+    art is missing" - so this check silently did nothing everywhere it was meant to run,
+    which is the failure mode it exists to prevent."""
+def _engine_path (path):
+    """A path in the form the ENGINE wants: relative to the Cosmos root.
+    
+    Their own example is `add_extra_ship_data("extraShipDataAAA",
+    "data/missions/BeamArcTest")` - root-relative, not absolute, and not relative
+    to the mission. Every caller building that string by hand would get it wrong
+    in a different way, and a wrong path is not an error here: the engine is
+    forgiving about data it cannot find, so it fails as ships with no stats.
+    
+    An absolute path under the install is converted; anything else is passed
+    through, since a caller who wrote a relative path already knew what it meant."""
+def _find_extra_root (folder, filename):
+    """The folder holding a logical ship-data path: the mission, then each media
+    root, in the order `media_paths` already searches.
+    
+    Chosen by whether the FILE is there, not whether the folder is. An addon's
+    logical folder name usually matches its own source folder - `turrets/` is both
+    the mastlib's name and a real directory in the mission - so picking the first
+    directory that exists silently picks the addon folder, which is exactly where
+    the file no longer is.
+    
+    THE UNPACKED MEDIA PACK WINS. An addon developed in place has the same file twice -
+    once in its source `media/` folder and once in the pack unpacked under `__lib__` -
+    and the engine can only read the second. ENGINE-MEASURED 1.3.5, the whole of a
+    morning:
+    
+        add_extra_ship_data("extraShipData_monsters",
+                            "data/missions/__lib__/media/<pack>/prefabs")  -> works
+        add_extra_ship_data("extraShipData_monsters",
+                            "data/missions/LegendaryMissions/media/prefabs") -> silently
+                            loads NOTHING
+    
+    The call does not fail either way, and the LIBRARY reads the file fine from both, so
+    everything looks correct: the mission runs, the mock is happy, `sbs lint` is happy.
+    The bill arrives when something spawns one of those hulls and the ENGINE is asked for
+    a ship type it never received - `MemoryError: bad allocation` from
+    `create_space_object`, minutes later, in a mission that never mentions ship data.
+    (Measured harder still: asking the engine to build one directly is an access
+    violation, not an exception.)
+    
+    Falls back to the mission folder, so a genuinely missing file still reports
+    against somewhere a person can go and look."""
+def _looks_like_hjson (text):
+    """Is this extra ship data in a shape the ENGINE can read?
+    
+    The engine parses these files as **HJSON**, not YAML - its own
+    `data/shipData.yaml` says so in the header. HJSON is JSON with comments, so
+    a key cannot contain whitespace and there are no block sequences: a perfectly
+    valid `- key: thing` list, or a `"beam Primary Beams":` block mapping, is a
+    parse error.
+    
+    And it fails in SILENCE. `add_extra_ship_data` raises, we carry on, and the
+    library still merges the file with PyYAML - which accepts both shapes - so
+    every headless run, every unit test and every library lookup sees the ships.
+    Only the engine does not, and the bill arrives later as a hull it was never
+    given: LegendaryMissions' turrets spawned and never fired for exactly this
+    reason (found 2026-08-14).
+    
+    So check the shape at load, where the file is in front of us."""
+def _read_extra_ship_data (filename, path):
+    """`(text, file)` for the file, trying the extensions the engine tries, or
+    `(None, None)`.
+    
+    The FILE matters as much as the text now. The engine used to be handed a name
+    and a folder and do its own extension search; it now wants "a fully-pathed
+    filename (plus suffix)", so somebody has to decide whether this is the `.yaml`
+    or the `.json`. Deciding it twice - once to read, once to tell the engine -
+    is how the two drift apart, so it is decided once, here, by which file
+    actually opened."""
 def _tag_mod_entries (entries, mod):
     """Stamp every entry (in place) with its source mod so spawns can post-process it."""
+def add_extra (name, path=None, mod=None):
+    """Load another ship-data file for this mission.
+    
+    `name` has **no extension** - `.yaml` or `.json` is found here, so a mod can
+    change format without the caller changing. It may include a logical folder
+    (`"turrets/extraShipData_turrets"`). The engine now wants the fully-pathed
+    file WITH its suffix, so the extension search that used to be the engine's job
+    happens in `_read_extra_ship_data` and its answer is what the engine is handed
+    - one decision, not two that can disagree.
+    
+    With no `path`, the file is looked for where the media system already looks:
+    this mission's folder first, then each media pack it pinned. That matters
+    because an ADD-ON cannot put a file where the engine can read it - a mastlib
+    is a zip - while a media pack is unpacked to disk once. So an addon ships its
+    hulls in its media pack and names them here, and neither it nor the library
+    has to write anything.
+    
+    Returns True when the engine was told, False when only the library was.
+    Missing files are not fatal, matching the engine's habit: a mod with a broken
+    path should be a ship with no stats, not a dead mission."""
 def add_ship_data (entry, mod=None, prepend=True):
     """Add a single entry to the in-memory ship data.
     
@@ -62,6 +197,39 @@ def danger_keys ():
     
     Returns:
         list[str]: Danger pickup type keys."""
+def extra_enable (enabled=True):
+    """Allow or forbid the ENGINE side of `add_extra`.
+    
+    Off, the ships are still merged into sbs_utils, so headless runs and every
+    library lookup behave the same; only the engine is not told. Use it to take
+    the engine path out of play without touching any caller."""
+def extra_enabled ():
+    """Is the engine call currently allowed?"""
+def extra_loaded ():
+    """`[(filename, path, reached_engine, engine_arg)]` for every call so far, so a
+    report can say what was loaded, what exact file the ENGINE was pointed at, and
+    whether it heard about it. `engine_arg` is None when no file was found."""
+def extra_replay ():
+    """Tell the engine again about every extra ship data file it has been given.
+    
+    `create_new_sim()` REBUILDS the engine's ship data table - it reads the mission's
+    `extraShipData.json` inside that call - and everything `add_extra_ship_data` registered
+    beforehand is gone. Nothing reports it. The library keeps its own merged copy, so the
+    ships still have stats everywhere sbs_utils can see, and the loss surfaces later as
+    `MemoryError: bad allocation` from a spawn, against whichever mission line asked for
+    one of those hulls.
+    
+    Missions register at story load, which is BEFORE the first map calls `sim_create()`, so
+    this is the ordinary case rather than an edge one. LegendaryMissions declares its
+    monsters with a top-level `shared`, which by design runs once and then becomes a no-op,
+    so nothing ever re-issued them: every monster in the game was unspawnable from the first
+    map start onward, and had been for as long as anyone could remember (measured
+    2026-08-14 - inside LM every hull fails and re-issuing this exact call fixes all five).
+    
+    Replayed from the record rather than from the files: the library merge already happened
+    and only the engine forgot."""
+def extra_reset ():
+    """Forget the record. Called by the per-mission reset, not by missions."""
 def filter_ship_data_by_side (test_ship_key, sides, role=None, ret_key_only=False):
     """Return ship data entries matching a key substring, side filter, and optional role.
     

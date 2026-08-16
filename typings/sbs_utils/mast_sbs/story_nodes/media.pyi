@@ -27,6 +27,20 @@ def get_script_dir ():
     
     Returns:
         str: The absolute path to the script directory."""
+def mast_compile (source, mode='eval', filename=None):
+    """``compile()`` for MAST expressions, with the source kept for tracebacks.
+    
+    Compiling against the shared ``"<string>"`` filename leaves Python with no
+    source for the frame, so ``traceback.extract_tb`` reports the offending line
+    as ``None`` - which is exactly the useless report a MAST author sees today.
+    Compiling against a unique pseudo-filename and registering the text in
+    ``linecache`` makes every traceback (eval and ``~~`` exec alike) print the
+    real expression, and lets eval_code quote the WHOLE expression even when the
+    deepest frame is inside some library function.
+    
+    An ``mtime`` of ``None`` in the linecache tuple is the documented "loaded by
+    a __loader__" form: ``linecache.checkcache`` skips those, so the entry is
+    never invalidated out from under us."""
 def mast_node (append=True):
     ...
 class MediaLabel(DecoratorLabel):
@@ -45,6 +59,12 @@ class MediaLabel(DecoratorLabel):
         searched before, which is why a pack had to be copied in to be usable."""
     def _remove (id):
         ...
+    def _warn_music_unreachable (self, found):
+        """Say when music was found somewhere the engine cannot be pointed at.
+        
+        Silence here would be the worst of both: the author sees their folder on disk,
+        the label passes `test_file`, and the game plays the default track with no
+        explanation. Warned once per label."""
     def can_fallthrough (self, parent):
         ...
     def clear ():
@@ -85,4 +105,23 @@ class MediaLabel(DecoratorLabel):
     def test_file (self):
         ...
     def true_path (self):
-        ...
+        """What the ENGINE is handed for this media label.
+        
+        THE TWO KINDS ARE NOT THE SAME, and that was measured rather than assumed
+        (`data/missions/skybox_probe`, `data/missions/music_probe`, engine 1.3.6):
+        
+        * **Skybox** takes a PATH. Exe-relative, absolute, with or without `.png`, or a
+          bare stock name - all four open the file. So a skybox may live in the mission
+          or in a shared media pack, and is named the same way as everything else.
+        
+        * **Music takes a BARE NAME ONLY.** `set_music_folder` resolves it under
+          `data/audio/music/`, and handing it a path does not merely fail - it HANGS THE
+          ENGINE. Not an exception, not a silent fallback: the call never returns, which
+          from outside is a frozen game. Even `data/audio/music/default`, the exe-relative
+          spelling of the very folder that works as the bare name `default`, hangs it.
+        
+        That is why this used to be a live bug rather than a limitation: the music branch
+        returned an ABSOLUTE path whenever it found the folder in the mission or in a
+        pack, so any mission shipping its own music would freeze Cosmos the moment the
+        label was scheduled. It now always returns a bare name, and says so when it had
+        to ignore a folder it found."""

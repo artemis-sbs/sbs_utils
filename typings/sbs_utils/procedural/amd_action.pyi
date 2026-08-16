@@ -27,6 +27,27 @@ def _departs (actor, operand, line):
     stations, at which point "the ambassador gives up and leaves" quietly never happened.
     
     A lifeform is unhosted first, so its host does not keep a link to someone who left."""
+def _hails (actor, operand, line):
+    """`DS 1 hails ds1_brief` - open an incoming hail.
+    
+    The scene carries everything the hail looks like (`Title:`, `Presentation:`,
+    `Audio:`, `Backdrop:`, `Subject:`, `Priority:`, `Face:`, `Color:`) and everything
+    it says, so this only has to answer two questions: WHICH scene, and WHO gets
+    called.
+    
+    Which scene: the operand, or - written bare - the scene whose `Speaker:` is this
+    actor and whose `When:` is `hail`. The registry answers, so the beat needs no
+    `scenes` dict in hand.
+    
+    Who: the block's own actor. A `Scope: ship` quest runs its block once per holder,
+    so the beat calls that ship; a `Scope: shared` quest runs once on the story agent,
+    so it calls every player. An urge's actor is the character speaking, which is not a
+    ship, so that calls everyone too.
+    
+    Idempotent per scene within a queue (`hail_offer(key=...)`), so a beat entered
+    twice in a frame does not stack two identical calls - the same identity rule
+    `arrives` uses. A hail already ANSWERED and archived can be offered again, also
+    deliberately: re-entering a beat means it is happening again."""
 def _install_builtins ():
     ...
 def _joins (actor, operand, line):
@@ -43,6 +64,12 @@ def _parse_line (line):
     ...
 def _role_list (operand):
     """`a pirate` / `pirate, discovered` -> role tokens."""
+def amd_action_actor ():
+    """Whose block is running - the id "self" resolves to, or None.
+    
+    A verb needs this when the ACTOR is not the target: `X hails Y` has to know
+    whether the block belongs to one player ship (hail that ship) or to the shared
+    story agent (hail everyone), and the actor is the only thing that says which."""
 def amd_action_actors (name):
     """The live agent ids a direction's actor names, as a set (possibly empty).
     
@@ -60,13 +87,18 @@ def amd_action_parse (value):
     that matches no verb still comes back, carrying ``error`` - the caller decides
     whether that is a warning (runtime) or a diagnostic (lint), and neither has to
     re-parse."""
-def amd_action_register (phrase, fn, operand='required', domain=None):
+def amd_action_register (phrase, fn, operand='required', operand_ref=None, domain=None):
     """Declare a stage-direction verb.
     
     ``fn(actor, operand, line)`` applies it and returns False if it could not. ``actor``
     is the raw name as written (resolution is the verb's business - ``becomes`` wants a
     live object, ``arrives`` wants a landmark record). ``operand`` is
     ``required`` / ``optional`` / ``none``.
+    
+    ``operand_ref`` says what KIND of thing the operand names, so the tooling can check
+    it. ``"node"`` means an AMD record key, which is the only kind so far - it is what
+    lets a mistyped ``DS1 hails ds1_breif`` be a lint finding and an editor completion
+    rather than a silence at runtime. The runtime ignores it entirely.
     
     Collisions are loud: re-registering a phrase with a different function raises, the
     same contract as ``amd_register_fields``. Re-registering the identical function is a
@@ -84,6 +116,8 @@ def amd_action_run (value, where='', actor_id=None):
     triggers another cannot leave the wrong "self" behind."""
 def amd_action_run_record (record):
     """Run the ``Action:`` block of a parsed AMD record (nothing to do without one)."""
+def amd_action_verb_spec (phrase):
+    """What a registered verb declares: ``{fn, operand, operand_ref}``, or None."""
 def amd_action_verbs ():
     """Every registered phrase, longest first - the order the parser matches in, and
     what an error message offers."""

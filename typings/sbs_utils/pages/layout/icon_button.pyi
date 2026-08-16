@@ -7,7 +7,8 @@ class IconButton(Column):
     def _present (self, event):
         ...
     def update (self, props):
-        ...
+        """Same contract as `Icon.update`: change the look AND say so, or the new
+        look sits in the object waiting for a rebuild that may never come."""
     @property
     def value (self):
         ...

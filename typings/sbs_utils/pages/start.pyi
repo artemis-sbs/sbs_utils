@@ -1,4 +1,5 @@
 from sbs_utils.helpers import FrameContext
+from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
 from sbs_utils.spaceobject import SpaceObject
 def gui_text_escape (s):

@@ -47,6 +47,27 @@ def get_inventory_value (id_or_object, key: str, default=None):
     
     Returns:
         any: The inventory value, or ``default`` if the key is not set."""
+def is_alt_ship_target (id):
+    """Return whether an ID is safe to hand to ``assign_client_to_alt_ship``.
+    
+    ``0`` means "clear the focus" and is always allowed. Anything else must be a
+    SPACE-object id. A Fleet, side, task or grid id is script-only - the engine never
+    created it - and pointing a console at one crashes the client: measured 5 runs out of
+    5 as either a modal ``vertexIndex < numVerts`` assert out of ``DX11PAXVertList.cpp``
+    or an access violation reading off the end of a vertex list. The engine takes the id
+    as a ship, indexes a mesh it does not have, and reads whatever is there.
+    
+    A dead-but-well-formed space id is deliberately still allowed: the engine handles a
+    deleted ship cleanly (measured), and rejecting it here would drop legitimate focus
+    changes on a target that is merely mid-teardown. This guards the class the engine
+    cannot survive, not staleness. ``object_exists`` already applies the same reasoning
+    before calling ``space_object_exists``.
+    
+    Args:
+        id (Agent | int): Agent ID or object.
+    
+    Returns:
+        bool: ``True`` if the id is 0 or a space-object id."""
 def labels_get_type (label_type):
     """Return all labels whose type or path starts with the given prefix.
     
@@ -58,6 +79,20 @@ def labels_get_type (label_type):
     
     Returns:
         list[MastNode]: Matching label objects."""
+def log (message: str, name: str = None, level: str = None, use_mast_scope=False) -> None:
+    """Emit a log message using Python's ``logging`` module.
+    
+    When ``use_mast_scope=True`` the message is formatted through the current
+    MAST task's string formatter first (MAST exposes this as ``log``).
+    
+    Args:
+        message (str): The message to log. May contain MAST format strings when
+            ``use_mast_scope=True``.
+        name (str, optional): Logger name. Defaults to None (``__base_logger__``).
+        level (str, optional): Logging level string, e.g. ``"DEBUG"``, ``"INFO"``.
+            Defaults to None (``DEBUG``).
+        use_mast_scope (bool, optional): Format the message via the current
+            MAST task. Defaults to False."""
 def scan (path=None, buttons=None, timeout=None, auto_side=True):
     """Start a science scan and return a promise that resolves when scanning is complete.
     

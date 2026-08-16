@@ -3,8 +3,16 @@ def _amd_file_list (data):
     """Section `File:`/`Files:` values -> a flat list of paths. Robust to any data_parser:
     the key may be any case (a friendly parser lowercases it; the default reader keeps case)
     and a value may be a string (one path, or a comma list) or an already-split list."""
+def _amd_resolve_content (fname, quiet, key):
+    ...
+def _content_key (fname):
+    ...
 def _read_from_addon (path, fname):
     """`fname` out of one addon - a folder on disk or a mastlib zip - or None."""
+def amd_content_cache_clear ():
+    ...
+def amd_content_cache_size ():
+    ...
 def amd_declared_addons ():
     """Every addon this story declares, as a path to a source FOLDER or a mastlib ZIP.
     
@@ -41,7 +49,7 @@ def amd_includes (doc):
     several (repeat ``File:`` or a comma ``Files:`` list), in order. The caller reads each
     file and calls ``amd_splice``. Parser-agnostic: works whether the fence parser left
     ``file`` as a list, a single string, or a ``files`` comma string."""
-def amd_read_content (fname):
+def amd_read_content (fname, quiet=False):
     """Read an AMD file (or an include) as text, in three steps:
     
     1. the CONSUMER MISSION folder, so a mission built on a library supplies its own;
@@ -56,6 +64,14 @@ def amd_read_content (fname):
     wanted to be. With step 3, a mission adds a content addon and the renderer finds it.
     
     Returns None when nothing resolves."""
+def amd_read_text (path):
+    """The text of one .amd (or any AMD-adjacent source), decoded the same way a
+    mastlib read decodes it.
+    
+    UTF-8 first (with a BOM tolerated, since editors add one), falling back to
+    cp1252 for a legacy file that predates that convention, and finally to a
+    replacing UTF-8 decode - because a file that cannot be decoded should still
+    parse into something an author can look at and fix, not vanish."""
 def amd_records (section):
     """A section's children as GENERIC records - the raw AMD atom, before any domain lens.
     

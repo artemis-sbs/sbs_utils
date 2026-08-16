@@ -2,6 +2,9 @@ from sbs_utils.pages.layout.clickable import Clickable
 from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.parsers import LayoutAreaParser
+def _back_pack (heights, avail, item_height, sel):
+    """The topmost row that can start the view while row `sel` still fits at the
+    BOTTOM. Packs upward from `sel`, taking rows until the next one overflows."""
 def accepts_kwargs (func):
     ...
 def apply_control_styles (control_name, extra_style, layout_item, task):
@@ -16,14 +19,41 @@ def apply_control_styles (control_name, extra_style, layout_item, task):
             parsed dict applied after the base style.
         layout_item (LayoutItem): Layout item to receive the style.
         task (MastAsyncTask): GUI task used for string formatting."""
+def compose_handler (existing, layout_item, runtime_node):
+    """Return the `(layout_item, node)` tuple a tag_map key should now hold.
+    
+    Replaces, exactly as before, unless there is a real handler already
+    registered for this same widget -- then the two are chained."""
 def get_client_aspect_ratio (cid):
     """Get the aspect ratio of the specified client's screen.
     Args:
         cid (int): The client ID.
     Returns:
         Vec3: The aspect ratio. If Vec3.z is 99, then the client hasn't set the aspect ratio."""
+def gui_text_escape (s):
+    """Quote a dynamic value for safe inclusion as a ``$text:`` style value.
+    
+    Wraps ``s`` in backticks so any ``:`` or ``;`` it contains is treated as
+    literal text by the style parser rather than a style property (issue #569).
+    A literal backtick -- the quoting delimiter itself -- is stripped. An empty
+    or ``None`` value returns ``""`` so the caller emits ``$text:;`` with no
+    stray backtick in the box (issue #641).
+    
+    Use this ONLY on the dynamic value, e.g. ``f"$text:{gui_text_escape(name)};color:red;"``
+    -- never on a whole authored props string, so the author's own ``:``/``;``
+    styling is left untouched."""
+def invoke_message_cb (cb, event, item):
+    """Call whatever is in an `on_message_cb` slot: chain, object, or function."""
 def layout_list_box_control (items, template_func=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False):
     ...
+def max_cur (heights, avail, item_height=0.0):
+    """The largest `cur` that still shows the LAST row -- the scroll RANGE.
+    
+    Not `len(heights) - pack_slots(..., start=cur)`. That counts how many rows fit
+    *from where the view happens to be*, which with real per-row heights changes as
+    you scroll: the same 40-item list reported a range of 19 at cur=0 and 39 at
+    cur=39, so the scrollbar's own `high` moved under the thumb and the list could
+    scroll off its own end. This answer does not depend on `cur` at all."""
 def pack_slots (heights, avail, item_height=0.0, start=0):
     """How many rows fit starting at `start`, packing REAL heights."""
 def reveal_cur (sel, cur, heights, avail, item_height=0.0):
@@ -46,6 +76,24 @@ class LayoutListbox(Column):
      a template """
     def __init__ (self, left, top, tag_prefix, items, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False, reveal=False, hint=None) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def _listbox_size (self, value, aspect_axis):
+        """Resolve a style value against the LISTBOX's own font.
+        
+        It was resolved against a hard-coded font size of 20, so `0.1em` on a listbox
+        was never 0.1 of anything on screen - while the same expression in one of its
+        rows used the row's real font."""
+    def _merge_tags (self, client_id, sub_page):
+        """Publish this draw's row widgets to the real page, and retract the last one's.
+        
+        The other two SubPage users (overlay, tabbed panel) have always done the
+        merge; the listbox never did, which is the whole of LM #349 -- gui_update
+        resolves against page.tag_map, and the row widgets were never in it.
+        
+        The retraction is the part they are missing. A row that scrolled off the
+        screen leaves an entry pointing at a widget that is no longer drawn; a later
+        update would call present() on it and paint at coordinates that belong to
+        nothing. Only entries THIS listbox put there and did not build again are
+        taken back, so a same-named widget elsewhere on the page is untouched."""
     def _on_message (self, event):
         ...
     def _present (self, event):
@@ -121,6 +169,12 @@ class LayoutListbox(Column):
     def redraw_if_showing (self):
         """Redraw if this is already one screen.
         Since sub_region is used if you present too early it will confuse the gui."""
+    def remember_alias_props (self, alias, props):
+        """Hold what gui_update() wrote to a row, so the next draw can re-apply it.
+        
+        Without this the update lasts only until the list next draws -- the template
+        rebuilds the row from the item data and the change is gone. Cleared whenever
+        `items` is replaced, since new data makes old overrides meaningless."""
     def represent (self, event):
         ...
     def select_all (self):
@@ -129,10 +183,15 @@ class LayoutListbox(Column):
         ...
     def set_col_width (self, width):
         ...
+    def set_item_gap (self, gap):
+        """The spacing BETWEEN items. This is what `row-height` used to mean here."""
     def set_read_only (self, v):
         ...
     def set_row_height (self, height):
-        ...
+        """The height of ONE item row - what `row-height` means everywhere else.
+        
+        A FLOOR, not a cap: a template that needs more space grows past it, so a
+        two-line row is never clipped into a one-line click region."""
     def set_selected_index (self, i, set_cur=True):
         ...
     def set_selection_lock (self, o, lock):
@@ -152,8 +211,15 @@ class LayoutListbox(Column):
 class SubPage(object):
     """A class for use with the layout listbox to make using the procedural gui function work
         """
-    def __init__ (self, tag_prefix, region_tag, task, client_id) -> None:
+    def __init__ (self, tag_prefix, region_tag, task, client_id, owner=None, register=True) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def add_alias (self, layout_item, runtime_node=None):
+        """Register an author's `tag:` name for a widget built inside this sub-page.
+        
+        Same idiom as StoryPage.add_alias: an extra key in the same tag_map, which
+        the owner then merges into the real page. The engine tag stays the
+        slot-namespaced one this shim hands out, so the owner's
+        `sub_tag.startswith(tag_prefix)` routing keeps working (LM #349)."""
     def add_content (self, layout_item, runtime_node):
         ...
     def add_row (self):

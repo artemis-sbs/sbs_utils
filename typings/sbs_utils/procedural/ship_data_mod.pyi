@@ -67,6 +67,14 @@ def ship_data_flush_mod_file (mission_dir=None):
 def ship_data_merge_mod (content, mod=None):
     """Declare ship entries for the engine, from JSON/YAML text.
     
+    .. deprecated::
+        Use :func:`sbs_utils.procedural.ship_data.add_extra`, which points both the
+        engine and the library at a file the addon SHIPS rather than generating one.
+        This route reaches the engine by writing ``extraShipData.json``, which
+        ``get_ship_data()`` then loads back on the next run while the addon declares
+        the same entries again - measured at 51 hulls becoming 102 from run 2. Kept
+        working for existing callers.
+    
     Pair with ``media_read_relative_file`` so it works from a packaged ``.mastlib``::
     
         ship_data_merge_mod(media_read_relative_file("myships.json"), "MyMod")

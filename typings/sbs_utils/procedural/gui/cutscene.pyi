@@ -37,8 +37,8 @@ def camera_shot (to, subject, lens_world, consoles=None):
     """Put the lens at an ABSOLUTE world position, looking at `subject`.
     
     The natural way to write a shot - "camera over here, pointed at that" - is to pass two
-    different objects as dolly and target. That shape does not render (see CINEMATIC_PLAN.md
-    section 0); what renders is one object named twice, with the lens offset away from it,
+    different objects as dolly and target. That shape does not render (see
+    DESIGN_RECORD.md s7); what renders is one object named twice, with the lens offset away from it,
     which is what the Game Master does.
     
     That constraint costs nothing, because the offsets are WORLD-space: any camera position is

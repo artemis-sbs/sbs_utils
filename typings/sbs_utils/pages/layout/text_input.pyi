@@ -33,6 +33,12 @@ class TextInput(Column):
         ...
     def _sanitize (v):
         ...
+    def _take_props (self, props):
+        """Split a props string into the VALUE and everything else.
+        
+        Shared by __init__ and update() so a widget built from a props string
+        and one restyled by gui_update() can never disagree about how that
+        string was read."""
     def _text_prop (self):
         ...
     def measure (self, client_id, mode, avail_px, font, ar):
@@ -64,6 +70,17 @@ class TextInput(Column):
                        conversion."""
     def on_message (self, event):
         ...
+    def update (self, props):
+        """Restyle / re-value this input from a props string.
+        
+        Without this override Column.update's `pass` ran, so gui_update() on a
+        gui_input was a silent no-op: the widget was re-sent with its OLD props
+        and the author's new font / desc / value never arrived.
+        
+        A props string carrying no `text:` leaves the VALUE alone. The text in
+        a typein belongs to the player, and restyling the box must not wipe
+        what someone is in the middle of typing -- which is why this cannot
+        just forward to the value setter the way Button.update does."""
     @property
     def value (self):
         ...

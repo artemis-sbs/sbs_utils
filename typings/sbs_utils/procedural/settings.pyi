@@ -1,3 +1,26 @@
+def _cli_overrides (known):
+    """Settings from `var.NAME=value` command-line arguments.
+    
+    Prefixed because `command_line_dict()` is one flat namespace shared with the engine and
+    every add-on: a bare `difficulty=` would be a collision waiting to happen, while `var.`
+    is unambiguous and needs no parsing rules.
+    
+    An unknown NAME is applied AND warned about. Applied because a mission may legitimately
+    read a setting sbs_utils has never heard of; warned because a typo that silently does
+    nothing is the worst outcome - `var.DIFFICULTLY=7` would otherwise look like it worked."""
+def _coerce (text):
+    """A command-line value is always a string; give it the obvious type.
+    
+    int, then float, then true/false, else the string unchanged. Documented rather than
+    clever on purpose - anything needing a list or a dict belongs in a profile file, which
+    is where the boundary between the two surfaces sits."""
+def _profile_overrides ():
+    """Settings from `profile=<name>` on the command line -> `profiles/<name>.yaml`.
+    
+    The command line is for a HANDFUL of short, memorable arguments; a profile is how a
+    launch carries twenty settings without twenty arguments. `cmd.exe` caps a command line
+    at 8191 characters, shortcuts truncate, Windows quoting around spaces and `=` is
+    painful, and none of it is diffable or reviewable. A file is all of those things."""
 def _runtime_settings_override ():
     """Settings overrides supplied at runtime via the ``COSMOS_SETTINGS`` env var
     (a JSON object), highest priority and requiring no ``settings.yaml`` edit.
@@ -5,6 +28,19 @@ def _runtime_settings_override ():
     Used by tooling such as ``sbs debug --set AUTO_START=true``. Top-level keys
     replace the file/built-in values (e.g. ``{"AUTO_PLAY": {"enable": true}}``
     replaces the whole AUTO_PLAY entry)."""
+def _set_path (target, dotted, value):
+    """Set `a.b.c` inside nested dicts, creating levels as needed.
+    
+    Dotted paths exist for exactly one reason: the interesting settings are nested.
+    `var.AUTO_PLAY.enable=true` is the case that motivated it - turning autoplay on from a
+    launch argument is the whole point, and AUTO_PLAY is a dict."""
+def _warn (message):
+    """Loud about a launch argument that did nothing.
+    
+    Worth its own function because the quiet version of this cost real time: a launch
+    argument whose value matched nothing selected an empty set, ran, and reported a pass -
+    the result was believed before the typo was noticed. An argument that does not land
+    must say so."""
 def get_mission_dir_filename (filename):
     """Get the full path to a file in the current mission directory.
     

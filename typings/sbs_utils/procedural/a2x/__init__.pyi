@@ -77,6 +77,38 @@ def clear_station_carried (station):
     Deletes the STANDBY (in-hangar, not launched) craft hosted by the station --
     ``linked_to(station, "hangar_craft") & role("standby") & role("cockpit")`` -- leaving any
     already-launched craft flying. Returns the count removed."""
+def comms_callers_load (section):
+    """Register the callers: a record per 2.8 ``from`` label, key = its slug.
+    
+    A cue has to be a slug (`RE_CUE` is `[\w.\-]+`), but "GW 214" and
+    "CyberSecurity Suite IV" are what the crew must actually READ - and title-casing a
+    slug back mangles both. So the exact label lives on the record's display text and
+    is looked up here, which also gives a human one obvious place to attach a face or
+    a color to a caller later."""
+def comms_scene (key, to=None, side=None):
+    """Play a registered dialogue scene as a run of 2.8 comms messages.
+    
+    One call replaces the contiguous run of ``incoming_comms_text`` tags it was built
+    from, IN PLACE - which is why this is safe: 6096 of the corpus's 6112 comms-bearing
+    events keep their comms in a single unbroken block, so nothing moves relative to
+    the spawns and timers around it.
+    
+    Each beat's ``@cue`` is the 2.8 ``from`` label, and the scene's ``Title:`` / ``Side:``
+    carry the ``type`` / ``sideValue`` the whole run shared. A run whose tags DISAGREED
+    about either is not converted at all - it stays a sequence of direct calls - so this
+    never has to guess."""
+def comms_scenes_clear ():
+    """Drop every registered scene and caller (per-mission state - an unreset
+    module-level container is how a mission's second run goes wrong; see the reset
+    ledger in handlerhooks)."""
+def comms_scenes_load (section):
+    """Register a dialogue section's scenes so ``comms_scene`` can play them by key.
+    
+    A converted 2.8 mission repeats the same comms run relentlessly - once per player
+    ship, once per branch - so the emitter dedupes identical runs into ONE scene and
+    every event that used it just names it. 6128 runs in the corpus collapse to 770
+    scenes, so this is mostly about making converted missions editable: the words live
+    in one place, and editing them is editing a script rather than hunting call sites."""
 def console_roles (letters):
     """2.8 console letters (a subset of ``MHWESCO``) -> a Cosmos console-role csv."""
 def copy_angle (src, dst):
@@ -404,11 +436,17 @@ def set_captain (obj, captain):
 def set_damcon_members (ship, team_index, value):
     """2.8 ``set_damcon_members(team_index, value)`` -> set a damcon team's HP.
     
-    Cosmos models each of the three damcon teams as a single grid lifeform named ``DC1``..
-    ``DC3`` with HP (max ``grid_get_max_hp()``, default 6). 2.8 ``value`` is the team's
+    Cosmos models each damcon team as a single grid lifeform named ``DC1``, ``DC2``, ...
+    with HP (max ``grid_get_max_hp()``, default 6). 2.8 ``value`` is the team's
     strength/HP (0 = downed .. 4 = full in the corpus); it maps to the team's HP, clamped
-    to the Cosmos max. ``team_index`` 0..2 -> DC1..DC3. Ensures the ship's damcons exist
-    first (spawning the standard trio if needed). Returns True if the HP was set."""
+    to the Cosmos max. ``team_index`` is 0-based -> ``DC<index+1>``. Ensures the ship's
+    damcons exist first. Returns True if the HP was set.
+    
+    A hull carries three teams unless its interior data says otherwise
+    (``grid_damcon_count``), so the upper bound is the ship's, not a literal 3. This has no
+    effect on 2.8 conversions - a 2.8 mission only ever addresses teams 0-2 and no
+    converted hull declares anything - it just stops rejecting the extra teams of a hull
+    that does."""
 def set_diplomacy_colors (hostile_color='#F00', neutral_color='#077'):
     """Set the map colours the engine draws contacts with, by RELATION.
     

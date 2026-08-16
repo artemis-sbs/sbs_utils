@@ -25,6 +25,8 @@ def _fire_overlay_directive (directive, to):
     """Fire one inline overlay directive: ``<kind> <text>`` (e.g. ``hero CONVOY
     SAVED``) or ``overlay <key>`` to fire a declared amd_overlays record. The kind's
     primary field (title/text/line) receives the text."""
+def _install_dialogue_outcomes ():
+    ...
 def _kill_is_hostile (killer_id, victim_id):
     """Was the victim an ENEMY? Of the killer if it has a side, otherwise of the
     players (e.g. a SHARED/game-level quest whose killer is Agent.SHARED_ID). Lets a
@@ -39,6 +41,19 @@ def _quest_audience (agent_id):
     non-space SHARED story agent (Agent.SHARED_ID), which is NOT a player ship, so
     tell every player instead - passing SHARED to send_message_to_player_ship
     raises "invalid space object"."""
+def _quest_author_announces (data, ref_key, inline_key):
+    """True when the quest carries its own completion/failure announcement.
+    
+    `on_complete` / `on_fail` are overlay DIRECTIVES (`<kind> <text>`), so a quest that
+    has one is already telling the crew - and the library adding its own line made every
+    such quest announce twice, in two different vocabularies ("Job complete: Mercy Run"
+    then "Mission complete: Mercy Run"). Authored wording wins where an author wrote any.
+    
+    TRADE-OFF worth knowing: the overlay is the attention layer and the broadcast is the
+    durable log, so suppressing the broadcast means an authored completion leaves no line
+    in the waterfall. That is the intent here (the duplicate is what playtesters
+    reported), but if a quest wants both, it should say so rather than getting it by
+    accident."""
 def _quest_console_allowed (console, spec):
     """True if `console` may act under `spec` (empty spec allows any console)."""
 def _quest_console_names (spec):
@@ -46,6 +61,20 @@ def _quest_console_names (spec):
 def _quest_console_set (spec):
     """Normalise a console spec ("comms, admiral" or ["comms","admiral"] or None) to a
     lowercased set. None/"" -> empty set == 'any console'."""
+def _quest_countdown_body (data, speaker, fmt, final):
+    """The words. Authored line first, then a voice-appropriate default.
+    
+    A speaker with no FACE is a machine - a beacon, a ship's transmitter, an empty hull
+    with a distress signal still running - so it gets transmission phrasing rather than
+    someone politely reporting the time. A cast character keeps the spoken form. The
+    author overrides either with `Signal says:`, which is the only way to get wording
+    specific to what is actually failing ("LIFE SUPPORT CRITICAL")."""
+def _quest_countdown_send (aid, qid, data, mark, left):
+    ...
+def _quest_dispatch_id ():
+    """The registered voice as an agent id, resolving a name if that is what was given."""
+def _quest_driver_log (message):
+    ...
 def _quest_effective_consoles (item, key, default_spec):
     """The per-quest console override for `key` (read fresh off the quest's AMD `data`,
     where the `Accept On:` / `Engage On:` labels store it, so it need not ride the log
@@ -97,6 +126,22 @@ def _quest_maybe_end_game (agent_id, quest_id, data, win):
     A quest with end_win (on COMPLETE) or end_lose (on FAILED) ends the game;
     win_text/lose_text (falling back to the display name) is the end-screen reason.
     Guarding the actual teardown lives in the //signal/game_over route."""
+def _quest_noun (data):
+    """What to call this quest to the crew: "Mission" only when it IS the mission.
+    
+    The player already meets three words for one thing - the tab says Quests, an AMD
+    author writes Job, and the library used to say Mission for every last step of every
+    arc. "Mission" is reserved for a quest that ends the game (`end_win`/`end_lose`),
+    where it is simply true; everything else is a Quest, which is the word on the tab
+    the player clicks to find it."""
+def _quest_outcome (verb, apply_fn):
+    """Build a dialogue outcome handler for `<verb> <quest_id>`.
+    
+    Never returns False. Returning False from an outcome refuses the whole PICK
+    (`hail_answer` emits `refused` and nothing happens), so a quest id that does not
+    resolve would make the choice silently unpressable - the worst possible reading of
+    a typo. It logs and lets the answer through. Only a mission's own verb, which can
+    mean "you cannot afford this", should ever refuse."""
 def _quest_overlay_audience (agent_id):
     """The CONSOLE clients that should see a quest's overlays: the participant
     ships' linked consoles (overlays target consoles, not ships)."""
@@ -109,13 +154,23 @@ def _quest_rep_holder (agent_id):
     quest would move DS1's own opinion of TSN - which no player can perceive and no
     author means. World stakes are world state (``Then:`` / ``Action:``). Silently
     ignoring the line would hide the mistake, so ``sbs lint`` rejects it at author time;
-    this is the runtime backstop. URGE_PLAN.md s7.1."""
+    this is the runtime backstop. DESIGN_RECORD.md s4."""
 def _quest_scan_reveals (scanner_id, scanned_id):
     """Active on_scan quests (on the scanner or SHARED) that carry declarative scan text
     (reveal_scan) and whose on_scan role matches the scanned object. Returns the list of
     reveal-text strings (usually one)."""
 def _quest_sig_walk (children, aid, parts):
     ...
+def _quest_speaker (qid, data):
+    """Who speaks for this quest, in order of how much the author asked for it.
+    
+    `Speaker:` names it outright - the shuttle crew calling in on their own rescue, the
+    client chasing a delivery. Failing that, `Held by:` when it resolves to something that
+    can talk: a station's job then speaks with the station's own face for no authoring at
+    all. Failing that, the mission's registered dispatch voice.
+    
+    Returns None when nothing can speak, and the caller stays SILENT rather than sending
+    an anonymous message - a reminder from nobody is worse than no reminder."""
 def _quest_swap_in_armed (agent_id, quest_id, data):
     """The start trigger fired: arm the real one instead of completing. True when this
     was a start (so the caller must not complete, reward or announce)."""
@@ -135,12 +190,24 @@ def amd_kind_defaults (noun):
     moment nor clearly one of the two. `Job` restates today's defaults (per ship, waiting
     to be accepted) rather than changing them, so peacetime's board - which says none of
     this - keeps working exactly as written."""
-def comms_broadcast (ids_or_obj, msg, color=None) -> None:
+def amd_signal_name (value):
+    """A signal name, lowercased with spaces -> underscores (matched exactly).
+    
+    Lives here, not in a caller, because it IS the matching contract: the quest driver
+    matches on it at runtime and the editor's signal join matches on it statically. Two
+    copies held in agreement by a comment would silently stop agreeing the first time
+    the rule widened."""
+def comms_broadcast (ids_or_obj, msg, color=None, category=None, severity=None) -> None:
     """Send a text message to the text waterfall of one or more targets.
     
     Accepts player ship IDs or client/console IDs. Ship IDs use
     ``send_message_to_player_ship``; client IDs use
     ``send_message_to_client``.
+    
+    ALSO appends to the ship's log (``procedural.log_panel``), which is the waterfall's
+    replacement - see mkdocs build/messages.md. Both surfaces are written during the changeover
+    so they can be compared side by side; retiring the waterfall is then deleting the
+    engine half of this function.
     
     Args:
         ids_or_obj: Agent ID, client ID, or set/list of either to send to.
@@ -148,9 +215,16 @@ def comms_broadcast (ids_or_obj, msg, color=None) -> None:
         msg (str): The message text. Supports ``{var}`` interpolation.
         color (str, optional): Text color as a name or hex string, e.g.
             ``"red"`` or ``"#3ff"``. Defaults to ``"#fff"``.
+        category (str, optional): Which log TAB this belongs in - ``"ship"`` or
+            ``"mission"``. Omitted (the default) means it appears in the Log tab, which
+            shows everything, and in no subset tab. That is what makes tagging
+            incremental: nothing is lost by not being tagged.
+        severity (str, optional): ``"tip"`` / ``"warning"`` / ``"danger"``. Draws the
+            entry as a callout. Reserved for things that matter - a box costs two rows,
+            so one per line would halve how much log fits on screen.
     
     Example:
-        comms_broadcast(SHIP_ID, "Red alert!", color="red")"""
+        comms_broadcast(SHIP_ID, "Red alert!", color="red", severity="danger")"""
 def consoles_of (to, consoles=None):
     """Resolve an audience expression to a set of console client ids.
     
@@ -162,6 +236,20 @@ def consoles_of (to, consoles=None):
     
     Returns:
         set[int]: console client ids (possibly empty)."""
+def format_time_remaining (id_or_obj, name):
+    """Return the time remaining on a timer as a ``M:SS`` string.
+    
+    Returns an empty string when the timer has expired or is not set.
+    
+    Args:
+        id_or_obj (Agent | int): Agent ID or object.
+        name (str): Timer name.
+    
+    Returns:
+        str: Formatted remaining time, e.g. ``"1:30"``, or ``""`` if expired.
+    
+    Example:
+        gui_text("Time: {format_time_remaining(SHIP_ID, 'mission')}")"""
 def get_inventory_value (id_or_object, key: str, default=None):
     """Get an inventory value from an agent by key.
     
@@ -173,6 +261,22 @@ def get_inventory_value (id_or_object, key: str, default=None):
     
     Returns:
         any: The inventory value, or ``default`` if the key is not set."""
+def get_time_remaining (id_or_obj, name):
+    """Return the number of whole seconds remaining on a timer.
+    
+    Returns ``0`` when the timer has expired or is not set.
+    
+    Args:
+        id_or_obj (Agent | int): Agent ID or object.
+        name (str): Timer name.
+    
+    Returns:
+        int: Seconds remaining, or ``0`` if expired or not set.
+    
+    Example:
+        secs = get_time_remaining(SHIP_ID, "mission")
+        if secs < 60:
+            "Less than a minute remaining!""""
 def gui_list_box_is_header (item):
     """Return whether a listbox item is a collapsible header.
     
@@ -293,10 +397,30 @@ def quest_agent_quests (agent_id):
         tree = quest_agent_quests(SHIP_ID)
         if tree is not None:
             ~~ print(tree.get("children").keys()) ~~"""
+def quest_any_holder_state (qid, state):
+    """True while ANY quest holder has `qid` in `state`.
+    
+    Behind the same generation guard as _active_quests. The urge system asks this per
+    actor per urge on every pass, and it grows with the holder set - Open Universe
+    makes every station with a waiting passenger a quest holder, so the scan grows
+    with the number of populated systems."""
 def quest_credit_signal (agent_id, name):
     """Owner-scoped on_signal advance: like quest_on_signal but for ONE agent only, so a
     shared/contested quest target can credit the ship that completed it (peacetime
     multiplayer) instead of every holder. Crediting only (no fail-trigger handling)."""
+def quest_dispatch_voice (agent=None):
+    """Register the fallback voice for quest reminders, or read the current one.
+    
+    A mission calls this once with the character its crews already hear from - LM has a
+    "TSN Command" lifeform, Peacetime has Admiral Harkin. Pass None to read.
+    
+    Accepts an id, an object, OR a NAME (a Cast/landmark key), which is resolved lazily at
+    send time. Lazily on purpose: a mission registers its voice while setting the story up,
+    which is before the cast has spawned, so resolving eagerly would store None and stay
+    that way for the whole mission."""
+def quest_dispatch_voice_clear ():
+    """Forget the registered voice. Part of the per-mission reset - a voice left over
+    from the last mission names an agent that no longer exists."""
 def quest_fail_on_all_dead (destroyed_id=None):
     """Fail ACTIVE quests whose fail_on_all_dead {role} guard just emptied - the
     last holder of that role has died. Called from the killed route; the victim is
@@ -331,12 +455,22 @@ def quest_get_data (agent, quest_id):
 def quest_get_display_name (agent, quest_id):
     """Return the display name of a quest.
     
+    Reads ``display_text`` - the field ``quest_add`` actually writes. It used to read
+    only ``display_name``, which NOTHING in the codebase ever sets, so this returned
+    ``None`` for every quest and each caller fell back to the raw quest id. That is why
+    the text waterfall announced `job_ghost/hail` instead of "Hail the Derelict": not a
+    missing display name on some quests, but a key mismatch affecting all of them.
+    
+    ``display_name`` is still honored first, so anything that deliberately set it with
+    ``quest_set_key`` keeps overriding.
+    
     Args:
         agent: Agent ID or object that owns the quest.
         quest_id (str): Quest identifier.
     
     Returns:
-        str | None: The display name, or ``None`` if the quest does not exist.
+        str | None: The display name, or ``None`` if the quest does not exist or has
+            no name of either kind.
     
     Example:
         name = quest_get_display_name(SHIP_ID, "patrol")
@@ -401,6 +535,15 @@ def quest_grant_penalty (agent_id, penalty):
 def quest_grant_reward (agent_id, reward):
     """Grant a quest reward: credits to the agent's side, items to the agent, and
     reputation to the agent (player/SHARED holders only - see ``_quest_rep_holder``)."""
+def quest_holders_of (quest_id, prefer=None):
+    """Every agent holding `quest_id`, most-specific first.
+    
+    A hail belongs to one player SHIP; a `Scope: shared` quest lives on the story
+    agent; a `Held by:` job lives on a station. So "who does this answer resolve for"
+    has no single answer and has to be looked up.
+    
+    `prefer` (the ship that answered) comes first when it holds the quest, so two
+    bridges each carrying their own copy of a job resolve their own."""
 def quest_is_owner (ship, target):
     """True if ship is the claimed owner of target."""
 def quest_log_build_items (sources):
@@ -462,6 +605,12 @@ def quest_on_signal (name):
     A mission/comms route fires signal_emit("quest_signal", {"SIGNAL_NAME": ...});
     this advances any ACTIVE quest (players + SHARED) whose on_signal {name} or
     on_comms {option} matches. Lets authors add beats with no new driver code."""
+def quest_on_tow (ship_id, towed_id):
+    """Advance on_tow quests when `ship_id` delivers `towed_id` under tow.
+    
+    `on_tow {role: <role>}` filters by what was delivered, so "tow 2 survivors" and
+    "tow the derelict home" are the same trigger with a different noun. Credit goes to
+    the HAULER (and SHARED) - the ship that did the work, not whatever it was dragging."""
 def quest_owner (target):
     """The ship id that has claimed this quest target (0 = unclaimed)."""
 def quest_reeval_mission (agent_id, parent_qid):
@@ -485,6 +634,19 @@ def quest_reveal (agent_id, reveal):
     The revealed quests must already exist on the agent (added SECRET/IDLE when
     the parent story was granted); this flips them ACTIVE so their triggers go
     live - the next step(s) of a multi-step bridge story."""
+def quest_run_action (agent, quest_id):
+    """Run this quest's ``Action:`` stage directions, if it declares any. Returns how
+    many applied.
+    
+    Called automatically when a quest goes ACTIVE. Public because a mission that drives
+    quests its own way still wants the block to fire.
+    
+    ONE PER AGENT. A quest activated on five player ships runs its block five times -
+    the same multiplicity as a ``//signal`` route, and the same footgun. It is safe today
+    because every built-in verb is idempotent (``becomes``/``joins`` set state,
+    ``arrives`` is keyed on the landmark, ``departs`` deletes something already gone), and
+    a mission registering its own verb has to keep that property or scope the quest to
+    ``Agent.SHARED_ID``."""
 def quest_scan_enabled (scanner_id, scanned_id):
     """True if the scanned object is the target of an active on_scan quest that defines
     scan text. A //enable/science route gates on this so quest-scan targets become
@@ -515,7 +677,16 @@ def quest_set_owner (target, ship):
 def quest_shared_state (quest_id):
     """State of a game-level (SHARED) quest - convenience for narrative arcs."""
 def quest_tab_abandon (item):
-    """Abandon an active quest (-> FAILED). No-op on a section header."""
+    """Abandon an active quest. No-op on a section header.
+    
+    Routes through `quest_mark_failed` rather than writing the state directly. Setting
+    `state = FAILED` by hand looked equivalent and was not: it skipped the `Penalty:`,
+    the `on_fail` overlay, the announcement, the `quest_failed_done` signal AND
+    `_quest_maybe_end_game` - so abandoning was strictly cheaper than letting a quest
+    fail on its own (Mercy Run costs 100 credits on the clock, nothing on the button),
+    and an `end_lose` quest could be neutralised by abandoning it.
+    
+    A deliberate drop and a timed-out drop now mean the same thing."""
 def quest_tab_accept (item):
     """Accept an available (IDLE) quest. No-op on a section header."""
 def quest_tab_controls_gate (console, item, accept_consoles, engage_enabled, engage_consoles):
@@ -552,6 +723,15 @@ def quest_tick_complete_after ():
     timer set on first ACTIVE sight), so a purely timed step needs no activation hook.
     On completion the quest's Then: reveal fires, advancing a reveal chain; this lets a
     timed narrative beat be authored as a quest instead of a hand-written timer loop."""
+def quest_tick_countdown_reminders ():
+    """Watcher tick: remind the crew, on comms, as a quest's deadline closes in.
+    
+    Rides the deadline `quest_tick_fail_after` already anchors, so a quest with no
+    `Fails when:` costs nothing here and one that has not started its clock is skipped.
+    
+    Marks are latched per quest, so each fires exactly once. When a single tick crosses
+    several at once (a long frame, a mission restart), all of them latch but only the most
+    urgent is SENT - passing three marks must not produce three messages."""
 def quest_tick_fail_after ():
     """Watcher tick: fail ACTIVE quests whose fail_after deadline elapsed. The
     deadline is anchored lazily (a per-quest timer set on first sight), so
@@ -579,22 +759,39 @@ def set_inventory_value (so, key: str, value):
         so (Agent | int | set[Agent | int]): The agent(s) to update.
         key (str): The inventory key.
         value (any): The value to store."""
-def set_timer (id_or_obj, name, seconds=0, minutes=0):
+def set_timer (id_or_obj, name, seconds=0, minutes=0, signal=None):
     """Start a named countdown timer on an agent.
     
     Records the expiry tick in the agent's inventory. Use ``is_timer_finished``
     or ``get_time_remaining`` to check progress.
+    
+    Pass ``signal`` to have the library emit that signal once, when the timer
+    expires, instead of polling for it. The emit carries ``TIMER_AGENT_ID`` and
+    ``TIMER_NAME``. It is purely additive - the timer is still an ordinary timer
+    afterwards, so ``is_timer_set_and_finished`` and ``format_time_remaining``
+    behave exactly as they do without it. Handle it with
+    ``//shared/signal/<name>`` for anything with a side effect; a plain
+    ``//signal/<name>`` runs once per console (see SIGNAL_ROUTING.md).
+    
+    No signal is emitted if the timer is cleared, re-set without ``signal``, or
+    its agent is deleted before it expires. A paused sim does not advance the
+    timer, so it does not expire while paused.
     
     Args:
         id_or_obj (Agent | int): The agent to set the timer on.
         name (str): Unique timer name for this agent.
         seconds (int, optional): Duration in seconds. Defaults to 0.
         minutes (int, optional): Additional duration in minutes. Defaults to 0.
+        signal (str, optional): Signal to emit once when the timer expires.
+            Defaults to None (no signal - poll it instead).
     
     Example:
         set_timer(SHIP_ID, "repair", seconds=30)
         if is_timer_finished(SHIP_ID, "repair"):
-            "Repairs complete!""""
+            "Repairs complete!"
+    
+        set_timer(SHIP_ID, "repair", seconds=30, signal="repair_done")
+        # //shared/signal/repair_done runs on the server when it expires"""
 def side_are_enemies (side1, side2) -> bool:
     """Return whether two sides are hostile to each other.
     

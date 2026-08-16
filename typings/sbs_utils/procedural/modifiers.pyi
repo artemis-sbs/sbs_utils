@@ -191,6 +191,8 @@ def modifier_remove (obj_or_id_or_set, key_or_modifier, source=None) -> None:
             remove directly.
         source (str | int, optional): Source identifier to remove. ``None``
             removes all modifiers for the key. Defaults to None."""
+def modifiers_count () -> int:
+    """How many modifiers are live. Reset-ledger probe."""
 def modifiers_get_for_object (obj_or_id, key) -> list[sbs_utils.procedural.modifiers.Modifier]:
     """Return all modifiers currently applied to a blob key on an object.
     
@@ -203,6 +205,13 @@ def modifiers_get_for_object (obj_or_id, key) -> list[sbs_utils.procedural.modif
     
     Returns:
         list[Modifier]: All active ``Modifier`` objects for that key."""
+def modifiers_reset () -> None:
+    """Drop every active modifier (fresh mission / in-process reload).
+    
+    `all_modifiers` is a CLASS-level list and nothing emptied it, so buffs, debuffs and
+    their duration timers survived into the next mission - a ship in mission 2 could be
+    carrying a tow drag applied to a ship that no longer exists in mission 1. The
+    per-object half is purged with the agents; this is the registry half."""
 def set_data_set_value (to_update, key, value, index=0):
     """Set a value in the engine data-set (blob) for one or more space or grid objects.
     
@@ -223,22 +232,39 @@ def set_inventory_value (so, key: str, value):
         so (Agent | int | set[Agent | int]): The agent(s) to update.
         key (str): The inventory key.
         value (any): The value to store."""
-def set_timer (id_or_obj, name, seconds=0, minutes=0):
+def set_timer (id_or_obj, name, seconds=0, minutes=0, signal=None):
     """Start a named countdown timer on an agent.
     
     Records the expiry tick in the agent's inventory. Use ``is_timer_finished``
     or ``get_time_remaining`` to check progress.
+    
+    Pass ``signal`` to have the library emit that signal once, when the timer
+    expires, instead of polling for it. The emit carries ``TIMER_AGENT_ID`` and
+    ``TIMER_NAME``. It is purely additive - the timer is still an ordinary timer
+    afterwards, so ``is_timer_set_and_finished`` and ``format_time_remaining``
+    behave exactly as they do without it. Handle it with
+    ``//shared/signal/<name>`` for anything with a side effect; a plain
+    ``//signal/<name>`` runs once per console (see SIGNAL_ROUTING.md).
+    
+    No signal is emitted if the timer is cleared, re-set without ``signal``, or
+    its agent is deleted before it expires. A paused sim does not advance the
+    timer, so it does not expire while paused.
     
     Args:
         id_or_obj (Agent | int): The agent to set the timer on.
         name (str): Unique timer name for this agent.
         seconds (int, optional): Duration in seconds. Defaults to 0.
         minutes (int, optional): Additional duration in minutes. Defaults to 0.
+        signal (str, optional): Signal to emit once when the timer expires.
+            Defaults to None (no signal - poll it instead).
     
     Example:
         set_timer(SHIP_ID, "repair", seconds=30)
         if is_timer_finished(SHIP_ID, "repair"):
-            "Repairs complete!""""
+            "Repairs complete!"
+    
+        set_timer(SHIP_ID, "repair", seconds=30, signal="repair_done")
+        # //shared/signal/repair_done runs on the server when it expires"""
 def side_members_set (side):
     """Return the set of agent IDs that belong to a given side.
     

@@ -101,3 +101,23 @@ def gui_icon_name (name, color=None, style=None, props=None):
     
     Returns:
         Icon | Image | None"""
+def gui_icon_recolor (widget, color):
+    """Tint an icon that is already on screen, whatever `gui_icon_name` gave back.
+    
+    That function returns an Icon for a built-in glyph and an Image for a name a
+    mission has re-skinned, and the two carry their color in different places - so a
+    caller that recolored by hand would work until someone registered their own sheet,
+    which is the one thing the name indirection exists to survive. Recolor, never
+    rebuild: the widget keeps its tag, so the engine re-sends one glyph instead of the
+    console rebuilding a row that may be under the pilot's cursor.
+    
+    Args:
+        widget: the layout item from `gui_icon_name` (None is a no-op).
+        color (str): the new tint.
+    
+    Returns:
+        bool: whether the tint was applied."""
+def merge_props (d):
+    ...
+def split_props (s, def_key):
+    ...

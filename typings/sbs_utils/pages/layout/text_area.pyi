@@ -3,6 +3,24 @@ from sbs_utils.pages.layout.column import Column
 from sbs_utils.pages.widgets.control import Control
 from sbs_utils.helpers import FrameContext
 from textwrap import TextWrapper
+def amd_parse_url (text):
+    """`key?scale=0.5&align=center` -> `{"url": "key", "scale": "0.5", ...}`.
+    
+    Values stay STRINGS; every caller coerces to what it needs. Malformed pairs
+    are skipped rather than raising - a mistyped option should cost the option,
+    not the image."""
+def amd_table_rows (raw_rows):
+    """Raw `|a|b|` lines -> `(rows, aligns)`.
+    
+    `aligns` is one of `l`/`c`/`r` per column, taken from the `|:--|--:|`
+    separator row, which is dropped from the data. A table with no separator
+    renders all-left with row 0 as the header, so the separator is optional."""
+def amd_table_scan (lines, i):
+    """A GFM pipe table starting at `lines[i]` -> `(rows, next_index)`, else None.
+    
+    A table is **2 or more** consecutive lines starting with `|`. The pair is
+    required deliberately: a lone `|` line is prose (a table drawn in words, an
+    ASCII diagram, a sentence about a pipe) and must stay prose."""
 def get_client_aspect_ratio (cid):
     """Get the aspect ratio of the specified client's screen.
     Args:
@@ -11,6 +29,18 @@ def get_client_aspect_ratio (cid):
         Vec3: The aspect ratio. If Vec3.z is 99, then the client hasn't set the aspect ratio."""
 def get_font_size (font):
     ...
+def gui_text_escape (s):
+    """Quote a dynamic value for safe inclusion as a ``$text:`` style value.
+    
+    Wraps ``s`` in backticks so any ``:`` or ``;`` it contains is treated as
+    literal text by the style parser rather than a style property (issue #569).
+    A literal backtick -- the quoting delimiter itself -- is stripped. An empty
+    or ``None`` value returns ``""`` so the caller emits ``$text:;`` with no
+    stray backtick in the box (issue #641).
+    
+    Use this ONLY on the dynamic value, e.g. ``f"$text:{gui_text_escape(name)};color:red;"``
+    -- never on a whole authored props string, so the author's own ``:``/``;``
+    styling is left untouched."""
 def measure_block_height (font, text, px_width):
     """Height in PIXELS of `text` wrapped to `px_width`, or None.
     
@@ -45,7 +75,11 @@ def measure_props (props, mode, avail_px, font, ar):
 def merge_props (d):
     ...
 def parse_url (text):
-    ...
+    """`key?scale=0.5&align=center` -> `{"url": "key", "scale": "0.5", ...}`.
+    
+    Values stay STRINGS; every caller coerces to what it needs. Malformed pairs
+    are skipped rather than raising - a mistyped option should cost the option,
+    not the image."""
 def split_props (s, def_key):
     ...
 def to_float (text, defa):
@@ -128,6 +162,13 @@ class TextArea(Control):
         """Parse GFM pipe rows into a TableLine. The |:--|--:| separator row (if
         present) supplies per-column alignment and is dropped from the data; a
         table with no separator row just renders all-left with row 0 as header."""
+    def _callout_styles (self):
+        """Register the callout named styles once, from their ONE definition.
+        
+        Lazy and local: `procedural.amd_callout` is stdlib-shallow (it reaches only
+        `procedural.amd`, which is `re` + `fs`), but importing it at module scope
+        would still tie this widget's import order to the procedural package for a
+        feature most text areas never use."""
     def _present (self, event):
         ...
     def _present_simple (self, event):
