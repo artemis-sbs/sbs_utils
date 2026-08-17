@@ -52,10 +52,10 @@ MAX_EMBED_BYTES = 4 * 1024 * 1024
 def pinned_packs(mission_dir):
     """The media packs `story.json` declares, in declaration order.
 
-    Mirrors `media_paths._pinned_packs`: `resources` values (the engine's key,
-    which also copies the pack into the mission) plus `shared_media` (read from
-    the one shared copy), `.zip` stripped because the unpacked folder is named
-    for the zip."""
+    Mirrors `media_paths._pinned_packs`: `resources` values (unpacked INTO the
+    mission by Mast.expand_resources - not by the engine, which has never heard of
+    story.json) plus `shared_media` (read from the one shared copy), `.zip`
+    stripped because the unpacked folder is named for the zip."""
     story = os.path.join(mission_dir, "story.json")
     try:
         with open(story, "r", encoding="utf-8") as f:
