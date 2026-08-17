@@ -19,13 +19,22 @@ def _pinned_packs ():
         "resources":    {"media": "...zip"}     the ENGINE unpacks it into this mission
         "shared_media": ["...zip"]              nobody does; it is read from __lib__
     
-    `resources` is the engine's key: it copies the pack into `<mission>/media/` at load,
-    which is where the per-mission duplicates come from. A mission that only needs
-    GRAPHICS out of a pack (resolved here, through the image atlas) can declare it under
-    `shared_media` instead and read the one shared copy. A mission that needs
-    engine-resolved media from the pack - a `@media/skybox/...` label, music, audio -
-    still needs `resources`, because the engine resolves those itself and only looks in
-    the mission folder."""
+    `resources` is unpacked INTO the mission, at `<mission>/media/`, which is where the
+    per-mission duplicates come from. A mission that only needs GRAPHICS out of a pack
+    (resolved here, through the image atlas) can declare it under `shared_media` instead
+    and read the one shared copy.
+    
+    Not "the engine's key", which this said for a long time and which is measurably wrong:
+    the exe contains no occurrence of `story.json`, `resources`, `mastlib` or
+    `shared_media`. `Mast.expand_resources()` (mast/mast.py) unpacks it, in Python, before
+    compile - which is what makes a profile able to filter it like anything else here.
+    
+    What IS true is the asymmetry that comment was reaching for: media the ENGINE opens
+    itself resolves against its own directories, so `shared_media` alone is not always
+    enough. A skybox is fine either way (sbs_utils hands the engine a full path), but
+    MUSIC is not - `set_music_folder` takes a bare name under `data/audio/music` and hangs
+    on a path, so a pack's music is unreachable wherever the pack lives. See
+    `mast_sbs/story_nodes/media.py::true_path`."""
 def _profile_media_rules ():
     """The profile's `media:` include/exclude. Tolerant - no profile means no rules, and
     this runs during compile where a failure must never be fatal."""

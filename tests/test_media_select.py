@@ -151,18 +151,46 @@ class BankTest(unittest.TestCase):
     def test_an_unknown_bank_has_nothing(self):
         self.assertFalse(media.music_bank_has("no_such_bank", "victory"))
 
-    def test_the_sting_falls_back_per_file_not_per_bank(self):
-        """A mod bank missing only `victory.ogg` should still supply everything else,
-        so the fallback is for that ONE file."""
-        from sbs_utils.procedural.objective import _end_game_sting
-        self.assertEqual(_end_game_sting(True), "music/default/victory")
-        self.assertEqual(_end_game_sting(False), "music/default/failure")
+    def test_a_sting_plays_from_the_selected_bank(self):
+        """The point of the whole function: missions hardcoded `music/default/victory`
+        ~40 times, so a game scored to another bank still ended on the stock sting."""
+        played = []
+        self._fake_engine(played)
+        media._music_current[0] = "artemis2"
+        self.assertTrue(media.music_play_sting("victory"))
+        self.assertEqual(played, [(0, "music/artemis2/victory")])
 
-    def test_win_and_lose_are_not_swapped(self):
-        """They were: `if is_win: play failure`."""
-        from sbs_utils.procedural.objective import _end_game_sting
-        self.assertIn("victory", _end_game_sting(True))
-        self.assertIn("failure", _end_game_sting(False))
+    def test_it_falls_back_per_file_not_per_bank(self):
+        """A bank is only conventionally start/main/victory/failure, so a mod's bank may
+        ship its own `main` and no `victory`. Losing the mod's whole soundtrack over one
+        missing file would be the wrong trade."""
+        played = []
+        self._fake_engine(played)
+        media._music_current[0] = "no_such_bank"
+        media.music_play_sting("victory")
+        self.assertEqual(played, [(0, "music/default/victory")])
+
+    def test_no_engine_is_silent_not_fatal(self):
+        """Music must never be able to end the task telling the story."""
+        from sbs_utils.helpers import FrameContext
+        saved, FrameContext.context = FrameContext.context, None
+        try:
+            self.assertFalse(media.music_play_sting("victory"))
+        finally:
+            FrameContext.context = saved
+
+    def _fake_engine(self, played):
+        """Record what reaches sbs.play_music_file, and put it back afterwards."""
+        from sbs_utils.helpers import FrameContext, Context, FakeEvent
+
+        class _Sbs:
+            @staticmethod
+            def play_music_file(ID, filename):
+                played.append((ID, filename))
+
+        saved = FrameContext.context
+        FrameContext.context = Context(None, _Sbs(), FakeEvent())
+        self.addCleanup(lambda: setattr(FrameContext, "context", saved))
 
 
 class ModDefaultTest(unittest.TestCase):

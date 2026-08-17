@@ -537,6 +537,11 @@ the mission's `settings.yaml` > a mod's `settings_set_mod_default` > the library
 all of them. `music_get_list()` enumerates the usable banks; `music_schedule_select(spec)`
 applies one and warns by name if the spec matched nothing.
 
+End-of-game stings come from the SELECTED bank: `music_play_sting("victory")` /
+`("failure")`, not `sbs.play_music_file(0, "music/default/victory")` - that literal
+hardcoded the bank, so a game scored to anything else ended on the stock sting. Falls back
+to `default` per FILE, so a bank missing one stinger keeps the rest of its music.
+
 `set_music_folder` takes a **bare name** under `data/audio/music/` - a path HANGS the
 engine, so a bank in a media pack is found, withheld, and reported until
 `MUSIC_ENGINE_ACCEPTS_PATHS` is turned on.

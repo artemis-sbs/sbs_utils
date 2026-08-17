@@ -153,6 +153,27 @@ def music_find (spec):
     """Find one music ``@media`` label. See :func:`media_find`."""
 def music_get_list ():
     """Every usable music ``@media`` label. See :func:`media_get_list`."""
+def music_play_sting (name, ids_or_obj=0):
+    """Play a one-shot out of the bank that is CURRENTLY PLAYING - `victory`, `failure`,
+    `start`, `main`.
+    
+    Missions had no way to say this. `sbs.play_music_file(0, "music/default/victory")` is
+    the literal that appears ~40 times across the mission repos, and the `default` in it is
+    hardcoded - so a game scored to Artemis2, or to a mod's own soundtrack, still ended on
+    the stock sting. The bank was never the mission's to know; it is whatever MUSIC_SELECT,
+    a map, or the operator chose.
+    
+    Args:
+        name (str): the one-shot, without `.ogg` - `"victory"`, `"failure"`, ...
+        ids_or_obj (int, optional): a ship or client id, or 0 (the default) for everyone.
+    
+    Returns:
+        bool: whether the engine was asked to play it.
+    
+    Falls back to the `default` bank PER FILE, not per bank. A bank is conventionally
+    `start/main/victory/failure.ogg` plus `low/ medium/ high/`, but nothing enforces that,
+    so a mod's bank may legitimately ship its own `main` and no `victory` - and losing the
+    mod's whole soundtrack over one missing file would be the wrong trade."""
 def music_reset ():
     """Forget which bank is playing, and re-arm the empty-media warning. Called from
     ``reset_mission_state`` - run 2 has its own labels and deserves its own warning."""

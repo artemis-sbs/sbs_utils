@@ -52,6 +52,25 @@ knowing the mod exists.
 the same matcher `maps_find` uses, so a name means the same thing on a command line, in a
 settings file and in a dropdown. An ambiguous spec returns `None` rather than guessing.
 
+## End-of-game stings
+
+A bank is not one track: it holds `start`, `main`, `victory` and `failure` alongside the
+`low/ medium/ high/` tiers. `music_play_sting(name)` plays one **out of the bank that is
+currently playing**:
+
+```
+music_play_sting("victory")
+```
+
+Missions used to write `sbs.play_music_file(0, "music/default/victory")` — the literal
+appeared about forty times across the mission repos — and the `default` in it was
+hardcoded, so a game scored to Artemis2 or to a mod's soundtrack still ended on the stock
+sting. The bank was never the mission's to know.
+
+The fallback is **per file, not per bank**: a mod's bank may legitimately ship its own
+`main` and no `victory`, and losing its whole soundtrack over one missing file would be the
+wrong trade — so only that one file falls back to `default`.
+
 ## Music must be a bare name, and that is the engine's rule
 
 `set_sky_box` takes a path in any spelling. **`set_music_folder` does not**: it resolves a
