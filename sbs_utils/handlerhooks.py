@@ -123,6 +123,12 @@ def reset_mission_state():
     # exactly what the ledger below exists to notice.
     from .procedural.gui.gui import ButtonPromise
     ButtonPromise.navigation_map.clear()
+    # Mod-registered face sheets and races. Per-mission by definition: the face
+    # strings name an atlas alias that only exists while THAT mod is loaded, so
+    # carrying them into the next mission would hand it faces pointing at a sheet
+    # the engine is no longer told about.
+    from .faces import face_mod_reset
+    face_mod_reset()
     # The ship's log (Log Panel). Per-mission by definition - last mission's traffic
     # in this one's log would be nonsense - and registered below so a forgotten clear
     # is reported by name rather than found three runs later.
@@ -337,6 +343,8 @@ from .procedural.amd_drops import drops_size as _drops_size
 register_reset_state("drop tables", _drops_size)
 from .procedural.gui.message import dead_handler_site_count as _dead_handler_sites
 register_reset_state("dead GUI handler warnings", _dead_handler_sites)
+from .faces import face_mod_size as _face_mod_size
+register_reset_state("mod face registry", _face_mod_size)
 from .procedural.volume import volume_count as _volume_count
 from .procedural.volume import volume_watch_count as _volume_watch_count
 register_reset_state("volumes", _volume_count)

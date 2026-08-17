@@ -168,6 +168,19 @@
 <script src="/three.min.js"></script>
 <script src="/face.js"></script>
 <script>
+// Register any MOD face sheets the ENGINE knows about, from the table the server
+// injected into this page. Synchronous on purpose: face.js drops a layer whose alias
+// it does not know and clears the canvas without retrying, so anything drawn before
+// an async registration would stay permanently blank.
+(function () {
+  var t = window.MOD_FACE_ALIASES || {};
+  Object.keys(t).forEach(function (a) {
+    if (FaceRender.ALIAS[a]) return;              // never shadow a stock sheet
+    FaceRender.registerAlias(a, t[a], 8, 8);      // mod sheets are 8x8; only ter is 15
+  });
+})();
+</script>
+<script>
 // ── Config ───────────────────────────────────────────────────────────────────
 // /server → connects as the server console (clientID=0, no client_connect fired)
 // /web/<path> → connects as a MAST web page (//web/<path>), unique clientID, no console flow
@@ -203,6 +216,7 @@ const _threeRenderer = (() => {
   }
 })();
 const _tl       = _threeRenderer ? new THREE.TextureLoader() : null;
+let _faceLogged = 0;
 const _texCache = new Map();   // src → { tex, cbs[] }
 const _colorCtx = (() => { const c = document.createElement('canvas'); c.width = c.height = 1; return c.getContext('2d'); })();
 
@@ -368,15 +382,26 @@ function _buildImageWidget(s) {
   let lastW = 0, lastH = 0;
 
   function doRender(w, h) {
-    if (w <= 0 || h <= 0) return;
+    // ResizeObserver reports FRACTIONAL sizes, and three.js floors setSize to whole
+    // pixels - so a sub-pixel width like 0.5 passed the old `w <= 0` guard and then
+    // produced a 0-wide drawing buffer, and the blit below threw
+    // "InvalidStateError: ... canvas element with a width or height of 0", which
+    // escapes the ResizeObserver callback and aborts the rest of that layout pass.
+    // Round first, and require at least one whole pixel.
+    w = Math.floor(w); h = Math.floor(h);
+    if (w < 1 || h < 1) return;
     lastW = w; lastH = h;
     if (!mat.map) return;
     displayCanvas.width  = w;
     displayCanvas.height = h;
     _threeRenderer.setSize(w, h, false);   // false = don't touch CSS size
     _threeRenderer.render(scene, camera);
+    // The renderer is SHARED between widgets, so confirm it actually has pixels
+    // before blitting - another widget may have sized it to nothing.
+    const src = _threeRenderer.domElement;
+    if (!src.width || !src.height) return;
     ctx2d.clearRect(0, 0, w, h);
-    ctx2d.drawImage(_threeRenderer.domElement, 0, 0);
+    ctx2d.drawImage(src, 0, 0);
   }
 
   _loadTex(s.image + '.png', tex => {
@@ -686,7 +711,10 @@ if (Array.isArray(window.__STATIC_FRAMES__)) {
 function sendEvent(type, tag, clientID, detail = {}) {
   if (ws && ws.readyState === WebSocket.OPEN)
     ws.send(JSON.stringify({ type, tag, clientID, ...detail }));
-  log(`TX ${type} tag=${tag} clientID=${clientID}`, 'ev');
+  // field_stats is the once-a-second health heartbeat, not a user event. Logging
+  // it buried everything else in the panel at one line per second.
+  if (type !== 'field_stats')
+    log(`TX ${type} tag=${tag} clientID=${clientID}`, 'ev');
 }
 
 // ── Field health heartbeat ────────────────────────────────────────────────────
@@ -4303,6 +4331,16 @@ function buildWidget(msg, s) {
       }).observe(el);
       // Preload all referenced sheets early
       FaceRender.preload(msg.face_string);
+      // Report whether the face can actually be drawn. A layer whose alias is not
+      // registered is dropped silently by FaceRender.draw() and the canvas is
+      // cleared, which looks identical to "the server sent nothing" - so name it.
+      (function (fs) {
+        var unknown = (fs || '').split(';').map(function (l) { return l.trim().split(/\s+/)[0]; })
+          .filter(function (a) { return a && !FaceRender.ALIAS[a]; });
+        if (!fs) log('face: EMPTY face string', 'ev');
+        else if (unknown.length) log('face: UNKNOWN sheet alias ' + unknown.join(','), 'ev');
+        else if (!_faceLogged) { _faceLogged = 1; log('face: drawing ' + fs, 'ev'); }
+      })(msg.face_string);
       break;
     }
     case 'icon': {

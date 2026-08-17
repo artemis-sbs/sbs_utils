@@ -483,6 +483,46 @@ def _ci_match(abs_path: str):
     return None
 
 
+def _face_alias_table() -> dict:
+    """`{alias: url}` from the engine's own data/graphics/allFaceFiles.txt.
+
+    face.js hard-codes the six stock aliases, so a MOD sheet - the TNG mod adds
+    tng1/tng2 - drew as nothing in the browser while working perfectly in the
+    engine. allFaceFiles.txt IS the engine's registry and the only place a mod can
+    add one, so the browser is told the same thing the engine is.
+
+    Values are turned into URLs the client can actually fetch. The file addresses a
+    pack as `../missions/__lib__/media/...` relative to data/graphics, which the
+    browser collapses to `/missions/__lib__/media/...` - already served, because
+    _serve_static allows data/ as a root for exactly this reason.
+    """
+    if not _cosmos_dir:
+        return {}
+    path = os.path.join(_cosmos_dir, "data", "graphics", "allFaceFiles.txt")
+    out = {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) < 2 or line.lstrip().startswith("#"):
+                    continue
+                alias, rel = parts[0], parts[1].replace("\\", "/")
+                # NO .png. face.js's sheet resolver appends the extension itself
+                # (`filename + '.png'`), because the stock aliases in allFaceFiles.txt
+                # are bare basenames - "ter Terran_Big-revised". Handing it a path that
+                # already ends in .png produced "TNG_Faces_1.png.png", a 404, and a
+                # silently blank canvas: a failed image load is not an error anywhere
+                # the eye can see it.
+                if rel.lower().endswith(".png"):
+                    rel = rel[:-4]
+                while rel.startswith("../"):
+                    rel = rel[3:]
+                out[alias] = "/" + rel.lstrip("/")
+    except OSError:
+        return {}
+    return out
+
+
 async def _serve_static(writer: asyncio.StreamWriter, url_path: str) -> None:
     """Serve a file from any allowed static root, given a URL path.
 
@@ -647,11 +687,25 @@ async def _handle_connection(reader: asyncio.StreamReader,
                     or url_path_bare.startswith('/web/') or url_path_bare == '/web'):
                 html = _read_package_bytes("client.html")
                 if html is not None:
-                    await _http_send(writer, "200 OK", "text/html; charset=utf-8",
-                                      html.decode('utf-8'))
+                    # Inject the mod face-sheet aliases INTO the page rather than
+                    # letting it fetch them. face.js's draw() drops any layer whose
+                    # alias it does not know and CLEARS the canvas, with no retry - so
+                    # a face drawn before an async fetch resolved stayed blank forever.
+                    # Injecting removes the race entirely: the table exists before a
+                    # single script runs.
+                    import json as _json
+                    inject = ("<script>window.MOD_FACE_ALIASES=%s;</script>"
+                              % _json.dumps(_face_alias_table()))
+                    text = html.decode('utf-8')
+                    text = text.replace("<head>", "<head>" + inject, 1)                         if "<head>" in text else inject + text
+                    await _http_send(writer, "200 OK", "text/html; charset=utf-8", text)
                 else:
                     await _http_send(writer, "404 Not Found", "text/plain",
                                       "client.html not found in cosmos_dev.mockgui")
+            elif url_path_bare == '/facealiases.json':
+                import json as _json
+                await _http_send(writer, "200 OK", "application/json",
+                                 _json.dumps(_face_alias_table()))
             elif '/' not in url_path_bare.lstrip('/'):
                 # Serve a flat file shipped in the mockgui package (e.g. three.min.js)
                 filename = url_path_bare.lstrip('/')

@@ -10,7 +10,8 @@
 // just stacking the referenced cells at the same box, each tinted by its color.
 // The optional trailing ox/oy is a small pixel nudge used by some overlay parts.
 //
-// Cell grid: the Terran sheet is 15 cols x 8 rows; every other sheet is 8 x 8.
+// Cell grid: the Terran sheet is 15 cols x 8 rows; every other STOCK sheet is 8 x 8.
+// A mod sheet declares its own grid through registerAlias().
 //
 // Hosts differ only in how an atlas basename becomes a URL — override that with
 // setSheetResolver(). The mock server serves data/graphics/ at the root, so the
@@ -24,7 +25,31 @@
     kra: 'Krailen_Set',        zim: 'Zimni_Set',   arv: 'Arvonian',
   };
   const GRID_ROWS = 8;
-  function gridCols(alias) { return alias === 'ter' ? 15 : 8; }
+  // Per-alias grid, for sheets registered at runtime. The six built-ins keep the
+  // hard-coded rule (Terran is 15 wide, everything else 8); a MOD sheet declares its
+  // own, because nothing guarantees a mod uses 8x8 - it only happens that the TNG
+  // sheets do, having been built to match Skaraan_Set so this function needed no
+  // special case.
+  const _GRID = {};
+  function gridCols(alias) {
+    if (_GRID[alias]) return _GRID[alias].cols;
+    return alias === 'ter' ? 15 : 8;
+  }
+  function gridRows(alias) {
+    return (_GRID[alias] && _GRID[alias].rows) || GRID_ROWS;
+  }
+
+  // Teach the compositor a sheet the ENGINE knows about but this file does not.
+  // data/graphics/allFaceFiles.txt is the real registry and a mod can add to it; this
+  // file cannot see that, so a mod atlas used to render as nothing here - in the
+  // browser mock, the AMD static site and the VS Code preview alike - while working
+  // perfectly in the engine.
+  function registerAlias(alias, filename, cols, rows) {
+    if (!alias || !filename) return;
+    FACE_ALIAS[alias] = filename;
+    _GRID[alias] = { cols: cols || 8, rows: rows || GRID_ROWS };
+    delete _cache[alias];        // a re-register must not answer from the old sheet
+  }
 
   let _resolveUrl = (filename) => filename + '.png';
   function setSheetResolver(fn) { if (typeof fn === 'function') _resolveUrl = fn; }
@@ -96,10 +121,10 @@
     const c = document.createElement('canvas'); c.width = w; c.height = h; return c;
   }
 
-  function drawLayer(canvas, ctx2d, img, cols, col, row, ox, oy, colorStr) {
+  function drawLayer(canvas, ctx2d, img, cols, col, row, ox, oy, colorStr, rows) {
     const w = canvas.width, h = canvas.height;
     if (!img || w <= 0 || h <= 0) return;
-    const cellW = img.width / cols, cellH = img.height / GRID_ROWS;
+    const cellW = img.width / cols, cellH = img.height / (rows || GRID_ROWS);
     const { r, g, b, a } = parseColor(colorStr || 'white');
     const isWhite = r >= 0.99 && g >= 0.99 && b >= 0.99;
     const sx = col * cellW + ox, sy = row * cellH + oy;
@@ -132,7 +157,8 @@
       ctx2d.clearRect(0, 0, w, h);
       layers.forEach(({ alias, color, col, row, ox, oy }) => {
         const img = _cache[alias] && _cache[alias].img;
-        if (img) drawLayer(canvas, ctx2d, img, gridCols(alias), col, row, ox, oy, color);
+        if (img) drawLayer(canvas, ctx2d, img, gridCols(alias), col, row, ox, oy, color,
+                           gridRows(alias));
       });
     }));
   }
@@ -144,5 +170,6 @@
     [...new Set(parse(str).map(l => l.alias))].forEach(a => getSheet(a, () => {}));
   }
 
-  global.FaceRender = { ALIAS: FACE_ALIAS, setSheetResolver, parse, draw, drawString, preload, warm, parseColor };
+  global.FaceRender = { ALIAS: FACE_ALIAS, setSheetResolver, registerAlias, gridCols,
+                        gridRows, parse, draw, drawString, preload, warm, parseColor };
 })(typeof window !== 'undefined' ? window : this);

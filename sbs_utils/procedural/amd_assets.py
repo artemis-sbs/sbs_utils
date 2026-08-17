@@ -252,9 +252,51 @@ def face_js_path():
     return cand if os.path.isfile(cand) else None
 
 
-def face_alias_table():
-    """`{alias: atlas basename}`, parsed from face.js's own `FACE_ALIAS`."""
+def all_face_files(mission_dir=None):
+    """`{alias: sheet path}` read from the engine's own `allFaceFiles.txt`.
+
+    This file IS the registry - the engine maps a face string's alias to a sheet
+    through it, and it is the only place a MOD can add one, because a mastlib is a
+    zip and cannot write into `data/graphics`. Its values may point outside the
+    graphics folder (the TNG mod registers
+    `../missions/__lib__/media/<pack>/faces_tng/TNG_Faces_1`), so they are resolved
+    against the graphics dir rather than assumed to live in it.
+
+    Returns {} when the file or the graphics dir cannot be found, which is the
+    normal case for a checkout with no Cosmos install beside it.
+    """
+    gfx = graphics_dir(mission_dir) if mission_dir else None
+    if gfx is None:
+        return {}
+    path = os.path.join(gfx, "allFaceFiles.txt")
+    out = {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 2 and not line.lstrip().startswith("#"):
+                    rel = parts[1]
+                    if not rel.lower().endswith(".png"):
+                        rel += ".png"
+                    out[parts[0]] = os.path.normpath(os.path.join(gfx, rel))
+    except OSError:
+        return {}
+    return out
+
+
+def face_alias_table(mission_dir=None):
+    """`{alias: atlas basename}`.
+
+    Prefers the engine's `allFaceFiles.txt` when a mission dir is given, because
+    that is the only source that knows about MOD sheets - face.js hard-codes the six
+    stock aliases, so a mod atlas (`tng1`..`tng6`) rendered as nothing in the mock,
+    the AMD static site and the VS Code preview. Falls back to parsing face.js so a
+    checkout with no Cosmos install beside it still resolves the stock six.
+    """
     import re
+    reg = all_face_files(mission_dir)
+    if reg:
+        return {a: os.path.splitext(os.path.basename(p))[0] for a, p in reg.items()}
     path = face_js_path()
     if path is None:
         return {}

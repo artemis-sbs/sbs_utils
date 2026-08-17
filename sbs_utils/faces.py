@@ -673,19 +673,148 @@ def face_resolve(spec):
     return gen() if gen is not None else spec
 
 
-def random_face(race=None):
+# --- Mod-registered face sheets and races -------------------------------------
+# The six stock races are built up layer by layer from their atlas (eyes, mouth,
+# hat...). A mod atlas does not have to work that way: the TNG sheets are one whole
+# bust per cell, so their "builder" is just a ready-made face string. Both kinds can
+# live here at once because a face string is a face string either way.
+#
+# Registration is what makes `random_face("klingon")` reach a mod race at all. Before
+# this the race list was a hard-coded match statement - hence the TODO that used to
+# sit in random_face.
+#
+# Both dicts are per-mission module state, so they are cleared by
+# reset_mission_state() and declared to the reset ledger in handlerhooks. An
+# unregistered container is invisible to the restart soak, and a face registry that
+# survived a reload would hand mission 2 the face strings of mission 1 pointing at an
+# atlas alias that is no longer registered.
+_MOD_SHEETS: dict = {}          # alias -> {"cols": int, "rows": int}
+_MOD_RACES: dict = {}           # race  -> {"any": [...], "roles": {role: [...]}, "in_random": bool}
+
+
+def face_register_sheet(alias, cols=8, rows=8):
+    """Declare a mod atlas alias and its cell grid.
+
+    `alias` is the short name in a face string ("tng1") and must match the name the
+    engine reads from data/graphics/allFaceFiles.txt - the library cannot write that
+    file, so registering here does NOT make the sheet loadable, it only teaches the
+    library and the browser compositor how to read cells out of it.
+    """
+    _MOD_SHEETS[str(alias)] = {"cols": int(cols), "rows": int(rows)}
+
+
+def face_sheet_grid(alias):
+    """(cols, rows) for an alias. Stock geometry for the six built-ins: the Terran
+    sheet is 15 wide, every other sheet is 8."""
+    m = _MOD_SHEETS.get(str(alias))
+    if m:
+        return m["cols"], m["rows"]
+    if alias in _FACE_ALIAS_TO_RACE:
+        return (15 if alias == "ter" else 8), 8
+    return None
+
+
+def face_registered_sheets():
+    """{alias: {"cols","rows"}} - what the mock compositor and AMD renderer need."""
+    return dict(_MOD_SHEETS)
+
+
+def face_register_race(race, faces, roles=None, in_random=True):
+    """Declare ready-made face strings for a race so random_face(race) can use them.
+
+    Args:
+        race:      race name as scripts will ask for it, case-insensitive.
+        faces:     list of face strings - the pool used when no role is asked for.
+        roles:     optional {role: [face strings]} for role-filtered picks, e.g.
+                   random_face("klingon", "command").
+        in_random: whether a bare random_face()/random_face("random") may return this
+                   race. A mod that only wants its faces when asked for by name
+                   passes False.
+    """
+    key = str(race).lower()
+    e = _MOD_RACES.setdefault(key, {"any": [], "roles": {}, "in_random": bool(in_random)})
+    e["any"].extend(faces or [])
+    e["in_random"] = bool(in_random)
+    for role, pool in (roles or {}).items():
+        e["roles"].setdefault(str(role).lower(), []).extend(pool or [])
+
+
+def face_registered_races(in_random_only=False):
+    if in_random_only:
+        return [r for r, e in _MOD_RACES.items() if e["in_random"] and e["any"]]
+    return [r for r, e in _MOD_RACES.items() if e["any"]]
+
+
+def face_random_registered(race, role=None):
+    """A random registered face for a race, or None if the race was never registered.
+
+    A role with no faces falls back to the race pool rather than returning nothing -
+    asking for a Breen science officer should still get a Breen.
+    """
+    e = _MOD_RACES.get(str(race).lower())
+    if not e:
+        return None
+    pool = e["roles"].get(str(role).lower()) if role else None
+    if not pool:
+        pool = e["any"]
+    return choice(pool) if pool else None
+
+
+def face_overlay(face_string, *overlays):
+    """Stack overlay layers onto an existing face string.
+
+    This is the whole point of keeping implants as separate cells: any face can be
+    assimilated at runtime, including one that was never drawn with implants. Layers
+    composite lowest-first, so overlays go last.
+
+        face_overlay(random_face("terran"), "tng6 #fff 2 1", "tng6 #fff 5 3")
+
+    Empty/None overlays are skipped so a caller can pass an optional one straight in.
+    """
+    parts = [p.strip() for p in str(face_string or "").split(";") if p.strip()]
+    for o in overlays:
+        parts.extend(p.strip() for p in str(o or "").split(";") if p.strip())
+    return ";".join(parts) + ";" if parts else ""
+
+
+def face_mod_reset():
+    """Drop every mod registration. Called by reset_mission_state()."""
+    _MOD_SHEETS.clear()
+    _MOD_RACES.clear()
+
+
+def face_mod_size():
+    """Reset-ledger probe: how much mod registration is currently held."""
+    return len(_MOD_SHEETS) + len(_MOD_RACES)
+
+
+def random_face(race=None, role=None):
     """
     Returns a random face for the specified race.
 
+    Mod races registered with face_register_race() are checked FIRST, so an add-on
+    can supply "klingon" or "cardassian" without this function knowing they exist.
+    That is what the TODO which used to sit here was asking for.
+
     Args:
-        race (str): The Race Terran, Torgoth etc.
+        race (str): The Race Terran, Torgoth etc, or a registered mod race.
+        role (str): optional role filter for registered races ("command", "ops"...).
+                    Ignored by the six stock races, which have no role concept.
 
     Returns:
         str: The Face String
     """
-    # TODO: Ideally we would have a way to make this extensible for modded races too.
+    if race is not None and str(race).lower() != "random":
+        s = face_random_registered(race, role)
+        if s is not None:
+            return s
     if race is None or race.lower() == "random":
-        race = choice(["kralien", "arvonian", "skaraan", "torgoth", "ximni", "terran", "civilian" ] )
+        pool = ["kralien", "arvonian", "skaraan", "torgoth", "ximni", "terran", "civilian"]
+        pool += face_registered_races(in_random_only=True)
+        race = choice(pool)
+        s = face_random_registered(race, role)
+        if s is not None:
+            return s
     race = race.lower()    
     match race:
         case "terran":
