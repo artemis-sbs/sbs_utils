@@ -2,11 +2,11 @@
 
 !!! warning "Experimental"
     The pieces below are new and the engine side is still moving. **Ship data, interiors,
-    fleet ladders and races work today.** **Hull art does not yet** — see
+    fleet ladders and races work today.** **Hull art does not yet** â€” see
     [Art](#art-and-the-paxmesh-trap). Build against this if you want to help shape it;
     do not build a release schedule around it.
 
-A **mod** adds content the game does not have — ships, a race, interiors, art — *without
+A **mod** adds content the game does not have â€” ships, a race, interiors, art â€” *without
 editing a single file in your Cosmos install*. If you have written an add-on before, this is
 an add-on that also carries things the **engine** has to open.
 
@@ -14,20 +14,20 @@ Prerequisites: [Making add-ons](addons.md) and [Shared media](shared-media.md).
 
 ## The one idea: who opens it?
 
-Everything about a mod's layout falls out of one question — **is this file read by MAST, or
+Everything about a mod's layout falls out of one question â€” **is this file read by MAST, or
 by the engine?**
 
 | Read by | Lives in | Why |
 |---|---|---|
-| **MAST** — labels, routes, interiors, fleet ladders, dialogue | a `.mastlib` | MAST reads straight out of the zip |
-| **The engine** — ship data, meshes, textures | a **media pack** | the engine opens real files; it cannot read into a zip |
+| **MAST** â€” labels, routes, interiors, fleet ladders, dialogue | a `.mastlib` | MAST reads straight out of the zip |
+| **The engine** â€” ship data, meshes, textures | a **media pack** | the engine opens real files; it cannot read into a zip |
 
 So a mod is normally **two artifacts**, built from one folder.
 
 !!! danger "Never overwrite the game's files"
     The traditional way to ship a mod is to replace `data/shipData.yaml`,
     `data/grid_data.json` and `data/preferences.json`. Measured on a real mod, installing it
-    that way **deleted five ships** and **reverted twenty-two more** — because its
+    that way **deleted five ships** and **reverted twenty-two more** â€” because its
     `shipData.yaml` was copied from an older build, and replacing a whole file ships
     *everything else in it* frozen at that version. Its `preferences.json` also rolled back
     render distances and network tuning that had nothing to do with the mod.
@@ -37,7 +37,7 @@ So a mod is normally **two artifacts**, built from one folder.
 
 ## The example
 
-We will build **Driftwake** — salvager clans who strip the debris fields — with three hulls.
+We will build **Driftwake** â€” salvager clans who strip the debris fields â€” with three hulls.
 
 | key | role |
 |---|---|
@@ -49,7 +49,7 @@ We will build **Driftwake** — salvager clans who strip the debris fields — w
 add `raider` collide; two that add `dw_breaker` and `xx_breaker` never can.
 
 !!! tip "Do not re-use a key the game already owns"
-    Naming your ship `tsn_light_cruiser` *does* work — the engine takes your entry over its
+    Naming your ship `tsn_light_cruiser` *does* work â€” the engine takes your entry over its
     own. But then every mission that spawns a light cruiser gets yours, two such mods can
     never be installed together, and nothing can spawn both. Add ships; do not replace them.
 
@@ -58,7 +58,7 @@ add `raider` collide; two that add `dw_breaker` and `xx_breaker` never can.
 ```
 Driftwake/
   __lib__.json          {"version":"v1.0.0","mastlib":["dw_races"],"zip":["media"]}
-  .gitignore            derived art — see below
+  .gitignore            derived art â€” see below
   media/                -> artemis-sbs.Driftwake.media.v1.0.0.zip
     dw_ships.yaml          the ENGINE opens this one
     ships/                 meshes and textures (later)
@@ -128,7 +128,7 @@ provides dw_races
 ship_data_add_extra("dw_races/dw_ships", mod="dw_races")
 ```
 
-The name takes **no extension** — the engine tries `.yaml` then `.json` itself, so you
+The name takes **no extension** â€” the engine tries `.yaml` then `.json` itself, so you
 can change format without changing the call. It may include a logical folder, and with
 no path it is looked for where the media system already looks: this mission, then each
 media pack it pinned.
@@ -147,10 +147,10 @@ media pack it pinned.
     Turning the engine half off with `ship_data_extra_enable(False)` leaves the library
     merge in place, so headless keeps behaving identically.
 
-!!! warning "Do not use `ship_data_merge_mod` — it is broken"
+!!! warning "Do not use `ship_data_merge_mod` â€” it is broken"
     The older route reaches the engine by **generating** `extraShipData.json` in the
     *mission* folder. That file stays on disk, and on the next run `get_ship_data()`
-    prepends it whole — `#mod` entries and all — while your add-on declares the same
+    prepends it whole â€” `#mod` entries and all â€” while your add-on declares the same
     entries again. Measured at **51 hulls becoming 102** from run 2 onward. The file the
     feature generates is the input that breaks it.
 
@@ -175,14 +175,14 @@ def dw_register_race():
     nothing says why.
 
 **Origin is per ship; race is the gate.** They are different units. A pack of six hulls from
-four different builders keeps four `origin` values — that is what science shows — while
+four different builders keeps four `origin` values â€” that is what science shows â€” while
 sharing *one* race name, because four races of one hull each would mean four settings
 entries and four fleet ladders that could only escalate by count.
 
 Note that in sbs_utils `SpaceObject.race` **is** `origin`, so `origin` also decides which
 taunt group and which hail scene a ship gets.
 
-Your fleet ladder is a normal ladder — see **[Fleets & raiding](fleets.md)** for the file
+Your fleet ladder is a normal ladder â€” see **[Fleets & raiding](fleets.md)** for the file
 format, the difficulty encoding and per-faction sides.
 
 ```mast title="dw_races/__init__.mast"
@@ -197,27 +197,27 @@ if settings_race_is_npc("Driftwake"):
 
 ## Interiors
 
-One ASCII floor plan per hull — the rooms and system nodes Engineering shows. Format and
+One ASCII floor plan per hull â€” the rooms and system nodes Engineering shows. Format and
 authoring: [The races add-on](race-addons.md) and `GRID_ASCII_FORMAT.md`.
 
 !!! danger "A new key has no interior to fall back on"
     Stock hulls have plans shipped with the game. **Yours do not.** A hull you forget to
-    plan gets *no* Engineering console at all — no system nodes, no damcons, no internal
-    damage — and nothing reports it. Plan every hull a player can fly.
+    plan gets *no* Engineering console at all â€” no system nodes, no damcons, no internal
+    damage â€” and nothing reports it. Plan every hull a player can fly.
 
 Three things that bite when writing plans:
 
-- **The plan must fit `internalmapw` × `internalmaph`.** The renderer draws that box and
+- **The plan must fit `internalmapw` Ã— `internalmaph`.** The renderer draws that box and
   **silently drops** anything outside it. If you resize a hull, re-check its plan.
 - **One name means one roleset.** The legend maps a room name to its roles once. Using one
-  name for two different rolesets loses the distinction — and the room registry picks the
+  name for two different rolesets loses the distinction â€” and the room registry picks the
   survivor, so e.g. a single `SHIELD` name for both facings can quietly turn every forward
   shield into an aft one.
 - **The interior decides the drive.** Warp-vs-jump is derived from whether the plan has
   `warp` or `jump` nodes, not from shipData.
 - **A hull needs no hallway.** A plan may fill every open cell with rooms; the damage
   control teams are placed on room cells. You can also say how many teams the hull has and
-  where they stand, with an optional `damcons:` header � `damcons: 5  3,2  1,4` is five
+  where they stand, with an optional `damcons:` header — `damcons: 5  3,2  1,4` is five
   teams with the first two posted. A post is also the team's rally point. Say nothing and
   the hull gets the usual three, engine-placed.
 
@@ -226,7 +226,7 @@ weapons damage pool its guns do not match.
 
 ## Art, and the paxmesh trap
 
-Art is two fields working **together** — the base name and the folder it lives in, relative
+Art is two fields working **together** â€” the base name and the folder it lives in, relative
 to the executable:
 
 ```yaml
@@ -235,10 +235,10 @@ artfilepath: data/missions/__lib__/media/artemis-sbs.Driftwake.media.v1.0.0/ship
 ```
 
 `artfilepath` **cannot be typed by hand**, because it carries the pack version. Bake it at
-build time from `__lib__.json` — every part of the pack name (`{owner}.{repo}.media.{version}`)
+build time from `__lib__.json` â€” every part of the pack name (`{owner}.{repo}.media.{version}`)
 is known before release, so your build script or CI can write it in.
 
-!!! danger "Never commit — or ship — a `.paxmesh`"
+!!! danger "Never commit â€” or ship â€” a `.paxmesh`"
     A `.paxmesh` is **baked for a location**. It stores its texture paths as length-prefixed
     strings (`ships/<root>_diffuse`), so a mesh baked in one folder looks for its textures
     relative to *where it was baked*, not where it ends up. A committed one points at its
@@ -261,7 +261,7 @@ is known before release, so your build script or CI can write it in.
     The path mechanism above works and is engine-verified. What does not: **generating
     derived art from a bare `.obj` crashes the engine.** Art that already has its
     `.paxmesh`/`.pointcube`/`1024`/`256` renders fine, which is why the engine's own example
-    never hits it — but a mod cannot produce those files.
+    never hits it â€” but a mod cannot produce those files.
 
     Until that is fixed, point `artfileroot` at **art the game already owns** (as the example
     above does with `longbow`). Your ships get correct stats and a familiar hull, and the day
@@ -274,7 +274,7 @@ mastlib name, the pack name, `artfilepath`, and a stamp written into your ship f
 manifest. Log it at load and publish it as a shared variable, so a running game can say which
 build it has.
 
-That stamp is what catches a **half-updated install** — a mastlib from one release sitting
+That stamp is what catches a **half-updated install** â€” a mastlib from one release sitting
 beside a media pack from another. Without it that combination loads quietly and renders the
 wrong hulls.
 
@@ -286,7 +286,7 @@ there ships it automatically.
 
 Two things it must get right, both load-bearing:
 
-- **The asset name** is `{owner}.{repo}.{addon}.{tag}.mastlib` — exactly what `sbs lib` writes
+- **The asset name** is `{owner}.{repo}.{addon}.{tag}.mastlib` â€” exactly what `sbs lib` writes
   and what a `story.json` refers to. Publish a bare add-on name and no consumer can resolve it.
 - **The `.mastlib` must be FLAT**, with `__init__.mast` at the zip root. Nested, MAST cannot
   open it and the add-on **silently never loads**.
@@ -328,14 +328,14 @@ The recipient drops both into `data/missions/__lib__/` and then has to get the p
 
 | Route | How | Cost |
 |---|---|---|
-| **CLI** | `sbs.pyz lib <any mod folder>` — unpacks every pack in `__lib__` as a side effect | needs `sbs.pyz` |
+| **CLI** | `sbs.pyz lib <any mod folder>` â€” unpacks every pack in `__lib__` as a side effect | needs `sbs.pyz` |
 | **By hand** | extract the zip into `__lib__/media/<zip name minus `.zip`>` | the folder name must match exactly |
-| **`resources`** | declare the pack under `resources` instead of `shared_media` and the **engine** unpacks it into the mission | one copy per mission — the duplication shared media exists to remove |
+| **`resources`** | declare the pack under `resources` instead of `shared_media` and the **engine** unpacks it into the mission | one copy per mission â€” the duplication shared media exists to remove |
 
 !!! danger "A missing pack is silent"
     Get the folder name wrong and there is **no error**. `media_shared` returns its fallback,
     your ships are never declared, and fleets spawn nothing. On a real mod, removing the
-    unpacked pack failed thirteen checks in its test range — but in a game it just looks like
+    unpacked pack failed thirteen checks in its test range â€” but in a game it just looks like
     an empty map.
 
     Which is the argument for the next section.
@@ -355,16 +355,16 @@ Worth asserting: every hull exists; nothing stock moved; every playable hull has
 no interior overflows its map; the ladder names only keys that exist; and the mastlib and
 media pack versions agree.
 
-Make it a **separate mission folder** with no copy of your add-on inside it — then the
+Make it a **separate mission folder** with no copy of your add-on inside it â€” then the
 compiler cannot substitute your source folder and it tests the **built** artifact, which is
 what people install. It also has to be top-level under `missions/`, because pack pinning only
 looks one level deep.
 
 ## Related
 
-- [Making add-ons](addons.md) — the `.mastlib` basics
-- [Shared media](shared-media.md) — packs, pinning, `export-ignore`
-- [Fleets & raiding](fleets.md) — ladders, difficulty, per-faction sides
-- [The races add-on](race-addons.md) — how the shipped races do all of this
+- [Making add-ons](addons.md) â€” the `.mastlib` basics
+- [Shared media](shared-media.md) â€” packs, pinning, `export-ignore`
+- [Fleets & raiding](fleets.md) â€” ladders, difficulty, per-faction sides
+- [The races add-on](race-addons.md) â€” how the shipped races do all of this
 - [Sides, lifeforms & faces](sides-lifeforms.md)
-- [Damage](damage.md) — what an interior's system nodes do
+- [Damage](damage.md) â€” what an interior's system nodes do

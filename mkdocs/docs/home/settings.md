@@ -48,6 +48,28 @@ GAMEMASTER:
   `var="DIFFICULTY"`. See [Anatomy of a mission](../build/anatomy.md).
 - **Testing:** the `sbs` tool can override settings without editing this file
   (`--auto-start`, `--players N`, `--set KEY=VALUE`). See [the CLI](../tooling/cli.md).
+- **Swapping a whole set at once:** a [profile](../tooling/profiles.md) is a named file
+  of settings &mdash; and of add-ons and art packs &mdash; selected with `profile=<name>`.
 
 Everything here is optional &mdash; the keys are just defaults your mission (and the
 add-ons) may read. See the [settings API](../api/procedural/settings.md).
+
+## Music
+
+`MUSIC_SELECT` names the music bank: a folder name under `data/audio/music`, the display
+name of an `@media/music` label, or `"random"` to pick from every bank that is loaded.
+The library default is `"random"`.
+
+```yaml
+MUSIC_SELECT: "Artemis2"     # or "random", or a mod's bank
+```
+
+**Leaving it out is a choice, not an oversight.** A key present in a mission's
+`settings.yaml` is *explicit*, so it outranks any add-on's
+`settings_set_mod_default()` &mdash; pinning it here stops every mod built on that mission
+from supplying its own soundtrack. LegendaryMissions deliberately ships the line commented
+out. Set it when you mean this mission to sound a particular way; leave it alone otherwise.
+
+Skyboxes no longer choose the music. See [the media system](../api/procedural/media.md)
+for the full precedence, the console's Music dropdown, and `music_play_sting()` for
+end-of-game stingers that follow whichever bank is playing.
