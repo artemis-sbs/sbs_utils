@@ -160,6 +160,12 @@ class MediaLabel(DecoratorLabel):
           launch, and it `returned normally` and was still healthy when the timeout killed
           it. The only variable is the path form.
 
+          NO SIMULATION IS NOT THE CONFOUND. Every case above ran before any sim existed,
+          so the obvious objection is that a path might resolve against something the
+          engine only builds with one. Re-ran 1, 3 and 4 with `sim=1`, which calls
+          `create_new_sim()` first (the log records that it returned): case 3 still fine,
+          cases 1 and 4 still segfault. The sim makes no difference to any of them.
+
           Case 4 is the one to remember. That is the exe-relative spelling of the very
           folder that works as the bare name in case 3 - so this is not about WHERE the
           folder is, and no amount of putting a mod's music in the right place helps. It
