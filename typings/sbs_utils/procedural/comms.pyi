@@ -33,6 +33,9 @@ def _forget_comms_promise (origin_id, selected_id):
     either object of the pair is destroyed -- so a promise can't outlive its objects
     and be handed back for a recycled id. Fires on ordinary in-engine object deletion,
     not only the dev in-process reset, keeping the cache coherent in the real game."""
+def _log_add (scope, msg, color=None, category=None, severity=None):
+    """Append to the ship's log and surface it. See gui.log_panel_gui.log_notify, which
+    is the shared version - the overlay toast retired into the same call."""
 def awaitable (func):
     ...
 def comms (path=None, buttons=None, timeout=None) -> sbs_utils.procedural.comms.CommsPromise:
@@ -79,12 +82,17 @@ def comms_add_button (message, label=None, color=None, data=None, path=None) -> 
     Example:
         //comms/patrol
             comms_add_button("Retreat", retreat_label, color="yellow")"""
-def comms_broadcast (ids_or_obj, msg, color=None) -> None:
+def comms_broadcast (ids_or_obj, msg, color=None, category=None, severity=None) -> None:
     """Send a text message to the text waterfall of one or more targets.
     
     Accepts player ship IDs or client/console IDs. Ship IDs use
     ``send_message_to_player_ship``; client IDs use
     ``send_message_to_client``.
+    
+    ALSO appends to the ship's log (``procedural.log_panel``), which is the waterfall's
+    replacement - see mkdocs build/messages.md. Both surfaces are written during the changeover
+    so they can be compared side by side; retiring the waterfall is then deleting the
+    engine half of this function.
     
     Args:
         ids_or_obj: Agent ID, client ID, or set/list of either to send to.
@@ -92,9 +100,24 @@ def comms_broadcast (ids_or_obj, msg, color=None) -> None:
         msg (str): The message text. Supports ``{var}`` interpolation.
         color (str, optional): Text color as a name or hex string, e.g.
             ``"red"`` or ``"#3ff"``. Defaults to ``"#fff"``.
+        category (str, optional): Which log TAB this belongs in - ``"ship"`` or
+            ``"mission"``. Omitted (the default) means it appears in the Log tab, which
+            shows everything, and in no subset tab. That is what makes tagging
+            incremental: nothing is lost by not being tagged.
+        severity (str, optional): ``"tip"`` / ``"warning"`` / ``"danger"``. Draws the
+            entry as a callout. Reserved for things that matter - a box costs two rows,
+            so one per line would halve how much log fits on screen.
     
     Example:
-        comms_broadcast(SHIP_ID, "Red alert!", color="red")"""
+        comms_broadcast(SHIP_ID, "Red alert!", color="red", severity="danger")"""
+def comms_history_add (player_id, other_id, entry):
+    """Record one exchange between a player ship and a contact."""
+def comms_history_clear ():
+    """Per-mission state: last mission's conversations are not this one's."""
+def comms_history_for (player_id, other_id, limit=None):
+    """Exchanges between the two, oldest first. ``limit`` takes the most RECENT n."""
+def comms_history_size ():
+    """Probe for the reset ledger."""
 def comms_info (name, face=None, color=None) -> None:
     """Update the comms selection info panel with a name and portrait.
     
@@ -495,6 +518,27 @@ def has_role (so, role):
     
     Returns:
         bool: ``True`` if the agent has the role."""
+def is_alt_ship_target (id):
+    """Return whether an ID is safe to hand to ``assign_client_to_alt_ship``.
+    
+    ``0`` means "clear the focus" and is always allowed. Anything else must be a
+    SPACE-object id. A Fleet, side, task or grid id is script-only - the engine never
+    created it - and pointing a console at one crashes the client: measured 5 runs out of
+    5 as either a modal ``vertexIndex < numVerts`` assert out of ``DX11PAXVertList.cpp``
+    or an access violation reading off the end of a vertex list. The engine takes the id
+    as a ship, indexes a mesh it does not have, and reads whatever is there.
+    
+    A dead-but-well-formed space id is deliberately still allowed: the engine handles a
+    deleted ship cleanly (measured), and rejecting it here would drop legitimate focus
+    changes on a target that is merely mid-teardown. This guards the class the engine
+    cannot survive, not staleness. ``object_exists`` already applies the same reasoning
+    before calling ``space_object_exists``.
+    
+    Args:
+        id (Agent | int): Agent ID or object.
+    
+    Returns:
+        bool: ``True`` if the id is 0 or a space-object id."""
 def labels_get_type (label_type):
     """Return all labels whose type or path starts with the given prefix.
     
@@ -506,6 +550,20 @@ def labels_get_type (label_type):
     
     Returns:
         list[MastNode]: Matching label objects."""
+def log (message: str, name: str = None, level: str = None, use_mast_scope=False) -> None:
+    """Emit a log message using Python's ``logging`` module.
+    
+    When ``use_mast_scope=True`` the message is formatted through the current
+    MAST task's string formatter first (MAST exposes this as ``log``).
+    
+    Args:
+        message (str): The message to log. May contain MAST format strings when
+            ``use_mast_scope=True``.
+        name (str, optional): Logger name. Defaults to None (``__base_logger__``).
+        level (str, optional): Logging level string, e.g. ``"DEBUG"``, ``"INFO"``.
+            Defaults to None (``DEBUG``).
+        use_mast_scope (bool, optional): Format the message via the current
+            MAST task. Defaults to False."""
 def science_is_unknown (origin, target) -> bool:
     """Return ``True`` if the target has not been scanned by the scanning ship.
     

@@ -106,7 +106,12 @@ def reset_mission_state():
     # live in mast_sbs.story_nodes, which imports back into the mast layer).
     from .mast_sbs.story_nodes.media import MediaLabel
     from .mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
+    from .procedural.media import music_reset
+    from .procedural.settings import settings_profile_reset
     MediaLabel.clear()          # @media labels (folders APPENDS - reload would double)
+    music_reset()               # which bank is playing - run 2 must not report run 1's
+    settings_profile_reset()    # the parsed profile - a reused interpreter can be
+                                # pointed at a different mission, and its profile
     GuiTabDecoratorLabel.clear()  # //gui/tab labels
     # Navigation routes (//comms, //science, //gui/...) register their LABEL OBJECTS
     # here as they compile, and nothing emptied it - so a second compile in one
@@ -348,6 +353,11 @@ from .procedural.modifiers import modifiers_count
 register_reset_state("modifiers",          modifiers_count)
 from .procedural.timers import timer_signals_count
 register_reset_state("timer signals",      timer_signals_count)
+# Not a leak so much as a wrong ANSWER carried forward: the end-of-game sting reads this
+# to pick a bank, so a run 1 selection surviving into run 2 sends it at a folder run 2
+# never chose. Counted rather than listed - there is at most one entry per target id.
+from .procedural.media import _music_current as _music_banks
+register_reset_state("music selection",    lambda: len(_music_banks))
 from .procedural.particles import particle_count as _particle_count, particle_presets_mission_count
 register_reset_state("particle emitters",  _particle_count)
 register_reset_state("particle presets (mission)", particle_presets_mission_count)

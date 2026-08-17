@@ -1,3 +1,4 @@
+from ctypes import LPBITMAPINFO
 from ctypes import SIZE_T
 def bmicheck (result, func, args):
     ...
@@ -93,8 +94,6 @@ class BITMAPINFOHEADER(Structure):
     """Structure/Union member"""
     biYPelsPerMeter : CField
     """Structure/Union member"""
-class LPBITMAPINFO(_Pointer):
-    """XXX to be provided"""
 class RECT(RECT):
     """Structure base class"""
     def __eq__ (self, other):

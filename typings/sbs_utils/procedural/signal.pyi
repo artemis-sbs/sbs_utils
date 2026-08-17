@@ -1,6 +1,8 @@
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.futures import Promise
+def _notify_signal_observers (name, data):
+    ...
 def _resolve_signal_waiters (name, data):
     """Fire all tasks currently awaiting ``name`` (one-shot) and clear them."""
 def _signal_once_fired ():
@@ -9,6 +11,20 @@ def _signal_waiter_remove (name, prom):
     ...
 def awaitable (func):
     ...
+def log (message: str, name: str = None, level: str = None, use_mast_scope=False) -> None:
+    """Emit a log message using Python's ``logging`` module.
+    
+    When ``use_mast_scope=True`` the message is formatted through the current
+    MAST task's string formatter first (MAST exposes this as ``log``).
+    
+    Args:
+        message (str): The message to log. May contain MAST format strings when
+            ``use_mast_scope=True``.
+        name (str, optional): Logger name. Defaults to None (``__base_logger__``).
+        level (str, optional): Logging level string, e.g. ``"DEBUG"``, ``"INFO"``.
+            Defaults to None (``DEBUG``).
+        use_mast_scope (bool, optional): Format the message via the current
+            MAST task. Defaults to False."""
 def signal_emit (name, data=None):
     """Emit a named signal, running all registered ``//signal/<name>`` routes.
     
@@ -38,6 +54,11 @@ def signal_next (name, timeout=None) -> sbs_utils.procedural.signal.SignalPromis
     Example:
         data = await signal_next("wave_cleared")
         result = await promise_any(signal_next("docked"), delay_sim(30))"""
+def signal_observe (fn):
+    """Call `fn(name, data)` on every emit. Returns `fn`, so it can be used as a
+    decorator. Registering the same callable twice registers it once."""
+def signal_observers_clear ():
+    """Drop every observer (mission reset)."""
 def signal_once_enter (label, path=None):
     """Test-and-set the one-shot flag for a ``once`` route body.
     
@@ -83,6 +104,8 @@ def signal_register (name, label, server=False, task=None, loc=0, is_jump=True, 
         is_temporary (bool, optional): If ``True``, attach the handler to a
             transient idle task that is cleaned up on the next GUI load.
             Defaults to False."""
+def signal_unobserve (fn):
+    """Stop calling `fn`. Safe when it was never registered."""
 def signal_waiters_clear ():
     """Drop all pending signal_next waiters (call on mission reset)."""
 class SignalLabelInfo(object):

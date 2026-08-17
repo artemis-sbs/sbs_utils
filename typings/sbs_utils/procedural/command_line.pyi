@@ -26,3 +26,20 @@ def command_line_list ():
     Returns:
         list[str]: empty when the runtime has no command line (the mock) or the engine
         predates 1.3.5."""
+def command_line_report ():
+    """Every launch argument this library understands, and whether it landed.
+    
+    For a mission or a probe to print at startup. Worth having because the failure mode of
+    a launch argument is silence: a mistyped one selects nothing, changes nothing, and the
+    run proceeds looking healthy. Printing what was understood turns that into something
+    visible in the first line of a log."""
+def command_line_run_tag ():
+    """A label for this launch, from `run=` - for naming logs and artifacts.
+    
+    A soak that plays a mission repeatedly produces one set of files per run, and a report
+    with no run identity in it is unactionable: "it broke" without "on which run" cannot be
+    chased. `cosmos_dev` already prints a run index for its in-process restarts; this is the
+    same idea for separately launched processes, which cannot share a counter.
+    
+    Returns:
+        str: the tag, or "" when none was given - so a caller can always concatenate it."""

@@ -28,3 +28,10 @@ def overlay_amd (key, to=None, fields=None, consoles=None):
     fields; a ``seconds`` field auto-dismisses. ``to`` accepts a console, ship, side
     or set (see ``consoles_of``); ``consoles`` narrows by console role. Returns the
     record, or None for an unknown key."""
+def overlay_amd_clear ():
+    """Drop the declared overlay records. CONTENT, not vocabulary: these come from a
+    mission's .amd, so keeping them means run 2 can resolve a key only the PREVIOUS
+    mission declared and fire the wrong card, silently. On the reset ledger, so a
+    forgotten clear is reported by name instead of found three runs later."""
+def overlay_amd_count ():
+    ...

@@ -21,6 +21,14 @@ def _section_domain (kind, section):
 def _sheet_path (sheet):
     """A sheet named in AMD is a path INSIDE a media pack first - so the same file
     resolves in a clone and in a fetched copy - and only then a plain mission path."""
+def amd_read_text (path):
+    """The text of one .amd (or any AMD-adjacent source), decoded the same way a
+    mastlib read decodes it.
+    
+    UTF-8 first (with a BOM tolerated, since editors add one), falling back to
+    cp1252 for a legacy file that predates that convention, and finally to a
+    replacing UTF-8 decode - because a file that cannot be decoded should still
+    parse into something an author can look at and fix, not vanish."""
 def image_record (section, data, key, name=None, domain=None):
     """One atlas record from a section's facts and an entry's. Section-level `Sheet` /
     `Cell` / `Grid` / `Domain` / `Color` are the entry's default, which is what lets an

@@ -168,5 +168,3 @@ class YAMLObjectMetaclass(type):
     ...
     def __init__ (cls, name, bases, kwds):
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def __prepare__() -> dict:
-        """used to create the namespace for the class statement"""

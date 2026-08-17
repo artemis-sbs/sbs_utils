@@ -49,13 +49,22 @@ def _pinned_packs():
         "resources":    {"media": "...zip"}     the ENGINE unpacks it into this mission
         "shared_media": ["...zip"]              nobody does; it is read from __lib__
 
-    `resources` is the engine's key: it copies the pack into `<mission>/media/` at load,
-    which is where the per-mission duplicates come from. A mission that only needs
-    GRAPHICS out of a pack (resolved here, through the image atlas) can declare it under
-    `shared_media` instead and read the one shared copy. A mission that needs
-    engine-resolved media from the pack - a `@media/skybox/...` label, music, audio -
-    still needs `resources`, because the engine resolves those itself and only looks in
-    the mission folder.
+    `resources` is unpacked INTO the mission, at `<mission>/media/`, which is where the
+    per-mission duplicates come from. A mission that only needs GRAPHICS out of a pack
+    (resolved here, through the image atlas) can declare it under `shared_media` instead
+    and read the one shared copy.
+
+    Not "the engine's key", which this said for a long time and which is measurably wrong:
+    the exe contains no occurrence of `story.json`, `resources`, `mastlib` or
+    `shared_media`. `Mast.expand_resources()` (mast/mast.py) unpacks it, in Python, before
+    compile - which is what makes a profile able to filter it like anything else here.
+
+    What IS true is the asymmetry that comment was reaching for: media the ENGINE opens
+    itself resolves against its own directories, so `shared_media` alone is not always
+    enough. A skybox is fine either way (sbs_utils hands the engine a full path), but
+    MUSIC is not - `set_music_folder` takes a bare name under `data/audio/music` and hangs
+    on a path, so a pack's music is unreachable wherever the pack lives. See
+    `mast_sbs/story_nodes/media.py::true_path`.
     """
     story = get_mission_dir_filename("story.json")
     try:
@@ -65,13 +74,67 @@ def _pinned_packs():
         return []
     declared = list((data.get("resources") or {}).values())
     declared += list(data.get("shared_media") or [])
+    include, exclude = _profile_media_rules()
     out = []
     for value in declared:
         for v in (value if isinstance(value, list) else [value]):
             v = str(v).strip()
             if v.lower().endswith(".zip"):
                 out.append(v[:-4])          # the unpacked folder is named for the zip
+    # A PROFILE may swap art packs - "the TNG ships, not the stock ones". Matched on a
+    # SUBSTRING of the pack name, because a pack carries its version in that name and a
+    # profile must not have to: `Cosmos-TNG-Mod.media` should keep meaning the pack after
+    # the next release of it.
+    if exclude:
+        kept = [p for p in out if not _pack_matches(p, exclude)]
+        for gone in [p for p in out if p not in kept]:
+            _log_pack(f"profile: dropped media pack {gone}")
+        out = kept
+    for want in include:
+        if _pack_matches_any(out, want):
+            continue
+        found = _find_unpacked_pack(want)
+        if found is None:
+            _log_pack(f"profile: include media '{want}' matched nothing unpacked in "
+                      f"__lib__/media - ignoring it")
+            continue
+        out.append(found)
+        _log_pack(f"profile: added media pack {found}")
     return out
+
+
+def _profile_media_rules():
+    """The profile's `media:` include/exclude. Tolerant - no profile means no rules, and
+    this runs during compile where a failure must never be fatal."""
+    try:
+        from .settings import settings_profile_media
+        return settings_profile_media()
+    except Exception:
+        return [], set()
+
+
+def _pack_matches(pack, wanted):
+    return any(w in str(pack).lower() for w in wanted)
+
+
+def _pack_matches_any(packs, want):
+    return any(want in str(p).lower() for p in packs)
+
+
+def _find_unpacked_pack(want):
+    """An unpacked pack in __lib__/media whose name contains `want`, newest last."""
+    lib_media = os.path.join(os.path.dirname(_mission_dir()), "__lib__", "media")
+    try:
+        names = sorted(n for n in os.listdir(lib_media) if want in n.lower())
+    except OSError:
+        return None
+    return names[-1] if names else None
+
+
+def _log_pack(message):
+    """Say it out loud. A pack that silently vanished renders as missing art with no
+    explanation, which is the same symptom as forgetting to declare it."""
+    print(message)
 
 
 def media_roots():

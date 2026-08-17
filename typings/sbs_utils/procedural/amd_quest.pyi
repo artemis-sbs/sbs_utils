@@ -42,7 +42,7 @@ def amd_norm (name):
     """Canonicalize a token: lowercase, hyphens/spaces -> underscores."""
 def amd_num (s):
     """int -> float -> the trimmed string, whichever parses first."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000011CF6E5F4C0>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000028640FEBF60>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to

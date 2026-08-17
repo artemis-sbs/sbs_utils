@@ -3,6 +3,15 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.tickdispatcher import TickTask
+def _docking_gate (brain, npc):
+    """How close this brain wants the player before docking is offered, in CENTER distance.
+    
+    Two ways to say it. ``distance`` is a plain center-to-center range and is what every
+    existing brain uses. ``surface_distance`` is measured from the object's exclusion
+    radius instead, which is the only workable answer for a body whose own radius dwarfs
+    any docking range - a gas giant's exclusion radius is twice its drawn radius, so a
+    center-distance gate would have to be re-derived for every differently sized giant, and
+    a ship could never satisfy the old 600 at all."""
 def _docking_handle_dock_start (player, npc, brain):
     ...
 def _docking_handle_docked (player, npc, brain):
@@ -13,6 +22,12 @@ def _docking_handle_undocked (player_id, player, pairs):
     ...
 def _docking_handle_undocking (player, npc, brain):
     ...
+def _docking_reach (pairs):
+    """Broad-phase radius wide enough for the most distant gate any of these brains wants.
+    
+    ``closest`` prunes with a box of this size before measuring anything, so a gate larger
+    than the search is a gate that can never be met - which is what kept a gas giant
+    undockable: the player cannot get within 2000u of the center of a body 8000u across."""
 def _docking_run_task (player, npc, brain, inner_label):
     ...
 def closest (the_ship, the_set, max_dist=None, filter_func=None) -> sbs_utils.agent.CloseData:

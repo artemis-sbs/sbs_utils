@@ -13,10 +13,24 @@ def _resolve_subject (name, shot_key=''):
 def _shot_from (rec):
     """Build a shot dict from an AMD record. Subject stays a NAME here and is
     resolved at play time - the object does not exist at load."""
+def _split_transition (body):
+    """A shot body -> `(transition, prose)`.
+    
+    `FADE IN:` / `> CUT TO:` in a shot's body says how the shot ARRIVES, exactly the
+    way a screenplay says it. It is structure, not overlay text, so it comes out of
+    the prose here - otherwise the words "CUT TO:" would render on screen as the
+    shot's title. This is what lets a cutscene file read as a screenplay and still be
+    the shot list the engine plays."""
 def _truthy (v, default):
     ...
 def _vec (text):
     """`0, 900, -4000` -> (0.0, 900.0, -4000.0). None when it will not parse."""
+def amd_body_transition (line):
+    """The transition a body line names (`CUT TO:`), or None.
+    
+    Either Fountain's forced form (`> CUT TO:`) or one of the bare spellings every
+    screenwriter already types. Returned uppercase so a renderer never has to care
+    which was written."""
 def amd_cutscene_clear ():
     """Drop every loaded cutscene/rundown/cast - the per-mission reset."""
 def amd_cutscenes (section):

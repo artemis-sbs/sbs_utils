@@ -32,3 +32,15 @@ def gui_input (props, style=None, var=None, data=None):
     
     Example:
         gui_input("", var="ship_name", style="col-width:50%;")"""
+def gui_text_escape (s):
+    """Quote a dynamic value for safe inclusion as a ``$text:`` style value.
+    
+    Wraps ``s`` in backticks so any ``:`` or ``;`` it contains is treated as
+    literal text by the style parser rather than a style property (issue #569).
+    A literal backtick -- the quoting delimiter itself -- is stripped. An empty
+    or ``None`` value returns ``""`` so the caller emits ``$text:;`` with no
+    stray backtick in the box (issue #641).
+    
+    Use this ONLY on the dynamic value, e.g. ``f"$text:{gui_text_escape(name)};color:red;"``
+    -- never on a whole authored props string, so the author's own ``:``/``;``
+    styling is left untouched."""

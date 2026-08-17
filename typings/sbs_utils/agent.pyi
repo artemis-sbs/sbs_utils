@@ -255,7 +255,3 @@ class atdict(dict):
             d[k] = v
     dict(**kwargs) -> new dictionary initialized with the name=value pairs
         in the keyword argument list.  For example:  dict(one=1, two=2)"""
-    def __class_getitem__(*argv):
-        """See PEP 585"""
-    def __getattr__(*argv):
-        """x.__getitem__(y) <==> x[y]"""

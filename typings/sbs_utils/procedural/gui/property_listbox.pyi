@@ -47,6 +47,19 @@ def gui_list_box (items, style, item_template=None, title_template=None, section
             ``LayoutListBoxHeader`` objects (from ``gui_list_box_header``)
             render as collapsible section dividers.
         style (str): CSS-like style overrides for the listbox container.
+    
+            ``row-height`` is the height of ONE item row, and a FLOOR - a template
+            that needs more grows past it. It also sizes the box each item is measured
+            and drawn in, so a template whose rows declare no height fills the item
+            rather than collapsing, and the item's CLICK REGION is never smaller than
+            the row you can see.
+    
+            ``item-gap`` is the spacing BETWEEN items. This is what ``row-height``
+            used to mean here, which made a list declaring the height its template
+            already used render at twice the pitch.
+    
+            Declare neither and an item is exactly as tall as its template's rows,
+            with items flush - unchanged from before either key existed.
         item_template (callable | None, optional): Called per item to build
             its row layout. Defaults to None (built-in text row).
         title_template (str | callable | None, optional): Title for the
@@ -97,7 +110,7 @@ def gui_properties_set (p=None, tag=None):
     
     Example:
         gui_properties_set({"Speed": "gui_text(str(ship_speed))", "Shields": "gui_slider(shield_pct)"})"""
-def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x0000011CF6D33560>):
+def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x000001FAEDA8DC70>):
     """Create a property list box with single-line label/control layout.
     
     Each property is rendered as a label on the left and its control widget
@@ -185,6 +198,18 @@ def gui_text (props, style=None):
     Example:
         gui_text("Hull: {hull_pct}%")
         gui_text("$text:WARNING;color:red;")"""
+def gui_text_escape (s):
+    """Quote a dynamic value for safe inclusion as a ``$text:`` style value.
+    
+    Wraps ``s`` in backticks so any ``:`` or ``;`` it contains is treated as
+    literal text by the style parser rather than a style property (issue #569).
+    A literal backtick -- the quoting delimiter itself -- is stripped. An empty
+    or ``None`` value returns ``""`` so the caller emits ``$text:;`` with no
+    stray backtick in the box (issue #641).
+    
+    Use this ONLY on the dynamic value, e.g. ``f"$text:{gui_text_escape(name)};color:red;"``
+    -- never on a whole authored props string, so the author's own ``:``/``;``
+    styling is left untouched."""
 def is_dev_build ():
     """Check if the current mission is a development build.
     

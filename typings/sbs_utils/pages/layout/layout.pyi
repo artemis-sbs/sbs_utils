@@ -61,6 +61,22 @@ def get_client_aspect_ratio (cid):
         Vec3: The aspect ratio. If Vec3.z is 99, then the client hasn't set the aspect ratio."""
 def get_font_size (font):
     ...
+def invoke_message_cb (cb, event, item):
+    """Call whatever is in an `on_message_cb` slot: chain, object, or function."""
+def is_out_of_bounds (child, parent, tolerance=0.0):
+    """Check if the child's bounds are within the parent's bounds, with an acceptable tolerance.
+    
+    This is a separate check from is_hidden() or equivalents. It shouldn't be used in scripting at all, it should be used in lower-level python to ensure that a child element is only visible when within the bounds its parent.
+    
+    Does not make any changes to anything, is purely a helper function.
+    
+    Args:
+        child (layout_item): The child layout item
+        parent (layout_item): The parent layout item
+        tolerance (float, optional): The amount that the child is allowed to be outside its parent and still be visible. Default is 0.0.
+    
+    Returns:
+        bool: True if it is out of bounds, False if it is within bounds."""
 def pct_to_px_x (pct, ar):
     """Percent of region width -> pixels, for this client's aspect ratio."""
 def px_to_pct_x (px, ar):
@@ -76,6 +92,21 @@ class Layout(Clickable):
     """class Layout"""
     def __init__ (self, tag=None, rows=None, left=0, top=0, right=100, bottom=50, region_type=<RegionType.SECTION_AREA_ABSOLUTE: 0>) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def _apply_clipping (self):
+        """Decide which children are clipped out of view.
+        
+        This is a LAYOUT-time step, not a drawing one. `_is_shown` is derived
+        purely from geometry, so it belongs to the pass that decides geometry.
+        Computing it while drawing made it an OUTPUT of the present pass that
+        the next layout pass then read back -- geometry went stale by a frame,
+        a control clipped last frame was dropped from the width split, and
+        gui_show() could not put it right because `_show` never changed.
+        
+        Top-down, after the whole tree has been laid out: a child's verdict
+        depends on its parent's, so the parent must be decided first. Runs over
+        EVERY row, including script-hidden ones that calc() filtered out of the
+        layout loop -- their columns still have to be told, or they draw at
+        their own stale bounds inside a row that is not there."""
     def _content_row_height (self, row, bounds_area, aspect_ratio, row_font, mode, client_id, provisional_height):
         """Height for a `row-height: content` row, breaking the square cycle.
         
@@ -105,6 +136,10 @@ class Layout(Clickable):
         A row of nothing but squares (or unmeasurable widgets) therefore has no
         natural height at all and returns None, falling back to flex."""
     def _post_present (self, event):
+        ...
+    def _pre_present (self, event):
+        ...
+    def _present (self, event):
         ...
     def _raise_flex_to_floors (actual_cols, widths, auto_floor, flex_width):
         """Push `auto` columns up to their min-content, paid for by the slack
@@ -143,6 +178,12 @@ class Layout(Clickable):
         content row containing squares has to be resolved in two steps."""
     def add (self, row: sbs_utils.pages.layout.row.Row):
         ...
+    @property
+    def bounds (self):
+        ...
+    @bounds.setter
+    def bounds (self, v):
+        ...
     def calc (self, client_id):
         ...
     @property
@@ -178,7 +219,15 @@ class Layout(Clickable):
         ...
     @property
     def is_hidden (self):
-        ...
+        """Use `is_hidden` only to check if the layout item is currently visible to the user.
+        It checks both `_show` and `_is_shown`.
+        If either of these are False, will return True."""
+    @property
+    def is_hidden_by_script (self):
+        """Hidden because the SCRIPT asked -- show() / gui_hide().
+        
+        This is the question the LAYOUT pass must ask; see
+        `Column.is_hidden_by_script`."""
     def is_message_for (self, event):
         """Used by MessageTrigger i.e. gui_message to know if message is for this object
         
@@ -243,6 +292,8 @@ class Layout(Clickable):
         ...
     def present (self, event):
         ...
+    def print_bounds (self, bounds=None):
+        ...
     def rebuild (self):
         ...
     def region_begin (self, client_id):
@@ -268,28 +319,23 @@ class Layout(Clickable):
     def set_margin (self, margin):
         ...
     def set_orientation (self, s):
-        ...
+        """Set the orientation of the layout element.
+        Valid values:
+            "TB" - Top to Bottom
+            "BT" - Bottom to Top"""
     def set_padding (self, padding):
         ...
     def set_row_height (self, height):
         ...
     def show (self, _show):
-        ...
+        """Use to force the gui element to be hidden, or to allow it to be seen.
+        If False - the gui element will always be hidden.
+        If True - will be visible assuming that it is within the bounds of its parent.
+        
+        Args:
+            _show (bool): Should the element be visible."""
 class RegionType(IntEnum):
-    """int([x]) -> integer
-    int(x, base=10) -> integer
-    
-    Convert a number or string to an integer, or return 0 if no arguments
-    are given.  If x is a number, return x.__int__().  For floating point
-    numbers, this truncates towards zero.
-    
-    If x is not a number or if base is given, then x must be a string,
-    bytes, or bytearray instance representing an integer literal in the
-    given base.  The literal can be preceded by '+' or '-' and be surrounded
-    by whitespace.  The base defaults to 10.  Valid bases are 0 and 2-36.
-    Base 0 means to interpret the base from the string as an integer literal.
-    >>> int('0b100', base=0)
-    4"""
+    """Enum where members are also (and must be) ints"""
     REGION_ABSOLUTE : 100
     REGION_RELATIVE : 200
     SECTION_AREA_ABSOLUTE : 0

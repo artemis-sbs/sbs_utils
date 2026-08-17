@@ -53,11 +53,17 @@ def set_captain (obj, captain):
 def set_damcon_members (ship, team_index, value):
     """2.8 ``set_damcon_members(team_index, value)`` -> set a damcon team's HP.
     
-    Cosmos models each of the three damcon teams as a single grid lifeform named ``DC1``..
-    ``DC3`` with HP (max ``grid_get_max_hp()``, default 6). 2.8 ``value`` is the team's
+    Cosmos models each damcon team as a single grid lifeform named ``DC1``, ``DC2``, ...
+    with HP (max ``grid_get_max_hp()``, default 6). 2.8 ``value`` is the team's
     strength/HP (0 = downed .. 4 = full in the corpus); it maps to the team's HP, clamped
-    to the Cosmos max. ``team_index`` 0..2 -> DC1..DC3. Ensures the ship's damcons exist
-    first (spawning the standard trio if needed). Returns True if the HP was set."""
+    to the Cosmos max. ``team_index`` is 0-based -> ``DC<index+1>``. Ensures the ship's
+    damcons exist first. Returns True if the HP was set.
+    
+    A hull carries three teams unless its interior data says otherwise
+    (``grid_damcon_count``), so the upper bound is the ship's, not a literal 3. This has no
+    effect on 2.8 conversions - a 2.8 mission only ever addresses teams 0-2 and no
+    converted hull declares anything - it just stops rejecting the extra teams of a hull
+    that does."""
 def set_fleet_coeff (which, value):
     """2.8 global ``nonPlayer*`` / ``player*`` difficulty -> per-ship coefficients.
     

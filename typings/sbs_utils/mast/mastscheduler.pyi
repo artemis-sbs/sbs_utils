@@ -22,6 +22,16 @@ from zipfile import ZipFile
 from functools import partial
 def DEBUG (msg):
     ...
+def close_lib_zips ():
+    """Drop every cached .mastlib handle. Safe to call at any time; the next read
+    reopens."""
+def describe_eval_failure (code):
+    """Header describing the live exception for a MAST eval/exec failure.
+    
+    Called from inside an ``except`` block, so ``sys.exc_info()`` is still live.
+    Names the exception TYPE (a bare message hides whether it was a NameError or
+    a TypeError), quotes the MAST expression the code object came from, and adds
+    a hint for the scope-keyword trap."""
 def find_exp_end (s, expect_block):
     ...
 def first_chars_for_pattern (pattern):
@@ -41,7 +51,22 @@ def get_fall_through (inner):
 def get_task_id ():
     ...
 def join_bracket_continuations (src):
-    ...
+    """Merge bracket-continued physical lines into one logical line.
+    
+    Slice-copying scanner: the state machine below only ever stops at a character
+    that can change state (``_NEXT``), at a verbatim region's closer (``str.find``),
+    or at a string's escape/closer (``_IN_STR``). Every inert run between two stops
+    is appended as ONE slice. The previous character-at-a-time version appended one
+    element per byte and re-probed ``startswith`` at every position, which made this
+    pre-pass the single largest cost in compiling a big story (measured: 232ms of
+    LegendaryMissions' ~1s compile, 57 of its 171 files). Output is byte-identical."""
+def mast_expr_source (code):
+    """The MAST source text a code object was compiled from, or None.
+    
+    ``eval``/``exec`` also accept a raw string (a few nodes build one on the
+    fly), in which case the source IS the argument."""
+def profile_dropped_addons ():
+    """Addon folder names the active profile removed from this compile."""
 class ChangeRuntimeNode(MastRuntimeNode):
     """class ChangeRuntimeNode"""
     def enter (self, mast: 'Mast', task: 'MastAsyncTask', node):
@@ -108,7 +133,25 @@ class MastAsyncTask(Agent, Promise):
     def end (self):
         ...
     def eval_code (self, code, end_on_exception=True):
-        ...
+        """Backward-compatible wrapper: a failed expression still returns None.
+        
+        Kept so every existing caller (including mission code) behaves exactly as
+        before. Library nodes use eval_code_checked so they can stop instead."""
+    def eval_code_checked (self, code, end_on_exception=True):
+        """Evaluate a MAST expression, returning EVAL_ERROR if it raised.
+        
+        Prefer this over ``eval_code`` anywhere the VALUE is used: ``None`` is a
+        legal MAST value, so it cannot carry "this blew up" - see EVAL_ERROR."""
+    def eval_globals (self):
+        """Globals for an expression: builtins plus this story's LABEL names.
+        
+        Labels used to live in Agent.SHARED, i.e. in the variable namespace, which is how
+        `watcher = 0` destroyed `=== watcher` (LM #544). As globals they still resolve --
+        `task_schedule(watcher)` works -- but a write can never land on one, and a task
+        variable of the same name shadows it for reads, which is the sane reading.
+        
+        Falls back to the module constant when no story is reachable (bare-scheduler
+        tests, and any caller that predates a compiled Mast)."""
     def exec_code (self, code, vars, gbls):
         ...
     def format_string (self, message):
@@ -174,9 +217,18 @@ class MastAsyncTask(Agent, Promise):
         ...
     def pop_label (self, inc_loc=True, true_pop=False):
         ...
+    def purge_inline_signals (self):
+        """Unregister the handlers owned by the build that is being replaced.
+        
+        Called from StoryPage.on_new_gui, at the same moment the wholesale purge
+        used to run. The build now under construction has its registrations in
+        pending_inline_signals, so they survive this -- which is the whole of the
+        #589 fix. Idempotent: safe if the swap already ran."""
     def push_inline_block (self, label, activate_cmd=0, data=None):
         ...
     def push_label (self, label, activate_cmd=0, data=None):
+        ...
+    def queue_inline_signal (self, name, info):
         ...
     def queue_on_change (self, runtime_node):
         ...
@@ -190,6 +242,28 @@ class MastAsyncTask(Agent, Promise):
         ...
     def resolve_py_object (other: 'Agent | CloseData | int'):
         ...
+    def revive_for_handler (self, host=None):
+        """Wake a task that ENDED NORMALLY so a GUI handler it registered can run.
+        
+        A widget's handler is owned by the task that BUILT the widget: an
+        `on gui_message(w):` block is an inline block in that task's label, and
+        `on_press=<label>` is a jump on that task. When the builder was
+        scheduled and then ended (->END / yield success) the handler had no way
+        to run at all -- push_inline_block only queues pending_jump, and tick()
+        returns at its leading `if self.done:` before ever reading it. The click
+        was discarded silently. See LM issue #707.
+        
+        Returns True when the task is runnable afterwards.
+        
+        Reviving in place rather than spawning a fresh task keeps the builder's
+        own scope, active_label and identity, so the block still closes over the
+        locals its author wrote it against -- and, with the inline block pop
+        fixed, the woken task pops back to its own ->END and finishes again.
+        
+        `host` is the task that will TICK the revived one (the page's gui_task),
+        so a handler that awaits still gets ticks. It is a ticking parent only:
+        is_sub_task/root_task are deliberately left alone, because changing them
+        would change variable scoping."""
     def run_on_change (self):
         ...
     def runtime_error (self, msg):
@@ -208,6 +282,8 @@ class MastAsyncTask(Agent, Promise):
         ...
     def stop_for_dependency (id):
         ...
+    def swap_inline_signals (self):
+        """Promote this build's registrations, at present time."""
     def swap_on_change (self):
         ...
     def sweep_finished ():

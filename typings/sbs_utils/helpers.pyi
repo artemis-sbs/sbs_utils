@@ -60,8 +60,6 @@ class FrameContextMeta(type):
     type(name, bases, dict, **kwds) -> a new type"""
     __abstractmethods__ : getset_descriptor
     ...
-    def __prepare__() -> dict:
-        """used to create the namespace for the class statement"""
     @property
     def app_seconds (self):
         ...

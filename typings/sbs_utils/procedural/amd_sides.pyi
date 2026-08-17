@@ -2,7 +2,7 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.mast_node import MastDataObject
 def _side_csv_list (value):
     """A comma string OR a list/set -> a stripped list of non-empty items."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000011CF6E5F4C0>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000028640FEBF60>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to
@@ -14,6 +14,14 @@ def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000011C
     `errors` may be a list - parse problems are appended to it in a writer's terms
     rather than raised, so a typo never takes a mission down; the linter is what makes
     them loud. Returns `data`, carrying the kind line (when present) under `KIND_KEY`."""
+def amd_read_text (path):
+    """The text of one .amd (or any AMD-adjacent source), decoded the same way a
+    mastlib read decodes it.
+    
+    UTF-8 first (with a BOM tolerated, since editors add one), falling back to
+    cp1252 for a legacy file that predates that convention, and finally to a
+    replacing UTF-8 decode - because a file that cannot be decoded should still
+    parse into something an author can look at and fix, not vanish."""
 def amd_side_data (text):
     """Parse one side fence into a data dict."""
 def amd_side_facts ():

@@ -22,6 +22,8 @@ def backdrop_props (image, color, layer=None):
     
     `layer` None keeps the historic 1000, which is UNDER content -- so a
     backdrop cannot hide a neighbour's spill unless the author raises it."""
+def invoke_message_cb (cb, event, item):
+    """Call whatever is in an `on_message_cb` slot: chain, object, or function."""
 class Column(object):
     """class Column"""
     def __init__ (self, left=0, top=0, right=0, bottom=0) -> None:
@@ -62,7 +64,19 @@ class Column(object):
         ...
     @property
     def is_hidden (self):
-        ...
+        """Use :func:`is_hidden` only to check if the layout item is currently visible to the user.
+        It checks both :func:`_show` and :func:`_is_shown`.
+        If either of these are False, will return True."""
+    @property
+    def is_hidden_by_script (self):
+        """Hidden because the SCRIPT asked -- show() / gui_hide().
+        
+        This is the question the LAYOUT pass must ask. :func:`is_hidden` also
+        folds in :func:`_is_shown`, which is an OUTPUT of the present pass, so
+        reading it during calc makes geometry depend on the previous frame:
+        a control clipped last frame is dropped from the width split and comes
+        back the wrong size, and gui_show() cannot fix it because _show never
+        changed."""
     def is_message_for (self, event):
         """Used by MessageTrigger i.e. gui_message to know if message is for this object
         
@@ -154,7 +168,12 @@ class Column(object):
     def set_row_height (self, height):
         ...
     def show (self, _show):
-        ...
+        """Use to force the gui element to be hidden, or to allow it to be seen.
+        If False - the gui element will always be hidden.
+        If True - will be visible assuming that it is within the bounds of its parent.
+        
+        Args:
+            _show (bool): Should the element be visible."""
     def update (self, props):
         ...
     def update_variable (self):

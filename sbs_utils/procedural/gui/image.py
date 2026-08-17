@@ -1,6 +1,6 @@
 from ...helpers import FrameContext
 from ..style import apply_control_styles
-from ...fs import get_mission_dir_filename, get_artemis_data_dir, get_mission_graphics_file, get_artemis_dir, get_artemis_graphics_dir
+from ...fs import get_mission_dir_filename, get_artemis_data_dir, get_artemis_dir, get_artemis_graphics_dir, engine_file
 import os
 import struct # for images sizes
 from ...gui import get_client_aspect_ratio
@@ -221,25 +221,36 @@ class ImageAtlas:
 
     
 
-        file_name =  file + ".png"
-        
-        if not os.path.exists(file_name):
-            file = get_artemis_data_dir()+"\\graphics\\"+image
-            file_name =  file + ".png"
-            if not os.path.exists(file_name):
-                file = get_mission_graphics_file(image)
-                file_name =  file + ".png"
-                if not os.path.exists(file_name):
-                    file = os.path.join(get_artemis_dir(), image)
-                    #file_name =  file + ".png"
+        # Where the art might be, nearest first. EVERY candidate is ABSOLUTE now, so the
+        # existence checks no longer depend on the process's working directory: one of
+        # them used to be a GRAPHICS-RELATIVE path, which `os.path.exists` could only
+        # test against the cwd, so that candidate was dead everywhere except inside the
+        # engine - and inside the engine it was the same file as the first candidate,
+        # spelled differently.
+        if not os.path.exists(file + ".png"):
+            file = os.path.join(get_artemis_graphics_dir(),
+                                *image.replace(chr(92), "/").split("/"))
+            if not os.path.exists(file + ".png"):
+                file = os.path.join(get_artemis_dir(),
+                                    *image.replace(chr(92), "/").split("/"))
         if file is None:
             return
-        
-        # Get relative path so it works on clients as well
-    
-        
-        start = get_artemis_graphics_dir()
-        file = os.path.relpath(file, start)
+
+        # ONE SHAPE, relative to the exe - see fs.engine_file.
+        #
+        # This used to be `relpath(file, data/graphics)`, which produces
+        # `../missions/<m>/art` - a path that means nothing unless the reader happens to
+        # resolve it against the graphics folder. MEASURED on engine 1.3.6 (the
+        # `image_probe` mission, judged by eye because an image is only loaded when it is
+        # DRAWN): images are permissive and open that spelling, an exe-relative one, an
+        # absolute one, and a bare stock name, with or without `.png`. So the old shape
+        # was never wrong for images - it was a fourth way of saying something that now
+        # has one way of being said.
+        #
+        # AUDIO IS NOT PERMISSIVE, which is why this matters. Only the exe-relative and
+        # absolute forms open a sound, and a suffix stops it - so the same relpath trick,
+        # applied to audio, silently played nothing.
+        file = engine_file(file)
         
 
         self.file = file

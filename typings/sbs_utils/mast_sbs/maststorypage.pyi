@@ -1,5 +1,6 @@
 from sbs_utils.agent import Agent
 from sbs_utils.pages.layout.blank import Blank
+from sbs_utils.pages.layout.dropdown import Dropdown
 from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
 from sbs_utils.helpers import FrameContextOverride
@@ -7,6 +8,7 @@ from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
 from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
 from sbs_utils.pages.layout.layout import Layout
+from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.mast.maststory import MastStory
 from sbs_utils.pages.layout.row import Row
 from sbs_utils.mast_sbs.maststoryscheduler import StoryScheduler
@@ -23,6 +25,11 @@ def apply_control_styles (control_name, extra_style, layout_item, task):
             parsed dict applied after the base style.
         layout_item (LayoutItem): Layout item to receive the style.
         task (MastAsyncTask): GUI task used for string formatting."""
+def compose_handler (existing, layout_item, runtime_node):
+    """Return the `(layout_item, node)` tuple a tag_map key should now hold.
+    
+    Replaces, exactly as before, unless there is a real handler already
+    registered for this same widget -- then the two are chained."""
 def get_inventory_value (id_or_object, key: str, default=None):
     """Get an inventory value from an agent by key.
     
@@ -128,6 +135,16 @@ class StoryPage(Page):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def activate_console (self, console):
         ...
+    def add_alias (self, layout_item, runtime_node=None):
+        """Register an author's `tag:` name so gui_update() can resolve it.
+        
+        An extra key in the SAME tag_map, exactly as click_tag has always earned a
+        second entry -- so every consumer that resolves by tag_map (gui_update,
+        message routing, the log panel's liveness check) picks it up with no further
+        change. The engine keeps the library-managed tag (LM #349).
+        
+        Called from add_tag for widgets, and directly from gui_row/gui_section, which
+        never reach add_tag -- which is why a named ROW was unreachable before."""
     def add_console_widget (self, widget):
         ...
     def add_content (self, layout_item, runtime_node):
@@ -140,6 +157,17 @@ class StoryPage(Page):
         ...
     def add_tag (self, layout_item, runtime_node):
         ...
+    def advance_tag_generation (self):
+        """Move the widget-tag counters on to the next GUI build.
+        
+        The +2000 gap is what keeps a new build's tags clear of the build still
+        on screen; only the previous build is ever live, so the numbers may
+        safely wrap once they get large.
+        
+        The modulo used to be written `self.rebuild_tag + 100 % 100000`, which
+        Python binds as `+ (100 % 100000)` == `+ 100` -- so the wrap never
+        happened and the tags grew without bound. Measured against the engine, a
+        GUI redrawn ten times was already handing it tags near 20,000."""
     def get_path (self):
         ...
     def get_pending_layout (self):
@@ -200,10 +228,22 @@ class StoryPage(Page):
         
         Called to have the page run any tasks they have prior to present"""
     def update_props_by_tag (self, tag, props, test):
-        ...
+        """Apply props to the widget registered under `tag`.
+        
+        Returns True when a widget was found and updated. A miss is not an error --
+        the tag may name a listbox row that is currently scrolled out of view, and
+        those are built only while visible -- but the caller can now tell, which it
+        could not before."""
 class TabControl(Text):
     """class TabControl"""
     def __init__ (self, tag, message, label, page) -> None:
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def on_message (self, event):
+        ...
+class TabOverflow(Dropdown):
+    """The tabs that did not fit, as a menu. Selecting one jumps to it exactly as
+    clicking its tab would - the same two lines TabControl runs."""
+    def __init__ (self, tag, props, labels, page) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
     def on_message (self, event):
         ...

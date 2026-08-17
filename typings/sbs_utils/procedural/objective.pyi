@@ -59,6 +59,12 @@ def game_end_condition_remove (id):
     
     Args:
         id (int): Handle returned by ``game_end_condition_add``."""
+def game_end_conditions_count () -> int:
+    """How many end-game conditions are registered.
+    
+    Exists so the restart soak's reset audit can probe this container by name. An
+    unregistered container is invisible to that audit, which is why a --runs soak
+    reported STABLE while stale conditions were ending every replay early."""
 def game_end_run_all (tt):
     """Poll all registered game end conditions and trigger the end screen if any resolve.
     

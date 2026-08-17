@@ -65,11 +65,32 @@ class TestNamespaceLint(unittest.TestCase):
         mast = [("a/y.mast", "== m ==\n    shared thing_go = 1\n")]
         self.assertEqual(codes(namespace_lint_project(py, mast)), ["ns-mast-var-collision"])
 
-    def test_generic_name_warns_including_underscore_helpers(self):
-        py = [("consoles/r.py", "def _is_creditable(x):\n    return True\n")]
+    def test_generic_name_warns(self):
+        py = [("consoles/r.py", "def is_creditable(x):\n    return True\n")]
         f = namespace_lint_project(py)
         self.assertEqual(codes(f), ["ns-generic-name"])
         self.assertEqual(f[0][1].severity, "warning")
+
+    def test_an_underscore_helper_is_private_and_not_linted(self):
+        """This test used to assert the OPPOSITE, and it was right to: an underscore def
+        was exported exactly like a public one. Both registration paths skip them now
+        (2026-08-16), so `_is_creditable` is genuinely unreachable from MAST - warning
+        about its name would tell the author to prefix something nothing can call."""
+        py = [("consoles/r.py", "def _is_creditable(x):\n    return True\n")]
+        self.assertEqual(codes(namespace_lint_project(py)), [])
+
+    def test_an_underscore_helper_cannot_collide_with_a_mast_variable(self):
+        """The collision that actually emptied stories: A28's `_mine` against autoplay's
+        `_mine = to_object(closest(...))`."""
+        py = [("a28_skyboxes/a28.py", "def _mine():\n    return []\n")]
+        mast = [("autoplay/auto.mast", "== m ==\n    _mine = 1\n")]
+        self.assertEqual(codes(namespace_lint_project(py, mast)), [])
+
+    def test_a_public_name_still_collides(self):
+        """The filter narrows what is exported - it does not stop linting what is."""
+        py = [("a/x.py", "def mine():\n    return []\n")]
+        mast = [("b/y.mast", "== m ==\n    mine = 1\n")]
+        self.assertEqual(codes(namespace_lint_project(py, mast)), ["ns-mast-var-collision"])
 
     def test_prefixed_names_are_clean(self):
         py = [("hangar/hangar.py",

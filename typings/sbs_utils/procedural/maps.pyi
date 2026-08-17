@@ -82,6 +82,21 @@ def game_code_vars (map):
     
     Returns:
         list[str]: Ordered var names included in the code."""
+def label_find_by_spec (labels, spec):
+    """Find one label from a loose, human-typed spec - the rule `maps_find` documents,
+    factored out so every other "name a label on a command line or in a dropdown" lookup
+    resolves IDENTICALLY.
+    
+    Shared with `media_find` (skybox and music), which is why it lives here rather than
+    inside `maps_find`: two copies of a fuzzy matcher drift, and the day they disagree is
+    the day `map=siege` and `MUSIC_SELECT=siege` mean different things.
+    
+    Args:
+        labels (list): anything with `.path` and (optionally) `.display_name`.
+        spec: an index, a path, a display name, or a unique substring of either.
+    
+    Returns:
+        The label, or None if nothing matched or the spec was AMBIGUOUS."""
 def map_apply_defaults (map):
     """Apply a map's ``Defaults:`` metadata as SET-IF-ABSENT shared variables.
     

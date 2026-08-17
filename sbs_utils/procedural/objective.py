@@ -155,12 +155,15 @@ def game_end_run_all(tt):
         promise.poll()
         if promise.done():
             ## play music
+            # The bank is whatever MUSIC_SELECT / the map / the operator chose - not
+            # `default`, which this hardcoded. is_win was also INVERTED here (a victory
+            # played failure.ogg), and an explicit `music=` was overwritten by the default
+            # one because the two branches were `if`/`if` rather than `if`/`else`.
+            from .media import music_play_sting
             if music is not None:
-                FrameContext.context.sbs.play_music_file(0,music)
-            if is_win:
-                FrameContext.context.sbs.play_music_file(0,"music/default/failure")
+                FrameContext.context.sbs.play_music_file(0, music)
             else:
-                FrameContext.context.sbs.play_music_file(0,"music/default/victory")
+                music_play_sting("victory" if is_win else "failure")
 
             ## show the end screen by notifying the system
             ## with a signal

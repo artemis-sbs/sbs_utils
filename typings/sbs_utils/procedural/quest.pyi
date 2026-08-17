@@ -2,6 +2,36 @@ from sbs_utils.agent import Agent
 from sbs_utils.helpers import FrameContext
 from enum import IntEnum
 from sbs_utils.mast.mast_node import MastDataObject
+from collections import _OrderedDict
+def _amd_clone (v):
+    """A structural copy of a parsed tree. Hand-rolled rather than copy.deepcopy -
+    the tree is plain dict/list/scalar, and deepcopy's memo table would cost more
+    than the parse this is saving."""
+def _amd_error_body (where, err):
+    """The body text of the stub record: what failed, and where."""
+def _amd_expand_transclusions (toc):
+    """Splice `![[key]]` lines with the named record's body.
+    
+    A shared paragraph - how docking works, what a reward means - written once and
+    pulled into every doc that needs it. Runs BEFORE link rendering so a transcluded
+    body's own `[[links]]` resolve exactly like the host's.
+    
+    A cycle is a real risk (A pulls B pulls A), so expansion is depth-bounded AND
+    tracks the chain: a record that would include itself is left as literal text
+    naming the problem, rather than hanging the mission load."""
+def _amd_failed_tree (file_path, root_display_text, err):
+    """A document that says why it is empty, in the place the real one would have
+    rendered. Better than an error screen for this: a broken lore file in a tab
+    nobody has open must not pause the sim and take over console 0."""
+def _amd_render_tree_links (toc):
+    """Turn `[[key]]` in every body into readable text, once the whole tree exists.
+    
+    This has to be a POST-pass: a writer links forward far more often than back
+    (`[[the_wreck]]` in the briefing, written before the wreck's record is), and
+    during the line loop the target usually does not exist yet. Running it here means
+    forward and backward links behave identically, and every consumer of
+    ``description`` - amd_records, amd_text_map, science, chatter, dialogue - gets
+    rendered text without knowing this feature exists."""
 def _amd_slug (text):
     """A heading display -> a key: lowercase, non-alphanumeric runs -> single '_'."""
 def _document_get_amd_file (file_path, root_display_text='', strip_comments=True, content=None, data_parser=None, allow_bare_headings=False):
@@ -45,6 +75,12 @@ def _quest_show (q):
     are promoted onto the quest itself, so reading `q["show"]` returns None and the
     field silently does nothing. Both are checked here so there is one place to be
     wrong."""
+def _quest_touch ():
+    ...
+def amd_doc_cache_clear ():
+    """Per-mission: the next mission's files are different files."""
+def amd_doc_cache_size ():
+    ...
 def document_flatten (doc_obj, header=None, indent=0, data=None):
     """Flatten a nested quest/document tree into an ordered display list.
     
@@ -126,6 +162,18 @@ def gui_list_box_is_header (item):
         for item in items:
             if gui_list_box_is_header(item):
                 ~~ print("header:", item.label) ~~"""
+def gui_text_escape (s):
+    """Quote a dynamic value for safe inclusion as a ``$text:`` style value.
+    
+    Wraps ``s`` in backticks so any ``:`` or ``;`` it contains is treated as
+    literal text by the style parser rather than a style property (issue #569).
+    A literal backtick -- the quoting delimiter itself -- is stripped. An empty
+    or ``None`` value returns ``""`` so the caller emits ``$text:;`` with no
+    stray backtick in the box (issue #641).
+    
+    Use this ONLY on the dynamic value, e.g. ``f"$text:{gui_text_escape(name)};color:red;"``
+    -- never on a whole authored props string, so the author's own ``:``/``;``
+    styling is left untouched."""
 def load_yaml_string (s):
     """Parse a YAML string.
     
@@ -267,6 +315,13 @@ def quest_console_enable (console, enable=True):
     Example:
         quest_console_enable("helm,comms")
         quest_console_enable("engineering", False)"""
+def quest_consoles_clear ():
+    """Drop the quest-tab console names. CONTENT: a mission declares these from its
+    own .mast at compile scope, so without a clear the set is add-only across an
+    in-process reload and the next mission shows a Quests tab on consoles it never
+    enabled."""
+def quest_consoles_count ():
+    ...
 def quest_flatten_list ():
     """Build a flat display list of all quests for the current client.
     
@@ -297,6 +352,9 @@ def quest_folder (agent_id, quest_id):
         tuple[MastDataObject | None, str | None]: The parent container and the
             final path component (the child key), or ``(None, None)`` if the
             agent does not exist."""
+def quest_generation ():
+    """A number that changes whenever any quest tree does. Drive an `on change` off
+    this instead of walking the trees."""
 def quest_get (agent, quest_id):
     """Return a quest object by ID, or ``None`` if it does not exist.
     
@@ -340,12 +398,22 @@ def quest_get_description (agent, quest_id):
 def quest_get_display_name (agent, quest_id):
     """Return the display name of a quest.
     
+    Reads ``display_text`` - the field ``quest_add`` actually writes. It used to read
+    only ``display_name``, which NOTHING in the codebase ever sets, so this returned
+    ``None`` for every quest and each caller fell back to the raw quest id. That is why
+    the text waterfall announced `job_ghost/hail` instead of "Hail the Derelict": not a
+    missing display name on some quests, but a key mismatch affecting all of them.
+    
+    ``display_name`` is still honored first, so anything that deliberately set it with
+    ``quest_set_key`` keeps overriding.
+    
     Args:
         agent: Agent ID or object that owns the quest.
         quest_id (str): Quest identifier.
     
     Returns:
-        str | None: The display name, or ``None`` if the quest does not exist.
+        str | None: The display name, or ``None`` if the quest does not exist or has
+            no name of either kind.
     
     Example:
         name = quest_get_display_name(SHIP_ID, "patrol")
@@ -394,6 +462,14 @@ def quest_get_state (agent, quest_id):
     Example:
         if quest_get_state(SHIP_ID, "patrol") == QuestState.COMPLETE:
             "Patrol complete!""""
+def quest_is_active (agent, quest_id):
+    """Whether this agent is currently working this quest."""
+def quest_is_complete (agent, quest_id):
+    """Whether this agent has finished this quest.
+    
+    QuestState is a CLASS, and MAST only imports module-level functions - so a script
+    asking "is it done?" had no way to say so except comparing quest_get_state() to a
+    bare 99. These three exist so nobody has to write the magic number."""
 def quest_is_console_enabled (console):
     """Return whether a console type has quest-panel display enabled.
     
@@ -406,6 +482,8 @@ def quest_is_console_enabled (console):
     Example:
         if quest_is_console_enabled("helm"):
             ~~ show_quest_panel() ~~"""
+def quest_is_failed (agent, quest_id):
+    """Whether this agent has failed this quest."""
 def quest_kill_count_for_difficulty (count, difficulty, baseline=5, grind_min=3, floor=1):
     """Scale a 'grind' kill target to the current difficulty.
     
@@ -448,6 +526,22 @@ def quest_log_icon (row):
     one glyph, where before every row was the same square and the kind was invisible. The
     name resolves through the icon sheet, so a mission that ships its own art re-skins
     every quest log without touching this."""
+def quest_log_parent_summary (row):
+    """Detail-pane text for a PARENT quest (an arc): its own description, then a
+    checklist of its steps.
+    
+    The quest tab used to answer a selected arc with "Select a quest from the list" - it
+    skipped anything that rendered as a header, and a parent quest renders as one. But an
+    arc IS a quest: it has a description, and what a player wants from it is "where am I
+    in this?".
+    
+    SECRET STEPS ARE NOT COUNTED. A step the story has not revealed is neither listed nor
+    tallied; if any remain, a single "more to follow" line stands in for however many
+    there are. So the pane shows real progress without disclosing how long the arc is -
+    which is the whole point of authoring a step secret in the first place.
+    
+    `row` is the list-box row/header data for the parent (it carries `agent_id` and
+    `key`). Returns "" for a bare Game/You/Ship group header, which has no quest."""
 def quest_log_state_icon_color (state):
     """Hex color for the state icon (defaults to gray)."""
 def quest_log_state_label (state):

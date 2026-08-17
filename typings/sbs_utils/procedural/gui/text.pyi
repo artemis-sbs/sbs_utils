@@ -37,13 +37,25 @@ def gui_text_area (props, style=None, markdown=True, line_styles=None):
         props (str): Text content or Markdown string. Supports ``{var}``
             interpolation.
         style (str, optional): CSS-like style overrides. Defaults to None.
+        markdown (bool, optional): Parse the mini-markdown. Pass ``False`` to
+            render lines VERBATIM - the right choice for source code, a MAST
+            error dump or a raw log, where the markup rules actively corrupt the
+            content: ``#`` starts a heading (so every MAST comment becomes one),
+            a leading ``-`` is consumed as a bullet (``->END``), any ``[...]``
+            is read as a link reference and replaces the line, and ``^`` becomes
+            a newline. ``{var}`` interpolation is also skipped, since a brace in
+            code is a brace. Defaults to True.
+        line_styles (list, optional): One style key per line, applied in order -
+            how you colorize text that is no longer being parsed. Pairs with
+            ``markdown=False``. Defaults to None.
     
     Returns:
         TextArea: The layout item created.
     
     Example:
         gui_text_area("## Status\nAll systems nominal.")
-        gui_text_area("![](image://logo?scale=0.5) Mission active")"""
+        gui_text_area("![](image://logo?scale=0.5) Mission active")
+        gui_text_area(source, markdown=False, line_styles=per_line_keys)"""
 def gui_text_escape (s):
     """Quote a dynamic value for safe inclusion as a ``$text:`` style value.
     

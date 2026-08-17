@@ -108,7 +108,8 @@ tsn = await prefab_spawn(prefab_side_generic, data={"key":"tsn", ...})
 raider = await prefab_spawn(prefab_side_generic, data={"key":"raider", ...})
 side_set_relations(tsn, raider, sbs.DIPLOMACY.HOSTILE)
 
-# 3. Media
+# 3. Media - declares what is AVAILABLE. A skybox label sets the sky and nothing
+#    else; which music plays is the MUSIC_SELECT setting (or "random").
 @media/music/default "Cosmos Default Music"
 @media/skybox/sky-bored-alice "borealis"
 

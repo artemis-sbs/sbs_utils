@@ -540,17 +540,24 @@ def set_command_line(args) -> None:
     _command_line = ["mock-cosmos.exe"] + [str(a) for a in (args or [])]
 
 
-def add_extra_ship_data(filename: str, path: str) -> None:
-    """Load another set of ships from a data file, for this mission only (engine 1.3.5).
+def add_extra_ship_data(file: str) -> None:
+    """Load another set of ships from a data file, for this mission only.
 
-    PASS THE FILENAME WITHOUT AN EXTENSION. The engine tries `.yaml` then `.json` itself,
-    which is also why it is the more useful form: a mod can switch format without the
-    caller changing. Their own example does exactly this -
-    `sbs.add_extra_ship_data("extraShipDataAAA", "data/missions/BeamArcTest")` - even though
-    the file on disk is `.json`.
+    ONE ARGUMENT, "a fully-pathed filename (plus suffix)" - the 2026-08-15 exe's shape.
+    The 1.3.5 form took `(name, folder)` and did its own `.yaml`/`.json` search; that
+    search now happens in `sbs_utils.procedural.ship_data._read_extra_ship_data`, which
+    is what decides the suffix this is handed.
 
-    The mock reproduces that search and merges into sbs_utils' own list, which is where
-    `_try_populate_from_ship_data` looks, so a mission using this behaves the same headless.
+    The path is EXE-RELATIVE (`data/missions/...`), so it is resolved against the Artemis
+    root and NOT against the process's cwd - the runner's cwd is `data/missions`, so a
+    bare `open()` here would look under `data/missions/data/missions/...` and silently
+    find nothing. That is the whole reason a mission's hulls could be present headless
+    and absent in the engine, or the reverse.
+
+    Merges into sbs_utils' own list, which is where `_try_populate_from_ship_data` looks,
+    so a mission using this behaves the same headless. Note the REAL engine does not do
+    that half - an add-on must merge library-side itself, behind a presence guard, or the
+    mock double-merges.
 
     Forgiving about a missing file, matching the engine's habit of not being fatal about
     data it cannot find: a mod with a broken path should be a ship with no stats, not a
@@ -559,16 +566,18 @@ def add_extra_ship_data(filename: str, path: str) -> None:
     import os
     import re
     from sbs_utils.procedural.ship_data import merge_mod_ship_yaml
-    stem = os.path.join(str(path), str(filename))
-    for candidate in (stem, stem + ".yaml", stem + ".json"):
-        try:
-            with open(candidate, "r", encoding="utf-8") as f:
-                text = f.read()
-        except OSError:
-            continue
-        merge_mod_ship_yaml(re.sub(r"^[ 	]*//.*$", "", text, flags=re.M),
-                            "add_extra_ship_data")
+    candidate = str(file)
+    if not os.path.isabs(candidate):
+        from sbs_utils import fs
+        candidate = os.path.join(fs.get_artemis_dir(),
+                                 *candidate.replace(chr(92), "/").split("/"))
+    try:
+        with open(candidate, "r", encoding="utf-8") as f:
+            text = f.read()
+    except OSError:
         return
+    merge_mod_ship_yaml(re.sub(r"^[ 	]*//.*$", "", text, flags=re.M),
+                        "add_extra_ship_data")
 
 
 def command_line_list() -> list:
@@ -613,10 +622,10 @@ def _populate_hull_map(hull_map, spaceObjectID) -> None:
         hull_map._h = int(h)
         hull_map._grid_scale = float(data.get("internalmapscale", 1.0) or 1.0)
         hull_map._sym = int(data.get("internalsymmetry", 0) or 0)
+        # `artfileroot` IS THE WHOLE PATH. There is no companion `artfilepath` key - it is
+        # not needed and is not read. The root is resolved against data/graphics, so
+        # `ships/<name>` is stock art and `../missions/<...>/<name>` is a mission's own.
         hull_map._art_file_root = data.get("artfileroot", "") or ""
-        # `artfilepath` - no underscores, like every other shipData key - is the folder the
-        # art lives in. New in 1.3.5; absent from every older entry, hence the plain default.
-        hull_map._art_file_path = data.get("artfilepath", "") or ""
         hull_map._ship_key = key
     except Exception:
         # A hull map that fails to populate is a degraded mock, never a broken run.
@@ -1410,8 +1419,18 @@ def get_cinematic_camera(clientID: int):
     return {"cam": cam, "target": tgt, "mode": "scripted",
             "ship_id": str(sim.client_ships.get(clientID, 0))}
 
+# Music banks handed to the engine, in order, and the last one per target. Recorded for
+# the same reason the skybox is: nothing plays in the mock, so the only thing a headless
+# run can check is WHICH bank was selected and HOW MANY TIMES. The count is the point -
+# music used to be scheduled from inside every skybox label's body, so "one bank, set
+# once" is precisely what decoupling them has to prove.
+_music_calls = []
+_current_music = {}
+
 def set_music_folder(ID: int, filename: str) -> None:
     """Sets the folder from which music is streamed; ID is ship, OR client, OR zero for server."""
+    _music_calls.append((ID, filename))
+    _current_music[ID] = filename
 
 def set_music_tension(ID: int, tensionValue: float) -> None:
     """Sets the tension value of ambient music (0-100); ID is ship, OR client, OR zero for server."""
@@ -1577,7 +1596,6 @@ class hullmap(object): ### from pybind
     """class hullmap"""
     def __init__(self) -> None:
         self._art_file_root = ""
-        self._art_file_path = ""
         self._desc = ""
         self._name = ""
         self.grid_items = []
@@ -1588,48 +1606,6 @@ class hullmap(object): ### from pybind
         # shipData key, so the engine CAPTURE can be looked up. NOT artfileroot -
         # they differ on about half the ships, and the capture is keyed by key.
         self._ship_key = ""
-
-    @property
-    def art_file_root(self: hullmap) -> str:
-        """string, file name, used to get top-down image from disk"""
-        return self._art_file_root
-
-    @art_file_root.setter
-    def art_file_root(self: hullmap, arg0: str) -> None:
-        self._art_file_root = arg0
-
-    def _art_dir(self):
-        """Where this hull's art lives, or None for the stock graphics folder.
-
-        Stored as a string that is a FOLDER relative to the exe. Returning None rather than
-        the stock path keeps `open_cells` in charge of its own default.
-        """
-        if not self._art_file_path:
-            return None
-        import os
-        if os.path.isabs(self._art_file_path):
-            return self._art_file_path
-        from sbs_utils import fs
-        return os.path.join(fs.get_artemis_dir(), *self._art_file_path.replace("\\", "/").split("/"))
-
-    @property
-    def art_file_path(self: hullmap) -> str:
-        """string, file path, used to get top-down image from disk (engine 1.3.5).
-
-        A FOLDER, holding art named by `art_file_root` - the two work together rather than
-        one replacing the other. Relative paths resolve against the EXE directory, which is
-        the engine's rule, confirmed from its own example:
-
-            "artfileroot": "tsn_light_cr",
-            "artfilepath": "data/missions/BeamArcTest/extraShipGraphicData"
-
-        Empty means the stock `data/graphics/ships`.
-        """
-        return self._art_file_path
-
-    @art_file_path.setter
-    def art_file_path(self: hullmap, arg0: str) -> None:
-        self._art_file_path = arg0 or ""
 
     def create_grid_object(self: hullmap, name: str, tag: str, type: str) -> grid_object:
         """returns a gridobject, after creating it"""
@@ -1650,6 +1626,15 @@ class hullmap(object): ### from pybind
             self.grid_items.remove(arg0)
             return True
         return False
+
+    @property
+    def art_file_root(self: hullmap) -> str:
+        """string, file name, used to get top-down image from disk"""
+        return self._art_file_root
+
+    @art_file_root.setter
+    def art_file_root(self: hullmap, arg0: str) -> None:
+        self._art_file_root = arg0
 
     @property
     def desc(self: hullmap) -> str:
@@ -1731,7 +1716,6 @@ class hullmap(object): ### from pybind
             return 0
         from . import hull_mask
         cells = hull_mask.open_cells(self._art_file_root, self._w, self._h,
-                                    ships_dir=self._art_dir(),
                                     ship_key=self._ship_key)
         if cells is None:
             return 1                    # art unreadable -> unknown, so stay permissive

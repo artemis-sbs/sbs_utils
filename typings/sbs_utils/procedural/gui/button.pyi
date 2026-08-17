@@ -64,6 +64,29 @@ def gui_button (props, style=None, data=None, on_press=None, is_sub_task=False):
     
     Returns:
         layout object: The Layout object created"""
+def gui_host_task (task):
+    """The page's live GUI task -- who can tick a handler this task registered."""
+def host_handler_sub_task (builder, sub_task):
+    """Give a handler sub-task a LIVE ticking parent when its builder has ended.
+    
+    A `gui_message(widget, label)` handler runs as a sub-task of the task that
+    built the widget, and sub-tasks are only ever ticked by their parent's
+    tick(). On a finished builder that is exactly one tick -- the
+    tick_in_context() at the call site -- after which the handler stalls
+    wherever it happens to be. Single-line handlers looked like they worked;
+    anything that awaited did not.
+    
+    The page's gui_task takes over the TICKING only. root_task is deliberately
+    left pointing at the builder, so the handler's variable scope is exactly
+    what it is when the builder is alive.
+    
+    Returns True when the sub-task was re-hosted."""
+def warn_dead_handler (task, label, loc, kind):
+    """Report a click that landed on a task which has already finished.
+    
+    Without this the failure is completely silent: the widget draws, the click
+    dispatches, the handler is discarded, and nothing is logged anywhere. That
+    silence is most of what made LM issue #707 hard to place."""
 class ButtonResult(object):
     """class ButtonResult"""
     def __init__ (self, layout_item, client_id):
@@ -78,5 +101,12 @@ class MessageHandler(object):
     """class MessageHandler"""
     def __init__ (self, layout_item, task, handler, is_sub_task) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def is_inert (self):
+        """True when this handler has nothing to run.
+        
+        gui_button() builds one of these even with no on_press, because the
+        click also sets __ITEM__ and unpacks the widget's data. With no handler
+        it falls through to start_sub_task(None, ...), so it must not become a
+        link in a chain -- see message_chain.compose_handler. (LM #614)"""
     def on_message (self, event):
         ...

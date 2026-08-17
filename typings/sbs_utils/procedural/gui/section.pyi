@@ -133,6 +133,12 @@ class PageSubSection(object):
         
         Returns:
             bool: if the gui_message MessageTrigger should be True"""
+    @property
+    def on_message_cb (self):
+        ...
+    @on_message_cb.setter
+    def on_message_cb (self, v):
+        ...
     def represent (self, event):
         ...
     @property

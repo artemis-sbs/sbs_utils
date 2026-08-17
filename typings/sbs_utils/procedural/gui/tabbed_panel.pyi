@@ -115,15 +115,20 @@ def gui_face (face, style=None):
     
     Example:
         gui_face("crew/captain")"""
-def gui_icon (props, style=None):
+def gui_icon (props, style=None, data=None):
     """Add an icon image to the current GUI layout.
     
-    Renders a non-interactive icon from the atlas or media path.
+    Renders an icon from the atlas or media path. It is not clickable on its
+    own, but a ``click_tag:`` in the style makes it so - which is why it can
+    carry ``data`` like any other widget.
     
     Args:
         props (str): Icon key, atlas name, or image property string, e.g.
             ``"icons/torpedo"`` or ``"image:icons/torpedo;color:yellow;"``.
         style (str, optional): CSS-like style overrides. Defaults to None.
+        data (object, optional): Arbitrary data carried by the widget, read
+            back in a handler as ``__ITEM__.data`` and - when it is a dict -
+            unpacked into the handler's variables. Defaults to None.
     
     Returns:
         Icon: The layout item created.
@@ -243,6 +248,19 @@ def gui_list_box (items, style, item_template=None, title_template=None, section
             ``LayoutListBoxHeader`` objects (from ``gui_list_box_header``)
             render as collapsible section dividers.
         style (str): CSS-like style overrides for the listbox container.
+    
+            ``row-height`` is the height of ONE item row, and a FLOOR - a template
+            that needs more grows past it. It also sizes the box each item is measured
+            and drawn in, so a template whose rows declare no height fills the item
+            rather than collapsing, and the item's CLICK REGION is never smaller than
+            the row you can see.
+    
+            ``item-gap`` is the spacing BETWEEN items. This is what ``row-height``
+            used to mean here, which made a list declaring the height its template
+            already used render at twice the pitch.
+    
+            Declare neither and an item is exactly as tall as its template's rows,
+            with items flush - unchanged from before either key existed.
         item_template (callable | None, optional): Called per item to build
             its row layout. Defaults to None (built-in text row).
         title_template (str | callable | None, optional): Title for the
@@ -307,9 +325,17 @@ def gui_panel_console_message_list_item (message_obj):
 def gui_panel_console_message_tick (info_panel):
     ...
 def gui_panel_ship_data_hide (cid, left, top, width, height):
-    ...
+    """Push ship data off screen when the tab is deactivated.
+    
+    No longer moves `text_waterfall` with it - that widget is gone; see the note on
+    gui_panel_ship_data_show."""
 def gui_panel_ship_data_show (cid, left, top, width, height):
-    ...
+    """Ship data filling the panel.
+    
+    It used to give the bottom four lines to `text_waterfall` and shrink ship_data to
+    suit. That widget is gone (mkdocs build/messages.md) - it could not be styled from script -
+    and positioning it here brought it BACK on any console showing this tab, whatever the
+    console's widget list said. ship_data now gets the whole panel."""
 def gui_panel_upgrade_list (cid, left, top, width, height):
     ...
 def gui_panel_widget_hide (cid, left, top, width, height, widget):

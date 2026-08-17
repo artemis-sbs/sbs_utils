@@ -21,6 +21,19 @@ def gui_list_box (items, style, item_template=None, title_template=None, section
             ``LayoutListBoxHeader`` objects (from ``gui_list_box_header``)
             render as collapsible section dividers.
         style (str): CSS-like style overrides for the listbox container.
+    
+            ``row-height`` is the height of ONE item row, and a FLOOR - a template
+            that needs more grows past it. It also sizes the box each item is measured
+            and drawn in, so a template whose rows declare no height fills the item
+            rather than collapsing, and the item's CLICK REGION is never smaller than
+            the row you can see.
+    
+            ``item-gap`` is the spacing BETWEEN items. This is what ``row-height``
+            used to mean here, which made a list declaring the height its template
+            already used render at twice the pitch.
+    
+            Declare neither and an item is exactly as tall as its template's rows,
+            with items flush - unchanged from before either key existed.
         item_template (callable | None, optional): Called per item to build
             its row layout. Defaults to None (built-in text row).
         title_template (str | callable | None, optional): Title for the

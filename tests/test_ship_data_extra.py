@@ -81,8 +81,12 @@ class TestTheSwitch(_Fixture):
                                     "call was disabled")
         self.assertEqual(entry.get("shield_front_max"), 777.0)
 
-    def test_on_calls_the_engine_with_filename_and_path(self):
-        name = self.write()
+    def test_on_calls_the_engine_with_one_fully_pathed_file(self):
+        # ONE argument, and it carries the SUFFIX. The 2026-08-15 exe dropped the
+        # `(name, folder)` form; pybind answers the old call with a TypeError that
+        # this wrapper logs and survives, so the ships stay in the library and go
+        # missing only inside the engine, minutes later, at a spawn.
+        name = self.write(ext=".yaml", text=SHIPS)
         # Pin the install root somewhere unrelated to the temp dir. `_engine_path`
         # rewrites a path UNDER the install into the root-relative form the engine
         # wants, so without pinning this the assertion silently depends on where
@@ -92,7 +96,26 @@ class TestTheSwitch(_Fixture):
                         return_value=os.path.join(self.tmp.name, "no", "such")),              mock.patch("sbs.add_extra_ship_data", create=True) as engine:
             reached = sd.add_extra(name, self.tmp.name)
         self.assertTrue(reached)
-        engine.assert_called_once_with(name, self.tmp.name)
+        engine.assert_called_once_with(os.path.join(self.tmp.name, name + ".yaml"))
+
+    def test_the_engine_is_told_the_extension_that_actually_opened(self):
+        # The engine no longer searches for the suffix, so whichever file we READ
+        # is the one it must be pointed at. Two decisions that can disagree is how
+        # the library ends up with stats the engine has never heard of.
+        name = self.write(ext=".json", text=SHIPS)
+        with mock.patch("sbs_utils.fs.get_artemis_dir",
+                        return_value=os.path.join(self.tmp.name, "no", "such")),              mock.patch("sbs.add_extra_ship_data", create=True) as engine:
+            sd.add_extra(name, self.tmp.name)
+        self.assertTrue(engine.call_args[0][0].endswith(".json"))
+
+    def test_a_missing_file_never_reaches_the_engine(self):
+        # Nothing read means nothing to point at. Handing the engine a guess is
+        # silent - it does not raise for a path it cannot open - so the only honest
+        # move is not to call it, and to let the missing-file warning speak.
+        with mock.patch("sbs.add_extra_ship_data", create=True) as engine:
+            reached = sd.add_extra("nothing_here", self.tmp.name)
+        self.assertFalse(reached)
+        self.assertEqual(engine.call_args_list, [])
 
     def test_an_absolute_path_under_the_install_is_made_root_relative(self):
         # The engine's own example is ("extraShipDataAAA", "data/missions/BeamArcTest") -
@@ -119,6 +142,18 @@ class TestRobustness(_Fixture):
         # with no stats, not a dead mission.
         with mock.patch("sbs.add_extra_ship_data", create=True):
             sd.add_extra("nothing_here", self.tmp.name)
+
+    def test_a_new_engine_rejecting_the_call_is_not_fatal(self):
+        # The TypeError shape specifically: pybind answers a wrong-arity call with
+        # one, and this wrapper's whole job is to survive it loudly rather than
+        # quietly. Both LM's monsters and its turrets died here.
+        name = self.write()
+        with mock.patch("sbs.add_extra_ship_data",
+                        side_effect=TypeError("incompatible function arguments"),
+                        create=True):
+            reached = sd.add_extra(name, self.tmp.name)
+        self.assertFalse(reached)
+        self.assertIsNotNone(sd.get_ship_data_for("wrapper_probe"))
 
     def test_the_extension_is_searched_the_way_the_engine_searches_it(self):
         # The filename is passed WITHOUT one, so a mod can switch format without
@@ -152,7 +187,7 @@ class TestLogicalPaths(_Fixture):
                 sd.add_extra("turrets/extraShipData_turrets")
         finally:
             fs.script_dir = old_dir
-        used = engine.call_args[0][1].replace("/", os.sep)
+        used = engine.call_args[0][0].replace("/", os.sep)
         self.assertIn(os.path.join("media", "turrets"), used,
                       "resolved to the decoy addon folder instead of the media pack")
         self.assertIsNotNone(sd.get_ship_data_for("wrapper_probe"))
@@ -167,6 +202,10 @@ class TestTheRecord(_Fixture):
         self.assertEqual(len(loaded), 1)
         self.assertEqual(loaded[0][0], name)
         self.assertFalse(loaded[0][2], "reached_engine should be False when off")
+        # The exact string the engine was to be handed is recorded too, because
+        # `extra_replay` has to re-issue THAT after create_new_sim() wipes the table,
+        # and because a report that cannot say what path was used cannot be acted on.
+        self.assertTrue(str(loaded[0][3]).endswith(".json"), loaded[0])
 
     def test_the_record_does_not_survive_a_mission_boundary(self):
         # cosmos_dev reuses one interpreter across missions where the engine
@@ -315,13 +354,34 @@ class TestItSaysWhenTheArtIsNotThere(unittest.TestCase):
             return sd._art_that_is_not_there(text)
 
     def test_art_that_exists_is_not_reported(self):
-        self.assertEqual(self._check("TSNfighter"), [])
+        self.assertEqual(self._check("ships/TSNfighter"), [])
 
     def test_the_case_does_not_have_to_match(self):
-        self.assertEqual(self._check("tsnfighter"), [])
+        self.assertEqual(self._check("ships/tsnfighter"), [])
 
     def test_art_that_is_missing_is_named_with_its_hull(self):
-        self.assertEqual(self._check("tsn-fighter"), [("t", "tsn-fighter")])
+        self.assertEqual(self._check("ships/tsn-fighter"), [("t", "ships/tsn-fighter")])
+
+    def test_a_bare_root_is_reported_even_though_the_art_is_right_there(self):
+        """The rule this check exists to enforce, and it is not about the file existing.
+
+        `TSNfighter.obj` is sitting in graphics/ships in this fixture. On engine 1.3.6 a
+        BARE artfileroot still asserts - artfileroot resolves against data/graphics now,
+        so the name has to carry `ships/`. The hull spawns fine on the server and kills
+        the first client that draws it, so "the art is there" is the wrong question."""
+        self.assertEqual(self._check("TSNfighter"), [("t", "TSNfighter")])
+
+    def test_a_path_out_of_graphics_is_followed_not_skipped(self):
+        """A mod reaches art it ships itself by climbing out of data/graphics, and that
+        is the one spelling engine 1.3.6 opens. The check used to SKIP any root with a
+        slash, which under the new convention is every root - so it validated nothing."""
+        import os
+        pack = os.path.join(self.install.name, "data", "missions", "pack", "ships")
+        os.makedirs(pack)
+        open(os.path.join(pack, "God_Phoenix.obj"), "w").close()
+        self.assertEqual(self._check("../missions/pack/ships/God_Phoenix"), [])
+        self.assertEqual(self._check("../missions/pack/ships/nope"),
+                         [("t", "../missions/pack/ships/nope")])
 
     def test_it_still_checks_without_pyyaml_installed(self):
         """Parsing must go through the BUNDLED `sbs_utils.yaml`. A bare `import yaml`
@@ -340,13 +400,27 @@ class TestItSaysWhenTheArtIsNotThere(unittest.TestCase):
         with mock.patch.object(builtins, "__import__", no_pyyaml):
             self.assertEqual(self._check("tsn-fighter"), [("t", "tsn-fighter")])
 
-    def test_a_path_to_mod_art_is_not_judged(self):
-        """A mod keeping its own graphics folder writes a relative PATH as its artfileroot.
-        That resolves somewhere this check does not look, so it must not be called missing -
-        VisualTestRange keeps `modart_relpath` as the specimen."""
+    def test_a_path_to_mod_art_IS_judged_now(self):
+        """The opposite of what this test used to assert, and deliberately.
+
+        It read: "a mod keeping its own graphics folder writes a relative PATH, that
+        resolves somewhere this check does not look, so it must not be called missing."
+        On engine 1.3.6 that reasoning inverts. `../missions/<pack>/ships/<name>` is the
+        ONE spelling the engine opens for mod-carried art (measured, one copy of the art
+        per candidate), so it lands inside the install and is perfectly checkable - and
+        it is the art MOST worth checking, because a mod ships its own and a pack that
+        failed to unpack looks exactly like one that did until a client draws a hull.
+
+        The old path in that assertion also no longer exists: `anime_mods/anime_ships`
+        was retired when the mod moved to a media pack."""
         self.assertEqual(
-            self._check("../../missions/anime_mods/anime_ships/graphics/ships/God_Phoenix"),
-            [])
+            self._check("../missions/nowhere_at_all/ships/God_Phoenix"),
+            [("t", "../missions/nowhere_at_all/ships/God_Phoenix")])
+
+    def test_art_genuinely_outside_the_install_is_still_left_alone(self):
+        """The carve-out that survives: a root climbing clear of the install really is
+        somewhere this function cannot judge, so it must not be reported as missing."""
+        self.assertEqual(self._check("../../../elsewhere/ships/God_Phoenix"), [])
 
     def test_it_stays_quiet_with_no_install_to_check(self):
         with mock.patch("sbs_utils.fs.get_artemis_dir", return_value="/nowhere/at/all"):
@@ -364,23 +438,39 @@ class TestItSurvivesTheSimBeingRebuilt(_Fixture):
     reason (2026-08-14)."""
 
     def test_every_file_is_told_to_the_engine_again(self):
+        # Real files on disk, because the replay now re-issues the exact path the
+        # engine was handed - and there is no such path for a file that was never
+        # found. A fake path here would assert on a code branch that no longer runs.
+        self.write("extraProbe")
+        self.write("extraOther")
         with mock.patch("sbs.add_extra_ship_data", create=True):
-            sd.add_extra("extraProbe", path="some/where")
-            sd.add_extra("extraOther", path="else/where")
+            sd.add_extra("extraProbe", path=self.tmp.name)
+            sd.add_extra("extraOther", path=self.tmp.name)
         with mock.patch("sbs.add_extra_ship_data", create=True) as told:
             count = sd.extra_replay()
         self.assertEqual(count, 2)
-        self.assertEqual([c.args[0] for c in told.call_args_list],
-                         ["extraProbe", "extraOther"])
+        self.assertEqual([os.path.basename(c.args[0]) for c in told.call_args_list],
+                         ["extraProbe.json", "extraOther.json"])
 
     def test_it_says_nothing_and_does_nothing_with_no_files(self):
         with mock.patch("sbs.add_extra_ship_data", create=True) as told:
             self.assertEqual(sd.extra_replay(), 0)
         self.assertEqual(told.call_args_list, [])
 
-    def test_the_switch_still_wins(self):
+    def test_a_file_that_was_never_found_is_not_replayed(self):
+        # It was recorded (a report should still say it was asked for), but there is
+        # no file to point the engine at, so replaying it would be a guess.
         with mock.patch("sbs.add_extra_ship_data", create=True):
             sd.add_extra("extraProbe", path="some/where")
+        self.assertEqual(len(sd.extra_loaded()), 1)
+        with mock.patch("sbs.add_extra_ship_data", create=True) as told:
+            self.assertEqual(sd.extra_replay(), 0)
+        self.assertEqual(told.call_args_list, [])
+
+    def test_the_switch_still_wins(self):
+        self.write("extraProbe")
+        with mock.patch("sbs.add_extra_ship_data", create=True):
+            sd.add_extra("extraProbe", path=self.tmp.name)
         sd.extra_enable(False)
         self.addCleanup(sd.extra_enable, True)
         with mock.patch("sbs.add_extra_ship_data", create=True) as told:
@@ -389,13 +479,15 @@ class TestItSurvivesTheSimBeingRebuilt(_Fixture):
 
     def test_sim_create_replays_them(self):
         from sbs_utils.procedural import cosmos
+        self.write("extraProbe")
         with mock.patch("sbs.add_extra_ship_data", create=True):
-            sd.add_extra("extraProbe", path="some/where")
+            sd.add_extra("extraProbe", path=self.tmp.name)
         with (mock.patch("sbs.add_extra_ship_data", create=True) as told,
               mock.patch("sbs_utils.procedural.ship_data_mod.ship_data_flush_mod_file"),
               mock.patch("sbs_utils.helpers.FrameContext.context", mock.MagicMock())):
             cosmos.sim_create()
-        self.assertEqual([c.args[0] for c in told.call_args_list], ["extraProbe"])
+        self.assertEqual([os.path.basename(c.args[0]) for c in told.call_args_list],
+                         ["extraProbe.json"])
 
 
 class TestItSaysWhenTheInstallCannotBeRead(_Fixture):

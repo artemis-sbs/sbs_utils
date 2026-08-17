@@ -68,6 +68,13 @@ class Gui(object):
         :type int: client id from the engine
         :param page:
         :type Page: A GUI Page"""
+    def root_clear (sbs, client_id):
+        """Clear a client's ROOT region, recording that it happened.
+        
+        Use this rather than a bare ``send_gui_clear(cid, "")`` anywhere in the
+        library. The bookkeeping is the point: see ``Gui.root_epoch``."""
+    def root_epoch_of (client_id):
+        """The client's current root-clear epoch (see ``Gui.root_epoch``)."""
     def send_custom_event (tag, sub_tag=''):
         """on_event
         

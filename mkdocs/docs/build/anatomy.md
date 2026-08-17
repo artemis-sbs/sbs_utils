@@ -79,8 +79,10 @@ Properties:
 - **`shared`** state is set once (by the server) and visible to every task &mdash;
   see [gotchas](../mast/gotchas.md).
 - **Lifeforms, sides & faces** &mdash; [Sides, lifeforms & faces](sides-lifeforms.md).
-- **`@media/`** labels *execute* to set music/skybox, so keep them below your shared
-  data. See the [media API](../api/procedural/media.md).
+- **`@media/`** labels *execute* when scheduled, so keep them below your shared data.
+  A skybox label sets the **sky only** &mdash; music is chosen separately, by the
+  `MUSIC_SELECT` setting, a map's `Defaults:`, or the server console's Music dropdown.
+  See the [media API](../api/procedural/media.md).
 - **`@map/` `metadata` Properties** become variables (`PLAYER_COUNT`, `DIFFICULTY`,
   `GAME_TIME_LIMIT`) driven by the setup-screen widgets. Defaults come from
   [`settings.yaml`](../home/settings.md).

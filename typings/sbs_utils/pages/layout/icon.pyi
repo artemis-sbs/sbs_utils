@@ -7,7 +7,12 @@ class Icon(Column):
     def _present (self, event):
         ...
     def update (self, props):
-        ...
+        """Change what the glyph looks like - a new index, or a recolor.
+        
+        The dirty mark is the whole point: the props alone are only what the NEXT
+        present would send, and a present only happens when something else rebuilds
+        the page. A status icon that recolors on damage would have gone on drawing
+        its old color until the console was left and re-entered."""
     @property
     def value (self):
         ...

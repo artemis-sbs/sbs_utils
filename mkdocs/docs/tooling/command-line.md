@@ -86,6 +86,10 @@ text. Lists and dictionaries belong in the profile.
     `profiles/` is read from the mission folder only. Two missions that want the same
     profile need a copy each.
 
+A profile is not only settings: it can also add and remove **add-ons** and **art packs**
+relative to `story.json`, which is how the same mission runs with the Artemis 2.8 skies
+instead of the stock ones. See **[Profiles](profiles.md)**.
+
 ## Turning on autoplay from a shortcut
 
 `AUTO_PLAY` is a nested setting, which is what the dotted form is for:

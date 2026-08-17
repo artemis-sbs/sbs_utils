@@ -40,6 +40,23 @@ def camera_auto (to=None, consoles=None):
     
     Returns:
         int: how many consoles were released."""
+def camera_dolly (to, subject, from_distance, to_distance, yaw=0.0, pitch=12.0, seconds=20.0, ease='in_out', consoles=None):
+    """Push the lens in (or pull it out) along a fixed angle, FOLLOWING the subject.
+    
+    `camera_move` interpolates between two fixed WORLD points, which is right for a
+    station and wrong for a ship under way: the shot is left behind, and what began as a
+    push-in ends as a fly-past. This holds the ANGLE and changes only the distance,
+    recomputing from wherever the subject is each tick - the same trick `camera_orbit`
+    uses, and for the same reason.
+    
+    Args:
+        from_distance / to_distance (float): radius at the start and the end. Give a
+            larger ``from`` for a push in, a larger ``to`` for a pull out.
+        yaw (float): degrees around the subject to sit at.
+        pitch (float): degrees above it. Slightly down reads better than dead level.
+    
+    Returns:
+        Promise: resolves when the push ends."""
 def camera_lens (to=None, consoles=None):
     """Where the lens is right now on the first of these consoles, or None.
     
@@ -116,8 +133,8 @@ def camera_shot (to, subject, lens_world, consoles=None):
     """Put the lens at an ABSOLUTE world position, looking at `subject`.
     
     The natural way to write a shot - "camera over here, pointed at that" - is to pass two
-    different objects as dolly and target. That shape does not render (see CINEMATIC_PLAN.md
-    section 0); what renders is one object named twice, with the lens offset away from it,
+    different objects as dolly and target. That shape does not render (see
+    DESIGN_RECORD.md s7); what renders is one object named twice, with the lens offset away from it,
     which is what the Game Master does.
     
     That constraint costs nothing, because the offsets are WORLD-space: any camera position is
@@ -530,15 +547,20 @@ def gui_content (content, style=None, var=None):
 def gui_drop_down (props, style=None, var=None, data=None):
     """Add a drop-down list to the current GUI layout.
     
-    The current value of ``var`` sets the initially selected option. When the
-    player selects an item, ``var`` is updated.
+    When the player selects an item, ``var`` is updated. ``var`` is written, not
+    read: the INITIAL selection comes from ``text:`` in ``props``, so interpolate
+    the variable there yourself -- ``f"text:{speed};list:Slow,Medium,Fast;"`` --
+    or set it afterwards with ``.value``.
     
     Args:
-        props (str): Semicolon-separated option list and optional properties,
-            e.g. ``"items:Red,Green,Blue;"`` or ``"$items:Red,Green;color:white;"``.
+        props (str): Semicolon-separated properties. The options go in ``list:``
+            (comma separated) and the closed-state label in ``text:``, e.g.
+            ``"text:Red;list:Red,Green,Blue"``. NOT ``items:`` - a dropdown with no
+            ``list:`` has nothing to render and the engine dies allocating for it
+            (``MemoryError: bad allocation``), which reads as anything but a typo.
         style (str, optional): CSS-like style overrides. Defaults to None.
-        var (str, optional): Variable name to read the initial selection from
-            and update on change. Defaults to None.
+        var (str, optional): Variable name to write the selection to when it
+            changes. Defaults to None.
         data (object, optional): Arbitrary data passed to the event handler.
             Defaults to None.
     
@@ -546,7 +568,8 @@ def gui_drop_down (props, style=None, var=None, data=None):
         Dropdown: The layout item created.
     
     Example:
-        gui_drop_down("items:Slow,Medium,Fast;", var="speed_setting")"""
+        speed = gui_drop_down("text:Medium;list:Slow,Medium,Fast;", var="speed_setting")
+        speed.value = "Fast"      # move the selection from script"""
 def gui_face (face, style=None):
     """Add a character face portrait to the current GUI layout.
     
@@ -801,6 +824,22 @@ def gui_icon_name (name, color=None, style=None, props=None):
     
     Returns:
         Icon | Image | None"""
+def gui_icon_recolor (widget, color):
+    """Tint an icon that is already on screen, whatever `gui_icon_name` gave back.
+    
+    That function returns an Icon for a built-in glyph and an Image for a name a
+    mission has re-skinned, and the two carry their color in different places - so a
+    caller that recolored by hand would work until someone registered their own sheet,
+    which is the one thing the name indirection exists to survive. Recolor, never
+    rebuild: the widget keeps its tag, so the engine re-sends one glyph instead of the
+    console rebuilding a row that may be under the pilot's cursor.
+    
+    Args:
+        widget: the layout item from `gui_icon_name` (None is a no-op).
+        color (str): the new tint.
+    
+    Returns:
+        bool: whether the tint was applied."""
 def gui_image (props, style=None, fit=0, color=None):
     """Add an image to the current GUI layout.
     
@@ -1132,7 +1171,7 @@ def gui_int_slider (msg, style=None, var=None, data=None):
     
     Example:
         gui_int_slider("low:1;high:5;text:int;", var="torp_count")"""
-def gui_layout_widget (widget):
+def gui_layout_widget (widget, style=None):
     """Place a specific engine widget at a fixed position in the layout.
     
     Adds the named engine widget to the console widget list AND places a
@@ -1142,13 +1181,25 @@ def gui_layout_widget (widget):
     Args:
         widget (str): Engine widget name, e.g. ``"2dview"`` or
             ``"helm_movement"``.
+        style (str, optional): Layout style for the PLACEHOLDER, as for any other
+            widget - most usefully ``col-width``. Defaults to None (the whole row).
+    
+    DO NOT SHARE A ROW WITH MAST CONTROLS. The placeholder lays out correctly - measured:
+    `red_alert` beside three checkboxes computes four clean quarters, and every rect is
+    sent - but the ENGINE draws its widget at its own size, over the top of whatever MAST
+    put beside it, so the controls simply vanish. Give an engine widget its own row (or
+    its own section). ``col-width`` still shapes the rect the engine is GIVEN, which is
+    worth having on its own; it just cannot stop the engine painting outside it.
     
     Returns:
         ConsoleWidget: The layout placeholder item.
     
     Example:
         gui_section(style="area:0,0,70,100;")
-        gui_layout_widget("2dview")"""
+        gui_layout_widget("2dview")
+        # sharing one row with a checkbox:
+        gui_checkbox("Follow", "col-width:90px;", var="follow_tag")
+        gui_layout_widget("red_alert", "col-width:1fr;")"""
 def gui_list (items, style='', select=False, multi=False, title=None, read_only=False, row_height='1.6em'):
     """Data-bound listbox: the ``with`` block is the per-row template.
     
@@ -1178,6 +1229,19 @@ def gui_list_box (items, style, item_template=None, title_template=None, section
             ``LayoutListBoxHeader`` objects (from ``gui_list_box_header``)
             render as collapsible section dividers.
         style (str): CSS-like style overrides for the listbox container.
+    
+            ``row-height`` is the height of ONE item row, and a FLOOR - a template
+            that needs more grows past it. It also sizes the box each item is measured
+            and drawn in, so a template whose rows declare no height fills the item
+            rather than collapsing, and the item's CLICK REGION is never smaller than
+            the row you can see.
+    
+            ``item-gap`` is the spacing BETWEEN items. This is what ``row-height``
+            used to mean here, which made a list declaring the height its template
+            already used render at twice the pitch.
+    
+            Declare neither and an item is exactly as tall as its template's rows,
+            with items flush - unchanged from before either key existed.
         item_template (callable | None, optional): Called per item to build
             its row layout. Defaults to None (built-in text row).
         title_template (str | callable | None, optional): Title for the
@@ -1265,6 +1329,22 @@ def gui_listbox_items_convert_headers (items):
             [">>Section A", "Item 1", "Item 2", ">>Section B", "Item 3"]
         )
         gui_list_box(items, style="", select=True, collapsible=True)"""
+def gui_log_tail (count=None, background=None, tab='log', style=None):
+    """The last few log lines, drawn where a console's text waterfall used to be.
+    
+    The engine waterfall cannot be styled from script - its background is fixed, and too
+    dark. This is the same content in a MAST text area, so the console owns its own look.
+    
+    It is the AMBIENT half of the log: always visible, no interaction, the last line or
+    two. The history - filtered, scrollable, categorised - is the info-panel tab. Keeping
+    both is deliberate: a crew reading ship data should still catch traffic going past
+    without opening anything, and that is exactly what the tab cannot do.
+    
+    Args:
+        count (int, optional): how many lines. Defaults to LOG_TAIL_LINES (2).
+        background (str, optional): the strip's colour. Defaults to LOG_TAIL_BACKGROUND.
+        tab (str, optional): which stream to tail. Defaults to everything.
+        style (str, optional): extra style for the text area."""
 def gui_message (layout_item, label=None):
     """Register a MAST label to run when a layout element receives a GUI event.
     
@@ -1303,6 +1383,18 @@ def gui_message_callback (layout_item, cb):
     Example:
         btn = gui_button("Fire!", on_press=None)
         gui_message_callback(btn, lambda e, item: fire_torpedo(SHIP_ID))"""
+def gui_message_clear (layout_item):
+    """Drop EVERY gui_message handler attached to a widget, on both channels.
+    
+    Handlers accumulate now (LM #614), so replacing rather than adding takes an
+    explicit step: clear, then register. Before #614 a plain re-registration
+    did this implicitly, by throwing the previous handler away.
+    
+    Args:
+        layout_item: the widget to detach every handler from.
+    
+    Returns:
+        int: how many registrations were removed."""
 def gui_message_label (layout_item, label):
     """Schedule a MAST label as a sub-task when a layout element receives a GUI event.
     
@@ -1317,18 +1409,6 @@ def gui_message_label (layout_item, label):
     Example:
         section = gui_sub_section(style="col-width:30%;")
         gui_message_label(section, handle_section_click)"""
-def gui_message_clear (layout_item):
-    """Drop EVERY gui_message handler attached to a widget, on both channels.
-    
-    Handlers accumulate now (LM #614), so replacing rather than adding takes an
-    explicit step: clear, then register. Before #614 a plain re-registration
-    did this implicitly, by throwing the previous handler away.
-    
-    Args:
-        layout_item: the widget to detach every handler from.
-    
-    Returns:
-        int: how many registrations were removed."""
 def gui_options_button (transparent=True, client_id=None):
     """Make the engine Options button transparent (or normal) for a client, and
     keep it that way across page rebuilds.
@@ -1360,6 +1440,27 @@ def gui_panel_console_message_list (cid, left, top, width, height):
     ...
 def gui_panel_console_message_tick (info_panel):
     ...
+def gui_panel_log (cid, left, top, width, height, tab='log'):
+    """Info-panel tab body: the ship's log, newest at the bottom.
+    
+    Oldest-first with the newest at the BOTTOM, which is what the waterfall did and what
+    a running log should do - the text area follows the tail unless the reader has
+    scrolled back (see TextArea.follow_tail)."""
+def gui_panel_log_mission (cid, left, top, width, height):
+    """Info-panel tab: objective and quest beats."""
+def gui_panel_log_ship (cid, left, top, width, height):
+    """Info-panel tab: damage, systems, docking - Engineering's own feed."""
+def gui_panel_log_tick (info_panel):
+    """Redraw the log tab only when the log has actually grown.
+    
+    The panel's tick contract is 0 = done, 1 = stay, 2 = redraw. **Never 0 here**: 0
+    means "this tab has nothing important" and sends the console back to its DEFAULT
+    tab, which for a log the player deliberately opened would be a surface that closes
+    itself.
+    
+    Comparing the newest ``seq`` rather than redrawing every tick keeps an idle log at
+    zero render cost - this widget wraps every line on recalc, so a 1 Hz re-present of a
+    500-line log would be real work for no change."""
 def gui_panel_upgrade_list (cid, left, top, width, height):
     ...
 def gui_panel_widget_hide (cid, left, top, width, height, widget):
@@ -1432,7 +1533,7 @@ def gui_properties_set (p=None, tag=None):
     
     Example:
         gui_properties_set({"Speed": "gui_text(str(ship_speed))", "Shields": "gui_slider(shield_pct)"})"""
-def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x0000011CF6D33560>):
+def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x000001FAEDA8DC70>):
     """Create a property list box with single-line label/control layout.
     
     Each property is rendered as a label on the left and its control widget
@@ -1901,6 +2002,11 @@ def gui_tabbed_panel (items=None, style=None, tab=0, tab_location=0, icon_size=0
 def gui_table (items, columns=None, style='row-height: 1.6em;', select=False, header=True, font='gui-2', on_cell_change=None, headers=None, **kwargs):
     """Add a table (a selectable/scrollable gui_list_box) to the layout.
     
+    ``style`` is handed BOTH to the listbox and to each row's ``gui_row``. Under the
+    old listbox semantics that meant a row of `row-height` and a GAP of the same, so
+    every table rendered at twice its declared pitch; now both say the same thing and
+    a table is as tall as it says.
+    
     Two forms:
     
     **Block form** — author the row yourself, like the other containers::
@@ -1988,13 +2094,25 @@ def gui_text_area (props, style=None, markdown=True, line_styles=None):
         props (str): Text content or Markdown string. Supports ``{var}``
             interpolation.
         style (str, optional): CSS-like style overrides. Defaults to None.
+        markdown (bool, optional): Parse the mini-markdown. Pass ``False`` to
+            render lines VERBATIM - the right choice for source code, a MAST
+            error dump or a raw log, where the markup rules actively corrupt the
+            content: ``#`` starts a heading (so every MAST comment becomes one),
+            a leading ``-`` is consumed as a bullet (``->END``), any ``[...]``
+            is read as a link reference and replaces the line, and ``^`` becomes
+            a newline. ``{var}`` interpolation is also skipped, since a brace in
+            code is a brace. Defaults to True.
+        line_styles (list, optional): One style key per line, applied in order -
+            how you colorize text that is no longer being parsed. Pairs with
+            ``markdown=False``. Defaults to None.
     
     Returns:
         TextArea: The layout item created.
     
     Example:
         gui_text_area("## Status\nAll systems nominal.")
-        gui_text_area("![](image://logo?scale=0.5) Mission active")"""
+        gui_text_area("![](image://logo?scale=0.5) Mission active")
+        gui_text_area(source, markdown=False, line_styles=per_line_keys)"""
 def gui_text_escape (s):
     """Quote a dynamic value for safe inclusion as a ``$text:`` style value.
     
@@ -2014,8 +2132,18 @@ def gui_update (tag, props, shared=False, test=None):
     ``shared=True``) and updates its properties in-place without rebuilding the
     full layout.
     
+    The tag is a SCRIPT-SIDE name, not the string the engine knows the widget by.
+    Set it with a ``tag:`` style (``gui_text("hi", style="tag:status;")``) and the
+    page records it beside the engine's own tag, so naming a widget never disturbs
+    the tag the engine, a listbox, or a click region depends on.
+    
+    A name set inside a listbox ``item_template`` resolves too, but note two things:
+    only rows that are currently ON SCREEN exist, so a tag naming a scrolled-away row
+    finds nothing; and the name must be unique per row (put the item in it, e.g.
+    ``f"tag:row-{item};"``) or only the last row drawn is reachable.
+    
     Args:
-        tag (str): The element tag to find and update.
+        tag (str): The element name to find and update.
         props (str): New property string for the element, e.g.
             ``"$text:Firing!;color:red;"``.
         shared (bool, optional): Apply the update to all client pages, not just
@@ -2023,6 +2151,11 @@ def gui_update (tag, props, shared=False, test=None):
         test (dict | None, optional): Only apply the update when any variable
             in ``test`` has changed since the last update. Defaults to None
             (always update).
+    
+    Returns:
+        bool: True when a widget was found and updated. False is not an error --
+        an off-screen listbox row is the ordinary case -- but it lets a caller tell
+        a miss from a hit. Always False for ``shared=True``, which fans out.
     
     Example:
         gui_update(status_tag, "$text:OK;color:green;")"""
@@ -2105,6 +2238,147 @@ def gui_widget_list_clear ():
     
     Example:
         gui_widget_list_clear()"""
+def gui_widget_offscreen (widget, client_id=None):
+    """Push an engine widget out of view.
+    
+    The ONLY reliable way to be rid of an engine widget. It cannot be un-declared: the
+    console's widget list is what the engine draws from, and the engine keeps what it has
+    been given, so simply not asking for it is not always enough on a console that has
+    already shown it. gui_hide() does even less - it clears `_show` on the layout
+    placeholder while the engine carries on rendering.
+    
+    So this does what `gui_panel_widget_hide` has always quietly done: sends the widget a
+    rect at 100,100, off the visible area. Named, because "hide the waterfall" was
+    attempted three different wrong ways before anyone found the one that works.
+    
+    Args:
+        widget (str): engine widget name, e.g. ``"text_waterfall"``.
+        client_id (int, optional): defaults to the current client."""
+def hail_audio_checkbox (client_id=None, style=None):
+    """`Audio` - ticked when hails may play their `Audio:`, which is the default.
+    
+    Ticked means SOUND, not mute: a scene that ships a sound file expects to be heard,
+    and a box you have to tick to get the normal behaviour is a box people find only
+    after wondering why it is quiet.
+    
+    Reads the SHIP's setting rather than remembering its own, so two comms consoles
+    always agree - the same reason the placement dial is derived.
+    
+    Returns:
+        the checkbox layout item, or None where a hail cannot be placed."""
+def hail_band_clear (ship, to=None, consoles='mainscreen'):
+    """Take the band down."""
+def hail_band_show (ship, to=None, consoles='mainscreen'):
+    """Put the current beat over a live orbit shot.
+    
+    Only meaningful for the `orbit` form - the other two draw inline, where a plain
+    section is enough and an overlay would just be a second thing to keep in step."""
+def hail_choice_strip (ship, client_id=None, style=None, row_style=None):
+    """The hail list: waiting hails to answer, or the open conversation's replies.
+    
+    A LISTBOX rather than a row of buttons. Three things follow from that, and all three
+    were problems with the buttons: the queue can be any length because the list
+    scrolls; the heading says what the list IS, so no separate text row is needed; and
+    there is ONE widget to rebuild rather than N, so a repaint cannot leave half a strip
+    behind.
+    
+    Args:
+        style (str, optional): the LISTBOX's own style - its item row height.
+        row_style (str, optional): the layout ROW the listbox sits in. It opens its own
+            row, because a listbox otherwise joins whatever row is currently open and
+            lands beside the control above it.
+    
+    Returns:
+        int: how many rows were drawn."""
+def hail_list_title (ship):
+    """The list's heading: who is talking, or what is waiting."""
+def hail_panel_history (cid, left=0, top=0, width=0, height=0):
+    """The comms info-panel tab: every conversation this ship has had, re-readable.
+    
+    Two states in one tab - the list, and one conversation being replayed. The info
+    panel gives a builder no way to push a second tab, and a hail's history is one idea,
+    so the state lives on the console (`HAIL_REPLAY`) and this reads it."""
+def hail_panel_icon ():
+    """The history tab's glyph.
+    
+    A FUNCTION, not a constant, and that is load-bearing: only functions become MAST
+    globals, so a module-level `HAIL_PANEL_ICON` is invisible to every .mast file that
+    tries to use it - and invisible in a way a headless run does not catch, because the
+    console layout that would name it never renders there.
+    
+    Resolved by MEANING rather than by sheet index, so a mission that re-skins the icon
+    sheet moves this with it and the console never carries a bare number it cannot
+    explain. Falls back to the messages glyph if the name is ever retired."""
+def hail_rows (ship, client_id=None):
+    """What the hail list should show right now, as plain rows.
+    
+    Three states in one list, which is what lets a console draw it unconditionally:
+    
+    | ship state                | rows                                    |
+    |---------------------------|-----------------------------------------|
+    | nothing pending or active | none - the list is not drawn            |
+    | hails waiting, none open  | one per waiting hail, best first        |
+    | a hail open, still talking| a single `Continue`                     |
+    | a hail open, beats done   | that scene's answers                    |
+    
+    Waiting hails are NOT capped here. A listbox scrolls, so the queue cannot outgrow
+    the space - which was the whole reason the old button strip stopped at four and
+    silently dropped the fifth. The ANSWERS are still capped, because four is an
+    authored limit that `amd_lint_hails` enforces at write time."""
+def hail_screen_clear (ship, to=None, consoles='mainscreen'):
+    """Take the conversation off the main screen, restoring it untouched."""
+def hail_screen_show (ship, to=None, consoles='mainscreen'):
+    """Put the conversation over the main screen.
+    
+    Only for the forms that OWN the screen. An orbit shot keeps the live view and gets
+    the smaller band instead."""
+def hail_transcript_text (entry):
+    """An archived conversation as markdown: every line in the order it was said, with
+    the answers the crew gave marked as theirs.
+    
+    The answers are TEXT, deliberately. `hail_answer` refuses a replaying console, so a
+    button here would be refused anyway - but the surest way not to rewrite history is
+    not to draw a control that looks as though it could."""
+def hail_view (ship, client_id=None, face_style=None):
+    """Build the conversation into the CURRENT layout position.
+    
+    `portrait` and `still` draw here. `orbit` draws NOTHING here and returns its name
+    anyway: the engine has the screen full-bleed and the band is an overlay, so a
+    console that gets `"orbit"` back should simply leave its view alone.
+    
+    Args:
+        face_style (str, optional): the layout row the portrait sits in. The default is
+            sized for a bridge console's centre column and is a percentage of the
+            SCREEN, so a panel shorter than that gets a face taller than itself and
+            every row beneath it - the name, the line, the answers - is pushed out of
+            the panel entirely. A small panel passes its own height here. Sizing it is
+            the console's call because only the console knows how much room it gave.
+    
+    Returns:
+        str | None: the form that was built, or None when no hail is open."""
+def hail_where_checkbox (client_id=None, style=None, label='Hails'):
+    """The placement dial reduced to Off/On, for a ship with ONE console.
+    
+    A fighter's cockpit is the whole bridge: there is no main screen to send a hail
+    to and no second officer to disagree with, so three of the drop-down's four
+    entries name places that do not exist. Ticked means "show incoming calls here",
+    which is `console` placement - the same value the drop-down writes, through the
+    same `hail_where_set`, so the two controls are interchangeable and a ship that
+    grows a main screen later can swap back with no state to migrate.
+    
+    Returns:
+        the checkbox layout item, or None when this console cannot place a hail."""
+def hail_where_dropdown (client_id=None, style=None):
+    """The placement dial: Off / This Console / Main Screen / Both.
+    
+    Deliberately the same shape as the science console's On-Screen drop-down, and it
+    sits in the same place - beside that console's Follow checkbox. The whole dial is
+    one call because the change handler lives here: a console that had to write its own
+    `on change` would be a console that could disagree with the library about what the
+    labels mean.
+    
+    Returns:
+        the drop-down layout item, or None when this console cannot place a hail."""
 def icon_names ():
     """Every name that resolves - the built-ins plus the meanings. For lint, for a
     picker, and for anyone wondering what they may ask for."""
@@ -2295,7 +2569,7 @@ def overlay_register_label (kind, label):
     
         === my_hero_card
             gui_row("row-height: content;")
-            gui_text(f"$text:`{title}`;justify:center;font:gui-6")
+            gui_text(f"$text:{gui_text_escape(title)};justify:center;font:gui-6")
             ->END
     
         overlay_register_label("my_hero", my_hero_card)
@@ -2312,16 +2586,31 @@ def overlay_show (slot, kind, to=None, consoles=None, **content):
             role query mixing them. See ``consoles_of``.
         consoles (str, optional): narrow the audience to consoles with these roles,
             e.g. ``"mainscreen"``.
-        **content: fields passed through to the builder."""
+        **content: fields passed through to the builder.
+    
+    A console that joins the audience while this is still up gets it too — see
+    the late-joiner note above. ``to=None`` means "the console calling", which has
+    no audience to join, so it is not tracked."""
 def overlay_signal_clear (to=None, slot=None):
     """Signal-route forwarder for clear."""
 def overlay_signal_show (to, slot, kind, fields=None):
     """Signal-route forwarder: overlay_show with content supplied as a dict."""
 def overlay_slot_define (slot, rect, draw_layer=28000, input='passthrough'):
     """Define or override a slot's default rect / draw_layer / input mode."""
-def overlay_toast (text, icon=None, seconds=3, to=None, consoles=None, slot='corner_toast'):
-    """Small transient corner notification. Toasts STACK — several coexist, each
-    auto-clearing after its own ``seconds`` (default 3), capped at TOAST_MAX."""
+def overlay_toast (text, icon=None, seconds=3, to=None, consoles=None, slot='corner_toast', color=None, category=None, severity=None):
+    """Notify the crew. RETIRED as an overlay -- writes to the ship's log instead.
+    
+    The line appears immediately in the ambient strip on every console of the addressed
+    ship, and stays in the log tab afterwards. ``icon``, ``seconds`` and ``slot`` are
+    accepted and ignored: they described a transient corner card that no longer exists,
+    and removing them would break every existing caller for no gain.
+    
+    Args:
+        color (str, optional): line color; defaults to the category's.
+        category (str, optional): which log tab -- ``ship`` or ``mission``. Everything
+            shows in ``log`` regardless.
+        severity (str, optional): ``tip`` | ``warning`` | ``danger``. A warning or danger
+            line renders as a callout and raises the log tab."""
 def rundown_add (name, subject, lens=None, move=None, seconds=4, ease='in_out', label=None, overlay=None):
     """Add (or replace) a shot in the rundown.
     
@@ -2386,3 +2675,118 @@ def rundown_tiles ():
     A list of ``{name, label, live, staged, suggested, excitement}`` in rundown
     order. Returned as DATA so the console is a mission's to design - this layer
     has no opinion about what a tile looks like."""
+def viewscreen_apply (ship):
+    """Make the engine match the recorded state. Safe to call repeatedly.
+    
+    This is the one place that touches cameras, so a console that connects late, a
+    repaint, or a fresh ``viewscreen_set`` all arrive at the same behavior by calling it.
+    
+    Returns:
+        int: how many consoles the shot is running on."""
+def viewscreen_clear (ship):
+    """Hand the screen back, restoring the view the crew had before the viewer took it.
+    
+    Returns:
+        bool: True if a viewer was running."""
+def viewscreen_consoles (ship):
+    """The main-screen consoles of one ship - the audience every shot addresses.
+    
+    Narrowed to the SHIP's own screens, which is what keeps one bridge's viewer out of
+    another's. Returns an empty set when no main screen is connected, which is normal
+    and not an error."""
+def viewscreen_framing (subject):
+    """``(near, far)`` lens distances for a subject.
+    
+    Scaled off the hull's own size, so a starbase and a fighter both fill the frame
+    rather than one being a speck and the other clipping the lens. ``exclusion_radius``
+    is the only size the engine actually exposes; when it says nothing, a default that
+    frames a mid-sized ship is better than a guess that frames nothing."""
+def viewscreen_helm_override (ship, view, facing, mode):
+    """Helm touched the main-screen control: the viewer stands down.
+    
+    Called from the ``main_screen_change`` handler with the triple the engine just
+    reported. No restore - helm's choice IS the new state, and putting the viewer's
+    idea of "before" back over the top would undo the very change being handled.
+    
+    A triple identical to what the viewer asked for is NOT a takeover: a console
+    reconnecting replays the state it is already in.
+    
+    The triple is written here as well as by the caller. ``handlerhooks`` already
+    records it (issue #595) and writing it twice is harmless - but a function whose
+    postcondition depends on the caller having gone first is a trap for the next
+    caller, so this one leaves the ship in the state it was told about either way.
+    
+    Returns:
+        bool: True if a viewer was stood down."""
+def viewscreen_home_ship (client_id):
+    """The ship a console BELONGS to, even while a shot has it assigned elsewhere.
+    
+    Anything that means "this console's own ship" must ask this rather than
+    ``sbs.get_ship_of_client``, which during a shot answers with the subject."""
+def viewscreen_hull_percent (subject):
+    """Remaining hull as 0-100, summed over the four ship systems.
+    
+    NOTE: LM's ``results_helpers.py`` carries the same formula for the end-game screen.
+    Two copies of "what does damaged mean" is one too many - when phase 5 touches LM,
+    promote one of them and delete the other."""
+def viewscreen_is_live (ship):
+    """Whether a console is currently driving this ship's main screen."""
+def viewscreen_label_for (mode):
+    """The drop-down label for a mode, so a repaint re-selects what is running."""
+def viewscreen_mode (ship):
+    """The shot this ship's main screen is running, or ``"off"``."""
+def viewscreen_mode_for (label):
+    """The mode a drop-down label means. Unknown labels read as ``off`` - a console
+    showing something we do not recognize must not leave the screen commandeered."""
+def viewscreen_page_names ():
+    """Every registered page name, in display order."""
+def viewscreen_page_register (name, fn, order=50):
+    """Register a data page.
+    
+    Args:
+        name (str): identifies the page (``"vitals"``, ``"cargo"``, ...). Re-registering
+            a name REPLACES it, which is how a mission overrides a built-in.
+        fn (callable): ``fn(subject_id, ship_id)`` -> markdown, or None for "nothing to
+            say about this subject".
+        order (int): sort key. The built-ins leave gaps so a mission can slot between."""
+def viewscreen_page_remove (name):
+    """Drop a page (including a built-in a mission does not want)."""
+def viewscreen_pages (subject, ship):
+    """``[(name, markdown), ...]`` for this subject - empty pages dropped.
+    
+    A page that raises is skipped rather than taking the column down with it: one
+    mission page with a bad key must not blank the whole viewer."""
+def viewscreen_relative_bearing (subject, ship):
+    """Bearing of ``subject`` from ``ship``: 0 is dead ahead, degrees clockwise.
+    
+    The convention is the engine's own, taken from the forward/right vectors rather
+    than assumed from an axis - the same maths the damage-facing code uses. Returns
+    None when either object (or its heading) is unavailable, because a bearing that is
+    quietly 90 degrees out is worse than no bearing."""
+def viewscreen_reset ():
+    """Drop every running shot WITHOUT touching the engine - for mission reset.
+    
+    The tick tasks are already gone by then (``TickDispatcher.clear()``), and the
+    clients these records name belong to a sim that is being torn down, so re-assigning
+    their cameras is at best pointless. This just stops the records outliving the
+    mission that made them."""
+def viewscreen_set (ship, mode, subject=None):
+    """Point this ship's main screen at something.
+    
+    Args:
+        ship (Agent | int): the player ship whose screen this is.
+        mode (str): one of ``MODES``. ``"off"`` is the same as ``viewscreen_clear``.
+        subject (Agent | int, optional): what the shot is about - normally the science
+            selection. ``None`` means no subject.
+    
+    Returns:
+        bool: True when the state changed."""
+def viewscreen_shot_props (current=None):
+    """The whole property string for a shot drop-down.
+    
+    The list key is ``list:``, NOT ``items:`` - a dropdown built with the wrong key has
+    no options to render and the engine dies allocating for it (`MemoryError: bad
+    allocation`), which does not look like a typo from the outside. ``text:`` is the
+    label shown while it is closed, so pass what is currently running."""
+def viewscreen_subject (ship):
+    """The id the shot is about, or 0."""

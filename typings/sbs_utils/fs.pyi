@@ -11,6 +11,28 @@ def add_to_path (dir):
     
     Args:
         dir (str): The directory path to add."""
+def engine_file (path):
+    """A path in the shape the ENGINE resolves: relative to the Cosmos root.
+    
+    THE ONE PATH HELPER. Every asset class used to compute its own shape against its own
+    base - audio against `data/audio`, images against `data/graphics`, a skybox as an
+    absolute path for a mission asset but a bare name for a stock one, ship data already
+    root-relative. Five spellings of the same idea, and only a run of the game could say
+    which of them a given engine would open.
+    
+    The 2026-08-15 engine resolves ONE shape for all of them, measured against it
+    (`data/missions/mediapath_probe`): a path from the Cosmos root, or an absolute path.
+    Both open. What does NOT open is a bare name, or a path relative to the asset's own
+    old base - `../missions/<m>/<file>` against `data/audio` is what this library built
+    for audio until now, and on this engine it silently plays nothing.
+    
+    NOTE ON EXTENSIONS, because it is the opposite of what the shape suggests: the engine
+    appends the extension itself, and passing one can make the lookup FAIL. A `.wav` on an
+    audio path was measured not to open while the same path without it did. So callers
+    name assets the way they always have - without a suffix - and this does not add one.
+    
+    An absolute path outside the install is passed through unchanged: it is still a path
+    the engine accepts, and rewriting it to `../../..` would only make it fragile."""
 def expand_zip (zip_filepath, extract_to_path, overwrite=False):
     """Extract the contents of a zip file to a specified directory.
     
@@ -55,13 +77,13 @@ def get_artemis_graphics_dir ():
     Returns:
         str: The graphics folder path (data directory + "\graphics")."""
 def get_mission_audio_file (file):
-    """Get the relative path to an audio file from the mission directory.
+    """The path the engine wants for an audio file kept in this mission.
     
     Args:
-        file (str): The relative file path from the audio directory.
+        file (str): The file, relative to the mission folder, WITHOUT its extension.
     
     Returns:
-        str: The relative path from audio directory to the file."""
+        str: A Cosmos-root-relative path - see :func:`engine_file`."""
 def get_mission_dir ():
     """Get the directory of the current mission.
     
@@ -76,13 +98,20 @@ def get_mission_dir_filename (filename):
     Returns:
         str: The full path to the file in the mission directory."""
 def get_mission_graphics_file (file):
-    """Get the relative path to a graphics file from the mission directory.
+    """The path the engine wants for a graphics file kept in this mission.
+    
+    Now the same shape as everything else - see :func:`engine_file`. It was safe to move
+    only once two things were measured on engine 1.3.6: that images open from an
+    exe-relative path (the `image_probe` mission, judged by eye - an image is loaded when
+    it is DRAWN, so an access-time probe on the server screen answers nothing), and that
+    `ImageAtlas` no longer routes through this function, so changing it cannot disturb
+    the fallback chain that finds the art in the first place.
     
     Args:
-        file (str): The relative file path from the graphics directory.
+        file (str): The file, relative to the mission folder, WITHOUT its extension.
     
     Returns:
-        str: The relative path from graphics directory to the file."""
+        str: A Cosmos-root-relative path."""
 def get_mission_name ():
     """Get the name of the current mission.
     

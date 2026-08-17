@@ -1,5 +1,53 @@
 from sbs_utils.agent import Agent
 from sbs_utils.helpers import FrameContext
+def _grid_damcon_decl (ship_id, layout=None):
+    """The hull's damcon declaration, or ``None`` when it declares nothing."""
+def _grid_resolve_point (SBS, ship_id, hm, declared, used=None, prefer_empty=True, who=''):
+    """Where to put one grid object: the declared cell if it is usable, else the engine's.
+    
+    ``None`` only when the hull has no usable cell at all.
+    
+    A DECLARED cell that is occupied is accepted without comment - that is the entire
+    point of an interior with no hallway (LM #381), and damcons walk over room cells
+    constantly. A declared cell that is off the hull is a WARNING and falls through to the
+    finder: one bad coordinate must never leave a ship without damage control, and a
+    shipData resize can invalidate a good declaration without anyone touching the floor
+    plan. ``grid_ascii_validate`` is where an author is told loudly.
+    
+    Args:
+        SBS: The sbs module.
+        ship_id (int): The host ship.
+        hm: Its hull map.
+        declared (list | None): ``[x, y]`` the interior asked for, if any.
+        used (set, optional): ``(x, y)`` cells already taken in this pass, to spread.
+        prefer_empty (bool): Try the unoccupied finder before the tolerant one.
+        who (str): Name for the warning, e.g. ``"DC2"``.
+    
+    Returns:
+        list[int] | None: ``[x, y]``."""
+def _grid_retire_extra_damcons (hm, ship_id, count):
+    """Delete DC teams above ``count`` - a hull whose declaration shrank, or a refit.
+    
+    Matches ``DC<n>`` carrying the ``damcons`` role only, so nothing else on the grid can
+    be caught by a name that happens to look like one."""
+def _grid_unused_point (hm, point, used):
+    """The nearest open cell to ``point`` that is not already in ``used``.
+    
+    ``point`` itself when it is free, and ``point`` again when the hull has no free cell
+    left - a ship with fewer open cells than damcon teams still gets its teams, stacked,
+    rather than losing one.
+    
+    Only reached when the occupancy-tolerant finder had to be used, i.e. on a hull with no
+    empty cell. The engine's finders take no "avoid these" argument and have no memory
+    across a loop, so spreading the teams is the caller's job.
+    
+    Args:
+        hm: The ship's hull map.
+        point (list[int]): ``[x, y]`` the engine chose.
+        used (set): ``(x, y)`` cells already taken in this pass.
+    
+    Returns:
+        list[int]: ``[x, y]``."""
 def add_role (set_holder, role):
     """Add a role to one or more agents.
     
@@ -14,12 +62,17 @@ def all_roles (roles: str):
     
     Returns:
         set[int]: IDs of agents that have all specified roles."""
-def comms_broadcast (ids_or_obj, msg, color=None) -> None:
+def comms_broadcast (ids_or_obj, msg, color=None, category=None, severity=None) -> None:
     """Send a text message to the text waterfall of one or more targets.
     
     Accepts player ship IDs or client/console IDs. Ship IDs use
     ``send_message_to_player_ship``; client IDs use
     ``send_message_to_client``.
+    
+    ALSO appends to the ship's log (``procedural.log_panel``), which is the waterfall's
+    replacement - see mkdocs build/messages.md. Both surfaces are written during the changeover
+    so they can be compared side by side; retiring the waterfall is then deleting the
+    engine half of this function.
     
     Args:
         ids_or_obj: Agent ID, client ID, or set/list of either to send to.
@@ -27,9 +80,16 @@ def comms_broadcast (ids_or_obj, msg, color=None) -> None:
         msg (str): The message text. Supports ``{var}`` interpolation.
         color (str, optional): Text color as a name or hex string, e.g.
             ``"red"`` or ``"#3ff"``. Defaults to ``"#fff"``.
+        category (str, optional): Which log TAB this belongs in - ``"ship"`` or
+            ``"mission"``. Omitted (the default) means it appears in the Log tab, which
+            shows everything, and in no subset tab. That is what makes tagging
+            incremental: nothing is lost by not being tagged.
+        severity (str, optional): ``"tip"`` / ``"warning"`` / ``"danger"``. Draws the
+            entry as a callout. Reserved for things that matter - a box costs two rows,
+            so one per line would halve how much log fits on screen.
     
     Example:
-        comms_broadcast(SHIP_ID, "Red alert!", color="red")"""
+        comms_broadcast(SHIP_ID, "Red alert!", color="red", severity="danger")"""
 def convert_system_to_string (the_system):
     """Convert a ship system enum or integer to its role-name string.
     
@@ -97,17 +157,6 @@ def grid_count_grid_data (ship_key, role, default=0):
     
     Returns:
         int: Number of grid items with the specified role."""
-def grid_damcon_count (id_or_obj, layout=None):
-    """How many damcon teams this ship's interior declares.
-    
-    ``3`` for every hull that declares nothing, which is nearly all of them.
-    
-    Args:
-        id_or_obj (Agent | int): The player ship agent ID or object.
-        layout (str, optional): Layout name. Defaults to the ship's ``grid_layout``.
-    
-    Returns:
-        int: The team count."""
 def grid_damage_grid_object (ship_id, grid_id, damage_color):
     """Mark a grid object as damaged and apply a damage color to its icon.
     
@@ -146,6 +195,17 @@ def grid_damage_system (id_or_obj, the_system=None):
     Returns:
         bool: ``True`` if a node was damaged; ``False`` if no undamaged nodes
             remain or the ship has already exploded."""
+def grid_damcon_count (id_or_obj, layout=None):
+    """How many damcon teams this ship's interior declares.
+    
+    ``3`` for every hull that declares nothing, which is nearly all of them.
+    
+    Args:
+        id_or_obj (Agent | int): The player ship agent ID or object.
+        layout (str, optional): Layout name. Defaults to the ship's ``grid_layout``.
+    
+    Returns:
+        int: The team count."""
 def grid_delete_object (host_id_or_obj, id_or_obj):
     """Delete a single grid object, deferring the native free.
     
@@ -158,6 +218,30 @@ def grid_delete_object (host_id_or_obj, id_or_obj):
     Args:
         host_id_or_obj (Agent | int): The host ship the grid object lives on.
         id_or_obj (Agent | int): The grid object (or its id) to delete."""
+def grid_get_damcons (ship_key, layout=None):
+    """The damcon-team declaration for a hull (or one of its layouts), or ``None``.
+    
+    ``None`` - which is what every hull that says nothing returns, and that is nearly all
+    of them - means "three teams, wherever the engine puts them", exactly as before. That
+    sentinel is what keeps the shipped floor plans and every third-party hull working
+    unchanged.
+    
+    Otherwise ``{"count": int, "posts": [[x, y], ...]}``: how many damage-control teams
+    this interior has, and where they are stationed. Fewer posts than teams is fine - the
+    rest are engine-placed. A post is also the team's permanent rally point, because the
+    prefab spawns the rally marker on the cell it is given, so posting a team by the
+    nacelles is all it takes to keep it there.
+    
+    Read as a sibling of ``grid_objects``/``theme``, at the entry level or inside a named
+    layout, most specific winning - the same shape :func:`grid_get_theme_name` uses. A
+    layout expressed as a bare list has nowhere to hold one and falls back to the entry.
+    
+    Args:
+        ship_key (str): Ship key as defined in shipData.
+        layout (str, optional): Layout name. Defaults to ``"default"``.
+    
+    Returns:
+        dict | None: Normalized declaration, or ``None`` when the hull declares nothing."""
 def grid_get_grid_current_theme ():
     """Get the currently active grid theme data.
     
@@ -285,12 +369,14 @@ def grid_restore_damcons (id_or_obj, layout=None):
     
     How many teams there are, and where they stand, come from the hull's interior data
     when it says (``grid_get_damcons``); otherwise three teams wherever the engine puts
-    them, exactly as before. A declared post is also the team's permanent rally point.
+    them, exactly as before. A declared post is also the team's permanent rally point,
+    because the prefab spawns the rally marker on the cell it is handed.
     
     Args:
         id_or_obj (Agent | int): The player ship agent ID or object.
         layout (str, optional): Layout name. Defaults to the ship's ``grid_layout``
-            inventory value."""
+            inventory value. Pass it explicitly when rebuilding into a layout the ship has
+            not been switched to yet."""
 def grid_set_hp (ship_id, GRID_OBJECT_ID, hp):
     """Set the HP of a damcon-team grid object and emit the ``life_form_hp_changed`` signal.
     
@@ -335,6 +421,22 @@ def grid_take_internal_damage_at (id_or_obj, source_point, system_hit=None, dama
     
     Returns:
         bool: ``True`` if the ship was destroyed by this damage."""
+def grid_valid_blob (id_or_obj):
+    """Return a grid object's engine blob only if its backing space object is
+    still valid, otherwise ``None``.
+    
+    A destroyed host ship leaves the grid object's ``Agent`` and its cached blob
+    wrapper in place, so ``to_blob`` still returns a non-``None`` wrapper -- but
+    the engine raises ``ValueError: invalid space object`` on any ``get``/``set``
+    of that wrapper. This probes cheaply so callers can guard the dead-object
+    case with a plain ``is None`` check, the same as a missing object.
+    
+    Args:
+        id_or_obj (Agent | int): Agent id or object.
+    
+    Returns:
+        data_set | None: The live blob, or ``None`` if the object is gone or its
+            host space object has been destroyed."""
 def has_role (so, role):
     """Return whether an agent currently holds a given role.
     
@@ -358,6 +460,20 @@ def link (set_holder, link_name: str, set_to):
         set_holder (Agent | int | set[Agent | int]): Source agent(s).
         link_name (str): The link key name.
         set_to (Agent | int | set[Agent | int]): Target agent(s) to link to."""
+def log (message: str, name: str = None, level: str = None, use_mast_scope=False) -> None:
+    """Emit a log message using Python's ``logging`` module.
+    
+    When ``use_mast_scope=True`` the message is formatted through the current
+    MAST task's string formatter first (MAST exposes this as ``log``).
+    
+    Args:
+        message (str): The message to log. May contain MAST format strings when
+            ``use_mast_scope=True``.
+        name (str, optional): Logger name. Defaults to None (``__base_logger__``).
+        level (str, optional): Logging level string, e.g. ``"DEBUG"``, ``"INFO"``.
+            Defaults to None (``DEBUG``).
+        use_mast_scope (bool, optional): Format the message via the current
+            MAST task. Defaults to False."""
 def prefab_spawn (label, data=None, OFFSET_X=None, OFFSET_Y=None, OFFSET_Z=None):
     """Spawn a prefab label as an independent task and return it.
     

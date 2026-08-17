@@ -1,7 +1,8 @@
 from sbs_utils.pages.layout.column import Column
 from sbs_utils.helpers import FrameContext
-from sbs_utils.pages.layout.layout import Layout
+from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
+from sbs_utils.pages.layout.layout import Layout
 def get_client_aspect_ratio (cid):
     """Get the aspect ratio of the specified client's screen.
     Args:

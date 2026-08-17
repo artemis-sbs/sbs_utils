@@ -4,12 +4,17 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.mast_runtime_node import MastRuntimeNode
 def STRING_REGEX_NAMED (name):
     ...
-def comms_broadcast (ids_or_obj, msg, color=None) -> None:
+def comms_broadcast (ids_or_obj, msg, color=None, category=None, severity=None) -> None:
     """Send a text message to the text waterfall of one or more targets.
     
     Accepts player ship IDs or client/console IDs. Ship IDs use
     ``send_message_to_player_ship``; client IDs use
     ``send_message_to_client``.
+    
+    ALSO appends to the ship's log (``procedural.log_panel``), which is the waterfall's
+    replacement - see mkdocs build/messages.md. Both surfaces are written during the changeover
+    so they can be compared side by side; retiring the waterfall is then deleting the
+    engine half of this function.
     
     Args:
         ids_or_obj: Agent ID, client ID, or set/list of either to send to.
@@ -17,9 +22,16 @@ def comms_broadcast (ids_or_obj, msg, color=None) -> None:
         msg (str): The message text. Supports ``{var}`` interpolation.
         color (str, optional): Text color as a name or hex string, e.g.
             ``"red"`` or ``"#3ff"``. Defaults to ``"#fff"``.
+        category (str, optional): Which log TAB this belongs in - ``"ship"`` or
+            ``"mission"``. Omitted (the default) means it appears in the Log tab, which
+            shows everything, and in no subset tab. That is what makes tagging
+            incremental: nothing is lost by not being tagged.
+        severity (str, optional): ``"tip"`` / ``"warning"`` / ``"danger"``. Draws the
+            entry as a callout. Reserved for things that matter - a box costs two rows,
+            so one per line would halve how much log fits on screen.
     
     Example:
-        comms_broadcast(SHIP_ID, "Red alert!", color="red")"""
+        comms_broadcast(SHIP_ID, "Red alert!", color="red", severity="danger")"""
 def comms_message (msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, color=None, title_color=None, is_receive=True, from_name=None) -> None:
     """Send a comms message with explicit sender and receiver control.
     
