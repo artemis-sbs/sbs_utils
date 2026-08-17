@@ -47,11 +47,16 @@ def mast_node (append=True):
 def music_engine_accepts_paths ():
     """Whether `set_music_folder` may be handed a PATH rather than a bare name.
     
-    False, and it must stay false until an engine build is measured to survive it: on
-    1.3.6 a path does not raise or fall back, it HANGS - the call never returns and the
-    game is frozen from outside (`data/missions/music_probe/music.txt` stops mid-call).
+    False, and it must stay false until an engine build is measured to survive it. On
+    1.3.6 a path does not raise or fall back: an exe-relative one SEGFAULTS the engine
+    (rc 139) and an absolute one hangs it. Measured across all four spellings with a
+    working control - see `true_path` for the matrix, and
+    `data/missions/music_probe/music.txt` for the log.
+    
     A setting rather than a constant so `music_probe` can flip it on a build under test
-    without rebuilding the library."""
+    without rebuilding the library. Re-run all four cases before flipping it: the case
+    that matters is 4, `data/audio/music/default`, because it proves the engine objects
+    to the PATH and not to where the folder lives."""
 class MediaLabel(DecoratorLabel):
     """class MediaLabel"""
     def __init__ (self, kind, path, display_name, if_exp=None, q=None, loc=None, compile_info=None):
@@ -100,7 +105,7 @@ class MediaLabel(DecoratorLabel):
         ...
     def get_objects_from_set (the_set):
         ...
-    def get_of_type (kind, task=<object object at 0x0000025CD9CB10B0>):
+    def get_of_type (kind, task=<object object at 0x0000015606F410B0>):
         """Every registered label of this kind whose condition passes and whose file is
         on disk.
         
@@ -153,10 +158,26 @@ class MediaLabel(DecoratorLabel):
           or in a shared media pack, and is named the same way as everything else.
         
         * **Music takes a BARE NAME ONLY.** `set_music_folder` resolves it under
-          `data/audio/music/`, and handing it a path does not merely fail - it HANGS THE
-          ENGINE. Not an exception, not a silent fallback: the call never returns, which
-          from outside is a frozen game. Even `data/audio/music/default`, the exe-relative
-          spelling of the very folder that works as the bare name `default`, hangs it.
+          `data/audio/music/`, and handing it a path does not merely fail - it KILLS THE
+          ENGINE. Not an exception, not a silent fallback.
+        
+          Full matrix, `data/missions/music_probe`, engine 1.3.6 (one launch per case,
+          because a dead engine cannot say which candidate killed it)::
+        
+              case 1  data/missions/music_probe/music/m1   SEGFAULT  (rc 139)
+              case 2  an ABSOLUTE path to the same m1-shaped folder  HANG (never returned)
+              case 3  default                              OK        <- the control
+              case 4  data/audio/music/default              SEGFAULT  (rc 139)
+        
+          Case 3 is what makes the rest trustworthy: same engine, same mission, same
+          launch, and it `returned normally` and was still healthy when the timeout killed
+          it. The only variable is the path form.
+        
+          Case 4 is the one to remember. That is the exe-relative spelling of the very
+          folder that works as the bare name in case 3 - so this is not about WHERE the
+          folder is, and no amount of putting a mod's music in the right place helps. It
+          is the presence of a path at all. Case 1 is the shape `engine_file()` produces,
+          which is why `music_engine_accepts_paths()` stays False.
         
         That is why this used to be a live bug rather than a limitation: the music branch
         returned an ABSOLUTE path whenever it found the folder in the mission or in a
