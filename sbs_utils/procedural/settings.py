@@ -66,6 +66,67 @@ def _set_path(target, dotted, value):
     node[parts[-1]] = value
 
 
+_profile_data = None            # the parsed profile file, or {} once we have looked
+_PROFILE_UNREAD = object()
+
+
+def settings_get_profile():
+    """The selected profile file, PARSED - not merged.
+
+    `settings_get_defaults()` folds a profile's settings keys into the settings dict and
+    then forgets the file, which is all a setting ever needed. A profile that also selects
+    ADD-ONS has to be read as a document, by the compiler, before any settings exist to
+    merge into - so the parse is cached here and both callers share it.
+
+    Returns:
+        dict: the profile, or an empty dict when none was named or it did not load.
+    """
+    global _profile_data
+    if _profile_data is None:
+        data = _profile_overrides()
+        _profile_data = data if isinstance(data, dict) else {}
+    return _profile_data
+
+
+def settings_profile_reset():
+    """Forget the parsed profile. Called from ``reset_mission_state`` - a reused
+    interpreter can be pointed at a different mission, and its profile."""
+    global _profile_data
+    _profile_data = None
+
+
+def _profile_section(name):
+    """One `include:` / `exclude:` section of the profile, lowercased.
+
+    Tolerant of shapes on purpose - a profile is hand-written YAML. A bare string is one
+    entry, a list is many, and a missing section is empty rather than an error.
+
+    Returns:
+        tuple[list, set]: (include, exclude), both lowercased.
+    """
+    section = settings_get_profile().get(name) or {}
+    if not isinstance(section, dict):
+        return [], set()
+
+    def _items(key):
+        raw = section.get(key) or []
+        if isinstance(raw, str):
+            raw = [raw]
+        return [str(x).strip().lower() for x in raw if str(x).strip()]
+
+    return _items("include"), set(_items("exclude"))
+
+
+def settings_profile_addons():
+    """The profile's `addons:` include/exclude, by addon FOLDER name."""
+    return _profile_section("addons")
+
+
+def settings_profile_media():
+    """The profile's `media:` include/exclude, by media pack name."""
+    return _profile_section("media")
+
+
 def _profile_overrides():
     """Settings from `profile=<name>` on the command line -> `profiles/<name>.yaml`.
 

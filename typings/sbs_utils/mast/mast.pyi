@@ -8,6 +8,13 @@ from pathlib import Path
 from zipfile import ZipFile
 def DEBUG (msg):
     ...
+def _addon_profile_rules ():
+    """The selected profile's addon include/exclude, or nothing.
+    
+    Lazily imported and fully tolerant: this runs during COMPILE, and a story must still
+    compile when there is no profile, no settings module, and no command line at all
+    (tests, tools, `sbs lint`). Anything that goes wrong here means "no profile", never a
+    failed compile."""
 def _candidates_for (nodes, ch):
     ...
 def _node_first_chars (node_cls):
@@ -41,6 +48,8 @@ def join_bracket_continuations (src):
     element per byte and re-probed ``startswith`` at every position, which made this
     pre-pass the single largest cost in compiling a big story (measured: 232ms of
     LegendaryMissions' ~1s compile, 57 of its 171 files). Output is byte-identical."""
+def profile_dropped_addons ():
+    """Addon folder names the active profile removed from this compile."""
 class CompileContext(object):
     """Per-compile scratch state for block-structured nodes.
     
@@ -97,6 +106,22 @@ class Mast(object):
         story, whose provides/requires hold the union across all files."""
     def add_scheduler (self, scheduler):
         ...
+    def addon_folder_name (lib_name):
+        """The addon FOLDER a lib name carries - the third dot-segment - lowercased.
+        
+        `artemis-sbs.LegendaryMissions.basic_random_skybox.v1.4.0.mastlib` -> that middle
+        `basic_random_skybox`. This is the name a profile uses, and the name
+        `addon_source_folder` looks for on disk, so the two cannot disagree."""
+    def addon_include_path (script_dir, lib_dir, name):
+        """Resolve a profile's bare addon name to something compilable, or None.
+        
+        Same precedence find_add_ons uses for a declared lib - mission SOURCE first, then
+        __lib__ - so an addon a profile adds behaves exactly like one story.json declared.
+        
+        In __lib__ the name is a folder segment inside `{user}.{repo}.{folder}.{version}`,
+        so pick the LAST match by sorted name: libs carry their version in the filename and
+        a profile deliberately does not, which makes "the newest one present" the only
+        sensible reading."""
     def addon_source_folder (mission_dir, lib_name):
         """The mission-local source folder for a declared mastlib, or None.
         
@@ -146,7 +171,13 @@ class Mast(object):
         ever adopted - and it walked the whole tree on every compile to produce a list
         that __lib__ had already made unnecessary."""
     def find_imports (self, folder):
-        ...
+        """Every `__init__.mast` under a folder - the mission's OWN addons.
+        
+        A profile's `addons: exclude:` applies here too, and it has to. A repo running
+        from its own clone (LegendaryMissions itself) resolves its declared libs to source
+        folders and loads them through THIS walk, not through the `mastlib` list - so
+        filtering only `find_add_ons` would work for a consumer mission and be a silent
+        no-op in the one repo where the feature would be developed and tested."""
     def from_file (self, file_name, root):
         """Compile `file_name` and everything it pulls in.
         

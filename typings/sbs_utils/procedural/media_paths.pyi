@@ -1,4 +1,13 @@
+def _find_unpacked_pack (want):
+    """An unpacked pack in __lib__/media whose name contains `want`, newest last."""
+def _log_pack (message):
+    """Say it out loud. A pack that silently vanished renders as missing art with no
+    explanation, which is the same symptom as forgetting to declare it."""
 def _mission_dir ():
+    ...
+def _pack_matches (pack, wanted):
+    ...
+def _pack_matches_any (packs, want):
     ...
 def _pinned_packs ():
     """The pack zips this mission declared, in `story.json` order. A mission that
@@ -17,6 +26,9 @@ def _pinned_packs ():
     engine-resolved media from the pack - a `@media/skybox/...` label, music, audio -
     still needs `resources`, because the engine resolves those itself and only looks in
     the mission folder."""
+def _profile_media_rules ():
+    """The profile's `media:` include/exclude. Tolerant - no profile means no rules, and
+    this runs during compile where a failure must never be fatal."""
 def get_artemis_dir ():
     """Get the path to the root Artemis Cosmos installation directory.
     

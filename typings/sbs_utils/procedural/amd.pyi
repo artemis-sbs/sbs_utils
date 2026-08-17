@@ -146,7 +146,7 @@ def amd_outcomes (s):
     Tokens are interpreted by the mission's registered outcome handler (only
     `signal` is built in), so the grammar of costs/earns/etc. lives with the
     mission rather than here."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000027ABEC11220>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x00000264F34DD900>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to

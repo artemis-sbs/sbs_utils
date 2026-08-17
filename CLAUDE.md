@@ -191,6 +191,7 @@ python -m cosmos_dev.mission_runner <mission_path> --test 30 --map 0     # headl
 - `--test <seconds>` — headless conformance run: play ~N sim-seconds, print MAST coverage + a pass/fail verdict, exit 0/1 (`--junit <path>` also writes JUnit XML)
 - `--exercise` — with `--test`, actively drive selections/comms/console-cycling each tick to push route coverage (vs the mission's own autoplay)
 - `--use-working-tree` — run the working-tree `sbs_utils` instead of the packaged `.sbslib` (smoke-test local library edits; see the smoke-run memory)
+- `--profile <name>` — `profiles/<name>.yaml`, the same thing the engine's `profile=<name>` selects. A profile overrides settings AND can `addons:`/`media:` include/exclude relative to `story.json` (see `mkdocs/docs/tooling/command-line.md`). Before this flag existed the mock had no command line, so `_profile_overrides()` always returned None and profiles were engine-only
 - `--runs <N>` — restart soak (with `--test`): play the mission N times back to back through the in-process reload, fingerprint each run, diff them
 - `--fresh-process` — with `--runs`, give each run a NEW interpreter (engine semantics). **The discriminator** for mock-only bugs
 - `--fingerprint-json <path>` — write each run's fingerprint as JSON

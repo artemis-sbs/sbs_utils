@@ -181,6 +181,33 @@ def _merge_cosmos_settings(extra: dict) -> None:
     os.environ["COSMOS_SETTINGS"] = json.dumps(current)
 
 
+def _apply_profile_arg(profile: str | None) -> None:
+    """Make `profile=<name>` visible to the mission, the way the engine makes it visible.
+
+    A profile is selected by a `profile=` LAUNCH ARGUMENT, read through
+    `command_line_get` -> `sbs.command_line_dict()`. The mock's command line is
+    `["mock-cosmos.exe"]` and the runner never touched it, so `command_line_dict()`
+    returned `{}` and `_profile_overrides()` always answered None: profiles worked in the
+    real engine and NOWHERE ELSE. That is why nothing headless could test one.
+
+    Set through the mock rather than by merging the profile's keys into COSMOS_SETTINGS,
+    which would be the easy shortcut and the wrong precedence - COSMOS_SETTINGS outranks a
+    profile, so a profile injected that way would beat `sbs debug --set`, backwards. Naming
+    the profile and letting settings.py read it keeps one resolution order for the engine
+    and the runner both.
+    """
+    if not profile:
+        return
+    try:
+        from cosmos_dev.mock import sbs as mock
+        existing = [a for a in mock.command_line_list()[1:]
+                    if not str(a).lower().startswith("profile=")]
+        mock.set_command_line(existing + [f"profile={profile}"])
+        print(f"[runner] profile: {profile}")
+    except Exception as e:
+        print(f"[runner] could not apply profile '{profile}': {e}")
+
+
 def map_label_name(sched, label):
     """The label's canonical name if it is a ``@map`` entry point, else None.
 
@@ -1018,6 +1045,7 @@ def _run(
     probe_leak: float | None = None,
     runs: int = 1,
     fingerprint_json: str | None = None,
+    profile: str | None = None,
 ) -> int:
     mission_folder = os.path.abspath(mission_folder)
     missions_root  = _find_missions_root(mission_folder)
@@ -1041,6 +1069,8 @@ def _run(
     # Source project takes precedence over any packaged sbslib on the path
     if _PROJECT_ROOT not in sys.path:
         sys.path.insert(0, _PROJECT_ROOT)
+
+    _apply_profile_arg(profile)
 
     _load_libs(mission_folder, missions_root, use_working_tree)
 
@@ -2473,6 +2503,8 @@ if __name__ == "__main__":
                     help="Map index (int) or map name to auto-start  [default: show GUI picker]")
     ap.add_argument("--mast", default=None,
                     help="Debug .mast file inside mission folder  [default: story.mast]")
+    ap.add_argument("--profile", default=None, metavar="NAME",
+                    help="Launch profile: profiles/NAME.yaml  (same as the engine's profile=NAME)")
     ap.add_argument("--gui", action="store_true",
                     help="Start the cosmos_dev WebSocket GUI server")
     ap.add_argument("--port", type=int, default=8765,
@@ -2612,5 +2644,6 @@ if __name__ == "__main__":
         probe_leak=args.probe_leak,
         runs=args.runs,
         fingerprint_json=args.fingerprint_json,
+        profile=args.profile,
     )
     sys.exit(_exit or 0)

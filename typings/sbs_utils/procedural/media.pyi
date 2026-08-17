@@ -154,7 +154,8 @@ def music_find (spec):
 def music_get_list ():
     """Every usable music ``@media`` label. See :func:`media_get_list`."""
 def music_reset ():
-    """Forget which bank is playing. Called from ``reset_mission_state``."""
+    """Forget which bank is playing, and re-arm the empty-media warning. Called from
+    ``reset_mission_state`` - run 2 has its own labels and deserves its own warning."""
 def music_schedule (name, ID=0):
     """Schedule a specific music track by name.
     

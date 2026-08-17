@@ -86,6 +86,51 @@ text. Lists and dictionaries belong in the profile.
     `profiles/` is read from the mission folder only. Two missions that want the same
     profile need a copy each.
 
+### A profile can also select add-ons
+
+Beyond settings, a profile can add and remove **add-ons** and **media packs** relative to
+`story.json` — so "the Artemis 2.8 skies instead of the stock ones", or "the TNG art and
+only the TNG races", is one named profile rather than an edited `story.json`.
+
+```yaml title="missions/LegendaryMissions/profiles/a28_skies.yaml"
+addons:
+    exclude:
+        - basic_random_skybox      # the eight stock skies
+    include:
+        - a28_skyboxes             # the thirty 2.8 ones
+
+media:
+    include:
+        - A28-Skybox-Mod.media     # ...and their art, or every label fails its file test
+
+PLAYABLE_RACES: "USFP"             # plain settings keys still work, unchanged
+```
+
+```
+Artemis3-x64-release.exe autostartserver defaultmission=LegendaryMissions profile=a28_skies
+python -m cosmos_dev.mission_runner . --test 20 --map 0 --profile a28_skies
+```
+
+**Name the folder, never the version.** `a28_skyboxes`, not
+`artemis-sbs.A28-Skybox-Mod.a28_skyboxes.v1.0.0.mastlib`. A version belongs in
+`story.json`; a profile that spelled one would break on the next release of the pack. An
+`include` resolves the same way a declared lib does — a mission-local source folder first,
+then the newest matching `.mastlib` in `__lib__`. Media packs match on a substring for the
+same reason.
+
+Every add and every drop is **printed by name**. That is not decoration: an add-on that
+vanished silently is indistinguishable from one the mission never declared, and the
+symptom is a story that compiles to zero labels while still reporting `PASS`.
+
+!!! warning "Excluding an add-on that another one `requires` empties the whole story"
+    `requires` is a hard compile barrier, so dropping `gamemaster` while `gamemaster_comms`
+    is loaded compiles **nothing** — no labels, no output. The error names the profile and
+    what it removed, so the cause is in the message rather than something to deduce.
+
+    The softer version of the same trap has no error at all: exclude the add-on that owns
+    your `@media/music` labels and the game simply goes quiet. Watch for an add-on that
+    owns more than its name suggests.
+
 ## Turning on autoplay from a shortcut
 
 `AUTO_PLAY` is a nested setting, which is what the dotted form is for:

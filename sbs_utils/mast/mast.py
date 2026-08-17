@@ -279,6 +279,32 @@ from .core_nodes.comment import Comment
 
 
 
+# Addons a profile removed this compile, by folder name. Read only by the `requires`
+# error below: without it, excluding an addon reports "no loaded addon provides X" while
+# the author's story.json plainly declares it, and the profile is never mentioned.
+_PROFILE_DROPPED = set()
+
+
+def profile_dropped_addons():
+    """Addon folder names the active profile removed from this compile."""
+    return set(_PROFILE_DROPPED)
+
+
+def _addon_profile_rules():
+    """The selected profile's addon include/exclude, or nothing.
+
+    Lazily imported and fully tolerant: this runs during COMPILE, and a story must still
+    compile when there is no profile, no settings module, and no command line at all
+    (tests, tools, `sbs lint`). Anything that goes wrong here means "no profile", never a
+    failed compile.
+    """
+    try:
+        from ..procedural.settings import settings_profile_addons
+        return settings_profile_addons()
+    except Exception:
+        return [], set()
+
+
 class Mast():
     include_code = False
 
@@ -624,8 +650,18 @@ class Mast():
         self.schedulers.remove(scheduler)
 
     def find_imports(self, folder):
+        """Every `__init__.mast` under a folder - the mission's OWN addons.
+
+        A profile's `addons: exclude:` applies here too, and it has to. A repo running
+        from its own clone (LegendaryMissions itself) resolves its declared libs to source
+        folders and loads them through THIS walk, not through the `mastlib` list - so
+        filtering only `find_add_ons` would work for a consumer mission and be a silent
+        no-op in the one repo where the feature would be developed and tested.
+        """
         import os
+        _, exclude = _addon_profile_rules()
         imports = []
+        dropped = []
         for root, dirs, files in os.walk(os.path.join(self.basedir, folder)):
             # Avoids dev .git or .build, .add_ons etc.
             if os.path.basename(root).startswith("."):
@@ -633,8 +669,15 @@ class Mast():
             for name in files:
                 if name.endswith("__init__.mast"):
                     p = os.path.join(root, name)
+                    if os.path.basename(root).lower() in exclude:
+                        dropped.append(os.path.basename(root))
+                        _PROFILE_DROPPED.add(os.path.basename(root).lower())
+                        continue
                     #DEBUG(p)
                     imports.append(p)
+        if dropped:
+            print(f"profile: dropped {len(dropped)} mission addon folder(s): "
+                  f"{', '.join(sorted(dropped))}")
         return imports
     
     def find_add_ons(self):
@@ -674,8 +717,19 @@ class Mast():
             if data is None:
                 return addons
             mastlibs = data.get("mastlib", [])
+            include, exclude = _addon_profile_rules()
             skipped = []
+            dropped = []
             for file in mastlibs:
+                # A PROFILE may drop a declared addon. Keyed on the FOLDER name - the
+                # stable third dot-segment - because a version belongs in story.json and
+                # nowhere else; a profile naming `a28_skyboxes.v1.0.0` would rot on the
+                # next release of the pack.
+                name = Mast.addon_folder_name(file)
+                if name in exclude:
+                    dropped.append(name)
+                    _PROFILE_DROPPED.add(name)
+                    continue
                 # SOURCE WINS. A repo that packages its own addons declares them like any
                 # consumer, but a CLONE still has the folders - and the two loaders are
                 # additive, so loading both compiles every label twice and dies on the
@@ -700,7 +754,58 @@ class Mast():
                 print(f"Using mission SOURCE for {len(skipped)} declared addon(s) "
                       f"instead of __lib__: {shown}")
 
+        # Both halves ANNOUNCED, by name, always. A silently filtered addon is
+        # indistinguishable from a mission that never declared it, and the symptom of
+        # getting it wrong is a story that compiles to zero labels and still reports PASS.
+        if dropped:
+            print(f"profile: dropped {len(dropped)} addon(s): {', '.join(sorted(dropped))}")
+        for name in include:
+            extra = self.addon_include_path(script_dir, lib_dir, name)
+            if extra is None:
+                print(f"profile: include '{name}' matched no addon folder and no "
+                      f"__lib__ mastlib - ignoring it")
+                continue
+            if extra in addons:
+                continue
+            addons.append(extra)
+            print(f"profile: added addon '{name}' -> {os.path.basename(extra)}")
+
         return addons
+
+    @staticmethod
+    def addon_include_path(script_dir, lib_dir, name):
+        """Resolve a profile's bare addon name to something compilable, or None.
+
+        Same precedence find_add_ons uses for a declared lib - mission SOURCE first, then
+        __lib__ - so an addon a profile adds behaves exactly like one story.json declared.
+
+        In __lib__ the name is a folder segment inside `{user}.{repo}.{folder}.{version}`,
+        so pick the LAST match by sorted name: libs carry their version in the filename and
+        a profile deliberately does not, which makes "the newest one present" the only
+        sensible reading.
+        """
+        import os
+        folder = os.path.join(script_dir, name)
+        if os.path.isfile(os.path.join(folder, "__init__.mast")):
+            return folder
+        try:
+            candidates = sorted(f for f in os.listdir(lib_dir)
+                                if f.lower().endswith(".mastlib")
+                                and Mast.addon_folder_name(f) == name)
+        except OSError:
+            return None
+        return os.path.join(lib_dir, candidates[-1]) if candidates else None
+
+    @staticmethod
+    def addon_folder_name(lib_name):
+        """The addon FOLDER a lib name carries - the third dot-segment - lowercased.
+
+        `artemis-sbs.LegendaryMissions.basic_random_skybox.v1.4.0.mastlib` -> that middle
+        `basic_random_skybox`. This is the name a profile uses, and the name
+        `addon_source_folder` looks for on disk, so the two cannot disagree.
+        """
+        parts = str(lib_name).split(".", 3)
+        return parts[2].lower() if len(parts) >= 4 else str(lib_name).lower()
 
     @staticmethod
     def addon_source_folder(mission_dir, lib_name):
@@ -966,10 +1071,21 @@ class Mast():
             if kind == "requires":
                 # Same shape as compile()'s nested buildErrorMessage (which is not
                 # in scope here); the file_name/line pinpoint the declaration.
+                # NAME THE PROFILE when a profile is why. Otherwise this reads "no loaded
+                # addon provides it" at an author whose story.json declares exactly that
+                # addon - and an unmet requires compiles the story to ZERO labels, so the
+                # visible symptom is a mission that does nothing at all.
+                _dropped = profile_dropped_addons()
+                because = ""
+                if _dropped:
+                    because = (f" The active profile removed "
+                               f"{', '.join(sorted(_dropped))} from this compile - if one "
+                               f"of those provided '{token}', stop excluding it or "
+                               f"exclude whatever requires it too.")
                 errs.append(
                     f"\nError: Unmet dependency: requires '{token}', but no loaded "
                     f"addon provides it. Load the addon that declares 'provides "
-                    f"{token}'.\nat {file_name} Line {line_no} - '{line}'\n\n")
+                    f"{token}'.{because}\nat {file_name} Line {line_no} - '{line}'\n\n")
             else:  # suggests
                 logger.warning(
                     f"{file_name}:{line_no}: suggests '{token}', not provided by any "

@@ -65,13 +65,67 @@ def _pinned_packs():
         return []
     declared = list((data.get("resources") or {}).values())
     declared += list(data.get("shared_media") or [])
+    include, exclude = _profile_media_rules()
     out = []
     for value in declared:
         for v in (value if isinstance(value, list) else [value]):
             v = str(v).strip()
             if v.lower().endswith(".zip"):
                 out.append(v[:-4])          # the unpacked folder is named for the zip
+    # A PROFILE may swap art packs - "the TNG ships, not the stock ones". Matched on a
+    # SUBSTRING of the pack name, because a pack carries its version in that name and a
+    # profile must not have to: `Cosmos-TNG-Mod.media` should keep meaning the pack after
+    # the next release of it.
+    if exclude:
+        kept = [p for p in out if not _pack_matches(p, exclude)]
+        for gone in [p for p in out if p not in kept]:
+            _log_pack(f"profile: dropped media pack {gone}")
+        out = kept
+    for want in include:
+        if _pack_matches_any(out, want):
+            continue
+        found = _find_unpacked_pack(want)
+        if found is None:
+            _log_pack(f"profile: include media '{want}' matched nothing unpacked in "
+                      f"__lib__/media - ignoring it")
+            continue
+        out.append(found)
+        _log_pack(f"profile: added media pack {found}")
     return out
+
+
+def _profile_media_rules():
+    """The profile's `media:` include/exclude. Tolerant - no profile means no rules, and
+    this runs during compile where a failure must never be fatal."""
+    try:
+        from .settings import settings_profile_media
+        return settings_profile_media()
+    except Exception:
+        return [], set()
+
+
+def _pack_matches(pack, wanted):
+    return any(w in str(pack).lower() for w in wanted)
+
+
+def _pack_matches_any(packs, want):
+    return any(want in str(p).lower() for p in packs)
+
+
+def _find_unpacked_pack(want):
+    """An unpacked pack in __lib__/media whose name contains `want`, newest last."""
+    lib_media = os.path.join(os.path.dirname(_mission_dir()), "__lib__", "media")
+    try:
+        names = sorted(n for n in os.listdir(lib_media) if want in n.lower())
+    except OSError:
+        return None
+    return names[-1] if names else None
+
+
+def _log_pack(message):
+    """Say it out loud. A pack that silently vanished renders as missing art with no
+    explanation, which is the same symptom as forgetting to declare it."""
+    print(message)
 
 
 def media_roots():

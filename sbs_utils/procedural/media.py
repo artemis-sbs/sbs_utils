@@ -11,6 +11,9 @@ from ..helpers import FrameContext
 # it is on the reset ledger in handlerhooks - without that, run 2 of a soak reports run 1's
 # bank and the end-of-game sting reaches for a folder this mission never selected.
 _music_current = {}
+# Kinds already reported as having nothing usable, so the warning below fires once rather
+# than on every per-client re-schedule. Cleared with the rest of the per-mission state.
+_warned_empty = set()
 
 
 def media_get_list(kind):
@@ -90,6 +93,24 @@ def media_schedule_random(kind, ID=0):
     media_folders = [file for file in files]
     if len(media_folders) > 0:
         return _media_schedule(kind, choice(media_folders), ID)
+    # Say so. "No usable labels of this kind" produces a game with no music (or the
+    # engine's fallback sky) and NOTHING in the log, which is indistinguishable from
+    # working - and it is exactly what a profile that excludes the add-on owning the
+    # labels produces. Reported once per kind so a per-client re-schedule is not noise.
+    if kind not in _warned_empty:
+        _warned_empty.add(kind)
+        try:
+            from .execution import log
+            declared = len(MediaLabel.folders.get(str(kind).lower(), []))
+            if declared:
+                log(f"no usable @media/{kind} labels: {declared} declared, none resolved "
+                    f"(missing files, or an `if` that is false)", "media", "warning")
+            else:
+                log(f"no @media/{kind} labels are loaded at all - nothing will be set. "
+                    f"Is the add-on that declares them in story.json, or excluded by a "
+                    f"profile?", "media", "warning")
+        except Exception:
+            pass
     return None
 
         
@@ -252,8 +273,10 @@ def music_bank_has(bank, stinger):
 
 
 def music_reset():
-    """Forget which bank is playing. Called from ``reset_mission_state``."""
+    """Forget which bank is playing, and re-arm the empty-media warning. Called from
+    ``reset_mission_state`` - run 2 has its own labels and deserves its own warning."""
     _music_current.clear()
+    _warned_empty.clear()
 
 
 def media_read_relative_file(file):

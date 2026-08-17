@@ -23,6 +23,14 @@ def _profile_overrides ():
     launch carries twenty settings without twenty arguments. `cmd.exe` caps a command line
     at 8191 characters, shortcuts truncate, Windows quoting around spaces and `=` is
     painful, and none of it is diffable or reviewable. A file is all of those things."""
+def _profile_section (name):
+    """One `include:` / `exclude:` section of the profile, lowercased.
+    
+    Tolerant of shapes on purpose - a profile is hand-written YAML. A bare string is one
+    entry, a list is many, and a missing section is empty rather than an error.
+    
+    Returns:
+        tuple[list, set]: (include, exclude), both lowercased."""
 def _runtime_settings_override ():
     """Settings overrides supplied at runtime via the ``COSMOS_SETTINGS`` env var
     (a JSON object), highest priority and requiring no ``settings.yaml`` edit.
@@ -90,10 +98,27 @@ def settings_get_defaults ():
     
     Returns:
         dict: The default settings mapping."""
+def settings_get_profile ():
+    """The selected profile file, PARSED - not merged.
+    
+    `settings_get_defaults()` folds a profile's settings keys into the settings dict and
+    then forgets the file, which is all a setting ever needed. A profile that also selects
+    ADD-ONS has to be read as a document, by the compiler, before any settings exist to
+    merge into - so the parse is cached here and both callers share it.
+    
+    Returns:
+        dict: the profile, or an empty dict when none was named or it did not load."""
 def settings_npc_races ():
     """The races that can appear as NPCs, lowercased, from ``NPC_RACES``."""
 def settings_playable_races ():
     """The races a player ship may be, lowercased, from ``PLAYABLE_RACES``."""
+def settings_profile_addons ():
+    """The profile's `addons:` include/exclude, by addon FOLDER name."""
+def settings_profile_media ():
+    """The profile's `media:` include/exclude, by media pack name."""
+def settings_profile_reset ():
+    """Forget the parsed profile. Called from ``reset_mission_state`` - a reused
+    interpreter can be pointed at a different mission, and its profile."""
 def settings_race_is_npc (race):
     """Whether a race can appear as an NPC.
     

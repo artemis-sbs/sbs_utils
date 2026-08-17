@@ -107,8 +107,11 @@ def reset_mission_state():
     from .mast_sbs.story_nodes.media import MediaLabel
     from .mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
     from .procedural.media import music_reset
+    from .procedural.settings import settings_profile_reset
     MediaLabel.clear()          # @media labels (folders APPENDS - reload would double)
     music_reset()               # which bank is playing - run 2 must not report run 1's
+    settings_profile_reset()    # the parsed profile - a reused interpreter can be
+                                # pointed at a different mission, and its profile
     GuiTabDecoratorLabel.clear()  # //gui/tab labels
     # Navigation routes (//comms, //science, //gui/...) register their LABEL OBJECTS
     # here as they compile, and nothing emptied it - so a second compile in one

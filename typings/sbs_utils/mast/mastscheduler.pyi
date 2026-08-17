@@ -65,6 +65,8 @@ def mast_expr_source (code):
     
     ``eval``/``exec`` also accept a raw string (a few nodes build one on the
     fly), in which case the source IS the argument."""
+def profile_dropped_addons ():
+    """Addon folder names the active profile removed from this compile."""
 class ChangeRuntimeNode(MastRuntimeNode):
     """class ChangeRuntimeNode"""
     def enter (self, mast: 'Mast', task: 'MastAsyncTask', node):
