@@ -7,6 +7,74 @@ from sbs_utils.procedural.execution import sub_task_schedule
 from ..helpers import FrameContext
 
 
+# The bank name last handed to `set_music_folder`, per target ID. Per-mission state, so
+# it is on the reset ledger in handlerhooks - without that, run 2 of a soak reports run 1's
+# bank and the end-of-game sting reaches for a folder this mission never selected.
+_music_current = {}
+
+
+def media_get_list(kind):
+    """Every usable ``@media`` label of a kind, for a picker or a report.
+
+    "Usable" is the point: labels whose art or audio folder is missing are dropped, and so
+    are labels whose ``if`` condition is false - the same test the random pick applies, so a
+    dropdown can never offer something scheduling would refuse. Sorted by declaration order
+    so a list is stable between runs.
+
+    This is the function every mod has been hand-rolling. ``a28_skyboxes.py``,
+    ``venus_skies.py`` and ``a28_verify.py`` each reach into ``MediaLabel.folders`` directly
+    and re-implement the filtering, which is how one of them can quietly disagree with what
+    the game will actually pick.
+
+    Args:
+        kind (str): ``"skybox"`` or ``"music"``.
+
+    Returns:
+        list: ``MediaLabel`` objects, each with ``.path`` and ``.display_name``.
+    """
+    labels = MediaLabel.get_of_type(kind)
+    return sorted(labels, key=lambda m: getattr(m, "label_weight", 0))
+
+
+def skybox_get_list():
+    """Every usable skybox ``@media`` label. See :func:`media_get_list`."""
+    return media_get_list("skybox")
+
+
+def music_get_list():
+    """Every usable music ``@media`` label. See :func:`media_get_list`."""
+    return media_get_list("music")
+
+
+def media_find(kind, spec):
+    """Find one ``@media`` label from a loose spec - an index, a path, a display name, or
+    an unambiguous substring of either.
+
+    Uses the same matcher as ``maps_find`` (``maps.label_find_by_spec``) so a name typed
+    into a settings file, a launch argument or a dropdown resolves the one way everywhere.
+    An AMBIGUOUS spec returns None rather than guessing.
+
+    Args:
+        kind (str): ``"skybox"`` or ``"music"``.
+        spec: index, path, display name, or substring.
+
+    Returns:
+        MediaLabel | None
+    """
+    from .maps import label_find_by_spec
+    return label_find_by_spec(media_get_list(kind), spec)
+
+
+def skybox_find(spec):
+    """Find one skybox ``@media`` label. See :func:`media_find`."""
+    return media_find("skybox", spec)
+
+
+def music_find(spec):
+    """Find one music ``@media`` label. See :func:`media_find`."""
+    return media_find("music", spec)
+
+
 def media_schedule_random(kind, ID=0):
     """Schedule a randomly chosen ``@media`` label of the given kind.
 
@@ -66,7 +134,9 @@ def _media_schedule(kind, label, ID=0):
         FrameContext.context.sbs.set_sky_box(ID, label.true_path())
         sub_task_schedule(label)
     elif kind == "music":
-        FrameContext.context.sbs.set_music_folder(ID, label.true_path())
+        bank = label.true_path()
+        FrameContext.context.sbs.set_music_folder(ID, bank)
+        _music_current[to_id(ID) or 0] = bank
         sub_task_schedule(label)
     return label
 
@@ -107,6 +177,83 @@ def music_schedule(name, ID=0):
             Defaults to 0.
     """
     return media_schedule("music", name, ID)
+
+
+def music_schedule_select(spec, ID=0):
+    """Schedule the music a setting, a map or an operator ASKED for.
+
+    This is what replaced "the skybox label picks the music". Every skybox label used to
+    end in ``if client_id==0: music_schedule_random()`` - copied into thirty A28 labels,
+    eight LM ones and every mission that inlined them - because scheduling a skybox ran its
+    body and nothing else ever chose a track. A skybox now sets the sky and nothing else.
+
+    Args:
+        spec: ``""``, ``None`` or ``"random"`` picks at random; anything else is resolved
+            by :func:`music_find`.
+        ID (int, optional): ship or client id; ``0`` (the default) targets the server.
+
+    Returns:
+        MediaLabel | None: what was scheduled, or None when there is no music at all.
+
+    A spec that matches nothing WARNS BY NAME and falls back to random. Silence there was
+    the tempting choice and the wrong one: ``MUSIC_SELECT: Artmeis2`` would play a random
+    track, which is indistinguishable from working.
+    """
+    want = "" if spec is None else str(spec).strip()
+    if not want or want.lower() == "random":
+        return music_schedule_random(ID)
+    label = music_find(want)
+    if label is None:
+        from .execution import log
+        known = ", ".join(m.path for m in music_get_list()) or "none are loaded"
+        log(f"MUSIC_SELECT '{want}' matched no @media/music label - playing a random one. "
+            f"Available: {known}", "media", "warning")
+        return music_schedule_random(ID)
+    return _media_schedule("music", label, ID)
+
+
+def music_current(ID=0):
+    """The music bank currently playing - the bare folder name last given to the engine.
+
+    ``"default"`` until something schedules music, because that is what the engine plays.
+
+    Args:
+        ID (int, optional): ship or client id; ``0`` (the default) is the server.
+
+    Returns:
+        str: the bank name.
+    """
+    return _music_current.get(to_id(ID) or 0, "default")
+
+
+def music_bank_has(bank, stinger):
+    """Whether a bank carries a named one-shot (``"victory"``, ``"failure"``, ...).
+
+    A bank is conventionally ``start/main/victory/failure.ogg`` plus ``low/ medium/ high/``,
+    but nothing enforces it, so a mod's bank may legitimately omit one. Asking lets a caller
+    fall back to ``default`` for that ONE file instead of abandoning the mod's music.
+
+    Args:
+        bank (str): a bank name, e.g. from :func:`music_current`.
+        stinger (str): the file, without ``.ogg``.
+
+    Returns:
+        bool
+    """
+    label = music_find(bank)
+    if label is not None:
+        return label.bank_has(stinger)
+    # Not declared as a label - still answer for the stock banks, which are on disk
+    # whether or not any @media/music label names them.
+    import os
+    from ..fs import get_artemis_audio_dir
+    return os.path.isfile(os.path.join(get_artemis_audio_dir(), "music", str(bank),
+                                       str(stinger) + ".ogg"))
+
+
+def music_reset():
+    """Forget which bank is playing. Called from ``reset_mission_state``."""
+    _music_current.clear()
 
 
 def media_read_relative_file(file):

@@ -144,6 +144,30 @@ def game_end_conditions_count() -> int:
     return len(__end_game_promise)
 
 
+def _end_game_sting(is_win):
+    """The end-of-game one-shot, out of the bank that is actually playing.
+
+    Three things were wrong here and all three showed up as "the wrong music at the end":
+
+    * The BANK was hardcoded to ``default``, so a game scored to ``Artemis2`` - or to a
+      mod's own soundtrack - ended on the stock sting regardless.
+    * ``is_win`` was INVERTED: a victory played ``failure`` and a defeat played
+      ``victory``.
+    * An explicit ``music=`` argument played and was then immediately overwritten by the
+      default one, because the two branches were `if` / `if` rather than `if` / `else`.
+
+    A bank is conventionally ``start/main/victory/failure.ogg`` but nothing enforces it, so
+    a mod's bank may omit one - fall back to ``default`` for that ONE file rather than
+    abandoning the mod's music.
+    """
+    name = "victory" if is_win else "failure"
+    from .media import music_current, music_bank_has
+    bank = music_current()
+    if not music_bank_has(bank, name):
+        bank = "default"
+    return f"music/{bank}/{name}"
+
+
 def game_end_run_all(tt):
     """Poll all registered game end conditions and trigger the end screen if any resolve.
 
@@ -155,12 +179,7 @@ def game_end_run_all(tt):
         promise.poll()
         if promise.done():
             ## play music
-            if music is not None:
-                FrameContext.context.sbs.play_music_file(0,music)
-            if is_win:
-                FrameContext.context.sbs.play_music_file(0,"music/default/failure")
-            else:
-                FrameContext.context.sbs.play_music_file(0,"music/default/victory")
+            FrameContext.context.sbs.play_music_file(0, music or _end_game_sting(is_win))
 
             ## show the end screen by notifying the system
             ## with a signal

@@ -7,6 +7,21 @@ from sbs_utils.tickdispatcher import RollingSlicer
 from sbs_utils.tickdispatcher import TickDispatcher
 def _brains_tick (tt):
     """Per-tick driver: run a rolling slice of brains (see brains_run_all)."""
+def _end_game_sting (is_win):
+    """The end-of-game one-shot, out of the bank that is actually playing.
+    
+    Three things were wrong here and all three showed up as "the wrong music at the end":
+    
+    * The BANK was hardcoded to ``default``, so a game scored to ``Artemis2`` - or to a
+      mod's own soundtrack - ended on the stock sting regardless.
+    * ``is_win`` was INVERTED: a victory played ``failure`` and a defeat played
+      ``victory``.
+    * An explicit ``music=`` argument played and was then immediately overwritten by the
+      default one, because the two branches were `if` / `if` rather than `if` / `else`.
+    
+    A bank is conventionally ``start/main/victory/failure.ogg`` but nothing enforces it, so
+    a mod's bank may omit one - fall back to ``default`` for that ONE file rather than
+    abandoning the mod's music."""
 def _objectives_tick (tt):
     """Per-tick driver: run a rolling slice of objectives (see objectives_run_all)."""
 def awaitable (func):

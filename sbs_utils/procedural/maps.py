@@ -451,35 +451,54 @@ def maps_find(spec):
     Returns:
         Label | None: the map, or None if nothing matched or the spec was ambiguous.
     """
-    maps = [m for m in (maps_get_list() or []) if hasattr(m, "path")]
-    if not maps or spec is None:
+    return label_find_by_spec(maps_get_list(), spec)
+
+
+def label_find_by_spec(labels, spec):
+    """Find one label from a loose, human-typed spec - the rule `maps_find` documents,
+    factored out so every other "name a label on a command line or in a dropdown" lookup
+    resolves IDENTICALLY.
+
+    Shared with `media_find` (skybox and music), which is why it lives here rather than
+    inside `maps_find`: two copies of a fuzzy matcher drift, and the day they disagree is
+    the day `map=siege` and `MUSIC_SELECT=siege` mean different things.
+
+    Args:
+        labels (list): anything with `.path` and (optionally) `.display_name`.
+        spec: an index, a path, a display name, or a unique substring of either.
+
+    Returns:
+        The label, or None if nothing matched or the spec was AMBIGUOUS.
+    """
+    labels = [m for m in (labels or []) if hasattr(m, "path")]
+    if not labels or spec is None:
         return None
 
     if isinstance(spec, bool):          # bool is an int; a True index is nonsense
         return None
     if isinstance(spec, int):
-        return maps[spec] if 0 <= spec < len(maps) else None
+        return labels[spec] if 0 <= spec < len(labels) else None
 
     want = str(spec).strip()
     if not want:
         return None
     if want.isdigit():
         idx = int(want)
-        return maps[idx] if 0 <= idx < len(maps) else None
+        return labels[idx] if 0 <= idx < len(labels) else None
 
     lowered = want.lower()
 
     def _name(m):
         return str(getattr(m, "display_name", "") or "")
 
-    for m in maps:
+    for m in labels:
         if str(getattr(m, "path", "")).lower() == lowered:
             return m
-    for m in maps:
+    for m in labels:
         if _name(m).lower() == lowered:
             return m
 
-    partial = [m for m in maps
+    partial = [m for m in labels
                if lowered in str(getattr(m, "path", "")).lower()
                or lowered in _name(m).lower()]
     return partial[0] if len(partial) == 1 else None

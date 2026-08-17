@@ -122,7 +122,9 @@ We've already encountered a map label - `@map/first_map "Treasure Hunt"`. In pra
 @media/music/default "Cosmos Default Music"
 @media/skybox/sky1-bored-alice "borealis"
 ```
-This will set the mission's music and skybox to whichever you specify. If you use more than one, a random skybox or music will be used. While not strictly necessary, I recommend that media labels be used at the very beginning of your mast file, before any functional code.
+This declares the music banks and skyboxes your mission offers. Declare more than one and a random one is used. While not strictly necessary, I recommend that media labels be used at the very beginning of your mast file, before any functional code.
+
+A skybox label sets the **sky and nothing else**. Music is chosen independently by the `MUSIC_SELECT` setting (a bank name, or `"random"`), which a map's `Defaults:` and the server console's Music dropdown can override &mdash; so declaring a music label makes that bank *available*, and `MUSIC_SELECT` decides which one plays. See the [media API](../api/procedural/media.md).
 We will cover route labels in later sections, so we will focus now on the last two types of labels.
 Main labels (which will hereafter be referred to as just labels) are the mainstay of a mission. Let's dissect the following example:
 ````python

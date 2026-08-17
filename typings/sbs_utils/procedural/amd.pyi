@@ -146,7 +146,7 @@ def amd_outcomes (s):
     Tokens are interpreted by the mission's registered outcome handler (only
     `signal` is built in), so the grammar of costs/earns/etc. lives with the
     mission rather than here."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000028640FEBF60>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000027ABEC11220>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to
@@ -245,8 +245,6 @@ class AmdErrors(list):
     unaffected), while `.items` keeps `(line, message)` pairs. `line_offset` maps
     the fence-relative line the parser sees onto the real file line - without it a
     diagnostic would point at line 3 of the block instead of line 147 of the file."""
-    def __class_getitem__(*argv):
-        """See PEP 585"""
     def __init__ (self, line_offset=0):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def add (self, lineno, message):

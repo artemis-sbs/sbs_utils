@@ -525,6 +525,22 @@ Properties:
 @media/skybox/sky-bored-alice "borealis"
 ```
 
+A media label DECLARES what is available; it does not decide what is used. A skybox label
+sets the **sky and nothing else** - it used to also schedule the music from its body, which
+is why old examples end in `if client_id==0: music_schedule_random()`. **Do not copy that
+into new code.**
+
+Which music plays is the `MUSIC_SELECT` setting - a bank name, a label's display name, or
+`"random"` - resolved strongest-first: `var.MUSIC_SELECT=` > `COSMOS_SETTINGS` > profile >
+the mission's `settings.yaml` > a mod's `settings_set_mod_default` > the library built-in
+(`"random"`). At runtime the operator's dropdown and a map's `Defaults: MUSIC_SELECT` beat
+all of them. `music_get_list()` enumerates the usable banks; `music_schedule_select(spec)`
+applies one and warns by name if the spec matched nothing.
+
+`set_music_folder` takes a **bare name** under `data/audio/music/` - a path HANGS the
+engine, so a bank in a media pack is found, withheld, and reported until
+`MUSIC_ENGINE_ACCEPTS_PATHS` is turned on.
+
 ### Console labels
 
 ```

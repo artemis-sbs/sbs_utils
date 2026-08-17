@@ -380,6 +380,15 @@ if __name__ == "__main__":
     import sbs_utils.mast_sbs
     import sbs_utils.pages
     import sbs_utils.procedural
+    # A package's __init__ does not import its submodules, and this only stubs what is
+    # actually LOADED - so a module nothing above pulls in keeps whatever .pyi it had the
+    # last time something did, silently. Name the ones being maintained here.
+    # (~20 procedural modules still have no stub at all for the same reason.)
+    import sbs_utils.procedural.media
+    import sbs_utils.procedural.maps
+    import sbs_utils.procedural.settings
+    import sbs_utils.procedural.objective
+    import sbs_utils.mast_sbs.story_nodes.media
     gen = GenStubs()
     #gen.stub_module("sbs")
     print("updating typings for sbs_utils")

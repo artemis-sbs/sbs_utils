@@ -131,6 +131,18 @@ def _warn(message):
 
 
 setting_defaults = None
+# Keys an author set EXPLICITLY for this run - settings.yaml/setup.json, the profile,
+# COSMOS_SETTINGS, or var.NAME= on the command line. A mod may not override these; see
+# settings_set_mod_default.
+_explicit_keys = set()
+
+
+def _note_explicit(data):
+    """Record a source's top-level keys as explicitly authored."""
+    if isinstance(data, dict):
+        _explicit_keys.update(data.keys())
+
+
 def settings_get_defaults():
     """Return the merged default settings dict, loading ``settings.yaml`` or ``setup.json`` if present.
 
@@ -167,6 +179,19 @@ def settings_get_defaults():
         "PLAYER_CREATE_DEFAULT": True,
         "PLAYER_COUNT": 1,
         "GRID_THEME": 0,
+        # Which music bank plays. A bare folder name under data/audio/music, the display
+        # name of an @media/music label, or "random" to pick from every declared one.
+        #
+        # It lives HERE, in the library built-ins, rather than in a mission's settings.yaml,
+        # and that placement is the feature: a key present in settings.yaml is explicit and
+        # outranks a mod, so writing "MUSIC_SELECT: random" into LegendaryMissions would stop
+        # every mod built on it - the TNG mod being the case in hand - from ever setting its
+        # own soundtrack. A mission that genuinely wants to pin one still can, and should.
+        "MUSIC_SELECT": "random",
+        # Whether set_music_folder may be handed a PATH. Leave it False: on engine 1.3.6 a
+        # path HANGS the engine (data/missions/music_probe). Exists so that probe can test a
+        # newer build without a library rebuild.
+        "MUSIC_ENGINE_ACCEPTS_PATHS": False,
         # Which races a player ship may be. Comma separated, matched against a hull's
         # shipData "side" (case and spacing are ignored).
         #
@@ -252,6 +277,7 @@ def settings_get_defaults():
         setup_data = load_json_data(get_mission_dir_filename("setup.json"))
     if setup_data is not None:
         setting_defaults = setting_defaults | setup_data
+        _note_explicit(setup_data)
     # Runtime overrides (e.g. `sbs debug --set ...`) win over the file/built-ins
     # without editing settings.yaml.
     # A named profile: `profile=soak` -> profiles/soak.yaml. Bulk config belongs in a file
@@ -259,16 +285,19 @@ def settings_get_defaults():
     profile = _profile_overrides()
     if profile is not None:
         setting_defaults = setting_defaults | profile
+        _note_explicit(profile)
     # Runtime overrides (e.g. `sbs debug --set ...`) win over the file/built-ins
     # without editing settings.yaml.
     override = _runtime_settings_override()
     if override is not None:
         setting_defaults = setting_defaults | override
+        _note_explicit(override)
     # `var.NAME=value` on the command line is LAST: typing it is the most explicit
     # per-launch act there is, so it beats the file, the profile and the env var. Kept
     # deliberately small - it is for deltas, not configuration.
     cli = _cli_overrides(set(setting_defaults))
     if cli is not None:
+        _note_explicit(cli)
         for key, value in cli.items():
             if isinstance(value, dict) and isinstance(setting_defaults.get(key), dict):
                 setting_defaults[key] = setting_defaults[key] | value
@@ -334,6 +363,44 @@ def settings_add_defaults(additions):
     # NOTE: Should this return the setting_defaults?
 
 
+
+
+def settings_set_mod_default(key, value):
+    """Set a setting on behalf of a MOD - unless the mission already spoke for it.
+
+    The tier that was missing. There are two kinds of "default" and the existing
+    :func:`settings_add_defaults` only expresses the weaker one: it does
+    ``additions | setting_defaults``, so anything already in the built-ins wins, and a mod
+    can therefore only fill a key sbs_utils has never heard of. For a key the library ships
+    a value for - ``MUSIC_SELECT``, ``PLAYABLE_RACES`` - a mod had no way to be heard at all.
+
+    So the precedence is now, strongest first::
+
+        var.NAME= (command line)  >  COSMOS_SETTINGS  >  profiles/<name>.yaml
+                                  >  settings.yaml / setup.json
+                                  >  settings_set_mod_default   <- this
+                                  >  the library built-in
+
+    which is the order an author would expect: a mod re-skins the game, and anything the
+    mission or the operator actually typed still beats it.
+
+    Last mod loaded wins between two mods, and load order is non-deterministic - so two mods
+    claiming the same key is a genuine conflict, not something to paper over. Use a key the
+    mod owns.
+
+    Args:
+        key (str): the setting name.
+        value: the value.
+
+    Returns:
+        bool: whether it applied. False means the mission (or the launch) had already set it.
+    """
+    global setting_defaults
+    setting_defaults = settings_get_defaults()
+    if key in _explicit_keys:
+        return False
+    setting_defaults[key] = value
+    return True
 
 
 def settings_playable_races():

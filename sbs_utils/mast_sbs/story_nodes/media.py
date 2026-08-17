@@ -8,7 +8,24 @@ import re
 
     
 from ...fs import get_artemis_graphics_dir, get_artemis_audio_dir, get_mod_dir, get_script_dir
+from ...helpers import FrameContext
 import os.path as path
+
+def music_engine_accepts_paths():
+    """Whether `set_music_folder` may be handed a PATH rather than a bare name.
+
+    False, and it must stay false until an engine build is measured to survive it: on
+    1.3.6 a path does not raise or fall back, it HANGS - the call never returns and the
+    game is frozen from outside (`data/missions/music_probe/music.txt` stops mid-call).
+    A setting rather than a constant so `music_probe` can flip it on a build under test
+    without rebuilding the library.
+    """
+    try:
+        from ...procedural.settings import settings_get_defaults
+        return bool(settings_get_defaults().get("MUSIC_ENGINE_ACCEPTS_PATHS", False))
+    except Exception:
+        return False
+
 
 @mast_node()
 class MediaLabel(DecoratorLabel):
@@ -56,7 +73,26 @@ class MediaLabel(DecoratorLabel):
     def can_fallthrough(self, parent):
         return False
     
-    def get_of_type(kind, task):
+    _NO_TASK = object()
+
+    def get_of_type(kind, task=_NO_TASK):
+        """Every registered label of this kind whose condition passes and whose file is
+        on disk.
+
+        `task` defaults to the running one. It used to be REQUIRED and every caller in
+        `procedural/media.py` passed None, so a label carrying an `if` expression - the
+        one feature that makes the list worth filtering - crashed the schedule with
+        `AttributeError: 'NoneType' has no attribute 'eval_code_checked'`. Nothing
+        shipped used the form, so it never bit; a music picker is exactly where authors
+        reach for it. With no task at all (a tool, a test) the condition is skipped
+        rather than fatal: an unevaluatable `if` must not delete the label.
+
+        A SENTINEL rather than a None default, because None is a meaningful argument
+        here and `FrameContext.task` cannot represent its absence - with `_task` unset
+        it falls back to the client page's gui_task, so a caller that passed None
+        explicitly would silently get whatever task happened to be running."""
+        if task is MediaLabel._NO_TASK:
+            task = FrameContext.task
         files = MediaLabel.folders.get(kind.lower(), [])
         ret = []
         for file in files:
@@ -114,6 +150,12 @@ class MediaLabel(DecoratorLabel):
         pack, so any mission shipping its own music would freeze Cosmos the moment the
         label was scheduled. It now always returns a bare name, and says so when it had
         to ignore a folder it found.
+
+        The pack branch is WRITTEN AND WITHHELD rather than deleted, behind
+        `music_engine_accepts_paths()`. A mod's music belongs in its media pack beside
+        the rest of its art, and is expected to work there once the engine stops hanging;
+        keeping the resolution here means that day is a settings flip and a probe run,
+        not a rewrite of a branch someone has to reconstruct from this docstring.
         """
         if self.kind == "skybox":
             from ...fs import engine_file
@@ -126,15 +168,52 @@ class MediaLabel(DecoratorLabel):
             return "sky1"
 
         elif self.kind == "music":
-            # A bare name, always - see the docstring. The engine has no way to be told
-            # about music anywhere but its own folder.
+            # data/audio/music FIRST, and by bare name - the one spelling that is known
+            # to work, so a mission that installed its bank never depends on the flag.
             if path.isdir(path.join(get_artemis_audio_dir(), "music", self.path)):
                 return self.path
             for root in self._media_roots():
-                if path.isdir(path.join(root, self.kind, self.path)):
-                    self._warn_music_unreachable(path.join(root, self.kind, self.path))
+                found = path.join(root, self.kind, self.path)
+                if path.isdir(found):
+                    if music_engine_accepts_paths():
+                        from ...fs import engine_file
+                        return engine_file(found)
+                    self._warn_music_unreachable(found)
                     break
             return "default"
+
+    def bank_dir(self):
+        """The folder this music label resolves to on disk, or None.
+
+        Where `true_path` answers "what do I hand the engine", this answers "where are
+        the files" - which is a different question whenever the two disagree, i.e.
+        whenever a pack's bank is found but withheld. Used to ask whether a bank has a
+        particular stinger.
+        """
+        if self.kind != "music":
+            return None
+        installed = path.join(get_artemis_audio_dir(), "music", self.path)
+        if path.isdir(installed):
+            return installed
+        for root in self._media_roots():
+            found = path.join(root, self.kind, self.path)
+            if path.isdir(found):
+                return found
+        return None
+
+    def bank_has(self, stinger):
+        """Whether this bank carries a named one-shot (`victory`, `failure`, ...).
+
+        A bank is a contract - `start/main/victory/failure.ogg` plus `low/ medium/ high/`
+        - but it is a convention, not something anything enforces, so a mod's bank may
+        legitimately omit one. Asking rather than assuming is what lets the end-of-game
+        sting fall back to `default` for that ONE file instead of abandoning the mod's
+        music entirely.
+        """
+        folder = self.bank_dir()
+        if folder is None:
+            return False
+        return path.isfile(path.join(folder, str(stinger) + ".ogg"))
 
     def _warn_music_unreachable(self, found):
         """Say when music was found somewhere the engine cannot be pointed at.
@@ -155,9 +234,13 @@ class MediaLabel(DecoratorLabel):
             pass
 
     def test(self, task):
-        if self.code is not None:
-            value = task.eval_code_checked(self.code)
-            # A condition that RAISED is reported and read as "not shown".
+        if self.code is not None and task is not None:
+            # end_on_exception=False, and that is the whole point of testing a condition
+            # here. The default REPORTS and then ENDS the task - which is the task that
+            # merely asked for the list, so one mistyped `if` on one media label would
+            # take down the console building the picker. A condition that raised is
+            # logged and read as "not shown".
+            value = task.eval_code_checked(self.code, end_on_exception=False)
             if value is EVAL_ERROR or not value:
                 return False
         return self.test_file()

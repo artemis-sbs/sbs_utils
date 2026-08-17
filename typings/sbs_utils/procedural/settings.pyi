@@ -14,6 +14,8 @@ def _coerce (text):
     int, then float, then true/false, else the string unchanged. Documented rather than
     clever on purpose - anything needing a list or a dict belongs in a profile file, which
     is where the boundary between the two surfaces sits."""
+def _note_explicit (data):
+    """Record a source's top-level keys as explicitly authored."""
 def _profile_overrides ():
     """Settings from `profile=<name>` on the command line -> `profiles/<name>.yaml`.
     
@@ -124,3 +126,32 @@ def settings_seed_apply (value=None):
     
     Returns:
         int: the seed actually applied."""
+def settings_set_mod_default (key, value):
+    """Set a setting on behalf of a MOD - unless the mission already spoke for it.
+    
+    The tier that was missing. There are two kinds of "default" and the existing
+    :func:`settings_add_defaults` only expresses the weaker one: it does
+    ``additions | setting_defaults``, so anything already in the built-ins wins, and a mod
+    can therefore only fill a key sbs_utils has never heard of. For a key the library ships
+    a value for - ``MUSIC_SELECT``, ``PLAYABLE_RACES`` - a mod had no way to be heard at all.
+    
+    So the precedence is now, strongest first::
+    
+        var.NAME= (command line)  >  COSMOS_SETTINGS  >  profiles/<name>.yaml
+                                  >  settings.yaml / setup.json
+                                  >  settings_set_mod_default   <- this
+                                  >  the library built-in
+    
+    which is the order an author would expect: a mod re-skins the game, and anything the
+    mission or the operator actually typed still beats it.
+    
+    Last mod loaded wins between two mods, and load order is non-deterministic - so two mods
+    claiming the same key is a genuine conflict, not something to paper over. Use a key the
+    mod owns.
+    
+    Args:
+        key (str): the setting name.
+        value: the value.
+    
+    Returns:
+        bool: whether it applied. False means the mission (or the launch) had already set it."""

@@ -2,11 +2,26 @@ from sbs_utils.helpers import FrameContext
 def debug_print (*args, **kwargs):
     ...
 def getmembers (object, predicate=None):
-    ...
+    """Return all members of an object as (name, value) pairs sorted by name.
+    Optionally, only return members that satisfy a given predicate."""
 def getmodule (object, _filename=None):
-    ...
+    """Return the module an object was defined in, or None if not found."""
 def isfunction (object):
-    ...
+    """Return true if the object is a user-defined function.
+    
+    Function objects provide these attributes:
+        __doc__         documentation string
+        __name__        name with which this function was defined
+        __qualname__    qualified name of this function
+        __module__      name of the module the function was defined in or None
+        __code__        code object containing compiled function bytecode
+        __defaults__    tuple of any default values for arguments
+        __globals__     global namespace in which this function was defined
+        __annotations__ dict of parameter annotations
+        __kwdefaults__  dict of keyword only parameters with defaults
+        __dict__        namespace which is supporting arbitrary function attributes
+        __closure__     a tuple of cells or None
+        __type_params__ tuple of type parameters"""
 def mast_print (*args, use_mast_scope=True, **kwargs):
     ...
 def version_get ():

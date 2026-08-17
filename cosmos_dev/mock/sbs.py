@@ -1419,8 +1419,18 @@ def get_cinematic_camera(clientID: int):
     return {"cam": cam, "target": tgt, "mode": "scripted",
             "ship_id": str(sim.client_ships.get(clientID, 0))}
 
+# Music banks handed to the engine, in order, and the last one per target. Recorded for
+# the same reason the skybox is: nothing plays in the mock, so the only thing a headless
+# run can check is WHICH bank was selected and HOW MANY TIMES. The count is the point -
+# music used to be scheduled from inside every skybox label's body, so "one bank, set
+# once" is precisely what decoupling them has to prove.
+_music_calls = []
+_current_music = {}
+
 def set_music_folder(ID: int, filename: str) -> None:
     """Sets the folder from which music is streamed; ID is ship, OR client, OR zero for server."""
+    _music_calls.append((ID, filename))
+    _current_music[ID] = filename
 
 def set_music_tension(ID: int, tensionValue: float) -> None:
     """Sets the tension value of ambient music (0-100); ID is ship, OR client, OR zero for server."""

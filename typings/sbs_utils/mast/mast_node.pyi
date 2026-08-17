@@ -7,7 +7,23 @@ def STRING_REGEX_NAMED_2 (name):
 def STRING_REGEX_NAMED_3 (name):
     ...
 def lru_cache (maxsize=128, typed=False):
-    ...
+    """Least-recently-used cache decorator.
+    
+    If *maxsize* is set to None, the LRU features are disabled and the cache
+    can grow without bound.
+    
+    If *typed* is True, arguments of different types will be cached
+    separately.  For example, f(decimal.Decimal("3.0")) and f(3.0) will be
+    treated as distinct calls with distinct results.  Some types such as
+    str and int may be cached separately even when typed is false.
+    
+    Arguments to the cached function must be hashable.
+    
+    View the cache statistics named tuple (hits, misses, maxsize, currsize)
+    with f.cache_info().  Clear the cache and statistics with
+    f.cache_clear().  Access the underlying function with f.__wrapped__.
+    
+    See:  https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU)"""
 def mast_compile (source, mode='eval', filename=None):
     """``compile()`` for MAST expressions, with the source kept for tracebacks.
     
@@ -92,7 +108,42 @@ class ParseData(object):
     def __init__ (self, start, end, data):
         """Initialize self.  See help(type(self)) for accurate signature."""
 class Scope(Enum):
-    """class Scope"""
+    """Create a collection of name/value pairs.
+    
+    Example enumeration:
+    
+    >>> class Color(Enum):
+    ...     RED = 1
+    ...     BLUE = 2
+    ...     GREEN = 3
+    
+    Access them by:
+    
+    - attribute access:
+    
+      >>> Color.RED
+      <Color.RED: 1>
+    
+    - value lookup:
+    
+      >>> Color(1)
+      <Color.RED: 1>
+    
+    - name lookup:
+    
+      >>> Color['RED']
+      <Color.RED: 1>
+    
+    Enumerations can be iterated over, and know how many members they have:
+    
+    >>> len(Color)
+    3
+    
+    >>> list(Color)
+    [<Color.RED: 1>, <Color.BLUE: 2>, <Color.GREEN: 3>]
+    
+    Methods can be added to enumerations, and members can have their own
+    attributes -- see the documentation for details."""
     ASSIGNED : 20
     CLIENT : 10
     NORMAL : 2
