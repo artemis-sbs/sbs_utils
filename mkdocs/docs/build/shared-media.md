@@ -107,6 +107,13 @@ and sbs_utils at that one file, with nothing written. See
 - **Unpacking is per version**, so two missions pinned to different pack versions coexist.
 - **A mission pinned to an older `sbs_utils`** has no `media_shared()`, and should keep
   its own `media/` folder as before.
-- **Images, today.** Sheets, backdrops and portraits are proven from a shared pack. A
-  skybox or music path is resolved by sbs_utils and opened by the engine — the resolution
-  searches shared packs too, but nothing has yet asked the engine to open one from there.
+- **Images and skyboxes are proven from a shared pack.** Sheets, backdrops and portraits
+  were already; a **skybox** was confirmed in the engine on 2026-08-16 by running
+  LegendaryMissions with `profile=a28_skies`, which drops the stock skies and draws the
+  Artemis 2.8 ones straight out of `__lib__/media/…/skybox/`.
+- **Music cannot come from a pack, and that is the engine's limit, not a gap here.**
+  `set_music_folder` takes a bare folder name under `data/audio/music`; hand it a path in
+  any spelling and the engine **segfaults** (an absolute one hangs instead). sbs_utils
+  resolves a pack's bank, declines to hand the path over, warns, and plays `default`. A
+  player who wants a mod's bank copies it into `data/audio/music/<name>`. Gated behind
+  `MUSIC_ENGINE_ACCEPTS_PATHS` for the day that changes.

@@ -16,8 +16,12 @@ v1.4.0
     which is the argument for icons living inside LM's pack.
   - Does ".." out of data/graphics survive on every platform the engine ships on? The
     probe answered it for one machine only.
-  Also unverified: skybox and music from a pack resolve but have never been opened by the
-  engine.
+  SKYBOX FROM A PACK IS NOW CONFIRMED IN THE ENGINE (2026-08-16): LegendaryMissions with
+  `profile=a28_skies` draws its skies out of
+  `__lib__/media/artemis-sbs.A28-Skybox-Mod.media.v1.0.0/skybox/`, and the engine opens
+  them. MUSIC from a pack is the opposite of unverified - it is impossible: any path to
+  `set_music_folder` segfaults the engine, so the resolver deliberately withholds the
+  pack path and plays `default`. See CrashReport-2026-08-16-SetMusicFolder/.
 
 * Expose more useful Python builtins in the MAST eval globals (sbs_utils/mast/mast_globals.py).
   Currently missing: dict, zip, enumerate (and likely others). Today scripts must
