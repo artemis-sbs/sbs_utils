@@ -440,7 +440,13 @@ let two co-loaded addons share a prefix (`fleet_` was claimed by both LM `fleets
 
 Three things that surprise people:
 
-- **A leading underscore is not private.** `_dist` is exported exactly like `dist`.
+- **A leading underscore IS private now** (2026-08-16). `_dist` is skipped rather than
+  exported, in the library AND in addon `.py` files - both registration paths, which
+  is what was inconsistent: the library stopped publishing them in 2026-08-12 and
+  every mod went on doing it. The collision that bit was not function-vs-function but
+  function-vs-VARIABLE: A28's `_mine` turned autoplay's `_mine = ...` into
+  `Variable assignment to a keyword`, i.e. zero labels, in silence. A private helper
+  no longer needs a prefix - a PUBLIC one still does.
 - **Only functions are exported** - a module-level list/dict/constant is never a MAST
   global, so every `.mast` touchpoint must be an accessor function.
 - **A re-export is not exported.** `from sbs_utils... import foo` keeps the library's

@@ -26,8 +26,11 @@ Five collision classes, in descending severity:
   global. Note a Python-level call inside the defining module still resolves to itself,
   so the tell is "works from Python, fails/misbehaves from MAST".
 - ``ns-generic-name`` (WARNING) - a bare generic verb (`get_`/`save_`/`build_`) with no
-  domain prefix. Advisory: the next addon to invent that name collides. Leading
-  underscore does NOT make a helper private - `_dist` is as exported as `dist`.
+  domain prefix. Advisory: the next addon to invent that name collides.
+
+Underscore-prefixed defs are NOT checked: since 2026-08-16 both registration paths skip
+them, so `_dist` really is private and cannot collide with anything. Flagging it would be
+telling authors to prefix a name that is already unreachable.
 
 Reuses amd_lint's AmdFinding so `sbs lint` prints these uniformly.
 """
@@ -35,9 +38,13 @@ import re
 
 from .amd_lint import AmdFinding, ERROR, WARNING
 
-# A top-level `def` in a mission helper. Leading underscore included on purpose: an
-# underscore helper is registered as a MAST global exactly like a public one.
-_DEF = re.compile(r"^def\s+(?P<name>\w+)\s*\(", re.M)
+# A top-level `def` in a mission helper - PUBLIC ones only. An underscore def is no longer
+# registered as a MAST global (mast_globals.register_mission_functions skips it, as
+# import_python_module already did), so it cannot shadow a library global, cannot be
+# duplicated across addons in any way that matters, and cannot collide with a .mast
+# variable. It was that last one - A28's `_mine` against autoplay's `_mine = ...` - that
+# made this rule worth having, and the fix removed the reason to lint for it.
+_DEF = re.compile(r"^def\s+(?!_)(?P<name>\w+)\s*\(", re.M)
 
 # A .mast assignment. `default` (and `default shared`) are EXEMPT - assign.py permits a
 # default onto an existing global. Plain `shared x =` is a hard assign and is not.
@@ -217,7 +224,7 @@ def namespace_lint_project(py_sources, mast_sources=(), lib_globals=()):
                 line, WARNING, "ns-generic-name",
                 "\"" + name + "\" starts with the generic \"" + token + "\" and claims "
                 "that name for the WHOLE mission - the next addon to invent it collides. "
-                "Prefix it with the addon name (the hangar_/hangar.py convention). A "
-                "leading underscore does not make it private: MAST exports it too.")))
+                "Prefix it with the addon name (the hangar_/hangar.py convention), or make "
+                "it private with a leading underscore - those are not exported.")))
 
     return findings
