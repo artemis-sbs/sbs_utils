@@ -4084,6 +4084,26 @@ function cmdComplete(msg) {
   const region = _regions[tag];
   if (!region) { log(`  complete: unknown region "${tag}"`, 'err'); return; }
 
+  // A complete with NO rebuild outstanding is a no-op, not a swap.
+  //
+  // The swap used to be unconditional, and a region can legitimately be cleared and
+  // completed TWICE inside one rebuild - a listbox does exactly that. Captured from the
+  // ship browser, the stream for one row click reads:
+  //     clear(root) sub_region(lb) clear(lb) sub_region(lb) clear(lb)
+  //     complete(lb) complete(lb) complete(root)
+  // Two unconditional swaps cancel out: the freshly built rows land in `front`, then the
+  // second complete puts them straight back into `back`, so the listbox rendered
+  // perfectly and was invisible. Replaying that capture, the rows reachable from
+  // root.front went 18 -> 0; with this guard they come back as 20.
+  //
+  // `inProgress` is set by clear() and cleared here, so this pairs each complete with a
+  // clear and ignores the extras. The engine draws the same stream correctly; this is the
+  // mock renderer catching up to it.
+  if (!region.inProgress) {
+    log(`  complete region="${tag || 'root'}" ignored - no clear outstanding`, 'dbg');
+    return;
+  }
+
   region.front.classList.replace('front', 'back');
   region.back.classList.replace('back',  'front');
   [region.front, region.back] = [region.back, region.front];
