@@ -46,6 +46,10 @@ overlay_slot_define(HAIL_BAND_SLOT, HAIL_BAND_RECT, draw_layer=HAIL_BAND_LAYER)
 # Opaque, because this is the one place a panel sits over a live engine view and
 # layering cannot clip anything. The fill IS the clip.
 BAND_BACKGROUND = "#000c"
+# Alpha kept on purpose - a strip over a live view should let the view through - but the
+# fill still has to sit ABOVE the engine's widgets or it is behind them rather than over
+# the view. See SCREEN_LAYER below for the full reasoning.
+BAND_LAYER = 22000
 
 def hail_panel_icon():
     """The history tab's glyph.
@@ -536,12 +540,12 @@ def _hail_band_builder(client_id, content):
     line = content.get("line") or ""
     choices = content.get("choices") or []
 
-    gui_row(f"row-height: 1.6em; background: {BAND_BACKGROUND};")
+    gui_row(f"row-height: 1.6em; background: {BAND_BACKGROUND};layer: {BAND_LAYER};")
     gui_text(_hail_text(name) + "font:gui-3;padding:4px;")
-    gui_row(f"row-height: 1fr; background: {BAND_BACKGROUND};")
+    gui_row(f"row-height: 1fr; background: {BAND_BACKGROUND};layer: {BAND_LAYER};")
     gui_text_area(line, "padding: 8px;")
     if choices:
-        gui_row(f"row-height: content; background: {BAND_BACKGROUND};")
+        gui_row(f"row-height: content; background: {BAND_BACKGROUND};layer: {BAND_LAYER};")
         gui_text_area(chr(10).join(choices), "padding: 8px;")
 
 
@@ -550,16 +554,24 @@ overlay_register(HAIL_BAND_SLOT, _hail_band_builder)
 
 HAIL_SCREEN_SLOT = "fullscreen"
 
-# FULLY OPAQUE, no alpha nibble. This form OWNS the screen - the builder below only runs
-# for the presentations that take it over - so anything showing through is not atmosphere,
-# it is the 3D view competing with the words. `#000e` was meant to read as near-opaque and
-# did not: measured in the engine, the scene behind a Chin'toka hail was plainly legible
-# through it, and the engine's own ship_data readout landed on top of the speaker's name.
-# Three digits is the library's spelling for an opaque colour and leaves nothing to parse.
+# OPAQUE, AND RAISED. Both halves are needed and the second one is the actual bug.
 #
-# The BAND form keeps its alpha on purpose - a strip over a live view is supposed to let
-# the view through. Only the take-the-screen form is opaque.
+# A row background is emitted at BACKDROP_LAYER (1000), which is UNDER content (1001) and
+# under the engine's own widgets (buttons are bracketed 500 < b < 5000). So this panel was
+# painting its background beneath every engine widget on the main screen: measured in the
+# engine, a Chin'toka hail showed the 3D scene through it AND the engine's ship_data
+# readout drew across the speaker's name. No amount of alpha fixes that - the fill was
+# simply behind them.
+#
+# `layer:` is the opt-out, and it cascades section -> row -> column, so one declaration per
+# row lifts the WHOLE row. The hail's own text rides up with it and still wins, because on
+# a tie the engine draws text over an image regardless of emission order (ENGINE-VERIFIED,
+# VisualTestRange `--map visual_draw_layer`).
+#
+# NOT by changing BACKDROP_LAYER itself: backgrounds sit under content by design, and
+# raising the global default would make every panel in every mission cover its own text.
 SCREEN_BACKGROUND = "#000"
+SCREEN_LAYER = 30000
 
 
 def _hail_screen_builder(client_id, content):
@@ -584,20 +596,20 @@ def _hail_screen_builder(client_id, content):
     choices = content.get("choices") or []
 
     if backdrop:
-        gui_row(f"row-height: 55; background: {SCREEN_BACKGROUND};")
+        gui_row(f"row-height: 55; background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};")
         gui_image_keep_aspect_ratio_center(backdrop)
     elif face:
-        gui_row(f"row-height: 40; background: {SCREEN_BACKGROUND};")
+        gui_row(f"row-height: 40; background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};")
         gui_face(face)
     if title:
-        gui_row(f"row-height: 1.6em; background: {SCREEN_BACKGROUND};")
+        gui_row(f"row-height: 1.6em; background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};")
         gui_text(_hail_text(title) + "justify:center;")
-    gui_row(f"row-height: 1.8em; background: {SCREEN_BACKGROUND};")
+    gui_row(f"row-height: 1.8em; background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};")
     gui_text(_hail_text(name) + "font:gui-3;padding:6px;")
-    gui_row(f"row-height: 1fr; background: {SCREEN_BACKGROUND};")
+    gui_row(f"row-height: 1fr; background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};")
     gui_text_area(line, "padding: 10px;")
     if choices:
-        gui_row(f"row-height: content; background: {SCREEN_BACKGROUND};")
+        gui_row(f"row-height: content; background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};")
         gui_text_area(chr(10).join(choices), "padding: 10px;")
 
 
