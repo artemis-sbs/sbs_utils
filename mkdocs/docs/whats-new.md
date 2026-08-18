@@ -1609,6 +1609,60 @@ instead of leaving you to find it. (Rename the variable — `assigned_ship` is f
 **Nothing to change in your scripts.** A mission with no broken expressions behaves
 exactly as it did; a mission with one now tells you which one.
 
+## 🗺️ `@map` works without LegendaryMissions — a map picker in the library
+
+`@map` is how a mission offers several entry points, and until now it **only worked if
+you loaded LegendaryMissions**. Both halves lived there: LM's server console drew the
+selection screen, so a mission loading only `sbs_utils` came up with an empty server page
+and no way in, and the headless runner's `--map` had nothing to start.
+
+Two functions close that, and a mission front-end is now two lines:
+
+```
+== main ==
+    chosen = await gui_map_picker()
+    map_start(chosen)
+```
+
+`gui_map_picker()` is a **carousel** of your story's maps — name, description, next/prev —
+together with that map's `Properties:` panel and a Start button. `map_start()` launches
+what you were handed: applies the map's `Defaults:`, resumes the sim, schedules the map,
+sets `GAME_STARTED` and emits `game_started`. That launch sequence previously existed
+twice, in LM's console and in the runner, and the two had quietly drifted apart — down to
+whether the sim resumes before or after the map is scheduled. There is one definition now.
+
+**The properties panel is on by default**, because a map declaring a `PLAYER_COUNT` slider
+expects that variable to exist when it runs. Skip the panel and it starts unset — which
+looks like a mission bug, not a missing feature. Pass `properties=False` if you really do
+want just a carousel and a button.
+
+**Conditional maps are now honoured.** `@map/secret "Secret" if UNLOCKED` was previously
+offered whether or not `UNLOCKED` was true; `maps_get_list()` evaluates the condition and
+hides it. Two carve-outs: with no task in context (the headless runner) maps are **shown**,
+and `maps_get_list(include_hidden=True)` still returns everything, so a saved game code
+naming a currently-hidden map keeps resolving. If you rely on `--map 0`, note the index
+counts the *filtered* list — prefer `--map <name>`.
+
+!!! danger "Do not `->END` straight after `map_start`"
+    The task running the picker is usually `main`, and `main` is the page's GUI task. The
+    started map calls `gui_task_jump` to show its own page, and that call is **silently
+    discarded** if the GUI task has already finished — no error, blank screen. Park the
+    task instead:
+
+    ```
+    ---running
+        await delay_sim(1)
+        jump running
+    ```
+
+This is the **light tier** on purpose. LM's console also does game codes and presets,
+music, the player roster, operator mode and difficulty-scaled beam damage; it keeps all of
+that. The picker is for missions that must stand on `sbs_utils` alone — which is exactly
+what an add-on's own test mission needs, so a mod repo can now ship a mission that runs
+from a fresh clone with nothing else installed.
+
+See [Map picker](api/procedural/map_picker.md).
+
 ---
 
 *Thanks for playing, building, and tinkering. There's more under the hood than ever
