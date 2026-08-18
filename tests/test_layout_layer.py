@@ -180,3 +180,108 @@ class TestStyleParsing(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class _Rec:
+    """Records the props string every send_gui_* receives."""
+    def __init__(self):
+        self.calls = []
+
+    def _grab(self, kind):
+        def f(client_id, region_tag, tag, props, *rect):
+            self.calls.append((kind, props))
+        return f
+
+    def __getattr__(self, name):
+        if name.startswith("send_gui_"):
+            return self._grab(name)
+        raise AttributeError(name)
+
+    def props(self, kind=None):
+        return [p for k, p in self.calls if kind is None or k == kind]
+
+
+class TestMarkdownSegmentsCarryTheLayer(unittest.TestCase):
+    """The RICH text_area path builds its own props per segment, so unlike
+    `_present_simple` it does not get the cascade for free. Without this a markdown text
+    area inside a RAISED container -- an overlay panel with an opaque backdrop above it --
+    rendered underneath that backdrop and vanished.
+
+    The cascade still must not reach the `$$` per-line mini-language: that is a style
+    string the text area parses itself, not one the engine reads.
+    """
+
+    def _ar(self):
+        return types.SimpleNamespace(x=1920.0, y=1080.0)
+
+    def test_layer_prop_is_silent_when_unraised(self):
+        from sbs_utils.pages.layout.text_area import _layer_prop
+        self.assertEqual(_layer_prop(None), "")
+
+    def test_layer_prop_emits_when_raised(self):
+        from sbs_utils.pages.layout.text_area import _layer_prop
+        self.assertEqual(_layer_prop(30000), "draw_layer:30000;")
+
+    def test_layer_prop_zero_is_a_layer_not_a_missing_one(self):
+        from sbs_utils.pages.layout.text_area import _layer_prop
+        self.assertEqual(_layer_prop(0), "draw_layer:0;")
+
+    def test_ship_segment_carries_it(self):
+        from sbs_utils.pages.layout.text_area import ShipLine
+        seg = ShipLine.__new__(ShipLine)
+        seg.text, seg.align, seg.width = "tsn_scout", "left", 10.0
+        rec = _Rec()
+        seg.send_gui(rec, 1, "r", "t", 0.0, 0.0, 100.0, 100.0, 22000)
+        self.assertIn("draw_layer:22000;", rec.props("send_gui_3dship")[0])
+
+    def test_ship_segment_unraised_is_untouched(self):
+        from sbs_utils.pages.layout.text_area import ShipLine
+        seg = ShipLine.__new__(ShipLine)
+        seg.text, seg.align, seg.width = "tsn_scout", "left", 10.0
+        rec = _Rec()
+        seg.send_gui(rec, 1, "r", "t", 0.0, 0.0, 100.0, 100.0)
+        self.assertEqual(rec.props("send_gui_3dship")[0], "hull_tag:tsn_scout;")
+
+    def test_hr_rides_the_container_layer(self):
+        from sbs_utils.pages.layout.text_area import HrLine
+        seg = HrLine(self._ar())
+        rec = _Rec()
+        seg.send_gui(rec, 1, "r", "t", 0.0, 0.0, 100.0, 100.0, 30000)
+        self.assertIn("draw_layer:30000;", rec.props("send_gui_image")[0])
+
+    def test_hr_unraised_keeps_the_historic_1000(self):
+        from sbs_utils.pages.layout.text_area import HrLine
+        seg = HrLine(self._ar())
+        rec = _Rec()
+        seg.send_gui(rec, 1, "r", "t", 0.0, 0.0, 100.0, 100.0)
+        self.assertIn("draw_layer:1000;", rec.props("send_gui_image")[0])
+
+    def test_link_raises_its_hit_area_with_its_text(self):
+        # If only the text rose, the clickregion would sit behind the backdrop and the
+        # link would look live while being unclickable.
+        from sbs_utils.pages.layout.text_area import LinkLine
+        seg = LinkLine.__new__(LinkLine)
+        seg.display, seg.click_tag, seg.font = "Go", "k", "gui-2"
+        rec = _Rec()
+        seg.send_gui(rec, 1, "r", "t", 0.0, 0.0, 100.0, 100.0, 26000)
+        self.assertIn("draw_layer:26000;", rec.props("send_gui_text")[0])
+        self.assertIn("draw_layer:26000;", rec.props("send_gui_clickregion")[0])
+
+    def test_a_face_accepts_a_layer_and_cannot_use_it(self):
+        # NOT an oversight: `send_gui_face` takes the face string where every other
+        # widget takes a style, so there is nowhere to put a draw_layer. It is the only
+        # drawable send_gui_* without a style parameter. Asserted so the day the engine
+        # grows one, this test fails and tells someone to wire it up.
+        import inspect
+        from sbs_utils.pages.layout.text_area import FaceLine
+        seg = FaceLine.__new__(FaceLine)
+        seg.text, seg.align, seg.width = "tng1 #fff 1 1;", "left", 10.0
+
+        recorded = []
+        sbs = types.SimpleNamespace(
+            send_gui_face=lambda *a: recorded.append(a))
+        seg.send_gui(sbs, 1, "r", "t", 0.0, 0.0, 100.0, 100.0, 30000)
+        self.assertEqual(len(recorded), 1)
+        self.assertNotIn("draw_layer", str(recorded[0]))
+        # and the signature still accepts one, so the call site stays uniform
+        self.assertIn("layer", inspect.signature(FaceLine.send_gui).parameters)

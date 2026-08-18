@@ -485,6 +485,14 @@ def measure_cache_stats():
 #   1001    engine default: content, and button text over a colorbutton
 #   ~1001   buttons themselves -- bracketed in the engine to 500 < button < 5000
 #   20000+  overlay slots (procedural/gui/overlay.py)
+#
+# ONE WIDGET CANNOT BE LAYERED AT ALL: a FACE. `send_gui_face` takes the face string
+# where every other widget takes a style, so there is nowhere to put a draw_layer -- it
+# is the only drawable `send_gui_*` in the typings without a style parameter, and it
+# always paints at 1001. So an opaque fill raised above 1001 HIDES any face beneath it.
+# Build the fill AROUND a face (gutter columns either side, face column bare) rather than
+# over it; a face square is opaque, so that leaves no hole. See `layout/face.py` and
+# `procedural/gui/hail_gui.py:_hail_screen_builder`.
 BACKDROP_LAYER = 1000
 
 

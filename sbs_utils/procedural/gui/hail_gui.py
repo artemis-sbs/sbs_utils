@@ -586,6 +586,7 @@ def _hail_screen_builder(client_id, content):
     from .row import gui_row
     from .text import gui_text, gui_text_area
     from .face import gui_face
+    from .blank import gui_blank
     from .image import gui_image_keep_aspect_ratio_center
 
     face = content.get("face")
@@ -599,8 +600,25 @@ def _hail_screen_builder(client_id, content):
         gui_row(f"row-height: 55; background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};")
         gui_image_keep_aspect_ratio_center(backdrop)
     elif face:
-        gui_row(f"row-height: 40; background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};")
+        # THE BACKGROUND GOES ON THE GUTTERS, NOT ON THIS ROW. Do not "tidy" this back into
+        # `gui_row(background: ...)` - it silently loses the face, and the reason is in an
+        # engine signature rather than in this file.
+        #
+        # `send_gui_face` is the ONLY drawable widget whose fourth argument is its content
+        # rather than a style string (audited across every send_gui_* in the typings), so a
+        # face is the one thing in the GUI that cannot carry a `draw_layer`. It always
+        # draws at the engine default, which is BELOW this panel's raised fill - so a
+        # background painted across this row covers the speaker completely.
+        #
+        # Painting the gutters instead leaves the face's own column bare, and nothing shows
+        # through it because a face square is itself opaque. A styled `gui_blank` really
+        # does paint: Blank extends Column, and Column.present() draws the backdrop at
+        # get_layer() before calling Blank's no-op _present.
+        gutter = f"background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};"
+        gui_row("row-height: 40;")
+        gui_blank(1, gutter)
         gui_face(face)
+        gui_blank(1, gutter)
     if title:
         gui_row(f"row-height: 1.6em; background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};")
         gui_text(_hail_text(title) + "justify:center;")

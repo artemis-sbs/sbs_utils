@@ -25,6 +25,23 @@ from ...procedural.amd import (RE_STYLE_DEF, RE_STYLE_REF, RE_LINK_DEF,
 
 from ..widgets.control import Control
 
+def _layer_prop(layer):
+    """``draw_layer:N;`` for a raised container, or ``''`` when nobody asked for one.
+
+    A SUFFIX rather than a parameter, so a props string in an unraised text area is
+    emitted byte-for-byte as it always was and nothing existing can shift.
+
+    WHY THE RICH PATH NEEDS THIS AT ALL. `_present_simple` gets the cascade for free
+    (`get_cascade_props(..., layer=True)`), but the rich path builds its own per-segment
+    props and so drops it -- which meant a markdown text area in a RAISED container
+    (an overlay panel with an opaque background above it) rendered underneath its own
+    backdrop and vanished. The cascade still must not go into the `$$` per-line
+    mini-language, which is what the comment in `_apply_cascade` protects: that is a
+    style string the text area parses itself, not one the engine reads.
+    """
+    return "" if layer is None else f"draw_layer:{int(layer)};"
+
+
 class TextLine:
     def __init__(self, text, style, width, height, is_sec_end) -> None:
         self.text = text.strip()
@@ -57,8 +74,14 @@ class FaceLine:
         self.width = (height / ar.x) * 100
         self.height = (height / ar.y) * 100
 
-    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
-        # clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
+        # `layer` IS ACCEPTED AND DELIBERATELY IGNORED - a face is the one widget that
+        # cannot take one. `send_gui_face`'s fourth argument is the face string where
+        # every other send_gui_* takes a style, so there is nowhere to put a draw_layer
+        # and it always paints at the engine default. Consequence for authors: a
+        # `face://` in a markdown block inside a RAISED container will be hidden by that
+        # container's backdrop, and the only fix is to leave the fill off the area the
+        # face occupies. See layout/face.py for the full note.
         if self.align == "center":
             mid = left+ (right-left)/2.0
             half = self.width /2.0
@@ -66,7 +89,7 @@ class FaceLine:
         elif self.align == "right":
             SBS.send_gui_face(client_id, region_tag, tag, self.text, right-self.width, top, right, bottom)
         else:
-            SBS.send_gui_face(client_id, region_tag, tag, self.text, left, top, left+self.width, bottom)    
+            SBS.send_gui_face(client_id, region_tag, tag, self.text, left, top, left+self.width, bottom)
         #print(f"hull_tag:{self.text} {self.height} {left},{top},{right},{bottom}")
 
 
@@ -83,16 +106,17 @@ class ShipLine:
         self.width = (height / ar.x) * 100
         self.height = (height / ar.y) * 100
 
-    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
         # clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
+        props = f"hull_tag:{self.text};" + _layer_prop(layer)
         if self.align == "center":
             mid = left+ (right-left)/2
             half = self.width /2
-            SBS.send_gui_3dship(client_id, region_tag, tag, f"hull_tag:{self.text};", mid-half, top, mid+half, bottom)
+            SBS.send_gui_3dship(client_id, region_tag, tag, props, mid-half, top, mid+half, bottom)
         elif self.align == "right":
-            SBS.send_gui_3dship(client_id, region_tag, tag, f"hull_tag:{self.text};", right-self.width, top, right, bottom)
+            SBS.send_gui_3dship(client_id, region_tag, tag, props, right-self.width, top, right, bottom)
         else:
-            SBS.send_gui_3dship(client_id, region_tag, tag, f"hull_tag:{self.text};", left, top, left+self.width, bottom)
+            SBS.send_gui_3dship(client_id, region_tag, tag, props, left, top, left+self.width, bottom)
         #print(f"hull_tag:{self.text} {self.height} {left},{top},{right},{bottom}")
 
 
@@ -122,9 +146,11 @@ class ImageLine:
             # Height needs to be in percent 
             self.height = (height / ar.y) * 100 * scale
 
-    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
+        # The atlas already takes a layer and folds it into its props, so this only has
+        # to pass the container's down.
         self.atlas.send_gui_image(SBS, client_id, region_tag, tag, self.fill,
-                    left, top, right, bottom, self.color)
+                    left, top, right, bottom, self.color, layer)
 
 
 class TableLine:
@@ -182,9 +208,10 @@ class TableLine:
             self.row_h_px.append(h)
         self.height = (sum(self.row_h_px) / ar.y) * 100                    # percent
 
-    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
         if not self.rows or self.ncols == 0:
             return
+        lay = _layer_prop(layer)
         ar = self.ar
         col_pct = [(w / ar.x) * 100 for w in self.col_px]
         pad_pct = (self.cell_pad_px / ar.x) * 100
@@ -197,7 +224,7 @@ class TableLine:
             x = left
             for c in range(self.ncols):
                 a = self.aligns[c] if c < len(self.aligns) else "l"
-                style = f"font:{f};justify:{just_map.get(a, 'left')};color:{color}"
+                style = f"font:{f};justify:{just_map.get(a, 'left')};color:{color};" + lay
                 SBS.send_gui_text(client_id, region_tag, f"{tag}:r{ri}c{c}",
                                   f"$text:{gui_text_escape(r[c])};{style}",
                                   x, y, x + col_pct[c], y + row_h)
@@ -213,11 +240,14 @@ class HrLine:
         self._ar = ar
         self.height = (12.0 / ar.y) * 100          # ~12px slot
 
-    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
         mid = top + (bottom - top) / 2.0
         half = (1.0 / self._ar.y) * 100
+        # The rule rides the container's layer when there is one; 1000 (the old hardcoded
+        # value, i.e. backdrop level) only when the text area is not raised at all.
+        rule_layer = 1000 if layer is None else int(layer)
         SBS.send_gui_image(client_id, region_tag, tag,
-                           "image:smallwhite;color:#888;draw_layer:1000;",
+                           f"image:smallwhite;color:#888;draw_layer:{rule_layer};",
                            left, mid - half, right, mid + half)
 
 
@@ -232,13 +262,16 @@ class LinkLine:
         self.is_sec_end = False
         self.height = (measure_line_height(font, display) / ar.y) * 100
 
-    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
+        lay = _layer_prop(layer)
         SBS.send_gui_text(client_id, region_tag, tag,
-                          f"$text:{gui_text_escape(self.display)};color:#6cf;font:{self.font}",
+                          f"$text:{gui_text_escape(self.display)};color:#6cf;font:{self.font};" + lay,
                           left, top, right, bottom)
-        # transparent hit area on top; its click_tag carries the target key
+        # transparent hit area on top; its click_tag carries the target key. It rides the
+        # same layer as the text so a raised container cannot leave the hit area behind
+        # the backdrop while the link itself is visible.
         SBS.send_gui_clickregion(client_id, region_tag, self.click_tag,
-                                 "background_color:#00000000;",
+                                 "background_color:#00000000;" + lay,
                                  left, top, right, bottom)
 
 
@@ -1024,6 +1057,14 @@ class TextArea(Control):
             self.calc(event.client_id)
             self.recalc = False
 
+        # The cascaded paint order, resolved ONCE for every line below. The rich path
+        # builds its own props per segment, so unlike `_present_simple` it does not get
+        # this for free - and without it a markdown text area inside a raised container
+        # (an overlay panel with an opaque backdrop) renders underneath that backdrop and
+        # disappears. None when nothing in the layout asked for a layer, in which case
+        # every props string below is emitted exactly as it always was.
+        line_layer = self.get_layer()
+
         first_line = self.last_line - self.scroll_line
         
         
@@ -1060,17 +1101,22 @@ class TextArea(Control):
                 #     print(f"Sending line {message} {bounds} {self.local_region_tag}")
                 space_width = measure_line_width("gui-2", "X") / ar.x *100
                 if background:
-                    props = f"image:smallwhite;color:{background};draw_layer:1000;"
+                    # Same layer as the line's own text, NOT under it: on a tie the engine
+                    # draws text over an image regardless of emission order (verified,
+                    # VisualTestRange `--map visual_draw_layer`), so the highlight still
+                    # sits behind its words while both clear a raised container's backdrop.
+                    bg_layer = 1000 if line_layer is None else int(line_layer)
+                    props = f"image:smallwhite;color:{background};draw_layer:{bg_layer};"
                     ctx.sbs.send_gui_image(CID, self.local_region_tag,
-                        tag, props,  
+                        tag, props,
                         bounds.left+indent*space_width, bounds.top, bounds.right, bounds.bottom)
-                    
+
                 ctx.sbs.send_gui_text(CID, self.local_region_tag,
-                    tag, message,  
+                    tag, message + _layer_prop(line_layer),
                     bounds.left+indent*space_width, bounds.top, bounds.right, bounds.bottom)
             else:
-                text_line.send_gui(ctx.sbs, CID, self.local_region_tag, tag,  
-                    bounds.left, bounds.top, bounds.right, bounds.bottom)
+                text_line.send_gui(ctx.sbs, CID, self.local_region_tag, tag,
+                    bounds.left, bounds.top, bounds.right, bounds.bottom, line_layer)
             
             bounds.top = bounds.bottom
 
