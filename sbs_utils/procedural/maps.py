@@ -3,12 +3,44 @@ from ..helpers import FrameContext
 #from .gui import text_sanitize
 
 
-def maps_get_list():
-    """Return all ``@map`` labels defined in the current page's story.
+def _map_is_shown(m):
+    """Evaluate a map's ``if`` condition. Unconditional maps, and any map we cannot
+    evaluate, are SHOWN.
+
+    ``@map/x "X" if COND`` was never evaluated by ``maps_get_list``, so a map hidden by
+    its own condition was offered anyway. ``CardLabelBase.test`` answers this, but it
+    needs a task, and there is not always one: the headless runner polls this from its
+    own loop with no MAST task in context. Missing task therefore means SHOW - hiding
+    every map there would stop ``--map`` working at all, which is a far worse failure
+    than listing one map too many.
+    """
+    test = getattr(m, "test", None)
+    if test is None:
+        return True
+    task = FrameContext.task
+    if task is None:
+        return True
+    try:
+        return bool(test(task))
+    except Exception:
+        # test() already reads a raising condition as "not shown"; anything that gets
+        # past it is a bug in the picker, not in the mission - do not hide the map.
+        return True
+
+
+def maps_get_list(include_hidden=False):
+    """Return the ``@map`` labels defined in the current page's story.
 
     If only an ``__overview__`` label exists, it is returned as a single-item
     list. If no map labels are found at all, returns a placeholder list with a
     ``"No maps found"`` entry.
+
+    Args:
+        include_hidden (bool): When True, return conditional maps whose ``if`` is
+            currently false as well. Callers that are RESOLVING A KNOWN MAP rather than
+            offering a menu want this - ``game_code_decode`` looks a map up by path, and
+            a saved code should not stop resolving because a condition happens to be
+            false right now.
 
     Returns:
         list: ``@map`` Label objects, or a fallback list if none are defined.
@@ -28,7 +60,7 @@ def maps_get_list():
         m = all_labels[l]
         if m.path == "__overview__":
             init_label = m
-        else:
+        elif include_hidden or _map_is_shown(m):
             ret.append(m)
 #                {"name": m.display_name, "description": text_sanitize(m.desc), "label": m},
 #            )
@@ -255,7 +287,8 @@ def game_code_decode(code):
         return None
     map_path = parts[0]
     target = None
-    for m in maps_get_list():
+    # include_hidden: this is a LOOKUP by path, not a menu - see maps_get_list.
+    for m in maps_get_list(include_hidden=True):
         if getattr(m, "path", None) == map_path:
             target = m
             break
@@ -502,3 +535,49 @@ def label_find_by_spec(labels, spec):
                if lowered in str(getattr(m, "path", "")).lower()
                or lowered in _name(m).lower()]
     return partial[0] if len(partial) == 1 else None
+
+
+def map_start(map):
+    """Start a map: apply its defaults, resume the sim, schedule it, announce it.
+
+    The canonical launch sequence. It existed twice before this - in LegendaryMissions'
+    server console and in the headless runner - and the two had DRIFTED on things that
+    matter: whether the sim resumes before or after scheduling, and ``task_schedule``
+    versus ``task_schedule_server``. One implementation ends that.
+
+    What it does, in order:
+
+      * ``map_apply_defaults`` - set-if-absent shared vars, so a value from settings.yaml,
+        the story or a loaded game code still wins. Idempotent, and applied here as well
+        as at panel-render time because a map can be started without a panel ever showing.
+      * ``sim_resume()`` - the lobby sim is paused; a map body that awaits ``delay_sim``
+        would never advance otherwise.
+      * ``task_schedule(map, defer=True)`` - deferred so consoles repaint before the map
+        body's first tick.
+      * ``GAME_STARTED`` and the ``game_started`` signal - the contract missions gate on.
+
+    What it deliberately does NOT do, because these are LegendaryMissions' own contract
+    and are meaningless (or wrong) in a mission that does not load it: the
+    ``reconcile_player_roster`` signal, ``sbs.set_beam_damages``, the ``GAME_TIME_LIMIT``
+    timer, music selection, and the client/server GUI reroutes. LM does those around its
+    own call to this.
+
+    Args:
+        map (Label | None): The ``@map`` label to start. ``None`` is a no-op, matching
+            ``map_apply_defaults``.
+
+    Returns:
+        Label | None: The map that was started, or ``None``.
+    """
+    if map is None:
+        return None
+    from .execution import task_schedule, set_shared_variable
+    from .signal import signal_emit
+    from .cosmos import sim_resume
+
+    map_apply_defaults(map)
+    sim_resume()
+    task_schedule(map, defer=True)
+    set_shared_variable("GAME_STARTED", True)
+    signal_emit("game_started", {})
+    return map

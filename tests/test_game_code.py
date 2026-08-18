@@ -56,7 +56,9 @@ class TestGameCode(unittest.TestCase):
         set_shared_variable("GAME_TIME_LIMIT", "20")
         set_shared_variable("seed_value", 4242)
         self._orig_list = maps.maps_get_list
-        maps.maps_get_list = lambda: [self.map]
+        # **kw: maps_get_list now takes include_hidden, and game_code_decode passes
+        # it - resolving a saved code is a lookup by path, not a menu.
+        maps.maps_get_list = lambda **kw: [self.map]
 
     def tearDown(self):
         maps.maps_get_list = self._orig_list
