@@ -107,10 +107,28 @@ class PageSubSection:
         return True
 
     def represent(self, event):
-        self.sub_section.represent(event)
+        if self.sub_section is not None:
+            self.sub_section.represent(event)
 
     def show(self, _show):
-        self.sub_section.show(_show)
+        # `sub_section` is the Layout, and it does not exist until the `with`
+        # block has run -- so every forward here has to tolerate being called
+        # before the sub-section was ever built. A no-op is the right answer,
+        # not an error: Dirty.mark_dirty already returns silently for a layout
+        # that has no client_id yet, so there is nothing to act on either way.
+        if self.sub_section is not None:
+            # Layout.show() marks itself dirty, so unlike PageRegion this needs
+            # no second mark_visual_dirty(). It marks only ITSELF, though: the
+            # siblings reclaim the space on the PARENT's next layout pass, since
+            # calc() filters is_hidden_by_script out of the width split.
+            self.sub_section.show(_show)
+
+    @property
+    def is_hidden(self):
+        if self.sub_section is None:
+            # Not built yet is not visible.
+            return True
+        return self.sub_section.is_hidden
 
 
 def gui_sub_section(style=None):
@@ -121,20 +139,29 @@ def gui_sub_section(style=None):
     keyword. The sub-section is added to the current layout when the ``with``
     block exits.
 
+    The returned object can be hidden and restored after it is built, with
+    ``gui_hide`` / ``gui_show`` or its own ``show()``. Hiding takes the whole
+    sub-tree off screen, and its siblings reclaim the space on the next layout
+    pass. Hold on to the object to do that - hiding one before its ``with``
+    block has run is a no-op, since the layout it stands for does not exist yet.
+
     Args:
         style (str, optional): CSS-like style string controlling the column
             width, row height, background, etc. of the sub-section.
             Defaults to None.
 
     Returns:
-        PageSubSection: Context manager object. Use with ``with``.
+        PageSubSection: Context manager object with ``show()`` and
+            ``is_hidden``. Use with ``with``.
 
     Example:
         gui_row(style="row-height:3em;")
         with gui_sub_section(style="col-width:30%;"):
             gui_text("Left column")
-        with gui_sub_section():
+        right = gui_sub_section()
+        with right:
             gui_text("Right column")
+        gui_hide(right)     # and gui_show(right) to bring it back
     """
     return PageSubSection(style)
 

@@ -28,6 +28,7 @@ from sbs_utils.pages.layout.column import Column
 from sbs_utils.pages.layout.gui_control import GuiControl
 from sbs_utils.pages.layout.layout import Layout, RegionType
 from sbs_utils.pages.layout.row import Row
+from sbs_utils.procedural.gui.section import PageSubSection
 from sbs_utils.procedural.gui.update import gui_hide, gui_show
 
 
@@ -548,6 +549,72 @@ class TestGuiShowAndHide(_Base):
     def test_none_is_tolerated(self):
         gui_show(None)
         gui_hide(None)
+
+
+class _FakePage:
+    """Just enough page for PageSubSection: hand back one real Layout."""
+
+    def __init__(self):
+        self.layout = Layout("sub", [Row()], 0, 0, 100, 100)
+
+    def push_sub_section(self, style, layout_item, is_rebuild):
+        return self.layout if layout_item is None else layout_item
+
+    def pop_sub_section(self, add_content, is_rebuild):
+        pass
+
+
+class TestSubSectionVisibilityForwards(_Base):
+    """PageSubSection is a WRAPPER around the Layout, not the Layout itself.
+
+    gui_show/gui_hide call `.show()` on whatever they are handed and check only
+    for None, so a wrapper that does not forward it raised AttributeError. That
+    is the same shape of gap the on_message_cb forward closed -- see
+    test_gui_message_multi_handler's test_message_label_on_a_sub_section_
+    reaches_the_layout, which asserts the same thing for the other channel.
+
+    The forward also has to tolerate being called before the `with` block has
+    built anything, because that is exactly what the shorthand people reach for
+    does (`sub = gui_sub_section()` then `gui_show(sub)` on the next line).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.page = _FakePage()
+        FrameContext.page = self.page
+        self.sub = PageSubSection(None)
+
+    def tearDown(self):
+        FrameContext.page = None
+        super().tearDown()
+
+    def _build(self):
+        """Run the `with` block, which is what creates the inner Layout."""
+        with self.sub:
+            pass
+        return self.page.layout
+
+    def test_hide_reaches_the_layout_not_the_wrapper(self):
+        layout = self._build()
+        gui_hide(self.sub)
+        self.assertFalse(layout._show, "the intent must land on the Layout")
+        self.assertTrue(self.sub.is_hidden)
+
+    def test_show_restores_it(self):
+        layout = self._build()
+        gui_hide(self.sub)
+        gui_show(self.sub)
+        self.assertTrue(layout._show)
+        self.assertFalse(self.sub.is_hidden)
+
+    def test_an_unbuilt_sub_section_is_a_no_op(self):
+        # No `with` block has run, so there is no Layout to carry the flag.
+        # Silence, not AttributeError -- Dirty.mark_dirty already no-ops on a
+        # layout with no client_id, so there is nothing to act on either way.
+        gui_show(self.sub)
+        gui_hide(self.sub)
+        self.sub.represent(FakeEvent())
+        self.assertTrue(self.sub.is_hidden, "never built is not visible")
 
 
 class TestHiddenRegionLaysOutOffScreen(_Base):
