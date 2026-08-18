@@ -410,6 +410,30 @@ def load_yaml_string(s):
     Returns:
         dict or None: Parsed YAML data, or None if parsing fails.
     """
+    # JSON FIRST - for ROBUSTNESS, not for speed. Measured on Cosmos-TNG-Mod's 119 KB
+    # ship-data file:
+    #
+    #     ryaml (PyAddons, what the engine uses)   0.007 s
+    #     json.loads                               0.001 s
+    #     bundled yaml (the FALLBACK)              0.220 s
+    #
+    # So against the normal path this saves 6ms and is not worth arguing about - YAML is
+    # the preferred authoring format and ryaml is fast. What it does buy is the case where
+    # ryaml is NOT on the path: PyAddons is resolved from the Cosmos install, and anything
+    # running outside it (a bare python, a tool, a CI box) falls back to the bundled parser
+    # and pays 220ms per file. A mod that ships .json then costs 1ms instead.
+    #
+    # Gated on the first character rather than a bare try, because this is called for EVERY
+    # `metadata:` block in every story - an exception per block would cost more than it
+    # saves. A YAML flow document also opens with `{`; it simply fails and falls through.
+    head = s.lstrip()[:1] if s else ""
+    if head in ("{", "["):
+        try:
+            import json
+            return json.loads(s)
+        except Exception:
+            pass
+
     ry = ryaml_module()
     if ry is not None:
         try:
