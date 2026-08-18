@@ -109,6 +109,9 @@ class PageSubSection:
     def represent(self, event):
         self.sub_section.represent(event)
 
+    def show(self, _show):
+        self.sub_section.show(_show)
+
 
 def gui_sub_section(style=None):
     """Create a nested layout sub-section, used as a context manager.
