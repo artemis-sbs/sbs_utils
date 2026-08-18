@@ -479,7 +479,12 @@ function _parseOBJ(text) {
     const p = rawLine.trim().split(/\s+/);
     switch (p[0]) {
       case 'v':  pos.push([+p[1], +p[2], +p[3]]); break;
-      case 'vt': tc.push([+p[1], 1 - +p[2]]); break;  // flip V for Three.js
+      // NO manual V flip. OBJ's V origin is bottom-left and three.js reconciles that
+      // with TextureLoader's flipY, which defaults to true and is never turned off here -
+      // so `1 - v` on top of it flipped the texture TWICE and hung it upside down. three's
+      // own OBJLoader does not flip for exactly this reason, and these hulls are stock
+      // Blender exports, so there is no non-standard convention for it to correct.
+      case 'vt': tc.push([+p[1], +p[2]]); break;
       case 'vn': nrm.push([+p[1], +p[2], +p[3]]); break;
       case 'f': {
         const verts = p.slice(1).map(addVert);
