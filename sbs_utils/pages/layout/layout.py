@@ -6,7 +6,7 @@ from ...mast.parsers import LayoutAreaParser, ContentSize, MIN_CONTENT, AUTO
 from enum import IntEnum
 from .bounds import Bounds, is_out_of_bounds
 from .hole import Hole
-from .measure import pct_to_px_x, px_to_pct_x, DEFAULT_FONT, backdrop_props
+from .measure import pct_to_px_x, px_to_pct_x, DEFAULT_FONT, backdrop_props, backdrop_tag
 # for type hints
 from .row import Row 
 from .column import Column, apply_col_width
@@ -1349,7 +1349,7 @@ class Layout(Clickable):
         if self.border is not None and self.border_color is not None:
             bb_props = backdrop_props(self.border_image, self.border_color, self.get_layer())
             ctx.sbs.send_gui_image(event.client_id, self.region_tag,
-                "__bb:"+self.tag, bb_props,
+                "__bb:"+backdrop_tag(self), bb_props,
                 border.left,
                 border.top,
                 border.right,
@@ -1358,7 +1358,7 @@ class Layout(Clickable):
         if self.background_color is not None:
             props = backdrop_props(self.background_image, self.background_color, self.get_layer())
             ctx.sbs.send_gui_image(event.client_id, self.region_tag,
-                "__bg:"+self.tag, props,
+                "__bg:"+backdrop_tag(self), props,
                 padding.left, 
                 padding.top, 
                 padding.right, 

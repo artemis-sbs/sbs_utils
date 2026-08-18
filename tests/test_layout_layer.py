@@ -285,3 +285,62 @@ class TestMarkdownSegmentsCarryTheLayer(unittest.TestCase):
         self.assertNotIn("draw_layer", str(recorded[0]))
         # and the signature still accepts one, so the call site stays uniform
         self.assertIn("layer", inspect.signature(FaceLine.send_gui).parameters)
+
+
+class TestUntaggedBackdropDoesNotCrash(unittest.TestCase):
+    """A layout item that never took a tag - `gui_blank` as a spacer, a bare section -
+    has `tag is None`, and the backdrop path concatenated it: `"__bg:" + None`.
+
+    It could only fire the first time someone gave such an item a BACKGROUND, which
+    nobody had until an opaque gutter was needed beside a face (a face cannot be layered,
+    so the fill has to go around it). It took the whole page down from Gui.present:
+
+        File ".../pages/layout/column.py", line 327, in _pre_present
+            "__bg:"+self.tag, props,
+        TypeError: can only concatenate str (not "NoneType") to str
+    """
+
+    def test_tagged_item_is_unchanged(self):
+        from sbs_utils.pages.layout.measure import backdrop_tag
+        item = types.SimpleNamespace(tag="mine")
+        self.assertEqual(backdrop_tag(item), "mine")
+
+    def test_untagged_item_gets_one(self):
+        from sbs_utils.pages.layout.measure import backdrop_tag
+        item = types.SimpleNamespace(tag=None)
+        got = backdrop_tag(item)
+        self.assertTrue(got.startswith("__anon"))
+        self.assertIsInstance("__bg:" + got, str)   # the concatenation that used to raise
+
+    def test_the_minted_tag_is_stable_across_presents(self):
+        # The engine addresses widgets by tag: a value that changed per frame would emit
+        # a NEW widget every present instead of updating the one already there.
+        from sbs_utils.pages.layout.measure import backdrop_tag
+        item = types.SimpleNamespace(tag=None)
+        self.assertEqual(backdrop_tag(item), backdrop_tag(item))
+
+    def test_two_untagged_items_do_not_collide(self):
+        from sbs_utils.pages.layout.measure import backdrop_tag
+        a = types.SimpleNamespace(tag=None)
+        b = types.SimpleNamespace(tag=None)
+        self.assertNotEqual(backdrop_tag(a), backdrop_tag(b))
+
+    def test_a_blank_with_a_background_presents(self):
+        # The actual reported crash, end to end through Column._pre_present.
+        from sbs_utils.pages.layout.blank import Blank
+        from sbs_utils.pages.layout.bounds import Bounds
+        col = Blank()
+        col.tag = None
+        col.background_color = "#000"
+        col.bounds = Bounds(0.0, 0.0, 10.0, 10.0)
+        sent = []
+        ctx = FrameContext.context
+        FrameContext.context = types.SimpleNamespace(
+            sbs=types.SimpleNamespace(
+                send_gui_image=lambda *a: sent.append(a[2])))
+        try:
+            col._pre_present(types.SimpleNamespace(client_id=1))
+        finally:
+            FrameContext.context = ctx
+        self.assertEqual(len(sent), 1)
+        self.assertTrue(sent[0].startswith("__bg:__anon"))

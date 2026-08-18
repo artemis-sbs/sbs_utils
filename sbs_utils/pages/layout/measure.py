@@ -496,6 +496,40 @@ def measure_cache_stats():
 BACKDROP_LAYER = 1000
 
 
+# Anonymous backdrop tags. Process-wide and monotonic; only ever appended to, so there is
+# no per-mission state here to reset.
+_ANON_BACKDROP_SEQ = [0]
+
+
+def backdrop_tag(item):
+    """The tag to address one item's background / border widget by.
+
+    A layout item that never took a tag -- a `gui_blank` used as a spacer, a bare section --
+    has ``tag is None``, and ``"__bg:" + None`` is a `TypeError`. It fires only the FIRST
+    time somebody gives such an item a background, which is why it sat unseen until an
+    opaque gutter was needed beside a face (a face cannot be layered, so the fill has to go
+    around it -- see the note above).
+
+    Minted lazily and CACHED on the item. The engine addresses widgets by tag, so a value
+    that changed from frame to frame would emit a NEW widget every present instead of
+    updating the one already there.
+    """
+    tag = getattr(item, "tag", None)
+    if tag is not None:
+        return tag
+    tag = getattr(item, "_anon_backdrop_tag", None)
+    if tag is None:
+        _ANON_BACKDROP_SEQ[0] += 1
+        tag = f"__anon{_ANON_BACKDROP_SEQ[0]}"
+        try:
+            item._anon_backdrop_tag = tag
+        except AttributeError:
+            # __slots__ or similar: a per-frame tag still draws, it just cannot be
+            # updated in place. Better than taking the page down.
+            pass
+    return tag
+
+
 def backdrop_props(image, color, layer=None):
     """Props for a background / border fill.
 

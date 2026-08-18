@@ -1,5 +1,5 @@
 from .bounds import Bounds
-from .measure import backdrop_props
+from .measure import backdrop_props, backdrop_tag
 from ...helpers import FrameContext
 from ...message_chain import invoke_message_cb
 from ...agent import Agent
@@ -311,7 +311,7 @@ class Column:
             bb.grow(self.border)
             bb_props = backdrop_props(self.border_image, self.border_color, self.get_layer())
             ctx.sbs.send_gui_image(event.client_id, self.region_tag,
-                "__bb:"+self.tag, bb_props,
+                "__bb:"+backdrop_tag(self), bb_props,
                 bb.left, bb.top, bb.right, bb.bottom)
 
         if self.background_color is not None:
@@ -324,7 +324,7 @@ class Column:
             bg = Bounds(self.bounds)
             bg.grow(self.padding)
             ctx.sbs.send_gui_image(event.client_id, self.region_tag,
-                "__bg:"+self.tag, props,
+                "__bg:"+backdrop_tag(self), props,
                 bg.left, bg.top, bg.right, bg.bottom)
 
     def _post_present(self, event):
