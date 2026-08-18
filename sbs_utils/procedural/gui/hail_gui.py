@@ -549,7 +549,17 @@ overlay_register(HAIL_BAND_SLOT, _hail_band_builder)
 
 
 HAIL_SCREEN_SLOT = "fullscreen"
-SCREEN_BACKGROUND = "#000e"
+
+# FULLY OPAQUE, no alpha nibble. This form OWNS the screen - the builder below only runs
+# for the presentations that take it over - so anything showing through is not atmosphere,
+# it is the 3D view competing with the words. `#000e` was meant to read as near-opaque and
+# did not: measured in the engine, the scene behind a Chin'toka hail was plainly legible
+# through it, and the engine's own ship_data readout landed on top of the speaker's name.
+# Three digits is the library's spelling for an opaque colour and leaves nothing to parse.
+#
+# The BAND form keeps its alpha on purpose - a strip over a live view is supposed to let
+# the view through. Only the take-the-screen form is opaque.
+SCREEN_BACKGROUND = "#000"
 
 
 def _hail_screen_builder(client_id, content):
