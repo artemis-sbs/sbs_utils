@@ -163,9 +163,11 @@ class TestOperatorProfile(_Base):
     repo. An OPERATOR's house setup is not - written there it needs a `.gitignore` line
     and does not survive a re-extract. So a shared tier lives beside the missions.
 
-    It is SETTINGS ONLY: `addons:`/`media:` resolve against one mission's story.json, and
-    honoring them from a shared file is the worst option available - excluding an add-on
-    another one `requires` compiles the story to zero labels while still reporting PASS.
+    It is equally full featured. An `addons:`/`media:` selection resolves through
+    `__lib__`, which is shared across missions - so "the Artemis 2.8 skies in whatever I
+    am running" is one file rather than one copy per mission. Only `exclude:` names
+    something the mission itself declared, and an exclude matching nothing is a no-op
+    filter rather than an error.
     """
 
     def _write_common(self, name, body):
@@ -198,17 +200,35 @@ class TestOperatorProfile(_Base):
         mock.set_command_line(["profile=house_x"])
         self.assertEqual(S.settings_get_defaults()["DIFFICULTY"], 3)
 
-    def test_content_sections_are_refused_and_said_so(self):
+    def test_a_shared_profile_can_select_content(self):
+        """The case this tier exists for: one skybox swap, every mission.
+
+        `addons: include:` falls back to __lib__ and a media pack matches the shared
+        packs there, so neither needs the mission's own story.json to mean something.
+        """
         self._write_common("house_x", """
 DIFFICULTY: 9
 addons:
-    exclude: [something]
+    exclude: [basic_random_skybox]
+    include: [a28_skyboxes]
+media:
+    include: [A28-Skybox-Mod.media]
 """)
         mock.set_command_line(["profile=house_x"])
-        s = S.settings_get_defaults()
-        self.assertEqual(s["DIFFICULTY"], 9)      # the settings still apply
-        self.assertNotIn("addons", s)
-        self.assertTrue(any("addons" in w for w in self._warnings), self._warnings)
+        S.settings_profile_reset()
+        self.assertEqual(S.settings_get_defaults()["DIFFICULTY"], 9)
+        include, exclude = S.settings_profile_addons()
+        self.assertIn("a28_skyboxes", include)
+        self.assertIn("basic_random_skybox", exclude)
+        m_include, _ = S.settings_profile_media()
+        self.assertIn("a28-skybox-mod.media", m_include)
+
+    def test_a_settings_only_shared_profile_selects_no_content(self):
+        self._write_common("house_x", "DIFFICULTY: 9")
+        mock.set_command_line(["profile=house_x"])
+        S.settings_profile_reset()
+        S.settings_get_defaults()
+        self.assertEqual(S.settings_profile_addons(), ([], set()))
 
     def test_a_missing_profile_names_both_places_it_looked(self):
         mock.set_command_line(["profile=nowhere_at_all"])

@@ -135,26 +135,6 @@ def _profile_load(path_for):
     return data if isinstance(data, dict) else None
 
 
-def _profile_strip_content(data, name):
-    """Drop `addons:`/`media:` from an OPERATOR-tier profile, loudly.
-
-    Those two sections are resolved against one mission's `story.json` - an `exclude` names
-    an add-on that mission declares, an `include` names one it can find. A profile shared
-    across missions cannot mean anything by them. Honoring them anyway is the worst option
-    available: excluding an add-on another one `requires` compiles the story to ZERO labels
-    while still reporting PASS, and an unmet `include` loses art silently. So they are
-    refused, by name, and the settings in the same file still apply.
-    """
-    dropped = [k for k in ("addons", "media") if k in data]
-    if not dropped:
-        return data
-    _warn(f"profile='{name}' is a shared profile, so its "
-          f"{' and '.join(dropped)} section(s) were ignored - add-on and media selection "
-          f"only resolves against one mission's story.json. Put it in "
-          f"<mission>/profiles/{name}.yaml instead.")
-    return {k: v for k, v in data.items() if k not in ("addons", "media")}
-
-
 def _profile_overrides():
     """Settings from `profile=<name>` on the command line -> `profiles/<name>.yaml`.
 
@@ -169,7 +149,9 @@ def _profile_overrides():
        mission and shipped with it. Full featured: settings, `addons:`, `media:`.
     2. `common_data/profiles/<name>.yaml` - the OPERATOR's own, beside the missions rather
        than inside one, so a host's house setup is not written into a folder that a `git
-       pull` or a re-extract owns. **Settings only** (see :func:`_profile_strip_content`).
+       pull` or a re-extract owns. Equally full featured: an `addons:`/`media:` selection
+       resolves through `__lib__`, which is shared, so "the Artemis 2.8 skies in whatever
+       I am running tonight" is one file rather than one per mission.
 
     The mission wins on a name collision, so a mission can always ship a definitive
     profile under a name an operator also happens to use.
@@ -188,8 +170,16 @@ def _profile_overrides():
 
     data = _profile_load(lambda ext: get_common_data_filename("profiles", name + ext))
     if data is not None:
-        _log(f"profile='{name}' came from common_data/profiles - shared across missions")
-        return _profile_strip_content(data, name)
+        # A shared profile is a FULL profile, `addons:`/`media:` included. Those resolve
+        # globally, not per mission: `addons: include:` falls back to __lib__ (see
+        # Mast.addon_include_path) and a media pack matches the shared packs there, so
+        # "the Artemis 2.8 skies in whatever I am running" is exactly the case this tier
+        # is for. Only `exclude:` names something the mission itself declared, and an
+        # exclude that matches nothing is a no-op filter rather than an error.
+        extra = " (selects content)" if ("addons" in data or "media" in data) else ""
+        _log(f"profile='{name}' came from common_data/profiles - shared across "
+             f"missions{extra}")
+        return data
 
     _warn(f"profile='{name}' matched neither profiles/{name}.yaml in the mission nor "
           f"common_data/profiles/{name}.yaml - ignoring it")

@@ -10,22 +10,29 @@ python -m cosmos_dev.mission_runner . --test 20 --map 0 --profile a28_skies
 
 It lives in one of two places, searched in this order:
 
-| path | authored by | can select |
+| path | authored by | scope |
 |---|---|---|
-| `<mission>/profiles/<name>.yaml` | whoever wrote the mission; ships with it | settings, add-ons, media packs |
-| `<missions>/common_data/profiles/<name>.yaml` | the **operator**; shared across missions | settings only |
+| `<mission>/profiles/<name>.yaml` | whoever wrote the mission; ships with it | that mission |
+| `<missions>/common_data/profiles/<name>.yaml` | the **operator**; not inside any mission | every mission |
 
-The mission's own wins a name collision, so a mission can always ship a definitive profile
-under a name an operator also uses. Which one answered is logged.
+Both are full profiles - settings, `addons:` and `media:` alike. The mission's own wins a
+name collision, so a mission can always ship a definitive profile under a name an operator
+also uses. Which one answered is logged.
 
 The shared tier exists because an operator's house setup is not mission content: written
 into a mission folder it needs a `.gitignore` line and does not survive a re-extract, and
-`common_data` sits beside the missions instead. It is **settings only** - an `addons:` or
-`media:` section there is refused by name, and the settings in the same file still apply.
-Those two sections resolve against one mission's `story.json`, so a shared file cannot
-mean anything by them, and honoring them anyway is the worst option available: excluding
-an add-on another one `requires` compiles the story to **zero labels** while still
-reporting PASS.
+`common_data` sits beside the missions instead. **A shared profile can select content**,
+which is most of the point - `addons: include:` falls back to `__lib__` and a media pack
+matches the packs there, and both of those are shared, so "the Artemis 2.8 skies in
+whatever I am running tonight" is one file rather than one copy per mission:
+
+```
+sbs run server,science,comms profile=a28_skies -m WalkTheLine
+```
+
+Only `exclude:` names something a particular mission declared, and an `exclude` that
+matches nothing is a no-op filter rather than an error - so the same file is safe to point
+at a mission that never had the add-on you are replacing.
 
 ## Why a file and not more arguments
 
