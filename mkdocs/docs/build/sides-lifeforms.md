@@ -28,6 +28,54 @@ sim.set_diplomacy_color(sbs.DIPLOMACY.NEUTRAL, "#077")
 An object's side is the **first role** in its `npc_spawn` roles string
 (`"tsn, station"` → side `tsn`).
 
+### Declaring sides as data
+
+A whole faction set can be authored in an AMD document and declared with
+`sides_load_amd("maps/sides.amd")` — one heading per side, the fence carrying its identity
+and diplomacy:
+
+```
+# [Raider](raider)
+---
+Color: #F00
+Enemies: players, civilians
+---
+Hostile Aliens.
+
+# [Civ](civ)
+---
+Color: white
+Civilian: true
+Neutral: players
+---
+Civilians. Protect them from attack.
+```
+
+**Relations exist only where you declare them.** Nothing defaults an unnamed pair, so a set
+of factions that each name one enemy produces a *star* — one side hostile to everyone, and
+every other pair silently neutral. That failure is invisible in testing, because what breaks
+is the shooting rather than the script: ships spawn on the right sides, correctly armed, and
+simply never fire.
+
+Three reserved words save you from naming every pair. **Explicit names always win over a
+token.**
+
+| Token | Means |
+|---|---|
+| `*` | every other side **in this document** |
+| `players` | every side in `PLAYER_LIST`, plus any side a player ship is actually on |
+| `civilians` | every side declaring `Civilian: true`, **in any document** |
+
+`players` and `civilians` deliberately reach **across documents**, which is what lets an
+addon and a total conversion coexist: neither can name the other's sides, so `Enemies: tsn`
+is inert beside a mod whose crews fly `federation`. Written as `Enemies: players`, raiders
+prey on whoever turns up. `*` stays inside its own document, so an addon cannot silently
+redefine a relation with a side it has never heard of.
+
+Sides are declared before any ship exists, so `players` resolves from the roster at that
+point. Call `sides_apply_audiences()` after the crew is real — or after a mission moves a
+crew to another side — and the same rules re-resolve against the live ships.
+
 ## Lifeforms (NPCs)
 
 A lifeform is an NPC used for comms, names, and faces. Create them at the top level
