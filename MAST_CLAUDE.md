@@ -733,8 +733,10 @@ double-buffered and swapped at present time.
 #### Which task a handler runs on, and how it must end (2026-08-19)
 
 A handler belongs to the task that **built the widget**, which is only the GUI
-task when the console built its own screen. Three flags (all default OFF, LM
-#714/#713) change that; `mkdocs/docs/mast/handler-lifetime.md` is the reference.
+task when the console built its own screen. Three flags (all default **ON** since
+2026-08-19, LM #714/#713) change that; `mkdocs/docs/mast/handler-lifetime.md` is
+the reference. Naming any of them on `mission_runner` PINS the set, so the ones
+you omit are turned off - that is how an A/B stays one flag apart.
 
 - `MastAsyncTask.promote_await_gui` - `await gui()` on a task that is not the
   page's `gui_task` sends the GUI task to that exact command instead of hanging.

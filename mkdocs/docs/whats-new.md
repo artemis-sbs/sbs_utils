@@ -11,8 +11,7 @@ go to the relevant docs.
 `on gui_message`, `on change` and `on_press=` all belonged to the task that
 **built the widget**. That is invisible while the builder is the console's own
 GUI task, and confusing the moment it is not — which is exactly what
-`gui_sub_task_schedule` is for. Three changes, each behind a flag while they are
-proven in the field:
+`gui_sub_task_schedule` is for. Three changes, all on by default:
 
 - **`await gui()` reached off the GUI task** used to hang the calling task
   forever on a promise the page never adopted, print a bare `print()` nothing
@@ -29,10 +28,11 @@ proven in the field:
   build, like every other handler, instead of dying with the task that
   registered it.
 
-One fix is **not** behind a flag, because it is a plain defect: `on_new_gui`
-ended every hosted handler hanging off the GUI task — including the one that was
-*currently painting*. A handler that repainted killed itself on its own first
-tagged widget and never reached its `await gui()`.
+A fourth fix came out of the same work: `on_new_gui` ended every hosted handler
+hanging off the GUI task — including the one that was *currently painting*. A
+handler that repainted killed itself on its own first tagged widget and never
+reached its `await gui()`. It could not tell "the GUI that owned me is being
+replaced" from "I am the one replacing it".
 
 New reference page: **[Handler lifetime](mast/handler-lifetime.md)** — which task
 runs each form, how long it lives, how it should end, and when you still need
