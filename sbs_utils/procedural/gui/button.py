@@ -18,12 +18,42 @@ class ButtonResult:
         return self.layout_item.data
         
 
+def handler_inputs(data):
+    """A widget's ``data=`` as the dict start_sub_task wants.
+
+    The two dispatch paths disagreed about non-dict data: the jump path bound it
+    to a variable called ``data``, while the sub-task path handed it straight to
+    start_sub_task, whose ``for k in inputs`` then walked a string or a list.
+    A dict was always fine on both. This makes them agree. (LM #714)
+    """
+    if data is None:
+        return None
+    if isinstance(data, dict):
+        return data
+    return {"data": data}
+
+
 class MessageHandler:
-    def __init__(self, layout_item, task, handler, is_sub_task) -> None:
+    def __init__(self, layout_item, task, handler, is_sub_task=None) -> None:
         self.layout_item = layout_item
         self.handler = handler
         self.task = task
+        # None means the script did not say. Resolved per click, not here, so a
+        # test (or a profile) can flip the default after the widget was built.
         self.is_sub_task = is_sub_task
+
+    def runs_as_sub_task(self):
+        """Whether this click starts a sub-task or jumps the builder.
+
+        Explicit wins in both directions. Unspecified follows
+        MastAsyncTask.handler_defaults_to_sub_task(), which is the #714 pair --
+        sub-task default + `await gui()` promotion -- and is all-or-nothing on
+        purpose.
+        """
+        if self.is_sub_task is not None:
+            return bool(self.is_sub_task)
+        from ...mast.mastscheduler import MastAsyncTask
+        return MastAsyncTask.handler_defaults_to_sub_task()
 
     def is_inert(self):
         """True when this handler has nothing to run.
@@ -42,24 +72,23 @@ class MessageHandler:
             # -- and a task we just woke has to be ticked here, because nothing
             # else is going to tick it. See LM issue #707.
             was_dead = self.task.done() or self.task.active_ticker.done
+            is_sub_task = self.runs_as_sub_task()
             restore = FrameContext.task
             FrameContext.task = self.task
 
             self.task.set_variable("__ITEM__", self.layout_item)
             # Should it use data here?
-            if not self.is_sub_task:
-                data = self.layout_item.data
-                if data is not None and isinstance(data, dict):
-                    for k,v in data.items():
+            if not is_sub_task:
+                inputs = handler_inputs(self.layout_item.data)
+                if inputs is not None:
+                    for k, v in inputs.items():
                         self.task.set_variable(k, v)
-                elif data is not None:
-                    self.task.set_variable("data", data)
 
             if isinstance(self.handler, Promise):
                 self.handler.set_result(ButtonResult(self.layout_item, event.client_id))
             elif callable(self.handler):
                 self.handler()
-            elif not self.is_sub_task and self.handler is not None:
+            elif not is_sub_task and self.handler is not None:
                 if was_dead and not self.task.revive_for_handler(
                         gui_host_task(self.task)):
                     # jump() alone never runs anything -- it queues pending_jump
@@ -74,7 +103,9 @@ class MessageHandler:
                         # the jump up on the next tick.
                         self.task.tick_in_context()
             else:
-                sub_task = self.task.start_sub_task(self.handler, inputs=self.layout_item.data, defer=True)
+                sub_task = self.task.start_sub_task(
+                    self.handler, inputs=handler_inputs(self.layout_item.data),
+                    defer=True)
                 sub_task.set_variable("__ITEM__", self.layout_item)
                 if was_dead and not host_handler_sub_task(self.task, sub_task):
                     # Not stopped: one tick on a dead parent is what this has
@@ -88,7 +119,7 @@ class MessageHandler:
             FrameContext.task = restore
 
 from ...pages.layout.button import Button
-def gui_button(props, style=None, data=None, on_press=None, is_sub_task=False):
+def gui_button(props, style=None, data=None, on_press=None, is_sub_task=None):
     """Add a button to the current GUI layout outside of an ``await gui()`` block.
 
     Unlike buttons declared with ``*`` or ``+`` inside ``await gui()``, this
@@ -109,10 +140,14 @@ def gui_button(props, style=None, data=None, on_press=None, is_sub_task=False):
         on_press (label | callable | Promise, optional): What to do when the
             button is pressed. A label is jumped to; a callable is called; a
             Promise has its result set. Defaults to None.
-        is_sub_task (bool, optional): When ``True`` the handler runs as an
-            independent sub-task. Use ``False`` (default) only when pressing
-            the button will rebuild the entire GUI via ``await gui()``.
-            Defaults to False.
+        is_sub_task (bool, optional): How an ``on_press`` **label** runs.
+            ``True`` runs it as a sub-task: safe to press repeatedly, and it
+            should end with ``->END``. ``False`` jumps the task that built the
+            widget, so the press takes that task over and the handler must hand
+            the console back -- this is the historical behavior and is
+            **deprecated**. Defaults to None, meaning the library decides; a
+            handler that paints a screen and reaches ``await gui()`` sends the
+            GUI task there either way, so you should not need this.
 
     Valid Styles:
         area: 

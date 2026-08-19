@@ -305,12 +305,22 @@ class StoryPage(Page):
         from ..procedural.gui.options_button import gui_options_button_flag
         FrameContext.context.sbs.transparent_options_button(
             self.client_id, gui_options_button_flag(self.client_id))
+        # Whoever is running right now is the task PAINTING this build. It is
+        # not a leftover of the build being replaced, and ending it here kills
+        # it mid-paint: a re-hosted handler that repaints (press a button ->
+        # draw the next screen) used to end itself on its own first tagged
+        # widget, so it never reached its `await gui()` at all. This loop
+        # cannot otherwise tell "the GUI that owned me is being replaced" from
+        # "I am the one replacing it". See LM #714.
+        building = FrameContext.task
         for sub_task in list(self.gui_task.sub_tasks):
             # A revived handler task (revive_for_handler) is parented here only
             # so it can be TICKED. It belongs to the GUI that owned the widget,
             # so it dies with that GUI -- an attribute, not a role, because any
             # role beyond __mast_task__ makes is_data_record() true and turns
             # dispose() into a no-op.
+            if sub_task is building:
+                continue
             if sub_task.has_role("end_on_new_gui") or getattr(
                     sub_task, "_revived_handler", False):
                 sub_task.end()

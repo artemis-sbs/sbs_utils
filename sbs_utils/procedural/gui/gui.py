@@ -42,6 +42,7 @@ from ...mast.pollresults import PollResults
 from ..execution import task_all, AWAIT
 from .change import ChangeTrigger
 from ...agent import Agent
+import logging
 
 import re
 
@@ -629,6 +630,104 @@ def handle_gui_from_child_task(p):
     yield AWAIT(p)
 
 
+# Sites already reported, so a handler someone keeps pressing warns once
+# instead of once per press. Keyed by SITE, not by task.
+_off_gui_task_sites = set()
+
+
+def await_gui_sites_clear():
+    """Per-mission reset -- see handlerhooks.reset_mission_state."""
+    _off_gui_task_sites.clear()
+
+
+def await_gui_site_count():
+    return len(_off_gui_task_sites)
+
+
+# promote_await_gui outcomes.
+PROMOTED = "promoted"            # the GUI task was sent here; this task ended
+STEERED_ALREADY = "steered"      # an explicit gui_task_jump won; this task ended
+NOT_PROMOTED = "not-promoted"    # nothing was done -- the await will hang
+
+
+def promote_await_gui(page, task, gui_task):
+    """`await gui()` reached on a task that is not the console's GUI task.
+
+    A handler runs on whatever task built the widget, which is very often not
+    the GUI task (LM #714). When such a handler paints a screen and awaits, the
+    console has to follow it -- but the GUI task's in-flight GuiPromise must NOT
+    resolve, or the GUI task falls through past its own `await gui()` into
+    whatever comes next, leaving a screen nobody asked to leave. So this is a
+    JUMP on the GUI task, not a handover of the promise.
+
+    The GUI task is sent to the very command the handler is standing on -- the
+    `await gui()` itself -- so it re-evaluates gui() as the GUI task and takes
+    the normal swap_gui_promise path. Nothing is re-executed: the widgets the
+    handler already queued stay exactly as it left them.
+
+    The old promise is neither resolved nor cancelled here. do_jump does not
+    call leave(), so it is simply abandoned; swap_gui_promise cancels it a
+    moment later, once the GUI task has already jumped off that node.
+
+    Returns one of PROMOTED / STEERED_ALREADY / NOT_PROMOTED. The first two
+    both end the calling task and neither warrants a warning; only the last
+    leaves an `await gui()` that nothing will ever resolve.
+    """
+    from ...mast.mastscheduler import MastAsyncTask
+    from .navigation import page_gui_task_jump
+    if not MastAsyncTask.promote_await_gui:
+        return NOT_PROMOTED
+    if page is None or gui_task is None or gui_task is task or gui_task.done():
+        return NOT_PROMOTED
+    ticker = getattr(task, "active_ticker", None)
+    # MastTicker only: a PyMAST generator has no command index to hand over.
+    if ticker is None or getattr(ticker, "cmds", None) is None:
+        return NOT_PROMOTED
+    # An explicit gui_task_jump / gui_reroute already queued WINS. The scripter
+    # said where the console goes; promotion must not overwrite it. The handler
+    # is finished either way -- it asked for a screen and named the one it
+    # wanted -- so end it rather than leaving it parked on a promise nothing
+    # will resolve, and say nothing: this is correct code, not a mistake.
+    host_ticker = getattr(gui_task, "active_ticker", None)
+    if getattr(host_ticker, "pending_jump", None) is not None:
+        task.end()
+        return STEERED_ALREADY
+    label = task.active_label
+    if isinstance(label, str):
+        label = task.main.mast.labels.get(label)
+    if label is None:
+        return NOT_PROMOTED
+    if not page_gui_task_jump(page, label, ticker.active_cmd):
+        return NOT_PROMOTED
+    # The GUI task owns this `await gui()` now. Nothing is left for the handler
+    # to do, and it must not run the code after the await -- the GUI task is
+    # about to run that itself.
+    task.end()
+    return PROMOTED
+
+
+def warn_await_gui_off_gui_task(task):
+    """Report an `await gui()` that will never resolve.
+
+    Without promotion this hangs the calling task silently and permanently: the
+    promise is returned and awaited, but the page never adopted it, so nothing
+    will ever resolve it. It used to be a bare print(), which in the engine goes
+    nowhere a scripter will look.
+    """
+    from .message import _handler_site
+    ticker = getattr(task, "active_ticker", None)
+    site = _handler_site(task, task.active_label, getattr(ticker, "active_cmd", 0))
+    if site in _off_gui_task_sites:
+        return
+    _off_gui_task_sites.add(site)
+    where = f"{site[0]} line {site[1]}" if site[0] else f"label {site[1]}"
+    logging.getLogger("mast.runtime").warning(
+        f"await gui() at {where} is not on this console's main GUI task, so "
+        f"nothing will ever resolve it and the task stops here. Use "
+        f"gui_task_jump(label) to send the GUI task to the screen you want."
+    )
+
+
 @awaitable
 def gui(buttons=None, timeout=None):
     """Present the GUI layout that has been queued up for the current client.
@@ -668,7 +767,8 @@ def gui(buttons=None, timeout=None):
             ret .buttons.append(Button(k, label=buttons[k],loc=0))
     
     if task != gui_task:
-        print("await gui() was not called in gui's main task. Consider using gui_task_jump.")
+        if promote_await_gui(page, task, gui_task) is NOT_PROMOTED:
+            warn_await_gui_off_gui_task(task)
     else:
         page.swap_gui_promise(ret)
     return ret

@@ -157,6 +157,8 @@ def reset_mission_state():
     # to catch.
     from .procedural.gui.message import dead_handler_sites_clear
     dead_handler_sites_clear()
+    from .procedural.gui.gui import await_gui_sites_clear
+    await_gui_sites_clear()
     # Grav tethers. The engine holds the connections and _TETHERS holds the enforcement
     # state that drives them - neither was cleared, so a tether from the LAST mission
     # survived the reload and its per-tick enforcer kept capping a ship's throttle in
@@ -347,6 +349,8 @@ from .procedural.amd_drops import drops_size as _drops_size
 register_reset_state("drop tables", _drops_size)
 from .procedural.gui.message import dead_handler_site_count as _dead_handler_sites
 register_reset_state("dead GUI handler warnings", _dead_handler_sites)
+from .procedural.gui.gui import await_gui_site_count as _await_gui_sites
+register_reset_state("off-gui-task await warnings", _await_gui_sites)
 from .faces import face_mod_size as _face_mod_size
 register_reset_state("mod face registry", _face_mod_size)
 from .procedural.volume import volume_count as _volume_count

@@ -97,6 +97,20 @@ class OnChangeRuntimeNode(MastRuntimeNode):
         return prev!=self.value
     
     def run(self):
+        # The block IS the builder's code, so it can only run on the builder --
+        # exactly like an `on gui_message` inline block. If the builder has
+        # ended, wake it the same way the click path does; push_inline_block on
+        # a finished task only queues a jump that tick() returns before reading.
+        # See LM #713.
+        from ..mastscheduler import MastAsyncTask
+        if self.task.done() or self.task.active_ticker.done:
+            if not MastAsyncTask.rehost_gui_watchers:
+                return
+            if not self.task.revive_for_handler(self.task.gui_host_task()):
+                from ...procedural.gui.message import warn_dead_handler
+                warn_dead_handler(self.task, self.node_label, self.node.loc,
+                                  "`on change` block")
+                return
         self.is_running = True
         self.task.push_inline_block(self.node_label, self.node.loc+1)
         self.task.tick_in_context()

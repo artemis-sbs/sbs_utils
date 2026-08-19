@@ -750,6 +750,50 @@ class MastAsyncTask(Agent, Promise):
     # handler the GUI task owned. See LM issue #589.
     buffer_inline_signals = True
 
+    # Behavior flag for the `await gui()` promotion in procedural/gui/gui.py.
+    # OFF is the historical behavior: `await gui()` on a task that is not the
+    # page's gui_task prints a warning and hands back a promise the page never
+    # adopted, so the task hangs silently forever. ON treats it as a jump on the
+    # main GUI task -- the console's screen becomes what the handler built, and
+    # the GUI task's in-flight GuiPromise is superseded, never resolved.
+    # Off by default until the A/B conformance runs say what flipping it wakes
+    # up. See LM issue #714.
+    promote_await_gui = False
+
+    # Behavior flag for the on_press=<label> default (LM #714). OFF is the
+    # historical default: a label handler JUMPS the task that built the widget,
+    # so pressing the button takes that task over and the handler has to hand
+    # the console back. ON makes it a sub-task hosted by the GUI task, which is
+    # what `is_sub_task=True` has always meant -- safe to press repeatedly, ends
+    # with ->END.
+    #
+    # DELIBERATELY COUPLED to promote_await_gui, and read as
+    # `handler_sub_task_default and promote_await_gui` at the call site rather
+    # than merely documented. On its own this flip would break EVERY repaint
+    # handler at once: they end in `jump <paint>` -> `await gui()`, which works
+    # today only because the jump path leaves them ON the GUI task. Promotion
+    # is what keeps them working once they are not.
+    handler_sub_task_default = False
+
+    # Behavior flag for the `on change` watcher path (LM #713). OFF is the
+    # historical behavior: a watcher lives in the list of the task that
+    # REGISTERED it, and run_on_change() only reaches it by recursing through
+    # gui_task.sub_tasks -- so when that builder ends, tick_subtasks removes and
+    # disposes it and the watcher goes with it. A panel painted by
+    # gui_sub_task_schedule therefore never sees its own `on change` fire.
+    #
+    # ON re-hosts the watcher onto the page's GUI task, which is what the CLICK
+    # path already does for handlers (host_handler_sub_task). The runtime node
+    # keeps pointing at the builder, so the expression and the block still
+    # evaluate in the builder's scope.
+    rehost_gui_watchers = False
+
+    @staticmethod
+    def handler_defaults_to_sub_task():
+        """Whether an unspecified on_press=<label> runs as a sub-task."""
+        return bool(MastAsyncTask.handler_sub_task_default
+                    and MastAsyncTask.promote_await_gui)
+
     def __init__(self, main: 'MastScheduler', inputs=None, name= None):
         super().__init__()
         self.id = get_task_id()
@@ -825,8 +869,24 @@ class MastAsyncTask(Agent, Promise):
     def queue_on_change(self, runtime_node):
         if self.is_gui_task:
             self.pending_on_change_items.append(runtime_node)
-        else:
-            self.on_change_items.append(runtime_node)
+            return
+        host = self.gui_host_task() if MastAsyncTask.rehost_gui_watchers else None
+        if host is not None:
+            # Owned by the BUILD, like every other handler: pending so it goes
+            # live at present time with the rest of this build, and is dequeued
+            # when the next build replaces it. Without this it is owned by the
+            # builder TASK and dies the moment that task ends. See LM #713.
+            host.pending_on_change_items.append(runtime_node)
+            return
+        self.on_change_items.append(runtime_node)
+
+    def gui_host_task(self):
+        """The page's GUI task, when this task is not it. Else None."""
+        page = getattr(getattr(self, "main", None), "page", None)
+        host = getattr(page, "gui_task", None)
+        if host is None or host is self or host.done():
+            return None
+        return host
 
     def run_on_change(self):
         any_ran = False

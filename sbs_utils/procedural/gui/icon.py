@@ -149,7 +149,7 @@ def gui_icon_add_atlas_grid(image, cols, rows=None, names=None, cell=None, color
 
 
 from ...pages.layout.icon_button import IconButton
-def gui_icon_button(props, style=None, data=None, on_press=None, is_sub_task=False):
+def gui_icon_button(props, style=None, data=None, on_press=None, is_sub_task=None):
     """Add a clickable icon button to the current GUI layout.
 
     Like ``gui_icon`` but the rendered item accepts click events. Takes
@@ -167,8 +167,14 @@ def gui_icon_button(props, style=None, data=None, on_press=None, is_sub_task=Fal
             icon is pressed. A label is jumped to; a callable is called; a
             Promise has its result set. Defaults to None - attach the handler
             with ``gui_message`` / ``gui_click`` instead.
-        is_sub_task (bool, optional): When ``True`` an ``on_press`` label runs
-            as an independent sub-task. Defaults to False.
+        is_sub_task (bool, optional): How an ``on_press`` **label** runs.
+            ``True`` runs it as a sub-task: safe to press repeatedly, and it
+            should end with ``->END``. ``False`` jumps the task that built the
+            widget, so the press takes that task over and the handler must hand
+            the console back -- this is the historical behavior and is
+            **deprecated**. Defaults to None, meaning the library decides; a
+            handler that paints a screen and reaches ``await gui()`` sends the
+            GUI task there either way, so you should not need this.
 
     Returns:
         IconButton: The layout item created.

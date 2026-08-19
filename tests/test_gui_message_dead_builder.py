@@ -160,10 +160,21 @@ class _Base(unittest.TestCase):
         self._pop = OnChangeRuntimeNode.pop_inline_block_on_end
         MastAsyncTask.revive_ended_handlers = False
         OnChangeRuntimeNode.pop_inline_block_on_end = False
+        # ...and the #714 pair, for the same reason. These classes describe
+        # on_press=<label> as a JUMP on the builder; once it defaults to a
+        # sub-task instead, "dropped on a dead task" stops being true (a
+        # sub-task gets its one free tick and runs). Pinning keeps the
+        # characterization about #707 rather than about whatever ships later.
+        self._promote = MastAsyncTask.promote_await_gui
+        self._dflt = MastAsyncTask.handler_sub_task_default
+        MastAsyncTask.promote_await_gui = False
+        MastAsyncTask.handler_sub_task_default = False
 
     def _restore_flags(self):
         MastAsyncTask.revive_ended_handlers = self._revive
         OnChangeRuntimeNode.pop_inline_block_on_end = self._pop
+        MastAsyncTask.promote_await_gui = self._promote
+        MastAsyncTask.handler_sub_task_default = self._dflt
 
     def builder(self):
         """The MessageTrigger's task -- whichever task built the widget."""

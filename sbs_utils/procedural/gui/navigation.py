@@ -1,5 +1,32 @@
 from ...helpers import FrameContext, FrameContextOverride, FakeEvent
 
+
+def page_gui_task_jump(page, label, activate_cmd=0, tick=False):
+    """Queue a jump on a page's GUI task. The one place that does this.
+
+    Three callers steer a console's GUI task from outside it -- gui_task_jump,
+    gui_reroute_client, and the `await gui()` promotion in gui.py (LM #714) --
+    and they used to each spell it out. They differ only in whether the jump
+    runs in the CURRENT frame:
+
+      tick=False  queue it; the next scheduler tick picks it up.
+      tick=True   run it now, under a FrameContextOverride, the way a repaint
+                  triggered by a click has to.
+
+    Returns True when the jump was queued.
+    """
+    if page is None:
+        return False
+    gui_task = getattr(page, "gui_task", None)
+    if gui_task is None:
+        return False
+    with FrameContextOverride(gui_task, page,
+                              FakeEvent(page.client_id, "mission_tick") if tick else None):
+        gui_task.jump(label, activate_cmd)
+        if tick:
+            gui_task.tick_in_context()
+    return True
+
 def _gui_reroute_main(label, server):
     task = FrameContext.task
     #
@@ -60,11 +87,8 @@ def gui_reroute_client(client_id, label, data=None):
         if data:
             for k in data:
                 page.gui_task.set_variable(k, data[k])
-        # This needs to look like the client is being told to repaint
-        fe = FakeEvent(page.client_id, "mission_tick")
-        with FrameContextOverride(page.gui_task, page, fe):
-            page.gui_task.jump(label)
-            page.gui_task.tick_in_context()
+        # tick=True: this needs to look like the client is being told to repaint
+        page_gui_task_jump(page, label, tick=True)
 
 def gui_reroute_server(label, data=None):
     """Jump the server GUI task to a new label.

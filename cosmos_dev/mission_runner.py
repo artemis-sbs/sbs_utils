@@ -726,7 +726,7 @@ def _compiler_errors():
 
 
 def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
-                      exerciser=None, game_end=None) -> int:
+                      exerciser=None, game_end=None, coverage_json=None) -> int:
     """Print the coverage + verdict report for a --test run; optionally write
     JUnit XML. Returns the process exit code (0 pass / 1 fail)."""
     from sbs_utils.gui import Gui
@@ -830,6 +830,24 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
         print(_NOTHING_RAN)
     print("=============================")
 
+    if coverage_json and cov is not None:
+        # LINE-level coverage, which is the stable thing to diff in an A/B.
+        # LM map 0's LABEL count moves by 1-3 between identical runs (the quest
+        # and prefab it picks are not seeded), so a label diff reads exactly
+        # like a real coverage change and is not evidence. Lines do not move.
+        try:
+            import json as _json
+            hits = {f: sorted(v) for f, v in sorted(cov.hits_by_file().items())
+                    if f is not None}
+            with open(coverage_json, "w", encoding="utf-8") as fh:
+                _json.dump({"mission": name, "map": str(map_arg),
+                            "summary": summ,
+                            "labels": sorted(str(l) for l in cov.labels_hit),
+                            "lines": hits}, fh, indent=1, sort_keys=True)
+            print(f"[runner] coverage written: {coverage_json} "
+                  f"({sum(len(v) for v in hits.values())} lines in {len(hits)} files)")
+        except Exception as e:
+            print(f"[runner] coverage write failed: {e}")
     if junit_path:
         try:
             _write_junit(junit_path, name, ok, verdict, summ, ran_nothing)
@@ -1027,6 +1045,7 @@ def _run(
     cosmos_dir: str | None = None,
     test_seconds: float | None = None,
     junit_path: str | None = None,
+    coverage_json: str | None = None,
     lint_strict: bool = False,
     exercise: bool = False,
     exercise_console: str | None = None,
@@ -1039,6 +1058,9 @@ def _run(
     audit_gui_handlers: bool = False,
     gui_handler_revive: bool = False,
     inline_block_pop: bool = False,
+    promote_await_gui: bool = False,
+    handler_sub_task_default: bool = False,
+    rehost_gui_watchers: bool = False,
     aspect: str | None = None,
     dap_port: int | None = None,
     dap_wait: bool = False,
@@ -1185,9 +1207,10 @@ def _run(
         layout_audit.install(sbs, aspect=_aspect_wh or (1024, 768))
         print("[runner] layout audit installed")
 
-    # LM #707 behavior flags. Both default OFF in the library; these switches
-    # exist so an A/B conformance run is exactly one flag apart, with the seed
-    # and everything else identical.
+    # LM #707 behavior flags. Both ship ON now; passing either switch PINS the
+    # pair explicitly, so an A/B conformance run is exactly one flag apart with
+    # the seed and everything else identical. Passing neither leaves the library
+    # defaults alone.
     if gui_handler_revive or inline_block_pop:
         from sbs_utils.mast.mastscheduler import MastAsyncTask
         from sbs_utils.mast.core_nodes.on_change import OnChangeRuntimeNode
@@ -1195,6 +1218,20 @@ def _run(
         OnChangeRuntimeNode.pop_inline_block_on_end = bool(inline_block_pop)
         print(f"[runner] #707 flags: revive={gui_handler_revive} "
               f"inline_pop={inline_block_pop}")
+
+    # LM #714. Both ship OFF. They are a PAIR: the library reads
+    # `handler_sub_task_default and promote_await_gui`, so setting the default
+    # alone does nothing -- on its own it would break every repaint handler.
+    if promote_await_gui or handler_sub_task_default or rehost_gui_watchers:
+        from sbs_utils.mast.mastscheduler import MastAsyncTask
+        MastAsyncTask.promote_await_gui = bool(promote_await_gui)
+        MastAsyncTask.handler_sub_task_default = bool(handler_sub_task_default)
+        MastAsyncTask.rehost_gui_watchers = bool(rehost_gui_watchers)
+        print(f"[runner] #714 flags: promote={promote_await_gui} "
+              f"sub_task_default={handler_sub_task_default} "
+              f"rehost_watchers={rehost_gui_watchers} "
+              f"-> effective_sub_task_default="
+              f"{MastAsyncTask.handler_defaults_to_sub_task()}")
 
     # Make this process look like script.py (handlerhooks expects it)
     sys.modules["script"] = sys.modules.get("__main__")
@@ -2395,8 +2432,15 @@ def _run(
                     print(f"[runner] synthetic client connect failed: {e}")
 
             # --exercise: drive selections/comms each MAST tick once the world is up.
-            if _exerciser is not None and _map_started and run_mast and not sbs.sim._paused:
-                _exerciser.step()
+            if _exerciser is not None and _map_started and run_mast:
+                if not sbs.sim._paused:
+                    _exerciser.step()
+                else:
+                    # A paused sim still has a live GUI, and the end-of-mission
+                    # screen is exactly what a player clicks. Named clicks only:
+                    # the rest of step() teleports ships and forces combat,
+                    # which must not run while the sim is stopped.
+                    _exerciser.click_step()
 
             # LM #707: classify each visible GUI handler as live- or
             # dead-builder. Sampled per tick because a site is classified as
@@ -2404,6 +2448,7 @@ def _run(
             if audit_gui_handlers and _map_started:
                 from cosmos_dev import gui_handler_audit
                 gui_handler_audit.sample()
+                gui_handler_audit.sample_watchers()
 
             # Record the first game-end (win/lose) the mission's logic triggers.
             if _test and _game_end is None:
@@ -2438,6 +2483,7 @@ def _run(
                     _fs.get_mission_dir_filename("mast.runtime.log"))
             _test_exit = _emit_test_report(mission_folder, map_arg, sbs,
                                            _cov, _verdict, junit_path, _exerciser,
+                                           coverage_json=coverage_json,
                                            game_end=_game_end)
             if runs > 1 or fingerprint_json:
                 if not _fingerprints:      # single-run --fresh-process leg
@@ -2516,6 +2562,18 @@ if __name__ == "__main__":
     ap.add_argument("--test", type=float, default=None, metavar="SECONDS",
                     help="Headless conformance run: play ~SECONDS of sim time, then "
                          "print MAST coverage + a pass/fail verdict and exit 0/1")
+    ap.add_argument("--handler-sub-task-default", action="store_true",
+                    help="LM #714: an unspecified on_press=<label> runs as a "
+                         "sub-task instead of jumping the builder. Needs "
+                         "--promote-await-gui; alone it is a no-op by design.")
+    ap.add_argument("--rehost-gui-watchers", action="store_true",
+                    help="LM #713: an `on change` registered by a scheduled "
+                         "builder survives that builder ending, like every other "
+                         "GUI handler (A/B against the default off)")
+    ap.add_argument("--coverage-json", default=None, metavar="PATH",
+                    help="With --test, write LINE-level MAST coverage as JSON. "
+                         "Lines are the stable thing to diff in an A/B; LM map 0's "
+                         "label count moves between identical runs.")
     ap.add_argument("--junit", default=None, metavar="PATH",
                     help="With --test, also write a JUnit XML report to PATH")
     ap.add_argument("--lint-strict", action="store_true",
@@ -2559,6 +2617,10 @@ if __name__ == "__main__":
     ap.add_argument("--inline-block-pop", action="store_true",
                     help="LM #707: pop an `on ...:` inline block when it reaches "
                          "its end, so the task resumes what it was doing")
+    ap.add_argument("--promote-await-gui", action="store_true",
+                    help="LM #714: an `await gui()` reached off the console's GUI "
+                         "task jumps the GUI task there instead of hanging "
+                         "(A/B against the default off)")
     ap.add_argument("--aspect", default=None, metavar="WxH",
                     help="Force the client screen size (e.g. 1280x720) so layouts "
                          "build at it — with --audit-layout, sweep sizes to find "
@@ -2626,6 +2688,7 @@ if __name__ == "__main__":
         cosmos_dir=args.cosmos_dir,
         test_seconds=args.test,
         junit_path=args.junit,
+        coverage_json=args.coverage_json,
         lint_strict=args.lint_strict,
         exercise=args.exercise,
         exercise_console=args.exercise_console,
@@ -2637,6 +2700,9 @@ if __name__ == "__main__":
         audit_layout=args.audit_layout,
         audit_gui_handlers=args.audit_gui_handlers,
         gui_handler_revive=args.gui_handler_revive,
+        promote_await_gui=args.promote_await_gui,
+        handler_sub_task_default=args.handler_sub_task_default,
+        rehost_gui_watchers=args.rehost_gui_watchers,
         inline_block_pop=args.inline_block_pop,
         aspect=args.aspect,
         dap_port=args.dap_port,

@@ -708,14 +708,18 @@ def promise_any(*proms):
 def gui_task_jump(label):
     """Redirect the active GUI task to a new label.
 
+    Use this to steer a console from a task that is NOT its GUI task and does
+    not itself go there -- a watcher loop that kicks a panel to a repaint label
+    and keeps looping, or a Python callback that cannot ``await``. A handler
+    that goes there itself does not need this: reaching ``await gui()`` sends
+    the GUI task to the screen the handler just built.
+
+    Queues the jump; the next scheduler tick takes it. Note it is silently
+    discarded if the GUI task has already finished.
+
     Args:
         label (str | Label): The label to jump to.
     """
-    page = FrameContext.page
-    if page is None:
-        return PollResults.OK_ADVANCE_TRUE
-    task = FrameContext.page.gui_task
-    if task is not None:
-        with FrameContextOverride(task, page):
-            task.jump(label)
+    from .gui.navigation import page_gui_task_jump
+    page_gui_task_jump(FrameContext.page, label)
     return PollResults.OK_ADVANCE_TRUE
