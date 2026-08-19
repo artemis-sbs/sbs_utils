@@ -10667,8 +10667,7 @@ go to the relevant docs.</p>
 <p><code>on gui_message</code>, <code>on change</code> and <code>on_press=</code> all belonged to the task that
 <strong>built the widget</strong>. That is invisible while the builder is the console's own
 GUI task, and confusing the moment it is not — which is exactly what
-<code>gui_sub_task_schedule</code> is for. Three changes, each behind a flag while they are
-proven in the field:</p>
+<code>gui_sub_task_schedule</code> is for. Three changes, all on by default:</p>
 <ul>
 <li><strong><code>await gui()</code> reached off the GUI task</strong> used to hang the calling task
   forever on a promise the page never adopted, print a bare <code>print()</code> nothing
@@ -10685,10 +10684,11 @@ proven in the field:</p>
   build, like every other handler, instead of dying with the task that
   registered it.</li>
 </ul>
-<p>One fix is <strong>not</strong> behind a flag, because it is a plain defect: <code>on_new_gui</code>
-ended every hosted handler hanging off the GUI task — including the one that was
-<em>currently painting</em>. A handler that repainted killed itself on its own first
-tagged widget and never reached its <code>await gui()</code>.</p>
+<p>A fourth fix came out of the same work: <code>on_new_gui</code> ended every hosted handler
+hanging off the GUI task — including the one that was <em>currently painting</em>. A
+handler that repainted killed itself on its own first tagged widget and never
+reached its <code>await gui()</code>. It could not tell "the GUI that owned me is being
+replaced" from "I am the one replacing it".</p>
 <p>New reference page: <strong><a href="../mast/handler-lifetime/">Handler lifetime</a></strong> — which task
 runs each form, how long it lives, how it should end, and when you still need
 <code>gui_task_jump</code>.</p>
