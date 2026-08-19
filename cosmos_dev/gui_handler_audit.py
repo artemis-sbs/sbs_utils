@@ -88,14 +88,63 @@ def sample():
                 if key is None:
                     _seen["unkeyed"] += 1
                     continue
-                rec = _sites.setdefault(key, {"kind": _kind(node), "visible": 0, "dead": 0})
+                rec = _sites.setdefault(key, {"kind": _kind(node), "visible": 0,
+                                              "dead": 0, "unspecified": False})
                 rec["visible"] += 1
+                # LM #714: an on_press=<label> that named neither True nor
+                # False is the set whose DISPATCH changes when the sub-task
+                # default flips -- from a jump on the builder to a hosted
+                # sub-task. Worth listing before upgrading a mission, because
+                # it also changes how the handler label must end.
+                if isinstance(node, MessageHandler) and node.is_sub_task is None                         and node.handler is not None and not callable(node.handler):
+                    rec["unspecified"] = True
                 task = node.task
                 try:
                     if task.done() or task.active_ticker.done:
                         rec["dead"] += 1
                 except Exception:
                     pass
+
+
+def sample_watchers():
+    """Classify `on change` watcher sites (LM #713).
+
+    A watcher is not in any tag_map -- it lives in a task's on_change_items --
+    so sample() cannot see it. Walk the GUI task and its sub-tasks instead. A
+    watcher whose own task has finished is one that stops firing.
+    """
+    from sbs_utils.gui import Gui
+    from sbs_utils.procedural.gui.message import _handler_site
+    for client in list(getattr(Gui, "clients", {}).values()):
+        pages = list(getattr(client, "page_stack", None) or [])
+        page = getattr(client, "page", None)
+        if page is not None and page not in pages:
+            pages.append(page)
+        for pg in pages:
+            gt = getattr(pg, "gui_task", None)
+            if gt is None:
+                continue
+            for owner in [gt] + list(getattr(gt, "sub_tasks", ())):
+                for lst in ("on_change_items", "pending_on_change_items"):
+                    for node in list(getattr(owner, lst, ()) or []):
+                        task = getattr(node, "task", None)
+                        nd = getattr(node, "node", None)
+                        if task is None or nd is None:
+                            continue
+                        try:
+                            f, line = _handler_site(task, getattr(node, "node_label", None),
+                                                    getattr(nd, "loc", 0))
+                        except Exception:
+                            continue
+                        key = (f or "?", line, str(getattr(node, "node_label", "?")))
+                        rec = _sites.setdefault(key, {"kind": "on change", "visible": 0,
+                                                      "dead": 0, "unspecified": False})
+                        rec["visible"] += 1
+                        try:
+                            if task.done() or task.active_ticker.done:
+                                rec["dead"] += 1
+                        except Exception:
+                            pass
 
 
 def report(path=None):
@@ -106,9 +155,15 @@ def report(path=None):
           f"handler-nodes={_seen['nodes']} unresolvable={_seen['unkeyed']}")
     # Every site, not just the dead ones: runs are unioned by hand across maps
     # and missions, and "which sites did this map even build?" is half of that.
+    unspec = {k: v for k, v in _sites.items() if v.get("unspecified")}
+    if unspec:
+        print(f"on_press sites with no is_sub_task=: {len(unspec)}  "
+              f"(their DISPATCH changes when the #714 sub-task default flips, "
+              f"and with it how the handler label must end)")
     for (f, line, label), v in sorted(_sites.items(), key=lambda kv: str(kv[0])):
         mark = "DEAD" if v["dead"] else "live"
-        print(f"  {mark} {v['kind']:<16} {f}:{line}  label={label} "
+        flip = " FLIPS" if v.get("unspecified") else ""
+        print(f"  {mark}{flip} {v['kind']:<16} {f}:{line}  label={label} "
               f"({v['dead']}/{v['visible']} ticks dead)")
     if not dead:
         print("  no site was ever visible while its owning task was finished")

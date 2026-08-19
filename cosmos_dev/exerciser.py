@@ -29,6 +29,10 @@ class Exerciser:
         # console usually has context needs of its own.
         self._extra_consoles = tuple(extra_consoles or ())
         self._offset = 0
+        # Named clicks run on their OWN clock, because _offset only advances
+        # while there is a live player ship -- see step().
+        self._click_offset = 0
+        self._click_rotor = 0
         self.steps = 0
         self.errors = 0
         self.enemies_last = 0   # diagnostics
@@ -57,6 +61,41 @@ class Exerciser:
         """Return the server task, or None if not ready."""
         return FrameContext.server_task
 
+    def click_step(self) -> None:
+        """Press the buttons named by --exercise-click. Nothing else.
+
+        Separate from step(), and callable when step() is not, because the
+        screens most worth driving BY NAME are the ones that outlive the
+        gameplay loop -- the end-of-mission results page and its tabs. Three
+        things independently stopped that working, and each alone was enough to
+        make --exercise-click look like it did nothing:
+
+          * step() returns early with no live player ship, and the click used to
+            sit below that -- so a mission ending in defeat could never have its
+            end screen clicked;
+          * step() is skipped entirely while the sim is PAUSED, which is what a
+            mission does when it ends. The GUI is still live, so the click is
+            still meaningful -- that is why the runner calls this directly;
+          * _click_by_label was looking in the wrong places (see there).
+
+        Its own counter: _offset only advances inside the player-dependent part
+        of step(), so reusing it froze the cadence the moment the players died.
+        """
+        if not self._click_labels:
+            return
+        st = self._server_ctx()
+        if st is None:
+            return
+        _pt, _pm = FrameContext.task, FrameContext.mast
+        FrameContext.task = st
+        FrameContext.mast = st.main.mast
+        try:
+            if self._click_offset % self._click_every == 0:
+                self._click_by_label()
+        finally:
+            FrameContext.task, FrameContext.mast = _pt, _pm
+        self._click_offset += 1
+
     def step(self) -> None:
         """One exercise tick: fire science + comms selects for each player ship
         against a rotating target, within the server MAST context."""
@@ -74,6 +113,9 @@ class Exerciser:
         )
         from sbs_utils.procedural.query import set_weapons_selection
         from sbs_utils.procedural.science import science_ensure_scan
+
+        # Named clicks FIRST, and outside every player-ship guard below.
+        self.click_step()
 
         player_ids = list(role("__player__"))
         if not player_ids:
@@ -142,10 +184,8 @@ class Exerciser:
             # Cycle the synthetic console client through every console so each
             # @console body + watcher executes (deterministic console coverage).
             self._cycle_consoles()
-            # Deliberate clicks by label, before the random fuzz so a fuzz click
-            # cannot steal the step from a driver the caller asked for.
-            if self._click_labels and self._offset % self._click_every == 0:
-                self._click_by_label()
+            # (Named clicks already ran at the top of step(), before the
+            # player-ship guards, so they also reach post-game screens.)
             # Monkey/fuzz: a random valid in-console GUI click every few steps (kept
             # sparse so it doesn't constantly yank a console off its AI loop).
             if self._offset % 3 == 0:
@@ -188,7 +228,7 @@ class Exerciser:
                 self.errors += 1
 
     def _click_by_label(self):
-        """Press every live widget whose DISPLAYED text matches a wanted label.
+        """Press ONE widget whose DISPLAYED text matches a wanted label.
 
         Matches on what the engine would draw (props_display_text strips the
         style props off), case-insensitively, so the caller names the button the
@@ -198,38 +238,86 @@ class Exerciser:
         Server page included, unlike the fuzz: this is a click the caller asked
         for by name, not a random one, and a mission's own driver may well live
         on the server screen.
+
+        **One press per pass, rotating through the names.** The engine delivers
+        exactly one gui_message per press and handlerhooks runs tick_the_rest
+        immediately after it, so several presses with no tick between them is a
+        state the engine cannot reach -- and a driver that manufactures one
+        produces phantom failures rather than finding real ones. This dispatched
+        every match it could see, and because a sub-task handler repaints
+        SYNCHRONOUSLY (adding fresh entries while the walk is still going), the
+        LM results tabs took 40622 presses in a run where the queue-a-jump form
+        took 3380. That starved the rest of the tick and read as lost AI
+        coverage. Same family as the unreachable "rapid click" defect pinned in
+        tests/test_gui_message_dead_builder.py::TestRepeatClicks.
+
+        Coverage does not suffer: the caller's tick loop runs this again next
+        tick, and a screen worth driving is up for thousands of ticks.
         """
         from sbs_utils.gui import Gui
         from sbs_utils.helpers import FakeEvent, props_display_text
-        wanted = {w.strip().lower() for w in self._click_labels if w.strip()}
-        seen = []
-        for cid, gc in list(Gui.clients.items()):
-            page = getattr(gc, "page", None)
-            tag_map = getattr(page, "tag_map", None) if page is not None else None
-            if not tag_map:
-                continue
-            for tag, entry in list(tag_map.items()):
-                # tag_map holds (layout_item, runtime_node) tuples, not the item.
-                item = entry[0] if isinstance(entry, tuple) and entry else entry
-                text = props_display_text(getattr(item, "value", None))
-                if text:
-                    seen.append(f"{cid}:{text.strip()}")
-                if not text or text.strip().lower() not in wanted:
-                    continue
+        from sbs_utils.agent import Agent
+        # The engine sets the `sim` MAST global at the top of
+        # cosmos_event_handler and clears it at the bottom, so it is live for
+        # the whole of a real click. This dispatches Gui.on_message directly, so
+        # without it a handler that runs synchronously inside the click (any
+        # sub-task handler) evaluates `sim` as None -- again, a state the engine
+        # cannot reach. Restored after, so the harness leaves nothing set.
+        _prev_sim = Agent.SHARED.get_inventory_value("sim")
+        Agent.SHARED.set_inventory_value("sim", getattr(self._sbs, "sim", None))
+        try:
+            names = [w.strip().lower() for w in self._click_labels if w.strip()]
+            if not names:
+                return
+            seen = []
+            matches = []          # (cid, tag, text) for every visible match
+            for cid, gc in list(Gui.clients.items()):
+                # The whole page STACK, not just gc.page. A screen pushed over
+                # the console -- the end-of-game results page is the one that
+                # bit -- lives in page_stack, and gui_handler_audit.sample()
+                # could see its widgets for 69k ticks while this reported
+                # "no match".
+                pages = list(getattr(gc, "page_stack", None) or [])
+                page = getattr(gc, "page", None)
+                if page is not None and page not in pages:
+                    pages.append(page)
+                # BOTH maps, for each. swap_layout moves pending_tag_map ->
+                # tag_map on a repaint, so on most ticks a freshly built screen
+                # is ONLY in the pending one and tag_map is empty.
+                for pg in pages:
+                    for attr in ("tag_map", "pending_tag_map"):
+                        for tag, entry in list((getattr(pg, attr, None) or {}).items()):
+                            # the maps hold (layout_item, runtime_node) tuples.
+                            item = entry[0] if isinstance(entry, tuple) and entry else entry
+                            text = props_display_text(getattr(item, "value", None))
+                            if not text:
+                                continue
+                            text = text.strip()
+                            seen.append(f"{cid}:{text}")
+                            if text.lower() in names:
+                                matches.append((cid, tag, text.lower()))
+            if matches:
+                # Rotate so every named button gets its turn over successive
+                # ticks instead of the first one always winning.
+                pref = names[self._click_rotor % len(names)]
+                cid, tag, _ = next((m for m in matches if m[2] == pref), matches[0])
+                self._click_rotor += 1
                 try:
                     Gui.on_message(FakeEvent(client_id=cid, tag="gui_message",
                                              sub_tag=tag))
                     self.clicked += 1
                 except Exception:
                     self.errors += 1
-        # A label that never matches makes a --exercise-click run silently
-        # vacuous: it passes while driving nothing. Say so once, with what WAS
-        # on screen, so the caller can see whether it is a typo or a page that
-        # was never reached.
-        if not self.clicked and not self._warned_click:
-            self._warned_click = True
-            print(f"exercise-click: no match for {list(self._click_labels)}; "
-                  f"visible labels so far: {sorted(set(seen))[:25]}")
+            # A label that never matches makes a --exercise-click run silently
+            # vacuous: it passes while driving nothing. Say so once, with what
+            # WAS on screen, so the caller can see whether it is a typo or a
+            # page that was never reached.
+            if not self.clicked and not self._warned_click:
+                self._warned_click = True
+                print(f"exercise-click: no match for {list(self._click_labels)}; "
+                      f"visible labels so far: {sorted(set(seen))[:25]}")
+        finally:
+            Agent.SHARED.set_inventory_value("sim", _prev_sim)
 
     def _fuzz_gui(self):
         """Monkey/fuzz: fire a random *valid* widget click on each client's live
