@@ -47,6 +47,26 @@ nav:
     - editor/index.md
     - Get started - build a scene: editor/tutorial.md
 
+  # BEGIN generated records nav
+  - The mission data:
+    - records/index.md
+    - "Default": records/default.md
+    - "Jobs": records/jobs.md
+    - "Lore": records/lore.md
+    - "The Fading Signal": records/scout_signal.md
+    - "The Silver Reach": records/silver_reach.md
+    - "The Broken Accord": records/skirmish_arena.md
+    - Captains:
+      - "Vex Karr": records/captains/ashfang.md
+    - Cast:
+      - "Frontier": records/cast/frontier.md
+    - Dialogue:
+      - "Ashfang": records/dialogue/ashfang.md
+      - "Frontier": records/dialogue/frontier.md
+      - "Officers": records/dialogue/officers.md
+      - "Verdant": records/dialogue/verdant.md
+  # END generated records nav
+
   - Reference:
     - reference/index.md
 
