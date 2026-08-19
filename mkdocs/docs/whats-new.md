@@ -6,6 +6,67 @@ go to the relevant docs.
 
 ---
 
+## 💾 Your setup survives a restart
+
+Restarting the mission put every option back to `settings.yaml` — player ships,
+difficulty, terrain, the lot. After an early death, or with one setting to change,
+that meant retyping the whole screen. Two ways not to, for two different needs.
+
+**Save a preset.** Build the setup you want on the server console, type a name
+beside the Presets dropdown, press the save icon. It is in the dropdown
+afterwards, restart or no restart — and it brings back the crew's **ship names
+and hulls** as well as the options. Presets are per map.
+
+**Or let it remember.** `RESTORE_LAST_SETUP: true` brings back whatever the last
+game started with, per mission and per map, with nothing to press. It saves when
+a game **starts**, so a crash or a quit still leaves it recorded.
+
+It is **off by default**, and that is deliberate: a convention or venue machine
+wants every group to start from the same known state, which is exactly what it
+already does. Turn it on for a crew replaying the same match.
+
+Loading a saved setup puts those ships straight on helm's picker, so helm can
+still change one and the change sticks.
+
+!!! tip "Where it all lives now"
+    Saved setups are written to `data/missions/common_data/`, **beside** the
+    missions rather than inside one — so updating or re-extracting a mission
+    keeps them.
+
+---
+
+## 🗂️ One profile for every mission
+
+A [profile](tooling/profiles.md) — one named file that decides how a mission runs
+— had to live inside the mission it configured. Two missions wanting the same
+setup meant two copies, and updating the mission could take yours with it.
+
+Now there is a second place to put one: `data/missions/common_data/profiles/`.
+Same file, same `profile=` argument, but it applies to **whatever you launch**:
+
+```
+sbs run server,science,comms profile=a28_skies -m WalkTheLine
+```
+
+That is a full profile, add-ons and art packs included — so the Artemis 2.8 skies
+follow you into any mission, from one file. A mission's own `profiles/` folder
+still wins if both have the same name, so a mission can ship a definitive one.
+
+**Launch arguments now know which mission they were for.** `profile=`, `map=`,
+`console=` and `var.NAME=` used to follow you when you restarted into a
+*different* mission — quietly, and a same-named profile over there meant
+something else entirely. They stop applying on a switch, and say so.
+`seed=`, `run=`, `record=` and `test=` describe the launch and still apply. See
+[Switching missions](tooling/command-line.md#switching-missions).
+
+!!! note "Sharing a game code does not share your ship names"
+    A game code is for replaying an identical **match**, so it carries the map,
+    size, seed and options — and not your crew's ship names, which are not part
+    of the match and made the code several times longer. A setup you *save* does
+    carry them.
+
+---
+
 ## 🧵 A handler no longer depends on which task built the widget
 
 `on gui_message`, `on change` and `on_press=` all belonged to the task that
