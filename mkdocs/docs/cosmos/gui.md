@@ -128,7 +128,8 @@ small markdown-like language and **auto-scrolls** when its content overflows.
 
 ## Reacting while the GUI is up
 
-`on` handlers run while a GUI is on screen:
+`on` handlers belong to the task that **built the widget**, and live until
+the next GUI build replaces them:
 
 === ":mast-icon: {{ab.m}}"
     ```
@@ -144,6 +145,11 @@ small markdown-like language and **auto-scrolls** when its content overflows.
     on signal "wave_cleared":                  # a signal fired
         show_bonus()
     ```
+
+Which task a handler runs on decides how it must END, and whether it can repaint
+the screen. See [Handler lifetime](../mast/handler-lifetime.md) for the full
+table, including `on_press=`, `gui_message_callback` and the trap where `->END`
+in a handler kills the console.
 
 ## Updating without a rebuild
 

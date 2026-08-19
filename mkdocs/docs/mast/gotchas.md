@@ -111,6 +111,18 @@ grid = ~~ {"x": px, "y": py} ~~
 Do **not** wrap ordinary calls, assignments, `if`, or `for` in `~~` &mdash; those
 are native MAST.
 
+## A handler belongs to the task that BUILT the widget
+
+Not to the screen it is on. It matters as soon as part of a panel is painted by
+`task_schedule` / `sub_task_schedule` / `gui_sub_task_schedule` rather than by
+the console's own GUI task, because the builder usually ends as soon as it has
+painted.
+
+The two things this changes: how the handler label must END (`->END` on a
+sub-task handler ends the handler; on the legacy `is_sub_task=False` jump form
+it ends the CONSOLE), and whether the handler can repaint. Full table:
+[Handler lifetime](handler-lifetime.md).
+
 ## `->END` is uppercase, and ends the task
 
 It must be `->END` (not `->end`). It ends the current **task**; when the last task

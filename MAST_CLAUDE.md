@@ -730,6 +730,34 @@ which is why moving one to the top never helped.
 `on change`, `on gui_message` and `on gui_click` were always immune — they are
 double-buffered and swapped at present time.
 
+#### Which task a handler runs on, and how it must end (2026-08-19)
+
+A handler belongs to the task that **built the widget**, which is only the GUI
+task when the console built its own screen. Three flags (all default OFF, LM
+#714/#713) change that; `mkdocs/docs/mast/handler-lifetime.md` is the reference.
+
+- `MastAsyncTask.promote_await_gui` - `await gui()` on a task that is not the
+  page's `gui_task` sends the GUI task to that exact command instead of hanging.
+  The GUI task's in-flight `GuiPromise` is **superseded, never resolved**;
+  resolving it would run whatever follows its own `await gui()`.
+- `MastAsyncTask.handler_sub_task_default` - an unspecified `on_press=<label>`
+  runs as a hosted sub-task rather than jumping the builder. **Reads as
+  `handler_sub_task_default and promote_await_gui`**: alone it would break every
+  repaint handler, since they only work today by staying ON the GUI task.
+  `is_sub_task=` is deprecated but still honored either way.
+- `MastAsyncTask.rehost_gui_watchers` - an `on change` registered by a scheduled
+  builder is owned by the GUI BUILD, not by that task, so it survives the
+  builder ending. Independent of the other two.
+
+**How a handler label ends depends on the form.** As a sub-task, `->END` ends
+the handler. Under the legacy jump form the handler IS the GUI task, so `->END`
+ends the **console** - the screen goes dead. That is what #707's reporters could
+not find an answer to.
+
+Not behind a flag, because it is a plain defect: `StoryPage.on_new_gui` ended
+every hosted handler on the GUI task including the one *currently painting*, so
+a re-hosted handler that repainted killed itself on its own first tagged widget.
+
 #### Every handler on a widget runs (2026-08-14)
 
 A widget can carry as many handlers as you attach, in any mix of forms, and they

@@ -16,6 +16,23 @@ Key concepts:
 
 `LABEL_ALWAYS_IDLE` is a sentinel label used internally to keep a task alive without advancing — you rarely call it directly.
 
+**Steering a console's GUI task from another task:**
+
+- **`gui_task_jump`** — queue a jump on the current page's GUI task. Use it to
+  send a console somewhere *without going there yourself*, e.g. a watcher loop
+  that kicks a panel to a repaint label and keeps looping. Silently discarded if
+  that task has already ended.
+- **`gui_reroute_client` / `gui_reroute_clients` / `gui_reroute_server`** — the
+  same, targeted at a specific client, at every client, or at the server. These
+  run the jump in the CURRENT frame; `gui_task_jump` only queues it. Note
+  `gui_reroute_server` / `gui_reroute_clients` behave differently when called
+  from `main`: instead of jumping, they set the label to run at the end of
+  `main`.
+
+A handler that paints a screen and reaches `await gui()` does not need any of
+these — the GUI task follows it there. Which task a handler runs on, and how it
+must end, is [Handler lifetime](../../mast/handler-lifetime.md).
+
 ## Quick example
 
 === ":mast-icon: {{ab.m}}"

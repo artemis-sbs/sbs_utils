@@ -6,6 +6,40 @@ go to the relevant docs.
 
 ---
 
+## 🧵 A handler no longer depends on which task built the widget
+
+`on gui_message`, `on change` and `on_press=` all belonged to the task that
+**built the widget**. That is invisible while the builder is the console's own
+GUI task, and confusing the moment it is not — which is exactly what
+`gui_sub_task_schedule` is for. Three changes, each behind a flag while they are
+proven in the field:
+
+- **`await gui()` reached off the GUI task** used to hang the calling task
+  forever on a promise the page never adopted, print a bare `print()` nothing
+  reads, and strand the task in `gui_task.sub_tasks`. The screen still drew, so
+  it looked like the flow died rather than like a hang. It now sends the GUI
+  task to the screen the handler just built, superseding — never resolving — the
+  promise the GUI task was parked on.
+- **`on_press=<label>` can now be a sub-task by default**, which is what
+  `is_sub_task=True` always meant. `is_sub_task` is deprecated; an explicit
+  `False` still works. The knock-on is the answer to the question everyone asks:
+  a handler label now just ends with `->END`. Under the old jump form `->END`
+  ended the *console*.
+- **`on change` inside a scheduled label now fires.** It belongs to the GUI
+  build, like every other handler, instead of dying with the task that
+  registered it.
+
+One fix is **not** behind a flag, because it is a plain defect: `on_new_gui`
+ended every hosted handler hanging off the GUI task — including the one that was
+*currently painting*. A handler that repainted killed itself on its own first
+tagged widget and never reached its `await gui()`.
+
+New reference page: **[Handler lifetime](mast/handler-lifetime.md)** — which task
+runs each form, how long it lives, how it should end, and when you still need
+`gui_task_jump`.
+
+---
+
 ## ⚠️ The `races` add-on — add it to your `story.json`
 
 **This one needs action.** Ship interiors and fleet compositions used to be built into the

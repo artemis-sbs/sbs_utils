@@ -58,6 +58,7 @@ nav:
     - Common gotchas: mast/gotchas.md
     - Agent Model: mast/model.md
     - Runtime & Tasks: mast/runtime.md
+    - Handler lifetime: mast/handler-lifetime.md
     - PyMAST: mast/python.md
     - Prefabs: mast/prefabs.md
     - Porting from Artemis 2.x: mast/porting-2x.md
