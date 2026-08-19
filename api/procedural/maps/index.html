@@ -4776,6 +4776,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.game_code_last_apply" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;game_code_last_apply
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.game_code_last_code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;game_code_last_code
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.game_code_last_save" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;game_code_last_save
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.maps.game_code_presets_for_map" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4912,6 +4945,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;player_loadout_active
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.player_loadout_apply_to_ships" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;player_loadout_apply_to_ships
       
     </span>
   </a>
@@ -6337,6 +6381,8 @@
       
         
       
+        
+      
     
     
     
@@ -6406,6 +6452,34 @@
     
   
     Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../legendarymissions/hosting/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles
   
 
     
@@ -9733,6 +9807,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.game_code_last_apply" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;game_code_last_apply
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.game_code_last_code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;game_code_last_code
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.game_code_last_save" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;game_code_last_save
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.maps.game_code_presets_for_map" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -9869,6 +9976,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;player_loadout_active
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.player_loadout_apply_to_ships" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;player_loadout_apply_to_ships
       
     </span>
   </a>
@@ -10106,7 +10224,7 @@ caller starts the map (e.g. <code>task_schedule(map)</code>).</p>
 
 
 <h2 id="sbs_utils.procedural.maps.game_code_encode" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">game_code_encode</span><span class="p">(</span><span class="nb">map</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">game_code_encode</span><span class="p">(</span><span class="nb">map</span><span class="p">,</span> <span class="n">with_loadout</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h2>
 
@@ -10145,6 +10263,24 @@ same game.</p>
             </td>
             <td>
                 <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>with_loadout</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>also carry the crew's ship names and hulls. Pass True when
+SAVING (a named preset, the last-used slot); leave False for a code meant to
+be shared, which should not carry another crew's ship names.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
             </td>
           </tr>
       </tbody>
@@ -10191,6 +10327,206 @@ same game.</p>
         <p>A short, human-readable label for a game code (for preset menus).</p>
 <p>e.g. <code>"siege;PLAYER_COUNT=2;DIFFICULTY=5;seed_value=4242"</code> -&gt; <code>"P2 D5 seed4242"</code>.
 Falls back to the raw code if it has no value pairs.</p>
+<p><code>SHIP_LOADOUT</code> is summarized as a ship count rather than spelled out: its value is
+every ship's name and hull joined together, which is longer than the rest of the label
+put together and unreadable in a dropdown.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.maps.game_code_last_apply" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">game_code_last_apply</span><span class="p">(</span><span class="nb">map</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Apply this mission's remembered setup for <code>map</code>, if there is one.</p>
+<p>Safe to call unconditionally: it does nothing when nothing was remembered, when the
+setting that writes them was never on, or when the remembered code names a map this
+story does not have.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>map</code>
+            </td>
+            <td>
+                  <code><span title="Label">Label</span> | <span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the map label (or its path) about to be shown/started.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>filename</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>override the store path (tests).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>bool</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>whether a remembered setup was applied.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.maps.game_code_last_code" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">game_code_last_code</span><span class="p">(</span><span class="n">map_path</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The last-used code for one map, or <code>""</code> when there is none.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.maps.game_code_last_save" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">game_code_last_save</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Remember <code>code</code> as this mission's last-used setup, keyed by its map.</p>
+<p>Called when a game STARTS, not when it ends: that records what was actually played,
+and it survives a crash or a quit that never reaches a results screen.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>code</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>a code from :func:<code>game_code_encode</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>filename</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>override the store path (tests).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>str|None: the code stored, or <code>None</code> if it was empty.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     </div>
@@ -10263,7 +10599,7 @@ Returns the code saved, or <code>None</code> if <code>code</code> is empty.</p>
 
 
 <h2 id="sbs_utils.procedural.maps.game_code_vars" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">game_code_vars</span><span class="p">(</span><span class="nb">map</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">game_code_vars</span><span class="p">(</span><span class="nb">map</span><span class="p">,</span> <span class="n">with_loadout</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h2>
 
@@ -10271,10 +10607,9 @@ Returns the code saved, or <code>None</code> if <code>code</code> is empty.</p>
     <div class="doc doc-contents ">
 
         <p>Return the var names that make up a map's game code, in order.</p>
-<p>By default this is <em>every</em> property var the map exposes, so a saved code
-reproduces the full setup; a person can delete any entries they don't care
-about from the code string. A map can also pin the set explicitly with a
-<code>GameCode</code> metadata list (<code>GameCode: [PLAYER_COUNT, DIFFICULTY, ...]</code>).</p>
+<p>By default this is <em>every</em> property var the map exposes - the options panel, exactly
+as a person set it. A map can pin the set explicitly with a <code>GameCode</code> metadata list
+(<code>GameCode: [PLAYER_COUNT, DIFFICULTY, ...]</code>), which is then used verbatim.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -10302,6 +10637,25 @@ about from the code string. A map can also pin the set explicitly with a
             </td>
             <td>
                 <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>with_loadout</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>also carry <code>SHIP_LOADOUT</code> - the crew's ship names and
+hulls. True when SAVING a setup (a preset, or the last-used slot), False when
+producing a code to share. Appended even to an explicit <code>GameCode</code> list, so
+a map that pins its options still saves its ships.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
             </td>
           </tr>
       </tbody>
@@ -10905,6 +11259,91 @@ false right now.</p>
     <div class="doc doc-contents ">
 
         <p>Decode the live <code>SHIP_LOADOUT</code> shared var into a slot list (<code>[]</code> if unset).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.maps.player_loadout_apply_to_ships" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">player_loadout_apply_to_ships</span><span class="p">(</span><span class="n">ships</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Write the pending <code>SHIP_LOADOUT</code> onto the live player ships, then CLEAR it.</p>
+<p>This is what makes a RESTORED setup lose to a person. A restored loadout otherwise
+sits in <code>SHIP_LOADOUT</code> until the game starts, and the roster reconcile applies it
+over whatever is on the ships at that moment - which includes the name and hull helm
+just chose in the lobby. Last session's ships would silently overwrite this session's
+choice, and the person who made it gets no hint that it happened.</p>
+<p>Applying it up front inverts that: the restored names and hulls are what helm SEES in
+the picker, and anything helm changes from there is simply the newer value. Clearing
+the var is the other half - it leaves the reconcile nothing to override with.</p>
+<p>Ships are matched to slots in id order, the same order :func:<code>player_loadout_from_ships</code>
+captured them in.</p>
+<p>No player ships yet means the restore is too early to land on anything, so the var is
+left ALONE for the reconcile to apply at start - which is correct, because nobody has
+had the chance to choose anything either.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>ships</code>
+            </td>
+            <td>
+                  <code><span title="list">list</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the player ships, or None to use the <code>default_player_ship</code>
+role.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>int</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>how many slots were applied.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     </div>

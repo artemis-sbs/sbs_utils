@@ -3275,6 +3275,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#it-follows-a-restart-not-a-mission-switch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        It follows a restart, not a mission switch
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-profile-is-not-a-saved-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A profile is not a saved setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#what-a-profile-cannot-do" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6153,6 +6175,8 @@
       
         
       
+        
+      
     
     
     
@@ -6222,6 +6246,34 @@
     
   
     Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legendarymissions/hosting/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles
   
 
     
@@ -9544,6 +9596,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#it-follows-a-restart-not-a-mission-switch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        It follows a restart, not a mission switch
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-profile-is-not-a-saved-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A profile is not a saved setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#what-a-profile-cannot-do" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -9591,7 +9665,42 @@ add-ons and art packs it loads. You select it by name and nothing else changes:<
 <div class="highlight"><pre><span></span><code>Artemis3-x64-release.exe autostartserver defaultmission=LegendaryMissions profile=a28_skies
 python -m cosmos_dev.mission_runner . --test 20 --map 0 --profile a28_skies
 </code></pre></div>
-<p>It lives at <code>&lt;mission&gt;/profiles/&lt;name&gt;.yaml</code>.</p>
+<p>It lives in one of two places, searched in this order:</p>
+<table>
+<thead>
+<tr>
+<th>path</th>
+<th>authored by</th>
+<th>scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;mission&gt;/profiles/&lt;name&gt;.yaml</code></td>
+<td>whoever wrote the mission; ships with it</td>
+<td>that mission</td>
+</tr>
+<tr>
+<td><code>&lt;missions&gt;/common_data/profiles/&lt;name&gt;.yaml</code></td>
+<td>the <strong>operator</strong>; not inside any mission</td>
+<td>every mission</td>
+</tr>
+</tbody>
+</table>
+<p>Both are full profiles - settings, <code>addons:</code> and <code>media:</code> alike. The mission's own wins a
+name collision, so a mission can always ship a definitive profile under a name an operator
+also uses. Which one answered is logged.</p>
+<p>The shared tier exists because an operator's house setup is not mission content: written
+into a mission folder it needs a <code>.gitignore</code> line and does not survive a re-extract, and
+<code>common_data</code> sits beside the missions instead. <strong>A shared profile can select content</strong>,
+which is most of the point - <code>addons: include:</code> falls back to <code>__lib__</code> and a media pack
+matches the packs there, and both of those are shared, so "the Artemis 2.8 skies in
+whatever I am running tonight" is one file rather than one copy per mission:</p>
+<div class="highlight"><pre><span></span><code>sbs run server,science,comms profile=a28_skies -m WalkTheLine
+</code></pre></div>
+<p>Only <code>exclude:</code> names something a particular mission declared, and an <code>exclude</code> that
+matches nothing is a no-op filter rather than an error - so the same file is safe to point
+at a mission that never had the add-on you are replacing.</p>
 <h2 id="why-a-file-and-not-more-arguments">Why a file and not more arguments</h2>
 <p>A Windows command line is capped at 8191 characters, shortcuts truncate it, quoting around
 spaces and <code>=</code> is awkward, and none of it can be commented, reviewed or diffed. A file is
@@ -9703,10 +9812,31 @@ the pack every <code>@media/skybox</code> label fails its file test and is dropp
 pick — silently, with no error, leaving you the stock set.</p>
 </div>
 <div class="admonition note">
-<p class="admonition-title">Profiles are per mission</p>
-<p><code>profiles/</code> is read from the mission folder only. Two missions that want the same
-profile need a copy each.</p>
+<p class="admonition-title">A mission's own profiles are per mission</p>
+<p>A mission's <code>profiles/</code> folder is read from that mission only. Two missions that want
+the same <em>content</em> profile need a copy each - <code>addons:</code>/<code>media:</code> cannot be shared,
+because they name things one <code>story.json</code> declares. A <strong>settings</strong> profile can be
+shared: put it in <code>common_data/profiles/</code> and every mission sees it.</p>
 </div>
+<h2 id="it-follows-a-restart-not-a-mission-switch">It follows a restart, not a mission switch</h2>
+<p>A profile applies to every restart of the mission you launched, for as long as the
+engine is running - the launch arguments do not change and the file is re-read each
+time. Restart into a <strong>different</strong> mission and it is dropped instead, with a line in
+the log: <code>profiles/</code> is per mission, so the same name there would be a different
+file meaning something else entirely. See
+<a href="../command-line/#switching-missions">Switching missions</a>.</p>
+<h2 id="a-profile-is-not-a-saved-setup">A profile is not a saved setup</h2>
+<p>A profile is written by a person, in an editor, and it is <em>input</em>. What the game writes -
+a named preset from the server console, or the last-used setup behind
+<code>RESTORE_LAST_SETUP</code> - is <em>output</em>, and lives under
+<code>&lt;missions&gt;/common_data/game_codes/&lt;mission&gt;.yaml</code>. Reach for a profile when you have
+several standing configurations to choose between at launch; reach for a preset when you
+want to keep the setup you just built on screen.</p>
+<p><strong>Player ships in particular.</strong> A profile's <code>PLAYER_LIST</code> is the roster: name, side, hull
+<strong>and face</strong>, per slot. A saved setup carries only names and hulls, as a capture of what
+the crew actually flew. So a standing roster belongs in a profile; "the ships we flew last
+time" belongs in a saved setup. A code you <em>share</em> carries neither - ship names are not
+part of the match.</p>
 <h2 id="what-a-profile-cannot-do">What a profile cannot do</h2>
 <p><code>resources</code> and <code>shared_media</code> packs are filtered, and <code>mastlib</code> add-ons are filtered — all
 three are read by Python before anything compiles. The <code>sbslib</code> list is <strong>not</strong>: it is read

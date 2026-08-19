@@ -3208,6 +3208,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#switching-missions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Switching missions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#turning-on-autoplay-from-a-shortcut" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6136,6 +6147,8 @@
       
         
       
+        
+      
     
     
     
@@ -6205,6 +6218,34 @@
     
   
     Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legendarymissions/hosting/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles
   
 
     
@@ -9488,6 +9529,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#switching-missions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Switching missions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#turning-on-autoplay-from-a-shortcut" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -9641,12 +9693,37 @@ a mistyped argument is otherwise invisible.</p>
 <h2 id="settings-the-file-carries-the-bulk-the-argument-names-it">Settings: the file carries the bulk, the argument names it</h2>
 <p>Settings are merged in this order, each beating the one before:</p>
 <div class="highlight"><pre><span></span><code>built-in defaults
+  &lt;  a mod&#39;s settings_set_mod_default()
   &lt;  the mission&#39;s settings.yaml
   &lt;  profile=&lt;name&gt;          -&gt;  &lt;mission&gt;/profiles/&lt;name&gt;.yaml
+                             -&gt;  common_data/profiles/&lt;name&gt;.yaml
   &lt;  the COSMOS_SETTINGS environment variable
   &lt;  var.NAME= on the command line
 </code></pre></div>
 <p><code>var.</code> comes last because typing it is the most deliberate thing in the list.</p>
+<h2 id="switching-missions">Switching missions</h2>
+<p>Launch arguments belong to the <strong>process</strong>, and restarting into a <em>different</em> mission
+(the pause screen's <code>mission_select</code>, <code>remote_mission_pick</code>) does not change them. Most
+of them mean something about one particular mission, so they are dropped once you
+switch:</p>
+<table>
+<thead>
+<tr>
+<th>dropped on a switch</th>
+<th>kept</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>profile=</code> <code>map=</code> <code>console=</code> <code>var.NAME=</code></td>
+<td><code>seed=</code> <code>run=</code> <code>record=</code> <code>test=</code></td>
+</tr>
+</tbody>
+</table>
+<p>Restarting the <strong>same</strong> mission changes nothing - that is the common case, and a
+profile keeps applying to every restart, indefinitely.</p>
+<p>Each dropped argument says so in the log rather than vanishing. The comparison needs
+<code>defaultmission=</code> to know what you started with; without it nothing is dropped.</p>
 <p>A profile is an ordinary settings file under <code>profiles/</code>:</p>
 <div class="highlight"><span class="filename">missions/MyMission/profiles/soak.yaml</span><pre><span></span><code><span class="nt">DIFFICULTY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">11</span>
 <span class="nt">MAP_SIZE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Huge</span>

@@ -12,7 +12,7 @@
         <link rel="prev" href="../">
       
       
-        <link rel="next" href="../../addons/">
+        <link rel="next" href="../profiles/">
       
       
         
@@ -6017,6 +6017,8 @@
       
         
       
+        
+      
     
     
     
@@ -6163,6 +6165,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#restore_last_setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RESTORE_LAST_SETUP
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#operator_mode" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6227,6 +6240,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -9500,6 +9541,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#restore_last_setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RESTORE_LAST_SETUP
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#operator_mode" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -9595,6 +9647,22 @@ When set, the game-results screen also auto-restarts the mission after a delay
 <p>Seconds to wait on the game-results screen before AUTO_START restarts the mission.
 Defaults to 10. Measured in real (wall-clock) time, because the simulation is
 paused at game end.</p>
+<h2 id="restore_last_setup">RESTORE_LAST_SETUP</h2>
+<p>Come back on the setup screen with the settings the <strong>last game started with</strong>, instead of
+the defaults below. Remembered per mission and per map, and it carries the crew's ship
+names and hulls as well as the options.</p>
+<p>Defaults to <code>false</code>, which is the behavior LegendaryMissions has always had: every game
+starts from this file. That suits a venue or a convention, where each group should start
+from the same known state. Set it to <code>true</code> when the same crew keeps replaying a setup -
+after an early death, or while tuning one option at a time.</p>
+<div class="highlight"><pre><span></span><code><span class="w">    </span><span class="nt">RESTORE_LAST_SETUP</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</code></pre></div>
+<p>It is saved when a game <strong>starts</strong>, not when it ends, so a crash or a quit still leaves it
+recorded. The file is <code>data/missions/common_data/game_codes/&lt;mission&gt;.yaml</code>, outside the
+mission folder, so updating the mission does not lose it.</p>
+<p>Prefer a <strong><a href="../profiles/">profile</a></strong> when you have several standing setups rather than one
+rolling one, and a <strong>saved preset</strong> when you want to name a setup and come back to it
+later.</p>
 <h2 id="operator_mode">OPERATOR_MODE</h2>
 <h3 id="enable">enable</h3>
 <p>set "true" to enable the operator mode. "false" to disable</p>

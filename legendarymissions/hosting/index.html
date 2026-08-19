@@ -6017,6 +6017,8 @@
       
         
       
+        
+      
     
     
     
@@ -6089,6 +6091,34 @@
     
   
     Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles
   
 
     
@@ -9421,6 +9451,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#saved-setups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Saved setups
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#default-mission" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -9581,9 +9622,23 @@
 <p>In general the settings.yaml is useful for setting things up to avoid constantly tuning the setting each run. Should be useful for operators.</p>
 <p><a href="settings.yaml/">see here </a> for what settings Operators may want to tweak.</p>
 <div class="admonition tip">
-<p class="admonition-title">Different defaults</p>
-<p>Operators that want different setups for varied crews, could copy the mission and alter the settings.yaml. While this takes up more space, It could be a time saver. This only needs to be don on the server.</p>
+<p class="admonition-title">Different defaults: use a profile</p>
+<p>Operators who want different setups for varied crews should use a <strong><a href="profiles/">profile</a></strong> - one named file per setup, selected on the command line, with nothing else changed:</p>
+<div class="highlight"><pre><span></span><code>Artemis3-x64-release.exe autostartserver defaultmission=LegendaryMissions profile=eastern_front
+</code></pre></div>
+<p>This replaces the old advice of copying the whole mission folder and editing each copy's settings.yaml. A profile is one small file, it does not duplicate the mission, and it survives updating the mission.</p>
 </div>
+<div class="admonition tip">
+<p class="admonition-title">Keep the last game's setup</p>
+<p>To come back on the setup screen with whatever the last game started with - options, and the crew's ship names and hulls - turn on <code>RESTORE_LAST_SETUP</code>. It is remembered per mission and per map, and it is <strong>off by default</strong> so a venue machine keeps starting every group from the same known state. See <a href="#saved-setups">Saved setups</a> below.</p>
+</div>
+<h3 id="saved-setups">Saved setups</h3>
+<p>Two ways to stop retyping the setup screen, for two different needs.</p>
+<p><strong>A named preset</strong> is saved from the server console: set the options up, type a name, press the save icon. It records everything on the Options panel - players, difficulty, terrain, seed - plus the crew's current ship names and hulls. Pick it from the Presets dropdown to load it back, including after a restart. Presets are per map.</p>
+<p><strong><code>RESTORE_LAST_SETUP: true</code></strong> in settings.yaml does the same thing without the button: whatever the last game started with comes back automatically, per mission and per map. Off by default.</p>
+<p>Both are stored <strong>outside the mission folder</strong>, in <code>data/missions/common_data/game_codes/&lt;mission&gt;.yaml</code>, so updating or re-extracting the mission does not lose them.</p>
+<p>A preset is the same <strong>game code</strong> you can share with another host - so "save my setup" and "give everyone the identical match" are one feature. The one difference: a <em>saved</em> setup also carries the crew's ship names and hulls, while a code you share does not. A map decides which options a code carries with a <code>GameCode:</code> block in its metadata.</p>
+<p>If you want a standing roster rather than whatever was flown last, put it in <code>PLAYER_LIST</code> in <a href="settings.yaml/">settings.yaml</a> or a <a href="profiles/">profile</a> - that carries each ship's side and face as well, which a game code does not.</p>
 <h3 id="default-mission">Default mission</h3>
 <p>Look above for setting the default Mission Folder. This will help run your most common mission e.g. Legendary Missions.</p>
 <p>It won't prevent you from later selecting other missions.</p>

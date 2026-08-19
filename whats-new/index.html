@@ -590,6 +590,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#your-setup-survives-a-restart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        💾 Your setup survives a restart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-profile-for-every-mission" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🗂️ One profile for every mission
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#a-handler-no-longer-depends-on-which-task-built-the-widget" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6687,6 +6709,8 @@
       
         
       
+        
+      
     
     
     
@@ -6756,6 +6780,34 @@
     
   
     Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../legendarymissions/hosting/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles
   
 
     
@@ -10006,6 +10058,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#your-setup-survives-a-restart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        💾 Your setup survives a restart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-profile-for-every-mission" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🗂️ One profile for every mission
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#a-handler-no-longer-depends-on-which-task-built-the-widget" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10662,6 +10736,54 @@
 <p>A whirlwind tour of everything that landed in v1.4.0 — across the
 <strong>LegendaryMissions</strong> content and the <strong>sbs_utils</strong> library that powers it. Links
 go to the relevant docs.</p>
+<hr />
+<h2 id="your-setup-survives-a-restart">💾 Your setup survives a restart</h2>
+<p>Restarting the mission put every option back to <code>settings.yaml</code> — player ships,
+difficulty, terrain, the lot. After an early death, or with one setting to change,
+that meant retyping the whole screen. Two ways not to, for two different needs.</p>
+<p><strong>Save a preset.</strong> Build the setup you want on the server console, type a name
+beside the Presets dropdown, press the save icon. It is in the dropdown
+afterwards, restart or no restart — and it brings back the crew's <strong>ship names
+and hulls</strong> as well as the options. Presets are per map.</p>
+<p><strong>Or let it remember.</strong> <code>RESTORE_LAST_SETUP: true</code> brings back whatever the last
+game started with, per mission and per map, with nothing to press. It saves when
+a game <strong>starts</strong>, so a crash or a quit still leaves it recorded.</p>
+<p>It is <strong>off by default</strong>, and that is deliberate: a convention or venue machine
+wants every group to start from the same known state, which is exactly what it
+already does. Turn it on for a crew replaying the same match.</p>
+<p>Loading a saved setup puts those ships straight on helm's picker, so helm can
+still change one and the change sticks.</p>
+<div class="admonition tip">
+<p class="admonition-title">Where it all lives now</p>
+<p>Saved setups are written to <code>data/missions/common_data/</code>, <strong>beside</strong> the
+missions rather than inside one — so updating or re-extracting a mission
+keeps them.</p>
+</div>
+<hr />
+<h2 id="one-profile-for-every-mission">🗂️ One profile for every mission</h2>
+<p>A <a href="../tooling/profiles/">profile</a> — one named file that decides how a mission runs
+— had to live inside the mission it configured. Two missions wanting the same
+setup meant two copies, and updating the mission could take yours with it.</p>
+<p>Now there is a second place to put one: <code>data/missions/common_data/profiles/</code>.
+Same file, same <code>profile=</code> argument, but it applies to <strong>whatever you launch</strong>:</p>
+<div class="highlight"><pre><span></span><code>sbs run server,science,comms profile=a28_skies -m WalkTheLine
+</code></pre></div>
+<p>That is a full profile, add-ons and art packs included — so the Artemis 2.8 skies
+follow you into any mission, from one file. A mission's own <code>profiles/</code> folder
+still wins if both have the same name, so a mission can ship a definitive one.</p>
+<p><strong>Launch arguments now know which mission they were for.</strong> <code>profile=</code>, <code>map=</code>,
+<code>console=</code> and <code>var.NAME=</code> used to follow you when you restarted into a
+<em>different</em> mission — quietly, and a same-named profile over there meant
+something else entirely. They stop applying on a switch, and say so.
+<code>seed=</code>, <code>run=</code>, <code>record=</code> and <code>test=</code> describe the launch and still apply. See
+<a href="../tooling/command-line/#switching-missions">Switching missions</a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Sharing a game code does not share your ship names</p>
+<p>A game code is for replaying an identical <strong>match</strong>, so it carries the map,
+size, seed and options — and not your crew's ship names, which are not part
+of the match and made the code several times longer. A setup you <em>save</em> does
+carry them.</p>
+</div>
 <hr />
 <h2 id="a-handler-no-longer-depends-on-which-task-built-the-widget">🧵 A handler no longer depends on which task built the widget</h2>
 <p><code>on gui_message</code>, <code>on change</code> and <code>on_press=</code> all belonged to the task that
