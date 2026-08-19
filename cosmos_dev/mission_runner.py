@@ -1219,7 +1219,9 @@ def _run(
         print(f"[runner] #707 flags: revive={gui_handler_revive} "
               f"inline_pop={inline_block_pop}")
 
-    # LM #714. Both ship OFF. They are a PAIR: the library reads
+    # LM #714. All three ship ON now, so passing ANY of these PINS the set --
+    # the ones you do not name are turned OFF. That is what makes an A/B exactly
+    # one flag apart. They are a PAIR: the library reads
     # `handler_sub_task_default and promote_await_gui`, so setting the default
     # alone does nothing -- on its own it would break every repaint handler.
     if promote_await_gui or handler_sub_task_default or rehost_gui_watchers:
@@ -2564,12 +2566,12 @@ if __name__ == "__main__":
                          "print MAST coverage + a pass/fail verdict and exit 0/1")
     ap.add_argument("--handler-sub-task-default", action="store_true",
                     help="LM #714: an unspecified on_press=<label> runs as a "
-                         "sub-task instead of jumping the builder. Needs "
-                         "--promote-await-gui; alone it is a no-op by design.")
+                         "sub-task instead of jumping the builder. Ships ON; needs "
+                         "--promote-await-gui, alone it is a no-op by design")
     ap.add_argument("--rehost-gui-watchers", action="store_true",
                     help="LM #713: an `on change` registered by a scheduled "
                          "builder survives that builder ending, like every other "
-                         "GUI handler (A/B against the default off)")
+                         "GUI handler. Ships ON; naming any #714 flag pins the set")
     ap.add_argument("--coverage-json", default=None, metavar="PATH",
                     help="With --test, write LINE-level MAST coverage as JSON. "
                          "Lines are the stable thing to diff in an A/B; LM map 0's "
@@ -2619,8 +2621,9 @@ if __name__ == "__main__":
                          "its end, so the task resumes what it was doing")
     ap.add_argument("--promote-await-gui", action="store_true",
                     help="LM #714: an `await gui()` reached off the console's GUI "
-                         "task jumps the GUI task there instead of hanging "
-                         "(A/B against the default off)")
+                         "task jumps the GUI task there instead of hanging. Ships "
+                         "ON; naming any #714 flag PINS the set, so the ones you "
+                         "omit are turned off")
     ap.add_argument("--aspect", default=None, metavar="WxH",
                     help="Force the client screen size (e.g. 1280x720) so layouts "
                          "build at it — with --audit-layout, sweep sizes to find "

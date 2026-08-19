@@ -756,9 +756,10 @@ class MastAsyncTask(Agent, Promise):
     # adopted, so the task hangs silently forever. ON treats it as a jump on the
     # main GUI task -- the console's screen becomes what the handler built, and
     # the GUI task's in-flight GuiPromise is superseded, never resolved.
-    # Off by default until the A/B conformance runs say what flipping it wakes
-    # up. See LM issue #714.
-    promote_await_gui = False
+    # See LM issue #714. ON: 4678 unit tests green in every flag combination,
+    # and conformance on LM maps 0/1 + OU (seed 7, engine-faithful click driver,
+    # same-flag controls) is label- and line-identical either way.
+    promote_await_gui = True
 
     # Behavior flag for the on_press=<label> default (LM #714). OFF is the
     # historical default: a label handler JUMPS the task that built the widget,
@@ -773,7 +774,7 @@ class MastAsyncTask(Agent, Promise):
     # handler at once: they end in `jump <paint>` -> `await gui()`, which works
     # today only because the jump path leaves them ON the GUI task. Promotion
     # is what keeps them working once they are not.
-    handler_sub_task_default = False
+    handler_sub_task_default = True
 
     # Behavior flag for the `on change` watcher path (LM #713). OFF is the
     # historical behavior: a watcher lives in the list of the task that
@@ -786,7 +787,7 @@ class MastAsyncTask(Agent, Promise):
     # path already does for handlers (host_handler_sub_task). The runtime node
     # keeps pointing at the builder, so the expression and the block still
     # evaluate in the builder's scope.
-    rehost_gui_watchers = False
+    rehost_gui_watchers = True
 
     @staticmethod
     def handler_defaults_to_sub_task():
