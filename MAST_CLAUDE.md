@@ -392,6 +392,16 @@ and the **closing ` ``` ` fence must be at column 0** — the parser's rule ends
 nesting is indented per YAML. (Metadata works on any label type, including `@`
 decorator labels and `//` routes.)
 
+**A key named after one of MAST's own globals disables it for the whole label
+body.** The values are variables, so `range: close or far` on an ability meant
+`for i in range(6)` inside it raised against the *loop*, never against the
+metadata (LM #657). Name keys `ability_range` / `acquire_range`, never `range` /
+`random` / `sim` / `list`. `sbs lint` flags this as `ns-metadata-shadows-builtin`.
+**The list to avoid is MastGlobals' table, not the Python builtins** — MAST
+replaces `__builtins__` with that table, so `type` (the `labels_get_type`
+convention), `id` and `sum` are not reachable from an expression anyway and are
+safe as keys.
+
 ```
 === ai_chase_target
 metadata: ``` yaml

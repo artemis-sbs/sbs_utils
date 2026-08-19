@@ -107,6 +107,56 @@ class TestNamespaceLint(unittest.TestCase):
         py = [("a/x.py", "def a_outer():\n    def get_inner():\n        return 1\n    return get_inner\n")]
         self.assertEqual(codes(namespace_lint_project(py)), [])
 
+    # --- metadata keys that shadow a builtin (LM #657) ----------------------
+
+    CLOAK = ("=== elite_cloak_start\nmetadata: ```\n"
+             "type: elite/cloak\nrange: close or far\n```\n"
+             "    for i in range(6):\n        await delay_sim(5)\n")
+
+    def test_metadata_key_shadowing_a_builtin(self):
+        """The cloak ability's `range:` is why range() stopped working inside it."""
+        f = namespace_lint_project([], [("fleets/elite.mast", self.CLOAK)])
+        self.assertEqual(codes(f), ["ns-metadata-shadows-builtin"])
+        self.assertEqual(f[0][1].line, 4)                     # the KEY, not the call
+        self.assertIn("injected as task variables", f[0][1].message)
+
+    def test_metadata_type_key_is_not_flagged(self):
+        """`type:` is on ~96 LM labels and must stay silent. MAST replaces __builtins__
+        with its own table, and `type` is not in it - so the key hides nothing, and the
+        convention labels_get_type() reads is safe by construction, not by exemption."""
+        self.assertEqual(codes(namespace_lint_project(
+            [], [("fleets/elite.mast", self.CLOAK.replace("range: close or far", ""))])), [])
+
+    def test_metadata_key_shadowing_the_sim_handle(self):
+        """The worst case is not a builtin at all: `sim` is in MAST's globals, so a key
+        by that name takes sim.AddTractorConnection away from the whole label."""
+        src = "=== m\nmetadata: ``` yaml\nsim: 3\n```\n    sim.AddTractorConnection(a, b)\n"
+        self.assertEqual(codes(namespace_lint_project([], [("a/m.mast", src)])),
+                         ["ns-metadata-shadows-builtin"])
+
+    def test_metadata_key_that_shadows_nothing_is_quiet(self):
+        """`id`, `sum`, `float` and friends are NOT reachable from MAST, so a key by one
+        of those names hides nothing and must not be reported."""
+        src = "=== m\nmetadata: ``` yaml\nid: 0\nsum: 2\nfloat: 1.0\n```\n    pass\n"
+        self.assertEqual(codes(namespace_lint_project([], [("a/m.mast", src)])), [])
+
+    def test_metadata_yaml_fence_is_read(self):
+        """LM writes `metadata: ``` yaml`; the bare fence is not the only form."""
+        src = ("=== prefab_turret\nmetadata: ``` yaml\ndisplay_text: Turret\nrange: 2500\n```\n"
+               "    yield result deploy(range)\n")
+        self.assertEqual(codes(namespace_lint_project([], [("turrets/t.mast", src)])),
+                         ["ns-metadata-shadows-builtin"])
+
+    def test_metadata_nested_yaml_key_is_not_flagged(self):
+        """Only COLUMN-0 keys are injected as variables; nested ones are data."""
+        src = ("=== m\nmetadata: ``` yaml\nProperties:\n    list: gui_int_slider()\n```\n    pass\n")
+        self.assertEqual(codes(namespace_lint_project([], [("maps/m.mast", src)])), [])
+
+    def test_metadata_shadow_lint_allow_suppresses(self):
+        src = self.CLOAK.replace("range: close or far",
+                                 "range: close or far  # lint: allow ns-metadata-shadows-builtin")
+        self.assertEqual(codes(namespace_lint_project([], [("fleets/elite.mast", src)])), [])
+
 
 if __name__ == "__main__":
     unittest.main()

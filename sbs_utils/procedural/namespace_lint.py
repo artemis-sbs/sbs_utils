@@ -27,6 +27,11 @@ Five collision classes, in descending severity:
   so the tell is "works from Python, fails/misbehaves from MAST".
 - ``ns-generic-name`` (WARNING) - a bare generic verb (`get_`/`save_`/`build_`) with no
   domain prefix. Advisory: the next addon to invent that name collides.
+- ``ns-metadata-shadows-builtin`` (WARNING) - a `metadata:` key named after one of MAST's
+  own globals (`range`, `random`, `sim`, ...). Metadata values are injected as task
+  variables, so the key hides that global for the label's WHOLE body: `range: close or
+  far` on the cloak ability is why `for i in range(6)` stopped working inside it (LM
+  #657), and the error named the loop rather than the metadata.
 
 Underscore-prefixed defs are NOT checked: since 2026-08-16 both registration paths skip
 them, so `_dist` really is private and cannot collide with anything. Flagging it would be
@@ -61,6 +66,28 @@ any first last name text side
 """.split())
 
 _ALLOW = re.compile(r"#\s*lint:\s*allow\s+(?P<codes>[\w\-, ]+)", re.I)
+
+# A `metadata:` fenced block, and the top-level keys in it. Keys are at column 0 by the
+# parser's own rule (an indented fence is "Unrecognized syntax"), which is also what keeps
+# this from reading nested YAML - only the injected top-level names can shadow anything.
+_METADATA_BLOCK = re.compile(r"^metadata:\s*`{3}[^\n]*\n(?P<body>.*?)^`{3}", re.S | re.M)
+_METADATA_KEY = re.compile(r"^(?P<name>[A-Za-z_]\w*)\s*:", re.M)
+
+# What a metadata key can actually shadow. NOT the Python builtins: MAST replaces
+# __builtins__ with MastGlobals.globals (mast.py: {"__builtins__": _MG.globals}), so this
+# table IS the whole vocabulary an expression can reach. That cuts both ways - `sum`,
+# `float`, `id` and `type` are absent from it, so a key by those names shadows nothing and
+# flagging one would be a false alarm; `random`, `math` and `sim` ARE in it, and a key
+# named `sim` would take the simulation handle away from every line in the label.
+#
+# Kept to that table rather than widened to every library global. Measured against LM:
+# metadata keys collide with the 1279 procedural globals in 3 places (`color`, `duration`,
+# `face`), none of which call the function they hide - so widening buys ~10 warnings
+# nobody can act on, which is how a rule stops being read.
+_MAST_BUILTINS = frozenset("""
+math json faces scatter random print dir itertools next len reversed int str hex
+min max abs sim map filter list set dict tuple zip enumerate iter sorted range isinstance
+""".split())
 
 
 def _allowed(line, code):
@@ -226,5 +253,29 @@ def namespace_lint_project(py_sources, mast_sources=(), lib_globals=()):
                 "that name for the WHOLE mission - the next addon to invent it collides. "
                 "Prefix it with the addon name (the hangar_/hangar.py convention), or make "
                 "it private with a leading underscore - those are not exported.")))
+
+    # --- a metadata key shadows a builtin for its label's whole body ---
+    #
+    # Not a namespace collision like the rest of this file - it is scoped to one label -
+    # but it is the same shape of bug and it fails the same way: the code reads correctly,
+    # the name resolves to something else, and the error names a line that is not the
+    # cause. It lives here because this is where `sbs lint` already walks the .mast.
+    for path, content in mast_sources:
+        for block in _METADATA_BLOCK.finditer(content):
+            base = content[:block.start("body")].count("\n") + 1
+            for key in _METADATA_KEY.finditer(block.group("body")):
+                name = key.group("name")
+                if name not in _MAST_BUILTINS:
+                    continue
+                line = base + block.group("body")[:key.start()].count("\n")
+                if _allowed(_mast_line(path, line), "ns-metadata-shadows-builtin"):
+                    continue
+                findings.append((path, AmdFinding(
+                    line, WARNING, "ns-metadata-shadows-builtin",
+                    "metadata key \"" + name + "\" is one of MAST's own globals, and "
+                    "metadata values are injected as task variables - so " + name + " is "
+                    "no longer reachable anywhere in this label's body, and the error "
+                    "lands on the line that USES it, not on this one. Rename the key "
+                    "(ability_range, acquire_range) and update the body that reads it.")))
 
     return findings
