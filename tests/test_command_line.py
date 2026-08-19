@@ -27,7 +27,8 @@ import unittest
 import sbs_utils.mast_sbs.story_nodes  # noqa: F401  (settle node import order)
 from sbs_utils.helpers import FrameContext
 from sbs_utils.procedural.command_line import (
-    command_line_dict, command_line_get, command_line_has, command_line_list)
+    command_line_dict, command_line_get, command_line_has, command_line_list,
+    command_line_mission_changed)
 
 
 class _FakeSbs:
@@ -71,12 +72,21 @@ class _Ctx:
 
 class _WithArgs(unittest.TestCase):
     ARGS = ["autostartserver", "defaultmission=cli_probe", "map=test_all", "bareflag"]
+    # The measured run WAS cli_probe, so the fixture says so. It matters now: a
+    # mission-scoped argument reads as absent once we are running a DIFFERENT mission
+    # from the one `defaultmission=` names - see TestMissionScope below.
+    MISSION = "cli_probe"
 
     def setUp(self):
         self._saved = FrameContext.context
         FrameContext.context = _Ctx(_FakeSbs(self.ARGS))
+        from sbs_utils import fs
+        self._saved_mission = fs.mission_name
+        fs.mission_name = self.MISSION
 
     def tearDown(self):
+        from sbs_utils import fs
+        fs.mission_name = self._saved_mission
         FrameContext.context = self._saved
 
 
@@ -197,6 +207,67 @@ class TestMastCanCallThem(unittest.TestCase):
             self.assertIn(name, MastGlobals.globals,
                           f"{name} is not MAST-callable - add its module to "
                           "mast_sbs/mast_sbs_procedural.py")
+
+
+class TestMissionScope(_WithArgs):
+    """`run_next_mission` swaps the mission but not argv.
+
+    So `profile=`, `map=`, `console=` and `var.NAME=` - which all describe ONE mission -
+    must stop applying once we have switched to another. `seed=`, `run=`, `record=` and
+    `test=` describe the launch and keep applying.
+
+    `defaultmission=` is the only baseline there can be: the engine forks a fresh process
+    per mission, so nothing held in memory survives to say what we started as.
+    """
+
+    ARGS = ["autostartserver", "defaultmission=cli_probe", "map=test_all",
+            "profile=soak", "console=helm", "var.DIFFICULTY=3", "seed=7", "run=a"]
+
+    def _switch_to(self, mission):
+        from sbs_utils import fs
+        fs.mission_name = mission
+
+    def test_the_launched_mission_keeps_everything(self):
+        self.assertFalse(command_line_mission_changed())
+        self.assertEqual(command_line_get("profile"), "soak")
+        self.assertEqual(command_line_get("map"), "test_all")
+
+    def test_another_mission_drops_the_mission_scoped_ones(self):
+        self._switch_to("something_else")
+        self.assertTrue(command_line_mission_changed())
+        for key in ("profile", "map", "console"):
+            self.assertIsNone(command_line_get(key), key)
+        self.assertNotIn("var.DIFFICULTY", command_line_dict())
+
+    def test_another_mission_keeps_the_launch_scoped_ones(self):
+        self._switch_to("something_else")
+        self.assertEqual(command_line_get("seed"), "7")
+        self.assertEqual(command_line_get("run"), "a")
+        self.assertEqual(command_line_dict()["defaultmission"], "cli_probe")
+
+    def test_the_list_is_never_filtered(self):
+        """command_line_has() reads the raw argv for bare flags; nothing there is
+        mission-scoped, and rewriting history would be its own trap."""
+        self._switch_to("something_else")
+        self.assertIn("profile=soak", command_line_list())
+        self.assertTrue(command_line_has("autostartserver"))
+
+    def test_no_baseline_means_no_scoping(self):
+        """Fail-safe. Launched from the menu, or on an engine that does not pass
+        defaultmission= through, this must not engage at all."""
+        FrameContext.context = _Ctx(_FakeSbs(["map=test_all", "profile=soak"]))
+        self._switch_to("something_else")
+        self.assertFalse(command_line_mission_changed())
+        self.assertEqual(command_line_get("profile"), "soak")
+
+    def test_case_and_path_do_not_read_as_a_switch(self):
+        """A person types the folder name. Reading `Cli_Probe` as a different mission
+        would drop a profile on the very first run."""
+        self._switch_to("CLI_Probe")
+        self.assertFalse(command_line_mission_changed())
+        FrameContext.context = _Ctx(_FakeSbs(["defaultmission=missions/cli_probe"]))
+        self._switch_to("cli_probe")
+        self.assertFalse(command_line_mission_changed())
 
 
 if __name__ == "__main__":

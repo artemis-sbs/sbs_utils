@@ -8,7 +8,24 @@ Artemis3-x64-release.exe autostartserver defaultmission=LegendaryMissions profil
 python -m cosmos_dev.mission_runner . --test 20 --map 0 --profile a28_skies
 ```
 
-It lives at `<mission>/profiles/<name>.yaml`.
+It lives in one of two places, searched in this order:
+
+| path | authored by | can select |
+|---|---|---|
+| `<mission>/profiles/<name>.yaml` | whoever wrote the mission; ships with it | settings, add-ons, media packs |
+| `<missions>/common_data/profiles/<name>.yaml` | the **operator**; shared across missions | settings only |
+
+The mission's own wins a name collision, so a mission can always ship a definitive profile
+under a name an operator also uses. Which one answered is logged.
+
+The shared tier exists because an operator's house setup is not mission content: written
+into a mission folder it needs a `.gitignore` line and does not survive a re-extract, and
+`common_data` sits beside the missions instead. It is **settings only** - an `addons:` or
+`media:` section there is refused by name, and the settings in the same file still apply.
+Those two sections resolve against one mission's `story.json`, so a shared file cannot
+mean anything by them, and honoring them anyway is the worst option available: excluding
+an add-on another one `requires` compiles the story to **zero labels** while still
+reporting PASS.
 
 ## Why a file and not more arguments
 
@@ -123,9 +140,35 @@ and loads them through the directory walk rather than the `mastlib` list. Both a
     the pack every `@media/skybox` label fails its file test and is dropped from the random
     pick — silently, with no error, leaving you the stock set.
 
-!!! note "Profiles are per mission"
-    `profiles/` is read from the mission folder only. Two missions that want the same
-    profile need a copy each.
+!!! note "A mission's own profiles are per mission"
+    A mission's `profiles/` folder is read from that mission only. Two missions that want
+    the same *content* profile need a copy each - `addons:`/`media:` cannot be shared,
+    because they name things one `story.json` declares. A **settings** profile can be
+    shared: put it in `common_data/profiles/` and every mission sees it.
+
+## It follows a restart, not a mission switch
+
+A profile applies to every restart of the mission you launched, for as long as the
+engine is running - the launch arguments do not change and the file is re-read each
+time. Restart into a **different** mission and it is dropped instead, with a line in
+the log: `profiles/` is per mission, so the same name there would be a different
+file meaning something else entirely. See
+[Switching missions](command-line.md#switching-missions).
+
+## A profile is not a saved setup
+
+A profile is written by a person, in an editor, and it is *input*. What the game writes -
+a named preset from the server console, or the last-used setup behind
+`RESTORE_LAST_SETUP` - is *output*, and lives under
+`<missions>/common_data/game_codes/<mission>.yaml`. Reach for a profile when you have
+several standing configurations to choose between at launch; reach for a preset when you
+want to keep the setup you just built on screen.
+
+**Player ships in particular.** A profile's `PLAYER_LIST` is the roster: name, side, hull
+**and face**, per slot. A saved setup carries only names and hulls, as a capture of what
+the crew actually flew. So a standing roster belongs in a profile; "the ships we flew last
+time" belongs in a saved setup. A code you *share* carries neither - ship names are not
+part of the match.
 
 ## What a profile cannot do
 

@@ -127,6 +127,34 @@ def settings_profile_media():
     return _profile_section("media")
 
 
+def _profile_load(path_for):
+    """Read `<name>.yaml`, falling back to `<name>.json`, from one profile folder."""
+    data = load_yaml_data(path_for(".yaml"))
+    if data is None:
+        data = load_json_data(path_for(".json"))
+    return data if isinstance(data, dict) else None
+
+
+def _profile_strip_content(data, name):
+    """Drop `addons:`/`media:` from an OPERATOR-tier profile, loudly.
+
+    Those two sections are resolved against one mission's `story.json` - an `exclude` names
+    an add-on that mission declares, an `include` names one it can find. A profile shared
+    across missions cannot mean anything by them. Honoring them anyway is the worst option
+    available: excluding an add-on another one `requires` compiles the story to ZERO labels
+    while still reporting PASS, and an unmet `include` loses art silently. So they are
+    refused, by name, and the settings in the same file still apply.
+    """
+    dropped = [k for k in ("addons", "media") if k in data]
+    if not dropped:
+        return data
+    _warn(f"profile='{name}' is a shared profile, so its "
+          f"{' and '.join(dropped)} section(s) were ignored - add-on and media selection "
+          f"only resolves against one mission's story.json. Put it in "
+          f"<mission>/profiles/{name}.yaml instead.")
+    return {k: v for k, v in data.items() if k not in ("addons", "media")}
+
+
 def _profile_overrides():
     """Settings from `profile=<name>` on the command line -> `profiles/<name>.yaml`.
 
@@ -134,19 +162,38 @@ def _profile_overrides():
     launch carries twenty settings without twenty arguments. `cmd.exe` caps a command line
     at 8191 characters, shortcuts truncate, Windows quoting around spaces and `=` is
     painful, and none of it is diffable or reviewable. A file is all of those things.
+
+    Two places are searched, in order:
+
+    1. `<mission>/profiles/<name>.yaml` - the mission's own, authored by whoever wrote the
+       mission and shipped with it. Full featured: settings, `addons:`, `media:`.
+    2. `common_data/profiles/<name>.yaml` - the OPERATOR's own, beside the missions rather
+       than inside one, so a host's house setup is not written into a folder that a `git
+       pull` or a re-extract owns. **Settings only** (see :func:`_profile_strip_content`).
+
+    The mission wins on a name collision, so a mission can always ship a definitive
+    profile under a name an operator also happens to use.
     """
     from .command_line import command_line_get
+    from ..fs import get_common_data_filename
     name = command_line_get("profile")
     if not name:
         return None
     name = str(name).strip()
-    data = load_yaml_data(get_mission_dir_filename(os.path.join("profiles", name + ".yaml")))
-    if data is None:
-        data = load_json_data(get_mission_dir_filename(os.path.join("profiles", name + ".json")))
-    if data is None:
-        _warn(f"profile='{name}' matched no profiles/{name}.yaml - ignoring it")
-        return None
-    return data if isinstance(data, dict) else None
+
+    data = _profile_load(
+        lambda ext: get_mission_dir_filename(os.path.join("profiles", name + ext)))
+    if data is not None:
+        return data
+
+    data = _profile_load(lambda ext: get_common_data_filename("profiles", name + ext))
+    if data is not None:
+        _log(f"profile='{name}' came from common_data/profiles - shared across missions")
+        return _profile_strip_content(data, name)
+
+    _warn(f"profile='{name}' matched neither profiles/{name}.yaml in the mission nor "
+          f"common_data/profiles/{name}.yaml - ignoring it")
+    return None
 
 
 def _cli_overrides(known):
@@ -174,6 +221,17 @@ def _cli_overrides(known):
                   f"spelling")
         _set_path(out, path, _coerce(value))
     return out or None
+
+
+def _log(message):
+    """Say which of two places answered. Not a warning - nothing is wrong, but "the
+    profile applied" and "WHICH profile applied" are different facts once there are two
+    folders it could have come from."""
+    try:
+        from .execution import log
+        log(message, "settings")
+    except Exception:
+        print("settings:", message)
 
 
 def _warn(message):
@@ -226,6 +284,15 @@ def settings_get_defaults():
         },
         "AUTO_START": False,
         "AUTO_START_DELAY": 10,
+        # Come back on the setup screen with the settings the LAST game started with,
+        # instead of the ones in settings.yaml. Off by default, deliberately: a venue or
+        # convention machine wants every group to start from the same known state, and
+        # that is the behavior it already has - turning this on is a choice a host makes.
+        # A host who wants it always on puts it in a profile.
+        #
+        # It remembers per mission AND per map (see procedural/maps.py game_code_last_*),
+        # so switching maps, or missions, does not drag another setup along.
+        "RESTORE_LAST_SETUP": False,
         "WORLD_SELECT": "siege",
         "MAP_SIZE": "Medium",
         "TERRAIN_SELECT": "some",

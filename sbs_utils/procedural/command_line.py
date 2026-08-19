@@ -55,14 +55,8 @@ def command_line_list():
         return []
 
 
-def command_line_dict():
-    """The `key=value` launch arguments, parsed.
-
-    Bare flags are absent - see :func:`command_line_has` for those.
-
-    Returns:
-        dict[str, str]: empty when the runtime has no command line.
-    """
+def _raw_dict():
+    """The engine's `key=value` arguments, unscoped. Internal - see command_line_dict."""
     sbs = _sbs()
     fn = getattr(sbs, "command_line_dict", None) if sbs is not None else None
     if fn is None:
@@ -73,20 +67,129 @@ def command_line_dict():
         return {}
 
 
+def _raw_get(key, default=None):
+    """One unscoped argument, matched case-insensitively."""
+    if key is None:
+        return default
+    wanted = str(key).strip().lower()
+    for k, v in _raw_dict().items():
+        if str(k).strip().lower() == wanted:
+            return v
+    return default
+
+
+# Arguments that mean something about THIS MISSION, and so must not follow you into a
+# different one. The rest (`seed=`, `run=`, `record=`, `test=`, the engine's own) are
+# properties of the LAUNCH and are right either way.
+_MISSION_SCOPED = ("profile", "map", "console")
+_dropped_warned = set()
+
+
+def _is_mission_scoped(key):
+    k = str(key).strip().lower()
+    return k in _MISSION_SCOPED or k.startswith("var.")
+
+
+def command_line_mission_changed():
+    """Whether `run_next_mission` has moved us off the mission we were LAUNCHED with.
+
+    The launch arguments belong to the PROCESS, and `run_next_mission` swaps the mission
+    without touching argv - so `profile=`, `map=`, `console=` and `var.NAME=` follow you
+    into a mission they were never meant for. Right for a rerun of the same mission (which
+    is the common case, and stays working); wrong for the pause screen's `mission_select`,
+    `get_startup_mission_name()`, or `remote_mission_pick`.
+
+    `defaultmission=` is the only baseline available. The engine forks a fresh process per
+    mission, so nothing held in memory can survive to say what we started as.
+
+    Deliberately fail-safe: **no baseline means "not changed"**, i.e. exactly today's
+    behavior. Launched from the menu with no `defaultmission=`, or on an engine that does
+    not pass it through, nothing here engages and nothing is dropped. Compared on the
+    folder BASENAME, case-insensitively, so `defaultmission=legendarymissions` and a
+    `LegendaryMissions` folder still count as the same mission.
+
+    Returns:
+        bool: True only when both names are known and they differ.
+    """
+    launched = _raw_get("defaultmission")
+    if not launched:
+        return False
+    try:
+        from ..fs import get_mission_name
+        current = get_mission_name()
+    except Exception:
+        return False
+    if not current:
+        return False
+    launched = str(launched).strip().replace("\\", "/").rstrip("/")
+    launched = launched.rsplit("/", 1)[-1]
+    return launched.casefold() != str(current).strip().casefold()
+
+
+def command_line_scope_reset():
+    """Forget which dropped arguments have been reported. Called from
+    ``reset_mission_state`` so a switched mission says it once, not once per run."""
+    _dropped_warned.clear()
+
+
+def _note_dropped(key):
+    """Say a mission-scoped argument was dropped - once per key.
+
+    Silence here would be the worst outcome: `profile=house` doing nothing after a mission
+    switch looks identical to a profile that failed to parse, and a same-named profile in
+    the new mission quietly meaning something else is worse still.
+    """
+    shown = str(key).strip()
+    if shown.lower() in _dropped_warned:
+        return
+    _dropped_warned.add(shown.lower())
+    try:
+        from .execution import log
+        log(f"{shown}= was passed for another mission and does not apply here - "
+            f"ignoring it", "command_line", "warning")
+    except Exception:
+        pass
+
+
+def command_line_dict():
+    """The `key=value` launch arguments, parsed.
+
+    Bare flags are absent - see :func:`command_line_has` for those. Mission-scoped
+    arguments are omitted once `run_next_mission` has switched missions; see
+    :func:`command_line_mission_changed`.
+
+    Returns:
+        dict[str, str]: empty when the runtime has no command line.
+    """
+    raw = _raw_dict()
+    if not raw or not command_line_mission_changed():
+        return raw
+    out = {}
+    for k, v in raw.items():
+        if _is_mission_scoped(k):
+            _note_dropped(k)
+        else:
+            out[k] = v
+    return out
+
+
 def command_line_get(key, default=None):
     """One `key=value` argument, or `default`.
 
     The key is matched case-insensitively and without surrounding spaces, because a launch
     argument is typed by a person or pasted from a script and `Map=` should not behave
     differently from `map=`.
+
+    A mission-scoped argument (`profile=`, `map=`, `console=`, `var.NAME=`) reads as
+    absent once we have switched missions, so every caller gets the scoping without having
+    to remember it.
     """
     if key is None:
         return default
-    wanted = str(key).strip().lower()
-    for k, v in command_line_dict().items():
-        if str(k).strip().lower() == wanted:
-            return v
-    return default
+    if _is_mission_scoped(key) and command_line_mission_changed():
+        _note_dropped(key)
+        return default
+    return _raw_get(key, default)
 
 
 def command_line_has(flag):
@@ -133,6 +236,12 @@ def command_line_report():
     for key, value in sorted(args.items()):
         if str(key).lower().startswith("var."):
             lines.append(f"  {key} = {value}")
+    # What was passed but does not apply here. Reported rather than hidden: an argument
+    # silently absent is indistinguishable from one that was never typed.
+    if command_line_mission_changed():
+        for key, value in sorted(_raw_dict().items()):
+            if _is_mission_scoped(key):
+                lines.append(f"  {key} = {value}   (for another mission - ignored)")
     if not lines:
         return "no launch arguments"
     return "launch arguments:\n" + "\n".join(lines)

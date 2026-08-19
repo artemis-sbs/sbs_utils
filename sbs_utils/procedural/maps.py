@@ -187,24 +187,38 @@ def _map_property_vars(map):
     return found
 
 
-def game_code_vars(map):
+# The player-ship loadout rides a code only when it is being SAVED, never when it is
+# being shared. The two uses pull opposite ways: a saved setup should bring the crew's
+# ships back, while a code you paste to another host has no business carrying your ship
+# names - they are not part of the match, and they make the code several times longer.
+#
+# It is not a property var either (no map puts it on the options panel), so the property
+# walk never finds it on its own. `with_loadout` is what the save paths pass.
+_GAME_CODE_SAVE_ONLY = ("SHIP_LOADOUT",)
+
+
+def game_code_vars(map, with_loadout=False):
     """Return the var names that make up a map's game code, in order.
 
-    By default this is *every* property var the map exposes, so a saved code
-    reproduces the full setup; a person can delete any entries they don't care
-    about from the code string. A map can also pin the set explicitly with a
-    ``GameCode`` metadata list (``GameCode: [PLAYER_COUNT, DIFFICULTY, ...]``).
+    By default this is *every* property var the map exposes - the options panel, exactly
+    as a person set it. A map can pin the set explicitly with a ``GameCode`` metadata list
+    (``GameCode: [PLAYER_COUNT, DIFFICULTY, ...]``), which is then used verbatim.
 
     Args:
         map (Label): The map label object.
+        with_loadout (bool): also carry ``SHIP_LOADOUT`` - the crew's ship names and
+            hulls. True when SAVING a setup (a preset, or the last-used slot), False when
+            producing a code to share. Appended even to an explicit ``GameCode`` list, so
+            a map that pins its options still saves its ships.
 
     Returns:
         list[str]: Ordered var names included in the code.
     """
     declared = map.get_inventory_value("GameCode", map.get_inventory_value("game_code"))
-    if declared:
-        return [str(v) for v in declared]
-    return _map_property_vars(map)
+    names = [str(v) for v in declared] if declared else _map_property_vars(map)
+    if with_loadout:
+        names = names + [n for n in _GAME_CODE_SAVE_ONLY if n not in names]
+    return names
 
 
 def _coerce_like(text, current):
@@ -237,7 +251,7 @@ def _coerce_like(text, current):
     return text
 
 
-def game_code_encode(map):
+def game_code_encode(map, with_loadout=False):
     """Build a shareable, human-readable game code for a map.
 
     Format: ``"<map_path>;VAR=value;VAR=value;..."`` where the vars are the
@@ -247,6 +261,9 @@ def game_code_encode(map):
 
     Args:
         map (Label): The map label whose current option values to encode.
+        with_loadout (bool): also carry the crew's ship names and hulls. Pass True when
+            SAVING (a named preset, the last-used slot); leave False for a code meant to
+            be shared, which should not carry another crew's ship names.
 
     Returns:
         str: The game code, or ``""`` if ``map`` is None.
@@ -255,7 +272,7 @@ def game_code_encode(map):
     if map is None:
         return ""
     parts = [getattr(map, "path", "")]
-    for name in game_code_vars(map):
+    for name in game_code_vars(map, with_loadout):
         val = get_shared_variable(name)
         if val is None:
             continue
@@ -315,6 +332,10 @@ def game_code_label(code):
 
     e.g. ``"siege;PLAYER_COUNT=2;DIFFICULTY=5;seed_value=4242"`` -> ``"P2 D5 seed4242"``.
     Falls back to the raw code if it has no value pairs.
+
+    ``SHIP_LOADOUT`` is summarized as a ship count rather than spelled out: its value is
+    every ship's name and hull joined together, which is longer than the rest of the label
+    put together and unreadable in a dropdown.
     """
     if not code:
         return ""
@@ -324,13 +345,30 @@ def game_code_label(code):
         if "=" not in pair:
             continue
         name, _, val = pair.partition("=")
-        bits.append(f"{_GAME_CODE_LABEL_ABBR.get(name.strip(), name.strip())}{val.strip()}")
+        name, val = name.strip(), val.strip()
+        if name == "SHIP_LOADOUT":
+            slots = player_loadout_decode(val)
+            if slots:
+                bits.append(f"ships{len(slots)}")
+            continue
+        bits.append(f"{_GAME_CODE_LABEL_ABBR.get(name, name)}{val}")
     return " ".join(bits) if bits else code
 
 
 def _game_code_presets_file(filename):
-    from ..fs import get_mission_dir_filename
-    return filename if filename is not None else get_mission_dir_filename("game_code_presets.yaml")
+    """Where this mission's saved setups live: one file per mission under common_data.
+
+    NOT the mission folder. A preset is written by the game, not shipped by the author, so
+    putting it in the mission meant untracked state inside a distributed repo - it needed a
+    `.gitignore` line and it did not survive a re-extract. `common_data` sits beside the
+    missions, so it survives both.
+
+    `filename` stays as an injection point for the tests.
+    """
+    if filename is not None:
+        return filename
+    from ..fs import get_common_data_filename, get_mission_name
+    return get_common_data_filename("game_codes", (get_mission_name() or "mission") + ".yaml")
 
 
 def game_code_presets_load(filename=None):
@@ -431,6 +469,55 @@ def player_loadout_active():
     return player_loadout_decode(get_shared_variable("SHIP_LOADOUT"))
 
 
+def player_loadout_apply_to_ships(ships=None):
+    """Write the pending ``SHIP_LOADOUT`` onto the live player ships, then CLEAR it.
+
+    This is what makes a RESTORED setup lose to a person. A restored loadout otherwise
+    sits in ``SHIP_LOADOUT`` until the game starts, and the roster reconcile applies it
+    over whatever is on the ships at that moment - which includes the name and hull helm
+    just chose in the lobby. Last session's ships would silently overwrite this session's
+    choice, and the person who made it gets no hint that it happened.
+
+    Applying it up front inverts that: the restored names and hulls are what helm SEES in
+    the picker, and anything helm changes from there is simply the newer value. Clearing
+    the var is the other half - it leaves the reconcile nothing to override with.
+
+    Ships are matched to slots in id order, the same order :func:`player_loadout_from_ships`
+    captured them in.
+
+    No player ships yet means the restore is too early to land on anything, so the var is
+    left ALONE for the reconcile to apply at start - which is correct, because nobody has
+    had the chance to choose anything either.
+
+    Args:
+        ships (list|None): the player ships, or None to use the ``default_player_ship``
+            role.
+
+    Returns:
+        int: how many slots were applied.
+    """
+    from .execution import set_shared_variable
+    slots = player_loadout_active()
+    if not slots:
+        return 0
+    if ships is None:
+        from .roles import role
+        from .query import to_object_list
+        ships = to_object_list(role("default_player_ship"))
+    ordered = sorted(ships or [], key=lambda s: getattr(s, "id", 0))
+    if not ordered:
+        return 0
+    applied = 0
+    for ship, slot in zip(ordered, slots):
+        if slot.get("hull"):
+            ship.art_id = slot["hull"]
+        if slot.get("name"):
+            ship.name = slot["name"]
+        applied += 1
+    set_shared_variable("SHIP_LOADOUT", "")
+    return applied
+
+
 def game_code_presets_save_code(code, name=None, filename=None):
     """Save a game code as a named preset under its map, de-duplicating on code.
 
@@ -459,6 +546,81 @@ def game_code_presets_save_code(code, name=None, filename=None):
     data[map_path] = entries
     save_yaml_data(_game_code_presets_file(filename), data)
     return code
+
+
+# --- last-used setup --------------------------------------------------------
+# "Start the next game the way the last one started." Stored in the same per-mission file
+# as the named presets, under a reserved key that is not a map path - so it is never
+# offered in the presets dropdown and a map can never collide with it.
+#
+# It reuses the game code rather than inventing a save format, which buys the
+# cross-mission guard for free: game_code_decode resolves the map BY PATH against the
+# current story and changes nothing when no map matches, so a setup remembered for one
+# mission is already a safe no-op in another.
+_GAME_CODE_LAST_KEY = "__last_used__"
+
+
+def game_code_last_save(code, filename=None):
+    """Remember ``code`` as this mission's last-used setup, keyed by its map.
+
+    Called when a game STARTS, not when it ends: that records what was actually played,
+    and it survives a crash or a quit that never reaches a results screen.
+
+    Args:
+        code (str): a code from :func:`game_code_encode`.
+        filename (str|None): override the store path (tests).
+
+    Returns:
+        str|None: the code stored, or ``None`` if it was empty.
+    """
+    from ..fs import save_yaml_data
+    if not code:
+        return None
+    map_path = code.split(";")[0]
+    data = game_code_presets_load(filename)
+    last = data.get(_GAME_CODE_LAST_KEY)
+    if not isinstance(last, dict):
+        last = {}
+    last[map_path] = code
+    data[_GAME_CODE_LAST_KEY] = last
+    save_yaml_data(_game_code_presets_file(filename), data)
+    return code
+
+
+def game_code_last_code(map_path, filename=None):
+    """The last-used code for one map, or ``""`` when there is none."""
+    last = game_code_presets_load(filename).get(_GAME_CODE_LAST_KEY)
+    if not isinstance(last, dict):
+        return ""
+    return str(last.get(map_path) or "")
+
+
+def game_code_last_apply(map, filename=None):
+    """Apply this mission's remembered setup for ``map``, if there is one.
+
+    Safe to call unconditionally: it does nothing when nothing was remembered, when the
+    setting that writes them was never on, or when the remembered code names a map this
+    story does not have.
+
+    Args:
+        map (Label|str): the map label (or its path) about to be shown/started.
+        filename (str|None): override the store path (tests).
+
+    Returns:
+        bool: whether a remembered setup was applied.
+    """
+    map_path = map if isinstance(map, str) else getattr(map, "path", None)
+    if not map_path:
+        return False
+    code = game_code_last_code(map_path, filename)
+    if not code:
+        return False
+    if game_code_decode(code) is None:
+        return False
+    # Push any restored loadout onto the ships now and clear it, so a person choosing a
+    # ship afterwards wins - see player_loadout_apply_to_ships.
+    player_loadout_apply_to_ships()
+    return True
 
 
 

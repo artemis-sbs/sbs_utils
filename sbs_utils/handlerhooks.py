@@ -112,6 +112,17 @@ def reset_mission_state():
     music_reset()               # which bank is playing - run 2 must not report run 1's
     settings_profile_reset()    # the parsed profile - a reused interpreter can be
                                 # pointed at a different mission, and its profile
+    # The cached mission NAME. `fs.get_mission_name()` memoizes basename(script_dir), and
+    # the dev runner repoints script_dir at the new mission before calling this - so
+    # without the clear, a switched mission answers with the PREVIOUS mission's name.
+    # Anything keyed by mission (a saved-setup file, a results record) then lands in the
+    # wrong bucket. Invisible in the engine, which forks a fresh process.
+    from . import fs
+    fs.mission_name = None
+    # Which "this argument was for another mission" notices have been given.
+    # Cleared so a switch reports once per mission, not once per process.
+    from .procedural.command_line import command_line_scope_reset
+    command_line_scope_reset()
     GuiTabDecoratorLabel.clear()  # //gui/tab labels
     # Navigation routes (//comms, //science, //gui/...) register their LABEL OBJECTS
     # here as they compile, and nothing emptied it - so a second compile in one

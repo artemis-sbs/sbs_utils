@@ -29,6 +29,8 @@ import sbs_utils.mast_sbs.story_nodes  # noqa: F401  (settle node import order)
 import cosmos_dev.mock.sbs as mock
 from sbs_utils.helpers import FrameContext
 from sbs_utils.procedural import settings as S
+from sbs_utils.procedural.command_line import (
+    command_line_mission_changed, command_line_get, command_line_dict)
 
 
 class _Ctx:
@@ -152,6 +154,144 @@ class TestProfile(_Base):
         S.setting_defaults = None
         mock.set_command_line(["profile=soak"])
         self.assertEqual(S.settings_get_defaults()["DIFFICULTY"], 4)
+
+
+class TestOperatorProfile(_Base):
+    """The second profile tier: `common_data/profiles/<name>.yaml`.
+
+    A mission's own `profiles/` folder is authored content and ships in the mission's
+    repo. An OPERATOR's house setup is not - written there it needs a `.gitignore` line
+    and does not survive a re-extract. So a shared tier lives beside the missions.
+
+    It is SETTINGS ONLY: `addons:`/`media:` resolve against one mission's story.json, and
+    honoring them from a shared file is the worst option available - excluding an add-on
+    another one `requires` compiles the story to zero labels while still reporting PASS.
+    """
+
+    def _write_common(self, name, body):
+        from sbs_utils.fs import get_common_data_filename
+        path = get_common_data_filename("profiles", name + ".yaml")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(body)
+        self.addCleanup(lambda: os.path.exists(path) and os.remove(path))
+        return path
+
+    def _write_mission(self, name, body):
+        from sbs_utils.fs import get_mission_dir
+        folder = os.path.join(get_mission_dir(), "profiles")
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, name + ".yaml")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(body)
+        self.addCleanup(lambda: os.path.exists(path) and os.remove(path))
+        return path
+
+    def test_a_shared_profile_is_found(self):
+        self._write_common("house_x", "DIFFICULTY: 9")
+        mock.set_command_line(["profile=house_x"])
+        self.assertEqual(S.settings_get_defaults()["DIFFICULTY"], 9)
+
+    def test_the_mission_wins_a_name_collision(self):
+        """A mission can always ship a definitive profile under a name an operator uses."""
+        self._write_common("house_x", "DIFFICULTY: 9")
+        self._write_mission("house_x", "DIFFICULTY: 3")
+        mock.set_command_line(["profile=house_x"])
+        self.assertEqual(S.settings_get_defaults()["DIFFICULTY"], 3)
+
+    def test_content_sections_are_refused_and_said_so(self):
+        self._write_common("house_x", """
+DIFFICULTY: 9
+addons:
+    exclude: [something]
+""")
+        mock.set_command_line(["profile=house_x"])
+        s = S.settings_get_defaults()
+        self.assertEqual(s["DIFFICULTY"], 9)      # the settings still apply
+        self.assertNotIn("addons", s)
+        self.assertTrue(any("addons" in w for w in self._warnings), self._warnings)
+
+    def test_a_missing_profile_names_both_places_it_looked(self):
+        mock.set_command_line(["profile=nowhere_at_all"])
+        S.settings_get_defaults()
+        joined = " ".join(self._warnings)
+        self.assertIn("nowhere_at_all", joined)
+        self.assertIn("common_data", joined)
+
+
+class TestMissionSwitchScoping(_Base):
+    """A launch argument belongs to the PROCESS; most of them mean a MISSION.
+
+    `run_next_mission` swaps the mission without touching argv, so `profile=`, `map=`,
+    `console=` and `var.NAME=` would otherwise follow you into a mission they were never
+    meant for. Right for a rerun of the same mission; wrong for a switch. `seed=`, `run=`,
+    `record=` and `test=` are properties of the launch and are right either way.
+
+    `defaultmission=` is the only baseline available - the engine forks a fresh process
+    per mission, so nothing in memory survives to say what we started as.
+    """
+
+    def _as_mission(self, name):
+        """Pretend the running mission is `name` (fs caches the basename)."""
+        from sbs_utils import fs
+        saved = fs.mission_name
+        fs.mission_name = name
+        self.addCleanup(lambda: setattr(fs, "mission_name", saved))
+
+    def test_same_mission_keeps_everything(self):
+        self._as_mission("MyMission")
+        mock.set_command_line(["defaultmission=MyMission", "profile=soak", "map=x",
+                               "var.DIFFICULTY=3", "seed=7"])
+        self.assertFalse(command_line_mission_changed())
+        self.assertEqual(command_line_get("profile"), "soak")
+        self.assertEqual(command_line_get("map"), "x")
+
+    def test_switching_missions_drops_the_mission_scoped_ones(self):
+        self._as_mission("SomethingElse")
+        mock.set_command_line(["defaultmission=MyMission", "profile=soak", "map=x",
+                               "console=helm", "var.DIFFICULTY=3", "seed=7", "run=a"])
+        self.assertTrue(command_line_mission_changed())
+        self.assertIsNone(command_line_get("profile"))
+        self.assertIsNone(command_line_get("map"))
+        self.assertIsNone(command_line_get("console"))
+        self.assertNotIn("var.DIFFICULTY", command_line_dict())
+        # ...and keeps the ones that describe the LAUNCH.
+        self.assertEqual(command_line_get("seed"), "7")
+        self.assertEqual(command_line_get("run"), "a")
+
+    def test_a_dropped_argument_says_so(self):
+        self._as_mission("SomethingElse")
+        mock.set_command_line(["defaultmission=MyMission", "profile=soak"])
+        S.settings_get_defaults()
+        self.assertTrue(any("profile" in w for w in self._warnings), self._warnings)
+
+    def test_no_baseline_changes_nothing(self):
+        """Fail-safe: launched from the menu, or on an engine that does not pass
+        defaultmission= through, this must not engage at all."""
+        self._as_mission("SomethingElse")
+        mock.set_command_line(["profile=soak", "map=x"])
+        self.assertFalse(command_line_mission_changed())
+        self.assertEqual(command_line_get("profile"), "soak")
+
+    def test_the_comparison_is_forgiving(self):
+        """A person types the folder name; case and a path prefix must not read as a
+        different mission - that would drop a profile on the FIRST run."""
+        self._as_mission("LegendaryMissions")
+        mock.set_command_line(["defaultmission=legendarymissions", "profile=soak"])
+        self.assertFalse(command_line_mission_changed())
+        mock.set_command_line(["defaultmission=missions/LegendaryMissions", "profile=soak"])
+        self.assertFalse(command_line_mission_changed())
+
+    def test_the_profile_is_not_applied_after_a_switch(self):
+        from sbs_utils.fs import get_mission_dir
+        folder = os.path.join(get_mission_dir(), "profiles")
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, "switch_x.yaml")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("DIFFICULTY: 11")
+        self.addCleanup(lambda: os.path.exists(path) and os.remove(path))
+        self._as_mission("SomethingElse")
+        mock.set_command_line(["defaultmission=MyMission", "profile=switch_x"])
+        self.assertNotEqual(S.settings_get_defaults()["DIFFICULTY"], 11)
 
 
 class TestNoCommandLine(_Base):

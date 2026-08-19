@@ -48,13 +48,33 @@ Settings are merged in this order, each beating the one before:
 
 ```
 built-in defaults
+  <  a mod's settings_set_mod_default()
   <  the mission's settings.yaml
   <  profile=<name>          ->  <mission>/profiles/<name>.yaml
+                             ->  common_data/profiles/<name>.yaml
   <  the COSMOS_SETTINGS environment variable
   <  var.NAME= on the command line
 ```
 
 `var.` comes last because typing it is the most deliberate thing in the list.
+
+## Switching missions
+
+Launch arguments belong to the **process**, and restarting into a *different* mission
+(the pause screen's `mission_select`, `remote_mission_pick`) does not change them. Most
+of them mean something about one particular mission, so they are dropped once you
+switch:
+
+| dropped on a switch | kept |
+|---|---|
+| `profile=` `map=` `console=` `var.NAME=` | `seed=` `run=` `record=` `test=` |
+
+Restarting the **same** mission changes nothing - that is the common case, and a
+profile keeps applying to every restart, indefinitely.
+
+Each dropped argument says so in the log rather than vanishing. The comparison needs
+`defaultmission=` to know what you started with; without it nothing is dropped.
+
 
 A profile is an ordinary settings file under `profiles/`:
 
