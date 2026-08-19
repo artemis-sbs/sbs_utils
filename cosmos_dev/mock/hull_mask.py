@@ -207,16 +207,25 @@ _cache = {}
 def _art_1024(art_file_root, ships_dir=None):
     """Where the `<root>1024.png` silhouette for an artfileroot lives.
 
-    `artfileroot` IS A PATH NOW. The 2026-08-15 engine regenerated `data/shipData.yaml`
-    with every entry reading `ships/<name>` where the previous build wrote `<name>`, so
-    the base moved up from `data/graphics/ships` to `data/graphics`. Joining the old base
-    to the new root gives `graphics/ships/ships/<name>1024.png`, which exists nowhere -
-    and because a missing mask is deliberately read as "unknown" rather than "solid", it
-    fails as every hull in the mock quietly losing its interior instead of as an error.
+    THE ENGINE MAKES MULTIPLE CHECKS, and `data/graphics` IS THE ASSUMED DEFAULT BASE.
+    This mirrors that, in the same order:
 
-    Both spellings are accepted. Bare roots are still all over the extra ship-data files
-    that mods and LegendaryMissions ship, and those files are versioned separately from
-    the engine, so the two forms will coexist for as long as any pack does.
+      1. GRAPHICS-RELATIVE - THE DEFAULT. `ships/<name>`, which is what stock
+         `data/shipData.yaml` reads for all 184 entries, and `../missions/<pack>/...`
+         for a pack reaching out of the graphics folder.
+      2. EXE-RELATIVE  `data/missions/__lib__/media/<pack>/ships/<name>`. Engine v1.3.6
+         made artfileroot carry the whole path this way, and retired the companion
+         `artfilepath` field; it is what a mod built after v1.3.6 ships.
+      3. BARE `<name>`, resolved under `graphics/ships` - older packs, and all over the
+         extra ship-data files mods and LegendaryMissions ship.
+
+    All of them are accepted because those files are versioned separately from the engine,
+    so the spellings coexist for as long as any pack does.
+
+    WHY A MISS IS EXPENSIVE HERE. A missing mask is deliberately read as "unknown" rather
+    than "solid", so getting the base wrong does not raise - it shows up as every hull in
+    the mock quietly losing its interior. That is exactly how the previous base change was
+    found, and why a new spelling gets a candidate rather than a replacement.
 
     `ships_dir` is a caller-supplied override, tried first. Nothing in the mock passes one
     any more - the hullmap used to hand over a folder taken from a shipData `artfilepath`
@@ -225,11 +234,15 @@ def _art_1024(art_file_root, ships_dir=None):
     """
     from sbs_utils import fs
     leaf = f"{art_file_root}1024.png"
+    parts = leaf.replace(chr(92), "/").split("/")
     graphics = os.path.join(fs.get_artemis_data_dir(), "graphics")
     candidates = []
     if ships_dir is not None:
         candidates.append(os.path.join(ships_dir, leaf))
-    candidates.append(os.path.join(graphics, *leaf.replace(chr(92), "/").split("/")))
+    # data/graphics is the assumed default and is tried first; exe-relative (v1.3.6+)
+    # and the bare-name form follow. See the docstring.
+    candidates.append(os.path.join(graphics, *parts))
+    candidates.append(os.path.join(fs.get_artemis_dir(), *parts))
     candidates.append(os.path.join(graphics, "ships", leaf))
     for candidate in candidates:
         if os.path.exists(candidate):

@@ -315,3 +315,67 @@ class TestAgainstTheAuthoredCorpus(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestArtFileRootSpellings(unittest.TestCase):
+    """`artfileroot` has three live spellings and the mock must accept all of them.
+
+    ENGINE v1.3.6 changed the rule: artfileroot carries the whole path and resolves
+    against the EXE FOLDER, and the companion `artfilepath` field is obsolete. Before
+    that it was graphics-relative, and older packs ship a bare name. Those files are
+    versioned separately from the engine, so all three coexist.
+
+    This is worth a test because a wrong base does not raise. A missing mask is read as
+    "unknown" rather than "solid", so it surfaces as every modded hull quietly losing its
+    interior in the mock - which is exactly how the previous base change was found.
+    """
+
+    def _write(self, path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(b"not-a-real-png")
+
+    def test_exe_relative_is_found(self):
+        # What a mod built after v1.3.6 ships.
+        from sbs_utils import fs
+        from cosmos_dev.mock.hull_mask import _art_1024
+        root = "data/missions/__lib__/media/pack/ships/TEST_HULL"
+        want = os.path.join(fs.get_artemis_dir(), *(root + "1024.png").split("/"))
+        self._write(want)
+        try:
+            self.assertEqual(os.path.normpath(_art_1024(root)), os.path.normpath(want))
+        finally:
+            os.remove(want)
+
+    def test_graphics_relative_still_works(self):
+        # Stock shipData reads `ships/<name>` for all 184 entries.
+        from sbs_utils import fs
+        from cosmos_dev.mock.hull_mask import _art_1024
+        graphics = os.path.join(fs.get_artemis_data_dir(), "graphics")
+        want = os.path.join(graphics, "ships", "TEST_STOCK1024.png")
+        self._write(want)
+        try:
+            self.assertEqual(os.path.normpath(_art_1024("ships/TEST_STOCK")),
+                             os.path.normpath(want))
+        finally:
+            os.remove(want)
+
+    def test_bare_root_still_works(self):
+        from sbs_utils import fs
+        from cosmos_dev.mock.hull_mask import _art_1024
+        graphics = os.path.join(fs.get_artemis_data_dir(), "graphics")
+        want = os.path.join(graphics, "ships", "TEST_BARE1024.png")
+        self._write(want)
+        try:
+            self.assertEqual(os.path.normpath(_art_1024("TEST_BARE")),
+                             os.path.normpath(want))
+        finally:
+            os.remove(want)
+
+    def test_a_miss_reports_the_default_base(self):
+        # Nothing matched: report against data/graphics, which is the base the engine
+        # assumes by default, so the path in a diagnostic is the ordinary one.
+        from sbs_utils import fs
+        from cosmos_dev.mock.hull_mask import _art_1024
+        got = _art_1024("ships/NOPE_NOT_HERE")
+        self.assertIn("graphics", got)

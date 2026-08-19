@@ -622,9 +622,13 @@ def _populate_hull_map(hull_map, spaceObjectID) -> None:
         hull_map._h = int(h)
         hull_map._grid_scale = float(data.get("internalmapscale", 1.0) or 1.0)
         hull_map._sym = int(data.get("internalsymmetry", 0) or 0)
-        # `artfileroot` IS THE WHOLE PATH. There is no companion `artfilepath` key - it is
-        # not needed and is not read. The root is resolved against data/graphics, so
-        # `ships/<name>` is stock art and `../missions/<...>/<name>` is a mission's own.
+        # `artfileroot` IS THE WHOLE PATH. There is no companion `artfilepath` key - the
+        # field is OBSOLETE as of engine v1.3.6 and is neither written nor read.
+        #
+        # As of v1.3.6 the root resolves against the EXE FOLDER
+        # (`data/missions/__lib__/media/<pack>/ships/<name>`). Stock shipData still reads
+        # `ships/<name>`, which is graphics-relative, and older packs ship a bare name -
+        # `hull_mask._art_1024` tries all three, newest first.
         hull_map._art_file_root = data.get("artfileroot", "") or ""
         hull_map._ship_key = key
     except Exception:
