@@ -545,6 +545,11 @@ async def _serve_static(writer: asyncio.StreamWriter, url_path: str) -> None:
     # matches neither the graphics root nor the mission. Serving data/ as well
     # puts those paths back within reach.
     roots.append(os.path.dirname(graphics))
+    # ...and the install ROOT, because that is the shape the library now hands
+    # out. `fs.engine_file` names every asset relative to the Cosmos root, so a
+    # mission image arrives as `data/missions/<m>/media/...` - which resolves
+    # under neither the graphics root nor `data/`, nor either mission root below.
+    roots.append(os.path.dirname(os.path.dirname(graphics)))
     roots += [os.path.normpath(r) for r in (_static_roots or []) if r]
 
     rel = url_path.lstrip("/").replace("/", os.sep)

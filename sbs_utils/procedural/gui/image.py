@@ -290,9 +290,23 @@ class ImageAtlas:
             return f"image:{rel_file};color:{color}"
         return f"image:{rel_file};color:{color};{layer}"
 
+    def local_file(self):
+        """`self.file` as a path THIS process can open.
+
+        `self.file` is what the ENGINE is handed - `engine_file` shape, relative to the
+        Cosmos root (or absolute, when the art lives outside the install; `os.path.join`
+        passes that through). So the base to resolve it against is the root, and the one
+        rule lives here rather than being spelled out at each reader.
+
+        It used to be resolved against `data/graphics`, which was right while `self.file`
+        was `relpath(file, graphics)` and became wrong the moment it stopped being - so
+        every mission image answered `is_valid() == False` and drew "IMAGE NOT FOUND",
+        and `get_size()` measured nothing.
+        """
+        return os.path.normpath(os.path.join(get_artemis_dir(), self.file))
+
     def is_valid(self):
-        file_name = os.path.normpath(os.path.join(get_artemis_graphics_dir(), self.file)) + ".png"
-        return os.path.exists(file_name)
+        return os.path.exists(self.local_file() + ".png")
 
     def get_size(self):
         global _image_sizes
@@ -306,8 +320,7 @@ class ImageAtlas:
         if size is not None:
             return size[0], size[1]
 
-        abs_file = os.path.normpath(os.path.join(get_artemis_graphics_dir(), self.file))
-        size = gui_image_size_raw(abs_file)
+        size = gui_image_size_raw(self.local_file())
         _image_sizes[self.file] = size
         return size
 
