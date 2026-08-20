@@ -111,17 +111,23 @@ def science_update_scan_data(origin, target, info, tab="scan"):
     #scan_name = oo.side+tab
     # Set the scan data
     so.data_set.set(tab, info, oo.side)
-    # Check if the tab is already in the list
-    tab_list = so.data_set.get("scan_type_list",0)
-    if tab_list != 0:
-        # If it's not in the list, add it.
-        if tab_list.find(tab) == -1:
-            tab_list += f"{tab}"
-    else:
-        # If the tab list isn't found, we'll make it
-        tab_list = tab
-    # update the list of tabs used
-    so.data_set.set("scan_type_list", tab_list)
+    # Check if the tab is already in the list.
+    #
+    # THE ENGINE ANSWERS None for a field that was never set, and the `0` here is a SLOT
+    # INDEX, not a default - so it does not save you. The mock answers with a typed default
+    # ("" for this key), which is why calling this on a never-scanned object ran clean
+    # headless for years and raised `'NoneType' object has no attribute 'find'` the first
+    # time it met a real bridge. Coalescing is the whole fix; see MAST_CLAUDE.md,
+    # "Read a data_set value procedurally".
+    tab_list = str(so.data_set.get("scan_type_list", 0) or "")
+    # SPLIT ON THE SEPARATOR, do not substring-match. `find(tab)` said "intel" was already
+    # present in "no_intel", and the append had no separator at all - so two tabs became
+    # "scanintel", one token that no consumer can read. Every consumer splits on ",", and
+    # science_set_scan_data writes a trailing one, so match that exactly.
+    tabs = [t.strip() for t in tab_list.split(",") if t.strip()]
+    if tab not in tabs:
+        tabs.append(tab)
+    so.data_set.set("scan_type_list", ",".join(tabs) + ",")
     
 # --- Declarative, data-driven scan content ---------------------------------------------
 # Define what a SCIENCE SCAN returns as DATA, so an object becomes scannable and renders

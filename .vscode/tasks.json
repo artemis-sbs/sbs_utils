@@ -12,7 +12,7 @@
             ]
           }
         },
-        "command": "..\\sbs.pyz run",
+        "command": "..\\sbs.pyz run profile=autoply7",
         "problemMatcher": [],
         "group": {
           "kind": "test",
