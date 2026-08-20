@@ -196,6 +196,13 @@ class TestBlobLint(unittest.TestCase):
                '    types = [a.strip() for a in avail.split(",")]\n')
         self.assertEqual(codes(blob_lint(content=src)), [])
 
+    def test_default_keyword_is_a_coalesce(self):
+        """The message recommends `default=`; flagging it would be indefensible."""
+        src = ('== m ==\n'
+               '    thr = get_data_set_value(sid, "playerThrottle", 0, default=0)\n'
+               '    test_expect("caps", thr <= 1.0)\n')
+        self.assertEqual(codes(blob_lint(content=src)), [])
+
     def test_coalesced_arithmetic_is_quiet(self):
         src = ('== m ==\n'
                '    newCount = (get_data_set_value(sel, "Homing_NUM", 0) or 0) + count\n')

@@ -50,9 +50,10 @@ def _read_re(aliases=()):
 
 _READ = _read_re()
 
-#: A coalesce on the assignment - `... or 0`, `... or ""`. That IS the fix, so a read
-#: carrying one is done.
-_COALESCED = re.compile(r"\bor\b")
+#: A coalesce on the assignment - `... or 0`, `... or ""`, or the library's own
+#: `default=` keyword. Those ARE the fix, so a read carrying one is done. (The finding
+#: below recommends `default=`; a rule that then flagged it would be indefensible.)
+_COALESCED = re.compile(r"\bor\b|\bdefault\s*=")
 
 #: The read used AT the assignment - arithmetic on it, or handed to int()/float()/round().
 #: `newCount = get_data_set_value(id, f"{type}_NUM", 0) + count` raises on the read's own
