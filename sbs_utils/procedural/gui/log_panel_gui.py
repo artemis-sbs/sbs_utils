@@ -190,6 +190,11 @@ def _tail_is_live(area, page):
     missing from it means precisely "this widget belongs to a layout that no longer
     exists". pending_tag_map covers the window between building a layout and swapping it
     in, where the widget is real but not yet current.
+
+    The entry has to be THIS widget, not merely something answering to the same tag.
+    Tag numbers are recycled -- each build starts a fresh block and a page opened later
+    starts over from the bottom -- so "the tag is present" was satisfied by whatever the
+    NEW screen happened to give that number to, and the orphan read as live.
     """
     if page is None:
         return False
@@ -198,7 +203,13 @@ def _tail_is_live(area, page):
         return False
     for name in ("tag_map", "pending_tag_map"):
         m = getattr(page, name, None)
-        if m and tag in m:
+        if not m or tag not in m:
+            continue
+        entry = m.get(tag)
+        # tag_map holds (layout_item, runtime_node); older/other writers may hold
+        # the item alone.
+        item = entry[0] if isinstance(entry, tuple) else entry
+        if item is area:
             return True
     return False
 

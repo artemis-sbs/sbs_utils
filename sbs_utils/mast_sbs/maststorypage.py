@@ -255,6 +255,18 @@ class StoryPage(Page):
         self.gui_task.swap_inline_signals()
         self.on_click = self.pending_on_click
         self.pending_on_click = []
+        #
+        # Everything the OUTGOING build queued for an in-place redraw dies with
+        # it. The incoming build is presented in full a moment from now, so the
+        # queue can hold nothing but orphans -- and an orphan re-presents itself
+        # at its OLD coordinates, over whatever replaced it. That is how the
+        # console's log strip landed on the end-of-game results screen: the last
+        # message of the game marked it dirty, the results screen replaced the
+        # console in the same frame, and the post-present dirty pass drew the
+        # strip on top of it.
+        #
+        from ..pages.layout.dirty import Dirty
+        Dirty.clear_client(self.client_id)
         self.layouts = self.pending_layouts
         self.tag_map = self.pending_tag_map
         self.console = self.pending_console

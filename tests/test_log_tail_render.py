@@ -34,6 +34,12 @@ TAIL_CODE = """
     gui_row("row-height: 4em;")
     gui_log_tail()
     await gui()
+
+//web/results
+    gui_section("area: 5,5,95,95;")
+    gui_row("row-height: 4em;")
+    gui_text("GAME OVER")
+    await gui()
 """
 
 WEB_ID = 0x8080000000000042
@@ -176,3 +182,57 @@ class StaleStripTests(TailRenderTests):
         _TAILS.clear()
         self._render()
         self.assertIn(WEB_ID, _TAILS)
+
+
+class OrphanDrawTests(TailRenderTests):
+    """The strip must not be REDRAWN onto the screen that replaced its console.
+
+    Reported on the end-of-game results screen. The path there is not the one
+    StaleStripTests covers: the last message of the game marks the strip dirty,
+    the console leaves for the results screen in the SAME frame, and the engine's
+    post-present dirty pass (handlerhooks) then re-presents the orphan at the
+    console's coordinates, on top of the results.
+    """
+
+    def test_a_strip_dirtied_as_the_console_leaves_is_not_drawn_after(self):
+        from sbs_utils.procedural.gui.log_panel_gui import _TAILS
+        Gui.web_page_open(WEB_ID, "tail")
+        for _ in range(6):
+            Gui.present(FakeEvent(0, "gui_present"))
+            Dirty.represent_dirty()
+        self.assertIn(WEB_ID, _TAILS, "the strip never registered")
+        area = _TAILS[WEB_ID][0]
+
+        LP.log_add(WEB_ID, "MISSION IS LOST")
+        log_tail_refresh(WEB_ID)
+        self.assertIn(area, Dirty.dirty.get(area.client_id, set()),
+                      "the push should queue the strip for redraw")
+
+        sent = []
+        real = sbs.send_gui_text
+        sbs.send_gui_text = lambda *a, **k: sent.append(a)
+        try:
+            Gui.web_page_open(WEB_ID, "results")
+            Gui.present(FakeEvent(0, "gui_present"))
+            Dirty.represent_dirty()
+        finally:
+            sbs.send_gui_text = real
+
+        blob = " || ".join(str(a) for a in sent)
+        self.assertIn("GAME OVER", blob, "the replacement screen never drew")
+        self.assertNotIn("MISSION IS LOST", blob,
+                         "the orphaned strip drew itself over the next screen")
+
+    def test_a_tag_the_next_screen_reuses_does_not_count_as_live(self):
+        """Tag numbers are recycled, so `tag in tag_map` alone said an orphan was
+        live as soon as the new screen handed that number to a widget of its own."""
+        from sbs_utils.procedural.gui.log_panel_gui import _TAILS, _tail_is_live
+        Gui.web_page_open(WEB_ID, "tail")
+        for _ in range(6):
+            Gui.present(FakeEvent(0, "gui_present"))
+            Dirty.represent_dirty()
+        area, _tab, _count, page = _TAILS[WEB_ID]
+
+        page.tag_map = {area.tag: (object(), None)}   # same tag, different widget
+        page.pending_tag_map = {}
+        self.assertFalse(_tail_is_live(area, page))
