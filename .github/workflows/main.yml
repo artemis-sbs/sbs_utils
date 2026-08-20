@@ -27,6 +27,16 @@ jobs:
     # - name: Run tests
     #   run: python -m unittest discover -s tests
 
+    # __lib__.json authors the version, but it does not travel inside the .sbslib -
+    # the zip below holds the `sbs_utils` package directory alone. This job zips that
+    # folder directly rather than going through `sbs lib`, so without this step the
+    # release publishes whatever version__.py happens to be committed. That is how
+    # v1.4.0 shipped reporting (1,3,0) to the version_get() MAST global. Stamp from
+    # the tag, which is what is actually being released. A non-version tag is skipped,
+    # not failed - this workflow fires on every tag.
+    - name: Stamp version from the tag
+      run: python .github/stamp_version.py "${{ github.ref_name }}"
+
     - name: Archive sbs_utils
       uses: thedoctor0/zip-release@main
       with:
