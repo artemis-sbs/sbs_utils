@@ -56,6 +56,13 @@ class Exerciser:
         self._click_every = max(1, int(click_every or 1))
         self.clicked = 0
         self._warned_click = False
+        # SELECTED BUT NEVER SCANNED is a state of its own, and for a while this harness
+        # could not produce it: every selection was immediately given a full scan, so a
+        # mission reading scan data off an unscanned contact was never exercised. That is
+        # how LM's Florbin cargo-hold watcher shipped a crash the engine hit on the first
+        # click. Scanning every OTHER step keeps the scan routes covered and lets the
+        # unscanned state exist.
+        self.unscanned = 0      # diagnostics: selections deliberately left unscanned
 
     def _server_ctx(self):
         """Return the server task, or None if not ready."""
@@ -140,11 +147,17 @@ class Exerciser:
                         # MastScheduler seam; count Python-level failures here.
                         self.errors += 1
                 # Complete a science scan on the selected target -> fires the
-                # science_scan_complete handler and //science / <scan> routes.
-                try:
-                    science_ensure_scan(pid, tid, tabs="*")
-                except Exception:
-                    self.errors += 1
+                # science_scan_complete handler and //science / <scan> routes. On
+                # alternate steps the contact is left UNSCANNED on purpose: reading scan
+                # data off something nobody has scanned is its own state, and the one
+                # that raises (see self.unscanned).
+                if self.steps % 2 == 0:
+                    try:
+                        science_ensure_scan(pid, tid, tabs="*")
+                    except Exception:
+                        self.errors += 1
+                else:
+                    self.unscanned += 1
                 # follow_route_select_comms opened a live comms session; walk its
                 # button tree to reach //comms/<submenu> routes the root never hits.
                 self._walk_comms_buttons(pid, tid)

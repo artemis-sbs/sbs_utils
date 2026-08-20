@@ -258,16 +258,26 @@ def all_objects_exists(the_set):
             return False
     return True
 
-def get_data_set_value(id_or_obj, key, index=0):
+def get_data_set_value(id_or_obj, key, index=0, default=None):
     """Get a value from the engine data-set (blob) of a space or grid object.
 
     Args:
         id_or_obj (Agent | int): The agent ID or object.
         key (str): The data-set key.
         index (int, optional): The slot index within that key. Defaults to 0.
+            **This is an INDEX, not a fallback** - the third positional argument is
+            which slot to read (shield 0 vs shield 1), and passing a "default" there
+            reads the wrong slot or fails outright.
+        default (any, optional): what to return when the field has never been set.
+            The engine answers ``None`` for such a field, and a mission that then
+            compares it (``if fuel < 1000``) raises on a real bridge while running
+            clean against the mock's typed defaults - the bug behind LM's Florbin
+            cargo-hold watcher and an earlier helm crash. Pass ``default=0`` (or
+            ``default=""``) and the caller gets something it can use. ``sbs lint``
+            flags the unguarded shape as ``blob-unguarded-none``.
 
     Returns:
-        any: The stored value, or ``None`` if the object or key is not found.
+        any: The stored value, ``default`` if the object or key is not found.
     """
     # Initialize so an id that is NEITHER a space nor a grid object (e.g. a side id,
     # a story id, or the server id 0) returns None instead of raising UnboundLocalError
@@ -280,7 +290,8 @@ def get_data_set_value(id_or_obj, key, index=0):
         object = to_grid_object(id_or_obj)
     if object is not None:
         try:
-            return object.data_set.get(key, index)
+            value = object.data_set.get(key, index)
+            return default if value is None else value
         except ValueError:
             # A grid object's Agent can OUTLIVE its host ship: to_grid_object still
             # returns it, but its blob lives in the host's hull map. Once the host is
@@ -288,8 +299,8 @@ def get_data_set_value(id_or_obj, key, index=0):
             # blob of gridobject"). Its data is gone, so honour this function's contract
             # and report not-found rather than let the throw propagate. (A deleted SPACE
             # object already resolves to None above, so only grid objects reach here.)
-            return None
-    return None
+            return default
+    return default
 
 def set_data_set_value(to_update, key, value, index=0):
     """Set a value in the engine data-set (blob) for one or more space or grid objects.

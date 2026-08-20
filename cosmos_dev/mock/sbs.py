@@ -3,6 +3,7 @@ from typing import List
 from sbs_utils.vec import Vec3
 
 import math
+import os
 import queue
 import random
 import sys
@@ -1903,6 +1904,31 @@ class navarea(navpoint):
         self._points = []     # list of (x, z) ground-plane corners
 
 
+# STRICT MODE: answer None for a field nothing has set, exactly as the engine does.
+#
+# The table below is a convenience that costs real bugs. The engine returns None for a
+# data_set field that was never set; these typed defaults mean a mission can read a field
+# no ship has, compare it, and run clean headless for years - then raise
+# "'NoneType' < int" the first time a real bridge tries it. That is how the Florbin
+# cargo-hold watcher (LM Peacetime Remastered) and a helm energy crash both shipped.
+#
+# Off by default, because every existing suite is written against the permissive table.
+# Turn it on for a soak or a pre-release run: `mission_runner --strict-blob`, or
+# COSMOS_STRICT_BLOB=1 in the environment for a unit test.
+STRICT_BLOB = os.environ.get("COSMOS_STRICT_BLOB", "") not in ("", "0", "false", "False")
+
+#: True while the mock's own physics tick is running - see physics_tick. Strict mode
+#: models what a SCRIPT sees, and the physics is standing in for engine internals.
+_IN_PHYSICS = False
+
+
+def set_strict_blob(on):
+    """Engine-faithful blob reads: an unset field reads None instead of a typed default."""
+    global STRICT_BLOB
+    STRICT_BLOB = bool(on)
+    return STRICT_BLOB
+
+
 # Typed defaults derived from object_data_documentation.txt
 _DATA_SET_DEFAULTS = {
     # torpedo counts — int
@@ -2032,6 +2058,8 @@ class object_data_set(object): ### from pybind
         value = values.get(index, None)
         if value is not None:
             return value
+        if STRICT_BLOB and not _IN_PHYSICS:
+            return None          # engine semantics - see the note by _DATA_SET_DEFAULTS
         return _DATA_SET_DEFAULTS.get(name, None)
 
     def get_first(self, name: str) -> object:
@@ -4435,10 +4463,25 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
     safely spawn and delete objects between ticks.  Collision events are put()
     into _pending_physics_events (queue.Queue) for the mission runner to drain.
     """
-    global sim
+    global sim, _IN_PHYSICS
     if sim is None or sim._paused:
         return
 
+    # The mock's physics stands in for the engine's own C++ internals, which never go
+    # through the script-facing blob API - so STRICT_BLOB, which exists to model what a
+    # SCRIPT sees, must not apply in here. Without this the flag simply breaks the
+    # simulation (throttle reads None, ships stop) and buries the mission findings it was
+    # turned on to surface.
+    _IN_PHYSICS = True
+    try:
+        _physics_tick_locked(dt)
+    finally:
+        _IN_PHYSICS = False
+
+
+def _physics_tick_locked(dt: float) -> None:
+    """The body of physics_tick - see it for the contract."""
+    global sim
     with sim._lock:
         # The physics tick is the sim-time source (mirrors the engine, where the
         # physics/sim tick advances time_tick_counter).  dt is sim-seconds, so the

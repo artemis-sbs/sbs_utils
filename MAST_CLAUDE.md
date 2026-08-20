@@ -1133,10 +1133,25 @@ set_interval(id, "patrol", "patrol_beat", seconds=30)   # clear_interval() stops
 ```
 
 ### Read a data_set value procedurally
+
+**The third argument is an INDEX, not a default** — which slot to read (shield 0 vs
+shield 1). The example here used to say "with default" and pass `"undocked"` as one,
+which reads the wrong slot. The **engine returns `None`** for a field that was never
+set, so use the `default=` keyword (2026-08-19) or coalesce:
+
 ```
-alert_state = get_data_set_value(ship_id, "red_alert", 0)           # with default
-dock_state  = get_data_set_value(ship_id, "dock_state", "undocked")
+alert_state = get_data_set_value(ship_id, "red_alert", default=0)
+dock_state  = get_data_set_value(ship_id, "dock_state", default="undocked")
+rear_shield = get_data_set_value(ship_id, "shield_val", 1, default=0)   # 1 = the SLOT
+fuel        = ship.data_set.get("energy", 0) or 0                       # raw blob API
 ```
+
+Getting this wrong is invisible in the mock, which answers with a typed default from
+its own table, and raises `'NoneType' < int` on a real bridge — and since **a failing
+expression stops the command**, a watcher task that hits it ends silently and the
+feature just stops working. `sbs lint` flags the unguarded shape as
+`blob-unguarded-none`; `mission_runner --strict-blob` makes the mock answer `None` the
+way the engine does.
 
 ### Vec3 unpacking
 ```

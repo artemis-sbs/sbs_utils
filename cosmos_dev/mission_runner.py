@@ -762,7 +762,8 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
     if exerciser is not None:
         print(f"exercise: steps {exerciser.steps}, clicks {getattr(exerciser, 'clicked', 0)}, "
               f"enemies(last) {exerciser.enemies_last}, "
-              f"combats forced {exerciser.forced}, beam-damage hits {getattr(sbs, '_apply_damage_calls', '?')}")
+              f"combats forced {exerciser.forced}, beam-damage hits {getattr(sbs, '_apply_damage_calls', '?')}, "
+              f"selects left unscanned {getattr(exerciser, 'unscanned', 0)}")
     # Combat-readiness diagnostic: do ships actually have beams, and how close?
     try:
         from sbs_utils.procedural.roles import role
@@ -1053,6 +1054,7 @@ def _run(
     exercise_click: str | None = None,
     exercise_click_every: int = 3,
     use_working_tree: bool = False,
+    strict_blob: bool = False,
     seed: int | None = None,
     audit_layout: bool = False,
     audit_gui_handlers: bool = False,
@@ -1185,6 +1187,13 @@ def _run(
         sys.stderr = _TeeWriter(sys.__stderr__, "error", sbs.gui_queue)
     else:
         import cosmos_dev.mock.sbs as sbs
+
+    # Engine-faithful blob reads. Set on the BASE mock module, which is where the blob
+    # lives - the mockgui wrapper re-exports it rather than defining its own.
+    if strict_blob:
+        import cosmos_dev.mock.sbs as _base_mock
+        _base_mock.set_strict_blob(True)
+        print("[runner] strict blob: an unset data_set field reads None, as the engine does")
 
     # Resolution sweep: force a client screen size so layouts build at it (mixed
     # %/px units make overflow resolution-dependent — small windows are worst).
@@ -2436,7 +2445,18 @@ def _run(
             # --exercise: drive selections/comms each MAST tick once the world is up.
             if _exerciser is not None and _map_started and run_mast:
                 if not sbs.sim._paused:
-                    _exerciser.step()
+                    # A throw in the HARNESS is not a mission finding, and it used to end
+                    # the exercise silently - the run still printed a report, with
+                    # `steps 1` as the only clue that nothing had been driven since.
+                    try:
+                        _exerciser.step()
+                    except Exception as _ex_err:
+                        _exerciser.errors += 1
+                        if not getattr(_exerciser, "_reported_step_error", False):
+                            _exerciser._reported_step_error = True
+                            import traceback as _tb
+                            print(f"[runner] exerciser step failed: {_ex_err}")
+                            _tb.print_exc()
                 else:
                     # A paused sim still has a live GUI, and the end-of-mission
                     # screen is exactly what a player clicks. Named clicks only:
@@ -2607,6 +2627,10 @@ if __name__ == "__main__":
     ap.add_argument("--use-working-tree", action="store_true",
                     help="Run the working-tree sbs_utils instead of the packaged "
                          ".sbslib (smoke-test local library edits against a mission)")
+    ap.add_argument("--strict-blob", action="store_true",
+                    help="Answer None for a data_set field nothing has set, as the ENGINE "
+                         "does, instead of the mock's typed default. Surfaces the "
+                         "engine-only 'NoneType' comparisons that read clean headless")
     ap.add_argument("--audit-layout", action="store_true",
                     help="Tap the emitted GUI rect stream and report widget "
                          "overflow / overlap (read-only; prints at end of run)")
@@ -2699,6 +2723,7 @@ if __name__ == "__main__":
         exercise_click=args.exercise_click,
         exercise_click_every=args.exercise_click_every,
         use_working_tree=args.use_working_tree,
+        strict_blob=args.strict_blob,
         seed=args.seed,
         audit_layout=args.audit_layout,
         audit_gui_handlers=args.audit_gui_handlers,
