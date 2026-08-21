@@ -211,6 +211,34 @@ def mod_ship_data_process(so, entry):
             blob.set("torpedo_types_available", ",".join(names), 0)
 
 
+def _prepend_replacing(entries):
+    """Put `entries` at the front of the `#ship-list`, dropping anything already there
+    that carries one of the same keys.
+
+    A merge used to be a blind prepend, so re-supplying a file ADDED it rather than
+    REPLACED it. `add_extra` merges the file it read, and the MOCK's
+    `add_extra_ship_data` merges it a second time (the real engine does not merge
+    library-side at all), so every headless run doubled a mod's hulls - 51 became 102 -
+    while the engine saw one copy. `get_ship_data_for` reads the newest copy first, so
+    nothing looked wrong until something counted: `filter_ship_data_by_side` answering
+    with eight Klingon warships where the pack declares four.
+
+    Prepending still means "addon data ahead of built-in". This only stops one key being
+    present twice.
+    """
+    global ship_data_cache
+    keys = set()
+    for e in entries:
+        if isinstance(e, dict) and e.get("key"):
+            keys.add(e.get("key"))
+    existing = ship_data_cache.get("#ship-list") or []
+    if keys:
+        existing = [e for e in existing
+                    if not (isinstance(e, dict) and e.get("key") in keys)]
+    ship_data_cache["#ship-list"] = list(entries) + existing
+    return ship_data_cache
+
+
 def merge_mod_ship_data(mod, file=None):
     """Merge a mod folder's extra ship data (YAML or JSON) into the ship data cache.
 
@@ -233,7 +261,7 @@ def merge_mod_ship_data(mod, file=None):
     script_ship_data = load_data( os.path.join(get_mod_dir(mod), file))
     if script_ship_data is not None:
         entries = _tag_mod_entries(script_ship_data["#ship-list"], mod)
-        ship_data_cache["#ship-list"] = entries + ship_data_cache["#ship-list"]
+        _prepend_replacing(entries)
 
     return ship_data_cache
 
@@ -272,7 +300,7 @@ def merge_mod_ship_yaml(content, mod=None):
         return None
     ship_data_cache = get_ship_data()
     entries = _tag_mod_entries(data["#ship-list"], mod)
-    ship_data_cache["#ship-list"] = entries + ship_data_cache["#ship-list"]
+    _prepend_replacing(entries)
     reset_ship_data_caches()
     return ship_data_cache
 
@@ -451,6 +479,51 @@ def get_ship_data_for(ship_key):
         dict | None: Ship data dict, or ``None`` if not found.
     """
     return get_ship_index().get(ship_key)
+
+
+def ship_art_image(id_or_key, size=1024):
+    """The image key for a ship's flat art -- e.g. ``ships/TSNBattleship1024``.
+
+    The engine ships a top-down sprite beside every hull mesh, named
+    ``<artfileroot><size>.png``: 1024 is the big one the hull mask is cut from,
+    256 the small one. It is the only picture of a ship a GUI can draw without
+    asking the engine for a 3d render, so it is what a panel uses to show WHICH
+    ship it is talking about.
+
+    ``artfileroot`` carries the whole path (``ships/<name>``) and the base for it
+    is ``data/graphics`` -- so what comes back here can be handed straight to
+    ``gui_image*`` or to a ``background-image:`` style. Neither wants the ``.png``.
+    A bare root (no ``/``) is the spelling engine 1.3.6 stopped resolving; it is
+    returned unchanged rather than guessed at, because ``_art_root_exists`` is
+    where that judgement belongs.
+
+    Args:
+        id_or_key (Agent | int | str): A space object, its id, or a shipData key.
+        size (int, optional): Which sprite - 1024 or 256. Defaults to 1024.
+
+    Returns:
+        str | None: The image key, or ``None`` when the ship data has no art.
+
+    Example:
+        art = ship_art_image(target_id)
+        gui_sub_section(f"col-width: square; background-image: {art}; background: white;")
+    """
+    ship_key = id_or_key
+    if not isinstance(ship_key, str):
+        from .query import to_object
+        so = to_object(id_or_key)
+        if so is None:
+            return None
+        ship_key = getattr(so, "ship_data_key", None)
+    if not ship_key:
+        return None
+    entry = get_ship_data_for(ship_key)
+    if entry is None:
+        return None
+    root = entry.get("artfileroot")
+    if not root:
+        return None
+    return f"{root}{int(size)}"
 
 
 def filter_ship_data_by_side(test_ship_key, sides, role=None, ret_key_only=False):
@@ -787,6 +860,7 @@ def torgoth_ship_keys():
 
 _EXTRA_SHIP_DATA_ENGINE = True      # is the engine call allowed?
 _extra_ship_data_loaded = []        # (filename, path, reached_engine, engine_arg) per call
+_extra_keys = set()                 # every ship key handed to the engine through add_extra
 
 
 def extra_enable(enabled=True):
@@ -803,6 +877,21 @@ def extra_enable(enabled=True):
 def extra_enabled():
     """Is the engine call currently allowed?"""
     return _EXTRA_SHIP_DATA_ENGINE
+
+
+def _record_extra(filename, path, reached, engine_arg):
+    """Remember this file for `extra_replay()`, ONCE.
+
+    The record used to be a plain append, so declaring the same file twice made the replay
+    issue the engine call twice. An addon's top-level statement is only once-only when it
+    says `shared`, so a second client connecting re-runs the declaration - and
+    `extra_loaded()` is what the reset ledger counts, so the duplicate read as a leak too.
+    """
+    for i, rec in enumerate(_extra_ship_data_loaded):
+        if rec[0] == filename and rec[3] == engine_arg:
+            _extra_ship_data_loaded[i] = (filename, path, reached, engine_arg)
+            return
+    _extra_ship_data_loaded.append((filename, path, reached, engine_arg))
 
 
 def extra_replay():
@@ -851,6 +940,63 @@ def extra_loaded():
 def extra_reset():
     """Forget the record. Called by the per-mission reset, not by missions."""
     _extra_ship_data_loaded.clear()
+    _extra_keys.clear()
+
+
+def extra_untold():
+    """Which mods have hulls in the LIBRARY that the ENGINE was never (re-)told about?
+
+    [(mod, hull_count)], sorted. Empty is the healthy answer.
+
+    A mod that calls sbs.add_extra_ship_data() ITSELF is not in _extra_ship_data_loaded,
+    so extra_replay() has nothing to replay for it - and create_new_sim() rebuilding the
+    table is what takes its hulls away. Everything library-side keeps working, which is
+    why it goes unnoticed: every lookup, picker, headless run and lint reports the hulls
+    present. The bill arrives as a spawn dying inside the engine, in a mission that never
+    mentions ship data. Three shipped mods were in exactly that state on engine 1.3.6.
+
+    Matched on the ship KEY, not on the #mod stamp: under the MOCK, add_extra_ship_data
+    merges the file a second time and re-stamps every entry with its own name, so a name
+    comparison reports a correctly-declared mod as untold.
+    """
+    if not ship_data_cache:
+        return []
+    counts = {}
+    for entry in ship_data_cache.get("#ship-list") or []:
+        if not isinstance(entry, dict):
+            continue
+        mod = entry.get(SHIP_DATA_MOD_KEY)
+        if mod and entry.get("key") not in _extra_keys:
+            counts[mod] = counts.get(mod, 0) + 1
+    return sorted(counts.items())
+
+
+def extra_report_untold():
+    """Name the mods the engine does not have, while it can still be acted on.
+
+    Called from sim_create() right after extra_replay() - the point where the table has
+    just been rebuilt and re-fed, so anything still missing is missing for the rest of
+    the mission. Goes to debug.log too, the channel that survives an engine session.
+    """
+    untold = extra_untold()
+    if not untold:
+        return untold
+    from .execution import log
+    for mod, count in untold:
+        log(f"{mod}: {count} hull(s) exist in sbs_utils but were never registered "
+            f"through ship_data_add_extra, so nothing re-told the engine about them "
+            f"after create_new_sim() rebuilt its table. Spawning one fails INSIDE the "
+            f"engine with bad allocation, minutes later, against innocent code. A mod "
+            f"calling sbs.add_extra_ship_data() itself must either use "
+            f"ship_data_add_extra() instead, or re-register after every sim_create().",
+            "ship_data", "warning")
+        try:
+            from ..mast.mast import DEBUG
+            DEBUG("extra_untold(%s): %d hull(s) in the library, NOT in the engine"
+                  % (mod, count))
+        except Exception:                               # noqa: BLE001
+            pass
+    return untold
 
 
 def _art_that_is_not_there(text):
@@ -930,18 +1076,31 @@ def _art_root_exists(graphics, root):
     # (`../missions/__lib__/media/<pack>/ships/<name>`), so waving it through would exempt
     # exactly the files most likely to be missing - a mod ships its own art, and a pack
     # that failed to unpack looks identical to one that did until a client draws a hull.
-    full = os.path.normpath(os.path.join(graphics, *rel.split("/")))
-    install = os.path.dirname(os.path.dirname(graphics))    # <install>/data/graphics
-    if os.path.commonpath([os.path.normpath(install), full]) != os.path.normpath(install):
-        return True                 # genuinely outside the install - not ours to judge
-    folder, stem = os.path.dirname(full), os.path.basename(full).lower()
-    try:
-        for name in os.listdir(folder):
-            if name.split(".")[0].lower() == stem:
-                return True
-    except OSError:
-        pass
-    return False
+    # TWO BASES, because both spellings are live at once. A STOCK root is relative to
+    # data/graphics (ships/<name>). A MOD's root is relative to the EXE
+    # (data/missions/__lib__/media/<pack>/ships/<name>) - the spelling the engine team's
+    # own BeamArcTest file carries. Resolving only against graphics turned every
+    # mod-supplied hull into a false 'art is not there': 99 warning lines per load on the
+    # TNG pack, whose art is exactly where it says it is.
+    install = os.path.normpath(os.path.dirname(os.path.dirname(graphics)))
+    judged = False
+    for base in (graphics, install):
+        full = os.path.normpath(os.path.join(base, *rel.split("/")))
+        if os.path.commonpath([install, full]) != install:
+            continue                # THIS base escapes the install; the other may not
+        judged = True
+        folder, stem = os.path.dirname(full), os.path.basename(full).lower()
+        try:
+            for name in os.listdir(folder):
+                if name.split(".")[0].lower() == stem:
+                    return True
+        except OSError:
+            pass
+    # Report it missing if EITHER base could see where it pointed; only a root outside
+    # the install under BOTH is genuinely not ours to judge. Deferring as soon as one
+    # base escapes would exempt ../missions/<pack>/..., which resolves fine from
+    # data/graphics and is the spelling a mod's own art used to use.
+    return False if judged else True
 
 
 def _looks_like_hjson(text):
@@ -1001,11 +1160,44 @@ def add_extra(name, path=None, mod=None):
     text, found_file = _read_extra_ship_data(filename, path)
     if text is not None:
         merge_mod_ship_yaml(text, mod or "add_extra_ship_data")
+        # Remember the KEYS this file supplied. extra_untold() matches on the key rather
+        # than on the #mod stamp, because the stamp is not stable: under the MOCK,
+        # sbs.add_extra_ship_data merges the same file a second time and re-stamps every
+        # entry with its own name, so a name comparison reports a correctly-declared mod
+        # as untold - which it did, on the first version of this check.
+        try:
+            for _entry in (load_yaml_string(text) or {}).get("#ship-list") or []:
+                if isinstance(_entry, dict) and _entry.get("key"):
+                    _extra_keys.add(_entry["key"])
+        except Exception:                               # noqa: BLE001
+            pass                                        # bookkeeping never breaks a load
         for key, root in _art_that_is_not_there(text):
             from .execution import log
             log(f"{filename}: hull '{key}' asks for artfileroot '{root}', which is not in "
                 f"data/graphics/ships. It will spawn on the server and then ASSERT on the "
                 f"first client that draws it.", "ship_data", "warning")
+        if not text.endswith(chr(10)):
+            # NO FINAL NEWLINE = THE ENGINE REJECTS THE WHOLE FILE. Its reader is line
+            # oriented, so an unterminated last line is never consumed and the closing
+            # brace never arrives: it answers
+            #   RuntimeError: End of input while parsing an object
+            #   (did you forget a closing '}'?)
+            # on a file that every JSON parser reads happily. Owner-found 2026-08-21 on
+            # Cosmos-TNG-Mod, whose 51 hulls were absent from the engine for that one
+            # byte. Every ship-data file the engine accepts ends with a newline -
+            # data/shipData.yaml, both LegendaryMissions packs, and the engine team's
+            # own BeamArcTest/extraShipDataAAA.json - and the one that did not was the
+            # only one it refused.
+            #
+            # Cheap to check, impossible to see: it survives a diff, a JSON validator,
+            # a round-trip test and every headless run, because sbs_utils reads the file
+            # perfectly well. Only the engine cares.
+            why = "no final newline - the engine will reject the whole file"
+            from .execution import log
+            log(f"{filename} has no newline at end of file. The ENGINE rejects such a "
+                f"file outright (End of input while parsing an object), while sbs_utils "
+                f"reads it fine - so its ships work everywhere EXCEPT the engine. Add a "
+                f"trailing newline.", "ship_data", "warning")
         if not _looks_like_hjson(text):
             why = "block YAML - the engine reads HJSON and will reject this file"
             from .execution import log
@@ -1026,10 +1218,22 @@ def add_extra(name, path=None, mod=None):
             f"the mission's story.json probably needs that add-on's shared_media zip.",
             "ship_data", "warning")
 
+    # The engine is told the file we actually read, WITHOUT ITS EXTENSION - the spelling
+    # the engine wants (owner-confirmed 2026-08-21) and the one the engine team's own
+    # sample uses: add_extra_ship_data(data/missions/BeamArcTest/extraShipDataAAA).
+    # It appends .yaml, then .json, itself.
+    #
+    # Handing it the full filename is what had the TNG mod dead: the engine answered
+    # RuntimeError: End of input while parsing an object. That error is the LUCKY case -
+    # the call RAISES NOTHING for a file it cannot open, so LegendaryMissions' own
+    # extraShipData_monsters.yaml reported engine told: True while telling it nothing at
+    # all. A True here has never meant the engine read the file, only that it did not
+    # throw; stripping the extension is what makes the two agree.
+    #
     # The engine is told the FILE we actually read. With nothing read there is nothing
     # to point it at, so the call is skipped rather than sent a guess - a path the
     # engine cannot open is silent, and the missing-file warning above already said it.
-    engine_arg = _engine_path(found_file) if found_file else None
+    engine_arg = _engine_name(_engine_path(found_file)) if found_file else None
 
     if _EXTRA_SHIP_DATA_ENGINE and engine_arg:
         try:
@@ -1052,7 +1256,7 @@ def add_extra(name, path=None, mod=None):
             from .execution import log
             log(f"add_extra_ship_data({filename}) failed: {e}", "ship_data", "warning")
 
-    _extra_ship_data_loaded.append((str(filename), str(path), reached, engine_arg))
+    _record_extra(str(filename), str(path), reached, engine_arg)
     # SAY WHAT HAPPENED, to debug.log - the one channel that survives an engine session.
     # Everything about this call is invisible from inside the game: whether the file was
     # found, what path the ENGINE was handed, and whether it accepted the call. When the
@@ -1066,6 +1270,21 @@ def add_extra(name, path=None, mod=None):
     except Exception:                                   # noqa: BLE001
         pass
     return reached
+
+
+def _engine_name(path):
+    """Drop a ship-data file's extension, because the engine appends its own.
+
+    Only the three the engine searches are removed (.yaml, .yml, .json); any other
+    trailing dot is left alone, since a pack is free to have one in a folder or stem
+    and guessing there would break a path that already works.
+    """
+    text = str(path)
+    low = text.lower()
+    for ext in (".yaml", ".yml", ".json"):
+        if low.endswith(ext):
+            return text[: -len(ext)]
+    return text
 
 
 def _find_extra_root(folder, filename):

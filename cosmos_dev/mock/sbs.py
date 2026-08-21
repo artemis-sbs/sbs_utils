@@ -544,10 +544,16 @@ def set_command_line(args) -> None:
 def add_extra_ship_data(file: str) -> None:
     """Load another set of ships from a data file, for this mission only.
 
-    ONE ARGUMENT, "a fully-pathed filename (plus suffix)" - the 2026-08-15 exe's shape.
-    The 1.3.5 form took `(name, folder)` and did its own `.yaml`/`.json` search; that
-    search now happens in `sbs_utils.procedural.ship_data._read_extra_ship_data`, which
-    is what decides the suffix this is handed.
+    ONE ARGUMENT, and it is a fully-pathed NAME WITHOUT THE SUFFIX - the engine appends
+    `.yaml`, then `.json`, itself. The engine team's own sample is the reference:
+    `add_extra_ship_data("data/missions/BeamArcTest/extraShipDataAAA")`.
+
+    THE SEARCH IS REPRODUCED HERE, and it has to be. Handing the engine a full filename
+    made it answer `RuntimeError: End of input while parsing an object` on a perfectly
+    valid file - but only sometimes, because this call RAISES NOTHING for a file it
+    cannot open. So the same mistake showed up as a hard error on one mod and as a
+    cheerful "engine told: True" on another that was equally not loaded. A mock that
+    accepted a suffix it should not would hide exactly that.
 
     The path is EXE-RELATIVE (`data/missions/...`), so it is resolved against the Artemis
     root and NOT against the process's cwd - the runner's cwd is `data/missions`, so a
@@ -572,10 +578,15 @@ def add_extra_ship_data(file: str) -> None:
         from sbs_utils import fs
         candidate = os.path.join(fs.get_artemis_dir(),
                                  *candidate.replace(chr(92), "/").split("/"))
-    try:
-        with open(candidate, "r", encoding="utf-8") as f:
-            text = f.read()
-    except OSError:
+    text = None
+    for probe in (candidate + ".yaml", candidate + ".json", candidate):
+        try:
+            with open(probe, "r", encoding="utf-8") as f:
+                text = f.read()
+            break
+        except OSError:
+            continue
+    if text is None:
         return
     merge_mod_ship_yaml(re.sub(r"^[ 	]*//.*$", "", text, flags=re.M),
                         "add_extra_ship_data")

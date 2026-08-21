@@ -82,10 +82,13 @@ class TestTheSwitch(_Fixture):
         self.assertEqual(entry.get("shield_front_max"), 777.0)
 
     def test_on_calls_the_engine_with_one_fully_pathed_file(self):
-        # ONE argument, and it carries the SUFFIX. The 2026-08-15 exe dropped the
-        # `(name, folder)` form; pybind answers the old call with a TypeError that
-        # this wrapper logs and survives, so the ships stay in the library and go
-        # missing only inside the engine, minutes later, at a spawn.
+        # ONE argument, and it carries NO SUFFIX - the engine appends `.yaml`, then
+        # `.json`, itself, exactly as the engine team's own sample does
+        # (`add_extra_ship_data("data/missions/BeamArcTest/extraShipDataAAA")`).
+        # Handing it the full filename made it answer `RuntimeError: End of input
+        # while parsing an object` on a valid file - and that is the LUCKY case: the
+        # call raises nothing for a file it cannot open, so the same mistake read as
+        # "engine told: True" on another mod that was equally not loaded.
         name = self.write(ext=".yaml", text=SHIPS)
         # Pin the install root somewhere unrelated to the temp dir. `_engine_path`
         # rewrites a path UNDER the install into the root-relative form the engine
@@ -96,17 +99,19 @@ class TestTheSwitch(_Fixture):
                         return_value=os.path.join(self.tmp.name, "no", "such")),              mock.patch("sbs.add_extra_ship_data", create=True) as engine:
             reached = sd.add_extra(name, self.tmp.name)
         self.assertTrue(reached)
-        engine.assert_called_once_with(os.path.join(self.tmp.name, name + ".yaml"))
+        engine.assert_called_once_with(os.path.join(self.tmp.name, name))
 
-    def test_the_engine_is_told_the_extension_that_actually_opened(self):
-        # The engine no longer searches for the suffix, so whichever file we READ
-        # is the one it must be pointed at. Two decisions that can disagree is how
-        # the library ends up with stats the engine has never heard of.
+    def test_the_engine_is_told_the_name_without_the_extension(self):
+        # We still READ the file ourselves to merge it library-side and to lint its
+        # shape, but the engine is pointed at the STEM and does its own search. A
+        # `.json` that we opened must not arrive with `.json` on it.
         name = self.write(ext=".json", text=SHIPS)
         with mock.patch("sbs_utils.fs.get_artemis_dir",
                         return_value=os.path.join(self.tmp.name, "no", "such")),              mock.patch("sbs.add_extra_ship_data", create=True) as engine:
             sd.add_extra(name, self.tmp.name)
-        self.assertTrue(engine.call_args[0][0].endswith(".json"))
+        arg = engine.call_args[0][0]
+        self.assertFalse(arg.endswith(".json"), arg)
+        self.assertTrue(arg.endswith(name), arg)
 
     def test_a_missing_file_never_reaches_the_engine(self):
         # Nothing read means nothing to point at. Handing the engine a guess is
@@ -205,7 +210,8 @@ class TestTheRecord(_Fixture):
         # The exact string the engine was to be handed is recorded too, because
         # `extra_replay` has to re-issue THAT after create_new_sim() wipes the table,
         # and because a report that cannot say what path was used cannot be acted on.
-        self.assertTrue(str(loaded[0][3]).endswith(".json"), loaded[0])
+        self.assertFalse(str(loaded[0][3]).endswith(".json"), loaded[0])
+        self.assertTrue(str(loaded[0][3]).endswith(name), loaded[0])
 
     def test_the_record_does_not_survive_a_mission_boundary(self):
         # cosmos_dev reuses one interpreter across missions where the engine
@@ -450,7 +456,7 @@ class TestItSurvivesTheSimBeingRebuilt(_Fixture):
             count = sd.extra_replay()
         self.assertEqual(count, 2)
         self.assertEqual([os.path.basename(c.args[0]) for c in told.call_args_list],
-                         ["extraProbe.json", "extraOther.json"])
+                         ["extraProbe", "extraOther"])
 
     def test_it_says_nothing_and_does_nothing_with_no_files(self):
         with mock.patch("sbs.add_extra_ship_data", create=True) as told:
@@ -487,7 +493,7 @@ class TestItSurvivesTheSimBeingRebuilt(_Fixture):
               mock.patch("sbs_utils.helpers.FrameContext.context", mock.MagicMock())):
             cosmos.sim_create()
         self.assertEqual([os.path.basename(c.args[0]) for c in told.call_args_list],
-                         ["extraProbe.json"])
+                         ["extraProbe"])
 
 
 class TestItSaysWhenTheInstallCannotBeRead(_Fixture):
@@ -522,3 +528,42 @@ class TestItSaysWhenTheInstallCannotBeRead(_Fixture):
             data = sd.get_ship_data()
         self.assertEqual(data["#ship-list"], [])
         self.assertIn("#ship-list", " ".join(str(c) for c in logged.call_args_list))
+
+
+class TestTheSameFileTwiceDoesNotDoubleTheHulls(_Fixture):
+    """The merge REPLACES by key. Nothing covered this, and it cost twice.
+
+    `add_extra` merges the file it read, and the MOCK's `sbs.add_extra_ship_data` merges it
+    a second time (the real engine does not merge library-side at all), so a blind prepend
+    doubles every hull on the first call and doubles again on each repeat - 51 became 102
+    became 204. Only a COUNT shows it: `get_ship_data_for` returns the newest copy, so
+    every lookup keeps working while `filter_ship_data_by_side` quietly answers with twice
+    the fleet.
+    """
+
+    def _hulls(self, key):
+        cache = sd.ship_data_cache or {}
+        return [e for e in cache.get("#ship-list") or []
+                if isinstance(e, dict) and e.get("key") == key]
+
+    def test_one_declare_yields_one_entry_per_key(self):
+        name = self.write()
+        sd.add_extra(name, self.tmp.name, mod="probe")
+        self.assertEqual(len(self._hulls("wrapper_probe")), 1)
+
+    def test_declaring_it_again_replaces_rather_than_appends(self):
+        name = self.write()
+        sd.add_extra(name, self.tmp.name, mod="probe")
+        sd.add_extra(name, self.tmp.name, mod="probe")
+        sd.add_extra(name, self.tmp.name, mod="probe")
+        self.assertEqual(len(self._hulls("wrapper_probe")), 1,
+                         "three declares must leave one entry, not three")
+
+    def test_the_replay_record_is_not_duplicated_either(self):
+        # extra_replay() walks this list, so a duplicate record re-issues the engine call
+        # once per copy - and extra_loaded() is what the reset ledger counts, so it also
+        # reads as a leak at a mission boundary.
+        name = self.write()
+        sd.add_extra(name, self.tmp.name, mod="probe")
+        sd.add_extra(name, self.tmp.name, mod="probe")
+        self.assertEqual(len(sd.extra_loaded()), 1)
