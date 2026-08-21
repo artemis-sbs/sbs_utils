@@ -141,17 +141,17 @@ you ask for them or not. After these come the things that did not exist before.
 
 ---
 
-## 📻 The text waterfall is gone — say hello to the ship's log
+## 📻 The text waterfall grew up into the ship's log
 
-**This one changes what your mission looks like whether you opt in or not.** The engine
-never wrote to the waterfall, script could not control its background, and no mission
-could style it. It has been removed from every console and replaced by a log with two
-halves, fed by one record:
+**Every console gets this, with nothing to opt into.** The waterfall did one job — show
+the last few lines — and did it with its hands tied: the engine never wrote to it, script
+could not control its background, and no mission could style it. It is now a proper log,
+in two halves fed by one record:
 
-- **The strip** — one line, the newest message, where the waterfall used to sit. Always
-  visible, no interaction, read at a glance.
-- **The tab** — the history, in the info panel: scrollable and filtered into **Log**,
-  **Ship** and **Mission**.
+- **The strip** — one line, the newest message, right where the waterfall used to sit.
+  Always visible, no interaction, read at a glance.
+- **The tab** — everything the waterfall used to lose. The full history in the info
+  panel: scrollable, and filtered into **Log**, **Ship** and **Mission**.
 
 Newest is **first** in both, so the latest line never moves.
 
@@ -160,9 +160,9 @@ arguments: `category` picks the tab (everything still shows in **Log**, so a fil
 never hide a message), and `severity` (`tip` / `warning` / `danger`) renders the line as a
 coloured callout.
 
-**The corner toast retired into the same log.** `overlay_toast()` and the `toast <text>`
+**The corner toast folds into the same log.** `overlay_toast()` and the `toast <text>`
 quest directive still work and still compile — they write a log line instead of drawing a
-card. `announce(level="status")` and `level="minor"` draw no overlay at all now. They were
+card, so what they say is kept instead of fading. `announce(level="status")` and `level="minor"` draw no overlay at all now. They were
 the one pair of levels carrying information on a surface that kept no record: a console
 that connected a second later never saw it.
 

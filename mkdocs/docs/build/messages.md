@@ -61,9 +61,10 @@ For music, `sbs.play_music_file(0, "music/default/victory")`. See the
 
 ## The ship's log
 
-There is **no text waterfall**. It was removed everywhere in v1.4.0: the engine never
-wrote to it, script could not control its background, and a mission could not style it.
-What replaced it is a log with two halves, both fed by the same record.
+The text waterfall became the **ship's log** in v1.4.0, on every console. The waterfall
+did one job — show the last few lines — with its hands tied: the engine never wrote to
+it, script could not control its background, and a mission could not style it. In its
+place is a log with two halves, both fed by the same record.
 
 **The strip** &mdash; one line, the newest message, sitting where the waterfall used to be
 on every console. It is the *ambient* half: always visible, no interaction, read at a
