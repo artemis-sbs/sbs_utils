@@ -392,6 +392,25 @@ and the **closing ` ``` ` fence must be at column 0** — the parser's rule ends
 nesting is indented per YAML. (Metadata works on any label type, including `@`
 decorator labels and `//` routes.)
 
+**Position (this bites harder): the block goes ABOVE any indented body line — the
+`"` description line included.** Because the fence sits at column 0, putting the
+block *after* an indented line is an indentation DROP mid-label and fails to
+compile with **"Bad indentation"**. Measured 2026-08-21 on `@console`, `@map` and a
+plain `==` label alike: each one fails after the description and compiles before
+it. **A story that does not compile schedules no task at all** — 0 labels, nothing
+spawned, both logs empty — so this is a whole-mission failure, not a local one.
+The `@map` example below has the order that works; an earlier version of it here
+had the description first and did not compile.
+
+```
+@console/director !0 ^94 "Director" if DIRECTOR_enabled
+metadata: ``` yaml
+pre_game: true
+```
+    " Stream director - pick program, preview or the control console.
+    jump director_entry
+```
+
 **A key named after one of MAST's own globals disables it for the whole label
 body.** The values are variables, so `range: close or far` on an ability meant
 `for i in range(6)` inside it raised against the *loop*, never against the
@@ -523,12 +542,12 @@ assignment.
 
 ```
 @map/secretmeeting "Secret Meeting"
-    " The ambassadors are meeting secretly at starbase Phoenix.
 metadata: ``` yaml
 Properties:
     Player Ships: 'gui_int_slider("$text:int;low: 1.0;high:8.0;", var= "PLAYER_COUNT")'
     Difficulty: 'gui_int_slider("$text:int;low: 1.0;high:11.0;", var= "DIFFICULTY")'
 ```
+    " The ambassadors are meeting secretly at starbase Phoenix.
     station_object = npc_spawn(0,0,0, "Starbase Phoenix", "tsn, station", ...)
     await task_schedule(spawn_players)
     ->END
