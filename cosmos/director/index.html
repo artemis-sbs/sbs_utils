@@ -9,25 +9,25 @@
       
       
       
-        <link rel="prev" href="../media/">
+        <link rel="prev" href="../cinematics/">
       
       
-        <link rel="next" href="../modifiers/">
+        <link rel="next" href="../viewscreen/">
       
       
         
       
       
-      <link rel="icon" href="../../../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>mission - SBS Utils library Documentation</title>
+        <title>Director (stream your game) - SBS Utils library Documentation</title>
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
       
 
@@ -46,9 +46,9 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -66,7 +66,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#the-mission-system" class="md-skip">
+        <a href="#the-director-stream-your-game-like-a-broadcast" class="md-skip">
           Skip to content
         </a>
       
@@ -80,7 +80,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../../.." title="SBS Utils library Documentation" class="md-header__button md-logo" aria-label="SBS Utils library Documentation" data-md-component="logo">
+    <a href="../.." title="SBS Utils library Documentation" class="md-header__button md-logo" aria-label="SBS Utils library Documentation" data-md-component="logo">
       
   
   <?xml version="1.0" encoding="iso-8859-1"?>
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              mission
+              Director (stream your game)
             
           </span>
         </div>
@@ -202,7 +202,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../.." class="md-tabs__link">
+      <a href="../.." class="md-tabs__link">
         
   
   
@@ -221,7 +221,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../../whats-new/" class="md-tabs__link">
+      <a href="../../whats-new/" class="md-tabs__link">
         
   
   
@@ -242,7 +242,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../home/start/" class="md-tabs__link">
+        <a href="../../home/start/" class="md-tabs__link">
           
   
   
@@ -264,7 +264,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../mast/" class="md-tabs__link">
+        <a href="../../mast/" class="md-tabs__link">
           
   
   
@@ -282,11 +282,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../../build/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../build/" class="md-tabs__link">
           
   
   
@@ -308,7 +310,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../tutorial/" class="md-tabs__link">
+        <a href="../../tutorial/" class="md-tabs__link">
           
   
   
@@ -330,7 +332,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../tooling/" class="md-tabs__link">
+        <a href="../../tooling/" class="md-tabs__link">
           
   
   
@@ -348,13 +350,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../../" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../api/" class="md-tabs__link">
           
   
   
@@ -376,7 +376,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../legendarymissions/" class="md-tabs__link">
+        <a href="../../legendarymissions/" class="md-tabs__link">
           
   
   
@@ -398,7 +398,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../openuniverse/" class="md-tabs__link">
+        <a href="../../openuniverse/" class="md-tabs__link">
           
   
   
@@ -420,7 +420,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../about/" class="md-tabs__link">
+        <a href="../../about/" class="md-tabs__link">
           
   
   
@@ -456,7 +456,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../.." title="SBS Utils library Documentation" class="md-nav__button md-logo" aria-label="SBS Utils library Documentation" data-md-component="logo">
+    <a href="../.." title="SBS Utils library Documentation" class="md-nav__button md-logo" aria-label="SBS Utils library Documentation" data-md-component="logo">
       
   
   <?xml version="1.0" encoding="iso-8859-1"?>
@@ -503,7 +503,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../.." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -530,7 +530,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../whats-new/" class="md-nav__link">
+      <a href="../../whats-new/" class="md-nav__link">
         
   
   
@@ -621,7 +621,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../home/start/" class="md-nav__link">
+      <a href="../../home/start/" class="md-nav__link">
         
   
   
@@ -649,7 +649,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../home/get_library/" class="md-nav__link">
+      <a href="../../home/get_library/" class="md-nav__link">
         
   
   
@@ -677,7 +677,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../home/settings/" class="md-nav__link">
+      <a href="../../home/settings/" class="md-nav__link">
         
   
   
@@ -705,7 +705,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tooling/testing/" class="md-nav__link">
+      <a href="../../tooling/testing/" class="md-nav__link">
         
   
   
@@ -760,7 +760,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../home/contributing/" class="md-nav__link ">
+            <a href="../../home/contributing/" class="md-nav__link ">
               
   
   
@@ -804,7 +804,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../home/contributing/debugging/" class="md-nav__link">
+      <a href="../../home/contributing/debugging/" class="md-nav__link">
         
   
   
@@ -832,7 +832,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../home/contributing/testing/" class="md-nav__link">
+      <a href="../../home/contributing/testing/" class="md-nav__link">
         
   
   
@@ -920,7 +920,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../mast/" class="md-nav__link ">
+            <a href="../../mast/" class="md-nav__link ">
               
   
   
@@ -964,7 +964,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/tutorial/" class="md-nav__link">
+      <a href="../../mast/tutorial/" class="md-nav__link">
         
   
   
@@ -992,7 +992,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/overview/" class="md-nav__link">
+      <a href="../../mast/overview/" class="md-nav__link">
         
   
   
@@ -1020,7 +1020,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/syntax/" class="md-nav__link">
+      <a href="../../mast/syntax/" class="md-nav__link">
         
   
   
@@ -1048,7 +1048,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/gotchas/" class="md-nav__link">
+      <a href="../../mast/gotchas/" class="md-nav__link">
         
   
   
@@ -1076,7 +1076,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/model/" class="md-nav__link">
+      <a href="../../mast/model/" class="md-nav__link">
         
   
   
@@ -1104,7 +1104,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/runtime/" class="md-nav__link">
+      <a href="../../mast/runtime/" class="md-nav__link">
         
   
   
@@ -1132,7 +1132,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/handler-lifetime/" class="md-nav__link">
+      <a href="../../mast/handler-lifetime/" class="md-nav__link">
         
   
   
@@ -1160,7 +1160,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/python/" class="md-nav__link">
+      <a href="../../mast/python/" class="md-nav__link">
         
   
   
@@ -1188,7 +1188,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/prefabs/" class="md-nav__link">
+      <a href="../../mast/prefabs/" class="md-nav__link">
         
   
   
@@ -1216,7 +1216,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/porting-2x/" class="md-nav__link">
+      <a href="../../mast/porting-2x/" class="md-nav__link">
         
   
   
@@ -1281,7 +1281,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../mast/routes/" class="md-nav__link ">
+            <a href="../../mast/routes/" class="md-nav__link ">
               
   
   
@@ -1325,7 +1325,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/routes/comms/" class="md-nav__link">
+      <a href="../../mast/routes/comms/" class="md-nav__link">
         
   
   
@@ -1353,7 +1353,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/routes/science/" class="md-nav__link">
+      <a href="../../mast/routes/science/" class="md-nav__link">
         
   
   
@@ -1381,7 +1381,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/routes/user_interact/" class="md-nav__link">
+      <a href="../../mast/routes/user_interact/" class="md-nav__link">
         
   
   
@@ -1409,7 +1409,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/routes/gui/" class="md-nav__link">
+      <a href="../../mast/routes/gui/" class="md-nav__link">
         
   
   
@@ -1437,7 +1437,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/routes/signals/" class="md-nav__link">
+      <a href="../../mast/routes/signals/" class="md-nav__link">
         
   
   
@@ -1465,7 +1465,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/routes/lifetime/" class="md-nav__link">
+      <a href="../../mast/routes/lifetime/" class="md-nav__link">
         
   
   
@@ -1493,7 +1493,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/routes/maps/" class="md-nav__link">
+      <a href="../../mast/routes/maps/" class="md-nav__link">
         
   
   
@@ -1533,6 +1533,8 @@
       
   
   
+    
+  
   
   
     
@@ -1622,20 +1624,23 @@
     
     
       
+        
+        
+      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../build/" class="md-nav__link ">
+            <a href="../../build/" class="md-nav__link ">
               
   
   
@@ -1653,13 +1658,13 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1679,7 +1684,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/anatomy/" class="md-nav__link">
+      <a href="../../build/anatomy/" class="md-nav__link">
         
   
   
@@ -1707,7 +1712,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/world-building/" class="md-nav__link">
+      <a href="../../build/world-building/" class="md-nav__link">
         
   
   
@@ -1735,7 +1740,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/tile-maps/" class="md-nav__link">
+      <a href="../../build/tile-maps/" class="md-nav__link">
         
   
   
@@ -1763,7 +1768,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/sides-lifeforms/" class="md-nav__link">
+      <a href="../../build/sides-lifeforms/" class="md-nav__link">
         
   
   
@@ -1791,7 +1796,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/players-consoles/" class="md-nav__link">
+      <a href="../../build/players-consoles/" class="md-nav__link">
         
   
   
@@ -1819,7 +1824,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../cosmos/control-gallery/" class="md-nav__link">
+      <a href="../control-gallery/" class="md-nav__link">
         
   
   
@@ -1847,7 +1852,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../cosmos/gui/" class="md-nav__link">
+      <a href="../gui/" class="md-nav__link">
         
   
   
@@ -1875,7 +1880,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../cosmos/gui_list/" class="md-nav__link">
+      <a href="../gui_list/" class="md-nav__link">
         
   
   
@@ -1903,7 +1908,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../cosmos/gui_table/" class="md-nav__link">
+      <a href="../gui_table/" class="md-nav__link">
         
   
   
@@ -1931,7 +1936,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../cosmos/gui_grid/" class="md-nav__link">
+      <a href="../gui_grid/" class="md-nav__link">
         
   
   
@@ -1959,7 +1964,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../cosmos/gui_icons/" class="md-nav__link">
+      <a href="../gui_icons/" class="md-nav__link">
         
   
   
@@ -1987,7 +1992,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../cosmos/gui_content_sizing/" class="md-nav__link">
+      <a href="../gui_content_sizing/" class="md-nav__link">
         
   
   
@@ -2015,7 +2020,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../cosmos/gui_overflow/" class="md-nav__link">
+      <a href="../gui_overflow/" class="md-nav__link">
         
   
   
@@ -2043,7 +2048,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../cosmos/gui_layer/" class="md-nav__link">
+      <a href="../gui_layer/" class="md-nav__link">
         
   
   
@@ -2071,7 +2076,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../cosmos/overlays/" class="md-nav__link">
+      <a href="../overlays/" class="md-nav__link">
         
   
   
@@ -2099,7 +2104,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../cosmos/cinematics/" class="md-nav__link">
+      <a href="../cinematics/" class="md-nav__link">
         
   
   
@@ -2124,10 +2129,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../../cosmos/director/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Director (stream your game)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -2143,6 +2175,159 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#two-feeds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two feeds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setting-it-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setting it up
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rundowns-the-running-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rundowns — the running order
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rundowns — the running order">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#two-ways-to-pick" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two ways to pick
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#let-the-game-direct" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Let the game direct
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-a-shot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building a shot
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overlays-titles-over-the-shot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overlays — titles over the shot
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overlays — titles over the shot">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-text-writes-itself" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The text writes itself
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#try-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Try it
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Settings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2155,7 +2340,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../cosmos/viewscreen/" class="md-nav__link">
+      <a href="../viewscreen/" class="md-nav__link">
         
   
   
@@ -2183,7 +2368,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../cosmos/comms/" class="md-nav__link">
+      <a href="../comms/" class="md-nav__link">
         
   
   
@@ -2211,7 +2396,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../cosmos/science/" class="md-nav__link">
+      <a href="../science/" class="md-nav__link">
         
   
   
@@ -2253,10 +2438,13 @@
       
       
         
+          
+          
+        
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
@@ -2264,7 +2452,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../mast/ai/" class="md-nav__link ">
+            <a href="../../mast/ai/" class="md-nav__link ">
               
   
   
@@ -2282,7 +2470,7 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
@@ -2308,7 +2496,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/ai/brains/" class="md-nav__link">
+      <a href="../../mast/ai/brains/" class="md-nav__link">
         
   
   
@@ -2344,7 +2532,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/damage/" class="md-nav__link">
+      <a href="../../build/damage/" class="md-nav__link">
         
   
   
@@ -2372,7 +2560,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/messages/" class="md-nav__link">
+      <a href="../../build/messages/" class="md-nav__link">
         
   
   
@@ -2400,7 +2588,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/incoming-hails/" class="md-nav__link">
+      <a href="../../build/incoming-hails/" class="md-nav__link">
         
   
   
@@ -2428,7 +2616,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../mast/objectives/" class="md-nav__link">
+      <a href="../../mast/objectives/" class="md-nav__link">
         
   
   
@@ -2456,7 +2644,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/amd-format/" class="md-nav__link">
+      <a href="../../build/amd-format/" class="md-nav__link">
         
   
   
@@ -2484,7 +2672,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/quests/" class="md-nav__link">
+      <a href="../../build/quests/" class="md-nav__link">
         
   
   
@@ -2512,7 +2700,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/items-upgrades/" class="md-nav__link">
+      <a href="../../build/items-upgrades/" class="md-nav__link">
         
   
   
@@ -2540,7 +2728,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/turrets/" class="md-nav__link">
+      <a href="../../build/turrets/" class="md-nav__link">
         
   
   
@@ -2568,7 +2756,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/relics/" class="md-nav__link">
+      <a href="../../build/relics/" class="md-nav__link">
         
   
   
@@ -2596,7 +2784,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/custom-upgrades/" class="md-nav__link">
+      <a href="../../build/custom-upgrades/" class="md-nav__link">
         
   
   
@@ -2624,7 +2812,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/web-pages/" class="md-nav__link">
+      <a href="../../build/web-pages/" class="md-nav__link">
         
   
   
@@ -2652,7 +2840,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/library/" class="md-nav__link">
+      <a href="../../build/library/" class="md-nav__link">
         
   
   
@@ -2680,7 +2868,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/shared-media/" class="md-nav__link">
+      <a href="../../build/shared-media/" class="md-nav__link">
         
   
   
@@ -2708,7 +2896,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/fleets/" class="md-nav__link">
+      <a href="../../build/fleets/" class="md-nav__link">
         
   
   
@@ -2736,7 +2924,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/addons/" class="md-nav__link">
+      <a href="../../build/addons/" class="md-nav__link">
         
   
   
@@ -2764,7 +2952,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/race-addons/" class="md-nav__link">
+      <a href="../../build/race-addons/" class="md-nav__link">
         
   
   
@@ -2792,7 +2980,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../build/making-a-mod/" class="md-nav__link">
+      <a href="../../build/making-a-mod/" class="md-nav__link">
         
   
   
@@ -2858,7 +3046,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../tutorial/" class="md-nav__link ">
+            <a href="../../tutorial/" class="md-nav__link ">
               
   
   
@@ -2902,7 +3090,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tutorial/gui/simple_gui/" class="md-nav__link">
+      <a href="../../tutorial/gui/simple_gui/" class="md-nav__link">
         
   
   
@@ -2930,7 +3118,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tutorial/comms/simple_comms/" class="md-nav__link">
+      <a href="../../tutorial/comms/simple_comms/" class="md-nav__link">
         
   
   
@@ -2958,7 +3146,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tutorial/science/simple_science/" class="md-nav__link">
+      <a href="../../tutorial/science/simple_science/" class="md-nav__link">
         
   
   
@@ -2986,7 +3174,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tutorial/ai/simple_ai/" class="md-nav__link">
+      <a href="../../tutorial/ai/simple_ai/" class="md-nav__link">
         
   
   
@@ -3068,7 +3256,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../tooling/" class="md-nav__link ">
+            <a href="../../tooling/" class="md-nav__link ">
               
   
   
@@ -3112,7 +3300,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tooling/cli/" class="md-nav__link">
+      <a href="../../tooling/cli/" class="md-nav__link">
         
   
   
@@ -3140,7 +3328,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tooling/command-line/" class="md-nav__link">
+      <a href="../../tooling/command-line/" class="md-nav__link">
         
   
   
@@ -3168,7 +3356,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tooling/profiles/" class="md-nav__link">
+      <a href="../../tooling/profiles/" class="md-nav__link">
         
   
   
@@ -3196,7 +3384,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tooling/testing/" class="md-nav__link">
+      <a href="../../tooling/testing/" class="md-nav__link">
         
   
   
@@ -3224,7 +3412,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tooling/mast-debugger/" class="md-nav__link">
+      <a href="../../tooling/mast-debugger/" class="md-nav__link">
         
   
   
@@ -3252,7 +3440,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tooling/amd-tools/" class="md-nav__link">
+      <a href="../../tooling/amd-tools/" class="md-nav__link">
         
   
   
@@ -3280,7 +3468,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tooling/amd-docs/" class="md-nav__link">
+      <a href="../../tooling/amd-docs/" class="md-nav__link">
         
   
   
@@ -3308,7 +3496,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tooling/site/" class="md-nav__link">
+      <a href="../../tooling/site/" class="md-nav__link">
         
   
   
@@ -3336,7 +3524,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tooling/doctor/" class="md-nav__link">
+      <a href="../../tooling/doctor/" class="md-nav__link">
         
   
   
@@ -3364,7 +3552,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tooling/gui-editor/" class="md-nav__link">
+      <a href="../../tooling/gui-editor/" class="md-nav__link">
         
   
   
@@ -3392,7 +3580,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tooling/web-proxy/" class="md-nav__link">
+      <a href="../../tooling/web-proxy/" class="md-nav__link">
         
   
   
@@ -3420,7 +3608,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../tooling/libraries/" class="md-nav__link">
+      <a href="../../tooling/libraries/" class="md-nav__link">
         
   
   
@@ -3452,8 +3640,6 @@
       
   
   
-    
-  
   
   
     
@@ -3475,23 +3661,20 @@
     
     
       
-        
-        
-      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../" class="md-nav__link ">
+            <a href="../../api/" class="md-nav__link ">
               
   
   
@@ -3509,13 +3692,13 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="">
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
@@ -3551,13 +3734,10 @@
       
       
         
-          
-          
-        
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
@@ -3565,7 +3745,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../engine/" class="md-nav__link ">
+            <a href="../../api/engine/" class="md-nav__link ">
               
   
   
@@ -3583,7 +3763,7 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_8_2" id="__nav_8_2_label" tabindex="">
+              <label class="md-nav__link " for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
@@ -3609,7 +3789,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../engine/sbs/" class="md-nav__link">
+      <a href="../../api/engine/sbs/" class="md-nav__link">
         
   
   
@@ -3637,7 +3817,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../engine/events/" class="md-nav__link">
+      <a href="../../api/engine/events/" class="md-nav__link">
         
   
   
@@ -3691,13 +3871,10 @@
       
       
         
-          
-          
-        
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
@@ -3705,7 +3882,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../utility/" class="md-nav__link ">
+            <a href="../../api/utility/" class="md-nav__link ">
               
   
   
@@ -3723,7 +3900,7 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_8_3" id="__nav_8_3_label" tabindex="">
+              <label class="md-nav__link " for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
@@ -3749,7 +3926,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../utility/faces/" class="md-nav__link">
+      <a href="../../api/utility/faces/" class="md-nav__link">
         
   
   
@@ -3777,7 +3954,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../utility/scatter/" class="md-nav__link">
+      <a href="../../api/utility/scatter/" class="md-nav__link">
         
   
   
@@ -3805,7 +3982,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../utility/vec/" class="md-nav__link">
+      <a href="../../api/utility/vec/" class="md-nav__link">
         
   
   
@@ -3838,8 +4015,6 @@
                 
   
   
-    
-  
   
   
     
@@ -3967,21 +4142,18 @@
       
       
         
-          
-          
-        
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../../api/procedural/" class="md-nav__link ">
               
   
   
@@ -3999,13 +4171,13 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_8_4" id="__nav_8_4_label" tabindex="">
+              <label class="md-nav__link " for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_8_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -4025,7 +4197,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../amd/" class="md-nav__link">
+      <a href="../../api/procedural/amd/" class="md-nav__link">
         
   
   
@@ -4053,7 +4225,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../amd_assets/" class="md-nav__link">
+      <a href="../../api/procedural/amd_assets/" class="md-nav__link">
         
   
   
@@ -4081,7 +4253,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../amd_blocks/" class="md-nav__link">
+      <a href="../../api/procedural/amd_blocks/" class="md-nav__link">
         
   
   
@@ -4109,7 +4281,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../amd_relics/" class="md-nav__link">
+      <a href="../../api/procedural/amd_relics/" class="md-nav__link">
         
   
   
@@ -4137,7 +4309,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../amd_render/" class="md-nav__link">
+      <a href="../../api/procedural/amd_render/" class="md-nav__link">
         
   
   
@@ -4165,7 +4337,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../behavior/" class="md-nav__link">
+      <a href="../../api/procedural/behavior/" class="md-nav__link">
         
   
   
@@ -4193,7 +4365,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../brain/" class="md-nav__link">
+      <a href="../../api/procedural/brain/" class="md-nav__link">
         
   
   
@@ -4221,7 +4393,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../cards/" class="md-nav__link">
+      <a href="../../api/procedural/cards/" class="md-nav__link">
         
   
   
@@ -4249,7 +4421,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../comms/" class="md-nav__link">
+      <a href="../../api/procedural/comms/" class="md-nav__link">
         
   
   
@@ -4277,7 +4449,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../cosmos/" class="md-nav__link">
+      <a href="../../api/procedural/cosmos/" class="md-nav__link">
         
   
   
@@ -4305,7 +4477,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../data/" class="md-nav__link">
+      <a href="../../api/procedural/data/" class="md-nav__link">
         
   
   
@@ -4333,7 +4505,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../dmx/" class="md-nav__link">
+      <a href="../../api/procedural/dmx/" class="md-nav__link">
         
   
   
@@ -4361,7 +4533,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docking/" class="md-nav__link">
+      <a href="../../api/procedural/docking/" class="md-nav__link">
         
   
   
@@ -4389,7 +4561,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../execution/" class="md-nav__link">
+      <a href="../../api/procedural/execution/" class="md-nav__link">
         
   
   
@@ -4417,7 +4589,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../extra_scan_sources/" class="md-nav__link">
+      <a href="../../api/procedural/extra_scan_sources/" class="md-nav__link">
         
   
   
@@ -4445,7 +4617,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../grav_tether/" class="md-nav__link">
+      <a href="../../api/procedural/grav_tether/" class="md-nav__link">
         
   
   
@@ -4473,7 +4645,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../grid/" class="md-nav__link">
+      <a href="../../api/procedural/grid/" class="md-nav__link">
         
   
   
@@ -4501,7 +4673,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../gui/" class="md-nav__link">
+      <a href="../../api/procedural/gui/" class="md-nav__link">
         
   
   
@@ -4529,7 +4701,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../internal_damage/" class="md-nav__link">
+      <a href="../../api/procedural/internal_damage/" class="md-nav__link">
         
   
   
@@ -4557,7 +4729,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../inventory/" class="md-nav__link">
+      <a href="../../api/procedural/inventory/" class="md-nav__link">
         
   
   
@@ -4585,7 +4757,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../items/" class="md-nav__link">
+      <a href="../../api/procedural/items/" class="md-nav__link">
         
   
   
@@ -4613,7 +4785,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../lifeform/" class="md-nav__link">
+      <a href="../../api/procedural/lifeform/" class="md-nav__link">
         
   
   
@@ -4641,7 +4813,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../links/" class="md-nav__link">
+      <a href="../../api/procedural/links/" class="md-nav__link">
         
   
   
@@ -4669,7 +4841,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../maps/" class="md-nav__link">
+      <a href="../../api/procedural/maps/" class="md-nav__link">
         
   
   
@@ -4697,7 +4869,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../map_picker/" class="md-nav__link">
+      <a href="../../api/procedural/map_picker/" class="md-nav__link">
         
   
   
@@ -4725,7 +4897,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../markers/" class="md-nav__link">
+      <a href="../../api/procedural/markers/" class="md-nav__link">
         
   
   
@@ -4753,7 +4925,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../media/" class="md-nav__link">
+      <a href="../../api/procedural/media/" class="md-nav__link">
         
   
   
@@ -4778,37 +4950,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    mission
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../api/procedural/mission/" class="md-nav__link">
         
   
   
@@ -4824,103 +4969,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Overview
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#quick-example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quick example
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        API
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sbs_utils.procedural.mission" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;mission
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sbs_utils.procedural.mission.mission_find" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;mission_find
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sbs_utils.procedural.mission.mission_run" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;mission_run
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sbs_utils.procedural.mission.mission_runner" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;mission_runner
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -4933,7 +4981,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../modifiers/" class="md-nav__link">
+      <a href="../../api/procedural/modifiers/" class="md-nav__link">
         
   
   
@@ -4961,7 +5009,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../mount/" class="md-nav__link">
+      <a href="../../api/procedural/mount/" class="md-nav__link">
         
   
   
@@ -4989,7 +5037,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../objective/" class="md-nav__link">
+      <a href="../../api/procedural/objective/" class="md-nav__link">
         
   
   
@@ -5017,7 +5065,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../persistence/" class="md-nav__link">
+      <a href="../../api/procedural/persistence/" class="md-nav__link">
         
   
   
@@ -5045,7 +5093,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../popup/" class="md-nav__link">
+      <a href="../../api/procedural/popup/" class="md-nav__link">
         
   
   
@@ -5073,7 +5121,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../prefab/" class="md-nav__link">
+      <a href="../../api/procedural/prefab/" class="md-nav__link">
         
   
   
@@ -5101,7 +5149,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../promise_functions/" class="md-nav__link">
+      <a href="../../api/procedural/promise_functions/" class="md-nav__link">
         
   
   
@@ -5129,7 +5177,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../query/" class="md-nav__link">
+      <a href="../../api/procedural/query/" class="md-nav__link">
         
   
   
@@ -5157,7 +5205,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../quest/" class="md-nav__link">
+      <a href="../../api/procedural/quest/" class="md-nav__link">
         
   
   
@@ -5185,7 +5233,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../roles/" class="md-nav__link">
+      <a href="../../api/procedural/roles/" class="md-nav__link">
         
   
   
@@ -5213,7 +5261,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../routes/" class="md-nav__link">
+      <a href="../../api/procedural/routes/" class="md-nav__link">
         
   
   
@@ -5241,7 +5289,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../science/" class="md-nav__link">
+      <a href="../../api/procedural/science/" class="md-nav__link">
         
   
   
@@ -5269,7 +5317,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../settings/" class="md-nav__link">
+      <a href="../../api/procedural/settings/" class="md-nav__link">
         
   
   
@@ -5297,7 +5345,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ship_data/" class="md-nav__link">
+      <a href="../../api/procedural/ship_data/" class="md-nav__link">
         
   
   
@@ -5325,7 +5373,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sides/" class="md-nav__link">
+      <a href="../../api/procedural/sides/" class="md-nav__link">
         
   
   
@@ -5353,7 +5401,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../signal/" class="md-nav__link">
+      <a href="../../api/procedural/signal/" class="md-nav__link">
         
   
   
@@ -5381,7 +5429,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../space_objects/" class="md-nav__link">
+      <a href="../../api/procedural/space_objects/" class="md-nav__link">
         
   
   
@@ -5409,7 +5457,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../spawn/" class="md-nav__link">
+      <a href="../../api/procedural/spawn/" class="md-nav__link">
         
   
   
@@ -5437,7 +5485,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../standby/" class="md-nav__link">
+      <a href="../../api/procedural/standby/" class="md-nav__link">
         
   
   
@@ -5465,7 +5513,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../style/" class="md-nav__link">
+      <a href="../../api/procedural/style/" class="md-nav__link">
         
   
   
@@ -5493,7 +5541,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../terrain/" class="md-nav__link">
+      <a href="../../api/procedural/terrain/" class="md-nav__link">
         
   
   
@@ -5521,7 +5569,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../timers/" class="md-nav__link">
+      <a href="../../api/procedural/timers/" class="md-nav__link">
         
   
   
@@ -5549,7 +5597,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../torpedoes/" class="md-nav__link">
+      <a href="../../api/procedural/torpedoes/" class="md-nav__link">
         
   
   
@@ -5577,7 +5625,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../turret/" class="md-nav__link">
+      <a href="../../api/procedural/turret/" class="md-nav__link">
         
   
   
@@ -5605,7 +5653,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../upgrades/" class="md-nav__link">
+      <a href="../../api/procedural/upgrades/" class="md-nav__link">
         
   
   
@@ -5633,7 +5681,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../urge/" class="md-nav__link">
+      <a href="../../api/procedural/urge/" class="md-nav__link">
         
   
   
@@ -5661,7 +5709,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../volume/" class="md-nav__link">
+      <a href="../../api/procedural/volume/" class="md-nav__link">
         
   
   
@@ -5689,7 +5737,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../web/" class="md-nav__link">
+      <a href="../../api/procedural/web/" class="md-nav__link">
         
   
   
@@ -5743,13 +5791,10 @@
       
       
         
-          
-          
-        
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
@@ -5757,7 +5802,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../dispatch/" class="md-nav__link ">
+            <a href="../../api/dispatch/" class="md-nav__link ">
               
   
   
@@ -5775,7 +5820,7 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_8_5" id="__nav_8_5_label" tabindex="">
+              <label class="md-nav__link " for="__nav_8_5" id="__nav_8_5_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
@@ -5801,7 +5846,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../dispatch/tick_dispatcher/" class="md-nav__link">
+      <a href="../../api/dispatch/tick_dispatcher/" class="md-nav__link">
         
   
   
@@ -5829,7 +5874,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../dispatch/damage_dispatcher/" class="md-nav__link">
+      <a href="../../api/dispatch/damage_dispatcher/" class="md-nav__link">
         
   
   
@@ -5857,7 +5902,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../dispatch/console_dispatcher/" class="md-nav__link">
+      <a href="../../api/dispatch/console_dispatcher/" class="md-nav__link">
         
   
   
@@ -5933,7 +5978,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../legendarymissions/" class="md-nav__link ">
+            <a href="../../legendarymissions/" class="md-nav__link ">
               
   
   
@@ -6008,7 +6053,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../legendarymissions/playing/" class="md-nav__link ">
+            <a href="../../legendarymissions/playing/" class="md-nav__link ">
               
   
   
@@ -6052,7 +6097,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/playing/features/" class="md-nav__link">
+      <a href="../../legendarymissions/playing/features/" class="md-nav__link">
         
   
   
@@ -6080,7 +6125,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/playing/multiplayer-quests/" class="md-nav__link">
+      <a href="../../legendarymissions/playing/multiplayer-quests/" class="md-nav__link">
         
   
   
@@ -6108,7 +6153,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/playing/casino/" class="md-nav__link">
+      <a href="../../legendarymissions/playing/casino/" class="md-nav__link">
         
   
   
@@ -6136,7 +6181,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/playing/updating/" class="md-nav__link">
+      <a href="../../legendarymissions/playing/updating/" class="md-nav__link">
         
   
   
@@ -6199,7 +6244,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../legendarymissions/hosting/" class="md-nav__link ">
+            <a href="../../legendarymissions/hosting/" class="md-nav__link ">
               
   
   
@@ -6243,7 +6288,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/hosting/settings.yaml/" class="md-nav__link">
+      <a href="../../legendarymissions/hosting/settings.yaml/" class="md-nav__link">
         
   
   
@@ -6271,7 +6316,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/hosting/profiles/" class="md-nav__link">
+      <a href="../../legendarymissions/hosting/profiles/" class="md-nav__link">
         
   
   
@@ -6342,7 +6387,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../legendarymissions/addons/" class="md-nav__link ">
+            <a href="../../legendarymissions/addons/" class="md-nav__link ">
               
   
   
@@ -6386,7 +6431,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/addons/casino/" class="md-nav__link">
+      <a href="../../legendarymissions/addons/casino/" class="md-nav__link">
         
   
   
@@ -6414,7 +6459,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/addons/biomech/" class="md-nav__link">
+      <a href="../../legendarymissions/addons/biomech/" class="md-nav__link">
         
   
   
@@ -6442,7 +6487,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/addons/fabrication/" class="md-nav__link">
+      <a href="../../legendarymissions/addons/fabrication/" class="md-nav__link">
         
   
   
@@ -6470,7 +6515,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/addons/avatar/" class="md-nav__link">
+      <a href="../../legendarymissions/addons/avatar/" class="md-nav__link">
         
   
   
@@ -6498,7 +6543,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/script/maps/" class="md-nav__link">
+      <a href="../../legendarymissions/script/maps/" class="md-nav__link">
         
   
   
@@ -6526,7 +6571,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/script/bosses/" class="md-nav__link">
+      <a href="../../legendarymissions/script/bosses/" class="md-nav__link">
         
   
   
@@ -6605,7 +6650,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../legendarymissions/records/" class="md-nav__link ">
+            <a href="../../legendarymissions/records/" class="md-nav__link ">
               
   
   
@@ -6705,7 +6750,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/casino/bar/" class="md-nav__link">
+      <a href="../../legendarymissions/records/casino/bar/" class="md-nav__link">
         
   
   
@@ -6797,7 +6842,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/comms/raider_hails/" class="md-nav__link">
+      <a href="../../legendarymissions/records/comms/raider_hails/" class="md-nav__link">
         
   
   
@@ -6889,7 +6934,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/documents/help_docs/" class="md-nav__link">
+      <a href="../../legendarymissions/records/documents/help_docs/" class="md-nav__link">
         
   
   
@@ -6981,7 +7026,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/fabrication/recipes/" class="md-nav__link">
+      <a href="../../legendarymissions/records/fabrication/recipes/" class="md-nav__link">
         
   
   
@@ -7073,7 +7118,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/hangar_sorties/hangar_quests/" class="md-nav__link">
+      <a href="../../legendarymissions/records/hangar_sorties/hangar_quests/" class="md-nav__link">
         
   
   
@@ -7165,7 +7210,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/lm_lore/library_docs/" class="md-nav__link">
+      <a href="../../legendarymissions/records/lm_lore/library_docs/" class="md-nav__link">
         
   
   
@@ -7259,7 +7304,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/sides/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/sides/" class="md-nav__link">
         
   
   
@@ -7287,7 +7332,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/siege_quests/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/siege_quests/" class="md-nav__link">
         
   
   
@@ -7385,7 +7430,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/bosses/continuous/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/bosses/continuous/" class="md-nav__link">
         
   
   
@@ -7413,7 +7458,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/bosses/infestation/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/bosses/infestation/" class="md-nav__link">
         
   
   
@@ -7441,7 +7486,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/bosses/ragnarok/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/bosses/ragnarok/" class="md-nav__link">
         
   
   
@@ -7469,7 +7514,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/bosses/warlord/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/bosses/warlord/" class="md-nav__link">
         
   
   
@@ -7548,7 +7593,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../legendarymissions/records/maps/peacetime_remastered/" class="md-nav__link ">
+            <a href="../../legendarymissions/records/maps/peacetime_remastered/" class="md-nav__link ">
               
   
   
@@ -7592,7 +7637,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/peacetime_remastered/florbin-case/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/peacetime_remastered/florbin-case/" class="md-nav__link">
         
   
   
@@ -7620,7 +7665,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/peacetime_remastered/jobs/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/peacetime_remastered/jobs/" class="md-nav__link">
         
   
   
@@ -7648,7 +7693,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/peacetime_remastered/scans/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/peacetime_remastered/scans/" class="md-nav__link">
         
   
   
@@ -7676,7 +7721,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/peacetime_remastered/drops/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/peacetime_remastered/drops/" class="md-nav__link">
         
   
   
@@ -7704,7 +7749,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/peacetime_remastered/landmarks/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/peacetime_remastered/landmarks/" class="md-nav__link">
         
   
   
@@ -7732,7 +7777,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/peacetime_remastered/cargo-scans/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/peacetime_remastered/cargo-scans/" class="md-nav__link">
         
   
   
@@ -7760,7 +7805,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/peacetime_remastered/cast/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/peacetime_remastered/cast/" class="md-nav__link">
         
   
   
@@ -7788,7 +7833,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/peacetime_remastered/pr-voices/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/peacetime_remastered/pr-voices/" class="md-nav__link">
         
   
   
@@ -7816,7 +7861,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/peacetime_remastered/florbin-text/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/peacetime_remastered/florbin-text/" class="md-nav__link">
         
   
   
@@ -7844,7 +7889,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/maps/peacetime_remastered/florbin-clues/" class="md-nav__link">
+      <a href="../../legendarymissions/records/maps/peacetime_remastered/florbin-clues/" class="md-nav__link">
         
   
   
@@ -7936,7 +7981,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legendarymissions/records/quests/bridge_stories/" class="md-nav__link">
+      <a href="../../legendarymissions/records/quests/bridge_stories/" class="md-nav__link">
         
   
   
@@ -8003,7 +8048,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../legendarymissions/about/" class="md-nav__link ">
+            <a href="../../legendarymissions/about/" class="md-nav__link ">
               
   
   
@@ -8090,7 +8135,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../openuniverse/" class="md-nav__link ">
+            <a href="../../openuniverse/" class="md-nav__link ">
               
   
   
@@ -8190,7 +8235,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/playing/admiral/" class="md-nav__link">
+      <a href="../../openuniverse/playing/admiral/" class="md-nav__link">
         
   
   
@@ -8271,7 +8316,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../openuniverse/writing/" class="md-nav__link ">
+            <a href="../../openuniverse/writing/" class="md-nav__link ">
               
   
   
@@ -8315,7 +8360,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/writing/getting-started/" class="md-nav__link">
+      <a href="../../openuniverse/writing/getting-started/" class="md-nav__link">
         
   
   
@@ -8343,7 +8388,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/writing/sides/" class="md-nav__link">
+      <a href="../../openuniverse/writing/sides/" class="md-nav__link">
         
   
   
@@ -8371,7 +8416,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/writing/jobs/" class="md-nav__link">
+      <a href="../../openuniverse/writing/jobs/" class="md-nav__link">
         
   
   
@@ -8399,7 +8444,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/writing/story/" class="md-nav__link">
+      <a href="../../openuniverse/writing/story/" class="md-nav__link">
         
   
   
@@ -8427,7 +8472,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/writing/map/" class="md-nav__link">
+      <a href="../../openuniverse/writing/map/" class="md-nav__link">
         
   
   
@@ -8455,7 +8500,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/writing/people/" class="md-nav__link">
+      <a href="../../openuniverse/writing/people/" class="md-nav__link">
         
   
   
@@ -8483,7 +8528,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/writing/dialogue/" class="md-nav__link">
+      <a href="../../openuniverse/writing/dialogue/" class="md-nav__link">
         
   
   
@@ -8511,7 +8556,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/writing/dials/" class="md-nav__link">
+      <a href="../../openuniverse/writing/dials/" class="md-nav__link">
         
   
   
@@ -8539,7 +8584,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/writing/admiralty/" class="md-nav__link">
+      <a href="../../openuniverse/writing/admiralty/" class="md-nav__link">
         
   
   
@@ -8567,7 +8612,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/writing/silver-reach/" class="md-nav__link">
+      <a href="../../openuniverse/writing/silver-reach/" class="md-nav__link">
         
   
   
@@ -8595,7 +8640,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/writing/troubleshooting/" class="md-nav__link">
+      <a href="../../openuniverse/writing/troubleshooting/" class="md-nav__link">
         
   
   
@@ -8656,7 +8701,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../openuniverse/editor/" class="md-nav__link ">
+            <a href="../../openuniverse/editor/" class="md-nav__link ">
               
   
   
@@ -8700,7 +8745,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/editor/tutorial/" class="md-nav__link">
+      <a href="../../openuniverse/editor/tutorial/" class="md-nav__link">
         
   
   
@@ -8777,7 +8822,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../openuniverse/records/" class="md-nav__link ">
+            <a href="../../openuniverse/records/" class="md-nav__link ">
               
   
   
@@ -8821,7 +8866,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/records/default/" class="md-nav__link">
+      <a href="../../openuniverse/records/default/" class="md-nav__link">
         
   
   
@@ -8849,7 +8894,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/records/jobs/" class="md-nav__link">
+      <a href="../../openuniverse/records/jobs/" class="md-nav__link">
         
   
   
@@ -8877,7 +8922,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/records/lore/" class="md-nav__link">
+      <a href="../../openuniverse/records/lore/" class="md-nav__link">
         
   
   
@@ -8905,7 +8950,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/records/scout_signal/" class="md-nav__link">
+      <a href="../../openuniverse/records/scout_signal/" class="md-nav__link">
         
   
   
@@ -8933,7 +8978,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/records/silver_reach/" class="md-nav__link">
+      <a href="../../openuniverse/records/silver_reach/" class="md-nav__link">
         
   
   
@@ -8961,7 +9006,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/records/skirmish_arena/" class="md-nav__link">
+      <a href="../../openuniverse/records/skirmish_arena/" class="md-nav__link">
         
   
   
@@ -9045,7 +9090,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/records/captains/ashfang/" class="md-nav__link">
+      <a href="../../openuniverse/records/captains/ashfang/" class="md-nav__link">
         
   
   
@@ -9137,7 +9182,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/records/cast/frontier/" class="md-nav__link">
+      <a href="../../openuniverse/records/cast/frontier/" class="md-nav__link">
         
   
   
@@ -9235,7 +9280,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/records/dialogue/ashfang/" class="md-nav__link">
+      <a href="../../openuniverse/records/dialogue/ashfang/" class="md-nav__link">
         
   
   
@@ -9263,7 +9308,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/records/dialogue/frontier/" class="md-nav__link">
+      <a href="../../openuniverse/records/dialogue/frontier/" class="md-nav__link">
         
   
   
@@ -9291,7 +9336,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/records/dialogue/officers/" class="md-nav__link">
+      <a href="../../openuniverse/records/dialogue/officers/" class="md-nav__link">
         
   
   
@@ -9319,7 +9364,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../openuniverse/records/dialogue/verdant/" class="md-nav__link">
+      <a href="../../openuniverse/records/dialogue/verdant/" class="md-nav__link">
         
   
   
@@ -9386,7 +9431,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../openuniverse/reference/" class="md-nav__link ">
+            <a href="../../openuniverse/reference/" class="md-nav__link ">
               
   
   
@@ -9463,7 +9508,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../../about/" class="md-nav__link ">
+            <a href="../../about/" class="md-nav__link ">
               
   
   
@@ -9529,10 +9574,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
+  <a href="#two-feeds" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Overview
+        Two feeds
       
     </span>
   </a>
@@ -9540,10 +9585,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#quick-example" class="md-nav__link">
+  <a href="#setting-it-up" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Quick example
+        Setting it up
       
     </span>
   </a>
@@ -9551,10 +9596,49 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#api" class="md-nav__link">
+  <a href="#rundowns-the-running-order" class="md-nav__link">
     <span class="md-ellipsis">
       
-        API
+        Rundowns — the running order
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rundowns — the running order">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#two-ways-to-pick" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two ways to pick
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#let-the-game-direct" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Let the game direct
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-a-shot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building a shot
       
     </span>
   </a>
@@ -9562,10 +9646,38 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#sbs_utils.procedural.mission" class="md-nav__link">
+  <a href="#overlays-titles-over-the-shot" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;mission
+        Overlays — titles over the shot
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overlays — titles over the shot">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-text-writes-itself" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The text writes itself
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#try-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Try it
       
     </span>
   </a>
@@ -9573,10 +9685,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#sbs_utils.procedural.mission.mission_find" class="md-nav__link">
+  <a href="#settings" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;mission_find
+        Settings
       
     </span>
   </a>
@@ -9584,21 +9696,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#sbs_utils.procedural.mission.mission_run" class="md-nav__link">
+  <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
       
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;mission_run
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sbs_utils.procedural.mission.mission_runner" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;mission_runner
+        See also
       
     </span>
   </a>
@@ -9625,363 +9726,266 @@
   
 
 
-<h1 id="the-mission-system">The mission system</h1>
-<p>Structured mission lifecycle runner with <code>init</code>, <code>start</code>, <code>objective</code>, and <code>complete</code> phases.</p>
-<h2 id="overview">Overview</h2>
-<p><code>mission_run</code> spawns a task that drives a MAST label through a defined lifecycle. The label should contain named <code>cmd_map</code> blocks (using the MAST <code>///</code> inline route syntax) for each phase:</p>
+<h1 id="the-director-stream-your-game-like-a-broadcast">The Director — stream your game like a broadcast</h1>
+<p>Cosmos looks best from outside the ship, and a stream of it is only as good as the
+shot it is on. The <strong>Director</strong> is a console for cutting that stream live: you build
+a list of shots, you see the next one before it goes out, and you take it to air when
+it is right.</p>
+<p>It is a <strong>streaming tool, not a bridge station</strong>. It never commandeers a mainscreen or
+a crew seat — Cosmos has plenty of other ways to put something on a bridge screen, and
+taking a console away mid-game ruins somebody's game. Instead you open extra clients
+and tell each one what it is.</p>
+<p>Pick <strong>Director</strong> in the console list. It is part of <strong>LegendaryMissions</strong>; a mission
+that loads the <code>director</code> add-on has it.</p>
+<h2 id="two-feeds">Two feeds</h2>
 <table>
 <thead>
 <tr>
-<th>Block</th>
-<th>When it runs</th>
+<th>Feed</th>
+<th>On</th>
+<th>Showing</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>///init</code></td>
-<td>Immediately, once</td>
+<td><strong>PROGRAM</strong></td>
+<td>every console that opened as Program</td>
+<td>what is going out — capture this one</td>
 </tr>
 <tr>
-<td><code>///start</code></td>
-<td>After <code>__START__</code> is set to <code>True</code> in the task</td>
-</tr>
-<tr>
-<td><code>///objective</code></td>
-<td>Each tick while running; returns <code>OK_SUCCESS</code> when the objective is met</td>
-</tr>
-<tr>
-<td><code>///complete</code></td>
-<td>Each tick while running; returns <code>OK_SUCCESS</code> when the mission is complete</td>
-</tr>
-<tr>
-<td><code>///abort</code></td>
-<td>Each tick while running; returning <code>FAIL_END</code> aborts the mission</td>
+<td><strong>PREVIEW</strong></td>
+<td>every console that opened as Preview</td>
+<td>the next shot, or whatever the editor is building, live</td>
 </tr>
 </tbody>
 </table>
-<p>The <code>mission_runner</code> generator drives these blocks in sequence. <code>init</code> runs first. The runner then waits until something sets <code>task.__START__ = True</code> before running <code>start</code>. After that, <code>abort</code>, <code>objective</code>, and <code>complete</code> are polled each tick.</p>
-<p>This is the same pattern used by the built-in objective system — use <code>mission_run</code> for higher-level structured missions, and the <code>objective</code> module for lower-level task tracking.</p>
-<h2 id="quick-example">Quick example</h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
-<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
-	 viewBox="0 0 512 512" xml:space="preserve">
-<g>
-	<g>
-		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
-			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
-			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
-	</g>
-</g>
-<g>
-	<g>
-		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
-			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
-	</g>
-</g>
-</svg></span> MAST</label><label for="__tabbed_1_2"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.25.18.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.3.31-.33.25-.35.19-.35.14-.33.1-.3.07-.26.04-.21.02H8.77l-.69.05-.59.14-.5.22-.41.27-.33.32-.27.35-.2.36-.15.37-.1.35-.07.32-.04.27-.02.21v3.06H3.17l-.21-.03-.28-.07-.32-.12-.35-.18-.36-.26-.36-.36-.35-.46-.32-.59-.28-.73-.21-.88-.14-1.05-.05-1.23.06-1.22.16-1.04.24-.87.32-.71.36-.57.4-.44.42-.33.42-.24.4-.16.36-.1.32-.05.24-.01h.16l.06.01h8.16v-.83H6.18l-.01-2.75-.02-.37.05-.34.11-.31.17-.28.25-.26.31-.23.38-.2.44-.18.51-.15.58-.12.64-.1.71-.06.77-.04.84-.02 1.27.05zm-6.3 1.98-.23.33-.08.41.08.41.23.34.33.22.41.09.41-.09.33-.22.23-.34.08-.41-.08-.41-.23-.33-.33-.22-.41-.09-.41.09zm13.09 3.95.28.06.32.12.35.18.36.27.36.35.35.47.32.59.28.73.21.88.14 1.04.05 1.23-.06 1.23-.16 1.04-.24.86-.32.71-.36.57-.4.45-.42.33-.42.24-.4.16-.36.09-.32.05-.24.02-.16-.01h-8.22v.82h5.84l.01 2.76.02.36-.05.34-.11.31-.17.29-.25.25-.31.24-.38.2-.44.17-.51.15-.58.13-.64.09-.71.07-.77.04-.84.01-1.27-.04-1.07-.14-.9-.2-.73-.25-.59-.3-.45-.33-.34-.34-.25-.34-.16-.33-.1-.3-.04-.25-.02-.2.01-.13v-5.34l.05-.64.13-.54.21-.46.26-.38.3-.32.33-.24.35-.2.35-.14.33-.1.3-.06.26-.04.21-.02.13-.01h5.84l.69-.05.59-.14.5-.21.41-.28.33-.32.27-.35.2-.36.15-.36.1-.35.07-.32.04-.28.02-.21V6.07h2.09l.14.01zm-6.47 14.25-.23.33-.08.41.08.41.23.33.33.23.41.08.41-.08.33-.23.23-.33.08-.41-.08-.41-.23-.33-.33-.23-.41-.08-.41.08z"/></svg></span> pyMAST</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>== setup ==
-    mission_run(escort_mission)
-    -&gt;END
-
-== escort_mission ==
-    ///init
-    spawn_escort_target()
-    ///start
-    log(&quot;Escort the freighter to the station.&quot;)
-    ///objective
-    if freighter_arrived(): OK_SUCCESS
-    OK_RUN_AGAIN
-    ///abort
-    if freighter_destroyed(): FAIL_END
-    OK_RUN_AGAIN
-    ///complete
-    log(&quot;Mission complete! The freighter has arrived safely.&quot;)
-    OK_SUCCESS
+<p>Every Program screen shows the <strong>same</strong> thing, and every Preview screen shows the same
+thing — that is a broadcast, not a video wall. Preview is where you check a shot
+before the audience sees it.</p>
+<h2 id="setting-it-up">Setting it up</h2>
+<p>Open a client for each screen you want, choose <strong>Director</strong>, and the entry screen asks
+one question: what is this console?</p>
+<ul>
+<li><strong>Program</strong> — an output screen. Capture this window.</li>
+<li><strong>Preview</strong> — the same, showing the shot before it goes out.</li>
+<li><strong>Director</strong> — the control console, with the tabs below.</li>
+</ul>
+<p>The screen names itself from that answer — <code>PROG01</code>, <code>PRE01</code>, <code>DIR01</code>, taking the
+lowest free number — so four windows open at once are told apart at a glance without
+typing anything. The holding page each screen sits on says its own name, so you know
+which window is which before anything is playing.</p>
+<div class="admonition tip">
+<p class="admonition-title">Lock it if you want</p>
+<p><code>DIRECTOR.pin</code> gates the console. Set it to <code>""</code> to skip the prompt entirely; the
+entry screen still appears, because that is where the mode is chosen.</p>
+</div>
+<h2 id="rundowns-the-running-order">Rundowns — the running order</h2>
+<p>A <strong>rundown</strong> is a named, ordered list of shots. Four come with it and are built from
+the live game every time they are used, so they track ships that spawn and die instead
+of going stale:</p>
+<table>
+<thead>
+<tr>
+<th>Rundown</th>
+<th>What is in it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Bridge wall</strong></td>
+<td>one console view per console type per player ship — the classic multiview</td>
+</tr>
+<tr>
+<td><strong>Player ships</strong></td>
+<td>a slow orbit of each player ship</td>
+</tr>
+<tr>
+<td><strong>The action</strong></td>
+<td>a chase on whatever is most exciting right now, best first</td>
+</tr>
+<tr>
+<td><strong>Stations &amp; terrain</strong></td>
+<td>orbits of stations and named terrain — the establishing shots</td>
+</tr>
+</tbody>
+</table>
+<p>Plus any you build yourself. The main page shows them as a <strong>tree</strong>: each rundown a
+heading, its shots underneath. <strong>The shot on air is green</strong>, and so is the rundown
+holding it — so a collapsed branch still tells you where the show is.</p>
+<h3 id="two-ways-to-pick">Two ways to pick</h3>
+<p>A <strong>Pick</strong> switch decides what the list is for:</p>
+<ul>
+<li><strong>Rundowns</strong> — the list shows rundowns alone. Tick as many as you like and press
+  <strong>Send to Program</strong>; the play set is the union of them, and the show advances
+  through it on the dwell.</li>
+<li><strong>Items</strong> — the list opens up, and <strong>picking a shot puts it on air immediately</strong>.
+  No Send, no confirmation. Use it like a clip launcher when you are cutting by hand.</li>
+</ul>
+<p><strong>Dwell</strong> is how long each shot holds before the next one. <strong>Stop</strong> hands every screen
+back and parks it; <strong>Resume</strong> gives the running order back after a hand-picked shot.</p>
+<h3 id="let-the-game-direct">Let the game direct</h3>
+<p>Turn on the <strong>auto-director</strong> and the running order follows the fighting: it ranks by
+the same "exciting" signal the engine's own cinematic camera uses, so it agrees with
+what the engine would have chosen. It holds its choice through noise — a contender has
+to be clearly better before the shot moves — and in a lull it falls back to the order
+you built rather than to an arbitrary one.</p>
+<h2 id="building-a-shot">Building a shot</h2>
+<p>The <strong>rundown</strong> tab is the editor: your running order down the left, the tools that
+make a shot on the right.</p>
+<p><strong>Stage</strong> is the usual way in. A 2D view fills the top with the <strong>science object list</strong>
+beside it — click a contact on the radar or pick its name from the list, either works.
+Then choose how to film it:</p>
+<table>
+<thead>
+<tr>
+<th>Shot</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Dolly</strong></td>
+<td>pushes in and back out</td>
+</tr>
+<tr>
+<td><strong>Orbit</strong></td>
+<td>circles the subject</td>
+</tr>
+<tr>
+<td><strong>Chase</strong></td>
+<td>rides behind it as it turns — third person</td>
+</tr>
+<tr>
+<td><strong>Tactical</strong></td>
+<td>a full-screen 2D view instead of a camera</td>
+</tr>
+</tbody>
+</table>
+<p>These are the <strong>same shots the bridge already has</strong> — the science and weapons <em>On
+Screen</em> list — so a Director shot and a bridge shot of the same ship look identical.
+Framing comes from the ship's own hull size, which is why a starbase and a fighter both
+fill the frame.</p>
+<p><strong>Hold</strong> sets how long <em>this</em> shot stays up, overriding the dwell — an establishing
+shot of a starbase can want ten seconds where a chase in a firefight wants three. Leave
+it at zero and the dwell decides.</p>
+<p>Then <strong>Add to rundown</strong>, or <strong>Send to Program</strong> to put it straight on air.</p>
+<div class="admonition note">
+<p class="admonition-title">The same shot twice is two shots</p>
+<p>Wide on a station with a title, then the same shot clean, is ordinary direction —
+so a rundown holds both. Two entries only count as one when <em>everything</em> about
+them matches, so a double-click still collapses.</p>
+</div>
+<p><strong>Console</strong> is the other tool: pick a ship and one or more console types, and add one
+item per console. That is what fills a bridge multiview.</p>
+<h2 id="overlays-titles-over-the-shot">Overlays — titles over the shot</h2>
+<p>Any shot can carry cards, and several at once because each draws in its own place:</p>
+<table>
+<thead>
+<tr>
+<th>Overlay</th>
+<th>Fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Lower third</strong></td>
+<td>name, line</td>
+</tr>
+<tr>
+<td><strong>Hero</strong></td>
+<td>title, subtitle</td>
+</tr>
+<tr>
+<td><strong>Top status</strong></td>
+<td>text</td>
+</tr>
+<tr>
+<td><strong>Letterbox</strong></td>
+<td>line</td>
+</tr>
+</tbody>
+</table>
+<p>Every Preview screen shows them for real, at full size, as you build them.</p>
+<h3 id="the-text-writes-itself">The text writes itself</h3>
+<p>A generated rundown makes one item <strong>per ship</strong>, so there is nowhere to type
+"Artemis". The fields take a <strong>template</strong> filled in from whatever the shot is pointed
+at:</p>
+<div class="highlight"><pre><span></span><code>name:  &lt;&lt;name&gt;&gt;
+line:  &lt;&lt;class&gt;&gt;
 </code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">sbs_utils.procedural.mission</span><span class="w"> </span><span class="kn">import</span> <span class="n">mission_run</span>
-
-<span class="n">task</span> <span class="o">=</span> <span class="n">mission_run</span><span class="p">(</span><span class="n">escort_mission</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;ship_id&quot;</span><span class="p">:</span> <span class="n">ship_id</span><span class="p">})</span>
+<p>...gives you <code>Artemis</code> / <code>Light Cruiser</code> on that ship, and the right thing on every
+other ship in the rundown.</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Gives you</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;&lt;name&gt;&gt;</code></td>
+<td>the ship's name</td>
+</tr>
+<tr>
+<td><code>&lt;&lt;class&gt;&gt;</code></td>
+<td>its hull — "Light Cruiser"</td>
+</tr>
+<tr>
+<td><code>&lt;&lt;side&gt;&gt;</code></td>
+<td>its side</td>
+</tr>
+<tr>
+<td><code>&lt;&lt;role&gt;&gt;</code></td>
+<td>raider, station, monster</td>
+</tr>
+<tr>
+<td><code>&lt;&lt;race&gt;&gt;</code></td>
+<td>its origin</td>
+</tr>
+<tr>
+<td><code>&lt;&lt;comms_id&gt;&gt;</code></td>
+<td>"Artemis (TSN)"</td>
+</tr>
+<tr>
+<td><code>&lt;&lt;hull&gt;&gt;</code></td>
+<td>hull percent</td>
+</tr>
+<tr>
+<td><code>&lt;&lt;shields&gt;&gt;</code></td>
+<td>front / rear percent</td>
+</tr>
+</tbody>
+</table>
+<p>Write <code>&lt;&lt;class|contact&gt;&gt;</code> to say what to fall back to when a token has nothing to give
+— a rock has no hull class, and a blank line reads as a broken card. A token you
+mistype stays visible as <code>&lt;&lt;shpi&gt;&gt;</code> rather than blanking the card, so you can see what
+went wrong.</p>
+<p>Each row has a <strong>preset</strong> picker — Ship ID, Ship and side, Condition, Contact — and a
+<strong>Save</strong> to add your own beside them.</p>
+<h2 id="try-it">Try it</h2>
+<p>Open three windows: one Director, one Program, one Preview.</p>
+<ol>
+<li>On the Director, pick <strong>The action</strong> and press <strong>Send to Program</strong>.</li>
+<li>Watch Preview — it is showing what Program will cut to next.</li>
+<li>Switch <strong>Pick</strong> to <strong>Items</strong>, open a rundown, and click a shot. It is on air at once,
+   and it goes green.</li>
+<li>On the <strong>rundown</strong> tab, click a ship, choose <strong>Chase</strong>, tick <strong>Lower third</strong>, and
+   press <strong>Send to Program</strong>.</li>
+<li>Press <strong>Resume</strong> to give the running order back.</li>
+</ol>
+<h2 id="settings">Settings</h2>
+<div class="highlight"><pre><span></span><code><span class="nt">DIRECTOR</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">enable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">pin</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;000000&quot;</span><span class="w">     </span><span class="c1"># &quot;&quot; to skip the prompt</span>
 </code></pre></div>
-</div>
-</div>
-</div>
-<h2 id="api">API</h2>
-
-
-<div class="doc doc-object doc-module">
-
-
-
-<a id="sbs_utils.procedural.mission"></a>
-    <div class="doc doc-contents first">
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-object doc-function">
-
-
-<h2 id="sbs_utils.procedural.mission.mission_find" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mission_find</span><span class="p">(</span><span class="n">agent_id</span><span class="p">)</span></code>
-
-</h2>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Find a mission by agent ID — currently unused and always returns <code>None</code>.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Description</th>
-          <th>Default</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                <code>agent_id</code>
-            </td>
-            <td>
-                  <code><span title="int">int</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Agent ID to search for.</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h2 id="sbs_utils.procedural.mission.mission_run" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mission_run</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
-
-</h2>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Schedule a mission label to run as a new task.</p>
-<p>Spawns a task running <code>mission_runner</code> which drives the mission label
-through its full <code>init</code> / <code>start</code> / <code>objective</code> / <code>complete</code>
-lifecycle.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Description</th>
-          <th>Default</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                <code>label</code>
-            </td>
-            <td>
-                  <code><span title="str">str</span> | <span title="Label">Label</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>The mission label to execute.</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>data</code>
-            </td>
-            <td>
-                  <code><span title="dict">dict</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Variables to pass into the mission. Defaults to
-None.</p>
-              </div>
-            </td>
-            <td>
-                  <code>None</code>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
-    <p><span class="doc-section-title">Returns:</span></p>
-    <table>
-      <thead>
-        <tr>
-<th>Name</th>          <th>Type</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-<td><code>MastAsyncTask</code></td>            <td>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>The scheduled task.</p>
-              </div>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h2 id="sbs_utils.procedural.mission.mission_runner" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mission_runner</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
-
-</h2>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Generator that drives a structured mission label through its lifecycle.</p>
-<p>Executes the <code>init</code>, <code>start</code>, <code>abort</code>, <code>objective</code>, and
-<code>complete</code> sub-blocks of a mission label in order, yielding
-<code>PollResults</code> at each step. If <code>label</code> is <code>None</code>, reads the label
-and data from the current task's variables (used when spawned by
-<code>mission_run</code>).</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Description</th>
-          <th>Default</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                <code>label</code>
-            </td>
-            <td>
-                  <code><span title="str">str</span> | <span title="Label">Label</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>The mission label to run. Defaults to
-<code>None</code> (reads from the current task).</p>
-              </div>
-            </td>
-            <td>
-                  <code>None</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>data</code>
-            </td>
-            <td>
-                  <code><span title="dict">dict</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Variables to pass into the mission sub-task.
-Defaults to None.</p>
-              </div>
-            </td>
-            <td>
-                  <code>None</code>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
-    <p><span class="doc-section-title">Yields:</span></p>
-    <table>
-      <thead>
-        <tr>
-<th>Name</th>          <th>Type</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-<td><code>PollResults</code></td>            <td>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p><code>OK_RUN_AGAIN</code> while running, <code>OK_END</code> on completion
-or abort.</p>
-              </div>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
-    </div>
-
-</div>
-
-
-
-  </div>
-
-    </div>
-
-</div>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../cinematics/">Cinematics</a> — the camera moves underneath all of this, including
+  <code>camera_chase</code>.</li>
+<li><a href="../overlays/">Overlays</a> — the card system the Director drives.</li>
+<li><a href="../viewscreen/">On screen</a> — the same shot vocabulary, from a science console.</li>
+</ul>
 
 
 
@@ -10079,10 +10083,10 @@ or abort.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.indexes", "content.code.copy"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.indexes", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

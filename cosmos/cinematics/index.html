@@ -12,7 +12,7 @@
         <link rel="prev" href="../overlays/">
       
       
-        <link rel="next" href="../viewscreen/">
+        <link rel="next" href="../director/">
       
       
         
@@ -1618,6 +1618,8 @@
       
         
       
+        
+      
     
     
     
@@ -2243,6 +2245,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../director/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Director (stream your game)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../viewscreen/" class="md-nav__link">
         
   
@@ -2351,7 +2381,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_21" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_22" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2373,14 +2403,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_21" id="__nav_5_21_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_21_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_21">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_22">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -9615,9 +9645,23 @@ real object, make an invisible anchor:</p>
 returns a <strong>Promise</strong>, so MAST can <code>await</code> it.</p>
 <div class="highlight"><pre><span></span><code><span class="k">await</span> <span class="n">camera_move</span><span class="p">(</span><span class="n">to</span><span class="p">,</span> <span class="n">hero</span><span class="p">,</span> <span class="n">Vec3</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">900</span><span class="p">,</span> <span class="o">-</span><span class="mi">4000</span><span class="p">),</span> <span class="n">Vec3</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">120</span><span class="p">,</span> <span class="o">-</span><span class="mi">600</span><span class="p">),</span> <span class="mi">6</span><span class="p">,</span> <span class="n">ease</span><span class="o">=</span><span class="s2">&quot;in_out&quot;</span><span class="p">)</span>
 <span class="k">await</span> <span class="n">camera_orbit</span><span class="p">(</span><span class="n">to</span><span class="p">,</span> <span class="n">station</span><span class="p">,</span> <span class="n">distance</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span> <span class="n">from_yaw</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">to_yaw</span><span class="o">=</span><span class="mi">360</span><span class="p">,</span> <span class="n">seconds</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+<span class="k">await</span> <span class="n">camera_chase</span><span class="p">(</span><span class="n">to</span><span class="p">,</span> <span class="n">fighter</span><span class="p">,</span> <span class="n">distance</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">seconds</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
 <span class="n">camera_rack</span><span class="p">(</span><span class="n">to</span><span class="p">,</span> <span class="n">other_ship</span><span class="p">)</span>      <span class="c1"># look elsewhere, hold the lens where it is</span>
 <span class="n">camera_move_stop</span><span class="p">(</span><span class="n">to</span><span class="p">)</span>             <span class="c1"># stop, leaving it put</span>
 </code></pre></div>
+<p><code>camera_chase</code> is the third-person follow: it holds the lens <strong>behind</strong> the subject as
+it turns, rebuilding the offset from the ship's heading every tick. It is the one move
+whose lens depends on where the subject is <em>pointing</em> rather than on elapsed time, so
+<code>seconds</code> is only how long this leg runs — re-issue it to keep chasing.</p>
+<div class="admonition note">
+<p class="admonition-title">Why following is re-aiming, not a tractor</p>
+<p>The obvious way to chase is to attach the camera to the target and let the engine
+drag it. There is nothing to attach: the dolly and the target must be the <strong>same
+object</strong> or the frame is black, so the lens already rides the subject. A tractored
+camera object would be dragged along with nothing looking through it.</p>
+<p>It also has to run on the tick. The engine interpolates nothing, so the driver <em>is</em>
+the animation — following from a mission loop at a few hertz reads as a stutter.</p>
+</div>
 <p><code>ease</code> is ours — <code>in_out</code> (default), <code>in</code>, <code>out</code>, <code>linear</code>. An unknown name falls back
 to linear rather than killing the shot.</p>
 <div class="admonition note">

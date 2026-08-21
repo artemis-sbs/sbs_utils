@@ -981,6 +981,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-director-stream-your-game-like-a-broadcast" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🎬 The Director — stream your game like a broadcast
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#fly-inside-a-relic" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2318,6 +2329,8 @@
       
         
       
+        
+      
     
     
     
@@ -2827,6 +2840,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../cosmos/director/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Director (stream your game)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cosmos/viewscreen/" class="md-nav__link">
         
   
@@ -2932,7 +2973,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_21" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_22" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2954,14 +2995,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_21" id="__nav_5_21_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_21_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_21">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_22">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -10449,6 +10490,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-director-stream-your-game-like-a-broadcast" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🎬 The Director — stream your game like a broadcast
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#fly-inside-a-relic" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -11135,8 +11187,8 @@ built for bragging rights, and for running a scored event.</p>
 <p>Pair the scoreboard with <strong>repeatable seeds</strong> and a <strong>shareable game code</strong>:
 hand every crew the same code and they all play the <strong>identical</strong> map and enemy
 layout, then rank them by their <strong>Fleet / Air Wing</strong> boards (kills, tonnage,
-damage) for an objective result. The <strong>Director</strong> console gives you a
-spectator / big-screen view for the venue floor.</p>
+damage) for an objective result. The <strong><a href="../cosmos/director/">Director</a></strong> gives you
+a spectator / big-screen view for the venue floor.</p>
 </div>
 <p>Details: <a href="../legendarymissions/playing/features/">LegendaryMissions &rsaquo; Game features</a>.</p>
 <h2 id="friend-or-foe-decided-by-diplomacy-not-by-labels">🤝 Friend or Foe — decided by Diplomacy, not by labels</h2>
@@ -11309,8 +11361,6 @@ the port, rather than quietly guessed at.
 → <a href="../mast/porting-2x/">Porting from Artemis 2.x</a></p>
 <h2 id="quality-of-life-presentation">🎬 Quality-of-Life &amp; Presentation</h2>
 <ul>
-<li><strong>The Director console</strong> (formerly Console View) — pair and rotate multiple
-  views, with a cinematic mode for the big screen.</li>
 <li><strong>Shareable game codes</strong> and per-map seed options so crews can replay the exact
   same setup.</li>
 </ul>
@@ -11572,6 +11622,49 @@ Authors: <a href="../legendarymissions/addons/casino/">The Casino addon</a>.</p>
 </ul>
 <p>Built on the engine's native tractor.
 API: <a href="../api/procedural/grav_tether/">grav_tether</a>.</p>
+<h2 id="the-director-stream-your-game-like-a-broadcast">🎬 The Director — stream your game like a broadcast</h2>
+<p>Cosmos looks best from outside the ship, and a stream of it is only as good as the shot
+it is on. The <strong><a href="../cosmos/director/">Director</a></strong> is a console for cutting that stream
+live: build a list of shots, see the next one before it goes out, take it to air when it
+is right.</p>
+<p>It never takes a crew seat or a mainscreen. You open extra clients and tell each one
+what it is — <strong>Program</strong> (what the stream shows), <strong>Preview</strong> (the shot before it goes
+out), or the <strong>Director</strong> itself. Each screen names itself <code>PROG01</code>, <code>PRE01</code>, <code>DIR01</code>,
+so four windows are told apart at a glance.</p>
+<ul>
+<li><strong>Two feeds, not a video wall.</strong> Every Program screen shows the same thing; every
+  Preview screen shows the same thing; the two are different. Preview is where you check
+  a shot before the audience sees it — and it follows the editor <strong>live</strong> as you build.</li>
+<li><strong>Rundowns are the running order.</strong> Four are built from the live game every time they
+  are used, so they never go stale: <strong>Bridge wall</strong> (a multiview of every console),
+  <strong>Player ships</strong>, <strong>The action</strong> (whatever is most exciting right now), and
+  <strong>Stations &amp; terrain</strong>. Build your own beside them.</li>
+<li><strong>The shot on air is green</strong>, and so is the rundown holding it, so a collapsed branch
+  still says where the show is.</li>
+<li><strong>Two ways to cut.</strong> Tick rundowns and press <strong>Send to Program</strong> to let it run on a
+  dwell — or flip to <strong>Items</strong> and click a shot to put it on air the instant you pick
+  it, like a clip launcher.</li>
+<li><strong>The same shots the bridge has.</strong> Dolly, Orbit, Chase and Tactical are the science and
+  weapons <em>On Screen</em> vocabulary, framed off the ship's own hull size — so a Director
+  shot and a bridge shot of the same ship are the same shot. <strong>Chase</strong> is new: a third
+  person that rides behind a ship as it turns.</li>
+<li><strong>A shot can hold for as long as it deserves.</strong> An establishing shot of a starbase can
+  ask for ten seconds where a chase in a firefight wants three; everything else follows
+  the dwell.</li>
+<li><strong>Let the game direct.</strong> The auto-director ranks by the same signal the engine's own
+  cinematic camera follows, holds its choice through noise, and falls back to your
+  running order in a lull.</li>
+</ul>
+<p><strong>Titles that write themselves.</strong> Lower thirds, hero cards, a top status bar and a
+letterbox — and because a generated rundown makes one item <em>per ship</em>, the text is a
+template filled in from whatever the shot is pointed at:</p>
+<div class="highlight"><pre><span></span><code>name:  &lt;&lt;name&gt;&gt;          -&gt;   Artemis
+line:  &lt;&lt;class&gt;&gt;         -&gt;   Light Cruiser
+</code></pre></div>
+<p><code>&lt;&lt;side&gt;&gt;</code>, <code>&lt;&lt;role&gt;&gt;</code>, <code>&lt;&lt;race&gt;&gt;</code>, <code>&lt;&lt;comms_id&gt;&gt;</code>, <code>&lt;&lt;hull&gt;&gt;</code> and <code>&lt;&lt;shields&gt;&gt;</code> too,
+with <code>&lt;&lt;class|contact&gt;&gt;</code> to say what to fall back to when there is nothing to give. Each
+row has presets, and a <strong>Save</strong> to add your own.</p>
+<p>Docs: <a href="../cosmos/director/">The Director</a>.</p>
 <h2 id="fly-inside-a-relic">🏛️ Fly <em>inside</em> a relic</h2>
 <p>A structure your ship goes <strong>into</strong> — a hollow ruin, a canyon, a docking throat.</p>
 <p>The obvious way to build one is to make the walls out of solid objects, and it does not

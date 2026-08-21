@@ -1616,6 +1616,8 @@
       
         
       
+        
+      
     
     
     
@@ -2125,6 +2127,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../cosmos/director/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Director (stream your game)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../cosmos/viewscreen/" class="md-nav__link">
         
   
@@ -2230,7 +2260,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_21" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_22" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2252,14 +2282,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_21" id="__nav_5_21_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_21_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_21">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_22">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -5367,6 +5397,17 @@
   
     <nav class="md-nav" aria-label=" ImageAtlas">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.image.ImageAtlas.local_file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;local_file
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#sbs_utils.procedural.gui.image.ImageAtlas.qualify" class="md-nav__link">
@@ -12187,6 +12228,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.image.ImageAtlas.local_file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;local_file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#sbs_utils.procedural.gui.image.ImageAtlas.qualify" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -17796,6 +17848,32 @@ Defaults to None.</p>
 
 
 
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="sbs_utils.procedural.gui.image.ImageAtlas.local_file" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">local_file</span><span class="p">()</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p><code>self.file</code> as a path THIS process can open.</p>
+<p><code>self.file</code> is what the ENGINE is handed - <code>engine_file</code> shape, relative to the
+Cosmos root (or absolute, when the art lives outside the install; <code>os.path.join</code>
+passes that through). So the base to resolve it against is the root, and the one
+rule lives here rather than being spelled out at each reader.</p>
+<p>It used to be resolved against <code>data/graphics</code>, which was right while <code>self.file</code>
+was <code>relpath(file, graphics)</code> and became wrong the moment it stopped being - so
+every mission image answered <code>is_valid() == False</code> and drew "IMAGE NOT FOUND",
+and <code>get_size()</code> measured nothing.</p>
+
+
+    </div>
+
+</div>
 
 <div class="doc doc-object doc-function">
 

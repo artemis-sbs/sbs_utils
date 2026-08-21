@@ -1616,6 +1616,8 @@
       
         
       
+        
+      
     
     
     
@@ -2125,6 +2127,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../cosmos/director/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Director (stream your game)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../cosmos/viewscreen/" class="md-nav__link">
         
   
@@ -2230,7 +2260,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_21" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_22" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2252,14 +2282,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_21" id="__nav_5_21_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_21_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_21">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_22_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_22">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -11068,7 +11098,7 @@ the console is no longer suppressed.</p>
 
 
 <h2 id="sbs_utils.procedural.query.get_data_set_value" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">get_data_set_value</span><span class="p">(</span><span class="n">id_or_obj</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">get_data_set_value</span><span class="p">(</span><span class="n">id_or_obj</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -11130,11 +11160,36 @@ the console is no longer suppressed.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The slot index within that key. Defaults to 0.</p>
+                <p>The slot index within that key. Defaults to 0.
+<strong>This is an INDEX, not a fallback</strong> - the third positional argument is
+which slot to read (shield 0 vs shield 1), and passing a "default" there
+reads the wrong slot or fails outright.</p>
               </div>
             </td>
             <td>
                   <code>0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>default</code>
+            </td>
+            <td>
+                  <code><span title="any">any</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>what to return when the field has never been set.
+The engine answers <code>None</code> for such a field, and a mission that then
+compares it (<code>if fuel &lt; 1000</code>) raises on a real bridge while running
+clean against the mock's typed defaults - the bug behind LM's Florbin
+cargo-hold watcher and an earlier helm crash. Pass <code>default=0</code> (or
+<code>default=""</code>) and the caller gets something it can use. <code>sbs lint</code>
+flags the unguarded shape as <code>blob-unguarded-none</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
             </td>
           </tr>
       </tbody>
@@ -11155,7 +11210,7 @@ the console is no longer suppressed.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The stored value, or <code>None</code> if the object or key is not found.</p>
+                <p>The stored value, <code>default</code> if the object or key is not found.</p>
               </div>
             </td>
           </tr>
