@@ -945,9 +945,11 @@ what it is — **Program** (what the stream shows), **Preview** (the shot before
 out), or the **Director** itself. Each screen names itself `PROG01`, `PRE01`, `DIR01`,
 so four windows are told apart at a glance.
 
-- **Two feeds, not a video wall.** Every Program screen shows the same thing; every
-  Preview screen shows the same thing; the two are different. Preview is where you check
-  a shot before the audience sees it — and it follows the editor **live** as you build.
+- **Two feeds.** Every Program screen shows the same thing; every Preview screen shows
+  the same thing; the two are different. Open a second Program window and it stays in
+  step with the first, so you can capture one and project the other. Preview is where you
+  check a shot before the audience sees it — and it follows the editor **live** as you
+  build.
 - **Rundowns are the running order.** Four are built from the live game every time they
   are used, so they never go stale: **Bridge wall** (a multiview of every console),
   **Player ships**, **The action** (whatever is most exciting right now), and
@@ -959,8 +961,8 @@ so four windows are told apart at a glance.
   it, like a clip launcher.
 - **The same shots the bridge has.** Dolly, Orbit, Chase and Tactical are the science and
   weapons *On Screen* vocabulary, framed off the ship's own hull size — so a Director
-  shot and a bridge shot of the same ship are the same shot. **Chase** is new: a third
-  person that rides behind a ship as it turns.
+  shot and a bridge shot of the same ship are the same shot. **Chase** is the Director's
+  own addition: a third person that rides behind a ship as it turns.
 - **A shot can hold for as long as it deserves.** An establishing shot of a starbase can
   ask for ten seconds where a chase in a firefight wants three; everything else follows
   the dwell.

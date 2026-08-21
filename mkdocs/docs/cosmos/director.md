@@ -21,8 +21,9 @@ that loads the `director` add-on has it.
 | **PREVIEW** | every console that opened as Preview | the next shot, or whatever the editor is building, live |
 
 Every Program screen shows the **same** thing, and every Preview screen shows the same
-thing — that is a broadcast, not a video wall. Preview is where you check a shot
-before the audience sees it.
+thing. Open a second Program window and it stays in step with the first, so you can
+capture one and put the other on a projector. Preview is where you check a shot before
+the audience sees it.
 
 ## Setting it up
 
