@@ -84,6 +84,37 @@ already looks: this mission, then each media pack it pinned.
 place - useful while the engine side is in flux, since headless and the mock keep
 behaving identically.
 
+## The picture of a ship
+
+`ship_art_image(id_or_key)` gives the image key for a hull's **flat art** - the top-down
+sprite the engine ships beside every mesh as `<artfileroot><size>.png`. It is the only
+picture of a ship a GUI can draw without asking the engine for a 3d render, so it is what
+a panel uses to show which ship it is talking about.
+
+=== ":mast-icon: {{ab.m}}"
+    ```
+    art = ship_data_ship_art_image(target_id)
+    gui_sub_section(f"col-width: square; background-image: {art}; background: white;")
+    ```
+
+=== ":simple-python: {{ab.pm}}"
+    ```python
+    from sbs_utils.procedural.ship_data import ship_art_image
+
+    ship_art_image("tsn_light_cruiser")        # 'ships/tsn_light_cruiser1024'
+    ship_art_image(target_id, 256)             # the small one
+    ```
+
+Takes an agent, an id, or a shipData key. `artfileroot` already carries the whole path
+and its base is `data/graphics`, so the result goes straight into `gui_image*` or a
+`background-image:` style - neither wants the `.png`. `None` comes back when the entry
+has no art, which is ordinary for a marker or a pickup, not an error.
+
+!!! warning "A background needs a color as well as an image"
+    A layout item only draws its backdrop when `background-color` is set;
+    `background-image` alone paints nothing. `background: white` means "no tint", which
+    is what you want for ship art.
+
 ## API
 
 
