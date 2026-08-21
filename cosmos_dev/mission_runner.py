@@ -790,6 +790,14 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
             hulls = [(getattr(space[i], "_data_tag", None), getattr(space[i], "_tick_type", None))
                      for i in pids]
             print(f"  __player__ hulls: {hulls}")
+        if npc_ids:
+            # THE NPC SIDE OF THE SAME QUESTION, and it was the missing half. When a
+            # mission renders its player ships correctly and everything else draws as the
+            # engine's placeholder hull, the first thing worth knowing is WHICH hull keys
+            # the NPCs actually got - a fleet ladder or prefab can hand back a different
+            # ship type than the author expects, and nothing else in the report says so.
+            npc_hulls = sorted({getattr(space[i], "_data_tag", None) for i in npc_ids})
+            print(f"  __npc__ hulls: {npc_hulls}")
         # Damage sub-route detail (the by-kind rollup collapses //damage/* into one).
         if cov is not None and mast is not None:
             hit = cov.labels_hit

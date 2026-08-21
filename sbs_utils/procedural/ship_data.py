@@ -137,9 +137,27 @@ def mod_ship_data_process(so, entry):
     if blob is None:
         return
 
-    # Art (data_tag), only when the modded key names a different (engine-known) mesh.
+    # Art (data_tag) - ONLY for an entry the ENGINE HAS NEVER BEEN TOLD ABOUT.
+    #
+    # This override exists because a runtime-merged entry used to live in sbs_utils alone:
+    # create_space_object got a key the engine had no record of, so pointing data_tag at
+    # the artfileroot was the only way to get any mesh at all.
+    #
+    # add_extra() changed that. It hands the whole file to the engine, artfileroot and all,
+    # so the engine resolves the mesh from its OWN table exactly as it does for BeamArcTest.
+    # Overriding data_tag then does the opposite of what it was written for: the engine is
+    # asked for a shipData entry literally named
+    # 'data/missions/__lib__/media/<pack>/ships/GNR_Freighter', finds none, and draws its
+    # UNKNOWN PLACEHOLDER HULL. Measured 2026-08-21 on Cosmos-TNG-Mod: every NPC drew as a
+    # placeholder while the player ship rendered correctly, and the report that named it was
+    # data_tag holding a PATH where the player's held a key.
+    #
+    # Keyed off _extra_keys - the keys actually handed to the engine - rather than a global
+    # flag, because one mission can mix both routes: an add-on declaring through add_extra
+    # and another merging library-side only.
     art = entry.get("artfileroot")
-    if art and art != entry.get("key") and hasattr(so, "set_ship_data_key"):
+    engine_knows = entry.get("key") in _extra_keys
+    if art and art != entry.get("key") and not engine_knows and hasattr(so, "set_ship_data_key"):
         so.set_ship_data_key(art)
 
     # exclusionradius is a physics attribute, not a data_set field.
