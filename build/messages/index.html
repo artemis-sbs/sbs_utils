@@ -9592,9 +9592,10 @@ if AUDIO_ENABLED:
 <p>For music, <code>sbs.play_music_file(0, "music/default/victory")</code>. See the
 <a href="../../api/procedural/media/">media API</a>.</p>
 <h2 id="the-ships-log">The ship's log</h2>
-<p>There is <strong>no text waterfall</strong>. It was removed everywhere in v1.4.0: the engine never
-wrote to it, script could not control its background, and a mission could not style it.
-What replaced it is a log with two halves, both fed by the same record.</p>
+<p>The text waterfall became the <strong>ship's log</strong> in v1.4.0, on every console. The waterfall
+did one job — show the last few lines — with its hands tied: the engine never wrote to
+it, script could not control its background, and a mission could not style it. In its
+place is a log with two halves, both fed by the same record.</p>
 <p><strong>The strip</strong> &mdash; one line, the newest message, sitting where the waterfall used to be
 on every console. It is the <em>ambient</em> half: always visible, no interaction, read at a
 glance. <code>gui_log_tail()</code> places it; LegendaryMissions already does on all six consoles.</p>
