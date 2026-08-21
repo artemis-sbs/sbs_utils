@@ -446,8 +446,8 @@ built for bragging rights, and for running a scored event.
     Pair the scoreboard with **repeatable seeds** and a **shareable game code**:
     hand every crew the same code and they all play the **identical** map and enemy
     layout, then rank them by their **Fleet / Air Wing** boards (kills, tonnage,
-    damage) for an objective result. The **Director** console gives you a
-    spectator / big-screen view for the venue floor.
+    damage) for an objective result. The **[Director](cosmos/director.md)** gives you
+    a spectator / big-screen view for the venue floor.
 
 Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/features.md).
 
@@ -636,8 +636,6 @@ the port, rather than quietly guessed at.
 
 ## 🎬 Quality-of-Life & Presentation
 
-- **The Director console** (formerly Console View) — pair and rotate multiple
-  views, with a cinematic mode for the big screen.
 - **Shareable game codes** and per-map seed options so crews can replay the exact
   same setup.
 
@@ -934,6 +932,56 @@ A tractor beam for Weapons and fighters — one system, scaled by hull.
 
 Built on the engine's native tractor.
 API: [grav_tether](api/procedural/grav_tether.md).
+
+## 🎬 The Director — stream your game like a broadcast
+
+Cosmos looks best from outside the ship, and a stream of it is only as good as the shot
+it is on. The **[Director](cosmos/director.md)** is a console for cutting that stream
+live: build a list of shots, see the next one before it goes out, take it to air when it
+is right.
+
+It never takes a crew seat or a mainscreen. You open extra clients and tell each one
+what it is — **Program** (what the stream shows), **Preview** (the shot before it goes
+out), or the **Director** itself. Each screen names itself `PROG01`, `PRE01`, `DIR01`,
+so four windows are told apart at a glance.
+
+- **Two feeds, not a video wall.** Every Program screen shows the same thing; every
+  Preview screen shows the same thing; the two are different. Preview is where you check
+  a shot before the audience sees it — and it follows the editor **live** as you build.
+- **Rundowns are the running order.** Four are built from the live game every time they
+  are used, so they never go stale: **Bridge wall** (a multiview of every console),
+  **Player ships**, **The action** (whatever is most exciting right now), and
+  **Stations & terrain**. Build your own beside them.
+- **The shot on air is green**, and so is the rundown holding it, so a collapsed branch
+  still says where the show is.
+- **Two ways to cut.** Tick rundowns and press **Send to Program** to let it run on a
+  dwell — or flip to **Items** and click a shot to put it on air the instant you pick
+  it, like a clip launcher.
+- **The same shots the bridge has.** Dolly, Orbit, Chase and Tactical are the science and
+  weapons *On Screen* vocabulary, framed off the ship's own hull size — so a Director
+  shot and a bridge shot of the same ship are the same shot. **Chase** is new: a third
+  person that rides behind a ship as it turns.
+- **A shot can hold for as long as it deserves.** An establishing shot of a starbase can
+  ask for ten seconds where a chase in a firefight wants three; everything else follows
+  the dwell.
+- **Let the game direct.** The auto-director ranks by the same signal the engine's own
+  cinematic camera follows, holds its choice through noise, and falls back to your
+  running order in a lull.
+
+**Titles that write themselves.** Lower thirds, hero cards, a top status bar and a
+letterbox — and because a generated rundown makes one item *per ship*, the text is a
+template filled in from whatever the shot is pointed at:
+
+```
+name:  <<name>>          ->   Artemis
+line:  <<class>>         ->   Light Cruiser
+```
+
+`<<side>>`, `<<role>>`, `<<race>>`, `<<comms_id>>`, `<<hull>>` and `<<shields>>` too,
+with `<<class|contact>>` to say what to fall back to when there is nothing to give. Each
+row has presets, and a **Save** to add your own.
+
+Docs: [The Director](cosmos/director.md).
 
 ## 🏛️ Fly *inside* a relic
 

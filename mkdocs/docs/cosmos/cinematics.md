@@ -46,9 +46,24 @@ returns a **Promise**, so MAST can `await` it.
 ```python
 await camera_move(to, hero, Vec3(0, 900, -4000), Vec3(0, 120, -600), 6, ease="in_out")
 await camera_orbit(to, station, distance=2000, from_yaw=0, to_yaw=360, seconds=12)
+await camera_chase(to, fighter, distance=600, height=100, seconds=30)
 camera_rack(to, other_ship)      # look elsewhere, hold the lens where it is
 camera_move_stop(to)             # stop, leaving it put
 ```
+
+`camera_chase` is the third-person follow: it holds the lens **behind** the subject as
+it turns, rebuilding the offset from the ship's heading every tick. It is the one move
+whose lens depends on where the subject is *pointing* rather than on elapsed time, so
+`seconds` is only how long this leg runs — re-issue it to keep chasing.
+
+!!! note "Why following is re-aiming, not a tractor"
+    The obvious way to chase is to attach the camera to the target and let the engine
+    drag it. There is nothing to attach: the dolly and the target must be the **same
+    object** or the frame is black, so the lens already rides the subject. A tractored
+    camera object would be dragged along with nothing looking through it.
+
+    It also has to run on the tick. The engine interpolates nothing, so the driver *is*
+    the animation — following from a mission loop at a few hertz reads as a stutter.
 
 `ease` is ours — `in_out` (default), `in`, `out`, `linear`. An unknown name falls back
 to linear rather than killing the shot.

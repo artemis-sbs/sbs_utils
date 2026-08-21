@@ -90,6 +90,7 @@ nav:
     - Paint order (layer): cosmos/gui_layer.md
     - Overlays (cards, HUDs, cutscenes): cosmos/overlays.md
     - Cinematics (camera, cutscenes, rundowns): cosmos/cinematics.md
+    - Director (stream your game): cosmos/director.md
     - On screen (the main screen from science): cosmos/viewscreen.md
     - Comms: cosmos/comms.md
     - Science: cosmos/science.md
