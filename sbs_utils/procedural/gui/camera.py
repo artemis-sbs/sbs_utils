@@ -35,6 +35,8 @@ FOUR FACTS ABOUT THE ENGINE CAMERA, all of them load-bearing:
 * **The lens must not sit ON its look-at point.** A zero-length view vector has no direction
   to face; the frame is black. `camera_track` nudges such a pin apart rather than emit it.
 """
+import math
+
 from ...helpers import FrameContext
 from ...vec import Vec3
 from .cinematic import gui_cinematic_auto, gui_cinematic_full_control
@@ -545,6 +547,61 @@ def camera_orbit(to, subject, distance, from_yaw=0.0, to_yaw=360.0, seconds=10.0
         return Vec3(base.x + offset.x, base.y + offset.y, base.z + offset.z)
 
     return _drive(to, consoles, subject, seconds, _at, ease)
+
+
+def camera_chase(to, subject, distance, height=0.0, seconds=30.0, consoles=None):
+    """Third person: hold the lens BEHIND the subject as it turns.
+
+    The one move whose lens is a function of the subject's HEADING rather than of time, so it
+    ignores the eased progress and reads the world each tick. That is the whole trick, and it
+    is only possible because `_drive` calls `lens_at` per tick rather than sampling a path up
+    front.
+
+    WHY THIS IS NOT A TRACTOR. The intuitive way to chase is to attach the camera to the
+    target and let the engine drag it. There is nothing to attach: the dolly and the target
+    must be the SAME object or the frame is black, so the lens already rides the subject - a
+    tractored camera object would be dragged along with nothing looking through it. Following
+    IS re-aiming, and the engine has no interpolation to do it for us.
+
+    WHY IT MUST RUN ON THE TICK. Re-aiming from a mission loop at a few hertz reads as a
+    stutter, not as a saving - the same note `_drive` carries. A chase driven from a 0.5s
+    mission tick flickers; the same maths on the dispatcher does not.
+
+    A world-space offset does NOT rotate with the dolly, which is why the offset is rebuilt
+    from `forward_vector()` every tick instead of being computed once. A subject with no usable
+    heading (a rock, or an engine object that will not answer) falls back to a fixed offset
+    rather than raising - a chase that is merely not behind the ship still shows the ship.
+
+    Args:
+        distance (float): how far BEHIND the subject to sit.
+        height (float): how far above it. A little is usually better than none.
+        seconds (float): how long this leg runs. Re-issue it to keep chasing - the same way
+            an orbit is re-issued lap by lap.
+
+    Returns:
+        Promise: resolves when the leg ends, or when the subject goes.
+    """
+    from ..query import to_object
+
+    def _at(_u):
+        subj = to_object(subject)
+        if subj is None:
+            return Vec3(0, 0, 0)
+        base = subj.pos
+        try:
+            fwd = subj.engine_object.forward_vector()
+            fx, fy, fz = fwd.x, fwd.y, fwd.z
+            flen = math.sqrt(fx * fx + fy * fy + fz * fz)
+        except Exception:
+            flen = 0.0
+        if flen <= 1e-6:
+            return Vec3(base.x, base.y + height, base.z - distance)
+        fx, fy, fz = fx / flen, fy / flen, fz / flen
+        return Vec3(base.x - fx * distance,
+                    base.y + height - fy * distance,
+                    base.z - fz * distance)
+
+    return _drive(to, consoles, subject, seconds, _at, "linear")
 
 
 def camera_rack(to, subject, consoles=None):
