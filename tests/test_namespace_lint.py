@@ -157,6 +157,57 @@ class TestNamespaceLint(unittest.TestCase):
                                  "range: close or far  # lint: allow ns-metadata-shadows-builtin")
         self.assertEqual(codes(namespace_lint_project([], [("fleets/elite.mast", src)])), [])
 
+    # --- var= control bindings that shadow a builtin --------------------------
+    #
+    # The same bug through a different door. A gui control's var= name is written into
+    # the TASK scope, and a `Properties:` block (a map's, or a fabrication recipe's) seeds
+    # every one of them through set_variable before rendering. Unlike a metadata key,
+    # nothing checked it: the nested-YAML rule above deliberately ignores keys below
+    # column 0, which is exactly where a Properties grid lives.
+
+    MAP_RANGE = (
+        '@map/m "M"\n'
+        'metadata: ``` yaml\n'
+        'Properties:\n'
+        '    Range: \'gui_drop_down("list: near, far", var="range")\'\n'
+        '```\n'
+        '    for i in range(6):\n'
+        '        pass\n')
+
+    def test_var_binding_shadowing_a_builtin(self):
+        f = namespace_lint_project([], [("maps/m.mast", self.MAP_RANGE)])
+        self.assertEqual(codes(f), ["ns-var-shadows-builtin"])
+        self.assertEqual(f[0][1].line, 4)                     # the BINDING, not the loop
+        self.assertIn("written into the task scope", f[0][1].message)
+
+    def test_var_binding_in_ordinary_gui_code_is_flagged_too(self):
+        """Not just Properties grids - gui_drop_down binds var= to the task the same way."""
+        src = '== panel\n    d = gui_drop_down("list: a, b", var="list")\n'
+        self.assertEqual(codes(namespace_lint_project([], [("a/p.mast", src)])),
+                         ["ns-var-shadows-builtin"])
+
+    def test_var_binding_that_shadows_nothing_is_quiet(self):
+        """The overwhelmingly common case: a domain name binds nothing away."""
+        src = ('== panel\n    d = gui_drop_down("list: a, b", var="menu")\n'
+               '    e = gui_drop_down("list: c, d", var="beacon_range")\n')
+        self.assertEqual(codes(namespace_lint_project([], [("a/p.mast", src)])), [])
+
+    def test_var_binding_lint_allow_suppresses(self):
+        src = ('== panel\n    d = gui_drop_down("list: a, b", var="list")'
+               '  # lint: allow ns-var-shadows-builtin\n')
+        self.assertEqual(codes(namespace_lint_project([], [("a/p.mast", src)])), [])
+
+    def test_var_binding_found_in_an_amd_fence(self):
+        """The reason this is its own rule: a recipe's Properties block is .amd, which the
+        metadata rule never reads. amd_lint calls the same checker once per file."""
+        from sbs_utils.procedural.namespace_lint import namespace_lint_var_bindings
+        amd = ('# [Sensor Beacon](recipe_beacon_sensor)\n---\nOutput: Beacon\n'
+               'Properties:\n'
+               '  Range: \'gui_drop_down("list: medium, long", var="range")\'\n---\n')
+        found = namespace_lint_var_bindings(amd)
+        self.assertEqual([f.code for f in found], ["ns-var-shadows-builtin"])
+        self.assertEqual(found[0].line, 5)
+
 
 if __name__ == "__main__":
     unittest.main()

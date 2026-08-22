@@ -132,11 +132,34 @@ class A2xPropsMockTests(unittest.TestCase):
         self.assertTrue(addto_object_property(self.so, "surrenderChance", 10))
         self.assertEqual(object_property(self.so, "surrenderChance"), 50)
 
-    def test_beacon_store_maps_to_beacon_num(self):
-        # Beacon is a first-class LM ordnance (fabricate-only); 2.8 stores -> Beacon_NUM
+    def test_beacon_store_fills_the_tube_and_spills_to_cargo(self):
+        # Beacon is a first-class LM ordnance and it is FABRICATE-ONLY: the tube holds
+        # Beacon_MAX rounds (ONE, stock) and a fired round needs a PROGRAM that only a
+        # delivery queues. So a 2.8 store of 3 cannot be written straight onto Beacon_NUM
+        # -- that reads 3/1 on the Weapons tube and fires two blanks after the first.
+        from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
+        from sbs_utils.procedural.query import set_data_set_value
         for prop in ("missileStoresBeacon", "countBea"):
+            set_data_set_value(to_id(self.so), "Beacon_MAX", 1)
+            set_data_set_value(to_id(self.so), "Beacon_NUM", 0)
+            set_inventory_value(self.so, "beacon_built", [])
+            set_inventory_value(self.so, "beacon_program_queue", [])
             self.assertTrue(set_object_property(self.so, prop, 3))
-            self.assertEqual(get_data_set_value(to_id(self.so), "Beacon_NUM"), 3)
+            self.assertEqual(get_data_set_value(to_id(self.so), "Beacon_NUM"), 1)
+            # the loaded round carries a real program, so it does not fire as a blank
+            self.assertEqual(
+                len(get_inventory_value(self.so, "beacon_program_queue", [])), 1)
+            # the other two are CARGO -- built, not loaded
+            self.assertEqual(len(get_inventory_value(self.so, "beacon_built", [])), 2)
+
+    def test_beacon_store_with_no_tube_goes_entirely_to_cargo(self):
+        # No Beacon_MAX means no registered Beacon tube, so a count would be invisible on
+        # the Weapons UI anyway. Everything becomes cargo instead -- nothing is lost, and
+        # the crew delivers one once the tube exists.
+        from sbs_utils.procedural.inventory import get_inventory_value
+        self.assertTrue(set_object_property(self.so, "countBea", 3))
+        self.assertEqual(get_data_set_value(to_id(self.so), "Beacon_NUM"), 0)
+        self.assertEqual(len(get_inventory_value(self.so, "beacon_built", [])), 3)
 
     def test_push_radius_maps_to_exclusion_radius(self):
         self.assertTrue(set_object_property(self.so, "pushRadius", 250.0))

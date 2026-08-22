@@ -75,11 +75,16 @@ _PROP = {
     "missileStoresECM": ("data", "EMP_NUM", 0),
     "countShk": ("data", "PShock_NUM", 0),
     # Beacon is now a first-class LM ordnance type (fabricate-only); map its 2.8 store.
-    "missileStoresBeacon": ("data", "Beacon_NUM", 0),
-    "countBea": ("data", "Beacon_NUM", 0),
+    # NOT a plain ("data", "Beacon_NUM") write: the Cosmos tube holds Beacon_MAX rounds
+    # (ONE, stock) and a fired round needs a queued PROGRAM, so a 2.8 store of 5 written
+    # raw reads 5/1 on the Weapons tube and fires blanks. The "beacon" branch fills the
+    # tube to capacity and puts the rest in cargo (see _set_beacon_store).
+    "missileStoresBeacon": ("beacon", "Beacon_NUM", 0),
+    "countBea": ("beacon", "Beacon_NUM", 0),
     # 2.8 Probe has no Cosmos torpedo type -> treat it as a Sensor Beacon (the passive
-    # sensor-relay beacon kind). SET writes the loadable count (Beacon_NUM); ADDTO fabricates
-    # that many sensor beacons into cargo (beacon_built) -- adding stock, not loaded rounds.
+    # sensor-relay beacon kind). SET fills the tube and spills the rest to cargo, exactly
+    # as "beacon" does; ADDTO fabricates that many into cargo (beacon_built) -- adding
+    # stock, not loaded rounds.
     "missileStoresProbe": ("probe", "Beacon_NUM", 0),
     "countProbe": ("probe", "Beacon_NUM", 0),
     # behaviour switches read by the LM damage/comms addons off the object's inventory
@@ -286,7 +291,11 @@ def addto_object_property(obj, prop, value, index=None):
         coords.add_angle(o, value)
     elif m[0] == "probe":
         # 2.8 addto Probe -> ADD stock: fabricate that many Sensor Beacons into cargo.
-        _add_sensor_beacons_to_cargo(o, value)
+        _add_beacons_to_cargo(o, value, "sensor")
+    elif m[0] == "beacon":
+        # Same for a Beacon store: added stock is CARGO, never loaded rounds - only a
+        # delivery from Engineering loads the tube, and that is what queues the program.
+        _add_beacons_to_cargo(o, value, "bio")
     elif m[0] == "engine":
         setattr(o.engine_object, m[1], (getattr(o.engine_object, m[1], 0) or 0) + value)
     elif m[0] == "pos":
@@ -643,9 +652,21 @@ def set_sensor_setting_all(setting):
     return n
 
 
-def _add_sensor_beacons_to_cargo(o, count):
-    """Fabricate ``count`` Sensor Beacons into a ship's cargo (the ``beacon_built`` list the
-    LM fabrication uses), and signal the cargo UI to refresh. Returns the number added."""
+def _beacon_program(kind):
+    """A default beacon program dict of ``kind``, shaped the way the LM fabrication builds
+    them: the recipe's own fields plus the ``recipe`` key, so a beacon made this way can be
+    fired with real behavior and scrapped back into real materials."""
+    if kind == "sensor":
+        return {"kind": "sensor", "beacon_range": "medium",
+                "recipe": "recipe_beacon_sensor"}
+    return {"kind": "bio", "monster": "any", "mode": "attract",
+            "recipe": "recipe_beacon_bio"}
+
+
+def _add_beacons_to_cargo(o, count, kind="sensor"):
+    """Fabricate ``count`` beacons of ``kind`` into a ship's cargo (the ``beacon_built``
+    list the LM fabrication uses), and signal the cargo UI to refresh. Returns the number
+    added."""
     from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
     from sbs_utils.procedural.query import to_id
 
@@ -653,7 +674,7 @@ def _add_sensor_beacons_to_cargo(o, count):
     if n_add <= 0:
         return 0
     built = get_inventory_value(o, "beacon_built", []) or []
-    built.extend({"kind": "sensor"} for _ in range(n_add))
+    built.extend(_beacon_program(kind) for _ in range(n_add))
     set_inventory_value(o, "beacon_built", built)
     try:
         from sbs_utils.procedural.signal import signal_emit
@@ -661,6 +682,35 @@ def _add_sensor_beacons_to_cargo(o, count):
     except Exception:
         pass   # cargo is added even if the UI-refresh signal isn't wired
     return n_add
+
+
+def _set_beacon_store(o, count, kind="bio"):
+    """Give a ship a 2.8 Beacon/Probe store under the Cosmos fabricate-only model.
+
+    The Cosmos Beacon tube holds ``Beacon_MAX`` rounds - ONE, stock - and only a delivery
+    from Engineering queues the PROGRAM a fired round carries. Writing a 2.8 store of 20
+    straight onto ``Beacon_NUM`` (which is what this used to do) reads as 20/1 on the
+    Weapons tube and fires 20 rounds with nothing behind them. So fill the tube to its
+    capacity, queue a matching program for each loaded round, and put the remainder in
+    cargo as built-but-undelivered beacons - which is what a 2.8 store actually was.
+
+    Returns the number of loaded rounds set.
+    """
+    from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
+
+    n = int(round(float(count or 0)))
+    if n < 0:
+        n = 0
+    cap = int(o.data_set.get("Beacon_MAX", 0) or 0)
+    loaded = n if n < cap else cap
+    o.data_set.set("Beacon_NUM", loaded, 0)
+    if loaded > 0:
+        queue = get_inventory_value(o, "beacon_program_queue", []) or []
+        queue.extend(_beacon_program(kind) for _ in range(loaded))
+        set_inventory_value(o, "beacon_program_queue", queue)
+    if n > loaded:
+        _add_beacons_to_cargo(o, n - loaded, kind)
+    return loaded
 
 
 def set_object_property(obj, prop, value, index=None):
@@ -693,8 +743,11 @@ def set_object_property(obj, prop, value, index=None):
         # 2.8 sensorSetting -> scan range (units): 0 = unlimited (map size); N>0 = 100000/(3N).
         o.data_set.set(m[1], sensor_range(value), 0)
     elif m[0] == "probe":
-        # 2.8 Probe store == the loadable Sensor-Beacon count (Beacon_NUM data_set).
-        o.data_set.set(m[1], value, 0)
+        # 2.8 Probe store -> fill the Beacon tube to capacity, rest to cargo.
+        _set_beacon_store(o, value, "sensor")
+    elif m[0] == "beacon":
+        # 2.8 Beacon store -> same, as bio beacons.
+        _set_beacon_store(o, value, "bio")
     elif m[0] == "warp":
         # 2.8 warpState 0-4 -> throttle 1-5 (+1 offset)
         o.data_set.set(m[1], int(round(float(value))) + 1, 0)
@@ -732,7 +785,7 @@ def object_property(obj, prop, index=None):
     if m[0] == "quat":
         from . import coords
         return coords.get_angle(o)
-    if m[0] in ("probe", "sensor", "warp"):
+    if m[0] in ("probe", "beacon", "sensor", "warp"):
         return o.data_set.get(m[1], m[2])   # the data_set count/value these kinds write
     if m[0] == "engine":
         return getattr(o.engine_object, m[1])

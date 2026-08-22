@@ -1494,6 +1494,15 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         except Exception:
             content = ""
 
+    # A `Properties:` block's var= names are seeded into the task scope through
+    # set_variable, so one named after a MAST global (var="range") kills that global for
+    # the whole task. Imported locally: namespace_lint imports AmdFinding from here.
+    try:
+        from sbs_utils.procedural.namespace_lint import namespace_lint_var_bindings
+        findings += namespace_lint_var_bindings(content)
+    except Exception:
+        pass   # a linter pass must never take the rest of the run down with it
+
     try:
         from sbs_utils.procedural.amd_core import parse
         doc = parse(content)

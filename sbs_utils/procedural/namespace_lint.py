@@ -32,6 +32,12 @@ Five collision classes, in descending severity:
   variables, so the key hides that global for the label's WHOLE body: `range: close or
   far` on the cloak ability is why `for i in range(6)` stopped working inside it (LM
   #657), and the error named the loop rather than the metadata.
+- ``ns-var-shadows-builtin`` (WARNING) - the same bug via a gui control binding,
+  `var="range"`. A `var=` name is written into the TASK scope, and a `Properties:` block
+  (a map's, or a fabrication recipe's) seeds every one of them through `set_variable`
+  before rendering. Its own rule because it can live in an `.amd` fence, which the
+  metadata rule never reads, and because `set_variable` bypasses the compile-time guard
+  that would refuse `range = ...` written out longhand.
 
 Underscore-prefixed defs are NOT checked: since 2026-08-16 both registration paths skip
 them, so `_dist` really is private and cannot collide with anything. Flagging it would be
@@ -94,6 +100,53 @@ def _allowed(line, code):
     """True when the source line carries `# lint: allow <code>`."""
     m = _ALLOW.search(line or "")
     return bool(m) and code in [c.strip() for c in m.group("codes").replace(",", " ").split()]
+
+
+# A control binding inside a gui control string: gui_drop_down("list: a, b", var="menu").
+_VAR_BIND = re.compile(r"""var\s*=\s*["'](?P<name>\w+)["']""")
+
+
+def namespace_lint_var_bindings(content):
+    """`var="<name>"` control bindings that shadow one of MAST's own globals.
+
+    A gui control's `var=` name is written into the TASK scope - gui_drop_down and friends
+    key off `task.get_id()`, and a recipe's or a map's `Properties:` block seeds each one
+    through `set_variable` before the panel renders. So `var="range"` hides `range()` for
+    that whole task, exactly the way a metadata key hides it for a label body.
+
+    Two things made this worth its own rule rather than folding into
+    ``ns-metadata-shadows-builtin``: the binding can sit in an `.amd` fence, which that
+    rule never reads, and `set_variable` bypasses the compile-time guard in
+    `core_nodes/assign.py` that would refuse the same name written as `range = ...`. So it
+    fails silently, at runtime, on the line that USES the global.
+
+    Works on `.mast` and `.amd` alike - both carry these strings.
+
+    Args:
+        content (str): file text.
+
+    Returns:
+        list: ``AmdFinding``, one per shadowing binding.
+    """
+    out = []
+    text = content or ""
+    rows = text.splitlines()
+    for m in _VAR_BIND.finditer(text):
+        name = m.group("name")
+        if name not in _MAST_BUILTINS:
+            continue
+        line = text[:m.start()].count("\n") + 1
+        src = rows[line - 1] if 0 < line <= len(rows) else ""
+        if _allowed(src, "ns-var-shadows-builtin"):
+            continue
+        out.append(AmdFinding(
+            line, WARNING, "ns-var-shadows-builtin",
+            "control binding var=\"" + name + "\" is one of MAST's own globals, and a "
+            "var= name is written into the task scope - so " + name + " is no longer "
+            "reachable anywhere in that task, and the error lands on the line that USES "
+            "it, not on this one. Rename the binding (beacon_range, acquire_range) and "
+            "update whatever reads it."))
+    return out
 
 
 def _def_sites(content):
@@ -277,5 +330,12 @@ def namespace_lint_project(py_sources, mast_sources=(), lib_globals=()):
                     "no longer reachable anywhere in this label's body, and the error "
                     "lands on the line that USES it, not on this one. Rename the key "
                     "(ability_range, acquire_range) and update the body that reads it.")))
+
+    # --- a gui control's var= binding shadows a builtin for its whole task ---
+    # The .amd half of this rule runs from amd_lint (per file); here it covers .mast -
+    # a @map label's Properties grid and any inline gui_drop_down(var=...).
+    for path, content in mast_sources:
+        for f in namespace_lint_var_bindings(content):
+            findings.append((path, f))
 
     return findings
