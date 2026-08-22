@@ -138,10 +138,36 @@ def _num(v, default=None):
         return default
 
 
-_SHOT_FIELDS = ("cutscene", "rundown", "subject", "lens", "move", "seconds", "ease",
-                "order", "overlay", "slot", "label", "transition")
+_SHOT_FIELDS = ("cutscene", "rundown", "subject", "framing", "lens", "move", "seconds",
+                "ease", "yaw", "pitch", "order", "overlay", "slot", "label",
+                "transition")
+
+#: Camera words an author might reasonably reach for that are NOT shot fields. They
+#: would otherwise be swept into the overlay dict below and silently ignored by the
+#: camera - the shot still plays, framed by something the author did not write. Say so.
+_CAMERA_LOOKALIKES = ("distance", "height", "radius", "angle", "offset", "zoom", "range")
 
 
+
+def _framing(text):
+    """`Framing: close` -> "close"; `Framing: wide, close` -> ["wide", "close"] (a move)."""
+    if text is None:
+        return None
+    parts = [p.strip().lower() for p in str(text).replace(";", ",").split(",") if p.strip()]
+    if not parts:
+        return None
+    return parts[0] if len(parts) == 1 else [parts[0], parts[-1]]
+
+
+def _warn_camera_lookalikes(fields, key):
+    """Say when a camera-sounding field was swept into the overlay instead."""
+    stray = [k for k in fields if str(k).strip().lower() in _CAMERA_LOOKALIKES]
+    if not stray:
+        return
+    from .execution import log
+    log(f"shot {key}: {sorted(stray)} is not a shot field, so it went to the overlay and "
+        f"the camera never saw it. To frame a shot use Framing: close/medium/wide, which "
+        f"sizes itself to the subject.", "amd_cutscene", "warning")
 def _split_transition(body):
     """A shot body -> `(transition, prose)`.
 
@@ -171,6 +197,12 @@ def _shot_from(rec):
         "key": rec.get("key"),
         "label": data.get("label") or rec.get("display") or rec.get("key"),
         "subject_name": data.get("subject"),
+        # A named size (close/medium/wide), or two for a move. Preferred over lens/move:
+        # the distance is derived from the subject hull, so one shot frames a runabout
+        # and a starbase alike wherever either is parked.
+        "framing": _framing(data.get("framing")),
+        "yaw": _num(data.get("yaw")),
+        "pitch": _num(data.get("pitch")),
         "lens": _vec(data.get("lens")),
         "move": _move(data.get("move")),
         "seconds": _num(data.get("seconds"), 4),
@@ -186,6 +218,7 @@ def _shot_from(rec):
         # Everything not a shot field belongs to the overlay, so a kind's own
         # fields (Name:, Color:, Face:) are authored right beside the shot.
         fields = {k: v for k, v in data.items() if k not in _SHOT_FIELDS}
+        _warn_camera_lookalikes(fields, rec.get("key"))
         prim = _KIND_PRIMARY_FIELD.get(kind, "title")
         if prim not in fields and body:
             fields[prim] = body
@@ -263,7 +296,8 @@ def _playable(shots):
         if subject is None:
             continue
         playable = {k: v for k, v in shot.items()
-                    if k in ("lens", "move", "seconds", "ease", "overlay", "label")}
+                    if k in ("framing", "yaw", "pitch", "lens", "move", "seconds",
+                             "ease", "overlay", "label")}
         playable["subject"] = subject
         out.append(playable)
     return out
@@ -291,7 +325,12 @@ def rundown_amd(key):
         return 0
     n = 0
     for shot in _playable(shots):
+        # Every camera field, not a hand-written subset. A field added to the shot
+        # list but forgotten HERE is dropped silently on its way to the rundown,
+        # which is the same class of bug as the whitelists above.
         rundown_add(shot.get("label") or f"shot{n}", shot["subject"],
+                    framing=shot.get("framing"), yaw=shot.get("yaw"),
+                    pitch=shot.get("pitch"),
                     lens=shot.get("lens"), move=shot.get("move"),
                     seconds=shot.get("seconds", 4), ease=shot.get("ease", "in_out"),
                     label=shot.get("label"), overlay=shot.get("overlay"))

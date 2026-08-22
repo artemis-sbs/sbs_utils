@@ -44,12 +44,15 @@ _DESK = {"program": None, "preview": None, "live": None, "staged": None,
 
 
 def rundown_add(name, subject, lens=None, move=None, seconds=4, ease="in_out",
-                label=None, overlay=None):
+                label=None, overlay=None, framing=None, yaw=None, pitch=None):
     """Add (or replace) a shot in the rundown.
 
     Args:
         name (str): how the director refers to it.
         subject: what the shot looks at - and necessarily what the lens rides.
+        framing: a named size (``close``/``medium``/``wide``), or two for a move.
+            PREFERRED over lens/move - the distance is taken from the subject own
+            hull, so one shot frames a runabout and a starbase alike.
         lens: world position for a static shot.
         move: ``[from, to]`` world positions for a moving one.
         seconds (float): duration of a ``move`` (a static shot holds until punched away).
@@ -60,6 +63,7 @@ def rundown_add(name, subject, lens=None, move=None, seconds=4, ease="in_out",
         dict: the stored shot.
     """
     shot = {"name": name, "label": label or name, "subject": subject,
+            "framing": framing, "yaw": yaw, "pitch": pitch,
             "lens": lens, "move": move, "seconds": seconds, "ease": ease,
             "overlay": overlay}
     _SHOTS[name] = shot

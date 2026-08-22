@@ -278,6 +278,63 @@ def camera_auto(to=None, consoles=None):
     return n
 
 
+def camera_assignment(to=None, consoles=None):
+    """What each console is riding right now: ``{client_id: ship_id}``.
+
+    Taken BEFORE a cutscene so it can be given back afterwards. `camera_track` ASSIGNS a
+    console to the object the lens rides, and assignment is identity, not framing: it
+    decides what that console can see and what the engine director follows once the
+    camera is released. So a shot that rode a station leaves the mainscreen watching
+    that station, and `camera_auto` alone does not undo it - it hands control back to a
+    director that dutifully keeps following the wrong ship.
+
+    Captured per console rather than assumed to be "the player ship", because it is not
+    always one: a Game Master or Admiral console rides a detached camera object, and
+    putting it back on a player ship would be a worse bug than the one being fixed.
+
+    Returns:
+        dict: client id -> the ship id it was assigned to. Ids that read back as 0 are
+        omitted; there is nothing to restore and re-assigning to 0 would detach it.
+    """
+    sbs = FrameContext.context.sbs
+    held = {}
+    for cid in consoles_of(to, consoles):
+        try:
+            oid = sbs.get_ship_of_client(cid)
+        except Exception:                               # noqa: BLE001
+            continue
+        if oid:
+            held[cid] = oid
+    return held
+
+
+def camera_restore(assignments):
+    """Put each console back on the object it was riding, and release the camera.
+
+    The counterpart to `camera_assignment`, and the general rule for ending a cutscene:
+    give the console back its own ship, THEN hand the camera to the engine director. In
+    that order - releasing first leaves the director following the shot subject for the
+    frames in between.
+
+    Args:
+        assignments (dict): what `camera_assignment` returned.
+
+    Returns:
+        int: how many consoles were put back.
+    """
+    if not assignments:
+        return 0
+    sbs = FrameContext.context.sbs
+    n = 0
+    for cid, oid in assignments.items():
+        if not oid:
+            continue
+        sbs.assign_client_to_ship(cid, oid)
+        gui_cinematic_auto(cid)
+        n += 1
+    return n
+
+
 def camera_orbit_lens(distance, yaw=0.0, pitch=0.0):
     """The offset for a shot ``distance`` away at a given angle, as a world-space Vec3.
 
@@ -506,11 +563,17 @@ def camera_dolly(to, subject, from_distance, to_distance, yaw=0.0, pitch=12.0,
         Promise: resolves when the push ends.
     """
     from ..query import to_object
-    subj = to_object(subject)
     a = float(from_distance)
     b = float(to_distance)
 
     def _at(u):
+        # RESOLVED PER TICK, like camera_chase. Not because a held agent reports a stale
+        # POSITION - `pos` proxies through to the live engine object, so it does not.
+        # Because a subject that is not resolvable at ISSUE time pins `subj` to None for
+        # the life of the move, framing every tick around the world ORIGIN with no
+        # recovery; and the subject-died path can read an engine object already freed.
+        # Cutscene subjects are resolved late, so this is a live case, not a corner.
+        subj = to_object(subject)
         offset = camera_orbit_lens(a + (b - a) * u, yaw, pitch)
         base = subj.pos if subj is not None else Vec3(0, 0, 0)
         return Vec3(base.x + offset.x, base.y + offset.y, base.z + offset.z)
@@ -538,9 +601,11 @@ def camera_orbit(to, subject, distance, from_yaw=0.0, to_yaw=360.0, seconds=10.0
         Promise: resolves when the sweep ends.
     """
     from ..query import to_object
-    subj = to_object(subject)
 
     def _at(u):
+        # Per tick, for the reason camera_dolly gives: resolved once, a subject that is
+        # not resolvable at issue time orbits the world origin for the whole sweep.
+        subj = to_object(subject)
         yaw = from_yaw + (to_yaw - from_yaw) * u
         offset = camera_orbit_lens(distance, yaw, pitch)
         base = subj.pos if subj is not None else Vec3(0, 0, 0)

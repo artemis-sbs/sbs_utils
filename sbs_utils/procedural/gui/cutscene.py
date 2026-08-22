@@ -29,8 +29,10 @@ where the engine's shape has to be respected:
         ...
 """
 from ...helpers import FrameContext
-from .camera import camera_auto, camera_move, camera_move_stop, camera_shot
+from .camera import (camera_assignment, camera_auto, camera_dolly, camera_move,
+                     camera_move_stop, camera_orbit_lens, camera_restore, camera_shot)
 from .overlay import consoles_of, overlay_clear, overlay_kind
+from .viewscreen import ORBIT_PITCH, viewscreen_framing
 
 
 # name -> cutscene dict. Authoring data, but still per-mission: a reload must not
@@ -49,13 +51,18 @@ def cutscene_define(name, shots, letterbox=True, skippable=True, bar=4,
         name (str): what ``cutscene_play`` will look up.
         shots (list[dict]): in order. Per shot:
             ``subject`` (required) - what the shot looks at, and necessarily what
-            the lens rides; ``lens`` (world position) OR ``move`` ([from, to]);
-            ``seconds`` (default 4); ``ease``; ``overlay`` ({"kind": ..., plus that
-            kind's fields}).
+            the lens rides; ``framing`` (``close``/``medium``/``wide``, or a two-item
+            list for a move) OR ``lens`` (world position) OR ``move`` ([from, to]);
+            ``seconds`` (default 4); ``ease``; ``yaw``/``pitch``; ``overlay``
+            ({"kind": ..., plus that kind's fields}).
+            Prefer ``framing``: it scales to the subject's hull, so one shot frames a
+            runabout and a starbase alike. ``lens``/``move`` are world POSITIONS and
+            so also depend on where the subject is parked.
         letterbox (bool): black bars for the duration.
         skippable (bool): whether ``cutscene_skip`` ends it.
         bar (float): letterbox bar height in em.
-        release (bool): hand the camera back to the engine's director at the end.
+        release (bool): at the end, put each console back on the object it was riding
+            and hand the camera to the engine's director.
             Leave it True unless the next thing the story does is set its own shot -
             a cutscene that ends still holding a dolly will drop to the engine
             default the moment that object is deleted.
@@ -74,6 +81,66 @@ def cutscene_get(name):
     return _CUTSCENES.get(name)
 
 
+#: Every key a shot may carry. A shot built in PYTHON gets no lint and no schema - the
+#: AMD loader validates its own records, but `cutscene_play([{...}])` from a mission .py
+#: is checked by nothing at all. That is the path the framing bug travelled: a camera
+#: field the library did not implement would have been ignored in silence.
+SHOT_KEYS = frozenset(("subject", "framing", "yaw", "pitch", "lens", "move", "seconds",
+                       "ease", "overlay", "label", "name", "key", "order",
+                       "transition", "subject_name"))
+
+
+def _warn_unknown_shot_keys(shot):
+    """One warning naming any key `shot_apply` will ignore."""
+    stray = sorted(k for k in shot if k not in SHOT_KEYS)
+    if not stray:
+        return
+    from ..execution import log
+    who = shot.get("label") or shot.get("name") or shot.get("key") or "?"
+    log(f"shot {who}: {stray} is not a shot field, so it was ignored. To frame a shot "
+        f"use framing=close/medium/wide, which sizes itself to the subject.",
+        "cutscene", "warning")
+
+
+#: What a named shot size means, in the subject's own hull radii. The numbers are not
+#: here - they come from `viewscreen_framing`, which is where they already lived.
+SHOT_SIZES = ("close", "medium", "wide")
+
+
+def cutscene_framing(subject, size="medium"):
+    """How far the lens sits for a named shot size, scaled to the subject's own hull.
+
+    A DISTANCE TYPED BY HAND FRAMES EXACTLY ONE SHIP. The subjects a mission points a
+    camera at are not one size: across the TNG pack a B'Rel is 25 units of hull radius
+    and Deep Space Nine is 220, and a planet is 10,000. One coordinate triple makes the
+    big one overflow the frame and the small one a speck, which is precisely the report
+    this exists to answer.
+
+    So the distance is read off the subject instead. `viewscreen_framing` already does
+    that arithmetic - 6 hull radii at the closest, 16 at the widest, floored at 250 so
+    the engine reporting a tiny hull cannot put the lens inside it - and the Director
+    has framed its shots that way since it deleted its own distance sliders, on the
+    grounds that "a fixed number framed a starbase and a fighter equally badly".
+
+    `medium` is the midpoint rather than a fourth constant, so there is still exactly
+    one place these numbers are written down.
+
+    Args:
+        subject: the object the shot looks at.
+        size (str): ``close``, ``medium`` or ``wide``. Anything else is treated as
+            ``medium`` - a misspelled size should give a usable shot, not no shot.
+
+    Returns:
+        float: distance from the subject, in world units.
+    """
+    near, far = viewscreen_framing(subject)
+    if size == "close":
+        return near
+    if size == "wide":
+        return far
+    return (near + far) / 2.0
+
+
 def shot_apply(cids, shot):
     """Put one shot on these consoles. Returns its move Promise, or None.
 
@@ -81,11 +148,49 @@ def shot_apply(cids, shot):
     "a shot" means one thing in both: a subject, where the lens sits (or travels),
     and optional furniture. The slots it used come back on the returned set so a
     caller can clear exactly what it put up.
+
+    A shot says where the lens goes in ONE of two ways:
+
+    * ``framing`` - a named size (``close``/``medium``/``wide``), or a two-item list
+      for a move (``["wide", "close"]`` is a push in). The distance is derived from the
+      subject's hull, so the same shot frames a runabout and a starbase alike, and it
+      does not depend on where either happens to be parked.
+    * ``lens`` / ``move`` - literal WORLD POSITIONS, unchanged and still supported.
+      Note these are positions, not offsets: a subject sitting 7,000 units from the
+      origin is framed 7,000 units differently than the same shot at the origin, which
+      is the trap `framing` exists to close.
     """
+    _warn_unknown_shot_keys(shot)
     seconds = float(shot.get("seconds", 4))
     subject = shot.get("subject")
+    framing = shot.get("framing")
     move = None
-    if shot.get("move"):
+    if framing:
+        yaw = float(shot.get("yaw", 0.0))
+        pitch = float(shot.get("pitch", ORBIT_PITCH))
+        if isinstance(framing, (list, tuple)):
+            # A MOVE, through camera_dolly rather than camera_move. Dolly holds the angle
+            # and changes only the distance, recomputing from wherever the subject is each
+            # tick; camera_move interpolates between two fixed world points, so a subject
+            # under way outruns the shot and a push in ends as a fly past.
+            a = cutscene_framing(subject, framing[0])
+            b = cutscene_framing(subject, framing[-1])
+            move = camera_dolly(cids, subject, a, b, yaw=yaw, pitch=pitch,
+                                seconds=seconds, ease=shot.get("ease", "in_out"))
+        else:
+            # A held shot. camera_shot wants a world position, so turn the distance into
+            # one at apply time - it stores the difference as an offset, which is what
+            # keeps the framing while the subject moves.
+            from ..query import to_object
+            subj = to_object(subject)
+            offset = camera_orbit_lens(cutscene_framing(subject, framing), yaw, pitch)
+            base = subj.pos if subj is not None else None
+            if base is None:
+                camera_shot(cids, subject, offset)
+            else:
+                camera_shot(cids, subject,
+                            (base.x + offset.x, base.y + offset.y, base.z + offset.z))
+    elif shot.get("move"):
         a, b = shot["move"][0], shot["move"][1]
         move = camera_move(cids, subject, a, b, seconds,
                            ease=shot.get("ease", "in_out"))
@@ -123,6 +228,16 @@ class _Playing:
         self.skipped = False
         self.task = None
         self.slots = set()
+        # WHAT EACH CONSOLE WAS RIDING BEFORE THE FIRST SHOT TOOK IT.
+        #
+        # Captured here, before start_shot assigns anything. A shot ASSIGNS its
+        # console to the object the lens rides, and that assignment outlives the
+        # cutscene: releasing to the engine director afterwards leaves it following
+        # whatever the last shot was on. A trial whose reveal held on a station ended
+        # with the mainscreen watching the station instead of the crew ship, while
+        # the trials whose reveal fell back to the hero looked fine - which is why it
+        # read as one broken mission rather than a missing rule.
+        self.held = camera_assignment(cids)
 
     # --- shots ----------------------------------------------------------
     def start_shot(self, shot):
@@ -165,7 +280,10 @@ class _Playing:
         # BEFORE the caller deletes anything: a dolly deleted while the camera is
         # still on it drops the view to the engine default.
         if self.scene["release"]:
-            camera_auto(self.cids)
+            # Give the console its own ship back, THEN release. camera_auto alone
+            # hands control to a director that keeps following the shot subject.
+            if not camera_restore(self.held):
+                camera_auto(self.cids)
         for cid in self.cids:
             if _PLAYING.get(cid) is self:
                 _PLAYING.pop(cid, None)

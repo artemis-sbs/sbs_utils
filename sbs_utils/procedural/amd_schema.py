@@ -539,7 +539,13 @@ CUTSCENE = {
     # Resolved LATE: a cast name bound by the mission, else a role. The object does
     # not exist when the .amd loads.
     "subject": text(hint="cast name (cutscene_cast) or a role"),
-    "lens": text(hint="x, y, z - where the lens sits"),
+    # PREFER Framing over lens/move: it sizes the shot to the subject own hull, so one
+    # shot frames a runabout and a starbase alike. lens/move are world POSITIONS and so
+    # also depend on where the subject happens to be parked.
+    "framing": text(hint="close | medium | wide - or two, e.g. wide, close, for a move"),
+    "yaw": integer(hint="optional - degrees around the subject"),
+    "pitch": integer(hint="optional - degrees above it"),
+    "lens": text(hint="x, y, z - where the lens sits (absolute world position)"),
     "move": text(hint="x,y,z -> x,y,z - where the lens travels"),
     "seconds": integer(),
     "ease": enum("in_out", "in", "out", "linear"),

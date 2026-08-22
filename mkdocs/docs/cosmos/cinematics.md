@@ -38,6 +38,32 @@ camera_shot(to, cam, Vec3(0, 400, -1200))
 
 Hand the camera back to the engine's own director with `camera_auto(to)`.
 
+## Sizing a shot
+
+A `lens` is where the camera **is**. A `framing` is how big the subject should **look**,
+and the library works the distance out from the subject's own hull:
+
+```python
+cutscene_play([
+    {"subject": hero,    "framing": ["wide", "close"], "seconds": 7},   # push in
+    {"subject": station, "framing": "wide",            "seconds": 6},   # hold
+], to=role("mainscreen"))
+```
+
+`close`, `medium` and `wide` are 6, 10 and 16 hull radii - the same numbers a bridge
+viewscreen shot uses, so a cutscene of a ship and "On Screen" of the same ship are framed
+alike. Two sizes in a list is a move: `["wide", "close"]` pushes in, the reverse pulls out.
+
+**Prefer it to `lens`/`move`.** Those are absolute world POSITIONS, which means a shot is
+framed by where its subject happens to be parked as much as by the number you typed - and
+one number cannot serve subjects of different sizes. A mission whose hulls ran from a
+25-unit bird of prey to a 220-unit starbase had exactly one well-framed shot out of six:
+the only one whose subject sat at the origin.
+
+A subject much larger than a ship - a planet - is still framed in its own radii, so `wide`
+on a 10,000-unit world is 160,000 units out. That is geometrically right and dramatically
+useless; frame a world `close`, or give the shot a ship to look at instead.
+
 ## Moving it
 
 The engine interpolates nothing, so a move is a driver that re-aims every tick. Each
@@ -177,6 +203,8 @@ rundown_amd("patrol")        # loads declared shots into the live rundown
 ```
 
 ## Gotchas
+
+* `Lens:` is absolute world coordinates, not an offset from the subject.
 
 - **`Lens:`, not `Eye:` or `Camera:`.** A *camera* here is an object, which is what
   `Subject:` already names; `Lens:` is where you look **from**.
