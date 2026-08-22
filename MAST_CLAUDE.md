@@ -1297,6 +1297,38 @@ empty, `labels 0/N`, still "PASS". If you hit that on an OLDER sbslib, use the i
 workaround: `c = ship_cell(id); a = c[0]; b = c[1]`.) Covered by
 `sbs_utils/tests/test_tuple_unpack.py`.
 
+**But NOT with an `await` on the right** (compiler-verified 2026-08-21). `x = await f()`
+is fine and `a, b = f()` is fine; `a, b = f(await g())` is a **compile error** —
+`'await' outside function` — and a compile error takes the whole story to **0 labels**.
+Split it:
+
+```
+# BROKEN - compiles to nothing:
+pick, face, art = crew_self_unpack(await gui_request_client_string(cid, "crew_self"))
+
+# Two statements:
+packed = await gui_request_client_string(cid, "crew_self")
+pick, face, art = crew_self_unpack(packed)
+```
+
+Watch the intermediate: it is a **string** assignment, so it is re-run through f-string
+formatting. A `{` in a value the engine hands back is a `SyntaxError` reported against
+*your* line — strip braces where you PACK the value, not where you read it.
+
+**Adding a top-level label to an existing file is NEVER a safe append.** Labels fall
+through, so the ADJACENCY of two labels is an interface - and nothing in the file says so.
+Inserting one between LM's `console_selected` and `show_console_selected` sent every console
+selection into the inserted label instead of opening the console; nothing failed, nothing
+logged, and headless `--test` still reported PASS (it never enters a console page). Put a
+new label at the END of the file, after any `//` routes, and give the ones around it an
+explicit `jump`/`->END` if they must not run on.
+
+**A `jump` to a label nothing defines is NOT a compile error** (compiler-verified
+2026-08-21). It compiles clean and only fails if it ever runs. That is what makes the
+`default shared FLAG = False` guard sufficient for an OPTIONAL addon dependency — build
+the button behind the flag and the jump line is simply never reached, so `suggests` +
+a runtime twin really is enough and no `requires` is needed.
+
 ---
 
 ## PyMAST — Python Generator Labels

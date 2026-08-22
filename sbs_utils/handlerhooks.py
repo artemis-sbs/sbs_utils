@@ -140,6 +140,13 @@ def reset_mission_state():
     # the engine is no longer told about.
     from .faces import face_mod_reset
     face_mod_reset()
+    # Crew rosters read from AMD, and the seats they filled. Per-mission for exactly the
+    # reason above: a roster names hull keys and portrait atlas cells that exist only while
+    # THAT mod is loaded, so carrying it into the next mission staffs consoles with people
+    # pointing at a sheet the engine is no longer told about.
+    from .procedural.crew import crew_clear, crew_names_clear
+    crew_clear()
+    crew_names_clear()
     # The ship's log (Log Panel). Per-mission by definition - last mission's traffic
     # in this one's log would be nonsense - and registered below so a forgotten clear
     # is reported by name rather than found three runs later.
@@ -364,6 +371,12 @@ from .procedural.gui.gui import await_gui_site_count as _await_gui_sites
 register_reset_state("off-gui-task await warnings", _await_gui_sites)
 from .faces import face_mod_size as _face_mod_size
 register_reset_state("mod face registry", _face_mod_size)
+# TWO probes, not one: declared rosters and occupied seats leak for different reasons, and a
+# single probe covering both cannot say which of them happened.
+from .procedural.crew import crew_count as _crew_count
+from .procedural.crew import crew_seat_count as _crew_seat_count
+register_reset_state("crew rosters", _crew_count)
+register_reset_state("crew seats", _crew_seat_count)
 from .procedural.volume import volume_count as _volume_count
 from .procedural.volume import volume_watch_count as _volume_watch_count
 register_reset_state("volumes", _volume_count)

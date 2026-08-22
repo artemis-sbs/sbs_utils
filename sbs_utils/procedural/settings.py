@@ -306,6 +306,30 @@ def settings_get_defaults():
         # every mod built on it - the TNG mod being the case in hand - from ever setting its
         # own soundtrack. A mission that genuinely wants to pin one still can, and should.
         "MUSIC_SELECT": "random",
+        # Which crew roster staffs consoles nobody named - a roster key, its display name,
+        # "random" to pick from every declared one, or "" for none.
+        #
+        # It lives HERE, in the library built-ins, for the same reason MUSIC_SELECT does: a
+        # key present in a mission's settings.yaml is EXPLICIT and outranks a mod, so writing
+        # CREW_SELECT into LegendaryMissions would stop the TNG mod - the case in hand - from
+        # ever claiming it with settings_set_mod_default.
+        #
+        # The default is "" and NOT "random", which is the backward-compatibility guarantee:
+        # with nothing selected the resolution chain stops before it can invent anybody, so a
+        # mission that does none of this behaves exactly as it always has. Defaulting to
+        # "random" would silently rename every unmanned console in every existing mission,
+        # and a Director rundown nobody touched would change on air.
+        "CREW_SELECT": "",
+        # Whether a console nobody named gets a name anyway - a random one, different from
+        # every other console in the run.
+        #
+        # ON, because the crew name existed for years and almost nobody typed one, so every
+        # seat on air read "unmanned". Turning it on is what makes the Director's bridge wall
+        # and the Gamemaster's message list read like a crewed ship out of the box.
+        #
+        # It is the one part of the crew system that changes what an EXISTING mission shows.
+        # Set false for a mission that wants a seat nobody claimed to read as empty.
+        "CREW_AUTONAME": True,
         # Whether set_music_folder may be handed a PATH. Leave it False: on engine 1.3.6 a
         # path HANGS the engine (data/missions/music_probe). Exists so that probe can test a
         # newer build without a library rebuild.

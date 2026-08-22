@@ -395,5 +395,72 @@ class TestAliasesReadForwards(unittest.TestCase):
                     self.assertEqual(S.amd_canonical_label(alias, "quest"), canonical)
 
 
+class TestCrewArchetype(unittest.TestCase):
+    """A crew roster is its own archetype - not a lifeform wearing a hat.
+
+    A crew member never spawns: they are a label on a seat a human is sitting in, where a
+    lifeform is an agent that exists in the world.
+    """
+
+    def test_crew_is_a_registered_archetype(self):
+        self.assertIn("crew", S.ARCHETYPES)
+
+    def test_the_crew_section_words_resolve_to_crew(self):
+        for word in ("crew", "crews", "roster", "rosters"):
+            with self.subTest(word=word):
+                self.assertEqual(S.archetype_for_section(word), "crew")
+
+    def test_officers_is_NOT_a_crew_word(self):
+        # OpenUniverse's `## [Officers](officers)` is a real lifeform cast - named fleet
+        # captains that spawn and carry hail scenes. Claiming the word here retyped every one
+        # of them; the corpus snapshot caught it. Pinned so it cannot be reclaimed by
+        # accident.
+        self.assertIsNone(S.archetype_for_section("officers"))
+        # It types through the discriminators instead, off the fields OU's captains carry.
+        self.assertEqual(S.infer_archetype(["title", "values", "face", "scene"],
+                                           section_key="officers"), "lifeform")
+
+    def test_cast_and_character_stay_on_lifeform(self):
+        # Those are the NPC words and must not follow crew across.
+        for word in ("cast", "character", "characters", "lifeform", "lifeforms"):
+            with self.subTest(word=word):
+                self.assertEqual(S.archetype_for_section(word), "lifeform")
+
+    def test_the_roster_fields_are_declared(self):
+        for label in ("by", "console", "rank", "portrait", "portraits",
+                      "hull", "ship", "race", "sheet", "cell", "grid"):
+            with self.subTest(label=label):
+                self.assertTrue(S.amd_is_declared(label, "crew"), label)
+
+    def test_image_is_still_not_a_field(self):
+        # `image` is a SECTION word; one label must never mean two things. A photograph is
+        # `Portrait:`, which is why CUTSCENE reached for `backdrop` rather than `Image:`.
+        self.assertFalse(S.amd_is_declared("image", "crew"))
+
+    def test_console_offers_the_same_values_the_item_archetype_does(self):
+        # One vocabulary, so `Console: helm` completes and reads the same in both places.
+        self.assertEqual(sorted(S.field_schema("console", "crew").get("values")),
+                         sorted(S.field_schema("consoles", "item").get("values")))
+
+    def test_console_is_an_OPEN_enum(self):
+        # Console types are registered at RUNTIME from @console labels, so a closed enum
+        # would make the linter wrong about a correct file the moment a mod adds one.
+        self.assertTrue(S.field_schema("console", "crew").get("open"))
+        self.assertIsNone(S.enum_values("console", "crew"))
+
+    def test_by_offers_both_roster_kinds(self):
+        self.assertEqual(sorted(S.field_schema("by", "crew").get("values")),
+                         ["console", "person"])
+
+    def test_assign_is_an_alias_for_by(self):
+        self.assertEqual(S.amd_canonical_label("assign", "crew"), "by")
+
+    def test_console_types_the_record_as_crew_ahead_of_face(self):
+        # `face` is legal on BOTH archetypes, so a flat record carrying a face and a console
+        # has to land on crew - which means the crew discriminators run first.
+        self.assertEqual(S.infer_archetype(["face", "console"]), "crew")
+        self.assertEqual(S.infer_archetype(["face"]), "lifeform")
+
+
 if __name__ == "__main__":
     unittest.main()

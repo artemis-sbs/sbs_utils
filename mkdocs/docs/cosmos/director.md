@@ -116,6 +116,12 @@ Then **Add to rundown**, or **Send to Program** to put it straight on air.
 **Console** is the other tool: pick a ship and one or more console types, and add one
 item per console. That is what fills a bridge multiview.
 
+A console shot knows **who is at that station** &mdash; `<<crew_name>>`, and `<<crew_rank>>`
+beside it. Both come off the seat this shot is pointed at, so a bridge wall names the
+right person on every panel. Somebody who typed their name at the picker has no rank, so
+the ranked preset falls back to the plain one; a [crew roster](../build/crew.md) is what
+gives a whole bridge names and ranks without anybody typing anything.
+
 ## Overlays — titles over the shot
 
 Any shot can carry cards, and several at once because each draws in its own place:
@@ -153,6 +159,8 @@ other ship in the rundown.
 | `<<comms_id>>` | "Artemis (TSN)" |
 | `<<hull>>` | hull percent |
 | `<<shields>>` | front / rear percent |
+| `<<crew_name>>` | who is sitting at this shot's console |
+| `<<crew_rank>>` | their rank, when a [crew roster](../build/crew.md) gave them one |
 
 Write `<<class|contact>>` to say what to fall back to when a token has nothing to give
 — a rock has no hull class, and a blank line reads as a broken card. A token you

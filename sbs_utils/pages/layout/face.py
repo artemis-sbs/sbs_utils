@@ -37,7 +37,23 @@ class Face(Column):
             self.bounds.left, self.bounds.top, self.bounds.right, self.bounds.bottom)
 
     def update(self, face):
+        """Change the face shown, and REPAINT it.
+
+        The dirty mark is the whole point. Without it `the_face.value = ...` set the string
+        and nothing re-sent `send_gui_face`, so a face only changed on a full page present -
+        which is why the avatar editor's sliders moved and the preview did not. Every other
+        widget's `update` marks itself; this one did not, and a face is the widget most
+        likely to be driven from a live control.
+
+        `is_hidden_by_script` and not `is_hidden`, matching Text: a face merely clipped by
+        its parent this frame must still register the change, or it scrolls back into view
+        showing the previous person.
+        """
         self.face = face
+        if not self.is_hidden_by_script:
+            # Visual-only. A face is `square = True`, never content-sized, so its measured
+            # size cannot move and the expensive layout branch is never the right one.
+            self.mark_visual_dirty()
 
     @property
     def value(self):
@@ -45,4 +61,7 @@ class Face(Column):
        
     @value.setter
     def value(self, v):
-        self.face= v
+        # THROUGH update(), not straight at the field - that is what marks it dirty. This
+        # setter is how nearly every caller changes a face (`the_face.value = ...`), so
+        # assigning `self.face` here bypassed the repaint for all of them.
+        self.update(v)

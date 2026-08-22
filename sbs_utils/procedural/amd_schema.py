@@ -419,6 +419,40 @@ LIFEFORM = {
     "speaker": ref("node"),
 }
 
+# A CREW ROSTER, and the people in it. NOT a lifeform, because a crew member never spawns:
+# they are a label on a seat a human player is sitting in, where a lifeform is an agent that
+# exists in the world. Sharing the archetype would mean sharing the lint, the Inspector
+# widgets and eventually a `lifeforms_spawn(section)` that populates the bridge with NPCs
+# standing in space.
+#
+# The SECTION fence carries what every member shares - the hull it crews, the race their
+# faces come from, the sheet their photographs are cut from - and each entry says only what
+# makes them them. That is what lets a member be a `Console:` line and a `Face:` line.
+CREW = {
+    # A CAST assigns by console (sit at helm, you are Data); a GROUP is a list of people who
+    # pick THEMSELVES and keep their face at whatever station they take. Open, so a mission
+    # that invents a third way is warned about nothing.
+    "by": field(enum("console", "person", open=True), aka=("assign",)),
+    # THE SAME descriptor ITEM["consoles"] uses - one enum, so `Console: helm` completes and
+    # lints identically in both places and both learn a mod's console at once. Open because
+    # console types are registered at RUNTIME from @console labels; there is no fixed list.
+    "console": enum("helm", "weapons", "science", "engineering", "comms", open=True),
+    "rank": text(hint="Captain, Lt. Commander - display only"),
+    # NOT `Image:`. `image` is already a section word (_SECTION_ALIASES) and one label must
+    # never mean two things - CUTSCENE reached for `backdrop` for exactly this reason.
+    "portrait": text(hint="a photograph: an atlas key, or a path under `Portraits:`"),
+    # --- section-level, inherited by every member below ---
+    "portraits": text(hint="the folder every Portrait: below is relative to"),
+    "hull": csv(hint="shipData KEYS this roster crews by default - tng_fed_galaxy"),
+    "ship": csv(hint="ship NAMES bound to this roster - Enterprise"),
+    "race": text(hint="face race for members with no Face of their own"),
+    "sheet": text(hint="one portrait sheet, cut exactly like an image atlas"),
+    "cell": coord2(hint="portrait cell size in pixels"),
+    "grid": coord2(hint="cells across, down"),
+    # `face`, `display`, `weight`, `aka`, `color` and `at` all come from GLOBAL. `At:` is the
+    # cell on `Sheet:` - the same field amd_images uses, with the same meaning.
+}
+
 ITEM = {
     "type": text(hint="item/<category>/<sub>"),
     "art": text(hint="pickup art_id"),
@@ -658,7 +692,7 @@ ARCHETYPES = {
     "scan": SCAN, "landmark": LANDMARK, "region": REGION, "map": MAP,
     "dialogue": DIALOGUE, "image": IMAGE,
     "cutscene": CUTSCENE, "urge": URGE, "drop": DROP,
-    "effect": EFFECT, "relic": RELIC,
+    "effect": EFFECT, "relic": RELIC, "crew": CREW,
 }
 
 # TRAITS: a concern a record ALSO has, on top of what it is.
@@ -767,7 +801,17 @@ GLOBAL = {
 _SECTION_ALIASES = {
     "quests": "quest", "quest": "quest", "objectives": "quest",
     "lifeforms": "lifeform", "lifeform": "lifeform", "cast": "lifeform",
-    "characters": "lifeform", "character": "lifeform", "crew": "lifeform",
+    "characters": "lifeform", "character": "lifeform",
+    # CREW is not CAST. `cast` and `character` stay on lifeform - those are the NPC words -
+    # while a crew roster is people at consoles, which never spawn. `crew` pointed at
+    # lifeform until the archetype existed; nothing in the corpus had used it.
+    #
+    # These four and no more. `officers` was claimed here first and had to be given back:
+    # OpenUniverse's `## [Officers](officers)` is a real lifeform cast - named fleet captains
+    # that spawn and carry hail scenes - and retyping it would have broken them. The corpus
+    # snapshot caught it. `bridge` is unused today but is a PLACE as often as it is a set of
+    # people, so it is left alone on the same principle.
+    "crew": "crew", "crews": "crew", "roster": "crew", "rosters": "crew",
     "items": "item", "item": "item",
     "sides": "side", "side": "side", "factions": "side",
     "scans": "scan", "scan": "scan", "science": "scan",
@@ -874,6 +918,10 @@ _DISCRIMINATORS = (
     ("enemies", "side"), ("allies", "side"), ("neutral", "side"),
     ("modifiers", "item"),
     ("center", "region"), ("radius", "region"),
+    # BEFORE the lifeform rules: `face` is legal on both, so a flat record carrying a face
+    # and a console must classify as crew. `hull`/`ship` are deliberately NOT here - too
+    # generic, a landmark or a map could carry either.
+    ("console", "crew"), ("portrait", "crew"), ("rank", "crew"),
     ("face", "lifeform"), ("scene", "lifeform"),
     ("drops", "drop"),
     ("speaker", "dialogue"),
@@ -1161,6 +1209,7 @@ STARTERS = {
     "region": ("at", "color"),
     "map": ("display", "mode"),
     "dialogue": ("speaker",),
+    "crew": ("display", "console", "face"),
 }
 
 
