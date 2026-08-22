@@ -997,6 +997,20 @@ def _parse_face_terran(feats, layers):
         except ValueError:
             return None
 
+    def find_either(key, col, row):
+        """A feature cell, whichever gender column it sits in.
+
+        Eyes and mouth carry their own +3 female offset INDEPENDENTLY of the base face -
+        that is exactly what a `fluid` face is - so the body's gender cannot be used to
+        un-shift them. Reading them through `unf` alone missed every mismatched pair and
+        left the value at 0, which is not a failure the caller can see: it is a real index,
+        so the face came back with somebody else's eyes and mouth.
+        """
+        i = find(key, col, row)
+        if i is None and col >= 3:
+            i = find(key, col - 3, row)
+        return i
+
     shirt_i = None
     hat_i = None
     for L in layers:
@@ -1028,13 +1042,13 @@ def _parse_face_terran(feats, layers):
         if (c, row) == (0, 0):                         # face
             values[8] = _tone_index(color, skin_tones)
             continue
-        i = find("eyes", c, row)
+        i = find_either("eyes", col, row)
         if i is not None:
             values[1] = i; values[8] = _tone_index(color, skin_tones); continue
-        i = find("mouth", c, row)
+        i = find_either("mouth", col, row)
         if i is not None:
             values[2] = i; values[8] = _tone_index(color, skin_tones); continue
-        i = find("shirt", c, row)
+        i = find_either("shirt", col, row)
         if i is not None:
             shirt_i = i
 

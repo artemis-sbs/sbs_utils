@@ -275,6 +275,25 @@ class LinkLine:
                                  left, top, right, bottom)
 
 
+# The schemes that become a WIDGET. `style:` is deliberately absent: it is a directive that
+# changes the active style, not an embed, and promoting a line carrying one buys nothing while
+# putting an otherwise-simple line through the whole rich path.
+EMBED_SCHEMES = ("image", "face", "ship")
+
+
+def _line_has_embed(line):
+    """Does this line carry an `ns://urn` the rich path would turn into a widget?
+
+    `RE_LINK_REF` has every group optional, so it matches almost any line - a bare `ns` is
+    what says a reference is present at all, and the scheme is what says it draws something.
+    """
+    for rx in (RE_LINK_REF, RE_LINK_DEF):
+        m = rx.match(line)
+        if m is not None and m.groupdict().get("ns") in EMBED_SCHEMES:
+            return True
+    return False
+
+
 class TextArea(Control):
     #
     # NOTE the `height` in each style below is INERT. Line heights are measured
@@ -1166,7 +1185,17 @@ class TextArea(Control):
                 self.content = message_list
                 self.mark_visual_dirty()
                 return
-            if not (message_list[0].startswith("=") or message_list[0].startswith("$")):
+            # An EMBED is the other promise the fast path cannot keep. It emits the line as
+            # text, so a one-line `![](face://...)` / `![](image://key)` drew its own markup
+            # as a wall of characters instead of the picture - visible, wrong, and silent.
+            # This file's own docstring example is one line, so the documented form was the
+            # broken one.
+            #
+            # Only an `ns://urn` disqualifies, not any `[...]`: the rich path turns exactly
+            # those into a widget, and everything else a single line can carry (a heading, a
+            # bullet) still renders as readable text on the fast path.
+            if not (message_list[0].startswith("=") or message_list[0].startswith("$")
+                    or (self.markdown and _line_has_embed(message_list[0]))):
                 self.simple_text = True
                 self.content = message_list
                 self.mark_visual_dirty()
