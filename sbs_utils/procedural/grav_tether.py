@@ -49,6 +49,14 @@ OVERSPEED_SNAP = "snap"           # break the tether + drop the load
 OVERSPEED_OFF = "off"             # no enforcement
 _default_overspeed = OVERSPEED_CAP
 
+# Which preset opened a tether. Carried in the registry rather than inferred from the
+# state keys, because a UI has to be able to SAY what the beam is doing - "TOW" and
+# "SWING" are the same rope-hold to the physics and completely different to a crew.
+MODE_LOCK = "lock"
+MODE_TOW = "tow"
+MODE_SWING = "swing"
+MODE_REEL = "reel"
+
 # (src_id, tgt_id) -> state we must keep ourselves (the connection object exposes only
 # .offset, not the offset_point / pull_distance we need to re-attach for a reel).
 _TETHERS = {}
@@ -253,6 +261,7 @@ def grav_tether_attach(source, target, offset=None, stiffness=0.0, pull_distance
         "overspeed": overspeed if overspeed is not None else _default_overspeed,
         "reel_rate": 0.0,
         "reversed": reverse,
+        "mode": MODE_LOCK,
     }
     _ensure_tick()
     return con
@@ -339,6 +348,58 @@ def grav_tether_involves(obj):
     """
     oid = to_id(obj)
     return any(oid == k[0] or oid == k[1] for k in _TETHERS)
+
+
+def grav_tether_targets_of(source):
+    """List the target ids ``source`` is currently pulling. Mirror of
+    :func:`grav_tether_sources_of`."""
+    sid = to_id(source)
+    return [k[1] for k in _TETHERS if k[0] == sid]
+
+
+def grav_tether_mode(source, target):
+    """Which preset opened this tether - ``"lock"``, ``"tow"``, ``"swing"``, ``"reel"``
+    - or None when the pair is not tethered."""
+    src, tgt = to_id(source), to_id(target)
+    st = _TETHERS.get((src, tgt))
+    return None if st is None else st.get("mode")
+
+
+def grav_tether_status(obj):
+    """What ``obj`` is tethered to and how, or None when it is free.
+
+    One call rather than three, because every readout wants the same three facts at
+    once: what is on the other end, what the beam is doing, and which end WE are on. A
+    ship can be the puller (tow/reel/lock) or the pulled (swing, or a grab that mass
+    reversed), and a display that assumes the first is wrong exactly when being tethered
+    matters most.
+
+    Returns a dict ``{"partner", "mode", "role", "source", "target"}`` - ``role`` is
+    ``"source"`` when obj is the puller, ``"target"`` when it is the load. The FIRST
+    tether found; a ship holding several is unusual and a one-square readout has room
+    for one anyway.
+    """
+    oid = to_id(obj)
+    if oid is None:
+        return None
+    for (src, tgt), st in _TETHERS.items():
+        if oid == src:
+            return {"partner": tgt, "mode": st.get("mode"), "role": "source",
+                    "source": src, "target": tgt}
+        if oid == tgt:
+            return {"partner": src, "mode": st.get("mode"), "role": "target",
+                    "source": src, "target": tgt}
+    return None
+
+
+def grav_tether_partner(obj):
+    """The id on the other end of ``obj``'s tether, or 0 when it is free.
+
+    The MAST-friendly half of :func:`grav_tether_status`: an id is something a route can
+    hand straight to ``to_object`` / ``has_any_role`` without unpacking a dict.
+    """
+    st = grav_tether_status(obj)
+    return 0 if st is None else st["partner"]
 
 
 def grav_tether_release_any(obj):
@@ -438,6 +499,7 @@ def grav_tether_rope(source, target, rope_len, stiffness=DEFAULT_TOW_STIFFNESS, 
         "rope": True,
         "overspeed": overspeed if overspeed is not None else _default_overspeed,
         "reel_rate": 0.0,
+        "mode": MODE_TOW,
     }
     _ensure_tick()
     _tick_rope(src, tgt, _TETHERS[(src, tgt)])   # engage now if already taut
@@ -468,6 +530,7 @@ def grav_tether_swing(anchor, ship, rope_len, stiffness=1.0, overspeed=None):
         "swing": True,
         "overspeed": overspeed if overspeed is not None else _default_overspeed,
         "reel_rate": 0.0,
+        "mode": MODE_SWING,
     }
     _ensure_tick()
     _tick_swing(src, tgt, _TETHERS[(src, tgt)])
@@ -490,6 +553,7 @@ def grav_tether_reel(source, target, rate=DEFAULT_REEL_RATE,
     st = _TETHERS.get((src, tgt))
     if st is not None:
         st["reel_rate"] = float(rate)
+        st["mode"] = MODE_REEL
     return con
 
 

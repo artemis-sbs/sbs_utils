@@ -26,6 +26,20 @@ no raycast).
     this module passes **no** offset - which is what a tow wants. To bolt something ON to
     a hull instead of dragging it behind one, use [mount](mount.md).
 
+!!! tip "For a readout, ask `grav_tether_status`"
+    A display needs three facts at once: what is on the other end, what the beam is
+    doing, and **which end this ship is on**. `grav_tether_status(obj)` answers all
+    three (`partner` / `mode` / `role`), or `None` when the ship is free;
+    `grav_tether_partner(obj)` is the id alone, for a route that wants something to hand
+    straight to `to_object`.
+
+    `role` is the part that is easy to skip and wrong to skip: a fighter on a **swing**
+    is the tethered `target`, not the puller, and so is any ship caught in a hostile
+    beam - or one that grabbed a load heavy enough for the mass rule to reverse the
+    connection. A panel that assumes "I am the puller" is confidently backwards exactly
+    when being tethered matters most. LM's Weapons readout
+    (`consoles/tether_indicator.py`) is the worked example.
+
 ## API
 
 ::: sbs_utils.procedural.grav_tether

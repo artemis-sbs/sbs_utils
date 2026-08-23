@@ -214,6 +214,59 @@ class TestGravTether(unittest.TestCase):
         self.assertEqual(gt.grav_tether_sources_of(self.load), [self.ship])
         self.assertEqual(gt.grav_tether_sources_of(self.ship), [])
 
+    def test_targets_of_is_the_mirror_of_sources_of(self):
+        gt.grav_tether_tow(self.ship, self.load, 500)
+        self.assertEqual(gt.grav_tether_targets_of(self.ship), [self.load])
+        self.assertEqual(gt.grav_tether_targets_of(self.load), [])
+
+    # --- what the beam is doing, for a readout --------------------------------
+
+    def test_every_preset_records_which_one_it_was(self):
+        # A readout has to be able to SAY what the beam is doing; tow and swing are the
+        # same rope-hold to the physics and completely different to a crew.
+        for preset, expected in (
+            (lambda: gt.grav_tether_lock(self.ship, self.load), gt.MODE_LOCK),
+            (lambda: gt.grav_tether_tow(self.ship, self.load, 500), gt.MODE_TOW),
+            (lambda: gt.grav_tether_reel(self.ship, self.load), gt.MODE_REEL),
+        ):
+            gt.grav_tether_clear_all()
+            preset()
+            self.assertEqual(gt.grav_tether_mode(self.ship, self.load), expected)
+        gt.grav_tether_clear_all()
+        gt.grav_tether_swing(self.load, self.ship, 800)
+        self.assertEqual(gt.grav_tether_mode(self.load, self.ship), gt.MODE_SWING)
+
+    def test_mode_is_none_when_the_pair_is_free(self):
+        self.assertIsNone(gt.grav_tether_mode(self.ship, self.load))
+
+    def test_status_says_which_end_we_are_on(self):
+        gt.grav_tether_tow(self.ship, self.load, 500)
+        st = gt.grav_tether_status(self.ship)
+        self.assertEqual(st["partner"], self.load)
+        self.assertEqual(st["role"], "source")
+        self.assertEqual(st["mode"], gt.MODE_TOW)
+        # The load is on the other end of the same beam, and says so.
+        st = gt.grav_tether_status(self.load)
+        self.assertEqual(st["partner"], self.ship)
+        self.assertEqual(st["role"], "target")
+
+    def test_a_swung_ship_reads_as_the_pulled_end(self):
+        # The whole reason role is reported: in a swing the FIGHTER is the target, so a
+        # readout that assumes "I am the puller" gets it backwards exactly when being
+        # tethered matters most.
+        gt.grav_tether_swing(self.load, self.ship, 800)
+        st = gt.grav_tether_status(self.ship)
+        self.assertEqual(st["role"], "target")
+        self.assertEqual(st["partner"], self.load)
+
+    def test_status_and_partner_are_empty_when_free(self):
+        self.assertIsNone(gt.grav_tether_status(self.ship))
+        self.assertEqual(gt.grav_tether_partner(self.ship), 0)
+        gt.grav_tether_tow(self.ship, self.load, 500)
+        self.assertEqual(gt.grav_tether_partner(self.ship), self.load)
+        gt.grav_tether_release_any(self.ship)
+        self.assertEqual(gt.grav_tether_partner(self.ship), 0)
+
     # --- attach policy (ownership veto hook) ---------------------------------
 
     def test_attach_policy_vetoes_every_entry_point(self):
