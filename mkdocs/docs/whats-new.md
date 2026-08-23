@@ -167,7 +167,14 @@ A tractor beam for Weapons and fighters — one system, scaled by hull.
 
 - **Weapons hold-click** any contact for a context menu: **Reel** cargo in (it's
   collected on contact), **Tow** a ship or derelict at distance, **Lock** for a rigid
-  grab, or **Release**. The mode is chosen by what you grabbed.
+  grab, or **Release**. The mode is chosen by what you grabbed. You do **not** have to
+  target it first - the menu acts on whatever you held the button on, so you can hook a
+  derelict while staying locked on the raider shooting at you.
+- **Weapons shows what you have hold of.** The called-shot square doubles as the tether
+  readout: the load's own silhouette, the mode (**TOW** / **REEL** / **LOCK**), its name
+  and its range. When the called-shot panel is busy with a target, the tow is named
+  along the bottom strip instead - it is never left unsaid. And it says so when the beam
+  is on **you**: a hostile tether reads **TOWED**, a fighter on a rock reads **SWING**.
 - **Fighters** get a cockpit button with **nose-aim** targeting (it grabs what you're
   pointing at): reel salvage, or **swing** around an asteroid on a tether that holds
   your radius while you orbit. The button glows cyan while tethered.
