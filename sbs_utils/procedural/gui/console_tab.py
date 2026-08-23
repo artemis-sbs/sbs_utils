@@ -41,6 +41,31 @@ from ...helpers import FrameContext
 
 
 
+def _tab_client_id():
+    """Whose tab strip is being declared: the PAGE's client, not the event's.
+
+    These declarations are read back by `MastStoryPage` off `self.client_id` - the
+    page's own client - and were written here off `FrameContext.client_id`, which is
+    the current EVENT's client. Those are the same on a click, a keypress or a plain
+    repaint, and they are NOT the same when a page rebuilds because something else
+    emitted a signal.
+
+    A build finishing is exactly that case: `beacon_build_done` runs on the SERVER,
+    emits `item_changed`, and the console's `on signal` handler repaints. `tick_in_context`
+    corrects FrameContext.page and .task to the console's - but not the event - so every
+    gui_tab_* call in that repaint declared tabs for client 0 while the page drew its
+    strip from the console's own (now empty, because drawing CONSUMES them). The strip
+    came back the next time the player touched anything, because a click carries the
+    right client id. Reported as "the top tabs disappear the moment the build completes,
+    and come back when you select something".
+
+    Falls back to the event when there is no page (server-side setup code, tests).
+    """
+    page = FrameContext.page
+    cid = getattr(page, "client_id", None) if page is not None else None
+    return FrameContext.client_id if cid is None else cid
+
+
 def gui_tab_get_list():
     from ...mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
     return list (GuiTabDecoratorLabel.all.keys())
@@ -52,7 +77,7 @@ def gui_tab_enable(tab_name: str):
     Args:
         tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons
     """
-    client_id = FrameContext.client_id
+    client_id = _tab_client_id()
 
     tabs = get_inventory_value(client_id, "console_tabs", {})
     tab_names = tab_name.split(",")
@@ -69,7 +94,7 @@ def gui_tab_back(tab_name: str):
     Args:
         tab_name (str): The path of a //gui/tab
     """
-    client_id = FrameContext.client_id
+    client_id = _tab_client_id()
     gui_tab_enable(tab_name)
     set_inventory_value(client_id, "__back_tab__", tab_name)
 
@@ -80,7 +105,7 @@ def gui_tab_activate(tab_name: str):
     Args:
         tab_name (str): The path of a //gui/tab
     """
-    client_id = FrameContext.client_id
+    client_id = _tab_client_id()
     set_inventory_value(client_id, "__active_tab__", tab_name)
 
 def gui_tab_get_active():
@@ -89,7 +114,7 @@ def gui_tab_get_active():
     Args:
         tab_name (str): The path of a //gui/tab
     """
-    client_id = FrameContext.client_id
+    client_id = _tab_client_id()
     get_inventory_value(client_id, "__active_tab__", "")
 
 
@@ -99,7 +124,7 @@ def gui_tab_add_top(tab_name: str):
     Args:
         tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons
     """
-    client_id = FrameContext.client_id
+    client_id = _tab_client_id()
 
     tabs = get_inventory_value(client_id, "top_tabs", {})
     tab_names = tab_name.split(",")
@@ -115,7 +140,7 @@ def gui_tab_is_top(tab_name: str):
     Args:
         tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons
     """
-    client_id = FrameContext.client_id
+    client_id = _tab_client_id()
 
     tabs = get_inventory_value(client_id, "top_tabs", {})
     tab_names = tab_name.split(",")
@@ -132,7 +157,7 @@ def gui_tab_remove_top(tab_name: str):
     Args:
         tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons
     """
-    client_id = FrameContext.client_id
+    client_id = _tab_client_id()
 
     tabs = get_inventory_value(client_id, "top_tabs", {})
     tab_names = tab_name.split(",")
@@ -147,12 +172,12 @@ def gui_tab_clear_top():
     Args:
         tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons
     """
-    client_id = FrameContext.client_id
+    client_id = _tab_client_id()
     set_inventory_value(client_id, "top_tabs", {})
 
 
 def gui_tab_enable_top():
-    client_id = FrameContext.client_id
+    client_id = _tab_client_id()
 
     tabs = get_inventory_value(client_id, "top_tabs", {})
     if len(tabs.keys())>0:
