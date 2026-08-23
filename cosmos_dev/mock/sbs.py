@@ -643,6 +643,13 @@ def _populate_hull_map(hull_map, spaceObjectID) -> None:
         # `hull_mask._art_1024` tries all three, newest first.
         hull_map._art_file_root = data.get("artfileroot", "") or ""
         hull_map._ship_key = key
+        # This hull declares an interior. If the silhouette sprite the ENGINE cuts that
+        # interior from is absent, say so - once per key. The mock cannot REPRODUCE the
+        # fault (open_cells stays permissive on a missing mask, deliberately), so without
+        # this line a pack shipping no derived art looks perfectly healthy headless and
+        # only fails on a real bridge, as a blank Engineering console with no explanation.
+        from . import hull_mask
+        hull_mask.warn_once_if_mask_missing(hull_map._art_file_root, key)
     except Exception:
         # A hull map that fails to populate is a degraded mock, never a broken run.
         pass

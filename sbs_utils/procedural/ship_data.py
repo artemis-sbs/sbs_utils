@@ -1058,6 +1058,96 @@ def _art_that_is_not_there(text):
         return []                                   # never let a check break a load
 
 
+# The two sprites the engine derives from a hull's art. `1024` is the one that matters
+# here; `256` is checked with it because they are generated together and a pack that has
+# one without the other is half-baked, not configured.
+_INTERIOR_SPRITES = ("1024.png", "256.png")
+
+
+def _interior_art_that_is_not_there(text):
+    """Hulls that declare an interior but ship no silhouette sprite to cut it from.
+
+    THE ENGINE DOES NOT TAKE INTERIOR CELL VALIDITY FROM shipData. It cuts it from the
+    alpha channel of ``<artfileroot>1024.png`` (GRID_REFERENCE.md s2). So a hull can have
+    a perfect floor plan, correct ``internalmapw``/``internalmaph``, and a merged
+    ``.grid`` - and still render a BLANK Engineering console, because the engine found no
+    valid cells to put any of it in.
+
+    That is invisible from every angle a mod author has:
+
+    * the floor plan parses and merges, so ``grid_get_layout`` answers happily;
+    * ``grid_rebuild_grid_objects`` spawns the objects without complaint;
+    * the MOCK fabricates a hull map from ``internalmapw`` alone and never looks at the
+      art, so every headless run reports a healthy grid;
+    * and ``_art_root_exists`` passes, because it matches the base name before the first
+      dot - a bare ``<name>.obj`` satisfies it.
+
+    Which is why this is a SEPARATE check rather than a stricter version of that one.
+    Found on Cosmos-TNG-Mod, where 36 of 51 hulls shipped no derived art at all: the pack
+    relied on the engine generating it in place, and the engine crashes doing that from a
+    bare ``.obj``, so it stopped after 15.
+
+    Only entries that declare ``internalmapw`` are checked - a hull with no interior has
+    no reason to carry the sprite, and every one of the 63 stock hulls that declares one
+    has it.
+
+    Returns a list of ``(key, root, [missing file, ...])``. Quiet when it cannot check,
+    for the same reason :func:`_art_that_is_not_there` is.
+    """
+    try:
+        from ..fs import get_artemis_dir
+        graphics = os.path.join(get_artemis_dir(), "data", "graphics")
+        if not os.path.isdir(graphics):
+            return []
+        data = load_yaml_string(str(text))
+        out = []
+        for entry in (data or {}).get("#ship-list", []) or []:
+            if not isinstance(entry, dict):
+                continue
+            if not entry.get("internalmapw"):
+                continue                            # no interior declared, nothing to cut
+            root = str(entry.get("artfileroot", "") or "")
+            if not root:
+                continue
+            absent = [s for s in _INTERIOR_SPRITES
+                      if not _art_sibling_exists(graphics, root, s)]
+            if absent:
+                out.append((str(entry.get("key", "?")), root, absent))
+        return out
+    except Exception:                               # noqa: BLE001
+        return []                                   # never let a check break a load
+
+
+def _art_sibling_exists(graphics, root, suffix):
+    """Is ``<artfileroot><suffix>`` on disk, resolved the way the engine resolves art?
+
+    Same two-base search as :func:`_art_root_exists` - a STOCK root is relative to
+    ``data/graphics`` and a MOD's is relative to the exe - but matching an EXACT file
+    name rather than the base-name-before-the-first-dot family. That distinction is the
+    whole point: the family match is what lets a bare ``.obj`` stand in for art that was
+    never generated.
+    """
+    rel = root.replace(chr(92), "/")
+    if os.path.isabs(rel) or "/" not in rel:
+        return True                 # not ours to judge; _art_root_exists already speaks
+    install = os.path.normpath(os.path.dirname(os.path.dirname(graphics)))
+    judged = False
+    for base in (graphics, install):
+        full = os.path.normpath(os.path.join(base, *rel.split("/")))
+        if os.path.commonpath([install, full]) != install:
+            continue
+        judged = True
+        folder = os.path.dirname(full)
+        want = (os.path.basename(full) + suffix).lower()
+        try:
+            for name in os.listdir(folder):
+                if name.lower() == want:
+                    return True
+        except OSError:
+            pass
+    return False if judged else True
+
+
 def _art_root_exists(graphics, root):
     """Is there art for this `artfileroot`, named the way the engine now resolves it?
 
@@ -1194,6 +1284,28 @@ def add_extra(name, path=None, mod=None):
             log(f"{filename}: hull '{key}' asks for artfileroot '{root}', which is not in "
                 f"data/graphics/ships. It will spawn on the server and then ASSERT on the "
                 f"first client that draws it.", "ship_data", "warning")
+        # A hull with an interior but no silhouette sprite draws a BLANK Engineering
+        # console. Summarized - one line and a count, never one line per hull: the case
+        # this exists for is a pack that ships no derived art at all, and 36 identical
+        # warnings would bury the rest of the load. DEBUG as well as log(), because
+        # log() has no handler in the engine and this is a fault only the engine shows.
+        no_mask = _interior_art_that_is_not_there(text)
+        if no_mask:
+            key, root, absent = no_mask[0]
+            more = f" (and {len(no_mask) - 1} more)" if len(no_mask) > 1 else ""
+            note = (f"{filename}: {len(no_mask)} hull(s) declare an interior but ship no "
+                    f"silhouette sprite, e.g. '{key}' -> '{root}' is missing "
+                    f"{', '.join(absent)}{more}. The engine cuts the interior hull map "
+                    f"from the alpha channel of that sprite, so Engineering renders "
+                    f"BLANK on these hulls no matter how good the floor plan is. The "
+                    f"mock cannot see this - it builds a hull map from internalmapw.")
+            from .execution import log
+            log(note, "ship_data", "warning")
+            try:
+                from ..mast.mast import DEBUG
+                DEBUG("[ship_data] " + note)
+            except Exception:                       # noqa: BLE001
+                pass                                # a warning never breaks a load
         if not text.endswith(chr(10)):
             # NO FINAL NEWLINE = THE ENGINE REJECTS THE WHOLE FILE. Its reader is line
             # oriented, so an unterminated last line is never consumed and the closing

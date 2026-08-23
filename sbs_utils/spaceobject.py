@@ -217,25 +217,46 @@ class SpaceObject(Agent):
         Args:
             ship_key (str): The ship key.
         """
-        if ship_key != self._ship_data_key:
-            so = self.space_object()
-            if so is not None:
-                so.data_tag = ship_key
-                FrameContext.context.sim.force_update_to_clients(self.id,0)
-            self._ship_data_key = ship_key
+        # Delegates rather than repeating the body, so there is exactly ONE funnel every
+        # hull change passes through - which is what makes the signal below trustworthy.
+        self.set_ship_data_key(ship_key)
 
     def set_ship_data_key(self, ship_data_key):
         """ 
         Set the ship key from shipData for this space object to change it's 3D model and art.
         Args:
             ship_data_key (str): The ship key.
+
+        Emits the ``ship_hull_changed`` signal when the key actually changes. Its data
+        becomes task variables in the handler: ``SHIP_ID``, ``HULL_OLD_KEY``,
+        ``HULL_NEW_KEY``. CAPS because the convention reserves that spelling for signals
+        the SYSTEM emits, as against a mission's own snake_case ones.
+
+        WHY A SIGNAL. Changing the hull re-sizes the ship's internal map, but the
+        engineering grid standing in it is NOT rebuilt - and nothing in sbs_utils rebuilds
+        it, because ``grid_rebuild_grid_objects`` has no caller here. Missions build the
+        interior once from a ``//spawn`` route, so any hull change after that leaves a
+        blank or mismatched Engineering console with nothing logged. This is the hook that
+        lets a mission notice; see ``LegendaryMissions/ai/grid_ai.mast``.
+
+        The signal is emitted, not acted on: a rebuild deletes and respawns 60-100 grid
+        objects, which is far too heavy to hide inside a property setter, and the library
+        has no other dependency on that function.
         """
         if ship_data_key != self._ship_data_key:
+            old_key = self._ship_data_key
             so = self.space_object()
             if so is not None:
                 so.data_tag = ship_data_key
                 FrameContext.context.sim.force_update_to_clients(self.id,0)
             self._ship_data_key = ship_data_key
+            try:
+                from .procedural.signal import signal_emit
+                signal_emit("ship_hull_changed", {"SHIP_ID": self.id,
+                                                  "HULL_OLD_KEY": old_key,
+                                                  "HULL_NEW_KEY": ship_data_key})
+            except Exception:                       # noqa: BLE001
+                pass            # a notification never breaks the hull change itself
 
     def update_comms_id(self):
         """ 

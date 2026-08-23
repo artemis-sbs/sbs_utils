@@ -294,10 +294,63 @@ def open_cells(art_file_root, w, h, ships_dir=None, ship_key=None):
     return cells
 
 
+_warned_no_mask = set()
+
+
+def mask_is_missing(art_file_root, ships_dir=None):
+    """Is the ``<root>1024.png`` silhouette absent for this artfileroot?
+
+    Separate from :func:`open_cells`, which deliberately answers "unknown" for a missing
+    mask and lets every cell stay open. That permissiveness is right - a base-resolution
+    change must not silently delete every hull's interior - but it also means the mock
+    CANNOT reproduce the engine's blank Engineering console, so a pack shipping no derived
+    art looks perfectly healthy headless. This is how a run says so out loud instead.
+    """
+    if not art_file_root:
+        return False
+    return not os.path.exists(_art_1024(art_file_root, ships_dir))
+
+
+def warn_once_if_mask_missing(art_file_root, ship_key):
+    """Say, once per hull key, that an interior has no silhouette to be cut from.
+
+    The engine takes interior cell validity from that sprite's alpha channel, so a hull
+    without it renders a BLANK Engineering console in the real game while the mock shows
+    a full grid. Reported here because headless is where a mod author looks first.
+    """
+    if not ship_key or ship_key in _warned_no_mask:
+        return False
+    if not mask_is_missing(art_file_root):
+        return False
+    _warned_no_mask.add(ship_key)
+    msg = (f"hull '{ship_key}' declares an interior but has no "
+           f"'{art_file_root}1024.png'. The ENGINE cuts interior cells from that "
+           f"sprite's alpha channel, so Engineering renders BLANK there. The mock "
+           f"stays permissive and will show a full grid, so this will NOT reproduce "
+           f"headless.")
+    try:
+        from sbs_utils.procedural.execution import log
+        log(msg, "grid", "warning")
+    except Exception:
+        pass
+    try:
+        from sbs_utils.mast.mast import DEBUG
+        DEBUG("[grid] " + msg)
+    except Exception:
+        pass
+    return True
+
+
+def warned_no_mask():
+    """Hull keys reported by :func:`warn_once_if_mask_missing`. Test/probe helper."""
+    return set(_warned_no_mask)
+
+
 def clear_cache():
     """Drop the decoded-mask cache. Art does not change mid-session, so this is for
     tests and for a mission restart that might point at a different data directory."""
     _cache.clear()
+    _warned_no_mask.clear()
 
 
 def cache_size():

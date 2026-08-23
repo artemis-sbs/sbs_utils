@@ -374,6 +374,22 @@ def grid_clear_detailed_status(id_or_obj):
     
 
 
+def _grid_say(msg, level="warning"):
+    """Report a grid-data problem on a channel the ENGINE shows.
+
+    ``log()`` alone is not enough: in the engine it reaches a Python logger with no
+    handler, so every merge failure below was invisible on the one platform where a mod
+    is actually loaded. See the twin in ``internal_damage._grid_say``.
+    """
+    from .execution import log
+    log(msg, "grid", level)
+    try:
+        from ..mast.mast import DEBUG
+        DEBUG("[grid] " + msg)
+    except Exception:                               # noqa: BLE001
+        pass                                        # diagnostics never break a load
+
+
 _grid_data = None 
 def grid_get_grid_data() -> dict:
     """Get the grid data from all the grid_data.json files
@@ -385,7 +401,15 @@ def grid_get_grid_data() -> dict:
     """    
     global _grid_data
     if _grid_data is None:
-        _grid_data = load_json_data(get_artemis_data_dir_filename("grid_data.json"))
+        stock = get_artemis_data_dir_filename("grid_data.json")
+        _grid_data = load_json_data(stock)
+        if _grid_data is None:
+            # Nothing else in this module can work, and every grid_merge_* call becomes a
+            # silent no-op - so EVERY hull, stock and modded, loses its interior at once.
+            # The cache never latches either, so this re-reads (and re-reports) per call.
+            _grid_say(f"grid_data.json did not load from {stock!r} - no hull has an "
+                      f"interior and every floor plan merged from now on is DROPPED.")
+            return None
         script_grid_data = load_json_data(get_mission_dir_filename("extra_grid_data.json"))
         if script_grid_data is not None:
             _grid_data |= script_grid_data
@@ -462,6 +486,24 @@ def grid_get_mod(ship_key):
     if not isinstance(entry, dict):
         return None
     return entry.get(GRID_DATA_MOD_KEY)
+
+
+def grid_merge_report():
+    """How many hull interiors each mod supplied: ``{mod_name: count}``.
+
+    The question "did my floor plans actually load?" had no answer short of poking at
+    ``grid_get_grid_data()`` by hand, and getting it wrong is invisible - a hull with no
+    interior is a dead Engineering console and nothing else. Built-in hulls are not
+    counted; they carry no ``#mod`` stamp.
+
+    Intended for a mission's own start-up assertion and for the test suite::
+
+        assert grid_merge_report().get("tng_races") == 50
+    """
+    out = {}
+    for mod in _grid_data_mods.values():
+        out[mod] = out.get(mod, 0) + 1
+    return out
 
 
 def grid_get_layout(ship_key, layout=None):
@@ -890,17 +932,24 @@ def grid_merge_ascii(content, mod=None, ship_key=None):
     logged, not raised: one unreadable floor plan should not take a mission down).
     """
     if not content:
+        # Almost always a media_read_relative_file() that returned None - a plan named in
+        # a manifest that is not in the mastlib, or a read from the wrong base. Silent
+        # until now, and indistinguishable downstream from a hull that never had a plan.
+        _grid_say(f"floor plan not loaded for mod {mod!r} ship_key {ship_key!r}: the "
+                  f"content was empty. If it came from media_read_relative_file, that "
+                  f"call failed and logged its own reason.")
         return None
     from .grid_ascii import grid_ascii_parse, GridAsciiError
     try:
         parsed = grid_ascii_parse(content, ship_key)
     except GridAsciiError as e:
-        from .execution import log
-        log(f"floor plan not loaded: {e}", "grid", "warning")
+        _grid_say(f"floor plan not loaded (mod {mod!r}): {e}")
         return None
 
     grid_data = grid_get_grid_data()
     if grid_data is None:
+        _grid_say(f"floor plan for {parsed['ship']!r} DROPPED - there is no grid data to "
+                  f"merge it into.")
         return None
     key, layout, entry = parsed["ship"], parsed["layout"], parsed["entry"]
 

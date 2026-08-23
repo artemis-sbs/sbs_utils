@@ -327,9 +327,17 @@ def media_read_relative_file(file):
     recognized", running a mission that gets this addon from a mastlib.
     """
     def _log(why):
+        # BOTH channels. log() is the library convention, but in the engine it goes to a
+        # Python logger with no handler - invisible exactly where a mastlib read fails.
+        # DEBUG writes debug.log, which is how anyone finds out a mod file went unread.
+        msg = f"media_read_relative_file({file!r}): {why}"
         try:
             from .execution import log
-            log(f"media_read_relative_file({file!r}): {why}", "media", "warning")
+            log(msg, "media", "warning")
+        except Exception:
+            pass
+        try:
+            DEBUG("[media] " + msg)
         except Exception:
             pass
 

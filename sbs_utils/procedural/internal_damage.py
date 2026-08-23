@@ -21,6 +21,29 @@ from ..fs import is_dev_build
 import random
 
 
+def _grid_say(msg, level="warning"):
+    """Say something about the engineering grid, on a channel the ENGINE actually shows.
+
+    Every failure on this path used to be a bare ``return``. A hull that was never
+    merged, a floor plan that was rejected, and a misspelled ``ship:`` key all present
+    identically - as a dead Engineering console with nothing written anywhere. That cost
+    a full engine session to diagnose once, and it would have cost the same every time.
+
+    Two channels on purpose. ``log()`` is the library convention and is what a headless
+    run and the test suite read, but in the engine it goes to a Python logger with NO
+    handler attached, so it is invisible exactly where this class of bug lives. ``DEBUG``
+    writes ``debug.log`` beside the executable, which survives the session.
+
+    ASCII only - these strings can reach engine-rendered surfaces.
+    """
+    log(msg, "grid", level)
+    try:
+        from ..mast.mast import DEBUG
+        DEBUG("[grid] " + msg)
+    except Exception:                               # noqa: BLE001
+        pass                                        # diagnostics never break a rebuild
+
+
 # Teams on a hull whose interior data does not say. Every shipped floor plan and every
 # third-party hull is in that case, so this is the number that must not change.
 DEFAULT_DAMCON_COUNT = 3
@@ -77,24 +100,37 @@ Wally
 def grid_rebuild_grid_objects(id_or_obj, grid_data=None, layout=None):
     """Rebuild all engineering-grid objects on a ship from shipData JSON.
 
-    Deletes all existing grid objects for the ship, then re-creates them from
-    the grid layout defined in the ship's art-ID entry in ``grid_data``.
-    Also re-creates the damcon teams, the position marker, and the EPad.
+    Deletes all existing grid objects for the ship, then re-creates them from the layout
+    registered for the ship's shipData key. Also re-creates the damcon teams, the
+    position marker, and the EPad.
 
     Args:
         id_or_obj (Agent | int): The player ship agent ID or object.
-        grid_data (dict, optional): Pre-loaded grid data. If ``None``, loaded
-            via ``grid_get_grid_data()``.
+        grid_data (dict, optional): **Accepted and deliberately ignored.** Kept because
+            missions pass it positionally (``LegendaryMissions/ai/grid_ai.mast``) and
+            removing it would break them.
+        layout (str, optional): Which named layout to build. Defaults to the ship's own
+            ``grid_layout`` inventory value, then ``"default"``.
+
+    ``grid_data`` stopped being read when the lookup moved to :func:`grid_get_layout`,
+    which resolves the module-level store itself. That is not an oversight to tidy up -
+    honoring the argument again would REINTRODUCE a restart bug. The one caller that
+    passes it captures it once, at top level, into a MAST ``shared`` variable; but
+    ``grid_reset_caches()`` rebinds the store to a fresh dict on a mission restart, so
+    that snapshot pins run 1's dict while every floor plan merged for run 2 lands in the
+    new one. Reading the global each time is what keeps the two in step.
     """
     SBS = FrameContext.context.sbs
-    if grid_data is None:
-        grid_data = grid_get_grid_data()
 
     ship_id = to_id(id_or_obj)
     so = to_object(ship_id)
-    if so is None: return 
+    if so is None:
+        _grid_say(f"rebuild {ship_id}: no space object - nothing to build an interior on")
+        return
     blob = to_blob(ship_id)
-    if blob is None: return
+    if blob is None:
+        _grid_say(f"rebuild {ship_id}: no data_set")
+        return
 
     # A hull has N named LAYOUTS - a full authored interior, a cheap systems-only one, a
     # jump-drive refit of the same hull. Most specific wins: an explicit argument, then
@@ -104,7 +140,38 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None, layout=None):
     if layout is None:
         layout = get_inventory_value(ship_id, "grid_layout", None)
     internal_items = grid_get_layout(so.art_id, layout)
-    if internal_items is None: return
+    if internal_items is None:
+        # THE return that swallows every mod floor-plan failure. Name the key that was
+        # looked up, because the three ways to get here are indistinguishable otherwise:
+        # the plan was never merged, the plan was rejected by the parser, or the plan's
+        # `ship:` header does not spell the shipData key. Offer a case-fold near miss -
+        # that is the one of the three a reader can act on immediately.
+        key = so.art_id
+        known = grid_get_grid_data() or {}
+        near = [k for k in known if str(k).lower() == str(key or "").lower()]
+        hint = f" Did you mean '{near[0]}'?" if near and near[0] != key else ""
+        _grid_say(f"rebuild {ship_id}: no interior for ship_data_key '{key}' "
+                  f"layout '{layout}'. grid_data holds {len(known)} hull(s).{hint} "
+                  f"Engineering will be dead on this ship.")
+        return
+
+    # NOT an early return - a report. The engine cuts interior cell validity from the
+    # alpha channel of <artfileroot>1024.png, NOT from shipData (GRID_REFERENCE.md s2).
+    # So a hull can have a perfect floor plan and correct internalmapw/h and still render
+    # a blank console, because the engine found no valid cells to place any of it in.
+    # The mock cannot reproduce that - it builds a hull map from internalmapw alone - so
+    # this line is the only warning a mod author will ever get. Carry on regardless:
+    # refusing to build here would turn a render fault into a data fault and lose the
+    # damage model too.
+    try:
+        _hm = SBS.get_hull_map(ship_id)
+        if _hm is None or getattr(_hm, "w", 0) <= 0 or getattr(_hm, "h", 0) <= 0:
+            _grid_say(f"rebuild {ship_id}: the engine has NO interior bitmap for "
+                      f"'{so.art_id}' - it is cut from the alpha channel of "
+                      f"<artfileroot>1024.png, so Engineering will render BLANK even "
+                      f"though {len(internal_items)} room(s) are about to be created.")
+    except Exception:                               # noqa: BLE001
+        pass                                        # a report never breaks a rebuild
 
     # The theme is per HULL (or per layout) now, not one global setting - that is what
     # makes a race's room vocabulary possible, and a captured hull refitted by another
@@ -153,7 +220,14 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None, layout=None):
         scale = item_theme_data.scale
         r = "#,"+g["roles"]
         go =  grid_spawn(ship_id,  name_tag, name_tag, loc_x, loc_y, icon, color, r)
-        if go is None: return
+        if go is None:
+            # Bailing here leaves a HALF-BUILT grid and skips system_max_damage entirely,
+            # so the ship also has no damage model. Worth saying how far it got.
+            _grid_say(f"rebuild {ship_id} '{so.art_id}': grid_spawn failed at "
+                      f"{loc_x},{loc_y} for '{g['name']}' after {i} of "
+                      f"{len(internal_items)} object(s) - system_max_damage NOT written, "
+                      f"so this ship has no damage model.")
+            return
         #
         go.engine_object.layer = 0
         go.blob.set("icon_scale", scale/2, 0)
@@ -214,6 +288,9 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None, layout=None):
     loc = _grid_resolve_point(SBS, ship_id, hm, None, placed, prefer_empty=False,
                               who="marker")
     if loc is None:
+        _grid_say(f"rebuild {ship_id} '{so.art_id}': the engine offered no usable cell "
+                  f"for the marker, so there is no marker and no EPad. The hull map has "
+                  f"no open cells - see the interior-bitmap note above.")
         return
     placed.add((loc[0], loc[1]))
     loc_x = loc[0]
@@ -231,6 +308,8 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None, layout=None):
     loc = _grid_resolve_point(SBS, ship_id, hm, None, placed, prefer_empty=False,
                               who="epad")
     if loc is None:
+        _grid_say(f"rebuild {ship_id} '{so.art_id}': no usable cell for the EPad - the "
+                  f"grid is built but engineering has no power pad.")
         return
     loc_x = loc[0]
     loc_y = loc[1]
@@ -242,6 +321,13 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None, layout=None):
     epad_go.engine_object.layer = 0
     epad_go.blob.set("icon_scale",0.01,0)
     set_inventory_value(ship_id, "epad_id", epad_go.id)
+
+    # One line on SUCCESS too. Without it, "no line at all" means both "built perfectly"
+    # and "never called" - and on this path the second is a real possibility, since
+    # nothing in sbs_utils calls this function. Every caller is a mission.
+    _grid_say(f"rebuild {ship_id} '{so.art_id}' layout '{layout or 'default'}': "
+              f"{i} object(s), hull map {getattr(hm, 'w', 0)}x{getattr(hm, 'h', 0)}",
+              "info")
 
 
 def _grid_retire_extra_damcons(hm, ship_id, count):
@@ -397,7 +483,10 @@ def grid_restore_damcons(id_or_obj, layout=None):
         return
 
     hm = SBS.get_hull_map(ship_id)
-    if hm is None: return
+    if hm is None:
+        _grid_say(f"damcons {ship_id}: no hull map, so this ship gets NO damage control "
+                  f"teams and can never repair itself.")
+        return
 
     decl = _grid_damcon_decl(ship_id, layout)
     count = DEFAULT_DAMCON_COUNT if decl is None else decl["count"]
