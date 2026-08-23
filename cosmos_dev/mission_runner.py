@@ -2260,10 +2260,32 @@ def _run(
                                 _ctype = "helm"
                             else:
                                 _ctype = _cn
+                            # WHICH ID GOES WHERE. A hold carries TWO objects and they are
+                            # not the same one: selected_id is the console's standing
+                            # selection (0 when it has none) and parent_id is what the
+                            # cursor was actually over (0 for empty space). That is what
+                            # `<CONSOLE>_SELECTED_ID` vs `<CONSOLE>_POPUP_ID` mean to a
+                            # //popup route, and what LM's give-orders and GM-delete menus
+                            # are written against. The mock used to put the clicked object
+                            # in selected_id and the ship in parent_id, so every popup here
+                            # read as "held on my own hull with the target selected" - a
+                            # route keyed on POPUP_ID was untestable and one keyed on
+                            # SELECTED_ID passed for the wrong reason.
+                            _hold_uid = {"weapons": "weapon_target_UID",
+                                         "science": "science_target_UID",
+                                         "comms": "comms_target_UID"}.get(
+                                             _ctype, "normal_target_UID")
+                            _cur_sel = 0
+                            try:
+                                _hold_so = sbs.sim.get_space_object(origin)
+                                if _hold_so is not None:
+                                    _cur_sel = int(_hold_so.data_set.get(_hold_uid, 0) or 0)
+                            except Exception:
+                                _cur_sel = 0
                             gev_ev = FakeEvent(client_id=cid, tag="hold_click",
                                                sub_tag=_ctype, origin_id=origin,
-                                               selected_id=sel)
-                            gev_ev.parent_id = origin
+                                               selected_id=_cur_sel)
+                            gev_ev.parent_id = sel
                             gev_ev.source_point = Vec3(gev.get("wx", 0.0),
                                                        gev.get("wy", 0.0),
                                                        gev.get("wz", 0.0))
