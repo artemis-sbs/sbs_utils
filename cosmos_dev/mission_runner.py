@@ -798,6 +798,15 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
             # ship type than the author expects, and nothing else in the report says so.
             npc_hulls = sorted({getattr(space[i], "_data_tag", None) for i in npc_ids})
             print(f"  __npc__ hulls: {npc_hulls}")
+            # AND WHOSE SIDE THEY ARE ON, which is a different question from which hull they
+            # got and is the one a re-skin can silently break. A mod that re-points the ART
+            # faction must leave the DIPLOMATIC side alone - shipData `side` is a lookup
+            # field, the side handed to npc_spawn is what relations, comms and contact colour
+            # read. Printing hulls alone cannot tell "Cardassian hulls flying as raiders"
+            # (correct) from "everything moved onto Cardassian" (diplomacy quietly broken),
+            # and headless is the only place that distinction can be checked at all.
+            npc_sides = sorted({str(getattr(space[i], "side", None) or "-") for i in npc_ids})
+            print(f"  __npc__ sides: {npc_sides}")
         # Damage sub-route detail (the by-kind rollup collapses //damage/* into one).
         if cov is not None and mast is not None:
             hit = cov.labels_hit

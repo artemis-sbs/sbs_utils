@@ -603,6 +603,76 @@ def filter_ship_data_by_side(test_ship_key, sides, role=None, ret_key_only=False
     return ret
 
 
+def _art_map(name):
+    """The RACE_ART / ART_KEYS settings map, lowercased keys. Empty when unset."""
+    from .settings import settings_get_defaults
+    raw = settings_get_defaults().get(name) or {}
+    if not isinstance(raw, dict):
+        return {}
+    return {str(k).strip().lower(): v for k, v in raw.items() if str(k).strip()}
+
+
+def art_faction_for(race, role=None):
+    """The shipData faction whose hulls should be DRAWN for `race`. ART ONLY.
+
+    Returns `race` unchanged unless a mission or profile set ``RACE_ART``, so stock behavior
+    is untouched by default.
+
+    THIS DOES NOT CHANGE WHOSE SIDE ANYTHING IS ON. shipData `side` is a LOOKUP field - "what
+    kind of ship is this" - while the side handed to :func:`npc_spawn` is the diplomatic
+    faction that drives relations, comms and contact colour. The prefabs already keep the two
+    apart as `origin` and `side_value`; this maps the first and never touches the second, so
+    a Cardassian hull can spawn as a `raider` and the mission's diplomacy is unchanged.
+
+    WHY A MOD NEEDS THIS. Overriding a STOCK ship key with mod art works on the server and
+    never on a client: a client resolves a key it already knows against its own
+    `data/shipData.yaml`, so its stock artfileroot wins and the override never crosses the
+    wire. Pointing the lookup at the mod's OWN keys is what reaches clients, because the
+    client has no local record for those and renders what the server sends.
+
+    Args:
+        race (str): the mission's own faction name, e.g. ``"kralien"``.
+        role (str, optional): if given, the mapping is only honored when the mapped faction
+            actually has hulls in that role. Without this a typo or a partial mod would
+            silently spawn nothing at all, which is much harder to notice than wrong art.
+
+    Returns:
+        str: the faction to look hulls up under.
+    """
+    if not race:
+        return race
+    mapped = _art_map("RACE_ART").get(str(race).strip().lower())
+    if not mapped or str(mapped).strip().lower() == str(race).strip().lower():
+        return race
+    if role is not None and not filter_ship_data_by_side(None, mapped, role, ret_key_only=True):
+        return race
+    return mapped
+
+
+def art_key_for(ship_key):
+    """The hull key to DRAW in place of `ship_key`. ART ONLY.
+
+    The companion to :func:`art_faction_for`, for the OTHER way a hull gets chosen. Some
+    callers do not look a ship up by faction at all - they name the key outright:
+
+      * stations (``station_type``), and
+      * fleet ladders, which list their hulls class by class so a wave keeps its shape.
+
+    A faction map cannot help those, so they get a key map instead - ``ART_KEYS``, keyed by
+    the STOCK key being replaced. Mapping per key also PRESERVES THE LADDER'S CHOICES: a
+    battleship is replaced by a specific hull rather than by a random ship of some faction.
+
+    Returns `ship_key` unchanged when unset, or when the replacement is not in the ship
+    table - a half-written map should degrade to stock art, never to nothing spawning.
+    """
+    if not ship_key:
+        return ship_key
+    mapped = _art_map("ART_KEYS").get(str(ship_key).strip().lower())
+    if not mapped or mapped == ship_key:
+        return ship_key
+    return mapped if get_ship_data_for(mapped) is not None else ship_key
+
+
 asteroid_keys_cache=None
 def asteroid_keys():
     """Return all asteroid ship keys from the ship data (cached).

@@ -1,4 +1,5 @@
 from sbs_utils import scatter
+from .ship_data import art_key_for
 import random
 from sbs_utils.procedural.ship_data import plain_asteroid_keys
 from sbs_utils.procedural.spawn import terrain_spawn, npc_spawn
@@ -290,7 +291,12 @@ def terrain_spawn_stations(DIFFICULTY, lethal_value, x_min=-32500, x_max=32500, 
         num_stations = min(num_stations, len(points))
         pos_as_list = random.sample(points, num_stations)
     for index in range(num_stations):
-        stat_type = station_type_list[index]
+        # ART ONLY - ART_KEYS, no-op unless a mission or profile sets it. This is the
+        # station spawner missions actually reach (terrain_spawn_stations), so it needs
+        # the mapping in its own right: the station PREFABS are a separate path and
+        # wiring only those leaves every terrain-placed starbase stock.
+        # `s_roles` below is untouched, so the side - and diplomacy - is unchanged.
+        stat_type = art_key_for(station_type_list[index])
         
         if points is not None:
             try:

@@ -355,6 +355,26 @@ def settings_get_defaults():
         # that raid them are different questions, and most missions want few of the first
         # and many of the second.
         "NPC_RACES": "Kralien, Torgoth, Arvonian, Skaraan, Ximni, Pirate",
+        # ART ONLY. Maps a mission's own faction to the shipData faction its hulls should be
+        # DRAWN from, leaving the side a ship actually spawns on - and therefore diplomacy,
+        # comms and contact colour - completely alone.
+        #
+        # WHY IT HAS TO BE SEPARATE FROM THE SIDE. shipData `side` is a LOOKUP field ("what
+        # kind of ship is this"), while the side passed to npc_spawn is the diplomatic
+        # faction. A prefab already keeps them apart as `origin` vs `side_value`; this is
+        # the knob that lets a mod move the first without touching the second.
+        #
+        # WHY A MOD NEEDS IT AT ALL: overriding a STOCK ship key with mod art works on the
+        # server and NEVER on a client. A client resolves a key it already knows against its
+        # own data/shipData.yaml, so its stock artfileroot wins and the override never
+        # crosses the wire. Pointing the lookup at the mod's OWN keys is what reaches
+        # clients, because the client has no local record for those and uses what the server
+        # sends. Empty here, so nothing changes unless a mission or profile sets it.
+        "RACE_ART": {},
+        # ART ONLY, same reasoning, for the OTHER way a hull gets chosen: by explicit KEY
+        # rather than by faction. Keyed by the stock key being replaced. Covers stations,
+        # and fleet ladders - which name their hulls outright and so never reach RACE_ART.
+        "ART_KEYS": {},
         "PLAYER_LIST": [
             {
                 "name": "Artemis",
