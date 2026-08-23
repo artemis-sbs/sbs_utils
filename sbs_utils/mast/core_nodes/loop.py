@@ -144,7 +144,7 @@ class LoopStartRuntimeNode(MastRuntimeNode):
                     # End loop clear value
                     task.set_value(node.name, None, Scope.TEMP)
                     task.set_value(node.name+"__iter", None, Scope.TEMP)
-                    task.jump(task.active_label, node.dedent_loc)
+                    task.jump_in_label(task.active_label, node.dedent_loc)
                     return PollResults.OK_JUMP
 
             
@@ -153,7 +153,7 @@ class LoopStartRuntimeNode(MastRuntimeNode):
             # End loop clear value
             task.set_value(node.name, None, Scope.TEMP)
             task.set_value(node.name+"__iter", None, Scope.TEMP)
-            task.jump(task.active_label, node.dedent_loc)
+            task.jump_in_label(task.active_label, node.dedent_loc)
             #task.jump_inline_end(inline_label, False)
             return PollResults.OK_JUMP
         else:
@@ -170,14 +170,14 @@ class LoopStartRuntimeNode(MastRuntimeNode):
                 # done iterating jump to end
                 task.set_value(node.name, None, Scope.TEMP)
                 task.set_value(node.name+"__iter", None, Scope.TEMP)
-                task.jump(task.active_label, node.dedent_loc)
+                task.jump_in_label(task.active_label, node.dedent_loc)
                 return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
 
 @mast_runtime_node(LoopEnd)
 class LoopEndRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:LoopEnd):
-        task.jump(task.active_label, node.start.loc)
+        task.jump_in_label(task.active_label, node.start.loc)
         return PollResults.OK_JUMP
         # return PollResults.OK_ADVANCE_TRUE
 
@@ -203,12 +203,12 @@ class LoopBreakRuntimeNode(MastRuntimeNode):
             #task.jump_inline_end(inline_label, True)
             task.set_value(node.start.name, None, self.scope)
             task.set_value(node.start.name+"__iter", None, Scope.TEMP)
-            task.jump(task.active_label, node.start.dedent_loc)
+            task.jump_in_label(task.active_label, node.start.dedent_loc)
             # End loop clear value
             
             return PollResults.OK_JUMP
         elif node.op == 'continue':
-            task.jump(task.active_label, node.start.loc)
+            task.jump_in_label(task.active_label, node.start.loc)
             #task.jump_inline_start(inline_label)
             return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE

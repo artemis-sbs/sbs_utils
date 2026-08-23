@@ -170,7 +170,38 @@ class MastTicker:
             # get back to the main flow
             self.pop_on_jump-=1
             push_data = self.task.label_stack.pop()
-            
+
+    def jump_in_label(self, label, activate_cmd=0):
+        """Move the instruction pointer WITHIN the current label. Not a jump.
+
+        A `for`/`while` loop implements iteration by moving the pointer back to
+        its own start and, when it finishes, forward to its dedent - both inside
+        one label. That is not leaving anywhere, but it used to go through
+        `jump()`, which unwinds `pop_on_jump` "to get back to the main flow" and
+        so POPPED the enclosing inline block off `label_stack`.
+
+        An inline block is how a widget handler runs, and its `data=` lives on
+        that stack entry, so a single loop anywhere in an `on gui_message` block
+        silently deleted every injected variable from the loop onward:
+
+            fab_btn = gui_button("Build", data={"rk": key, "rnames": names})
+            on gui_message(fab_btn):
+                for n in rnames:      # <- reads fine, then eats the block
+                    ...
+                signal_emit("build", {"recipe": rk})   # NameError: 'rk'
+
+        Reported from LegendaryMissions' Fabricator (beacon_tabs.mast), where
+        the Build button could not build anything. An EMPTY loop did it too, so
+        "it only breaks with items" was not even a clue. The `cosmos-gui` skill
+        recommends `data=` as the reliable escape from the OTHER for-loop trap
+        (handlers registered inside a loop), which walked straight into this one.
+
+        Worse than the lost variables: the pop left the stack one entry short,
+        so when the block ended `pop_label` took an entry belonging to whoever
+        pushed before it.
+        """
+        self.pending_jump = (label, activate_cmd)
+
     
     
     def do_jump(self, label = "main", activate_cmd=0):
@@ -1549,6 +1580,16 @@ class MastAsyncTask(Agent, Promise):
         else:
             self.active_ticker = self.py_ticker
             return self.py_ticker.jump(label)
+
+    def jump_in_label(self, label, activate_cmd=0):
+        """Intra-label pointer move for loop control flow. See MastTicker."""
+        if isinstance(label, str) or isinstance(label, Label):
+            self.active_ticker = self.mast_ticker
+            return self.mast_ticker.jump_in_label(label, activate_cmd)
+        # A PyMAST label is a generator; its loops are Python's, so there is no
+        # MAST loop node to route here.
+        self.active_ticker = self.py_ticker
+        return self.py_ticker.jump(label)
         
 
     def push_label(self, label, activate_cmd=0, data=None):
