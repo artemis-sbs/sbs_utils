@@ -164,6 +164,28 @@ class Agent():
     # has_inventory("ship_id") would hand back MAST task ids alongside ships.
     _mirror_inventory = True
 
+    # Is the engine object behind this instance still alive?
+    #
+    # An Agent instance routinely OUTLIVES the C++ object it describes: a route
+    # task holds SPAWNED for its whole life, a console task snapshots a roster
+    # into a list, a Modifier stores its target. `_data_set` / `_engine_object`
+    # are RAW pointers into memory the engine frees on delete, so a write through
+    # a stale instance lands in whatever now owns that block -- silently
+    # corrupting an unrelated object, or crashing in ObjectDataBlob::Set when the
+    # block has been recycled into something that is not a map any more.
+    #
+    # Dropping the id out of Agent.all was never enough, because a caller holding
+    # the instance never consults Agent.all. This flag is what `to_object` and the
+    # data_set/engine_object properties below check, which is what finally makes
+    # the `->END if to_object(x) is None` guards written all over the missions
+    # actually fire when x is an object rather than an id.
+    #
+    # It is a CLASS attribute so a live agent costs no instance-dict entry and
+    # every read is a single attribute load. Keep it that way: this sits on the
+    # per-tick query path, and a classmethod call here measurably regressed
+    # object_exists once before (911ns -> 519ns backing it out).
+    _alive = True
+
     def __init__(self):
         super().__init__()
         self.links = Stuff()
@@ -211,10 +233,15 @@ class Agent():
     
     @property
     def data_set(self):
+        # None once deleted -- see _alive. Every crashing write went through here.
+        if not self._alive:
+            return None
         return self._data_set
-    
+
     @property
     def engine_object(self):
+        if not self._alive:
+            return None
         return self._engine_object
 
 
@@ -244,7 +271,9 @@ class Agent():
 
     @classmethod
     def _remove(cls, id):
-        Agent.all.pop(id, None) #Allow remove if not added
+        agent = Agent.all.pop(id, None) #Allow remove if not added
+        if agent is not None:
+            agent._alive = False
         # Purge this id from EVERY class-level membership registry, not just roles.
         # These registries (roles / _has_inventory / has_links) are keyed by name with
         # the object's own id in the set; the per-object inventory/links/roles die with
@@ -618,6 +647,11 @@ class Agent():
     def add(self):
         """ Add the object to the system, called by spawn normally
         """
+        # Re-arm the liveness flag if this instance was previously tombstoned.
+        # Guarded so a normal spawn keeps reading the class attribute and never
+        # grows an instance-dict entry.
+        if not self._alive:
+            self._alive = True
         self._add(self.id, self)
 
     def remove(self):
@@ -636,6 +670,7 @@ class Agent():
         """
         id = self.id
         Agent.all.pop(id, None)
+        self._alive = False
         if self._mirror_inventory:
             for key in list(self.inventory.collections.keys()):
                 Agent._has_inventory.discard_from_collection(key, id)

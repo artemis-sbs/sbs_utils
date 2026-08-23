@@ -80,8 +80,12 @@ class TestConsoleSelectionStale(unittest.TestCase):
         # Home dock destroyed while the hangar screen is open.
         self.dock.py_object.destroyed()
 
-        # OLD pattern: to_object on a held Agent is a no-op -> stale, never None.
-        self.assertIsNotNone(to_object(held))
+        # A held Agent resolves to None as well now: Agent._alive makes to_object
+        # validate the INSTANCE, not just the id. Until that landed this returned
+        # the dead object, which is what made every `->END if to_object(x) is None`
+        # guard written against a held object silently inert - and let writes land
+        # on freed memory (ObjectDataBlob::Set, three engine crashes 2026-08-22/23).
+        self.assertIsNone(to_object(held))
         # NEW pattern: resolve the stored id -> None, so the selection self-clears.
         self.assertIsNone(to_space_object(dock_id))
         self.assertIsNone(to_space_object(get_science_selection(self.ship)))
@@ -91,14 +95,17 @@ class TestSelectionGetterExistenceGuard(unittest.TestCase):
     """The selection getters must not read a deleted object's blob.
 
     The engine crash (hangar.mast:206): get_science_selection(x) -> to_blob(x) ->
-    blob.get(...). When x is a SpawnData whose object has been deleted, to_blob
-    short-circuits to the cached SpawnData.blob - a DANGLING engine data-set in the
-    real engine - and blob.get(...) throws. The guard is object_exists(): a gone
-    object returns None instead of dereferencing the stale blob.
+    blob.get(...). When x is a SpawnData whose object has been deleted, to_blob used
+    to short-circuit to the cached SpawnData.blob - a DANGLING engine data-set in the
+    real engine - and blob.get(...) throws. The getters guard with object_exists().
+
+    There are now TWO layers: to_blob itself retires the cached blob once the agent
+    is tombstoned (Agent._alive), and the getters still fail safe to None. The second
+    is kept because it is the contract callers rely on, and because it holds even for
+    a blob obtained some other way.
 
     The mock cannot dangle a native pointer, so it stands in with a stale-but-
-    readable cached blob: without the guard the getter would return the stale value;
-    with it, None. Same contract, observable headlessly.
+    readable cached blob. Same contract, observable headlessly.
     """
     def setUp(self):
         SpaceObject.clear()
@@ -118,9 +125,9 @@ class TestSelectionGetterExistenceGuard(unittest.TestCase):
         self.ship.py_object.delete_object()
         DeleteQueue.drain()
 
-        # The wrapper's cached blob is still non-None and readable (this is exactly
-        # the "blob is somehow valid" state), but the object is gone...
-        self.assertIsNotNone(to_blob(self.ship), "SpawnData keeps a cached blob")
+        # to_blob now refuses the wrapper's cached blob once the object is gone, so
+        # the dangling read is impossible rather than merely guarded downstream.
+        self.assertIsNone(to_blob(self.ship), "SpawnData blob retired on delete")
         self.assertFalse(object_exists(self.ship))
 
         # ...so every getter must fail safe to None instead of reading it.

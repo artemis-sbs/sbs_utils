@@ -12,7 +12,7 @@ from sbs_utils.procedural.timers import awaitable, delay_sim, set_timer, is_time
 from sbs_utils.mast.label import label
 from sbs_utils.mast.mast_globals import debug_print
 
-from sbs_utils.agent import Agent, get_story_id
+from sbs_utils.agent import Agent, CloseData, SpawnData, get_story_id
 class Modifier(Agent):
     """
     A class representing a modifier for a blob value. This is not meant to be used directly by the scripter, but rather as a data structure for storing modifier information.
@@ -30,6 +30,15 @@ class Modifier(Agent):
             index (int, optional): The index of the value in a list blob value that is being modified. If None, the modifier is applied to all indices of a list blob value.
         """
         super().__init__()
+        # Hold the target as an ID, never as an Agent. all_modifiers is a
+        # module-level list that outlives every mission, so an object-typed target
+        # would pin a deleted agent alive AND defeat the orphan sweep in
+        # modifier_remove (a stale instance still answers get_inventory_value, so
+        # the "target was deleted" branch never runs and recalculate_value writes
+        # a freed blob). modifier_add already normalises through to_set, so this
+        # only covers direct construction.
+        if isinstance(target, (Agent, SpawnData, CloseData)):
+            target = to_id(target)
         self.target = target
         self.key = key
         self.value = value

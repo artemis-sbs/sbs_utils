@@ -799,8 +799,33 @@ def grid_delete_object(host_id_or_obj, id_or_obj):
     gid = to_id(id_or_obj)
     if gid is None:
         return
+    _grid_clear_selection_of(host_id, gid)
     Agent.remove_id(gid)
     DeleteQueue.queue_grid(host_id, gid)
+
+
+def _grid_clear_selection_of(host_id, gid):
+    """Drop the console's grid selection if it names the object being deleted.
+
+    ``grid_selected_UID`` lives on the HOST SHIP's blob and is what the engine's
+    grid_object_list widget resolves into an index every frame. Nothing used to
+    clear it on delete, so deleting the selected object - a damcon that dies, a
+    repaired hallway marker, or the whole interior during a grid rebuild - left
+    the widget pointing at an id that is no longer in the array. Doing it here
+    rather than at each call site means every caller inherits it.
+    """
+    if host_id is None:
+        return
+    blob = to_blob(host_id)
+    if blob is None:
+        return
+    try:
+        if blob.get("grid_selected_UID", 0) == gid:
+            blob.set("grid_selected_UID", 0, 0)
+    except ValueError:
+        # Host space object already gone; nothing to clear. Same probe as
+        # grid_valid_blob - the engine raises rather than returning None here.
+        pass
 
 
 def grid_delete_objects(ship_id_or_obj):

@@ -243,6 +243,38 @@ class StoryPage(Page):
                 layout_obj.on_begin_presenting(self.client_id)
 
 
+    @staticmethod
+    def _retire_dropped_engine_widgets(prev, current, client_id, my_sbs):
+        """Push offscreen any engine widget this console no longer declares.
+
+        An engine widget cannot be un-declared. The console's widget list is what
+        the engine draws from, and it keeps what it was given, so sending a
+        SHORTER list does not retire the ones that fell off - they carry on
+        rendering at whatever rect they last had, against whatever object the
+        console was last pointed at. When that object has been deleted, the
+        engine walks freed memory: that is how a client died in
+        ViewGridObjectListDraw two minutes after the mission ended, still drawing
+        the Engineering grid list for a ship that no longer existed.
+
+        Pushing the rect offscreen is the one thing that does work on a widget
+        already shown - the same trick gui_widget_offscreen documents, applied
+        automatically here so every console inherits it rather than each screen
+        having to remember. Only runs when the list actually changes, which is
+        rare (a console switch, or a jump to the results screen).
+        """
+        if not prev:
+            return
+        def names(pair):
+            return {w for w in (pair[1] or "").split("^") if w}
+        dropped = names(prev) - names(current)
+        if not dropped:
+            return
+        off = 100
+        for widget in dropped:
+            my_sbs.send_client_widget_rects(client_id, widget,
+                                            off, off, off + 10, off + 10,
+                                            off, off, off + 10, off + 10)
+
     def swap_layout(self):
         # self.on_change_items= self.pending_on_change_items
         # self.pending_on_change_items = []
@@ -877,9 +909,12 @@ class StoryPage(Page):
                 # widgets across a resize, which is proof of it.
                 #
                 widget_list = (self.console, self.widgets)
-                if Gui.widget_list_sent.get(event.client_id) != widget_list:
+                prev_widget_list = Gui.widget_list_sent.get(event.client_id)
+                if prev_widget_list != widget_list:
                     Gui.widget_list_sent[event.client_id] = widget_list
                     my_sbs.send_client_widget_list(event.client_id, self.console, self.widgets)
+                    self._retire_dropped_engine_widgets(
+                        prev_widget_list, widget_list, event.client_id, my_sbs)
                 # Setting this to a state we don't process
                 # keeps the existing GUI displayed
 

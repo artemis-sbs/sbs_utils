@@ -145,6 +145,15 @@ def to_object(other: Agent | CloseData | int):
     else:
         # should return space object or grid object
         py_object = Agent.get(other)
+    # An Agent instance -- or one cached inside a CloseData / SpawnData -- can
+    # outlive the engine object it describes: a route's SPAWNED, a console task's
+    # roster snapshot and a Modifier's target all hold one across ticks. Handing
+    # a dead one back is what made every `->END if to_object(x) is None` guard
+    # inert for object arguments, and let writes land on freed memory.
+    # Agent.get() above already consults Agent.all; this covers the three paths
+    # that never did. See Agent._alive.
+    if py_object is not None and not py_object._alive:
+        return None
     return py_object
 
 
@@ -329,7 +338,12 @@ def get_engine_data_set(id_or_obj):
         data_set | None: The engine data-set, or ``None`` if not found.
     """
     if isinstance(id_or_obj, SpawnData):
-        return id_or_obj.blob
+        # SpawnData caches the raw blob handed out at spawn. It is the same blob
+        # the agent holds, so resolve through the agent rather than returning the
+        # cached pointer blind -- otherwise this path stays a use-after-free even
+        # once every other one is guarded.
+        spawned = to_object(id_or_obj)
+        return None if spawned is None else id_or_obj.blob
     object = to_object(id_or_obj)
     if object is not None:
         return object.data_set
