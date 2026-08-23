@@ -174,3 +174,67 @@ class TestRetireDroppedEngineWidgets(unittest.TestCase):
         StoryPage._retire_dropped_engine_widgets(("engi", "grid_object_list"), ("", ""), 7, rec)
         _cid, _w, coords = rec.rects[0]
         self.assertTrue(all(c >= 100 for c in coords), coords)
+
+
+class TestDeletedObjectSetters(unittest.TestCase):
+    """The setters reach the engine object through space_object(), NOT through the
+    guarded Agent.data_set property - set_name does `so.data_set.set("name_tag", ...)`
+    on the ENGINE object's own blob. That bypass is how a server still died in
+    ObjectDataBlob::Set with "name_tag" on the stack after the first round of guards.
+    """
+    def setUp(self):
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        SpaceObject.clear()
+        spawned = npc_spawn(0, 0, 0, "Scout", "tsn", "tsn_scout", "behav_npcship")
+        self.obj = to_object(spawned.id)
+
+    def test_space_object_is_none_once_deleted(self):
+        self.assertIsNotNone(self.obj.space_object())
+        self.obj.delete_object()
+        self.assertIsNone(self.obj.space_object())
+
+    def test_set_name_on_a_deleted_object_does_not_write(self):
+        self.obj.delete_object()
+        self.obj.name = "Renamed"      # must be a no-op, not a write to freed memory
+
+    def test_set_art_id_on_a_deleted_object_does_not_write(self):
+        self.obj.delete_object()
+        self.obj.art_id = "tsn_battleship"
+
+    def test_set_side_on_a_deleted_object_does_not_write(self):
+        self.obj.delete_object()
+        self.obj.side = "kralien"
+
+    def test_pos_read_is_none_once_deleted(self):
+        self.assertIsNotNone(self.obj.pos)
+        self.obj.delete_object()
+        self.assertIsNone(self.obj.pos)
+
+    def test_pos_write_on_a_deleted_object_does_not_reposition(self):
+        from sbs_utils.vec import Vec3
+        self.obj.delete_object()
+        self.obj.pos = Vec3(500, 0, 500)
+
+
+class TestLoadoutSkipsDeletedShips(unittest.TestCase):
+    """The start-of-game cull strips __player__ from unused slots and deletes them,
+    but never removes default_player_ship - so that role alone, and any snapshot list
+    taken before the cull, can still name ships that are gone. The loadout apply then
+    writes .name/.art_id straight through to the engine object.
+    """
+    def setUp(self):
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        SpaceObject.clear()
+
+    def test_a_deleted_ship_in_a_supplied_list_is_skipped(self):
+        from sbs_utils.procedural.maps import player_loadout_apply_to_ships
+        from sbs_utils.procedural.execution import set_shared_variable
+        alive = to_object(npc_spawn(0, 0, 0, "Alive", "tsn", "tsn_scout", "behav_npcship").id)
+        dead = to_object(npc_spawn(0, 0, 0, "Dead", "tsn", "tsn_scout", "behav_npcship").id)
+        dead.delete_object()
+        set_shared_variable("SHIP_LOADOUT", "")
+        # Both in the snapshot; only the live one may be touched. The assertion that
+        # matters is that this does not write through the dead one.
+        player_loadout_apply_to_ships([alive, dead])

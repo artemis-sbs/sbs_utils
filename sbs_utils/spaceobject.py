@@ -166,6 +166,14 @@ class SpaceObject(Agent):
         Returns:
             SpaceObject: The simulation space object.
         """
+        # None once the agent is tombstoned. This is the RAW pointer into memory the
+        # engine frees on delete, and it is what every setter below reaches through --
+        # set_name does `so.data_set.set("name_tag", ...)`, which is the ENGINE object's
+        # blob, not Agent.data_set, so the guard on that property never sees it. A
+        # server died on exactly that write with "name_tag" still on the stack.
+        # Every caller here and in procedural/ already handles None.
+        if not self._alive:
+            return None
         return self._engine_object
         # return FrameContext.context.sim.get_space_object(self.id)
 
@@ -289,9 +297,14 @@ class SpaceObject(Agent):
         Returns:
             str: The side
         """
-        test = self.data_set.get("hull_side", 0)
-        if test is not None and isinstance(test, str):
-            return test
+        # data_set is None once the object is deleted (see Agent._alive). Fall back to
+        # the cached Python side rather than raising: update_comms_id() reads this, and
+        # it runs from set_name(), which a snapshot list can still reach after a delete.
+        blob = self.data_set
+        if blob is not None:
+            test = blob.get("hull_side", 0)
+            if test is not None and isinstance(test, str):
+                return test
         return self._side
     
     @side_display.setter
@@ -301,7 +314,10 @@ class SpaceObject(Agent):
         Args:
             value (str): The side.
         """
-        self.data_set.set("hull_side", value, 0)
+        blob = self.data_set
+        if blob is None:
+            return
+        blob.set("hull_side", value, 0)
 
 
     @property
@@ -359,14 +375,23 @@ class SpaceObject(Agent):
     
     @property
     def origin(self):
-        test = self.data_set.get("hull_origin", 0)
+        # None once deleted -- same guard as side_display above. "no origin" is what
+        # this already answers when the blob holds nothing, so a gone object gives the
+        # same "nothing known" answer rather than a new one callers have never seen.
+        blob = self.data_set
+        if blob is None:
+            return "no origin"
+        test = blob.get("hull_origin", 0)
         if test is None:
             return "no origin"
         return test.lower()
     
     @origin.setter
     def origin(self: SpaceObject, value: str) -> None:
-        self.data_set.set("hull_origin", value, 0)
+        blob = self.data_set
+        if blob is None:
+            return
+        blob.set("hull_origin", value, 0)
 
     @property
     def crew(self):
@@ -384,6 +409,11 @@ class SpaceObject(Agent):
         Returns:   
             Vec3: The position.
         """
+        # Reading a freed object's position is the same use-after-free as writing it,
+        # just quieter. None makes a caller fail where the mistake is, instead of
+        # returning coordinates read out of recycled memory.
+        if not self._alive:
+            return None
         return Vec3(self._engine_object.pos)
 
     @pos.setter
@@ -393,6 +423,8 @@ class SpaceObject(Agent):
         Args:
             *args (tuple): A variable-length argument list. This should be a single Vec3, or up to three floats, representing the position of the object.
         """
+        if not self._alive:
+            return
         v = Vec3(*args)
         FrameContext.context.sim.reposition_space_object(self._engine_object, v.x, v.y, v.z)
 

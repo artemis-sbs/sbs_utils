@@ -440,13 +440,36 @@ def player_loadout_decode(token):
     return slots
 
 
+def _loadout_ship_still_alive(ship):
+    """True unless this is one of OUR agents and it is known deleted.
+
+    The loadout helpers accept duck-typed stand-ins - anything with .id/.name/.art_id -
+    and the tests rely on that, so a foreign object is not ours to judge. An Agent (or a
+    SpawnData/CloseData wrapping one) IS ours, and a deleted one must be dropped: the
+    start-of-game cull strips __player__ from the unused slots and deletes them but never
+    removes default_player_ship, and a picker snapshot taken before the cull holds them
+    all. `.name`/`.art_id` are cached on the Python object so a dead ship still answers,
+    which is what let deleted slots reach an apply (a write straight to the engine
+    object) and get baked into a saved preset.
+    """
+    from ..agent import Agent, CloseData, SpawnData
+    from .query import to_object
+    if isinstance(ship, (Agent, CloseData, SpawnData)):
+        return to_object(ship) is not None
+    return True
+
+
 def player_loadout_from_ships(ships):
     """Build a loadout token from ship objects, reading ``.name`` and ``.art_id``.
 
     ``ships`` is sorted by id first so the slot order is stable and matches the
     rehydrate side (spawn_players walks the player ships in id order too).
     """
-    ordered = sorted(ships, key=lambda s: getattr(s, "id", 0))
+    # Drop ships that are already gone. `.name`/`.art_id` are cached on the Python
+    # object so a deleted one still answers, which means a preset captured after the
+    # start-of-game cull would quietly bake in the slots that were just deleted.
+    ordered = sorted([s for s in (ships or []) if _loadout_ship_still_alive(s)],
+                     key=lambda s: getattr(s, "id", 0))
     return player_loadout_encode(
         [{"name": getattr(s, "name", ""), "hull": getattr(s, "art_id", "")} for s in ordered])
 
@@ -503,8 +526,16 @@ def player_loadout_apply_to_ships(ships=None):
     if ships is None:
         from .roles import role
         from .query import to_object_list
-        ships = to_object_list(role("default_player_ship"))
-    ordered = sorted(ships or [], key=lambda s: getattr(s, "id", 0))
+        # `& role("__player__")` matters: the start-of-game cull strips __player__ from
+        # the unused slots and deletes them, but never removes default_player_ship. On
+        # its own that role can therefore name ships that are on their way out, and the
+        # writes below go straight to the engine object -- `ship.name =` is
+        # blob.set("name_tag", ...), which is the call a server died in.
+        ships = to_object_list(role("default_player_ship") & role("__player__"))
+    # A caller-supplied list is a SNAPSHOT and gets the same treatment: a console that
+    # sat on the picker across the start captured the whole roster, culled slots and all.
+    ships = [s for s in (ships or []) if _loadout_ship_still_alive(s)]
+    ordered = sorted(ships, key=lambda s: getattr(s, "id", 0))
     if not ordered:
         return 0
     applied = 0
