@@ -53,11 +53,13 @@ from .amd import amd_parse_facts, amd_read_text
 # theaters. Cleared from reset_mission_state(); probe registered in handlerhooks.py.
 _theaters = {}
 _depth_warned = set()
+_side_key_warned = set()
 
 
 def amd_theater_clear():
     """Drop every declared theater. Called from reset_mission_state()."""
     _theaters.clear()
+    _side_key_warned.clear()
     _depth_warned.clear()
 
 
@@ -118,6 +120,21 @@ def amd_theater_facts():
             data["faces"] = _pairs(value)
         elif label in ("music", "music_select"):
             data["music"] = str(value).strip()
+        elif label in ("player_faction", "players_faction", "crew_faction"):
+            data["player_faction"] = str(value).strip()
+        elif label in ("players", "player_ships", "player_hulls"):
+            data["players"] = _csv(value)
+        elif label in ("player_side_name", "player_name"):
+            data["player_side_name"] = str(value).strip()
+        elif label in ("player_side_color", "player_color"):
+            data["player_side_color"] = str(value).strip()
+        elif label in ("player_side_icon", "player_icon"):
+            data["player_side_icon"] = str(value).strip()
+        elif label == "player_side_key":
+            # Parsed so it is not an "unknown field", and REFUSED at read time - see
+            # theater_player_side_key. Storing it keeps the refusal honest: the author
+            # asked for something specific and gets told why it did not happen.
+            data["player_side_key"] = str(value).strip()
         elif label in ("name", "desc"):
             data[label] = str(value).strip()
         else:
@@ -148,6 +165,12 @@ def theaters_from_section(node):
                 "art": data.get("art") or {},
                 "faces": data.get("faces") or {},
                 "music": data.get("music"),
+                "player_faction": data.get("player_faction"),
+                "players": data.get("players") or [],
+                "player_side_name": data.get("player_side_name"),
+                "player_side_color": data.get("player_side_color"),
+                "player_side_icon": data.get("player_side_icon"),
+                "player_side_key": data.get("player_side_key"),
             }))
     return out
 
@@ -318,6 +341,95 @@ def theater_pick_race(weights=None, names=None, key=None):
 
 MIN_HULLS_FOR_HEAVY_SLOT = 3
 HEAVY_SLOT_SHARE = 0.25
+
+
+def theater_player_faction(key=None):
+    """The shipData faction the CREW's hulls should be drawn from, or None.
+
+    Separate from the ``Art:`` map on purpose. That map says how the mission's own races
+    are drawn, and `tsn` in it re-skins the friendly NPCs; this says what the PLAYERS fly,
+    which is not always the same thing. A theater where the crew are pirates re-skins them
+    to Orion while its allied `tsn` NPCs stay Federation.
+
+    ART ONLY - it never moves anybody's side. See :func:`theater_player_side_key`.
+
+    **The value is a shipData SIDE, and stock data splits the Federation across two of
+    them**: `tsn` is the navy, `USFP` is the freighters and starbases. `Player Faction:
+    USFP` therefore seats the crew in a science ship and a luxury liner - correct pairing,
+    wrong side. Name the side whose WARSHIPS you want; for a mod that keeps its hulls under
+    one side (the TNG pack's `Federation`) there is no such split to fall into.
+    """
+    rec = theater_get(key)
+    if rec is None:
+        return None
+    value = rec.get("player_faction")
+    return value or None
+
+
+def theater_players(key=None):
+    """Explicit per-slot hull keys the theater wants the crew in, or []."""
+    rec = theater_get(key)
+    if rec is None:
+        return []
+    return list(rec.get("players") or [])
+
+
+def theater_player_side(key=None):
+    """The COSTUME for the players' existing side: ``{name, color, icon}``, empties dropped.
+
+    A re-dress, not a re-faction. The side KEY is untouched, so diplomacy, `side_are_enemies`,
+    every `//comms` gate and every station-friendliness lookup keep working exactly as the
+    mission wrote them - only what the crew is called and coloured changes. That is what
+    makes "the players are pirates tonight" cost nothing.
+    """
+    rec = theater_get(key)
+    if rec is None:
+        return {}
+    out = {}
+    for field, name in (("player_side_name", "name"),
+                        ("player_side_color", "color"),
+                        ("player_side_icon", "icon")):
+        value = rec.get(field)
+        if not value:
+            continue
+        if name == "icon":
+            # An icon index is an int wherever it lands (side_set_side_icon_index takes
+            # one), but the two parse paths disagree on type: a fence handler hands over a
+            # string, the section reader an already-typed value.
+            try:
+                value = int(str(value).strip())
+            except ValueError:
+                continue
+        out[name] = value
+    return out
+
+
+def theater_player_side_key(key=None):
+    """Always None, and says so out loud when a theater asked for one.
+
+    ``Player Side Key:`` would move the crew onto a different DIPLOMATIC side, and the
+    missions are not ready for it: LegendaryMissions carries around 45 literal `tsn` sites
+    across maps, fleets, consoles and prefabs, and `spawn_players` places crews via
+    ``side_members_set(side) & role("station")`` - so a raider crew with no raider station
+    is simply never placed, with nothing logged.
+
+    Refused rather than half-applied. A theater that moved the key would look like it
+    worked right up to the point where the crew spawned nowhere. Use the costume fields
+    (:func:`theater_player_side`) for the look; the key waits on the de-hardcoding pass.
+    """
+    rec = theater_get(key)
+    if rec is None:
+        return None
+    asked = rec.get("player_side_key")
+    if asked:
+        name = rec.get("key")
+        if name not in _side_key_warned:
+            _side_key_warned.add(name)
+            print("theater '" + str(name) + "': 'Player Side Key: " + str(asked)
+                  + "' is NOT SUPPORTED yet and is being ignored - it would move the crew's"
+                  + " diplomatic side, which the missions still hardcode. Use Player Side"
+                  + " Name/Color/Icon to re-dress the existing side instead.")
+    return None
 
 
 def theater_hull_counts(key=None):

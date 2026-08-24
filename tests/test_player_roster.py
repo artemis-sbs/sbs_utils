@@ -243,6 +243,77 @@ class PlayerRosterTests(unittest.TestCase):
         self.assertEqual({55}, R.player_roster_bound(2))
         self.assertTrue(object_exists(was))
 
+    # --- the theater dresses the crew ---------------------------------------
+
+    def _theater(self, body_lines):
+        """Declare a one-off theater and make it active.
+
+        body_lines is a list of fence lines, so the test reads as the .amd an author
+        would write.
+        """
+        import sbs_utils.procedural.amd_theater as T
+        T.amd_theater_clear()
+        doc = [chr(35) + ' [T](t)', '---', 'Factions: kralien']
+        doc += list(body_lines)
+        doc += ['---', 'a theater', '']
+        T.theater_declare_text(chr(10).join(doc))
+        import sbs_utils.procedural.settings as S
+        self._real = getattr(self, '_real', S.settings_get_defaults)
+        S.settings_get_defaults = _Settings({'THEATER': 't'})
+
+    def test_player_faction_reskins_the_crew(self):
+        """The crew move onto another side's hulls, and the pairing keeps its order.
+
+        USFP is used because it is a side stock data really has. Note what it gives back:
+        a science ship and a luxury liner, because stock splits the Federation into `tsn`
+        (navy) and `USFP` (freighters and starbases). That is the pairing working, and the
+        trap the accessor's docstring warns about.
+        """
+        from sbs_utils.procedural.ship_data import get_ship_data_for
+        before = [to_object(R.player_roster_resolve(s)).art_id for s in range(4)]
+        self._theater(["Player Faction: USFP"])
+        self.assertEqual([0, 1, 2, 3], R.player_roster_apply())
+        after = [to_object(R.player_roster_resolve(s)).art_id for s in range(4)]
+        self.assertNotEqual(before, after, "Player Faction changed nothing")
+        for h in after:
+            self.assertIsNotNone(get_ship_data_for(h), f"{h!r} is not a real hull")
+            self.assertEqual("usfp", str(get_ship_data_for(h).get("side")).lower(),
+                             f"{h!r} is not on the faction that was asked for")
+
+    def test_explicit_players_list_beats_the_faction(self):
+        self._theater(["Player Faction: USFP", "Players: tsn_scout, tsn_scout"])
+        R.player_roster_apply()
+        self.assertEqual("tsn_scout", to_object(R.player_roster_resolve(0)).art_id)
+        self.assertEqual("tsn_scout", to_object(R.player_roster_resolve(1)).art_id)
+
+    def test_a_loadout_beats_the_explicit_players_list(self):
+        """Full precedence: the crew's own choice is the strongest thing in the stack."""
+        self._theater(["Player Faction: USFP", "Players: tsn_scout, tsn_scout"])
+        R.player_roster_apply(loadout=[{"hull": "tsn_battle_cruiser", "name": None}])
+        self.assertEqual("tsn_battle_cruiser", to_object(R.player_roster_resolve(0)).art_id)
+        self.assertEqual("tsn_scout", to_object(R.player_roster_resolve(1)).art_id)
+
+    def test_the_costume_renames_the_side_without_moving_it(self):
+        """The whole point: pirates by NAME, never by diplomacy."""
+        from sbs_utils.procedural.sides import side_display_name
+        self._theater(["Player Side Name: Orion Syndicate", "Player Side Icon: 7"])
+        R.player_roster_apply()
+        self.assertEqual("Orion Syndicate", side_display_name("tsn"))
+        for slot in range(4):
+            self.assertEqual("tsn", to_object(R.player_roster_resolve(slot)).side,
+                             "the costume moved a ship's actual side")
+
+    def test_player_side_key_is_refused_not_applied(self):
+        self._theater(["Player Side Key: raider"])
+        R.player_roster_apply()
+        for slot in range(4):
+            self.assertEqual("tsn", to_object(R.player_roster_resolve(slot)).side,
+                             "Player Side Key moved the crew - it must refuse instead")
+
+    def test_no_player_fields_leaves_the_crew_alone(self):
+        self._theater([])
+        self.assertEqual([], R.player_roster_apply())
+
     # --- release: the one delete, at the phase edge -------------------------
 
     def test_release_deletes_only_parked_slots(self):

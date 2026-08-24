@@ -617,6 +617,61 @@ def _hull_rank(key):
     return 0.0
 
 
+def _side_split(side):
+    """A side's hulls as (mobile, stations).
+
+    Deliberately NOT filtered on the `ship` role. Plenty of hulls do not carry it -
+    `arvonian_fighter` is `cockpit,fighter` - and a role filter silently skips them, which
+    shows up as "most of the faction converted and a few ships are still stock". Stations
+    are split out because a starbase must be re-skinned as a starbase.
+    """
+    mobile, stations = [], []
+    for k in (filter_ship_data_by_side(None, side, None, ret_key_only=True) or []):
+        roles = ((get_ship_data_for(k) or {}).get("roles") or "").lower()
+        (stations if "station" in roles else mobile).append(k)
+    return mobile, stations
+
+
+def art_key_in_faction(ship_key, faction):
+    """Pair one hull into ``faction`` by size rank. Identity when it cannot.
+
+    The single-key form of what :func:`art_keys_from_theater` does in bulk, for the case
+    where a caller wants a DIFFERENT faction than the theater's own race map gives - the
+    crew flying Orion hulls while the theater still re-skins `tsn` allies as Federation.
+
+    Falls back to ``ship_key`` when the faction has no comparable hull, because spawning
+    stock art is recoverable and spawning nothing is not.
+    """
+    if not ship_key or not faction:
+        return ship_key
+    if str(faction).strip().lower() == "none":
+        return ship_key
+    entry = get_ship_data_for(ship_key) or {}
+    want_station = "station" in ((entry.get("roles") or "").lower())
+    mobile, stations = _side_split(faction)
+    pool = stations if want_station else mobile
+    if not pool:
+        return ship_key
+    # Rank the key against its OWN side, then take the same relative position in the
+    # target - the pairing the bulk generator uses, so a flagship stays a flagship.
+    own_mobile, own_stations = _side_split(entry.get("side") or "")
+    own = own_stations if want_station else own_mobile
+    own = sorted(own, key=_hull_rank)
+    pool = sorted(pool, key=_hull_rank)
+    try:
+        i = own.index(ship_key)
+    except ValueError:
+        # Not in its own side's list (a mod hull already, or an odd `side`): rank it
+        # against the target pool directly rather than giving up.
+        r = _hull_rank(ship_key)
+        for i, k in enumerate(pool):
+            if _hull_rank(k) >= r:
+                return k
+        return pool[-1]
+    j = min(int(i * len(pool) / max(1, len(own))), len(pool) - 1)
+    return pool[j]
+
+
 _ART_KEYS_CACHE = {}
 
 
@@ -639,24 +694,10 @@ def art_keys_from_theater():
     cache_key = str(rec.get("key") or "")
     if cache_key in _ART_KEYS_CACHE:
         return _ART_KEYS_CACHE[cache_key]
-    def _split(side):
-        """A side's hulls as (mobile, stations).
-
-        Deliberately NOT filtered on the `ship` role. Plenty of hulls do not carry it -
-        `arvonian_fighter` is `cockpit,fighter` - and a role filter silently skips them,
-        which shows up as "most of the faction converted and a few ships are still stock".
-        Stations are split out because a starbase must be re-skinned as a starbase.
-        """
-        mobile, stations = [], []
-        for k in (filter_ship_data_by_side(None, side, None, ret_key_only=True) or []):
-            roles = ((get_ship_data_for(k) or {}).get("roles") or "").lower()
-            (stations if "station" in roles else mobile).append(k)
-        return mobile, stations
-
     out = {}
     for race, faction in (theater_art() or {}).items():
-        s_mobile, s_station = _split(race)
-        m_mobile, m_station = _split(faction)
+        s_mobile, s_station = _side_split(race)
+        m_mobile, m_station = _side_split(faction)
         for stock, mod in ((s_mobile, m_mobile), (s_station, m_station)):
             if not stock or not mod:
                 continue

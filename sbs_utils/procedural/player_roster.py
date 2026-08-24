@@ -216,7 +216,8 @@ def player_roster_apply(loadout=None, force=False):
     """
     import sbs
     from .query import to_object
-    from .ship_data import art_key_for
+    from .ship_data import art_key_for, art_key_in_faction
+    from .amd_theater import theater_player_faction, theater_players
 
     touched = []
     for rec in _ROSTER:
@@ -227,9 +228,21 @@ def player_roster_apply(loadout=None, force=False):
         if obj is None:
             continue
 
-        # A theater re-skins by pointing the LOOKUP at the mod's own keys; unset, this is
-        # identity and the authored hull is what is worn.
+        # WHAT THIS SLOT WEARS, weakest first. Every layer is optional and absent means
+        # the one below it, so an unset theater leaves the authored hull untouched.
+        #
+        #   authored PLAYER_LIST hull
+        #     -> ART_KEYS / the theater's own race map   (art_key_for)
+        #     -> the theater's Player Faction            (crew fly Orion, allies stay TSN)
+        #     -> the theater's explicit Players list     (this slot, by name)
+        #     -> a game-code loadout                     (handled below - the crew CHOSE it)
         want_hull = art_key_for(rec.get("ship"))
+        faction = theater_player_faction()
+        if faction:
+            want_hull = art_key_in_faction(rec.get("ship"), faction)
+        explicit = theater_players()
+        if rec["slot"] < len(explicit) and explicit[rec["slot"]]:
+            want_hull = explicit[rec["slot"]]
         want_name = rec.get("name")
         slot_override = None
         if loadout is not None and rec["slot"] < len(loadout):
@@ -269,11 +282,50 @@ def player_roster_apply(loadout=None, force=False):
         if dirty:
             touched.append(rec["slot"])
 
+    _costume_player_sides()
+
     if touched:
         from .signal import signal_emit
         # Safe when there is no MAST context - signal_emit returns early.
         signal_emit("player_roster_changed", {"slots": touched})
     return touched
+
+
+def _costume_player_sides():
+    """Re-dress the players' side per the theater. The KEY is never changed.
+
+    Only the name, colour and icon move, so diplomacy, `side_are_enemies`, the `//comms`
+    gates and station-friendliness all keep reading the side the mission wrote. That is the
+    whole reason "the crew are pirates tonight" is cheap: it is a costume, not a defection.
+
+    Idempotent - `side_ensure` is, and the setters write the same values every time.
+    """
+    from .amd_theater import theater_player_side, theater_player_side_key
+    # Read even though it always answers None: that call is what WARNS an author who asked
+    # for a real side change, and staying silent about it is how a theater looks like it
+    # worked until the crew spawn nowhere.
+    theater_player_side_key()
+    costume = theater_player_side()
+    if not costume:
+        return
+    from .sides import side_ensure, side_set_side_icon_index, side_set_icon_color
+    seen = set()
+    for rec in _ROSTER:
+        if not rec.get("active"):
+            continue
+        key = rec.get("side")
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        try:
+            side_ensure(key, costume.get("name"))
+            if costume.get("color"):
+                side_set_icon_color(key, costume["color"])
+            if costume.get("icon") is not None:
+                side_set_side_icon_index(key, costume["icon"])
+        except Exception as exc:                       # pragma: no cover - defensive
+            from .execution import log
+            log(f"theater could not re-dress side '{key}': {exc}", "theater", "warning")
 
 
 def player_roster_release_inactive():
