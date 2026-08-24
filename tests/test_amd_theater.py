@@ -190,6 +190,44 @@ class TheaterTests(unittest.TestCase):
         for _ in range(50):
             self.assertIn(T.theater_pick_race([70, 10, 10, 10], names), names)
 
+    def test_an_unknown_field_is_named(self):
+        """A typo'd fence label is DROPPED, and dropping it silently is how a theater reads
+        as working while changing nothing.
+
+        Reported here rather than by `sbs lint`: these headings carry no section name, so
+        the linter cannot resolve them to an archetype and calls the file clean whatever is
+        in it - verified by putting a deliberately bogus field in theaters.amd and getting
+        `clean` back.
+        """
+        import io
+        import contextlib
+        doc = chr(10).join([chr(35) + " [Typo](typo)", "---", "Factions: kralien",
+                            "Player Facton: Federation", "---", "x", ""])
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            T.theater_declare_text(doc)
+        out = buf.getvalue()
+        self.assertIn("player_facton", out)
+        self.assertIn("unknown field", out)
+        # Still declared - one bad label must not throw the whole theater away.
+        self.assertIn("typo", T.theater_names())
+
+    def test_every_known_field_is_accepted_without_complaint(self):
+        """Guards the table against drifting from the handler: a label the handler accepts
+        but the table has not heard of would be reported to authors as a typo."""
+        import io
+        import contextlib
+        doc = chr(10).join([
+            chr(35) + " [All](all)", "---",
+            "Factions: kralien", "Weights: 50, 50", "Art: kralien=Klingon",
+            "Faces: kralien=klingon", "Music: X", "Player Faction: Orion",
+            "Players: tsn_scout", "Player Side Name: N", "Player Side Color: #fa0",
+            "Player Side Icon: 7", "Player Side Key: raider", "---", "x", ""])
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            T.theater_declare_text(doc)
+        self.assertNotIn("unknown field", buf.getvalue())
+
     # --- the depth guard ----------------------------------------------------
 
     def test_depth_report_is_quiet_when_no_ship_table_is_loaded(self):

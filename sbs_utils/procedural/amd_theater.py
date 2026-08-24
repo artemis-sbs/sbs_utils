@@ -101,6 +101,22 @@ def _numbers(value):
     return out
 
 
+# Every fence label a theater understands, in the normalized form the handler sees
+# (lowercased, spaces -> underscores). Kept beside the handler because it has to move with
+# it: a label accepted there and missing here would be reported as a typo.
+_KNOWN_FIELDS = frozenset((
+    "races", "factions", "enemies", "roster",
+    "weights", "art", "hulls", "faces", "face",
+    "music", "music_select", "name", "desc",
+    "player_faction", "players_faction", "crew_faction",
+    "players", "player_ships", "player_hulls",
+    "player_side_name", "player_name",
+    "player_side_color", "player_color",
+    "player_side_icon", "player_icon",
+    "player_side_key",
+))
+
+
 def amd_theater_facts():
     """amd_parse_facts handler for a theater fence.
 
@@ -156,6 +172,19 @@ def theaters_from_section(node):
             # Lower-case the fence keys, as sides_from_section does: a mission authors
             # natural case (`Factions:`) and the default reader preserves it.
             data = {str(k).lower(): v for k, v in (n.get("data") or {}).items()}
+            # A field this file does not understand is DROPPED, and silently dropping it is
+            # how `Player Facton:` reads as working and changes nothing. The fence parser
+            # keeps unrecognized labels in the data dict, so they can be named here.
+            #
+            # Reported at declare time rather than left to `sbs lint`: these headings carry
+            # no section name, so the linter cannot resolve them to an archetype and calls
+            # the whole file clean no matter what is in it (verified - a deliberately bogus
+            # field lints clean). This is the only place that can see the mistake.
+            unknown = sorted(k for k in data if k not in _KNOWN_FIELDS)
+            if unknown:
+                print("theater '" + str(n.get("key")) + "': unknown field(s) "
+                      + ", ".join(unknown) + " - ignored. Known fields: "
+                      + ", ".join(sorted(_KNOWN_FIELDS)))
             out.append(MastDataObject({
                 "key": n.get("key"),
                 "name": data.get("name") or n.get("display_text"),
