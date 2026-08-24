@@ -603,10 +603,98 @@ def filter_ship_data_by_side(test_ship_key, sides, role=None, ret_key_only=False
     return ret
 
 
+def _hull_rank(key):
+    """A rough size rank for a hull key, so a battleship maps to a capital ship.
+
+    `hullpoints` where the entry has it, else `meshscale` - neither is a real tonnage but
+    both order a faction's ships the same way its author intended them to be read.
+    """
+    e = get_ship_data_for(key) or {}
+    for f in ("hullpoints", "meshscale", "exclusionradius"):
+        v = e.get(f)
+        if isinstance(v, (int, float)):
+            return float(v)
+    return 0.0
+
+
+_ART_KEYS_CACHE = {}
+
+
+def art_keys_from_theater():
+    """Generate a stock-key -> mod-key map from the active theater's ``Art:`` map.
+
+    The faction map (`RACE_ART`) only reaches hulls that are LOOKED UP by faction. A fleet
+    LADDER names its hulls outright, class by class, so a wave keeps its shape - and those
+    never consult a faction map at all. This bridges them: for every race the theater
+    repoints, pair that race's stock hulls against the target faction's hulls BY SIZE RANK,
+    so the ladder's shape survives the re-skin (its biggest ship is still the biggest).
+
+    Cached per theater - the pairing is deterministic, and recomputing it per spawn would
+    walk the whole ship table every time.
+    """
+    from .amd_theater import theater_art, theater_get
+    rec = theater_get()
+    if rec is None:
+        return {}
+    cache_key = str(rec.get("key") or "")
+    if cache_key in _ART_KEYS_CACHE:
+        return _ART_KEYS_CACHE[cache_key]
+    def _split(side):
+        """A side's hulls as (mobile, stations).
+
+        Deliberately NOT filtered on the `ship` role. Plenty of hulls do not carry it -
+        `arvonian_fighter` is `cockpit,fighter` - and a role filter silently skips them,
+        which shows up as "most of the faction converted and a few ships are still stock".
+        Stations are split out because a starbase must be re-skinned as a starbase.
+        """
+        mobile, stations = [], []
+        for k in (filter_ship_data_by_side(None, side, None, ret_key_only=True) or []):
+            roles = ((get_ship_data_for(k) or {}).get("roles") or "").lower()
+            (stations if "station" in roles else mobile).append(k)
+        return mobile, stations
+
+    out = {}
+    for race, faction in (theater_art() or {}).items():
+        s_mobile, s_station = _split(race)
+        m_mobile, m_station = _split(faction)
+        for stock, mod in ((s_mobile, m_mobile), (s_station, m_station)):
+            if not stock or not mod:
+                continue
+            stock = sorted(stock, key=_hull_rank)
+            mod = sorted(mod, key=_hull_rank)
+            for i, sk in enumerate(stock):
+                # Spread the stock ranks across however many hulls the faction actually
+                # has - they are rarely the same count (4 Klingon hulls vs 3 Kralien).
+                j = min(int(i * len(mod) / max(1, len(stock))), len(mod) - 1)
+                out[sk] = mod[j]
+    _ART_KEYS_CACHE[cache_key] = out
+    return out
+
+
+def art_keys_cache_clear():
+    """Drop the generated ART_KEYS pairing. On the reset ledger with the theaters."""
+    _ART_KEYS_CACHE.clear()
+
+
 def _art_map(name):
-    """The RACE_ART / ART_KEYS settings map, lowercased keys. Empty when unset."""
+    """The RACE_ART / ART_KEYS map, lowercased keys. Empty when unset.
+
+    An explicit setting WINS; otherwise the active theater supplies it. That ordering is
+    what stops the three maps drifting apart: authored by hand they can disagree (and did -
+    a hand-written RACE_ART said `kralien -> Cardassian` while the generated ART_KEYS said
+    Kazon, so one race produced different factions depending on which code path spawned
+    it), while derived from one theater they cannot.
+    """
     from .settings import settings_get_defaults
     raw = settings_get_defaults().get(name) or {}
+    if not isinstance(raw, dict) or not raw:
+        if name == "RACE_ART":
+            from .amd_theater import theater_art
+            raw = theater_art()
+        elif name == "ART_KEYS":
+            raw = art_keys_from_theater()
+        else:
+            raw = raw if isinstance(raw, dict) else {}
     if not isinstance(raw, dict):
         return {}
     return {str(k).strip().lower(): v for k, v in raw.items() if str(k).strip()}

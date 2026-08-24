@@ -239,6 +239,11 @@ def reset_mission_state():
     # `civilians` / `*` rules to replay. Both outlive a mission in the reused interpreter
     # cosmos_dev runs, so a second mission would inherit the first one's factions.
     amd_sides_clear()
+    art_keys_cache_clear()   # the stock->mod hull pairing generated from the theater
+    amd_theater_clear()  # declared enemy rosters; same reused-interpreter reason as
+                         # the side registries above - a second mission would inherit
+                         # the first one's theaters and its THEATER setting would
+                         # resolve against them.
     landmarks_registry_clear()  # declared landmark records an `Action:` line places by name
     dialogue_scenes_registry_clear()  # declared dialogue scenes an `Action: X hails Y` opens
     dialogue_slots_clear()      # `{name}` resolvers a mission registered for its scenes
@@ -443,6 +448,9 @@ register_reset_state("amd rundowns",      lambda: len(RUNDOWN_AMD))
 register_reset_state("cutscene cast",     lambda: len(CUTSCENE_CAST))
 from .procedural.amd_sides import amd_sides_audience_count, amd_sides_clear
 register_reset_state("amd side audiences", amd_sides_audience_count)
+from .procedural.amd_theater import amd_theater_clear, amd_theater_count
+from .procedural.ship_data import art_keys_cache_clear
+register_reset_state("amd theaters",      amd_theater_count)
 from .procedural.amd_landmarks import _RECORDS as _AMD_LANDMARKS, landmarks_registry_clear
 register_reset_state("amd landmarks",     lambda: len(_AMD_LANDMARKS))
 from .procedural.amd_dialogue import (_SCENES as _AMD_SCENES, _SLOTS as _AMD_SLOTS,

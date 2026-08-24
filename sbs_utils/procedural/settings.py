@@ -375,6 +375,23 @@ def settings_get_defaults():
         # rather than by faction. Keyed by the stock key being replaced. Covers stations,
         # and fleet ladders - which name their hulls outright and so never reach RACE_ART.
         "ART_KEYS": {},
+        # ART ONLY, third of the set, for FACES. Maps a mission's own race/side to the face
+        # race a crew portrait should be drawn from.
+        #
+        # IT NEEDS ITS OWN MAP because face races are SPECIES and ship sides are FACTIONS -
+        # they do not spell the same. A mod's Federation ships are crewed by `human`, not by
+        # `federation`, and a faction can have ships and no faces at all (Cosmos-TNG-Mod
+        # fields Breen hulls and registers no Breen portraits). Reusing RACE_ART here would
+        # silently fall back to terran faces for every one of those.
+        #
+        # Consulted inside random_face(), so every caller gets it - a name with no entry
+        # passes through unchanged, which is why this is safe to leave empty.
+        "RACE_FACES": {},
+        # Which declared THEATER is active - the enemy roster a mission fights. Empty
+        # means "no theater", and every consumer then keeps its own literal list, so a
+        # stock mission is untouched. Resolvable per map (`Defaults: THEATER: x` in the
+        # @map metadata), per profile, or with `var.THEATER=` on the command line.
+        "THEATER": "",
         "PLAYER_LIST": [
             {
                 "name": "Artemis",

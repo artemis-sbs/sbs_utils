@@ -788,6 +788,49 @@ def face_mod_size():
     return len(_MOD_SHEETS) + len(_MOD_RACES)
 
 
+def face_race_mapped(race):
+    """Re-point a race name at the face race its portraits should come from. ART ONLY.
+
+    The third of the mod re-skin maps (`RACE_ART` and `ART_KEYS` are the other two, in
+    procedural/ship_data.py). Returns `race` unchanged unless a mission or profile set
+    ``RACE_FACES``, so stock behavior is untouched.
+
+    WHY FACES NEED THEIR OWN MAP AND CANNOT REUSE `RACE_ART`: face races are SPECIES,
+    ship-data sides are FACTIONS, and they do not spell the same. A mod's Federation ships
+    are crewed by `human`, not by `federation`; a faction can field hulls and register no
+    portraits at all (Cosmos-TNG-Mod has Breen ships and no Breen faces). Feeding a faction
+    name to random_face() therefore matches nothing and falls back to terran - the exact
+    "NPC comms faces are still stock" symptom this exists to fix.
+
+    Applied INSIDE random_face() rather than at its call sites, because a mission has many
+    (LM alone has four for NPCs, one of them in a fleet spawner) and a missed one looks
+    identical to the bug. A name with no entry passes through untouched, so player faces
+    already named by species (`human`) are unaffected.
+    """
+    if not race:
+        return race
+    try:
+        from .procedural.settings import settings_get_defaults
+        raw = settings_get_defaults().get("RACE_FACES") or {}
+        if not raw:
+            # An explicit setting wins; otherwise the active THEATER supplies it, so the
+            # roster, the hull art and the crew faces all come from one declaration and
+            # cannot drift apart.
+            from .procedural.amd_theater import theater_faces
+            raw = theater_faces()
+    except Exception:
+        return race
+    if not isinstance(raw, dict):
+        return race
+    mapped = raw.get(str(race).strip().lower())
+    if not mapped:
+        for k, v in raw.items():
+            if str(k).strip().lower() == str(race).strip().lower():
+                mapped = v
+                break
+    return mapped if mapped else race
+
+
 def random_face(race=None, role=None):
     """
     Returns a random face for the specified race.
@@ -804,6 +847,8 @@ def random_face(race=None, role=None):
     Returns:
         str: The Face String
     """
+    # Mod re-skin map first - identity unless RACE_FACES is set. See face_race_mapped.
+    race = face_race_mapped(race)
     if race is not None and str(race).lower() != "random":
         s = face_random_registered(race, role)
         if s is not None:
