@@ -261,6 +261,34 @@ class PlayerRosterTests(unittest.TestCase):
         self.assertTrue(object_exists(held),
                         "released a ship a console was crewing - the exact use-after-free")
 
+    def test_a_disconnected_client_stops_blocking_release(self):
+        """A binding outlives the console that made it - nothing tells the roster a client
+        left. Left unpruned it would block release forever and the parked ships would pile
+        up for the rest of the session."""
+        from sbs_utils.gui import Gui
+        R.player_roster_bind(3, 42)
+        R.player_roster_set_count(2)
+        Gui.clients[42] = object()          # 42 is connected
+        try:
+            self.assertEqual({42}, R.player_roster_bound_live(3))
+            self.assertEqual([2], R.player_roster_release_inactive())
+            del Gui.clients[42]
+            Gui.clients[99] = object()      # somebody else is, 42 is gone
+            self.assertEqual(set(), R.player_roster_bound_live(3))
+            self.assertEqual([3], R.player_roster_release_inactive())
+        finally:
+            Gui.clients.pop(42, None)
+            Gui.clients.pop(99, None)
+
+    def test_an_empty_client_registry_keeps_the_binding(self):
+        """No connected clients is indistinguishable from nothing tracking clients, and it
+        is what every headless run looks like. Refusing to delete is a leak; deleting a ship
+        somebody is flying is a crash - so with no information, keep it."""
+        R.player_roster_bind(3, 42)
+        R.player_roster_set_count(2)
+        self.assertEqual({42}, R.player_roster_bound_live(3))
+        self.assertNotIn(3, R.player_roster_release_inactive())
+
     def test_release_is_safe_to_run_twice(self):
         R.player_roster_set_count(2)
         R.player_roster_release_inactive()

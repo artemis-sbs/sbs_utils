@@ -130,6 +130,21 @@ def player_roster_resolve(slot):
     return None
 
 
+def player_roster_slot_of_ship(so_id):
+    """Which slot a ship holds, or None.
+
+    The inverse of :func:`player_roster_resolve`, and the bridge a console needs: it knows
+    the ship it just attached to and has to say which SLOT that was in order to bind.
+    Reads the slot marker written by ``player_ensure``, so it answers for a parked ship too.
+    """
+    from .inventory import get_inventory_value
+    from .spawn import PLAYER_SLOT_KEY
+    if so_id is None:
+        return None
+    slot = get_inventory_value(so_id, PLAYER_SLOT_KEY, None)
+    return None if slot is None else int(slot)
+
+
 def player_roster_active_count():
     """How many records are currently active."""
     return sum(1 for r in _ROSTER if r.get("active"))
@@ -280,8 +295,10 @@ def player_roster_release_inactive():
         if rec.get("active"):
             continue
         slot = rec["slot"]
-        if player_roster_bound(slot):
-            log(f"player slot {slot} still crewed; not releasing", "player_roster")
+        crewed = player_roster_bound_live(slot)
+        if crewed:
+            log(f"player slot {slot} still crewed by {sorted(crewed)}; not releasing",
+                "player_roster")
             continue
         so_id = player_roster_resolve(slot)
         if so_id is None or not object_exists(so_id):
@@ -315,8 +332,34 @@ def player_roster_unbind(client_id):
 
 
 def player_roster_bound(slot):
-    """The clients crewing ``slot``."""
+    """The clients crewing ``slot``, as recorded."""
     return set(_BOUND.get(int(slot), set()))
+
+
+def player_roster_bound_live(slot):
+    """The clients crewing ``slot`` that are still CONNECTED.
+
+    A binding outlives the console that made it - nothing tells the roster a client went
+    away - and a stale one would block :func:`player_roster_release_inactive` forever, so
+    the parked ships would accumulate for the rest of the session.
+
+    Pruned against ``Gui.clients``, which is the connected-client registry. **Only when it
+    has entries**: an empty one means "nobody is connected" and "nothing is tracking
+    clients" equally, and off-engine (a unit test, a headless run) it is always empty. With
+    no information the conservative answer is to keep the binding - refusing to delete a
+    ship is a leak, deleting one somebody is flying is a crash.
+    """
+    bound = player_roster_bound(slot)
+    if not bound:
+        return bound
+    try:
+        from ..gui import Gui
+        connected = set(Gui.clients.keys())
+    except Exception:
+        return bound
+    if not connected:
+        return bound
+    return {c for c in bound if c in connected}
 
 
 def player_roster_slot_of_client(client_id):
