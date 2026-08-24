@@ -1,37 +1,13 @@
-"""Drive LegendaryMissions' REAL console picker headless. INCOMPLETE - see BLOCKED below.
+"""Drive LegendaryMissions' REAL console picker headless, and report what a console ends up on.
 
-WHY IT IS WANTED. Rewriting the ship binding in `common_console_select.mast` has a failure
-mode nothing else catches: the screen builds EMPTY, or a console attaches to the wrong
-ship. No unit test sees it (it is MAST + widgets), `--test` never opens the picker, and
-looking at a screenshot is not reliable evidence. Until this works, the listbox half of
-that rewrite should not land.
+The gate for Part 3. Rewriting the binding in common_console_select.mast has one failure
+mode that no unit test sees and that I cannot reliably check by eye: the screen builds
+empty, or a console attaches to the wrong ship. So: run this against the CURRENT code
+first to get a baseline, then again after the change and diff.
 
-WHAT ALREADY WORKS (get these for free if you pick it up):
+Recipe from [[reference_drive_console_picker_headless]].
 
-  * boot: `_load_libs` + mock sbs + `sys.modules["script"]` + BOTH `fs.exe_dir` and
-    `fs.script_dir`, then the mast/story/procedural imports, in that order;
-  * a tick that also calls `_drain_client_strings` - without it a connected client sits in
-    `client_main` forever, because its three client-string round trips never resolve;
-  * sides and player ships. `start_server` does NOT run under this bootstrap, so the two
-    things the picker depends on are driven directly: `signal_emit("create_sides")` and a
-    seeded roster spawned through the real `player_ensure`. Both then work - verified,
-    sides come back as {tsn, raider, civ} and eight ships exist.
-  * a client connect that reaches `console_selected`: it ends up assigned to Artemis.
-
-BLOCKED ON: reading the page back. `Gui.clients[CID]` is None by the time the picker should
-be on screen, so `walk()` reports zero widgets and cannot tell "built empty" from "I am
-looking in the wrong place". `Gui.clients[client_id] = gui` is set in gui.py (~line 445) and
-popped again around line 424 - find out which of those has happened, and whether the page a
-client is *presenting* lives somewhere other than that dict, and this should come up.
-
-Two known-harmless noises when it runs: `sim.set_diplomacy_color` raises inside the
-create_sides route (the MAST-level `sim` is None here; the sides themselves are already
-loaded by then), and the ship picker raises IndexError if it is reached with no player
-ships - which is the symptom of the bootstrap gap above, not a library defect.
-
-Recipe this came from: the `reference_drive_console_picker_headless` memory.
-
-    python -m cosmos_dev.tools.drive_picker [--profile tng_all]
+    python drive_picker.py [--profile tng_all]
 """
 import os
 import sys
@@ -117,10 +93,18 @@ def walk(page):
 
 
 def client_page():
-    for cid, page in Gui.clients.items():
-        if cid == CID:
-            return page
-    return None
+    """The page a client is CURRENTLY presenting.
+
+    Gui.clients maps client_id -> GuiClient, NOT -> page. The GuiClient holds a
+    `page_stack` and the live page is its top. Reading the dict value as a page is what
+    made this harness report "the picker built nothing" when the picker was fine - it was
+    walking a GuiClient for widgets it never has.
+    """
+    gui = Gui.clients.get(CID)
+    if gui is None:
+        return None
+    stack = getattr(gui, "page_stack", None) or []
+    return stack[-1] if stack else None
 
 
 def report(label):
