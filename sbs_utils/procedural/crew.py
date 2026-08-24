@@ -525,6 +525,8 @@ def crew_default_name(console, race=None):
 
 
 def crew_avatar_race(ship_id=None):
+    # Accepts a hull KEY as well as a ship id - see _hull_race. A picker that has not
+    # resolved an object (and should not have to) can pass the key it is drawing.
     """A race the slider-based avatar editor can actually BUILD, for this ship.
 
     The editor drives `faces.FACE_FEATURES`, which describes the six stock races and nothing
@@ -721,13 +723,23 @@ def _held_autoname(client_id):
                  "", "", get_inventory_value(client_id, "CREW_ROSTER", ""), "library")
 
 
-def _hull_race(ship_id):
-    """The race a hull belongs to, for a fallback face. "" when it cannot be told."""
+def _hull_race(ship_or_key):
+    """The race a hull belongs to, for a fallback face. "" when it cannot be told.
+
+    Takes a ship id/object OR a bare hull KEY. The key form is what lets a console picker
+    ask this during setup without resolving an engine object at all - the answer only ever
+    depended on the hull, never on the ship wearing it.
+    """
     try:
-        from .query import to_object
         from .ship_data import get_ship_data_for
-        obj = to_object(ship_id)
-        entry = get_ship_data_for(getattr(obj, "art_id", "")) if obj is not None else None
+        key = None
+        if isinstance(ship_or_key, str):
+            key = ship_or_key
+        else:
+            from .query import to_object
+            obj = to_object(ship_or_key)
+            key = getattr(obj, "art_id", "") if obj is not None else None
+        entry = get_ship_data_for(key) if key else None
         return str((entry or {}).get("side", "") or "")
     except Exception:
         return ""

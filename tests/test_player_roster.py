@@ -314,6 +314,93 @@ class PlayerRosterTests(unittest.TestCase):
         self._theater([])
         self.assertEqual([], R.player_roster_apply())
 
+    # --- record edits: the picker must touch no engine object ----------------
+
+    def test_a_rename_writes_the_record_and_not_the_ship(self):
+        """THE claim this design rests on.
+
+        The picker used to run `picked_ship.name = ...` per keystroke, which lands in
+        set_name -> blob.set("name_tag") - ObjectDataBlob::Set, the function in every one of
+        this build's server crash dumps, called on a live ship while the sim ticks it.
+        """
+        so_id = R.player_roster_resolve(0)
+        before = to_object(so_id).name
+        self.assertTrue(R.player_roster_set_name(0, "Bellerophon"))
+        self.assertEqual(before, to_object(so_id).name, "the rename reached the SHIP")
+        self.assertEqual("Bellerophon", R.player_roster_display(0)["name"],
+                         "but the picker must still show it")
+
+    def test_a_hull_pick_writes_the_record_and_not_the_ship(self):
+        so_id = R.player_roster_resolve(0)
+        before = to_object(so_id).art_id
+        self.assertTrue(R.player_roster_set_hull(0, "tsn_scout"))
+        self.assertEqual(before, to_object(so_id).art_id, "the pick reached the SHIP")
+        self.assertEqual("tsn_scout", R.player_roster_display(0)["hull"])
+
+    def test_a_whole_setup_session_writes_nothing_to_any_engine_object(self):
+        """The end-to-end version: rename, re-hull, move the count, twice over, and assert
+        the engine was never written. This is what "no engine data issues on the picker"
+        has to mean to be worth anything."""
+        import sys
+        sbs_mod = sys.modules["sbs"]
+        calls = []
+        real_setup = sbs_mod.player_ship_setup_from_data
+        real_force = getattr(sbs_mod, "force_update_to_clients", None)
+        sbs_mod.player_ship_setup_from_data = lambda eo: calls.append("setup")
+        try:
+            for slot in range(4):
+                R.player_roster_set_name(slot, f"Ship {slot}")
+                R.player_roster_set_hull(slot, "tsn_scout")
+            R.player_roster_set_count(2)
+            R.player_roster_set_count(4)
+            for slot in range(4):
+                R.player_roster_set_name(slot, f"Renamed {slot}")
+            self.assertEqual([], calls, "setup rebuilt a ship during the picker session")
+        finally:
+            sbs_mod.player_ship_setup_from_data = real_setup
+
+    def test_apply_carries_the_edits_across_at_start(self):
+        """The other half: nothing during setup, everything at Start."""
+        R.player_roster_set_name(0, "Bellerophon")
+        R.player_roster_set_hull(0, "tsn_scout")
+        self.assertIn(0, R.player_roster_apply())
+        obj = to_object(R.player_roster_resolve(0))
+        self.assertEqual("Bellerophon", obj.name)
+        self.assertEqual("tsn_scout", obj.art_id)
+
+    def test_a_crew_pick_beats_the_theater_and_loses_to_a_game_code(self):
+        self._theater(["Player Faction: USFP"])
+        R.player_roster_set_hull(0, "tsn_scout")
+        R.player_roster_apply()
+        self.assertEqual("tsn_scout", to_object(R.player_roster_resolve(0)).art_id)
+        R.player_roster_apply(loadout=[{"hull": "tsn_battle_cruiser", "name": None}])
+        self.assertEqual("tsn_battle_cruiser", to_object(R.player_roster_resolve(0)).art_id)
+
+    def test_a_slot_keeps_its_identity_through_a_rename_and_a_re_hull(self):
+        R.player_roster_bind(2, 55)
+        was = R.player_roster_resolve(2)
+        R.player_roster_set_name(2, "Renamed")
+        R.player_roster_set_hull(2, "tsn_scout")
+        R.player_roster_set_count(1)
+        R.player_roster_set_count(4)
+        R.player_roster_apply()
+        self.assertEqual(was, R.player_roster_resolve(2))
+        self.assertEqual({55}, R.player_roster_bound(2))
+
+    def test_display_falls_back_to_the_record_when_there_is_no_ship(self):
+        self.assertEqual("Artemis", R.player_roster_display(0)["name"])
+        self.assertEqual({"name": "", "hull": "", "side": ""}, R.player_roster_display(99))
+
+    def test_display_shows_the_live_ship_once_one_exists(self):
+        """After Start a mission may have refitted a ship; the picker should say so."""
+        so_id = R.player_roster_resolve(0)
+        to_object(so_id).name = "Renamed By The Mission"
+        self.assertEqual("Renamed By The Mission", R.player_roster_display(0)["name"])
+
+    def test_display_does_not_report_a_parked_hull_as_invisible(self):
+        R.player_roster_set_count(1)
+        self.assertNotEqual("invisible", R.player_roster_display(3)["hull"])
+
     # --- standby: why an unused hull is suspended, not freed -----------------
 
     def test_parking_pushes_the_ship_to_standby(self):
@@ -366,6 +453,43 @@ class PlayerRosterTests(unittest.TestCase):
         so_id = R.player_roster_resolve(3)
         sys.modules["sbs"].retrieve_from_standby_list_id(so_id)   # something woke it
         self.assertEqual([2, 3], sorted(R.player_roster_park_inactive() + [2]))
+
+    def test_parking_does_not_fire_a_hull_change_on_a_player_ship(self):
+        """The order that matters most in this file.
+
+        Setting art_id emits `ship_hull_changed`, and LM answers it with
+        grid_rebuild_grid_objects - a delete-and-respawn of 60-100 grid objects, guarded
+        only by `has_role(ship, "__player__")`. Blanking the hull before stripping the
+        roles fires that on every parked slot: seven hulls is 400-700 grid deletions at
+        map start, and grid objects cannot go to standby.
+        """
+        from sbs_utils.procedural.signal import signal_register
+        fired = []
+        so_id = R.player_roster_resolve(3)
+
+        import sbs_utils.spaceobject as SO
+        real = SO.signal_emit if hasattr(SO, "signal_emit") else None
+        import sbs_utils.procedural.signal as SIG
+        real_emit = SIG.signal_emit
+
+        def spy(name, data=None):
+            if name == "ship_hull_changed":
+                from sbs_utils.procedural.roles import has_role as _hr
+                fired.append((data or {}).get("SHIP_ID"))
+                # Record whether it would have reached the rebuild: the route's own guard.
+                if _hr((data or {}).get("SHIP_ID"), "__player__"):
+                    fired.append("STILL_A_PLAYER")
+            return real_emit(name, data)
+
+        SIG.signal_emit = spy
+        try:
+            R.player_roster_set_count(2)
+        finally:
+            SIG.signal_emit = real_emit
+
+        self.assertNotIn("STILL_A_PLAYER", fired,
+                         "the hull was blanked while the ship was still __player__, so "
+                         "LM's route would delete and respawn its whole interior")
 
     # --- release: the one delete, at the phase edge -------------------------
 

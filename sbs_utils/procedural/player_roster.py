@@ -145,6 +145,98 @@ def player_roster_slot_of_ship(so_id):
     return None if slot is None else int(slot)
 
 
+def player_roster_slots(active_only=True):
+    """The slot numbers a picker should offer, in order.
+
+    The list a console picker binds to. Slots rather than ships, because a slot cannot be
+    freed underneath a live screen - which is the whole reason the old snapshot needed
+    filtering, clamping and re-resolving everywhere it was touched.
+
+    Args:
+        active_only (bool): only slots that are being flown. False includes parked ones.
+    """
+    return [r["slot"] for r in _ROSTER if r.get("active") or not active_only]
+
+
+def player_roster_set_name(slot, name):
+    """Rename a slot. Writes the RECORD, never the ship.
+
+    The console picker's rename used to run ``picked_ship.name = ...`` per keystroke, and
+    that lands in ``set_name`` -> ``blob.set("name_tag", ...)`` - ``ObjectDataBlob::Set``,
+    the function in every one of this build's server crash dumps, called on a live ship
+    while the sim ticks it. Writing the record instead means the setup screen touches no
+    engine object at all; :func:`player_roster_apply` carries it across at Start.
+
+    Other consoles still see the change immediately, because they render the same record.
+    """
+    rec = player_roster_record(slot)
+    if rec is None:
+        return False
+    rec["picked_name"] = str(name) if name is not None else None
+    return True
+
+
+def player_roster_set_hull(slot, ship_key):
+    """Choose a slot's hull. Writes the RECORD, never the ship.
+
+    Kept apart from the authored ``ship`` so the two stay distinguishable: ``ship`` is what
+    the mission rostered and is what a theater re-skins, while this is what the crew picked
+    in front of the ship. The pick wins over every theater layer and loses to a game code -
+    see the precedence comment in :func:`player_roster_apply`.
+
+    Pass None to drop the pick and fall back to the theater.
+    """
+    rec = player_roster_record(slot)
+    if rec is None:
+        return False
+    rec["picked_hull"] = str(ship_key) if ship_key else None
+    return True
+
+
+def player_roster_display(slot):
+    """What a picker row should SHOW for a slot: ``{name, hull, side}``.
+
+    Prefers the live ship when there is one, so a picker opened after the game started
+    reflects reality rather than the roster's intentions - a mission may have renamed or
+    refitted a ship since. Falls back to the record, which is the whole point: during setup
+    there may be no object worth asking, and asking anyway is what this design removes.
+
+    Returns the record's values with empty strings rather than None, so a caller can
+    interpolate them straight into a style string.
+    """
+    rec = player_roster_record(slot)
+    if rec is None:
+        return {"name": "", "hull": "", "side": ""}
+
+    # NEWEST INTENT WINS, and a pending pick is the newest there is. Preferring the live
+    # ship over it looks reasonable and is wrong: during setup the ship exists and still
+    # wears its old name, so a crew renaming their ship would watch the old name stay on
+    # screen. The whole point of writing the record is that the screen updates without the
+    # object being touched.
+    name = rec.get("picked_name")
+    hull = rec.get("picked_hull")
+    side = None
+
+    # Then the live ship, which is what makes a picker opened AFTER the start show reality -
+    # a mission may have refitted or renamed a ship since the roster last had an opinion.
+    # Skipped for a parked hull, whose art reads "invisible": bookkeeping, not something to
+    # show anybody.
+    if rec.get("active"):
+        so_id = player_roster_resolve(slot)
+        if so_id is not None:
+            from .query import to_object
+            obj = to_object(so_id)
+            if obj is not None:
+                name = name or obj.name
+                hull = hull or obj.art_id
+                side = obj.side or None
+
+    # Then what the mission rostered.
+    return {"name": name or rec.get("name") or "",
+            "hull": hull or rec.get("ship") or "",
+            "side": side or rec.get("side") or ""}
+
+
 def player_roster_active_count():
     """How many records are currently active."""
     return sum(1 for r in _ROSTER if r.get("active"))
@@ -206,16 +298,26 @@ def _set_parked(so_id, parked, rec):
         return
     keep = player_slot_role(rec["slot"])
     if parked:
-        obj.art_id = "invisible"
-        # Clear the SIDE first, then strip. Membership in a side IS a role, so assigning
-        # one adds it - and "" is the legitimate "no side" value, which adds an
-        # EMPTY-NAMED role. Doing this after the strip leaves that empty role behind on
-        # every parked hull. (An invented key like "unused" is worse still: every later
-        # lookup logs `Side not found`.)
+        # ORDER IS LOad-BEARING, and getting it wrong is expensive.
+        #
+        # Setting `art_id` emits `ship_hull_changed`, and LM acts on that by calling
+        # `grid_rebuild_grid_objects` - which DELETES AND RESPAWNS 60-100 grid objects.
+        # Its only guard is `->END if not has_role(ship, "__player__")`. So blanking the
+        # hull while the ship is still a player fires a rebuild on every parked slot:
+        # seven hulls is 400-700 grid deletions at map start, and grid objects have no
+        # standby to go to. Strip the roles FIRST and the route bails before deleting
+        # anything.
+        #
+        # Clear the SIDE before the strip for a different reason: membership in a side IS
+        # a role, so `side = ""` adds an EMPTY-NAMED one, and clearing after leaves a
+        # stray '' role on every parked hull. (An invented key like "unused" is worse
+        # still - every later lookup logs `Side not found`.)
         obj.side = ""
         for r in list(get_role_list(so_id) or []):
             if r != keep:
                 remove_role(so_id, r)
+        # Now it is nobody's player ship, so this is just a field write.
+        obj.art_id = "invisible"
         try:
             sbs.push_to_standby_list_id(so_id)
         except Exception as exc:                       # pragma: no cover - defensive
@@ -272,7 +374,12 @@ def player_roster_apply(loadout=None, force=False):
         #     -> ART_KEYS / the theater's own race map   (art_key_for)
         #     -> the theater's Player Faction            (crew fly Orion, allies stay TSN)
         #     -> the theater's explicit Players list     (this slot, by name)
-        #     -> a game-code loadout                     (handled below - the crew CHOSE it)
+        #     -> what the CREW picked on the console picker
+        #     -> a game-code loadout                     (handled below)
+        #
+        # The crew's own pick beats every theater layer because they made it deliberately,
+        # in front of the ship they were choosing. A game code still beats the pick: it is
+        # the same crew choosing, earlier and more explicitly.
         want_hull = art_key_for(rec.get("ship"))
         faction = theater_player_faction()
         if faction:
@@ -280,7 +387,9 @@ def player_roster_apply(loadout=None, force=False):
         explicit = theater_players()
         if rec["slot"] < len(explicit) and explicit[rec["slot"]]:
             want_hull = explicit[rec["slot"]]
-        want_name = rec.get("name")
+        if rec.get("picked_hull"):
+            want_hull = rec["picked_hull"]
+        want_name = rec.get("picked_name") or rec.get("name")
         slot_override = None
         if loadout is not None and rec["slot"] < len(loadout):
             slot_override = loadout[rec["slot"]]
