@@ -244,6 +244,9 @@ def reset_mission_state():
                          # the side registries above - a second mission would inherit
                          # the first one's theaters and its THEATER setting would
                          # resolve against them.
+    player_roster_clear()  # slot records + console bindings. A roster that outlived a
+                           # mission would answer for slots whose ships are gone, and the
+                           # bindings would re-assign clients to freed ids.
     landmarks_registry_clear()  # declared landmark records an `Action:` line places by name
     dialogue_scenes_registry_clear()  # declared dialogue scenes an `Action: X hails Y` opens
     dialogue_slots_clear()      # `{name}` resolvers a mission registered for its scenes
@@ -449,8 +452,10 @@ register_reset_state("cutscene cast",     lambda: len(CUTSCENE_CAST))
 from .procedural.amd_sides import amd_sides_audience_count, amd_sides_clear
 register_reset_state("amd side audiences", amd_sides_audience_count)
 from .procedural.amd_theater import amd_theater_clear, amd_theater_count
+from .procedural.player_roster import player_roster_clear, player_roster_count_records
 from .procedural.ship_data import art_keys_cache_clear
 register_reset_state("amd theaters",      amd_theater_count)
+register_reset_state("player roster",     player_roster_count_records)
 from .procedural.amd_landmarks import _RECORDS as _AMD_LANDMARKS, landmarks_registry_clear
 register_reset_state("amd landmarks",     lambda: len(_AMD_LANDMARKS))
 from .procedural.amd_dialogue import (_SCENES as _AMD_SCENES, _SLOTS as _AMD_SLOTS,
