@@ -261,14 +261,74 @@ def theater_names():
     return sorted(_theaters)
 
 
+def theater_get_list():
+    """Every declared theater record, in key order.
+
+    The list an operator control is built from - the same shape `music_get_list` and
+    `crew_get_list` hand the server panel, so a mod that ships theaters shows up in the
+    picker without the panel knowing anything about it.
+    """
+    return [_theaters[k] for k in sorted(_theaters)]
+
+
+def theater_display_name(key=None):
+    """A theater's display name, falling back to its key. Empty string when unset."""
+    rec = theater_get(key)
+    if rec is None:
+        return ""
+    return str(rec.get("name") or rec.get("key") or "")
+
+
+def theater_find(spec):
+    """Resolve a KEY or a DISPLAY NAME to a theater key. None when nothing matches.
+
+    An operator control shows display names ("Dominion War") while the `THEATER` setting is
+    a key (`dominion_war`), so something has to translate. Accepts either, case- and
+    space-insensitively, so a profile that already writes the key keeps working and a
+    dropdown selection resolves too.
+    """
+    if not spec:
+        return None
+    want = str(spec).strip().lower()
+    if not want or want in ("none", "random", ""):
+        return None
+    if want in _theaters:
+        return want
+    for key, rec in _theaters.items():
+        if str(rec.get("name") or "").strip().lower() == want:
+            return key
+    # Last chance: a key written with spaces instead of underscores.
+    squashed = want.replace(" ", "_")
+    return squashed if squashed in _theaters else None
+
+
 def theater_get(key=None):
     """One theater record by key, or the ACTIVE one when key is None. None when unset."""
     if key is None:
-        from .settings import settings_get_defaults
-        key = settings_get_defaults().get("THEATER") or ""
-    key = str(key).strip().lower()
-    if not key:
+        # SHARED VARIABLE FIRST, then the setting. Both live-selection paths write a shared
+        # var and neither would work otherwise: the server panel's Theater dropdown sets
+        # `shared THEATER`, and `map_apply_defaults` publishes a map's `Defaults: THEATER:`
+        # the same way. `settings_get_defaults()` is a CACHED merge of yaml + profile and
+        # never sees either of them, so reading only that made a theater selectable in
+        # exactly one place - a profile file - and silently ignored everywhere else.
+        key = None
+        try:
+            from .execution import get_shared_variable
+            key = get_shared_variable("THEATER", None)
+        except Exception:
+            key = None
+        if key is None:
+            from .settings import settings_get_defaults
+            key = settings_get_defaults().get("THEATER") or ""
+    if not str(key).strip():
         return None
+    # Resolve through theater_find, so the variable may hold EITHER a key or a display
+    # name. A Properties dropdown binds `var="THEATER"` to whatever the operator picked,
+    # and that is the display name; a profile writes the key. Both have to land here.
+    resolved = theater_find(key)
+    if resolved is not None:
+        return _theaters[resolved]
+    key = str(key).strip().lower()
     rec = _theaters.get(key)
     if rec is None:
         print("THEATER '" + key + "' is not declared - known: "
@@ -459,6 +519,34 @@ def theater_player_side_key(key=None):
                   + " diplomatic side, which the missions still hardcode. Use Player Side"
                   + " Name/Color/Icon to re-dress the existing side instead.")
     return None
+
+
+def theater_name_list():
+    """Dropdown options string: ``'None, <Display>, ...'``.
+
+    Matches the idiom a map's ``Properties:`` block already uses for its own pickers (see
+    siege's ``BOSS_LIST``), so a map opts in with two lines and no new concepts::
+
+        default shared THEATER      = theater_selected_name()
+        default shared THEATER_LIST = theater_name_list()
+        ...
+        Theater: 'gui_drop_down("$text: {THEATER};list: {THEATER_LIST}", var="THEATER")'
+
+    Built from what is DECLARED, so a mod that ships theaters shows up without the map
+    knowing about it - and with none declared the list is just "None", which is the honest
+    control for "there is nothing to choose".
+    """
+    return ", ".join(["None"] + [str(r.get("name") or r.get("key")) for r in theater_get_list()])
+
+
+def theater_selected_name():
+    """The active theater's DISPLAY name, or ``"None"``.
+
+    What a map seeds its shared var from. Called before any shared value exists, it falls
+    through to the setting - so a profile's ``THEATER: dominion_war`` becomes the dropdown's
+    starting selection instead of being overwritten with "None" by the `default`.
+    """
+    return theater_display_name() or "None"
 
 
 def theater_hull_counts(key=None):

@@ -116,6 +116,56 @@ class TheaterTests(unittest.TestCase):
         self._set({"THEATER": "no_such_theater"})
         self.assertIsNone(T.theater_factions())
 
+    def test_a_shared_variable_selects_the_theater(self):
+        """Both LIVE selection paths write a shared variable, not a setting.
+
+        The server panel's Theater dropdown sets `shared THEATER`, and map_apply_defaults
+        publishes a map's `Defaults: THEATER:` the same way. settings_get_defaults() is a
+        cached merge of yaml + profile and sees neither - so reading only that made a
+        theater selectable in exactly ONE place, a profile file, and silently ignored
+        everywhere else. Five theaters shipped and four were unreachable.
+        """
+        from sbs_utils.procedural.execution import set_shared_variable
+        set_shared_variable("THEATER", "klingon_war")
+        try:
+            self.assertEqual("klingon", T.theater_factions()[0])
+        finally:
+            set_shared_variable("THEATER", None)
+
+    def test_the_setting_still_works_when_no_shared_value_is_set(self):
+        self._set({"THEATER": "dominion_war"})
+        self.assertEqual("cardassian", T.theater_factions()[0])
+
+    def test_find_resolves_a_display_name_or_a_key(self):
+        """The dropdown shows display names; the setting is a key. Something has to
+        translate, and it must still accept the key a profile already writes."""
+        self.assertEqual("dominion_war", T.theater_find("Dominion War"))
+        self.assertEqual("dominion_war", T.theater_find("dominion_war"))
+        self.assertEqual("dominion_war", T.theater_find("DOMINION WAR"))
+        self.assertIsNone(T.theater_find("none"))
+        self.assertIsNone(T.theater_find("no such theater"))
+
+    def test_get_list_is_what_an_operator_control_is_built_from(self):
+        keys = [r.get("key") for r in T.theater_get_list()]
+        self.assertEqual(["dominion_war", "fixed_mix", "klingon_war"], keys)
+
+    def test_name_list_is_a_dropdown_string(self):
+        self.assertEqual("None, Dominion War, Fixed Mix, Klingon War", T.theater_name_list())
+
+    def test_selected_name_seeds_the_var_from_the_setting(self):
+        """The `default shared THEATER = theater_selected_name()` line a map writes. Called
+        before any shared value exists it must fall through to the SETTING, or a profile's
+        THEATER would be overwritten with "None" by the very line meant to seed it."""
+        self._set({"THEATER": "klingon_war"})
+        self.assertEqual("Klingon War", T.theater_selected_name())
+
+    def test_selected_name_is_None_when_nothing_is_active(self):
+        self.assertEqual("None", T.theater_selected_name())
+
+    def test_an_empty_registry_offers_only_None(self):
+        T.amd_theater_clear()
+        self.assertEqual("None", T.theater_name_list())
+
     # --- the map's curve is what shapes the mix -----------------------------
 
     def _hist(self, weights, key, n=6000):
