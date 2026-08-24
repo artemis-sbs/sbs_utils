@@ -1,13 +1,42 @@
-"""Drive LegendaryMissions' REAL console picker headless, and report what a console ends up on.
+"""Drive LegendaryMissions' REAL console picker headless. INCOMPLETE - see BLOCKED below.
 
-The gate for Part 3. Rewriting the binding in common_console_select.mast has one failure
-mode that no unit test sees and that I cannot reliably check by eye: the screen builds
-empty, or a console attaches to the wrong ship. So: run this against the CURRENT code
-first to get a baseline, then again after the change and diff.
+WHY IT IS WANTED. Rewriting the ship binding in `common_console_select.mast` has a failure
+mode nothing else catches: the screen builds EMPTY, or a console attaches to the wrong
+ship. No unit test sees it (MAST plus widgets), `--test` never opens the picker, and a
+screenshot is not reliable evidence. Until this works, the listbox half of that rewrite
+should not land.
 
-Recipe from [[reference_drive_console_picker_headless]].
+WHAT ALREADY WORKS, so it need not be rediscovered:
 
-    python drive_picker.py [--profile tng_all]
+  * boot order: `_load_libs` + mock sbs + `sys.modules["script"]` + BOTH `fs.exe_dir` and
+    `fs.script_dir`, then the mast/story/procedural imports;
+  * a tick that also calls `_drain_client_strings` - without it a connected client sits in
+    `client_main` forever, its three client-string round trips never resolving;
+  * sides and player ships. `start_server` does NOT run under this bootstrap, so the two
+    things the picker needs are driven directly: `signal_emit("create_sides")` and a seeded
+    roster spawned through the real `player_ensure`. Verified - sides come back as
+    {tsn, raider, civ} and eight ships exist.
+
+BLOCKED ON: the client never gets a page at all. Measured tick by tick after
+`register_client` plus a `client_connect` event, `CID in Gui.clients` is False from t+1
+through t+40 - nothing is ever pushed for it, even though `Gui.client_start_page_class` is
+set. Start at `Gui.push` (gui.py ~437) and work backwards to whoever should call it.
+
+FIXED ALONG THE WAY, and worth knowing on its own: `Gui.clients` maps client_id ->
+**GuiClient**, NOT -> page. The live page is the top of that object's `page_stack`. Reading
+the dict value as a page walks a GuiClient for widgets it can never have, so the harness
+reported "the picker built nothing" as its verdict on everything - worse than useless for a
+tool whose whole job is telling a blank screen from a working one. `client_page()` reads
+the stack now.
+
+Two known-harmless noises: `sim.set_diplomacy_color` raises inside the create_sides route
+(the MAST-level `sim` is None here; the sides themselves load fine), and the ship picker
+raises IndexError if reached with no player ships - the symptom of the bootstrap gap above,
+not a library defect.
+
+Recipe this came from: the `reference_drive_console_picker_headless` memory.
+
+    python -m cosmos_dev.tools.drive_picker [--profile tng_all]
 """
 import os
 import sys
