@@ -410,6 +410,19 @@ class PlayerRosterTests(unittest.TestCase):
         self.assertIn("Bellerophon", calls)
         self.assertNotIn("Artemis", calls)
 
+    def test_the_ENGINE_VISIBLE_name_survives_a_rebuild(self):
+        """What the owner actually saw: every player ship displaying "Player".
+
+        This assertion was VACUOUS until the mock was made faithful - it does not test the
+        roster so much as the pair of them, and against a mock that never dropped
+        `name_tag` it passed with the bug present. It is worth having now precisely
+        because it reads the same field a bridge crew reads.
+        """
+        from sbs_utils.procedural.query import to_blob
+        so_id = R.player_roster_resolve(0)
+        R.player_roster_apply(force=True)
+        self.assertEqual("Artemis", to_blob(so_id).get("name_tag", 0))
+
     def test_an_idle_apply_does_not_re_write_names(self):
         """The other half - without this the fix would just be "always write", and every
         panel build would push a name to every ship."""

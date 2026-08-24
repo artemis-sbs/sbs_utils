@@ -1147,13 +1147,39 @@ def _try_populate_from_ship_data(obj) -> None:
         pass
 
 
+def _reset_player_name_tag(obj) -> None:
+    """Rebuilding a player ship's blob DROPS its name, as the engine does.
+
+    Engine-observed: after the roster's stats rebuild every player ship displayed
+    "Player" - the name written at spawn was gone. These two calls rebuild blob data, so
+    the engine-visible name (`name_tag`) does not survive them.
+
+    The mock used to leave `name_tag` alone, and that divergence hid a real bug
+    completely: script-side code that re-writes the name after a rebuild and code that
+    skips it are INDISTINGUISHABLE against a mock that never drops it. A fix and its
+    absence both passed. It took a live report to find, and three tests written against
+    the old mock asserted nothing at all.
+
+    "Player" rather than an empty string because that is what was seen on screen; if the
+    engine actually clears the field and something downstream substitutes that word, this
+    is still the right shape - the name does not survive, which is the part scripts must
+    handle.
+    """
+    try:
+        obj.data_set.set("name_tag", "Player", 0)
+    except Exception:
+        pass
+
+
 def player_ship_setup_defaults(space_object: space_object) -> None:
     """Rebuilds the default blob data of this player ship."""
     _try_populate_from_ship_data(space_object)
+    _reset_player_name_tag(space_object)
 
 def player_ship_setup_from_data(space_object: space_object) -> None:
     """Rebuilds the blob data of this player ship from the shipdata.json and the preferences.json."""
     _try_populate_from_ship_data(space_object)
+    _reset_player_name_tag(space_object)
 
 def push_to_standby_list(space_object: space_object) -> None:
     """moves the spaceobject from normal space to the standby list."""
