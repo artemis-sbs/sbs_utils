@@ -177,21 +177,58 @@ def player_roster_set_count(n):
 
 
 def _set_parked(so_id, parked, rec):
-    """Park or wake one ship. Field writes only - the engine id never changes."""
-    from .roles import add_role, remove_role
+    """Park or wake one ship. The engine id never changes either way.
+
+    PARKING PUSHES TO STANDBY, and that is the point of the whole mechanism.
+    ``push_to_standby_list_id`` suspends an object from the active physics arena AND FROM
+    NETWORK REPLICATION without freeing it - so a client can no longer ask the server for
+    data about a ship it is not being told about, and there is no freed blob for that
+    question to land on.
+
+    The alternative was deleting the ship, which frees the C++ object synchronously
+    (`delete_object`), and a client asking about it across that window is the
+    `ObjectDataBlob::Set` use-after-free that has crashed servers within seconds of a
+    console connecting. Standby removes the window rather than narrowing it: nothing is
+    ever freed, so there is nothing to race.
+
+    Every ROLE is stripped as well, so no query, targeting sweep, objective or role
+    expression can still consider a parked hull. The slot marker is the single exception -
+    it is bookkeeping rather than gameplay, it is script-side only (an Agent registry, not
+    anything the engine replicates), and without it the roster could not find the ship
+    again to wake it.
+    """
+    import sbs
+    from .roles import add_role, remove_role, get_role_list
     from .query import to_object
+    from .spawn import player_slot_role
     obj = to_object(so_id)
     if obj is None:
         return
+    keep = player_slot_role(rec["slot"])
     if parked:
         obj.art_id = "invisible"
-        remove_role(so_id, "__player__")
-        # Clear the SIDE rather than stripping a side-named role: membership is by actual
-        # side. "" is the legitimate "no side" value; an invented key like "unused" makes
-        # every later lookup log `Side not found`.
+        # Clear the SIDE first, then strip. Membership in a side IS a role, so assigning
+        # one adds it - and "" is the legitimate "no side" value, which adds an
+        # EMPTY-NAMED role. Doing this after the strip leaves that empty role behind on
+        # every parked hull. (An invented key like "unused" is worse still: every later
+        # lookup logs `Side not found`.)
         obj.side = ""
+        for r in list(get_role_list(so_id) or []):
+            if r != keep:
+                remove_role(so_id, r)
+        try:
+            sbs.push_to_standby_list_id(so_id)
+        except Exception as exc:                       # pragma: no cover - defensive
+            from .execution import log
+            log(f"could not standby player slot {rec['slot']}: {exc}", "player_roster")
     else:
+        try:
+            sbs.retrieve_from_standby_list_id(so_id)
+        except Exception as exc:                       # pragma: no cover - defensive
+            from .execution import log
+            log(f"could not retrieve player slot {rec['slot']}: {exc}", "player_roster")
         add_role(so_id, "__player__")
+        add_role(so_id, "default_player_ship")
         obj.side = rec.get("side") or ""
         # Hull and stats are restored by the next apply(), which is the one place that
         # decides what a record should be wearing.
@@ -289,6 +326,34 @@ def player_roster_apply(loadout=None, force=False):
         # Safe when there is no MAST context - signal_emit returns early.
         signal_emit("player_roster_changed", {"slots": touched})
     return touched
+
+
+def player_roster_park_inactive():
+    """Ensure every inactive slot is parked and in standby. Idempotent.
+
+    :func:`player_roster_set_count` already parks on the transition; this is the backstop
+    for a ship that was already inactive before the roster knew about it, or whose standby
+    push did not take. Cheap - it only touches slots that are not already suspended.
+
+    Returns:
+        list: the slots it had to park.
+    """
+    import sbs
+    parked = []
+    for rec in _ROSTER:
+        if rec.get("active"):
+            continue
+        so_id = player_roster_resolve(rec["slot"])
+        if so_id is None:
+            continue
+        try:
+            if sbs.in_standby_list_id(so_id):
+                continue
+        except Exception:                              # pragma: no cover - defensive
+            pass
+        _set_parked(so_id, True, rec)
+        parked.append(rec["slot"])
+    return parked
 
 
 def _costume_player_sides():

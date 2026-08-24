@@ -314,6 +314,59 @@ class PlayerRosterTests(unittest.TestCase):
         self._theater([])
         self.assertEqual([], R.player_roster_apply())
 
+    # --- standby: why an unused hull is suspended, not freed -----------------
+
+    def test_parking_pushes_the_ship_to_standby(self):
+        """Standby suspends an object from the physics arena AND from network replication
+        without freeing it. That is the whole fix: a client cannot ask the server about a
+        ship it is not being told about, and there is no freed blob for the question to
+        land on. Deleting instead frees the C++ object synchronously, and a client asking
+        across that window is the ObjectDataBlob use-after-free."""
+        import sys
+        so_id = R.player_roster_resolve(3)
+        R.player_roster_set_count(2)
+        self.assertTrue(sys.modules["sbs"].in_standby_list_id(so_id))
+
+    def test_a_parked_ship_still_EXISTS(self):
+        """object_exists means alive, not in-the-arena - engine-confirmed. If it went False
+        for standby, resolve() would lose the slot and the next raise would spawn a
+        duplicate beside the one that is still there."""
+        so_id = R.player_roster_resolve(3)
+        R.player_roster_set_count(2)
+        self.assertTrue(object_exists(so_id))
+        self.assertEqual(so_id, R.player_roster_resolve(3))
+
+    def test_parking_strips_every_role_but_the_slot_marker(self):
+        """Nothing should still consider a parked hull: no targeting sweep, objective or
+        role expression. The slot marker is the one exception - bookkeeping, script-side
+        only, and without it the roster could not find the ship again to wake it."""
+        from sbs_utils.procedural.roles import get_role_list
+        so_id = R.player_roster_resolve(3)
+        from sbs_utils.procedural.roles import add_role
+        add_role(so_id, "default_player_ship")
+        add_role(so_id, "some_mission_role")
+        R.player_roster_set_count(2)
+        self.assertEqual([player_slot_role(3)], sorted(get_role_list(so_id) or []))
+
+    def test_waking_retrieves_from_standby_and_restores_the_roles(self):
+        import sys
+        so_id = R.player_roster_resolve(3)
+        R.player_roster_set_count(2)
+        R.player_roster_set_count(4)
+        self.assertFalse(sys.modules["sbs"].in_standby_list_id(so_id))
+        self.assertTrue(has_role(so_id, "__player__"))
+        self.assertTrue(has_role(so_id, "default_player_ship"))
+        self.assertEqual("tsn", to_object(so_id).side)
+
+    def test_park_inactive_is_a_backstop_and_idempotent(self):
+        R.player_roster_set_count(2)
+        self.assertEqual([], R.player_roster_park_inactive(),
+                         "set_count already parked these; re-parking is wasted work")
+        import sys
+        so_id = R.player_roster_resolve(3)
+        sys.modules["sbs"].retrieve_from_standby_list_id(so_id)   # something woke it
+        self.assertEqual([2, 3], sorted(R.player_roster_park_inactive() + [2]))
+
     # --- release: the one delete, at the phase edge -------------------------
 
     def test_release_deletes_only_parked_slots(self):
