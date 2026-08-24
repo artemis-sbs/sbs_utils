@@ -400,23 +400,36 @@ def player_roster_apply(loadout=None, force=False):
                 want_name = slot_override["name"]
 
         dirty = False
+        rebuilt = False
         if want_hull and obj.art_id != want_hull:
             obj.art_id = want_hull
             # Stats must follow the hull, or a Galaxy flies with a shuttle's shields.
             sbs.player_ship_setup_defaults(obj.engine_object)
             sbs.player_ship_setup_from_data(obj.engine_object)
-            dirty = True
+            dirty = rebuilt = True
         elif force:
             sbs.player_ship_setup_defaults(obj.engine_object)
             sbs.player_ship_setup_from_data(obj.engine_object)
-            dirty = True
+            dirty = rebuilt = True
 
         want_side = rec.get("side") or ""
-        if obj.side != want_side:
+        if rebuilt or obj.side != want_side:
             obj.side = want_side
             dirty = True
-        # Name last: setup_from_data resets it, so writing it earlier would be undone.
-        if want_name and obj.name != want_name:
+
+        # NAME LAST, and UNCONDITIONALLY after a rebuild - the diff cannot be trusted here.
+        #
+        # `obj.name` reads a SCRIPT-SIDE cache (`self._name`). The name the engine shows
+        # lives in the blob as `name_tag`, and `player_ship_setup_from_data` rebuilds the
+        # blob without touching the cache. So after a rebuild the two disagree: the cache
+        # still holds the right name, the diff concludes there is nothing to do, and the
+        # blob keeps whatever the engine defaulted to. Every player ship came up called
+        # "Player".
+        #
+        # The code this replaced wrote the name unconditionally after setup and was right
+        # to; diff-then-write is what introduced the bug. Anything else read back through a
+        # cached attribute after a rebuild deserves the same suspicion.
+        if want_name and (rebuilt or obj.name != want_name):
             obj.name = want_name
             dirty = True
 

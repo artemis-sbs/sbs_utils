@@ -359,6 +359,63 @@ class PlayerRosterTests(unittest.TestCase):
         finally:
             sbs_mod.player_ship_setup_from_data = real_setup
 
+    def _name_writes(self, fn):
+        """Count set_name calls made during fn(). Spying on the WRITE, not the value.
+
+        The obvious assertion - read the name back after a rebuild - is VACUOUS here: the
+        mock's player_ship_setup_from_data does not reset `name_tag`, so the value survives
+        whether or not the code is correct. Verified by reverting the fix and watching
+        those tests still pass. The engine DOES reset it, which is why every player ship
+        came up called "Player" and why no mock test caught it.
+
+        So assert the behavior that is observable: after a stats rebuild the name is
+        written again, unconditionally.
+        """
+        import sbs_utils.spaceobject as SO
+        calls = []
+        real = SO.SpaceObject.set_name
+
+        def spy(self, name):
+            calls.append(name)
+            return real(self, name)
+
+        SO.SpaceObject.set_name = spy
+        try:
+            fn()
+        finally:
+            SO.SpaceObject.set_name = real
+        return calls
+
+    def test_a_stats_rebuild_re_writes_the_name(self):
+        """`obj.name` reads a SCRIPT-SIDE cache; the name the engine shows lives in the
+        blob as `name_tag`, and setup_from_data rebuilds the blob without touching the
+        cache. So after a rebuild the cache is stale-CORRECT, a diff concludes there is
+        nothing to do, and the blob keeps the engine's default.
+
+        The code this replaced wrote the name unconditionally after setup and was right to.
+        """
+        calls = self._name_writes(lambda: R.player_roster_apply(force=True))
+        self.assertIn("Artemis", calls,
+                      "the name was not re-written after the stats rebuild, so the "
+                      "engine-visible name is whatever setup_from_data left behind")
+
+    def test_a_hull_change_re_writes_the_name(self):
+        self._set_art_keys({"tsn_light_cruiser": "tsn_scout"})
+        calls = self._name_writes(R.player_roster_apply)
+        self.assertIn("Artemis", calls)
+
+    def test_a_rebuild_re_writes_a_RENAMED_ship_with_its_new_name(self):
+        R.player_roster_set_name(0, "Bellerophon")
+        calls = self._name_writes(lambda: R.player_roster_apply(force=True))
+        self.assertIn("Bellerophon", calls)
+        self.assertNotIn("Artemis", calls)
+
+    def test_an_idle_apply_does_not_re_write_names(self):
+        """The other half - without this the fix would just be "always write", and every
+        panel build would push a name to every ship."""
+        R.player_roster_apply()
+        self.assertEqual([], self._name_writes(R.player_roster_apply))
+
     def test_apply_carries_the_edits_across_at_start(self):
         """The other half: nothing during setup, everything at Start."""
         R.player_roster_set_name(0, "Bellerophon")
