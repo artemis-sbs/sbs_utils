@@ -302,6 +302,11 @@ def reset_mission_state():
     ship_data_mod_reset()   # add-on ship entries belong to the mission that declared them;
                             # inheriting them would write ships the next mission never
                             # asked for into its folder.
+    from .procedural.internal_damage import grid_interior_reset
+    grid_interior_reset()   # a queued interior belongs to the ship that asked for it, and
+                            # both are gone; carrying the request over would build a grid
+                            # on run 2 for a ship id run 1 owned. Disarming also matters -
+                            # run 2 must defer again until ITS hulls settle.
     from .procedural.fleet_tables import fleet_tables_reset
     fleet_tables_reset()    # a race's fleet ladder belongs to the mission that enabled
                             # the race; inheriting it would let the next mission spawn
@@ -469,6 +474,8 @@ from .procedural.amd_doc import (lore_clear, lore_sources,
 register_reset_state("lore sources",      lambda: len(lore_sources()))
 from .procedural.terrain import terrain_sow_pending
 register_reset_state("terrain sow",       terrain_sow_pending)
+from .procedural.internal_damage import grid_interior_pending
+register_reset_state("grid interiors",    grid_interior_pending)
 # Ship + interior data. These look like read-only caches of engine files and are not:
 # each is the base table MERGED with what the mission (and, later, its mods) added, so
 # they are per-mission state. A mod system makes an unreset one a correctness bug -

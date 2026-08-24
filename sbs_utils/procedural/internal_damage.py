@@ -97,12 +97,211 @@ Wally
 """
 
 
-def grid_rebuild_grid_objects(id_or_obj, grid_data=None, layout=None):
-    """Rebuild all engineering-grid objects on a ship from shipData JSON.
+def _grid_begin(ship_id, layout):
+    """Resolve what a build needs and clear whatever is standing there.
 
-    Deletes all existing grid objects for the ship, then re-creates them from the layout
-    registered for the ship's shipData key. Also re-creates the damcon teams, the
-    position marker, and the EPad.
+    Shared by the inline build and the phased one so the two can never drift. Returns
+    ``(so, blob, SBS, items, theme_name, layout)``, or ``None`` when there is nothing to
+    build - having already said why.
+    """
+    SBS = FrameContext.context.sbs
+    so = to_object(ship_id)
+    if so is None:
+        _grid_say(f"rebuild {ship_id}: no space object - nothing to build an interior on")
+        return None
+    blob = to_blob(ship_id)
+    if blob is None:
+        _grid_say(f"rebuild {ship_id}: no data_set")
+        return None
+
+    # A hull has N named LAYOUTS - a full authored interior, a cheap systems-only one, a
+    # jump-drive refit of the same hull. Most specific wins: an explicit argument, then
+    # the ship's own "grid_layout" inventory value, then "default".
+    if layout is None:
+        layout = get_inventory_value(ship_id, "grid_layout", None)
+    items = grid_get_layout(so.art_id, layout)
+    if items is None:
+        # THE return that swallows every mod floor-plan failure. Name the key that was
+        # looked up, because the three ways to get here are indistinguishable otherwise:
+        # the plan was never merged, the plan was rejected by the parser, or the plan's
+        # `ship:` header does not spell the shipData key.
+        key = so.art_id
+        known = grid_get_grid_data() or {}
+        near = [k for k in known if str(k).lower() == str(key or "").lower()]
+        hint = f" Did you mean '{near[0]}'?" if near and near[0] != key else ""
+        _grid_say(f"rebuild {ship_id}: no interior for ship_data_key '{key}' "
+                  f"layout '{layout}'. grid_data holds {len(known)} hull(s).{hint} "
+                  f"Engineering will be dead on this ship.")
+        return None
+
+    theme_name = grid_get_theme_name(so.art_id, layout)
+    theme = grid_get_grid_named_theme(theme_name)
+    blob.set("internal_color_ship_sillouette", theme["colors"]["silhouette"], 0)
+    blob.set("internal_color_ship_lines", theme["colors"]["lines"], 0)
+    blob.set("internal_color_ship_nodes", theme["colors"]["nodes"], 0)
+
+    # Clear what is there. Deferring the FIRST build until the hull is settled means this
+    # is normally a no-op, which is the point - an interior built for a hull the crew
+    # never flies has to be torn down again, and the tear-down is what that avoids.
+    for k in grid_objects(ship_id):
+        grid_delete_object(ship_id, k)
+
+    # THE HULL MAP GOES STALE ACROSS A HULL CHANGE. `get_hull_map` populates on create and
+    # then caches, so after a re-hull it still reports the PREVIOUS hull's dimensions -
+    # measured, tsn_battle_cruiser 16x14 still being reported for a tng_fed_defiant, which
+    # is 16x15. Rooms outside w x h are silently dropped, so that hull quietly loses its
+    # last row. Force a rebuild only when the two disagree, so the ordinary path is
+    # untouched (forceCreate also erases grid objects, hence after the delete above).
+    try:
+        from .ship_data import get_ship_data_for      # local: ship_data imports widely
+        hm = SBS.get_hull_map(ship_id)
+        data = get_ship_data_for(so.art_id) or {}
+        want_w, want_h = data.get("internalmapw"), data.get("internalmaph")
+        if want_w and want_h and (getattr(hm, "w", 0) != int(want_w)
+                                  or getattr(hm, "h", 0) != int(want_h)):
+            _grid_say(f"rebuild {ship_id} '{so.art_id}': hull map was "
+                      f"{getattr(hm, 'w', 0)}x{getattr(hm, 'h', 0)}, shipData says "
+                      f"{want_w}x{want_h} - rebuilding it", "info")
+            SBS.get_hull_map(ship_id, True)
+    except Exception:                               # noqa: BLE001
+        pass                                        # never let the resize break a build
+
+    return so, blob, SBS, items, theme_name, layout
+
+
+def _grid_spawn_chunk(ship_id, so, theme_name, chunk, counts):
+    """Spawn one slice of a hull's rooms. Returns False if the engine refused one.
+
+    A PHASED build queues its slices ahead of time, so once one fails the rest are
+    already scheduled - they check this and do nothing rather than half-filling a hull.
+    """
+    if counts.get("failed"):
+        return False
+    for g in chunk:
+        loc_x = int(g["x"])
+        loc_y = int(g["y"])
+        name_tag = f"{g['name']}:{loc_x},{loc_y}"
+
+        item_theme_data = grid_get_item_theme_data(g["roles"], theme_name)
+        color = item_theme_data.color
+        icon = item_theme_data.icon
+        # NOTE the per-object "scale" in grid_data.json is deliberately NOT read. Those
+        # values are artifacts of whatever tool wrote the file, not authored intent.
+        scale = item_theme_data.scale
+        go = grid_spawn(ship_id, name_tag, name_tag, loc_x, loc_y, icon, color,
+                        "#," + g["roles"])
+        if go is None:
+            _grid_say(f"rebuild {ship_id} '{so.art_id}': grid_spawn failed at "
+                      f"{loc_x},{loc_y} for '{g['name']}' after {counts['made']} "
+                      f"object(s) - system_max_damage NOT written, so this ship has no "
+                      f"damage model.")
+            counts["failed"] = True
+            return False
+        go.engine_object.layer = 0
+        go.blob.set("icon_scale", scale / 2, 0)
+        set_inventory_value(go.id, "color", color)
+        set_inventory_value(go.id, "icon_index", icon)
+        set_inventory_value(go.id, "icon_scale", scale)
+
+        # Add link so query can find this relationship, e.g.
+        #   linked_to(player_id, "grid_objects") & role("engine")
+        link(so, "grid_objects", go)
+        add_role(go, "__undamaged__")
+        counts["made"] += 1
+
+        roles = g["roles"].lower()
+        if "sensor" in roles:
+            counts["sensors"] += 1
+        if "engine" in roles:
+            counts["engines"] += 1
+        if "shield" in roles:
+            counts["shields"] += 1
+        if "weapon" in roles:
+            counts["weapons"] += 1
+    return True
+
+
+def _grid_finish(ship_id, so, blob, SBS, counts, layout):
+    """Everything that must happen once the last room is in.
+
+    Kept apart from the spawning so a PHASED build can run it after the final slice - a
+    ship must not sit with a damage model that counts only the rooms created so far.
+    """
+    blob.set('system_max_damage', counts["weapons"], SBS.SHPSYS.WEAPONS)
+    blob.set('system_max_damage', counts["engines"], SBS.SHPSYS.ENGINES)
+    blob.set('system_max_damage', counts["sensors"], SBS.SHPSYS.SENSORS)
+    blob.set('system_max_damage', counts["shields"], SBS.SHPSYS.SHIELDS)
+    blob.set('system_damage', 0, SBS.SHPSYS.WEAPONS)
+    blob.set('system_damage', 0, SBS.SHPSYS.ENGINES)
+    blob.set('system_damage', 0, SBS.SHPSYS.SENSORS)
+    blob.set('system_damage', 0, SBS.SHPSYS.SHIELDS)
+
+    # Needed to reset the coefficients after an explosion.
+    set_damage_coefficients(ship_id)
+    # Pass the layout we resolved: the ship's own "grid_layout" may not be the one this
+    # rebuild was asked for, and the damcon declaration lives per layout.
+    grid_restore_damcons(ship_id, layout)
+
+    hm = SBS.get_hull_map(ship_id)
+    # The marker and the EPad used to make the IDENTICAL unfiltered call with no state
+    # change between them, so they landed on the same cell on every hull, always. Sharing
+    # the damcons' resolver keeps them apart.
+    placed = set()
+    loc = _grid_resolve_point(SBS, ship_id, hm, None, placed, prefer_empty=False,
+                              who="marker")
+    if loc is None:
+        _grid_say(f"rebuild {ship_id} '{so.art_id}': the engine offered no usable cell "
+                  f"for the marker, so there is no marker and no EPad. The hull map has "
+                  f"no open cells - see the interior-bitmap note above.")
+        return
+    placed.add((loc[0], loc[1]))
+    ship = ship_id & 0xFFFFFFFF
+    # 23 flag, 101-filled square, 111
+    marker_go = grid_spawn(ship_id, "marker", f"marker:{ship}", int(loc[0]), int(loc[1]),
+                           101, "#9994", "#,marker")
+    marker_go.blob.set("icon_scale", 1.5, 0)
+    marker_go.engine_object.layer = 6
+    set_inventory_value(ship_id, "marker_id", to_id(marker_go))
+
+    loc = _grid_resolve_point(SBS, ship_id, hm, None, placed, prefer_empty=False,
+                              who="epad")
+    if loc is None:
+        _grid_say(f"rebuild {ship_id} '{so.art_id}': no usable cell for the EPad - the "
+                  f"grid is built but engineering has no power pad.")
+        return
+    epad_go = grid_spawn(ship_id, "EPad", f"epad:{ship}", int(loc[0]), int(loc[1]),
+                         134, "#9994", "tools,epad")
+    epad_go.engine_object.layer = 0
+    epad_go.blob.set("icon_scale", 0.01, 0)
+    set_inventory_value(ship_id, "epad_id", epad_go.id)
+
+    # One line on SUCCESS too. Without it, "no line at all" means both "built perfectly"
+    # and "never called" - and on this path the second is a real possibility, since
+    # nothing in sbs_utils calls this function. Every caller is a mission.
+    _grid_say(f"rebuild {ship_id} '{so.art_id}' layout '{layout or 'default'}': "
+              f"{counts['made']} object(s), hull map "
+              f"{getattr(hm, 'w', 0)}x{getattr(hm, 'h', 0)}", "info")
+
+    # THE INTERIOR NOW EXISTS - say so, because a deferred build means nobody can assume
+    # it does. Anything that reads the grid to decide something about the ship (LM sets
+    # the warp/jump drive flags from whether the hull has warp or jump nodes) used to run
+    # on the line after the build and now has to wait for one. SHIP_ID / GRID_OBJECTS
+    # arrive as task variables; CAPS because the system emits it.
+    signal_emit("grid_interior_built", {"SHIP_ID": ship_id,
+                                        "GRID_OBJECTS": counts["made"],
+                                        "HULL_KEY": so.art_id})
+
+
+def grid_rebuild_grid_objects(id_or_obj, grid_data=None, layout=None):
+    """Rebuild all engineering-grid objects on a ship, NOW, in this frame.
+
+    Deletes any existing grid objects, re-creates them from the layout registered for the
+    ship's shipData key, and re-creates the damcon teams, the position marker and the
+    EPad.
+
+    Prefer :func:`grid_interior_request` for a ship that is being set up. This builds
+    immediately, which is right for a mid-game refit a player is watching, and wrong at
+    game start - see that function for why.
 
     Args:
         id_or_obj (Agent | int): The player ship agent ID or object.
@@ -120,214 +319,241 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None, layout=None):
     that snapshot pins run 1's dict while every floor plan merged for run 2 lands in the
     new one. Reading the global each time is what keeps the two in step.
     """
-    SBS = FrameContext.context.sbs
-
     ship_id = to_id(id_or_obj)
+    begun = _grid_begin(ship_id, layout)
+    if begun is None:
+        return
+    so, blob, SBS, items, theme_name, layout = begun
+    counts = {"made": 0, "sensors": 0, "engines": 0, "shields": 0, "weapons": 0}
+    if not _grid_spawn_chunk(ship_id, so, theme_name, items, counts):
+        return
+    _grid_finish(ship_id, so, blob, SBS, counts, layout)
+
+
+# --- deferred, phased interior creation ---------------------------------------------
+#
+# WHY A SHIP'S INTERIOR IS NOT BUILT WHEN IT SPAWNS.
+#
+# Player ships are created long before anyone picks a map. LegendaryMissions builds the
+# whole roster at server-console start, so a `//spawn` route that builds an interior
+# builds one for EVERY slot - eight of them - on whatever hull the roster happened to
+# name. Then the operator starts a map and `reconcile_player_roster` culls to
+# PLAYER_COUNT, parks the rest on standby and applies the game code's hull; then the map
+# body may re-hull again (a Star Trek trial seats its crew in the ship the trial is
+# about). Measured on one such trial: 110 objects built for a hull nobody flew, then 124
+# built twice more for the hull they did - 358 creations, plus a full delete of the
+# first set, to arrive at 124.
+#
+# Nothing needs those objects before the game runs. So a request is RECORDED, not built,
+# and the build happens once the hulls are final - reading the hull at BUILD time, so all
+# that churn collapses into a single build of the right interior and there is nothing to
+# delete.
+#
+# The build itself is then PHASED, the way terrain is sown: `DripQueue` spreads the
+# spawns across ticks instead of landing a hull's worth in one frame. Terrain measured
+# ~280 ms in a single frame for its field; a grid is smaller but arrives at exactly the
+# moment a map is already doing everything else at once.
+#
+# Coalesced by ship id throughout: asking twice builds once.
+
+_INTERIOR = {"q": None, "wanted": {}, "queued": set(), "armed": False,
+             "over": 4.0, "chunk": 16}
+
+
+def _grid_interior_focus(ship_id):
+    try:
+        return get_pos(ship_id)
+    except Exception:                               # noqa: BLE001
+        return None
+
+
+def _grid_interior_done(ship_id, so, blob, SBS, counts, layout):
+    """Finish one ship's phased build and let it be requested again."""
+    _INTERIOR["queued"].discard(ship_id)
+    _grid_finish(ship_id, so, blob, SBS, counts, layout)
+
+
+def _grid_interior_skip(ship_id):
+    """Should this build be dropped rather than run? Says why, quietly.
+
+    Reading the hull at build time collapses the re-hulling churn, but it does not answer
+    the other half: a ship may not be FLOWN at all. The roster parks every slot past
+    PLAYER_COUNT - suspended to standby, hull blanked to `invisible` - and building an
+    interior for one means walking the whole layout lookup to discover there is no
+    floor plan for `invisible`, then saying so loudly, once per parked hull. Seven of
+    those per run on a default roster, and every one of them is noise.
+
+    Standby is the test rather than `__player__`, because it is what "not in play" means
+    to the engine and it keeps this general - the roster is not the only thing that parks.
+    """
+    from ..helpers import FrameContext
     so = to_object(ship_id)
     if so is None:
-        _grid_say(f"rebuild {ship_id}: no space object - nothing to build an interior on")
-        return
-    blob = to_blob(ship_id)
-    if blob is None:
-        _grid_say(f"rebuild {ship_id}: no data_set")
-        return
-
-    # A hull has N named LAYOUTS - a full authored interior, a cheap systems-only one, a
-    # jump-drive refit of the same hull. Most specific wins: an explicit argument, then
-    # the ship's own "grid_layout" inventory value, then "default". A plain
-    # {"grid_objects": [...]} entry still reads as the default, so existing data is
-    # untouched.
-    if layout is None:
-        layout = get_inventory_value(ship_id, "grid_layout", None)
-    internal_items = grid_get_layout(so.art_id, layout)
-    if internal_items is None:
-        # THE return that swallows every mod floor-plan failure. Name the key that was
-        # looked up, because the three ways to get here are indistinguishable otherwise:
-        # the plan was never merged, the plan was rejected by the parser, or the plan's
-        # `ship:` header does not spell the shipData key. Offer a case-fold near miss -
-        # that is the one of the three a reader can act on immediately.
-        key = so.art_id
-        known = grid_get_grid_data() or {}
-        near = [k for k in known if str(k).lower() == str(key or "").lower()]
-        hint = f" Did you mean '{near[0]}'?" if near and near[0] != key else ""
-        _grid_say(f"rebuild {ship_id}: no interior for ship_data_key '{key}' "
-                  f"layout '{layout}'. grid_data holds {len(known)} hull(s).{hint} "
-                  f"Engineering will be dead on this ship.")
-        return
-
-    # NOT an early return - a report. The engine cuts interior cell validity from the
-    # alpha channel of <artfileroot>1024.png, NOT from shipData (GRID_REFERENCE.md s2).
-    # So a hull can have a perfect floor plan and correct internalmapw/h and still render
-    # a blank console, because the engine found no valid cells to place any of it in.
-    # The mock cannot reproduce that - it builds a hull map from internalmapw alone - so
-    # this line is the only warning a mod author will ever get. Carry on regardless:
-    # refusing to build here would turn a render fault into a data fault and lose the
-    # damage model too.
+        return "the ship is gone"
     try:
-        _hm = SBS.get_hull_map(ship_id)
-        if _hm is None or getattr(_hm, "w", 0) <= 0 or getattr(_hm, "h", 0) <= 0:
-            _grid_say(f"rebuild {ship_id}: the engine has NO interior bitmap for "
-                      f"'{so.art_id}' - it is cut from the alpha channel of "
-                      f"<artfileroot>1024.png, so Engineering will render BLANK even "
-                      f"though {len(internal_items)} room(s) are about to be created.")
+        if FrameContext.context.sbs.in_standby_list_id(ship_id):
+            return "the ship is parked in standby"
     except Exception:                               # noqa: BLE001
-        pass                                        # a report never breaks a rebuild
-
-    # The theme is per HULL (or per layout) now, not one global setting - that is what
-    # makes a race's room vocabulary possible, and a captured hull refitted by another
-    # race is the same mesh with a different interior AND a different vocabulary.
-    theme_name = grid_get_theme_name(so.art_id, layout)
-    theme = grid_get_grid_named_theme(theme_name)
+        pass
+    return None
 
 
-    #
-    # Setup theme
-    #
-    blob.set("internal_color_ship_sillouette", theme["colors"]["silhouette"],0)
-    blob.set("internal_color_ship_lines", theme["colors"]["lines"],0)
-    blob.set("internal_color_ship_nodes", theme["colors"]["nodes"],0)
-
-
-    # Delete all grid objects (deferred native free)
-    items =grid_objects(ship_id)
-    for k in items:
-        # delete by id
-        grid_delete_object(ship_id, k)
-
-
-    #
-    # Got data build grid objects
-    #
-    i=0 # used to create unique tag
-    sensors = 0 # used to calculate max damage
-    engines = 0
-    weapons = 0
-    shields = 0
-    for g in internal_items:
-        loc_x = int(g["x"])
-        loc_y = int(g["y"])
-        coords = f"{loc_x},{loc_y}"
-        name_tag = f"{g['name']}:{coords}"
-
-        item_theme_data = grid_get_item_theme_data(g["roles"], theme_name)
-
-        color = item_theme_data.color
-        icon = item_theme_data.icon
-        # NOTE the per-object "scale" in grid_data.json is deliberately NOT read. Those
-        # values (1.2454545497894287 and friends) are artifacts of whatever tool wrote the
-        # file, not authored intent, and honoring them would import that noise into the
-        # render. The theme owns scale; the migration to the ASCII format drops the field.
-        scale = item_theme_data.scale
-        r = "#,"+g["roles"]
-        go =  grid_spawn(ship_id,  name_tag, name_tag, loc_x, loc_y, icon, color, r)
-        if go is None:
-            # Bailing here leaves a HALF-BUILT grid and skips system_max_damage entirely,
-            # so the ship also has no damage model. Worth saying how far it got.
-            _grid_say(f"rebuild {ship_id} '{so.art_id}': grid_spawn failed at "
-                      f"{loc_x},{loc_y} for '{g['name']}' after {i} of "
-                      f"{len(internal_items)} object(s) - system_max_damage NOT written, "
-                      f"so this ship has no damage model.")
-            return
-        #
-        go.engine_object.layer = 0
-        go.blob.set("icon_scale", scale/2, 0)
-        # save color so it cn be restored
-        set_inventory_value(go.id, "color", color)
-        set_inventory_value(go.id, "icon_index", icon)
-        set_inventory_value(go.id, "icon_scale", scale)
-        # set_inventory_value(go.id, "simple_icon_index", 12 for system, 97 for room)
-
-        #
-        # Add link so query can find this relationship
-        #       e.g. query to find engine grid objects on a ship
-        #       linked_to(player_id, "grid_objects") & role("engine")
-        #
-        link(so, "grid_objects",go)
-        add_role(go, "__undamaged__")
-        i+=1
-
-        #
-        # Update max damage counts
-        #
-        roles = g["roles"].lower()
-        if "sensor" in roles:
-            sensors += 1
-        if "engine" in roles:
-            engines += 1
-        if "shield" in roles:
-            shields += 1
-        if "weapon" in roles:
-            weapons += 1
-
-    blob.set('system_max_damage', weapons, SBS.SHPSYS.WEAPONS)
-    blob.set('system_max_damage', engines, SBS.SHPSYS.ENGINES)
-    blob.set('system_max_damage', sensors, SBS.SHPSYS.SENSORS)
-    blob.set('system_max_damage', shields, SBS.SHPSYS.SHIELDS)
-    blob.set('system_damage', 0, SBS.SHPSYS.WEAPONS)
-    blob.set('system_damage', 0, SBS.SHPSYS.ENGINES)
-    blob.set('system_damage', 0, SBS.SHPSYS.SENSORS)
-    blob.set('system_damage', 0, SBS.SHPSYS.SHIELDS)
-
-    #
-    # This is needed to reset the coefficients after an explosion
-    # set_damage_coefficients is in internal_damage
-    #
-    set_damage_coefficients(ship_id)
-    # Pass the layout we resolved: the ship's own "grid_layout" may not be the one this
-    # rebuild was asked for, and the damcon declaration lives per layout.
-    grid_restore_damcons(ship_id, layout)
-
-    #
-    # Create marker
-    #
-    hm = SBS.get_hull_map(ship_id)
-    # The marker and the EPad used to make the IDENTICAL unfiltered call with no state
-    # change between them, so they landed on the same cell on every hull, always. Sharing
-    # the damcons' resolver keeps them apart.
-    placed = set()
-    loc = _grid_resolve_point(SBS, ship_id, hm, None, placed, prefer_empty=False,
-                              who="marker")
-    if loc is None:
-        _grid_say(f"rebuild {ship_id} '{so.art_id}': the engine offered no usable cell "
-                  f"for the marker, so there is no marker and no EPad. The hull map has "
-                  f"no open cells - see the interior-bitmap note above.")
+def _grid_interior_start(ship_id, layout):
+    """Resolve the hull NOW - not when it was requested - and queue its rooms in slices."""
+    skip = _grid_interior_skip(ship_id)
+    if skip is not None:
+        _grid_say(f"interior for {ship_id} dropped: {skip}", "info")
+        _INTERIOR["queued"].discard(ship_id)
         return
-    placed.add((loc[0], loc[1]))
-    loc_x = loc[0]
-    loc_y = loc[1]
-    ship = ship_id & 0xFFFFFFFF
-    marker_tag = f"marker:{ship}"
-    # marker is named hallway
-    # 23 flag, 101-filled square, 111
-    marker_go = grid_spawn(ship_id, "marker", marker_tag, int(loc_x),int(loc_y), 101, "#9994", "#,marker")
-    marker_go.blob.set("icon_scale",1.5,0)
-    marker_go.engine_object.layer = 6
-    marker_go_id =  to_id(marker_go)
-    set_inventory_value(ship_id, "marker_id", marker_go_id)
-    # Create EPAD
-    loc = _grid_resolve_point(SBS, ship_id, hm, None, placed, prefer_empty=False,
-                              who="epad")
-    if loc is None:
-        _grid_say(f"rebuild {ship_id} '{so.art_id}': no usable cell for the EPad - the "
-                  f"grid is built but engineering has no power pad.")
+    begun = _grid_begin(ship_id, layout)
+    if begun is None:
+        _INTERIOR["queued"].discard(ship_id)
         return
-    loc_x = loc[0]
-    loc_y = loc[1]
-    ship = ship_id & 0xFFFFFFFF
-    epad_tag = f"epad:{ship}"
-    # marker is named hallway
-    # 23 flag, 101-filled square, 111
-    epad_go = grid_spawn(ship_id, "EPad", epad_tag, int(loc_x),int(loc_y), 134, "#9994", "tools,epad") 
-    epad_go.engine_object.layer = 0
-    epad_go.blob.set("icon_scale",0.01,0)
-    set_inventory_value(ship_id, "epad_id", epad_go.id)
+    so, blob, SBS, items, theme_name, layout = begun
+    counts = {"made": 0, "sensors": 0, "engines": 0, "shields": 0, "weapons": 0}
+    q = _INTERIOR["q"]
+    size = max(1, int(_INTERIOR["chunk"]))
+    slices = [items[i:i + size] for i in range(0, len(items), size)]
+    if q is None:                                   # flushed, or never armed - inline
+        for part in slices:
+            if not _grid_spawn_chunk(ship_id, so, theme_name, part, counts):
+                _INTERIOR["queued"].discard(ship_id)
+                return
+        _grid_interior_done(ship_id, so, blob, SBS, counts, layout)
+        return
+    pos = _grid_interior_focus(ship_id)
+    for part in slices:
+        q.add(_grid_spawn_chunk, (ship_id, so, theme_name, part, counts), pos=pos)
+    q.add(_grid_interior_done, (ship_id, so, blob, SBS, counts, layout), pos=pos)
 
-    # One line on SUCCESS too. Without it, "no line at all" means both "built perfectly"
-    # and "never called" - and on this path the second is a real possibility, since
-    # nothing in sbs_utils calls this function. Every caller is a mission.
-    _grid_say(f"rebuild {ship_id} '{so.art_id}' layout '{layout or 'default'}': "
-              f"{i} object(s), hull map {getattr(hm, 'w', 0)}x{getattr(hm, 'h', 0)}",
-              "info")
+
+def _grid_interior_enqueue(ship_id, layout):
+    if ship_id in _INTERIOR["queued"]:
+        return False                                # already on its way; one build only
+    _INTERIOR["queued"].add(ship_id)
+    q = _INTERIOR["q"]
+    if q is None:
+        from ..tickdispatcher import DripQueue
+        q = DripQueue(over=_INTERIOR["over"], name="grid")
+        _INTERIOR["q"] = q
+    q.add(_grid_interior_start, (ship_id, layout), pos=_grid_interior_focus(ship_id))
+    return True
+
+
+def grid_interior_request(id_or_obj, layout=None):
+    """Ask for this ship's engineering interior. Built ONCE, when the hull has settled.
+
+    The call a ``//spawn`` route should make. Nothing is created here: before
+    :func:`grid_interior_arm` the ship is simply recorded, and after it the build is
+    queued and dripped over ticks. Either way the hull is read when the build RUNS, so a
+    ship re-hulled between the request and the build gets the interior it ends up
+    needing - not the one it had when it spawned.
+
+    Idempotent by ship: requesting the same ship repeatedly produces one build.
+
+    Args:
+        id_or_obj (Agent | int): the ship.
+        layout (str, optional): a named layout; defaults to the ship's own.
+
+    Returns:
+        bool: whether the request was recorded.
+    """
+    ship_id = to_id(id_or_obj)
+    if ship_id is None:
+        return False
+    if not _INTERIOR["armed"]:
+        # Coalesces by id, and a later request wins on layout - the most recent caller
+        # knows most about what this ship is going to be.
+        _INTERIOR["wanted"][ship_id] = layout
+        return True
+    return _grid_interior_enqueue(ship_id, layout)
+
+
+def grid_interior_arm(over=None, chunk=None):
+    """The hulls are final: build every interior that was asked for, phased over ticks.
+
+    Call this once a map has settled - past the roster cull and past whatever re-hulling
+    the map does for itself. Requests made after this point are queued immediately, so a
+    mid-game refit still gets an interior without anyone re-arming anything.
+
+    Args:
+        over (float, optional): sim-seconds to spread the work across (default 4).
+        chunk (int, optional): rooms created per slice (default 16).
+
+    Returns:
+        int: how many ships were released to build.
+    """
+    if over is not None:
+        _INTERIOR["over"] = float(over)
+    if chunk is not None:
+        _INTERIOR["chunk"] = int(chunk)
+    _INTERIOR["armed"] = True
+    wanted = _INTERIOR["wanted"]
+    _INTERIOR["wanted"] = {}
+    n = 0
+    for ship_id, layout in list(wanted.items()):
+        if _grid_interior_enqueue(ship_id, layout):
+            n += 1
+    if n:
+        _grid_say(f"interiors armed: {n} ship(s), spread over {_INTERIOR['over']}s", "info")
+    return n
+
+
+def grid_interior_pending():
+    """Ships recorded but not yet built, plus queued work still to run."""
+    q = _INTERIOR["q"]
+    return len(_INTERIOR["wanted"]) + (0 if q is None else q.pending())
+
+
+def grid_interior_is_armed():
+    """Whether interiors are being built as they are requested."""
+    return _INTERIOR["armed"]
+
+
+def grid_interior_flush():
+    """Build everything outstanding right now.
+
+    For a test, a headless conformance run, or anything that cannot wait for the drip.
+    """
+    _INTERIOR["armed"] = True
+    wanted = _INTERIOR["wanted"]
+    _INTERIOR["wanted"] = {}
+    for ship_id, layout in list(wanted.items()):
+        _grid_interior_enqueue(ship_id, layout)
+    q = _INTERIOR["q"]
+    if q is None:
+        return 0
+    # DRAIN, don't flush once. The first item for a ship is `_grid_interior_start`, whose
+    # whole job is to queue that hull's room slices - so a single flush runs the planner
+    # and returns with all the actual work still sitting in the queue. Measured: flush
+    # reported 1 item run, 8 still pending, and the ship had ZERO grid objects.
+    #
+    # Bounded rather than `while pending()`: a build that somehow re-queues itself would
+    # otherwise hang the caller, and a test or a headless run is exactly where nobody is
+    # watching. Each pass drains at least one item, so the ceiling is generous.
+    total = 0
+    for _ in range(64):
+        n = q.flush()
+        total += n
+        if not q.pending():
+            break
+    if q.pending():
+        _grid_say(f"interior flush gave up with {q.pending()} item(s) still queued", "warning")
+    return total
+
+
+def grid_interior_reset():
+    """Drop queued interior work and disarm (mission reset)."""
+    q = _INTERIOR["q"]
+    if q is not None:
+        try:
+            q.clear()
+        except Exception:                           # noqa: BLE001
+            pass
+    _INTERIOR["q"] = None
+    _INTERIOR["wanted"] = {}
+    _INTERIOR["queued"] = set()
+    _INTERIOR["armed"] = False
 
 
 def _grid_retire_extra_damcons(hm, ship_id, count):
