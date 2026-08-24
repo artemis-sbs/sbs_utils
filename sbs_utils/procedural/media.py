@@ -49,6 +49,41 @@ def music_get_list():
     return media_get_list("music")
 
 
+def music_name_list():
+    """Dropdown options string for a music picker: ``'random, <Display>, ...'``.
+
+    For a map's ``Properties:`` block, so the control appears because a map asked for it
+    rather than being hardcoded into the server console for every mission::
+
+        default shared MUSIC_SELECT = music_selected_name()
+        default shared MUSIC_LIST   = music_name_list()
+        ...
+        Music: 'gui_drop_down("$text: {MUSIC_SELECT};list: {MUSIC_LIST}", var="MUSIC_SELECT")'
+
+    Built from ``music_get_list``, so a mod that ships banks appears without the map
+    knowing about it.
+    """
+    return ", ".join(["random"] + [m.display_name for m in (music_get_list() or [])])
+
+
+def music_selected_name():
+    """The current MUSIC_SELECT, or ``"random"``.
+
+    What a map seeds its shared var from. Reads the shared value if one is already set,
+    otherwise the setting - so a `default shared` line cannot overwrite a profile's choice
+    with the fallback the moment the panel builds.
+    """
+    try:
+        from .execution import get_shared_variable
+        current = get_shared_variable("MUSIC_SELECT", None)
+    except Exception:
+        current = None
+    if current:
+        return str(current)
+    from .settings import settings_get_defaults
+    return str(settings_get_defaults().get("MUSIC_SELECT") or "random")
+
+
 def media_find(kind, spec):
     """Find one ``@media`` label from a loose spec - an index, a path, a display name, or
     an unambiguous substring of either.

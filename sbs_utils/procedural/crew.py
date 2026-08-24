@@ -186,6 +186,33 @@ def crew_roster(key):
 # --- selection - mirrors media.py so a spec resolves the one way everywhere ---------------
 
 
+def crew_name_list():
+    """Dropdown options string for a crew picker: ``'none, random, <Display>, ...'``.
+
+    The map-Properties counterpart of :func:`crew_get_list`. Offers only USABLE rosters,
+    for the same reason that function does - a dropdown must never offer something
+    selection would then refuse.
+    """
+    return ", ".join(["none", "random"] + [r.display_name for r in (crew_get_list() or [])])
+
+
+def crew_selected_name():
+    """The current CREW_SELECT, or ``"none"``.
+
+    Reads the shared value first, then the setting, so a map's `default shared` seed cannot
+    overwrite a choice a profile already made.
+    """
+    try:
+        from .execution import get_shared_variable
+        current = get_shared_variable("CREW_SELECT", None)
+    except Exception:
+        current = None
+    if current:
+        return str(current)
+    from .settings import settings_get_defaults
+    return str(settings_get_defaults().get("CREW_SELECT") or "none")
+
+
 def crew_get_list():
     """The rosters a dropdown may OFFER - the USABLE ones, in declaration order.
 
