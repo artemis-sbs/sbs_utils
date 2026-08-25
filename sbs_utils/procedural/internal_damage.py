@@ -143,8 +143,25 @@ def _grid_begin(ship_id, layout):
     # Clear what is there. Deferring the FIRST build until the hull is settled means this
     # is normally a no-op, which is the point - an interior built for a hull the crew
     # never flies has to be torn down again, and the tear-down is what that avoids.
+    #
+    # "NORMALLY A NO-OP" IS THE CLAIM THIS COUNT EXISTS TO TEST, and it is only safe to
+    # believe on a COLD start. `get_hull_map` is keyed by ship id and the sim RECYCLES
+    # space-object ids across a restart (`cosmos_dev/mock/sbs.py` clears `hull_map_objects`
+    # on `create_new_sim` for exactly this reason: "a new ship reuses an old id and
+    # get_hull_map hands back the PREVIOUS ship's grid objects"). The engine's C++ side
+    # outlives a mission restart, so on run 2 this loop may be handed run 1's objects and
+    # delete them - which is a free of something this run never owned, and the shape of the
+    # `ObjectDataBlob` use-after-free that kills the server minutes in.
+    #
+    # So: a nonzero count on a FIRST build is the finding. Silent when there is nothing to
+    # clear, so a cold run stays quiet and only the interesting case speaks.
+    cleared = 0
     for k in grid_objects(ship_id):
         grid_delete_object(ship_id, k)
+        cleared += 1
+    if cleared:
+        _grid_say(f"rebuild {ship_id} '{so.art_id}': cleared {cleared} pre-existing grid "
+                  f"object(s) before building - expected 0 on a first build", "info")
 
     # THE HULL MAP GOES STALE ACROSS A HULL CHANGE. `get_hull_map` populates on create and
     # then caches, so after a re-hull it still reports the PREVIOUS hull's dimensions -
@@ -176,6 +193,13 @@ def _grid_spawn_chunk(ship_id, so, theme_name, chunk, counts):
     already scheduled - they check this and do nothing rather than half-filling a hull.
     """
     if counts.get("failed"):
+        return False
+    # A phased build queues its slices ahead of time, so by the time this one runs the
+    # ship may have been destroyed, culled or re-hulled. Re-resolve rather than trusting
+    # the captured `so` - the same reason `_grid_finish` re-resolves the blob.
+    so = to_object(ship_id)
+    if so is None:
+        counts["failed"] = True
         return False
     for g in chunk:
         loc_x = int(g["x"])
@@ -221,12 +245,24 @@ def _grid_spawn_chunk(ship_id, so, theme_name, chunk, counts):
     return True
 
 
-def _grid_finish(ship_id, so, blob, SBS, counts, layout):
+def _grid_finish(ship_id, so, SBS, counts, layout):
     """Everything that must happen once the last room is in.
 
     Kept apart from the spawning so a PHASED build can run it after the final slice - a
     ship must not sit with a damage model that counts only the rooms created so far.
+
+    RESOLVE THE BLOB HERE, NEVER CARRY ONE IN. `Agent.data_set` returns None once the
+    agent is dead (`agent.py`, "Every crashing write went through here"), and that guard
+    is the whole defense against the ObjectDataBlob use-after-free. A phased build runs
+    this up to `over` seconds after `_grid_begin` resolved things, so a blob captured
+    back then walks straight past the guard and writes into freed engine memory - which
+    is a server crash to desktop, not an exception. Measured 2026-08-25: fault in
+    `ObjectDataBlob::operator[]` under `ObjectDataBlob::Set`, from `Simulation::Tick`.
     """
+    blob = to_blob(ship_id)
+    if blob is None:
+        _grid_say(f"interior for {ship_id} finished late: the ship is gone", "info")
+        return
     blob.set('system_max_damage', counts["weapons"], SBS.SHPSYS.WEAPONS)
     blob.set('system_max_damage', counts["engines"], SBS.SHPSYS.ENGINES)
     blob.set('system_max_damage', counts["sensors"], SBS.SHPSYS.SENSORS)
@@ -327,7 +363,7 @@ def grid_rebuild_grid_objects(id_or_obj, grid_data=None, layout=None):
     counts = {"made": 0, "sensors": 0, "engines": 0, "shields": 0, "weapons": 0}
     if not _grid_spawn_chunk(ship_id, so, theme_name, items, counts):
         return
-    _grid_finish(ship_id, so, blob, SBS, counts, layout)
+    _grid_finish(ship_id, so, SBS, counts, layout)
 
 
 # --- deferred, phased interior creation ---------------------------------------------
@@ -367,10 +403,10 @@ def _grid_interior_focus(ship_id):
         return None
 
 
-def _grid_interior_done(ship_id, so, blob, SBS, counts, layout):
+def _grid_interior_done(ship_id, so, SBS, counts, layout):
     """Finish one ship's phased build and let it be requested again."""
     _INTERIOR["queued"].discard(ship_id)
-    _grid_finish(ship_id, so, blob, SBS, counts, layout)
+    _grid_finish(ship_id, so, SBS, counts, layout)
 
 
 def _grid_interior_skip(ship_id):
@@ -419,12 +455,12 @@ def _grid_interior_start(ship_id, layout):
             if not _grid_spawn_chunk(ship_id, so, theme_name, part, counts):
                 _INTERIOR["queued"].discard(ship_id)
                 return
-        _grid_interior_done(ship_id, so, blob, SBS, counts, layout)
+        _grid_interior_done(ship_id, so, SBS, counts, layout)
         return
     pos = _grid_interior_focus(ship_id)
     for part in slices:
         q.add(_grid_spawn_chunk, (ship_id, so, theme_name, part, counts), pos=pos)
-    q.add(_grid_interior_done, (ship_id, so, blob, SBS, counts, layout), pos=pos)
+    q.add(_grid_interior_done, (ship_id, so, SBS, counts, layout), pos=pos)
 
 
 def _grid_interior_enqueue(ship_id, layout):

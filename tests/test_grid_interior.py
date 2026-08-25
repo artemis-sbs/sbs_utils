@@ -154,6 +154,55 @@ class GridInteriorTests(unittest.TestCase):
         grid_interior_flush()          # must not raise
         self.assertEqual(0, grid_interior_pending())
 
+    def test_a_ship_deleted_MID_BUILD_is_never_written_through(self):
+        """The server-crash case, and the one the skip check cannot reach.
+
+        `_grid_interior_skip` runs ONCE, in the planner, before any slice is queued - so
+        it covers a ship already gone when the build starts (the test above) and nothing
+        after that. A phased build then runs its slices and its finish over the next
+        `over` seconds, and the roster culls, parks and re-hulls throughout that window.
+
+        The build used to resolve the engine blob in `_grid_begin` and carry it through
+        the queue. `Agent.data_set` returns None once the agent is dead, and that guard
+        is the entire defense against the ObjectDataBlob use-after-free - a captured blob
+        walks straight past it and writes into freed engine memory. That is a crash to
+        desktop, not an exception, so asserting "does not raise" proves nothing: this
+        asserts the WRITE never happens.
+
+        Measured 2026-08-25, dump Artemis3-x64-release.exe.48252: read of 0x19 in
+        `ObjectDataBlob::operator[]` under `ObjectDataBlob::Set`, from `Simulation::Tick`,
+        9s after "interiors armed: 8 ship(s), spread over 4.0s".
+        """
+        from sbs_utils.procedural.query import to_blob
+        s = self._ship(self.BIG)
+        grid_interior_request(s)
+        grid_interior_arm()
+
+        q = ID._INTERIOR["q"]
+        self.assertIsNotNone(q, "arming queued nothing")
+        q.flush()                       # planner only: resolves the blob, queues slices
+        self.assertGreater(q.pending(), 0, "the planner queued no deferred work")
+
+        # Spy on the very blob the planner captured, then kill the ship under it.
+        blob = to_blob(s)
+        self.assertIsNotNone(blob)
+        writes = []
+        real_set = blob.set
+        blob.set = lambda *a, **k: (writes.append(a), real_set(*a, **k))[1]
+
+        to_object(s).delete_object()
+
+        for _ in range(64):             # drain what was queued before the delete
+            q.flush()
+            if not q.pending():
+                break
+
+        self.assertEqual([], writes,
+                         "wrote through the blob of a deleted ship - this is the "
+                         "ObjectDataBlob use-after-free, and on a real bridge it is a "
+                         "server crash to desktop")
+        self.assertEqual(0, grid_interior_pending())
+
     # --- arming ---------------------------------------------------------------
 
     def test_a_request_after_arming_is_queued_immediately(self):
