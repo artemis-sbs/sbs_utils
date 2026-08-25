@@ -186,13 +186,30 @@ class TheaterTests(unittest.TestCase):
         self.assertAlmostEqual(85, easy["cardassian"], delta=3)
         self.assertAlmostEqual(10, hard["cardassian"], delta=3)
 
-    def test_a_three_slot_map_takes_three_factions(self):
-        h = self._hist([50, 25, 25], "dominion_war")
-        self.assertNotIn("klingon", h, "a 3-weight curve must not reach the 4th faction")
+    def test_a_short_curve_reaches_every_faction_instead_of_dropping_the_tail(self):
+        """A roster longer than the curve used to lose its tail, silently.
 
-    def test_fewer_factions_than_slots_cycles_rather_than_dropping_a_slot(self):
-        self.assertEqual(["romulan", "klingon", "romulan", "klingon"],
-                         T.theater_factions(4, key="fixed_mix"))
+        borderwar and deepstrike both pass a 3-long curve while every shipped theater
+        rosters four, so the FOURTH faction - ximni in all five of the TNG ones - never
+        spawned in those maps at all. Nothing errored; it simply never turned up.
+
+        The last curve weight is now SHARED across the races past its end, so the head keeps
+        its authored share and nobody is silently at zero.
+        """
+        h = self._hist([50, 25, 25], "dominion_war")
+        self.assertIn("klingon", h, "the 4th faction must not be silently dropped")
+        self.assertAlmostEqual(50, h["cardassian"], delta=3, msg="the head keeps its share")
+        # 25 shared between the two trailing factions.
+        self.assertAlmostEqual(12.5, h["klingon"], delta=3)
+
+    def test_a_short_roster_truncates_the_curve_instead_of_compounding_the_first(self):
+        """A roster shorter than the curve used to CYCLE, handing the head the surplus.
+
+        `theater_factions(4)` returned ["romulan", "klingon", "romulan", "klingon"], so a
+        [70,10,10,10] curve gave romulan 70+10 = 80%, not 70 - while the docstring claimed
+        it was merely "filling every slot".
+        """
+        self.assertEqual(["romulan", "klingon"], T.theater_factions(4, key="fixed_mix"))
 
     def test_a_theater_weights_block_overrides_the_map_curve(self):
         h = self._hist([50, 50], "fixed_mix")
@@ -288,6 +305,12 @@ class TheaterTests(unittest.TestCase):
     def test_depth_report_flags_a_thin_faction_in_a_heavy_slot(self):
         import sbs_utils.procedural.ship_data as SD
         real_loaded, real_filter = SD.ship_data_is_loaded, SD.filter_ship_data_by_side
+        # Faking `ship_data_is_loaded` makes the counting path run for real, and
+        # `_side_split` reads each hull's roles through `get_ship_data_for` - which LOADS
+        # and caches the whole stock table. Left behind, that cache makes the next test's
+        # "no ship table is loaded" premise false and it fails for a reason that has
+        # nothing to do with what it is testing.
+        SD.ship_data_reset_for_mission()
         SD.ship_data_is_loaded = lambda: 1
         # breen has one hull, cardassian has four - the real shape of the TNG pack.
         SD.filter_ship_data_by_side = lambda k, side, role=None, ret_key_only=False: (
@@ -296,6 +319,7 @@ class TheaterTests(unittest.TestCase):
             bad = T.theater_depth_report([10, 10, 70, 10], key="dominion_war")
         finally:
             SD.ship_data_is_loaded, SD.filter_ship_data_by_side = real_loaded, real_filter
+            SD.ship_data_reset_for_mission()
         self.assertEqual(1, len(bad))
         self.assertEqual("breen", bad[0][0])
         self.assertEqual(1, bad[0][1])
@@ -303,12 +327,19 @@ class TheaterTests(unittest.TestCase):
     def test_depth_report_passes_a_deep_faction_in_a_heavy_slot(self):
         import sbs_utils.procedural.ship_data as SD
         real_loaded, real_filter = SD.ship_data_is_loaded, SD.filter_ship_data_by_side
+        # Faking `ship_data_is_loaded` makes the counting path run for real, and
+        # `_side_split` reads each hull's roles through `get_ship_data_for` - which LOADS
+        # and caches the whole stock table. Left behind, that cache makes the next test's
+        # "no ship table is loaded" premise false and it fails for a reason that has
+        # nothing to do with what it is testing.
+        SD.ship_data_reset_for_mission()
         SD.ship_data_is_loaded = lambda: 1
         SD.filter_ship_data_by_side = lambda k, side, role=None, ret_key_only=False: ["a", "b", "c", "d"]
         try:
             self.assertEqual([], T.theater_depth_report([70, 10, 10, 10], key="dominion_war"))
         finally:
             SD.ship_data_is_loaded, SD.filter_ship_data_by_side = real_loaded, real_filter
+            SD.ship_data_reset_for_mission()
 
     # --- reset ledger -------------------------------------------------------
 

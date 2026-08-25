@@ -240,6 +240,9 @@ def reset_mission_state():
     # cosmos_dev runs, so a second mission would inherit the first one's factions.
     amd_sides_clear()
     art_keys_cache_clear()   # the stock->mod hull pairing generated from the theater
+    races_clear()  # declared race OVERRIDES (station prefix, faces, call sign, fleet
+                   # scale). The race LIST itself is derived from the ship table and resets
+                   # with it; only what a mission declared on top needs dropping here.
     amd_theater_clear()  # declared enemy rosters; same reused-interpreter reason as
                          # the side registries above - a second mission would inherit
                          # the first one's theaters and its THEATER setting would
@@ -457,9 +460,11 @@ register_reset_state("cutscene cast",     lambda: len(CUTSCENE_CAST))
 from .procedural.amd_sides import amd_sides_audience_count, amd_sides_clear
 register_reset_state("amd side audiences", amd_sides_audience_count)
 from .procedural.amd_theater import amd_theater_clear, amd_theater_count
+from .procedural.races import races_clear, races_count
 from .procedural.player_roster import player_roster_clear, player_roster_count_records
 from .procedural.ship_data import art_keys_cache_clear
 register_reset_state("amd theaters",      amd_theater_count)
+register_reset_state("race overrides",    races_count)
 register_reset_state("player roster",     player_roster_count_records)
 from .procedural.amd_landmarks import _RECORDS as _AMD_LANDMARKS, landmarks_registry_clear
 register_reset_state("amd landmarks",     lambda: len(_AMD_LANDMARKS))

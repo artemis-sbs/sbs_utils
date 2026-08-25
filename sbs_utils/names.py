@@ -194,11 +194,27 @@ import random
 random.shuffle(_call_signs)
 
 def name_random_hostile(race):
+    """A call sign for an NPC of `race` - one letter from that race's set, plus a number.
+
+    The letters used to be TWO literals: `KLMNQ` for everyone and `TR` for skaraan, the only
+    race this function had ever heard of. So every faction any mod ever shipped - Klingon,
+    Cardassian, Romulan - drew Kralien call signs, which is a small thing that reads as the
+    mod not really being installed.
+
+    A race declares its own set as `Call Sign:` in a races.amd. Unset falls back to `KLMNQ`,
+    so the stock races are untouched and skaraan keep `TR` by declaring it.
+    """
     global _enemy_name_number
 
-    enemy_prefix = "KLMNQ"
-    if race == "skaraan":
-        enemy_prefix = "TR"
+    enemy_prefix = None
+    try:
+        from .procedural.races import race_call_sign
+        enemy_prefix = race_call_sign(race)
+    except Exception:
+        enemy_prefix = None
+    if not enemy_prefix:
+        # The historical defaults, kept so a mission with no race records is unchanged.
+        enemy_prefix = "TR" if str(race or "").strip().lower() == "skaraan" else "KLMNQ"
     r_name = f"{random.choice(enemy_prefix)}{str(_call_signs[_enemy_name_number]).zfill(2)}"
     _enemy_name_number = (_enemy_name_number+1)%99
     return r_name
