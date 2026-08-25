@@ -61,6 +61,30 @@ source); the packaging lists are in step; and no generated `extraShipData.json`
 is lying around, since the library reads it back *and* the addon merges the same
 entries again, doubling hull counts from the second run onward.
 
+## The summary line
+
+Every run ends with the arithmetic, so "is anything wrong" is answerable without
+reading every row:
+
+```
+17 checks: 14 ok, 3 optional absent, 0 problems
+```
+
+and, when something is:
+
+```
+5 checks: 1 ok, 1 optional absent, 3 problems
+to fix: LegendaryMissions, MyMission (remedies are beside each row above)
+```
+
+`--` is counted **apart** from problems, because an optional library that is not
+installed is not a fault - rolling the two together would make a healthy machine
+look broken. The second line names only the *sections* that carry a problem; the
+remedy for each one is already printed beside its row, so it points you at where to
+look rather than repeating itself.
+
+`--json` carries the same numbers as a `summary` object beside `checks`.
+
 ## Half-baked art
 
 Doctor also counts the art the ENGINE bakes for itself - a hull's `.paxmesh` and
