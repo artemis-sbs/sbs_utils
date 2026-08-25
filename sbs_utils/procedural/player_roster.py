@@ -75,8 +75,24 @@ def player_roster():
 
 
 def player_roster_record(slot):
-    """The record for ``slot``, or None."""
-    slot = int(slot)
+    """The record for ``slot``, or None.
+
+    ANSWERS None FOR A SLOT THAT IS NOT ONE, rather than raising. Every caller here
+    already has a "there is no such record" path - the setters return False, the display
+    returns empty strings - and a console screen legitimately holds no selection: a
+    mission that spawns its own player ships has an empty roster, so the picker's
+    `client_select_slot` is None and its rename/hull handlers arrive here with it.
+
+    `int(None)` made that a TypeError inside an expression, and a failing expression
+    STOPS the command - so the handler died mid-way and the crew's console reported a
+    runtime error for what is simply "nothing is selected".
+    """
+    if slot is None:
+        return None
+    try:
+        slot = int(slot)
+    except (TypeError, ValueError):
+        return None
     if 0 <= slot < len(_ROSTER):
         return _ROSTER[slot]
     return None
@@ -112,6 +128,51 @@ def player_roster_seed(roster=None):
         rec["ship"] = entry.get("ship")
         rec["face"] = entry.get("face")
     return player_roster()
+
+
+def player_roster_adopt():
+    """Take player ships the MISSION spawned itself into the roster, one record each.
+
+    :func:`player_roster_seed` builds records from the authored ``PLAYER_LIST``, which is
+    the path a mission takes when it lets the library create its players
+    (``PLAYER_CREATE_DEFAULT``). A mission that spawns its own has ships and no records -
+    and every console binds to records now, so its picker offered nothing to select and
+    its rename/hull handlers ran against a slot of None.
+
+    Adoption hands each un-slotted player ship the next free slot and stamps it the way
+    ``player_ensure`` stamps one, so :func:`player_roster_resolve` finds it afterwards.
+    The record is read OFF the ship: this describes what the mission already made, it
+    does not decide anything. Nothing on the ship is written except the slot marker.
+
+    Idempotent - a ship already holding a slot is skipped - so this is safe to call on
+    every roster build, and safe beside a seeded roster (adopted slots land after it).
+
+    Returns:
+        list: the slots adopted, in the order they were adopted.
+    """
+    from .roles import role, add_role
+    from .query import to_id_list, to_object, object_exists
+    from .inventory import get_inventory_value, set_inventory_value
+    from .spawn import PLAYER_SLOT_KEY, player_slot_role
+
+    adopted = []
+    # Sorted by id, so ships spawned in one frame get a stable order - the same order the
+    # console picker used to show them in back when it sorted the live objects itself.
+    for so_id in sorted(to_id_list(role("__player__"))):
+        if not object_exists(so_id):
+            continue
+        if get_inventory_value(so_id, PLAYER_SLOT_KEY, None) is not None:
+            continue
+        obj = to_object(so_id)
+        if obj is None:
+            continue
+        slot = len(_ROSTER)
+        _ROSTER.append({"slot": slot, "active": True, "name": obj.name,
+                        "side": obj.side or "", "ship": obj.art_id, "face": None})
+        add_role(so_id, player_slot_role(slot))
+        set_inventory_value(so_id, PLAYER_SLOT_KEY, slot)
+        adopted.append(slot)
+    return adopted
 
 
 def player_roster_resolve(slot):

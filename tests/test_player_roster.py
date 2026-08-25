@@ -709,5 +709,95 @@ class PlayerRosterTests(unittest.TestCase):
         self.assertEqual(0, R.player_roster_count_records())
 
 
+class MissionSpawnedPlayersTests(unittest.TestCase):
+    """A mission that spawns its OWN player ships (PLAYER_CREATE_DEFAULT = False).
+
+    HereThereBeMonsters answers //shared/signal/create_player_ships with a single
+    `player_spawn` and never seeds a roster. Once the console picker started binding to
+    RECORDS instead of to live objects, that mission had ships and no records - so the
+    picker offered nothing, and its rename and hull handlers ran with a slot of None and
+    crashed the console with a TypeError out of `int(None)`.
+    """
+
+    def setUp(self):
+        reset_mock(mock)
+
+    def _spawn_mission_ship(self, name="Artemis", ship="tsn_light_cruiser"):
+        from sbs_utils.procedural.spawn import player_spawn
+        return to_id(player_spawn(0, 0, 0, name, "tsn", ship))
+
+    # --- the crash ----------------------------------------------------------
+
+    def test_no_slot_selected_is_answered_not_raised(self):
+        self.assertIsNone(R.player_roster_record(None))
+
+    def test_writing_to_no_slot_is_refused_quietly(self):
+        # What the picker's two handlers do when nothing is selected. Refused, not fatal:
+        # a raising expression STOPS the command it is in, so this used to take the
+        # handler - and the console - down with it.
+        self.assertFalse(R.player_roster_set_name(None, "Excelsior"))
+        self.assertFalse(R.player_roster_set_hull(None, "tsn_battleship"))
+
+    def test_displaying_no_slot_gives_a_blank_row(self):
+        self.assertEqual({"name": "", "hull": "", "side": ""},
+                         R.player_roster_display(None))
+
+    # --- adoption -----------------------------------------------------------
+
+    def test_a_mission_spawned_ship_is_adopted_into_a_slot(self):
+        so_id = self._spawn_mission_ship()
+        self.assertEqual([], R.player_roster_slots())
+        self.assertEqual([0], R.player_roster_adopt())
+        self.assertEqual([0], R.player_roster_slots())
+        self.assertEqual(so_id, R.player_roster_resolve(0))
+
+    def test_the_record_describes_the_ship_the_mission_made(self):
+        self._spawn_mission_ship("Artemis", "tsn_light_cruiser")
+        R.player_roster_adopt()
+        row = R.player_roster_display(0)
+        self.assertEqual("Artemis", row["name"])
+        self.assertEqual("tsn_light_cruiser", row["hull"])
+        self.assertEqual("tsn", row["side"])
+
+    def test_adoption_is_idempotent(self):
+        self._spawn_mission_ship()
+        R.player_roster_adopt()
+        self.assertEqual([], R.player_roster_adopt())
+        self.assertEqual(1, len(R.player_roster()))
+
+    def test_adopted_ships_keep_a_stable_slot_order(self):
+        first = self._spawn_mission_ship("Artemis")
+        second = self._spawn_mission_ship("Intrepid")
+        R.player_roster_adopt()
+        self.assertEqual([first, second],
+                         [R.player_roster_resolve(0), R.player_roster_resolve(1)])
+
+    def test_adoption_lands_after_a_seeded_roster(self):
+        R.player_roster_seed(ROSTER)
+        for rec in R.player_roster():
+            player_ensure(rec["slot"], 0, 0, 0, rec["ship"], rec["name"], rec["side"])
+        stray = self._spawn_mission_ship("Ranger")
+        self.assertEqual([4], R.player_roster_adopt())
+        self.assertEqual(stray, R.player_roster_resolve(4))
+
+    def test_the_picker_can_now_write_to_a_mission_spawned_ship(self):
+        self._spawn_mission_ship()
+        R.player_roster_adopt()
+        slot = R.player_roster_slots()[0]
+        self.assertTrue(R.player_roster_set_name(slot, "Excelsior"))
+        self.assertTrue(R.player_roster_set_hull(slot, "tsn_battle_cruiser"))
+        # The record changed; the ship has not been touched yet - apply carries it across.
+        self.assertEqual("Artemis", to_object(R.player_roster_resolve(slot)).name)
+        R.player_roster_apply()
+        obj = to_object(R.player_roster_resolve(slot))
+        self.assertEqual("Excelsior", obj.name)
+        self.assertEqual("tsn_battle_cruiser", obj.art_id)
+
+    def test_apply_on_an_adopted_roster_nobody_edited_changes_nothing(self):
+        self._spawn_mission_ship()
+        R.player_roster_adopt()
+        self.assertEqual([], R.player_roster_apply())
+
+
 if __name__ == "__main__":
     unittest.main()
