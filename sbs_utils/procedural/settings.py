@@ -626,3 +626,89 @@ def settings_race_is_npc(race):
     if not races:
         return True
     return str(race or "").strip().lower() in races
+
+
+def _settings_add_races(key, races):
+    """Append ``races`` to the comma-separated setting ``key``, keeping what is there.
+
+    Shared by :func:`settings_add_playable_races` and :func:`settings_add_npc_races`.
+    """
+    flat = []
+    for r in races:
+        if r is None:
+            continue
+        if isinstance(r, str):
+            flat += [p for p in r.split(",")]
+        else:
+            # A list/tuple/set passed as one argument, rather than as *args.
+            flat += [str(p) for p in r]
+    flat = [r.strip() for r in flat if str(r).strip()]
+
+    settings = settings_get_defaults()
+    raw = settings.get(key) or ""
+    if not isinstance(raw, str):
+        raw = ",".join(str(x) for x in raw)
+    have = {r.strip().lower() for r in raw.split(",") if r.strip()}
+
+    added = []
+    for r in flat:
+        if r.lower() in have:
+            continue
+        have.add(r.lower())          # dedupe WITHIN this call too, not just against `have`
+        added.append(r)
+    if added:
+        settings[key] = (raw + ", " if raw.strip() else "") + ", ".join(added)
+    return added
+
+
+def settings_add_playable_races(*races):
+    """Add races to ``PLAYABLE_RACES``, keeping whatever is already listed.
+
+    The call a MOD that ships player-flyable hulls should make. Accepts names as separate
+    arguments, one comma-separated string, or a list::
+
+        settings_add_playable_races("Federation", "Klingon")
+        settings_add_playable_races("Federation, Klingon")
+
+    ADD rather than replace, so a mod can put a Galaxy alongside a TSN crew instead of
+    taking the mission's own races away. A total conversion stays a MISSION's choice - it
+    sets the setting to its own races alone - rather than something installing a mastlib
+    does to you.
+
+    WHY NOT `settings_set_mod_default`. That is the right tier for "a value the library
+    ships and the mission did not override", and it deliberately returns False once the
+    mission has spoken (`_explicit_keys`). Adding a race is not overriding a choice, it is
+    widening a list, and it has to work even when the mission named the key - a mission
+    that lists `TSN, Ximni` has said nothing at all about the Federation. So this edits the
+    live settings dict, which is what every mod doing this had to hand-roll.
+
+    ORDER MATTERS, and this is the one sharp edge. Addons decide which floor plans and
+    fleet ladders to load by READING these settings at load time, and addon load order is
+    non-deterministic. Adding a race the mod supplies hulls for is safe, because the mod's
+    own addon merges those. Adding a race to unlock ANOTHER addon's content is a race with
+    that addon's own load - call this as early as possible (the first line of the mod's
+    ``__init__.mast``) and do not rely on it.
+
+    Args:
+        *races: race names, as separate arguments, a comma-separated string, or a list.
+
+    Returns:
+        list: the names actually added, in order. Empty when every one was already listed.
+    """
+    return _settings_add_races("PLAYABLE_RACES", races)
+
+
+def settings_add_npc_races(*races):
+    """Add races to ``NPC_RACES``, keeping whatever is already listed.
+
+    The NPC twin of :func:`settings_add_playable_races` - same semantics, same ordering
+    caveat. Separate from the playable list on purpose: the races a player may BE and the
+    races that raid them are different questions.
+
+    Args:
+        *races: race names, as separate arguments, a comma-separated string, or a list.
+
+    Returns:
+        list: the names actually added, in order.
+    """
+    return _settings_add_races("NPC_RACES", races)

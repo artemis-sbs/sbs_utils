@@ -277,5 +277,98 @@ class TestPlayableRaces(unittest.TestCase):
                             f"{race} is not in the default PLAYABLE_RACES")
 
 
+class TestAddRaces(unittest.TestCase):
+    """A MOD widens the race lists rather than replacing them.
+
+    Every mod shipping player-flyable hulls had to hand-roll this against the live
+    settings dict - the TNG pack's `tng_register_races` is 30 lines of exactly it. The
+    fiddly parts are all silent when wrong: case-insensitive dedupe, a value that may be a
+    YAML list instead of a string, and not putting a stray comma in front of the first
+    entry when the setting starts empty.
+    """
+
+    def setUp(self):
+        from sbs_utils.procedural import settings
+        self.settings = settings
+        settings.setting_defaults = None
+        settings.settings_get_defaults()
+
+    def tearDown(self):
+        self.settings.setting_defaults = None
+
+    def _set(self, value):
+        self.settings.settings_get_defaults()["PLAYABLE_RACES"] = value
+
+    def test_it_adds_without_taking_away(self):
+        """The whole point: a Galaxy alongside a TSN crew, not instead of one."""
+        self._set("TSN, Ximni")
+        added = self.settings.settings_add_playable_races("Federation", "Klingon")
+        self.assertEqual(["Federation", "Klingon"], added)
+        for race in ("TSN", "Ximni", "Federation", "Klingon"):
+            self.assertTrue(self.settings.settings_race_is_playable(race), race)
+
+    def test_it_works_even_when_the_MISSION_named_the_key(self):
+        """The reason this is not `settings_set_mod_default`, which returns False once the
+        mission has spoken. A mission listing `TSN, Ximni` has said nothing at all about
+        the Federation, so widening the list is not overriding its choice."""
+        self.settings.settings_get_defaults()["PLAYABLE_RACES"] = "TSN, Ximni"
+        self.settings._explicit_keys.add("PLAYABLE_RACES")
+        try:
+            self.assertFalse(
+                self.settings.settings_set_mod_default("PLAYABLE_RACES", "Federation"),
+                "precondition: the mod tier is refused once the mission set the key")
+            self.settings.settings_add_playable_races("Federation")
+            self.assertTrue(self.settings.settings_race_is_playable("Federation"))
+            self.assertTrue(self.settings.settings_race_is_playable("TSN"))
+        finally:
+            self.settings._explicit_keys.discard("PLAYABLE_RACES")
+
+    def test_a_race_already_listed_is_not_duplicated(self):
+        self._set("TSN, Ximni")
+        self.assertEqual([], self.settings.settings_add_playable_races("tsn", "  XIMNI "))
+        self.assertEqual(
+            2, len(self.settings.settings_playable_races()),
+            "a case variant was appended as a second entry")
+
+    def test_it_dedupes_within_one_call_too(self):
+        self._set("TSN")
+        self.assertEqual(["Federation"],
+                         self.settings.settings_add_playable_races("Federation", "federation"))
+
+    def test_it_takes_a_string_or_a_list(self):
+        self._set("TSN")
+        self.settings.settings_add_playable_races("Federation, Klingon")
+        self.settings.settings_add_playable_races(["Romulan", "Orion"])
+        for race in ("Federation", "Klingon", "Romulan", "Orion"):
+            self.assertTrue(self.settings.settings_race_is_playable(race), race)
+
+    def test_adding_to_an_empty_setting_leaves_no_leading_comma(self):
+        """An empty setting means NO RESTRICTION, so this is also the case where a stray
+        comma would turn one race into a phantom empty entry."""
+        self._set("")
+        self.settings.settings_add_playable_races("Federation")
+        self.assertEqual({"federation"}, self.settings.settings_playable_races())
+
+    def test_the_npc_twin(self):
+        self.settings.settings_get_defaults()["NPC_RACES"] = "Kralien"
+        self.settings.settings_add_npc_races("Klingon")
+        self.assertTrue(self.settings.settings_race_is_npc("Klingon"))
+        self.assertTrue(self.settings.settings_race_is_npc("Kralien"))
+        self.assertFalse(self.settings.settings_race_is_playable("Klingon"),
+                         "the NPC list must not widen the PLAYABLE list")
+
+    def test_it_is_callable_from_MAST(self):
+        """A mod calls this from its __init__.mast, so it has to be a MAST global."""
+        import sys
+        import cosmos_dev.mock.sbs as mock
+        sys.modules.setdefault("sbs", mock)
+        import sbs_utils.mast_sbs.mast_sbs_procedural  # noqa: F401
+        from sbs_utils.mast.mast_globals import MastGlobals
+        for name in ("settings_add_playable_races", "settings_add_npc_races"):
+            self.assertIn(name, MastGlobals.globals,
+                          f"{name} is not callable from MAST - add its module to the "
+                          "import list in mast_sbs/mast_sbs_procedural.py")
+
+
 if __name__ == "__main__":
     unittest.main()
