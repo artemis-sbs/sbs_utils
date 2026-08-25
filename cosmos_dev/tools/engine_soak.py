@@ -122,15 +122,29 @@ def run_once(seconds, offsets, seed, timeout):
             pending.pop(0)
             procs.append(_launch(["autostartclient", "clientautoconnectip=127.0.0.1"]))
 
-        if not _alive(server):
-            outcome, detail = "SERVER DIED", f"t+{now:.0f}s"
-            break
-        dead_clients = [i for i, p in enumerate(procs[1:], 1) if not _alive(p)]
-        if dead_clients:
-            outcome, detail = "CLIENT DIED", f"t+{now:.0f}s client#{dead_clients[0]}"
-            break
+        # VERDICT FIRST. A server that writes its verdict and goes away in the same second
+        # would otherwise be reported as a death purely because of check order.
         if os.path.isfile(VERDICT):
             outcome, detail = "SURVIVED", f"t+{now:.0f}s"
+            break
+
+        if not _alive(server):
+            # THE EXIT CODE IS THE EVIDENCE, and reporting "died" without it was the flaw
+            # in the first version of this script: two runs came back as server crashes
+            # with NO crash dump and NO WER record, and there was no way to tell a crash
+            # from a clean exit. An MSVC assert that aborts leaves no WER record either
+            # (only Retry does), so "no dump" does not mean "no failure".
+            rc = server.returncode
+            outcome = "SERVER GONE"
+            detail = f"t+{now:.0f}s rc={rc} (0x{rc & 0xFFFFFFFF:08X})"
+            break
+
+        dead_clients = [(i, p.returncode) for i, p in enumerate(procs[1:], 1)
+                        if not _alive(p)]
+        if dead_clients:
+            i, rc = dead_clients[0]
+            outcome = "CLIENT GONE"
+            detail = f"t+{now:.0f}s client#{i} rc={rc} (0x{rc & 0xFFFFFFFF:08X})"
             break
         time.sleep(1)
 
@@ -183,14 +197,14 @@ def main():
         print(f"\n=== cell '{cell}' - client(s) at {offsets or 'none'} ===")
         for i in range(1, args.runs + 1):
             outcome, detail, new = run_once(args.seconds, offsets, args.seed, args.timeout)
-            if outcome == "SERVER DIED":
+            if outcome == "SERVER GONE":
                 crashes += 1
-            elif outcome == "CLIENT DIED":
+            elif outcome == "CLIENT GONE":
                 client_crashes += 1
             elif outcome == "TIMEOUT":
                 timeouts += 1
             dumps += new
-            mark = "  <<<" if outcome.endswith("DIED") else ""
+            mark = "  <<<" if outcome.endswith("GONE") else ""
             print(f"  {cell} {i:>3}/{args.runs}: {outcome} {detail}{mark}", flush=True)
         results[cell] = (crashes, client_crashes, timeouts, args.runs, dumps)
 
@@ -199,7 +213,7 @@ def main():
     for cell, (crashes, client_crashes, timeouts, runs, dumps) in results.items():
         pct = 100.0 * crashes / runs if runs else 0.0
         extra = f"   TIMEOUT {timeouts}/{runs}" if timeouts else ""
-        print(f"  {cell:<10} server {crashes}/{runs} ({pct:.0f}%)   client {client_crashes}/{runs}{extra}")
+        print(f"  {cell:<10} server-gone {crashes}/{runs} ({pct:.0f}%)   client-gone {client_crashes}/{runs}{extra}")
         voided += timeouts
         for d in dumps:
             print(f"      dump: {d}")
@@ -220,6 +234,11 @@ def main():
 
     total_runs = sum(r for _, _, _, r, _ in results.values()) - voided
     total_crashes = sum(c for c, _, _, _, _ in results.values())
+    print("")
+    print("  'server-gone' means the process ENDED, not necessarily that it crashed - the")
+    print("  engine has no quit in its pybind surface, so it should not end on its own, but")
+    print("  an assert that aborts leaves no dump and no WER record. Read the rc, and check")
+    print("  for a dump above, before calling any of these a crash.")
     print(f"\n  totals: {total_crashes} server crash(es) in {total_runs} run(s)")
     if total_crashes == 0:
         print("  NOT a verdict on its own. Against a ~15% base rate, zero crashes in")
