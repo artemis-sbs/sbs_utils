@@ -1,5 +1,6 @@
 from ..agent import Agent
-from .query import to_object_list, to_set, to_object, to_space_object
+from .query import (to_object_list, to_set, to_object, to_space_object,
+                    to_agent_list, to_client_object)
 
 
 def role(role: str):
@@ -117,7 +118,7 @@ def get_role_list(id_or_obj):
     Returns:
         list[str]: Role names, or an empty list if the agent does not exist.
     """
-    obj = to_object(id_or_obj)
+    obj = to_object(id_or_obj) or to_client_object(id_or_obj)
     if obj is None:
         return []
     return obj.get_roles()
@@ -131,7 +132,7 @@ def get_role_string(id_or_obj):
     Returns:
         str: Comma-separated role names, or ``""`` if the agent does not exist.
     """
-    obj = to_object(id_or_obj)
+    obj = to_object(id_or_obj) or to_client_object(id_or_obj)
     if obj is None:
         return ""
     return ",".join(obj.get_roles())
@@ -174,27 +175,39 @@ def all_roles(roles: str):
 def add_role(set_holder, role):
     """Add a role to one or more agents.
 
+    THE SERVER CONSOLE COUNTS. `to_object(0)` returns None by design, so this used to
+    be a silent no-op for client id 0 - and LM's main screen adds `console, mainscreen`
+    to its own client id. On the server window that role was never added, so every
+    audience narrowed with `any_role("mainscreen")` - a hail placed on the main screen,
+    a hero card, a lower third - resolved to nobody and drew nothing, with no error.
+    `to_agent_list` resolves the server the same way `get_inventory_value` always has.
+
     Args:
         set_holder (Agent | int | set[Agent | int]): Agent(s) to update.
         role (str): The role name to add.
     """
-    linkers = to_object_list(to_set(set_holder))
-    for so in linkers:
+    for so in to_agent_list(to_set(set_holder)):
         so.add_role(role)
 
 def remove_role(agents, role):
     """Remove a role from one or more agents.
 
+    Reaches the server console, for the same reason :func:`add_role` does - and it has
+    to be the same set, or a console that could gain a role could never lose it.
+
     Args:
         agents (Agent | int | set[Agent | int]): Agent(s) to update.
         role (str): The role name to remove.
     """
-    linkers = to_object_list(to_set(agents))
-    for so in linkers:
+    for so in to_agent_list(to_set(agents)):
         so.remove_role(role)
 
 def has_role(so, role):
     """Return whether an agent currently holds a given role.
+
+    Answers for the SERVER console too. It used to always say False for client id 0,
+    which reads exactly like "the role is not there" - so a check on the server was
+    indistinguishable from a real negative and passed silently for years.
 
     Args:
         so (Agent | int): Agent ID or object.
@@ -203,7 +216,7 @@ def has_role(so, role):
     Returns:
         bool: ``True`` if the agent has the role.
     """
-    so = to_object(so)
+    so = to_object(so) or to_client_object(so)
     if so:
         return so.has_role(role)
     return False
@@ -218,7 +231,7 @@ def has_roles(so, roles):
     Returns:
         bool: ``True`` if the agent has every role in the list.
     """
-    so = to_object(so)
+    so = to_object(so) or to_client_object(so)
     if so is None:
         return False
     if so:
@@ -238,7 +251,7 @@ def has_any_role(so, roles):
     Returns:
         bool: ``True`` if the agent has one or more of the roles.
     """
-    so = to_object(so)
+    so = to_object(so) or to_client_object(so)
     if so:
         roles = roles.split(",")
         for role in roles:

@@ -1,5 +1,5 @@
 from ..agent import Agent
-from .query import to_object_list, to_set, to_object
+from .query import to_object_list, to_set, to_object, to_agent_list
 
 
 
@@ -95,10 +95,12 @@ def set_inventory_value(so, key: str, value):
         key (str): The inventory key.
         value (any): The value to store.
     """
-    obj_list = to_object_list(so)
-    for obj in obj_list:
-        if obj is not None:
-            obj.set_inventory_value(key, value)
+    # to_agent_list, so the SERVER console (client id 0) can be written to. The READ
+    # side has always had an explicit `Agent.get(0)` branch for this, so without the
+    # matching write the server was readable and not writable - LM's main screen sets
+    # CONSOLE_TYPE on its own client id and it never landed there.
+    for obj in to_agent_list(so):
+        obj.set_inventory_value(key, value)
 
 def remove_inventory_value(so, key):
     """Remove an inventory key from one or more agents.
@@ -109,10 +111,12 @@ def remove_inventory_value(so, key):
         so (Agent | int | set[Agent | int]): The agent(s) to update.
         key (str): The inventory key to remove.
     """
-    obj_list = to_object_list(so)
-    for obj in obj_list:
-        if obj is not None:
-            obj.set_inventory_value(key) # Value not specified, so None
+    # None is the erase value: Agent.set_inventory_value drops the key from the global
+    # has_inventory index when it is written. This used to CALL it with one argument
+    # and raise TypeError every time - nothing in the library or the missions called
+    # it, so the whole function had never run.
+    for obj in to_agent_list(so):
+        obj.set_inventory_value(key, None)
 
 def get_shared_inventory_value(key, default=None):
     """Get an inventory value from the global shared agent.
