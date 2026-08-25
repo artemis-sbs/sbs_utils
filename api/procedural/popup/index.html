@@ -1618,6 +1618,8 @@
       
         
       
+        
+      
     
     
     
@@ -1799,6 +1801,34 @@
     
   
     Player ships & consoles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/crew/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crew rosters
   
 
     
@@ -2260,7 +2290,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_22" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_23" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2282,14 +2312,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_23" id="__nav_5_23_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_22_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_22">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_23">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -4988,6 +5018,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#three-ids-and-which-one-you-want" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three ids, and which one you want
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -9653,6 +9700,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#three-ids-and-which-one-you-want" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three ids, and which one you want
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -9862,7 +9926,32 @@
 <h2 id="overview">Overview</h2>
 <p>Popups work like a mini comms tree. When a player clicks or hold-clicks in the science, comms, comms2d, or weapons view, the engine fires an event that creates a <code>PopupPromise</code>. The promise walks a route tree rooted at <code>//popup/&lt;console&gt;</code> (e.g. <code>//popup/science</code>) and displays the available buttons as a hold-menu on the client.</p>
 <p>Each button in the route leads to a sub-path, just like comms. Use <code>popup_navigate</code> from within a popup handler to programmatically change which buttons are shown.</p>
-<p>The variables <code>SCIENCE_ORIGIN_ID</code>, <code>SCIENCE_SELECTED_ID</code>, and <code>SCIENCE_POPUP_ID</code> (or the equivalent <code>COMMS_*</code>/<code>WEAPONS_*</code> variants) are set when the popup fires so the handler knows which ship, which object was clicked, and what was under the cursor.</p>
+<h3 id="three-ids-and-which-one-you-want">Three ids, and which one you want</h3>
+<p>Three variables are set when the popup fires - <code>SCIENCE_ORIGIN_ID</code>, <code>SCIENCE_SELECTED_ID</code> and <code>SCIENCE_POPUP_ID</code>, or the equivalent <code>COMMS_*</code>/<code>WEAPONS_*</code> variants. They are <strong>not interchangeable</strong>, and reaching for the wrong one is the single most common popup bug:</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;CONSOLE&gt;_ORIGIN_ID</code></td>
+<td>The ship the client is flying.</td>
+</tr>
+<tr>
+<td><code>&lt;CONSOLE&gt;_SELECTED_ID</code></td>
+<td>The console's <strong>standing selection</strong> - whatever it had targeted before the hold. <strong>0</strong> when it has none.</td>
+</tr>
+<tr>
+<td><code>&lt;CONSOLE&gt;_POPUP_ID</code></td>
+<td>The object <strong>under the cursor</strong> when the player held. <strong>0</strong> for a hold on empty space (<code>&lt;CONSOLE&gt;_POPUP_POINT</code> then carries the point).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>A menu that acts on the object the player clicked wants <code>POPUP_ID</code>.</strong> Gated on <code>SELECTED_ID</code> instead, it silently acts on the console's target rather than on what was clicked, and offers nothing at all when nothing is selected - which reads as a menu that only works sometimes. <code>SELECTED_ID</code> is right only when the selection is genuinely part of the interaction, as in "give THIS ship (selected) an order about THAT object (popup)".</p>
+<p>There is one <code>PopupPromise</code> per (origin, selection) pair, and <code>POPUP_ID</code> changes with each hold - so one promise serves however many objects the player holds on while the selection stays put.</p>
 <h2 id="quick-example">Quick example</h2>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->

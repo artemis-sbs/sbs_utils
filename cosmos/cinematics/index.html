@@ -1620,6 +1620,8 @@
       
         
       
+        
+      
     
     
     
@@ -1804,6 +1806,34 @@
     
   
     Player ships & consoles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../build/crew/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crew rosters
   
 
     
@@ -2175,6 +2205,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sizing-a-shot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sizing a shot
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#moving-it" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2381,7 +2422,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_22" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_23" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2403,14 +2444,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5_23" id="__nav_5_23_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_22_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_22">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_23">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -9518,6 +9559,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sizing-a-shot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sizing a shot
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#moving-it" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -9640,6 +9692,25 @@ real object, make an invisible anchor:</p>
 <span class="n">camera_shot</span><span class="p">(</span><span class="n">to</span><span class="p">,</span> <span class="n">cam</span><span class="p">,</span> <span class="n">Vec3</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="o">-</span><span class="mi">1200</span><span class="p">))</span>
 </code></pre></div>
 <p>Hand the camera back to the engine's own director with <code>camera_auto(to)</code>.</p>
+<h2 id="sizing-a-shot">Sizing a shot</h2>
+<p>A <code>lens</code> is where the camera <strong>is</strong>. A <code>framing</code> is how big the subject should <strong>look</strong>,
+and the library works the distance out from the subject's own hull:</p>
+<div class="highlight"><pre><span></span><code><span class="n">cutscene_play</span><span class="p">([</span>
+    <span class="p">{</span><span class="s2">&quot;subject&quot;</span><span class="p">:</span> <span class="n">hero</span><span class="p">,</span>    <span class="s2">&quot;framing&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;wide&quot;</span><span class="p">,</span> <span class="s2">&quot;close&quot;</span><span class="p">],</span> <span class="s2">&quot;seconds&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">},</span>   <span class="c1"># push in</span>
+    <span class="p">{</span><span class="s2">&quot;subject&quot;</span><span class="p">:</span> <span class="n">station</span><span class="p">,</span> <span class="s2">&quot;framing&quot;</span><span class="p">:</span> <span class="s2">&quot;wide&quot;</span><span class="p">,</span>            <span class="s2">&quot;seconds&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">},</span>   <span class="c1"># hold</span>
+<span class="p">],</span> <span class="n">to</span><span class="o">=</span><span class="n">role</span><span class="p">(</span><span class="s2">&quot;mainscreen&quot;</span><span class="p">))</span>
+</code></pre></div>
+<p><code>close</code>, <code>medium</code> and <code>wide</code> are 6, 10 and 16 hull radii - the same numbers a bridge
+viewscreen shot uses, so a cutscene of a ship and "On Screen" of the same ship are framed
+alike. Two sizes in a list is a move: <code>["wide", "close"]</code> pushes in, the reverse pulls out.</p>
+<p><strong>Prefer it to <code>lens</code>/<code>move</code>.</strong> Those are absolute world POSITIONS, which means a shot is
+framed by where its subject happens to be parked as much as by the number you typed - and
+one number cannot serve subjects of different sizes. A mission whose hulls ran from a
+25-unit bird of prey to a 220-unit starbase had exactly one well-framed shot out of six:
+the only one whose subject sat at the origin.</p>
+<p>A subject much larger than a ship - a planet - is still framed in its own radii, so <code>wide</code>
+on a 10,000-unit world is 160,000 units out. That is geometrically right and dramatically
+useless; frame a world <code>close</code>, or give the shot a ship to look at instead.</p>
 <h2 id="moving-it">Moving it</h2>
 <p>The engine interpolates nothing, so a move is a driver that re-aims every tick. Each
 returns a <strong>Promise</strong>, so MAST can <code>await</code> it.</p>
@@ -9756,8 +9827,13 @@ resolves <strong>late</strong>:</p>
 </code></pre></div>
 <h2 id="gotchas">Gotchas</h2>
 <ul>
-<li><strong><code>Lens:</code>, not <code>Eye:</code> or <code>Camera:</code>.</strong> A <em>camera</em> here is an object, which is what
-  <code>Subject:</code> already names; <code>Lens:</code> is where you look <strong>from</strong>.</li>
+<li>
+<p><code>Lens:</code> is absolute world coordinates, not an offset from the subject.</p>
+</li>
+<li>
+<p><strong><code>Lens:</code>, not <code>Eye:</code> or <code>Camera:</code>.</strong> A <em>camera</em> here is an object, which is what
+  <code>Subject:</code> already names; <code>Lens:</code> is where you look <strong>from</strong>.</p>
+</li>
 <li><strong><code>Cutscene:</code>, not <code>Scene:</code>.</strong> <code>Scene:</code> is a lifeform's dialogue scene, and the schema
   infers the lifeform archetype from it — a shot carrying it is typed as a character.</li>
 <li><strong>No <code>Kind:</code> on a bed.</strong> <code>Kind:</code> infers the <em>landmark</em> archetype.</li>

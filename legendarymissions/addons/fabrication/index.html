@@ -1618,6 +1618,8 @@
       
         
       
+        
+      
     
     
     
@@ -1799,6 +1801,34 @@
     
   
     Player ships & consoles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/crew/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crew rosters
   
 
     
@@ -2260,7 +2290,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_22" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_23" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2282,14 +2312,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_23" id="__nav_5_23_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_22_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_22">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_23">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -9657,8 +9687,12 @@ can add its own beacons and craftables without touching the addon.</p>
 <hr />
 <h2 id="the-build-deliver-fire-loop">The build → deliver → fire loop</h2>
 <p>Beacons are <strong>fabricate-only</strong>: a player ship carries beacon <em>capacity</em> (<code>Beacon_MAX</code>)
-but spawns with <strong>0 loaded rounds</strong> — a <code>//spawn</code> route zeroes <code>Beacon_NUM</code> so the
-prefab registrar can't top it off. The only way to a loadable round is to build one.</p>
+but spawns with <strong>0 loaded rounds</strong>. The Beacon prefab declares <code>fill_on_spawn: false</code>,
+so the torpedo registrar gives the ship the tube without stocking it. The only way to a
+loadable round is to build one.</p>
+<p>The tube holds <strong>one</strong> beacon (<code>default_max_count: 1</code>). That is deliberate: with a single
+slot the count <em>is</em> the program, so what Weapons has loaded is never in doubt — the stock
+tube widget shows a bare number and nothing anywhere displays which program is in it.</p>
 <p>By design the loop is <strong>slow and comms-heavy — the coordination is two humans talking</strong>:</p>
 <ol>
 <li><strong>Weapons tells Engineering what to make</strong> — which beacon, and (for a Bio Beacon)
@@ -9669,8 +9703,9 @@ prefab registrar can't top it off. The only way to a loadable round is to build 
    <strong>build timer</strong>; the finished beacon lands in cargo (<code>beacon_built</code>), built but
    <strong>not yet loaded</strong>.</li>
 <li><strong>Engineering delivers</strong> one from the <strong>Cargo</strong> tab — <strong>Deliver to Weapons</strong>. Only
-   delivery raises the ship's loadable tube count (<code>Beacon_NUM</code>, capped at
-   <code>Beacon_MAX</code>) and queues the beacon's <strong>program</strong> (FIFO, matching fire order).</li>
+   delivery raises the ship's loadable tube count (<code>Beacon_NUM</code>) and queues the beacon's
+   <strong>program</strong>. Delivering into a <strong>full</strong> tube is refused and the beacon stays in cargo,
+   so nothing is destroyed by an extra click; fire the loaded one first.</li>
 <li><strong>Weapons fires</strong> the Beacon through the stock tube UI. The fired round is harmless;
    on <code>//launch/missile</code> the addon drops a <strong>real broadcasting beacon ~635u aft</strong>,
    stamped with the next queued program.</li>
@@ -9686,12 +9721,18 @@ fades:</p>
   matching <a href="../biomech/">space monsters</a> across a wide radius (default 50 000u), steering
   them toward the beacon or away from it until it expires (~120s).</li>
 <li><strong>Sensor Beacon</strong> — a passive <strong>sensor relay</strong> (the 2.8 Probe). It drops and scans
-  like any beacon; its program carries a <code>range</code> (<code>medium</code> / <code>long</code>) for the sensor
-  sweep to read.</li>
-<li><strong>Science</strong> can scan any beacon to read its program (kind, target, attract/repel).</li>
-<li><strong>Recover</strong> a beacon by <strong>flying over it</strong> — it adds a loadable round back
-  (<code>Beacon_NUM</code> +1) and re-queues its program, so the recovered round keeps its
-  behaviour when relaunched.</li>
+  like any beacon; its program carries a <code>beacon_range</code> (<code>medium</code> / <code>long</code>) for the
+  sensor sweep to read. (The key is <code>beacon_range</code>, never <code>range</code>: a program key can end
+  up bound as a MAST variable, and <code>range</code> is one of MAST's own globals.)</li>
+<li><strong>Science</strong> can scan any beacon to read its program. The readout is per <strong>kind</strong> — a
+  Sensor Beacon reports as a relay and names its range; a Bio Beacon names its target and
+  whether it attracts or repels.</li>
+<li><strong>Recover</strong> a beacon by <strong>flying over it</strong> — it is <strong>scrapped back into its recipe's
+  Inputs</strong>, credited to the ship's materials. Recovery does <strong>not</strong> put a round in the
+  tube: only Engineering loads the tube, so a pickup always does something useful whatever
+  the tube holds, and you still have to re-fabricate. A beacon with no recipe stamp — an
+  adrift probe, or an a2x-imported store — pays out by its kind, so salvaging a derelict
+  is never a wasted trip.</li>
 </ul>
 <hr />
 <h2 id="recipes-are-data-amd">Recipes are data (AMD)</h2>

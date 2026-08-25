@@ -1618,6 +1618,8 @@
       
         
       
+        
+      
     
     
     
@@ -1799,6 +1801,34 @@
     
   
     Player ships & consoles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/crew/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crew rosters
   
 
     
@@ -2260,7 +2290,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_22" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_23" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2282,14 +2312,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_23" id="__nav_5_23_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_22_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_22">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_23">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3936,6 +3966,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;face_overlay
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.faces.face_race_mapped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;face_race_mapped
       
     </span>
   </a>
@@ -10019,6 +10060,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.faces.face_race_mapped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;face_race_mapped
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.faces.face_random_registered" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10733,6 +10785,37 @@ composite lowest-first, so overlays go last.</p>
 <pre><code>face_overlay(random_face("terran"), "tng6 #fff 2 1", "tng6 #fff 5 3")
 </code></pre>
 <p>Empty/None overlays are skipped so a caller can pass an optional one straight in.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.faces.face_race_mapped" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">face_race_mapped</span><span class="p">(</span><span class="n">race</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Re-point a race name at the face race its portraits should come from. ART ONLY.</p>
+<p>The third of the mod re-skin maps (<code>RACE_ART</code> and <code>ART_KEYS</code> are the other two, in
+procedural/ship_data.py). Returns <code>race</code> unchanged unless a mission or profile set
+<code>RACE_FACES</code>, so stock behavior is untouched.</p>
+<p>WHY FACES NEED THEIR OWN MAP AND CANNOT REUSE <code>RACE_ART</code>: face races are SPECIES,
+ship-data sides are FACTIONS, and they do not spell the same. A mod's Federation ships
+are crewed by <code>human</code>, not by <code>federation</code>; a faction can field hulls and register no
+portraits at all (Cosmos-TNG-Mod has Breen ships and no Breen faces). Feeding a faction
+name to random_face() therefore matches nothing and falls back to terran - the exact
+"NPC comms faces are still stock" symptom this exists to fix.</p>
+<p>Applied INSIDE random_face() rather than at its call sites, because a mission has many
+(LM alone has four for NPCs, one of them in a fleet spawner) and a missed one looks
+identical to the bug. A name with no entry passes through untouched, so player faces
+already named by species (<code>human</code>) are unaffected.</p>
 
 
     </div>

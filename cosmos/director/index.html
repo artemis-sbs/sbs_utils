@@ -1620,6 +1620,8 @@
       
         
       
+        
+      
     
     
     
@@ -1804,6 +1806,34 @@
     
   
     Player ships & consoles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../build/crew/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crew rosters
   
 
     
@@ -2448,7 +2478,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_22" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_23" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2470,14 +2500,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5_23" id="__nav_5_23_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_22_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_22">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_23">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -9878,6 +9908,11 @@ them matches, so a double-click still collapses.</p>
 </div>
 <p><strong>Console</strong> is the other tool: pick a ship and one or more console types, and add one
 item per console. That is what fills a bridge multiview.</p>
+<p>A console shot knows <strong>who is at that station</strong> &mdash; <code>&lt;&lt;crew_name&gt;&gt;</code>, and <code>&lt;&lt;crew_rank&gt;&gt;</code>
+beside it. Both come off the seat this shot is pointed at, so a bridge wall names the
+right person on every panel. Somebody who typed their name at the picker has no rank, so
+the ranked preset falls back to the plain one; a <a href="../../build/crew/">crew roster</a> is what
+gives a whole bridge names and ranks without anybody typing anything.</p>
 <h2 id="overlays-titles-over-the-shot">Overlays — titles over the shot</h2>
 <p>Any shot can carry cards, and several at once because each draws in its own place:</p>
 <table>
@@ -9955,6 +9990,14 @@ other ship in the rundown.</p>
 <tr>
 <td><code>&lt;&lt;shields&gt;&gt;</code></td>
 <td>front / rear percent</td>
+</tr>
+<tr>
+<td><code>&lt;&lt;crew_name&gt;&gt;</code></td>
+<td>who is sitting at this shot's console</td>
+</tr>
+<tr>
+<td><code>&lt;&lt;crew_rank&gt;&gt;</code></td>
+<td>their rank, when a <a href="../../build/crew/">crew roster</a> gave them one</td>
 </tr>
 </tbody>
 </table>

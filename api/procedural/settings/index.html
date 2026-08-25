@@ -1618,6 +1618,8 @@
       
         
       
+        
+      
     
     
     
@@ -1799,6 +1801,34 @@
     
   
     Player ships & consoles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/crew/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crew rosters
   
 
     
@@ -2260,7 +2290,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_22" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_23" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2282,14 +2312,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_23" id="__nav_5_23_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_22_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_22">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_23">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -5264,6 +5294,28 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;settings_add_defaults
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.settings.settings_add_npc_races" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;settings_add_npc_races
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.settings.settings_add_playable_races" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;settings_add_playable_races
       
     </span>
   </a>
@@ -9705,6 +9757,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.settings.settings_add_npc_races" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;settings_add_npc_races
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.settings.settings_add_playable_races" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;settings_add_playable_races
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.settings.settings_get_defaults" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10041,6 +10115,170 @@ or <code>setup.json</code> take precedence, so this only fills gaps.</p>
             </td>
             <td>
                 <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.settings.settings_add_npc_races" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">settings_add_npc_races</span><span class="p">(</span><span class="o">*</span><span class="n">races</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Add races to <code>NPC_RACES</code>, keeping whatever is already listed.</p>
+<p>The NPC twin of :func:<code>settings_add_playable_races</code> - same semantics, same ordering
+caveat. Separate from the playable list on purpose: the races a player may BE and the
+races that raid them are different questions.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>*races</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>race names, as separate arguments, a comma-separated string, or a list.</p>
+              </div>
+            </td>
+            <td>
+                  <code>()</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>list</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the names actually added, in order.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.settings.settings_add_playable_races" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">settings_add_playable_races</span><span class="p">(</span><span class="o">*</span><span class="n">races</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Add races to <code>PLAYABLE_RACES</code>, keeping whatever is already listed.</p>
+<p>The call a MOD that ships player-flyable hulls should make. Accepts names as separate
+arguments, one comma-separated string, or a list::</p>
+<pre><code>settings_add_playable_races("Federation", "Klingon")
+settings_add_playable_races("Federation, Klingon")
+</code></pre>
+<p>ADD rather than replace, so a mod can put a Galaxy alongside a TSN crew instead of
+taking the mission's own races away. A total conversion stays a MISSION's choice - it
+sets the setting to its own races alone - rather than something installing a mastlib
+does to you.</p>
+<p>WHY NOT <code>settings_set_mod_default</code>. That is the right tier for "a value the library
+ships and the mission did not override", and it deliberately returns False once the
+mission has spoken (<code>_explicit_keys</code>). Adding a race is not overriding a choice, it is
+widening a list, and it has to work even when the mission named the key - a mission
+that lists <code>TSN, Ximni</code> has said nothing at all about the Federation. So this edits the
+live settings dict, which is what every mod doing this had to hand-roll.</p>
+<p>ORDER MATTERS, and this is the one sharp edge. Addons decide which floor plans and
+fleet ladders to load by READING these settings at load time, and addon load order is
+non-deterministic. Adding a race the mod supplies hulls for is safe, because the mod's
+own addon merges those. Adding a race to unlock ANOTHER addon's content is a race with
+that addon's own load - call this as early as possible (the first line of the mod's
+<code>__init__.mast</code>) and do not rely on it.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>*races</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>race names, as separate arguments, a comma-separated string, or a list.</p>
+              </div>
+            </td>
+            <td>
+                  <code>()</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>list</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the names actually added, in order. Empty when every one was already listed.</p>
+              </div>
             </td>
           </tr>
       </tbody>

@@ -1628,6 +1628,8 @@
       
         
       
+        
+      
     
     
     
@@ -1809,6 +1811,34 @@
     
   
     Player ships & consoles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../build/crew/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crew rosters
   
 
     
@@ -2270,7 +2300,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_22" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_23" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2292,14 +2322,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_23" id="__nav_5_23_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_22_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_22">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_23">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -9543,7 +9573,14 @@ Authors: <a href="../legendarymissions/addons/casino/">The Casino addon</a>.</p>
 <ul>
 <li><strong>Weapons hold-click</strong> any contact for a context menu: <strong>Reel</strong> cargo in (it's
   collected on contact), <strong>Tow</strong> a ship or derelict at distance, <strong>Lock</strong> for a rigid
-  grab, or <strong>Release</strong>. The mode is chosen by what you grabbed.</li>
+  grab, or <strong>Release</strong>. The mode is chosen by what you grabbed. You do <strong>not</strong> have to
+  target it first - the menu acts on whatever you held the button on, so you can hook a
+  derelict while staying locked on the raider shooting at you.</li>
+<li><strong>Weapons shows what you have hold of.</strong> The called-shot square doubles as the tether
+  readout: the load's own silhouette, the mode (<strong>TOW</strong> / <strong>REEL</strong> / <strong>LOCK</strong>), its name
+  and its range. When the called-shot panel is busy with a target, the tow is named
+  along the bottom strip instead - it is never left unsaid. And it says so when the beam
+  is on <strong>you</strong>: a hostile tether reads <strong>TOWED</strong>, a fighter on a rock reads <strong>SWING</strong>.</li>
 <li><strong>Fighters</strong> get a cockpit button with <strong>nose-aim</strong> targeting (it grabs what you're
   pointing at): reel salvage, or <strong>swing</strong> around an asteroid on a tether that holds
   your radius while you orbit. The button glows cyan while tethered.</li>
@@ -10721,6 +10758,39 @@ mission</a>.</p>
 <p>Reports what is installed, what a mission expects, and what is missing — with the
 command that fixes each one. It checks your <em>setup</em>, never your writing; for that there
 is still <code>sbs lint</code>. See <a href="../tooling/doctor/">Checking your setup</a>.</p>
+<p>It now <strong>ends with the arithmetic</strong>, so you can tell at a glance whether anything needs
+doing without reading forty rows:</p>
+<div class="highlight"><pre><span></span><code>17 checks: 14 ok, 3 optional absent, 0 problems
+</code></pre></div>
+<p>and when something is wrong, a second line names which parts of the report to look in.
+An optional library that is not installed is counted separately from a problem — it is
+not a fault, and one combined number would make a healthy machine look broken.</p>
+<hr />
+<h2 id="sbs-art-the-art-the-game-builds-for-itself">🎨 <code>sbs art</code> — the art the game builds for itself</h2>
+<p>Some of a ship's art is not drawn by an artist. The engine builds it the first time it
+shows that hull — a <code>.paxmesh</code> and the flat <code>1024</code>/<code>256</code> sprites — and saves it beside
+the original. It is never packaged, because a built mesh remembers where its textures
+were and shipping one points somebody else's install at a folder that is not there.</p>
+<p><strong>If the game is interrupted while it is doing that, it leaves the job half-finished —
+and a half-finished hull crashes the client every single time anyone looks at it.</strong> The
+engine tries again, fails in the same place, leaves the same mess, so it never recovers
+on its own. Three hulls were stuck like that in one install and it took two separate
+crash hunts to find them; the fix was throwing the partial files away and letting the
+engine start over.</p>
+<div class="highlight"><pre><span></span><code>sbs art check              # anything half-finished?
+sbs art clear              # throw the half-finished bits away
+sbs art bake               # ...and drive the engine to rebuild them
+sbs art bake --undrawn     # also build art nobody has looked at yet
+</code></pre></div>
+<p><code>clear</code> touches only what the engine made — your <code>.obj</code> and textures are never removed.
+<code>bake</code> runs the engine <strong>once per hull</strong>, so a crash costs one hull instead of the whole
+batch, and finishes with the list of hulls that still will not build: "the server keeps
+dying" becomes three names.</p>
+<p><code>--undrawn</code> builds ahead of time, which is the real defence — every build that has
+already happened is one that cannot go wrong mid-match.</p>
+<p>A hull listed as <strong>not yet drawn is normal</strong>, not a fault: it is simply art nobody has
+looked at. <code>sbs doctor</code> runs the same check as part of its report. See
+<a href="../tooling/cli/#repairing-engine-baked-art">the CLI</a>.</p>
 <hr />
 <h2 id="add-on-ships-a-file-that-exists-not-a-file-that-gets-written">🚢 Add-on ships: a file that exists, not a file that gets written</h2>
 <p>An add-on that adds hulls used to hand the library its ship data and let the library

@@ -1618,6 +1618,8 @@
       
         
       
+        
+      
     
     
     
@@ -1799,6 +1801,34 @@
     
   
     Player ships & consoles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../build/crew/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crew rosters
   
 
     
@@ -2260,7 +2290,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_22" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_23" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2282,14 +2312,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_23" id="__nav_5_23_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_22_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_22">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_23">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3416,6 +3446,28 @@
     <span class="md-ellipsis">
       
         Reading the output
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-summary-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The summary line
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#half-baked-art" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Half-baked art
       
     </span>
   </a>
@@ -9481,6 +9533,28 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#the-summary-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The summary line
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#half-baked-art" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Half-baked art
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -9560,14 +9634,56 @@ LegendaryMissions
 </code></pre></div>
 <p>Sections: <strong>sbs</strong> (version, missions folder, running packaged or from source) -
 <strong>Python</strong> - <strong>Layout</strong> (<code>__lib__</code>, which <code>sbs_utils</code> won, graphics, PyAddons,
-face compositor) - <strong>Tools</strong> (git, curl, browser, weasyprint) - <strong>Sidecar</strong> - then
-one per mission.</p>
+face compositor) - <strong>Tools</strong> (git, curl, browser, weasyprint) - <strong>Sidecar</strong> -
+<strong>install</strong> (derived art) - then one per mission.</p>
 <p>The mission checks are: <code>story.json</code> parses; every declared library is actually
 in <code>__lib__</code>; no addon source is <strong>newer than its built <code>.mastlib</code></strong> (the classic
 "my change did nothing" - the engine reads the lib while the runner reads the
 source); the packaging lists are in step; and no generated <code>extraShipData.json</code>
 is lying around, since the library reads it back <em>and</em> the addon merges the same
 entries again, doubling hull counts from the second run onward.</p>
+<h2 id="the-summary-line">The summary line</h2>
+<p>Every run ends with the arithmetic, so "is anything wrong" is answerable without
+reading every row:</p>
+<div class="highlight"><pre><span></span><code>17 checks: 14 ok, 3 optional absent, 0 problems
+</code></pre></div>
+<p>and, when something is:</p>
+<div class="highlight"><pre><span></span><code>5 checks: 1 ok, 1 optional absent, 3 problems
+to fix: LegendaryMissions, MyMission (remedies are beside each row above)
+</code></pre></div>
+<p><code>--</code> is counted <strong>apart</strong> from problems, because an optional library that is not
+installed is not a fault - rolling the two together would make a healthy machine
+look broken. The second line names only the <em>sections</em> that carry a problem; the
+remedy for each one is already printed beside its row, so it points you at where to
+look rather than repeating itself.</p>
+<p><code>--json</code> carries the same numbers as a <code>summary</code> object beside <code>checks</code>.</p>
+<h2 id="half-baked-art">Half-baked art</h2>
+<p>Doctor also counts the art the ENGINE bakes for itself - a hull's <code>.paxmesh</code> and
+its <code>&lt;root&gt;1024.png</code> / <code>&lt;root&gt;256.png</code>, generated on first draw and never
+packaged.</p>
+<div class="highlight"><pre><span></span><code>install
+  ok  art         193 baked, 20 not yet drawn, 0 half-baked in data/graphics
+</code></pre></div>
+<p><strong>Half-baked is the one that matters, and it is a crash.</strong> If the engine dies
+partway through a bake it leaves the mesh without its sprites; every later draw
+retries, dies in the same place, and leaves the same wreckage - so one bad hull
+crashes that client on every draw, forever. Three hulls were stuck like that in one
+install and cost two separate crash investigations before anyone looked in the
+folder. <code>sbs art clear</code> throws the partial files away so the engine can start over;
+<code>sbs art bake</code> drives it. <strong>Not yet drawn is normal</strong> - art nobody has looked at -
+and is deliberately not flagged.</p>
+<p>Two things this check knows, both measured off a stock <code>data/graphics</code> rather than
+assumed, because getting either wrong makes it cry wolf on a healthy install:</p>
+<ul>
+<li><strong><code>.pointcube</code> is optional.</strong> 120 of 184 baked ship roots have none.</li>
+<li><strong>Sprites are a <code>ships/</code> thing.</strong> In <code>graphics/ships</code> every baked root has them
+  and none lacks them; at the graphics root the nine effect meshes (typhon parts,
+  drones, <code>AHBall</code>) have none and never get any, because nothing draws them
+  face-on.</li>
+</ul>
+<p>It also watches for <code>&lt;root&gt;256.png</code> turning up beside the executable instead of
+beside the art - a known engine bug that quietly stops the art folder ever
+completing.</p>
 <hr />
 <h1 id="sbs-deps-optional-python-libraries"><code>sbs deps</code> - optional Python libraries</h1>
 <h2 id="why-plain-pip-install-never-worked">Why plain <code>pip install</code> never worked</h2>

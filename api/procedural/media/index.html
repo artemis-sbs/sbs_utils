@@ -1618,6 +1618,8 @@
       
         
       
+        
+      
     
     
     
@@ -1799,6 +1801,34 @@
     
   
     Player ships & consoles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/crew/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crew rosters
   
 
     
@@ -2260,7 +2290,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_22" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_23" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2282,14 +2312,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_23" id="__nav_5_23_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_22_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_22">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_23">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -5022,6 +5052,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.media.music_name_list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;music_name_list
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.media.music_play_sting" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5070,6 +5111,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;music_schedule_select
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.media.music_selected_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;music_selected_name
       
     </span>
   </a>
@@ -9969,6 +10021,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.media.music_name_list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;music_name_list
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.media.music_play_sting" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10017,6 +10080,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;music_schedule_select
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.media.music_selected_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;music_selected_name
       
     </span>
   </a>
@@ -10987,6 +11061,33 @@ fall back to <code>default</code> for that ONE file instead of abandoning the mo
 <div class="doc doc-object doc-function">
 
 
+<h2 id="sbs_utils.procedural.media.music_name_list" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">music_name_list</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Dropdown options string for a music picker: <code>'random, &lt;Display&gt;, ...'</code>.</p>
+<p>For a map's <code>Properties:</code> block, so the control appears because a map asked for it
+rather than being hardcoded into the server console for every mission::</p>
+<pre><code>default shared MUSIC_SELECT = music_selected_name()
+default shared MUSIC_LIST   = music_name_list()
+...
+Music: 'gui_drop_down("$text: {MUSIC_SELECT};list: {MUSIC_LIST}", var="MUSIC_SELECT")'
+</code></pre>
+<p>Built from <code>music_get_list</code>, so a mod that ships banks appears without the map
+knowing about it.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="sbs_utils.procedural.media.music_play_sting" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">music_play_sting</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">ids_or_obj</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
 
@@ -11304,6 +11405,27 @@ by :func:<code>music_find</code>.</p>
         <p>A spec that matches nothing WARNS BY NAME and falls back to random. Silence there was
 the tempting choice and the wrong one: <code>MUSIC_SELECT: Artmeis2</code> would play a random
 track, which is indistinguishable from working.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.media.music_selected_name" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">music_selected_name</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The current MUSIC_SELECT, or <code>"random"</code>.</p>
+<p>What a map seeds its shared var from. Reads the shared value if one is already set,
+otherwise the setting - so a <code>default shared</code> line cannot overwrite a profile's choice
+with the fallback the moment the panel builds.</p>
 
 
     </div>

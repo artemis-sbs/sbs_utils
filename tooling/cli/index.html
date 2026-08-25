@@ -1618,6 +1618,8 @@
       
         
       
+        
+      
     
     
     
@@ -1799,6 +1801,34 @@
     
   
     Player ships & consoles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../build/crew/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crew rosters
   
 
     
@@ -2260,7 +2290,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_22" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_23" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2282,14 +2312,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_22" id="__nav_5_22_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_23" id="__nav_5_23_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_22_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_22">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_23">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3281,6 +3311,17 @@
     <span class="md-ellipsis">
       
         Serving web pages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#repairing-engine-baked-art" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repairing engine-baked art
       
     </span>
   </a>
@@ -9659,6 +9700,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#repairing-engine-baked-art" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repairing engine-baked art
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -9922,6 +9974,32 @@ sbs web-static . scores -o scores.html --query title=Standings
 </code></pre></div>
 <p>See <a href="../web-proxy/">Serving web pages</a> and the <a href="../../build/web-pages/">Web pages</a>
 cookbook.</p>
+<h2 id="repairing-engine-baked-art">Repairing engine-baked art</h2>
+<p>A hull's <code>.paxmesh</code> and its <code>&lt;root&gt;1024.png</code> / <code>&lt;root&gt;256.png</code> are not authored -
+the engine generates them the first time it draws that hull, beside the source
+<code>.obj</code>, and they are never packaged (a baked mesh hardcodes its texture paths under
+<code>data/graphics/</code>, so shipping one points another install at somebody else's disk).</p>
+<div class="highlight"><pre><span></span><code>sbs art check              # what is half-baked?
+sbs art check --strict     # exit 1 if anything is
+sbs art clear              # delete the partial files so the engine starts over
+sbs art bake               # ...and drive the engine to rebuild them
+sbs art bake --undrawn     # also bake art that has never been drawn
+</code></pre></div>
+<p><strong>A half-baked hull is a crash-to-desktop, not a cosmetic gap.</strong> The engine retries
+the bake on every draw, dies in the same place, and leaves the same partial output,
+so one bad hull kills that client every time it sees it. <code>clear</code> touches only what
+the engine made - your <code>.obj</code> and textures are never removed - and <code>bake</code> runs the
+engine once per hull so a crash costs one hull rather than the batch, finishing with
+the list of hulls that still will not build.</p>
+<p><code>--undrawn</code> pre-bakes, so a bake can never happen mid-game - every one already done
+is one that cannot fail live. Expect it to reach far fewer roots than the count
+suggests, and it lists the rest with the reason: on a stock install 16 of 20 undrawn
+roots have no shipData key at all (superseded hulls, mesh sub-parts like
+<code>monster2_jaw</code>, non-ship assets like <code>skyPlane</code>), and nothing can spawn what nothing
+names.</p>
+<p>Mod-carried art cannot be baked where it lives, for the texture-path reason above;
+<code>sbs art</code> reports those rather than trying. <code>sbs doctor</code> runs the same check as part
+of its report - see <a href="../doctor/#half-baked-art">Checking your setup</a>.</p>
 
 
 
