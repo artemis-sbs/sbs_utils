@@ -1525,6 +1525,52 @@ Reports what is installed, what a mission expects, and what is missing — with 
 command that fixes each one. It checks your *setup*, never your writing; for that there
 is still `sbs lint`. See [Checking your setup](tooling/doctor.md).
 
+It now **ends with the arithmetic**, so you can tell at a glance whether anything needs
+doing without reading forty rows:
+
+```
+17 checks: 14 ok, 3 optional absent, 0 problems
+```
+
+and when something is wrong, a second line names which parts of the report to look in.
+An optional library that is not installed is counted separately from a problem — it is
+not a fault, and one combined number would make a healthy machine look broken.
+
+---
+
+## 🎨 `sbs art` — the art the game builds for itself
+
+Some of a ship's art is not drawn by an artist. The engine builds it the first time it
+shows that hull — a `.paxmesh` and the flat `1024`/`256` sprites — and saves it beside
+the original. It is never packaged, because a built mesh remembers where its textures
+were and shipping one points somebody else's install at a folder that is not there.
+
+**If the game is interrupted while it is doing that, it leaves the job half-finished —
+and a half-finished hull crashes the client every single time anyone looks at it.** The
+engine tries again, fails in the same place, leaves the same mess, so it never recovers
+on its own. Three hulls were stuck like that in one install and it took two separate
+crash hunts to find them; the fix was throwing the partial files away and letting the
+engine start over.
+
+```
+sbs art check              # anything half-finished?
+sbs art clear              # throw the half-finished bits away
+sbs art bake               # ...and drive the engine to rebuild them
+sbs art bake --undrawn     # also build art nobody has looked at yet
+```
+
+`clear` touches only what the engine made — your `.obj` and textures are never removed.
+`bake` runs the engine **once per hull**, so a crash costs one hull instead of the whole
+batch, and finishes with the list of hulls that still will not build: "the server keeps
+dying" becomes three names.
+
+`--undrawn` builds ahead of time, which is the real defence — every build that has
+already happened is one that cannot go wrong mid-match.
+
+A hull listed as **not yet drawn is normal**, not a fault: it is simply art nobody has
+looked at. `sbs doctor` runs the same check as part of its report. See
+[the CLI](tooling/cli.md#repairing-engine-baked-art).
+
 ---
 
 ## 🚢 Add-on ships: a file that exists, not a file that gets written
