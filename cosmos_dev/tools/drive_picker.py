@@ -1,40 +1,42 @@
 """Drive LegendaryMissions' REAL console picker headless. INCOMPLETE - see BLOCKED below.
 
-WHY IT IS WANTED. Rewriting the ship binding in `common_console_select.mast` has a failure
-mode nothing else catches: the screen builds EMPTY, or a console attaches to the wrong
-ship. No unit test sees it (MAST plus widgets), `--test` never opens the picker, and a
-screenshot is not reliable evidence. Until this works, the listbox half of that rewrite
-should not land.
+WHY IT IS WANTED. The ship binding in `common_console_select.mast` was rewritten to read
+roster RECORDS instead of live engine objects. The failure mode is a screen that builds
+EMPTY, which no unit test sees and `--test` never reaches. The rewrite HAS been confirmed
+working in the real engine by the owner - this is a regression guard for the future, not an
+open question about that change.
 
-WHAT ALREADY WORKS, so it need not be rediscovered:
+WHAT WORKS, so none of it needs rediscovering:
 
   * boot order: `_load_libs` + mock sbs + `sys.modules["script"]` + BOTH `fs.exe_dir` and
     `fs.script_dir`, then the mast/story/procedural imports;
-  * a tick that also calls `_drain_client_strings` - without it a connected client sits in
-    `client_main` forever, its three client-string round trips never resolving;
-  * sides and player ships. `start_server` does NOT run under this bootstrap, so the two
-    things the picker needs are driven directly: `signal_emit("create_sides")` and a seeded
-    roster spawned through the real `player_ensure`. Verified - sides come back as
-    {tsn, raider, civ} and eight ships exist.
+  * a tick that also calls `_drain_client_strings` - without it a client sits in
+    `client_main` forever. Verified working: no events stay pending, `_client_strings` is
+    empty, and the four round trips resolve.
+  * sides and player ships, driven directly because `start_server` does NOT run under this
+    bootstrap: `signal_emit("create_sides")` plus a seeded roster through `player_ensure`.
+  * `Gui.add_client(FakeEvent(client_id=CID, tag="client_connect"))` DIRECTLY. A synthetic
+    "client_connect" event through `cosmos_event_handler` never reaches the dispatch - the
+    client registers, appears in `get_client_ID_list()`, and still never gets a page.
+  * `Gui.clients` maps client_id -> **GuiClient**, not -> page. The live page is the top of
+    its `page_stack`. Reading the dict value as a page walks a GuiClient for widgets it can
+    never have, and reports "the picker built nothing" as its verdict on everything.
+  * 11 consoles register, so `consoles[0]` in client_main is not the blocker.
 
-BLOCKED ON: the client never gets a page at all. Measured tick by tick after
-`register_client` plus a `client_connect` event, `CID in Gui.clients` is False from t+1
-through t+40 - nothing is ever pushed for it, even though `Gui.client_start_page_class` is
-set. Start at `Gui.push` (gui.py ~437) and work backwards to whoever should call it.
+BLOCKED ON: the page never builds a layout. After connect the client's gui_task reports
+`active_label: client_main`, `gui_promise: None`, `gui_state: "repaint"`, and
+layouts/pending_layouts/tag_map all EMPTY. The task is not awaiting and not errored
+(`done()` is False, consoles are registered, no client strings pending).
 
-FIXED ALONG THE WAY, and worth knowing on its own: `Gui.clients` maps client_id ->
-**GuiClient**, NOT -> page. The live page is the top of that object's `page_stack`. Reading
-the dict value as a page walks a GuiClient for widgets it can never have, so the harness
-reported "the picker built nothing" as its verdict on everything - worse than useless for a
-tool whose whole job is telling a blank screen from a working one. `client_page()` reads
-the stack now.
+**Do not trust `active_label` here.** MAST labels FALL THROUGH, and client_main falls
+straight into `select_console` when AUTO_START is false - which is this harness's case - so
+the task can be executing the picker while still reporting the label it entered. Whether it
+has reached select_console at all is the first thing to establish, probably by instrumenting
+the build rather than reading task state.
 
 Two known-harmless noises: `sim.set_diplomacy_color` raises inside the create_sides route
-(the MAST-level `sim` is None here; the sides themselves load fine), and the ship picker
-raises IndexError if reached with no player ships - the symptom of the bootstrap gap above,
-not a library defect.
-
-Recipe this came from: the `reference_drive_console_picker_headless` memory.
+(the MAST-level `sim` is None here; sides load fine), and "Possible badly formed for" is a
+compile warning from the mission, not from this.
 
     python -m cosmos_dev.tools.drive_picker [--profile tng_all]
 """
@@ -200,7 +202,14 @@ print(f"[harness] player ships: {len(to_id_list(role('__player__')))}")
 
 print("[harness] connecting client...")
 sbs.register_client(CID)
-cosmos_event_handler(sim, FakeEvent(client_id=CID, tag="client_connect"))
+# Gui.add_client DIRECTLY, not via a synthetic "client_connect" event.
+#
+# A hand-built FakeEvent with that tag does not reach the dispatch in
+# cosmos_event_handler - the client is registered, is in get_client_ID_list(), and still
+# never gets a page. Calling what that case would have called does work: the page appears
+# immediately and survives the frame. This is the difference between "the picker built
+# nothing" and being able to see the picker at all.
+Gui.add_client(FakeEvent(client_id=CID, tag="client_connect"))
 tick(40)
 
 n = report("PICKER, as built")
