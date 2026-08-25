@@ -1,5 +1,6 @@
 from ..agent import Agent
-from .query import to_object_list, to_set, to_object, to_id_list, to_id
+from .query import (to_set, to_object, to_id_list, to_id,
+                    to_agent_list, to_client_object)
 
 # TODO: Consider renaming this function? The name implies that it returns a boolean, which can easily trip people up if they are looking for a `get_links()` or similar.
 def has_link(link_name: str):
@@ -57,7 +58,11 @@ def link(set_holder, link_name: str, set_to):
         link_name (str): The link key name.
         set_to (Agent | int | set[Agent | int]): Target agent(s) to link to.
     """
-    linkers = to_object_list(to_set(set_holder))
+    # to_agent_list, so the SERVER console (client id 0) can be a link SOURCE. It was
+    # already a readable one: `linked_to` and `has_link_to` resolve through
+    # Agent.resolve_py_object and have always answered for id 0, so a link on the server
+    # could be looked for and never made. Same rule as roles.add_role.
+    linkers = to_agent_list(to_set(set_holder))
     ids = to_id_list(to_set(set_to))
     for so in linkers:
         for target in ids:
@@ -78,8 +83,9 @@ def get_dedicated_link(so, link_name: str):
     Returns:
         int | None: The linked agent ID, or ``None`` if not set.
     """
-    # Dedicated links are one-to-one, 
-    so = to_object(so)
+    # Dedicated links are one-to-one,
+    # `or to_client_object(so)` for the SERVER console: to_object refuses id 0 by design.
+    so = to_object(so) or to_client_object(so)
     if so is None:
         return None
     return so.get_dedicated_link(link_name)
@@ -96,7 +102,9 @@ def set_dedicated_link(so, link_name: str, to):
         link_name (str): The link key name.
         to (Agent | int | None): The target agent ID or object, or ``None`` to clear.
     """
-    so = to_object(so)
+    # The server console counts here too - and clear_dedicated_link comes through this
+    # function, so both ends of the pair move together.
+    so = to_object(so) or to_client_object(so)
     if so is None:
         return
     so.set_dedicated_link(link_name, to_id(to))
@@ -123,7 +131,9 @@ def unlink(set_holder, link_name: str, set_to):
         link_name (str): The link key name.
         set_to (Agent | int | set[Agent | int]): Target agent(s) to unlink.
     """
-    linkers = to_object_list(to_set(set_holder))
+    # The same set `link` reaches - a source that can gain a link has to be able to
+    # lose one, or the server accumulates every link it was ever given.
+    linkers = to_agent_list(to_set(set_holder))
     ids = to_id_list(to_set(set_to))
     for so in linkers:
         for target in ids:

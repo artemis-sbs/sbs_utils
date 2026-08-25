@@ -22,7 +22,8 @@ from cosmos_dev.mock import sbs
 from sbs_utils.agent import Agent, CloseData, SpawnData
 from sbs_utils.helpers import FrameContext, Context
 from sbs_utils.spaceobject import SpaceObject
-from sbs_utils.procedural.query import to_object, to_object_list, to_blob
+from sbs_utils.procedural.query import (to_object, to_object_list, to_agent_list,
+                                        to_set, to_blob)
 from sbs_utils.procedural.spawn import npc_spawn
 
 
@@ -257,6 +258,14 @@ class ToObjectListTests(unittest.TestCase):
         sbs.create_new_sim()
         FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
         SpaceObject.clear()
+        # The server's own agent, which Gui.present builds on the first server frame.
+        self.server = Agent()
+        self.server.id = 0
+        self.server.add()
+
+    def tearDown(self):
+        # A leaked Agent.all[0] outlives this file.
+        SpaceObject.clear()
 
     def _npc(self, x, name):
         return to_object(npc_spawn(x, 0, 0, name, "tsn", "tsn_scout", "behav_npcship"))
@@ -277,3 +286,55 @@ class ToObjectListTests(unittest.TestCase):
         alive = self._npc(5000, "Alive")
         dead.delete_object()
         self.assertEqual([alive], to_object_list([dead, alive]))
+
+    # ------------------------------------------------------------------
+    # The OTHER axis of the same contract.
+    #
+    # Everything above pins the `_alive` half, and it held: the change that made
+    # to_object_list resolve through to_object kept all three of those green. What it
+    # ALSO did was inherit to_object's refusal of id 0 - and id 0 is the server's own
+    # agent - so every write built on this list silently stopped reaching the server
+    # console. Timers and counters ride set_inventory_value, so `start_counter(0, name)`
+    # wrote nothing and read back None forever (LM #719).
+    #
+    # Nothing asserted that half, which is how half a contract was removed by a change
+    # whose stated purpose was to strengthen the other half. Both halves live here now,
+    # so the next person editing these resolvers reads both rules in one place.
+    # ------------------------------------------------------------------
+
+    def test_to_object_list_still_refuses_id_zero(self):
+        """The line that must NOT move. to_object_list is the SPACE-OBJECT resolver, and
+        for a space object 0 really does mean "no object" - `->END if to_object(x) is
+        None` is everywhere in MAST. Fixing the server by resurrecting 0 here would
+        start returning a console from object queries."""
+        self.assertEqual([], to_object_list([0]))
+        self.assertEqual([], to_object_list(to_set(0)))
+
+    def test_to_agent_list_resolves_the_server(self):
+        """The write-side twin, in the two shapes callers actually use: a bare id, and
+        the set that add_role / link / set_inventory_value build."""
+        self.assertEqual([self.server], to_agent_list(0))
+        self.assertEqual([self.server], to_agent_list(to_set(0)))
+
+    def test_to_agent_list_still_drops_a_deleted_agent(self):
+        """Both rules at once - the assertion that was missing. Resolving the server
+        must not cost the liveness guarantee, and vice versa."""
+        dead = self._npc(0, "Doomed")
+        alive = self._npc(5000, "Alive")
+        dead.delete_object()
+        self.assertEqual([self.server, alive], to_agent_list([0, dead, alive]))
+
+    def test_neither_resolver_ever_returns_none(self):
+        """A caller writes `for obj in to_..._list(x): obj.something()`. An unresolvable
+        entry is dropped, never passed through as None."""
+        dead = self._npc(0, "Doomed")
+        dead.delete_object()
+        unknown = 0x4000000000009999
+        self.assertNotIn(None, to_object_list([dead, 0, unknown]))
+        self.assertNotIn(None, to_agent_list([dead, 0, unknown]))
+
+    def test_a_torn_down_server_is_dropped_by_to_agent_list(self):
+        """Catches a future fix that special-cases 0 BEFORE the liveness rule instead of
+        after it."""
+        self.server.remove()
+        self.assertEqual([], to_agent_list([0]))

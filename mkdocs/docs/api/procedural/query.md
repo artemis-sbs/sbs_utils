@@ -10,6 +10,7 @@ The most commonly used functions:
 
 - **`to_id`** — extract an integer ID from anything.
 - **`to_object`** — resolve to an `Agent` object (returns `None` if destroyed).
+- **`to_agent_list`** — resolve a collection for a **write**, the server console included.
 - **`to_set`** — normalise any collection into a `set[int]` of IDs.
 - **`to_list`** — normalise any collection into a `list`.
 - **`object_exists`** — check if an object is still alive in the simulation.
@@ -53,6 +54,36 @@ The `is_*` functions test which ID category a value belongs to. This matters bec
 | `is_client_id(id)` | Player console / client |
 | `is_task_id(id)` | MAST task |
 | `is_story_id(id)` | Story agent (e.g. Fleets) |
+
+## The two meanings of id 0
+
+Id `0` is the **server** — its console, and the agent a mission hangs mission-wide state
+on. It is *also* the value a script uses to mean **"no object"**. Both readings are
+correct, and which one applies is decided by what the caller does with the answer, not by
+the value:
+
+| | id 0 resolves to | Because |
+|---|---|---|
+| `to_object` / `to_object_list` | `None` | For a space object, 0 means "no target". `->END if to_object(target_id) is None` is everywhere in MAST, and it has to keep working. |
+| `to_agent_list`, `to_client_object` | the server's agent | A write has to be able to reach the server console. |
+
+So the **state** functions all take `0` to mean the server:
+
+```
+add_role(0, "console, mainscreen")
+set_inventory_value(0, "CONSOLE_TYPE", "mainscreen")
+set_timer(0, "mission_clock", minutes=20)
+start_counter(0, "Mission_Elapsed_Time")
+link(0, "watching", ship_id)
+```
+
+while `to_object(0)` stays `None` so an unset target id still reads as "nothing there".
+
+!!! warning "Writers use `to_agent_list`"
+    If you add a function that resolves a collection in order to **write** to it, resolve
+    with `to_agent_list`, not `to_object_list` — otherwise it silently skips the server
+    and the failure looks like "the feature just doesn't work on the server window".
+    `to_object_list` is for space-object queries, where dropping 0 is the point.
 
 ## Engine data-set (blob)
 

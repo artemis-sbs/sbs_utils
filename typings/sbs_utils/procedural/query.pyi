@@ -383,6 +383,19 @@ def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     
     Returns:
         Agent | None: The agent, or ``None`` if it could not be resolved."""
+def to_agent_list (the_set):
+    """Resolve to Agent objects for a WRITE, the SERVER CONSOLE included.
+
+    Same as ``to_object_list`` except that id ``0`` resolves to the server's agent
+    instead of being dropped. Use this whenever a collection is resolved in order to
+    write to it (roles, links, inventory); ``to_object_list`` stays the space-object
+    resolver, where 0 really does mean "no object".
+
+    Args:
+        the_set (set[Agent | int] | list[Agent | int] | Agent | int): what to resolve.
+
+    Returns:
+        list[Agent]: resolved agents; unresolvable entries are dropped."""
 def to_object_list (the_set):
     """Convert a set or list of IDs/agents to a list of Agent objects (excluding None).
     

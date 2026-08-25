@@ -25,6 +25,17 @@
 
 ### sbs_utils
 
+- Timers, counters, links and inventory queries reach the SERVER (agent id 0) again.
+  Id 0 has two meanings - "no object" for a space-object query, and the server's own
+  agent for anything holding state - and the write path had come to use the first one,
+  so `start_counter(0, "Mission_Elapsed_Time")` wrote nothing and read back `None`
+  forever (LM #719). Worse for timers: an unset timer counts as *finished*, so
+  `set_timer(0, ...)` followed by `is_timer_finished(0, ...)` answered True on the first
+  pass and timed server loops ended immediately, silently. Writers now resolve through
+  `to_agent_list`; `to_object`/`to_object_list` still refuse 0, which space-object
+  queries depend on. Covers `link`/`unlink`, the dedicated-link trio and
+  `has_inventory_value` alongside the roles and inventory fixed with the main-screen
+  overlay work.
 - Timers and counters can emit a signal instead of being polled.
   `set_timer(id, name, seconds=30, signal="repair_done")` emits once when the timer
   expires; new `set_interval(id, name, signal, seconds=30)` emits every interval until

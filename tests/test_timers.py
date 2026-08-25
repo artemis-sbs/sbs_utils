@@ -12,6 +12,7 @@ from sbs_utils.procedural.timers import (
     TICK_PER_SECONDS,
 )
 from sbs_utils.tickdispatcher import TickDispatcher
+from sbs_utils.gui import GuiClient
 from sbs_utils.procedural.inventory import get_inventory_value
 from sbs_utils.procedural.signal import signal_observe, signal_unobserve
 import unittest
@@ -712,6 +713,140 @@ class TestTimerSignals(unittest.TestCase):
             self.assertIs(FrameContext._task, marker)
         finally:
             FrameContext._task = held
+
+
+class TestServerTimers(unittest.TestCase):
+    """id 0 is the SERVER, and a timer put there has to stay there.
+
+    Every other test in this file uses `make_agent()`, which hands out a fresh
+    `get_story_id()` - so nothing here ever touched id 0, and that is the whole reason
+    LM #719 got out. `to_object(0)` returns None on purpose (for a space object, 0 means
+    "no object"), `set_inventory_value` resolved through it for a while, and every timer
+    and counter writes through `set_inventory_value`. So `start_counter(0, name)` wrote
+    nothing and `get_counter_elapsed_seconds(0, name)` answered None forever.
+
+    `set_timer(0, ...)` failed worse than that. An unset timer counts as FINISHED, so
+    `is_timer_finished(0, name)` answered True on the first pass - which is a mission
+    whose timed loop ends immediately, with no error anywhere. SecretMeeting's meeting
+    and the `sbs create` sandbox template's clock are both exactly that shape.
+
+    `id 0 = server` is a documented idiom (writing-a-mission SKILL.md says so), so these
+    are the contract, not a corner case.
+
+        python -m unittest tests.test_timers.TestServerTimers
+    """
+
+    def setUp(self):
+        SpaceObject.clear()
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        timer_signals_clear()
+        TickDispatcher.clear()
+        # What Gui.present builds on the first server frame. Nothing else in the library
+        # registers an Agent at id 0.
+        self.server = GuiClient(0)
+        self.emits = []
+        self.observer = lambda name, data: self.emits.append((name, data))
+        signal_observe(self.observer)
+
+    def tearDown(self):
+        signal_unobserve(self.observer)
+        timer_signals_clear()
+        TickDispatcher.clear()
+        # A leaked Agent.all[0] outlives this file and poisons the next one.
+        SpaceObject.clear()
+
+    def fired(self, name):
+        return [d for n, d in self.emits if n == name]
+
+    # ------------------------------------------------------------------
+    # Counters - the reported symptom
+    # ------------------------------------------------------------------
+
+    def test_counter_on_the_server_reports_elapsed_seconds(self):
+        """LM #719, verbatim."""
+        start_counter(0, "Mission_Elapsed_Time")
+        advance_sim(10)
+        self.assertEqual(
+            10.0, get_counter_elapsed_seconds(0, "Mission_Elapsed_Time"),
+            "the counter answered None - the write never reached the server agent")
+
+    def test_counter_on_the_server_starts_at_zero(self):
+        """0.0, not None. A counter that was never written reads as the default, and
+        the default is what a caller passes - so only an explicit 0.0 tells the two
+        apart."""
+        start_counter(0, "clock")
+        self.assertEqual(0.0, get_counter_elapsed_seconds(0, "clock"))
+
+    def test_clear_counter_on_the_server(self):
+        start_counter(0, "clock")
+        clear_counter(0, "clock")
+        self.assertIsNone(get_counter_elapsed_seconds(0, "clock"))
+
+    # ------------------------------------------------------------------
+    # Timers - the same write, with a worse failure
+    # ------------------------------------------------------------------
+
+    def test_timer_on_the_server_is_not_finished_immediately(self):
+        """The one that ends missions. An unset timer counts as finished, so a dropped
+        write is indistinguishable from a timer that already expired."""
+        set_timer(0, "meeting", minutes=1)
+        self.assertTrue(is_timer_set(0, "meeting"))
+        self.assertFalse(
+            is_timer_finished(0, "meeting"),
+            "a one-minute timer reported finished on the tick it was set")
+
+    def test_timer_on_the_server_finishes_after_its_duration(self):
+        set_timer(0, "meeting", minutes=1)
+        advance_sim(61)
+        self.assertTrue(is_timer_finished(0, "meeting"))
+        self.assertTrue(is_timer_set_and_finished(0, "meeting"))
+
+    def test_clear_timer_on_the_server(self):
+        set_timer(0, "meeting", minutes=1)
+        clear_timer(0, "meeting")
+        self.assertFalse(is_timer_set(0, "meeting"))
+
+    def test_get_time_remaining_on_the_server(self):
+        """Asserted as PARITY with an ordinary agent rather than against a literal.
+        `get_time_remaining` answers -1 for an expired timer while its docstring
+        promises 0 - a separate, pre-existing bug. Whichever way that is settled, the
+        server must answer the same as everyone else, which is what this file is for."""
+        other = make_agent()
+        set_timer(0, "meeting", seconds=30)
+        set_timer(other.id, "meeting", seconds=30)
+        self.assertEqual(30, get_time_remaining(0, "meeting"))
+        advance_sim(31)
+        self.assertEqual(get_time_remaining(other.id, "meeting"),
+                         get_time_remaining(0, "meeting"))
+
+    # ------------------------------------------------------------------
+    # The armed forms, which fail their own way
+    # ------------------------------------------------------------------
+
+    def test_timer_signal_on_the_server_fires(self):
+        """SecretMeeting's shape. This one does not merely read wrong: `_signals_tick`
+        re-validates the armed entry against the inventory it was anchored to, so a
+        dropped write makes it DISARM without ever emitting - the signal simply never
+        arrives, and nothing says why."""
+        set_timer(0, "meeting_count", seconds=5, signal="meeting_over")
+        advance_sim(10)
+        _signals_tick()
+        done = self.fired("meeting_over")
+        self.assertEqual(len(done), 1, "the armed timer disarmed instead of firing")
+        self.assertEqual(done[0]["TIMER_AGENT_ID"], 0)
+        self.assertEqual(done[0]["TIMER_NAME"], "meeting_count")
+
+    def test_interval_on_the_server_beats(self):
+        set_interval(0, "gm_beat", "beat", seconds=10)
+        advance_sim(11)
+        _signals_tick()
+        self.assertEqual(len(self.fired("beat")), 1)
+        advance_sim(10)
+        _signals_tick()
+        beats = self.fired("beat")
+        self.assertEqual([b["TIMER_COUNT"] for b in beats], [1, 2])
+        self.assertEqual(beats[0]["TIMER_AGENT_ID"], 0)
 
 
 if __name__ == '__main__':

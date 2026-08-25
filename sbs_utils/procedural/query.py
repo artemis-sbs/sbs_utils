@@ -42,6 +42,14 @@ def to_object_list(the_set):
     # Not the source of a crash today: a dead agent's `data_set` is already None, so a
     # write through one raises rather than reaching freed memory. This closes the
     # inconsistency, not a use-after-free.
+    #
+    # THE OTHER HALF, and the reason that change had a sequel: to_object also refuses id
+    # 0, which is the SERVER's own agent. That is correct HERE - this is the space-object
+    # resolver, and for a space object 0 means "no object" - but it is wrong for anything
+    # resolving in order to WRITE, and this list used to be that path too. Timers and
+    # counters ride set_inventory_value, so `start_counter(0, name)` silently wrote
+    # nothing (LM #719). Writers use `to_agent_list`; both halves are pinned together in
+    # tests/test_stale_handle.py.
     return [y for x in the_list if (y := to_object(x)) is not None]
 
 def to_space_object_list(the_set):

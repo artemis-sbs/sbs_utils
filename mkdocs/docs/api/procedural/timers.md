@@ -1,22 +1,41 @@
 ﻿# Timers and counters
 
-Delay execution and count events with awaitable promises.
+Wait for a duration, and measure how long something has been running.
 
 ## Overview
 
-Timers let MAST scripts wait for a real-time or simulation-time duration before continuing. Two time bases are available:
+There are two separate things on this page.
 
-- **Real time** (`delay`) — wall-clock seconds; unaffected by simulation speed.
-- **Simulation time** (`delay_sim`) — scaled by the engine's simulation clock.
+**Delays** are awaitable promises: the task stops at the `await` and resumes when the
+time is up. Two time bases:
 
-Counters (`count_goal`) are awaitable promises that resolve once a named counter reaches a target value. Increment the counter with `increment_count`; reset it with `reset_count`.
+- **Simulation time** (`delay_sim`) - scaled by the engine's simulation clock, so it
+  stops while the sim is paused. This is the one a mission wants.
+- **Real time** (`delay_app`) - wall-clock seconds, unaffected by simulation speed.
 
-All timer and counter functions are designed to be used with `await` in MAST:
+`timeout_sim` / `timeout` are the same two clocks in the form `promise_any` expects, for
+racing a delay against something else.
+
+**Timers and counters** are not awaitable. Each one is a single value in an agent's
+inventory and nothing runs on its behalf, which is why a mission can hold hundreds of
+them for free - a script *asks* about them, or arms one with a `signal` (see below).
+
+- A **timer** counts DOWN to a deadline: `set_timer`, then `is_timer_finished`,
+  `get_time_remaining`, `format_time_remaining`.
+- A **counter** counts UP from a start: `start_counter`, then
+  `get_counter_elapsed_seconds`. `clear_counter` stops it.
 
 ```
 await delay_sim(seconds=5)
-await count_goal("enemies_killed", 10)
+
+set_timer(SHIP_ID, "repair", seconds=30)
+start_counter(SHIP_ID, "in_combat")
 ```
+
+!!! note "`0` means the server"
+    Every timer and counter takes an agent, and **id `0` is the server** - the usual
+    place to hang a mission-wide clock. `set_timer(0, "mission_clock", minutes=20)` and
+    `start_counter(0, "Mission_Elapsed_Time")` are ordinary usage.
 
 ## Quick example
 
@@ -29,31 +48,38 @@ await count_goal("enemies_killed", 10)
         explode_player_ship(station_id)
         ->END
 
-    == count_kills ==
-        await count_goal("kills", 5)
-        log("You have destroyed 5 enemies.")
+    == mission_clock ==
+        # id 0 is the server, so this is the whole mission's clock.
+        start_counter(0, "Mission_Elapsed_Time")
         ->END
 
-    //signal/enemy_destroyed
-        increment_count("kills")
+    == show_elapsed ==
+        elapsed = get_counter_elapsed_seconds(0, "Mission_Elapsed_Time")
+        log(f"{int(elapsed)} seconds into the mission")
+        ->END
     ```
 
 === ":simple-python: {{ab.pm}}"
     ```python
-    from sbs_utils.procedural.timers import delay_sim, delay, count_goal, increment_count, reset_count
+    from sbs_utils.procedural.timers import (delay_sim, delay_app, set_timer,
+                                              is_timer_finished, start_counter,
+                                              get_counter_elapsed_seconds, clear_counter)
 
     # Wait 10 simulation seconds before continuing
     await delay_sim(seconds=10)
 
     # Wait 5 real seconds
-    await delay(seconds=5)
+    await delay_app(seconds=5)
 
-    # Count-based gate
-    await count_goal("patrols_complete", 3)
+    # Count DOWN to a deadline
+    set_timer(ship_id, "cooldown", seconds=30)
+    if is_timer_finished(ship_id, "cooldown"):
+        fire_again(ship_id)
 
-    # Increment from signal handlers or events
-    increment_count("patrols_complete")
-    reset_count("patrols_complete")
+    # Count UP from a start. 0 is the server.
+    start_counter(0, "Mission_Elapsed_Time")
+    elapsed = get_counter_elapsed_seconds(0, "Mission_Elapsed_Time")
+    clear_counter(0, "Mission_Elapsed_Time")
     ```
 
 ## Signals instead of polling
@@ -125,10 +151,15 @@ mission that arms none schedules nothing at all.
 
 ## Real time vs simulation time
 
-| Function | Time base | Pauses with sim? |
-|---|---|---|
-| `delay(seconds)` | Wall clock | No |
-| `delay_sim(seconds)` | Simulation clock | Yes |
+| Function | Time base | Pauses with sim? | Use for |
+|---|---|---|---|
+| `delay_sim(seconds)` | Simulation clock | Yes | Anything in the mission |
+| `delay_app(seconds)` | Wall clock | No | UI pacing, outside the sim |
+| `timeout_sim(seconds)` | Simulation clock | Yes | Racing with `promise_any` |
+| `timeout(seconds)` | Wall clock | No | Racing with `promise_any` |
+
+Timers and counters run on the simulation clock as well, so a paused sim neither expires
+a timer nor advances a counter.
 
 ## API
 

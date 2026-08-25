@@ -27,8 +27,10 @@ from sbs_utils.helpers import FrameContext, Context, FakeEvent
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.procedural.gui.overlay import consoles_of
 from sbs_utils.procedural.inventory import (get_inventory_value, set_inventory_value,
-                                            remove_inventory_value)
-from sbs_utils.procedural.links import link
+                                            remove_inventory_value, has_inventory_value)
+from sbs_utils.procedural.links import (link, unlink, linked_to, has_link_to,
+                                        set_dedicated_link, get_dedicated_link,
+                                        clear_dedicated_link)
 from sbs_utils.procedural.query import to_agent_list, to_object_list, to_id
 from sbs_utils.procedural.roles import (add_role, remove_role, has_role, has_roles,
                                         has_any_role, get_role_list, get_role_string,
@@ -112,6 +114,34 @@ class ServerConsoleRolesTests(unittest.TestCase):
         set_inventory_value(SERVER, "CONSOLE_TYPE", "mainscreen")
         remove_inventory_value(SERVER, "CONSOLE_TYPE")
         self.assertIsNone(get_inventory_value(SERVER, "CONSOLE_TYPE"))
+
+    def test_has_inventory_value_finds_the_server(self):
+        # Agent.has_inventory_set already returns {0} - it is the resolve of that set
+        # that dropped the server, so a value written to the console was invisible to
+        # the query that goes looking for it.
+        set_inventory_value(SERVER, "CONSOLE_TYPE", "mainscreen")
+        self.assertIn(SERVER, has_inventory_value("CONSOLE_TYPE", "mainscreen"))
+
+    # --- links --------------------------------------------------------------
+
+    def test_a_link_from_the_server_can_be_created_and_read(self):
+        # `linked_to` and `has_link_to` resolve through Agent.resolve_py_object, so they
+        # have always READ id 0. Only the write refused it - a link on the server could
+        # be looked for and never made.
+        link(SERVER, "watching", self.ship)
+        self.assertEqual({self.ship}, linked_to(SERVER, "watching"))
+        self.assertTrue(has_link_to(SERVER, "watching", self.ship))
+
+    def test_a_link_the_server_can_gain_it_can_also_lose(self):
+        link(SERVER, "watching", self.ship)
+        unlink(SERVER, "watching", self.ship)
+        self.assertEqual(set(), linked_to(SERVER, "watching"))
+
+    def test_a_dedicated_link_reaches_the_server(self):
+        set_dedicated_link(SERVER, "following", self.ship)
+        self.assertEqual(self.ship, get_dedicated_link(SERVER, "following"))
+        clear_dedicated_link(SERVER, "following")
+        self.assertIsNone(get_dedicated_link(SERVER, "following"))
 
     # --- the line that must NOT move ---------------------------------------
 

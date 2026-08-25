@@ -1,5 +1,5 @@
 from ..agent import Agent
-from .query import to_object_list, to_set, to_object, to_agent_list
+from .query import to_set, to_object, to_agent_list
 
 
 
@@ -26,7 +26,11 @@ def has_inventory_value(key: str, value):
     """
     holders = Agent.has_inventory_set(key)
     ret = set()
-    for holder in to_object_list(holders):
+    # to_agent_list: has_inventory_set already returns the SERVER console (id 0) when it
+    # holds the key - it was resolving that set that dropped it, so a value written to
+    # the server was invisible to the query that went looking for it. A read, but a read
+    # through the list resolver, which is the same trap.
+    for holder in to_agent_list(holders):
         v = holder.get_inventory_value(key)
         if v == value:
             ret.add(holder.get_id())
