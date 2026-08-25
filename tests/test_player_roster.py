@@ -62,6 +62,43 @@ class PlayerRosterTests(unittest.TestCase):
             player_ensure(rec["slot"], rec["slot"] * 2000, 0, 2000,
                           rec["ship"], rec["name"], rec["side"])
 
+
+    def test_a_forced_apply_re_reads_the_blob_the_engine_now_has(self):
+        """`_data_set` is cached at spawn and nothing else ever refreshes it.
+
+        `player_ship_setup_from_data` rebuilds a player ship's blob - that is why the name
+        has to be rewritten unconditionally after a rebuild. If the engine hands back a
+        DIFFERENT blob object, the agent goes on serving the pre-rebuild one while
+        `_alive` stays True, so the deletion guard never fires and every later
+        `to_blob(id).set(...)` writes through a handle the engine has moved on from.
+
+        THIS TEST FORCES THE DIVERGENCE RATHER THAN ASSUMING IT. The mock rebuilds a blob
+        in place (it rewrites `name_tag` on the same object), so asserting
+        `_data_set is engine_object.data_set` after a plain apply passes without testing
+        anything - it was already true. Swapping the engine object's blob first is what
+        makes the assertion mean something.
+
+        What this does NOT establish: whether the real engine reallocates the blob on
+        `player_ship_setup_from_data`. That is unknown here and needs the engine. This
+        pins the refresh mechanism, not the engine's allocation behavior.
+        """
+        obj = to_object(R.player_roster_resolve(0))
+        self.assertIsNotNone(obj)
+        stale = obj.data_set
+        self.assertIsNotNone(stale)
+
+        # Stand in for a rebuild that MOVES the blob.
+        fresh = mock.object_data_set()
+        obj.engine_object.data_set_blob = fresh   # the mock's backing field for .data_set
+        self.assertIs(stale, obj._data_set, "precondition: the cache is still the old one")
+
+        R.player_roster_apply(force=True)
+
+        self.assertIs(fresh, obj._data_set,
+                      "the roster rebuilt the blob and kept serving the OLD handle - "
+                      "this is the ObjectDataBlob use-after-free")
+        self.assertIs(fresh, obj.data_set)
+
     def _set_art_keys(self, mapping):
         # Precondition, stated out loud: art_key_for DELIBERATELY falls back to the stock key
         # when the replacement is not in the ship table ("a half-written map should degrade to

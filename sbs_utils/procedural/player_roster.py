@@ -336,6 +336,29 @@ def _set_parked(so_id, parked, rec):
         # decides what a record should be wearing.
 
 
+def _refresh_cached_blob(obj):
+    """Point an agent's cached data_set back at the engine's CURRENT blob.
+
+    `spawn_common` caches `obj.data_set` once and never revisits it, which is correct
+    right up until the engine rebuilds the blob underneath it. Reading it back off the
+    live engine object is the only way the script layer can notice.
+
+    Best-effort by design: a mock or an agent with no engine object simply keeps what it
+    had, and a refresh must never be the thing that breaks a roster apply.
+    """
+    try:
+        eo = obj.engine_object
+        if eo is None:
+            return False
+        blob = eo.data_set
+        if blob is None:
+            return False
+        obj._data_set = blob
+        return True
+    except Exception:                               # noqa: BLE001
+        return False
+
+
 def player_roster_apply(loadout=None, force=False):
     """Reshape every active record's ship to match the record. Idempotent.
 
@@ -411,6 +434,19 @@ def player_roster_apply(loadout=None, force=False):
             sbs.player_ship_setup_defaults(obj.engine_object)
             sbs.player_ship_setup_from_data(obj.engine_object)
             dirty = rebuilt = True
+
+        # RE-READ THE BLOB AFTER A REBUILD. `SpaceObject._data_set` is captured ONCE, at
+        # spawn, and nothing else ever refreshes it - so after `player_ship_setup_from_data`
+        # the agent keeps handing out the pre-rebuild handle, while `_alive` stays True and
+        # the guard that exists for deletion never fires. Every later `to_blob(id).set(...)`
+        # then writes through it.
+        #
+        # This is the same window that arms the engineering interiors: LM reconciles with
+        # force=True (rebuilding EVERY player blob), then `//shared/signal/game_started`
+        # calls `grid_interior_arm()`. Both land inside the console-connect window that
+        # `autostartserver` collapses to nothing.
+        if rebuilt:
+            _refresh_cached_blob(obj)
 
         want_side = rec.get("side") or ""
         if rebuilt or obj.side != want_side:
