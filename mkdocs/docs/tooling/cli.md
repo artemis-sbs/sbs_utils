@@ -217,3 +217,28 @@ sbs web-static . scores -o scores.html --query title=Standings
 
 See [Serving web pages](web-proxy.md) and the [Web pages](../build/web-pages.md)
 cookbook.
+
+## Repairing engine-baked art
+
+A hull's `.paxmesh` and its `<root>1024.png` / `<root>256.png` are not authored -
+the engine generates them the first time it draws that hull, beside the source
+`.obj`, and they are never packaged (a baked mesh hardcodes its texture paths under
+`data/graphics/`, so shipping one points another install at somebody else's disk).
+
+```
+sbs art check              # what is half-baked?
+sbs art check --strict     # exit 1 if anything is
+sbs art clear              # delete the partial files so the engine starts over
+sbs art bake               # ...and drive the engine to rebuild them
+```
+
+**A half-baked hull is a crash-to-desktop, not a cosmetic gap.** The engine retries
+the bake on every draw, dies in the same place, and leaves the same partial output,
+so one bad hull kills that client every time it sees it. `clear` touches only what
+the engine made - your `.obj` and textures are never removed - and `bake` runs the
+engine once per hull so a crash costs one hull rather than the batch, finishing with
+the list of hulls that still will not build.
+
+Mod-carried art cannot be baked where it lives, for the texture-path reason above;
+`sbs art` reports those rather than trying. `sbs doctor` runs the same check as part
+of its report - see [Checking your setup](doctor.md#half-baked-art).

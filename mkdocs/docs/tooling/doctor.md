@@ -51,8 +51,8 @@ LegendaryMissions
 
 Sections: **sbs** (version, missions folder, running packaged or from source) -
 **Python** - **Layout** (`__lib__`, which `sbs_utils` won, graphics, PyAddons,
-face compositor) - **Tools** (git, curl, browser, weasyprint) - **Sidecar** - then
-one per mission.
+face compositor) - **Tools** (git, curl, browser, weasyprint) - **Sidecar** -
+**install** (derived art) - then one per mission.
 
 The mission checks are: `story.json` parses; every declared library is actually
 in `__lib__`; no addon source is **newer than its built `.mastlib`** (the classic
@@ -60,6 +60,39 @@ in `__lib__`; no addon source is **newer than its built `.mastlib`** (the classi
 source); the packaging lists are in step; and no generated `extraShipData.json`
 is lying around, since the library reads it back *and* the addon merges the same
 entries again, doubling hull counts from the second run onward.
+
+## Half-baked art
+
+Doctor also counts the art the ENGINE bakes for itself - a hull's `.paxmesh` and
+its `<root>1024.png` / `<root>256.png`, generated on first draw and never
+packaged.
+
+```
+install
+  ok  art         193 baked, 20 not yet drawn, 0 half-baked in data/graphics
+```
+
+**Half-baked is the one that matters, and it is a crash.** If the engine dies
+partway through a bake it leaves the mesh without its sprites; every later draw
+retries, dies in the same place, and leaves the same wreckage - so one bad hull
+crashes that client on every draw, forever. Three hulls were stuck like that in one
+install and cost two separate crash investigations before anyone looked in the
+folder. `sbs art clear` throws the partial files away so the engine can start over;
+`sbs art bake` drives it. **Not yet drawn is normal** - art nobody has looked at -
+and is deliberately not flagged.
+
+Two things this check knows, both measured off a stock `data/graphics` rather than
+assumed, because getting either wrong makes it cry wolf on a healthy install:
+
+- **`.pointcube` is optional.** 120 of 184 baked ship roots have none.
+- **Sprites are a `ships/` thing.** In `graphics/ships` every baked root has them
+  and none lacks them; at the graphics root the nine effect meshes (typhon parts,
+  drones, `AHBall`) have none and never get any, because nothing draws them
+  face-on.
+
+It also watches for `<root>256.png` turning up beside the executable instead of
+beside the art - a known engine bug that quietly stops the art folder ever
+completing.
 
 ---
 
