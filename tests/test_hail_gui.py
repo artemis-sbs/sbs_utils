@@ -508,11 +508,13 @@ class WhereCheckboxTests(HailViewBase):
     def box(self):
         return [e for e in self.trace if e[0] == "checkbox"][0]
 
-    def test_it_starts_unticked_because_Off_is_the_default_placement(self):
+    def test_it_starts_ticked_because_a_hail_shows_here_by_default(self):
         V.hail_where_checkbox(self.comms)
-        self.assertFalse(self.box()[3].value)
+        self.assertTrue(self.box()[3].value)
 
     def test_ticking_it_places_the_hail_on_THIS_console(self):
+        # From a dialled-off ship, so this measures the tick rather than the default.
+        H.hail_where_set(self.comms, "off")
         item = V.hail_where_checkbox(self.comms)
         item.value = True
         V._hail_where_toggled(FakeEvent(client_id=self.comms), item)
@@ -540,6 +542,7 @@ class WhereCheckboxTests(HailViewBase):
         self.assertEqual(H.hail_where(self.comms), "main")
 
     def test_it_writes_what_the_DROPDOWN_writes_so_the_two_are_interchangeable(self):
+        H.hail_where_set(self.comms, "off")
         item = V.hail_where_checkbox(self.comms)
         item.value = True
         V._hail_where_toggled(FakeEvent(client_id=self.comms), item)

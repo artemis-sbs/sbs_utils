@@ -343,12 +343,26 @@ class PlacementDialTests(HailTestCase):
         self.assertNotIn("items:", props)
         self.assertTrue(props.startswith("text:Both;"))
 
-    def test_the_dial_starts_off_and_is_a_standing_preference(self):
-        self.assertEqual(H.hail_where(self.comms), "off")
+    def test_the_dial_starts_on_BOTH_and_is_a_standing_preference(self):
+        # BOTH, not Off. A hail is a scene and a bridge watches a scene together - and
+        # Off meant answering a hail drew nothing anywhere, because the portrait and the
+        # lines are what `hail_shows_here` gates. Same argument as the Audio checkbox:
+        # a box you have to tick to get the normal behaviour is a box people find only
+        # after wondering why it is quiet.
+        self.assertEqual(H.hail_where(self.comms), "both")
         self.assertTrue(H.hail_where_set(self.comms, "console"))
         self.assertEqual(H.hail_where(self.comms), "console")
         # Settable before any hail exists.
         self.assertFalse(H.hail_shows_here(self.comms))
+
+    def test_an_untouched_console_shows_an_answered_hail(self):
+        # The regression this default exists for: nobody moved the dial, and the
+        # conversation appears on comms AND on the main screen.
+        main = _console(C_MAIN, self.ship, "console", "mainscreen")
+        self._offer()
+        H.hail_accept(self.ship)
+        self.assertTrue(H.hail_shows_here(self.comms))
+        self.assertTrue(H.hail_shows_here(main))
 
     def test_setting_the_same_value_twice_is_not_a_change(self):
         H.hail_where_set(self.comms, "console")
@@ -356,7 +370,7 @@ class PlacementDialTests(HailTestCase):
 
     def test_an_unknown_placement_is_refused(self):
         self.assertFalse(H.hail_where_set(self.comms, "wherever"))
-        self.assertEqual(H.hail_where(self.comms), "off")
+        self.assertEqual(H.hail_where(self.comms), "both")
 
     def test_this_console_shows_it_without_touching_the_main_screen(self):
         main = _console(C_MAIN, self.ship, "console", "mainscreen")
@@ -401,7 +415,10 @@ class PlacementDialTests(HailTestCase):
         # would then be a no-op, so nobody but the first officer could take it down.
         other = _console(C_COMMS2, self.ship, "console", "comms")
         H.hail_where_set(self.comms, "main")
-        self.assertEqual(H.hail_where(other), "main")
+        # `other` never clicked anything, so its own half is still the default ON -
+        # what it reads is the SHIP's half combined with that, and taking the ship's
+        # half away is a change it is entitled to make.
+        self.assertEqual(H.hail_where(other), "both")
         self.assertTrue(H.hail_where_set(other, "off"))
 
     def test_the_dial_combines_its_own_half_with_the_ships(self):
@@ -423,7 +440,11 @@ class PlacedHereTests(HailTestCase):
     area on this; hiding it on `hail_shows_here` instead would hide the queue too, so
     a call could never be seen ARRIVING."""
 
-    def test_off_by_default(self):
+    def test_placed_here_by_default(self):
+        self.assertTrue(H.hail_placed_here(self.comms))
+
+    def test_false_once_the_console_is_dialled_off(self):
+        H.hail_where_set(self.comms, "off")
         self.assertFalse(H.hail_placed_here(self.comms))
 
     def test_true_once_the_console_is_placed(self):

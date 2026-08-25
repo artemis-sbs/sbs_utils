@@ -97,8 +97,13 @@ conversation. Give it a scene key instead and the conversation continues there:
 
 The comms console shows an **Incoming Hails** list, newest first, with a dial above it
 choosing where the conversation is drawn: *Off*, *This Console*, *Main Screen*, or *Both*.
-Each console carries its own dial, so putting a hail on the main screen is a decision one
-officer makes, not something the mission forces.
+
+It starts on **Both** &mdash; a hail is a scene, and a bridge watches a scene together. The
+dial is there so an officer can move either half away: *This Console* keeps the viewscreen
+on the live view, *Main Screen* leaves comms its radar and drives the call from the choice
+strip, *Off* shows the conversation nowhere and answers it from the strip alone. The
+main-screen half belongs to the **ship**, so any comms console can move it and every dial
+agrees about where the hail is; the other half is each console's own.
 
 Answering opens the conversation. `Back` steps out of it without answering, so comms can
 read a hail through and present it later, when the captain is ready. Answered

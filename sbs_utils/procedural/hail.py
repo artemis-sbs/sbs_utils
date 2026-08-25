@@ -82,6 +82,25 @@ KEY_HERE = "HAIL_HERE"              # does THIS console swap its own centre
 KEY_REPLAY = "HAIL_REPLAY"          # the log id being replayed here, or None
 KEY_RADAR = "HAIL_RADAR"            # subject THIS console's 2D view was aimed at by a hail
 
+# WHERE A HAIL LANDS BEFORE ANYBODY TOUCHES THE DIAL.
+#
+# Both, deliberately. A hail is a SCENE - a face, a voice, a line - and a bridge watches
+# a scene together; the crew that has to decide what to say about it are not all sitting
+# at comms. The dial exists so an officer can move either half away, and the value it
+# reads is DERIVED from these two, so it comes up saying "Both" rather than claiming Off
+# while the conversation is plainly on screen.
+#
+# Off was the old default and it made answering a hail do nothing visible at all: the
+# portrait and the lines are drawn by `hail_shows_here`, which was False everywhere, so
+# the crew got a choice strip and no conversation. The same argument the Audio checkbox
+# is built on - "a box you have to tick to get the normal behaviour is a box people find
+# only after wondering why it is quiet" - applies to the picture as much as the sound.
+#
+# Both halves are ordinary inventory values, so a mission that wants a different default
+# writes them once at setup, and `hail_where_set` still moves them at any time.
+HAIL_HERE_DEFAULT = True            # this console swaps its own centre for the hail
+HAIL_MAIN_DEFAULT = True            # the ship's MAIN SCREEN shows it too
+
 # A mission may resolve a speaker key to a name/face/color card its own way (OU binds
 # captains, LM binds cast). A LATCH, not a container: a resolver registered by the LAST
 # mission names cast that no longer exists, which is why the reset ledger probes it.
@@ -992,7 +1011,7 @@ def _hail_presentation_apply(ship_id):
     hail actually started.
     """
     rec = _hail_get(ship_id, KEY_ACTIVE, None)
-    if not rec or not _hail_get(ship_id, KEY_MAIN, False):
+    if not rec or not _hail_get(ship_id, KEY_MAIN, HAIL_MAIN_DEFAULT):
         _hail_band_drop(ship_id)
         _hail_screen_drop(ship_id)
         return False
@@ -1097,9 +1116,9 @@ def hail_where(client_id):
     then be a no-op. Deriving it means every comms console agrees about the main screen
     and disagrees only about itself, which is exactly the truth.
     """
-    here = bool(_hail_get(client_id, KEY_HERE, False))
+    here = bool(_hail_get(client_id, KEY_HERE, HAIL_HERE_DEFAULT))
     ship_id = _hail_sid(_hail_home_ship(client_id))
-    main = bool(_hail_get(ship_id, KEY_MAIN, False)) if ship_id is not None else False
+    main = bool(_hail_get(ship_id, KEY_MAIN, HAIL_MAIN_DEFAULT)) if ship_id is not None else False
     if here and main:
         return "both"
     if here:
@@ -1131,7 +1150,7 @@ def hail_where_set(client_id, where):
     ship_id = _hail_sid(_hail_home_ship(client_id))
     want_main = where in ("main", "both")
     touched_main = (ship_id is not None
-                    and bool(_hail_get(ship_id, KEY_MAIN, False)) != want_main)
+                    and bool(_hail_get(ship_id, KEY_MAIN, HAIL_MAIN_DEFAULT)) != want_main)
     if ship_id is not None and touched_main:
         set_inventory_value(ship_id, KEY_MAIN, want_main)
         if want_main:
@@ -1192,8 +1211,8 @@ def hail_shows_here(client_id):
     if ship_id is None or not hail_is_active(ship_id):
         return False
     if has_role(client_id, "mainscreen"):
-        return bool(_hail_get(ship_id, KEY_MAIN, False))
-    return bool(_hail_get(client_id, KEY_HERE, False))
+        return bool(_hail_get(ship_id, KEY_MAIN, HAIL_MAIN_DEFAULT))
+    return bool(_hail_get(client_id, KEY_HERE, HAIL_HERE_DEFAULT))
 
 
 # --- what the console says --------------------------------------------------
@@ -1251,8 +1270,8 @@ def hail_console_revision(client_id):
     return (len(_hail_get(ship_id, KEY_QUEUE, None) or ())
             + 1000 * int(_hail_get(ship_id, KEY_SEQ, 0) or 0)
             + (7 if active else 0)
-            + (13 if _hail_get(client_id, KEY_HERE, False) else 0)
-            + (17 if _hail_get(ship_id, KEY_MAIN, False) else 0)
+            + (13 if _hail_get(client_id, KEY_HERE, HAIL_HERE_DEFAULT) else 0)
+            + (17 if _hail_get(ship_id, KEY_MAIN, HAIL_MAIN_DEFAULT) else 0)
             + (23 if _hail_get(client_id, KEY_REPLAY, None) is not None else 0)
             + (29 if _hail_get(ship_id, KEY_AUDIO, True) else 0))
 
