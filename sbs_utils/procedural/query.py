@@ -33,7 +33,16 @@ def to_object_list(the_set):
     if the_set is None:
         return []
     the_list = to_list(the_set)
-    return [y for x in the_list if (y := Agent.resolve_py_object(x)) is not None]
+    # to_object, NOT Agent.resolve_py_object. resolve_py_object does not consult
+    # `_alive`, so the list form used to hand back agents the singular form had already
+    # refused - `to_object(x)` None while `to_object_list([x])` returned it. Every guard
+    # written as "resolve it, then use it" is only as good as the resolve, and a caller
+    # has no reason to want the one dead entry the list quietly kept.
+    #
+    # Not the source of a crash today: a dead agent's `data_set` is already None, so a
+    # write through one raises rather than reaching freed memory. This closes the
+    # inconsistency, not a use-after-free.
+    return [y for x in the_list if (y := to_object(x)) is not None]
 
 def to_space_object_list(the_set):
     """Convert a set or list of IDs/agents to a list of SpaceObject agents (excluding None).

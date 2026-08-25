@@ -22,7 +22,7 @@ from cosmos_dev.mock import sbs
 from sbs_utils.agent import Agent, CloseData, SpawnData
 from sbs_utils.helpers import FrameContext, Context
 from sbs_utils.spaceobject import SpaceObject
-from sbs_utils.procedural.query import to_object, to_blob
+from sbs_utils.procedural.query import to_object, to_object_list, to_blob
 from sbs_utils.procedural.spawn import npc_spawn
 
 
@@ -238,3 +238,42 @@ class TestLoadoutSkipsDeletedShips(unittest.TestCase):
         # Both in the snapshot; only the live one may be touched. The assertion that
         # matters is that this does not write through the dead one.
         player_loadout_apply_to_ships([alive, dead])
+
+
+class ToObjectListTests(unittest.TestCase):
+    """The LIST form has to refuse what the singular form refuses.
+
+    `to_object_list` resolved through `Agent.resolve_py_object`, which does not consult
+    `_alive` - so `to_object(x)` returned None for a deleted agent while
+    `to_object_list([x])` handed it straight back. Every guard written as "resolve it, then
+    use it" is only as good as the resolve.
+
+    Not a use-after-free today: a dead agent's `data_set` is already None, so a write
+    through one raises rather than reaching freed memory. This is the inconsistency, not
+    the crash.
+    """
+
+    def setUp(self):
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        SpaceObject.clear()
+
+    def _npc(self, x, name):
+        return to_object(npc_spawn(x, 0, 0, name, "tsn", "tsn_scout", "behav_npcship"))
+
+    def test_a_deleted_agent_is_filtered_from_the_list(self):
+        dead = self._npc(0, "Doomed")
+        dead.delete_object()
+        self.assertIsNone(to_object(dead), "the singular form should already refuse it")
+        self.assertEqual([], to_object_list([dead]),
+                         "the list form handed back an agent the singular form refused")
+
+    def test_live_agents_are_untouched(self):
+        alive = self._npc(5000, "Alive")
+        self.assertEqual([alive], to_object_list([alive]))
+
+    def test_a_mixed_list_keeps_only_the_living(self):
+        dead = self._npc(0, "Doomed")
+        alive = self._npc(5000, "Alive")
+        dead.delete_object()
+        self.assertEqual([alive], to_object_list([dead, alive]))
