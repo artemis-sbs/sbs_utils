@@ -230,6 +230,7 @@ sbs art check              # what is half-baked?
 sbs art check --strict     # exit 1 if anything is
 sbs art clear              # delete the partial files so the engine starts over
 sbs art bake               # ...and drive the engine to rebuild them
+sbs art bake --undrawn     # also bake art that has never been drawn
 ```
 
 **A half-baked hull is a crash-to-desktop, not a cosmetic gap.** The engine retries
@@ -238,6 +239,13 @@ so one bad hull kills that client every time it sees it. `clear` touches only wh
 the engine made - your `.obj` and textures are never removed - and `bake` runs the
 engine once per hull so a crash costs one hull rather than the batch, finishing with
 the list of hulls that still will not build.
+
+`--undrawn` pre-bakes, so a bake can never happen mid-game - every one already done
+is one that cannot fail live. Expect it to reach far fewer roots than the count
+suggests, and it lists the rest with the reason: on a stock install 16 of 20 undrawn
+roots have no shipData key at all (superseded hulls, mesh sub-parts like
+`monster2_jaw`, non-ship assets like `skyPlane`), and nothing can spawn what nothing
+names.
 
 Mod-carried art cannot be baked where it lives, for the texture-path reason above;
 `sbs art` reports those rather than trying. `sbs doctor` runs the same check as part
