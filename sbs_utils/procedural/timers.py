@@ -344,7 +344,27 @@ def get_counter_elapsed_seconds(id_or_obj, name, default_value=None):
     if start is None:
         return default_value
     return (now-start) / TICK_PER_SECONDS
-    
+
+def format_counter_elapsed_seconds(id_or_obj, name, display="hh:mm:ss"):
+    """
+    Return a formatted string of the elapsed time for the counter, rounded to the second.
+    The format can be customized by specifying the `display` argument.
+
+    Args:
+        id_or_obj (int | Agent): Agent ID or object
+        name (str): The name of the counter
+        format (str): The format the string should take. Use `hh` for hours, `mm` for minutes, and `ss` for seconds. Default is `hh:mm:ss`.
+    Returns:
+        str: The formatted time, in the specified format.
+    """
+    elapsed = get_counter_elapsed_seconds(id_or_obj, name, 0)
+    seconds = round(elapsed)
+    minutes, sec = divmod(seconds, 60) # Get total minutes and remaining seconds
+    hours, minutes = divmod(minutes, 60) # Get total hours and remaining
+    # Here we replace the times.
+    ret = display.replace("hh",f"{hours}".zfill(2)).replace("mm", f"{minutes}".zfill(2)).replace("ss",f"{seconds}".zfill(2))#.replace("h",f"{hours}").replace("m",f"{minutes}").replace("s",f"{seconds}") 
+    # TODO: I'd like to support single digits, but not sure how best to handle displays like "Mission time is h hours, m minutes, and s seconds" due to the possibility of single characters being in the string.
+    return ret
 
 def clear_counter(id_or_obj, name):
     """Remove a named counter from an agent.
