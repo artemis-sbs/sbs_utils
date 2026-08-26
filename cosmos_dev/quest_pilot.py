@@ -23,8 +23,10 @@ FAITHFUL, NOT CHEATING. Every actuation here is the call the real interaction ma
     same act by its only reachable name.
   * Scanning is `science_ensure_scan`, the same call the science console's scan completes.
   * Towing is `grav_tether_attach`, the same call the Weapons tether control makes.
-  * Flying is `steerToDirD{X,Y,Z}` + `steeringToDirFlag` + `playerThrottle`, which is what
-    the helm AI writes (see mock `_playership_drive`).
+  * Flying goes through `procedural/helm.py` - the same `steerToDirD{X,Y,Z}` +
+    `steeringToDirFlag` + `playerThrottle` the helm AI writes, with the warp gate and the
+    energy reserve applied, so the pilot cannot strand itself or believe it is at warp on
+    a hull that has no warp drive.
 
 Nothing here teleports, refills, or grants. The one thing it deliberately does NOT do is
 synthesize `on_signal`: that trigger exists precisely so a mission can define a beat of
@@ -348,16 +350,14 @@ class QuestPilot:
         return False
 
     def _do_dock(self, pid, want):
-        from sbs_utils.procedural.query import to_object
+        from sbs_utils.procedural.helm import helm_dock_request
         tid = self._pick_by_role(pid, want)
-        p = to_object(pid)
-        if tid is None or p is None:
+        if tid is None:
             return False
         try:
-            p.data_set.set("dock_base_id", tid, 0)
-            p.data_set.set("dock_state", "dock_start", 0)
-            self.docks += 1
-            return True
+            if helm_dock_request(pid, tid):
+                self.docks += 1
+                return True
         except Exception:
             self.errors += 1
         return False
@@ -570,77 +570,43 @@ class QuestPilot:
 
     # -- movement --------------------------------------------------------------
     def _fly_toward(self, pid, tid):
-        """Point the ship at a target and open the throttle.
+        """Point the ship at a target and open the throttle, via the helm primitives.
 
-        This is the helm AI's own actuation - direction steering via steerToDirD{X,Y,Z}
-        plus steeringToDirFlag, with playerThrottle for speed (mock `_playership_drive`).
-        No position is ever written.
+        Goes through `procedural/helm.py` rather than writing `data_set` by hand, which is
+        not just tidiness: `helm_throttle` refuses a warp the ship cannot sustain. This
+        pilot used to ask for throttle 3.0 unconditionally, so on a hull with no warp
+        drive it quietly flew at impulse believing otherwise, and on a low tank it burned
+        the last of its energy going nowhere useful.
         """
-        from sbs_utils.procedural.query import to_object
-        p = to_object(pid)
-        tp = self._pos_of(tid)
-        if p is None or tp is None:
+        from sbs_utils.procedural.helm import helm_distance, helm_steer_to_point, helm_throttle
+        if not helm_steer_to_point(pid, tid):
             return
-        dx = tp.x - p.pos.x
-        dy = tp.y - p.pos.y
-        dz = tp.z - p.pos.z
-        d = math.sqrt(dx * dx + dy * dy + dz * dz)
-        if d <= 0.001:
-            return
+        d = helm_distance(pid, tid)
+        # WARP WHEN IT IS FAR AND CLEAR. Impulse tops out at 180 u/s and a Cosmos map is
+        # tens of thousands of units across, so an impulse-only pilot spends a whole run
+        # in transit and arrives nowhere - measured: 160 flights, 1 arrival, 0 tows.
+        #
+        # "AND CLEAR" IS LOAD-BEARING. Warping blind rammed terrain at 1080 u/s for 5400
+        # damage, destroying the ship, ending the mission mid-window and restarting it -
+        # both a false failure and the thing that made runs unrepeatable, since whether
+        # you clip a rock depends on physics-thread timing (the same seed gave 57 jobs
+        # accepted one run and 19 the next). No helm would fly this way.
+        if d > 12000 and self._clear_ahead(pid):
+            want = 3.0
+        elif d > 4000:
+            want = 1.0
+        else:
+            want = 0.35
         try:
-            ds = p.data_set
-            ds.set("steerToDirDX", dx / d, 0)
-            ds.set("steerToDirDY", dy / d, 0)
-            ds.set("steerToDirDZ", dz / d, 0)
-            ds.set("steeringToDirFlag", 1, 0)
-            # WARP WHEN IT IS FAR AND CLEAR, which is what a helm actually does. Impulse
-            # tops out at PLAYER_IMPULSE_SPEED (180 u/s); a Cosmos map is tens of
-            # thousands of units across, so an impulse-only pilot spends a whole
-            # 120-second run in transit and arrives nowhere - measured: 160 flights, 1
-            # arrival, 0 tows. Warp is 180 + (throttle-1) * 450, so throttle 3 is 1080.
-            #
-            # "AND CLEAR" IS LOAD-BEARING. Warping blind rammed terrain at 1080 u/s for
-            # 5400 damage - it destroyed the player ship, ended the mission mid-window
-            # and restarted it, which is BOTH a false failure and the thing that made
-            # runs unrepeatable (whether you clip a rock depends on physics-thread
-            # timing, so the same seed diverged: 57 jobs accepted one run, 19 the next).
-            # No pilot should fly in a way that gets the ship killed, and no helm would.
-            if d > 12000 and self._clear_ahead(pid):
-                throttle = 3.0
-            elif d > 4000:
-                throttle = 1.0
-            else:
-                throttle = 0.35
-            ds.set("playerThrottle", throttle, 0)
+            helm_throttle(pid, want)
             self.flights += 1
         except Exception:
             self.errors += 1
 
-    def _clear_ahead(self, pid):
-        """Whether it is safe to go to warp: nothing else close by.
-
-        Deliberately crude - a radius, not a swept volume - because the point is not to
-        model navigation, it is to stop the harness killing the ship it is meant to be
-        testing with. Terrain is the usual culprit and it does not move, so a plain
-        proximity check is enough.
-        """
-        if self._pos_of(pid) is None:
-            return False
-        for oid in self._nearby(pid, _WARP_CLEARANCE):
-            if oid == pid:
-                continue
-            if self._distance(pid, oid) < _WARP_CLEARANCE:
-                return False
-        return True
-
     def _stop(self, pid):
-        from sbs_utils.procedural.query import to_object
-        p = to_object(pid)
-        if p is None:
-            return
+        from sbs_utils.procedural.helm import helm_stop
         try:
-            p.data_set.set("playerThrottle", 0.0, 0)
-            p.data_set.set("steeringToDirFlag", 0, 0)
+            helm_stop(pid)
         except Exception:
             self.errors += 1
 
