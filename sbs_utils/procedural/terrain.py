@@ -990,8 +990,18 @@ NEB_ICON_PEAK = 0xcc
 # "map furniture" color (markers.py) -- a deliberate "I could not tell", not a hue.
 NEB_ICON_FALLBACK_COLOR = "gold"
 
+# Per-object variety, as a fraction of the icon's own saturation and value. HUE is never
+# jittered -- it is what makes purple purple. Set either to 0 for flat, identical icons.
+# Value is additionally held between MIN and MAX so no nebula fades into the radar
+# background or outshines the ships and map furniture NEB_ICON_PEAK was chosen to sit
+# under (peak 0xcc is value 0.8, so the default +/-10% lands in 0.72..0.88).
+NEB_ICON_SAT_JITTER = 0.14
+NEB_ICON_VAL_JITTER = 0.10
+NEB_ICON_VAL_MIN = 0.55
+NEB_ICON_VAL_MAX = 0.95
 
-def terrain_nebula_icon_color(color, peak=NEB_ICON_PEAK):
+
+def terrain_nebula_icon_color(color, peak=NEB_ICON_PEAK, seed=None):
     """The radar tint for a nebula, computed FROM that nebula's own emission.
 
     A nebula used to carry two unrelated descriptions of itself: a hand-written
@@ -1022,6 +1032,10 @@ def terrain_nebula_icon_color(color, peak=NEB_ICON_PEAK):
             emission_red/green/blue.
         peak (int, optional): value the largest channel is scaled to. Defaults to
             ``NEB_ICON_PEAK``.
+        seed (int, optional): the nebula's own ``random_seed``. Given one, the HUE is
+            kept exactly and saturation/value are nudged per object, so a cluster reads
+            as a drift of one color rather than a block of identical dots. Defaults to
+            None -- the canonical, unjittered color of that entry.
 
     Returns:
         str: ``"#rrggbb"``.
@@ -1038,8 +1052,55 @@ def terrain_nebula_icon_color(color, peak=NEB_ICON_PEAK):
         # No emission at all: nothing to derive a hue from, so say so rather than
         # inventing one.
         return NEB_ICON_FALLBACK_COLOR
-    scaled = [min(peak, max(0, round(c / top * peak))) for c in rgb]
-    return "#%02x%02x%02x" % tuple(scaled)
+    scaled = [min(peak, max(0, c / top * peak)) for c in rgb]
+    if seed is not None:
+        scaled = _neb_icon_jitter(scaled, seed)
+    return "#%02x%02x%02x" % tuple(min(0xff, max(0, round(c))) for c in scaled)
+
+
+def _mix32(x):
+    """A stable integer hash -- the point is that it DRAWS NOTHING.
+
+    Per-object jitter has to come from a value the object already has, not from
+    `random`. The sower draws every per-object value up front so a queued chunk carries
+    no randomness of its own (see _nebula_plan); a draw down here would break that and
+    shift every later spawn. `random_seed` is already per nebula, so hashing it gives
+    variety for free and a sown cluster stays identical to an inline one.
+    """
+    x = int(x) & 0xFFFFFFFF
+    x = (x * 0x9E3779B1) & 0xFFFFFFFF
+    x ^= x >> 15
+    x = (x * 0x85EBCA6B) & 0xFFFFFFFF
+    x ^= x >> 13
+    x = (x * 0xC2B2AE35) & 0xFFFFFFFF
+    x ^= x >> 16
+    return x
+
+
+def _unit(seed, salt):
+    """`seed` mixed with `salt`, as a float in [0, 1)."""
+    return _mix32(seed ^ _mix32(salt)) / 4294967296.0
+
+
+def _neb_icon_jitter(scaled, seed):
+    """Nudge saturation and value, hold hue exactly.
+
+    Hue is the thing that carries the name -- purple has to stay purple -- so it is not
+    touched at all. Saturation and value are what make a cluster look like cloud rather
+    than a stencil, which is what the old color_noise() was reaching for and never
+    delivered: it ran once at import, so every purple nebula in a session shared one
+    value and only the NEXT session looked different.
+    """
+    import colorsys
+    r, g, b = (c / 255.0 for c in scaled)
+    h, s, v = colorsys.rgb_to_hsv(r, g, b)
+    s *= 1.0 + (_unit(seed, 0x5A7) * 2.0 - 1.0) * NEB_ICON_SAT_JITTER
+    v *= 1.0 + (_unit(seed, 0xC0FFEE) * 2.0 - 1.0) * NEB_ICON_VAL_JITTER
+    s = min(1.0, max(0.0, s))
+    # Floored so a nebula never fades into the radar background, capped so a bright one
+    # never outshines the ships and map furniture the peak was chosen to sit under.
+    v = min(NEB_ICON_VAL_MAX, max(NEB_ICON_VAL_MIN, v))
+    return [c * 255.0 for c in colorsys.hsv_to_rgb(h, s, v)]
 
 
 # One color, one source of truth: every entry's icon is filled in from its own cloud.
@@ -1367,12 +1428,18 @@ def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"
 
     for k,v in color.items():
         blob.set(k,v)
-    # A caller can pass its own color dict (the documented cluster_color dict form). One
-    # built by hand has no icon in it, so derive the icon from the cloud it DID describe --
-    # the same rule the built-in colors get. An explicit "radar_color_override" a caller
-    # supplies is left alone: naming one is a deliberate override, not an omission.
-    if "radar_color_override" not in color:
-        blob.set("radar_color_override", terrain_nebula_icon_color(color))
+    # The icon. A caller can pass its own color dict (the documented cluster_color dict
+    # form); one built by hand has no icon in it, so derive from the cloud it DID
+    # describe -- the same rule the built-in colors get.
+    #
+    # DERIVED icons get this object's own jitter, so a cluster reads as a drift of one
+    # color instead of a block of identical dots. An icon the caller NAMED is left
+    # exactly as given: naming one is a deliberate override, and overriding it should
+    # mean the color you asked for. The table's own entries are derived, so comparing
+    # against the canonical value is what tells the two apart.
+    named = color.get("radar_color_override")
+    if named is None or named == terrain_nebula_icon_color(color):
+        blob.set("radar_color_override", terrain_nebula_icon_color(color, seed=seed))
     # Need to tell the engine we changed the values
     blob.set("nebula_data_change", 1)
 

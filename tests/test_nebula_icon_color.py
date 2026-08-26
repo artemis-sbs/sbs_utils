@@ -22,9 +22,10 @@ from sbs_utils.helpers import FrameContext, Context
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.delete_queue import DeleteQueue
 from sbs_utils.procedural.query import to_data_set
+from sbs_utils.procedural import terrain as terrain_mod
 from sbs_utils.procedural.terrain import (
     _neb_colors, terrain_nebula_icon_color, terrain_spawn_nebula_sphere,
-    NEB_ICON_PEAK, NEB_ICON_FALLBACK_COLOR)
+    NEB_ICON_PEAK, NEB_ICON_FALLBACK_COLOR, NEB_ICON_VAL_MIN, NEB_ICON_VAL_MAX)
 
 
 class FakeEvent:
@@ -48,6 +49,19 @@ def _rgb(hex_str):
 
 def _emission(entry):
     return [entry["emission_red"], entry["emission_green"], entry["emission_blue"]]
+
+
+def _hue(hex_str):
+    """Hue alone -- what the jitter must never move."""
+    import colorsys
+    r, g, b = (c / 255.0 for c in _rgb(hex_str))
+    return colorsys.rgb_to_hsv(r, g, b)[0]
+
+
+def _value(hex_str):
+    import colorsys
+    r, g, b = (c / 255.0 for c in _rgb(hex_str))
+    return colorsys.rgb_to_hsv(r, g, b)[2]
 
 
 def _normalized(chans):
@@ -123,22 +137,38 @@ class TestCallerSuppliedColors(unittest.TestCase):
 
     def test_a_hand_built_dict_gets_a_derived_icon(self):
         """A mission writing its own color dict describes the CLOUD; it should not also
-        have to hand-pick an icon that agrees with it."""
+        have to hand-pick an icon that agrees with it. The spawned icon carries this
+        object's jitter, so it matches the canonical one in HUE, not byte for byte."""
         teal = {"display_text": "teal", "emission_red": 0.0,
                 "emission_green": 0.8, "emission_blue": 1.0}
-        self.assertEqual(self._icon_of_spawned(teal), terrain_nebula_icon_color(teal))
+        self.assertAlmostEqual(_hue(self._icon_of_spawned(teal)),
+                               _hue(terrain_nebula_icon_color(teal)), delta=0.01)
 
     def test_an_explicit_icon_is_left_alone(self):
         """Naming one is a deliberate override, not an omission -- backward compatible
-        with any mission already passing a full dict."""
+        with any mission already passing a full dict. It is NOT jittered either: asking
+        for a color should get that color."""
         custom = {"display_text": "signal", "emission_red": 1.0,
                   "emission_green": 0.0, "emission_blue": 0.0,
                   "radar_color_override": "#00ff00"}
         self.assertEqual(self._icon_of_spawned(custom), "#00ff00")
 
     def test_a_named_color_reaches_the_blob(self):
-        self.assertEqual(self._icon_of_spawned("purple"),
-                         _neb_colors["purple"]["radar_color_override"])
+        self.assertAlmostEqual(_hue(self._icon_of_spawned("purple")),
+                               _hue(_neb_colors["purple"]["radar_color_override"]),
+                               delta=0.01)
+
+    def test_two_nebulae_in_one_cluster_are_not_identical(self):
+        """The point of the jitter: a cluster should read as cloud, not as a stencil."""
+        nebulae = terrain_spawn_nebula_sphere(0, 0, 0, 8000, 2.0,
+                                              cluster_color="purple", marker=False)
+        icons = {to_data_set(n).get("radar_color_override") for n in nebulae}
+        self.assertGreater(len(nebulae), 2, "need a real cluster to test variety")
+        self.assertGreater(len(icons), 1, "every nebula in the cluster got one icon")
+        for icon in icons:
+            self.assertAlmostEqual(
+                _hue(icon), _hue(_neb_colors["purple"]["radar_color_override"]),
+                delta=0.01, msg=f"{icon} drifted off purple's hue")
 
 
 # Two entries render as a color their NAME does not claim, so honest icons make them
@@ -179,3 +209,68 @@ class TestColorsAreTellableApart(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPerObjectJitter(unittest.TestCase):
+    """Variety inside a cluster, without moving the color off its name.
+
+    This is what color_noise() was reaching for and never delivered: it ran once, inside
+    the dict literal, so every purple nebula in a session shared one value and only the
+    NEXT session looked different. The jitter is keyed on the nebula's own random_seed
+    instead, which means it draws nothing -- the sower's promise that a queued chunk
+    carries no randomness of its own still holds.
+    """
+
+    SEEDS = (2, 7, 99, 1234, 40001, 65535, 99999)
+
+    def test_hue_never_moves(self):
+        for name, entry in _neb_colors.items():
+            canonical = _hue(entry["radar_color_override"])
+            for seed in self.SEEDS:
+                with self.subTest(color=name, seed=seed):
+                    self.assertAlmostEqual(
+                        _hue(terrain_nebula_icon_color(entry, seed=seed)), canonical,
+                        delta=0.01, msg=f"{name} drifted off its hue at seed {seed}")
+
+    def test_same_seed_same_color(self):
+        """Keyed on the object's seed, so a reload paints the same field."""
+        entry = _neb_colors["blue"]
+        for seed in self.SEEDS:
+            self.assertEqual(terrain_nebula_icon_color(entry, seed=seed),
+                             terrain_nebula_icon_color(entry, seed=seed))
+
+    def test_different_seeds_actually_differ(self):
+        """The failure mode of the thing this replaces -- variance that is not there."""
+        entry = _neb_colors["purple"]
+        seen = {terrain_nebula_icon_color(entry, seed=s) for s in range(200)}
+        self.assertGreater(len(seen), 20, f"only {len(seen)} distinct icons in 200 seeds")
+
+    def test_value_stays_inside_its_band(self):
+        """Floored so nothing fades into the radar background, capped so nothing
+        outshines the ships and map furniture the peak was chosen to sit under."""
+        for name, entry in _neb_colors.items():
+            for seed in range(0, 5000, 137):
+                with self.subTest(color=name, seed=seed):
+                    v = _value(terrain_nebula_icon_color(entry, seed=seed))
+                    self.assertGreaterEqual(v, NEB_ICON_VAL_MIN - 0.01)
+                    self.assertLessEqual(v, NEB_ICON_VAL_MAX + 0.01)
+
+    def test_seedless_call_is_still_the_canonical_color(self):
+        """The table keeps one true color per name; jitter is a per-object view of it."""
+        for name, entry in _neb_colors.items():
+            self.assertEqual(terrain_nebula_icon_color(entry),
+                             entry["radar_color_override"])
+
+    def test_jitter_can_be_turned_off(self):
+        """Both knobs to 0 gives back flat, identical icons."""
+        sat, val = terrain_mod.NEB_ICON_SAT_JITTER, terrain_mod.NEB_ICON_VAL_JITTER
+        terrain_mod.NEB_ICON_SAT_JITTER = 0.0
+        terrain_mod.NEB_ICON_VAL_JITTER = 0.0
+        try:
+            entry = _neb_colors["orange"]
+            for seed in self.SEEDS:
+                self.assertEqual(terrain_nebula_icon_color(entry, seed=seed),
+                                 entry["radar_color_override"])
+        finally:
+            terrain_mod.NEB_ICON_SAT_JITTER = sat
+            terrain_mod.NEB_ICON_VAL_JITTER = val
