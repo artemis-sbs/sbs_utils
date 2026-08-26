@@ -31,6 +31,9 @@ from ..helpers import FrameContext
 
 _TABLES = {}
 _MODS = {}
+# Races already reported as rostered-but-unfieldable, so the note is said once and not
+# once per spawn. Cleared with the tables at a mission boundary.
+_NO_TABLE_WARNED = set()
 
 
 def fleet_table_register(race, table, mod=None):
@@ -91,6 +94,31 @@ def fleet_table_has(race):
     return str(race or "").strip().lower() in _TABLES
 
 
+def fleet_table_can_field(race):
+    """:func:`fleet_table_has`, but it SAYS SO the first time a race fails.
+
+    The gate a roster should be filtered through before a race is handed to a fleet
+    builder. A race can be perfectly real - in the ship table, with hulls and an
+    interior - and still have no ladder, and the two are declared in different files by
+    different people. The TNG pack's Breen was exactly that: a shipData side with one
+    hull, rostered at 4-20% in two theaters, and no ``fleets.yaml``. Picking it made
+    `fleet_create` return None and the caller die on ``fleet.id``.
+
+    Silence is the wrong failure here in both directions - crash, or a faction that is
+    written into the roster and never turns up - so the miss is named once per race.
+    """
+    if fleet_table_has(race):
+        return True
+    key = str(race or "").strip().lower()
+    if key and key not in _NO_TABLE_WARNED:
+        _NO_TABLE_WARNED.add(key)
+        known = ", ".join(fleet_table_races()) or "none"
+        print(f"fleet table: race '{key}' is rostered but has no fleet ladder - it will "
+              f"be skipped. (Is its fleets.yaml registered, and is the race in the "
+              f"NPC_RACES setting? registered: {known})")
+    return False
+
+
 def fleet_table_races():
     """Every race with a registered ladder, sorted.
 
@@ -149,6 +177,7 @@ def fleet_tables_reset():
     """
     _TABLES.clear()
     _MODS.clear()
+    _NO_TABLE_WARNED.clear()
 
 
 def fleet_tables_count():

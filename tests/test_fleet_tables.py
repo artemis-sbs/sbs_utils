@@ -108,6 +108,57 @@ class TestFleetTables(unittest.TestCase):
         self.assertIn("fleet_tables", _RESET_PROBES)
 
 
+class TestCanField(unittest.TestCase):
+    """A race can be REAL and still not be fieldable.
+
+    The TNG pack's Breen is a shipData side with a hull and an interior, and two of its
+    theaters roster it - but its hull lives in the DOMINION ladder and it had no
+    `fleets.yaml` of its own. `fleet_create` returned None and the raider prefab died on
+    `brain_add(fleet.id, ...)` with `'NoneType' object has no attribute 'id'`, which names
+    neither the race nor the missing file. Every Breen roll was that error.
+
+    So the roster gate is "has a ladder", and it SAYS which race it dropped.
+    """
+
+    def setUp(self):
+        ft.fleet_tables_reset()
+        ft.fleet_table_load_yaml(_KRALIEN, "race_kralien")
+
+    def tearDown(self):
+        ft.fleet_tables_reset()
+
+    def test_a_race_with_a_ladder_can_field(self):
+        self.assertTrue(ft.fleet_table_can_field("Kralien"))
+        self.assertTrue(ft.fleet_table_can_field("  KRALIEN "))
+
+    def test_a_race_with_no_ladder_cannot(self):
+        self.assertFalse(ft.fleet_table_can_field("breen"))
+
+    def test_it_names_the_race_once(self):
+        import contextlib, io as _io
+        out = _io.StringIO()
+        with contextlib.redirect_stdout(out):
+            ft.fleet_table_can_field("breen")
+            ft.fleet_table_can_field("breen")
+            ft.fleet_table_can_field("Breen")
+        said = out.getvalue()
+        self.assertEqual(said.count("breen"), 1, said)
+        self.assertIn("no fleet ladder", said)
+
+    def test_the_warning_is_re_armed_by_the_mission_reset(self):
+        """The latch is per-mission. `cosmos_dev` reuses one interpreter, so a warning
+        held across the boundary would go unsaid for the mission that still has the bug.
+        """
+        import contextlib, io as _io
+        with contextlib.redirect_stdout(_io.StringIO()):
+            ft.fleet_table_can_field("breen")
+        ft.fleet_tables_reset()
+        out = _io.StringIO()
+        with contextlib.redirect_stdout(out):
+            ft.fleet_table_can_field("breen")
+        self.assertIn("breen", out.getvalue())
+
+
 class TestNpcRaces(unittest.TestCase):
     def setUp(self):
         S.setting_defaults = None
