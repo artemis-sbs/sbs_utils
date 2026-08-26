@@ -63,6 +63,10 @@ class Exerciser:
         # click. Scanning every OTHER step keeps the scan routes covered and lets the
         # unscanned state exist.
         self.unscanned = 0      # diagnostics: selections deliberately left unscanned
+        # Set by the runner when a QuestPilot is active. Combat staging asks it whether
+        # this mission's quests actually want a kill - see _should_fight().
+        self.pilot = None
+        self.fights_skipped = 0
 
     def _server_ctx(self):
         """Return the server task, or None if not ready."""
@@ -206,8 +210,13 @@ class Exerciser:
             # Stage a REAL beam exchange (TEST-ONLY teleport) so the genuine
             # damage flow drives //damage/internal + heat on the player; then a
             # synthetic kill on a *different* hostile for deterministic destroy.
-            staged = self._stage_combat(sbs, player_ids[0])
-            self._force_combat(sbs, player_ids[0], exclude=staged)
+            # Gated: staging drops the player's shields and overheats it, which in a
+            # mission with no combat goal simply kills the player and ends the run.
+            if self._should_fight():
+                staged = self._stage_combat(sbs, player_ids[0])
+                self._force_combat(sbs, player_ids[0], exclude=staged)
+            else:
+                self.fights_skipped += 1
             self._offset += 1
             self.steps += 1
         finally:
@@ -476,6 +485,27 @@ class Exerciser:
             if beamed:
                 cand = beamed
         return self._nearest(sbs, pid, cand)
+
+    def _should_fight(self):
+        """Whether to stage combat at all this run.
+
+        With no pilot attached this is unconditionally True, so `--exercise` on its own
+        behaves exactly as it always has (Siege and the other combat missions are
+        unaffected). With a pilot, the answer comes from the live quest tree: some ACTIVE
+        quest has to actually ask for a kill.
+
+        MEASURED, on Peacetime Remastered: staging combat killed the player ship in ~7
+        sim-seconds and restarted the mission nine times in a 60-second run - coverage
+        26.5%, comms routes 0/123. Skipping it, the same run survives, reaches 35.5% and
+        covers 32/123 comms routes, while damage coverage is UNCHANGED at 29/34 because
+        the mission's own NPCs fight anyway. Staging bought nothing and cost the mission.
+        """
+        if self.pilot is None:
+            return True
+        try:
+            return self.pilot.wants_combat()
+        except Exception:
+            return True         # never let this predicate be what breaks the run
 
     def _stage_combat(self, sbs, pid):
         """TEST-ONLY: teleport a beam-armed hostile into the player's beam range

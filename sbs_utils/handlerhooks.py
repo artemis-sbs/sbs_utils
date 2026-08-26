@@ -686,7 +686,11 @@ def tick_the_rest(event):
     # `test=<seconds>` writes a conformance verdict once the mission has run that long.
     # Costs one resolved integer when not requested. Here because it is the one place
     # reached every tick regardless of which event arrived.
-    from .procedural.conformance import conformance_tick
+    from .procedural.conformance import conformance_tick, soak_tick
+    # `soak=<scenario>` drives the quest pilot in the REAL engine. Same reasoning as the
+    # line below it: this is the one place reached every tick whatever event arrived. Both
+    # cost one resolved string when not requested.
+    soak_tick()
     conformance_tick()
 
 

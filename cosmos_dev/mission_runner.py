@@ -725,8 +725,99 @@ def _compiler_errors():
 
 
 
+def _pilot_accept_arg(args):
+    """Resolve --pilot / --pilot-accept into QuestPilot's `accept` argument.
+
+    `--pilot-accept` has a default of "all" so it reads well on its own, which means it
+    cannot be used to detect intent - without this, every run would build a pilot. The
+    pilot exists only when --pilot (or an explicit non-default accept list) asks for it.
+    """
+    if not getattr(args, "pilot", False):
+        return None
+    raw = (getattr(args, "pilot_accept", None) or "all").strip()
+    if raw in ("all", "none"):
+        return raw
+    return [k.strip() for k in raw.split(",") if k.strip()]
+
+
+def _covered_route_kinds(cov, mast):
+    """Route paths the run actually entered, as `damage/object`-style strings.
+
+    Coverage records labels by their mangled route name (`__route__damage/object__199__`),
+    which carries an ordinal that shifts whenever a file is edited. A scenario has to be
+    able to name a route stably, so the ordinal and the `__route__` prefix are stripped -
+    the same normalization `_emit_soak_report` already does when diffing label sets.
+    """
+    import re as _re
+    out = set()
+    if cov is None:
+        return out
+    try:
+        for label in cov.labels_hit:
+            if label.startswith("__route__"):
+                out.add(_re.sub(r"__\d+__$", "", label[len("__route__"):]))
+            else:
+                out.add(label)
+    except Exception:
+        pass
+    return out
+
+
+def _soak_init_try(mission_folder, which):
+    """Emit soak scenarios once the maps are readable. True when done (caller exits).
+
+    Polls the same way `_try_auto_start_map` does and for the same reason: @map labels
+    register at COMPILE time, so `maps_get_list` goes non-empty a few ticks before the
+    story's top-level main has run. There is no signal that says "compiled", so this
+    waits for real map labels and then reads them.
+    """
+    from sbs_utils.procedural.maps import maps_get_list
+    from cosmos_dev.soak_init import (census_quests, build_scenario_text, write_scenario)
+
+    real_maps = [m for m in (maps_get_list(include_hidden=True) or [])
+                 if hasattr(m, "path")]
+    if not real_maps:
+        return False        # story still compiling - try again next tick
+
+    census = census_quests(mission_folder)
+    wanted = [m for m in real_maps
+              if which == "all" or getattr(m, "path", None) == which]
+    if not wanted:
+        print(f"[runner] --soak-init: no map '{which}'. Known: "
+              + ", ".join(str(getattr(m, "path", "?")) for m in real_maps))
+        return True
+
+    from sbs_utils.procedural.maps import _map_property_vars
+    from cosmos_dev.soak_init import maps_already_covered
+    covered = maps_already_covered(mission_folder)
+    print(f"[runner] --soak-init: {len(census)} quest(s) declared, "
+          f"{sum(1 for q in census if q['drivable'])} with a drivable goal")
+    for m in wanted:
+        path = getattr(m, "path", None)
+        # `__overview__` is the init label, not a playable map.
+        if not path or path.startswith("__"):
+            continue
+        if path in covered:
+            print(f"[runner]   have   {covered[path]} for @map/{path}")
+            continue
+        try:
+            prop_vars = _map_property_vars(m) or []
+        except Exception:
+            prop_vars = []
+        # `display_name` is an attribute on the Label, not an accessor - maps.py reads
+        # it that way itself (line ~718).
+        display = str(getattr(m, "display_name", "") or "") or None
+        text = build_scenario_text(path, display, prop_vars, census)
+        out, written = write_scenario(mission_folder, path, text)
+        print(f"[runner]   {'wrote' if written else 'kept  '} {out}"
+              + ("" if written else "  (exists - delete it to regenerate)"))
+    return True
+
+
 def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
-                      exerciser=None, game_end=None, coverage_json=None) -> int:
+                      exerciser=None, game_end=None, coverage_json=None,
+                      pilot=None, scenario=None, soak_bless=False,
+                      ran_seconds=None) -> int:
     """Print the coverage + verdict report for a --test run; optionally write
     JUnit XML. Returns the process exit code (0 pass / 1 fail)."""
     from sbs_utils.gui import Gui
@@ -748,8 +839,20 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
     # A story that did not COMPILE is a failure whatever else the run looks like. It is
     # not a runtime error - there was no runtime - so `verdict.ok` says nothing about it.
     compile_errors = _compiler_errors()
+    # The scenario's expectations are the POSITIVE half of the verdict: `verdict.ok` only
+    # ever meant "nothing raised", and a run that completed no quest and entered no route
+    # satisfies that perfectly.
+    scenario_failures = []
+    scenario_result = None
+    if scenario is not None:
+        from cosmos_dev.soak_manifest import check_expectations
+        snap = pilot.snapshot() if pilot is not None else {}
+        scenario_failures, scenario_result = check_expectations(
+            scenario, snap, _covered_route_kinds(cov, mast), game_end)
+        # Carry the duration so the baseline knows what it was blessed at.
+        scenario_result["seconds"] = ran_seconds
     ok = ((verdict.ok if verdict is not None else True)
-          and not ran_nothing and not compile_errors)
+          and not ran_nothing and not compile_errors and not scenario_failures)
     name = os.path.basename(os.path.abspath(mission_folder))
 
     print("\n==== mission test report ====")
@@ -759,6 +862,25 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
               f"({summ.get('labels_pct','?')}%)   nodes {summ.get('nodes_entered')}")
         for k, hd in (summ.get("by_kind") or {}).items():
             print(f"   {k:16} {hd[0]}/{hd[1]}")
+    if pilot is not None:
+        snap = pilot.snapshot()
+        print(f"pilot: accepted {snap['accepted']}, scans {snap['scans']}, "
+              f"tows {snap['tows']}, docks {snap['docks']}, visits {snap['visits']}, "
+              f"flights {snap['flights']}, errors {snap['errors']}")
+        print(f"quests: complete {len(snap['complete'])}, active {len(snap['active'])}, "
+              f"failed {len(snap['failed'])}")
+        if snap["complete"]:
+            print("   completed: " + ", ".join(snap["complete"][:20])
+                  + (" ..." if len(snap["complete"]) > 20 else ""))
+        if snap["unreachable"]:
+            # Said plainly, because the alternative reads as a mission failure: these are
+            # goals the harness cannot synthesize, not beats the mission got wrong.
+            by_key = {}
+            for qid, key in snap["unreachable"].items():
+                by_key.setdefault(key, []).append(qid)
+            for key, qids in sorted(by_key.items()):
+                print(f"   NOT DRIVABLE ({key}, needs the mission's own route): "
+                      + ", ".join(qids[:12]) + (" ..." if len(qids) > 12 else ""))
     if exerciser is not None:
         print(f"exercise: steps {exerciser.steps}, clicks {getattr(exerciser, 'clicked', 0)}, "
               f"enemies(last) {exerciser.enemies_last}, "
@@ -823,6 +945,31 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
         msg, is_win = game_end
         verdict_word = "WIN" if is_win else ("LOSE" if is_win is not None else "ENDED")
         print(f"game end: {verdict_word} - {msg!r}")
+    if scenario is not None:
+        base_q, base_r = scenario.demanded()
+        n_runs = int(scenario.load_baseline().get("runs", 0) or 0)
+        n_q = len(set(scenario.expect_quests) | base_q)
+        n_r = len(set(scenario.expect_routes) | base_r)
+        print(f"scenario: {scenario.name}  expecting {n_q} quest(s), {n_r} route(s)"
+              + (f"  (baseline of {n_runs} run(s))" if n_runs else ""))
+        from cosmos_dev.soak_manifest import baseline_duration_warning
+        _warn = baseline_duration_warning(scenario, ran_seconds)
+        if _warn and scenario_failures:
+            print(f"  NOTE: {_warn}")
+        for f in scenario_failures:
+            print(f"  REGRESSION: {f}")
+        if soak_bless and scenario_result is not None:
+            # Blessing is deliberate and separate from passing: a run that FAILED can
+            # still have reached something new, and folding that in is the point.
+            path = scenario.save_baseline(scenario_result)
+            print(f"  baseline updated: {path}")
+        elif not scenario_failures and scenario_result is not None:
+            new_q = set(scenario_result["quests_complete"]) - base_q
+            new_r = set(scenario_result["routes_covered"]) - base_r
+            if new_q or new_r:
+                print(f"  NEW this run (not yet in the baseline): "
+                      f"{len(new_q)} quest(s), {len(new_r)} route(s) - "
+                      f"re-run with --soak-bless to ratchet them in")
     if compile_errors and (verdict is None or verdict.ok):
         # "PASS - no runtime errors" is TRUE here and reads as a lie: there was no
         # runtime. Say which it is, above the compiler's own words.
@@ -846,6 +993,22 @@ def _emit_test_report(mission_folder, map_arg, sbs, cov, verdict, junit_path,
         # Only guess when the compiler had nothing to say - otherwise the hint sends
         # the reader looking for a parse desync that is not there.
         print(_NOTHING_RAN)
+    # THE LAST WORD MUST MATCH THE EXIT CODE. `verdict.report()` only knows about runtime
+    # errors, so a run that failed its scenario expectations printed
+    # "PASS - no runtime errors" and then exited 1 - which is precisely the "a PASS is not
+    # evidence" trap this scenario layer exists to close, reintroduced one line lower.
+    if not ok or scenario is not None:
+        why = []
+        if verdict is not None and not verdict.ok:
+            why.append(f"{len(verdict.errors)} runtime/compile error(s)")
+        if compile_errors:
+            why.append("the story did not compile")
+        if ran_nothing:
+            why.append("nothing ran")
+        if scenario_failures:
+            why.append(f"{len(scenario_failures)} expectation regression(s)")
+        print(f"VERDICT: {'PASS' if ok else 'FAIL'}"
+              + (f" - {'; '.join(why)}" if why else ""))
     print("=============================")
 
     if coverage_json and cov is not None:
@@ -1070,6 +1233,11 @@ def _run(
     exercise_dwell: int | None = None,
     exercise_click: str | None = None,
     exercise_click_every: int = 3,
+    pilot_accept=None,
+    pilot_goals: bool = False,
+    soak=None,
+    soak_bless: bool = False,
+    soak_init=None,
     use_working_tree: bool = False,
     strict_blob: bool = False,
     seed: int | None = None,
@@ -1090,6 +1258,55 @@ def _run(
 ) -> int:
     mission_folder = os.path.abspath(mission_folder)
     missions_root  = _find_missions_root(mission_folder)
+
+    # --soak NAME: the scenario file supplies the run. Resolved FIRST, before --test
+    # applies its own defaults, because the scenario is what decides the map, the
+    # duration and the seed. An explicit flag still wins over the file, so a scenario can
+    # be re-run at a different length or seed without editing it.
+    # --soak-init: compile far enough that @map metadata exists, emit scenarios, exit.
+    # It needs the story COMPILED (Properties are applied at compile time) but must not
+    # start a map, so it rides the normal boot with the auto-start suppressed.
+    if soak_init:
+        gui = False
+        map_arg = None
+
+    _scenario = None
+    if soak:
+        from cosmos_dev.soak_manifest import load_scenario
+        _scenario = load_scenario(mission_folder, soak)
+        if _scenario is None:
+            # Not a warning. Continuing without it would silently downgrade an asserted
+            # soak to an ordinary --test that passes on "nothing raised".
+            print(f"[runner] no soak scenario '{soak}' under {mission_folder}/soaks/")
+            return 2
+        print(f"[runner] soak scenario: {_scenario.path}")
+        if map_arg is None:
+            map_arg = _scenario.map
+        if test_seconds is None and _scenario.seconds:
+            test_seconds = float(_scenario.seconds)
+        if seed is None and _scenario.seed is not None:
+            seed = int(_scenario.seed)
+        if profile is None and _scenario.profile:
+            profile = _scenario.profile
+        if exercise_dwell is None and _scenario.dwell:
+            exercise_dwell = int(_scenario.dwell)
+        if not exercise_console and _scenario.consoles:
+            exercise_console = ",".join(_scenario.consoles)
+        if not exercise_click and _scenario.clicks:
+            exercise_click = ",".join(_scenario.clicks)
+        if _scenario.runs and runs <= 1:
+            runs = int(_scenario.runs)
+        if _scenario.strict_blob:
+            # The engine answers None for a data_set field nobody set; the mock answers a
+            # typed default. That difference is how two shipped crashes ran clean headless
+            # for years, so a soak opts in by default.
+            strict_blob = True
+        exercise = True
+        if pilot_accept is None:
+            pilot_accept = _scenario.accept
+        pilot_goals = pilot_goals or _scenario.goals
+        if _scenario.settings:
+            _merge_cosmos_settings(_scenario.settings)
 
     # --test SECONDS: headless conformance run. Force GUI off, default to map 0,
     # install MAST coverage + verdict, run ~SECONDS of sim time, then report +
@@ -1916,7 +2133,7 @@ def _run(
         except Exception as e:
             print(f"[runner] could not archive runtime log: {e}")
 
-    _cov = _verdict = _exerciser = None
+    _cov = _verdict = _exerciser = _pilot = None
     _test_exit = 0
     _game_end = None
     _test_client_connected = False
@@ -1960,6 +2177,16 @@ def _run(
                                    console_dwell=exercise_dwell,
                                    click_labels=_clicks,
                                    click_every=exercise_click_every)
+        if pilot_accept or pilot_goals:
+            # The pilot reads the live quest trees and drives toward their declared
+            # goals; the exerciser keeps doing the generic world-poking. They are
+            # separate objects because they answer different questions, but the
+            # exerciser consults the pilot before staging combat - a mission whose
+            # quests never ask for a kill should not have one staged for it.
+            from cosmos_dev.quest_pilot import QuestPilot
+            _pilot = QuestPilot(sbs, accept=pilot_accept, goals=pilot_goals)
+            if _exerciser is not None:
+                _exerciser.pilot = _pilot
         print(f"[runner] TEST mode: run ~{test_seconds:g}s sim time, map={map_arg}"
               f"{', exercising' if exercise else ''}")
 
@@ -2462,6 +2689,12 @@ def _run(
                     else:
                         _map_started = _try_auto_start_map(map_arg, sbs)
 
+            # --soak-init: as soon as the story has compiled and its @map labels carry
+            # their metadata, write the scenario(s) and stop. Nothing is started - this
+            # is a read of the mission, not a run of it.
+            if soak_init and _soak_init_try(mission_folder, soak_init):
+                return 0
+
             # Resolution sweep: pin every client's screen size each tick so layouts
             # (re)build at the forced aspect instead of the 1024x768 default.
             if _aspect_wh is not None:
@@ -2480,6 +2713,20 @@ def _run(
                     _fire_client_connect(_TEST_CLIENT_ID)
                 except Exception as e:
                     print(f"[runner] synthetic client connect failed: {e}")
+
+            # --soak: accept offered quests and push their goals along. Runs BEFORE the
+            # exerciser so a quest accepted this tick is already ACTIVE when the
+            # exerciser asks whether combat is wanted.
+            if _pilot is not None and _map_started and run_mast and not sbs.sim._paused:
+                try:
+                    _pilot.step()
+                except Exception as _p_err:
+                    _pilot.errors += 1
+                    if not getattr(_pilot, "_reported_step_error", False):
+                        _pilot._reported_step_error = True
+                        import traceback as _tb
+                        print(f"[runner] pilot step failed: {_p_err}")
+                        _tb.print_exc()
 
             # --exercise: drive selections/comms each MAST tick once the world is up.
             if _exerciser is not None and _map_started and run_mast:
@@ -2545,7 +2792,9 @@ def _run(
             _test_exit = _emit_test_report(mission_folder, map_arg, sbs,
                                            _cov, _verdict, junit_path, _exerciser,
                                            coverage_json=coverage_json,
-                                           game_end=_game_end)
+                                           game_end=_game_end, pilot=_pilot,
+                                           scenario=_scenario, soak_bless=soak_bless,
+                                           ran_seconds=test_seconds)
             if runs > 1 or fingerprint_json:
                 if not _fingerprints:      # single-run --fresh-process leg
                     _fingerprints.append(_run_fingerprint(_errors_before))
@@ -2663,6 +2912,30 @@ if __name__ == "__main__":
                          "wizard) instead of booting once per state.")
     ap.add_argument("--exercise-click-every", type=int, default=3, metavar="N",
                     help="Steps between --exercise-click presses (default 3).")
+    ap.add_argument("--pilot", action="store_true",
+                    help="With --test, run the goal-directed quest pilot: accept every "
+                         "offered quest and drive its declared goal (scan/dock/tow/reach/"
+                         "collect). Mission-agnostic - it reads the quest tree, not a "
+                         "script. Also suppresses staged combat unless some active quest "
+                         "asks for a kill")
+    ap.add_argument("--pilot-accept", default="all", metavar="all|none|KEY[,KEY]",
+                    help="Which offered quests the pilot accepts (default all). Accepting "
+                         "is quest_mark_active, which is the whole body of the Accept "
+                         "button")
+    ap.add_argument("--soak-init", default=None, metavar="MAP|all", nargs="?",
+                    const="all",
+                    help="Write a starter scenario to <mission>/soaks/<map>.yaml and "
+                         "exit. Compiles the mission to read each map's real option keys, "
+                         "and censuses its .amd quests marking which goals the pilot can "
+                         "drive. Pass a map name, or omit for every map")
+    ap.add_argument("--soak", default=None, metavar="NAME",
+                    help="Run the scenario at <mission>/soaks/<NAME>.yaml: it supplies the "
+                         "map, seed, duration, drive settings and the expect: assertions, "
+                         "so a soak is one flag instead of a hand-assembled command line")
+    ap.add_argument("--soak-bless", action="store_true",
+                    help="After a --soak run, fold what it achieved into "
+                         "<mission>/soaks/<NAME>.baseline.json. The ratchet only ever "
+                         "tightens: quests and routes are unioned in, never removed")
     ap.add_argument("--use-working-tree", action="store_true",
                     help="Run the working-tree sbs_utils instead of the packaged "
                          ".sbslib (smoke-test local library edits against a mission)")
@@ -2761,6 +3034,11 @@ if __name__ == "__main__":
         exercise_dwell=args.exercise_dwell,
         exercise_click=args.exercise_click,
         exercise_click_every=args.exercise_click_every,
+        pilot_accept=_pilot_accept_arg(args),
+        pilot_goals=bool(args.pilot),
+        soak=args.soak,
+        soak_bless=bool(args.soak_bless),
+        soak_init=args.soak_init,
         use_working_tree=args.use_working_tree,
         strict_blob=args.strict_blob,
         seed=args.seed,

@@ -123,6 +123,7 @@ def conformance_write(sim_seconds=None):
     errors = _counter.count if _counter is not None else 0
     now = sim_seconds if sim_seconds is not None else (_sim_seconds() or 0)
     asked = _seconds or 0
+    soak = _soak_result()
     entry = {
         # Which runtime produced this. An engine report and a mock report otherwise look
         # identical, and one has already been mistaken for the other.
@@ -140,6 +141,15 @@ def conformance_write(sim_seconds=None):
         "note": "runtime errors only - MAST label coverage is not measured in the engine; "
                 "cosmos_dev --test is the stronger check",
     }
+    if soak is not None:
+        # A soak run measures MORE than `test=` alone, so the note above stops being true
+        # and must not be left standing - a verdict that understates itself sends people
+        # to the mock for an answer they already have.
+        entry["soak"] = soak
+        entry["note"] = ("scenario expectations checked; MAST coverage measured via the "
+                         "shipped MastTicker.on_enter_node seam")
+        if soak.get("failures"):
+            entry["verdict"] = "FAIL"
     try:
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
@@ -153,6 +163,7 @@ def conformance_write(sim_seconds=None):
 def conformance_reset():
     """Drop state at a mission boundary. Registered with the reset ledger."""
     global _seconds, _written, _counter
+    soak_reset()
     if _counter is not None:
         logging.getLogger("mast.runtime").removeHandler(_counter)
     _seconds = None
@@ -163,3 +174,149 @@ def conformance_reset():
 def conformance_error_count():
     """Runtime errors seen so far. Reset-ledger probe."""
     return _counter.count if _counter is not None else 0
+
+
+# --- soak= : the harness, in the real engine ---------------------------------------
+#
+# WHY THIS LIVES IN THE SHIPPED LIBRARY. `tick_the_rest` is the one place reached every
+# tick, and it already calls `conformance_tick()`. The harness itself (the pilot, the
+# scenario loader, the coverage collector) ships separately in the cosmos_dev sbslib, so
+# everything here is imported LAZILY and every failure degrades to "no soak" rather than
+# to a broken mission. A mission that does not declare that sbslib must behave exactly as
+# it did before this existed.
+#
+# WHAT IT ADDS OVER `test=` ALONE. `test=` counts runtime errors and says so honestly -
+# its own docstring points out that a run which executed nothing at all still passes.
+# With the scenario loaded, the verdict also carries which quests completed and which
+# routes were entered, and `MastTicker.on_enter_node` (shipped, in mastscheduler) makes
+# the coverage half possible in the engine for the first time.
+
+_soak_name = None          # None = not resolved, "" = not requested
+_soak_scenario = None
+_soak_pilot = None
+_soak_cov = None
+_soak_failed = False
+
+
+def soak_name():
+    """The scenario `soak=` asked for, or "" when it was not requested."""
+    global _soak_name
+    if _soak_name is None:
+        _soak_name = (command_line_get("soak") or "").strip()
+    return _soak_name
+
+
+def soak_active():
+    """Whether a soak scenario is loaded and driving. Cheap once resolved."""
+    global _soak_scenario, _soak_pilot, _soak_cov, _soak_failed
+    if _soak_failed or not soak_name():
+        return False
+    if _soak_scenario is not None:
+        return True
+    try:
+        from ..fs import get_mission_dir
+        from cosmos_dev.soak_manifest import load_scenario
+        from cosmos_dev.quest_pilot import QuestPilot
+        from cosmos_dev.coverage import MastCoverage
+    except ImportError as e:
+        # The usual cause, and worth naming rather than leaving as a silent no-op: the
+        # mission's story.json does not declare the cosmos_dev sbslib.
+        _soak_failed = True
+        from .execution import log
+        log(f"soak='{soak_name()}' but the harness is not loadable ({e}) - add the "
+            "cosmos_dev sbslib to this mission's story.json", "conformance", "warning")
+        return False
+    try:
+        sc = load_scenario(get_mission_dir(), soak_name())
+    except Exception as e:
+        sc = None
+        from .execution import log
+        log(f"soak scenario '{soak_name()}' failed to load: {e}", "conformance", "warning")
+    if sc is None:
+        _soak_failed = True
+        from .execution import log
+        log(f"no soak scenario '{soak_name()}' under <mission>/soaks/", "conformance",
+            "warning")
+        return False
+    _soak_scenario = sc
+    _soak_pilot = QuestPilot(FrameContext.context.sbs, accept=sc.accept, goals=sc.goals)
+    _soak_cov = MastCoverage().install()
+    from .execution import log
+    log(f"soak scenario '{soak_name()}' active", "conformance")
+    return True
+
+
+def soak_tick():
+    """Drive the pilot one step. Called from `tick_the_rest`, guarded and cheap."""
+    if not soak_active():
+        return
+    try:
+        _soak_pilot.step()
+    except Exception as e:
+        # A throw in the HARNESS is not a mission finding. Count it, do not let it end
+        # the tick - this runs inside the shipped event handler.
+        try:
+            _soak_pilot.errors += 1
+        except Exception:
+            pass
+        logging.getLogger("mast.runtime").warning(f"soak pilot step failed: {e}")
+
+
+def _soak_result():
+    """The scenario half of the verdict, or None when no soak is running."""
+    if _soak_scenario is None or _soak_pilot is None:
+        return None
+    from cosmos_dev.soak_manifest import check_expectations
+    snap = _soak_pilot.snapshot()
+    routes = _soak_covered_routes()
+    try:
+        failures, result = check_expectations(_soak_scenario, snap, routes, None)
+    except Exception as e:
+        return {"error": f"expectation check failed: {e}"}
+    return {
+        "scenario": _soak_scenario.name,
+        # DID THE PILOT ACTUALLY RUN? Without this a soak can report PASS having driven
+        # nothing at all - coverage still accrues from the mission's own execution, so
+        # `routes_covered` alone cannot tell the two apart. `steps` at 0 means `step()`
+        # returned early every tick (usually no server task yet), which is a HARNESS
+        # problem wearing a green verdict.
+        "pilot_steps": getattr(_soak_pilot, "steps", 0),
+        "quests_seen": len(snap.get("complete") or ()) + len(snap.get("active") or ()),
+        "quests_complete": result["quests_complete"],
+        "routes_covered_count": len(result["routes_covered"]),
+        "not_drivable": sorted(snap.get("unreachable") or {}),
+        "accepted": snap.get("accepted"),
+        "failures": failures,
+    }
+
+
+def _soak_covered_routes():
+    """Entered route paths, normalized the way a scenario names them."""
+    import re
+    out = set()
+    if _soak_cov is None:
+        return out
+    try:
+        for label in _soak_cov.labels_hit:
+            if label.startswith("__route__"):
+                out.add(re.sub(r"__\d+__$", "", label[len("__route__"):]))
+            else:
+                out.add(label)
+    except Exception:
+        pass
+    return out
+
+
+def soak_reset():
+    """Drop soak state at a mission boundary. Called from `conformance_reset`."""
+    global _soak_name, _soak_scenario, _soak_pilot, _soak_cov, _soak_failed
+    if _soak_cov is not None:
+        try:
+            _soak_cov.uninstall()
+        except Exception:
+            pass
+    _soak_name = None
+    _soak_scenario = None
+    _soak_pilot = None
+    _soak_cov = None
+    _soak_failed = False
