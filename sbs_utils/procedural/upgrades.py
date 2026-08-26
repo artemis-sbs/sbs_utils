@@ -2,7 +2,7 @@
 """
 from sbs_utils.helpers import FrameContext
 from sbs_utils.agent import Agent, get_story_id
-from sbs_utils.procedural.query import to_set, to_object
+from sbs_utils.procedural.query import to_set, to_object, to_client_object
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.mast.mastscheduler import MastAsyncTask
@@ -49,11 +49,17 @@ class Upgrade(Agent):
         pass
     
     def activate(self):
-        UPGRADE_AGENT = to_object(self.agent_id)
+        # `or to_client_object`, because __init__ LINKED this upgrade through
+        # to_agent_list, which accepts the SERVER console (id 0) - so an upgrade could
+        # attach to the server and then be discarded here the moment it activated, on the
+        # strength of to_object refusing that same id.
+        UPGRADE_AGENT = to_object(self.agent_id) or to_client_object(self.agent_id)
         self.deactivate() # Shouldn't be active, but just n case
         if UPGRADE_AGENT is None:
-            # This agent is gone
+            # This agent is gone. RETURN - without it, discard() was followed by starting
+            # the task anyway, with UPGRADE_AGENT None.
             self.discard()
+            return
         # Run the upgrade task
         data = {"UPGRADE_AGENT": UPGRADE_AGENT, "UPGRADE_AGENT_ID": self.agent_id, "UPGRADE": self}
         if self.data is not None:

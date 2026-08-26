@@ -772,8 +772,15 @@ def _hail_may_answer(client_id):
 
     Enforced HERE rather than by hiding buttons: hiding is cosmetic, and a press can
     still arrive from a console that should not have one.
+
+    `is not None`, NOT `bool(client_id)`: the SERVER console is client id 0, which is
+    falsy, so the truth test short-circuited before `has_role` ever ran. The host could
+    see a hail and never answer it - and since the placement default became Both, a hail
+    lands on the main screen, which in an ordinary setup IS the server window. Every
+    caller (hail_accept, hail_advance, hail_answer, hail_defer) just returned False,
+    which is indistinguishable from "no open hail".
     """
-    return bool(client_id) and has_role(client_id, "comms")
+    return client_id is not None and has_role(client_id, "comms")
 
 
 def hail_answer(ship, index, client_id=None, seq=None):

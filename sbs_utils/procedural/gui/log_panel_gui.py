@@ -114,7 +114,11 @@ def log_raise(scope, tab=TAB_LOG):
     from ..links import linked_to
     from .tabbed_panel import gui_task_for_client
 
-    if is_client_id(scope):
+    # `or scope == 0` for the SERVER console: is_client_id tests the 0x8000... bit, which
+    # 0 does not have - the same reason to_client_object spells that case out. Without it
+    # a shipless server fell to the ship branch, linked_to(0, "consoles") came back empty,
+    # and the host's info panel never popped to the tab the entry was written to.
+    if is_client_id(scope) or scope == 0:
         client_ids = [scope]
     else:
         # Every console riding this ship - the log is the CREW's, so the interrupt is too.

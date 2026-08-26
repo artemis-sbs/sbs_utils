@@ -120,9 +120,13 @@ def _hail_may_answer_here(client_id):
 
     Mirrors the server-side check in `hail_answer` rather than re-deciding it: a console
     that cannot answer must not be given buttons that will be refused.
+
+    That mirroring is why this line moves with `_hail_may_answer` - it faithfully
+    mirrored the `bool(client_id)` bug too, so the SERVER console (id 0, falsy) was shown
+    the read-only readout: no answer buttons, no placement dropdown, no audio checkbox.
     """
     from ..roles import has_role
-    return bool(client_id) and has_role(client_id, "comms")
+    return client_id is not None and has_role(client_id, "comms")
 
 
 # --- the press handler ------------------------------------------------------

@@ -31,7 +31,8 @@ from sbs_utils.procedural.inventory import (get_inventory_value, set_inventory_v
 from sbs_utils.procedural.links import (link, unlink, linked_to, has_link_to,
                                         set_dedicated_link, get_dedicated_link,
                                         clear_dedicated_link)
-from sbs_utils.procedural.query import to_agent_list, to_object_list, to_id
+from sbs_utils.procedural.query import (to_agent_list, to_object_list,
+                                        to_space_object_list, to_id)
 from sbs_utils.procedural.roles import (add_role, remove_role, has_role, has_roles,
                                         has_any_role, get_role_list, get_role_string,
                                         role, any_role)
@@ -143,7 +144,76 @@ class ServerConsoleRolesTests(unittest.TestCase):
         clear_dedicated_link(SERVER, "following")
         self.assertIsNone(get_dedicated_link(SERVER, "following"))
 
+    # --- the guards that DEFEATED the role fix ------------------------------
+    #
+    # Giving the server a role is only half the job. Several callers reached the role
+    # check through `bool(client_id)` or resolved the agent with `to_object` first, and
+    # `bool(0)` is False while `to_object(0)` is None - so the answer was decided before
+    # `has_role` ever ran. Each of these asserts the ANSWER, not the plumbing.
+
+    def test_a_server_with_the_comms_role_may_answer_a_hail(self):
+        # `bool(client_id) and has_role(...)` short-circuits on the server, so the host
+        # could SEE a hail and never answer it - and the placement default is now Both,
+        # which puts hails on the main screen, i.e. usually the server.
+        from sbs_utils.procedural.hail import _hail_may_answer
+        add_role(SERVER, "console")
+        add_role(SERVER, "comms")
+        self.assertTrue(has_role(SERVER, "comms"), "precondition: the role fix works")
+        self.assertTrue(_hail_may_answer(SERVER))
+
+    def test_a_server_without_the_comms_role_still_may_not(self):
+        # The other direction: the guard must still REFUSE, or we have replaced a silent
+        # no-op with a console answering hails it was never given.
+        from sbs_utils.procedural.hail import _hail_may_answer
+        add_role(SERVER, "console")
+        self.assertFalse(_hail_may_answer(SERVER))
+        self.assertFalse(_hail_may_answer(None), "None is genuinely 'no console'")
+
+    def test_the_hail_gui_twin_agrees_with_the_server_side_check(self):
+        # hail_gui's docstring says it mirrors the server-side check. It has to keep
+        # mirroring it, or a console is offered buttons the server will refuse.
+        from sbs_utils.procedural.hail import _hail_may_answer
+        from sbs_utils.procedural.gui.hail_gui import _hail_may_answer_here
+        add_role(SERVER, "console")
+        add_role(SERVER, "comms")
+        self.assertEqual(_hail_may_answer(SERVER), _hail_may_answer_here(SERVER))
+        self.assertTrue(_hail_may_answer_here(SERVER))
+
+    def test_a_quest_can_be_added_to_the_server_and_read_back(self):
+        # `quest_folder` is LM #719's exact shape - a WRITE path resolved with
+        # `to_object`. The id survives to_id_list (which keeps 0) and dies at the
+        # singular resolver, so quest_add just `continue`s past the server.
+        from sbs_utils.procedural.quest import (quest_folder, quest_add,
+                                                quest_agent_quests)
+        folder, _key = quest_folder(SERVER, "briefing")
+        self.assertIsNotNone(folder, "the server got no quest folder, so no quest lands")
+        quest_add(SERVER, "briefing", "Briefing", "Attend the mission briefing.")
+        tree = quest_agent_quests(SERVER)
+        self.assertIsNotNone(tree, "quest_add continued past the server")
+        self.assertIn("briefing", tree.get("children", {}))
+
+    def test_the_resolver_these_call_sites_share_answers_for_the_server(self):
+        # `to_object(x) or to_client_object(x)` is the shape has_role already uses, and
+        # what brain.py's BRAIN_AGENT, upgrades.py's activate and quest.py's folder all
+        # need. Those three are covered by inspection - each needs a live MAST task or a
+        # GUI page to exercise, and a test that stands up that much scaffolding tests the
+        # scaffolding. This pins the one thing they have in common.
+        from sbs_utils.procedural.query import to_object, to_client_object
+        self.assertIsNone(to_object(SERVER), "still not a space object")
+        self.assertIsNotNone(to_client_object(SERVER), "but it is a console")
+        self.assertEqual(SERVER, (to_object(SERVER) or to_client_object(SERVER)).id)
+
     # --- the line that must NOT move ---------------------------------------
+
+    def test_the_space_object_resolvers_refuse_zero_even_when_it_holds_roles(self):
+        # The anti-over-fix tripwire, with a REALISTIC fixture: the server now really is
+        # in role("console"), so a future cleanup that "makes the resolvers consistent"
+        # would start handing a GuiClient to code that calls delete_object() on it.
+        add_role(SERVER, "console")
+        self.assertIn(SERVER, role("console"), "precondition: the server holds the role")
+        self.assertEqual([], to_object_list(role("console")))
+        self.assertEqual([], to_space_object_list(role("console")))
+        self.assertEqual([SERVER], [a.id for a in to_agent_list(role("console"))])
 
     def test_to_object_list_still_refuses_id_zero(self):
         # Space-object callers keep the old meaning: for them 0 really is "no object",

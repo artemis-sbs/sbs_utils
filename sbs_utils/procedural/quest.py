@@ -9,7 +9,7 @@ When a quest is activated or completed a signal is sent
 
 """
 from collections import OrderedDict as _OrderedDict
-from sbs_utils.procedural.query import to_id_list, to_object, to_id
+from sbs_utils.procedural.query import to_id_list, to_object, to_id, to_client_object
 from sbs_utils.procedural.signal import signal_emit
 from sbs_utils.mast.mast_node import MastDataObject
 from sbs_utils.helpers import FrameContext, gui_text_escape
@@ -44,7 +44,9 @@ def quest_agent_quests(agent_id):
         if tree is not None:
             ~~ print(tree.get("children").keys()) ~~
     """
-    agent = to_object(agent_id)
+    # `or to_client_object` for the SERVER console: this is documented to accept a client
+    # id (quest_driver's "You" section passes one), and to_object refuses id 0.
+    agent = to_object(agent_id) or to_client_object(agent_id)
     if agent is None:
         return None
     return agent.get_inventory_value("__quests__")
@@ -170,7 +172,11 @@ def quest_folder(agent_id, quest_id):
             final path component (the child key), or ``(None, None)`` if the
             agent does not exist.
     """
-    agent = to_object(agent_id)
+    # A WRITE path resolved with to_object - LM #719's exact shape, and it survived that
+    # fix because the id gets here through to_id_list, which KEEPS 0, and only dies at
+    # this singular resolve. quest_add then just `continue`s past the (None, None), so a
+    # quest aimed at the server console vanished with no error.
+    agent = to_object(agent_id) or to_client_object(agent_id)
     if agent is None:
         return None, None
     quest = agent.get_inventory_value("__quests__", None)

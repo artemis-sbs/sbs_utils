@@ -3,7 +3,8 @@
 from sbs_utils.helpers import FrameContext
 from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value, has_inventory
 from sbs_utils.agent import Agent
-from sbs_utils.procedural.query import to_set, to_object, object_exists, is_space_object_id, is_grid_object_id
+from sbs_utils.procedural.query import (to_set, to_object, to_client_object, object_exists,
+                                        is_space_object_id, is_grid_object_id)
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.mast.mast_node import MastNode
@@ -172,7 +173,11 @@ class Brain:
         t.jump(self.label, loc)
         t.set_variable("BRAIN", self)
         #t.set_variable("BRAIN_ID", self.id)
-        t.set_variable("BRAIN_AGENT", to_object(self.agent))
+        # `or to_client_object` so BRAIN_AGENT agrees with BRAIN_AGENT_ID. brain_add(0,
+        # ...) writes through to_agent_list and the tick loop resolves with Agent.get, so
+        # a brain on the SERVER console really runs - but to_object refuses id 0, so the
+        # body saw BRAIN_AGENT None while BRAIN_AGENT_ID said 0.
+        t.set_variable("BRAIN_AGENT", to_object(self.agent) or to_client_object(self.agent))
         t.set_variable("BRAIN_AGENT_ID", self.agent)
         t.tick_in_context()
         return t.tick_result
