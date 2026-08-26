@@ -33,7 +33,7 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.tickdispatcher import TickDispatcher, RollingSlicer
 from sbs_utils.procedural.inventory import (get_inventory_value, set_inventory_value,
                                             has_inventory)
-from sbs_utils.procedural.query import to_object, to_id, to_object_list
+from sbs_utils.procedural.query import to_object, to_id
 from sbs_utils.agent import Agent
 
 

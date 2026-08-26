@@ -112,8 +112,9 @@ class TabbedPanel(layout.Column):
             #
             FrameContext.page = restore
             # gui_page_for_client is documented nullable and really is None for a client
-            # with no gui agent - the SERVER (client 0) among them, since Agent.get(0) is
-            # None. Dereferencing it took down the whole tick phase (brains and timers
+            # with no gui agent - one that has not been presented to yet, or one that has
+            # gone away. (NOT the server: Agent.get(0) answers once Gui.present has pushed
+            # its GuiClient, which is early.) Dereferencing it took down the tick phase
             # with it), from a tab redraw. Rare while only comms traffic grew the log;
             # constant once the retired toast started feeding it too.
             #

@@ -49,7 +49,12 @@ def inventory_set(source, key: str):
     Returns:
         set: The set stored in inventory, or an empty set if not present.
     """
+    # resolve_py_object, NOT to_object: it answers for the SERVER console (id 0), which
+    # to_object refuses by design. Guarded like its two neighbours in links.py - an
+    # unregistered id used to raise AttributeError here rather than answer empty.
     source = Agent.resolve_py_object(source)
+    if source is None:
+        return set()
     return source.get_inventory_set(key)
 
 

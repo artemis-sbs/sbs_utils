@@ -7,14 +7,29 @@ from ..delete_queue import DeleteQueue
 # Set functions
 # Get the set of IDS of a broad test
 def to_py_object_list(the_set):
-    """Convert a set of IDs to a list of Agent objects.
+    """Convert a set of raw agent IDs to a list of Agent objects.
+
+    The odd one out of the list resolvers, and kept that way for compatibility:
+
+    * **IDs only.** It indexes ``Agent.all`` directly, so an ``Agent`` / ``CloseData`` /
+      ``SpawnData`` in the set resolves to ``None``, not to itself.
+    * **``None`` is kept, not dropped**, so positions line up with the input - every
+      other list resolver filters instead.
+    * **No liveness check**, so a deleted agent's id yields ``None`` (it is out of
+      ``Agent.all``) while a stale ``Agent`` object yields ``None`` too, for the other
+      reason.
+    * id ``0`` resolves to the SERVER console, as ``Agent.get`` always has.
+
+    Prefer :func:`to_object_list` (space objects, drops what it cannot resolve) or
+    :func:`to_agent_list` (the write side, keeps the server). See the resolver table in
+    :func:`to_object_list`.
 
     Args:
         the_set (set[int]): A set of agent IDs.
 
     Returns:
-        list[Agent]: Agents resolved from the set; items that no longer exist
-            are included as ``None``.
+        list[Agent | None]: Agents resolved from the set, ``None`` where an id is not in
+            ``Agent.all``.
     """
     return [Agent.get(id) for id in the_set]
 
@@ -50,6 +65,19 @@ def to_object_list(the_set):
     # counters ride set_inventory_value, so `start_counter(0, name)` silently wrote
     # nothing (LM #719). Writers use `to_agent_list`; both halves are pinned together in
     # tests/test_stale_handle.py.
+    # THE FOUR LIST RESOLVERS, measured - pick by what the caller DOES with the answer:
+    #
+    #   resolver               id 0 (server)   dead agent   use for
+    #   to_object_list         dropped         dropped      space objects (this one)
+    #   to_space_object_list   dropped         dropped      space objects, said out loud
+    #   to_agent_list          KEPT            dropped      writes: roles, links, inventory
+    #   to_id_list             KEPT            KEPT         ids; no liveness check
+    #   to_py_object_list      kept            None entry   raw id sets only; keeps None
+    #
+    # Both columns are load-bearing here and neither is an oversight. See to_agent_list
+    # for why 0 is a holder but not an object, and tests/test_stale_handle.py, which pins
+    # both halves together - the id-0 half was missing once, and that is how LM #719 got
+    # in through a change whose stated purpose was to strengthen the liveness half.
     return [y for x in the_list if (y := to_object(x)) is not None]
 
 def to_space_object_list(the_set):
