@@ -821,6 +821,9 @@ def terrain_spawn_field_keyed(key, cell, x_min, z_min, x_max, z_max, terrain_val
     return plan
 
 
+# No longer used by _neb_colors -- a nebula's icon is derived from its own emission now
+# (terrain_nebula_icon_color), not hand-noised. Kept because it is public surface a mission
+# may call for its own colors.
 def color_noise(r_min, r_max, g_min,g_max, b_min, b_max, a_min=0xff, a_max=0xff):
     r = random.randrange(r_min,r_max)
     g = random.randrange(g_min,g_max)
@@ -834,7 +837,6 @@ def color_noise(r_min, r_max, g_min,g_max, b_min, b_max, a_min=0xff, a_max=0xff)
 _neb_colors = {
     "purple":{
         "display_text": "purple",
-        "radar_color_override"  : color_noise(0x20, 0x30,0, 0x10, 0x50, 0x60,),    
         "absorption_red": 1.0,  
         "absorption_green": 0.93,    
         "absorption_blue": 0.3,
@@ -855,7 +857,6 @@ _neb_colors = {
     },
     "red":{
         "display_text": "red",
-        "radar_color_override"  : color_noise(0x40, 0x50, 0,0x10, 0x40, 0x50),    
         "absorption_red": 0.11,  
         "absorption_green": 1.5,    
         "absorption_blue": 1.5,
@@ -876,7 +877,6 @@ _neb_colors = {
     }, 
     "blue": {
         "display_text": "blue",
-        "radar_color_override"  : color_noise(0,0x10, 0x40, 0x50,0x40, 0x50),    
         "absorption_red": 1.6,  
         "absorption_green": 1.3,    
         "absorption_blue": 0.01,
@@ -897,7 +897,6 @@ _neb_colors = {
     },
     "yellow":{
         "display_text": "yellow",
-        "radar_color_override"  : color_noise(0x40, 0x50,0x40, 0x50,0, 0x10),    
         "absorption_red": 0.1,  
         "absorption_green": 0.61,    
         "absorption_blue": 1.3,
@@ -918,7 +917,6 @@ _neb_colors = {
     },
     "green":{
         "display_text": "green",
-        "radar_color_override"  : color_noise(0x10, 0x20,0x60, 0x70, 0x30, 0x40),    
         "absorption_red": 0.65,  
         "absorption_green": 0.23,    
         "absorption_blue": 0.0,
@@ -939,7 +937,6 @@ _neb_colors = {
     },
     "orange":{
         "display_text": "orange",
-        "radar_color_override"  : color_noise(0x50, 0x60,0x20, 0x30,0x10, 0x20),    
         "absorption_red": 0.1,  
         "absorption_green": 0.61,    
         "absorption_blue": 1.3,
@@ -960,7 +957,6 @@ _neb_colors = {
     },
     "white":{
         "display_text": "white",
-        "radar_color_override"  : color_noise(0x20, 0x30,0x20, 0x30, 0x20, 0x30),    
         "absorption_red": 0.3,  
         "absorption_green": 0.3,    
         "absorption_blue": 0.3,
@@ -982,6 +978,75 @@ _neb_colors = {
 
 
 }
+
+
+# Brightness the icon's strongest channel is normalized to. The old hand-written icons
+# peaked at 0x44-0x63, which on a dark radar is a near-black smudge -- an orange cluster
+# and a purple one were the same dark nothing. 0xcc tells them apart while still sitting
+# below ships and map furniture, so a dense field does not shout.
+NEB_ICON_PEAK = 0xcc
+
+# What a nebula with no emission to derive from falls back to. Gold is the shared
+# "map furniture" color (markers.py) -- a deliberate "I could not tell", not a hue.
+NEB_ICON_FALLBACK_COLOR = "gold"
+
+
+def terrain_nebula_icon_color(color, peak=NEB_ICON_PEAK):
+    """The radar tint for a nebula, computed FROM that nebula's own emission.
+
+    A nebula used to carry two unrelated descriptions of itself: a hand-written
+    "radar_color_override" hex for the 2D icon, and the emission/scattering/absorption
+    levers the engine actually draws the cloud with. Nothing tied them together, so
+    retuning either side desynced them silently -- which is how "red" ended up with a
+    magenta icon over a red cloud (the icon line survived 0ae545ea byte-identical while
+    the cloud was rewritten), and how every icon ended up ~3x too dark to read.
+
+    Deriving the icon here removes the second copy: there is one color, and the icon is
+    a view of it.
+
+    EMISSION ONLY, and that is not a guess. Running the engine shader's own raymarch
+    (data/graphics/shader-emissivenebula.ps:152-180) over each entry shows the rendered
+    hue tracks NORMALIZED EMISSION almost exactly -- purple [0.70,0.00,1.00] renders
+    [0.69,0.00,1.00], red [1.00,0.30,0.10] renders [1.00,0.29,0.10]. Absorption and
+    scattering largely cancel: they form `ext`, which appears both inside `trans` and as
+    the divisor of the integral, so they set how BRIGHT and how thick the cloud is far
+    more than what color it is.
+
+    The lit term (`light * phase * (1-absorption) * scattering * p`) is deliberately not
+    used. It swings the hue by 0.3-0.8 per channel across plausible light intensities and
+    goes NEGATIVE wherever absorption exceeds 1.0 (red absorbs green/blue at 1.5), so it
+    is not a stable thing to name a color from.
+
+    Args:
+        color (dict | str): a _neb_colors entry, a color name, or any dict carrying
+            emission_red/green/blue.
+        peak (int, optional): value the largest channel is scaled to. Defaults to
+            ``NEB_ICON_PEAK``.
+
+    Returns:
+        str: ``"#rrggbb"``.
+    """
+    if isinstance(color, str):
+        color = _neb_colors.get(color, _neb_colors.get("yellow"))
+    if not isinstance(color, dict):
+        return NEB_ICON_FALLBACK_COLOR
+    rgb = [float(color.get("emission_red", 0.0) or 0.0),
+           float(color.get("emission_green", 0.0) or 0.0),
+           float(color.get("emission_blue", 0.0) or 0.0)]
+    top = max(rgb)
+    if top <= 0:
+        # No emission at all: nothing to derive a hue from, so say so rather than
+        # inventing one.
+        return NEB_ICON_FALLBACK_COLOR
+    scaled = [min(peak, max(0, round(c / top * peak))) for c in rgb]
+    return "#%02x%02x%02x" % tuple(scaled)
+
+
+# One color, one source of truth: every entry's icon is filled in from its own cloud.
+# Doing it here rather than lazily keeps the table complete for anything that reads it.
+for _neb_entry in _neb_colors.values():
+    _neb_entry["radar_color_override"] = terrain_nebula_icon_color(_neb_entry)
+del _neb_entry
 
 
 def terrain_spawn_nebula_scatter(cluster_spawn_points, height, cluster_color=None, diameter=NEB_MAX_SIZE, density=1.0, selectable=False):
@@ -1302,6 +1367,12 @@ def terrain_setup_nebula(nebula, diameter=4000, density_coef=1.0, color="yellow"
 
     for k,v in color.items():
         blob.set(k,v)
+    # A caller can pass its own color dict (the documented cluster_color dict form). One
+    # built by hand has no icon in it, so derive the icon from the cloud it DID describe --
+    # the same rule the built-in colors get. An explicit "radar_color_override" a caller
+    # supplies is left alone: naming one is a deliberate override, not an omission.
+    if "radar_color_override" not in color:
+        blob.set("radar_color_override", terrain_nebula_icon_color(color))
     # Need to tell the engine we changed the values
     blob.set("nebula_data_change", 1)
 
