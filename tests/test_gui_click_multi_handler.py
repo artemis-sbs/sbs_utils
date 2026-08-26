@@ -52,8 +52,11 @@ class _Base(unittest.TestCase):
         OnChangeRuntimeNode.pop_inline_block_on_end = True
 
     def tearDown(self):
-        if getattr(self, "_orig_rte", None) is not None:
-            MastScheduler.runtime_error = self._orig_rte
+        # hasattr, NOT "is not None": `on_runtime_error` DEFAULTS to None, so a
+        # truthiness guard skips the restore and leaks this test's hook - and the
+        # list it appends to - into every test that runs afterwards.
+        if hasattr(self, "_orig_rte"):
+            MastScheduler.on_runtime_error = self._orig_rte
         Gui.clients = {}
         Gui.widget_list_sent = {}
         ClickPage.story = None
@@ -82,8 +85,12 @@ class _Base(unittest.TestCase):
         FrameContext.mast = story
 
         self.errors = []
-        self._orig_rte = MastScheduler.runtime_error
-        MastScheduler.runtime_error = lambda s, message: self.errors.append(message)
+        self._orig_rte = MastScheduler.on_runtime_error
+        # StoryScheduler OVERRIDES `runtime_error`, so patching it on MastScheduler
+        # binds a method nothing calls and the assertion below is vacuous. The
+        # class-level `on_runtime_error` seam is what the story scheduler actually
+        # fires (and is what cosmos_dev's verdict uses).
+        MastScheduler.on_runtime_error = self.errors.append
 
         self.page = ClickPage()
         Gui.push(CID, self.page)
