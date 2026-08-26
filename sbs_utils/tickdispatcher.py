@@ -86,6 +86,20 @@ class RollingSlicer:
         self._sorted = []
         self._sig = None
 
+    def reset(self):
+        """Forget the cursor, the fractional accumulator and the cached order.
+
+        `brains_reset()` / `objective_reset()` have always tried to call this behind a
+        `hasattr` guard, and the guard was always False - the method did not exist, so a
+        mission restart carried the previous mission's cursor and accumulator into the
+        next one. Harmless in practice (a changed id set re-sorts and the cursor is taken
+        modulo the size), but the reset ledger claimed something it was not doing.
+        """
+        self.cursor = 0
+        self.accum = 0.0
+        self._sig = None
+        self._sorted = []
+
     def slice(self, ids, pass_seconds):
         sig = frozenset(ids)
         if sig != self._sig:

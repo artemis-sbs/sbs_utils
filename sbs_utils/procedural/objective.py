@@ -74,6 +74,11 @@ def objective_reset():
     __end_game_promise = []
     __end_game_ids = 100
 
+    # The rolling slicer carries a cursor and a fractional accumulator across the reset
+    # too. Its brain twin has always tried to clear this; both now can, since
+    # RollingSlicer grew a real `reset`.
+    _objective_slicer.reset()
+
 
 def objective_ticks_stale() -> bool:
     """True if we think the tick tasks are scheduled but the dispatcher has lost them.

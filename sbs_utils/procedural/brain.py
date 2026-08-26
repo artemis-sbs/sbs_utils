@@ -39,6 +39,10 @@ class BrainType(IntFlag):
 
 
 class Brain:
+    # label -> True once we have complained about it. A leaf that does not end properly
+    # would otherwise print on every pass, for every agent, forever.
+    _warned_leaf = {}
+
     def __init__(self, agent, label, data, client_id, brain_type=BrainType.Simple):
         super().__init__()
         self.agent = agent
@@ -180,7 +184,31 @@ class Brain:
         t.set_variable("BRAIN_AGENT", to_object(self.agent) or to_client_object(self.agent))
         t.set_variable("BRAIN_AGENT_ID", self.agent)
         t.tick_in_context()
-        return t.tick_result
+        res = t.tick_result
+        # A LEAF THAT DID NOT FINISH MUST BE ENDED, or it never will be.
+        #
+        # `yield success` / `yield fail` resolve to OK_END / FAIL_END, which mark the task
+        # done and let the scheduler dispose of it. Anything else - `await` (OK_RUN_AGAIN)
+        # or `yield idle` (OK_IDLE) - leaves a live task appended to the scheduler, ticked
+        # every frame forever. The brain then starts ANOTHER one next pass, so an awaiting
+        # leaf leaked one immortal task every pass for the life of the mission.
+        #
+        # It also read as not-success, so a Select silently fell through to the next
+        # sibling: the leaf appeared to do nothing while quietly multiplying. `Objective`
+        # has always ended its non-terminal leaves (objective.py); brains never did.
+        #
+        # Nothing shipped relies on the old behaviour - no brain-typed label in any
+        # mission awaits or yields idle (the `await`s nearby live in ordinary `==` task
+        # labels, which is the correct place for work that takes time).
+        if res not in (PollResults.BT_SUCCESS, PollResults.BT_FAIL):
+            t.end()
+            if not Brain._warned_leaf.get(self.label):
+                Brain._warned_leaf[self.label] = True
+                name = getattr(self.label, "name", self.label)
+                print(f"brain leaf '{name}' did not end in yield success/fail "
+                      f"(got {res}); it was ended to stop it leaking a task per pass. "
+                      f"Long work belongs in a task_schedule'd label gated by a flag.")
+        return res
         
 
 
@@ -262,13 +290,20 @@ def brain_add_parent(parent, agent, label, data=None, client_id=0):
         
     if isinstance(label, list):
         for l in label:
-            brain_add_parent(parent, agent, l, None)
+            # Carry `data` and `client_id` down. They used to be dropped here, so every
+            # child of a bare list silently fell back to client_id 0 (the server) and lost
+            # its data dict - while the dict forms below passed both correctly.
+            brain_add_parent(parent, agent, l, data, client_id)
+        return
 
     if isinstance(label, dict):
         keys = label.keys()
         length = len(keys)
         sel = None
         seq = None
+        # Keep what was handed down; a child that does not name its own `data` inherits
+        # it. Blanking it here is what made the fallback below unreachable.
+        inherited_data = data
         data = None
         the_label = None
         if length == 1:
@@ -281,7 +316,12 @@ def brain_add_parent(parent, agent, label, data=None, client_id=0):
                 the_label = test
 
         if sel is None and seq is None:
-            data = label.get("data")
+            # FALL BACK to the data handed down, rather than nulling it. A child written
+            # as {"label": x} says nothing about data, so it should inherit what the
+            # caller passed; only {"label": x, "data": {...}} means "use mine instead".
+            # Reading it unconditionally meant a bare-label sibling and a dict sibling in
+            # the same list got different data for no stated reason.
+            data = label.get("data", inherited_data)
             the_label = label.get("label")
         
         
@@ -297,7 +337,8 @@ def brain_add_parent(parent, agent, label, data=None, client_id=0):
             brain_add_parent(parent, agent, the_label, data, client_id)
 
 
-def brain_add(agent_id_or_set, label, data=None, client_id=0, parent=None):
+def brain_add(agent_id_or_set, label, data=None, client_id=0, parent=None,
+              root_type=BrainType.Select):
     """Add a behaviour-tree node to one or more agents.
 
     Creates or extends the agent's brain tree. The root is a **Select** node
@@ -319,7 +360,14 @@ def brain_add(agent_id_or_set, label, data=None, client_id=0, parent=None):
         client_id (int, optional): Client context for GUI-task resolution.
             Defaults to 0 (server).
         parent (Brain | None, optional): Parent node to attach to. Defaults to
-            None (attaches to the agent's root Select node).
+            None (attaches to the agent's root node, creating it if needed).
+        root_type (BrainType, optional): Composite type for the root when this call
+            CREATES it. Defaults to ``BrainType.Select`` - children run in priority
+            order and the first success wins, which is what a behaviour list wants.
+            Pass ``BrainType.Sequence`` when every child should run each pass (e.g. a
+            set of independent per-console jobs, where a Select would let the first
+            success starve the rest). Ignored when the agent already has a root, so a
+            later call can never silently re-type an existing tree.
 
     Example:
         brain_add(ENEMY_ID, patrol_label)
@@ -328,13 +376,22 @@ def brain_add(agent_id_or_set, label, data=None, client_id=0, parent=None):
     brain_schedule()
     agent_id_or_set = to_set(agent_id_or_set)
     for agent in agent_id_or_set:
-        if parent is None:
-            parent = get_inventory_value(agent, "__BRAIN__", None)
-            if parent is None:
-                # Default brain is Select
-                parent = Brain(agent, "SEL root", None, client_id, BrainType.Select)
-                set_inventory_value(agent, "__BRAIN__", parent)
-        brain_add_parent(parent, agent, label, data, client_id)
+        # RESOLVE INTO A LOCAL, never back into `parent`. `parent` is this function's
+        # parameter, so writing to it leaked the first agent's root into every later
+        # iteration: agents 2..N were attached as children of agent #1's tree and never
+        # got a `__BRAIN__` entry of their own. `has_inventory("__BRAIN__")` IS the tick
+        # loop's registry, so their brains simply never ran - silently. Latent only
+        # because every shipped call passes a single id; `brain_add(role("__player__"),
+        # ...)` would have driven exactly one ship.
+        agent_parent = parent
+        if agent_parent is None:
+            agent_parent = get_inventory_value(agent, "__BRAIN__", None)
+            if agent_parent is None:
+                seq = root_type == BrainType.Sequence
+                agent_parent = Brain(agent, "SEQ root" if seq else "SEL root",
+                                     None, client_id, root_type)
+                set_inventory_value(agent, "__BRAIN__", agent_parent)
+        brain_add_parent(agent_parent, agent, label, data, client_id)
 
 
 __brains_is_running = False
@@ -382,7 +439,7 @@ def brains_reset() -> None:
     """Drop cross-mission brain scheduler state (called by reset_mission_state)."""
     global __brains_is_running
     __brains_is_running = False
-    _brain_slicer.reset() if hasattr(_brain_slicer, "reset") else None
+    _brain_slicer.reset()
 
 
 def brains_is_stalled() -> bool:
