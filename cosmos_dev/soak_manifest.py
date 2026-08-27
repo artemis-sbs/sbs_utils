@@ -45,6 +45,35 @@ entered and every run reported PASS. Coverage knew; nothing asked it.
 """
 import json
 import os
+import re
+
+# Two kinds of ordinal ride on a label name, and BOTH shift when files are added or edited.
+# A route compiles to `__route__damage/object__199__`; an `@console` / `@media` decorator
+# label compiles to `console/{path}/{id}` (gui_console_decorator_label.py) with a plain
+# sequence number. Neither says anything about the route - they are just where it landed in
+# the compile order.
+#
+# MEASURED: adding two files to the autoplay addon renamed `media/skybox/sky-bored-alice/19`
+# to `/20` and shifted all five `console/*` labels, so a soak against an eight-run baseline
+# reported SEVEN routes regressed with nothing actually broken. A ratchet that fires on
+# every file addition is a ratchet people turn off.
+_ROUTE_PREFIX = "__route__"
+_ROUTE_ORDINAL = re.compile(r"__\d+__$")
+_LABEL_ORDINAL = re.compile(r"/\d+$")
+
+
+def normalize_route(label):
+    """A stable name for a route or decorator label, with compile-order ordinals removed."""
+    name = str(label)
+    if name.startswith(_ROUTE_PREFIX):
+        name = name[len(_ROUTE_PREFIX):]
+    name = _ROUTE_ORDINAL.sub("", name)
+    return _LABEL_ORDINAL.sub("", name)
+
+
+def normalize_routes(labels):
+    """`normalize_route` over a collection, as a set."""
+    return {normalize_route(l) for l in (labels or ())}
 
 
 class SoakScenario:

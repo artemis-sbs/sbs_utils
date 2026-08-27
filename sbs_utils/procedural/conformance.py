@@ -291,20 +291,19 @@ def _soak_result():
 
 
 def _soak_covered_routes():
-    """Entered route paths, normalized the way a scenario names them."""
-    import re
-    out = set()
+    """Entered route paths, normalized the way a scenario names them.
+
+    Shares `soak_manifest.normalize_route` with the mock leg on purpose: two copies of
+    this rule would drift, and a route the engine called one thing and the mock another
+    would look like a regression in whichever leg ran second.
+    """
     if _soak_cov is None:
-        return out
+        return set()
     try:
-        for label in _soak_cov.labels_hit:
-            if label.startswith("__route__"):
-                out.add(re.sub(r"__\d+__$", "", label[len("__route__"):]))
-            else:
-                out.add(label)
+        from cosmos_dev.soak_manifest import normalize_routes
+        return normalize_routes(_soak_cov.labels_hit)
     except Exception:
-        pass
-    return out
+        return set()
 
 
 def soak_reset():

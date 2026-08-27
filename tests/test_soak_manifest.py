@@ -18,7 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sbs_utils.fs import test_set_exe_dir
 test_set_exe_dir()
 
-from cosmos_dev.soak_manifest import SoakScenario, check_expectations, load_scenario
+from cosmos_dev.soak_manifest import (SoakScenario, check_expectations, load_scenario,
+                                      normalize_route, normalize_routes)
 
 
 def _scenario(tmp, **data):
@@ -139,6 +140,35 @@ class CheckExpectationsTests(unittest.TestCase):
         sc = _scenario(self.tmp, expect={"game_end": "none"})
         fails, _ = check_expectations(sc, {"complete": []}, set(), None)
         self.assertEqual(fails, [])
+
+
+class NormalizeRouteTests(unittest.TestCase):
+    """Compile-order ordinals must not reach the baseline.
+
+    Both kinds shift when files are added, so a ratchet that stores them fires on the most
+    ordinary change there is. Measured: adding two files to an addon renamed
+    `media/skybox/sky-bored-alice/19` to `/20` and moved all five `console/*` labels, and
+    an eight-run baseline reported SEVEN routes regressed with nothing broken.
+    """
+
+    def test_route_prefix_and_ordinal_are_stripped(self):
+        self.assertEqual(normalize_route("__route__damage/object__199__"), "damage/object")
+
+    def test_decorator_label_ordinal_is_stripped(self):
+        self.assertEqual(normalize_route("console/helm/65"), "console/helm")
+        self.assertEqual(normalize_route("media/skybox/sky-bored-alice/19"),
+                         "media/skybox/sky-bored-alice")
+
+    def test_a_plain_label_is_left_alone(self):
+        self.assertEqual(normalize_route("pr_poacher_surrender"), "pr_poacher_surrender")
+
+    def test_the_same_route_normalizes_the_same_after_a_shift(self):
+        """The property that matters: an ordinal change must not read as a rename."""
+        self.assertEqual(normalize_route("console/helm/65"), normalize_route("console/helm/72"))
+
+    def test_normalize_routes_returns_a_set(self):
+        self.assertEqual(normalize_routes(["console/helm/1", "console/helm/2"]),
+                         {"console/helm"})
 
 
 class BaselineTests(unittest.TestCase):

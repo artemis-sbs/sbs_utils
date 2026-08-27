@@ -741,26 +741,34 @@ def _pilot_accept_arg(args):
 
 
 def _covered_route_kinds(cov, mast):
-    """Route paths the run actually entered, as `damage/object`-style strings.
+    """Route paths the run actually entered, as stable `damage/object`-style names.
 
-    Coverage records labels by their mangled route name (`__route__damage/object__199__`),
-    which carries an ordinal that shifts whenever a file is edited. A scenario has to be
-    able to name a route stably, so the ordinal and the `__route__` prefix are stripped -
-    the same normalization `_emit_soak_report` already does when diffing label sets.
+    Normalization is shared with the engine-side reader so the two legs cannot disagree
+    about what a route is called - see `soak_manifest.normalize_route` for why the
+    ordinals have to go.
     """
-    import re as _re
-    out = set()
     if cov is None:
-        return out
+        return set()
     try:
-        for label in cov.labels_hit:
-            if label.startswith("__route__"):
-                out.add(_re.sub(r"__\d+__$", "", label[len("__route__"):]))
-            else:
-                out.add(label)
+        from cosmos_dev.soak_manifest import normalize_routes
+        return normalize_routes(cov.labels_hit)
     except Exception:
-        pass
-    return out
+        return set()
+
+
+def _pilot_accept_arg(args):
+    """Resolve --pilot / --pilot-accept into QuestPilot's `accept` argument.
+
+    `--pilot-accept` has a default of "all" so it reads well on its own, which means it
+    cannot be used to detect intent - without this, every run would build a pilot. The
+    pilot exists only when --pilot (or an explicit non-default accept list) asks for it.
+    """
+    if not getattr(args, "pilot", False):
+        return None
+    raw = (getattr(args, "pilot_accept", None) or "all").strip()
+    if raw in ("all", "none"):
+        return raw
+    return [k.strip() for k in raw.split(",") if k.strip()]
 
 
 def _soak_init_try(mission_folder, which):
