@@ -769,6 +769,12 @@ def inc_disable_client_selection(client_id, console_selected_UID):
     on entry - so declining to write leaves the engine's change standing. The dispatcher
     puts back ``approved_<console>``, the last selection the library allowed.
 
+    KNOWN LIMITATION: this does not fully hold for a ship's INTERIOR view. On a real
+    console a display-only second view still moves the grid highlight - the engine owns
+    that selection and the write-back does not stick. Gate `//point/grid` on the client's
+    role as well, which is what actually stops a display console driving anybody. The
+    other surfaces are untested in the engine.
+
     Pair with :func:`dec_disable_client_selection`; the count nests.
 
     Args:

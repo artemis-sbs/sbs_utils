@@ -49,6 +49,13 @@
   in any repo reads it - LegendaryMissions keeps its own `gamemaster_prev_selection` - so
   this corrects a write-only value rather than changing behavior.
 
+  KNOWN LIMITATION - the grid is not fully solved. At the library level this works and is
+  tested, but on a real console a display-only view of a ship's INTERIOR still moves the
+  selection: the engine owns that selection, and writing the approved value back server-side
+  does not stick. The `//point/grid` client guard DOES hold, so a display console cannot walk
+  anybody - only the highlight follows it. Whether the other surfaces (science / comms /
+  weapons lists) restore correctly is untested in the engine. Parked deliberately.
+
   Backward compatible (an extra inventory read that defaults to 0). Covered by
   `tests/test_display_only_console.py`: the first three cases pin the existing per-ship
   behavior, and its click helper emulates the engine's pre-write - without that the harness
