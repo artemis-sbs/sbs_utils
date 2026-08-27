@@ -33,6 +33,21 @@ SHIPS = """{
 }"""
 
 
+
+def setUpModule():
+    """Skipped while the extra-ship-data hot fix is in force.
+
+    HOT FIX 2026-08-27: `ship_data.EXTRA_SHIP_DATA_DISABLED` switches the whole
+    feature off, and everything below describes that feature - so these would report
+    the fix as a fault. Skipped rather than deleted or marked expected-failure: they
+    are the contract the feature has to satisfy again, and they come back on their own
+    the moment the flag is cleared, with no edit here.
+    """
+    from sbs_utils.procedural.ship_data import EXTRA_SHIP_DATA_DISABLED
+    if EXTRA_SHIP_DATA_DISABLED:
+        raise unittest.SkipTest(
+            "extra ship data is off (ship_data.EXTRA_SHIP_DATA_DISABLED)")
+
 class _Fixture(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
