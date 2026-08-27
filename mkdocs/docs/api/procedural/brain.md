@@ -4,7 +4,7 @@ Behavior-tree AI for NPCs, evaluated every tick via the objective system.
 
 ## Overview
 
-A brain is a tree of `Brain` nodes attached to an agent's `__BRAIN__` inventory slot. The root is always a **Select** node — it runs each child in order and stops at the first success. Children can be plain labels (**Simple** nodes), or composite **Sequence** / **Select** nodes built from structured dicts.
+A brain is a tree of `Brain` nodes attached to an agent's `__BRAIN__` inventory slot. The root is a **Select** node by default — it runs each child in order and stops at the first success — or a **Sequence** if the creating `brain_add` passes `root_type=BrainType.Sequence`, which runs every child each pass. Children can be plain labels (**Simple** nodes), or composite **Sequence** / **Select** nodes built from structured dicts.
 
 Each tick, `brains_run_all` iterates all agents that have a `__BRAIN__` entry and calls `brain.run()`. A Simple node runs its MAST label synchronously in a temporary task; the label result (`BT_SUCCESS` / `BT_FAIL`) propagates up the tree.
 
@@ -17,6 +17,19 @@ Within a brain label you have access to `BRAIN`, `BRAIN_AGENT`, and `BRAIN_AGENT
 
 !!! note
     The brain system piggybacks on the objective tick. Call `brain_schedule()` (or `brain_add()`, which calls it automatically) to register the tick handler.
+
+!!! danger "A leaf must never `await`, and `fail` means two different things"
+    A leaf is one synchronous pass ending in `yield success` / `yield fail`. An `await` or
+    `yield idle` leaves a live task on the scheduler while the next pass starts another —
+    one immortal task per pass. And under a **Sequence**, `yield fail` skips every sibling
+    after it, silently. Both traps, and the worked example of the correct pattern, are in
+    the [Brains guide](../../mast/ai/brains.md).
+
+!!! tip "`brain_add` on a SET attaches one brain per agent"
+    It did not always: `parent` was reused across the loop, so only the first agent got a
+    `__BRAIN__` entry and the rest were hung under its tree and never ticked. Fixed — but
+    worth knowing if you are reading an older build, because the symptom is simply that
+    all but one agent sits there doing nothing, with no error anywhere.
 
 ## Quick example
 

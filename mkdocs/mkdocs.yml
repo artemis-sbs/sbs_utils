@@ -169,6 +169,7 @@ nav:
       - grav_tether: api/procedural/grav_tether.md
       - grid: api/procedural/grid.md
       - gui: api/procedural/gui.md
+      - helm: api/procedural/helm.md
       - internal_damage: api/procedural/internal_damage.md
       - inventory: api/procedural/inventory.md
       - items: api/procedural/items.md

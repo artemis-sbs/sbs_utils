@@ -69,6 +69,8 @@ expect:
 strict_blob: true
 ```
 
+A scenario may also name a `profile:`, and `--profile NAME` overrides it. It is honored by **both** legs &mdash; the mock runner gets `--profile`, the engine gets `profile=` on its command line &mdash; so the two stay comparable.
+
 ### What the pilot does
 
 It reads the **live quest tree** rather than a per-mission script, so the same code drives
@@ -165,6 +167,24 @@ pins the RNG. That is why the pass rule is a ratchet rather than a fixed list.
     **profile cannot add one** &mdash; that list is read at `import script`, before any
     profile is consulted. The soak copy handles this for you. Without it the run logs a
     warning naming the cause and behaves exactly like a plain `test=`.
+
+### What the mock can and cannot show you
+
+The mock approximates the engine, and where it is silent a green run means nothing rather
+than something. One example is worth carrying, because it was invisible for a long time:
+the mock used to populate **no `eng_control_label` at all**, so every `range(30)` walk over
+that array &mdash; LegendaryMissions autoplay's power loop, its can-turn check,
+`set_engineering_value` &mdash; iterated zero times headless and did nothing. Engineering
+could only be checked by watching the sliders move in a real engine.
+
+It now seeds the table the engine actually reports, **captured from a live engine rather
+than written from memory** (`cosmos_dev/mock/captured/`). Eight controls onto four systems,
+which is the part that catches bugs: `FRONT SHIELD` and `REAR SHIELD` both feed system 3, so
+anything stopping at the first label match leaves half a system unset.
+
+The rule it illustrates is the general one: **where the mock cannot derive engine behaviour,
+capture it or leave the gap open.** A plausible-but-wrong value is worse than an absent one
+&mdash; it makes a run look like it exercised something it did not.
 
 ### The ratchet
 

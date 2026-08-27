@@ -9,7 +9,10 @@ line. Run `sbs <command> --help` for full options.
 | `sbs templates` | List the templates available, per release line |
 | `sbs debug <mission>` | Run a mission in a browser **mock GUI** (3D cinematic + 2D radar) |
 | `sbs debug <mission> --map 0` | Auto-start a map instead of the picker; `--no-gui` for headless |
-| `sbs overnight <mission>` | Long **soak test** under autoplay |
+| `sbs overnight <mission>` | Long **liveness** run under autoplay - counts restarts, never asserts |
+| `sbs soak init <mission>` | Write starter [soak scenarios](testing.md#starting-one-for-a-new-mission), one per `@map` |
+| `sbs soak bless <mission> <scenario>` | Teach the ratchet what a working run looks like |
+| `sbs soak run <mission> <scenario>` | **Conformance soak** - unattended, with a real exit code; `--engine` for the real engine |
 | `sbs web <mission>` | Serve the mission's [web pages](../build/web-pages.md) to browsers |
 | `sbs web-static <mission> <page>` | Render one web page to a standalone HTML file |
 | `sbs lib <folder>` | Build a `.sbslib` / `.mastlib` library |

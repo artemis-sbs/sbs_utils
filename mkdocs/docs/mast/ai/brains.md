@@ -57,6 +57,25 @@ Composite behavior:
 	- first child that fails makes sequence fail
 	- if all succeed, sequence succeeds
 
+!!! danger "`fail` means opposite things in the two composites, and one of them is silent"
+    Inside a **Selector**, `yield fail` is how a leaf declines its turn: the next sibling
+    gets a go. That is the whole point of a priority list.
+
+    Inside a **Sequence**, `yield fail` *returns immediately* — **every sibling after it is
+    skipped for that pass.** Nothing reports this. There is no error, nothing in the log,
+    and coverage looks healthy, because the leaf that failed did run; it is the ones after
+    it that quietly did not.
+
+    It shipped exactly once and cost a real bug: a science node yielded `fail` when no
+    hostile was in scan range — which is precisely the situation when a ship is off at a
+    wreck — so the comms, weapons and engineering nodes after it never ran, and the ship
+    sat there holding no weapons target and never fired. The helm looked perfect
+    throughout, because the helm was a Selector.
+
+    **A node with nothing to do has succeeded at doing nothing.** Under a Sequence, say
+    `yield success`. Reserve `fail` for Selector children and for "the whole sequence
+    should stop here".
+
 ### Result modifiers
 
 The runtime also supports modifier flags on a brain node:
@@ -85,6 +104,24 @@ Runtime variables injected for the label task:
 - BRAIN_AGENT_ID: raw agent id
 
 This is why most brain labels read/write inventory through BRAIN_AGENT.
+
+!!! danger "A leaf must never `await`"
+    A leaf is **one synchronous pass** that ends in `yield success` or `yield fail`. Those
+    resolve to results that mark the task done, and the scheduler disposes of it.
+
+    Anything else — an `await`, or `yield idle` — leaves a **live task** on the scheduler,
+    while the brain starts a fresh one next pass. That is one immortal task per pass, for
+    the life of the mission, all running the same body. It also reads as not-success, so a
+    Selector falls through to the next sibling and the leaf appears to do nothing at all
+    while quietly multiplying.
+
+    The library now ends such a leaf and warns once, rather than leaking, but the leaf
+    still has to be written correctly to *mean* anything.
+
+    **Work that takes time goes in a `task_schedule`d label, gated by a flag**, with a node
+    that holds the tree until it finishes. `fleets/elite_abilities.mast` in
+    LegendaryMissions is the worked example: `elite_bt_activate` schedules the ability and
+    stashes the handle; `elite_bt_gate` yields `fail` until `elite_task.done()`.
 
 
 ## Defining brains declaratively
@@ -118,6 +155,24 @@ brain:
 		- ai_fleet_calc_forward_vector
 		- ai_fleet_scatter_formation
 ```
+
+!!! tip "The ROOT is a Selector unless you ask otherwise"
+    `brain_add` creates a Selector root, which stops at the first child that succeeds.
+    That is right for a priority list of behaviours and wrong for a set of independent
+    jobs — the first success starves every one after it, permanently and silently.
+
+    Pass `root_type=BrainType.Sequence` when every child should run each pass. It applies
+    only when the call CREATES the root, so a later `brain_add` can never re-type an
+    agent's existing tree.
+
+    A tree that needs both — a priority helm plus several independent consoles — nests a
+    `SEL:` inside a `SEQ:` root, as the example above does.
+
+!!! warning "Declare the tree as YAML, never as a MAST dict literal"
+    MAST parses line by line, so a `{...}` spanning lines is an unclosed brace that
+    desyncs the compiler for the rest of the file — and a story that does not compile runs
+    **zero labels while still reporting PASS**. The `brain:` metadata block has no such
+    problem, which is why every prefab uses it.
 
 Notes:
 
