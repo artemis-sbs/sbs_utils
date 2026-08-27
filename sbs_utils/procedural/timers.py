@@ -346,25 +346,51 @@ def get_counter_elapsed_seconds(id_or_obj, name, default_value=None):
     return (now-start) / TICK_PER_SECONDS
 
 def format_counter_elapsed_seconds(id_or_obj, name, display="hh:mm:ss"):
-    """
-    Return a formatted string of the elapsed time for the counter, rounded to the second.
-    The format can be customized by specifying the `display` argument.
+    """Return a counter's elapsed time as a formatted string, rounded to the second.
+
+    The counterpart to ``format_time_remaining`` for counters, with the layout
+    left to the caller: ``hh`` is hours, ``mm`` minutes, ``ss`` seconds. Any other
+    text in ``display`` is kept as-is, so ``"mm minutes, ss seconds"`` works.
+
+    Only the units NAMED in ``display`` are used, and the largest one present
+    absorbs everything above it - ``"mm:ss"`` reports 90 minutes as ``"90:00"``
+    rather than silently dropping the hour, which is the same convention
+    ``format_time_remaining`` follows with its ``M:SS``.
+
+    A counter that was never started reads as zero.
 
     Args:
-        id_or_obj (int | Agent): Agent ID or object
-        name (str): The name of the counter
-        format (str): The format the string should take. Use `hh` for hours, `mm` for minutes, and `ss` for seconds. Default is `hh:mm:ss`.
+        id_or_obj (Agent | int): Agent ID or object.
+        name (str): Counter name.
+        display (str): Layout to fill in. Use ``hh`` for hours, ``mm`` for
+            minutes and ``ss`` for seconds. Defaults to ``"hh:mm:ss"``.
+
     Returns:
-        str: The formatted time, in the specified format.
+        str: The formatted elapsed time.
+
+    Example:
+        gui_text("Elapsed: {format_counter_elapsed_seconds(SHIP_ID, 'mission')}")
     """
-    elapsed = get_counter_elapsed_seconds(id_or_obj, name, 0)
-    seconds = round(elapsed)
-    minutes, sec = divmod(seconds, 60) # Get total minutes and remaining seconds
-    hours, minutes = divmod(minutes, 60) # Get total hours and remaining
-    # Here we replace the times.
-    ret = display.replace("hh",f"{hours}".zfill(2)).replace("mm", f"{minutes}".zfill(2)).replace("ss",f"{seconds}".zfill(2))#.replace("h",f"{hours}").replace("m",f"{minutes}").replace("s",f"{seconds}") 
-    # TODO: I'd like to support single digits, but not sure how best to handle displays like "Mission time is h hours, m minutes, and s seconds" due to the possibility of single characters being in the string.
+    # TODO: single-character tokens (h/m/s) are deliberately NOT supported. A
+    # display like "h hours, m minutes" cannot be substituted by plain replace()
+    # without also rewriting the letters in the surrounding words.
+    seconds = round(get_counter_elapsed_seconds(id_or_obj, name, 0))
+    if seconds < 0:
+        seconds = 0
+    # Largest unit first, and only the ones the caller actually asked for, so the
+    # biggest token present carries the overflow instead of losing it.
+    remaining = seconds
+    parts = {}
+    for token, size in (("hh", 3600), ("mm", 60), ("ss", 1)):
+        if token not in display:
+            continue
+        parts[token] = remaining // size
+        remaining -= parts[token] * size
+    ret = display
+    for token, value in parts.items():
+        ret = ret.replace(token, f"{value}".zfill(2))
     return ret
+
 
 def clear_counter(id_or_obj, name):
     """Remove a named counter from an agent.
