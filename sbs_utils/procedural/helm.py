@@ -63,6 +63,21 @@ def _ds(ship):
     return getattr(so, "data_set", None) if so is not None else None
 
 
+def _raw(ds, key, index=0):
+    """The field as the engine gave it - None when it was never set.
+
+    `_num` coalesces None to a number, which is right for arithmetic and WRONG for a
+    capability question: "unset" and "zero" are different answers and only one of them
+    means "this ship cannot do that".
+    """
+    if ds is None:
+        return None
+    try:
+        return ds.get(key, index)
+    except Exception:
+        return None
+
+
 def _num(ds, key, index=0, default=0.0):
     """Read a numeric data_set field, coalescing the engine's None.
 
@@ -177,13 +192,30 @@ def helm_energy(ship):
 
 
 def helm_warp_available(ship):
-    """Whether this hull has a warp drive.
+    """Whether this hull may use warp. Unknown counts as YES - see below.
 
-    The engine gates the throttle bar's WARP band on `data_set warp == 1.0`. Asking for a
-    warp throttle without it does not fail loudly - the ship just flies at impulse - so a
-    bot that never checks believes it is travelling three times faster than it is.
+    The engine gates the throttle bar's WARP band on `data_set warp == 1.0`, so checking
+    it stops a bot believing it is at warp on a hull that has no drive.
+
+    BUT THE POLARITY MATTERS MORE THAN THE CHECK. The engine returns None for a field
+    nobody set, and treating that as 0 means "I have no information" silently becomes
+    "you may never warp" - a capability disabled forever, with no error, on a ship that
+    flies perfectly well. That is strictly worse than the thing the check was guarding
+    against, which merely wastes a throttle write the engine ignores.
+
+    So this refuses only on POSITIVE evidence of no drive: the flag says 0 AND the hull
+    costs nothing to warp. Anything unknown is allowed through, which is exactly how
+    every autoplayer behaved before this function existed.
     """
-    return _num(_ds(ship), "warp") >= 1.0
+    ds = _ds(ship)
+    flag = _raw(ds, "warp")
+    cost = _raw(ds, "warp_energy_cost")
+    if flag is not None and float(flag or 0) >= 1.0:
+        return True
+    if cost is not None and float(cost or 0) > 0:
+        return True
+    # Both unknown -> allow. Both known and zero -> this hull really has no warp drive.
+    return flag is None and cost is None
 
 
 def helm_energy_cost(ship, throttle, seconds):
@@ -284,7 +316,10 @@ def helm_throttle(ship, level, allow_warp=True, reserve=None):
     if thr > IMPULSE_MAX:
         if not allow_warp or not helm_warp_available(ship):
             thr = IMPULSE_MAX
-        elif not helm_energy_reserve(ship, reserve=reserve):
+        elif _raw(ds, "energy") is not None and not helm_energy_reserve(ship, reserve=reserve):
+            # Same polarity rule as the warp flag: an energy field the engine never set
+            # reads as None, and treating that as an empty tank would refuse warp for the
+            # whole mission on a ship that has plenty.
             thr = IMPULSE_MAX
     ds.set("playerThrottle", thr, 0)
     return thr

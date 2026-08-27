@@ -54,8 +54,53 @@ class ThrottleTests(HelmBase):
         the return value.
         """
         self.ds.set("warp", 0.0)
+        self.ds.set("warp_energy_cost", 0.0)
         self.assertFalse(helm_warp_available(self.ship))
         self.assertEqual(helm_throttle(self.ship, 3.0), IMPULSE_MAX)
+
+    def test_an_UNSET_warp_field_still_allows_warp(self):
+        """THE POLARITY, and it is the whole point of the check.
+
+        The engine returns None for a field nobody set. Treating that as 0 turns "I have
+        no information" into "you may never warp" - a capability disabled for the whole
+        mission, with no error, on a ship that flies perfectly well. That is far worse
+        than the thing the check guards against, which merely wastes a throttle write the
+        engine ignores. Unknown must fail OPEN.
+        """
+        # A stub, not the mock: the mock ALWAYS answers a typed default and never None,
+        # which is exactly the engine divergence under test. `--strict-blob` exists for
+        # this, but it changes reads globally; a stub says precisely what is being asked.
+        from sbs_utils.procedural import helm as H
+
+        class _Unset:
+            """An engine-shaped data_set: every field anybody asks for was never set."""
+            def get(self, key, index=0):
+                return None
+            def set(self, *a, **k):
+                pass
+
+        real = H._ds
+        H._ds = lambda ship: _Unset()
+        try:
+            self.assertTrue(H.helm_warp_available(self.ship),
+                            "unknown must fail OPEN, or warp is disabled for the mission")
+            self.assertEqual(H.helm_throttle(self.ship, 3.0), 3.0,
+                             "an unset energy field is not an empty tank")
+        finally:
+            H._ds = real
+
+    def test_a_hull_that_positively_has_no_drive_is_still_refused(self):
+        """Both fields present and zero IS evidence, and should still clamp."""
+        self.ds.set("warp", 0.0)
+        self.ds.set("warp_energy_cost", 0.0)
+        self.assertFalse(helm_warp_available(self.ship))
+        self.assertEqual(helm_throttle(self.ship, 3.0), IMPULSE_MAX)
+
+    def test_a_warp_cost_alone_is_enough(self):
+        """A hull that costs energy to warp plainly has a drive."""
+        self.ds.set("warp", 0.0)
+        self.ds.set("warp_energy_cost", 5.0)
+        self.assertTrue(helm_warp_available(self.ship))
 
     def test_warp_is_allowed_with_a_drive_and_a_full_tank(self):
         self.ds.set("warp", 1.0)
