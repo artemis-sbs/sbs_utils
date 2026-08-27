@@ -39,6 +39,11 @@ class MastGlobals:
         "len": len,
         "reversed": reversed,
         "int": int,
+        # bool and float were the two numeric builtins missing from this table, so a
+        # mission writing `bool(x)` or `float(x)` got NameError - and only in the engine,
+        # because MAST replaces __builtins__ with this dict.
+        "bool": bool,
+        "float": float,
         "str": str,
         "hex": hex,
         "min": min,

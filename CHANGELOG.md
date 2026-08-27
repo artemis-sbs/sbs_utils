@@ -25,6 +25,14 @@
 
 ### sbs_utils
 
+- `bool` and `float` are reachable from a MAST expression. MAST replaces `__builtins__`
+  with `MastGlobals.globals`, and those two were the numeric builtins missing beside `int`
+  - so `bool(x)` was a NameError, and only ever in a real run, because headless does not
+  execute a console page. Covered by `tests/test_mast_builtins.py`, which evaluates against
+  `{"__builtins__": MastGlobals.globals}` (the production shape) - handing `eval` a plain
+  copy of the table lets Python insert the real builtins behind it, and the test then passes
+  whether or not the name is there.
+
 - Away missions (`procedural/away.py`): a scene several consoles play at once, one
   character each. `dialogue_choices` has always evaluated guards against whatever agent
   it is handed - the shipped comms driver passes the player SHIP, so an away conversation
