@@ -1045,6 +1045,31 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
         ds.set("repair_rate_shields", 1.0 if is_player else 0.1)
         ds.set("repair_rate_systems", 0.025 if is_player else 0.01)
 
+    # Engineering controls. CAPTURED FROM A LIVE ENGINE (1.3.7, tsn_light_cruiser via the
+    # dev queue), not invented: `eng_control_label` is in no shipData key - the engine
+    # builds this table itself - so anything written here from memory would make a
+    # headless run look like it exercised engineering when it exercised a guess.
+    #
+    # Eight controls onto FOUR systems, which is the part that matters: `type_index` is
+    # the SHPSYS the control feeds, and several controls share one. BEAM and TORP both
+    # heat system 0; FRONT and REAR SHIELD both feed system 3. Anything that stops at the
+    # first label match therefore silently leaves half a system unset.
+    #
+    # Verified against ENGINE_WIDGETS.md, whose widget list is the same eight in the same
+    # order. Values are the engine's own at spawn: every slider at 1.0, every system
+    # undamaged with max_damage 3.0, and 8 coolant in the locker.
+    if is_player:
+        for _i, (_lbl, _sys) in enumerate(PLAYER_ENG_CONTROLS):
+            ds.set("eng_control_label", _lbl, _i)
+            ds.set("eng_control_type_index", _sys, _i)
+            ds.set("eng_control_value", 1.0, _i)
+        for _s in range(PLAYER_SHIP_SYSTEMS):
+            ds.set("system_max_damage", PLAYER_SYSTEM_MAX_DAMAGE, _s)
+            ds.set("system_damage", 0.0, _s)
+            ds.set("system_cur_heat", 0.0, _s)
+            ds.set("system_coolant_used", 0, _s)
+        ds.set("system_coolant_available", PLAYER_COOLANT)
+
     # Energy + APU (engine runtime defaults, not in shipData): start the tank FULL so
     # missions don't see an empty player on spawn (the data_set default is 0). The APU
     # passively trickles energy back to the ceiling; flight drains it (see physics_tick),
@@ -2937,6 +2962,20 @@ PLAYER_WARP_SPEED = 450.0
 # tank + APU at runtime (shipData has neither), so the mock seeds them on spawn. Firing
 # or loading torpedoes does NOT cost energy - the weapons console's energy<->torpedo
 # conversion is a separate, manual choice.
+# The engineering control table as the ENGINE reports it - captured from engine 1.3.7 on
+# a tsn_light_cruiser, not written from memory. `eng_control_type_index` is the ship system
+# each control feeds, and it is many-to-one: two weapon controls on system 0, three drive
+# controls on system 1, sensors alone on 2, both shield facings on 3.
+PLAYER_ENG_CONTROLS = (
+    ("BEAM", 0), ("TORP", 0),
+    ("IMPULSE", 1), ("WARP", 1), ("MANEUVER", 1),
+    ("SENSORS", 2),
+    ("FRONT SHIELD", 3), ("REAR SHIELD", 3),
+)
+PLAYER_SHIP_SYSTEMS = 4        # SHPSYS count the controls map onto
+PLAYER_SYSTEM_MAX_DAMAGE = 3.0 # engine value at spawn
+PLAYER_COOLANT = 8             # system_coolant_available at spawn
+
 PLAYER_ENERGY_MAX = 1000.0     # full tank / APU ceiling (engine player default)
 PLAYER_APU_OUTPUT = 1.0        # passive regen coefficient (energy/s = output * 2.0)
 # Flight drain coefficients (uncalibrated - no per-second figure available; tuned so

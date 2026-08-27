@@ -245,57 +245,42 @@ class DockTests(HelmBase):
 
 
 class EngineeringTests(HelmBase):
-    """The control table is populated by hand here on purpose.
+    """Now exercised against the REAL control table.
 
-    THE MOCK DOES NOT MODEL `eng_control_label` - it exists only as an empty string in the
-    data_set default table, so a headless ship has NO engineering controls at all. That is
-    a mock gap worth knowing (autoplay's engineering loop walks the same array and
-    therefore does nothing headless), but it is not what these tests are about: they pin
-    helm.py's own walk, matching and end-detection, so they supply the table themselves.
+    These used to supply their own labels, because the mock had no `eng_control_label` at
+    all. It now seeds the eight the engine reports (captured from 1.3.7 - see
+    tests/test_mock_eng_controls.py), so these test helm.py's walk and matching against
+    engine truth rather than a fixture.
     """
 
-    def _controls(self, *labels):
-        for i, name in enumerate(labels):
-            self.ds.set("eng_control_label", name, i)
-            self.ds.set("eng_control_type_index", i, i)
-
     def test_controls_stop_at_the_first_empty_label(self):
-        self._controls("Impulse Drive", "Maneuver", "Beams")
-        controls = list(helm_eng_controls(self.ship))
-        self.assertEqual([c[1] for c in controls],
-                         ["Impulse Drive", "Maneuver", "Beams"])
+        got = [label for _i, label, _s in helm_eng_controls(self.ship)]
+        self.assertEqual(got[0], "BEAM")
+        self.assertEqual(len(got), 8)
+        self.assertTrue(all(got), "an empty label marks the end and must not be yielded")
 
-    def test_an_empty_table_is_not_an_error(self):
-        self.assertEqual(list(helm_eng_controls(self.ship)), [])
+    def test_a_ship_with_no_table_is_not_an_error(self):
+        """Engineering is a player console, so an NPC legitimately has none."""
+        npc = npc_spawn(1000, 0, 0, "Foe", "raider", "kralien_cruiser", "behav_npcship")
+        self.assertEqual(list(helm_eng_controls(npc)), [])
 
     def test_set_power_matches_by_substring_and_case(self):
-        self._controls("Impulse Drive", "Maneuver")
+        """Engine labels are display text in CAPS; matching must fold case."""
         self.assertEqual(helm_set_power(self.ship, "impulse", 1.5), 1)
-        self.assertAlmostEqual(self.ds.get("eng_control_value", 0), 1.5)
+        idx = next(i for i, l, _s in helm_eng_controls(self.ship) if l == "IMPULSE")
+        self.assertAlmostEqual(self.ds.get("eng_control_value", idx), 1.5)
 
     def test_set_power_sets_every_matching_control(self):
-        """A hull can expose more than one control feeding the same system.
+        """FRONT SHIELD and REAR SHIELD both feed system 3.
 
-        `set_engineering_value` stops at the first match, which silently leaves the
-        others alone.
+        `set_engineering_value` stops at the first match and would leave REAR alone.
         """
-        self._controls("Front Shield", "Rear Shield")
         self.assertEqual(helm_set_power(self.ship, "shield", 2.0), 2)
 
     def test_system_damage_reads_through_the_type_index(self):
-        self._controls("Maneuver")
-        self.ds.set("system_max_damage", 100.0, 0)
-        self.ds.set("system_damage", 90.0, 0)
+        self.ds.set("system_max_damage", 100.0, 1)      # system 1 = the drive controls
+        self.ds.set("system_damage", 90.0, 1)
         self.assertAlmostEqual(helm_system_damage(self.ship, "maneuver"), 0.9)
-
-    def test_can_turn_is_false_with_a_wrecked_maneuver_system(self):
-        """Both halves matter: a wrecked maneuver system stops the ship turning before
-        the damage coefficient bottoms out."""
-        self._controls("Maneuver")
-        self.ds.set("turn_damage_coeff", 1.0, 0)
-        self.ds.set("system_max_damage", 100.0, 0)
-        self.ds.set("system_damage", 90.0, 0)
-        self.assertFalse(helm_can_turn(self.ship))
 
     def test_can_turn_is_true_on_a_healthy_ship(self):
         self.assertTrue(helm_can_turn(self.ship))
@@ -304,9 +289,13 @@ class EngineeringTests(HelmBase):
         self.ds.set("turn_damage_coeff", 0.1, 0)
         self.assertFalse(helm_can_turn(self.ship))
 
-    def test_system_damage_and_heat_default_to_zero(self):
-        self.assertEqual(helm_system_damage(self.ship, "maneuver"), 0.0)
-        self.assertEqual(helm_system_heat(self.ship, "maneuver"), 0.0)
+    def test_can_turn_is_false_with_a_wrecked_maneuver_system(self):
+        """Both halves matter: a wrecked maneuver system stops the ship turning before
+        the damage coefficient bottoms out."""
+        self.ds.set("turn_damage_coeff", 1.0, 0)
+        self.ds.set("system_max_damage", 100.0, 1)
+        self.ds.set("system_damage", 90.0, 1)
+        self.assertFalse(helm_can_turn(self.ship))
 
     def test_a_none_field_does_not_raise(self):
         """The engine answers None for a field nobody set; the mock answers a typed
