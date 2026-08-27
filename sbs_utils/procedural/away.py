@@ -42,7 +42,7 @@ Stdlib only; no threading. Safe to call with no MAST context.
 from .amd_dialogue import (dialogue_parse, dialogue_get, dialogue_choices, dialogue_pick_line,
                            dialogue_apply, dialogue_set_metric_resolver)
 from .query import to_id
-from .roles import has_role
+from .roles import has_role, get_role_list
 from .signal import signal_emit
 
 
@@ -84,6 +84,42 @@ def away_team():
 def away_clients():
     """Every client currently controlling a character."""
     return set(_TEAM)
+
+
+# Roles a player must never be shown. `ultra_beam` is added automatically to any lifeform
+# with no space-object host - i.e. to every away-team member, the moment they beam down -
+# and `amd_lifeform:<key>` is bookkeeping the AMD loader stamps on. Neither describes the
+# character; both look exactly like a job when a screen prints the role list raw.
+_NOT_A_JOB = ("away", "lifeform", "ultra_beam", "__player__", "__npc__")
+
+
+def away_jobs(lifeform):
+    """What this character is FOR, as a sorted list of role words.
+
+    The guards in a scene read exactly these words, so a screen showing them is not
+    decorating - it is telling the player why they can act where the next console cannot.
+
+    Filtered and SORTED, and both matter:
+
+    * A lifeform carries machinery beside its job (see ``_NOT_A_JOB``, plus anything
+      namespaced with ``:`` or dunder-ish). Printed raw, a medic reads
+      ``medical, ultra_beam, amd_lifeform:sorel``.
+    * Roles are a **set**, so the unsorted order is not stable - the same character reads
+      differently on each repaint, which looks like a bug in the mission.
+    """
+    out = []
+    for role_name in get_role_list(to_id(lifeform)) or ():
+        name = str(role_name).strip()
+        if not name or name in _NOT_A_JOB or ":" in name or name.startswith("__"):
+            continue
+        out.append(name)
+    return sorted(set(out))
+
+
+def away_job_text(lifeform, default=""):
+    """:func:`away_jobs` as one line, ready for a widget. ``default`` when there is none."""
+    jobs = away_jobs(lifeform)
+    return ", ".join(jobs) if jobs else default
 
 
 def away_client_of(lifeform):

@@ -111,6 +111,28 @@ Without one, a scene with no choices is a dead end — the screen draws its line
 buttons, and nothing ever closes. `away_is_open()` then goes False, and the repaint above
 carries each console into its beam-up label.
 
+## Showing who a character is
+
+`away_job_text(lifeform)` is what a screen should print, not the raw role list:
+
+```
+    gui_text("$text:`{away_name}`;justify:center;font:gui-4")
+    away_job = away_job_text(away_who, default="watching")
+    gui_text("$text:`{away_job}`;justify:center;font:gui-2")
+```
+
+A lifeform carries machinery beside its job. `ultra_beam` is added automatically to anyone
+with no space-object host — that is *every* away-team member the moment they beam down — and
+the AMD loader stamps `amd_lifeform:<key>`. Printed raw, a medic reads
+`medical, ultra_beam, amd_lifeform:sorel`. Roles are also a **set**, so an unsorted list
+reads differently on each repaint, which looks like a bug in the mission.
+
+!!! danger "Assign the whole team BEFORE rerouting anybody"
+    `gui_reroute_client` ticks that client's GUI task **in the same frame**, so a screen that
+    draws the whole team must not be rerouted while the team is still being built. Do it in
+    one loop and the main screen — which sorts first, being client 0 — draws an empty roster
+    and only fills in on the next beat. Two passes: assign everyone, then reroute everyone.
+
 ## Morphing a console, and putting it back
 
 The order matters, and is the same recipe the Control Gallery's viewer uses:
@@ -132,11 +154,20 @@ type **and the role** on the way back.
     Note also that `add_role(cid, "console, {x}")` is **not** interpolated: a plain string
     in a function argument is not an f-string. Write `f"console, {x}"`.
 
-!!! note "The crew post"
-    A morph changes `CONSOLE_TYPE`, and a crew seat is believed only while that still
-    agrees — so the morph frees the seat and the player's name and face disappear.
-    Re-assert the post after the morph with an explicit `own_pick`, and again on the way
-    back. See [Crew rosters](crew.md).
+!!! note "The crew post, and the half of it that does not survive"
+    A morph changes `CONSOLE_TYPE`, and a crew seat is believed only while that still agrees.
+    Measured: `seats=1` before the morph, **`seats=0` during**, with the member back in
+    `crew_choices_for`'s free list.
+
+    The two halves come apart. The **display** survives — `crew_post_of` reads the client's
+    inventory, which a morph does not touch, so the screen still shows the right name. The
+    **reservation** does not, so a console that stayed could be assigned the same person and
+    you get two of them. `crew_seat_count()` will not show you this: it counts stored seats
+    while the liveness filter runs at resolve time. Ask `crew_choices_for(ship_id)`.
+
+    Restoring `CONSOLE_TYPE` does not take the seat back either — only `crew_assign` does,
+    and `common_console_show` does not call it. Remember the pick on the way down and
+    re-assert it on the way back. See [Crew rosters](crew.md).
 
 ## Testing it
 

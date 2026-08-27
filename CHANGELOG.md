@@ -50,6 +50,12 @@
     already-done guard, so two presses in the same frame are last-writer-wins.
   - Docs: `build/away-missions.md`. Engine-verified: three consoles morph to three
     characters, every answer repaints the others, and all three return to their stations.
+  - `away_jobs` / `away_job_text`: what a screen may print as a character's job. A lifeform
+    carries machinery beside its role - `ultra_beam` is added automatically to anyone with
+    no space-object host (every away-team member, the moment they beam down) and the AMD
+    loader stamps `amd_lifeform:<key>` - so a raw role list reads
+    `medical, ultra_beam, amd_lifeform:sorel`. Sorted too, because roles are a set and an
+    unsorted list reads differently on every repaint.
 
 - Timers, counters, links and inventory queries reach the SERVER (agent id 0) again.
   Id 0 has two meanings - "no object" for a space-object query, and the server's own

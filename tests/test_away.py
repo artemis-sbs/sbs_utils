@@ -93,6 +93,42 @@ class AwayTeamTests(_AwayBase):
         self.assertEqual(A.away_team_count(), 2)        # two CLIENTS, one character
 
 
+class AwayJobTests(_AwayBase):
+    """What a screen may print as a character's job."""
+
+    def test_machinery_is_not_a_job(self):
+        # `ultra_beam` is added the moment a lifeform has no host - i.e. to every away-team
+        # member - and the AMD loader stamps `amd_lifeform:<key>`. Neither describes anyone.
+        A.away_assign(101, self.doc)
+        jobs = A.away_jobs(self.doc)
+        self.assertIn("medical", jobs)
+        self.assertNotIn("ultra_beam", jobs)
+        self.assertNotIn("away", jobs)
+        self.assertNotIn("lifeform", jobs)
+        for j in jobs:
+            self.assertNotIn(":", j, f"{j!r} is namespaced bookkeeping, not a job")
+
+    def test_the_filter_has_something_to_remove(self):
+        # The guard on the guard: if a lifeform ever stops carrying machinery, the test
+        # above passes while measuring nothing.
+        from sbs_utils.procedural.roles import get_role_list
+        raw = get_role_list(self.doc.id)
+        self.assertGreater(len(raw), len(A.away_jobs(self.doc)),
+                           "nothing was filtered - the fixture no longer carries machinery")
+
+    def test_order_is_stable(self):
+        # Roles are a SET, so unsorted the same character reads differently per repaint.
+        both = lifeform_spawn("Dr Kell", "terran_fluid", "away,surgery,xenobiology")
+        self.assertEqual(A.away_jobs(both), ["surgery", "xenobiology"])
+        self.assertEqual(A.away_jobs(both), A.away_jobs(both))
+
+    def test_job_text_is_one_line(self):
+        self.assertEqual(A.away_job_text(self.eng), "engineering")
+        blank = lifeform_spawn("Nobody", "terran", "away")
+        self.assertEqual(A.away_job_text(blank), "")
+        self.assertEqual(A.away_job_text(blank, default="watching"), "watching")
+
+
 class AwayChoiceFilteringTests(_AwayBase):
     """The whole feature: one scene, different menus."""
 
