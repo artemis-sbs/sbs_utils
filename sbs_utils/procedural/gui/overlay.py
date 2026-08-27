@@ -1168,10 +1168,17 @@ def _lower_third_builder(client_id, content):
     from .row import gui_row
     name = content.get("name", "")
     line = content.get("line", "")
+    # A scrim, for the same reason the banner, the hero card and the PORTRAIT lower
+    # third already carry one: this strip is drawn OVER a live engine view, so white
+    # text lands on whatever happens to be behind it. This was the only member of the
+    # family without a fill, which reads as an oversight rather than a choice - found
+    # over a station interior, where the line sat on the bright plating.
+    bg = content.get("background", "#000a")
+    row_bg = f"background: {bg};" if bg else ""
     if name:
-        gui_row("row-height: content;")
+        gui_row("row-height: content;" + row_bg)
         gui_text(f"$text:{gui_text_escape(name)};font:gui-4;color:#8cf")
-    gui_row("row-height: content;")
+    gui_row("row-height: content;" + row_bg)
     gui_text(f"$text:{gui_text_escape(line)};font:gui-3;color:#fff")
 
 
@@ -1179,8 +1186,13 @@ overlay_register("lower_third", _lower_third_builder)
 
 
 def overlay_lower_third(name, line, slot="lower_third", to=None, consoles=None,
-                        seconds=None, cycle=True, dwell=None, loop=None):
+                        seconds=None, background="#000a", cycle=True, dwell=None,
+                        loop=None):
     """Bottom name-plate + subtitle line (someone speaking over the live view).
+
+    ``background`` fills the strip (translucent black by default) so the text reads
+    over whatever is behind it - the same scrim ``overlay_banner``, ``overlay_hero``
+    and ``overlay_lower_third_portrait`` already carry. Pass ``None`` for no fill.
 
     A line too long for the plate is shown in **timed parts** rather than clipped -
     which is what subtitles want anyway: the speaker's line arrives in readable
@@ -1191,7 +1203,8 @@ def overlay_lower_third(name, line, slot="lower_third", to=None, consoles=None,
         loop = False
     return _show_maybe_cycled(
         slot, "lower_third", to, consoles, seconds,
-        {"name": name, "line": line}, "line", "gui-3", cycle, dwell, loop)
+        {"name": name, "line": line, "background": background}, "line", "gui-3",
+        cycle, dwell, loop)
 
 
 # --- Lower third with a portrait (ONE face, on either side) ------------------

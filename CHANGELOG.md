@@ -25,6 +25,14 @@
 
 ### sbs_utils
 
+- `overlay_lower_third` now fills its strip with a translucent scrim by default
+  (`background="#000a"`, `None` to opt out). It is drawn OVER a live engine view, so white
+  text landed on whatever happened to be behind it - found on a station interior, where a
+  subtitle sat on the bright plating. It was the only member of the display family without a
+  fill: `overlay_banner`, `overlay_hero` and `overlay_lower_third_portrait` all had one
+  already, so this reads as an oversight rather than a choice. The new argument sits between
+  `seconds` and `cycle`, matching `overlay_banner`'s signature exactly.
+
 - `bool` and `float` are reachable from a MAST expression. MAST replaces `__builtins__`
   with `MastGlobals.globals`, and those two were the numeric builtins missing beside `int`
   - so `bool(x)` was a NameError, and only ever in a real run, because headless does not

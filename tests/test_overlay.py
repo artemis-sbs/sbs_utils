@@ -374,6 +374,27 @@ class TestOverlayTransientAndBuilders(OverlayTestBase):
         texts = self._establish("ovl_lower_third$$")
         self.assertGreaterEqual(len(texts), 2)      # name + line
 
+    def test_lower_third_scrims_by_default(self):
+        """It is drawn OVER a live view, so the text needs something behind it.
+
+        This was the only member of the display family without a fill - banner, hero and
+        the portrait lower third all default to `#000a`. Reported over a station
+        interior, where a white subtitle landed on the bright plating."""
+        from sbs_utils.procedural.gui.overlay import overlay_lower_third
+        overlay_lower_third("Admiral Harkin", "Hold the line.")
+        self._establish("ovl_lower_third$$")
+        fills = [a for a in self.calls("send_gui_image") if a[1] == "ovl_lower_third$$"]
+        self.assertTrue(fills, "no scrim behind the lower third")
+
+    def test_lower_third_background_none_is_bare_text(self):
+        """The scrim is a default, not a fixture - a caller over a dark shot can drop it."""
+        from sbs_utils.procedural.gui.overlay import overlay_lower_third
+        overlay_lower_third("Admiral Harkin", "Hold the line.", background=None)
+        texts = self._establish("ovl_lower_third$$")
+        self.assertGreaterEqual(len(texts), 2)
+        fills = [a for a in self.calls("send_gui_image") if a[1] == "ovl_lower_third$$"]
+        self.assertFalse(fills, "background=None still filled the strip)")
+
     def test_credits_builder_renders_all_entries(self):
         from sbs_utils.procedural.gui.overlay import overlay_credits
         overlay_credits(["Alice", "Bob", "Carol"], title="CREDITS")
