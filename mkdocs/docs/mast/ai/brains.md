@@ -124,6 +124,44 @@ This is why most brain labels read/write inventory through BRAIN_AGENT.
     stashes the handle; `elite_bt_gate` yields `fail` until `elite_task.done()`.
 
 
+## How often a brain runs
+
+Every brain re-evaluates its whole tree on a heartbeat set by `BRAIN_PASS_SECONDS`
+(default **3**). Brains are not all run in the same frame: a `RollingSlicer` hands back a
+few each tick so a full pass over every brain in the mission completes in exactly that
+period, whether there are three brains or three hundred. That keeps a big NPC count from
+becoming a periodic frame spike.
+
+**Design your leaves around that period, not around the tick.** A leaf sees the world as
+it was when its pass came round, so a decision holds for up to `BRAIN_PASS_SECONDS`
+before it can be revisited. That is fine for "who do I attack" and wrong for anything
+needing a tight loop — steering corrections, or a throttle that should track a closing
+distance. Work that needs to be smooth belongs in the engine's own steering
+(`target`/`target_pos` set a destination the engine tracks every frame) rather than in
+repeated leaf decisions.
+
+!!! warning "This period was silently double until v1.4.0"
+    The slice used to be sized **per call**, on the assumption that the host called it 30
+    times a sim-second. Measured against a live 1.3.7 engine it really calls it **15**, so
+    every pass took **twice** its declared time — `BRAIN_PASS_SECONDS = 3` meant six. The
+    headless mock calls it about **6** a second, so the same tree ran on a **15-second**
+    pass there, and the two hosts disagreed with each other by 2.5x.
+
+    Nothing reported it, and nothing could: a brain running at half speed is
+    indistinguishable from a brain whose leaves keep declining. It surfaced only because a
+    brain-driven player ship almost never warped while identical logic written as a
+    `delay_sim(1)` loop warped constantly — it was re-checking its speed every fifteen
+    seconds instead of every three.
+
+    The slice is now sized by the **elapsed tick count**, the way `TickTask` has always
+    measured its own delay, so the period is honest and identical in both hosts. If you
+    tuned a mission's feel against the old behavior, the equivalent is
+    `BRAIN_PASS_SECONDS = 6`.
+
+Objectives (`OBJECTIVE_PASS_SECONDS`, also 3) and urges (`URGE_PASS_SECONDS`, 30) share
+the same slicer and were affected the same way.
+
+
 ## Defining brains declaratively
 
 Brains can be assembled from Python-friendly structures.

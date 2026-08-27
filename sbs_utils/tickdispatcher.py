@@ -75,6 +75,26 @@ class RollingSlicer:
     sorted order is cached and only rebuilt when membership changes, so the
     cursor advances predictably as ids are added/removed.
 
+    THE PASS IS MEASURED IN TICKS, NOT IN CALLS. This used to add
+    ``n / (pass_seconds * tps)`` once per call, which only delivers the advertised
+    period if ``slice()`` is called exactly ``tps`` times a second. Nothing calls it
+    that often. Measured 2026-08-26 against a live 1.3.7 engine and the mock, both
+    running ``time_tick_counter`` at 30.0/sim-second:
+
+    ======  =======================  =========================
+    host    dispatch calls/sim-sec   real pass for pass_seconds
+    ======  =======================  =========================
+    engine  15.0                     2x too long
+    mock     6.0                     5x too long
+    ======  =======================  =========================
+
+    So ``BRAIN_PASS_SECONDS = 3`` really meant a 6-second pass in the engine and a
+    15-second one headless -- and the two hosts disagreed with each other by 2.5x, which
+    is why a brain-driven ship re-decided its throttle far less often headless than the
+    same logic written as a ``delay_sim`` loop. Scaling by the ELAPSED TICK COUNT makes
+    the period honest and identical in both hosts, and matches how ``TickTask._update``
+    has always measured its own delay two classes up this file.
+
     Usage:
         _slicer = RollingSlicer()
         for id in _slicer.slice(id_set, pass_seconds=3):
@@ -85,6 +105,7 @@ class RollingSlicer:
         self.accum = 0.0
         self._sorted = []
         self._sig = None
+        self._last_tick = None
 
     def reset(self):
         """Forget the cursor, the fractional accumulator and the cached order.
@@ -99,19 +120,49 @@ class RollingSlicer:
         self.accum = 0.0
         self._sig = None
         self._sorted = []
+        self._last_tick = None
+
+    @staticmethod
+    def _now_tick():
+        """The engine tick counter, or None if there is no sim yet.
+
+        Read defensively: a slicer can be exercised by a unit test with no FrameContext
+        at all, and returning a usable number there keeps the class testable without a
+        running simulation.
+        """
+        try:
+            return FrameContext.context.sim.time_tick_counter
+        except Exception:
+            return None
 
     def slice(self, ids, pass_seconds):
+        # Consume elapsed time FIRST, before any early return. An idle stretch -- an empty
+        # set, or a paused sim -- must not bank time and then spend it all in the one call
+        # after it ends; that spike is the thing this class exists to prevent.
+        full_pass = max(1.0, pass_seconds * TickDispatcher.tps)
+        now = self._now_tick()
+        if now is None or self._last_tick is None:
+            # No sim to read a clock from (a unit test, or the very first call). Fall back
+            # to counting the call itself, which is what this did before it measured time.
+            elapsed = 1.0
+        else:
+            elapsed = now - self._last_tick
+        self._last_tick = now
+        # Never advance by more than one whole pass: `budget` is capped at n anyway, so a
+        # larger `elapsed` would only leave a permanent surplus in `accum` and force a full
+        # batch every call from then on. Also drops the negative jump when a new mission
+        # restarts the counter, and the zero when two dispatchers share a frame.
+        elapsed = min(max(elapsed, 0.0), full_pass)
+
         sig = frozenset(ids)
         if sig != self._sig:
             self._sorted = sorted(ids)
             self._sig = sig
         items = self._sorted
         n = len(items)
-        if n == 0:
+        if n == 0 or elapsed <= 0:
             return ()
-        # run n / (pass_seconds * tps) items per call on average; carry the
-        # fraction so the full-pass period is exact for any n / tick rate.
-        self.accum += n / (pass_seconds * TickDispatcher.tps)
+        self.accum += (n * elapsed) / full_pass
         budget = min(n, int(self.accum))
         if budget <= 0:
             return ()

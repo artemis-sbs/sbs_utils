@@ -215,6 +215,30 @@ Turn it on — and tune its **stand-off range** and **engineering overpower** �
 
 ---
 
+## ⚡ Everything with a brain now thinks twice as often
+
+Monsters, fleets, turrets, station defenders — anything driven by a **brain** — re-decide
+what to do on a fixed heartbeat. That heartbeat was supposed to be three seconds. It was
+really **six**, everywhere, for as long as the system has existed.
+
+Nothing looked broken, which is why it lasted: a creature that reconsiders every six
+seconds is not obviously wrong, it just commits to whatever it last chose for twice as
+long as intended. You saw it as enemies that kept chasing a target after you slipped
+away, or a hunter that took a beat too long to notice you.
+
+Brains, [objectives](../mast/ai/objectives.md) and urges now run at the period they
+declare. In practice things react about **twice as fast** to a situation changing —
+without any of them being made more aggressive.
+
+!!! note "It showed up as a ship that would not warp"
+    The tell came from the [attract-mode](#-attract-mode--the-ship-flies-itself) pilot.
+    Rewritten as a brain, it almost never used its warp drive, while the older version
+    warped constantly with the same rules. It was not choosing differently: it was only
+    re-checking its speed every fifteen seconds, so by the time it looked, it had already
+    arrived. Chasing that one down is what surfaced the timing bug behind all of it.
+
+---
+
 ## 🐙 A Living Bestiary
 
 Space monsters are no longer just one hostile Typhon. The **Monsters** map option
@@ -758,11 +782,15 @@ automatically.
 !!! note "For tinkerers — how it works"
     Per-tick work that iterated a whole set at once (all brains, all objectives)
     now runs a **rolling slice** each tick, sized by a shared `RollingSlicer` so a
-    full pass still completes in the same period regardless of set size or tick
-    rate — same cadence and total cost, no batch spike. If you're chasing a
-    `mission_tick` that overruns its budget, the engine's **`Elapsed time`** log
-    line now prints a **per-phase breakdown** (`dispatch_tick` / `gui_present` /
-    `gc` / …) so you can see exactly which subsystem caused a given spike.
+    full pass completes in its declared period regardless of set size or tick
+    rate — no batch spike. That "regardless of tick rate" part was a claim before
+    it was true: the slice was sized **per call** on the assumption of 30 calls a
+    second, and the engine really makes 15, so every pass took twice as long as it
+    said. It is now sized by the **elapsed tick count**, which is how `TickTask`
+    has always measured its own delay. If you're chasing a `mission_tick` that
+    overruns its budget, the engine's **`Elapsed time`** log line now prints a
+    **per-phase breakdown** (`dispatch_tick` / `gui_present` / `gc` / …) so you
+    can see exactly which subsystem caused a given spike.
 
 ---
 
