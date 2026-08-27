@@ -23,7 +23,8 @@ them for free - a script *asks* about them, or arms one with a `signal` (see bel
 - A **timer** counts DOWN to a deadline: `set_timer`, then `is_timer_finished`,
   `get_time_remaining`, `format_time_remaining`.
 - A **counter** counts UP from a start: `start_counter`, then
-  `get_counter_elapsed_seconds`. `clear_counter` stops it.
+  `get_counter_elapsed_seconds` or `format_counter_elapsed_seconds`.
+  `clear_counter` stops it.
 
 ```
 await delay_sim(seconds=5)
@@ -56,6 +57,10 @@ start_counter(SHIP_ID, "in_combat")
     == show_elapsed ==
         elapsed = get_counter_elapsed_seconds(0, "Mission_Elapsed_Time")
         log(f"{int(elapsed)} seconds into the mission")
+        # Or ready-formatted. Only the units you name are filled, and the
+        # largest one present carries the overflow: "mm:ss" gives "90:00",
+        # never "00:00", for an hour and a half.
+        gui_text(format_counter_elapsed_seconds(0, "Mission_Elapsed_Time"))
         ->END
     ```
 
