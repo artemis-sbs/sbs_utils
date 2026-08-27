@@ -72,7 +72,7 @@ import os
 import re
 
 from ..fs import get_mission_dir, load_yaml_string
-from .ship_data import SHIP_DATA_MOD_KEY, merge_mod_ship_yaml
+from .ship_data import SHIP_DATA_MOD_KEY, merge_mod_ship_yaml, EXTRA_SHIP_DATA_DISABLED
 
 #: A whole line whose first non-space characters are `//`.
 _LINE_COMMENT = re.compile(r"^[ \t]*//.*$", re.M)
@@ -128,6 +128,12 @@ def ship_data_merge_mod(content, mod=None):
     Returns:
         int: How many entries are pending, or ``None`` if nothing parsed.
     """
+    # HOT FIX 2026-08-27: extra ship data is off (ship_data.EXTRA_SHIP_DATA_DISABLED).
+    # Nothing is accumulated, so the flush below has nothing to write and the engine is
+    # never pointed at a generated file. Reports 0 pending rather than None - None means
+    # "did not parse", and this parsed fine, it is simply not wanted.
+    if EXTRA_SHIP_DATA_DISABLED:
+        return 0
     if not content:
         return None
     content = _strip_line_comments(content)
@@ -210,6 +216,12 @@ def ship_data_flush_mod_file(mission_dir=None):
         str | None: The path written, or ``None`` if nothing needed writing.
     """
     global _last_written
+    # HOT FIX: never write the mission's extraShipData.json while the feature is off.
+    # The engine reads that file INSIDE create_new_sim(), so leaving the write in would
+    # re-introduce exactly the loading everything else here is guarding against - and it
+    # would do it by putting a file on disk that outlives the run.
+    if EXTRA_SHIP_DATA_DISABLED:
+        return None
     if not _pending:
         return None
 

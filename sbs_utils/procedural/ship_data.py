@@ -2,6 +2,25 @@ from ..fs import load_data, load_yaml_string, get_artemis_data_dir, get_mission_
 import os
 
 
+# --- HOT FIX 2026-08-27: the whole extra-ship-data path is OFF ---------------
+# Set False to restore the feature; nothing else has to change.
+#
+# Every route by which a runtime ("#mod") ship entry can reach the library or the
+# engine is gated on this: the mission's own `extraShipData`, `add_extra()`,
+# `merge_mod_ship_yaml()` (which every mod merge funnels through),
+# `extra_replay()` after `create_new_sim()`, and the `extraShipData.json` that
+# `ship_data_mod.ship_data_flush_mod_file()` writes.
+#
+# Guarding the LOADER alone is not enough and must not be done alone: a caller that
+# still spawns one of these hulls asks the engine for a ship type it was never given,
+# and that does not fail where it is written - it dies INSIDE the engine with
+# `bad allocation`, minutes later, against unrelated code. So the consumers are
+# switched off in step with this (LegendaryMissions turrets + the non-Typhon
+# monsters); see `extra_enabled()` for the narrower, engine-only switch this
+# deliberately is NOT.
+EXTRA_SHIP_DATA_DISABLED = True
+
+
 ship_data_cache = None
 def get_ship_data():
     """Load and cache the full ship data, merging ``extraShipData.json`` if present.
@@ -40,7 +59,12 @@ def get_ship_data():
         ship_data_cache["#ship-list"] = []
 
     # extraShipData may be supplied as .yaml or .json.
-    script_ship_data = load_data( os.path.join(get_mission_dir(), "extraShipData"))
+    # HOT FIX: not read at all while the feature is off - including a hand-authored one,
+    # which is the point. A mission folder can still hold the file (ours generated it for
+    # a year), and reading it back is exactly the loading this is meant to stop.
+    script_ship_data = None
+    if not EXTRA_SHIP_DATA_DISABLED:
+        script_ship_data = load_data( os.path.join(get_mission_dir(), "extraShipData"))
     if script_ship_data is not None:
         # A file that parsed but carries no `#ship-list` is a shape error, not a crash.
         extra = script_ship_data.get("#ship-list") if isinstance(script_ship_data, dict) else None
@@ -311,6 +335,11 @@ def merge_mod_ship_yaml(content, mod=None):
             empty or carried no ``#ship-list``.
     """
     if content is None:
+        return None
+    # HOT FIX: the single choke point every mod merge funnels through - add_extra(),
+    # ship_data_merge_mod() and any direct caller. Nothing stamped `#mod` enters the
+    # cache while this is off, so `mod_ship_data_process` never runs either.
+    if EXTRA_SHIP_DATA_DISABLED:
         return None
     global ship_data_cache
     data = load_yaml_string(content)
@@ -1130,7 +1159,7 @@ def extra_replay():
 
     Replayed from the record rather than from the files: the library merge already happened
     and only the engine forgot."""
-    if not _EXTRA_SHIP_DATA_ENGINE:
+    if EXTRA_SHIP_DATA_DISABLED or not _EXTRA_SHIP_DATA_ENGINE:
         return 0
     told = 0
     for filename, _path, _reached, engine_arg in list(_extra_ship_data_loaded):
@@ -1195,6 +1224,11 @@ def extra_report_untold():
     just been rebuilt and re-fed, so anything still missing is missing for the rest of
     the mission. Goes to debug.log too, the channel that survives an engine session.
     """
+    # HOT FIX: silent while the feature is off. With nothing merged there is nothing to
+    # report, and the warning it prints ("the engine was never told about these hulls")
+    # would be describing the fix rather than a fault.
+    if EXTRA_SHIP_DATA_DISABLED:
+        return []
     untold = extra_untold()
     if not untold:
         return untold
@@ -1455,6 +1489,12 @@ def add_extra(name, path=None, mod=None):
     Returns True when the engine was told, False when only the library was.
     Missing files are not fatal, matching the engine's habit: a mod with a broken
     path should be a ship with no stats, not a dead mission."""
+    # HOT FIX: no file is looked for, nothing is merged, and the engine is not called.
+    # Returns False, which is the SAME answer a missing file already gave - so every
+    # existing caller's "engine was not told" branch handles this and none of them
+    # need to know the feature is off.
+    if EXTRA_SHIP_DATA_DISABLED:
+        return False
     folder, _, stem = str(name).replace(chr(92), "/").rpartition("/")
     filename = stem or str(name)
     if path is None:

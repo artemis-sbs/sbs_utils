@@ -21,6 +21,8 @@ test_set_exe_dir()
 
 import unittest
 
+from sbs_utils.procedural.ship_data import EXTRA_SHIP_DATA_DISABLED
+
 from sbs_utils.handlerhooks import (reset_mission_audit, reset_mission_state,
                                     _RESET_PROBES)
 from sbs_utils.procedural import ship_data as sd
@@ -48,6 +50,8 @@ class TestModDataDoesNotSurviveRestart(unittest.TestCase):
             self.assertIn(name, _RESET_PROBES,
                           f"{name} is not in the reset ledger")
 
+    @unittest.skipIf(EXTRA_SHIP_DATA_DISABLED,
+                     "extra ship data is off (HOT FIX 2026-08-27)")
     def test_merged_mod_ships_do_not_survive(self):
         sd.merge_mod_ship_yaml(_MOD_YAML, "TestMod")
         self.assertIsNotNone(sd.get_ship_data_for("test_mod_raider"),
@@ -59,6 +63,8 @@ class TestModDataDoesNotSurviveRestart(unittest.TestCase):
                          "ship data survived the restart")
         self.assertIsNone(sd.ship_data_cache)
 
+    @unittest.skipIf(EXTRA_SHIP_DATA_DISABLED,
+                     "extra ship data is off (HOT FIX 2026-08-27)")
     def test_merge_survives_its_own_cache_reset(self):
         """The trap: merge_mod_ship_yaml calls reset_ship_data_caches() itself.
 
@@ -96,6 +102,8 @@ class TestModDataDoesNotSurviveRestart(unittest.TestCase):
         self.assertEqual(g.grid_theme_current_index(), 0,
                          "the selected theme survived the restart")
 
+    @unittest.skipIf(EXTRA_SHIP_DATA_DISABLED,
+                     "extra ship data is off (HOT FIX 2026-08-27)")
     def test_audit_reports_them_by_name(self):
         """A leak has to be REPORTED, not just fixed - that is what the ledger is for."""
         sd.merge_mod_ship_yaml(_MOD_YAML, "TestMod")
