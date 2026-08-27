@@ -352,28 +352,50 @@ class ConsoleDispatcher:
         target = event.selected_id
         
 
-        # A console that is a DISPLAY takes no part in selection at all.
+        # A console that is a DISPLAY takes no part in selection.
         #
-        # This is deliberately a separate check from the ship-level one below, and it
-        # returns instead of zeroing. The selection lives on the SHIP, so the ship-level
-        # disable is all-or-nothing for every console looking at that ship - it cannot
-        # say "this ONE console does not select" - and when it does fire it still WRITES
-        # (target = 0), clearing the selection everyone else can see. A read-only second
-        # view of the same ship needs the opposite: leave the blob exactly as it was, and
-        # leave prev_selection alone too.
+        # It has to RESTORE, not refuse, and that is measured rather than assumed: the
+        # ENGINE writes the ship's selection into the blob itself, before the event ever
+        # reaches the script. Instrumenting do_select in a real run showed the blob
+        # already holding the new value on entry (`sel == before` on every click), so by
+        # the time anything here can object, the selection has changed. Returning early
+        # leaves the engine's write standing - which is exactly the bug this is for.
+        #
+        # Hence `approved_<console>`: the last selection the library actually allowed.
+        # A disabled console's click puts that back. It is a separate check from the
+        # ship-level one below because that one is per-SHIP - all-or-nothing for every
+        # console looking at the ship - and when it fires it still WRITES `target = 0`,
+        # clearing the selection everyone else can see.
         if get_inventory_value(event.client_id, f"disable_{console}", 0) > 0:
+            approved = get_inventory_value(ship_id, f"approved_{console}", 0)
+            # Never restore a dead handle - a grid object can be deleted while it is
+            # selected (grid.py clears the blob when that happens) and resurrecting the
+            # id here would hand every reader a stale selection.
+            if approved and Agent.get(approved) is None:
+                approved = 0
+            blob.set(console, approved, 0)
             return
 
         disabled_count = get_inventory_value(ship_id, console, 0)
         # if the console selection is disable don't allow selection
-        if disabled_count > 0: 
+        if disabled_count > 0:
             target = 0
 
-        # Previous selection
-        prev = blob.get(console, 0)
+        # Previous selection.
+        #
+        # NOT `blob.get(console)`: the engine has already written the NEW selection into
+        # the blob before this event arrives, so reading it back here recorded the new
+        # value as the "previous" one - `prev_selection` was equal to the current
+        # selection on every click. `approved_<console>` is the last value the library
+        # actually allowed, which is what "previous" meant. (Nothing in any repo reads
+        # `prev_selection` - LegendaryMissions keeps its own `gamemaster_prev_selection`
+        # - so this corrects a write-only value rather than changing behavior.)
+        prev = get_inventory_value(ship_id, f"approved_{console}", 0)
         set_inventory_value(event.origin_id, f"prev_selection", prev)
-        
+
         blob.set(console, target,0)
+        # What a display-only console's click must be rolled back to.
+        set_inventory_value(ship_id, f"approved_{console}", target)
 
             
         co = Agent.get(event.client_id)

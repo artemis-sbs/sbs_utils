@@ -34,11 +34,26 @@
   select", and when it fires it WRITES `target = 0`, clearing the selection everyone else can
   see rather than leaving it alone. So "show the same interior on the main screen, read-only"
   had no expression: the room watching the shared view moved the driving console's list
-  highlight, portrait and verb menu by clicking it. The per-console form refuses the click
-  outright - no blob write, no `prev_selection` stomp, no per-client copy - and leaves every
-  other console alone. Backward compatible (an extra inventory read that defaults to 0).
-  Covered by `tests/test_display_only_console.py`, whose first three cases pin the existing
-  per-ship behavior so the difference is on the record.
+  highlight, portrait and verb menu by clicking it. The per-console form RESTORES the
+  selection and leaves every other console alone.
+
+  Restores rather than refuses because refusing is too late: the ENGINE writes the ship's
+  selection into the blob before the event reaches the script - instrumenting `do_select` in
+  a real run showed the blob already holding the new value on entry, on every click - so
+  declining to write leaves the engine's change standing. `do_select` now records
+  `approved_<console>`, the last selection the library allowed, and a display console's click
+  puts that back (never a deleted object).
+
+  Same measurement fixed `prev_selection`, which was reading the blob back AFTER the engine
+  had already overwritten it and so recorded the new selection as the previous one. Nothing
+  in any repo reads it - LegendaryMissions keeps its own `gamemaster_prev_selection` - so
+  this corrects a write-only value rather than changing behavior.
+
+  Backward compatible (an extra inventory read that defaults to 0). Covered by
+  `tests/test_display_only_console.py`: the first three cases pin the existing per-ship
+  behavior, and its click helper emulates the engine's pre-write - without that the harness
+  is kinder than the engine and blesses an implementation that does nothing on a real
+  console.
 - `overlay_lower_third` now fills its strip with a translucent scrim by default
   (`background="#000a"`, `None` to opt out). It is drawn OVER a live engine view, so white
   text landed on whatever happened to be behind it - found on a station interior, where a

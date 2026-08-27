@@ -662,6 +662,13 @@ def set_console_selection(id_or_not, other_id_or_obj, console):
         other = 0
     if blob is not None:
         blob.set(console, other, 0)
+        # Keep the roll-back value in step. A display-only console's click is undone by
+        # restoring `approved_<console>` (see ConsoleDispatcher.do_select); without this
+        # a selection the SCRIPT made would be rolled back to whatever a console last
+        # picked the moment anyone clicked a read-only view.
+        _obj = to_object(id_or_not)
+        if _obj is not None:
+            _obj.set_inventory_value(f"approved_{console}", other)
 
 
 def set_comms_selection(id_or_not, other_id_or_obj):
@@ -753,9 +760,14 @@ def inc_disable_client_selection(client_id, console_selected_UID):
     The selection itself lives on the SHIP, so `inc_disable_selection` is all-or-nothing
     for every console looking at that ship: disable it so a second, display-only view
     cannot click and the console that is meant to be driving stops selecting too. This
-    is the per-console form, and it *refuses* the click rather than zeroing the
-    selection - the shared value is left exactly as it was, which is what a read-only
-    second view of an interior needs.
+    is the per-console form: the shared value is left exactly as it was, which is what a
+    read-only second view of an interior needs.
+
+    It RESTORES rather than refuses, because refusing is too late. The ENGINE writes the
+    ship's selection into the blob before the event reaches the script - measured by
+    instrumenting ``do_select`` in a real run, where the blob already held the new value
+    on entry - so declining to write leaves the engine's change standing. The dispatcher
+    puts back ``approved_<console>``, the last selection the library allowed.
 
     Pair with :func:`dec_disable_client_selection`; the count nests.
 
@@ -764,10 +776,15 @@ def inc_disable_client_selection(client_id, console_selected_UID):
         console_selected_UID (str): The blob key for the console (e.g.
             ``"grid_selected_UID"``).
     """
-    co = Agent.get(to_id(client_id))
-    if co is None: return
+    # Deliberately the inventory helpers, NOT Agent.get: the SERVER console is client
+    # id 0, `to_object(0)` is None by design, and a bare `Agent.get` write silently does
+    # nothing for it. `set_inventory_value` resolves through `to_agent_list`, which has
+    # the explicit server branch. The main screen IS the server window in an ordinary
+    # setup, so getting this wrong means the one console this exists for is the one it
+    # does not work on - and it fails without a word.
+    from .inventory import get_inventory_value, set_inventory_value
     key = f"disable_{console_selected_UID}"
-    co.set_inventory_value(key, co.get_inventory_value(key, 0) + 1)
+    set_inventory_value(client_id, key, get_inventory_value(client_id, key, 0) + 1)
 
 def dec_disable_client_selection(client_id, console_selected_UID):
     """Reverse an :func:`inc_disable_client_selection` call.
@@ -776,10 +793,9 @@ def dec_disable_client_selection(client_id, console_selected_UID):
         client_id (Agent | int): The console (client) to restore.
         console_selected_UID (str): The blob key for the console.
     """
-    co = Agent.get(to_id(client_id))
-    if co is None: return
+    from .inventory import get_inventory_value, set_inventory_value
     key = f"disable_{console_selected_UID}"
-    co.set_inventory_value(key, max(0, co.get_inventory_value(key, 0) - 1))
+    set_inventory_value(client_id, key, max(0, get_inventory_value(client_id, key, 0) - 1))
 
 def inc_disable_client_grid_selection(client_id): inc_disable_client_selection(client_id, "grid_selected_UID")
 def dec_disable_client_grid_selection(client_id): dec_disable_client_selection(client_id, "grid_selected_UID")
