@@ -747,6 +747,49 @@ def dec_disable_weapons_selection(id_or_obj): dec_disable_selection(id_or_obj, "
 def dec_disable_science_selection(id_or_obj): dec_disable_selection(id_or_obj, "science_target_UID")
 def dec_disable_grid_selection(id_or_obj): dec_disable_selection(id_or_obj, "grid_selected_UID")
 
+def inc_disable_client_selection(client_id, console_selected_UID):
+    """Make ONE console take no part in a selection, without affecting the others.
+
+    The selection itself lives on the SHIP, so `inc_disable_selection` is all-or-nothing
+    for every console looking at that ship: disable it so a second, display-only view
+    cannot click and the console that is meant to be driving stops selecting too. This
+    is the per-console form, and it *refuses* the click rather than zeroing the
+    selection - the shared value is left exactly as it was, which is what a read-only
+    second view of an interior needs.
+
+    Pair with :func:`dec_disable_client_selection`; the count nests.
+
+    Args:
+        client_id (Agent | int): The console (client) that must not select.
+        console_selected_UID (str): The blob key for the console (e.g.
+            ``"grid_selected_UID"``).
+    """
+    co = Agent.get(to_id(client_id))
+    if co is None: return
+    key = f"disable_{console_selected_UID}"
+    co.set_inventory_value(key, co.get_inventory_value(key, 0) + 1)
+
+def dec_disable_client_selection(client_id, console_selected_UID):
+    """Reverse an :func:`inc_disable_client_selection` call.
+
+    Args:
+        client_id (Agent | int): The console (client) to restore.
+        console_selected_UID (str): The blob key for the console.
+    """
+    co = Agent.get(to_id(client_id))
+    if co is None: return
+    key = f"disable_{console_selected_UID}"
+    co.set_inventory_value(key, max(0, co.get_inventory_value(key, 0) - 1))
+
+def inc_disable_client_grid_selection(client_id): inc_disable_client_selection(client_id, "grid_selected_UID")
+def dec_disable_client_grid_selection(client_id): dec_disable_client_selection(client_id, "grid_selected_UID")
+def inc_disable_client_science_selection(client_id): inc_disable_client_selection(client_id, "science_target_UID")
+def dec_disable_client_science_selection(client_id): dec_disable_client_selection(client_id, "science_target_UID")
+def inc_disable_client_weapons_selection(client_id): inc_disable_client_selection(client_id, "weapon_target_UID")
+def dec_disable_client_weapons_selection(client_id): dec_disable_client_selection(client_id, "weapon_target_UID")
+def inc_disable_client_comms_selection(client_id): inc_disable_client_selection(client_id, "comms_target_UID")
+def dec_disable_client_comms_selection(client_id): dec_disable_client_selection(client_id, "comms_target_UID")
+
 def get_side(id_or_obj):
     """Return the side string of an agent.
 

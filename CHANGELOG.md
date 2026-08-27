@@ -25,6 +25,20 @@
 
 ### sbs_utils
 
+- A console can be made DISPLAY-ONLY for one selection surface:
+  `inc_disable_client_selection(client_id, uid)` / `dec_disable_client_selection`, with
+  `..._client_grid_selection` / `..._client_science_selection` / `..._client_weapons_selection` /
+  `..._client_comms_selection` wrappers. A console selection lives on the SHIP's blob, so it is
+  one value per ship written by whichever console clicked last, and the existing
+  `inc_disable_selection` counts on the ship too - it cannot say "this ONE console does not
+  select", and when it fires it WRITES `target = 0`, clearing the selection everyone else can
+  see rather than leaving it alone. So "show the same interior on the main screen, read-only"
+  had no expression: the room watching the shared view moved the driving console's list
+  highlight, portrait and verb menu by clicking it. The per-console form refuses the click
+  outright - no blob write, no `prev_selection` stomp, no per-client copy - and leaves every
+  other console alone. Backward compatible (an extra inventory read that defaults to 0).
+  Covered by `tests/test_display_only_console.py`, whose first three cases pin the existing
+  per-ship behavior so the difference is on the record.
 - `overlay_lower_third` now fills its strip with a translucent scrim by default
   (`background="#000a"`, `None` to opt out). It is drawn OVER a live engine view, so white
   text landed on whatever happened to be behind it - found on a station interior, where a

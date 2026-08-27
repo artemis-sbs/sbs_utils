@@ -352,6 +352,18 @@ class ConsoleDispatcher:
         target = event.selected_id
         
 
+        # A console that is a DISPLAY takes no part in selection at all.
+        #
+        # This is deliberately a separate check from the ship-level one below, and it
+        # returns instead of zeroing. The selection lives on the SHIP, so the ship-level
+        # disable is all-or-nothing for every console looking at that ship - it cannot
+        # say "this ONE console does not select" - and when it does fire it still WRITES
+        # (target = 0), clearing the selection everyone else can see. A read-only second
+        # view of the same ship needs the opposite: leave the blob exactly as it was, and
+        # leave prev_selection alone too.
+        if get_inventory_value(event.client_id, f"disable_{console}", 0) > 0:
+            return
+
         disabled_count = get_inventory_value(ship_id, console, 0)
         # if the console selection is disable don't allow selection
         if disabled_count > 0: 
