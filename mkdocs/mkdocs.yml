@@ -101,6 +101,7 @@ nav:
     - Damage: build/damage.md
     - Story & NPC messages: build/messages.md
     - Incoming hails: build/incoming-hails.md
+    - Away missions: build/away-missions.md
     - Objectives: mast/objectives.md
     - The AMD file format: build/amd-format.md
     - Quests: build/quests.md

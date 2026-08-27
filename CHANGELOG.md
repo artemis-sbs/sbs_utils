@@ -25,6 +25,24 @@
 
 ### sbs_utils
 
+- Away missions (`procedural/away.py`): a scene several consoles play at once, one
+  character each. `dialogue_choices` has always evaluated guards against whatever agent
+  it is handed - the shipped comms driver passes the player SHIP, so an away conversation
+  shows one menu to everybody; passing the CHARACTER gives each console its own from the
+  same authored scene, with no new AMD syntax. Owns three things: which client is which
+  character, a guard resolver that can ask about that character, and one shared beat with
+  an arbitrated answer.
+  - The guard resolver COMPOSES rather than replaces. `dialogue_set_metric_resolver` sets
+    one module-level global and Open Universe claims it at import time, so a plain install
+    would leave every OU guard reading 0 - `if fearsome > 20` silently never opening.
+  - The spoken line is picked once per beat, not once per console: `dialogue_pick_line` is
+    random, so per-console it would tell each of them a different story.
+  - Answers are arbitrated with a sequence token bumped before the outcome runs, as
+    `hail_answer` does. `overlay_choice` is not a substitute - its shared `Promise` has no
+    already-done guard, so two presses in the same frame are last-writer-wins.
+  - Docs: `build/away-missions.md`. Engine-verified: three consoles morph to three
+    characters, every answer repaints the others, and all three return to their stations.
+
 - Timers, counters, links and inventory queries reach the SERVER (agent id 0) again.
   Id 0 has two meanings - "no object" for a space-object query, and the server's own
   agent for anything holding state - and the write path had come to use the first one,
