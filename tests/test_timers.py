@@ -7,6 +7,7 @@ from sbs_utils.procedural.timers import (
     set_timer, is_timer_set, is_timer_finished, is_timer_set_and_finished,
     clear_timer, get_time_remaining, format_time_remaining, timer_add_time,
     start_counter, get_counter_elapsed_seconds, clear_counter,
+    format_counter_elapsed_seconds,
     set_interval, clear_interval,
     timer_signals_clear, timer_signals_count, _signals_tick,
     TICK_PER_SECONDS,
@@ -191,6 +192,85 @@ class TestTimers(unittest.TestCase):
         start_counter(agent.id, "mission")
         clear_counter(agent.id, "mission")
         self.assertIsNone(get_counter_elapsed_seconds(agent.id, "mission", default_value=None))
+
+    # ------------------------------------------------------------------
+    # format_counter_elapsed_seconds
+    #
+    # The `ss` token is the seconds REMAINDER, not the total - the whole point
+    # of the divmod. Written against the shape that shipped in PR #62, which
+    # substituted the running total and so read one minute as "00:01:60" and one
+    # hour as "01:00:3600". Every case below fails on that version.
+    # ------------------------------------------------------------------
+
+    def test_format_counter_defaults_to_hh_mm_ss(self):
+        agent = make_agent()
+        start_counter(agent.id, "mission")
+        self.assertEqual(format_counter_elapsed_seconds(agent.id, "mission"), "00:00:00")
+
+    def test_format_counter_pads_to_two_digits(self):
+        agent = make_agent()
+        start_counter(agent.id, "mission")
+        advance_sim(5)
+        self.assertEqual(format_counter_elapsed_seconds(agent.id, "mission"), "00:00:05")
+
+    def test_format_counter_seconds_are_the_remainder_not_the_total(self):
+        agent = make_agent()
+        start_counter(agent.id, "mission")
+        advance_sim(90)
+        # NOT "00:01:90"
+        self.assertEqual(format_counter_elapsed_seconds(agent.id, "mission"), "00:01:30")
+
+    def test_format_counter_rolls_minutes_at_sixty(self):
+        agent = make_agent()
+        start_counter(agent.id, "mission")
+        advance_sim(60)
+        self.assertEqual(format_counter_elapsed_seconds(agent.id, "mission"), "00:01:00")
+
+    def test_format_counter_rolls_hours(self):
+        agent = make_agent()
+        start_counter(agent.id, "mission")
+        advance_sim(3661)
+        self.assertEqual(format_counter_elapsed_seconds(agent.id, "mission"), "01:01:01")
+
+    def test_format_counter_handles_multiple_hours(self):
+        agent = make_agent()
+        start_counter(agent.id, "mission")
+        advance_sim(7325)
+        self.assertEqual(format_counter_elapsed_seconds(agent.id, "mission"), "02:02:05")
+
+    def test_format_counter_rounds_to_the_nearest_second(self):
+        agent = make_agent()
+        start_counter(agent.id, "mission")
+        # Half a second short of a minute: rounds UP, and the roll must follow.
+        sbs.sim._time_tick_counter += 60 * TICK_PER_SECONDS - (TICK_PER_SECONDS // 2)
+        self.assertEqual(format_counter_elapsed_seconds(agent.id, "mission"), "00:01:00")
+
+    # The largest unit PRESENT absorbs the overflow, matching format_time_remaining's
+    # M:SS - dropping it would silently lose an hour.
+
+    def test_format_counter_minutes_absorb_hours_when_hh_is_absent(self):
+        agent = make_agent()
+        start_counter(agent.id, "mission")
+        advance_sim(3661)
+        self.assertEqual(format_counter_elapsed_seconds(agent.id, "mission", "mm:ss"), "61:01")
+
+    def test_format_counter_seconds_absorb_everything_when_alone(self):
+        agent = make_agent()
+        start_counter(agent.id, "mission")
+        advance_sim(3661)
+        self.assertEqual(format_counter_elapsed_seconds(agent.id, "mission", "ss"), "3661")
+
+    def test_format_counter_keeps_surrounding_text(self):
+        agent = make_agent()
+        start_counter(agent.id, "mission")
+        advance_sim(125)
+        self.assertEqual(
+            format_counter_elapsed_seconds(agent.id, "mission", "mm minutes, ss seconds"),
+            "02 minutes, 05 seconds")
+
+    def test_format_counter_never_started_reads_as_zero(self):
+        agent = make_agent()
+        self.assertEqual(format_counter_elapsed_seconds(agent.id, "mission"), "00:00:00")
 
     # ------------------------------------------------------------------
     # Advancement via the REAL sim-time source (physics_tick), not by poking
