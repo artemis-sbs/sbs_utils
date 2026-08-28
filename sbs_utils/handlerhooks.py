@@ -450,8 +450,7 @@ register_reset_state("cutscenes playing", lambda: len(_PLAYING))
 from .procedural.gui.rundown import _SHOTS as _RUNDOWN_SHOTS, rundown_clear
 register_reset_state("rundown shots",     lambda: len(_RUNDOWN_SHOTS))
 from .procedural.gui.viewscreen import (_VIEWERS as _VIEWSCREEN_SHOTS, viewscreen_reset,
-                                        viewscreen_helm_override,
-                                        viewscreen_effective_state)
+                                        viewscreen_helm_override)
 register_reset_state("viewscreen shots",  lambda: len(_VIEWSCREEN_SHOTS))
 from .procedural.hail import _SPEAKER_RESOLVER as _HAIL_SPEAKER, hail_reset
 # A LATCH, not a container: the per-hail records live in ship inventory and go with
@@ -790,16 +789,17 @@ def _cosmos_event_handler(sim, event):
                 #
                 # THE WRITE ABOVE HAS TO COME FIRST (issue #595) and the arbitration
                 # has to come after it, so a story beat that REFUSES the press puts its
-                # own triple back. Which means the event no longer says what the screen
-                # is set to - and Gui.on_event below fans a reroute out to every main
-                # screen carrying these three fields as task variables. Re-stamp them
-                # with the state that actually won, or a console reading the injected
-                # MAIN_SCREEN_VIEW acts on a view the library declined to apply.
+                # own triple back on the SHIP. The event still carries what the crew
+                # pressed, which is no longer what the screen is set to - so the reroute
+                # fan-out in maststorypage reads the ship rather than these fields.
+                #
+                # NOT by rewriting the event. `event` is a Pybind11 object from the
+                # engine and its attributes are READ-ONLY; assigning to them raises at
+                # runtime. The mock's FakeEvent is a plain Python object and takes the
+                # assignment happily, so every test passed and only a real bridge said
+                # otherwise.
                 viewscreen_helm_override(origin, event.sub_tag, event.value_tag,
                                          event.extra_tag)
-                _ms_now = viewscreen_effective_state(origin)
-                if _ms_now is not None:
-                    event.sub_tag, event.value_tag, event.extra_tag = _ms_now
                 Gui.on_event(event)
                 tick_the_rest(event)
             
@@ -1090,7 +1090,21 @@ def _report_reentry(event):
 
 
 def cosmos_event_handler(sim, event):
-    """Engine entry point. Guards the non-reentrancy the rest of this file assumes."""
+    """Engine entry point. Guards the non-reentrancy the rest of this file assumes.
+
+    It also FREEZES the event on the way in, when the event knows how. The engine's
+    own event is a Pybind11 object with read-only attributes; the mock's FakeEvent
+    is a plain Python object that takes an assignment happily. That difference hid a
+    real defect - code that re-stamped `event.sub_tag` to carry an arbitrated value
+    onward passed the whole suite and raised on a live bridge. Freezing here makes
+    the mock refuse it too, at the one place every event goes through.
+
+    Nothing in the library writes to an event, so this asserts an invariant rather
+    than changing behavior. A real engine event has no `freeze`, and is skipped.
+    """
+    _freeze = getattr(event, "freeze", None)
+    if _freeze is not None:
+        _freeze()
     if _EVENT_STACK:
         _report_reentry(event)
     _EVENT_STACK.append(f"{getattr(event, 'tag', '?')}/{getattr(event, 'sub_tag', '')}")

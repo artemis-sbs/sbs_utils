@@ -50,9 +50,24 @@ class DictionaryToObject(object):
     def __repr__ (self) -> str:
         """Return repr(self)."""
 class FakeEvent(object):
-    """class FakeEvent"""
+    """A stand-in for the engine's event object.
+    
+    **The engine's event is a Pybind11 object and its attributes are READ-ONLY.**
+    This one is a plain Python object, so it takes an assignment happily - which
+    made it kinder than the thing it stands in for, and hid a real defect: code
+    that re-stamped `event.sub_tag` passed every test and raised on a live bridge.
+    
+    So it FREEZES on dispatch. A builder (the mock runner, a test) fills one in
+    however it likes; `cosmos_event_handler` calls ``freeze()`` before handing it
+    to the library, and from that moment an assignment raises the way the engine
+    would. Construction stays mutable because construction is not the thing the
+    engine forbids."""
     def __init__ (self, client_id=0, tag='', sub_tag='', origin_id=0, selected_id=0, parent_id=0, extra_tag='', value_tag=''):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def __setattr__ (self, name, value):
+        """Implement setattr(self, name, value)."""
+    def freeze (self):
+        """Make this event read-only, as the engine's always is. Idempotent."""
 class FrameContext(object):
     """class FrameContext"""
 class FrameContextMeta(type):

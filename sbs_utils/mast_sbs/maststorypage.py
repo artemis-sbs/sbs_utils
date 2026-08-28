@@ -1074,13 +1074,25 @@ class StoryPage(Page):
                 # front, left, right, back - engine controlled
                 # 3d (chase, first_person, tracking) 2d (short, long) - engine controlled
                 
+                # THE SHIP, not the event fields. handlerhooks writes the crew's press
+                # to the ship and THEN arbitrates it, and a story beat can refuse it and
+                # put its own triple back - so the event still says what was pressed
+                # while the ship says what actually won. Injecting the event's values
+                # would hand a console a view the library declined to apply.
+                #
+                # The event cannot be re-stamped instead: it is a Pybind11 object from
+                # the engine and its attributes are read-only.
+                from ..procedural.gui.viewscreen import viewscreen_effective_state
+                _ms = viewscreen_effective_state(_ship)
+                if _ms is None:
+                    _ms = (event.sub_tag, event.value_tag, event.extra_tag)
                 for m in ms:
                     #t = get_inventory_value(m, "CONSOLE_TYPE", "not set")
                     #log(f"Got here {len(ms)} {t}", "mast:internal")
                     gui_reroute_client(m, self.main_screen_change_label, {
-                        "MAIN_SCREEN_VIEW": event.sub_tag,
-                        "MAIN_SCREEN_FACING": event.value_tag,
-                        "MAIN_SCREEN_MODE": event.extra_tag
+                        "MAIN_SCREEN_VIEW": _ms[0],
+                        "MAIN_SCREEN_FACING": _ms[1],
+                        "MAIN_SCREEN_MODE": _ms[2]
                     })
 
         elif event.tag == "screen_size":

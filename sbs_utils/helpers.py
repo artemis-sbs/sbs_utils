@@ -168,7 +168,26 @@ class FrameContextOverride:
 
 
 class FakeEvent:
+    """A stand-in for the engine's event object.
+
+    **The engine's event is a Pybind11 object and its attributes are READ-ONLY.**
+    This one is a plain Python object, so it takes an assignment happily - which
+    made it kinder than the thing it stands in for, and hid a real defect: code
+    that re-stamped `event.sub_tag` passed every test and raised on a live bridge.
+
+    So it FREEZES on dispatch. A builder (the mock runner, a test) fills one in
+    however it likes; `cosmos_event_handler` calls ``freeze()`` before handing it
+    to the library, and from that moment an assignment raises the way the engine
+    would. Construction stays mutable because construction is not the thing the
+    engine forbids.
+    """
+
+    __slots__ = ("tag", "sub_tag", "client_id", "parent_id", "origin_id",
+                 "extra_tag", "value_tag", "selected_id", "extra_extra_tag",
+                 "source_point", "sub_float", "event_time", "_frozen")
+
     def __init__(self, client_id=0, tag="", sub_tag="", origin_id=0, selected_id=0, parent_id=0, extra_tag="", value_tag=""):
+        object.__setattr__(self, "_frozen", False)
         self.tag = tag
         self.sub_tag = sub_tag
         self.client_id = client_id
@@ -181,6 +200,21 @@ class FakeEvent:
         self.source_point = Vec3()
         self.sub_float = 0.0
         self.event_time = 0
+
+    def freeze(self):
+        """Make this event read-only, as the engine's always is. Idempotent."""
+        object.__setattr__(self, "_frozen", True)
+        return self
+
+    def __setattr__(self, name, value):
+        if getattr(self, "_frozen", False):
+            raise AttributeError(
+                f"FakeEvent.{name} is read-only once dispatched. The engine's event "
+                f"is a Pybind11 object whose attributes cannot be assigned, so "
+                f"anything that works by re-stamping the event works only in the "
+                f"mock. Carry the value somewhere the reader can reach instead - "
+                f"the ship's inventory, or an argument.")
+        object.__setattr__(self, name, value)
 
 def format_exception(message, source):
     error_type, error, tb = sys.exc_info()
