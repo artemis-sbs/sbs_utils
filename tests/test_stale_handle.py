@@ -147,6 +147,12 @@ class TestRetireDroppedEngineWidgets(unittest.TestCase):
     a client died in ViewGridObjectListDraw that way, two minutes after the
     mission ended, still drawing the Engineering grid list for a dead ship.
     """
+    def setUp(self):
+        # _retire_dropped_engine_widgets remembers what it parked, so these cases
+        # are not independent without this.
+        from sbs_utils.mast_sbs.maststorypage import StoryPage
+        StoryPage._forget_parked_widgets()
+
     def _retire(self, prev, current):
         from sbs_utils.mast_sbs.maststorypage import StoryPage
         rec = _RecordingSbs()
@@ -175,6 +181,50 @@ class TestRetireDroppedEngineWidgets(unittest.TestCase):
         StoryPage._retire_dropped_engine_widgets(("engi", "grid_object_list"), ("", ""), 7, rec)
         _cid, _w, coords = rec.rects[0]
         self.assertTrue(all(c >= 100 for c in coords), coords)
+
+    # --- and a widget that COMES BACK has to be un-parked -------------------
+    # Parking is permanent: re-declaring a widget in the list does not restore
+    # the rect we pushed offscreen. A main screen toggles 3dview <-> 2dview every
+    # time the viewer goes Tactical and back, so the 3D view was parked on the way
+    # into tactical and never came back on the way out. Reported as "it gets stuck
+    # on tactical - the 3dview doesn't come back", and it is the same failure the
+    # LM main screen already documents for gui_widget_offscreen.
+    def _retire_rects(self, prev, current, client_id=7):
+        from sbs_utils.mast_sbs.maststorypage import StoryPage
+        rec = _RecordingSbs()
+        StoryPage._retire_dropped_engine_widgets(prev, current, client_id, rec)
+        return {w: c for _cid, w, c in rec.rects}
+
+    def test_a_widget_that_returns_is_given_a_rect_again(self):
+        from sbs_utils.mast_sbs.maststorypage import StoryPage
+        StoryPage._forget_parked_widgets(7)
+        # into tactical: the 3D view is parked
+        parked = self._retire_rects(("normal_main", "3dview^ship_data"),
+                                    ("normal_main", "2dview^ship_data"))
+        self.assertIn("3dview", parked)
+        # back out: it must be put somewhere visible again
+        back = self._retire_rects(("normal_main", "2dview^ship_data"),
+                                  ("normal_main", "3dview^ship_data"))
+        self.assertIn("3dview", back, "the 3D view was left parked offscreen")
+        self.assertTrue(all(c <= 100 for c in back["3dview"]), back["3dview"])
+        self.assertIn("2dview", back, "the 2D view should now be the parked one")
+
+    def test_a_widget_never_parked_is_not_re_rected(self):
+        """Only un-park what we parked - a widget the console placed itself keeps
+        the rect its own layout gave it."""
+        from sbs_utils.mast_sbs.maststorypage import StoryPage
+        StoryPage._forget_parked_widgets(7)
+        back = self._retire_rects(("normal_main", "ship_data"),
+                                  ("normal_main", "3dview^ship_data"))
+        self.assertNotIn("3dview", back)
+
+    def test_parking_is_tracked_per_console(self):
+        from sbs_utils.mast_sbs.maststorypage import StoryPage
+        StoryPage._forget_parked_widgets(7)
+        StoryPage._forget_parked_widgets(8)
+        self._retire_rects(("normal_main", "3dview"), ("normal_main", "2dview"), 7)
+        back = self._retire_rects(("normal_main", "2dview"), ("normal_main", "3dview"), 8)
+        self.assertNotIn("3dview", back, "one console's parking un-parked another's")
 
 
 class TestDeletedObjectSetters(unittest.TestCase):

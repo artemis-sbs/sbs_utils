@@ -434,6 +434,39 @@ class TestTheConsolesCallSequence(unittest.TestCase):
         viewscreen_set(self.ship, viewscreen_mode_for("Off"), self.foe)
         self.assertFalse(viewscreen_is_live(self.ship))
 
+    def test_the_dial_reads_Off_after_the_crew_take_the_screen(self):
+        """The console's repaint expression, run for real. When helm's camera control
+        overrides an "On Screen" pick, the dial has to SAY so - a drop-down still
+        reading "On Screen - Orbit" for a shot that is no longer running is the thing
+        that makes the arbitration unreadable from a bridge."""
+        from sbs_utils.procedural.gui import (viewscreen_home_ship, viewscreen_label_for,
+                                              viewscreen_mode, viewscreen_mode_for,
+                                              viewscreen_set, viewscreen_helm_override)
+        helm = _console(C2, self.ship, "console", "helm")
+        viewscreen_set(self.ship, viewscreen_mode_for("On Screen - Orbit"), self.foe,
+                       owner="science:%s" % self.cid)
+        self.assertEqual(viewscreen_label_for(viewscreen_mode(self.ship)),
+                         "On Screen - Orbit")
+
+        viewscreen_helm_override(self.ship, "3d_view", "front", "chase", client_id=helm)
+
+        # exactly what both consoles' `on change viewscreen_revision` handlers run
+        self.assertEqual(
+            viewscreen_label_for(viewscreen_mode(viewscreen_home_ship(self.cid))),
+            "Off", "the dial still advertises a shot the crew overrode")
+
+    def test_the_revision_moves_so_the_dial_is_told_to_repaint(self):
+        """Setting the label is no use if nothing notices. The consoles poll
+        viewscreen_revision with `on change`, so a crew takeover has to move it."""
+        from sbs_utils.procedural.gui import (viewscreen_mode_for, viewscreen_set,
+                                              viewscreen_helm_override, viewscreen_revision)
+        helm = _console(C2, self.ship, "console", "helm")
+        viewscreen_set(self.ship, viewscreen_mode_for("On Screen - Orbit"), self.foe,
+                       owner="science:%s" % self.cid)
+        before = viewscreen_revision(self.cid)
+        viewscreen_helm_override(self.ship, "3d_view", "front", "chase", client_id=helm)
+        self.assertNotEqual(viewscreen_revision(self.cid), before)
+
 
 class TestHandlerWiring(unittest.TestCase):
     """``handlerhooks`` imports the override lazily inside the ``main_screen_change``

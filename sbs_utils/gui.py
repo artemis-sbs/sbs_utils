@@ -261,6 +261,12 @@ class Gui:
     # nothing. Cleared whenever a client's page stack changes, so a push/pop
     # always re-establishes the list.
     widget_list_sent = {}
+    # client_id -> the engine widgets pushed OFFSCREEN because they fell off that
+    # list, and not yet put back. Paired with widget_list_sent and cleared with it:
+    # the two describe the same console, and one surviving the other is a console
+    # that un-parks a widget it never parked (client ids are recycled between
+    # missions). See StoryPage._retire_dropped_engine_widgets.
+    widget_parked = {}
     # client_id -> how many times this client's ROOT region has been cleared.
     #
     # A root clear drops every SUB-REGION the client had, and the engine only

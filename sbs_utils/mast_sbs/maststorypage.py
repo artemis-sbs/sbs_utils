@@ -262,11 +262,36 @@ class StoryPage(Page):
         having to remember. Only runs when the list actually changes, which is
         rare (a console switch, or a jump to the results screen).
         """
+        def names(pair):
+            return {w for w in ((pair or ("", ""))[1] or "").split("^") if w}
+
+        current_names = names(current)
+        parked = Gui.widget_parked.setdefault(client_id, set())
+
+        # PUT BACK ANYTHING WE PARKED THAT IS DECLARED AGAIN.
+        #
+        # Parking is permanent: re-declaring a widget in the list does not restore
+        # the rect it was pushed to, so a widget that comes BACK stays offscreen.
+        # A main screen toggles 3dview <-> 2dview every time the viewer goes
+        # Tactical and back, so the 3D view was parked on the way in and never
+        # returned on the way out - "it gets stuck on tactical". The same failure
+        # gui_widget_offscreen is documented for, arrived at automatically.
+        #
+        # Full console, because that is the engine's own default for the view
+        # widgets that actually toggle, and because we never knew the rect it had:
+        # nothing sent one, the engine placed it. A screen that wants something
+        # else calls gui_layout_widget, whose ConsoleWidget presents AFTER this and
+        # therefore wins.
+        returning = parked & current_names
+        for widget in returning:
+            my_sbs.send_client_widget_rects(client_id, widget,
+                                            0, 0, 100, 100,
+                                            0, 0, 100, 100)
+        parked -= returning
+
         if not prev:
             return
-        def names(pair):
-            return {w for w in (pair[1] or "").split("^") if w}
-        dropped = names(prev) - names(current)
+        dropped = names(prev) - current_names
         if not dropped:
             return
         off = 100
@@ -274,6 +299,15 @@ class StoryPage(Page):
             my_sbs.send_client_widget_rects(client_id, widget,
                                             off, off, off + 10, off + 10,
                                             off, off, off + 10, off + 10)
+        parked |= dropped
+
+    @staticmethod
+    def _forget_parked_widgets(client_id=None):
+        """Drop the parking record - a client going away, a mission reset, a test."""
+        if client_id is None:
+            Gui.widget_parked.clear()
+        else:
+            Gui.widget_parked.pop(client_id, None)
 
     def swap_layout(self):
         # self.on_change_items= self.pending_on_change_items

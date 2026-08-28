@@ -344,6 +344,10 @@ def reset_mission_state():
     # The engine's widget list belongs to the old mission's pages. Forget what
     # was sent so each rebuilt page establishes its own.
     Gui.widget_list_sent.clear()
+    # Paired with it: the widget list and what we parked out of it describe the
+    # same console, so one surviving the other is a console that un-parks a
+    # widget it never parked.
+    Gui.widget_parked.clear()
 
 
 def _log_size():
@@ -379,6 +383,10 @@ register_reset_state("ship_data_extra", _probe_ship_data_extra)
 register_reset_state("Gui.clients",       lambda: len(Gui.clients))
 register_reset_state("Gui.web_client_ids", lambda: len(Gui.web_client_ids))
 register_reset_state("Gui.widget_list_sent", lambda: len(Gui.widget_list_sent))
+# Engine widgets pushed offscreen and not yet put back, per client. Client ids are
+# RECYCLED between missions, so a record left behind would un-park a widget on a
+# console that never had one parked.
+register_reset_state("Gui.widget_parked", lambda: len(Gui.widget_parked))
 # Route labels registered per compile. Unregistered until 2026-08-06, which is why it
 # grew silently across compiles instead of being reported by name.
 register_reset_state("log_panel", lambda: _log_size())
