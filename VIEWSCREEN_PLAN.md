@@ -1,15 +1,30 @@
 # Viewscreen Plan - "On Screen" from the science console
 
-> **Status: ACTIVE (2026-08-09), phase-5 leftovers only.** Phases 1-4 shipped (2 engine-
-> verified on 1.3.5), and further than this document states: both items it defers to phase 5
-> have landed - `results_helpers.py:99` now imports `viewscreen_hull_percent` from the
-> library. `gui/viewscreen.py` (20 functions) + `viewscreen_pages.py`, 49 tests, the LM
-> drop-down live at `consoles/layout_widgets.mast:165-170`, `missions/viewscreen_probe`, docs
-> at `cosmos/viewscreen.md`.
+> **Status: SUPERSEDED (2026-08-28) except for one engine check.** Phases 1-4 shipped and
+> engine-verified on 1.3.5; phase 5 landed with the ownership work described below.
 >
-> What is left is small: a by-eye pass on a real LM bridge, an audit of
-> `show_main_game_screen`'s `get_ship_of_client` re-link, and a restart soak. Making
-> `--exercise` actually drive console pages is a `cosmos_dev` job of its own, not this plan's.
+> **What this plan built is no longer the whole system.** It designed ONE viewer with a
+> two-party arbitration - science versus helm - and the screen now has seven drivers. The
+> replacement is `procedural/gui/viewscreen_claims.py`: a named owner, ONE baseline, and
+> two tiers (`console` loses the screen to helm's control, `story` parks helm's press and
+> applies it on release). Claims are FLAT - releasing goes back to what the CREW had,
+> never to the previous claimant. Read `mkdocs/docs/cosmos/viewscreen.md` "Who owns the
+> screen" for the current model; the API sketch further down this file is out of date.
+>
+> Phase 5's own list is done: `show_main_game_screen`'s `get_ship_of_client` re-link was
+> audited and was indeed wrong in the `_server` variant, the LM wiring is in, and a
+> two-run restart soak is stable.
+>
+> **Still open, and the reason this file is here rather than deleted:**
+>
+> * **The by-eye pass on a real LM bridge has never happened.** Everything below and
+>   everything since rests on mock evidence for the camera work, which is exactly where
+>   this system was wrong before. Two player ships, science puts a contact on screen,
+>   weapons puts a different one up, helm presses FRONT - and the screen goes back to the
+>   crew's own view.
+> * **Nothing automated enters a console PAGE** (`gui 0/9`), so the console bodies are
+>   covered by a static name guard and a call-sequence test, not by execution. Making
+>   `--exercise` drive console pages is a `cosmos_dev` job of its own.
 
 Science picks what the main screen shows. A drop-down beside the Follow checkbox
 with four shots, and a data column that reads out what science knows about the

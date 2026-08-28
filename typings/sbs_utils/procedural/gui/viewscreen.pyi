@@ -333,6 +333,20 @@ def viewscreen_clear (ship, owner=None):
     
     Returns:
         bool: True if a viewer was running."""
+def viewscreen_console_enter (client_id):
+    """A main screen is arriving. Record where it belongs, before anything moves it.
+    
+    THE FIRST LINE of any main-screen label. A shot ASSIGNS its console to the
+    subject, so a console that takes its post while one is already running has no
+    record of its own ship and nothing can give it back - and there is exactly one
+    moment when the answer is still available, which is before this console is
+    assigned anywhere.
+    
+    Cheap and idempotent: a console that already has a home recorded is left alone,
+    so putting this at the top of a label that repaints constantly costs nothing.
+    
+    Returns:
+        int | None: the ship this console belongs to."""
 def viewscreen_consoles (ship):
     """The main-screen consoles of one ship - the audience every shot addresses.
     
@@ -461,6 +475,16 @@ def viewscreen_restore (ship, owner=None):
     
     Returns:
         bool: True if anything was holding the screen."""
+def viewscreen_revision (client_id):
+    """A number that changes whenever this console's ship hands the screen over.
+    
+    What a console watches with ``on change`` so a drop-down showing "On Screen -
+    Orbit" repaints to "Off" the moment somebody else takes the screen, instead of
+    lying about what is on it.
+    
+    ``on change``, not ``on signal``: a GUI task sitting in ``await gui()`` does not
+    repaint because a signal fired - the same reason ``hail_console_revision``
+    exists and is polled."""
 def viewscreen_roster (ship):
     """The main screens that have a home recorded for this claim.
     
@@ -471,6 +495,12 @@ def viewscreen_roster (ship):
     live somewhere that outlives the role."""
 def viewscreen_roster_add (ship, client_id):
     """Note that this console has a home recorded - the late-joiner path."""
+def viewscreen_seq (ship):
+    """The claim sequence, bumped on every claim and every release.
+    
+    Poll it to notice the screen changed hands. Bumped BEFORE the outcome runs, the
+    same rule ``hail.py`` follows, so a second actor in the same frame is already
+    carrying a stale value by the time it arrives."""
 def viewscreen_set (ship, mode, subject=None, owner=None, tier='console'):
     """Point this ship's main screen at something.
     
@@ -517,3 +547,20 @@ def viewscreen_take (ship, owner=None, tier='story'):
         console-tier request."""
 def viewscreen_tier (ship):
     """``"console"``, ``"story"``, or ``""`` when nothing holds the screen."""
+def viewscreen_view_modes (client_id, ship_id=None):
+    """The ``(view, facing, mode)`` a main screen should hand ``set_main_view_modes``.
+    
+    The view and facing belong to the SHIP - one bridge, one screen state. The
+    camera MODE does not, quite: the engine reports ``"cinematic"`` while a script
+    is driving that client's camera, and because the three arrive together that
+    value lands in the ship's record and every other main screen on the bridge then
+    reads it as its own.
+    
+    So the mode is remembered PER CONSOLE and substituted whenever the ship's copy
+    says ``"cinematic"``. LegendaryMissions carried this as a task-local
+    ``default my_mode = "chase"``, which is per GUI TASK rather than per console -
+    so every reroute reset it, and a screen the crew had put in ``first_person`` or
+    ``tracking`` silently snapped back to ``chase``.
+    
+    Returns:
+        tuple: ``(view, facing, mode)``, ready to pass straight through."""

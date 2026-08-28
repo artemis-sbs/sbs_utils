@@ -83,21 +83,78 @@ Anything that means *"this console's own ship"* must ask `viewscreen_home_ship`.
 `get_ship_of_client` instead is how a main-screen label ends up reading the enemy's
 state and linking the enemy as its owner. Standing down puts the assignment back.
 
+### And one that is not fixed
+
+**A bare variable in a main-screen label can land on the enemy's inventory.** MAST's
+`assigned` scope resolves through `sbs.get_ship_of_client`, so during a shot a plain
+`foo = 1` in a mainscreen label reads and writes the SUBJECT's agent, silently.
+
+It is not fixed because it is the hot path for every variable read on every console in
+the game, and changing it is riskier than the bug. Write main-screen state explicitly and
+it cannot bite you:
+
+```
+set_inventory_value(ship_id, "my_thing", value)      # ship_id from viewscreen_home_ship
+foo = 1                                              # fine - a TASK variable
+```
+
+The exposure is a variable that falls through to `assigned` scope specifically.
+LegendaryMissions' main-screen label avoids it by naming the ship on every read and
+write, which is the pattern to copy.
+
 ---
 
 ## Who owns the screen
 
-The state lives in the **player ship's inventory** — the same place Cosmos already keeps
-`MAIN_SCREEN_VIEW`. Three consequences, all of them free:
+Seven things can drive a main screen: science's drop-down, the same drop-down on
+weapons, an incoming hail, docking, a cutscene, the Director, and helm or weapons
+reaching for the engine's own main-screen control. So a screen has an **owner**.
 
-- **Scope.** Science on the Artemis cannot change what the Intrepid's main screen shows.
-- **Arbitration.** Helm's main-screen control writes the same key, so **last writer
-  wins**: helm reaching for the control simply takes the screen, and the science
-  drop-down falls back to *Off* on its next repaint. No negotiation, no lock.
-- **Reset.** It goes away with the mission, like any other agent state.
+The state lives in the **player ship's inventory** — the same place Cosmos already keeps
+`MAIN_SCREEN_VIEW` — which buys the scope for free: science on the Artemis cannot change
+what the Intrepid's screen shows, and it goes away with the mission like any other agent
+state.
+
+### A claim carries a name
+
+```
+viewscreen_set(ship, "orbit", target, owner=viewscreen_owner_token("science", client_id))
+viewscreen_owns(ship, owner)      # is it still mine?
+viewscreen_clear(ship, owner)     # refused if it is not
+```
+
+The token is what lets a console tell *"still mine"* from *"weapons took it"*. Without
+one, a console has to guess — and the guess used to be `viewscreen_is_live`, which asks
+whether **anybody** is driving the screen, so science re-pointing on a new selection
+yanked whatever contact weapons had put up.
+
+`viewscreen_revision(client_id)` moves whenever the screen changes hands. Watch it with
+`on change` so a drop-down that lost the screen repaints to *Off* instead of advertising
+a shot that is no longer its own. **`on change`, not `on signal`** — a GUI task sitting
+in `await gui()` does not repaint because a signal fired.
+
+### Two tiers, and what helm can take
+
+| Tier | Who | Helm's main-screen control |
+|---|---|---|
+| `console` | science, weapons, docking | **takes the screen.** Helm's choice IS the new state |
+| `story` | a cutscene, a hail, a mission beat | **does not.** The press is parked and applied when the beat ends |
+
+The crew's physical control is their escape hatch from another *console*, not from a
+directed moment. A press that arrives during a story beat is not lost — it is held, and
+fires the instant the beat releases. A console pick made during one is held the same way.
+
+### Flat, not a stack
+
+**Releasing goes back to what the CREW had, never to the previous claimant.** Science
+puts a contact up, a hail takes the screen, the hail ends — the screen returns to the
+view the crew were flying with, not to science's shot. There is exactly one recorded
+baseline, captured the moment the screen goes from unclaimed to claimed, and everything
+restores to that. Every subsystem used to keep its own note of "before" and they
+overwrote each other, which is how a bridge ended up with no way back at all.
 
 A console re-reporting the state it is already in — a screen reconnecting — is not a
-takeover, so a shot survives a console joining the bridge.
+takeover either way, so a shot survives a console joining the bridge.
 
 ---
 
@@ -110,7 +167,29 @@ viewscreen_mode(ship)                      # what is running
 viewscreen_subject(ship)                   # what it is looking at
 viewscreen_consoles(ship)                  # that ship's main screens
 viewscreen_home_ship(client_id)            # see above
+
+# ownership
+viewscreen_set(ship, "orbit", target, owner=tok, tier="story")
+viewscreen_owner_token("science", client_id)   # -> "science:<id>"
+viewscreen_owns(ship, owner)                   # still mine?
+viewscreen_revision(client_id)                 # poll with `on change`
+viewscreen_restore(ship, owner=None)           # the door home; owner=None forces
+viewscreen_take(ship, owner, tier)             # claim it, drive the camera yourself
+
+# for a main-screen console to call
+viewscreen_console_enter(client_id)            # FIRST line: record where it belongs
+viewscreen_view_modes(client_id)               # -> (view, facing, mode)
 ```
+
+**`viewscreen_set` returns `False` for two different reasons now** — "already showing
+exactly that", and "a story beat holds the screen, so your request was parked". Ask
+`viewscreen_owns` when you need to tell them apart; that is the question a console
+actually has.
+
+`viewscreen_take` is for anything that drives the screen its **own** way and still needs
+arbitrating — a cutscene, the Director, a beat pointing the camera by hand. It records
+the baseline without starting one of the viewer's shots, so `viewscreen_restore` can put
+the bridge back afterwards.
 
 Everything the console does is one of these calls, so a mission can drive the main
 screen from a story beat exactly the way science drives it from the drop-down — and a

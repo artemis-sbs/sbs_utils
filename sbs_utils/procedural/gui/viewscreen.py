@@ -36,6 +36,7 @@ from .camera import camera_assign, camera_auto, camera_dolly, camera_move_stop, 
 from .overlay import (consoles_of, overlay_auto_dwell, overlay_clear, overlay_register,
                       overlay_show, overlay_slot_define)
 from .viewscreen_claims import (OWNER_ANON, TIER_CONSOLE, TIER_STORY, viewscreen_baseline,
+                                viewscreen_seq,
                                 viewscreen_baseline_drop, viewscreen_claim,
                                 viewscreen_claim_drop, viewscreen_claimed,
                                 viewscreen_hold, viewscreen_hold_drop,
@@ -501,6 +502,71 @@ def viewscreen_home_ship(client_id):
     if home:
         return home
     return FrameContext.context.sbs.get_ship_of_client(client_id)
+
+
+def viewscreen_console_enter(client_id):
+    """A main screen is arriving. Record where it belongs, before anything moves it.
+
+    THE FIRST LINE of any main-screen label. A shot ASSIGNS its console to the
+    subject, so a console that takes its post while one is already running has no
+    record of its own ship and nothing can give it back - and there is exactly one
+    moment when the answer is still available, which is before this console is
+    assigned anywhere.
+
+    Cheap and idempotent: a console that already has a home recorded is left alone,
+    so putting this at the top of a label that repaints constantly costs nothing.
+
+    Returns:
+        int | None: the ship this console belongs to.
+    """
+    home = viewscreen_home_ship(client_id)
+    if not home:
+        return None
+    if viewscreen_claimed(home) or viewscreen_is_live(home):
+        _remember_home(home, [client_id])
+    return home
+
+
+def viewscreen_view_modes(client_id, ship_id=None):
+    """The ``(view, facing, mode)`` a main screen should hand ``set_main_view_modes``.
+
+    The view and facing belong to the SHIP - one bridge, one screen state. The
+    camera MODE does not, quite: the engine reports ``"cinematic"`` while a script
+    is driving that client's camera, and because the three arrive together that
+    value lands in the ship's record and every other main screen on the bridge then
+    reads it as its own.
+
+    So the mode is remembered PER CONSOLE and substituted whenever the ship's copy
+    says ``"cinematic"``. LegendaryMissions carried this as a task-local
+    ``default my_mode = "chase"``, which is per GUI TASK rather than per console -
+    so every reroute reset it, and a screen the crew had put in ``first_person`` or
+    ``tracking`` silently snapped back to ``chase``.
+
+    Returns:
+        tuple: ``(view, facing, mode)``, ready to pass straight through.
+    """
+    if ship_id is None:
+        ship_id = viewscreen_home_ship(client_id)
+    view, facing, mode = _main_screen_state(ship_id)
+    if mode == "cinematic":
+        mode = get_inventory_value(client_id, KEY_MY_MODE, "chase")
+    else:
+        set_inventory_value(client_id, KEY_MY_MODE, mode)
+    return (view, facing, mode)
+
+
+def viewscreen_revision(client_id):
+    """A number that changes whenever this console's ship hands the screen over.
+
+    What a console watches with ``on change`` so a drop-down showing "On Screen -
+    Orbit" repaints to "Off" the moment somebody else takes the screen, instead of
+    lying about what is on it.
+
+    ``on change``, not ``on signal``: a GUI task sitting in ``await gui()`` does not
+    repaint because a signal fired - the same reason ``hail_console_revision``
+    exists and is polled.
+    """
+    return viewscreen_seq(viewscreen_home_ship(client_id))
 
 
 def viewscreen_framing(subject):

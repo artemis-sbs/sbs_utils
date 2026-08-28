@@ -127,6 +127,41 @@ overlay_banner("Contact bearing 040", to=ship_id, consoles="science, comms")
 Passing a scalar `to` that resolves to no console logs a one-off warning (that is the
 "I pushed an overlay and saw nothing" bug); an empty *set* is normal and stays quiet.
 
+**A card is remembered against the audience you addressed it to**, so a console that
+joins that audience while it is still up gets it too — the crew are still taking
+consoles when the opening chapter card fires. Two things follow, and both matter as soon
+as there is more than one player ship:
+
+- **Two ships can hold the same slot.** `center_hero` on the Artemis and `center_hero` on
+  the Intrepid are separate cards, not one overwriting the other.
+- **Clearing is scoped to who you name.** `overlay_clear(slot, to=one_console)` stops
+  that console being re-delivered the card and leaves the rest of the ship's screens
+  showing it; clearing the whole audience retires it outright.
+
+## Clearing a console — the transition door
+
+`overlay_clear_console(client_id)` takes down **everything that one console is
+carrying**, and it is what a transition should call:
+
+```
+overlay_clear_console(client_id)      # before this console becomes something else
+```
+
+**An overlay belongs to the CONSOLE, not the page**, and a console change or a reroute
+is a jump on the *same* page — `OverlayManager` lives on the page and survives it. So a
+card left behind is not merely uncleared, it is actively re-drawn: `present_all` repaints
+whatever the slots still hold, and the catch-up ticker re-delivers any live record it
+finds an empty slot for. Clearing the page alone loses to both.
+
+If you are **changing** a console rather than just clearing it, call
+`gui_console_enter(client_id, console_type)` as the first line of the console's label
+instead. It does this plus the roles, `CONSOLE_TYPE`, the camera assignment, the
+viewscreen claim and the crew seat, in the order that works — and it is a no-op when the
+console is already that type, so a repaint costs nothing.
+
+**Clear at the TRANSITION, never inside the screen.** A screen is re-entered on every
+repaint, so a clear in the screen's own body tears down the furniture it just raised.
+
 ## Auto-dismiss
 
 `seconds` schedules a **generation-guarded** auto-dismiss: if the slot is re-shown or
@@ -147,6 +182,12 @@ result = await overlay_choice("Fire on the ambassador?", ["Yes", "No"], to=playe
 if result.data == "Yes":
     open_fire()
 ```
+
+**The card comes down when it is answered** — for the whole audience, not just whoever
+pressed. These hand every console one shared promise and the first answer wins, so a card
+still up elsewhere is asking a question that has already been settled. The same is true
+of `overlay_lower_third_portrait(buttons=...)`, and of the `seconds` timeout on either:
+answering is answering however it happens.
 
 ## A live HUD
 

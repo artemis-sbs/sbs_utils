@@ -26,6 +26,8 @@ from .viewscreen import (viewscreen_set, viewscreen_clear, viewscreen_mode,
                          viewscreen_helm_override, viewscreen_apply, viewscreen_framing,
                          viewscreen_home_ship, viewscreen_reset, viewscreen_restore,
                          viewscreen_effective_state, viewscreen_take,
+                         viewscreen_console_enter, viewscreen_view_modes,
+                         viewscreen_revision,
                          viewscreen_shot_props, viewscreen_mode_for,
                          viewscreen_label_for, SHOT_LABELS)
 from .viewscreen_pages import (viewscreen_page_register, viewscreen_page_remove,

@@ -555,6 +555,59 @@ class TestViewscreenShots(unittest.TestCase):
                          "the parked pick never ran")
         self.assertEqual(viewscreen_owner(self.ship), "science:%s" % self.cid)
 
+    # --- what a main-screen console asks the library ----------------------
+    def test_a_console_arriving_mid_shot_records_where_it_belongs(self):
+        """There is exactly ONE moment when a console's own ship is still knowable -
+        before a shot assigns it to the subject. A late main screen that misses it
+        can never be given anything back."""
+        from sbs_utils.procedural.gui.viewscreen import viewscreen_console_enter
+        late = _console(C2, self.ship, "console", "mainscreen")
+        mock_sbs.assign_client_to_ship(late, self.ship)
+        viewscreen_set(self.ship, "orbit", self.target)
+
+        self.assertEqual(viewscreen_console_enter(late), self.ship)
+        mock_sbs.assign_client_to_ship(late, self.target)     # a shot takes it
+        self.assertEqual(viewscreen_home_ship(late), self.ship)
+
+    def test_entering_twice_does_not_overwrite_the_home(self):
+        from sbs_utils.procedural.gui.viewscreen import viewscreen_console_enter
+        viewscreen_set(self.ship, "orbit", self.target)
+        viewscreen_console_enter(self.cid)
+        viewscreen_console_enter(self.cid)                    # a repaint
+        self.assertEqual(viewscreen_home_ship(self.cid), self.ship)
+
+    def test_the_camera_mode_is_remembered_per_console(self):
+        """The engine reports "cinematic" while a script drives THIS client's camera,
+        and view/facing/mode arrive together - so that value lands in the SHIP's
+        record and every other main screen reads it as its own. LM carried the
+        workaround as a task-local `default my_mode`, which every reroute reset, so a
+        screen the crew put in first_person snapped back to chase."""
+        from sbs_utils.procedural.gui.viewscreen import viewscreen_view_modes
+        set_inventory_value(self.ship, "MAIN_SCREEN_MODE", "first_person")
+        self.assertEqual(viewscreen_view_modes(self.cid)[2], "first_person")
+
+        set_inventory_value(self.ship, "MAIN_SCREEN_MODE", "cinematic")
+        self.assertEqual(viewscreen_view_modes(self.cid)[2], "first_person",
+                         "another console's cinematic mode became ours")
+
+    def test_the_remembered_mode_survives_a_repaint(self):
+        from sbs_utils.procedural.gui.viewscreen import viewscreen_view_modes
+        set_inventory_value(self.ship, "MAIN_SCREEN_MODE", "tracking")
+        viewscreen_view_modes(self.cid)
+        set_inventory_value(self.ship, "MAIN_SCREEN_MODE", "cinematic")
+        for _ in range(3):                                    # three repaints
+            self.assertEqual(viewscreen_view_modes(self.cid)[2], "tracking")
+
+    def test_the_revision_moves_when_the_screen_changes_hands(self):
+        from sbs_utils.procedural.gui.viewscreen import viewscreen_revision
+        before = viewscreen_revision(self.cid)
+        viewscreen_set(self.ship, "orbit", self.target, owner="science:1")
+        after = viewscreen_revision(self.cid)
+        self.assertNotEqual(before, after)
+        viewscreen_set(self.ship, "tactical", self.target, owner="weapons:2")
+        self.assertNotEqual(after, viewscreen_revision(self.cid),
+                            "a console that lost the screen has nothing to notice")
+
     # --- the camera -------------------------------------------------------
     def test_a_shot_points_the_camera_at_the_subject(self):
         viewscreen_set(self.ship, "orbit", self.target)
