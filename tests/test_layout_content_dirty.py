@@ -187,3 +187,51 @@ class TestGuardCostIsCached(_Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAWidgetInARegionRepaintsThroughItsRegion(_Base):
+    """A value-bearing widget INSIDE a region has to dirty its parent, not itself.
+
+    Painting a region is a bracketed operation - send_gui_sub_region, a clear on
+    the region tag, the children, then a complete - and that bracket is what makes
+    the region's contents replace rather than accumulate. A lone widget marked
+    visual-only re-presents itself with none of it, so the engine lands it ON TOP
+    of the one already there. Set the value twice and there are three.
+
+    Reported as a console showing two "On Screen" drop-downs stacked, their labels
+    overlapping. Button, Checkbox and TextInput all carry
+    `force_layout=self.region_tag != ""` with the same comment; Dropdown was the
+    one that did not.
+    """
+
+    def _dropdown_in_a_region(self):
+        from sbs_utils.pages.layout.dropdown import Dropdown
+        dd = Dropdown("dd", "text:Off;list:Off,On Screen - Orbit")
+        sec, row = self.build([dd])
+        dd.region_tag = "someregion$$"      # what Layout.calc stamps inside a region
+        return sec, dd
+
+    def test_setting_the_value_marks_the_region_not_the_widget(self):
+        sec, dd = self._dropdown_in_a_region()
+        dd.value = "On Screen - Orbit"
+        marked = self.marked()
+        self.assertIn(dd.parent, marked,
+                      "the dropdown re-presented itself outside its region's "
+                      "clear/complete bracket, so the engine stacks a second one")
+        self.assertNotIn(dd, marked)
+
+    def test_update_marks_the_region_too(self):
+        """gui_update() lands here, so it had the same defect."""
+        sec, dd = self._dropdown_in_a_region()
+        dd.update("text:Tactical 2D;list:Off,Tactical 2D")
+        self.assertIn(dd.parent, self.marked())
+
+    def test_outside_a_region_it_stays_on_the_cheap_path(self):
+        """The science console builds under a section, region_tag "" - that path is
+        legitimate and must not get more expensive."""
+        from sbs_utils.pages.layout.dropdown import Dropdown
+        dd = Dropdown("dd", "text:Off;list:Off,On Screen - Orbit")
+        sec, row = self.build([dd])
+        self.assertEqual(dd.region_tag, "")
+        dd.value = "On Screen - Orbit"
+        self.assertIn(dd, self.marked())

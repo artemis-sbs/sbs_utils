@@ -1703,7 +1703,7 @@ def gui_properties_set (p=None, tag=None):
     
     Example:
         gui_properties_set({"Speed": "gui_text(str(ship_speed))", "Shields": "gui_slider(shield_pct)"})"""
-def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x0000024A726707D0>):
+def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x0000027B65ACC930>):
     """Create a property list box with single-line label/control layout.
     
     Each property is rendered as a label on the left and its control widget
@@ -2981,6 +2981,17 @@ def viewscreen_crew_release (ship):
     """End the cooldown early - a console claim may take the screen again."""
 def viewscreen_crew_took (ship):
     """The crew took the screen with their own control - start the cooldown."""
+def viewscreen_dial_label (ship, owner):
+    """What an "On Screen" drop-down should read, for the console that owns ``owner``.
+    
+    **The running shot only when it is OURS, otherwise "Off".** The dial is this
+    console's control, not a status light for the ship: showing "On Screen - Orbit"
+    because WEAPONS put something up invites science to think they are driving,
+    and picking Off on it would then be refused - so the dial would be advertising
+    an action it cannot take.
+    
+    One function rather than the expression written out on each console, so the two
+    cannot drift, the same reason ``viewscreen_shot_props`` lives here."""
 def viewscreen_effective_state (ship):
     """What this ship's main screen is ACTUALLY set to, after arbitration.
     

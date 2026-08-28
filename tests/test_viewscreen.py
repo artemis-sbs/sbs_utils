@@ -455,6 +455,31 @@ class TestTheConsolesCallSequence(unittest.TestCase):
             viewscreen_label_for(viewscreen_mode(viewscreen_home_ship(self.cid))),
             "Off", "the dial still advertises a shot the crew overrode")
 
+    def test_the_dial_reads_Off_when_another_console_owns_the_screen(self):
+        """The dial is THIS console's control, not a status light for the ship. If
+        weapons put a contact up, science's dial must not read "On Screen - Orbit" -
+        it invites science to think they are driving, and picking Off on it would be
+        refused, so the dial would advertise an action it cannot take."""
+        from sbs_utils.procedural.gui import (viewscreen_dial_label, viewscreen_mode_for,
+                                              viewscreen_set)
+        sci = "science:%s" % self.cid
+        weap = "weapons:9"
+        viewscreen_set(self.ship, viewscreen_mode_for("On Screen - Orbit"), self.foe,
+                       owner=weap)
+        self.assertEqual(viewscreen_dial_label(self.ship, weap), "On Screen - Orbit")
+        self.assertEqual(viewscreen_dial_label(self.ship, sci), "Off")
+
+    def test_the_dial_reads_the_shot_when_it_is_ours(self):
+        from sbs_utils.procedural.gui import (viewscreen_dial_label, viewscreen_mode_for,
+                                              viewscreen_set)
+        sci = "science:%s" % self.cid
+        viewscreen_set(self.ship, viewscreen_mode_for("Tactical 2D"), self.foe, owner=sci)
+        self.assertEqual(viewscreen_dial_label(self.ship, sci), "Tactical 2D")
+
+    def test_the_dial_reads_Off_when_nothing_holds_the_screen(self):
+        from sbs_utils.procedural.gui import viewscreen_dial_label
+        self.assertEqual(viewscreen_dial_label(self.ship, "science:%s" % self.cid), "Off")
+
     def test_the_revision_moves_so_the_dial_is_told_to_repaint(self):
         """Setting the label is no use if nothing notices. The consoles poll
         viewscreen_revision with `on change`, so a crew takeover has to move it."""

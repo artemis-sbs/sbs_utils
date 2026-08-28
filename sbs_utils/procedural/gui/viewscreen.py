@@ -610,6 +610,23 @@ def viewscreen_view_modes(client_id, ship_id=None):
     return (view, facing, mode)
 
 
+def viewscreen_dial_label(ship, owner):
+    """What an "On Screen" drop-down should read, for the console that owns ``owner``.
+
+    **The running shot only when it is OURS, otherwise "Off".** The dial is this
+    console's control, not a status light for the ship: showing "On Screen - Orbit"
+    because WEAPONS put something up invites science to think they are driving,
+    and picking Off on it would then be refused - so the dial would be advertising
+    an action it cannot take.
+
+    One function rather than the expression written out on each console, so the two
+    cannot drift, the same reason ``viewscreen_shot_props`` lives here.
+    """
+    if not viewscreen_owns(ship, owner):
+        return viewscreen_label_for("off")
+    return viewscreen_label_for(viewscreen_mode(ship))
+
+
 def viewscreen_revision(client_id):
     """A number that changes whenever this console's ship hands the screen over.
 

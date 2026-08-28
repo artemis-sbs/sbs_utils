@@ -53,7 +53,10 @@ class Dropdown(Column):
             # Deliberately NOT is_hidden: a dropdown merely clipped by its
             # parent this frame must still register the change, or it scrolls
             # back into view showing the old selection.
-            self.mark_value_dirty()
+            #
+            # force_layout INSIDE A REGION - the same quirk Button, Checkbox and
+            # TextInput all guard against. See _set_value.
+            self.mark_value_dirty(force_layout=self.region_tag != "")
 
     @property
     def value(self):
@@ -80,4 +83,17 @@ class Dropdown(Column):
         self.values = merge_props(props)
         self.update_variable()
         if repaint and not self.is_hidden_by_script:
-            self.mark_value_dirty()
+            # Quirk, this should just be a visual update, but when in a
+            # section/region it paints wrong - the same guard Button, Checkbox and
+            # TextInput carry, and Dropdown was the one value-bearing widget
+            # without it.
+            #
+            # Painting a region is BRACKETED: send_gui_sub_region, a clear on the
+            # region tag, the children, a complete. That bracket is what makes the
+            # region's contents replace rather than accumulate. A widget marked
+            # visual-only re-presents itself with none of it, so the engine lands
+            # it ON TOP of the one already there - set the value twice and there
+            # are three. Reported as a console showing two "On Screen" drop-downs
+            # with their labels overlapping. Marking the PARENT sends the whole
+            # region through region_begin/region_end instead.
+            self.mark_value_dirty(force_layout=self.region_tag != "")
