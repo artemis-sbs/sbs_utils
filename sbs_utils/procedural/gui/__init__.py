@@ -40,7 +40,11 @@ from .viewscreen_claims import (viewscreen_claim, viewscreen_claim_drop,
                               viewscreen_bump, viewscreen_held, viewscreen_hold,
                               viewscreen_hold_take, viewscreen_hold_drop,
                               viewscreen_roster, viewscreen_roster_add,
-                              TIER_CONSOLE, TIER_STORY, VIEWSCREEN_TIERS)
+                              viewscreen_crew_took, viewscreen_crew_holds,
+                              viewscreen_crew_lock_remaining,
+                              viewscreen_crew_release,
+                              TIER_CONSOLE, TIER_STORY, VIEWSCREEN_TIERS,
+                              CREW_LOCK_SECONDS)
 # The module is hail_gui, not hail_view, because it EXPORTS a function called
 # hail_view - and a submodule sharing a name with an exported function is
 # shadowed by it, so `from ...gui import hail_view` hands back the function.

@@ -165,6 +165,7 @@ class TestViewscreenState(unittest.TestCase):
         self.assertTrue(viewscreen_helm_override(self.ship, "lrs", "front", "long"))
         self.assertFalse(viewscreen_is_live(self.ship))
 
+
     def test_helm_override_does_not_restore(self):
         """Helm's choice IS the new state; putting "before" back would undo the change
         being handled."""
@@ -509,6 +510,72 @@ class TestViewscreenShots(unittest.TestCase):
         for _ in range(int(seconds * TICKS_PER_SECOND) + 1):
             TickDispatcher.dispatch_tick()
             mock_sbs.sim._time_tick_counter += 1
+
+    # --- the crew's control wins, whatever values it happens to send -------
+    # THE REPORTED BUG. The engine's camera dial forces the view back to 3D when
+    # you touch it, because touching it means "show me that camera" - so during a
+    # 3D shot, pressing FRONT sends ("3d_view", "front", <mode>), which is exactly
+    # what the shot recorded in VIEWER_EXPECT. Comparing VALUES cannot tell that
+    # from a console replaying its own state, so the press was swallowed: the
+    # engine's control moved the camera (the flash the crew saw) and the still-live
+    # shot re-aimed it a moment later, which reads as science stealing it back.
+    def test_a_dial_press_matching_our_own_state_is_still_a_takeover(self):
+        helm = _console(C2, self.ship, "console", "helm")
+        viewscreen_set(self.ship, "orbit", self.target)
+        expect = get_inventory_value(self.ship, "VIEWER_EXPECT", None)
+        self.assertIsNotNone(expect, "precondition: the shot recorded what it asked for")
+        view, facing, mode = expect
+        self.assertTrue(
+            viewscreen_helm_override(self.ship, view, facing, mode, client_id=helm),
+            "helm pressed the control and the shot ignored it")
+        self.assertFalse(viewscreen_is_live(self.ship))
+
+    def test_every_dial_position_takes_the_screen(self):
+        """FRONT/LEFT/RIGHT/BACK and INSIDE/CHASE/TRACK all send view='3d_view'."""
+        from sbs_utils.procedural.gui.viewscreen_claims import viewscreen_crew_release
+        helm = _console(C2, self.ship, "console", "helm")
+        for facing in ("front", "left", "right", "back"):
+            for cam in ("first_person", "chase", "tracking"):
+                viewscreen_clear(self.ship)
+                # The previous iteration's press started the crew cooldown, which
+                # would (correctly) refuse the next set. Not what this loop is about.
+                viewscreen_crew_release(self.ship)
+                viewscreen_set(self.ship, "orbit", self.target)
+                self.assertTrue(
+                    viewscreen_helm_override(self.ship, "3d_view", facing, cam,
+                                             client_id=helm),
+                    f"the shot survived helm pressing {facing}/{cam}")
+
+    def test_weapons_control_wins_the_same_way(self):
+        weap = _console(C2, self.ship, "console", "weapons")
+        viewscreen_set(self.ship, "orbit", self.target)
+        expect = get_inventory_value(self.ship, "VIEWER_EXPECT", None)
+        self.assertTrue(
+            viewscreen_helm_override(self.ship, expect[0], expect[1], expect[2],
+                                     client_id=weap))
+
+    # --- but the SCREEN reporting its own state is not a press -------------
+    def test_a_main_screen_echoing_cinematic_does_not_cancel_the_shot(self):
+        """Every shot calls set_main_view_modes(cid, "3dview", "front", "cinematic")
+        through gui_cinematic_full_control. When that comes back as an event it
+        matches nothing in VIEWER_EXPECT - not even the view string, which the
+        cinematic path spells "3dview" and the viewer spells "3d_view" - so a value
+        comparison read the viewer's OWN camera as a takeover and cancelled it."""
+        viewscreen_set(self.ship, "orbit", self.target)
+        self.assertFalse(
+            viewscreen_helm_override(self.ship, "3dview", "front", "cinematic",
+                                     client_id=self.cid),
+            "the shot cancelled itself on its own camera")
+        self.assertTrue(viewscreen_is_live(self.ship))
+
+    def test_a_main_screen_echo_of_anything_is_not_a_takeover(self):
+        """A main screen carries no main_screen_control widget, so it cannot press
+        one - every event from it is the screen reporting what we set."""
+        viewscreen_set(self.ship, "orbit", self.target)
+        self.assertFalse(
+            viewscreen_helm_override(self.ship, "lrs", "back", "long",
+                                     client_id=self.cid))
+        self.assertTrue(viewscreen_is_live(self.ship))
 
     # --- who a console belongs to, while a shot has it elsewhere -----------
     def test_camera_assignment_reports_the_home_ship_during_a_shot(self):

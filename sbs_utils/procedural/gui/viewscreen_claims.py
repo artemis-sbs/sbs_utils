@@ -48,6 +48,7 @@ that way for the same reason; ``viewscreen_pages`` is the one that got away with
 from ...mast.mast import DEBUG
 from ..inventory import get_inventory_value, set_inventory_value
 from ..query import to_id
+from ..timers import get_counter_elapsed_seconds, start_counter
 
 
 # The tiers, weakest first. A tier is a string rather than a number because it is
@@ -63,6 +64,25 @@ KEY_SEQ = "VIEWER_CLAIM_SEQ"            # monotonic; bumped BEFORE every outcome
 KEY_BASELINE = "VIEWER_BASELINE"        # (view, facing, mode) the crew had; None = uncaptured
 KEY_BASELINE_CIDS = "VIEWER_BASELINE_CIDS"   # the consoles that have a home recorded
 KEY_HELD = "VIEWER_HELD"                # one parked crew request
+
+# HOW LONG THE CREW'S OWN CONTROL HOLDS THE SCREEN.
+#
+# Helm and weapons have a physical main-screen control, and pressing it is the
+# crew saying "give me my view back". Standing the console claim down is not quite
+# enough on its own: the screen is then indistinguishable from never-claimed, so
+# anything that re-asserts on a repaint or a ticker takes it straight back and the
+# press reads as having done nothing.
+#
+# So a takeover starts a counter, and a CONSOLE-tier claim is refused while it
+# runs. A story beat - a hail, a cutscene - is not refused: a directed moment
+# still outranks the dial. Short enough that science asking again a moment later
+# just works, long enough to swallow a repaint cascade.
+#
+# A tick counter rather than a wall clock: it is the codebase's own cooldown idiom
+# (timers.py, as docking uses for `giant_shields`), it behaves the same in the mock
+# as in the engine, and Agent.clear() reaps it with everything else.
+CREW_LOCK_SECONDS = 3.0
+COUNTER_CREW_LOCK = "viewer_crew_lock"
 
 # What an unnamed claim is called. `viewscreen_set(ship, mode, subject)` still
 # works exactly as it did, and an unnamed claim is still a claim - it simply
@@ -139,6 +159,42 @@ def viewscreen_bump(ship):
     return seq
 
 
+def viewscreen_crew_took(ship):
+    """The crew took the screen with their own control - start the cooldown."""
+    ship_id = to_id(ship)
+    if ship_id is None:
+        return False
+    start_counter(ship_id, COUNTER_CREW_LOCK)
+    return True
+
+
+def viewscreen_crew_lock_remaining(ship):
+    """Seconds left before a console may claim the screen again, or 0.0.
+
+    A console can show this rather than silently doing nothing when a pick does
+    not take.
+    """
+    ship_id = to_id(ship)
+    if ship_id is None:
+        return 0.0
+    since = get_counter_elapsed_seconds(ship_id, COUNTER_CREW_LOCK, None)
+    if since is None:
+        return 0.0
+    return max(0.0, CREW_LOCK_SECONDS - since)
+
+
+def viewscreen_crew_holds(ship):
+    """Is the crew's own control still holding the screen against the consoles?"""
+    return viewscreen_crew_lock_remaining(ship) > 0.0
+
+
+def viewscreen_crew_release(ship):
+    """End the cooldown early - a console claim may take the screen again."""
+    ship_id = to_id(ship)
+    if ship_id is not None:
+        set_inventory_value(ship_id, "__counter__" + COUNTER_CREW_LOCK, None)
+
+
 def viewscreen_claim(ship, tier=TIER_CONSOLE, owner=None, baseline=None,
                      cids=None):
     """Record that ``owner`` holds this ship's main screen.
@@ -168,6 +224,16 @@ def viewscreen_claim(ship, tier=TIER_CONSOLE, owner=None, baseline=None,
     if tier not in VIEWSCREEN_TIERS:
         # Reachable from a drop-down; a typo must not end a GUI task mid-repaint.
         DEBUG("[viewscreen] unknown tier %r; expected one of %r" % (tier, VIEWSCREEN_TIERS))
+        return False
+
+    # The crew's own control just took the screen. Nothing a console asks for gets
+    # it back for a moment - otherwise a repaint or a ticker undoes the press and
+    # the crew see the view flick back to what they overrode. A story beat is
+    # exempt: a hail or a cutscene still outranks the dial.
+    if tier == TIER_CONSOLE and viewscreen_crew_holds(ship_id):
+        DEBUG("[viewscreen] %s refused on %s: the crew's control holds it for "
+              "another %.1fs" % (owner or OWNER_ANON, ship_id,
+                                 viewscreen_crew_lock_remaining(ship_id)))
         return False
 
     held_tier = viewscreen_tier(ship_id)

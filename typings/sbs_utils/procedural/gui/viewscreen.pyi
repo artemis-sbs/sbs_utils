@@ -353,6 +353,17 @@ def viewscreen_consoles (ship):
     Narrowed to the SHIP's own screens, which is what keeps one bridge's viewer out of
     another's. Returns an empty set when no main screen is connected, which is normal
     and not an error."""
+def viewscreen_crew_holds (ship):
+    """Is the crew's own control still holding the screen against the consoles?"""
+def viewscreen_crew_lock_remaining (ship):
+    """Seconds left before a console may claim the screen again, or 0.0.
+    
+    A console can show this rather than silently doing nothing when a pick does
+    not take."""
+def viewscreen_crew_release (ship):
+    """End the cooldown early - a console claim may take the screen again."""
+def viewscreen_crew_took (ship):
+    """The crew took the screen with their own control - start the cooldown."""
 def viewscreen_effective_state (ship):
     """What this ship's main screen is ACTUALLY set to, after arbitration.
     
@@ -372,7 +383,7 @@ def viewscreen_framing (subject):
     rather than one being a speck and the other clipping the lens. ``exclusion_radius``
     is the only size the engine actually exposes; when it says nothing, a default that
     frames a mid-sized ship is better than a guess that frames nothing."""
-def viewscreen_helm_override (ship, view, facing, mode):
+def viewscreen_helm_override (ship, view, facing, mode, client_id=None):
     """Helm or weapons touched the engine's main-screen control.
     
     Called from the ``main_screen_change`` handler with the triple the engine just
@@ -389,8 +400,31 @@ def viewscreen_helm_override (ship, view, facing, mode):
       honored a few seconds late rather than lost, and the story's own triple is
       written back so the engine and the record agree again.
     
-    A triple identical to what the claim asked for is not a takeover either way: a
-    console reconnecting replays the state it is already in.
+    **WHO pressed decides, not what the values are.** Only helm and weapons carry
+    the ``main_screen_control`` widget; a main screen's widget list is
+    ``3dview^ship_data`` / ``2dview^ship_data``, so a main screen cannot press one
+    at all - every ``main_screen_change`` carrying a main screen's client id is
+    that screen reporting back what we set it to. So an event from one of this
+    ship's main screens is never a takeover, and an event from anywhere else
+    always is.
+    
+    Comparing the reported triple against ``VIEWER_EXPECT`` instead was wrong in
+    both directions, and each cost a real bug:
+    
+    * **The dial forces the view back to 3D.** Touching FRONT or CHASE means "show
+      me that camera", so during a 3D shot it sends ``("3d_view", facing, mode)``
+      - which is exactly what the shot recorded. Helm's press was read as a replay
+      and swallowed; the engine moved the camera anyway (the flash), and the shot
+      that was never stood down re-aimed it a moment later. Reported as science
+      stealing the screen back.
+    * **The shot cancelled itself.** Every shot goes through
+      ``gui_cinematic_full_control``, which calls ``set_main_view_modes(cid,
+      "3dview", "front", "cinematic")``. Coming back as an event that matches
+      nothing, it read as a takeover - the viewer's own camera standing the viewer
+      down.
+    
+    ``client_id=None`` keeps the old value comparison, for a caller that cannot say
+    who pressed.
     
     The triple is written here as well as by the caller. ``handlerhooks`` already
     records it (issue #595) and writing it twice is harmless - but a function whose
@@ -518,11 +552,21 @@ def viewscreen_set (ship, mode, subject=None, owner=None, tier='console'):
     Returns:
         bool: True when the state changed.
     
-    **False now means two things.** It has always meant "already showing exactly
+    **False now means three things.** It has always meant "already showing exactly
     that"; it also means "a STORY claim holds the screen, so your request was
-    PARKED and will be applied when the story releases". Ask
+    PARKED and will be applied when the story releases", and "the crew's own
+    control has the screen for another moment" (``CREW_LOCK_SECONDS``). Ask
     ``viewscreen_owns(ship, owner)`` when you need to know which - that is the
-    question a console actually has."""
+    question a console actually has.
+    
+    **NEVER CALL THIS FROM A REPAINT PATH UNLESS ``viewscreen_owns`` IS TRUE.**
+    The idempotent no-op above requires mode AND subject AND owner to match, so two
+    consoles that both re-assert on repaint never hit it - their tokens differ - and
+    they will ping-pong at GUI-tick rate, each claim bumping the sequence that makes
+    the other repaint. The library cannot break that cycle for you; the crew
+    cooldown damps it, but the guard is the caller's. LegendaryMissions' consoles
+    are the worked example: every automatic re-point is behind ``viewscreen_owns``,
+    and only a human press calls this unguarded."""
 def viewscreen_shot_props (current=None):
     """The whole property string for a shot drop-down.
     

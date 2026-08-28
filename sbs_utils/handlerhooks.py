@@ -782,24 +782,26 @@ def _cosmos_event_handler(sim, event):
                 set_inventory_value(origin, "MAIN_SCREEN_VIEW", event.sub_tag)
                 set_inventory_value(origin, "MAIN_SCREEN_FACING", event.value_tag)
                 set_inventory_value(origin, "MAIN_SCREEN_MODE", event.extra_tag)
-                # Helm reaching for the main-screen control takes the screen back from
-                # whoever was driving it - science's "on screen" (VIEWSCREEN_PLAN.md).
-                # Compared against what the viewer asked for, so a console replaying
-                # the state it is already in is not a takeover.
+                # Helm or weapons reaching for the main-screen control takes the
+                # screen back from whoever was driving it - science's "on screen"
+                # (VIEWSCREEN_PLAN.md). WHO pressed is what decides: only helm and
+                # weapons carry the main_screen_control widget, so an event carrying
+                # a main screen's own client id is that screen reporting back what we
+                # set it to, not a press.
                 #
                 # THE WRITE ABOVE HAS TO COME FIRST (issue #595) and the arbitration
-                # has to come after it, so a story beat that REFUSES the press puts its
-                # own triple back on the SHIP. The event still carries what the crew
-                # pressed, which is no longer what the screen is set to - so the reroute
-                # fan-out in maststorypage reads the ship rather than these fields.
+                # after it, so a story beat that REFUSES the press can put its own
+                # triple back on the SHIP. The event then still carries what the crew
+                # pressed, which is no longer what the screen is set to - which is why
+                # the reroute fan-out in maststorypage reads the ship rather than
+                # these fields.
                 #
-                # NOT by rewriting the event. `event` is a Pybind11 object from the
-                # engine and its attributes are READ-ONLY; assigning to them raises at
-                # runtime. The mock's FakeEvent is a plain Python object and takes the
-                # assignment happily, so every test passed and only a real bridge said
-                # otherwise.
+                # It cannot be fixed by rewriting the event: `event` is a Pybind11
+                # object from the engine and its attributes are READ-ONLY. The mock's
+                # FakeEvent used to take the assignment happily, so every test passed
+                # and only a real bridge said otherwise; it freezes on dispatch now.
                 viewscreen_helm_override(origin, event.sub_tag, event.value_tag,
-                                         event.extra_tag)
+                                         event.extra_tag, client_id=event.client_id)
                 Gui.on_event(event)
                 tick_the_rest(event)
             

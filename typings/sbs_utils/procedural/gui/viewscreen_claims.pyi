@@ -9,6 +9,22 @@ def _baseline_capture (ship_id, baseline, cids):
     with whatever the first claimant had put up."""
 def _baseline_drop (ship_id):
     ...
+def get_counter_elapsed_seconds (id_or_obj, name, default_value=None):
+    """Return the number of seconds elapsed since a counter was started.
+    
+    Args:
+        id_or_obj (Agent | int): Agent ID or object.
+        name (str): Counter name.
+        default_value (optional): Value returned if the counter was never
+            started. Defaults to None.
+    
+    Returns:
+        float | None: Seconds elapsed, or ``default_value`` if not set.
+    
+    Example:
+        elapsed = get_counter_elapsed_seconds(SHIP_ID, "docked", 0)
+        if elapsed > 60:
+            "Docking complete.""""
 def get_inventory_value (id_or_object, key: str, default=None):
     """Get an inventory value from an agent by key.
     
@@ -29,6 +45,24 @@ def set_inventory_value (so, key: str, value):
         so (Agent | int | set[Agent | int]): The agent(s) to update.
         key (str): The inventory key.
         value (any): The value to store."""
+def start_counter (id_or_obj, name):
+    """Record the current sim tick as the start of a named counter.
+    
+    Use ``get_counter_elapsed_seconds`` to read how many seconds have passed
+    since the counter was started. Use ``set_interval`` for a counter that emits
+    a signal every so often instead of being read.
+    
+    Restarting a counter that ``set_interval`` armed restarts its beat too - the
+    next one lands a full interval from now.
+    
+    Args:
+        id_or_obj (Agent | int): Agent ID or object.
+        name (str): Counter name.
+    
+    Example:
+        start_counter(SHIP_ID, "docked")
+        # later...
+        secs = get_counter_elapsed_seconds(SHIP_ID, "docked")"""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """Extract the integer ID from an agent, ``CloseData``, ``SpawnData``, or bare int.
     
@@ -82,6 +116,17 @@ def viewscreen_claim_drop (ship, owner=None, keep_baseline=False):
         bool: True if a claim was dropped."""
 def viewscreen_claimed (ship):
     """Whether anything holds this ship's main screen."""
+def viewscreen_crew_holds (ship):
+    """Is the crew's own control still holding the screen against the consoles?"""
+def viewscreen_crew_lock_remaining (ship):
+    """Seconds left before a console may claim the screen again, or 0.0.
+    
+    A console can show this rather than silently doing nothing when a pick does
+    not take."""
+def viewscreen_crew_release (ship):
+    """End the cooldown early - a console claim may take the screen again."""
+def viewscreen_crew_took (ship):
+    """The crew took the screen with their own control - start the cooldown."""
 def viewscreen_held (ship):
     """The crew request parked behind a story claim, or None."""
 def viewscreen_hold (ship, request):

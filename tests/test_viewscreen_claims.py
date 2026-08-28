@@ -19,7 +19,9 @@ from sbs_utils.procedural.gui.viewscreen_claims import (
     viewscreen_claim, viewscreen_claim_drop, viewscreen_claimed, viewscreen_held,
     viewscreen_hold, viewscreen_hold_drop, viewscreen_hold_take, viewscreen_owner,
     viewscreen_owner_token, viewscreen_owns, viewscreen_roster,
-    viewscreen_roster_add, viewscreen_seq, viewscreen_tier)
+    viewscreen_roster_add, viewscreen_seq, viewscreen_tier,
+    viewscreen_crew_took, viewscreen_crew_holds, viewscreen_crew_lock_remaining,
+    viewscreen_crew_release, CREW_LOCK_SECONDS)
 
 
 CREW = ("3d_view", "front", "chase")
@@ -239,6 +241,70 @@ class TestTheSequence(ClaimBase):
         viewscreen_claim_drop(self.artemis)
         viewscreen_claim(self.artemis, TIER_CONSOLE, "b", baseline=CREW)
         self.assertEqual(viewscreen_seq(self.artemis), 3)
+
+
+class TestTheCrewCooldown(ClaimBase):
+    """Helm and weapons have a physical control, and pressing it means "give me my
+    view back". Standing the console claim down is not enough on its own: the screen
+    is then indistinguishable from never-claimed, so anything re-asserting on a
+    repaint or a ticker takes it straight back and the press reads as a flicker."""
+
+    def _advance(self, seconds):
+        from cosmos_dev.mock.sbs import TICKS_PER_SECOND
+        mock_sbs.sim._time_tick_counter += int(seconds * TICKS_PER_SECOND) + 1
+
+    def test_nothing_holds_it_to_start_with(self):
+        self.assertFalse(viewscreen_crew_holds(self.artemis))
+        self.assertEqual(viewscreen_crew_lock_remaining(self.artemis), 0.0)
+
+    def test_a_crew_press_refuses_a_console_claim(self):
+        viewscreen_crew_took(self.artemis)
+        self.assertTrue(viewscreen_crew_holds(self.artemis))
+        self.assertFalse(viewscreen_claim(self.artemis, TIER_CONSOLE, "science:7",
+                                          baseline=CREW))
+        self.assertFalse(viewscreen_claimed(self.artemis))
+
+    def test_a_story_beat_is_not_refused(self):
+        """A hail or a cutscene still outranks the dial."""
+        viewscreen_crew_took(self.artemis)
+        self.assertTrue(viewscreen_claim(self.artemis, TIER_STORY, "hail",
+                                         baseline=CREW))
+        self.assertEqual(viewscreen_owner(self.artemis), "hail")
+
+    def test_it_expires(self):
+        viewscreen_crew_took(self.artemis)
+        self._advance(CREW_LOCK_SECONDS + 0.5)
+        self.assertFalse(viewscreen_crew_holds(self.artemis))
+        self.assertTrue(viewscreen_claim(self.artemis, TIER_CONSOLE, "science:7",
+                                         baseline=CREW))
+
+    def test_the_remaining_time_counts_down(self):
+        """A console can show this rather than silently doing nothing."""
+        viewscreen_crew_took(self.artemis)
+        first = viewscreen_crew_lock_remaining(self.artemis)
+        self._advance(1.0)
+        self.assertLess(viewscreen_crew_lock_remaining(self.artemis), first)
+
+    def test_it_can_be_released_early(self):
+        viewscreen_crew_took(self.artemis)
+        viewscreen_crew_release(self.artemis)
+        self.assertFalse(viewscreen_crew_holds(self.artemis))
+        self.assertTrue(viewscreen_claim(self.artemis, TIER_CONSOLE, "science:7",
+                                         baseline=CREW))
+
+    def test_it_is_per_ship(self):
+        viewscreen_crew_took(self.artemis)
+        self.assertFalse(viewscreen_crew_holds(self.intrepid),
+                         "one bridge's helm locked another bridge's screen")
+        self.assertTrue(viewscreen_claim(self.intrepid, TIER_CONSOLE, "science:9",
+                                         baseline=CREW))
+
+    def test_a_refused_claim_leaves_an_existing_one_alone(self):
+        """The refusal must not be a side-effecting no-op."""
+        viewscreen_claim(self.artemis, TIER_STORY, "hail", baseline=CREW)
+        viewscreen_crew_took(self.artemis)
+        self.assertFalse(viewscreen_claim(self.artemis, TIER_CONSOLE, "science:7"))
+        self.assertEqual(viewscreen_owner(self.artemis), "hail")
 
 
 class TestTwoShips(ClaimBase):
