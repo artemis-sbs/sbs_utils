@@ -26,6 +26,7 @@ from ...pages.layout import layout as layout
 from ...pages.widgets.layout_listbox import SubPage
 from .gui import gui_page_for_client
 from ..query import to_set
+from ...futures import Promise as _Promise
 
 
 # --- Slot registry -----------------------------------------------------------
@@ -591,13 +592,55 @@ def _on_page(page, fn):
 #
 # Keyed by slot: a slot holds one thing at a time, which is the rule the regions
 # already follow.
-_LIVE = {}                       # slot -> {"kind","content","to","consoles","expires"}
+# KEYED BY (slot, audience), NOT BY SLOT ALONE. Slot names are global strings --
+# `viewer_data`, `hail_band`, `center_hero` -- so with two player ships the
+# Intrepid raising a card used to OVERWRITE the Artemis's record for the same
+# slot, and the Artemis's late console then got nothing, or the wrong ship's
+# content. The audience belongs in the identity because the invariant is "one
+# card per slot PER CONSOLE", not one card per slot in the game.
+#
+# `except` is the other half. A record's `to` is an arbitrary audience
+# EXPRESSION -- a ship, a side, a role set -- so there is no honest way to take
+# one console out of it by re-keying. Clearing a card on one of a ship's five
+# consoles adds that console to the record's exclusion set instead, and the
+# catch-up skips it. Dropping the whole record is what made a per-console clear
+# cancel everybody else's late-joiner delivery.
+_LIVE = {}   # (slot, audience) -> {"slot","kind","content","to","consoles",
+             #                      "expires","replay","except","cids"}
 _CATCHUP = {"task": None}
 CATCHUP_INTERVAL = 1.0           # a console linking up is a human-timescale event
 
 
 def _live_now():
     return FrameContext.sim_seconds or 0
+
+
+def _live_ident(item):
+    """A hashable identity for one audience item."""
+    if item is None or isinstance(item, (int, str)):
+        return item
+    from ..query import to_id
+    try:
+        v = to_id(item)
+    except Exception:                                   # noqa: BLE001
+        v = None
+    return v if v is not None else repr(item)
+
+
+def _live_audience(to, consoles):
+    """A hashable key for an audience expression, so two ships do not collide."""
+    if isinstance(to, (set, frozenset, list, tuple)):
+        try:
+            ident = frozenset(_live_ident(i) for i in to)
+        except TypeError:
+            ident = repr(to)
+    else:
+        ident = _live_ident(to)
+    return (ident, consoles or "")
+
+
+def _live_cids(to, consoles):
+    return {p.client_id for p in _pages_for(to, consoles)}
 
 
 def _live_set(slot, kind, content, to, consoles, seconds=None, replay=None):
@@ -608,17 +651,59 @@ def _live_set(slot, kind, content, to, consoles, seconds=None, replay=None):
     single-line kinds), where replaying a stored content dict would hand the new
     console a layout computed for somebody else's width.
     """
-    _LIVE[slot] = {"kind": kind, "content": content, "to": to, "consoles": consoles,
-                   "expires": (_live_now() + seconds) if seconds and seconds > 0 else None,
-                   "replay": replay}
+    key = (slot, _live_audience(to, consoles))
+    cids = _live_cids(to, consoles)
+    # One card per slot per console: a new show evicts any OTHER record for this
+    # slot whose audience overlaps it. Disjoint audiences (two bridges) coexist.
+    for other in [k for k in _LIVE if k[0] == slot and k != key]:
+        if _LIVE[other]["cids"] & cids:
+            _LIVE.pop(other, None)
+    _LIVE[key] = {"slot": slot, "kind": kind, "content": content, "to": to,
+                  "consoles": consoles,
+                  "expires": (_live_now() + seconds) if seconds and seconds > 0 else None,
+                  "replay": replay, "except": set(), "cids": cids}
     _live_start()
 
 
-def _live_drop(slot=None):
-    if slot is None:
+def _live_records_for(slot, cids=None):
+    """Every live record key for ``slot`` whose audience touches ``cids``."""
+    return [k for k, rec in _LIVE.items()
+            if k[0] == slot and (cids is None or (rec["cids"] & cids))]
+
+
+def _live_drop(slot=None, cids=None):
+    """Retire live records.
+
+    ``slot`` and ``cids`` both None means everything, which is the mission reset
+    and nothing else - see ``overlay_live_clear``. Naming ``cids`` restricts the
+    drop to records that audience actually touches, which is what keeps one
+    console's clear from cancelling another ship's card.
+    """
+    if slot is None and cids is None:
         _LIVE.clear()
-    else:
-        _LIVE.pop(slot, None)
+        return
+    for key in [k for k in _LIVE
+                if (slot is None or k[0] == slot)
+                and (cids is None or (_LIVE[k]["cids"] & cids))]:
+        _LIVE.pop(key, None)
+
+
+def _live_release(cids, slot=None):
+    """Take ``cids`` out of the audience of every matching live record.
+
+    A record the cleared consoles fully account for is dropped; a wider one keeps
+    running for everybody else and simply stops being re-delivered here.
+    """
+    cids = set(cids or ())
+    if not cids:
+        return
+    for key in [k for k in _LIVE
+                if (slot is None or k[0] == slot) and (_LIVE[k]["cids"] & cids)]:
+        rec = _LIVE[key]
+        if rec["cids"] <= cids:
+            _LIVE.pop(key, None)
+        else:
+            rec["except"] |= cids
 
 
 def _live_start():
@@ -635,7 +720,7 @@ def overlay_live_clear():
     by TickDispatcher.clear(), but the HANDLE has to go with it or _live_start()
     sees a task that no longer runs and never schedules a new one — the "already
     scheduled" latch that outlives the dispatcher."""
-    _LIVE.clear()
+    _live_drop()
     _CATCHUP["task"] = None
 
 
@@ -646,18 +731,25 @@ def _live_catchup(t):
         _CATCHUP["task"] = None
         return
     now = _live_now()
-    for slot in list(_LIVE.keys()):
-        rec = _LIVE.get(slot)
+    for key in list(_LIVE.keys()):
+        rec = _LIVE.get(key)
         if rec is None:
             continue
+        slot = rec["slot"]
         expires = rec["expires"]
         if expires is not None and now >= expires:
-            _live_drop(slot)
+            _LIVE.pop(key, None)
             continue
         # the REMAINING time, so the card lifts everywhere together rather than
         # hanging on a late console for a full fresh lifetime
         remaining = None if expires is None else expires - now
-        for page in _pages_for(rec["to"], rec["consoles"]):
+        pages = _pages_for(rec["to"], rec["consoles"])
+        # Keep the record's own idea of its audience current, so a later clear or
+        # release can tell whether it still overlaps anything.
+        rec["cids"] |= {p.client_id for p in pages}
+        for page in pages:
+            if page.client_id in rec["except"]:
+                continue                     # cleared here on purpose
             r = page.overlays.slots.get(slot)
             if r is not None and r.content is not None:
                 continue                     # this console already has it
@@ -698,12 +790,46 @@ def overlay_show(slot, kind, to=None, consoles=None, **content):
 
 
 def overlay_clear(slot=None, to=None, consoles=None):
-    """Clear one slot (or all slots if ``slot`` is None) on the ``to`` targets."""
-    for page in _pages_for(to, consoles):
+    """Clear one slot (or all slots if ``slot`` is None) on the ``to`` targets.
+
+    Taking a card down means taking it down, including for anyone who has not
+    arrived yet - otherwise the catch-up would put it straight back. But only
+    for the consoles actually named: a record the cleared consoles fully account
+    for is retired, a wider one keeps running for everybody else.
+    """
+    pages = _pages_for(to, consoles)
+    for page in pages:
         _on_page(page, lambda ov: ov.clear(slot))
-    # Taking a card down means taking it down, including for anyone who has not
-    # arrived yet - otherwise the catch-up would put it straight back.
-    _live_drop(slot)
+    _live_release({p.client_id for p in pages}, slot)
+
+
+def overlay_clear_console(client_id):
+    """Clear every overlay this ONE console is carrying - the transition door.
+
+    A console that is becoming something else must not arrive with the previous
+    screen's furniture still on it. Two things resurrect a leaked card and both
+    are handled here: ``OverlayManager`` lives on the PAGE and the page survives
+    a reroute, so ``present_all`` re-draws whatever the slots still hold; and the
+    catch-up ticker re-shows any live record it finds an empty slot for -
+    ``OverlayManager.clear`` sets ``content = None``, which is exactly the
+    condition that ticker tests for.
+
+    Iterates the page's OWN slots rather than the declared registry: that dict is
+    lazily created, so it is precisely the set this console has ever used, where
+    the registry carries slots nothing ever raises.
+
+    Returns:
+        int: how many slots were cleared.
+    """
+    page = gui_page_for_client(client_id)
+    if page is None or getattr(page, "overlays", None) is None:
+        return 0
+    names = list(page.overlays.slots.keys())
+    for name in names:
+        # default arg, not a closure over the loop variable - the for-loop trap
+        _on_page(page, lambda ov, s=name: ov.clear(s))
+    _live_release({client_id})
+    return len(names)
 
 
 # --- Signal bridge -----------------------------------------------------------
@@ -799,7 +925,7 @@ def _schedule_dismiss(page, slot, gen, seconds):
             # the late-joiner record here rather than leaving it to expire on its own
             # clock - otherwise the catch-up could hand the card to a console
             # arriving in the gap between the two.
-            _live_drop(slot)
+            _live_drop(slot, {page.client_id})
             _on_page(page, lambda ov: ov.clear(slot))
 
     return TickDispatcher.do_once(_fire, seconds)
@@ -1025,9 +1151,8 @@ def _start_text_cycle(page, slot, kind, fields, field, segments, dwell, loop):
         state["gen"] = r.generation if r is not None else None
         # Keep the late-joiner record on the segment actually showing, or a console
         # arriving mid-sequence would be handed part one again.
-        rec = _LIVE.get(slot)
-        if rec is not None:
-            rec["content"] = data
+        for key in _live_records_for(slot, {page.client_id}):
+            _LIVE[key]["content"] = data
 
     def _advance(t):
         r = page.overlays.slots.get(slot)
@@ -1038,7 +1163,8 @@ def _start_text_cycle(page, slot, kind, fields, field, segments, dwell, loop):
         if state["i"] >= len(segments):
             if not loop:
                 t.stop()
-                _live_drop(slot)          # played through: nothing left to catch up to
+                # played through: nothing left to catch up to, for this audience
+                _live_drop(slot, {page.client_id})
                 _on_page(page, lambda ov: ov.clear(slot))
                 return
             state["i"] = 0
@@ -1226,6 +1352,38 @@ SQUARE_STYLE = "col-width: square;"
 PORTRAIT_EM = 6.0            # strip height - the square visual sizes itself from it
 PORTRAIT_GUTTER_EM = 0.6     # thin separator column between the visual and the text
 PORTRAIT_CHOICE_EM = 2.2     # the optional reply row, below the strip
+
+
+class AnsweredPromise(_Promise):
+    """A modal's promise that takes its own card down when it is answered.
+
+    A modal that answers and stays is not a modal, and nothing else cleared these:
+    the press only resolved the promise, so ``overlay_choice`` (which has no
+    ``seconds`` at all) and a portrait reply row both left a PERMANENT card unless
+    the caller happened to remember.
+
+    Done HERE rather than in the press handler for two reasons. The handler slot
+    is the Promise itself - ``gui_button.on_message`` has a dedicated branch for
+    that which builds a ``ButtonResult`` carrying the EVENT's client id, and a
+    plain callable reading ``__ITEM__`` cannot see that. And resolving is the real
+    end of the question however it happens: a press, the ``seconds`` timeout, or a
+    story task answering it directly all come through here.
+
+    The whole audience loses the card, not just whoever pressed: these hand every
+    console one shared promise and the first answer wins, so a card still up
+    elsewhere is asking something already settled.
+    """
+
+    def __init__(self, slot, to=None, consoles=None):
+        super().__init__()
+        self._card = (slot, to, consoles)
+
+    def set_result(self, result):
+        answered = self.done()
+        super().set_result(result)
+        if not answered:
+            slot, to, consoles = self._card
+            overlay_clear(slot, to=to, consoles=consoles)
 
 
 def _reply_emitter(signal_name, prom):
@@ -1494,10 +1652,9 @@ def overlay_lower_third_portrait(name, line, face=None, ship=None, icon=None,
     # With replies: a TALLER slot by default (the reply row needs the space and the
     # engine does not clip), and no cycling - a line that reshuffles itself under a
     # question the player is answering reads as the question changing.
-    from ...futures import Promise
     if slot is None:
         slot = "lower_third_choice"
-    prom = Promise()
+    prom = AnsweredPromise(slot, to, consoles)
     fields["buttons"] = list(buttons)
     fields["_promise"] = prom
     fields["_signal"] = on_reply
@@ -1608,8 +1765,7 @@ def overlay_choice(title, buttons, to=None, consoles=None, slot="center_hero"):
         if result.data == "Yes":
             ...
     """
-    from ...futures import Promise
-    prom = Promise()
+    prom = AnsweredPromise(slot, to, consoles)
     overlay_show(slot, "choice", to=to, consoles=consoles, title=title,
                  buttons=list(buttons), _promise=prom)
     return prom

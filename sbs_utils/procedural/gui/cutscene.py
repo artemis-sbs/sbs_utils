@@ -29,9 +29,36 @@ where the engine's shape has to be respected:
         ...
 """
 from ...helpers import FrameContext
+from .viewscreen import viewscreen_restore, viewscreen_take
 from .camera import (camera_assignment, camera_auto, camera_dolly, camera_move,
                      camera_move_stop, camera_orbit_lens, camera_restore, camera_shot)
 from .overlay import consoles_of, overlay_clear, overlay_kind
+from .viewscreen_claims import TIER_STORY
+
+# Bare, not per-console: a cutscene is a beat the whole bridge is watching, and
+# cutscene_play already stops any other cutscene on the same consoles first.
+CUTSCENE_OWNER = "cutscene"
+
+
+def _cutscene_bridges(cids):
+    """The PLAYER SHIPS whose main screens this cutscene is playing to.
+
+    viewscreen_home_ship, not get_ship_of_client - a console mid-shot is riding the
+    contact it is filming. And player ships only: a Game Master or Director console
+    rides a detached camera object deliberately, and a claim on one of those would
+    be bookkeeping about a bridge that does not exist.
+    """
+    from ..roles import has_role
+    from .viewscreen import viewscreen_home_ship
+    ships = set()
+    for cid in cids:
+        try:
+            home = viewscreen_home_ship(cid)
+        except Exception:                                   # noqa: BLE001
+            continue
+        if home and has_role(home, "__player__"):
+            ships.add(home)
+    return ships
 from .viewscreen import ORBIT_PITCH, viewscreen_framing
 
 
@@ -238,6 +265,19 @@ class _Playing:
         # the trials whose reveal fell back to the hero looked fine - which is why it
         # read as one broken mission rather than a missing rule.
         self.held = camera_assignment(cids)
+        # AND the claim, per bridge. A cutscene is a story beat: while it runs, a
+        # science or weapons "on screen" pick is parked rather than applied, and
+        # helm's main-screen control does not cut it short. Claimed per SHIP because
+        # one cutscene can play to several bridges at once and each one's crew had
+        # its own view to go back to.
+        #
+        # This is also what makes `camera_assignment` above correct: taking the claim
+        # captures each console's home ship, so a cutscene starting during a viewer
+        # shot restores the bridge rather than leaving it on the contact science was
+        # filming.
+        self.ships = _cutscene_bridges(cids)
+        for ship_id in self.ships:
+            viewscreen_take(ship_id, CUTSCENE_OWNER, TIER_STORY)
 
     # --- shots ----------------------------------------------------------
     def start_shot(self, shot):
@@ -284,6 +324,12 @@ class _Playing:
             # hands control to a director that keeps following the shot subject.
             if not camera_restore(self.held):
                 camera_auto(self.cids)
+        # Release AFTER the camera is back: restoring puts each bridge's recorded
+        # view on the record, and a parked crew request fires off the back of it.
+        # Refused for any bridge something else has since claimed, which is the point
+        # of naming the owner.
+        for ship_id in getattr(self, "ships", ()):
+            viewscreen_restore(ship_id, CUTSCENE_OWNER)
         for cid in self.cids:
             if _PLAYING.get(cid) is self:
                 _PLAYING.pop(cid, None)

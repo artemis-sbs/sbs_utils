@@ -45,7 +45,14 @@ def _hail_may_answer (client_id):
     """Only a comms console answers a hail.
     
     Enforced HERE rather than by hiding buttons: hiding is cosmetic, and a press can
-    still arrive from a console that should not have one."""
+    still arrive from a console that should not have one.
+    
+    `is not None`, NOT `bool(client_id)`: the SERVER console is client id 0, which is
+    falsy, so the truth test short-circuited before `has_role` ever ran. The host could
+    see a hail and never answer it - and since the placement default became Both, a hail
+    lands on the main screen, which in an ordinary setup IS the server window. Every
+    caller (hail_accept, hail_advance, hail_answer, hail_defer) just returned False,
+    which is indistinguishable from "no open hail"."""
 def _hail_now ():
     """Sim seconds, or 0.0 with no frame context (tests, lint, tooling)."""
 def _hail_play_audio (record, ship_id=None):
@@ -104,6 +111,15 @@ def _hail_subject_gone (record):
     """True only for a NUMERIC subject that no longer exists. A string subject is
     resolved late by the renderer (it may be a role, or a ship not spawned yet), so it
     is never grounds for dropping a hail."""
+def _hail_viewer_release (ship_id):
+    """Give the main screen back, if this hail is what took it.
+    
+    Named-owner rather than a flag: `viewscreen_clear` refuses a release from
+    anyone who is not the current claimant, so this is safe to call whenever a
+    conversation ends however it ended - closed, declined, deferred, or the
+    placement dial turned off - without first working out whether we were the one
+    driving. A hail that was superseded by a cutscene simply does not own it any
+    more, and says nothing."""
 def awaitable (func):
     ...
 def dialogue_apply (agent_id, speaker, outcomes):
@@ -475,6 +491,10 @@ def hail_where_set (client_id, where):
     silently disagreeing with what is on screen."""
 def has_role (so, role):
     """Return whether an agent currently holds a given role.
+    
+    Answers for the SERVER console too. It used to always say False for client id 0,
+    which reads exactly like "the role is not there" - so a check on the server was
+    indistinguishable from a real negative and passed silently for years.
     
     Args:
         so (Agent | int): Agent ID or object.

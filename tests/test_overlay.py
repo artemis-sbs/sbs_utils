@@ -439,10 +439,13 @@ class TestOverlayModalResolves(unittest.TestCase):
         prom = overlay_choice("Fire?", ["Yes", "No"])
         self.page.overlays.present_all(FakeEvent(0))   # establish + merge tag_map
 
-        # find the "Yes" button's MessageHandler in the page tag_map and fire it
+        # find the "Yes" button's MessageHandler in the page tag_map and fire it.
+        # Matched on the button's DATA, not on the handler being the promise: the
+        # handler is now the answer-and-clear callable, and which object it is is
+        # not what this test is about.
         handler = btag = None
         for tag, (li, rn) in self.page.tag_map.items():
-            if rn is not None and getattr(rn, "handler", None) is prom and getattr(li, "data", None) == "Yes":
+            if rn is not None and getattr(li, "data", None) == "Yes":
                 handler, btag = rn, tag
                 break
         self.assertIsNotNone(handler, "Yes button handler present in page.tag_map")
@@ -450,6 +453,24 @@ class TestOverlayModalResolves(unittest.TestCase):
         handler.on_message(FakeEvent(0, sub_tag=btag))
         self.assertTrue(prom.done())
         self.assertEqual(prom.result().data, "Yes")
+
+    def test_answering_takes_the_card_down(self):
+        """A modal that answers and stays is not a modal. overlay_choice has no
+        `seconds`, so before this nothing ever cleared it."""
+        from sbs_utils.procedural.gui.overlay import overlay_choice
+        prom = overlay_choice("Fire?", ["Yes", "No"], to=0)
+        self.page.overlays.present_all(FakeEvent(0))
+        self.assertIsNotNone(self.page.overlays.slots["center_hero"].content)
+
+        handler = btag = None
+        for tag, (li, rn) in self.page.tag_map.items():
+            if rn is not None and getattr(li, "data", None) == "Yes":
+                handler, btag = rn, tag
+                break
+        handler.on_message(FakeEvent(0, sub_tag=btag))
+        self.assertTrue(prom.done())
+        self.assertIsNone(self.page.overlays.slots["center_hero"].content,
+                          "the choice card is still up after it was answered")
 
 
 class TestOverlayPolish(OverlayTestBase):
@@ -1002,17 +1023,20 @@ class TestOverlayLateJoiners(TestOverlayToTargeting):
 
     def test_late_console_is_not_given_a_fresh_full_lifetime(self):
         from sbs_utils.procedural.links import link
-        from sbs_utils.procedural.gui.overlay import _LIVE, _show_transient
+        from sbs_utils.procedural.gui.overlay import _LIVE, _live_records_for
+        from sbs_utils.procedural.gui.overlay import _show_transient
         ship = self.setUpShip()
         _show_transient("center_hero", "test", ship.id, 8, {"title": "CH1"})
-        expires = _LIVE["center_hero"]["expires"]
+        # _LIVE is keyed by (slot, audience) now - two ships can hold the same slot
+        key = _live_records_for("center_hero")[0]
+        expires = _LIVE[key]["expires"]
         self.assertIsNotNone(expires, "a timed card records when it lifts")
 
         link(ship.id, "consoles", 1002)
         self._catchup()
         # the expiry is ABSOLUTE, so the late console's dismiss comes off the same
         # moment rather than restarting the clock — it lifts everywhere together
-        self.assertEqual(_LIVE["center_hero"]["expires"], expires)
+        self.assertEqual(_LIVE[key]["expires"], expires)
         self.assertIn("center_hero", self.pages[1002].overlays.slots)
 
     def test_a_cleared_card_is_not_re_delivered(self):

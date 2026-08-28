@@ -1038,8 +1038,22 @@ class StoryPage(Page):
                     _ship = FrameContext.context.sbs.get_ship_of_client(self.client_id)
                     if _ship is not None and _ship != 0:
                         FrameContext.context.sbs.send_comms_selection_info(_ship, "", "white", "static")
+                    # THE CLEAR. Overlays belong to the CONSOLE, and this jump does
+                    # not make a new page - OverlayManager lives on the page and
+                    # survives it - so without this the last screen's hero card, hail
+                    # band or data column is re-drawn by present_all on whatever the
+                    # console becomes, and the catch-up ticker puts it back if the
+                    # mission clears it by hand.
+                    #
+                    # Only the overlays here, deliberately: what this console is
+                    # BECOMING is not known at this point, and the rest of the
+                    # transition (roles, CONSOLE_TYPE, the viewscreen claim, the crew
+                    # seat) needs that name. gui_console_enter is the full door and
+                    # belongs at the top of the console label, which does know.
+                    from ..procedural.gui.overlay import overlay_clear_console
                     from ..procedural.gui.property_listbox import gui_reset_variables
                     with FrameContextOverride(self.gui_task, self):
+                        overlay_clear_console(self.client_id)
                         gui_reset_variables(self.gui_task)
                         self.gui_task.jump(self.change_console_label)
                         self.gui_task.tick_in_context()
@@ -1047,7 +1061,14 @@ class StoryPage(Page):
         elif event.tag == "main_screen_change":
             if self.main_screen_change_label:
                 # get_inventory_value(self.client_id,"assigned_ship")
-                _ship = FrameContext.context.sbs.get_ship_of_client(self.client_id)
+                # viewscreen_home_ship, not get_ship_of_client: a console driving a
+                # viewscreen shot is ASSIGNED TO THE SUBJECT, so the raw call answers
+                # with the enemy being filmed and this would then look for the main
+                # screens of the ENEMY's console list - which is empty, so some real
+                # main screens never received the view change at all. Lazy import:
+                # this module is deep in the import chain.
+                from ..procedural.gui.viewscreen import viewscreen_home_ship
+                _ship = viewscreen_home_ship(self.client_id)
                 ms =  linked_to(_ship, "consoles") & (has_inventory_value("CONSOLE_TYPE", "mainscreen")) # | has_inventory_value("CONSOLE_TYPE", "normal_main"))
                 # 3d_view, info, data - affects layout
                 # front, left, right, back - engine controlled

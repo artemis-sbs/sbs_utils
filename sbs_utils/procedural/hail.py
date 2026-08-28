@@ -74,7 +74,16 @@ KEY_SEQ = "HAIL_SEQ"                # the arbitration token
 KEY_LOG = "HAIL_LOG"                # answered conversations, newest first
 KEY_MAIN = "HAIL_MAIN"              # is the MAIN SCREEN showing the conversation
 KEY_NEXT_ID = "HAIL_NEXT_ID"        # monotonic id source
-KEY_TOOK_VIEWER = "HAIL_TOOK_VIEWER"  # this hail is what called viewscreen_set
+# Superseded by the viewscreen CLAIM, which carries an owner token - a hail asks
+# `viewscreen_owns(ship, HAIL_VIEWER_OWNER)` instead of keeping a private flag.
+# The private flags were the bug: every subsystem had one, and each one's idea of
+# "before" overwrote the last, so once two of them had taken the screen nobody
+# held the state the crew started from. Kept, unwritten, for one release.
+KEY_TOOK_VIEWER = "HAIL_TOOK_VIEWER"
+
+# A hail belongs to the SHIP, not to a console - one bridge has one conversation -
+# so the token is bare rather than per-client.
+HAIL_VIEWER_OWNER = "hail"
 KEY_AUDIO = "HAIL_AUDIO"            # may a hail play its Audio: - default yes
 
 # Inventory keys on the CONSOLE (client), not the ship.
@@ -934,15 +943,27 @@ def hail_close(ship, declined=False):
                    "closed_at": _hail_now(), "declined": bool(declined)})
     set_inventory_value(ship_id, KEY_LOG, log[:HAIL_LOG_CAP])
 
-    if _hail_get(ship_id, KEY_TOOK_VIEWER, False):
-        set_inventory_value(ship_id, KEY_TOOK_VIEWER, False)
-        try:
-            from .gui.viewscreen import viewscreen_clear
-            viewscreen_clear(ship_id)
-        except Exception as e:
-            DEBUG(f"[hail] could not stand the viewer down: {e}")
+    _hail_viewer_release(ship_id)
     _hail_emit(ship_id, "declined" if declined else "closed", rec)
     return True
+
+
+def _hail_viewer_release(ship_id):
+    """Give the main screen back, if this hail is what took it.
+
+    Named-owner rather than a flag: `viewscreen_clear` refuses a release from
+    anyone who is not the current claimant, so this is safe to call whenever a
+    conversation ends however it ended - closed, declined, deferred, or the
+    placement dial turned off - without first working out whether we were the one
+    driving. A hail that was superseded by a cutscene simply does not own it any
+    more, and says nothing.
+    """
+    try:
+        from .gui.viewscreen import viewscreen_clear
+        return viewscreen_clear(ship_id, HAIL_VIEWER_OWNER)
+    except Exception as e:                                  # noqa: BLE001
+        DEBUG(f"[hail] could not stand the viewer down: {e}")
+        return False
 
 
 # --- audio and presentation -------------------------------------------------
@@ -1040,12 +1061,19 @@ def _hail_presentation_apply(ship_id):
         return False                      # late-resolved; the renderer binds it
     try:
         from .gui.viewscreen import viewscreen_set
+        from .gui.viewscreen_claims import TIER_STORY
         from .gui.hail_gui import hail_band_show
-        # viewscreen_set returns False when the shot is ALREADY what was asked for, so
-        # only the first call claims the viewer - but the band is refreshed every time,
-        # because the beat it is showing has usually moved on.
-        if viewscreen_set(ship_id, "orbit", subject):
-            set_inventory_value(ship_id, KEY_TOOK_VIEWER, True)
+        # A STORY claim: an incoming call is a directed moment, so helm reaching for
+        # the main-screen control parks their press until the conversation ends
+        # rather than cutting it off mid-sentence. The claim is what records that
+        # this hail is driving the screen - the old private flag could not say WHO,
+        # only that somebody had.
+        #
+        # Re-claiming every beat is deliberate and cheap: viewscreen_set no-ops when
+        # the shot is already what was asked for, and the band has to be refreshed
+        # anyway because the beat it shows has usually moved on.
+        viewscreen_set(ship_id, "orbit", subject, owner=HAIL_VIEWER_OWNER,
+                       tier=TIER_STORY)
         hail_band_show(ship_id)
         return True
     except Exception as e:
@@ -1169,13 +1197,7 @@ def hail_where_set(client_id, where):
             # full-screen overlay come down, and doing it here by hand is what left the
             # conversation on screen after the dial was set back to Off.
             _hail_presentation_apply(ship_id)
-            if _hail_get(ship_id, KEY_TOOK_VIEWER, False):
-                set_inventory_value(ship_id, KEY_TOOK_VIEWER, False)
-                try:
-                    from .gui.viewscreen import viewscreen_clear
-                    viewscreen_clear(ship_id)
-                except Exception as e:
-                    DEBUG(f"[hail] could not stand the viewer down: {e}")
+            _hail_viewer_release(ship_id)
     if ship_id is not None:
         _hail_emit(ship_id, "where", _hail_get(ship_id, KEY_ACTIVE, None),
               client_id=None if touched_main else client_id)

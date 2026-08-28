@@ -450,7 +450,8 @@ register_reset_state("cutscenes playing", lambda: len(_PLAYING))
 from .procedural.gui.rundown import _SHOTS as _RUNDOWN_SHOTS, rundown_clear
 register_reset_state("rundown shots",     lambda: len(_RUNDOWN_SHOTS))
 from .procedural.gui.viewscreen import (_VIEWERS as _VIEWSCREEN_SHOTS, viewscreen_reset,
-                                        viewscreen_helm_override)
+                                        viewscreen_helm_override,
+                                        viewscreen_effective_state)
 register_reset_state("viewscreen shots",  lambda: len(_VIEWSCREEN_SHOTS))
 from .procedural.hail import _SPEAKER_RESOLVER as _HAIL_SPEAKER, hail_reset
 # A LATCH, not a container: the per-hail records live in ship inventory and go with
@@ -786,8 +787,19 @@ def _cosmos_event_handler(sim, event):
                 # whoever was driving it - science's "on screen" (VIEWSCREEN_PLAN.md).
                 # Compared against what the viewer asked for, so a console replaying
                 # the state it is already in is not a takeover.
+                #
+                # THE WRITE ABOVE HAS TO COME FIRST (issue #595) and the arbitration
+                # has to come after it, so a story beat that REFUSES the press puts its
+                # own triple back. Which means the event no longer says what the screen
+                # is set to - and Gui.on_event below fans a reroute out to every main
+                # screen carrying these three fields as task variables. Re-stamp them
+                # with the state that actually won, or a console reading the injected
+                # MAIN_SCREEN_VIEW acts on a view the library declined to apply.
                 viewscreen_helm_override(origin, event.sub_tag, event.value_tag,
                                          event.extra_tag)
+                _ms_now = viewscreen_effective_state(origin)
+                if _ms_now is not None:
+                    event.sub_tag, event.value_tag, event.extra_tag = _ms_now
                 Gui.on_event(event)
                 tick_the_rest(event)
             

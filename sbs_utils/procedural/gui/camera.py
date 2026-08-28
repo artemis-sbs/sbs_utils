@@ -296,11 +296,18 @@ def camera_assignment(to=None, consoles=None):
         dict: client id -> the ship id it was assigned to. Ids that read back as 0 are
         omitted; there is nothing to restore and re-assigning to 0 would detach it.
     """
-    sbs = FrameContext.context.sbs
+    # viewscreen_home_ship, NOT sbs.get_ship_of_client. While a viewscreen shot is
+    # running a main screen is ASSIGNED TO THE SUBJECT - the engine only honors a
+    # camera change when the console and the lens ride the same object - so the raw
+    # call answers with the enemy being filmed. Capturing THAT as the console's home
+    # is how a cutscene played during a shot left the main screen watching an enemy
+    # ship permanently: camera_restore dutifully put it back where it was told.
+    # Imported here rather than at module scope; viewscreen imports this module.
+    from .viewscreen import viewscreen_home_ship
     held = {}
     for cid in consoles_of(to, consoles):
         try:
-            oid = sbs.get_ship_of_client(cid)
+            oid = viewscreen_home_ship(cid)
         except Exception:                               # noqa: BLE001
             continue
         if oid:

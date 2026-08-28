@@ -62,6 +62,53 @@ def gui_console_clients (path, for_ships=None):
     
     Example:
         helm_clients = gui_console_clients("helm")"""
+def gui_console_enter (client_id, console_type, ship=None):
+    """THE ONE DOOR. Call this FIRST whenever a console becomes something else.
+    
+    A console that arrives somewhere carrying the last screen's furniture is the
+    single most common transition bug in this codebase, and every mission used to
+    have to remember seven separate pieces of trivia to avoid it. This is those
+    seven, in the order that works.
+    
+    **It fires on a CHANGE of console type, not on a repaint.** A screen is
+    re-entered every time it repaints - LegendaryMissions' main screen jumps back
+    to itself on the viewscreen signal - so clearing on every reroute would tear
+    down the furniture the screen just raised. Passing the type it already is
+    is a no-op, so putting this at the top of a console label costs nothing.
+    
+    In order, and each step is here because it bit somebody:
+    
+    1. **Overlays.** They belong to the CONSOLE, not the page, and the page object
+       survives a reroute - so ``present_all`` re-draws whatever the slots still
+       hold, and the catch-up ticker re-delivers any live record it finds an empty
+       slot for. ``overlay_clear_console`` defeats both.
+    2. **The viewscreen claim.** A console that was driving its ship's main screen
+       gives it back rather than holding it from a station that no longer has the
+       control. Leaving a story claim held by a console nobody is sitting at parks
+       every later crew request forever.
+    3. **The camera.** A shot ASSIGNS its console to the object the lens rides, so
+       a console leaving mid-shot is still riding an enemy ship.
+    4. **Every console role, stripped** - or a screen that used to be a main screen
+       keeps answering as one.
+    5. **The role AND ``CONSOLE_TYPE``, both.** Role without ``CONSOLE_TYPE`` means
+       main-screen view routes never find it; ``CONSOLE_TYPE`` without the role
+       means overlays, ``announce()`` and comms drop the message in SILENCE,
+       because every audience narrows through ``any_role``.
+    6. **The crew seat.** A seat is believed only while the client's own
+       ``CONSOLE_TYPE`` still agrees with it, so changing console frees it as a side
+       effect and the player's name and face vanish. Re-asserted with an explicit
+       pick, which is deterministic where letting it re-resolve is not.
+    7. **The engine widget list.** A console leaves its native widgets behind and
+       the page underneath draws through them.
+    
+    Args:
+        client_id (int): the console.
+        console_type (str): what it is becoming - ``"helm"``, ``"mainscreen"``, a
+            mission's own console name.
+        ship (optional): the ship it belongs to. Defaults to its home ship.
+    
+    Returns:
+        bool: True if the console actually changed, False if it already was this."""
 def linked_to (link_source, link_name: str):
     """Return the set of IDs that an agent links to under a given name.
     

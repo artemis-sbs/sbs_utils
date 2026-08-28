@@ -188,8 +188,121 @@ class TestViewscreenState(unittest.TestCase):
         self.assertTrue(viewscreen_helm_override(self.ship, "3d_view", "aft", "chase"))
         self.assertFalse(viewscreen_is_live(self.ship))
 
-    def test_helm_override_when_nothing_is_running_is_a_no_op(self):
+    def test_helm_override_with_no_claim_is_a_no_op(self):
         self.assertFalse(viewscreen_helm_override(self.ship, "lrs", "front", "long"))
+
+    def test_helm_throws_away_a_console_claims_baseline(self):
+        """Helm's choice IS the new state, so there is nothing to go back to. A stale
+        baseline left recorded would let a later, unrelated release put the screen
+        somewhere the crew left minutes ago."""
+        from sbs_utils.procedural.gui.viewscreen_claims import viewscreen_baseline
+        viewscreen_set(self.ship, "orbit", self.target)
+        viewscreen_helm_override(self.ship, "lrs", "front", "long")
+        self.assertIsNone(viewscreen_baseline(self.ship))
+
+    # --- the tiers: helm beats a console, a story beats helm ----------------
+    def test_helm_does_not_break_a_story_claim(self):
+        """A cutscene, a hail, a mission beat. The crew's control is their escape
+        hatch from another CONSOLE, not from a directed moment."""
+        from sbs_utils.procedural.gui.viewscreen_claims import (TIER_STORY, viewscreen_held,
+                                                                viewscreen_tier)
+        set_inventory_value(self.ship, "MAIN_SCREEN_VIEW", "3d_view")
+        viewscreen_set(self.ship, "orbit", self.target, owner="hail", tier=TIER_STORY)
+        self.assertFalse(viewscreen_helm_override(self.ship, "lrs", "front", "long"))
+        self.assertTrue(viewscreen_is_live(self.ship))
+        self.assertEqual(viewscreen_tier(self.ship), TIER_STORY)
+        self.assertIsNotNone(viewscreen_held(self.ship), "the crew's press was dropped")
+
+    def test_a_refused_press_does_not_leave_its_view_recorded(self):
+        """handlerhooks writes the crew's triple BEFORE asking (issue #595), so the
+        refusal has to put the story's own back or the record and the screen
+        disagree."""
+        from sbs_utils.procedural.gui.viewscreen_claims import TIER_STORY
+        viewscreen_set(self.ship, "orbit", self.target, owner="hail", tier=TIER_STORY)
+        set_inventory_value(self.ship, "MAIN_SCREEN_VIEW", "lrs")   # what handlerhooks does
+        viewscreen_helm_override(self.ship, "lrs", "front", "long")
+        self.assertEqual(get_inventory_value(self.ship, "MAIN_SCREEN_VIEW"), "3d_view",
+                         "the rejected view stayed on the record")
+
+    def test_the_parked_press_applies_when_the_story_releases(self):
+        """Honored late, not lost."""
+        from sbs_utils.procedural.gui.viewscreen_claims import TIER_STORY
+        viewscreen_set(self.ship, "orbit", self.target, owner="hail", tier=TIER_STORY)
+        viewscreen_helm_override(self.ship, "lrs", "front", "long")
+        viewscreen_clear(self.ship, "hail")
+        self.assertEqual(get_inventory_value(self.ship, "MAIN_SCREEN_VIEW"), "lrs")
+        self.assertEqual(get_inventory_value(self.ship, "MAIN_SCREEN_FACING"), "front")
+
+    def test_a_console_pick_during_a_story_is_parked_not_applied(self):
+        from sbs_utils.procedural.gui.viewscreen_claims import (TIER_STORY, viewscreen_held,
+                                                                viewscreen_owner)
+        viewscreen_set(self.ship, "orbit", self.target, owner="hail", tier=TIER_STORY)
+        self.assertFalse(viewscreen_set(self.ship, "tactical", self.target,
+                                        owner="science:7"))
+        self.assertEqual(viewscreen_mode(self.ship), "orbit")
+        self.assertEqual(viewscreen_owner(self.ship), "hail")
+        self.assertIsNotNone(viewscreen_held(self.ship))
+
+    def test_the_parked_console_pick_runs_on_release(self):
+        from sbs_utils.procedural.gui.viewscreen_claims import (TIER_STORY, viewscreen_owner)
+        viewscreen_set(self.ship, "orbit", self.target, owner="hail", tier=TIER_STORY)
+        viewscreen_set(self.ship, "tactical", self.target, owner="science:7")
+        viewscreen_clear(self.ship, "hail")
+        self.assertEqual(viewscreen_mode(self.ship), "tactical")
+        self.assertEqual(viewscreen_owner(self.ship), "science:7")
+
+    def test_helm_clears_a_parked_console_pick(self):
+        """Helm just spoke. A drop-down pick from before that, firing seconds later,
+        would override the officer who overrode it."""
+        from sbs_utils.procedural.gui.viewscreen_claims import (TIER_STORY, viewscreen_held)
+        viewscreen_set(self.ship, "orbit", self.target, owner="hail", tier=TIER_STORY)
+        viewscreen_set(self.ship, "tactical", self.target, owner="science:7")
+        viewscreen_clear(self.ship, "hail")          # the parked pick runs
+        self.assertEqual(viewscreen_mode(self.ship), "tactical")
+        self.assertTrue(viewscreen_helm_override(self.ship, "lrs", "front", "long"))
+        self.assertIsNone(viewscreen_held(self.ship))
+        self.assertFalse(viewscreen_is_live(self.ship))
+
+    def test_a_parked_pick_naming_a_dead_subject_is_dropped(self):
+        from sbs_utils.procedural.gui.viewscreen_claims import TIER_STORY
+        from sbs_utils.procedural.space_objects import delete_object
+        viewscreen_set(self.ship, "orbit", self.target, owner="hail", tier=TIER_STORY)
+        gone = to_id(player_spawn(2000, 0, 0, "Ghost", "tsn", "battle"))
+        viewscreen_set(self.ship, "tactical", gone, owner="science:7")
+        delete_object(gone)
+        viewscreen_clear(self.ship, "hail")
+        self.assertFalse(viewscreen_is_live(self.ship),
+                         "a shot of a destroyed contact was started anyway")
+
+    # --- flat, last-writer-wins: NOT a stack --------------------------------
+    def test_a_story_over_a_console_returns_to_the_crews_view_not_the_console_shot(self):
+        """THE assertion most readers will guess wrong. Claims do not stack: when the
+        story releases, the screen goes back to what the CREW had, not to whatever
+        science had put up before the story took it."""
+        set_inventory_value(self.ship, "MAIN_SCREEN_VIEW", "lrs")
+        set_inventory_value(self.ship, "MAIN_SCREEN_FACING", "aft")
+        from sbs_utils.procedural.gui.viewscreen_claims import TIER_STORY
+        viewscreen_set(self.ship, "tactical", self.target, owner="science:7")
+        viewscreen_set(self.ship, "orbit", self.target, owner="hail", tier=TIER_STORY)
+        viewscreen_clear(self.ship, "hail")
+        self.assertFalse(viewscreen_is_live(self.ship), "science's shot came back")
+        self.assertEqual(get_inventory_value(self.ship, "MAIN_SCREEN_VIEW"), "lrs")
+        self.assertEqual(get_inventory_value(self.ship, "MAIN_SCREEN_FACING"), "aft")
+
+    def test_a_stale_owner_cannot_release_the_screen(self):
+        viewscreen_set(self.ship, "orbit", self.target, owner="science:7")
+        viewscreen_set(self.ship, "tactical", self.target, owner="weapons:8")
+        self.assertFalse(viewscreen_clear(self.ship, "science:7"))
+        self.assertEqual(viewscreen_mode(self.ship), "tactical")
+
+    def test_the_effective_state_is_what_the_reroute_must_carry(self):
+        """handlerhooks re-stamps the event with this, because the event still holds
+        the triple the story refused."""
+        from sbs_utils.procedural.gui.viewscreen import viewscreen_effective_state
+        from sbs_utils.procedural.gui.viewscreen_claims import TIER_STORY
+        viewscreen_set(self.ship, "orbit", self.target, owner="hail", tier=TIER_STORY)
+        viewscreen_helm_override(self.ship, "lrs", "front", "long")
+        self.assertEqual(viewscreen_effective_state(self.ship)[0], "3d_view")
 
     # --- scope ------------------------------------------------------------
     def test_two_ships_are_independent(self):
@@ -344,10 +457,16 @@ class TestHandlerWiring(unittest.TestCase):
         the failure lands on a console author as `name ... is not defined` at runtime -
         which is exactly how the drop-down's label helper was found, in a browser.
         The package export list is the contract; this is what keeps it complete."""
+        import importlib
         import sbs_utils.procedural.gui as gui_pkg
-        from sbs_utils.procedural.gui import viewscreen, viewscreen_pages
+        # importlib, NOT `from ...gui import viewscreen_pages`: a submodule sharing
+        # a name with a function the package exports is SHADOWED by it, so that form
+        # hands back the FUNCTION and this scan then walks dir(function) and finds
+        # nothing. It was passing vacuously for viewscreen_pages exactly that way.
+        modules = [importlib.import_module("sbs_utils.procedural.gui." + name)
+                   for name in ("viewscreen", "viewscreen_pages", "viewscreen_claims")]
         missing = []
-        for module in (viewscreen, viewscreen_pages):
+        for module in modules:
             for name in dir(module):
                 if not name.startswith("viewscreen_"):
                     continue
@@ -390,6 +509,51 @@ class TestViewscreenShots(unittest.TestCase):
         for _ in range(int(seconds * TICKS_PER_SECOND) + 1):
             TickDispatcher.dispatch_tick()
             mock_sbs.sim._time_tick_counter += 1
+
+    # --- who a console belongs to, while a shot has it elsewhere -----------
+    def test_camera_assignment_reports_the_home_ship_during_a_shot(self):
+        """`camera_assignment` is what a cutscene captures before its first shot so
+        it can put the console back afterwards. Reading it off get_ship_of_client
+        mid-shot captures the SUBJECT, and camera_restore then dutifully parks the
+        main screen on an enemy ship - permanently, because releasing to the engine
+        director just keeps it there."""
+        from sbs_utils.procedural.gui.camera import camera_assignment
+        viewscreen_set(self.ship, "orbit", self.target)
+        self.assertEqual(mock_sbs.get_ship_of_client(self.cid), self.target,
+                         "precondition: a shot assigns its console to the subject")
+        self.assertEqual(camera_assignment([self.cid]).get(self.cid), self.ship)
+
+    def test_a_cutscene_during_a_shot_gives_the_console_its_own_ship_back(self):
+        """The reported bug, end to end: a story beat played while science had
+        something on screen used to leave the main screen watching that contact
+        after the beat ended, with no way for helm to get it back."""
+        from sbs_utils.procedural.gui.cutscene import cutscene_play
+        viewscreen_set(self.ship, "orbit", self.target)
+        prom = cutscene_play([{"subject": self.target, "seconds": 1}], to=[self.cid])
+        self.advance(2.0)
+        self.assertTrue(prom.done(), "the cutscene never finished")
+        self.assertEqual(mock_sbs.get_ship_of_client(self.cid), self.ship,
+                         "the console was left riding the cutscene's subject")
+
+    def test_a_cutscene_parks_a_console_pick_and_runs_it_on_release(self):
+        """The whole arbitration, through the real cutscene front door: science asks
+        for a shot while a story beat is on, and gets it when the beat ends instead
+        of being ignored."""
+        from sbs_utils.procedural.gui.cutscene import cutscene_play
+        from sbs_utils.procedural.gui.viewscreen_claims import viewscreen_owner
+        prom = cutscene_play([{"subject": self.target, "seconds": 1}], to=[self.cid])
+        self.assertEqual(viewscreen_owner(self.ship), "cutscene")
+
+        self.assertFalse(viewscreen_set(self.ship, "orbit", self.target,
+                                        owner="science:%s" % self.cid),
+                         "a console pick interrupted a story beat")
+        self.assertEqual(viewscreen_mode(self.ship), "off")
+
+        self.advance(2.0)
+        self.assertTrue(prom.done())
+        self.assertEqual(viewscreen_mode(self.ship), "orbit",
+                         "the parked pick never ran")
+        self.assertEqual(viewscreen_owner(self.ship), "science:%s" % self.cid)
 
     # --- the camera -------------------------------------------------------
     def test_a_shot_points_the_camera_at_the_subject(self):

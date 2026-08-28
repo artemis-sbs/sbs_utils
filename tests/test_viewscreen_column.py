@@ -283,6 +283,64 @@ class TestColumn(unittest.TestCase):
         self.assertIn("3dview", self.page.pending_widgets,
                       "the widget list was read off the SUBJECT's ship")
 
+    def _catchup(self):
+        """Run one pass of the overlay catch-up ticker."""
+        from sbs_utils.procedural.gui.overlay import _CATCHUP
+        t = _CATCHUP["task"]
+        self.assertIsNotNone(t, "a live overlay arms the catch-up ticker")
+        t.cb(t)
+
+    def test_the_column_stops_following_a_console_that_left_the_screen(self):
+        """THE leak. The column used to be addressed to a FROZEN list of client ids
+        captured when the shot started, with no console-role narrowing - so after the
+        crew changed that console to Helm the catch-up ticker kept re-delivering a
+        science read-out onto it, once a second, immune to any clear. The id was
+        still literally in the audience whatever role it now held."""
+        from sbs_utils.procedural.gui.overlay import overlay_clear_console
+        from sbs_utils.procedural.roles import remove_role
+        viewscreen_set(self.ship, "orbit", self.foe)
+        record = _VIEWERS[self.ship]
+        self.assertIsNotNone(self.slot().content)
+
+        remove_role(self.cid, "mainscreen")          # this console is Helm now
+        overlay_clear_console(self.cid)              # the transition door
+
+        # Both ways the column re-asserts itself: the once-a-second page refresh,
+        # and the catch-up ticker. Neither may reach a console that is no longer
+        # one of this ship's main screens.
+        record["shown"] = None                       # force the next update to send
+        _column_update(record, force=True)
+        self._catchup()
+
+        region = self.slot()
+        self.assertTrue(region is None or not region.content,
+                        "the data column came back on a console that is no longer a "
+                        "main screen")
+
+    def test_a_console_taking_the_screen_mid_shot_is_caught_up(self):
+        """The other half of the same change: the audience is the SHIP's main
+        screens, re-resolved, so a console arriving after the shot started gets the
+        column. A frozen id list could never grow."""
+        late = 0x8000000000000002
+        page = StoryPage()
+        page.pending_gui = False
+        page.client_id = late
+        page.gui_task = _FakeGuiTask(page)
+        client = GuiClient(late)
+        client.page_stack.append(page)
+
+        viewscreen_set(self.ship, "orbit", self.foe)
+        self.assertIsNone(page.overlays.slots.get(COLUMN_SLOT))
+
+        add_role(late, "console")
+        add_role(late, "mainscreen")
+        link(self.ship, "consoles", late)
+        self._catchup()
+
+        region = page.overlays.slots.get(COLUMN_SLOT)
+        self.assertIsNotNone(region, "the late main screen never got the column")
+        self.assertIn("Kraken", region.content["text"])
+
     def test_a_shot_puts_the_column_on_screen(self):
         viewscreen_set(self.ship, "orbit", self.foe)
         region = self.slot()

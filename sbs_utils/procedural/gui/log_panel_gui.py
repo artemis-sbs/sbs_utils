@@ -23,7 +23,10 @@ def _ship_of(cid):
     if ctx is None or ctx.sbs is None:
         return None
     try:
-        ship = ctx.sbs.get_ship_of_client(cid)
+        # Not get_ship_of_client: on a main screen driving a shot that answers with
+        # the SUBJECT, so the tab would read out the enemy's log.
+        from .viewscreen import viewscreen_home_ship
+        ship = viewscreen_home_ship(cid)
     except Exception:
         return None
     return ship or None

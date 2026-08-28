@@ -2,6 +2,7 @@ from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
 from sbs_utils.helpers import FrameContextOverride
 from sbs_utils.pages.widgets.layout_listbox import SubPage
+from sbs_utils.futures import _Promise
 def _auto_dwell (segment):
     """Seconds to hold one segment - long enough to read, short enough to move on."""
 def _banner_builder (client_id, content):
@@ -26,12 +27,30 @@ def _hud_builder (client_id, content):
     ...
 def _letterbox_builder (client_id, content):
     ...
+def _live_audience (to, consoles):
+    """A hashable key for an audience expression, so two ships do not collide."""
 def _live_catchup (t):
     """Deliver every live overlay to consoles that have since joined its audience."""
-def _live_drop (slot=None):
+def _live_cids (to, consoles):
     ...
+def _live_drop (slot=None, cids=None):
+    """Retire live records.
+    
+    ``slot`` and ``cids`` both None means everything, which is the mission reset
+    and nothing else - see ``overlay_live_clear``. Naming ``cids`` restricts the
+    drop to records that audience actually touches, which is what keeps one
+    console's clear from cancelling another ship's card."""
+def _live_ident (item):
+    """A hashable identity for one audience item."""
 def _live_now ():
     ...
+def _live_records_for (slot, cids=None):
+    """Every live record key for ``slot`` whose audience touches ``cids``."""
+def _live_release (cids, slot=None):
+    """Take ``cids`` out of the audience of every matching live record.
+    
+    A record the cleared consoles fully account for is dropped; a wider one keeps
+    running for everybody else and simply stops being re-delivered here."""
 def _live_set (slot, kind, content, to, consoles, seconds=None, replay=None):
     """Remember an overlay as live so late joiners get it.
     
@@ -194,7 +213,29 @@ def overlay_choice (title, buttons, to=None, consoles=None, slot='center_hero'):
         if result.data == "Yes":
             ..."""
 def overlay_clear (slot=None, to=None, consoles=None):
-    """Clear one slot (or all slots if ``slot`` is None) on the ``to`` targets."""
+    """Clear one slot (or all slots if ``slot`` is None) on the ``to`` targets.
+    
+    Taking a card down means taking it down, including for anyone who has not
+    arrived yet - otherwise the catch-up would put it straight back. But only
+    for the consoles actually named: a record the cleared consoles fully account
+    for is retired, a wider one keeps running for everybody else."""
+def overlay_clear_console (client_id):
+    """Clear every overlay this ONE console is carrying - the transition door.
+    
+    A console that is becoming something else must not arrive with the previous
+    screen's furniture still on it. Two things resurrect a leaked card and both
+    are handled here: ``OverlayManager`` lives on the PAGE and the page survives
+    a reroute, so ``present_all`` re-draws whatever the slots still hold; and the
+    catch-up ticker re-shows any live record it finds an empty slot for -
+    ``OverlayManager.clear`` sets ``content = None``, which is exactly the
+    condition that ticker tests for.
+    
+    Iterates the page's OWN slots rather than the declared registry: that dict is
+    lazily created, so it is precisely the set this console has ever used, where
+    the registry carries slots nothing ever raises.
+    
+    Returns:
+        int: how many slots were cleared."""
 def overlay_credits (entries, title=None, slot='fullscreen', to=None, consoles=None, seconds=None, roll=None, window=8):
     """Opening/closing credits: a title + a list of lines. Static by default; pass
     ``roll`` (seconds per page) to auto-advance ``window`` lines at a time, clearing
@@ -247,8 +288,12 @@ def overlay_live_clear ():
     by TickDispatcher.clear(), but the HANDLE has to go with it or _live_start()
     sees a task that no longer runs and never schedules a new one — the "already
     scheduled" latch that outlives the dispatcher."""
-def overlay_lower_third (name, line, slot='lower_third', to=None, consoles=None, seconds=None, cycle=True, dwell=None, loop=None):
+def overlay_lower_third (name, line, slot='lower_third', to=None, consoles=None, seconds=None, background='#000a', cycle=True, dwell=None, loop=None):
     """Bottom name-plate + subtitle line (someone speaking over the live view).
+    
+    ``background`` fills the strip (translucent black by default) so the text reads
+    over whatever is behind it - the same scrim ``overlay_banner``, ``overlay_hero``
+    and ``overlay_lower_third_portrait`` already carry. Pass ``None`` for no fill.
     
     A line too long for the plate is shown in **timed parts** rather than clipped -
     which is what subtitles want anyway: the speaker's line arrives in readable
@@ -396,6 +441,28 @@ def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     
     Returns:
         set[int]: A set of integer IDs; ``None`` becomes an empty set."""
+class AnsweredPromise(Promise):
+    """A modal's promise that takes its own card down when it is answered.
+    
+    A modal that answers and stays is not a modal, and nothing else cleared these:
+    the press only resolved the promise, so ``overlay_choice`` (which has no
+    ``seconds`` at all) and a portrait reply row both left a PERMANENT card unless
+    the caller happened to remember.
+    
+    Done HERE rather than in the press handler for two reasons. The handler slot
+    is the Promise itself - ``gui_button.on_message`` has a dedicated branch for
+    that which builds a ``ButtonResult`` carrying the EVENT's client id, and a
+    plain callable reading ``__ITEM__`` cannot see that. And resolving is the real
+    end of the question however it happens: a press, the ``seconds`` timeout, or a
+    story task answering it directly all come through here.
+    
+    The whole audience loses the card, not just whoever pressed: these hand every
+    console one shared promise and the first answer wins, so a card still up
+    elsewhere is asking something already settled."""
+    def __init__ (self, slot, to=None, consoles=None):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def set_result (self, result):
+        ...
 class ButtonResultLike(object):
     """Mirrors ButtonResult (.data / .client_id) for the signal+promise path."""
     def __init__ (self, layout_item, client_id):

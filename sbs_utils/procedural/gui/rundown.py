@@ -30,7 +30,7 @@ The director's CONSOLE is a mission's job, not the library's - `rundown_tiles()`
 everything such a screen needs (label, live, staged, excitement) so it can be drawn with
 ordinary widgets.
 """
-from .camera import camera_auto
+from .camera import camera_assignment, camera_auto, camera_restore
 from .cutscene import shot_apply, shot_furniture
 from .overlay import consoles_of, overlay_clear, overlay_kind
 
@@ -39,8 +39,15 @@ from .overlay import consoles_of, overlay_clear, overlay_kind
 _SHOTS = {}
 
 # The desks. Audiences, not client ids, so a rundown can feed a role.
+# "held" is what each PROGRAM console was riding before the desk took it.
+# A shot ASSIGNS its console to the object the lens rides, and that assignment
+# outlives the shot: releasing to the engine director afterwards leaves it
+# following whatever was last on air. `rundown_release` used to call
+# `camera_auto` alone, which hands control back to a director that dutifully
+# keeps filming the wrong ship - the same defect cutscenes fixed with
+# `camera_assignment` / `camera_restore`, which this now uses.
 _DESK = {"program": None, "preview": None, "live": None, "staged": None,
-         "slots": set()}
+         "slots": set(), "held": None}
 
 
 def rundown_add(name, subject, lens=None, move=None, seconds=4, ease="in_out",
@@ -84,7 +91,7 @@ def rundown_clear():
     """Empty the rundown and both desks."""
     _SHOTS.clear()
     _DESK.update({"program": None, "preview": None, "live": None,
-                  "staged": None, "slots": set()})
+                  "staged": None, "slots": set(), "held": None})
 
 
 def rundown_shots():
@@ -97,9 +104,16 @@ def rundown_get(name):
 
 
 def rundown_program(to=None, consoles=None):
-    """Set (or read) the PROGRAM audience - the feed everyone sees."""
+    """Set (or read) the PROGRAM audience - the feed everyone sees.
+
+    Naming the audience is also where each console's own ship is recorded, so the
+    desk can give it back at release. Captured HERE rather than at the first punch
+    because by then a shot has already reassigned somebody.
+    """
     if to is not None:
         _DESK["program"] = list(consoles_of(to, consoles))
+        if _DESK["held"] is None:
+            _DESK["held"] = camera_assignment(_DESK["program"])
     return _DESK["program"]
 
 
@@ -185,6 +199,14 @@ def rundown_release():
         overlay_clear(slot, to=cids)
     _DESK["slots"] = set()
     _DESK["live"] = None
+    held = _DESK["held"]
+    _DESK["held"] = None
+    # Own ship first, THEN the camera: releasing first leaves the engine director
+    # following the last shot's subject for the frames in between.
+    if held:
+        n = camera_restore(held)
+        if n:
+            return n
     return camera_auto(cids)
 
 

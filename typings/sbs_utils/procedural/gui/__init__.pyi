@@ -29,6 +29,23 @@ def camera_assign (to, obj, consoles=None):
     
     Returns:
         int: how many consoles were assigned."""
+def camera_assignment (to=None, consoles=None):
+    """What each console is riding right now: ``{client_id: ship_id}``.
+    
+    Taken BEFORE a cutscene so it can be given back afterwards. `camera_track` ASSIGNS a
+    console to the object the lens rides, and assignment is identity, not framing: it
+    decides what that console can see and what the engine director follows once the
+    camera is released. So a shot that rode a station leaves the mainscreen watching
+    that station, and `camera_auto` alone does not undo it - it hands control back to a
+    director that dutifully keeps following the wrong ship.
+    
+    Captured per console rather than assumed to be "the player ship", because it is not
+    always one: a Game Master or Admiral console rides a detached camera object, and
+    putting it back on a player ship would be a worse bug than the one being fixed.
+    
+    Returns:
+        dict: client id -> the ship id it was assigned to. Ids that read back as 0 are
+        omitted; there is nothing to restore and re-assigning to 0 would detach it."""
 def camera_auto (to=None, consoles=None):
     """Hand the camera back to the engine's own director (it follows the assigned ship).
     
@@ -40,6 +57,37 @@ def camera_auto (to=None, consoles=None):
     
     Returns:
         int: how many consoles were released."""
+def camera_chase (to, subject, distance, height=0.0, seconds=30.0, consoles=None):
+    """Third person: hold the lens BEHIND the subject as it turns.
+    
+    The one move whose lens is a function of the subject's HEADING rather than of time, so it
+    ignores the eased progress and reads the world each tick. That is the whole trick, and it
+    is only possible because `_drive` calls `lens_at` per tick rather than sampling a path up
+    front.
+    
+    WHY THIS IS NOT A TRACTOR. The intuitive way to chase is to attach the camera to the
+    target and let the engine drag it. There is nothing to attach: the dolly and the target
+    must be the SAME object or the frame is black, so the lens already rides the subject - a
+    tractored camera object would be dragged along with nothing looking through it. Following
+    IS re-aiming, and the engine has no interpolation to do it for us.
+    
+    WHY IT MUST RUN ON THE TICK. Re-aiming from a mission loop at a few hertz reads as a
+    stutter, not as a saving - the same note `_drive` carries. A chase driven from a 0.5s
+    mission tick flickers; the same maths on the dispatcher does not.
+    
+    A world-space offset does NOT rotate with the dolly, which is why the offset is rebuilt
+    from `forward_vector()` every tick instead of being computed once. A subject with no usable
+    heading (a rock, or an engine object that will not answer) falls back to a fixed offset
+    rather than raising - a chase that is merely not behind the ship still shows the ship.
+    
+    Args:
+        distance (float): how far BEHIND the subject to sit.
+        height (float): how far above it. A little is usually better than none.
+        seconds (float): how long this leg runs. Re-issue it to keep chasing - the same way
+            an orbit is re-issued lap by lap.
+    
+    Returns:
+        Promise: resolves when the leg ends, or when the subject goes."""
 def camera_dolly (to, subject, from_distance, to_distance, yaw=0.0, pitch=12.0, seconds=20.0, ease='in_out', consoles=None):
     """Push the lens in (or pull it out) along a fixed angle, FOLLOWING the subject.
     
@@ -129,6 +177,19 @@ def camera_rack (to, subject, consoles=None):
     
     Returns:
         int: how many consoles were re-aimed."""
+def camera_restore (assignments):
+    """Put each console back on the object it was riding, and release the camera.
+    
+    The counterpart to `camera_assignment`, and the general rule for ending a cutscene:
+    give the console back its own ship, THEN hand the camera to the engine director. In
+    that order - releasing first leaves the director following the shot subject for the
+    frames in between.
+    
+    Args:
+        assignments (dict): what `camera_assignment` returned.
+    
+    Returns:
+        int: how many consoles were put back."""
 def camera_shot (to, subject, lens_world, consoles=None):
     """Put the lens at an ABSOLUTE world position, looking at `subject`.
     
@@ -206,19 +267,49 @@ def cutscene_define (name, shots, letterbox=True, skippable=True, bar=4, release
         name (str): what ``cutscene_play`` will look up.
         shots (list[dict]): in order. Per shot:
             ``subject`` (required) - what the shot looks at, and necessarily what
-            the lens rides; ``lens`` (world position) OR ``move`` ([from, to]);
-            ``seconds`` (default 4); ``ease``; ``overlay`` ({"kind": ..., plus that
-            kind's fields}).
+            the lens rides; ``framing`` (``close``/``medium``/``wide``, or a two-item
+            list for a move) OR ``lens`` (world position) OR ``move`` ([from, to]);
+            ``seconds`` (default 4); ``ease``; ``yaw``/``pitch``; ``overlay``
+            ({"kind": ..., plus that kind's fields}).
+            Prefer ``framing``: it scales to the subject's hull, so one shot frames a
+            runabout and a starbase alike. ``lens``/``move`` are world POSITIONS and
+            so also depend on where the subject is parked.
         letterbox (bool): black bars for the duration.
         skippable (bool): whether ``cutscene_skip`` ends it.
         bar (float): letterbox bar height in em.
-        release (bool): hand the camera back to the engine's director at the end.
+        release (bool): at the end, put each console back on the object it was riding
+            and hand the camera to the engine's director.
             Leave it True unless the next thing the story does is set its own shot -
             a cutscene that ends still holding a dolly will drop to the engine
             default the moment that object is deleted.
     
     Returns:
         dict: the stored cutscene."""
+def cutscene_framing (subject, size='medium'):
+    """How far the lens sits for a named shot size, scaled to the subject's own hull.
+    
+    A DISTANCE TYPED BY HAND FRAMES EXACTLY ONE SHIP. The subjects a mission points a
+    camera at are not one size: across the TNG pack a B'Rel is 25 units of hull radius
+    and Deep Space Nine is 220, and a planet is 10,000. One coordinate triple makes the
+    big one overflow the frame and the small one a speck, which is precisely the report
+    this exists to answer.
+    
+    So the distance is read off the subject instead. `viewscreen_framing` already does
+    that arithmetic - 6 hull radii at the closest, 16 at the widest, floored at 250 so
+    the engine reporting a tiny hull cannot put the lens inside it - and the Director
+    has framed its shots that way since it deleted its own distance sliders, on the
+    grounds that "a fixed number framed a starbase and a fighter equally badly".
+    
+    `medium` is the midpoint rather than a fourth constant, so there is still exactly
+    one place these numbers are written down.
+    
+    Args:
+        subject: the object the shot looks at.
+        size (str): ``close``, ``medium`` or ``wide``. Anything else is treated as
+            ``medium`` - a misspelled size should give a usable shot, not no shot.
+    
+    Returns:
+        float: distance from the subject, in world units."""
 def cutscene_get (name):
     """The stored cutscene, or None."""
 def cutscene_play (name_or_shots, to=None, consoles=None, **overrides):
@@ -306,7 +397,7 @@ def gui_blank (count=1, style=None):
         gui_blank()
         gui_icon("icons/shield")
         gui_blank()"""
-def gui_button (props, style=None, data=None, on_press=None, is_sub_task=False):
+def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None):
     """Add a button to the current GUI layout outside of an ``await gui()`` block.
     
     Unlike buttons declared with ``*`` or ``+`` inside ``await gui()``, this
@@ -327,10 +418,14 @@ def gui_button (props, style=None, data=None, on_press=None, is_sub_task=False):
         on_press (label | callable | Promise, optional): What to do when the
             button is pressed. A label is jumped to; a callable is called; a
             Promise has its result set. Defaults to None.
-        is_sub_task (bool, optional): When ``True`` the handler runs as an
-            independent sub-task. Use ``False`` (default) only when pressing
-            the button will rebuild the entire GUI via ``await gui()``.
-            Defaults to False.
+        is_sub_task (bool, optional): How an ``on_press`` **label** runs.
+            ``True`` runs it as a sub-task: safe to press repeatedly, and it
+            should end with ``->END``. ``False`` jumps the task that built the
+            widget, so the press takes that task over and the handler must hand
+            the console back -- this is the historical behavior and is
+            **deprecated**. Defaults to None, meaning the library decides; a
+            handler that paints a screen and reaches ``await gui()`` sends the
+            GUI task there either way, so you should not need this.
     
     Valid Styles:
         area:
@@ -525,6 +620,53 @@ def gui_console_clients (path, for_ships=None):
     
     Example:
         helm_clients = gui_console_clients("helm")"""
+def gui_console_enter (client_id, console_type, ship=None):
+    """THE ONE DOOR. Call this FIRST whenever a console becomes something else.
+    
+    A console that arrives somewhere carrying the last screen's furniture is the
+    single most common transition bug in this codebase, and every mission used to
+    have to remember seven separate pieces of trivia to avoid it. This is those
+    seven, in the order that works.
+    
+    **It fires on a CHANGE of console type, not on a repaint.** A screen is
+    re-entered every time it repaints - LegendaryMissions' main screen jumps back
+    to itself on the viewscreen signal - so clearing on every reroute would tear
+    down the furniture the screen just raised. Passing the type it already is
+    is a no-op, so putting this at the top of a console label costs nothing.
+    
+    In order, and each step is here because it bit somebody:
+    
+    1. **Overlays.** They belong to the CONSOLE, not the page, and the page object
+       survives a reroute - so ``present_all`` re-draws whatever the slots still
+       hold, and the catch-up ticker re-delivers any live record it finds an empty
+       slot for. ``overlay_clear_console`` defeats both.
+    2. **The viewscreen claim.** A console that was driving its ship's main screen
+       gives it back rather than holding it from a station that no longer has the
+       control. Leaving a story claim held by a console nobody is sitting at parks
+       every later crew request forever.
+    3. **The camera.** A shot ASSIGNS its console to the object the lens rides, so
+       a console leaving mid-shot is still riding an enemy ship.
+    4. **Every console role, stripped** - or a screen that used to be a main screen
+       keeps answering as one.
+    5. **The role AND ``CONSOLE_TYPE``, both.** Role without ``CONSOLE_TYPE`` means
+       main-screen view routes never find it; ``CONSOLE_TYPE`` without the role
+       means overlays, ``announce()`` and comms drop the message in SILENCE,
+       because every audience narrows through ``any_role``.
+    6. **The crew seat.** A seat is believed only while the client's own
+       ``CONSOLE_TYPE`` still agrees with it, so changing console frees it as a side
+       effect and the player's name and face vanish. Re-asserted with an explicit
+       pick, which is deterministic where letting it re-resolve is not.
+    7. **The engine widget list.** A console leaves its native widgets behind and
+       the page underneath draws through them.
+    
+    Args:
+        client_id (int): the console.
+        console_type (str): what it is becoming - ``"helm"``, ``"mainscreen"``, a
+            mission's own console name.
+        ship (optional): the ship it belongs to. Defaults to its home ship.
+    
+    Returns:
+        bool: True if the console actually changed, False if it already was this."""
 def gui_content (content, style=None, var=None):
     """Place a Python widget object into the layout system.
     
@@ -770,7 +912,7 @@ def gui_icon_add_atlas (name, image, left=None, top=None, right=None, bottom=Non
 def gui_icon_add_atlas_grid (image, cols, rows=None, names=None, cell=None, color=None, start=0):
     """Claim a whole sheet of icon names at once - `gui_image_add_atlas_grid` in the icon
     domain. Names are laid out row-major; a `None` entry skips a cell."""
-def gui_icon_button (props, style=None, data=None, on_press=None, is_sub_task=False):
+def gui_icon_button (props, style=None, data=None, on_press=None, is_sub_task=None):
     """Add a clickable icon button to the current GUI layout.
     
     Like ``gui_icon`` but the rendered item accepts click events. Takes
@@ -788,8 +930,14 @@ def gui_icon_button (props, style=None, data=None, on_press=None, is_sub_task=Fa
             icon is pressed. A label is jumped to; a callable is called; a
             Promise has its result set. Defaults to None - attach the handler
             with ``gui_message`` / ``gui_click`` instead.
-        is_sub_task (bool, optional): When ``True`` an ``on_press`` label runs
-            as an independent sub-task. Defaults to False.
+        is_sub_task (bool, optional): How an ``on_press`` **label** runs.
+            ``True`` runs it as a sub-task: safe to press repeatedly, and it
+            should end with ``->END``. ``False`` jumps the task that built the
+            widget, so the press takes that task over and the handler must hand
+            the console back -- this is the historical behavior and is
+            **deprecated**. Defaults to None, meaning the library decides; a
+            handler that paints a screen and reaches ``await gui()`` sends the
+            GUI task there either way, so you should not need this.
     
     Returns:
         IconButton: The layout item created.
@@ -1345,6 +1493,28 @@ def gui_log_tail (count=None, background=None, tab='log', style=None):
         background (str, optional): the strip's colour. Defaults to LOG_TAIL_BACKGROUND.
         tab (str, optional): which stream to tail. Defaults to everything.
         style (str, optional): extra style for the text area."""
+def gui_map_picker (maps=None, properties=True, title=None, start_text='Start', list_style='item-gap: 7em;'):
+    """Build a map carousel plus a Start button; return an awaitable resolving to the choice.
+    
+    Pairs with ``map_start``: this one only CHOOSES, so a mission can do something else with
+    the answer, or start a map it picked some other way.
+    
+        chosen = await gui_map_picker()
+        map_start(chosen)
+    
+    Args:
+        maps (list | None): Map labels to offer. Defaults to ``maps_get_list()``, which
+            already hides maps whose ``if`` condition is false.
+        properties (bool): Render the selected map's ``Properties:`` panel. On by default -
+            it is two calls, and without it a map expecting ``PLAYER_COUNT`` starts with it
+            unset, which is a silent wrong-behaviour trap rather than a missing feature.
+        title (str | None): Listbox title. Defaults to a count of the maps.
+        start_text (str): Label for the start button.
+        list_style (str): Style string for the carousel.
+    
+    Returns:
+        Promise: Resolves with the chosen map Label when Start is pressed. A story with no
+        maps draws a message and returns a promise that never resolves, rather than raising."""
 def gui_message (layout_item, label=None):
     """Register a MAST label to run when a layout element receives a GUI event.
     
@@ -1533,7 +1703,7 @@ def gui_properties_set (p=None, tag=None):
     
     Example:
         gui_properties_set({"Speed": "gui_text(str(ship_speed))", "Shields": "gui_slider(shield_pct)"})"""
-def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x000001FAEDA8DC70>):
+def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x000002B55DAB5F30>):
     """Create a property list box with single-line label/control layout.
     
     Each property is rendered as a label on the left and its control widget
@@ -1906,20 +2076,29 @@ def gui_sub_section (style=None):
     keyword. The sub-section is added to the current layout when the ``with``
     block exits.
     
+    The returned object can be hidden and restored after it is built, with
+    ``gui_hide`` / ``gui_show`` or its own ``show()``. Hiding takes the whole
+    sub-tree off screen, and its siblings reclaim the space on the next layout
+    pass. Hold on to the object to do that - hiding one before its ``with``
+    block has run is a no-op, since the layout it stands for does not exist yet.
+    
     Args:
         style (str, optional): CSS-like style string controlling the column
             width, row height, background, etc. of the sub-section.
             Defaults to None.
     
     Returns:
-        PageSubSection: Context manager object. Use with ``with``.
+        PageSubSection: Context manager object with ``show()`` and
+            ``is_hidden``. Use with ``with``.
     
     Example:
         gui_row(style="row-height:3em;")
         with gui_sub_section(style="col-width:30%;"):
             gui_text("Left column")
-        with gui_sub_section():
-            gui_text("Right column")"""
+        right = gui_sub_section()
+        with right:
+            gui_text("Right column")
+        gui_hide(right)     # and gui_show(right) to bring it back"""
 def gui_tab_activate (tab_name: str):
     """Sets the back tab (left most) tab for the console tabs.
     This is general called automatically by //gui/tab and //console labels
@@ -2424,7 +2603,29 @@ def overlay_choice (title, buttons, to=None, consoles=None, slot='center_hero'):
         if result.data == "Yes":
             ..."""
 def overlay_clear (slot=None, to=None, consoles=None):
-    """Clear one slot (or all slots if ``slot`` is None) on the ``to`` targets."""
+    """Clear one slot (or all slots if ``slot`` is None) on the ``to`` targets.
+    
+    Taking a card down means taking it down, including for anyone who has not
+    arrived yet - otherwise the catch-up would put it straight back. But only
+    for the consoles actually named: a record the cleared consoles fully account
+    for is retired, a wider one keeps running for everybody else."""
+def overlay_clear_console (client_id):
+    """Clear every overlay this ONE console is carrying - the transition door.
+    
+    A console that is becoming something else must not arrive with the previous
+    screen's furniture still on it. Two things resurrect a leaked card and both
+    are handled here: ``OverlayManager`` lives on the PAGE and the page survives
+    a reroute, so ``present_all`` re-draws whatever the slots still hold; and the
+    catch-up ticker re-shows any live record it finds an empty slot for -
+    ``OverlayManager.clear`` sets ``content = None``, which is exactly the
+    condition that ticker tests for.
+    
+    Iterates the page's OWN slots rather than the declared registry: that dict is
+    lazily created, so it is precisely the set this console has ever used, where
+    the registry carries slots nothing ever raises.
+    
+    Returns:
+        int: how many slots were cleared."""
 def overlay_credits (entries, title=None, slot='fullscreen', to=None, consoles=None, seconds=None, roll=None, window=8):
     """Opening/closing credits: a title + a list of lines. Static by default; pass
     ``roll`` (seconds per page) to auto-advance ``window`` lines at a time, clearing
@@ -2470,8 +2671,12 @@ def overlay_kind (kind, to=None, consoles=None, slot=None, seconds=None, **field
 def overlay_letterbox (line=None, bar=4, to=None, consoles=None, slot='fullscreen', seconds=None):
     """Cinematic letterbox: black bars top+bottom (``bar`` em each) with an optional
     centered line. Sticky by default; pass ``seconds`` to auto-lift."""
-def overlay_lower_third (name, line, slot='lower_third', to=None, consoles=None, seconds=None, cycle=True, dwell=None, loop=None):
+def overlay_lower_third (name, line, slot='lower_third', to=None, consoles=None, seconds=None, background='#000a', cycle=True, dwell=None, loop=None):
     """Bottom name-plate + subtitle line (someone speaking over the live view).
+    
+    ``background`` fills the strip (translucent black by default) so the text reads
+    over whatever is behind it - the same scrim ``overlay_banner``, ``overlay_hero``
+    and ``overlay_lower_third_portrait`` already carry. Pass ``None`` for no fill.
     
     A line too long for the plate is shown in **timed parts** rather than clipped -
     which is what subtitles want anyway: the speaker's line arrives in readable
@@ -2611,12 +2816,15 @@ def overlay_toast (text, icon=None, seconds=3, to=None, consoles=None, slot='cor
             shows in ``log`` regardless.
         severity (str, optional): ``tip`` | ``warning`` | ``danger``. A warning or danger
             line renders as a callout and raises the log tab."""
-def rundown_add (name, subject, lens=None, move=None, seconds=4, ease='in_out', label=None, overlay=None):
+def rundown_add (name, subject, lens=None, move=None, seconds=4, ease='in_out', label=None, overlay=None, framing=None, yaw=None, pitch=None):
     """Add (or replace) a shot in the rundown.
     
     Args:
         name (str): how the director refers to it.
         subject: what the shot looks at - and necessarily what the lens rides.
+        framing: a named size (``close``/``medium``/``wide``), or two for a move.
+            PREFERRED over lens/move - the distance is taken from the subject own
+            hull, so one shot frames a runabout and a starbase alike.
         lens: world position for a static shot.
         move: ``[from, to]`` world positions for a moving one.
         seconds (float): duration of a ``move`` (a static shot holds until punched away).
@@ -2640,7 +2848,11 @@ def rundown_live ():
 def rundown_preview (to=None, consoles=None):
     """Set (or read) the PREVIEW audience - the director's own console."""
 def rundown_program (to=None, consoles=None):
-    """Set (or read) the PROGRAM audience - the feed everyone sees."""
+    """Set (or read) the PROGRAM audience - the feed everyone sees.
+    
+    Naming the audience is also where each console's own ship is recorded, so the
+    desk can give it back at release. Captured HERE rather than at the first punch
+    because by then a shot has already reassigned somebody."""
 def rundown_punch (name, flash=False):
     """Put a shot on PROGRAM. Returns True if it went live.
     
@@ -2683,8 +2895,58 @@ def viewscreen_apply (ship):
     
     Returns:
         int: how many consoles the shot is running on."""
-def viewscreen_clear (ship):
-    """Hand the screen back, restoring the view the crew had before the viewer took it.
+def viewscreen_baseline (ship):
+    """The ``(view, facing, mode)`` the crew had before anyone took the screen."""
+def viewscreen_baseline_drop (ship):
+    """Forget the baseline without restoring it.
+    
+    What a helm takeover does: helm's choice IS the new state, so there is nothing
+    to go back to and leaving a stale baseline recorded would let a later,
+    unrelated release put the crew's screen somewhere they left minutes ago."""
+def viewscreen_bump (ship):
+    """Advance the sequence. Call BEFORE the outcome, never after."""
+def viewscreen_claim (ship, tier='console', owner=None, baseline=None, cids=None):
+    """Record that ``owner`` holds this ship's main screen.
+    
+    Bookkeeping only - it does not move a camera or write a main-screen view. The
+    caller (``viewscreen_set``, a cutscene, the Director) does that; this decides
+    whether it is allowed to and remembers what to go back to.
+    
+    Args:
+        ship: the player ship whose screen this is.
+        tier (str): ``"console"`` or ``"story"``.
+        owner (str, optional): the token from ``viewscreen_owner_token``. An
+            unnamed claim is still a claim.
+        baseline (tuple, optional): the ``(view, facing, mode)`` to record if this
+            is the first claim. Captured by the caller because only it can read the
+            engine state.
+        cids (iterable, optional): the main screens whose home ship the caller has
+            recorded, noted alongside the baseline on the first claim.
+    
+    Returns:
+        bool: True if the claim was taken. False when a STORY claim holds and this
+        is a console one - the caller should park its request rather than act."""
+def viewscreen_claim_drop (ship, owner=None, keep_baseline=False):
+    """Give up the claim. Bookkeeping only - see ``viewscreen_restore``.
+    
+    Args:
+        owner (str, optional): refuse unless this token still holds it. ``None``
+            forces, which is what a mission reset and the one-door console
+            transition want.
+        keep_baseline (bool): leave the baseline recorded. Only ``True`` while a
+            caller is in the middle of applying it.
+    
+    Returns:
+        bool: True if a claim was dropped."""
+def viewscreen_claimed (ship):
+    """Whether anything holds this ship's main screen."""
+def viewscreen_clear (ship, owner=None):
+    """Hand the screen back, restoring the view the crew had before it was taken.
+    
+    Args:
+        owner (str, optional): refuse unless this token still holds the claim, so
+            a console whose shot was replaced cannot take the screen off whoever
+            replaced it. ``None`` forces.
     
     Returns:
         bool: True if a viewer was running."""
@@ -2694,6 +2956,18 @@ def viewscreen_consoles (ship):
     Narrowed to the SHIP's own screens, which is what keeps one bridge's viewer out of
     another's. Returns an empty set when no main screen is connected, which is normal
     and not an error."""
+def viewscreen_effective_state (ship):
+    """What this ship's main screen is ACTUALLY set to, after arbitration.
+    
+    ``handlerhooks`` writes the crew's triple, then asks
+    ``viewscreen_helm_override`` what to do with it, and then fans a reroute out to
+    the ship's main screens carrying the EVENT's values as task variables. When a
+    story claim refused the press, those values are the rejected ones - so the
+    reroute has to carry this instead, or a console reading the injected
+    ``MAIN_SCREEN_VIEW`` sees a view the library declined to apply.
+    
+    LegendaryMissions reads the ship's inventory rather than the injected variable,
+    so LM would not show this - which is exactly what makes it easy to ship broken."""
 def viewscreen_framing (subject):
     """``(near, far)`` lens distances for a subject.
     
@@ -2701,23 +2975,52 @@ def viewscreen_framing (subject):
     rather than one being a speck and the other clipping the lens. ``exclusion_radius``
     is the only size the engine actually exposes; when it says nothing, a default that
     frames a mid-sized ship is better than a guess that frames nothing."""
+def viewscreen_held (ship):
+    """The crew request parked behind a story claim, or None."""
 def viewscreen_helm_override (ship, view, facing, mode):
-    """Helm touched the main-screen control: the viewer stands down.
+    """Helm or weapons touched the engine's main-screen control.
     
     Called from the ``main_screen_change`` handler with the triple the engine just
-    reported. No restore - helm's choice IS the new state, and putting the viewer's
-    idea of "before" back over the top would undo the very change being handled.
+    reported. What happens next depends on WHO holds the screen:
     
-    A triple identical to what the viewer asked for is NOT a takeover: a console
-    reconnecting replays the state it is already in.
+    * **A console claim** - science's "on screen", weapons', docking's - stands
+      down, and nothing is restored: helm's choice IS the new state, and putting a
+      recorded "before" back over the top would undo the very change being handled.
+      Any request parked behind a story beat is thrown away too; helm just spoke,
+      and a stale drop-down pick firing later would override the officer who
+      overrode it.
+    * **A story claim** - a cutscene, a hail, a mission beat - does NOT stand down.
+      The crew's press is PARKED and applied when the story releases, so it is
+      honored a few seconds late rather than lost, and the story's own triple is
+      written back so the engine and the record agree again.
+    
+    A triple identical to what the claim asked for is not a takeover either way: a
+    console reconnecting replays the state it is already in.
     
     The triple is written here as well as by the caller. ``handlerhooks`` already
     records it (issue #595) and writing it twice is harmless - but a function whose
     postcondition depends on the caller having gone first is a trap for the next
     caller, so this one leaves the ship in the state it was told about either way.
+    On the story path that means writing the story's triple BACK over what the
+    caller just recorded, which is the whole point.
     
     Returns:
-        bool: True if a viewer was stood down."""
+        bool: True if a claim was stood down. False for a story claim that held -
+        see ``viewscreen_effective_state`` for what the screen is actually showing
+        afterwards, which is what the reroute has to carry."""
+def viewscreen_hold (ship, request):
+    """Park a crew request that arrived while a story held the screen.
+    
+    ONE request, not a queue: the crew pressing three things during a cutscene
+    means they want the last one, and replaying all three on release would walk the
+    screen through states nobody asked to see."""
+def viewscreen_hold_drop (ship):
+    """Throw the parked request away.
+    
+    What helm's control does on a console-tier claim: helm just spoke, and a stale
+    drop-down pick firing later would override the officer who overrode it."""
+def viewscreen_hold_take (ship):
+    """Take the parked request, clearing it. Returns None when there is none."""
 def viewscreen_home_ship (client_id):
     """The ship a console BELONGS to, even while a shot has it assigned elsewhere.
     
@@ -2738,6 +3041,22 @@ def viewscreen_mode (ship):
 def viewscreen_mode_for (label):
     """The mode a drop-down label means. Unknown labels read as ``off`` - a console
     showing something we do not recognize must not leave the screen commandeered."""
+def viewscreen_owner (ship):
+    """Who holds this ship's main screen, or ``""``."""
+def viewscreen_owner_token (kind, client_id=None):
+    """The owner token for a claimant.
+    
+    Per-CONSOLE for anything a crew member drives (``science``, ``weapons``), bare
+    for anything the ship has one of (``hail``, ``docking``). Two science consoles
+    on one bridge are two different claimants; one bridge has only one docking."""
+def viewscreen_owns (ship, owner):
+    """Is ``owner``'s claim still the live one?
+    
+    The question a console should ask before acting on the screen it thinks it is
+    driving. LegendaryMissions' weapons console hand-rolled this as a private
+    ``WEAP_VIEWER_SUBJECT`` inventory value, and science never asked at all - which
+    is why science re-pointing on a new selection used to yank a shot weapons had
+    set up."""
 def viewscreen_page_names ():
     """Every registered page name, in display order."""
 def viewscreen_page_register (name, fn, order=50):
@@ -2770,7 +3089,46 @@ def viewscreen_reset ():
     clients these records name belong to a sim that is being torn down, so re-assigning
     their cameras is at best pointless. This just stops the records outliving the
     mission that made them."""
-def viewscreen_set (ship, mode, subject=None):
+def viewscreen_restore (ship, owner=None):
+    """THE DOOR HOME. Put this ship's main screen back the way the crew had it.
+    
+    Drops the claim, stops the shot, takes the viewer's own overlays down, gives
+    every main screen its own ship back, restores the baseline view, and then -
+    and only then - applies whatever crew request was parked behind a story beat.
+    
+    The ORDER is load-bearing, twice:
+    
+    * **Assignments before the triple.** The assignment decides what a console can
+      SEE; the triple only decides its widget list. Restore the triple first and
+      the main-screen label re-runs while the console is still riding the subject,
+      so it picks its widgets from the SUBJECT's ``MAIN_SCREEN_VIEW`` - the hazard
+      ``gui_console`` documents.
+    * **The parked request last.** Applying it claims the screen again and
+      captures a baseline; it has to capture the RESTORED one, not the story's.
+    
+    Args:
+        owner (str, optional): refuse unless this token still holds the claim.
+            ``None`` forces - what a console transition and a reset want.
+    
+    Returns:
+        bool: True if anything was holding the screen."""
+def viewscreen_roster (ship):
+    """The main screens that have a home recorded for this claim.
+    
+    Held on the SHIP while the home VALUE is held on each console, and that split
+    is deliberate: ``viewscreen_home_ship(client_id)`` has only a client id, so the
+    value has to be reachable from one - but a restore has to reach consoles that
+    have since stopped being this ship's main screens, so the membership has to
+    live somewhere that outlives the role."""
+def viewscreen_roster_add (ship, client_id):
+    """Note that this console has a home recorded - the late-joiner path."""
+def viewscreen_seq (ship):
+    """The claim sequence, bumped on every claim and every release.
+    
+    Poll it to notice the screen changed hands. Bumped BEFORE the outcome runs, the
+    same rule ``hail.py`` follows, so a second actor in the same frame is already
+    carrying a stale value by the time it arrives."""
+def viewscreen_set (ship, mode, subject=None, owner=None, tier='console'):
     """Point this ship's main screen at something.
     
     Args:
@@ -2778,9 +3136,20 @@ def viewscreen_set (ship, mode, subject=None):
         mode (str): one of ``MODES``. ``"off"`` is the same as ``viewscreen_clear``.
         subject (Agent | int, optional): what the shot is about - normally the science
             selection. ``None`` means no subject.
+        owner (str, optional): the claim token, from ``viewscreen_owner_token``.
+            Without one the claim is anonymous - still a claim, but nothing can
+            ask whether it is still theirs.
+        tier (str): ``"console"`` (the default - a crew member's pick) or
+            ``"story"`` (a cutscene, a hail, a mission beat).
     
     Returns:
-        bool: True when the state changed."""
+        bool: True when the state changed.
+    
+    **False now means two things.** It has always meant "already showing exactly
+    that"; it also means "a STORY claim holds the screen, so your request was
+    PARKED and will be applied when the story releases". Ask
+    ``viewscreen_owns(ship, owner)`` when you need to know which - that is the
+    question a console actually has."""
 def viewscreen_shot_props (current=None):
     """The whole property string for a shot drop-down.
     
@@ -2790,3 +3159,18 @@ def viewscreen_shot_props (current=None):
     label shown while it is closed, so pass what is currently running."""
 def viewscreen_subject (ship):
     """The id the shot is about, or 0."""
+def viewscreen_take (ship, owner=None, tier='story'):
+    """Claim this ship's main screen WITHOUT starting one of the viewer's own shots.
+    
+    For anything that drives the screen its own way and still has to be arbitrated:
+    a cutscene, the Director, a mission beat pointing the camera by hand. It records
+    the crew's view and every main screen's home ship the same way ``viewscreen_set``
+    does, so ``viewscreen_restore`` puts the bridge back afterwards - which is what
+    a cutscene played during a science shot could not do before, because the only
+    thing that captured a baseline was a shot starting.
+    
+    Returns:
+        bool: False when a story claim already holds the screen and this is a
+        console-tier request."""
+def viewscreen_tier (ship):
+    """``"console"``, ``"story"``, or ``""`` when nothing holds the screen."""

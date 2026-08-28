@@ -24,12 +24,21 @@ from .cutscene import (cutscene_define, cutscene_play, cutscene_skip,
 from .viewscreen import (viewscreen_set, viewscreen_clear, viewscreen_mode,
                          viewscreen_subject, viewscreen_is_live, viewscreen_consoles,
                          viewscreen_helm_override, viewscreen_apply, viewscreen_framing,
-                         viewscreen_home_ship, viewscreen_reset,
+                         viewscreen_home_ship, viewscreen_reset, viewscreen_restore,
+                         viewscreen_effective_state, viewscreen_take,
                          viewscreen_shot_props, viewscreen_mode_for,
                          viewscreen_label_for, SHOT_LABELS)
 from .viewscreen_pages import (viewscreen_page_register, viewscreen_page_remove,
                                viewscreen_page_names, viewscreen_pages,
                                viewscreen_hull_percent, viewscreen_relative_bearing)
+from .viewscreen_claims import (viewscreen_claim, viewscreen_claim_drop,
+                              viewscreen_claimed, viewscreen_owner, viewscreen_owns,
+                              viewscreen_owner_token, viewscreen_tier, viewscreen_seq,
+                              viewscreen_baseline, viewscreen_baseline_drop,
+                              viewscreen_bump, viewscreen_held, viewscreen_hold,
+                              viewscreen_hold_take, viewscreen_hold_drop,
+                              viewscreen_roster, viewscreen_roster_add,
+                              TIER_CONSOLE, TIER_STORY, VIEWSCREEN_TIERS)
 # The module is hail_gui, not hail_view, because it EXPORTS a function called
 # hail_view - and a submodule sharing a name with an exported function is
 # shadowed by it, so `from ...gui import hail_view` hands back the function.
@@ -69,7 +78,7 @@ from .style import gui_set_style_def, gui_style_def
 from .navigation import gui_reroute_server, gui_reroute_clients, gui_reroute_client
 from .navigation import gui_history_store, gui_history_back, gui_history_forward, gui_history_jump, gui_history_clear, gui_history_redirect
 
-from .console import gui_console, gui_activate_console, gui_console_clients
+from .console import gui_console, gui_activate_console, gui_console_clients, gui_console_enter
 from .widgets import gui_update_widget_list, gui_update_widgets, gui_widget_list, gui_widget_list_clear, gui_layout_widget, gui_widget_offscreen
 
 
@@ -108,6 +117,7 @@ from .log_panel_gui import (gui_panel_log, gui_panel_log_ship,
                             gui_panel_log_mission, gui_panel_log_tick,
                             gui_log_tail)
 from .overlay import overlay_show, overlay_clear, overlay_register, overlay_register_label, overlay_slot_define, overlay_hero, overlay_debug_log
+from .overlay import overlay_clear_console
 from .overlay import overlay_kind, consoles_of
 from .overlay import overlay_signal_show, overlay_signal_clear
 from .overlay import overlay_toast, overlay_banner, overlay_lower_third, overlay_lower_third_portrait, overlay_credits, overlay_choice

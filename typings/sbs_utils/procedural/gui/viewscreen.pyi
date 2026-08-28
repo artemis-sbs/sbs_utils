@@ -17,6 +17,16 @@ def _announce (ship_id, mode, subject_id):
     single route rather than one per verb. The work it triggers (camera, column) is
     server-side, so the route that does it is ``//shared/signal/viewscreen`` - five
     consoles must not start five orbits."""
+def _apply_held (ship_id):
+    """Fire the crew request that was parked behind a story claim, if any."""
+def _claim_for (ship_id, tier, owner):
+    """Take the claim, capturing the crew's state on the way in.
+    
+    ONE capture, covering the engine triple AND every main screen's home ship.
+    Those used to be recorded by two different functions on two different
+    triggers - the triple here, the homes inside ``viewscreen_apply`` and only on
+    its 3D branch - which is a large part of why "what the crew had" kept going
+    missing."""
 def _column_builder (client_id, content):
     """One page of the column: a heading-and-body text area, plus a position dot row."""
 def _column_pages (record):
@@ -47,12 +57,23 @@ def _release_consoles (ship_id):
     Separate from ``_shots_stop`` because a TACTICAL shot keeps no camera record at all
     and still has something to undo - the alt-ship focus. Standing down has to be one
     call that covers both, or 2D shots leak their focus."""
-def _remember_home (cids):
-    """Record each console's own ship before a shot takes the assignment away."""
+def _remember_home (ship_id, cids):
+    """Record each console's own ship before a shot takes the assignment away.
+    
+    The VALUE goes on the console, because `viewscreen_home_ship(client_id)` has
+    only a client id to work with. The MEMBERSHIP goes on the ship, because a
+    restore has to reach consoles that have since stopped being this ship's main
+    screens - a console that changed console mid-shot still needs its ship back."""
 def _restore_home (cids):
-    """Give each console its own ship back."""
+    """Give each console its own ship back.
+    
+    A home that no longer exists is dropped rather than re-assigned. It can be a
+    camera object rather than a player ship - a Game Master or Director console
+    rides one deliberately - and one deleted between capture and restore would be
+    re-assigned in silence by the mock while the real engine falls back to its own
+    default view."""
 def _stand_down (ship_id, restore):
-    ...
+    """Tear the shot down. The claim is already dropped by the time this runs."""
 def _viewer_start (ship_id, mode, subject, cids):
     """Begin (or re-begin) the running viewer: the moving shot, and the data column.
     
@@ -181,7 +202,12 @@ def overlay_auto_dwell (text):
     Public because the viewscreen's data column paces its pages the same way, and one
     reading pace across every timed surface is the point."""
 def overlay_clear (slot=None, to=None, consoles=None):
-    """Clear one slot (or all slots if ``slot`` is None) on the ``to`` targets."""
+    """Clear one slot (or all slots if ``slot`` is None) on the ``to`` targets.
+    
+    Taking a card down means taking it down, including for anyone who has not
+    arrived yet - otherwise the catch-up would put it straight back. But only
+    for the consoles actually named: a record the cleared consoles fully account
+    for is retired, a wider one keeps running for everybody else."""
 def overlay_register (kind, builder):
     """Register a content builder for an overlay ``kind``.
     
@@ -254,8 +280,56 @@ def viewscreen_apply (ship):
     
     Returns:
         int: how many consoles the shot is running on."""
-def viewscreen_clear (ship):
-    """Hand the screen back, restoring the view the crew had before the viewer took it.
+def viewscreen_baseline (ship):
+    """The ``(view, facing, mode)`` the crew had before anyone took the screen."""
+def viewscreen_baseline_drop (ship):
+    """Forget the baseline without restoring it.
+    
+    What a helm takeover does: helm's choice IS the new state, so there is nothing
+    to go back to and leaving a stale baseline recorded would let a later,
+    unrelated release put the crew's screen somewhere they left minutes ago."""
+def viewscreen_claim (ship, tier='console', owner=None, baseline=None, cids=None):
+    """Record that ``owner`` holds this ship's main screen.
+    
+    Bookkeeping only - it does not move a camera or write a main-screen view. The
+    caller (``viewscreen_set``, a cutscene, the Director) does that; this decides
+    whether it is allowed to and remembers what to go back to.
+    
+    Args:
+        ship: the player ship whose screen this is.
+        tier (str): ``"console"`` or ``"story"``.
+        owner (str, optional): the token from ``viewscreen_owner_token``. An
+            unnamed claim is still a claim.
+        baseline (tuple, optional): the ``(view, facing, mode)`` to record if this
+            is the first claim. Captured by the caller because only it can read the
+            engine state.
+        cids (iterable, optional): the main screens whose home ship the caller has
+            recorded, noted alongside the baseline on the first claim.
+    
+    Returns:
+        bool: True if the claim was taken. False when a STORY claim holds and this
+        is a console one - the caller should park its request rather than act."""
+def viewscreen_claim_drop (ship, owner=None, keep_baseline=False):
+    """Give up the claim. Bookkeeping only - see ``viewscreen_restore``.
+    
+    Args:
+        owner (str, optional): refuse unless this token still holds it. ``None``
+            forces, which is what a mission reset and the one-door console
+            transition want.
+        keep_baseline (bool): leave the baseline recorded. Only ``True`` while a
+            caller is in the middle of applying it.
+    
+    Returns:
+        bool: True if a claim was dropped."""
+def viewscreen_claimed (ship):
+    """Whether anything holds this ship's main screen."""
+def viewscreen_clear (ship, owner=None):
+    """Hand the screen back, restoring the view the crew had before it was taken.
+    
+    Args:
+        owner (str, optional): refuse unless this token still holds the claim, so
+            a console whose shot was replaced cannot take the screen off whoever
+            replaced it. ``None`` forces.
     
     Returns:
         bool: True if a viewer was running."""
@@ -265,6 +339,18 @@ def viewscreen_consoles (ship):
     Narrowed to the SHIP's own screens, which is what keeps one bridge's viewer out of
     another's. Returns an empty set when no main screen is connected, which is normal
     and not an error."""
+def viewscreen_effective_state (ship):
+    """What this ship's main screen is ACTUALLY set to, after arbitration.
+    
+    ``handlerhooks`` writes the crew's triple, then asks
+    ``viewscreen_helm_override`` what to do with it, and then fans a reroute out to
+    the ship's main screens carrying the EVENT's values as task variables. When a
+    story claim refused the press, those values are the rejected ones - so the
+    reroute has to carry this instead, or a console reading the injected
+    ``MAIN_SCREEN_VIEW`` sees a view the library declined to apply.
+    
+    LegendaryMissions reads the ship's inventory rather than the injected variable,
+    so LM would not show this - which is exactly what makes it easy to ship broken."""
 def viewscreen_framing (subject):
     """``(near, far)`` lens distances for a subject.
     
@@ -273,22 +359,49 @@ def viewscreen_framing (subject):
     is the only size the engine actually exposes; when it says nothing, a default that
     frames a mid-sized ship is better than a guess that frames nothing."""
 def viewscreen_helm_override (ship, view, facing, mode):
-    """Helm touched the main-screen control: the viewer stands down.
+    """Helm or weapons touched the engine's main-screen control.
     
     Called from the ``main_screen_change`` handler with the triple the engine just
-    reported. No restore - helm's choice IS the new state, and putting the viewer's
-    idea of "before" back over the top would undo the very change being handled.
+    reported. What happens next depends on WHO holds the screen:
     
-    A triple identical to what the viewer asked for is NOT a takeover: a console
-    reconnecting replays the state it is already in.
+    * **A console claim** - science's "on screen", weapons', docking's - stands
+      down, and nothing is restored: helm's choice IS the new state, and putting a
+      recorded "before" back over the top would undo the very change being handled.
+      Any request parked behind a story beat is thrown away too; helm just spoke,
+      and a stale drop-down pick firing later would override the officer who
+      overrode it.
+    * **A story claim** - a cutscene, a hail, a mission beat - does NOT stand down.
+      The crew's press is PARKED and applied when the story releases, so it is
+      honored a few seconds late rather than lost, and the story's own triple is
+      written back so the engine and the record agree again.
+    
+    A triple identical to what the claim asked for is not a takeover either way: a
+    console reconnecting replays the state it is already in.
     
     The triple is written here as well as by the caller. ``handlerhooks`` already
     records it (issue #595) and writing it twice is harmless - but a function whose
     postcondition depends on the caller having gone first is a trap for the next
     caller, so this one leaves the ship in the state it was told about either way.
+    On the story path that means writing the story's triple BACK over what the
+    caller just recorded, which is the whole point.
     
     Returns:
-        bool: True if a viewer was stood down."""
+        bool: True if a claim was stood down. False for a story claim that held -
+        see ``viewscreen_effective_state`` for what the screen is actually showing
+        afterwards, which is what the reroute has to carry."""
+def viewscreen_hold (ship, request):
+    """Park a crew request that arrived while a story held the screen.
+    
+    ONE request, not a queue: the crew pressing three things during a cutscene
+    means they want the last one, and replaying all three on release would walk the
+    screen through states nobody asked to see."""
+def viewscreen_hold_drop (ship):
+    """Throw the parked request away.
+    
+    What helm's control does on a console-tier claim: helm just spoke, and a stale
+    drop-down pick firing later would override the officer who overrode it."""
+def viewscreen_hold_take (ship):
+    """Take the parked request, clearing it. Returns None when there is none."""
 def viewscreen_home_ship (client_id):
     """The ship a console BELONGS to, even while a shot has it assigned elsewhere.
     
@@ -303,6 +416,16 @@ def viewscreen_mode (ship):
 def viewscreen_mode_for (label):
     """The mode a drop-down label means. Unknown labels read as ``off`` - a console
     showing something we do not recognize must not leave the screen commandeered."""
+def viewscreen_owner (ship):
+    """Who holds this ship's main screen, or ``""``."""
+def viewscreen_owns (ship, owner):
+    """Is ``owner``'s claim still the live one?
+    
+    The question a console should ask before acting on the screen it thinks it is
+    driving. LegendaryMissions' weapons console hand-rolled this as a private
+    ``WEAP_VIEWER_SUBJECT`` inventory value, and science never asked at all - which
+    is why science re-pointing on a new selection used to yank a shot weapons had
+    set up."""
 def viewscreen_pages (subject, ship):
     """``[(name, markdown), ...]`` for this subject - empty pages dropped.
     
@@ -315,7 +438,40 @@ def viewscreen_reset ():
     clients these records name belong to a sim that is being torn down, so re-assigning
     their cameras is at best pointless. This just stops the records outliving the
     mission that made them."""
-def viewscreen_set (ship, mode, subject=None):
+def viewscreen_restore (ship, owner=None):
+    """THE DOOR HOME. Put this ship's main screen back the way the crew had it.
+    
+    Drops the claim, stops the shot, takes the viewer's own overlays down, gives
+    every main screen its own ship back, restores the baseline view, and then -
+    and only then - applies whatever crew request was parked behind a story beat.
+    
+    The ORDER is load-bearing, twice:
+    
+    * **Assignments before the triple.** The assignment decides what a console can
+      SEE; the triple only decides its widget list. Restore the triple first and
+      the main-screen label re-runs while the console is still riding the subject,
+      so it picks its widgets from the SUBJECT's ``MAIN_SCREEN_VIEW`` - the hazard
+      ``gui_console`` documents.
+    * **The parked request last.** Applying it claims the screen again and
+      captures a baseline; it has to capture the RESTORED one, not the story's.
+    
+    Args:
+        owner (str, optional): refuse unless this token still holds the claim.
+            ``None`` forces - what a console transition and a reset want.
+    
+    Returns:
+        bool: True if anything was holding the screen."""
+def viewscreen_roster (ship):
+    """The main screens that have a home recorded for this claim.
+    
+    Held on the SHIP while the home VALUE is held on each console, and that split
+    is deliberate: ``viewscreen_home_ship(client_id)`` has only a client id, so the
+    value has to be reachable from one - but a restore has to reach consoles that
+    have since stopped being this ship's main screens, so the membership has to
+    live somewhere that outlives the role."""
+def viewscreen_roster_add (ship, client_id):
+    """Note that this console has a home recorded - the late-joiner path."""
+def viewscreen_set (ship, mode, subject=None, owner=None, tier='console'):
     """Point this ship's main screen at something.
     
     Args:
@@ -323,9 +479,20 @@ def viewscreen_set (ship, mode, subject=None):
         mode (str): one of ``MODES``. ``"off"`` is the same as ``viewscreen_clear``.
         subject (Agent | int, optional): what the shot is about - normally the science
             selection. ``None`` means no subject.
+        owner (str, optional): the claim token, from ``viewscreen_owner_token``.
+            Without one the claim is anonymous - still a claim, but nothing can
+            ask whether it is still theirs.
+        tier (str): ``"console"`` (the default - a crew member's pick) or
+            ``"story"`` (a cutscene, a hail, a mission beat).
     
     Returns:
-        bool: True when the state changed."""
+        bool: True when the state changed.
+    
+    **False now means two things.** It has always meant "already showing exactly
+    that"; it also means "a STORY claim holds the screen, so your request was
+    PARKED and will be applied when the story releases". Ask
+    ``viewscreen_owns(ship, owner)`` when you need to know which - that is the
+    question a console actually has."""
 def viewscreen_shot_props (current=None):
     """The whole property string for a shot drop-down.
     
@@ -335,3 +502,18 @@ def viewscreen_shot_props (current=None):
     label shown while it is closed, so pass what is currently running."""
 def viewscreen_subject (ship):
     """The id the shot is about, or 0."""
+def viewscreen_take (ship, owner=None, tier='story'):
+    """Claim this ship's main screen WITHOUT starting one of the viewer's own shots.
+    
+    For anything that drives the screen its own way and still has to be arbitrated:
+    a cutscene, the Director, a mission beat pointing the camera by hand. It records
+    the crew's view and every main screen's home ship the same way ``viewscreen_set``
+    does, so ``viewscreen_restore`` puts the bridge back afterwards - which is what
+    a cutscene played during a science shot could not do before, because the only
+    thing that captured a baseline was a shot starting.
+    
+    Returns:
+        bool: False when a story claim already holds the screen and this is a
+        console-tier request."""
+def viewscreen_tier (ship):
+    """``"console"``, ``"story"``, or ``""`` when nothing holds the screen."""

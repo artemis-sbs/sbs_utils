@@ -48,6 +48,23 @@ def camera_assign (to, obj, consoles=None):
     
     Returns:
         int: how many consoles were assigned."""
+def camera_assignment (to=None, consoles=None):
+    """What each console is riding right now: ``{client_id: ship_id}``.
+    
+    Taken BEFORE a cutscene so it can be given back afterwards. `camera_track` ASSIGNS a
+    console to the object the lens rides, and assignment is identity, not framing: it
+    decides what that console can see and what the engine director follows once the
+    camera is released. So a shot that rode a station leaves the mainscreen watching
+    that station, and `camera_auto` alone does not undo it - it hands control back to a
+    director that dutifully keeps following the wrong ship.
+    
+    Captured per console rather than assumed to be "the player ship", because it is not
+    always one: a Game Master or Admiral console rides a detached camera object, and
+    putting it back on a player ship would be a worse bug than the one being fixed.
+    
+    Returns:
+        dict: client id -> the ship id it was assigned to. Ids that read back as 0 are
+        omitted; there is nothing to restore and re-assigning to 0 would detach it."""
 def camera_auto (to=None, consoles=None):
     """Hand the camera back to the engine's own director (it follows the assigned ship).
     
@@ -59,6 +76,37 @@ def camera_auto (to=None, consoles=None):
     
     Returns:
         int: how many consoles were released."""
+def camera_chase (to, subject, distance, height=0.0, seconds=30.0, consoles=None):
+    """Third person: hold the lens BEHIND the subject as it turns.
+    
+    The one move whose lens is a function of the subject's HEADING rather than of time, so it
+    ignores the eased progress and reads the world each tick. That is the whole trick, and it
+    is only possible because `_drive` calls `lens_at` per tick rather than sampling a path up
+    front.
+    
+    WHY THIS IS NOT A TRACTOR. The intuitive way to chase is to attach the camera to the
+    target and let the engine drag it. There is nothing to attach: the dolly and the target
+    must be the SAME object or the frame is black, so the lens already rides the subject - a
+    tractored camera object would be dragged along with nothing looking through it. Following
+    IS re-aiming, and the engine has no interpolation to do it for us.
+    
+    WHY IT MUST RUN ON THE TICK. Re-aiming from a mission loop at a few hertz reads as a
+    stutter, not as a saving - the same note `_drive` carries. A chase driven from a 0.5s
+    mission tick flickers; the same maths on the dispatcher does not.
+    
+    A world-space offset does NOT rotate with the dolly, which is why the offset is rebuilt
+    from `forward_vector()` every tick instead of being computed once. A subject with no usable
+    heading (a rock, or an engine object that will not answer) falls back to a fixed offset
+    rather than raising - a chase that is merely not behind the ship still shows the ship.
+    
+    Args:
+        distance (float): how far BEHIND the subject to sit.
+        height (float): how far above it. A little is usually better than none.
+        seconds (float): how long this leg runs. Re-issue it to keep chasing - the same way
+            an orbit is re-issued lap by lap.
+    
+    Returns:
+        Promise: resolves when the leg ends, or when the subject goes."""
 def camera_dolly (to, subject, from_distance, to_distance, yaw=0.0, pitch=12.0, seconds=20.0, ease='in_out', consoles=None):
     """Push the lens in (or pull it out) along a fixed angle, FOLLOWING the subject.
     
@@ -148,6 +196,19 @@ def camera_rack (to, subject, consoles=None):
     
     Returns:
         int: how many consoles were re-aimed."""
+def camera_restore (assignments):
+    """Put each console back on the object it was riding, and release the camera.
+    
+    The counterpart to `camera_assignment`, and the general rule for ending a cutscene:
+    give the console back its own ship, THEN hand the camera to the engine director. In
+    that order - releasing first leaves the director following the shot subject for the
+    frames in between.
+    
+    Args:
+        assignments (dict): what `camera_assignment` returned.
+    
+    Returns:
+        int: how many consoles were put back."""
 def camera_shot (to, subject, lens_world, consoles=None):
     """Put the lens at an ABSOLUTE world position, looking at `subject`.
     
