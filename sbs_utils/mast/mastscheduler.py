@@ -32,6 +32,50 @@ _EVAL_GLOBALS = {"__builtins__": MastGlobals.globals}
 _SCOPE_KEYWORDS = ("shared", "assigned", "client", "temp")
 
 
+def _describe_expr_values(code):
+    """`name = type: repr` for each name a failing expression referenced, or "".
+
+    A MAST runtime error quotes the source line and stops there, which is one step short
+    of useful: `link(p, "extra_scan_source", o)` says nothing about what `p` WAS, and
+    every "where did that value come from" hunt starts by trying to find out. This is
+    what identified the loop-iterator leak - the log showed `p` holding a dict from a
+    completely different collection while `o`, iterating the very same list one line
+    above, held a correct id. That asymmetry is the whole diagnosis, and it is invisible
+    without the values.
+
+    co_names is what the compiler recorded for this expression, so only names the line
+    really uses are printed. Callables are skipped - the procedural function being called
+    is never the surprise.
+    """
+    task = FrameContext.task
+    if task is None or code is None:
+        return ""
+    names = getattr(code, "co_names", ()) or ()
+    if not names:
+        return ""
+    try:
+        syms = task.get_symbols()
+    except Exception:
+        return ""
+    out = []
+    for n in names:
+        if n not in syms:
+            continue
+        v = syms[n]
+        if callable(v):
+            continue
+        try:
+            shown = repr(v)
+        except Exception:
+            shown = "<unreprable>"
+        if len(shown) > 160:
+            shown = shown[:160] + "..."
+        out.append(f"\n     {n} = {type(v).__name__}: {shown}")
+    if not out:
+        return ""
+    return "\n     --- values ---" + "".join(out)
+
+
 def describe_eval_failure(code):
     """Header describing the live exception for a MAST eval/exec failure.
 
@@ -50,6 +94,7 @@ def describe_eval_failure(code):
             s += f"\n     {line}"
     else:
         s += "\n     (source unavailable)"
+    s += _describe_expr_values(code)
     name = getattr(err, "name", None)
     if isinstance(err, NameError) and name in _SCOPE_KEYWORDS:
         s += (f"\n     hint: '{name}' is a MAST scope keyword, not a variable."

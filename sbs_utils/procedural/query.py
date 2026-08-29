@@ -128,6 +128,38 @@ def to_list(other: Agent | CloseData | int):
         return []
     return [other]
 
+def _agent_id_or_raise(value):
+    """One agent id, or a TypeError that says what was actually passed.
+
+    :func:`to_id` and :meth:`Agent.resolve_id` are pass-throughs with no ``else`` branch -
+    an ``Agent`` / ``CloseData`` / ``SpawnData`` is unwrapped to its ``.id`` and EVERYTHING
+    ELSE is returned untouched. So a dict, a Vec3, a nested list or a ``dict_keys`` view
+    reaches the set construction in :func:`to_set` unchanged, and Python raises
+    ``unhashable type: 'dict'`` against a set literal in this file. That message names
+    neither the resolver nor the argument, and the frame it is reported against is the
+    least useful one in the stack - the mission author is told about query.py, not about
+    the ``link()`` / ``add_role()`` call their script made.
+
+    RAISING, NOT DROPPING. The list resolvers next door legitimately drop what they cannot
+    resolve, but every :func:`to_set` caller is a WRITE - link, add_role, target, brain_add,
+    modifier_add - so swallowing a bad argument turns the write into a no-op with nothing
+    logged. That is the LM #719 failure mode, where a silently skipped write cost far more
+    to find than a crash would have. Bad data should be loud; it just has to say what it is.
+
+    Only genuinely unusable values are rejected, tested by hashability rather than by an
+    allowlist of accepted types. Every value that works today still works - this converts
+    an opaque crash into an explained one and changes nothing else.
+    """
+    try:
+        hash(value)
+    except TypeError:
+        raise TypeError(
+            f"to_set: cannot resolve {type(value).__name__} to an agent id - expected an "
+            f"id, Agent, CloseData, SpawnData, or a set/list of them. "
+            f"Got: {value!r:.120}") from None
+    return value
+
+
 def to_set(other: Agent | CloseData | int):
     """Normalize any agent-like value or collection into a set of integer IDs.
 
@@ -140,12 +172,12 @@ def to_set(other: Agent | CloseData | int):
     if isinstance(other, list):
         # Convert to a list of IDs
         other = [y for x in other if (y:=Agent.resolve_id(x)) is not None]
-        return set(other)
+        return {_agent_id_or_raise(y) for y in other}
     elif isinstance(other, set):
         return other
     elif other is None:
         return set()
-    return {to_id(other)}
+    return {_agent_id_or_raise(to_id(other))}
 
 
 def to_id(other: Agent | CloseData | int):

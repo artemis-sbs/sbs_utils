@@ -1,6 +1,11 @@
 from ..mast_node import MastNode, mast_node, BLOCK_START, IF_EXP_REGEX, mast_compile, EVAL_ERROR
 import re
 
+# Compile-time counter giving every `for` in every story a distinct pair of runtime keys.
+# Only has to be unique within one interpreter; a story reload makes new nodes, and the
+# task scopes that would have held old keys are gone with the tasks.
+_LOOP_SITE_SEQ = 0
+
 
 class LoopEnd(MastNode):
     """
@@ -27,6 +32,25 @@ class LoopStart(MastNode):
         else:
             self.code = None
         self.name = name
+        # Per-loop-SITE keys for the runtime bookkeeping, instead of the bare
+        # `<name>__iter` this used to use. Two things went wrong with a name-derived key:
+        #
+        #  - It is inherited. `task_schedule` copies the caller's scope by default, so a
+        #    child running `for p in players:` found the PARENT's `p__iter` already set,
+        #    concluded the loop was already running, and kept pulling from the parent's
+        #    iterator. Measured in LM: the console leaves `for p in presets:` early via
+        #    `jump game_code_reload`, and a map label's `for p in players:` then iterated
+        #    game-code PRESETS - `p` came out a dict while `o`, iterating the very same
+        #    list one line above, came out a correct id.
+        #  - Two loops in one task that happen to share a variable name would collide the
+        #    same way. `p`, `i`, `s` and `x` are the most common loop names in the tree.
+        #
+        # A site-unique key cannot be confused with any other loop's. See the runtime
+        # node for `cont_key`, which is what tells a re-entry from a continuation.
+        global _LOOP_SITE_SEQ
+        _LOOP_SITE_SEQ += 1
+        self.iter_key = f"__loop{_LOOP_SITE_SEQ}_{name}__iter"
+        self.cont_key = f"__loop{_LOOP_SITE_SEQ}_{name}__cont"
         # Comma target list -> tuple-unpack each iteration; single name -> [name].
         self.targets = [t.strip() for t in name.split(",")] if name else []
         self.is_while = while_in == "while"
@@ -106,14 +130,27 @@ if TYPE_CHECKING:
 class LoopStartRuntimeNode(MastRuntimeNode):
     def enter(self, mast, task:'MastAsyncTask', node:LoopStart):
         #scoped_val = task.get_scoped_value(node.name, Scope.TEMP, None)
-        scoped_cond = task.get_scoped_value(node.name+"__iter", None, Scope.TEMP)
+        scoped_cond = task.get_scoped_value(node.iter_key, None, Scope.TEMP)
+        # "Am I already running?" used to be inferred from the latch existing, which
+        # cannot tell a CONTINUATION from a fresh entry - and a latch outlives a loop
+        # that was left early (`jump` out of the body never reaches LoopEnd, so nothing
+        # clears it). LoopEnd now says so explicitly: it sets cont_key immediately before
+        # jumping back here, and this consumes it. Anything else reaching this node - a
+        # first entry, a re-entry after jumping out, a task that merely INHERITED the
+        # latch from whoever scheduled it - finds no token and starts the loop over,
+        # which is what every one of those cases means.
+        continuing = task.get_scoped_value(node.cont_key, None, Scope.TEMP)
+        if continuing:
+            task.set_value(node.cont_key, None, Scope.TEMP)
+        else:
+            scoped_cond = None
         # The loop is running if cond
         if scoped_cond is None:
             # set cond to true to show we have initialized
             # setting to -1 to start it will be made 0 in poll
             if node.is_while:
                 task.set_value(node.name, -1, Scope.TEMP)
-                task.set_value(node.name+"__iter", True, Scope.TEMP)
+                task.set_value(node.iter_key, True, Scope.TEMP)
             else:
                 value = task.eval_code_checked(node.code)
                 # The iterable expression raised (already reported). Falling
@@ -123,15 +160,15 @@ class LoopStartRuntimeNode(MastRuntimeNode):
                     return
                 try:
                     _iter = iter(value)
-                    task.set_value(node.name+"__iter", _iter, Scope.TEMP)
+                    task.set_value(node.iter_key, _iter, Scope.TEMP)
                 except TypeError:
-                    task.set_value(node.name+"__iter", False, Scope.TEMP)
+                    task.set_value(node.iter_key, False, Scope.TEMP)
 
     def poll(self, mast, task, node:LoopStart):
         # All the time if iterable
         # Value is an index
         current = task.get_scoped_value(node.name, None, Scope.TEMP)
-        scoped_cond = task.get_scoped_value(node.name+"__iter", None, Scope.TEMP)
+        scoped_cond = task.get_scoped_value(node.iter_key, None, Scope.TEMP)
         if node.is_while:
             current += 1
             task.set_value(node.name, current, Scope.TEMP)
@@ -143,7 +180,7 @@ class LoopStartRuntimeNode(MastRuntimeNode):
                     inline_label = f"{task.active_label}:{node.name}"
                     # End loop clear value
                     task.set_value(node.name, None, Scope.TEMP)
-                    task.set_value(node.name+"__iter", None, Scope.TEMP)
+                    task.set_value(node.iter_key, None, Scope.TEMP)
                     task.jump_in_label(task.active_label, node.dedent_loc)
                     return PollResults.OK_JUMP
 
@@ -152,7 +189,7 @@ class LoopStartRuntimeNode(MastRuntimeNode):
             print("Possible badly formed for")
             # End loop clear value
             task.set_value(node.name, None, Scope.TEMP)
-            task.set_value(node.name+"__iter", None, Scope.TEMP)
+            task.set_value(node.iter_key, None, Scope.TEMP)
             task.jump_in_label(task.active_label, node.dedent_loc)
             #task.jump_inline_end(inline_label, False)
             return PollResults.OK_JUMP
@@ -169,7 +206,7 @@ class LoopStartRuntimeNode(MastRuntimeNode):
             except StopIteration:
                 # done iterating jump to end
                 task.set_value(node.name, None, Scope.TEMP)
-                task.set_value(node.name+"__iter", None, Scope.TEMP)
+                task.set_value(node.iter_key, None, Scope.TEMP)
                 task.jump_in_label(task.active_label, node.dedent_loc)
                 return PollResults.OK_JUMP
         return PollResults.OK_ADVANCE_TRUE
@@ -177,6 +214,11 @@ class LoopStartRuntimeNode(MastRuntimeNode):
 @mast_runtime_node(LoopEnd)
 class LoopEndRuntimeNode(MastRuntimeNode):
     def poll(self, mast, task, node:LoopEnd):
+        # Reaching the end of the body is the ONLY thing that means "keep iterating".
+        # LoopStart consumes this token; without it, it starts the loop over. That is
+        # what makes a `jump` out of the body safe: it never gets here, so the abandoned
+        # iterator cannot be resumed later - or inherited by a scheduled task.
+        task.set_value(node.start.cont_key, True, Scope.TEMP)
         task.jump_in_label(task.active_label, node.start.loc)
         return PollResults.OK_JUMP
         # return PollResults.OK_ADVANCE_TRUE
@@ -202,12 +244,17 @@ class LoopBreakRuntimeNode(MastRuntimeNode):
         if node.op == 'break':
             #task.jump_inline_end(inline_label, True)
             task.set_value(node.start.name, None, self.scope)
-            task.set_value(node.start.name+"__iter", None, Scope.TEMP)
+            task.set_value(node.start.iter_key, None, Scope.TEMP)
+            task.set_value(node.start.cont_key, None, Scope.TEMP)
             task.jump_in_label(task.active_label, node.start.dedent_loc)
             # End loop clear value
-            
+
             return PollResults.OK_JUMP
         elif node.op == 'continue':
+            # `continue` is the other way back to LoopStart, so it owes the same token
+            # LoopEnd sets - without it the loop would restart from the top of the
+            # iterable instead of advancing, which is an infinite loop, not a slow one.
+            task.set_value(node.start.cont_key, True, Scope.TEMP)
             task.jump_in_label(task.active_label, node.start.loc)
             #task.jump_inline_start(inline_label)
             return PollResults.OK_JUMP
