@@ -113,7 +113,7 @@ def gui_widget_list_clear():
     gui_widget_list("","")
 from ...pages.layout.console_widget import ConsoleWidget
 from ..style import apply_control_styles
-def gui_layout_widget(widget, style=None):
+def gui_layout_widget(widget, style=None, alt=None):
     """Place a specific engine widget at a fixed position in the layout.
 
     Adds the named engine widget to the console widget list AND places a
@@ -125,6 +125,12 @@ def gui_layout_widget(widget, style=None):
             ``"helm_movement"``.
         style (str, optional): Layout style for the PLACEHOLDER, as for any other
             widget - most usefully ``col-width``. Defaults to None (the whole row).
+        alt (str | sequence, optional): the SECOND rect, ``"left,top,right,bottom"``.
+            ``send_client_widget_rects`` takes two and the engine chooses between
+            them; a layout can only compute one, so by default the computed rect
+            goes in both slots. Pass this to reproduce a stock widget's own pair
+            from ``data/guiboxdata.txt`` exactly instead of flattening it to one
+            variant. Defaults to None (use the computed rect for both).
 
     DO NOT SHARE A ROW WITH MAST CONTROLS. The placeholder lays out correctly - measured:
     `red_alert` beside three checkboxes computes four clean quarters, and every rect is
@@ -142,13 +148,17 @@ def gui_layout_widget(widget, style=None):
         # sharing one row with a checkbox:
         gui_checkbox("Follow", "col-width:90px;", var="follow_tag")
         gui_layout_widget("red_alert", "col-width:1fr;")
+        # a stock widget kept exactly where the engine had it (guiboxdata.txt
+        # normal_helm throttle):
+        gui_section(style="area:0,62,10,100;")
+        gui_layout_widget("throttle", alt="0,61,5,99")
     """
     page = FrameContext.page
     if page is None:
         return None
 
     page.add_console_widget(widget)
-    control = ConsoleWidget(widget)
+    control = ConsoleWidget(widget, alt)
     if style is not None:
         apply_control_styles(".widget", style, control, FrameContext.task)
     page.add_content(control, None)
@@ -182,3 +192,9 @@ def gui_widget_offscreen(widget, client_id=None):
     off = 100
     ctx.sbs.send_client_widget_rects(cid, widget, off, off, off + 10, off + 10,
                                      off, off, off + 10, off + 10)
+    # A deliberate one-way park, so we give up any claim to know where this widget
+    # belongs - otherwise the automatic un-park in
+    # StoryPage._retire_dropped_engine_widgets would put it back the next time the
+    # console's widget list changed, undoing this on the caller's behalf.
+    from ...gui import Gui
+    Gui.forget_widget_rect(cid, widget)

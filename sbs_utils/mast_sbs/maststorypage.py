@@ -245,7 +245,8 @@ class StoryPage(Page):
 
     @staticmethod
     def _retire_dropped_engine_widgets(prev, current, client_id, my_sbs):
-        """Push offscreen any engine widget this console no longer declares.
+        """Push offscreen any engine widget this console no longer declares -
+        but ONLY the ones we know how to put back.
 
         An engine widget cannot be un-declared. The console's widget list is what
         the engine draws from, and it keeps what it was given, so sending a
@@ -261,6 +262,22 @@ class StoryPage(Page):
         automatically here so every console inherits it rather than each screen
         having to remember. Only runs when the list actually changes, which is
         rare (a console switch, or a jump to the results screen).
+
+        WE CAN ONLY TAKE AWAY WHAT WE CAN GIVE BACK. Parking is permanent -
+        re-declaring a widget in the list does not restore the rect it was pushed
+        to - so a widget that comes back has to be sent a rect, and the only rect
+        we can honestly send is one a script placed it at (``Gui.widget_rects``).
+        A widget the ENGINE laid out has no such record, and guessing one wrecks
+        the console: this used to un-park everything to the FULL CONSOLE, so
+        clicking the Upgrades tab on Weapons and clicking back left all six
+        engine-laid controls stacked over the whole screen. Helm and Weapons are
+        the only LegendaryMissions consoles that leave anything to the engine,
+        which is exactly where it was reported.
+
+        So a widget with no placement record is left entirely alone - never
+        parked, and therefore never stuck offscreen either. That is also what
+        keeps the main screen's 3dview working: nothing places it, so the
+        Tactical toggle can neither park nor lose it.
         """
         def names(pair):
             return {w for w in ((pair or ("", ""))[1] or "").split("^") if w}
@@ -268,25 +285,26 @@ class StoryPage(Page):
         current_names = names(current)
         parked = Gui.widget_parked.setdefault(client_id, set())
 
-        # PUT BACK ANYTHING WE PARKED THAT IS DECLARED AGAIN.
+        # PUT BACK ANYTHING WE PARKED THAT IS DECLARED AGAIN, where it was.
         #
-        # Parking is permanent: re-declaring a widget in the list does not restore
-        # the rect it was pushed to, so a widget that comes BACK stays offscreen.
         # A main screen toggles 3dview <-> 2dview every time the viewer goes
-        # Tactical and back, so the 3D view was parked on the way in and never
-        # returned on the way out - "it gets stuck on tactical". The same failure
-        # gui_widget_offscreen is documented for, arrived at automatically.
+        # Tactical and back; a console switch drops the whole list and brings it
+        # back. Without this a widget that returns stays offscreen - "it gets
+        # stuck on tactical" - the same failure gui_widget_offscreen is documented
+        # for, arrived at automatically.
         #
-        # Full console, because that is the engine's own default for the view
-        # widgets that actually toggle, and because we never knew the rect it had:
-        # nothing sent one, the engine placed it. A screen that wants something
-        # else calls gui_layout_widget, whose ConsoleWidget presents AFTER this and
-        # therefore wins.
+        # A widget whose record has since been dropped (its owner hid it - the
+        # info panel puts ship_data away when the crew picks another tab) is
+        # un-parked from our books but NOT moved: it is where its owner wants it.
+        # A screen that wants somewhere else calls gui_layout_widget, whose
+        # ConsoleWidget presents AFTER this and therefore wins.
         returning = parked & current_names
         for widget in returning:
-            my_sbs.send_client_widget_rects(client_id, widget,
-                                            0, 0, 100, 100,
-                                            0, 0, 100, 100)
+            rect = Gui.widget_rect_of(client_id, widget)
+            if rect is None:
+                continue
+            # Both rects, exactly as they were sent.
+            my_sbs.send_client_widget_rects(client_id, widget, *rect)
         parked -= returning
 
         if not prev:
@@ -296,18 +314,24 @@ class StoryPage(Page):
             return
         off = 100
         for widget in dropped:
+            if Gui.widget_rect_of(client_id, widget) is None:
+                # Engine-placed, or put away by its owner. Either way we have
+                # nowhere to put it back, so we do not take it away.
+                continue
             my_sbs.send_client_widget_rects(client_id, widget,
                                             off, off, off + 10, off + 10,
                                             off, off, off + 10, off + 10)
-        parked |= dropped
+            parked.add(widget)
 
     @staticmethod
     def _forget_parked_widgets(client_id=None):
         """Drop the parking record - a client going away, a mission reset, a test."""
         if client_id is None:
             Gui.widget_parked.clear()
+            Gui.widget_rects.clear()
         else:
             Gui.widget_parked.pop(client_id, None)
+            Gui.widget_rects.pop(client_id, None)
 
     def swap_layout(self):
         # self.on_change_items= self.pending_on_change_items

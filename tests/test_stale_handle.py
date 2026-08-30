@@ -146,85 +146,168 @@ class TestRetireDroppedEngineWidgets(unittest.TestCase):
     pointed at. When that object has been deleted the engine walks freed memory -
     a client died in ViewGridObjectListDraw that way, two minutes after the
     mission ended, still drawing the Engineering grid list for a dead ship.
+
+    Parking is only safe for a widget we can put BACK, which means one a script
+    placed and whose rect we therefore recorded. Everything here turns on that.
     """
     def setUp(self):
-        # _retire_dropped_engine_widgets remembers what it parked, so these cases
-        # are not independent without this.
+        # _retire_dropped_engine_widgets remembers what it parked and where each
+        # widget was placed, so these cases are not independent without this.
         from sbs_utils.mast_sbs.maststorypage import StoryPage
         StoryPage._forget_parked_widgets()
 
-    def _retire(self, prev, current):
+    @staticmethod
+    def _place(widget, client_id=7, rect=(10, 20, 30, 40)):
+        """Stand in for ConsoleWidget._present / gui_panel_*_show."""
+        from sbs_utils.gui import Gui
+        Gui.record_widget_rect(client_id, widget, *rect)
+
+    def _retire(self, prev, current, client_id=7):
         from sbs_utils.mast_sbs.maststorypage import StoryPage
         rec = _RecordingSbs()
-        StoryPage._retire_dropped_engine_widgets(prev, current, 7, rec)
+        StoryPage._retire_dropped_engine_widgets(prev, current, client_id, rec)
         return [w for _cid, w, _c in rec.rects]
 
-    def test_widgets_dropped_from_the_list_are_pushed_offscreen(self):
-        retired = self._retire(("engineering", "ship_internal_view^grid_object_list"),
-                               ("", ""))
-        self.assertCountEqual(retired, ["ship_internal_view", "grid_object_list"])
-
-    def test_widgets_still_declared_are_left_alone(self):
-        retired = self._retire(("engineering", "ship_internal_view^grid_object_list"),
-                               ("helm", "ship_internal_view"))
-        self.assertEqual(retired, ["grid_object_list"])
-
-    def test_no_previous_list_retires_nothing(self):
-        self.assertEqual(self._retire(None, ("helm", "2dview")), [])
-
-    def test_unchanged_widgets_retire_nothing(self):
-        self.assertEqual(self._retire(("helm", "2dview"), ("weapons", "2dview")), [])
-
-    def test_offscreen_rect_is_outside_the_visible_area(self):
-        from sbs_utils.mast_sbs.maststorypage import StoryPage
-        rec = _RecordingSbs()
-        StoryPage._retire_dropped_engine_widgets(("engi", "grid_object_list"), ("", ""), 7, rec)
-        _cid, _w, coords = rec.rects[0]
-        self.assertTrue(all(c >= 100 for c in coords), coords)
-
-    # --- and a widget that COMES BACK has to be un-parked -------------------
-    # Parking is permanent: re-declaring a widget in the list does not restore
-    # the rect we pushed offscreen. A main screen toggles 3dview <-> 2dview every
-    # time the viewer goes Tactical and back, so the 3D view was parked on the way
-    # into tactical and never came back on the way out. Reported as "it gets stuck
-    # on tactical - the 3dview doesn't come back", and it is the same failure the
-    # LM main screen already documents for gui_widget_offscreen.
     def _retire_rects(self, prev, current, client_id=7):
         from sbs_utils.mast_sbs.maststorypage import StoryPage
         rec = _RecordingSbs()
         StoryPage._retire_dropped_engine_widgets(prev, current, client_id, rec)
         return {w: c for _cid, w, c in rec.rects}
 
-    def test_a_widget_that_returns_is_given_a_rect_again(self):
+    def test_widgets_dropped_from_the_list_are_pushed_offscreen(self):
+        self._place("ship_internal_view")
+        self._place("grid_object_list")
+        retired = self._retire(("engineering", "ship_internal_view^grid_object_list"),
+                               ("", ""))
+        self.assertCountEqual(retired, ["ship_internal_view", "grid_object_list"])
+
+    def test_widgets_still_declared_are_left_alone(self):
+        self._place("ship_internal_view")
+        self._place("grid_object_list")
+        retired = self._retire(("engineering", "ship_internal_view^grid_object_list"),
+                               ("helm", "ship_internal_view"))
+        self.assertEqual(retired, ["grid_object_list"])
+
+    def test_no_previous_list_retires_nothing(self):
+        self._place("2dview")
+        self.assertEqual(self._retire(None, ("helm", "2dview")), [])
+
+    def test_unchanged_widgets_retire_nothing(self):
+        self._place("2dview")
+        self.assertEqual(self._retire(("helm", "2dview"), ("weapons", "2dview")), [])
+
+    def test_offscreen_rect_is_outside_the_visible_area(self):
         from sbs_utils.mast_sbs.maststorypage import StoryPage
-        StoryPage._forget_parked_widgets(7)
+        self._place("grid_object_list")
+        rec = _RecordingSbs()
+        StoryPage._retire_dropped_engine_widgets(("engi", "grid_object_list"), ("", ""), 7, rec)
+        _cid, _w, coords = rec.rects[0]
+        self.assertTrue(all(c >= 100 for c in coords), coords)
+
+    # --- a widget that COMES BACK has to be un-parked, WHERE IT WAS ----------
+    # Parking is permanent: re-declaring a widget in the list does not restore
+    # the rect we pushed offscreen. A main screen toggles 3dview <-> 2dview every
+    # time the viewer goes Tactical and back, so a parked 3D view never came back
+    # on the way out - "it gets stuck on tactical".
+    def test_a_widget_that_returns_is_put_back_where_it_was(self):
+        self._place("3dview", rect=(0, 5, 100, 95))
+        self._place("2dview", rect=(0, 5, 71, 95))
         # into tactical: the 3D view is parked
         parked = self._retire_rects(("normal_main", "3dview^ship_data"),
                                     ("normal_main", "2dview^ship_data"))
         self.assertIn("3dview", parked)
-        # back out: it must be put somewhere visible again
+        # back out: it must be put back at its OWN rect, not at a guess
         back = self._retire_rects(("normal_main", "2dview^ship_data"),
                                   ("normal_main", "3dview^ship_data"))
         self.assertIn("3dview", back, "the 3D view was left parked offscreen")
-        self.assertTrue(all(c <= 100 for c in back["3dview"]), back["3dview"])
+        self.assertEqual(back["3dview"], (0, 5, 100, 95, 0, 5, 100, 95))
         self.assertIn("2dview", back, "the 2D view should now be the parked one")
 
     def test_a_widget_never_parked_is_not_re_rected(self):
         """Only un-park what we parked - a widget the console placed itself keeps
         the rect its own layout gave it."""
-        from sbs_utils.mast_sbs.maststorypage import StoryPage
-        StoryPage._forget_parked_widgets(7)
+        self._place("3dview")
         back = self._retire_rects(("normal_main", "ship_data"),
                                   ("normal_main", "3dview^ship_data"))
         self.assertNotIn("3dview", back)
 
     def test_parking_is_tracked_per_console(self):
-        from sbs_utils.mast_sbs.maststorypage import StoryPage
-        StoryPage._forget_parked_widgets(7)
-        StoryPage._forget_parked_widgets(8)
+        self._place("3dview", client_id=7)
+        self._place("3dview", client_id=8)
+        self._place("2dview", client_id=7)
+        self._place("2dview", client_id=8)
         self._retire_rects(("normal_main", "3dview"), ("normal_main", "2dview"), 7)
         back = self._retire_rects(("normal_main", "2dview"), ("normal_main", "3dview"), 8)
         self.assertNotIn("3dview", back, "one console's parking un-parked another's")
+
+    # --- and the reason all of the above turns on a recorded rect ------------
+
+    def test_engine_placed_widgets_are_never_touched(self):
+        """THE FIELD REPORT. Weapons leaves six of its widgets to the engine's own
+        layout - nothing sends them a rect, so we have nowhere to put them back.
+
+        Clicking the Upgrades tab drops the whole widget list ("upgrade", ""), and
+        clicking the back tab re-declares it. This used to park all of them and
+        then un-park each one to the FULL CONSOLE, stacking every control over the
+        whole screen. Reported as "the client console will be hosed", repro every
+        time, on Weapons and Helm - the only two consoles with engine-placed
+        widgets.
+        """
+        weapons = ("normal_weap",
+                   "weapon_2d_view^radar_zoom_ctrl^weapon_control^weap_beam_freq"
+                   "^weap_beam_speed^weap_torp_conversion^ship_data^shield_control"
+                   "^main_screen_control")
+        # The two LegendaryMissions actually places, plus ship_data from the panel.
+        for widget in ("radar_zoom_ctrl", "weapon_2d_view", "ship_data"):
+            self._place(widget)
+
+        to_tab = self._retire_rects(weapons, ("upgrade", ""))
+        self.assertCountEqual(to_tab, ["radar_zoom_ctrl", "weapon_2d_view", "ship_data"],
+                              "parked a widget it cannot put back")
+
+        back = self._retire_rects(("upgrade", ""), weapons)
+        for widget in ("weapon_control", "weap_beam_freq", "weap_beam_speed",
+                       "weap_torp_conversion", "shield_control", "main_screen_control"):
+            self.assertNotIn(widget, back,
+                             f"{widget} was moved without knowing where it belongs")
+
+    def test_a_widget_its_owner_hid_is_left_where_the_owner_put_it(self):
+        """ship_data while the info panel is on the log tab. gui_panel_ship_data_hide
+        drops the placement record, so the un-park must not drag it back on screen
+        over the tab the crew chose instead of it."""
+        from sbs_utils.gui import Gui
+        self._place("ship_data")
+        self._retire_rects(("normal_weap", "ship_data"), ("upgrade", ""))
+        Gui.forget_widget_rect(7, "ship_data")           # the panel hides it
+        back = self._retire_rects(("upgrade", ""), ("normal_weap", "ship_data"))
+        self.assertNotIn("ship_data", back)
+
+    def test_both_rects_are_restored_not_just_one(self):
+        """data/guiboxdata.txt gives every stock widget a DIFFERENT pair of rects
+        and send_client_widget_rects takes both, so a console reproducing a stock
+        placement sends two. Putting the widget back has to replay both, or the
+        second one silently becomes a copy of the first."""
+        from sbs_utils.gui import Gui
+        # normal_helm throttle, verbatim
+        Gui.record_widget_rect(7, "throttle", 0, 62, 10, 100, 0, 61, 5, 99)
+        self._retire_rects(("normal_helm", "throttle"), ("upgrade", ""))
+        back = self._retire_rects(("upgrade", ""), ("normal_helm", "throttle"))
+        self.assertEqual(back["throttle"], (0, 62, 10, 100, 0, 61, 5, 99))
+
+    def test_one_rect_still_fills_both_slots(self):
+        """A caller that computed a single rect meant it for both."""
+        from sbs_utils.gui import Gui
+        Gui.record_widget_rect(7, "grid_control", 1, 2, 3, 4)
+        self.assertEqual(Gui.widget_rect_of(7, "grid_control"), (1, 2, 3, 4, 1, 2, 3, 4))
+
+    def test_a_hidden_widget_is_not_parked(self):
+        """gui_widget_offscreen is a deliberate one-way park; nothing else should
+        move that widget on the caller's behalf."""
+        from sbs_utils.gui import Gui
+        self._place("comms_2d_view")
+        Gui.forget_widget_rect(7, "comms_2d_view")       # gui_widget_offscreen
+        dropped = self._retire(("normal_comm", "comms_2d_view"), ("upgrade", ""))
+        self.assertEqual(dropped, [])
 
 
 class TestDeletedObjectSetters(unittest.TestCase):

@@ -499,6 +499,11 @@ def gui_panel_ship_data_show(cid, left, top, width, height):
         left + width,
         top + height,
     )
+    # The panel is the second way a script places an engine widget, and it runs on
+    # every present of the current tab. Recorded for the same reason ConsoleWidget
+    # records: so a park has somewhere to put the widget back.
+    from ...gui import Gui
+    Gui.record_widget_rect(cid, "ship_data", left, top, left + width, top + height)
 
 
 def gui_panel_ship_data_hide(cid, left, top, width, height):
@@ -521,6 +526,12 @@ def gui_panel_ship_data_hide(cid, left, top, width, height):
         left + width,
         top + height,
     )
+    # The panel has put this away on purpose, so we give up our claim to know where
+    # it belongs. Without this the automatic un-park would drag ship_data back on
+    # screen the next time the console's widget list changed, over a tab the crew
+    # chose instead of it.
+    from ...gui import Gui
+    Gui.forget_widget_rect(cid, "ship_data")
 
 
 # def gui_panel_widget_hide(cid, left, top, width, height, widget):
@@ -547,6 +558,9 @@ def gui_panel_widget_show(cid, left, top, width, height, widget):
         left + width,
         top + height,
     )
+    # Placed - see gui_panel_ship_data_show.
+    from ...gui import Gui
+    Gui.record_widget_rect(cid, widget, left, top, left + width, top + height)
 
 
 def gui_panel_widget_hide(cid, left, top, width, height, widget):
@@ -565,6 +579,9 @@ def gui_panel_widget_hide(cid, left, top, width, height, widget):
         left + width,
         top + height,
     )
+    # Put away on purpose - see gui_panel_ship_data_hide.
+    from ...gui import Gui
+    Gui.forget_widget_rect(cid, widget)
 
 
 def gui_panel_console_message_list(cid, left, top, width, height):

@@ -126,8 +126,11 @@ class GuiClient(Agent):
         event = FakeEvent(self.client_id, "gui_push")
         self.page_stack.append(page)
         # The new page owns the client's widget list from here; forget what the
-        # page underneath established so the next repaint re-sends it.
+        # page underneath established so the next repaint re-sends it. The rects
+        # go with it: they described the page underneath's placements, and this
+        # page has not made any yet.
         Gui.widget_list_sent.pop(self.client_id, None)
+        Gui.widget_rects.pop(self.client_id, None)
         self.present(event)
 
     def pop(self):
@@ -141,8 +144,10 @@ class GuiClient(Agent):
         # Gui.root_clear so overlay slots find out (Gui.root_epoch).
         Gui.root_clear(FrameContext.context.sbs, self.client_id)
         # The page revealed underneath must re-establish its widget list: the
-        # page that is leaving may well have replaced it.
+        # page that is leaving may well have replaced it. Same for the rects -
+        # the page coming back re-places what it owns on its next present.
         Gui.widget_list_sent.pop(self.client_id, None)
+        Gui.widget_rects.pop(self.client_id, None)
         if len(self.page_stack) > 0:
             ret = self.page_stack.pop()
             if ret:
@@ -267,6 +272,22 @@ class Gui:
     # that un-parks a widget it never parked (client ids are recycled between
     # missions). See StoryPage._retire_dropped_engine_widgets.
     widget_parked = {}
+    # client_id -> {widget: (left, top, right, bottom)} - the rect a SCRIPT last
+    # placed that engine widget at, and only while that placement still stands.
+    #
+    # This is what makes parking reversible. An engine widget the ENGINE laid out
+    # has no entry here, because nothing ever sent it a rect: we do not know where
+    # it belongs, so we must not move it - taking it away is a promise we cannot
+    # keep. Un-parking such a widget to a guessed full console is what put every
+    # control on Helm and Weapons over the whole screen after a tab round trip.
+    #
+    # Two kinds of caller, and the distinction is the point:
+    #   place  -> record_widget_rect   (ConsoleWidget._present, gui_panel_*_show)
+    #   hide   -> forget_widget_rect   (gui_panel_*_hide, gui_widget_offscreen)
+    # Both send rects, so coordinates alone cannot tell them apart. A widget its
+    # own owner pushed offscreen - ship_data while the info panel is on the log
+    # tab - has no record, and so is never dragged back on screen by the un-park.
+    widget_rects = {}
     # client_id -> how many times this client's ROOT region has been cleared.
     #
     # A root clear drops every SUB-REGION the client had, and the engine only
@@ -298,6 +319,48 @@ class Gui:
     def root_epoch_of(client_id):
         """The client's current root-clear epoch (see ``Gui.root_epoch``)."""
         return Gui.root_epoch.get(client_id, 0)
+
+    @staticmethod
+    def record_widget_rect(client_id, widget, left, top, right, bottom, *alt):
+        """A script PLACED an engine widget here. See ``Gui.widget_rects``.
+
+        Call from anywhere that sends a widget a rect meaning "be visible here".
+        Recording it is what later lets the widget be parked offscreen and put
+        back where it was.
+
+        ``send_client_widget_rects`` takes TWO rects; pass the second as ``alt``
+        if it differs, and the widget is put back with exactly what it was given.
+        Omit it and the one rect is used for both, which is what a caller that
+        computed a single rect meant anyway.
+        """
+        if client_id is None or not widget:
+            return
+        if not alt:
+            alt = (left, top, right, bottom)
+        Gui.widget_rects.setdefault(client_id, {})[widget] = (
+            left, top, right, bottom) + tuple(alt)
+
+    @staticmethod
+    def forget_widget_rect(client_id, widget):
+        """A script HID an engine widget. See ``Gui.widget_rects``.
+
+        Call from anywhere that sends a widget a rect meaning "be gone". The
+        widget keeps whatever rect it was just given; what it loses is our claim
+        to know where it belongs, so nothing will move it again on its owner's
+        behalf.
+        """
+        if client_id is None or not widget:
+            return
+        rects = Gui.widget_rects.get(client_id)
+        if rects is not None:
+            rects.pop(widget, None)
+
+    @staticmethod
+    def widget_rect_of(client_id, widget):
+        """The 8 numbers a script last placed ``widget`` with - both rects, ready
+        to hand straight back to ``send_client_widget_rects``. None if we never
+        placed it."""
+        return Gui.widget_rects.get(client_id, {}).get(widget)
 
     @staticmethod
     def server_start_page_class(cls_page):
@@ -430,6 +493,7 @@ class Gui:
             Gui.clients.pop(client_id, None)
             FrameContext.aspect_ratios.pop(client_id, None)
             Gui.widget_list_sent.pop(client_id, None)
+            Gui.widget_rects.pop(client_id, None)
 
     @staticmethod
     def push(client_id, page):
@@ -523,6 +587,7 @@ class Gui:
                 Gui.clients.pop(cid, None)
                 FrameContext.aspect_ratios.pop(cid, None)
                 Gui.widget_list_sent.pop(cid, None)
+                Gui.widget_rects.pop(cid, None)
                 
 
         # Anything left is a client not connected to the script

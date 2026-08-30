@@ -547,6 +547,61 @@ def grid_get_layout(ship_key, layout=None):
     return entry.get("grid_objects")
 
 
+def grid_hull_has_role(ship_or_key, role, layout=None):
+    """Does this HULL's floor plan declare a node with this role? e.g. ``"jump"``.
+
+    Answers from the STATIC grid data, so it is true from the moment the ship exists -
+    **before its interior has been built**. That is the whole point of it.
+
+    The obvious way to ask "does this ship have a jump drive" is to look for a grid
+    object with the ``jump`` role, or to read a blob value some route wrote after
+    looking. Both need the interior to exist, and an interior is built LATE and
+    asynchronously (see ``grid_interior_request``: the build is deferred so a roster of
+    eight player ships is not built three times over before anyone picks a map). A
+    console that opens before that lands therefore asks too early, gets "no", and lays
+    itself out without the drive's controls - and nothing tells it to try again, so the
+    crew has to switch console and come back. Reported on a xim_dreadnought, whose hull
+    plainly has the drive.
+
+    The hull's own floor plan knows the answer immediately and never changes, so ask it.
+
+    Args:
+        ship_or_key (Agent | int | str): a ship, or a shipData key directly.
+        role (str): the grid-object role to look for, matched case-insensitively
+            against the comma-separated ``roles`` of each node.
+        layout (str, optional): which named layout. Defaults to the ship's own
+            ``grid_layout``, then ``"default"`` - the same resolution the build uses,
+            so a jump-drive refit layout answers for itself.
+
+    Returns:
+        bool: True when some node in that plan carries the role.
+
+    Example:
+        if grid_hull_has_role(ship, "jump"):
+            gui_layout_widget("helm_jump")
+    """
+    key = ship_or_key
+    if not isinstance(key, str):
+        ship_id = to_id(ship_or_key)
+        so = to_object(ship_id)
+        if so is None:
+            return False
+        if layout is None:
+            layout = get_inventory_value(ship_id, "grid_layout", None)
+        key = so.art_id
+    items = grid_get_layout(key, layout)
+    if not items:
+        return False
+    want = role.strip().lower()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        roles = item.get("roles") or ""
+        if want in [r.strip().lower() for r in roles.split(",")]:
+            return True
+    return False
+
+
 def grid_get_theme_name(ship_key, layout=None):
     """The theme a hull (or one of its layouts) asks for, or ``None`` for the current one.
 
