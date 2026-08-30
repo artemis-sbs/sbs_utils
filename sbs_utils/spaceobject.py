@@ -8,6 +8,60 @@ from .vec import Vec3
 from .procedural.ship_data import get_ship_data_for
 
 
+# --- ASCII-only names -------------------------------------------------------------
+#
+# WORKAROUND, NOT A FIX, AND MEANT TO BE REVERTED. Set ASCII_NAMES = False (or delete
+# the one `ascii_name()` call in set_name) the day the engine renders these correctly.
+# That is the whole revert; nothing else depends on it.
+#
+# WHAT IT IS FOR. The engine accepts non-ASCII everywhere it was tested - name_tag
+# stores and returns it byte-identical up to 2048 UTF-8 bytes, print() is fine, the GUI
+# style parser accepts it, and it survives the wire. Only the RENDERER is wrong: it
+# expands the UTF-8 bytes into characters, so a name draws as a long run of garbage
+# (measured on screen 2026-08-30). `names.py` seeds the Kralien generator from
+# alphabets containing s-circumflex and u-breve, so ~40% of Kralien names hit this.
+#
+# The NAME DATA IS LEFT ALONE on purpose. Folding here rather than editing names.py
+# keeps the generator's flavour, covers every other source of a name - a crew typing
+# one in the lobby, a game code's SHIP_LOADOUT, a mod's roster - and makes the revert a
+# one-line change rather than an archaeology exercise.
+#
+# COST. `str.isascii()` is a flag check on the string object in CPython, not a scan, so
+# the common path pays O(1) and allocates nothing. Only a name that actually contains
+# non-ASCII does any work.
+ASCII_NAMES = True
+
+# Specific letters first, so a name keeps its shape: the Kralien alphabet's Esperanto
+# pair, then the accented Latin most likely to arrive from a person typing one.
+_NAME_FOLD = str.maketrans({
+    "ŝ": "s", "Ŝ": "S",      # s-circumflex
+    "ŭ": "u", "Ŭ": "U",      # u-breve
+    "ĉ": "c", "Ĉ": "C",      # c-circumflex   (same Esperanto family)
+    "ĝ": "g", "Ĝ": "G",      # g-circumflex
+    "ĥ": "h", "Ĥ": "H",      # h-circumflex
+    "ĵ": "j", "Ĵ": "J",      # j-circumflex
+    "’": "'", "‘": "'",      # curly quotes
+    "“": '"', "”": '"',
+    "–": "-", "—": "-",      # en/em dash
+    "…": "...",
+})
+
+
+def ascii_name(name):
+    """A name the engine can draw. Returns `name` unchanged when it is already ASCII."""
+    if not ASCII_NAMES or not isinstance(name, str) or name.isascii():
+        return name
+    folded = name.translate(_NAME_FOLD)
+    if folded.isascii():
+        return folded
+    # Anything still outside ASCII gets decomposed (e-acute -> e) and, failing that,
+    # dropped. Dropping beats a placeholder: a name is a label, and a run of '?' is
+    # exactly the garbage this exists to prevent.
+    import unicodedata
+    folded = unicodedata.normalize("NFKD", folded)
+    return folded.encode("ascii", "ignore").decode("ascii")
+
+
 class TickType(IntEnum):
     # Engine value bit 1111
     # Passive = 0x1 = Engine 
@@ -195,13 +249,14 @@ class SpaceObject(Agent):
                 FrameContext.context.sim.force_update_to_clients(self.id,0)
 
     def set_name(self, name) -> str:
-        """ 
+        """
         Get the name of the object
-        
+
         Returns:
             str: The name of the object.
         """
         so = self.space_object()
+        name = ascii_name(name)
         self._name = name
         self.update_comms_id()
         if so is None:
