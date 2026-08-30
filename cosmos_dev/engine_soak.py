@@ -176,19 +176,21 @@ def cdb_stack(path, cdb):
     try:
         out = subprocess.run(
             [cdb, "-z", path, "-y", COSMOS, "-i", COSMOS,
-             "-c", ".symfix; .reload; !analyze -v; kb; q"],
+             # `.lines -e` IS THE WHOLE TRICK for file:line. Without it cdb prints
+             # symbols only, which reads exactly like a PDB with no line table - a
+             # conclusion carried in this project's notes for a while, and wrong. With
+             # it, every engine frame carries its source file and line.
+             "-c", ".lines -e; .symfix; .reload; !analyze -v; .ecxr; kn; q"],
             capture_output=True, text=True, timeout=300).stdout
     except Exception as e:                                      # noqa: BLE001
         return {"cdb_error": repr(e)}
-    frames, bucket = [], None
-    for line in out.splitlines():
-        if "Artemis3" in line and "!" in line:
-            frag = line.split(":")[-1].strip()
-            if frag and frag not in frames:
-                frames.append(frag[:160])
-        if line.startswith("BUGCHECK_STR:") or line.startswith("FAILURE_BUCKET_ID:"):
-            bucket = line.strip()
-    return {"raw": out, "frames": frames[:12], "bucket": bucket}
+    from .crash_format import bucket, frames, format_stack
+    return {"raw": out, "bucket": bucket(out), "pretty": format_stack(out),
+            # Symbol + source location per frame, which is what makes two crashes
+            # comparable at a glance; the mangled STL names are unreadable inline.
+            "frames": [("%s %s:%s" % (f["symbol"][:70], f["file"], f["line"])
+                        if f["file"] else f["symbol"][:70])
+                       for f in frames(out)[:12]]}
 
 
 def analyze_dump(path, pubs):
@@ -375,6 +377,14 @@ def main(argv=None):
         with open(os.path.join(args.out, "summary.json"), "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2)
         for i, c in enumerate(rec.get("cdb") or []):
+            # stack-N.txt is the one a person reads; cdb-N.txt is the full !analyze -v
+            # kept beside it for when the summary is not enough.
+            pretty = c.pop("pretty", None)
+            if pretty:
+                with open(os.path.join(run_dir, "stack-%d.txt" % i), "w",
+                          encoding="utf-8", errors="replace") as f:
+                    f.write(pretty + "\n")
+                print(pretty)
             raw = c.pop("raw", None)
             if raw:
                 with open(os.path.join(run_dir, "cdb-%d.txt" % i), "w",
