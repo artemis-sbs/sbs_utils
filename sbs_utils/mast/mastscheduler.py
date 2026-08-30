@@ -65,7 +65,7 @@ def _describe_expr_values(code):
         if callable(v):
             continue
         try:
-            shown = repr(v)
+            shown = _safe_for_gui(repr(v))
         except Exception:
             shown = "<unreprable>"
         if len(shown) > 160:
@@ -73,7 +73,32 @@ def _describe_expr_values(code):
         out.append(f"\n     {n} = {type(v).__name__}: {shown}")
     if not out:
         return ""
-    return "\n     --- values ---" + "".join(out)
+    # Cap the whole block. This text is DISPLAYED BY THE ENGINE (runtime_error ->
+    # format_exception -> FrameContext.error_message -> ErrorPage), and an expression
+    # referencing several large collections could otherwise hand it kilobytes.
+    block = "".join(out)
+    if len(block) > 1200:
+        block = block[:1200] + "\n     ... (values truncated)"
+    return "\n     --- values ---" + block
+
+
+def _safe_for_gui(text):
+    """Make a repr safe to put in front of the engine.
+
+    This block ends up in an ErrorPage, so it is engine-rendered text, and the values in
+    it are arbitrary mission data - a ship name, a loaded YAML row, whatever the author
+    put in a variable. Two things in there are not the engine's friends:
+
+      * NON-ASCII. Engine-rendered strings are ASCII only; a name with a curly quote or an
+        accent has no business reaching a GUI string through a diagnostic.
+      * `^`, which is a GUI style SEPARATOR. handlerhooks already strips it from the
+        hook-level error text (`text_err.replace(chr(94), "")`), but the MAST-level path
+        does not - so before this, a caret inside a repr went straight through.
+
+    Neither was reachable before values were printed here; adding the values added the
+    exposure, so the sanitising belongs with it.
+    """
+    return "".join(c if (32 <= ord(c) < 127 and c != "^") else "." for c in text)
 
 
 def describe_eval_failure(code):
