@@ -15,6 +15,7 @@ from sbs_utils.procedural.query import to_id, to_object, get_data_set_value
 from sbs_utils.procedural.spawn import player_spawn, npc_spawn
 from sbs_utils.procedural import grav_tether as gt
 from sbs_utils.procedural.sides import side_ensure
+from sbs_utils.procedural.terrain import terrain_spawn_black_hole
 
 
 class TestGravTether(unittest.TestCase):
@@ -506,6 +507,135 @@ class TestGravTetherConstraints(unittest.TestCase):
         gt.grav_tether_tow(self.ship, self.load, 500)
         gt.grav_tether_tick()
         self.assertFalse(gt.grav_tether_has(self.ship, self.load))
+
+
+class TestGravTetherAnchors(unittest.TestCase):
+    """An anchor is something you hang a rope FROM, never something you pull.
+
+    A rigid Grav Lock on a black hole was reachable from the shipped Weapons hold-click,
+    and it took whole games down: the beam makes the hole the LOAD, _enforce_impulse then
+    caps the puller to impulse so it cannot warp away, and LM's lethal-proximity watch
+    explodes anything within 500u of a hole every tick.
+    """
+
+    def setUp(self):
+        reset_mock(sbs)
+        gt.grav_tether_clear_all()
+        gt.grav_tether_set_attach_policy(None)
+        gt.grav_tether_set_mass_fn(None)
+        gt.grav_tether_set_grab_speed_limit(None)
+        gt.grav_tether_set_anchor_roles(gt.ANCHOR_ROLES)
+        self.ship = to_id(player_spawn(0, 0, 0, "Tug", "tsn", "tsn_light_cruiser"))
+        self.hole = to_id(terrain_spawn_black_hole(3000, 0, 0, gravity_radius=5000))
+        self.said = []
+        self._real_emit = gt.signal_emit
+        gt.signal_emit = lambda name, data=None: self.said.append(name)
+
+    def tearDown(self):
+        gt.signal_emit = self._real_emit
+        gt.grav_tether_clear_all()
+        gt.grav_tether_set_anchor_roles(gt.ANCHOR_ROLES)
+
+    def test_a_black_hole_is_an_anchor(self):
+        self.assertTrue(gt.grav_tether_is_anchor(self.hole))
+        self.assertFalse(gt.grav_tether_is_anchor(self.ship))
+
+    def test_a_black_hole_cannot_be_grav_locked(self):
+        self.assertIsNone(gt.grav_tether_lock(self.ship, self.hole))
+        self.assertFalse(gt.grav_tether_has(self.ship, self.hole))
+        self.assertIsNone(gt.grav_tether_get(self.ship, self.hole))
+
+    def test_a_black_hole_cannot_be_towed_or_reeled(self):
+        self.assertIsNone(gt.grav_tether_tow(self.ship, self.hole, 500))
+        self.assertIsNone(gt.grav_tether_reel(self.ship, self.hole))
+        self.assertFalse(gt.grav_tether_involves(self.hole))
+
+    def test_the_refusal_says_why(self):
+        # A button that silently does nothing reads as broken; the mission needs to be
+        # able to tell the crew what happened.
+        gt.grav_tether_lock(self.ship, self.hole)
+        self.assertIn("grav_tether_immovable", self.said)
+
+    def test_nothing_ever_pulls_the_hole(self):
+        # The failure was physical: with a connection live the mock (and, on the evidence,
+        # the engine) moves the target. No connection, no move.
+        before = (to_object(self.hole).pos.x, to_object(self.hole).pos.z)
+        gt.grav_tether_lock(self.ship, self.hole)
+        for _ in range(5):
+            gt.grav_tether_tick()
+        after = (to_object(self.hole).pos.x, to_object(self.hole).pos.z)
+        self.assertEqual(before, after)
+
+    def test_a_hole_can_still_ANCHOR_a_swing(self):
+        # The whole point of the source/target distinction: the slingshot must survive.
+        con = gt.grav_tether_swing(self.hole, self.ship, 8000)
+        self.assertIsNotNone(con)
+        self.assertTrue(gt.grav_tether_has(self.hole, self.ship))
+
+    def test_a_mission_can_clear_the_rule(self):
+        gt.grav_tether_set_anchor_roles("")
+        self.assertIsNotNone(gt.grav_tether_lock(self.ship, self.hole))
+
+
+class TestGravTetherTickIsUnkillable(unittest.TestCase):
+    """A raise inside the tether tick does not stop at this module.
+
+    TickTask._update and TickDispatcher.dispatch_tick are both bare, so it aborts every
+    OTHER scheduled task that tick and lands in handlerhooks' catch-all, which pauses the
+    sim and pushes the ErrorPage - and TickTask.start is only refreshed after the callback
+    RETURNS, so Resume Mission re-raises it immediately. The loop must swallow and drop.
+    """
+
+    def setUp(self):
+        reset_mock(sbs)
+        gt.grav_tether_clear_all()
+        gt.grav_tether_set_attach_policy(None)
+        gt.grav_tether_set_anchor_roles(gt.ANCHOR_ROLES)
+        self.ship = to_id(player_spawn(0, 0, 0, "Tug", "tsn", "tsn_light_cruiser"))
+        self.load = to_id(npc_spawn(2000, 0, 0, "Load", "tsn", "tsn_light_cruiser", "behav_npcship"))
+
+    def tearDown(self):
+        gt.grav_tether_clear_all()
+
+    def test_an_engine_that_refuses_the_beam_drops_the_tether(self):
+        gt.grav_tether_reel(self.ship, self.load, rate=10)
+        self.assertTrue(gt.grav_tether_has(self.ship, self.load))
+        real = sbs.sim.AddTractorConnection
+        try:
+            sbs.simulation.AddTractorConnection = lambda *a, **k: None
+            gt.grav_tether_tick()                     # must not raise
+        finally:
+            sbs.simulation.AddTractorConnection = real
+        self.assertFalse(gt.grav_tether_has(self.ship, self.load))
+
+    def test_a_raising_tether_is_dropped_not_propagated(self):
+        gt.grav_tether_tow(self.ship, self.load, 500)
+        real = gt._tick_rope
+        try:
+            def boom(*a, **k):
+                raise RuntimeError("engine said no")
+            gt._tick_rope = boom
+            gt.grav_tether_tick()                     # must not raise
+        finally:
+            gt._tick_rope = real
+        self.assertFalse(gt.grav_tether_has(self.ship, self.load))
+
+    def test_one_bad_tether_does_not_cost_the_others_their_tick(self):
+        other = to_id(npc_spawn(9000, 0, 0, "Two", "tsn", "tsn_light_cruiser", "behav_npcship"))
+        gt.grav_tether_tow(self.ship, self.load, 500)
+        gt.grav_tether_tow(self.ship, other, 500)
+        real = gt._tick_rope
+        try:
+            def boom(src, tgt, st):
+                if tgt == self.load:
+                    raise RuntimeError("engine said no")
+                return real(src, tgt, st)
+            gt._tick_rope = boom
+            gt.grav_tether_tick()
+        finally:
+            gt._tick_rope = real
+        self.assertFalse(gt.grav_tether_has(self.ship, self.load))
+        self.assertTrue(gt.grav_tether_has(self.ship, other))
 
 
 if __name__ == "__main__":

@@ -122,6 +122,8 @@ def grav_tether_release (source, target):
     """Break a single tether (source no longer pulls target). Safe if none exists."""
 def grav_tether_release_all (source):
     """Break every tether where ``source`` is the puller."""
+def grav_tether_is_anchor (obj):
+    """Whether this object can only ever be the anchor end of a tether."""
 def grav_tether_release_any (obj):
     """Release every tether obj is part of, at either end."""
 def grav_tether_rope (source, target, rope_len, stiffness=5.0, overspeed=None):
@@ -132,6 +134,10 @@ def grav_tether_rope (source, target, rope_len, stiffness=5.0, overspeed=None):
     *at* a distance REQUIRES this toggle (which held 798/801/801 at rope_len=800). Both
     Tow (source drags a trailing load) and Swing (anchor holds the ship) are this same
     rope-hold — only the source/target roles differ."""
+def grav_tether_set_anchor_roles (roles):
+    """Set the roles that may never be PULLED (comma-separated, or "" to allow all).
+
+    A mission that wants the library default back passes :data:`ANCHOR_ROLES`."""
 def grav_tether_set_attach_policy (fn):
     """Install (or clear with None) the attach veto callback. An attach whose
     fn(source_id, target_id) returns False is refused (attach returns None)."""

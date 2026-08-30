@@ -26,6 +26,22 @@ no raycast).
     this module passes **no** offset - which is what a tow wants. To bolt something ON to
     a hull instead of dragging it behind one, use [mount](mount.md).
 
+!!! danger "An anchor is never a load"
+    `ANCHOR_ROLES` (`black_hole,planet,nebula` by default) names the bodies that may only
+    ever be the **source** end of a tether. Attaching one as the **target** is refused and
+    emits `grav_tether_immovable`.
+
+    This is not tidiness. A rigid `grav_tether_lock` on a black hole makes the hole the
+    load: the beam reels it onto the hull, `_enforce_impulse` caps the puller to impulse
+    so it cannot warp away, and a mission's lethal-proximity watch then explodes anything
+    within the kill radius - after which the hole stays parked wherever it was dropped.
+    One hold-click took whole games down that way.
+
+    A **swing** is unaffected and is the point of the distinction: there the anchor is the
+    source and the ship is what moves, so a black-hole slingshot still works. A mission
+    that wants the old behavior calls `grav_tether_set_anchor_roles("")`; one that has
+    other immovable bodies adds them.
+
 !!! tip "For a readout, ask `grav_tether_status`"
     A display needs three facts at once: what is on the other end, what the beam is
     doing, and **which end this ship is on**. `grav_tether_status(obj)` answers all

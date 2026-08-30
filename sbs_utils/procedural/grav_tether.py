@@ -31,11 +31,13 @@ sbs_utils.procedural.mount - which shares the engine call but deliberately not t
 registry, since _enforce_impulse would cap the carrying ship to impulse.
 """
 
+import logging
 import math
 
 from ..helpers import FrameContext
 from ..tickdispatcher import TickDispatcher
 from .query import to_id, to_object, object_exists, get_data_set_value
+from .roles import has_any_role
 from .signal import signal_emit
 
 # Sensible defaults from the Phase 0 spike.
@@ -93,6 +95,18 @@ _grab_speed_limit = None
 #: Engineering a stake - a long haul competes with shields and weapons for power.
 _tow_energy_cost = 0.0
 
+#: Roles that can only ever be an ANCHOR - something you hang a rope FROM, never
+#: something you pull. A black hole, a planet or a nebula does not move for a tractor
+#: beam, and a beam that claims to be pulling one is an expensive lie: the source is
+#: capped to impulse (_enforce_impulse) for a haul that can never arrive, held next to
+#: the thing that kills it. A rigid Grav Lock on a black hole was reachable from the
+#: shipped Weapons hold-click and took whole games down that way.
+#:
+#: NOT "all terrain": towing an asteroid and towing a derelict are shipped, wanted
+#: mechanics. Only the bodies nothing could plausibly drag are listed.
+ANCHOR_ROLES = "black_hole,planet,nebula"
+_anchor_roles = ANCHOR_ROLES
+
 
 def grav_tether_set_mass_fn(fn):
     """Install (or clear with None) the mass provider: fn(id) -> float.
@@ -125,6 +139,20 @@ def grav_tether_mass_ratio(source, target):
     the puller.
     """
     return grav_tether_mass(target) / max(0.0001, grav_tether_mass(source))
+
+
+def grav_tether_set_anchor_roles(roles):
+    """Set the roles that may never be PULLED (comma-separated, or "" to allow all).
+
+    A mission that wants the library default back passes :data:`ANCHOR_ROLES`.
+    """
+    global _anchor_roles
+    _anchor_roles = roles or ""
+
+
+def grav_tether_is_anchor(obj):
+    """Whether this object can only ever be the anchor end of a tether."""
+    return bool(_anchor_roles) and has_any_role(to_id(obj), _anchor_roles)
 
 
 def grav_tether_set_grab_speed_limit(limit):
@@ -189,6 +217,26 @@ def _attach_allowed(src, tgt):
     return _attach_policy is None or _attach_policy(src, tgt)
 
 
+def _attach_guard(src, tgt):
+    """Every refusal rule, in one place. True when the tether may be created.
+
+    `tgt` is always the end of the rope - the load for a lock/tow/reel, and the SHIP for
+    a swing, where the anchor is the source. That is what lets one rule cover both: a
+    black hole may anchor a slingshot and may never be dragged.
+    """
+    if src is None or tgt is None or src == 0 or tgt == 0:
+        return False
+    if not _attach_allowed(src, tgt):
+        return False
+    if grav_tether_is_anchor(tgt):
+        signal_emit("grav_tether_immovable", {"SOURCE_ID": src, "TARGET_ID": tgt})
+        return False
+    if grav_tether_target_too_fast(tgt):
+        signal_emit("grav_tether_too_fast", {"SOURCE_ID": src, "TARGET_ID": tgt})
+        return False
+    return True
+
+
 def _sim():
     return FrameContext.sim
 
@@ -235,12 +283,7 @@ def grav_tether_attach(source, target, offset=None, stiffness=0.0, pull_distance
     """
     src = to_id(source)
     tgt = to_id(target)
-    if src is None or tgt is None or src == 0 or tgt == 0:
-        return None
-    if not _attach_allowed(src, tgt):
-        return None
-    if grav_tether_target_too_fast(tgt):
-        signal_emit("grav_tether_too_fast", {"SOURCE_ID": src, "TARGET_ID": tgt})
+    if not _attach_guard(src, tgt):
         return None
     sim = _sim()
     # WHO ACTUALLY GETS PULLED is decided by mass, not by who pressed the button. Grab
@@ -279,21 +322,40 @@ def grav_tether_release(source, target):
     _maybe_stop_tick()
 
 
-def _delete_connection(src, tgt):
-    """Drop the ENGINE connection for a registry pair, whichever way round it was built.
+def _conn_pair(src, tgt):
+    """The ENGINE pair for a registry key, whichever way round the mass rule built it.
 
-    A mass-reversed tether was created as (target, source), so deleting only the pair the
-    caller knows about would leave the real connection live and the load still held.
+    A mass-reversed tether was created as (target, source), so touching only the pair the
+    caller knows about leaves the real connection live and the load still held. EVERY
+    engine call for a registered tether goes through here - the reel ramp and the rope
+    toggle used to re-add the raw (src, tgt) each tick, which on a reversed tether left
+    the reversed connection pulling AND built a second one facing the other way.
     """
     st = _TETHERS.get((src, tgt))
-    sim = _sim()
+    return (tgt, src) if (st is not None and st.get("reversed")) else (src, tgt)
+
+
+def _delete_connection(src, tgt):
+    """Drop the ENGINE connection for a registry pair, whichever way round it was built."""
+    a, b = _conn_pair(src, tgt)
     try:
-        if st is not None and st.get("reversed"):
-            sim.DeleteTractorConnection(tgt, src)
-        else:
-            sim.DeleteTractorConnection(src, tgt)
+        _sim().DeleteTractorConnection(a, b)
     except Exception:
         pass
+
+
+def _get_connection(src, tgt):
+    """The live ENGINE connection for a registry pair, or None."""
+    a, b = _conn_pair(src, tgt)
+    return _sim().GetTractorConnection(a, b)
+
+
+def _add_connection(src, tgt, offset, pull):
+    """Create the ENGINE connection for a registry pair. May return None: the engine can
+    refuse one (a static body is the likely case), and dereferencing that None inside the
+    tick is how a single tether used to pause the whole sim."""
+    a, b = _conn_pair(src, tgt)
+    return _sim().AddTractorConnection(a, b, offset, float(pull))
 
 
 def _drag_recheck(src):
@@ -442,10 +504,9 @@ def grav_tether_clear_all():
         sim = None
     if sim is not None:
         for key in list(_TETHERS):
-            try:
-                sim.DeleteTractorConnection(key[0], key[1])
-            except Exception:
-                pass
+            _delete_connection(key[0], key[1])     # reversal-aware; raw pair leaked one
+    for key in list(_TETHERS):
+        _release_drag(key[0])                      # a cleared tether must give the drive back
     _TETHERS.clear()
     _maybe_stop_tick()
 
@@ -484,12 +545,7 @@ def grav_tether_rope(source, target, rope_len, stiffness=DEFAULT_TOW_STIFFNESS, 
     rope-hold — only the source/target roles differ."""
     src = to_id(source)
     tgt = to_id(target)
-    if src is None or tgt is None or src == 0 or tgt == 0:
-        return None
-    if not _attach_allowed(src, tgt):
-        return None
-    if grav_tether_target_too_fast(tgt):
-        signal_emit("grav_tether_too_fast", {"SOURCE_ID": src, "TARGET_ID": tgt})
+    if not _attach_guard(src, tgt):
         return None
     _TETHERS[(src, tgt)] = {
         "offset": None,
@@ -502,8 +558,10 @@ def grav_tether_rope(source, target, rope_len, stiffness=DEFAULT_TOW_STIFFNESS, 
         "mode": MODE_TOW,
     }
     _ensure_tick()
-    _tick_rope(src, tgt, _TETHERS[(src, tgt)])   # engage now if already taut
-    return _sim().GetTractorConnection(src, tgt)
+    if not _tick_rope(src, tgt, _TETHERS[(src, tgt)]):   # engage now if already taut
+        grav_tether_release(src, tgt)                    # engine refused the beam
+        return None
+    return _get_connection(src, tgt)
 
 
 def grav_tether_swing(anchor, ship, rope_len, stiffness=1.0, overspeed=None):
@@ -515,12 +573,7 @@ def grav_tether_swing(anchor, ship, rope_len, stiffness=1.0, overspeed=None):
     motion. Engine-confirmed a player hull can be tractor-pulled; final feel is a fly-it."""
     src = to_id(anchor)
     tgt = to_id(ship)
-    if src is None or tgt is None or src == 0 or tgt == 0:
-        return None
-    if not _attach_allowed(src, tgt):
-        return None
-    if grav_tether_target_too_fast(tgt):
-        signal_emit("grav_tether_too_fast", {"SOURCE_ID": src, "TARGET_ID": tgt})
+    if not _attach_guard(src, tgt):
         return None
     _TETHERS[(src, tgt)] = {
         "offset": None,
@@ -533,8 +586,10 @@ def grav_tether_swing(anchor, ship, rope_len, stiffness=1.0, overspeed=None):
         "mode": MODE_SWING,
     }
     _ensure_tick()
-    _tick_swing(src, tgt, _TETHERS[(src, tgt)])
-    return _sim().GetTractorConnection(src, tgt)
+    if not _tick_swing(src, tgt, _TETHERS[(src, tgt)]):
+        grav_tether_release(src, tgt)                    # engine refused the beam
+        return None
+    return _get_connection(src, tgt)
 
 
 def grav_tether_reel(source, target, rate=DEFAULT_REEL_RATE,
@@ -595,16 +650,17 @@ def _tick_rope(src, tgt, st):
     so = to_object(src)
     to = to_object(tgt)
     if so is None or to is None:
-        return
-    sim = _sim()
-    con = sim.GetTractorConnection(src, tgt)
+        return True
+    con = _get_connection(src, tgt)
     if _distance(so, to) > st["rope_len"]:
         if con is None:
-            con = sim.AddTractorConnection(src, tgt, _to_sbs_vec(st["offset"]),
-                                           st["rope_len"])
+            con = _add_connection(src, tgt, _to_sbs_vec(st["offset"]), st["rope_len"])
+        if con is None:
+            return False                     # the engine refused the beam
         con.offset = st["stiffness"]
     elif con is not None:
-        sim.DeleteTractorConnection(src, tgt)
+        _delete_connection(src, tgt)
+    return True
 
 
 def _tick_swing(anchor, ship, st):
@@ -615,19 +671,21 @@ def _tick_swing(anchor, ship, st):
     ao = to_object(anchor)
     so = to_object(ship)
     if ao is None or so is None:
-        return
+        return True
     dx = so.pos.x - ao.pos.x
     dz = so.pos.z - ao.pos.z
     d = math.sqrt(dx * dx + dz * dz)
     if d < 1e-6:
-        return                                       # on top of the anchor; nothing to aim
+        return True                                  # on top of the anchor; nothing to aim
     rope = st["rope_len"]
     sbs = _sbs()
-    sim = _sim()
     off = sbs.vec3((dx / d) * rope, 0.0, (dz / d) * rope)   # circle point at ship's bearing
-    sim.DeleteTractorConnection(anchor, ship)
-    con = sim.AddTractorConnection(anchor, ship, off, 0.0)
+    _delete_connection(anchor, ship)
+    con = _add_connection(anchor, ship, off, 0.0)
+    if con is None:
+        return False                                 # the engine refused the beam
     con.offset = st["stiffness"]
+    return True
 
 
 def _advance_reel(src, tgt, st):
@@ -636,12 +694,14 @@ def _advance_reel(src, tgt, st):
         new_pull = 0.0
         st["reel_rate"] = 0.0
     st["pull"] = new_pull
-    sim = _sim()
-    sim.DeleteTractorConnection(src, tgt)
-    con = sim.AddTractorConnection(src, tgt, _to_sbs_vec(st["offset"]), new_pull)
+    _delete_connection(src, tgt)
+    con = _add_connection(src, tgt, _to_sbs_vec(st["offset"]), new_pull)
+    if con is None:
+        return False                                 # the engine refused the beam
     con.offset = st["stiffness"]
     if new_pull <= 0.0:
         signal_emit("grav_tether_reeled", {"source": src, "target": tgt})
+    return True
 
 
 #: Key the tow-drag modifiers are registered under, so they can be lifted cleanly.
@@ -712,15 +772,32 @@ def grav_tether_tick(t=None):
         st = _TETHERS.get(key)
         if st is None:
             continue
-        if _enforce_impulse(src, tgt, st):
-            continue                       # snapped -> gone this tick
-        _enforce_drag(src, tgt, st)        # towing a heavy load costs you speed
-        if _spend_tow_energy(src, tgt, st):
-            continue                       # ran dry -> released this tick
-        if st.get("swing"):
-            _tick_swing(src, tgt, st)      # circle-point orbit (holds radius)
-        elif st.get("rope"):
-            _tick_rope(src, tgt, st)       # trailing tow rope-hold
-        elif st["reel_rate"] > 0.0:
-            _advance_reel(src, tgt, st)
+        # ONE BAD TETHER MUST NOT TAKE DOWN THE TICK LOOP - and a raise here does not stop
+        # at this module. TickTask._update and TickDispatcher.dispatch_tick are both bare,
+        # so it aborts the iteration over every OTHER scheduled task that tick and lands in
+        # handlerhooks' catch-all, which PAUSES THE SIM and pushes the ErrorPage. Worse,
+        # TickTask.start is only refreshed after the callback returns, so "Resume Mission"
+        # fires this task on the very next dispatch and raises again: the game is
+        # unrecoverable without a restart. Same discipline as DripQueue._run - say what
+        # happened, drop the offending tether, keep the loop.
+        try:
+            if _enforce_impulse(src, tgt, st):
+                continue                       # snapped -> gone this tick
+            _enforce_drag(src, tgt, st)        # towing a heavy load costs you speed
+            if _spend_tow_energy(src, tgt, st):
+                continue                       # ran dry -> released this tick
+            if st.get("swing"):
+                ok = _tick_swing(src, tgt, st)      # circle-point orbit (holds radius)
+            elif st.get("rope"):
+                ok = _tick_rope(src, tgt, st)       # trailing tow rope-hold
+            elif st.get("reel_rate", 0.0) > 0.0:
+                ok = _advance_reel(src, tgt, st)
+            else:
+                ok = True                           # a static lock needs no upkeep
+        except Exception as ex:
+            logging.getLogger("mast.runtime").error(
+                f"grav_tether: dropping tether {src}->{tgt}: {ex}")
+            ok = False
+        if not ok:
+            grav_tether_release(src, tgt)
     _maybe_stop_tick()
