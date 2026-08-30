@@ -190,6 +190,12 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
         from_name (str, optional): Override the display name of the sender.
             Defaults to None (uses the sender object's ``comms_id``).
 
+    Note:
+        When BOTH ends are player ships a transmit reaches both bridges: the
+        sender gets the ``> >`` copy and the receiving crew gets the matching
+        ``< <`` copy, each named for the other ship. Send it once - a second
+        call with the ids swapped now duplicates it.
+
     Example:
         comms_message("Incoming!", ENEMY_ID, SHIP_ID, title="Commander")
     """ 
@@ -214,6 +220,11 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
     
     from_objs = query.to_object_list(from_ids_or_obj)
     to_objs = query.to_object_list(to_ids_or_obj)
+
+    # The caller's title, kept apart from the per-pair one built below. The loop used
+    # to overwrite `title` itself, so with more than one target the second pair got the
+    # first pair's decorated title ("< < Artemis") as its raw input.
+    arg_title = title
 
     for from_obj in from_objs:
         for to_obj in to_objs:
@@ -267,28 +278,31 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
 
             from_name_now = from_name
             if from_name is None:
+                # `INV.get("comms_id", from_name_now = ...)` passed the DEFAULT as a
+                # keyword named after the local, so this branch raised TypeError on
+                # every object that carries no comms_id attribute.
                 if is_receive:
                     if hasattr(from_obj, "comms_id"):
                         from_name_now = from_obj.comms_id
                     else:
-                        from_name_now = from_obj.INV.get("comms_id", from_name_now = from_obj.INV.name)
+                        from_name_now = from_obj.INV.get("comms_id", from_obj.INV.name)
                 else:
                     if hasattr(to_obj, "comms_id"):
                         from_name_now = to_obj.comms_id
                     else:
-                        from_name_now = to_obj.INV.get("comms_id", from_name_now = from_obj.INV.name)
+                        from_name_now = to_obj.INV.get("comms_id", to_obj.INV.name)
                     
 
-            if title is None:
-                title = from_name_now # +" > "+to_obj.comms_id
+            if arg_title is None:
+                pair_title = from_name_now # +" > "+to_obj.comms_id
             else:
-                title = from_name_now +": "+ title
+                pair_title = from_name_now +": "+ arg_title
 
-            raw_title = title
+            raw_title = pair_title
             if is_receive:
-                title = "< < " + title
+                title = "< < " + pair_title
             else:
-                title = "> > " + title
+                title = "> > " + pair_title
 
 
             if face is None:
@@ -303,31 +317,38 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             if to_obj is None or from_obj is None:
                 continue
             
-            from_id = from_obj.id
-            to_id = to_obj.id
-            # Only player ships send messages
-            if has_role(from_obj.id, "__PLAYER__"):
-                FrameContext.context.sbs.send_comms_message_to_player_ship(
-                    from_obj.id,
-                    to_obj.id,
-                    face, 
-                    title,
-                    title_color, 
-                    msg,
-                    color)
+            # Which bridge this lands on. The engine's first argument is the PLAYER
+            # whose comms console shows the line; the second is the other party.
+            #
+            # With one player and one NPC there is only one possible answer, and the
+            # old "is the sender a player?" test found it. With TWO player ships both
+            # sides pass that test, so it always chose the sender - putting an INCOMING
+            # message on the sender's own bridge, titled with the sender's own name,
+            # and leaving the receiving crew with nothing. Direction decides instead:
+            # a receive belongs to `to_obj`, a transmit to `from_obj`.
+            from_is_player = has_role(from_obj.id, "__PLAYER__")
+            to_is_player = has_role(to_obj.id, "__PLAYER__")
+            both_players = from_is_player and to_is_player and from_obj.id != to_obj.id
+
+            if both_players:
+                display_obj = to_obj if is_receive else from_obj
+            elif from_is_player:
+                display_obj = from_obj
             else:
-                from_id = to_obj.id
-                to_id = from_obj.id
-                FrameContext.context.sbs.send_comms_message_to_player_ship(
-                    to_obj.id,
-                    from_obj.id,
-                    face, 
-                    title, 
-                    title_color,
-                    msg,
-                    color
-                    )
-                
+                display_obj = to_obj
+            other_obj = from_obj if display_obj is to_obj else to_obj
+
+            from_id = display_obj.id
+            to_id = other_obj.id
+            FrameContext.context.sbs.send_comms_message_to_player_ship(
+                display_obj.id,
+                other_obj.id,
+                face,
+                title,
+                title_color,
+                msg,
+                color)
+
             other_id = to_id
             if life_form_to_id is not None:
                 other_id = life_form_to_host_id
@@ -358,6 +379,16 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             }
             comms_history_add(from_id, other_id, record)
             signal_emit("comms_message", {"COMMS_MESSAGE": MastDataObject(record)})
+
+            # Ship to ship between two CREWS: one transmit has to reach both bridges.
+            # The sender's "> >" copy went out above; the receiving crew needs the
+            # matching "< <", named for whoever actually sent it. Pinning the pair in a
+            # fresh override neutralizes any outer one, so the recursion cannot swap
+            # the ends back around.
+            if both_players and not is_receive:
+                with CommsOverride(origin_id=to_obj.id, selected_id=from_obj.id):
+                    comms_message(msg, from_obj, to_obj, arg_title, None,
+                                  color, title_color, True, None)
             
             
 
@@ -459,6 +490,11 @@ def comms_transmit(msg, title=None, face=None, color=None, title_color=None) -> 
         color (str, optional): Body text color. Defaults to ``"#fff"``.
         title_color (str, optional): Title text color. Defaults to the
             sender's side color.
+
+    Note:
+        When the selected target is another PLAYER ship this delivers both
+        halves - the ``> >`` copy on the sending bridge and the ``< <`` copy on
+        the receiving one. One call is the whole exchange.
 
     Example:
         comms_transmit("Requesting docking clearance.", title="Artemis")

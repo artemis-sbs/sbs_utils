@@ -269,6 +269,19 @@ class LayoutListbox(layout.Column):
 
         self.tag_prefix = tag_prefix
         self.tag  = tag_prefix
+        # The task a row template must build under.
+        #
+        # Captured HERE, in the console build, because that is the last moment the right
+        # answer is on the FrameContext. Rows are built later, at present time, and the
+        # presenting context is not always this listbox's own: a comms route runs on the
+        # SERVER task and presents under the SERVER page, so both `FrameContext.task` and
+        # `FrameContext.page.gui_task` are the server's by then. Every var-bound widget in
+        # a row then stamps var_scope_id with the server task, the value is written there
+        # and read back from the console's own gui_task, and it is always "" at the reader
+        # with nothing raising anywhere - measured as ship-to-ship comms sending nothing.
+        self.owner_task = FrameContext.client_task
+        if self.owner_task is None:
+            self.owner_task = FrameContext.task
         # What THIS listbox last merged into the page's tag_map, so the next draw can
         # take back the entries for rows that are no longer on screen.
         self._merged = {}
@@ -487,9 +500,13 @@ class LayoutListbox(layout.Column):
         self._item_heights = {}
 
         restore = FrameContext.page
+        restore_task = FrameContext._task
         sub_page = SubPage(self.tag_prefix, self.local_region_tag, restore.gui_task, CID,
                            register=False)
         FrameContext.page = sub_page
+        # See self.owner_task: the row template builds under the task that owns THIS
+        # listbox, not under whatever is presenting.
+        FrameContext.task = self.owner_task if self.owner_task is not None else restore.gui_task
         
         
         slot = 0
@@ -547,6 +564,7 @@ class LayoutListbox(layout.Column):
             counted += 1
 
         FrameContext.page = restore
+        FrameContext._task = restore_task
         # f = len(self._items)
         # uf = len(self.unfiltered_items)
         #print(f"LISTBOX  {self.collapsible} {uf} {f}")
@@ -567,10 +585,13 @@ class LayoutListbox(layout.Column):
         SBS = FrameContext.context.sbs
 
         restore = FrameContext.page
+        restore_task = FrameContext._task
         task = restore.gui_task
         sub_page = SubPage(self.tag_prefix, self.local_region_tag, restore.gui_task,
                            event.client_id, owner=self)
         FrameContext.page = sub_page
+        # See self.owner_task.
+        FrameContext.task = self.owner_task if self.owner_task is not None else task
 
 
 
@@ -972,6 +993,7 @@ class LayoutListbox(layout.Column):
         
         sub_page.present(event)   
         FrameContext.page = restore
+        FrameContext._task = restore_task
         self._merge_tags(CID, sub_page)
         
 
