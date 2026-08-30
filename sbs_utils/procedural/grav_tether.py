@@ -474,6 +474,27 @@ def grav_tether_release_any(obj):
     _maybe_stop_tick()
 
 
+def grav_tether_between(a, b):
+    """Whether these two are tethered to each other, whichever way round.
+
+    `grav_tether_has` is directional, and a SWING is registered the other way up (the
+    anchor is the source and the ship is the load). So a menu that asks `has(me, that)`
+    is blind to a swing it opened itself: it goes on offering the grab and never offers
+    Release, and the crew cannot let go. Ask this instead whenever the question is "is
+    there a beam between these two", not "am I the puller".
+    """
+    aid, bid = to_id(a), to_id(b)
+    if aid is None or bid is None:
+        return False
+    return (aid, bid) in _TETHERS or (bid, aid) in _TETHERS
+
+
+def grav_tether_release_between(a, b):
+    """Break the tether between these two, whichever end opened it. Safe if none exists."""
+    grav_tether_release(a, b)
+    grav_tether_release(b, a)
+
+
 def grav_tether_get(source, target):
     """Return the live tractor_connection for the pair, or None."""
     src = to_id(source)

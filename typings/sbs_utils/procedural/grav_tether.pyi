@@ -77,6 +77,14 @@ def grav_tether_attach (source, target, offset=None, stiffness=0.0, pull_distanc
     pull_distance - rope rest-length; the target settles at this distance.
     overspeed     - per-tether enforcement mode; None uses the module default.
     Returns the tractor_connection, or None if either object is missing."""
+def grav_tether_between (a, b):
+    """Whether these two are tethered to each other, whichever way round.
+
+    `grav_tether_has` is directional, and a SWING is registered the other way up (the
+    anchor is the source and the ship is the load). So a menu that asks `has(me, that)`
+    is blind to a swing it opened itself: it goes on offering the grab and never offers
+    Release, and the crew cannot let go. Ask this instead whenever the question is "is
+    there a beam between these two", not "am I the puller"."""
 def grav_tether_clear_all ():
     """Drop all tethers (fresh mission / test reset).
     
@@ -124,6 +132,8 @@ def grav_tether_release_all (source):
     """Break every tether where ``source`` is the puller."""
 def grav_tether_is_anchor (obj):
     """Whether this object can only ever be the anchor end of a tether."""
+def grav_tether_release_between (a, b):
+    """Break the tether between these two, whichever end opened it. Safe if none exists."""
 def grav_tether_release_any (obj):
     """Release every tether obj is part of, at either end."""
 def grav_tether_rope (source, target, rope_len, stiffness=5.0, overspeed=None):

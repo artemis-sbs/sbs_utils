@@ -50,6 +50,27 @@ class TestGravTether(unittest.TestCase):
         self.assertIsNone(gt.grav_tether_get(self.ship, self.load))
         self.assertNotIn((self.ship, self.load), gt._TETHERS)
 
+    def test_between_sees_a_tether_from_either_end(self):
+        # `has` is DIRECTIONAL and a swing is registered (anchor, ship), so a menu asking
+        # has(me, that) is blind to the swing it opened itself - it re-offers the grab and
+        # never offers Release, and the crew cannot let go.
+        gt.grav_tether_swing(self.load, self.ship, 800)
+        self.assertFalse(gt.grav_tether_has(self.ship, self.load))
+        self.assertTrue(gt.grav_tether_between(self.ship, self.load))
+        self.assertTrue(gt.grav_tether_between(self.load, self.ship))
+
+    def test_release_between_lets_go_whichever_end_opened_it(self):
+        gt.grav_tether_swing(self.load, self.ship, 800)
+        gt.grav_tether_release_between(self.ship, self.load)
+        self.assertFalse(gt.grav_tether_between(self.ship, self.load))
+        gt.grav_tether_tow(self.ship, self.load, 500)
+        gt.grav_tether_release_between(self.ship, self.load)
+        self.assertFalse(gt.grav_tether_between(self.ship, self.load))
+
+    def test_between_is_false_for_strangers(self):
+        self.assertFalse(gt.grav_tether_between(self.ship, self.load))
+        self.assertFalse(gt.grav_tether_between(self.ship, 0))
+
     def test_involves_and_release_any_cover_both_ends(self):
         # swing makes the SHIP the target (anchor is source) - a one-button toggle must
         # still see it and release it from either end.
