@@ -277,6 +277,13 @@ def main(argv=None):
                     help="launch profile; autoplay7 gives AUTO_START + AUTO_PLAY so the "
                          "mission plays itself to victory and loops - which is the "
                          "game-end boundary this is hunting")
+    ap.add_argument("--arms", default=None, metavar="A,B",
+                    help="A/B two profiles, ALTERNATING per launch. Interleaved rather "
+                         "than blocked on purpose: run all of A then all of B and a "
+                         "machine that got busier at 3am becomes a finding. Crash rates "
+                         "are reported per arm, counting only crashes whose failure "
+                         "bucket matches - pooling two different faults into one rate is "
+                         "the error the crash census exists to prevent.")
     ap.add_argument("--hours", type=float, default=8.0)
     ap.add_argument("--launches", type=int, default=0, help="0 = unlimited within --hours")
     ap.add_argument("--minutes", type=float, default=45.0,
@@ -287,6 +294,10 @@ def main(argv=None):
                          "observed to miss these crashes entirely)")
     args = ap.parse_args(argv)
 
+    # ABSOLUTE. The child runs with cwd=COSMOS, so a relative --out resolves against the
+    # engine's directory rather than the caller's: procdump -x is handed a directory that
+    # does not exist, exits -1, and the launch reads as "engine died in 0s".
+    args.out = os.path.abspath(args.out)
     os.makedirs(args.out, exist_ok=True)
     pubs = _publics()
     cdb = _find_cdb()
@@ -294,12 +305,29 @@ def main(argv=None):
     print("[soak] procdump: %s" % (PROCDUMP if os.path.isfile(PROCDUMP) else "NOT FOUND - relying on WER"))
 
     deadline = time.time() + args.hours * 3600.0
+    # FREEZE THE BUILD. An A/B is void if __lib__ changed underneath it, and a working
+    # tree shared with other sessions makes that a real risk rather than a theoretical
+    # one - a previous arm was rebuilt twice mid-run and its result had to be thrown
+    # away. Reuses tools/engine_soak's hasher rather than growing a second one.
+    libs_before = {}
+    try:
+        from .tools.engine_soak import _hash_libs
+        libs_before = _hash_libs()
+        print("[soak] froze %d __lib__ artifact(s)" % len(libs_before))
+    except Exception as e:                                      # noqa: BLE001
+        print("[soak] could not hash __lib__ (%r) - a mid-run rebuild will go unnoticed" % (e,))
+
+    arms = [a.strip() for a in args.arms.split(",") if a.strip()] if args.arms else None
+    if arms:
+        print("[soak] arms (alternating): %s" % ", ".join(arms))
     summary = {"started": datetime.datetime.now().isoformat(timespec="seconds"),
                "exe": EXE, "mission": args.mission, "map": args.map,
-               "profile": args.profile, "launches": []}
+               "profile": args.profile, "arms": arms, "launches": []}
     n = 0
     while time.time() < deadline and (not args.launches or n < args.launches):
         n += 1
+        # Alternate, so both arms see the same machine over the same hours.
+        profile = arms[(n - 1) % len(arms)] if arms else args.profile
         stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         run_dir = os.path.join(args.out, "launch-%03d-%s" % (n, stamp))
         os.makedirs(run_dir, exist_ok=True)
@@ -309,8 +337,8 @@ def main(argv=None):
         engine_cmd = [EXE, "autostartserver", "defaultmission=" + args.mission]
         if args.map:
             engine_cmd.append("map=" + args.map)
-        if args.profile:
-            engine_cmd.append("profile=" + args.profile)
+        if profile:
+            engine_cmd.append("profile=" + profile)
         use_procdump = (not args.no_procdump) and os.path.isfile(PROCDUMP)
         if use_procdump:
             # -x launches the target under procdump, so monitoring starts before the
@@ -320,7 +348,7 @@ def main(argv=None):
             cmd = engine_cmd
 
         t0 = time.time()
-        print("[soak] launch %d: %s" % (n, " ".join(cmd[1:])))
+        print("[soak] launch %d [%s]: %s" % (n, profile, " ".join(cmd[1:])))
         with open(os.path.join(run_dir, "stdout.txt"), "wb") as out:
             proc = subprocess.Popen(cmd, cwd=COSMOS, stdout=out,
                                     stderr=subprocess.STDOUT)
@@ -365,7 +393,7 @@ def main(argv=None):
         if local:
             others = []          # procdump dumps are unambiguous - no attribution needed
         new_dumps = mine or appeared
-        rec = {"launch": n, "when": stamp, "uptime_sec": round(uptime, 1),
+        rec = {"launch": n, "arm": profile, "when": stamp, "uptime_sec": round(uptime, 1),
                "exit_code": proc.returncode, "killed_by_soak": killed,
                "games_completed": _games_between(t_start, datetime.datetime.now()),
                "pid": proc.pid,
@@ -413,7 +441,71 @@ def main(argv=None):
         print("   launch %d after %ss: %s +%s (%s)"
               % (c["launch"], c["uptime_sec"], (d.get("symbol") or "?")[:70],
                  d.get("symbol_delta"), d.get("fault_rva")))
+
+    if libs_before:
+        try:
+            from .tools.engine_soak import _hash_libs
+            changed = [k for k, v in _hash_libs().items() if libs_before.get(k) != v]
+            missing = [k for k in libs_before if k not in _hash_libs()]
+            if changed or missing:
+                print("\n[soak] *** __lib__ CHANGED MID-RUN - THIS RESULT IS VOID ***")
+                for k in (changed + missing)[:10]:
+                    print("[soak]     %s" % k)
+                summary["libs_changed"] = changed + missing
+            else:
+                print("[soak] __lib__ unchanged across the run")
+        except Exception:                                       # noqa: BLE001
+            pass
+    if arms:
+        _report_arms(summary, arms)
+    with open(os.path.join(args.out, "summary.json"), "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2)
     return 0
+
+
+# The fault RVA is what says "same crash". Comparing symbol names groups two different
+# offsets in one templated function; comparing exit codes groups everything that died.
+def _rva_counts(launches):
+    out = {}
+    for L in launches:
+        for d in L["dumps"]:
+            rva = d.get("fault_rva")
+            if rva:
+                out[rva] = out.get(rva, 0) + 1
+    return out
+
+
+def _report_arms(summary, arms):
+    """Crash rate per arm, split by fault site, with no verdict attached.
+
+    Deliberately prints rates and lets a person read them. One arm cannot support a
+    conclusion, and at the rates involved neither can a small difference: the existing
+    tools/engine_soak.py makes the same point, having watched 0/12 followed by 4/12 on a
+    confirmation run of the SAME configuration.
+    """
+    launches = summary["launches"]
+    dominant = None
+    counts = _rva_counts(launches)
+    if counts:
+        dominant = max(counts, key=counts.get)
+    print("\n[soak] ---- arms ----")
+    if dominant:
+        print("[soak] dominant fault site: %s (%d of %d crash dumps)"
+              % (dominant, counts[dominant], sum(counts.values())))
+    for arm in arms:
+        mine = [L for L in launches if L.get("arm") == arm]
+        if not mine:
+            continue
+        died = [L for L in mine if L["dumps"]]
+        same = [L for L in died
+                if any(d.get("fault_rva") == dominant for d in L["dumps"])]
+        other = len(died) - len(same)
+        pct = (100.0 * len(same) / len(mine)) if mine else 0.0
+        print("[soak]   %-24s %2d/%2d crashed at the dominant site (%.0f%%)%s"
+              % (arm, len(same), len(mine), pct,
+                 ("  + %d elsewhere" % other) if other else ""))
+    print("[soak] Rates only. A difference this size may or may not be real; do not read "
+          "a cause into it without more launches.")
 
 
 if __name__ == "__main__":
