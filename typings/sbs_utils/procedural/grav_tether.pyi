@@ -144,6 +144,14 @@ def grav_tether_rope (source, target, rope_len, stiffness=5.0, overspeed=None):
     *at* a distance REQUIRES this toggle (which held 798/801/801 at rope_len=800). Both
     Tow (source drags a trailing load) and Swing (anchor holds the ship) are this same
     rope-hold — only the source/target roles differ."""
+def grav_tether_out_of_reach (source, target):
+    """Whether these two are too far apart to open a tether."""
+def grav_tether_range_limit ():
+    """The engage range in force, or None."""
+def grav_tether_set_range_limit (distance, snap_factor=1.5):
+    """Set how far a tether can reach to open, and how far it stretches before it snaps.
+
+    ``None`` clears the rule and restores the library's original unlimited reach."""
 def grav_tether_set_anchor_roles (roles):
     """Set the roles that may never be PULLED (comma-separated, or "" to allow all).
 

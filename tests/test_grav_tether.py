@@ -16,6 +16,7 @@ from sbs_utils.procedural.spawn import player_spawn, npc_spawn
 from sbs_utils.procedural import grav_tether as gt
 from sbs_utils.procedural.sides import side_ensure
 from sbs_utils.procedural.terrain import terrain_spawn_black_hole
+from sbs_utils.vec import Vec3
 
 
 class TestGravTether(unittest.TestCase):
@@ -596,6 +597,82 @@ class TestGravTetherAnchors(unittest.TestCase):
     def test_a_mission_can_clear_the_rule(self):
         gt.grav_tether_set_anchor_roles("")
         self.assertIsNotNone(gt.grav_tether_lock(self.ship, self.hole))
+
+
+class TestGravTetherReach(unittest.TestCase):
+    """How far a beam reaches to open, and how far it stretches before it lets go.
+
+    The library shipped with neither: a gunner could tether something 30,000u off the
+    tactical picture. The NUMBER belongs to a mission, so all of this is inert until one
+    installs a limit - which is what the last test here pins.
+    """
+
+    def setUp(self):
+        reset_mock(sbs)
+        gt.grav_tether_clear_all()
+        gt.grav_tether_set_attach_policy(None)
+        gt.grav_tether_set_mass_fn(None)
+        gt.grav_tether_set_grab_speed_limit(None)
+        gt.grav_tether_set_range_limit(None)
+        self.ship = to_id(player_spawn(0, 0, 0, "Tug", "tsn", "tsn_light_cruiser"))
+        self.near = to_id(npc_spawn(1000, 0, 0, "Near", "tsn", "tsn_light_cruiser",
+                                    "behav_npcship"))
+        self.far = to_id(npc_spawn(30000, 0, 0, "Far", "tsn", "tsn_light_cruiser",
+                                   "behav_npcship"))
+        self.said = []
+        self._real_emit = gt.signal_emit
+        gt.signal_emit = lambda name, data=None: self.said.append(name)
+
+    def tearDown(self):
+        gt.signal_emit = self._real_emit
+        gt.grav_tether_clear_all()
+        gt.grav_tether_set_range_limit(None)
+
+    def _move(self, oid, x):
+        to_object(oid).pos = Vec3(x, 0, 0)
+
+    def test_in_reach_opens_and_out_of_reach_does_not(self):
+        gt.grav_tether_set_range_limit(8000)
+        self.assertIsNotNone(gt.grav_tether_tow(self.ship, self.near, 500))
+        self.assertIsNone(gt.grav_tether_tow(self.ship, self.far, 500))
+
+    def test_the_refusal_says_why(self):
+        gt.grav_tether_set_range_limit(8000)
+        gt.grav_tether_lock(self.ship, self.far)
+        self.assertIn("grav_tether_out_of_reach", self.said)
+
+    def test_no_limit_is_the_old_unlimited_behavior(self):
+        # The rule is opt-in. A mission that never installs a number gets exactly what
+        # the library shipped with.
+        self.assertIsNone(gt.grav_tether_range_limit())
+        self.assertIsNotNone(gt.grav_tether_tow(self.ship, self.far, 500))
+
+    def test_a_tether_dragged_too_far_snaps(self):
+        gt.grav_tether_set_range_limit(8000)
+        gt.grav_tether_tow(self.ship, self.near, 500)
+        self._move(self.near, 20000)                 # hauled well past breaking
+        gt.grav_tether_tick()
+        self.assertFalse(gt.grav_tether_has(self.ship, self.near))
+        self.assertIn("grav_tether_snapped", self.said)
+
+    def test_a_tow_reeling_a_load_IN_does_not_snap_itself(self):
+        # The trap the hold-distance rule exists for. A rope-toggle tow is SUPPOSED to sit
+        # beyond its rope - that is the state in which the pull engages - so measuring the
+        # stretch against rope_len alone would snap a 500u tow on its first tick.
+        gt.grav_tether_set_range_limit(8000)
+        gt.grav_tether_tow(self.ship, self.near, 500)
+        self._move(self.near, 2000)
+        gt.grav_tether_tick()
+        self.assertTrue(gt.grav_tether_has(self.ship, self.near))
+
+    def test_a_rope_longer_than_the_reach_is_measured_against_itself(self):
+        # A wide slingshot arc is 8000u of rope under an 8000u reach. Measured against the
+        # reach alone it would be permanently on the edge of snapping.
+        gt.grav_tether_set_range_limit(8000)
+        self._move(self.near, 8000)
+        gt.grav_tether_swing(self.ship, self.near, 8000)
+        gt.grav_tether_tick()
+        self.assertTrue(gt.grav_tether_has(self.ship, self.near))
 
 
 class TestGravTetherTickIsUnkillable(unittest.TestCase):

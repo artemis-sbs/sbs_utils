@@ -26,6 +26,19 @@ no raycast).
     this module passes **no** offset - which is what a tow wants. To bolt something ON to
     a hull instead of dragging it behind one, use [mount](mount.md).
 
+!!! warning "Reach is opt-in, and so is the snap"
+    `grav_tether_set_range_limit(distance)` sets how far a beam can reach to open; without
+    one there is no limit, which is what the library shipped with and what a mission that
+    says nothing still gets. An attach out of range is refused and emits
+    `grav_tether_out_of_reach`.
+
+    A live tether also **snaps** past `SNAP_RANGE_FACTOR` (1.5) times its hold distance,
+    emitting `grav_tether_snapped`. The hold distance is the longer of the beam's rope and
+    the engage range - **not the rope alone**, which is the tempting reading and is wrong:
+    a rope-toggle tow is *supposed* to sit beyond its rope, since that is the state in
+    which the pull engages, so a 500u tow reeling a load in from 2000 would snap itself on
+    the first tick.
+
 !!! danger "An anchor is never a load"
     `ANCHOR_ROLES` (`black_hole,planet,nebula` by default) names the bodies that may only
     ever be the **source** end of a tether. Attaching one as the **target** is refused and

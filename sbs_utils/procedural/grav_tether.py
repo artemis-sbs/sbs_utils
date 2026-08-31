@@ -95,6 +95,25 @@ _grab_speed_limit = None
 #: Engineering a stake - a long haul competes with shields and weapons for power.
 _tow_energy_cost = 0.0
 
+#: How far a tether can REACH to open. None = no rule, which is what the library shipped
+#: with: a gunner could tether something 30,000u off the tactical picture. The NUMBER is a
+#: game-balance question and belongs to a mission, so the library only carries the rule.
+_range_limit = None
+
+#: How far past its hold distance a beam stretches before it lets go.
+#:
+#: NOT measured against rope_len alone, which is the tempting reading and is wrong: a
+#: rope-toggle tow is SUPPOSED to sit beyond its rope - that is the state in which the pull
+#: engages - so a tow at rope 500 reeling a load in from 2000 would snap itself on the
+#: first tick. The hold distance is therefore the LONGER of the rope and the engage range:
+#: a beam breaks at half again the distance it could have opened from, and a rope longer
+#: than that reach (a wide slingshot arc) is measured against its own rope instead.
+#:
+#: The rule only exists while an engage range does. Without one there is no distance a
+#: tether is "too far" from, and the library keeps the unlimited behavior it shipped with.
+SNAP_RANGE_FACTOR = 1.5
+_snap_factor = SNAP_RANGE_FACTOR
+
 #: Roles that can only ever be an ANCHOR - something you hang a rope FROM, never
 #: something you pull. A black hole, a planet or a nebula does not move for a tractor
 #: beam, and a beam that claims to be pulling one is an expensive lie: the source is
@@ -153,6 +172,49 @@ def grav_tether_set_anchor_roles(roles):
 def grav_tether_is_anchor(obj):
     """Whether this object can only ever be the anchor end of a tether."""
     return bool(_anchor_roles) and has_any_role(to_id(obj), _anchor_roles)
+
+
+def grav_tether_set_range_limit(distance, snap_factor=SNAP_RANGE_FACTOR):
+    """Set how far a tether can reach to open, and how far it stretches before it snaps.
+
+    ``None`` clears the rule and restores the library's original unlimited reach.
+    """
+    global _range_limit, _snap_factor
+    _range_limit = None if distance is None else float(distance)
+    _snap_factor = float(snap_factor or SNAP_RANGE_FACTOR)
+
+
+def grav_tether_range_limit():
+    """The engage range in force, or None."""
+    return _range_limit
+
+
+def grav_tether_out_of_reach(source, target):
+    """Whether these two are too far apart to open a tether."""
+    if _range_limit is None:
+        return False
+    so, to = to_object(source), to_object(target)
+    if so is None or to is None:
+        return False
+    return _distance(so, to) > _range_limit
+
+
+def _hold_distance(st):
+    """The distance this tether is entitled to hold across, or None when no rule applies."""
+    if _range_limit is None:
+        return None
+    return max(float(st.get("rope_len") or 0.0), _range_limit)
+
+
+def _over_stretched(src, tgt, st):
+    """Whether a live tether has been pulled past breaking."""
+    hold = _hold_distance(st)
+    if not hold:
+        return False
+    so, to = to_object(src), to_object(tgt)
+    if so is None or to is None:
+        return False
+    return _distance(so, to) > hold * _snap_factor
 
 
 def grav_tether_set_grab_speed_limit(limit):
@@ -230,6 +292,10 @@ def _attach_guard(src, tgt):
         return False
     if grav_tether_is_anchor(tgt):
         signal_emit("grav_tether_immovable", {"SOURCE_ID": src, "TARGET_ID": tgt})
+        return False
+    if grav_tether_out_of_reach(src, tgt):
+        signal_emit("grav_tether_out_of_reach",
+                    {"SOURCE_ID": src, "TARGET_ID": tgt, "RANGE": _range_limit})
         return False
     if grav_tether_target_too_fast(tgt):
         signal_emit("grav_tether_too_fast", {"SOURCE_ID": src, "TARGET_ID": tgt})
@@ -802,6 +868,10 @@ def grav_tether_tick(t=None):
         # unrecoverable without a restart. Same discipline as DripQueue._run - say what
         # happened, drop the offending tether, keep the loop.
         try:
+            if _over_stretched(src, tgt, st):
+                grav_tether_release(src, tgt)
+                signal_emit("grav_tether_snapped", {"SOURCE_ID": src, "TARGET_ID": tgt})
+                continue
             if _enforce_impulse(src, tgt, st):
                 continue                       # snapped -> gone this tick
             _enforce_drag(src, tgt, st)        # towing a heavy load costs you speed
