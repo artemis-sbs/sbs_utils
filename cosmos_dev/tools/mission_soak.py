@@ -397,15 +397,88 @@ def _keep_runtime_log(mission, artifacts):
 
 # --- the engine leg ---------------------------------------------------------------
 
+# A console cannot be a client command-line argument. Launch arguments reach only the
+# SERVER -- a client process never runs `script.py`, so `autostartclient console=helm` is
+# inert. The engine's one per-client channel is `request_client_string`, seeded from
+# `<cosmos>/data/client_string_set.txt` before the client starts. That file is a single
+# shared global driving a per-process choice, so clients must be launched ONE AT A TIME,
+# far enough apart that each reads its value before the next overwrites it. `sbs run`
+# solves it the same way; this is the same trick, unattended.
+#
+# CONSEQUENCE: two console soaks cannot run on one machine at once. They would silently
+# take each other's consoles rather than fail.
+CLIENT_SETTLE = 3.0          # seconds between client launches; also the default spacing
+DEFAULT_FIRST_CLIENT = 2.0   # first client connects this long after the server
+
+
+def _client_strings_path(cosmos_dir):
+    return os.path.join(cosmos_dir, "data", "client_string_set.txt")
+
+
+def _seed_console(path, name):
+    """Point the NEXT client at `name` (blank for the server).
+
+    Deliberately NOT a merge: the engine parses the whole file, and preserving the other
+    keys changes what it sees at the one moment that matters. `sbs run` writes exactly
+    this pair and nothing else; the caller restores the original.
+    """
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("console_previous\n" + ("" if name is None else name) + "\n")
+
+
+def parse_consoles(spec):
+    """`helm,science@20,engineering` -> [(name, connect_seconds), ...], launch order kept.
+
+    An omitted `@seconds` is spaced CLIENT_SETTLE apart starting at DEFAULT_FIRST_CLIENT,
+    which is also what keeps the shared seed file safe. An explicit `@` closer than that
+    is honored and warned about, because it is the failure people actually hit ("science
+    came up as helm").
+    """
+    out = []
+    for i, part in enumerate(c.strip() for c in (spec or "").split(",")):
+        if not part:
+            continue
+        name, _, when = part.partition("@")
+        name = name.strip()
+        if not name:
+            continue
+        default_at = DEFAULT_FIRST_CLIENT + CLIENT_SETTLE * len(out)
+        try:
+            at = float(when) if when.strip() else default_at
+        except ValueError:
+            raise SystemExit(f"[soak] bad --consoles entry {part!r}: '@' wants seconds")
+        out.append((name, at))
+    out.sort(key=lambda t: t[1])
+    for (an, at), (bn, bt) in zip(out, out[1:]):
+        if bt - at < CLIENT_SETTLE:
+            print(f"[soak] WARN {an}@{at:g} and {bn}@{bt:g} are {bt - at:g}s apart, under "
+                  f"the {CLIENT_SETTLE:g}s seed settle - they may swap consoles", flush=True)
+    return out
+
+
+def plain_clients(count):
+    """`--clients N` -> N clients with NO console named.
+
+    Nothing is seeded, so each lands on whatever console the engine persisted -- the same
+    thing engine_soak's clients do. That is the right default for "does the server survive
+    N consoles connecting"; name them with --consoles when WHICH console matters.
+    """
+    return [(None, DEFAULT_FIRST_CLIENT + CLIENT_SETTLE * i) for i in range(max(0, count))]
+
+
 def run_engine(cosmos_dir, mission_name, scenario, map_arg, seed, seconds, artifacts,
-               timeout, profile=None):
+               timeout, profile=None, consoles=(), client_ip="127.0.0.1"):
     """One real-engine pass. Returns (outcome, detail).
 
     The engine exposes no quit in the pybind surface, so the mission cannot end the
     process - it can only leave evidence in `records/verdict.json`. THIS is what supplies
     the exit code, which is the whole reason a launcher exists.
 
-    Outcomes: PASS | FAIL | SERVER GONE | VOID(timeout).
+    `consoles` is [(name, connect_seconds), ...] from parse_consoles(). Each one launches
+    a real client process on that console, seeded through client_string_set.txt (see the
+    note above it). Empty means server-only, which is what this did before.
+
+    Outcomes: PASS | FAIL | SERVER GONE | CLIENT GONE | VOID(timeout).
     """
     os.makedirs(artifacts, exist_ok=True)
     exe = os.path.join(cosmos_dir, "Artemis3-x64-release.exe")
@@ -432,12 +505,38 @@ def run_engine(cosmos_dir, mission_name, scenario, map_arg, seed, seconds, artif
         args.append(f"seed={seed}")
     if seconds:
         args.append(f"test={seconds}")
+    strings_path = _client_strings_path(cosmos_dir)
+    saved_strings = None
+    # Only touch the shared file if a console was actually NAMED. `--clients N` leaves it
+    # alone, so it cannot disturb a session somebody else is running.
+    if any(name for name, _ in consoles):
+        try:
+            with open(strings_path, encoding="utf-8") as f:
+                saved_strings = f.read()
+        except OSError:
+            # No file to restore. Seeding still works; the engine creates its own.
+            saved_strings = None
+        _seed_console(strings_path, None)      # the server takes no console
+
     proc = subprocess.Popen([exe] + args, cwd=cosmos_dir,
                             creationflags=getattr(subprocess, "DETACHED_PROCESS", 0))
+    clients = []                                # [(name, Popen)]
+    pending = list(consoles)
 
     t0 = time.time()
     outcome, detail = "VOID", "timeout"
-    while time.time() - t0 < timeout:
+    try:
+      while time.time() - t0 < timeout:
+        now = time.time() - t0
+        while pending and now >= pending[0][1]:
+            name, _at = pending.pop(0)
+            if name:
+                _seed_console(strings_path, name)
+            clients.append((name or f"client{len(clients) + 1}", subprocess.Popen(
+                [exe, "autostartclient", f"clientautoconnectip={client_ip}"],
+                cwd=cosmos_dir,
+                creationflags=getattr(subprocess, "DETACHED_PROCESS", 0))))
+            print(f"[soak]   client '{clients[-1][0]}' at t+{now:.0f}s", flush=True)
         # VERDICT FIRST. A server that writes its verdict and exits in the same second
         # would otherwise be scored as a death purely because of check order - a mistake
         # engine_soak made once and documents.
@@ -451,14 +550,38 @@ def run_engine(cosmos_dir, mission_name, scenario, map_arg, seed, seconds, artif
             outcome = "SERVER GONE"
             detail = f"t+{time.time() - t0:.0f}s rc={rc} (0x{rc & 0xFFFFFFFF:08X})"
             break
+        dead = [(n, c.returncode) for n, c in clients if c.poll() is not None]
+        if dead:
+            n, rc = dead[0]
+            # A client death is its own outcome, not a server crash: the two have
+            # different causes and pooling them is how a client-side bug reads as a
+            # server-side one.
+            outcome = "CLIENT GONE"
+            detail = (f"t+{time.time() - t0:.0f}s console '{n}' "
+                      f"rc={rc} (0x{rc & 0xFFFFFFFF:08X})")
+            break
         time.sleep(1)
-
-    try:
-        if proc.poll() is None:
-            proc.kill()
-    except Exception:
-        pass
-    time.sleep(3)       # the engine holds a fixed port; let the OS release it
+    finally:
+        for _n, c in clients:
+            try:
+                if c.poll() is None:
+                    c.kill()
+            except Exception:
+                pass
+        try:
+            if proc.poll() is None:
+                proc.kill()
+        except Exception:
+            pass
+        if saved_strings is not None:
+            # RESTORE IN A finally. A crash or Ctrl-C mid-loop must not leave the shared
+            # file holding one console name for whoever plays next.
+            try:
+                with open(strings_path, "w", encoding="utf-8") as f:
+                    f.write(saved_strings)
+            except OSError:
+                pass
+        time.sleep(3)   # the engine holds a fixed port; let the OS release it
 
     new_dumps = sorted(_dumps() - before)
     if new_dumps:
@@ -479,6 +602,37 @@ def _read_engine_verdict(path, artifacts):
     if v.get("first_error"):
         detail += f" | {v['first_error'][:160]}"
     return ("PASS" if ok else "FAIL"), detail
+
+
+def print_where_to_look(artifacts_root, state_path, target, engine, scenario):
+    """Say where the evidence will be, BEFORE the night starts and again at the end.
+
+    An unattended run is only as useful as the reader's ability to find what it left, and
+    "check the logs" is not an instruction. Printed twice on purpose: the header is what
+    somebody starting it at 6pm reads, the footer is what they read at 9am.
+    """
+    dumps = _dumps_dir()
+    n_dumps = len(_dumps())
+    print("\n---- where the results are ----")
+    print(f"  summary (cumulative, read this first):")
+    print(f"      {state_path}")
+    print(f"  per-run evidence (one folder per iteration, incl. verdict.json):")
+    print(f"      {artifacts_root}")
+    print(f"  mission log (TRUNCATED each run - the soak copy, not your play folder):")
+    print(f"      {os.path.join(target, 'mast.runtime.log')}")
+    if engine:
+        print(f"  engine crash dumps:")
+        print(f"      {dumps}   ({n_dumps} present now)")
+        if n_dumps >= 10:
+            # MEASURED, and it cost a session: once the folder is full a real crash
+            # writes NOTHING, and the run then looks healthy. Say so loudly up front.
+            print("      *** FULL (Windows keeps 10). A CRASH TONIGHT WILL LEAVE NO DUMP.")
+            print("      *** Move them aside before starting, e.g. to CrashDumps-archive-<date>/")
+        elif n_dumps >= 7:
+            print(f"      NOTE Windows keeps only 10; {10 - n_dumps} slot(s) left tonight.")
+    print("  exit code: 0 all passed | 1 a run regressed | 2 the build changed "
+          "mid-soak (numbers void) | 3 nothing ran")
+    print("-------------------------------\n", flush=True)
 
 
 # --- the loop ---------------------------------------------------------------------
@@ -509,8 +663,18 @@ def main(argv=None):
                          "baseline demands only what EVERY blessed run reached, so "
                          "blessing more runs relaxes flaky items rather than tightening")
     ap.add_argument("--engine", action="store_true",
-                    help="Run the REAL engine instead of the mock (server-only: a second "
-                         "local instance makes the engine assert)")
+                    help="Run the REAL engine instead of the mock. Server-only unless "
+                         "--consoles asks for clients")
+    ap.add_argument("--consoles", default=None, metavar="NAME[@SEC],...",
+                    help="With --engine: launch a real client per console, e.g. "
+                         "'helm,science,engineering'. '@SEC' sets when it connects "
+                         "(default: 2s, then one every 3s). The console travels through a "
+                         "shared file, so ONE console soak per machine at a time")
+    ap.add_argument("--clients", type=int, default=0, metavar="N",
+                    help="With --engine: launch N clients on whatever console the engine "
+                         "last used. Use --consoles instead when WHICH console matters")
+    ap.add_argument("--client-ip", default="127.0.0.1",
+                    help="Server address the clients connect to")
     ap.add_argument("--cosmos-dir", default=os.path.join("E:", os.sep, "a", "Cosmos-dev"),
                     help="Cosmos install root, for --engine")
     ap.add_argument("--timeout", type=float, default=900,
@@ -530,6 +694,18 @@ def main(argv=None):
     mission = os.path.abspath(args.mission)
     if not os.path.isdir(mission):
         print(f"[soak] no such mission: {mission}")
+        return 3
+
+    consoles = []
+    if args.consoles:
+        consoles = parse_consoles(args.consoles)
+    elif args.clients:
+        consoles = plain_clients(args.clients)
+    if consoles and not args.engine:
+        # The mock leg has no client PROCESS to launch; silently ignoring the flag would
+        # report a console soak that never happened.
+        print("[soak] --consoles/--clients needs --engine (the mock has no client "
+              "processes; use mission_runner --exercise-console for the mock)")
         return 3
 
     # Resolve the scenario from the REAL mission, so a stale copy cannot hide a rename.
@@ -559,6 +735,11 @@ def main(argv=None):
     for k in ("iterations", "passed", "failed", "void"):
         state.setdefault(k, 0)
     state.setdefault("events", [])
+
+    print_where_to_look(artifacts_root, state_path, target, args.engine, args.scenario)
+    if consoles:
+        shown = ", ".join(f"{n or 'client'}@{a:g}s" for n, a in consoles)
+        print(f"[soak] engine: server + {len(consoles)} client(s): {shown}", flush=True)
 
     lib_dir = os.path.join(_missions_root(mission), "__lib__")
     frozen = _hash_libs(lib_dir)
@@ -590,7 +771,8 @@ def main(argv=None):
             if args.engine:
                 outcome, detail = run_engine(
                     args.cosmos_dir, os.path.basename(target), args.scenario,
-                    scenario.map, seed, seconds, art, args.timeout, profile)
+                    scenario.map, seed, seconds, art, args.timeout, profile,
+                    consoles=consoles, client_ip=args.client_ip)
             else:
                 outcome, detail = run_mock(
                     target, args.scenario, seed, seconds, art,
@@ -616,7 +798,11 @@ def main(argv=None):
     except KeyboardInterrupt:
         print("\n[soak] interrupted", flush=True)
 
-    return _report(results, frozen, lib_dir, artifacts_root, state_path)
+    rc = _report(results, frozen, lib_dir, artifacts_root, state_path)
+    # Again at the end: the header is what somebody starting it at 6pm reads, this
+    # is what they read at 9am, and it is the half that has to survive scrollback.
+    print_where_to_look(artifacts_root, state_path, target, args.engine, args.scenario)
+    return rc
 
 
 def _report(results, frozen, lib_dir, artifacts_root, state_path):
@@ -634,8 +820,14 @@ def _report(results, frozen, lib_dir, artifacts_root, state_path):
     # that timed out measured nothing, and letting it read as "fine" is how a soak talks
     # itself into a clean bill of health.
     counted = len(results) - nvoid
+    nclient = sum(1 for r in results if r[1] == "CLIENT GONE")
+    nserver = sum(1 for r in results if r[1] == "SERVER GONE")
     print(f"\n  {npass}/{counted} passed"
           + (f", {nvoid} VOID (not counted)" if nvoid else ""))
+    if nserver or nclient:
+        # Named separately: a client dying and a server dying have different
+        # causes, and pooling them is how a client-side bug reads as a server one.
+        print(f"  crashes: server {nserver}, client {nclient}")
     print(f"  evidence: {artifacts_root}")
     print(f"  state:    {state_path}")
 
