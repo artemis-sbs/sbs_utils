@@ -652,6 +652,88 @@ def terrain_to_value(dropdown_select, default=0):
     return default
 
 
+def _nebula_marker_spawn(x, y, z, name, color):
+    """Spawn one nebula cluster marker and return its space object.
+
+    Extracted from ``terrain_spawn_nebula_common`` so the cluster merge can place
+    markers itself, once it knows which ones survive.
+    """
+    marker_obj = terrain_spawn(x, y, z, str(name), "map,nebula_marker", "generic-sphere", "behav_selection")
+    marker_obj.data_set.set("elite_main_scn_invis", 1, 0)
+    marker_obj.data_set.set("radar_color_override", "gold", 0)
+    marker_obj.py_object.set_inventory_value("cluster_color", color)
+    return marker_obj.py_object
+
+
+def _nebula_markers_place(cluster_pos, cluster_color, name, merge_dist=15_000):
+    """Merge nebula clusters and place ONE marker per merged group.
+
+    The merge is decided before anything is spawned, so a marker that would be
+    merged away is never created.
+
+    **Why it works this way.** The markers used to be spawned one per cluster and
+    the redundant ones deleted immediately afterwards, in the same frame. The
+    engine defers adding a new object (``Simulation::objectToAddList``), so an
+    object freed before that add-pass runs can land in ``SuperContainer::allList``
+    as a dangling pointer -- which the per-object slow tick then dereferences.
+    That is the ObjectDataBlob crash-to-desktop. Never create and free a
+    SpaceObject in one frame.
+
+    A marker left over from an EARLIER frame is still folded in the old way,
+    deletion included: it has been through a tick, so freeing it is the safe case.
+
+    Args:
+        cluster_pos (list[Vec3]): Cluster origins, in spawn order.
+        cluster_color (list[str]): Each cluster's color display name.
+        name (str): Marker display name.
+        merge_dist (float, optional): Markers closer than this merge. Defaults to
+            15 000.
+    """
+    # Each record is [position, color, counts, existing object or None].
+    records = []
+    for existing in role("nebula_marker"):
+        e_obj = to_space_object(existing)
+        if e_obj is None:
+            continue
+        e_color = e_obj.get_inventory_value("cluster_color")
+        e_counts = e_obj.get_inventory_value("cluster_counts", {e_color: 1})
+        records.append([Vec3(e_obj.pos), e_color, dict(e_counts), e_obj])
+    for pos, color in zip(cluster_pos, cluster_color):
+        records.append([Vec3(pos), color, {color: 1}, None])
+
+    used = [False] * len(records)
+    for i, rec in enumerate(records):
+        if used[i]:
+            continue
+        used[i] = True
+        base, color, counts, keep = rec[0], rec[1], rec[2], rec[3]
+        mid = base
+        for j in range(len(records)):
+            if used[j]:
+                continue
+            other = records[j]
+            # `<` not `<=`, matching the closest_list test this replaces. Distance
+            # is measured from the group's ORIGINAL position, not the moving
+            # midpoint -- also as before.
+            if (base - other[0]).length() >= merge_dist:
+                continue
+            used[j] = True
+            for k, v in other[2].items():
+                counts[k] = counts.get(k, 0) + v
+            mid = (mid + other[0]) * 0.5
+            if other[1] not in color:
+                color += "," + other[1]
+            if other[3] is not None:
+                # An older marker that lost the merge still has to go.
+                other[3].delete_object()
+        if keep is None:
+            keep = _nebula_marker_spawn(mid.x, mid.y, mid.z, name, color)
+        else:
+            keep.pos = mid
+        keep.set_inventory_value("cluster_color", color)
+        keep.set_inventory_value("cluster_counts", counts)
+
+
 def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, points=None, marker=True, name=""):
     """Scatter random nebula clusters across the map and merge nearby markers.
 
@@ -689,48 +771,26 @@ def terrain_spawn_nebula_clusters(terrain_value, center=None, selectable=False, 
         spawn_points = scatter.box(count, center.x, center.y, center.z, 100_000, 1000, 100_000, centered=True)
     
     nebs = []
-        
+
+    # Spawn the nebulae with NO marker, recording each cluster's origin and the
+    # color it drew. The merge below then places the markers that survive, so a
+    # marker is never created only to be deleted in the same frame -- see
+    # _nebula_markers_place for why that pair crashes the engine.
+    cluster_pos = []
+    cluster_color = []
     for v in spawn_points:
-        new_nebs = terrain_spawn_nebula_sphere(v.x,v.y, v.z, 10000,terrain_value, cluster_color=None, selectable=selectable, marker=marker, name=name)
+        color_out = []
+        new_nebs = terrain_spawn_nebula_sphere(v.x,v.y, v.z, 10000,terrain_value,
+                                               cluster_color=None, selectable=selectable,
+                                               marker=False, name=name, color_out=color_out)
         nebs.extend(new_nebs)
+        if color_out:
+            cluster_pos.append(Vec3(v.x, v.y, v.z))
+            cluster_color.append(color_out[0])
 
-    # Merge Markers
-    # Copy the list to avoid conflict when enumerating
-    markers = list(role("nebula_marker"))
-    for marker in markers:
-        m_obj = to_space_object(marker)
-        if to_space_object(marker) is None:
-            # It was removed
-            continue
-        color = m_obj.get_inventory_value("cluster_color")
-        counts = m_obj.get_inventory_value("cluster_counts", {color:1})
-        others = closest_list(marker, role("nebula_marker"), 15_000)
-        
-        
-        mid_point = m_obj.pos
-        for other in others:
-            o_obj = to_space_object(other)
-            if o_obj is None:
-                continue
-            o_obj.data_set.set("radar_color_override", "lime" ,0)
-            remove_role(o_obj, "nebula_marker")
-            o_color = o_obj.get_inventory_value("cluster_color")
-            o_counts = o_obj.get_inventory_value("cluster_counts", {o_color:1})
-            for k,v in o_counts.items():
-                c = counts.get(k, 0)
-                o = o_counts.get(k, 0)
-                counts[k] = c+o
+    if marker:
+        _nebula_markers_place(cluster_pos, cluster_color, name)
 
-            mid_point = mid_point + o_obj.pos
-            mid_point *= 0.5
-            m_obj.pos = mid_point
-            # Done with this one
-            o_obj.delete_object()
-            if o_color not in color:
-                color += ","+o_color
-        m_obj.set_inventory_value("cluster_color", color)
-        m_obj.set_inventory_value("cluster_counts", counts)
-        
     return nebs
 
 
@@ -1196,7 +1256,8 @@ def terrain_spawn_nebula_box(x,y,z, size_x=10000, size_z=None, density_scale=1.0
     return terrain_spawn_nebula_common(x,y,z, size_x, size_z, None,density_scale, density, height, cluster_color, selectable,marker, name)
 
 def terrain_spawn_nebula_sphere(x,y,z, radius=NEB_MAX_SIZE, density_scale=1.0, density=1.0,
-                                height=1000, cluster_color=None, selectable=False, marker=True, name=""):
+                                height=1000, cluster_color=None, selectable=False, marker=True, name="",
+                                color_out=None):
     """Spawn nebulae scattered inside a sphere volume.
 
     Delegates to ``terrain_spawn_nebula_common`` with sphere geometry.
@@ -1220,12 +1281,14 @@ def terrain_spawn_nebula_sphere(x,y,z, radius=NEB_MAX_SIZE, density_scale=1.0, d
     Returns:
         list[SpaceObject]: Spawned nebula objects.
     """
-    return terrain_spawn_nebula_common(x,y,z, radius, radius, radius,density_scale, density, height, cluster_color, selectable, marker, name)
+    return terrain_spawn_nebula_common(x,y,z, radius, radius, radius,density_scale, density, height, cluster_color, selectable, marker, name,
+                                       color_out=color_out)
 
 def terrain_spawn_nebula_common(x,y,z, size_x=10000, size_z=None,
                                 radius=None, density_scale=1.0,
                                 density=1, height=1000, cluster_color=None,
-                                selectable=False, marker=True, name=""):
+                                selectable=False, marker=True, name="",
+                                color_out=None):
     """Spawn a nebula cluster using either box or sphere geometry.
 
     Shared implementation called by ``terrain_spawn_nebula_box`` and
@@ -1300,12 +1363,14 @@ def terrain_spawn_nebula_common(x,y,z, size_x=10000, size_z=None,
         color = "rainbow"
 
     
+    # The cluster merge needs to know this color BEFORE any marker exists, so it
+    # can decide which markers to place. Reporting it costs nothing when unused.
+    if color_out is not None:
+        color_out.append(color)
+
     if marker:
-        marker_obj = terrain_spawn(x,y,z, str(name), "map,nebula_marker", "generic-sphere", "behav_selection")
-        marker_obj.data_set.set("elite_main_scn_invis", 1 ,0)
-        marker_obj.data_set.set("radar_color_override", "gold" ,0)
-        marker_obj.py_object.set_inventory_value("cluster_color", color)
-        
+        _nebula_marker_spawn(x, y, z, name, color)
+
 
 
     # Remember Radius is the diameter of the rect
