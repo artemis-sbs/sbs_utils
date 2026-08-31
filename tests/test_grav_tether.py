@@ -25,6 +25,10 @@ class TestGravTether(unittest.TestCase):
         gt.grav_tether_clear_all()
         gt.grav_tether_set_overspeed_default(gt.OVERSPEED_CAP)
         gt.grav_tether_set_attach_policy(None)
+        # A provider leaked from another class would change the stiffness assertions here
+        # and the failure would look like this file's bug rather than that one's.
+        gt.grav_tether_set_mass_fn(None)
+        gt.grav_tether_set_pull_bonus_fn(None)
         self.ship = to_id(player_spawn(0, 0, 0, "Tug", "tsn", "tsn_light_cruiser"))
         self.load = to_id(npc_spawn(2000, 0, 0, "Load", "tsn", "tsn_light_cruiser", "behav_npcship"))
 
@@ -91,10 +95,14 @@ class TestGravTether(unittest.TestCase):
 
     # --- mode presets --------------------------------------------------------
 
-    def test_lock_is_rigid(self):
+    def test_lock_up_close_is_rigid(self):
+        # The case the mode was written for (hangar recovery): already in reach, so the
+        # rigid grab is immediate and unchanged.
+        to_object(self.load).pos = sbs.vec3(50, 0, 0)
         con = gt.grav_tether_lock(self.ship, self.load)
         self.assertEqual(con.offset, 0.0)
         self.assertEqual(gt._TETHERS[(self.ship, self.load)]["pull"], 0.0)
+        self.assertFalse(gt._TETHERS[(self.ship, self.load)].get("winch"))
 
     def test_tow_sets_stiffness_and_pull(self):
         con = gt.grav_tether_tow(self.ship, self.load, 600)
@@ -207,7 +215,9 @@ class TestGravTether(unittest.TestCase):
         # The mock now simulates the pull (calibrated to engine data), so a live
         # connection actually moves the target during physics_tick.
         d0 = self._sep()                              # 2000
-        gt.grav_tether_lock(self.ship, self.load)     # offset 0 -> rigid snap
+        # attach, not lock: a lock at 2000u now WINCHES (rigid across a gap teleported the
+        # load, see TestGravLockAtRange). The raw rigid attach is what this is measuring.
+        gt.grav_tether_attach(self.ship, self.load)   # offset 0 -> rigid snap
         sbs.sim._paused = False
         sbs.physics_tick(0.1)
         self.assertLess(self._sep(), d0 - 500)        # target reeled toward the source
@@ -531,6 +541,228 @@ class TestGravTetherConstraints(unittest.TestCase):
         self.assertFalse(gt.grav_tether_has(self.ship, self.load))
 
 
+class TestHeavyTow(unittest.TestCase):
+    """Dragging a starbase is allowed, and it has to cost something.
+
+    A TOW deliberately does not mass-reverse (a lock does) - a crew that picked "Tow"
+    asked to be the one pulling. But the load's own motion was not mass-aware at all:
+    _tick_rope set a flat stiffness, so a 200-mass station reeled to the rope exactly as
+    fast as a 1-mass fighter. The tug paid in drag and power; the station was free.
+    """
+
+    def setUp(self):
+        reset_mock(sbs)
+        gt.grav_tether_clear_all()
+        gt.grav_tether_set_attach_policy(None)
+        gt.grav_tether_set_grab_speed_limit(None)
+        gt.grav_tether_set_range_limit(None)
+        gt.grav_tether_set_tow_energy_cost(0.0)
+        side_ensure("tsn", "TSN")
+        self.ship = to_id(player_spawn(0, 0, 0, "Tug", "tsn", "tsn_light_cruiser"))
+        self.mate = to_id(player_spawn(0, 0, 100, "Mate", "tsn", "tsn_light_cruiser"))
+        self.base = to_id(npc_spawn(3000, 0, 0, "Base", "tsn", "starbase_command",
+                                    "behav_station"))
+        self.rock = to_id(npc_spawn(3000, 0, 0, "Rock", "tsn", "tsn_fighter",
+                                    "behav_npcship"))
+        self._masses({self.ship: 3.0, self.mate: 3.0, self.base: 200.0, self.rock: 1.0})
+
+    def tearDown(self):
+        gt.grav_tether_clear_all()
+        gt.grav_tether_set_mass_fn(None)
+        gt.grav_tether_set_pull_bonus_fn(None)
+        gt.grav_tether_set_tow_energy_cost(0.0)
+        gt._release_drag(self.ship)
+        gt._release_drag(self.mate)
+
+    def _masses(self, table):
+        gt.grav_tether_set_mass_fn(lambda oid: table.get(oid, 1.0))
+
+    def _lag(self, src, tgt):
+        """The stiffness the rope tick actually put on the live connection."""
+        gt.grav_tether_tick()
+        return gt.grav_tether_get(src, tgt).offset
+
+    # --- the beam has to feel the weight ------------------------------------
+
+    def test_a_light_load_tows_exactly_as_it_always_did(self):
+        # The no-regression guard. Every existing tow, and every mission that installs no
+        # mass table at all, must come out at the nominal stiffness.
+        gt.grav_tether_tow(self.ship, self.rock, 500)
+        self.assertEqual(self._lag(self.ship, self.rock), gt.DEFAULT_TOW_STIFFNESS)
+
+    def test_no_mass_provider_means_no_extra_lag(self):
+        gt.grav_tether_set_mass_fn(None)
+        gt.grav_tether_tow(self.ship, self.base, 500)
+        self.assertEqual(self._lag(self.ship, self.base), gt.DEFAULT_TOW_STIFFNESS)
+
+    def test_a_starbase_wallows(self):
+        gt.grav_tether_tow(self.ship, self.base, 500)
+        self.assertGreater(self._lag(self.ship, self.base), gt.DEFAULT_TOW_STIFFNESS * 5)
+
+    def test_a_second_tug_makes_the_load_move_better(self):
+        """The whole point of B. A CLAMPED curve would make these two equal."""
+        gt.grav_tether_tow(self.ship, self.base, 500)
+        solo = self._lag(self.ship, self.base)
+        gt.grav_tether_tow(self.mate, self.base, 500)
+        self.assertLess(self._lag(self.ship, self.base), solo)
+
+    def test_the_lag_really_does_slow_the_load_down(self):
+        """Not just a bigger number - measurably less distance closed, in the mock."""
+        def close(target):
+            gt.grav_tether_clear_all()
+            to_object(target).pos = sbs.vec3(3000, 0, 0)
+            gt.grav_tether_tow(self.ship, target, 100)
+            gt.grav_tether_tick()
+            sbs.sim._paused = False
+            for _ in range(300):                       # 10s at 1/30
+                sbs.sim._paused = False
+                sbs._physics_tractors(sbs.sim, 1 / 30.0)
+            return 3000 - to_object(target).pos.x
+        self.assertLess(close(self.base), close(self.rock) / 2)
+
+    # --- a tow never flips, however heavy -----------------------------------
+
+    def test_towing_a_station_still_pulls_the_station(self):
+        gt.grav_tether_tow(self.ship, self.base, 500)
+        gt.grav_tether_tick()
+        self.assertIsNotNone(sbs.sim.GetTractorConnection(self.ship, self.base))
+        self.assertIsNone(sbs.sim.GetTractorConnection(self.base, self.ship))
+        self.assertFalse(gt._TETHERS[(self.ship, self.base)].get("reversed"))
+
+    # --- the power bill is shared -------------------------------------------
+
+    def _burn(self, pullers):
+        gt.grav_tether_clear_all()
+        gt.grav_tether_set_tow_energy_cost(0.02)
+        for p in pullers:
+            to_object(p).data_set.set("energy", 1000.0, 0)
+            gt.grav_tether_tow(p, self.base, 500)
+        gt.grav_tether_tick()
+        return 1000.0 - to_object(pullers[0]).data_set.get("energy", 0)
+
+    def test_one_tug_pays_what_it_always_paid(self):
+        self.assertAlmostEqual(self._burn([self.ship]), 0.02 * 200.0, places=4)
+
+    def test_two_tugs_each_pay_half(self):
+        """Unshared, four hulls each drain at the solo rate and all cut out together -
+        the fleet spends four times the power for not one extra second of haul."""
+        self.assertAlmostEqual(self._burn([self.ship, self.mate]), 0.02 * 200.0 / 2,
+                               places=4)
+
+    # --- drag is a share of the load, not all of it -------------------------
+
+    def test_a_second_tug_lightens_the_first_ones_drag(self):
+        self._masses({self.ship: 3.0, self.mate: 3.0, self.base: 8.0, self.rock: 1.0})
+        gt.grav_tether_tow(self.ship, self.base, 500)
+        gt.grav_tether_tick()
+        alone = gt._TETHERS[(self.ship, self.base)]["drag"]
+        gt.grav_tether_tow(self.mate, self.base, 500)
+        gt.grav_tether_tick()
+        self.assertLess(gt._TETHERS[(self.ship, self.base)]["drag"], alone)
+
+    def test_a_tug_letting_go_puts_the_weight_back_on_the_survivor(self):
+        self._masses({self.ship: 3.0, self.mate: 3.0, self.base: 8.0, self.rock: 1.0})
+        gt.grav_tether_tow(self.ship, self.base, 500)
+        gt.grav_tether_tow(self.mate, self.base, 500)
+        gt.grav_tether_tick()
+        shared = gt._TETHERS[(self.ship, self.base)]["drag"]
+        gt.grav_tether_release(self.mate, self.base)
+        gt.grav_tether_tick()
+        self.assertGreater(gt._TETHERS[(self.ship, self.base)]["drag"], shared)
+
+    # --- and it says so ------------------------------------------------------
+
+    def test_strain_is_announced_once_per_band_not_once_per_tick(self):
+        said = []
+        real, gt.signal_emit = gt.signal_emit, lambda n, d=None: said.append((n, d))
+        try:
+            gt.grav_tether_tow(self.ship, self.base, 500)
+            gt.grav_tether_tick()
+            gt.grav_tether_tick()
+            gt.grav_tether_tick()
+            strains = [d for n, d in said if n == "grav_tether_strain"]
+            self.assertEqual(len(strains), 1, "a tick-rate signal is a flood, not feedback")
+            self.assertEqual(strains[0]["STRAIN"], "overloaded")
+            self.assertEqual(strains[0]["PULLERS"], 1)
+        finally:
+            gt.signal_emit = real
+
+    def test_an_easy_tow_says_nothing(self):
+        said = []
+        real, gt.signal_emit = gt.signal_emit, lambda n, d=None: said.append(n)
+        try:
+            gt.grav_tether_tow(self.ship, self.rock, 500)
+            gt.grav_tether_tick()
+            self.assertNotIn("grav_tether_strain", said)
+        finally:
+            gt.signal_emit = real
+
+    def test_the_readout_can_see_the_strain_without_internals(self):
+        gt.grav_tether_tow(self.ship, self.base, 500)
+        st = gt.grav_tether_status(self.ship)
+        self.assertEqual(st["strain"], "overloaded")
+        self.assertEqual(st["pullers"], 1)
+        gt.grav_tether_tow(self.mate, self.base, 500)
+        self.assertEqual(gt.grav_tether_status(self.ship)["pullers"], 2)
+
+    def test_the_lag_is_capped(self):
+        """A mass table is a mission's to write, and nothing stops it holding a 100000.
+        Uncapped that is a beam with a tau of half an hour - not a slow tow, a tether that
+        does nothing and then snaps."""
+        self._masses({self.ship: 1.0, self.base: 100000.0})
+        gt.grav_tether_tow(self.ship, self.base, 500)
+        self.assertEqual(self._lag(self.ship, self.base),
+                         gt.DEFAULT_TOW_STIFFNESS * gt.TOW_LAG_MAX_SCALE)
+
+    def test_lock_and_swing_stiffness_are_untouched_by_mass(self):
+        """The Lock/Tow split, as an assertion. A lock on something heavy is REVERSED -
+        the station is pulling YOU, and that should be strong, not sluggish - and a
+        swing's anchor is a rock, where scaling would kill the orbit the mode exists for.
+        """
+        gt.grav_tether_swing(self.base, self.ship, 800)
+        gt.grav_tether_tick()
+        self.assertEqual(gt.grav_tether_get(self.base, self.ship).offset, 1.0)
+        gt.grav_tether_clear_all()
+        gt.grav_tether_lock(self.ship, self.base)
+        self.assertEqual(gt._TETHERS[(self.ship, self.base)]["stiffness"],
+                         gt.LOCK_WINCH_STIFFNESS)
+
+    def test_pull_mass_ignores_beams_that_are_not_hauling(self):
+        """A swing's source is an anchor and a reversed tether's source is the LOAD.
+        Counting either inflates the crew and makes the haul look lighter than it is."""
+        gt.grav_tether_swing(self.base, self.ship, 800)          # anchor is not hauling
+        self.assertEqual(gt.grav_tether_pullers_of(self.ship), [])
+        gt.grav_tether_clear_all()
+        gt.grav_tether_lock(self.ship, self.base)                # reverses: ship is load
+        self.assertTrue(gt._TETHERS[(self.ship, self.base)]["reversed"])
+        self.assertEqual(gt.grav_tether_pullers_of(self.base), [])
+
+    def test_a_tug_rig_counts_as_extra_hulls(self):
+        """The rig is worth exactly what bringing that many more ships is worth, so the
+        readout can never say two different things about the same fact."""
+        gt.grav_tether_tow(self.ship, self.base, 500)
+        solo = self._lag(self.ship, self.base)
+        gt.grav_tether_set_pull_bonus_fn(lambda oid: 4.0)
+        self.assertLess(self._lag(self.ship, self.base), solo)
+        self.assertEqual(gt.grav_tether_pull_mass(self.base), 12.0)
+        gt.grav_tether_set_pull_bonus_fn(None)
+
+    def test_a_rig_does_not_make_you_harder_to_grab_or_worth_more_dead(self):
+        """Why the bonus is its own hook and not just added to the mass table: mass also
+        decides whether a Grav Lock reverses onto you and, in a mission that prices
+        salvage by mass, what your own wreck pays."""
+        gt.grav_tether_set_pull_bonus_fn(lambda oid: 4.0)
+        self.assertEqual(gt.grav_tether_mass(self.ship), 3.0)
+        gt.grav_tether_set_pull_bonus_fn(None)
+
+    def test_pull_mass_sums_and_a_free_load_is_neutral(self):
+        gt.grav_tether_tow(self.ship, self.base, 500)
+        self.assertEqual(gt.grav_tether_pull_mass(self.base), 3.0)
+        gt.grav_tether_tow(self.mate, self.base, 500)
+        self.assertEqual(gt.grav_tether_pull_mass(self.base), 6.0)
+        self.assertEqual(gt.grav_tether_pull_mass(self.rock), gt.DEFAULT_MASS)
+
+
 class TestGravTetherAnchors(unittest.TestCase):
     """An anchor is something you hang a rope FROM, never something you pull.
 
@@ -673,6 +905,97 @@ class TestGravTetherReach(unittest.TestCase):
         gt.grav_tether_swing(self.ship, self.near, 8000)
         gt.grav_tether_tick()
         self.assertTrue(gt.grav_tether_has(self.ship, self.near))
+
+
+class TestGravLockAtRange(unittest.TestCase):
+    """A Grav Lock across a gap must CLOSE it, not skip it.
+
+    Reported from a real bridge: grav-lock a starbase from ~7000u and you are instantly
+    beside it. Two shipped decisions meet here. Rigid means stiffness 0, and stiffness 0
+    has no rate limit - the mock's own tractor physics reads `if con._offset <= 0.0: frac
+    = 1.0  # rigid lock: snap to the point`, which is what the engine does too. And the
+    mass rule flips a grab on something far heavier, so on a starbase the connection is
+    built (station, player): the end that gets snapped across the gap is the PLAYER.
+
+    Neither was visible until a range limit made a lock at that distance legal at all.
+    """
+
+    def setUp(self):
+        reset_mock(sbs)
+        gt.grav_tether_clear_all()
+        gt.grav_tether_set_attach_policy(None)
+        gt.grav_tether_set_grab_speed_limit(None)
+        gt.grav_tether_set_range_limit(8000)
+        gt.grav_tether_set_lock_grab_distance(None)
+        self.ship = to_id(player_spawn(0, 0, 0, "Tug", "tsn", "tsn_light_cruiser"))
+        self.station = to_id(npc_spawn(7000, 0, 0, "Base", "tsn", "starbase_command",
+                                       "behav_station"))
+        gt.grav_tether_set_mass_fn(lambda oid: 200.0 if oid == self.station else 5.0)
+
+    def tearDown(self):
+        gt.grav_tether_clear_all()
+        gt.grav_tether_set_mass_fn(None)
+        gt.grav_tether_set_range_limit(None)
+        gt.grav_tether_set_lock_grab_distance(None)
+
+    def _sep(self):
+        import math
+        a, b = to_object(self.ship).pos, to_object(self.station).pos
+        return math.dist((a.x, a.y, a.z), (b.x, b.y, b.z))
+
+    def test_locking_a_station_at_range_does_not_teleport_you(self):
+        """THE BUG. Without the winch this closes 7000u in a single 0.1s physics tick."""
+        gt.grav_tether_lock(self.ship, self.station)
+        sbs.sim._paused = False
+        sbs.physics_tick(0.1)
+        self.assertGreater(self._sep(), 5000,
+                           "a rigid lock snapped the player onto the station")
+
+    def test_the_beam_is_not_rigid_while_it_is_still_closing(self):
+        con = gt.grav_tether_lock(self.ship, self.station)
+        self.assertEqual(con.offset, gt.LOCK_WINCH_STIFFNESS)
+        self.assertTrue(gt._TETHERS[(self.ship, self.station)]["winch"])
+
+    def test_it_goes_rigid_once_the_gap_is_closed(self):
+        gt.grav_tether_lock(self.ship, self.station)
+        to_object(self.ship).pos = sbs.vec3(6950, 0, 0)       # winched in
+        gt.grav_tether_tick()
+        st = gt._TETHERS[(self.ship, self.station)]
+        self.assertFalse(st["winch"])
+        self.assertEqual(st["stiffness"], 0.0)
+        self.assertEqual(gt.grav_tether_get(self.station, self.ship).offset, 0.0)
+
+    def test_arriving_says_so(self):
+        said = []
+        real, gt.signal_emit = gt.signal_emit, lambda n, d=None: said.append(n)
+        try:
+            gt.grav_tether_lock(self.ship, self.station)
+            gt.grav_tether_tick()
+            self.assertNotIn("grav_tether_locked", said, "not there yet")
+            to_object(self.ship).pos = sbs.vec3(6950, 0, 0)
+            gt.grav_tether_tick()
+            self.assertIn("grav_tether_locked", said)
+        finally:
+            gt.signal_emit = real
+
+    def test_a_winching_lock_still_releases_from_the_callers_terms(self):
+        gt.grav_tether_lock(self.ship, self.station)
+        gt.grav_tether_release_between(self.ship, self.station)
+        self.assertFalse(gt.grav_tether_between(self.ship, self.station))
+        self.assertIsNone(sbs.sim.GetTractorConnection(self.station, self.ship))
+
+    def test_being_the_load_does_not_also_cost_you_your_drive(self):
+        """The other half of the report: "engines don't work" while tethered.
+
+        Drag is what HAULING costs. On a reversed tether the caller is the load - the
+        engine is already moving their hull - and a starbase ratio pins the amount at the
+        0.75 ceiling, so they were capped to impulse AND cut to the drag floor at once.
+        """
+        gt.grav_tether_lock(self.ship, self.station)
+        gt.grav_tether_tick()
+        from sbs_utils.procedural.inventory import get_inventory_value
+        mods = get_inventory_value(self.ship, "impulse_upgrade_coeff_modifiers", [])
+        self.assertEqual([m for m in mods if m.source == gt._DRAG_KEY], [])
 
 
 class TestGravTetherTickIsUnkillable(unittest.TestCase):

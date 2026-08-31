@@ -115,7 +115,11 @@ def grav_tether_involves (obj):
     
     Registry-based, so it is honest during a rope-toggle tow (see :func:`grav_tether_has`)."""
 def grav_tether_lock (source, target, offset=None, overspeed=None):
-    """Rigid grab: target locked onto the source's offset point (cargo, hangar recovery)."""
+    """Rigid grab: target locked onto the source's offset point (cargo, hangar recovery).
+
+    A lock opened beyond :data:`LOCK_GRAB_DISTANCE` winches in on a lagged pull first and
+    hardens to rigid on arrival (emitting ``grav_tether_locked``). Rigid is stiffness 0,
+    which has no rate limit: across a gap it is a teleport, not a grab."""
 def grav_tether_mass (obj):
     """What this object weighs, via the installed provider. Never returns 0."""
 def grav_tether_mass_ratio (source, target):
@@ -123,6 +127,29 @@ def grav_tether_mass_ratio (source, target):
     
     The one number the constraints layer turns on: who drags whom, and how much it costs
     the puller."""
+def grav_tether_pullers_of (target):
+    """The ships actually HAULING ``target``. grav_tether_sources_of minus a swing's
+    anchor and a reversed tether's registered source - neither is pulling anything."""
+def grav_tether_set_pull_bonus_fn (fn):
+    """Install (or clear with None) fn(id) -> multiplier on what a ship counts for when
+    PULLING. Separate from the mass provider: a tug rig must not change whether a Grav
+    Lock reverses onto you, what you cost others to tow, or what your wreck is worth."""
+def grav_tether_pull_bonus (source):
+    """This ship's hauling multiplier. Never returns 0 and never raises."""
+def grav_tether_pull_mass (target):
+    """Combined mass of EVERY ship currently tethered to ``target``.
+
+    A load does not know how many ropes are on it - it knows how hard it is being pulled,
+    which is what makes a second hull worth bringing. DEFAULT_MASS when nothing holds it."""
+def grav_tether_load_ratio (source, target):
+    """How outmatched the ships on ``target`` are, all of them together.
+
+    The cooperative twin of grav_tether_mass_ratio, which reads ONE puller. Every cost a
+    tow pays comes from this, so a tug that joins lightens the haul for everyone on it."""
+def grav_tether_strain (source, target):
+    """How hard the ships on ``target`` are working: "none" / "light" / "heavy" /
+    "overloaded". A BAND, not the raw ratio - it moves about once a haul, which is what
+    lets it drive both an edge-triggered signal and a console's repaint key."""
 def grav_tether_reel (source, target, rate=50.0, stiffness=5.0, offset=None, overspeed=None):
     """Reel the load in: start the rope at the current separation and ramp it to 0,
     then emit ``grav_tether_reeled`` for the caller to hand off (collect / dock)."""
@@ -148,6 +175,10 @@ def grav_tether_out_of_reach (source, target):
     """Whether these two are too far apart to open a tether."""
 def grav_tether_range_limit ():
     """The engage range in force, or None."""
+def grav_tether_lock_grab_distance ():
+    """The rigid-grab distance in force."""
+def grav_tether_set_lock_grab_distance (distance):
+    """How close a Grav Lock may go rigid from. Beyond it, a lock winches in first."""
 def grav_tether_set_range_limit (distance, snap_factor=1.5):
     """Set how far a tether can reach to open, and how far it stretches before it snaps.
 

@@ -39,6 +39,123 @@ no raycast).
     which the pull engages, so a 500u tow reeling a load in from 2000 would snap itself on
     the first tick.
 
+!!! danger "A rigid lock across a gap is a teleport"
+    Rigid means stiffness **0**, and stiffness 0 has **no rate limit** - the engine puts
+    the load on the source point the same tick the connection is made. Close up, which is
+    the case `grav_tether_lock` was written for (a hangar recovery), that is exactly
+    right. At range it is a teleport, and once `grav_tether_set_range_limit` made a lock
+    from thousands of units away legal it became reachable from the shipped Weapons
+    hold-click.
+
+    It reads worst in the case the mass rule flips. Grav-lock a **starbase** and the
+    station is the puller, so the end snapped across the gap is the **player** - reported
+    from a bridge as "grav-lock a station from 7000u and you are instantly beside it".
+    Measured: 7000u closed to 120u in a single 0.1s tick.
+
+    So a lock opened beyond `LOCK_GRAB_DISTANCE` (100u) engages at `LOCK_WINCH_STIFFNESS`
+    instead - a lagged, rate-limited pull - and hardens to rigid only once the load is
+    genuinely in reach, emitting **`grav_tether_locked`**. Same end state, arrived at
+    rather than jumped to. `grav_tether_set_lock_grab_distance(d)` retunes it.
+
+    The rule reads the **live separation**, not a ramped rope length: `pull_distance` is
+    not honored as a rest length, so a countdown would be a timer pretending to be a
+    measurement.
+
+!!! tip "You can drag a starbase. It has to cost you."
+    A **Lock** and a **Reel** mass-reverse; a **Tow** deliberately does not. Grabbing a
+    station rigidly means going where the station goes; hauling one means straining
+    against it. Two different verbs, and a crew that picked *Tow* asked to be the one
+    pulling - so a tow never flips, however outmatched, and pays for it instead.
+
+    It used to pay in one place only. `_enforce_drag` and `_spend_tow_energy` billed the
+    **tug**, while `_tick_rope` set a flat `con.offset`, so a 200-mass starbase reeled to
+    the rope at exactly the rate of a 1-mass fighter. The load was free; only the ship
+    holding it felt anything. Three changes, each on an axis a crew can act on:
+
+    **The beam lags with the weight.** `_tow_lag` scales the stiffness dial by
+    `grav_tether_load_ratio(source, target) ** TOW_LAG_CURVE` - a **square root**, capped
+    at `TOW_LAG_MAX_SCALE` (8x).
+
+    Be precise about what this does, because it is easy to overclaim: `con.offset` sets
+    how far behind you the load **settles** (roughly your speed x tau) and how long it
+    takes to get moving - *not* the speed of the convoy once under way, which is set by
+    the drag on the tug. So a heavy load trails much further back, starts slowly and
+    swings wide on a turn. That is the "it feels heavy" half; "the trip is slow" is drag.
+
+    A square root because the two obvious alternatives are both worse. **Linear** on a
+    66:1 starbase grab gives a tau near 400s and a trailing distance around 18000u - past
+    `SNAP_RANGE_FACTOR`, so the beam tears itself off before the load has moved. A hard
+    **clamp** is worse still: every ratio past the cap lands on the same lag, so one tug
+    and four move the load identically and cooperating buys *nothing*. The cap is a safety
+    rail, not the mechanic - it is reached at ratio 64, a lone cruiser on a command
+    starbase, while every realistic team lands well under it. It exists because a mass
+    table is a mission's to write and nothing stops it holding 100000 for a planet.
+
+    A ratio of 1 or less returns the nominal stiffness untouched, and the whole thing
+    short-circuits when no mass provider is installed, so every existing tow - and every
+    mission with no mass table - is unchanged. It applies to `MODE_TOW` only: a swing's
+    anchor is a rock, and a lock on something heavy is *reversed*.
+
+    **A second hull is worth bringing.** `grav_tether_pull_mass(target)` is the combined
+    mass of everyone **hauling** it - `grav_tether_pullers_of` excludes a swing's anchor
+    and a reversed tether's registered source, neither of which is pulling anything, and
+    counting either would make the haul look lighter than it is.
+    `grav_tether_load_ratio(source, target)` is what the load is measured against. Lag and drag both read it, and the **energy bill is shared** - each
+    puller pays in proportion to its own mass. Billing every ship the full amount, which
+    is what it did, means four hulls each drain at the solo rate and all cut out at the
+    same moment: four times the fleet's power for not one extra second of haul.
+
+    **And it says so.** `grav_tether_strain(target)` returns `none` / `light` / `heavy` /
+    `overloaded`, and crossing a band emits **`grav_tether_strain`**
+    (`SOURCE_ID, TARGET_ID, STRAIN, RATIO, PULLERS`). Edge-triggered - the tether tick
+    runs several times a sim-second and a signal at that rate is a flood, not feedback.
+    `grav_tether_status` carries `strain` and `pullers` for a readout. The band, not the
+    ratio, is the published number precisely because a console keyed on a per-tick value
+    repaints itself to pieces.
+
+    The bands sit where the mechanics change, not on round numbers: `light` ends where
+    drag stops growing (past there extra mass costs no extra drive - only lag and power),
+    and `overloaded` is where the beam's sluggishness rather than the drive penalty is
+    what is beating the crew.
+
+    **A ship can be better at hauling than its hull says.**
+    `grav_tether_set_pull_bonus_fn(fn)` installs `fn(id) -> multiplier` on what a ship
+    counts for **when pulling**. Deliberately *not* folded into the mass provider even
+    though the arithmetic is identical: mass also decides whether a Grav Lock reverses onto
+    you, what you cost somebody else to tow, and - for a mission pricing salvage by mass -
+    what your own wreck pays. Better towing gear that quietly raised the price of your hulk
+    would be a bug nobody would trace back to the rig.
+
+    LM ships two tiers of it. The **Heavy Tug Rig** is 4x, permanent, and bought at a
+    station; the **Tug Rig Mk I** is 2.5x for ten minutes and is found in the world. They
+    **stack**, and that is a fix rather than generosity: an item is decremented before its
+    effect runs, so under a best-one-wins rule a crew that already owns the permanent rig
+    would destroy any Mk I they activated for no benefit at all, with nothing able to
+    refuse the press in time.
+
+    Two numbers worth the explanation. 4x means a rigged hull reads the same as a
+    four-ship team on every figure the beam computes - though **not** on endurance, since
+    the power bill is split between the ships actually on the beam and one rigged hull pays
+    all of it. And the Mk I is 2.5x rather than the obvious 2x because tow drag saturates
+    at a ratio of `DRAG_FLOOR / DRAG_AT_EQUAL_MASS` = 2.14: on the standard haul, a mass-3
+    cruiser dragging a mass-16 liner, a 2x rig only moves the ratio from 5.33 to 2.67 and
+    the drag penalty does not shift at all. 2.5x lands at 2.13, just under the floor, so
+    the penalty eases and the strain word drops a band.
+
+!!! note "Tow drag is what *hauling* costs - a reversed tether pays none of it"
+    `_enforce_drag` drops the puller's `impulse_upgrade_coeff` and `turn_upgrade_coeff` by
+    the mass ratio. On a **mass-reversed** tether the caller is not hauling anything: they
+    are the load, and the engine is already moving their hull. Charging them anyway
+    stacked this module's two heaviest penalties on the one ship that had earned neither -
+    capped to impulse by `_enforce_impulse` **and** cut to the `DRAG_FLOOR` (a starbase is
+    20-60x a cruiser, which pins the amount at its 0.75 ceiling). That is what "the
+    engines stopped working while tethered" was. A swing is exempt for the mirror reason.
+
+    **Warp is still refused, and always intentionally**: impulse-only is canonical, so
+    `_enforce_impulse` clamps `playerThrottle` back to 1.0 every tick while a tether is
+    live. `grav_tether_set_overspeed_default("snap")` breaks the beam instead;
+    `("off")` drops the rule.
+
 !!! danger "An anchor is never a load"
     `ANCHOR_ROLES` (`black_hole,planet,nebula` by default) names the bodies that may only
     ever be the **source** end of a tether. Attaching one as the **target** is refused and

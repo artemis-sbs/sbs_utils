@@ -42,7 +42,12 @@ from .signal import signal_emit
 
 # Sensible defaults from the Phase 0 spike.
 DEFAULT_TOW_STIFFNESS = 5.0
-DEFAULT_REEL_RATE = 50.0          # rope-length reduced per tick (0.1s) -> ~500 u/s
+# A 0.1s TickDispatcher interval does NOT fire ten times a sim-second. TickTask._update
+# measures its delay in tick-counter units (30/sim-sec in both hosts), but dispatch_tick
+# is called 15x/sim-sec in the engine and 6x in the mock, so a 3-tick interval lands ~7.5
+# times a second on a bridge and 6 headless. Every "per tick" number here is per one of
+# those, which also means the mock bills a haul about 20% less power than the engine does.
+DEFAULT_REEL_RATE = 50.0          # rope-length reduced per tick -> ~375 u/s in-engine
 _TICK_SECONDS = 0.1
 
 # Overspeed enforcement mode when a source ship pushes past impulse while towing.
@@ -83,7 +88,39 @@ DEFAULT_MASS = 1.0
 
 #: How much heavier the load must be before it drags YOU instead. 2.0 = anything twice
 #: your mass wins. Below this the puller wins and merely pays for it in drag.
+#:
+#: A LOCK and a REEL reverse; a TOW deliberately does not. Grabbing a starbase rigidly
+#: means going where the starbase goes, and hauling one means straining against it - two
+#: different verbs, and a crew that picked "Tow" asked to be the one doing the pulling.
+#: So a tow never flips, and pays for the privilege in lag, drag and power instead.
 MASS_REVERSE_RATIO = 2.0
+
+#: Exponent on the mass ratio when a tow scales its beam lag. 0.5 = square root.
+#:
+#: WHAT THIS ACTUALLY CHANGES, because it is easy to overclaim: the beam's lag sets how
+#: far behind you the load SETTLES (roughly your speed x tau) and how long it takes to get
+#: moving - not the speed of the convoy once it is under way, which is set by the drag on
+#: the tug. A heavy load therefore trails much further back, starts slowly and swings wide
+#: on a turn. That is the "it feels heavy" half; the "the trip is slow" half is drag.
+#:
+#: SUBLINEAR ON PURPOSE, and the two obvious alternatives are both worse. A LINEAR scale
+#: on a 66:1 starbase grab gives a tau near 400s and a trailing distance around 18000u -
+#: past SNAP_RANGE_FACTOR, so the beam tears itself off before the load has moved. A hard
+#: CLAMP is worse still: every ratio past the cap lands on the same lag, so one tug and
+#: four tugs tow identically and cooperating buys literally nothing. A root curve is
+#: monotone the whole way, so every extra hull is worth bringing.
+TOW_LAG_CURVE = 0.5
+
+#: Ceiling on the scaled lag, as a multiple of the tow's base stiffness. 8x is reached at
+#: a ratio of 64 - a lone cruiser on a command starbase, i.e. exactly the case that is
+#: meant to be at the wall. Every realistic TEAM lands well under it (four cruisers on
+#: that same starbase is ratio 17, about half the cap), so the cap is a safety rail and
+#: never the mechanic.
+#:
+#: It exists because a mass table is a mission's to write and nothing stops it holding a
+#: 100000 for a planet. Uncapped that is a beam with a tau of half an hour, which is not
+#: a slow tow - it is a tether that does nothing and then snaps.
+TOW_LAG_MAX_SCALE = 8.0
 
 #: Above this throttle a target is moving too fast to get hold of - None disables the
 #: rule. Off in the library and switched on by the mission, because "can you grab a ship
@@ -114,6 +151,22 @@ _range_limit = None
 SNAP_RANGE_FACTOR = 1.5
 _snap_factor = SNAP_RANGE_FACTOR
 
+#: How close a rigid Grav Lock may CLOSE from. A rigid connection (stiffness 0) has no
+#: rate limit - the engine puts the load on the source point the same tick - so opening
+#: one across a gap is a TELEPORT, not a grab. Beyond this a lock winches in on a lagged
+#: pull first (:data:`LOCK_WINCH_STIFFNESS`) and goes rigid only once the gap is closed.
+#:
+#: The bug this exists for: a range limit made a lock at 7000u legal, and the mass rule
+#: made the STATION the puller - so the player was snapped across 7000u onto the starbase
+#: the instant they clicked. Rigid was always a snap; nothing used to be far enough away
+#: for it to show.
+LOCK_GRAB_DISTANCE = 100.0
+_lock_grab_distance = LOCK_GRAB_DISTANCE
+
+#: Stiffness the winch runs at while a lock is still closing. Any non-zero value is
+#: rate-limited by the engine; this is the same taut-tow dial a Tow uses.
+LOCK_WINCH_STIFFNESS = DEFAULT_TOW_STIFFNESS
+
 #: Roles that can only ever be an ANCHOR - something you hang a rope FROM, never
 #: something you pull. A black hole, a planet or a nebula does not move for a tractor
 #: beam, and a beam that claims to be pulling one is an expensive lie: the source is
@@ -139,6 +192,39 @@ def grav_tether_set_mass_fn(fn):
     _mass_fn = fn
 
 
+#: Optional provider for a ship's HAULING multiplier: fn(source_id) -> float.
+#: Separate from the mass provider on purpose - see grav_tether_set_pull_bonus_fn.
+_pull_bonus_fn = None
+
+
+def grav_tether_set_pull_bonus_fn(fn):
+    """Install (or clear with None) the hauling-bonus provider: fn(id) -> multiplier.
+
+    1.0 is an ordinary hull. This is how a mission gives a ship a heavy-tug rig without
+    lying about what it weighs.
+
+    DELIBERATELY NOT FOLDED INTO THE MASS PROVIDER, even though the arithmetic would be
+    identical, because mass answers three other questions and a tug rig should change
+    none of them: whether a Grav Lock reverses onto you (:data:`MASS_REVERSE_RATIO`),
+    what you cost somebody ELSE to tow, and - for a mission that prices salvage by mass -
+    what your own wreck is worth. Better towing gear that quietly made your hulk more
+    valuable would be a bug nobody would ever trace back to the rig.
+    """
+    global _pull_bonus_fn
+    _pull_bonus_fn = fn
+
+
+def grav_tether_pull_bonus(source):
+    """This ship's hauling multiplier. Never returns 0 and never raises."""
+    if _pull_bonus_fn is None:
+        return 1.0
+    try:
+        b = float(_pull_bonus_fn(to_id(source)))
+    except Exception:
+        return 1.0
+    return b if b > 0.0 else 1.0
+
+
 def grav_tether_mass(obj):
     """What this object weighs, via the installed provider. Never returns 0."""
     oid = to_id(obj)
@@ -158,6 +244,53 @@ def grav_tether_mass_ratio(source, target):
     the puller.
     """
     return grav_tether_mass(target) / max(0.0001, grav_tether_mass(source))
+
+
+def grav_tether_pullers_of(target):
+    """The ships actually HAULING ``target`` - what a readout counts.
+
+    :func:`grav_tether_sources_of` minus two kinds of beam that are registered as sources
+    and are pulling nothing. A SWING's source is the anchor, and a rock does not haul. A
+    MASS-REVERSED tether's registered source is the LOAD - the engine is moving them.
+    Counting either inflates the crew and makes the haul look lighter than it is.
+    """
+    tid = to_id(target)
+    return [src for (src, tgt), st in _TETHERS.items()
+            if tgt == tid and not st.get("swing") and not st.get("reversed")]
+
+
+def grav_tether_pull_mass(target):
+    """Combined mass of every ship hauling ``target``, tug rigs included.
+
+    A load does not know how many ropes are on it - it knows how hard it is being pulled.
+    So the number that matters to a haul is the total on the beam, not any one tug's
+    share, and this is what makes a second hull worth bringing.
+
+    Falls back to :data:`DEFAULT_MASS` when nothing is hauling it, so a caller asking
+    about a free object gets the same neutral answer :func:`grav_tether_mass` gives.
+    """
+    total = sum(grav_tether_mass(p) * grav_tether_pull_bonus(p)
+                for p in grav_tether_pullers_of(target))
+    return total if total > 0 else DEFAULT_MASS
+
+
+def grav_tether_load_ratio(source, target):
+    """How outmatched the ships on ``target`` are, all of them together.
+
+    The team-aware sibling of :func:`grav_tether_mass_ratio`, which stays a ONE-ship
+    question on purpose: who gets reversed is about the ship that grabbed, while how hard
+    the haul is is about every beam on the load. Every cost a tow pays comes from this,
+    so a tug joining lightens the haul for everyone already on it.
+
+    ``source`` is only the fallback: when nothing is registered as hauling the target -
+    a caller asking before the tether exists, or from the reversed end - it stands in for
+    the crew, so the answer is the plain one-ship ratio rather than a wrong team one.
+    """
+    if grav_tether_pullers_of(target):
+        pull = grav_tether_pull_mass(target)
+    else:
+        pull = grav_tether_mass(source) * grav_tether_pull_bonus(source)
+    return grav_tether_mass(target) / max(0.0001, pull)
 
 
 def grav_tether_set_anchor_roles(roles):
@@ -187,6 +320,17 @@ def grav_tether_set_range_limit(distance, snap_factor=SNAP_RANGE_FACTOR):
 def grav_tether_range_limit():
     """The engage range in force, or None."""
     return _range_limit
+
+
+def grav_tether_set_lock_grab_distance(distance):
+    """How close a Grav Lock may go rigid from. Beyond it, a lock winches in first."""
+    global _lock_grab_distance
+    _lock_grab_distance = float(LOCK_GRAB_DISTANCE if distance is None else distance)
+
+
+def grav_tether_lock_grab_distance():
+    """The rigid-grab distance in force."""
+    return _lock_grab_distance
 
 
 def grav_tether_out_of_reach(source, target):
@@ -240,11 +384,18 @@ def grav_tether_target_too_fast(target):
 
 
 def _spend_tow_energy(src, tgt, st):
-    """Charge the puller for holding a load. Returns True if the tether snapped dry.
+    """Charge the puller for its SHARE of holding a load. Returns True if it snapped dry.
 
     Running a ship's reserves to nothing would be a worse mechanic than making the haul
     expensive, so an empty tank BREAKS the beam and drops the load rather than pinning the
     ship at zero energy.
+
+    THE SHARE IS WHAT MAKES A SECOND TUG WORTH CALLING. The load's bill is fixed by what
+    it weighs; each puller pays it in proportion to its own mass. Charge every ship the
+    FULL bill instead - which is what this did - and four hulls on one starbase each drain
+    at the solo rate and all four cut out at the same moment: the fleet spends four times
+    the power for not one extra second of haul. Shared, a lone tug pays exactly what it
+    always did and four of them each last four times as long.
     """
     if _tow_energy_cost <= 0.0 or st.get("swing"):
         return False
@@ -257,7 +408,9 @@ def _spend_tow_energy(src, tgt, st):
         return False
     if have <= 0.0:
         return False                      # nothing to spend from (an NPC): tow is free
-    cost = _tow_energy_cost * grav_tether_mass(tgt)
+    mine = grav_tether_mass(src) * grav_tether_pull_bonus(src)
+    share = mine / max(0.0001, grav_tether_pull_mass(tgt))
+    cost = _tow_energy_cost * grav_tether_mass(tgt) * min(1.0, share)
     left = float(have) - cost
     if left <= 0.0:
         so.data_set.set("energy", 0.0, 0)
@@ -502,21 +655,27 @@ def grav_tether_status(obj):
     reversed), and a display that assumes the first is wrong exactly when being tethered
     matters most.
 
-    Returns a dict ``{"partner", "mode", "role", "source", "target"}`` - ``role`` is
-    ``"source"`` when obj is the puller, ``"target"`` when it is the load. The FIRST
-    tether found; a ship holding several is unusual and a one-square readout has room
-    for one anyway.
+    Returns a dict ``{"partner", "mode", "role", "source", "target", "strain",
+    "pullers"}`` - ``role`` is ``"source"`` when obj is the puller, ``"target"`` when it
+    is the load. The FIRST tether found; a ship holding several is unusual and a
+    one-square readout has room for one anyway.
+
+    ``strain`` and ``pullers`` are here so a console can say what a haul is costing
+    without reaching into this module's internals - the whole reason a tow felt broken
+    was that nothing surfaced them. ``strain`` is deliberately the BAND, not the ratio:
+    a readout keyed on a per-tick number repaints itself to pieces.
     """
     oid = to_id(obj)
     if oid is None:
         return None
     for (src, tgt), st in _TETHERS.items():
-        if oid == src:
-            return {"partner": tgt, "mode": st.get("mode"), "role": "source",
-                    "source": src, "target": tgt}
-        if oid == tgt:
-            return {"partner": src, "mode": st.get("mode"), "role": "target",
-                    "source": src, "target": tgt}
+        if oid == src or oid == tgt:
+            return {"partner": tgt if oid == src else src,
+                    "mode": st.get("mode"),
+                    "role": "source" if oid == src else "target",
+                    "source": src, "target": tgt,
+                    "strain": grav_tether_strain(src, tgt),
+                    "pullers": len(grav_tether_pullers_of(tgt))}
     return None
 
 
@@ -601,9 +760,39 @@ def grav_tether_clear_all():
 # --- mode presets ---------------------------------------------------------------
 
 def grav_tether_lock(source, target, offset=None, overspeed=None):
-    """Rigid grab: target locked onto the source's offset point (cargo, hangar recovery)."""
-    return grav_tether_attach(source, target, offset=offset, stiffness=0.0,
-                              pull_distance=0.0, overspeed=overspeed)
+    """Rigid grab: target locked onto the source's offset point (cargo, hangar recovery).
+
+    A lock opened across a GAP winches in first. Rigid means stiffness 0, and stiffness 0
+    has no rate limit anywhere - engine or mock - so the connection puts the load on the
+    source point the same tick it is made. Close up (a hangar recovery, the case this mode
+    was written for) that is exactly right and nothing changes. At range it is a teleport,
+    and once :func:`grav_tether_set_range_limit` let a lock open from thousands of units
+    away it became reachable from the shipped Weapons hold-click. Worse in the one case
+    that reads as broken rather than cheap: the mass rule flips a grab on a starbase, so
+    the STATION is the puller and the PLAYER is what gets snapped across the gap.
+
+    So beyond :data:`LOCK_GRAB_DISTANCE` the beam engages at
+    :data:`LOCK_WINCH_STIFFNESS` - a lagged, rate-limited pull - and ``_tick_lock``
+    hardens it to rigid once the load is actually in reach, emitting
+    ``grav_tether_locked``. Same end state, arrived at rather than jumped to.
+    """
+    src = to_id(source)
+    tgt = to_id(target)
+    so = to_object(src)
+    to = to_object(tgt)
+    dist = _distance(so, to) if (so is not None and to is not None) else 0.0
+    if dist <= _lock_grab_distance:
+        return grav_tether_attach(source, target, offset=offset, stiffness=0.0,
+                                  pull_distance=0.0, overspeed=overspeed)
+    con = grav_tether_attach(source, target, offset=offset,
+                             stiffness=LOCK_WINCH_STIFFNESS, pull_distance=dist,
+                             overspeed=overspeed)
+    if con is None:
+        return None
+    st = _TETHERS.get((src, tgt))
+    if st is not None:
+        st["winch"] = True          # still closing; _tick_lock hardens it on arrival
+    return con
 
 
 def grav_tether_tow(source, target, distance, stiffness=DEFAULT_TOW_STIFFNESS, overspeed=None):
@@ -730,6 +919,36 @@ def _enforce_impulse(src, tgt, st):
     return False
 
 
+def _tow_lag(src, tgt, st):
+    """The beam's stiffness dial, scaled by how outmatched the ships on the load are.
+
+    ``con.offset`` is a LAG dial: 0 snaps, ~5 is a taut tow, higher trails further and
+    settles slower. It was flat, so a 200-mass starbase came to the rope exactly as
+    briskly as a 1-mass fighter - the tug felt the weight in drag and power and the LOAD
+    felt nothing, which is why hauling a station read as free.
+
+    Measured in the mock's tractor model, closing a 3000u gap over 30s: offset 5 closes
+    2950u, offset 20 closes 2141u, offset 40 closes 1180u. A lone cruiser on a command
+    starbase lands at the cap and four of them near 20.
+
+    ONLY A TOW. Gated on the mode rather than on ``st["rope"]`` because grav_tether_rope
+    is public and a mission may open a rope-hold that is not a tow. A swing's anchor is a
+    rock (scaling would kill the orbit the mode exists for) and a lock on something heavy
+    is REVERSED - the station is pulling you, which should be strong, not sluggish.
+
+    Never below the nominal stiffness, and short-circuited entirely when no mission has
+    said what anything weighs: an evenly matched tow, and every mission with no mass
+    table, tows exactly as it always did.
+    """
+    base = st["stiffness"]
+    if _mass_fn is None or st.get("mode") != MODE_TOW:
+        return base
+    ratio = grav_tether_load_ratio(src, tgt)
+    if ratio <= 1.0:
+        return base
+    return min(base * TOW_LAG_MAX_SCALE, base * (ratio ** TOW_LAG_CURVE))
+
+
 def _tick_rope(src, tgt, st):
     """Rope-toggle: taut (beyond rope_len) -> engage a stiff pull back to the circle;
     slack (inside) -> release the pull so the target moves free. Holds a load/ship at
@@ -744,7 +963,7 @@ def _tick_rope(src, tgt, st):
             con = _add_connection(src, tgt, _to_sbs_vec(st["offset"]), st["rope_len"])
         if con is None:
             return False                     # the engine refused the beam
-        con.offset = st["stiffness"]
+        con.offset = _tow_lag(src, tgt, st)
     elif con is not None:
         _delete_connection(src, tgt)
     return True
@@ -772,6 +991,34 @@ def _tick_swing(anchor, ship, st):
     if con is None:
         return False                                 # the engine refused the beam
     con.offset = st["stiffness"]
+    return True
+
+
+def _tick_lock(src, tgt, st):
+    """Harden a winching Grav Lock to rigid once the gap is actually closed.
+
+    Measured against the LIVE separation, not against a ramped rope length: pull_distance
+    is not honored as a rest length (the mock ignores it outright, and the engine harness
+    read 1500 -> ~165 rather than -> 1500), so a countdown would be a timer pretending to
+    be a measurement. Distance is the thing the rule is about, so distance is what it
+    reads.
+    """
+    so = to_object(src)
+    to = to_object(tgt)
+    if so is None or to is None:
+        return True
+    if _distance(so, to) > _lock_grab_distance:
+        return True                          # still hauling it in on the lagged pull
+    st["winch"] = False
+    st["stiffness"] = 0.0                    # in reach now - rigid is a grab, not a jump
+    st["pull"] = 0.0
+    con = _get_connection(src, tgt)
+    if con is None:
+        con = _add_connection(src, tgt, _to_sbs_vec(st["offset"]), 0.0)
+    if con is None:
+        return False                         # the engine refused the beam
+    con.offset = 0.0
+    signal_emit("grav_tether_locked", {"SOURCE_ID": src, "TARGET_ID": tgt})
     return True
 
 
@@ -805,9 +1052,43 @@ DRAG_AT_EQUAL_MASS = 0.35
 DRAG_FLOOR = 0.25
 
 
+#: Ratio past which a haul is called "overloaded" - the band that means "fetch help".
+#: Well above the point drag maxes out, because between the two a crew is merely slow;
+#: here the beam's own lag is the thing beating them.
+STRAIN_OVERLOAD_RATIO = 10.0
+
+
 def _drag_amount(ratio):
     """How much drive a load of this mass ratio costs. 0 = free, 0.75 = at the floor."""
     return min(1.0 - DRAG_FLOOR, float(ratio) * DRAG_AT_EQUAL_MASS)
+
+
+def _drag_floor_ratio():
+    """The ratio at which drag stops growing because it has hit :data:`DRAG_FLOOR`."""
+    return (1.0 - DRAG_FLOOR) / DRAG_AT_EQUAL_MASS
+
+
+def grav_tether_strain(source, target):
+    """How hard the ships on ``target`` are working, as a word a readout can print.
+
+    ``none`` / ``light`` / ``heavy`` / ``overloaded``. The boundaries are the points where
+    the mechanics actually change, not round numbers: ``light`` ends where drag stops
+    growing (past there extra mass no longer costs extra drive - only lag and power), and
+    ``overloaded`` is where the beam's own sluggishness, not the drive penalty, is what is
+    beating the crew.
+
+    A BAND rather than the raw ratio on purpose. The ratio moves whenever anything joins
+    or leaves; a band moves about once a haul, which is what lets it drive both an
+    edge-triggered signal and a console's repaint key without tearing the panel down.
+    """
+    ratio = grav_tether_load_ratio(source, target)
+    if ratio <= 1.0:
+        return "none"
+    if ratio < _drag_floor_ratio():
+        return "light"
+    if ratio < STRAIN_OVERLOAD_RATIO:
+        return "heavy"
+    return "overloaded"
 
 
 def _enforce_drag(src, tgt, st):
@@ -821,10 +1102,25 @@ def _enforce_drag(src, tgt, st):
     A SWING is exempt: the anchor is the source, the fighter is the load, and slowing the
     anchor (usually a rock) means nothing - while slowing the fighter would kill the orbit
     the mode exists for.
+
+    A MASS-REVERSED tether is exempt too, and for the same reason read the other way up:
+    drag is what HAULING costs, and on a reversed tether the caller is not hauling - they
+    are the load, with the engine already moving their hull for them. Charging them as
+    well stacked the two heaviest penalties this module has on the one ship that had
+    earned neither: capped to impulse by _enforce_impulse AND cut to the DRAG_FLOOR (a
+    starbase is 20-60x a cruiser, so the ratio pins the amount at its 0.75 ceiling), which
+    is why grabbing something big read as "the engines stopped working".
+
+    The ratio is the COMBINED one (:func:`grav_tether_load_ratio`): you are carrying a
+    share of the load, not all of it, so a tug that joins the haul lightens it for
+    everyone already pulling. That amount is recomputed from live state every tick and
+    compared against the cached one, so a ship joining or leaving corrects every other
+    puller on the next tick with no cache bookkeeping of its own.
     """
-    if st.get("swing"):
+    if st.get("swing") or st.get("reversed"):
         return
-    amount = _drag_amount(grav_tether_mass_ratio(src, tgt))
+    _announce_strain(src, tgt, st)
+    amount = _drag_amount(grav_tether_load_ratio(src, tgt))
     if amount <= 0.0:
         return
     if st.get("drag") == amount:
@@ -838,6 +1134,41 @@ def _enforce_drag(src, tgt, st):
         pass
 
 
+def _announce_strain(src, tgt, st):
+    """Emit ``grav_tether_strain`` when this haul crosses into a new strain band.
+
+    EDGE-TRIGGERED, because this runs on the tether tick several times a sim-second and a
+    signal at that rate is a flood, not feedback. The edge is (band, crew size), so a tug
+    arriving is announced even when it does not move the band - which it usually will not,
+    since a four-ship team spans about one band and the CREW COUNT is the legible half of
+    the news. Neither input is noisy: masses are constant and the puller set changes only
+    when somebody attaches or lets go, so there is nothing here to chatter on and no need
+    for a dead band.
+
+    FAN-OUT: when a fourth tug joins, all four tethers see a changed crew and all four
+    emit. That is one signal per SHIP, which is what a per-console readout wants - but a
+    handler that broadcasts must address SOURCE_ID, or one ship joining prints four
+    identical lines into the same waterfall.
+
+    The reason it exists at all is that every cost this module charges was invisible. A
+    crew hauling a starbase was capped to impulse, cut to a quarter throttle and burning
+    its reserves, and nothing anywhere said so - the ship simply felt broken. Two signals
+    existed and both fired only after the haul had already failed.
+    """
+    band = grav_tether_strain(src, tgt)
+    now = (band, len(grav_tether_pullers_of(tgt)))
+    if st.get("strain") == now:
+        return
+    st["strain"] = now
+    if band == "none":
+        return                              # not worth saying "this is easy"
+    signal_emit("grav_tether_strain", {
+        "SOURCE_ID": src, "TARGET_ID": tgt, "STRAIN": band,
+        "RATIO": grav_tether_load_ratio(src, tgt),
+        "PULLERS": now[1],
+    })
+
+
 def _release_drag(src):
     """Lift the tow drag. Called on release - a ship that let go must get its drive back."""
     try:
@@ -849,7 +1180,8 @@ def _release_drag(src):
 
 
 def grav_tether_tick(t=None):
-    """Runs on the TickDispatcher (~10 Hz) while any tether is live; also directly
+    """Runs on the TickDispatcher (~7.5/sim-sec in-engine, 6 in the mock - see
+    DEFAULT_REEL_RATE) while any tether is live; also directly
     callable (tests). Enforces impulse and advances reels; self-heals dead objects."""
     for key in list(_TETHERS.keys()):
         src, tgt = key
@@ -879,6 +1211,8 @@ def grav_tether_tick(t=None):
                 continue                       # ran dry -> released this tick
             if st.get("swing"):
                 ok = _tick_swing(src, tgt, st)      # circle-point orbit (holds radius)
+            elif st.get("winch"):
+                ok = _tick_lock(src, tgt, st)       # lock still closing -> rigid on arrival
             elif st.get("rope"):
                 ok = _tick_rope(src, tgt, st)       # trailing tow rope-hold
             elif st.get("reel_rate", 0.0) > 0.0:
