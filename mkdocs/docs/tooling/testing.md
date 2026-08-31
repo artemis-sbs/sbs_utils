@@ -168,6 +168,64 @@ pins the RNG. That is why the pass rule is a ratchet rather than a fixed list.
     profile is consulted. The soak copy handles this for you. Without it the run logs a
     warning naming the cause and behaves exactly like a plain `test=`.
 
+### Bringing consoles along
+
+The engine leg is **server-only** unless you ask for clients. Two ways, and the difference
+is whether *which* console matters:
+
+```
+sbs soak run LegendaryMissions peacetime --engine --hours 8 --clients 3
+sbs soak run LegendaryMissions peacetime --engine --hours 8 --consoles helm,science,engineering
+```
+
+`--clients N` launches N clients on whatever console the engine last used &mdash; the right
+default for *"does the server survive N consoles connecting"*. `--consoles` names them, and
+`name@SEC` sets when each connects (default: the first at 2s, then one every 3s).
+
+**A console cannot be a command-line argument.** Launch arguments reach only the *server*,
+and a client process never runs `script.py` &mdash; so `autostartclient console=helm` is
+inert, the argument arriving at a process that never runs the code that would read it. The
+engine's one per-client channel is `request_client_string`, seeded from
+`<cosmos>/data/client_string_set.txt` before the client starts.
+
+That file is a single shared global driving a per-process choice, which has two
+consequences worth knowing:
+
+- clients are launched **one at a time**, three seconds apart, so each reads its own value
+  before the next overwrites it. Ask for them closer together with `@SEC` and you get a
+  warning, because the failure is silent &mdash; the consoles simply come up swapped;
+- **one console soak per machine at a time.** Two would take each other's consoles rather
+  than fail. `--clients N` names nothing, so it never touches the file and is exempt.
+
+The original file is restored in a `finally`, so a crash or a Ctrl-C cannot leave it
+holding one console name for whoever plays next.
+
+A client that dies is its own outcome, **`CLIENT GONE`**, carrying the console name and the
+exit code (`0xC0000005` is an access violation), and the report counts server and client
+crashes separately. Pooling them is how a client-side bug reads as a server-side one.
+
+### Where an unattended run leaves its evidence
+
+A soak prints this at the **start and again at the end** &mdash; the header is what somebody
+starting it at 6pm reads, the footer what they read at 9am:
+
+| What | Where |
+|---|---|
+| Summary, cumulative across relaunches &mdash; **read this first** | `<mission>/soaks/runs/<scenario>.state.json` |
+| Per-run evidence, one folder each, including `verdict.json` | `<mission>/soaks/runs/` |
+| Mission log &mdash; **truncated every run**, in the soak copy | `<mission>_soak/mast.runtime.log` |
+| Engine crash dumps (`--engine`) | `%LOCALAPPDATA%\CrashDumps` |
+
+Exit codes: `0` all passed, `1` a run regressed, `2` the build changed mid-soak so the
+numbers are void, `3` nothing ran.
+
+!!! warning "Windows keeps only ten crash dumps"
+    Once `%LOCALAPPDATA%\CrashDumps` holds ten, **a real crash writes nothing** &mdash; no
+    dump, and no sign that capture stopped. An overnight run then looks healthy when it is
+    not. The banner reports how many are present and says so when the folder is full or
+    nearly so; move them aside before a long run rather than deleting them, since they are
+    the evidence.
+
 ### What the mock can and cannot show you
 
 The mock approximates the engine, and where it is silent a green run means nothing rather
