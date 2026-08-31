@@ -1620,6 +1620,8 @@
       
         
       
+        
+      
     
     
     
@@ -2438,6 +2440,34 @@
     
   
     Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../build/away-missions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Away missions
   
 
     
@@ -4152,6 +4182,8 @@
       
         
       
+        
+      
     
     
     
@@ -4697,6 +4729,34 @@
     
   
     gui
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/helm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    helm
   
 
     
@@ -9760,7 +9820,19 @@ line. Run <code>sbs &lt;command&gt; --help</code> for full options.</p>
 </tr>
 <tr>
 <td><code>sbs overnight &lt;mission&gt;</code></td>
-<td>Long <strong>soak test</strong> under autoplay</td>
+<td>Long <strong>liveness</strong> run under autoplay - counts restarts, never asserts</td>
+</tr>
+<tr>
+<td><code>sbs soak init &lt;mission&gt;</code></td>
+<td>Write starter <a href="../testing/#starting-one-for-a-new-mission">soak scenarios</a>, one per <code>@map</code></td>
+</tr>
+<tr>
+<td><code>sbs soak bless &lt;mission&gt; &lt;scenario&gt;</code></td>
+<td>Teach the ratchet what a working run looks like</td>
+</tr>
+<tr>
+<td><code>sbs soak run &lt;mission&gt; &lt;scenario&gt;</code></td>
+<td><strong>Conformance soak</strong> - unattended, with a real exit code; <code>--engine</code> for the real engine, plus <a href="../testing/#bringing-consoles-along"><code>--clients N</code> / <code>--consoles</code></a> to bring real consoles along</td>
 </tr>
 <tr>
 <td><code>sbs web &lt;mission&gt;</code></td>

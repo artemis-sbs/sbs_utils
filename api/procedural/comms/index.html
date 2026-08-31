@@ -1620,6 +1620,8 @@
       
         
       
+        
+      
     
     
     
@@ -2438,6 +2440,34 @@
     
   
     Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/away-missions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Away missions
   
 
     
@@ -3991,6 +4021,8 @@
       
         
       
+        
+      
     
     
     
@@ -4872,6 +4904,34 @@
     
   
     gui
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../helm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    helm
   
 
     
@@ -11218,6 +11278,14 @@ Defaults to None (uses the sender object's <code>comms_id</code>).</p>
     </table>
 
 
+<details class="note" open>
+  <summary>Note</summary>
+  <p>When BOTH ends are player ships a transmit reaches both bridges: the
+sender gets the <code>&gt; &gt;</code> copy and the receiving crew gets the matching
+<code>&lt; &lt;</code> copy, each named for the other ship. Send it once - a second
+call with the ids swapped now duplicates it.</p>
+</details>
+
 <details class="example" open>
   <summary>Example</summary>
   <p>comms_message("Incoming!", ENEMY_ID, SHIP_ID, title="Commander")</p>
@@ -12321,6 +12389,13 @@ sender's side color.</p>
       </tbody>
     </table>
 
+
+<details class="note" open>
+  <summary>Note</summary>
+  <p>When the selected target is another PLAYER ship this delivers both
+halves - the <code>&gt; &gt;</code> copy on the sending bridge and the <code>&lt; &lt;</code> copy on
+the receiving one. One call is the whole exchange.</p>
+</details>
 
 <details class="example" open>
   <summary>Example</summary>

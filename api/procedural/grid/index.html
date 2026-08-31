@@ -1620,6 +1620,8 @@
       
         
       
+        
+      
     
     
     
@@ -2438,6 +2440,34 @@
     
   
     Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/away-missions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Away missions
   
 
     
@@ -3991,6 +4021,8 @@
       
         
       
+        
+      
     
     
     
@@ -4827,6 +4859,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.grid.grid_hull_has_role" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_hull_has_role
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.grid.grid_merge_ascii" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5070,6 +5113,34 @@
     
   
     gui
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../helm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    helm
   
 
     
@@ -10230,6 +10301,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.grid.grid_hull_has_role" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_hull_has_role
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.grid.grid_merge_ascii" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -11844,6 +11926,130 @@ made per-race themes impossible. A hull, or a single layout of it, can now name 
 own: a captured TSN hull refitted by pirates is the same mesh with a different
 interior AND a different vocabulary.</p>
 
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.grid.grid_hull_has_role" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">grid_hull_has_role</span><span class="p">(</span><span class="n">ship_or_key</span><span class="p">,</span> <span class="n">role</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Does this HULL's floor plan declare a node with this role? e.g. <code>"jump"</code>.</p>
+<p>Answers from the STATIC grid data, so it is true from the moment the ship exists -
+<strong>before its interior has been built</strong>. That is the whole point of it.</p>
+<p>The obvious way to ask "does this ship have a jump drive" is to look for a grid
+object with the <code>jump</code> role, or to read a blob value some route wrote after
+looking. Both need the interior to exist, and an interior is built LATE and
+asynchronously (see <code>grid_interior_request</code>: the build is deferred so a roster of
+eight player ships is not built three times over before anyone picks a map). A
+console that opens before that lands therefore asks too early, gets "no", and lays
+itself out without the drive's controls - and nothing tells it to try again, so the
+crew has to switch console and come back. Reported on a xim_dreadnought, whose hull
+plainly has the drive.</p>
+<p>The hull's own floor plan knows the answer immediately and never changes, so ask it.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>ship_or_key</code>
+            </td>
+            <td>
+                  <code><span title="sbs_utils.agent.Agent">Agent</span> | <span title="int">int</span> | <span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>a ship, or a shipData key directly.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>role</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the grid-object role to look for, matched case-insensitively
+against the comma-separated <code>roles</code> of each node.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>layout</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>which named layout. Defaults to the ship's own
+<code>grid_layout</code>, then <code>"default"</code> - the same resolution the build uses,
+so a jump-drive refit layout answers for itself.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>bool</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>True when some node in that plan carries the role.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <p>if grid_hull_has_role(ship, "jump"):
+    gui_layout_widget("helm_jump")</p>
+</details>
 
     </div>
 

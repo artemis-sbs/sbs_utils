@@ -1620,6 +1620,8 @@
       
         
       
+        
+      
     
     
     
@@ -2438,6 +2440,34 @@
     
   
     Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/away-missions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Away missions
   
 
     
@@ -3991,6 +4021,8 @@
       
         
       
+        
+      
     
     
     
@@ -4539,6 +4571,34 @@
     
   
     gui
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../helm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    helm
   
 
     
@@ -10125,6 +10185,12 @@ close = closest(ship_id, role(&quot;tsn&quot;))        # side is also a role
     <div class="doc doc-contents ">
 
         <p>Add a role to one or more agents.</p>
+<p>THE SERVER CONSOLE COUNTS. <code>to_object(0)</code> returns None by design, so this used to
+be a silent no-op for client id 0 - and LM's main screen adds <code>console, mainscreen</code>
+to its own client id. On the server window that role was never added, so every
+audience narrowed with <code>any_role("mainscreen")</code> - a hail placed on the main screen,
+a hero card, a lower third - resolved to nobody and drew nothing, with no error.
+<code>to_agent_list</code> resolves the server the same way <code>get_inventory_value</code> always has.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -10561,6 +10627,9 @@ close = closest(ship_id, role(&quot;tsn&quot;))        # side is also a role
     <div class="doc doc-contents ">
 
         <p>Return whether an agent currently holds a given role.</p>
+<p>Answers for the SERVER console too. It used to always say False for client id 0,
+which reads exactly like "the role is not there" - so a check on the server was
+indistinguishable from a real negative and passed silently for years.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -10735,6 +10804,8 @@ close = closest(ship_id, role(&quot;tsn&quot;))        # side is also a role
     <div class="doc doc-contents ">
 
         <p>Remove a role from one or more agents.</p>
+<p>Reaches the server console, for the same reason :func:<code>add_role</code> does - and it has
+to be the same set, or a console that could gain a role could never lose it.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>

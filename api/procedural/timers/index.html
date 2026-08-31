@@ -1620,6 +1620,8 @@
       
         
       
+        
+      
     
     
     
@@ -2438,6 +2440,34 @@
     
   
     Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/away-missions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Away missions
   
 
     
@@ -3991,6 +4021,8 @@
       
         
       
+        
+      
     
     
     
@@ -4539,6 +4571,34 @@
     
   
     gui
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../helm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    helm
   
 
     
@@ -5629,6 +5689,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;delay_test
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.timers.format_counter_elapsed_seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;format_counter_elapsed_seconds
       
     </span>
   </a>
@@ -9985,6 +10056,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.timers.format_counter_elapsed_seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;format_counter_elapsed_seconds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.timers.format_time_remaining" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10210,18 +10292,39 @@
 
 
 <h1 id="timers-and-counters">Timers and counters</h1>
-<p>Delay execution and count events with awaitable promises.</p>
+<p>Wait for a duration, and measure how long something has been running.</p>
 <h2 id="overview">Overview</h2>
-<p>Timers let MAST scripts wait for a real-time or simulation-time duration before continuing. Two time bases are available:</p>
+<p>There are two separate things on this page.</p>
+<p><strong>Delays</strong> are awaitable promises: the task stops at the <code>await</code> and resumes when the
+time is up. Two time bases:</p>
 <ul>
-<li><strong>Real time</strong> (<code>delay</code>) — wall-clock seconds; unaffected by simulation speed.</li>
-<li><strong>Simulation time</strong> (<code>delay_sim</code>) — scaled by the engine's simulation clock.</li>
+<li><strong>Simulation time</strong> (<code>delay_sim</code>) - scaled by the engine's simulation clock, so it
+  stops while the sim is paused. This is the one a mission wants.</li>
+<li><strong>Real time</strong> (<code>delay_app</code>) - wall-clock seconds, unaffected by simulation speed.</li>
 </ul>
-<p>Counters (<code>count_goal</code>) are awaitable promises that resolve once a named counter reaches a target value. Increment the counter with <code>increment_count</code>; reset it with <code>reset_count</code>.</p>
-<p>All timer and counter functions are designed to be used with <code>await</code> in MAST:</p>
+<p><code>timeout_sim</code> / <code>timeout</code> are the same two clocks in the form <code>promise_any</code> expects, for
+racing a delay against something else.</p>
+<p><strong>Timers and counters</strong> are not awaitable. Each one is a single value in an agent's
+inventory and nothing runs on its behalf, which is why a mission can hold hundreds of
+them for free - a script <em>asks</em> about them, or arms one with a <code>signal</code> (see below).</p>
+<ul>
+<li>A <strong>timer</strong> counts DOWN to a deadline: <code>set_timer</code>, then <code>is_timer_finished</code>,
+  <code>get_time_remaining</code>, <code>format_time_remaining</code>.</li>
+<li>A <strong>counter</strong> counts UP from a start: <code>start_counter</code>, then
+  <code>get_counter_elapsed_seconds</code> or <code>format_counter_elapsed_seconds</code>.
+  <code>clear_counter</code> stops it.</li>
+</ul>
 <div class="highlight"><pre><span></span><code>await delay_sim(seconds=5)
-await count_goal(&quot;enemies_killed&quot;, 10)
+
+set_timer(SHIP_ID, &quot;repair&quot;, seconds=30)
+start_counter(SHIP_ID, &quot;in_combat&quot;)
 </code></pre></div>
+<div class="admonition note">
+<p class="admonition-title"><code>0</code> means the server</p>
+<p>Every timer and counter takes an agent, and <strong>id <code>0</code> is the server</strong> - the usual
+place to hang a mission-wide clock. <code>set_timer(0, "mission_clock", minutes=20)</code> and
+<code>start_counter(0, "Mission_Elapsed_Time")</code> are ordinary usage.</p>
+</div>
 <h2 id="quick-example">Quick example</h2>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
@@ -10250,30 +10353,41 @@ await count_goal(&quot;enemies_killed&quot;, 10)
     explode_player_ship(station_id)
     -&gt;END
 
-== count_kills ==
-    await count_goal(&quot;kills&quot;, 5)
-    log(&quot;You have destroyed 5 enemies.&quot;)
+== mission_clock ==
+    # id 0 is the server, so this is the whole mission&#39;s clock.
+    start_counter(0, &quot;Mission_Elapsed_Time&quot;)
     -&gt;END
 
-//signal/enemy_destroyed
-    increment_count(&quot;kills&quot;)
+== show_elapsed ==
+    elapsed = get_counter_elapsed_seconds(0, &quot;Mission_Elapsed_Time&quot;)
+    log(f&quot;{int(elapsed)} seconds into the mission&quot;)
+    # Or ready-formatted. Only the units you name are filled, and the
+    # largest one present carries the overflow: &quot;mm:ss&quot; gives &quot;90:00&quot;,
+    # never &quot;00:00&quot;, for an hour and a half.
+    gui_text(format_counter_elapsed_seconds(0, &quot;Mission_Elapsed_Time&quot;))
+    -&gt;END
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">sbs_utils.procedural.timers</span><span class="w"> </span><span class="kn">import</span> <span class="n">delay_sim</span><span class="p">,</span> <span class="n">delay</span><span class="p">,</span> <span class="n">count_goal</span><span class="p">,</span> <span class="n">increment_count</span><span class="p">,</span> <span class="n">reset_count</span>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">sbs_utils.procedural.timers</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span><span class="n">delay_sim</span><span class="p">,</span> <span class="n">delay_app</span><span class="p">,</span> <span class="n">set_timer</span><span class="p">,</span>
+                                          <span class="n">is_timer_finished</span><span class="p">,</span> <span class="n">start_counter</span><span class="p">,</span>
+                                          <span class="n">get_counter_elapsed_seconds</span><span class="p">,</span> <span class="n">clear_counter</span><span class="p">)</span>
 
 <span class="c1"># Wait 10 simulation seconds before continuing</span>
 <span class="k">await</span> <span class="n">delay_sim</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 
 <span class="c1"># Wait 5 real seconds</span>
-<span class="k">await</span> <span class="n">delay</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+<span class="k">await</span> <span class="n">delay_app</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
 
-<span class="c1"># Count-based gate</span>
-<span class="k">await</span> <span class="n">count_goal</span><span class="p">(</span><span class="s2">&quot;patrols_complete&quot;</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="c1"># Count DOWN to a deadline</span>
+<span class="n">set_timer</span><span class="p">(</span><span class="n">ship_id</span><span class="p">,</span> <span class="s2">&quot;cooldown&quot;</span><span class="p">,</span> <span class="n">seconds</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">is_timer_finished</span><span class="p">(</span><span class="n">ship_id</span><span class="p">,</span> <span class="s2">&quot;cooldown&quot;</span><span class="p">):</span>
+    <span class="n">fire_again</span><span class="p">(</span><span class="n">ship_id</span><span class="p">)</span>
 
-<span class="c1"># Increment from signal handlers or events</span>
-<span class="n">increment_count</span><span class="p">(</span><span class="s2">&quot;patrols_complete&quot;</span><span class="p">)</span>
-<span class="n">reset_count</span><span class="p">(</span><span class="s2">&quot;patrols_complete&quot;</span><span class="p">)</span>
+<span class="c1"># Count UP from a start. 0 is the server.</span>
+<span class="n">start_counter</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Mission_Elapsed_Time&quot;</span><span class="p">)</span>
+<span class="n">elapsed</span> <span class="o">=</span> <span class="n">get_counter_elapsed_seconds</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Mission_Elapsed_Time&quot;</span><span class="p">)</span>
+<span class="n">clear_counter</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Mission_Elapsed_Time&quot;</span><span class="p">)</span>
 </code></pre></div>
 </div>
 </div>
@@ -10360,21 +10474,38 @@ mission that arms none schedules nothing at all.</p>
 <th>Function</th>
 <th>Time base</th>
 <th>Pauses with sim?</th>
+<th>Use for</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>delay(seconds)</code></td>
-<td>Wall clock</td>
-<td>No</td>
-</tr>
-<tr>
 <td><code>delay_sim(seconds)</code></td>
 <td>Simulation clock</td>
 <td>Yes</td>
+<td>Anything in the mission</td>
+</tr>
+<tr>
+<td><code>delay_app(seconds)</code></td>
+<td>Wall clock</td>
+<td>No</td>
+<td>UI pacing, outside the sim</td>
+</tr>
+<tr>
+<td><code>timeout_sim(seconds)</code></td>
+<td>Simulation clock</td>
+<td>Yes</td>
+<td>Racing with <code>promise_any</code></td>
+</tr>
+<tr>
+<td><code>timeout(seconds)</code></td>
+<td>Wall clock</td>
+<td>No</td>
+<td>Racing with <code>promise_any</code></td>
 </tr>
 </tbody>
 </table>
+<p>Timers and counters run on the simulation clock as well, so a paused sim neither expires
+a timer nor advances a counter.</p>
 <h2 id="api">API</h2>
 
 
@@ -10893,6 +11024,123 @@ time, so tests run fast without sleeping.</p>
       </tbody>
     </table>
 
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.timers.format_counter_elapsed_seconds" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">format_counter_elapsed_seconds</span><span class="p">(</span><span class="n">id_or_obj</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">display</span><span class="o">=</span><span class="s1">&#39;hh:mm:ss&#39;</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return a counter's elapsed time as a formatted string, rounded to the second.</p>
+<p>The counterpart to <code>format_time_remaining</code> for counters, with the layout
+left to the caller: <code>hh</code> is hours, <code>mm</code> minutes, <code>ss</code> seconds. Any other
+text in <code>display</code> is kept as-is, so <code>"mm minutes, ss seconds"</code> works.</p>
+<p>Only the units NAMED in <code>display</code> are used, and the largest one present
+absorbs everything above it - <code>"mm:ss"</code> reports 90 minutes as <code>"90:00"</code>
+rather than silently dropping the hour, which is the same convention
+<code>format_time_remaining</code> follows with its <code>M:SS</code>.</p>
+<p>A counter that was never started reads as zero.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>id_or_obj</code>
+            </td>
+            <td>
+                  <code><span title="Agent">Agent</span> | <span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Agent ID or object.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>name</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Counter name.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>display</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Layout to fill in. Use <code>hh</code> for hours, <code>mm</code> for
+minutes and <code>ss</code> for seconds. Defaults to <code>"hh:mm:ss"</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;hh:mm:ss&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>str</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The formatted elapsed time.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <p>gui_text("Elapsed: {format_counter_elapsed_seconds(SHIP_ID, 'mission')}")</p>
+</details>
 
     </div>
 

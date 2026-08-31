@@ -12,7 +12,7 @@
         <link rel="prev" href="../grid/">
       
       
-        <link rel="next" href="../internal_damage/">
+        <link rel="next" href="../helm/">
       
       
         
@@ -1620,6 +1620,8 @@
       
         
       
+        
+      
     
     
     
@@ -2438,6 +2440,34 @@
     
   
     Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/away-missions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Away missions
   
 
     
@@ -3877,6 +3907,8 @@
       
         
           
+        
+      
         
       
         
@@ -5852,6 +5884,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.console.gui_console_enter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_console_enter
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.gui.console_tab" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6044,6 +6087,28 @@
     <span class="md-ellipsis">
       
         sharing one row with a checkbox:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.widgets.gui_layout_widget--a-stock-widget-kept-exactly-where-the-engine-had-it-guiboxdatatxt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        a stock widget kept exactly where the engine had it (guiboxdata.txt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.widgets.gui_layout_widget--normal_helm-throttle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        normal_helm throttle):
       
     </span>
   </a>
@@ -6532,6 +6597,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../helm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    helm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -12681,6 +12774,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.console.gui_console_enter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_console_enter
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.gui.console_tab" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -12873,6 +12977,28 @@
     <span class="md-ellipsis">
       
         sharing one row with a checkbox:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.widgets.gui_layout_widget--a-stock-widget-kept-exactly-where-the-engine-had-it-guiboxdatatxt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        a stock widget kept exactly where the engine had it (guiboxdata.txt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.widgets.gui_layout_widget--normal_helm-throttle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        normal_helm throttle):
       
     </span>
   </a>
@@ -21338,6 +21464,144 @@ to search. Defaults to all <code>__player__</code> ships.</p>
 
 </div>
 
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.gui.console.gui_console_enter" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">gui_console_enter</span><span class="p">(</span><span class="n">client_id</span><span class="p">,</span> <span class="n">console_type</span><span class="p">,</span> <span class="n">ship</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>THE ONE DOOR. Call this FIRST whenever a console becomes something else.</p>
+<p>A console that arrives somewhere carrying the last screen's furniture is the
+single most common transition bug in this codebase, and every mission used to
+have to remember seven separate pieces of trivia to avoid it. This is those
+seven, in the order that works.</p>
+<p><strong>It fires on a CHANGE of console type, not on a repaint.</strong> A screen is
+re-entered every time it repaints - LegendaryMissions' main screen jumps back
+to itself on the viewscreen signal - so clearing on every reroute would tear
+down the furniture the screen just raised. Passing the type it already is
+is a no-op, so putting this at the top of a console label costs nothing.</p>
+<p>In order, and each step is here because it bit somebody:</p>
+<ol>
+<li><strong>Overlays.</strong> They belong to the CONSOLE, not the page, and the page object
+   survives a reroute - so <code>present_all</code> re-draws whatever the slots still
+   hold, and the catch-up ticker re-delivers any live record it finds an empty
+   slot for. <code>overlay_clear_console</code> defeats both.</li>
+<li><strong>The viewscreen claim.</strong> A console that was driving its ship's main screen
+   gives it back rather than holding it from a station that no longer has the
+   control. Leaving a story claim held by a console nobody is sitting at parks
+   every later crew request forever.</li>
+<li><strong>The camera.</strong> A shot ASSIGNS its console to the object the lens rides, so
+   a console leaving mid-shot is still riding an enemy ship.</li>
+<li><strong>Every console role, stripped</strong> - or a screen that used to be a main screen
+   keeps answering as one.</li>
+<li><strong>The role AND <code>CONSOLE_TYPE</code>, both.</strong> Role without <code>CONSOLE_TYPE</code> means
+   main-screen view routes never find it; <code>CONSOLE_TYPE</code> without the role
+   means overlays, <code>announce()</code> and comms drop the message in SILENCE,
+   because every audience narrows through <code>any_role</code>.</li>
+<li><strong>The crew seat.</strong> A seat is believed only while the client's own
+   <code>CONSOLE_TYPE</code> still agrees with it, so changing console frees it as a side
+   effect and the player's name and face vanish. Re-asserted with an explicit
+   pick, which is deterministic where letting it re-resolve is not.</li>
+<li><strong>The engine widget list.</strong> A console leaves its native widgets behind and
+   the page underneath draws through them.</li>
+</ol>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>client_id</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the console.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>console_type</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>what it is becoming - <code>"helm"</code>, <code>"mainscreen"</code>, a
+mission's own console name.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>ship</code>
+            </td>
+            <td>
+                  <code><span title="optional">optional</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the ship it belongs to. Defaults to its home ship.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>bool</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>True if the console actually changed, False if it already was this.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
 
 
   </div>
@@ -22105,7 +22369,7 @@ path is added as a value</p>
 
 
 <h2 id="sbs_utils.procedural.gui.widgets.gui_layout_widget" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">gui_layout_widget</span><span class="p">(</span><span class="n">widget</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">gui_layout_widget</span><span class="p">(</span><span class="n">widget</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alt</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -22163,6 +22427,27 @@ widget - most usefully <code>col-width</code>. Defaults to None (the whole row).
                   <code>None</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>alt</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | <span title="sequence">sequence</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the SECOND rect, <code>"left,top,right,bottom"</code>.
+<code>send_client_widget_rects</code> takes two and the engine chooses between
+them; a layout can only compute one, so by default the computed rect
+goes in both slots. Pass this to reproduce a stock widget's own pair
+from <code>data/guiboxdata.txt</code> exactly instead of flattening it to one
+variant. Defaults to None (use the computed rect for both).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
       </tbody>
     </table>
         <p>DO NOT SHARE A ROW WITH MAST CONTROLS. The placeholder lays out correctly - measured:
@@ -22202,6 +22487,10 @@ gui_layout_widget("2dview")</p>
 <h3 id="sbs_utils.procedural.gui.widgets.gui_layout_widget--sharing-one-row-with-a-checkbox">sharing one row with a checkbox:</h3>
 <p>gui_checkbox("Follow", "col-width:90px;", var="follow_tag")
 gui_layout_widget("red_alert", "col-width:1fr;")</p>
+<h3 id="sbs_utils.procedural.gui.widgets.gui_layout_widget--a-stock-widget-kept-exactly-where-the-engine-had-it-guiboxdatatxt">a stock widget kept exactly where the engine had it (guiboxdata.txt</h3>
+<h3 id="sbs_utils.procedural.gui.widgets.gui_layout_widget--normal_helm-throttle">normal_helm throttle):</h3>
+<p>gui_section(style="area:0,62,10,100;")
+gui_layout_widget("throttle", alt="0,61,5,99")</p>
 </details>
 
     </div>

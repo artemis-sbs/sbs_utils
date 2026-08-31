@@ -1622,6 +1622,8 @@
       
         
       
+        
+      
     
     
     
@@ -2458,6 +2460,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-often-a-brain-runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How often a brain runs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#defining-brains-declaratively" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2633,6 +2646,34 @@
     
   
     Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/away-missions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Away missions
   
 
     
@@ -4173,6 +4214,8 @@
       
         
       
+        
+      
     
     
     
@@ -4718,6 +4761,34 @@
     
   
     gui
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/procedural/helm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    helm
   
 
     
@@ -9661,6 +9732,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-often-a-brain-runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How often a brain runs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#defining-brains-declaratively" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -9825,6 +9907,23 @@
 </ul>
 </li>
 </ul>
+<div class="admonition danger">
+<p class="admonition-title"><code>fail</code> means opposite things in the two composites, and one of them is silent</p>
+<p>Inside a <strong>Selector</strong>, <code>yield fail</code> is how a leaf declines its turn: the next sibling
+gets a go. That is the whole point of a priority list.</p>
+<p>Inside a <strong>Sequence</strong>, <code>yield fail</code> <em>returns immediately</em> — <strong>every sibling after it is
+skipped for that pass.</strong> Nothing reports this. There is no error, nothing in the log,
+and coverage looks healthy, because the leaf that failed did run; it is the ones after
+it that quietly did not.</p>
+<p>It shipped exactly once and cost a real bug: a science node yielded <code>fail</code> when no
+hostile was in scan range — which is precisely the situation when a ship is off at a
+wreck — so the comms, weapons and engineering nodes after it never ran, and the ship
+sat there holding no weapons target and never fired. The helm looked perfect
+throughout, because the helm was a Selector.</p>
+<p><strong>A node with nothing to do has succeeded at doing nothing.</strong> Under a Sequence, say
+<code>yield success</code>. Reserve <code>fail</code> for Selector children and for "the whole sequence
+should stop here".</p>
+</div>
 <h3 id="result-modifiers">Result modifiers</h3>
 <p>The runtime also supports modifier flags on a brain node:</p>
 <ul>
@@ -9848,6 +9947,54 @@
 <li>BRAIN_AGENT_ID: raw agent id</li>
 </ul>
 <p>This is why most brain labels read/write inventory through BRAIN_AGENT.</p>
+<div class="admonition danger">
+<p class="admonition-title">A leaf must never <code>await</code></p>
+<p>A leaf is <strong>one synchronous pass</strong> that ends in <code>yield success</code> or <code>yield fail</code>. Those
+resolve to results that mark the task done, and the scheduler disposes of it.</p>
+<p>Anything else — an <code>await</code>, or <code>yield idle</code> — leaves a <strong>live task</strong> on the scheduler,
+while the brain starts a fresh one next pass. That is one immortal task per pass, for
+the life of the mission, all running the same body. It also reads as not-success, so a
+Selector falls through to the next sibling and the leaf appears to do nothing at all
+while quietly multiplying.</p>
+<p>The library now ends such a leaf and warns once, rather than leaking, but the leaf
+still has to be written correctly to <em>mean</em> anything.</p>
+<p><strong>Work that takes time goes in a <code>task_schedule</code>d label, gated by a flag</strong>, with a node
+that holds the tree until it finishes. <code>fleets/elite_abilities.mast</code> in
+LegendaryMissions is the worked example: <code>elite_bt_activate</code> schedules the ability and
+stashes the handle; <code>elite_bt_gate</code> yields <code>fail</code> until <code>elite_task.done()</code>.</p>
+</div>
+<h2 id="how-often-a-brain-runs">How often a brain runs</h2>
+<p>Every brain re-evaluates its whole tree on a heartbeat set by <code>BRAIN_PASS_SECONDS</code>
+(default <strong>3</strong>). Brains are not all run in the same frame: a <code>RollingSlicer</code> hands back a
+few each tick so a full pass over every brain in the mission completes in exactly that
+period, whether there are three brains or three hundred. That keeps a big NPC count from
+becoming a periodic frame spike.</p>
+<p><strong>Design your leaves around that period, not around the tick.</strong> A leaf sees the world as
+it was when its pass came round, so a decision holds for up to <code>BRAIN_PASS_SECONDS</code>
+before it can be revisited. That is fine for "who do I attack" and wrong for anything
+needing a tight loop — steering corrections, or a throttle that should track a closing
+distance. Work that needs to be smooth belongs in the engine's own steering
+(<code>target</code>/<code>target_pos</code> set a destination the engine tracks every frame) rather than in
+repeated leaf decisions.</p>
+<div class="admonition warning">
+<p class="admonition-title">This period was silently double until v1.4.0</p>
+<p>The slice used to be sized <strong>per call</strong>, on the assumption that the host called it 30
+times a sim-second. Measured against a live 1.3.7 engine it really calls it <strong>15</strong>, so
+every pass took <strong>twice</strong> its declared time — <code>BRAIN_PASS_SECONDS = 3</code> meant six. The
+headless mock calls it about <strong>6</strong> a second, so the same tree ran on a <strong>15-second</strong>
+pass there, and the two hosts disagreed with each other by 2.5x.</p>
+<p>Nothing reported it, and nothing could: a brain running at half speed is
+indistinguishable from a brain whose leaves keep declining. It surfaced only because a
+brain-driven player ship almost never warped while identical logic written as a
+<code>delay_sim(1)</code> loop warped constantly — it was re-checking its speed every fifteen
+seconds instead of every three.</p>
+<p>The slice is now sized by the <strong>elapsed tick count</strong>, the way <code>TickTask</code> has always
+measured its own delay, so the period is honest and identical in both hosts. If you
+tuned a mission's feel against the old behavior, the equivalent is
+<code>BRAIN_PASS_SECONDS = 6</code>.</p>
+</div>
+<p>Objectives (<code>OBJECTIVE_PASS_SECONDS</code>, also 3) and urges (<code>URGE_PASS_SECONDS</code>, 30) share
+the same slicer and were affected the same way.</p>
 <h2 id="defining-brains-declaratively">Defining brains declaratively</h2>
 <p>Brains can be assembled from Python-friendly structures.</p>
 <p>Supported structures:</p>
@@ -9877,6 +10024,24 @@
 <span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ai_fleet_calc_forward_vector</span>
 <span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ai_fleet_scatter_formation</span>
 </code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">The ROOT is a Selector unless you ask otherwise</p>
+<p><code>brain_add</code> creates a Selector root, which stops at the first child that succeeds.
+That is right for a priority list of behaviours and wrong for a set of independent
+jobs — the first success starves every one after it, permanently and silently.</p>
+<p>Pass <code>root_type=BrainType.Sequence</code> when every child should run each pass. It applies
+only when the call CREATES the root, so a later <code>brain_add</code> can never re-type an
+agent's existing tree.</p>
+<p>A tree that needs both — a priority helm plus several independent consoles — nests a
+<code>SEL:</code> inside a <code>SEQ:</code> root, as the example above does.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Declare the tree as YAML, never as a MAST dict literal</p>
+<p>MAST parses line by line, so a <code>{...}</code> spanning lines is an unclosed brace that
+desyncs the compiler for the rest of the file — and a story that does not compile runs
+<strong>zero labels while still reporting PASS</strong>. The <code>brain:</code> metadata block has no such
+problem, which is why every prefab uses it.</p>
+</div>
 <p>Notes:</p>
 <ul>
 <li>Child order matters for SEL and SEQ.</li>

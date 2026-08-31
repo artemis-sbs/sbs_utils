@@ -1622,6 +1622,8 @@
       
         
       
+        
+      
     
     
     
@@ -2221,6 +2223,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#clearing-a-console-the-transition-door" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clearing a console — the transition door
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#auto-dismiss" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2658,6 +2671,34 @@
     
   
     Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../build/away-missions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Away missions
   
 
     
@@ -4198,6 +4239,8 @@
       
         
       
+        
+      
     
     
     
@@ -4743,6 +4786,34 @@
     
   
     gui
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/helm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    helm
   
 
     
@@ -9691,6 +9762,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#clearing-a-console-the-transition-door" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clearing a console — the transition door
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#auto-dismiss" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -9989,6 +10071,34 @@ overlay_banner(&quot;Contact bearing 040&quot;, to=ship_id, consoles=&quot;scien
 </code></pre></div>
 <p>Passing a scalar <code>to</code> that resolves to no console logs a one-off warning (that is the
 "I pushed an overlay and saw nothing" bug); an empty <em>set</em> is normal and stays quiet.</p>
+<p><strong>A card is remembered against the audience you addressed it to</strong>, so a console that
+joins that audience while it is still up gets it too — the crew are still taking
+consoles when the opening chapter card fires. Two things follow, and both matter as soon
+as there is more than one player ship:</p>
+<ul>
+<li><strong>Two ships can hold the same slot.</strong> <code>center_hero</code> on the Artemis and <code>center_hero</code> on
+  the Intrepid are separate cards, not one overwriting the other.</li>
+<li><strong>Clearing is scoped to who you name.</strong> <code>overlay_clear(slot, to=one_console)</code> stops
+  that console being re-delivered the card and leaves the rest of the ship's screens
+  showing it; clearing the whole audience retires it outright.</li>
+</ul>
+<h2 id="clearing-a-console-the-transition-door">Clearing a console — the transition door</h2>
+<p><code>overlay_clear_console(client_id)</code> takes down <strong>everything that one console is
+carrying</strong>, and it is what a transition should call:</p>
+<div class="highlight"><pre><span></span><code>overlay_clear_console(client_id)      # before this console becomes something else
+</code></pre></div>
+<p><strong>An overlay belongs to the CONSOLE, not the page</strong>, and a console change or a reroute
+is a jump on the <em>same</em> page — <code>OverlayManager</code> lives on the page and survives it. So a
+card left behind is not merely uncleared, it is actively re-drawn: <code>present_all</code> repaints
+whatever the slots still hold, and the catch-up ticker re-delivers any live record it
+finds an empty slot for. Clearing the page alone loses to both.</p>
+<p>If you are <strong>changing</strong> a console rather than just clearing it, call
+<code>gui_console_enter(client_id, console_type)</code> as the first line of the console's label
+instead. It does this plus the roles, <code>CONSOLE_TYPE</code>, the camera assignment, the
+viewscreen claim and the crew seat, in the order that works — and it is a no-op when the
+console is already that type, so a repaint costs nothing.</p>
+<p><strong>Clear at the TRANSITION, never inside the screen.</strong> A screen is re-entered on every
+repaint, so a clear in the screen's own body tears down the furniture it just raised.</p>
 <h2 id="auto-dismiss">Auto-dismiss</h2>
 <p><code>seconds</code> schedules a <strong>generation-guarded</strong> auto-dismiss: if the slot is re-shown or
 updated before the timer fires, the old timer is superseded — it can never clear the
@@ -10003,6 +10113,11 @@ Await it from a story / background task (not the target console's own GUI task):
 if result.data == &quot;Yes&quot;:
     open_fire()
 </code></pre></div>
+<p><strong>The card comes down when it is answered</strong> — for the whole audience, not just whoever
+pressed. These hand every console one shared promise and the first answer wins, so a card
+still up elsewhere is asking a question that has already been settled. The same is true
+of <code>overlay_lower_third_portrait(buttons=...)</code>, and of the <code>seconds</code> timeout on either:
+answering is answering however it happens.</p>
 <h2 id="a-live-hud">A live HUD</h2>
 <p><code>overlay_hud</code> shows a <strong>sticky</strong> panel over the live view; <code>overlay_hud_update</code> re-fills
 just that region (no page repaint). Update only when a shown value changes:</p>

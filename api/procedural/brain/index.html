@@ -1620,6 +1620,8 @@
       
         
       
+        
+      
     
     
     
@@ -2438,6 +2440,34 @@
     
   
     Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/away-missions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Away missions
   
 
     
@@ -3991,6 +4021,8 @@
       
         
       
+        
+      
     
     
     
@@ -4740,6 +4772,34 @@
     
   
     gui
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../helm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    helm
   
 
     
@@ -9812,7 +9872,7 @@
 <h1 id="the-brain-system">The brain system</h1>
 <p>Behavior-tree AI for NPCs, evaluated every tick via the objective system.</p>
 <h2 id="overview">Overview</h2>
-<p>A brain is a tree of <code>Brain</code> nodes attached to an agent's <code>__BRAIN__</code> inventory slot. The root is always a <strong>Select</strong> node — it runs each child in order and stops at the first success. Children can be plain labels (<strong>Simple</strong> nodes), or composite <strong>Sequence</strong> / <strong>Select</strong> nodes built from structured dicts.</p>
+<p>A brain is a tree of <code>Brain</code> nodes attached to an agent's <code>__BRAIN__</code> inventory slot. The root is a <strong>Select</strong> node by default — it runs each child in order and stops at the first success — or a <strong>Sequence</strong> if the creating <code>brain_add</code> passes <code>root_type=BrainType.Sequence</code>, which runs every child each pass. Children can be plain labels (<strong>Simple</strong> nodes), or composite <strong>Sequence</strong> / <strong>Select</strong> nodes built from structured dicts.</p>
 <p>Each tick, <code>brains_run_all</code> iterates all agents that have a <code>__BRAIN__</code> entry and calls <code>brain.run()</code>. A Simple node runs its MAST label synchronously in a temporary task; the label result (<code>BT_SUCCESS</code> / <code>BT_FAIL</code>) propagates up the tree.</p>
 <p><code>brain_add</code> is the main entry point. Call it once per behavior you want to add; the root Select node grows with each call. Use structured dicts for composite nodes:</p>
 <ul>
@@ -9823,6 +9883,21 @@
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The brain system piggybacks on the objective tick. Call <code>brain_schedule()</code> (or <code>brain_add()</code>, which calls it automatically) to register the tick handler.</p>
+</div>
+<div class="admonition danger">
+<p class="admonition-title">A leaf must never <code>await</code>, and <code>fail</code> means two different things</p>
+<p>A leaf is one synchronous pass ending in <code>yield success</code> / <code>yield fail</code>. An <code>await</code> or
+<code>yield idle</code> leaves a live task on the scheduler while the next pass starts another —
+one immortal task per pass. And under a <strong>Sequence</strong>, <code>yield fail</code> skips every sibling
+after it, silently. Both traps, and the worked example of the correct pattern, are in
+the <a href="../../../mast/ai/brains/">Brains guide</a>.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title"><code>brain_add</code> on a SET attaches one brain per agent</p>
+<p>It did not always: <code>parent</code> was reused across the loop, so only the first agent got a
+<code>__BRAIN__</code> entry and the rest were hung under its tree and never ticked. Fixed — but
+worth knowing if you are reading an older build, because the symptom is simply that
+all but one agent sits there doing nothing, with no error anywhere.</p>
 </div>
 <h2 id="quick-example">Quick example</h2>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
@@ -9937,7 +10012,7 @@
 
 
 <h2 id="sbs_utils.procedural.brain.brain_add" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">brain_add</span><span class="p">(</span><span class="n">agent_id_or_set</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">client_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">brain_add</span><span class="p">(</span><span class="n">agent_id_or_set</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">client_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">root_type</span><span class="o">=</span><span class="n">BrainType</span><span class="o">.</span><span class="n">Select</span><span class="p">)</span></code>
 
 </h2>
 
@@ -10041,11 +10116,33 @@ Defaults to 0 (server).</p>
             <td>
               <div class="doc-md-description">
                 <p>Parent node to attach to. Defaults to
-None (attaches to the agent's root Select node).</p>
+None (attaches to the agent's root node, creating it if needed).</p>
               </div>
             </td>
             <td>
                   <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>root_type</code>
+            </td>
+            <td>
+                  <code><span title="sbs_utils.procedural.brain.BrainType">BrainType</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Composite type for the root when this call
+CREATES it. Defaults to <code>BrainType.Select</code> - children run in priority
+order and the first success wins, which is what a behaviour list wants.
+Pass <code>BrainType.Sequence</code> when every child should run each pass (e.g. a
+set of independent per-console jobs, where a Select would let the first
+success starve the rest). Ignored when the agent already has a root, so a
+later call can never silently re-type an existing tree.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="sbs_utils.procedural.brain.BrainType.Select">Select</span></code>
             </td>
           </tr>
       </tbody>

@@ -1630,6 +1630,8 @@
       
         
       
+        
+      
     
     
     
@@ -2448,6 +2450,34 @@
     
   
     Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../build/away-missions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Away missions
   
 
     
@@ -3988,6 +4018,8 @@
       
         
       
+        
+      
     
     
     
@@ -4533,6 +4565,34 @@
     
   
     gui
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/procedural/helm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    helm
   
 
     
@@ -9587,6 +9647,41 @@ Authors: <a href="../legendarymissions/addons/casino/">The Casino addon</a>.</p>
 <li><strong>Impulse only</strong> (the canonical rule): a tether can't hold at warp — it caps you
   back to impulse, or optionally snaps and drops the load.</li>
 </ul>
+<h3 id="the-beam-now-feels-the-weight">The beam now feels the weight</h3>
+<ul>
+<li><strong>Tow a starbase.</strong> It is slow, it drinks your reserves, and one ship will not get it
+  far — but it moves. A crate still comes in like a crate; a freighter is a real load
+  you feel on the helm; a station is a job.</li>
+<li><strong>Call for help, and mean it.</strong> Every ship on the same beam pulls harder <em>and</em> takes a
+  share of the power bill, so four hulls haul a station further than one ever will — not
+  four times harder, but four times longer before anyone runs dry. Weapons counts the
+  crew on the readout: <strong>TOW ×4</strong>.</li>
+<li><strong>The beam tells you it is struggling.</strong> A haul reports <strong>light</strong>, <strong>heavy</strong> or
+  <strong>overloaded</strong>, and an overloaded one says outright that it wants another ship on it.
+  No more wondering why the helm feels like treacle.</li>
+<li><strong>Grav Lock on something enormous pulls <em>you</em> over.</strong> Lock a station and the station
+  wins — it reels you in and holds you there, which is a fast way to park. It now winches
+  you across instead of snapping you over in one frame.</li>
+</ul>
+<h3 id="tug-rigs">🔧 Tug rigs</h3>
+<p>Two ways to make a ship better at hauling, and they stack.</p>
+<ul>
+<li><strong>Heavy Tug Rig</strong> — the ship hauls as if it were four. Permanent once fitted, and
+  <strong>bought at a station market</strong>, not found floating in space.</li>
+<li><strong>Tug Rig Mk I</strong> — an early-pattern rig you <strong>find</strong> out in the world. Two and a half
+  ships' worth of pull, and it burns itself out after ten minutes. Good for one delivery.</li>
+</ul>
+<p>Fit both and they add up. Neither changes what your ship weighs, so a rig will not make
+you harder to grab or make your own wreck worth more.</p>
+<h3 id="fixed-along-the-way">Fixed along the way</h3>
+<ul>
+<li><strong>Reeling a cargo pod no longer brakes your ship.</strong> A canister used to weigh as much as
+  a corvette, which cost you a third of your throttle and turn for picking up a crate.</li>
+<li><strong>A fighter can reel a pickup again.</strong> For the same reason, a fighter's reel used to run
+  backwards and drag the <em>fighter</em> onto the canister.</li>
+<li><strong>Turret crates tow properly.</strong> The crate is built to be towed into position, and it was
+  heavy enough that a light cruiser's beam flipped and dragged the cruiser to the crate.</li>
+</ul>
 <p>Built on the engine's native tractor.</p>
 <hr />
 <h2 id="attract-mode-the-ship-flies-itself">🤖 Attract Mode — the ship flies itself</h2>
@@ -9615,6 +9710,26 @@ wander and shoot; it plays like a coordinated crew:</p>
 </ul>
 <p>Turn it on — and tune its <strong>stand-off range</strong> and <strong>engineering overpower</strong> — in
 <a href="../legendarymissions/">LegendaryMissions</a> settings.</p>
+<hr />
+<h2 id="everything-with-a-brain-now-thinks-twice-as-often">⚡ Everything with a brain now thinks twice as often</h2>
+<p>Monsters, fleets, turrets, station defenders — anything driven by a <strong>brain</strong> — re-decide
+what to do on a fixed heartbeat. That heartbeat was supposed to be three seconds. It was
+really <strong>six</strong>, everywhere, for as long as the system has existed.</p>
+<p>Nothing looked broken, which is why it lasted: a creature that reconsiders every six
+seconds is not obviously wrong, it just commits to whatever it last chose for twice as
+long as intended. You saw it as enemies that kept chasing a target after you slipped
+away, or a hunter that took a beat too long to notice you.</p>
+<p>Brains, <a href="../mast/ai/objectives.md">objectives</a> and urges now run at the period they
+declare. In practice things react about <strong>twice as fast</strong> to a situation changing —
+without any of them being made more aggressive.</p>
+<div class="admonition note">
+<p class="admonition-title">It showed up as a ship that would not warp</p>
+<p>The tell came from the <a href="#-attract-mode--the-ship-flies-itself">attract-mode</a> pilot.
+Rewritten as a brain, it almost never used its warp drive, while the older version
+warped constantly with the same rules. It was not choosing differently: it was only
+re-checking its speed every fifteen seconds, so by the time it looked, it had already
+arrived. Chasing that one down is what surfaced the timing bug behind all of it.</p>
+</div>
 <hr />
 <h2 id="a-living-bestiary">🐙 A Living Bestiary</h2>
 <p>Space monsters are no longer just one hostile Typhon. The <strong>Monsters</strong> map option
@@ -10102,11 +10217,15 @@ automatically.</p>
 <p class="admonition-title">For tinkerers — how it works</p>
 <p>Per-tick work that iterated a whole set at once (all brains, all objectives)
 now runs a <strong>rolling slice</strong> each tick, sized by a shared <code>RollingSlicer</code> so a
-full pass still completes in the same period regardless of set size or tick
-rate — same cadence and total cost, no batch spike. If you're chasing a
-<code>mission_tick</code> that overruns its budget, the engine's <strong><code>Elapsed time</code></strong> log
-line now prints a <strong>per-phase breakdown</strong> (<code>dispatch_tick</code> / <code>gui_present</code> /
-<code>gc</code> / …) so you can see exactly which subsystem caused a given spike.</p>
+full pass completes in its declared period regardless of set size or tick
+rate — no batch spike. That "regardless of tick rate" part was a claim before
+it was true: the slice was sized <strong>per call</strong> on the assumption of 30 calls a
+second, and the engine really makes 15, so every pass took twice as long as it
+said. It is now sized by the <strong>elapsed tick count</strong>, which is how <code>TickTask</code>
+has always measured its own delay. If you're chasing a <code>mission_tick</code> that
+overruns its budget, the engine's <strong><code>Elapsed time</code></strong> log line now prints a
+<strong>per-phase breakdown</strong> (<code>dispatch_tick</code> / <code>gui_present</code> / <code>gc</code> / …) so you
+can see exactly which subsystem caused a given spike.</p>
 </div>
 <hr />
 <h2 id="quality-of-life-presentation">🎬 Quality-of-Life &amp; Presentation</h2>

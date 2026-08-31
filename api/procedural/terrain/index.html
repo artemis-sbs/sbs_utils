@@ -1620,6 +1620,8 @@
       
         
       
+        
+      
     
     
     
@@ -2438,6 +2440,34 @@
     
   
     Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/away-missions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Away missions
   
 
     
@@ -3991,6 +4021,8 @@
       
         
       
+        
+      
     
     
     
@@ -4539,6 +4571,34 @@
     
   
     gui
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../helm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    helm
   
 
     
@@ -5518,6 +5578,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;terrain_field_plan_keyed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.terrain.terrain_nebula_icon_color" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;terrain_nebula_icon_color
       
     </span>
   </a>
@@ -9889,6 +9960,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.terrain.terrain_nebula_icon_color" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;terrain_nebula_icon_color
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.terrain.terrain_random_point_box" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10540,6 +10622,133 @@ a smaller region is the centered subset of a larger one. <code>exclude</code> po
             <td>
               <div class="doc-md-description">
                 <p>list[tuple[Vec3, str]]: <code>(position, "nebula"|"asteroid")</code> entries.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.terrain.terrain_nebula_icon_color" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">terrain_nebula_icon_color</span><span class="p">(</span><span class="n">color</span><span class="p">,</span> <span class="n">peak</span><span class="o">=</span><span class="n">NEB_ICON_PEAK</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The radar tint for a nebula, computed FROM that nebula's own emission.</p>
+<p>A nebula used to carry two unrelated descriptions of itself: a hand-written
+"radar_color_override" hex for the 2D icon, and the emission/scattering/absorption
+levers the engine actually draws the cloud with. Nothing tied them together, so
+retuning either side desynced them silently -- which is how "red" ended up with a
+magenta icon over a red cloud (the icon line survived 0ae545ea byte-identical while
+the cloud was rewritten), and how every icon ended up ~3x too dark to read.</p>
+<p>Deriving the icon here removes the second copy: there is one color, and the icon is
+a view of it.</p>
+<p>EMISSION ONLY, and that is not a guess. Running the engine shader's own raymarch
+(data/graphics/shader-emissivenebula.ps:152-180) over each entry shows the rendered
+hue tracks NORMALIZED EMISSION almost exactly -- purple [0.70,0.00,1.00] renders
+[0.69,0.00,1.00], red [1.00,0.30,0.10] renders [1.00,0.29,0.10]. Absorption and
+scattering largely cancel: they form <code>ext</code>, which appears both inside <code>trans</code> and as
+the divisor of the integral, so they set how BRIGHT and how thick the cloud is far
+more than what color it is.</p>
+<p>The lit term (<code>light * phase * (1-absorption) * scattering * p</code>) is deliberately not
+used. It swings the hue by 0.3-0.8 per channel across plausible light intensities and
+goes NEGATIVE wherever absorption exceeds 1.0 (red absorbs green/blue at 1.5), so it
+is not a stable thing to name a color from.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>color</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span> | <span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>a _neb_colors entry, a color name, or any dict carrying
+emission_red/green/blue.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>peak</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>value the largest channel is scaled to. Defaults to
+<code>NEB_ICON_PEAK</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="sbs_utils.procedural.terrain.NEB_ICON_PEAK">NEB_ICON_PEAK</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>seed</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the nebula's own <code>random_seed</code>. Given one, the HUE is
+kept exactly and saturation/value are nudged per object, so a cluster reads
+as a drift of one color rather than a block of identical dots. Defaults to
+None -- the canonical, unjittered color of that entry.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>str</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>"#rrggbb"</code>.</p>
               </div>
             </td>
           </tr>
@@ -12677,7 +12886,7 @@ Defaults to True.</p>
 
 
 <h2 id="sbs_utils.procedural.terrain.terrain_spawn_nebula_common" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">terrain_spawn_nebula_common</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">size_x</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span> <span class="n">size_z</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">density_scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">density</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">cluster_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">selectable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">terrain_spawn_nebula_common</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">size_x</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span> <span class="n">size_z</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">density_scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">density</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">cluster_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">selectable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">color_out</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -13111,7 +13320,7 @@ Defaults to False.</p>
 
 
 <h2 id="sbs_utils.procedural.terrain.terrain_spawn_nebula_sphere" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">terrain_spawn_nebula_sphere</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">NEB_MAX_SIZE</span><span class="p">,</span> <span class="n">density_scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">density</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">cluster_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">selectable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">terrain_spawn_nebula_sphere</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">NEB_MAX_SIZE</span><span class="p">,</span> <span class="n">density_scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">density</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">cluster_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">selectable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">color_out</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 

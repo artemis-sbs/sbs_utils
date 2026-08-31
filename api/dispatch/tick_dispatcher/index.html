@@ -1620,6 +1620,8 @@
       
         
       
+        
+      
     
     
     
@@ -2438,6 +2440,34 @@
     
   
     Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/away-missions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Away missions
   
 
     
@@ -3989,6 +4019,8 @@
       
         
       
+        
+      
     
     
     
@@ -4537,6 +4569,34 @@
     
   
     gui
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../procedural/helm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    helm
   
 
     
@@ -10032,6 +10092,23 @@ completes in exactly <code>pass_seconds</code> of sim time -- regardless of set 
 or tick rate (no over-run on small sets, no spike on large ones). The set's
 sorted order is cached and only rebuilt when membership changes, so the
 cursor advances predictably as ids are added/removed.</p>
+<p>THE PASS IS MEASURED IN TICKS, NOT IN CALLS. This used to add
+<code>n / (pass_seconds * tps)</code> once per call, which only delivers the advertised
+period if <code>slice()</code> is called exactly <code>tps</code> times a second. Nothing calls it
+that often. Measured 2026-08-26 against a live 1.3.7 engine and the mock, both
+running <code>time_tick_counter</code> at 30.0/sim-second:</p>
+<p>======  =======================  =========================
+host    dispatch calls/sim-sec   real pass for pass_seconds
+======  =======================  =========================
+engine  15.0                     2x too long
+mock     6.0                     5x too long
+======  =======================  =========================</p>
+<p>So <code>BRAIN_PASS_SECONDS = 3</code> really meant a 6-second pass in the engine and a
+15-second one headless -- and the two hosts disagreed with each other by 2.5x, which
+is why a brain-driven ship re-decided its throttle far less often headless than the
+same logic written as a <code>delay_sim</code> loop. Scaling by the ELAPSED TICK COUNT makes
+the period honest and identical in both hosts, and matches how <code>TickTask._update</code>
+has always measured its own delay two classes up this file.</p>
 
 
 <details class="usage" open>
@@ -10060,6 +10137,29 @@ for id in _slicer.slice(id_set, pass_seconds=3):
 
 
 
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="sbs_utils.tickdispatcher.RollingSlicer.reset" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">reset</span><span class="p">()</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Forget the cursor, the fractional accumulator and the cached order.</p>
+<p><code>brains_reset()</code> / <code>objective_reset()</code> have always tried to call this behind a
+<code>hasattr</code> guard, and the guard was always False - the method did not exist, so a
+mission restart carried the previous mission's cursor and accumulator into the
+next one. Harmless in practice (a changed id set re-sorts and the cursor is taken
+modulo the size), but the reset ledger claimed something it was not doing.</p>
+
+
+    </div>
+
+</div>
 
 
 

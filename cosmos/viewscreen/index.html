@@ -1622,6 +1622,8 @@
       
         
       
+        
+      
     
     
     
@@ -2286,6 +2288,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="The one thing to know if you write a main-screen console">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#and-one-that-is-not-fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        And one that is not fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2296,6 +2315,45 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Who owns the screen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-claim-carries-a-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A claim carries a name
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#two-tiers-and-what-helm-can-take" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two tiers, and what helm can take
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flat-not-a-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flat, not a stack
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2554,6 +2612,34 @@
     
   
     Incoming hails
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../build/away-missions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Away missions
   
 
     
@@ -4094,6 +4180,8 @@
       
         
       
+        
+      
     
     
     
@@ -4639,6 +4727,34 @@
     
   
     gui
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/helm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    helm
   
 
     
@@ -9568,6 +9684,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="The one thing to know if you write a main-screen console">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#and-one-that-is-not-fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        And one that is not fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -9578,6 +9711,45 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Who owns the screen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-claim-carries-a-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A claim carries a name
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#two-tiers-and-what-helm-can-take" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two tiers, and what helm can take
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flat-not-a-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flat, not a stack
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -9714,19 +9886,75 @@ filmed</strong>.</p>
 <p>Anything that means <em>"this console's own ship"</em> must ask <code>viewscreen_home_ship</code>. Reading
 <code>get_ship_of_client</code> instead is how a main-screen label ends up reading the enemy's
 state and linking the enemy as its owner. Standing down puts the assignment back.</p>
+<h3 id="and-one-that-is-not-fixed">And one that is not fixed</h3>
+<p><strong>A bare variable in a main-screen label can land on the enemy's inventory.</strong> MAST's
+<code>assigned</code> scope resolves through <code>sbs.get_ship_of_client</code>, so during a shot a plain
+<code>foo = 1</code> in a mainscreen label reads and writes the SUBJECT's agent, silently.</p>
+<p>It is not fixed because it is the hot path for every variable read on every console in
+the game, and changing it is riskier than the bug. Write main-screen state explicitly and
+it cannot bite you:</p>
+<div class="highlight"><pre><span></span><code>set_inventory_value(ship_id, &quot;my_thing&quot;, value)      # ship_id from viewscreen_home_ship
+foo = 1                                              # fine - a TASK variable
+</code></pre></div>
+<p>The exposure is a variable that falls through to <code>assigned</code> scope specifically.
+LegendaryMissions' main-screen label avoids it by naming the ship on every read and
+write, which is the pattern to copy.</p>
 <hr />
 <h2 id="who-owns-the-screen">Who owns the screen</h2>
+<p>Seven things can drive a main screen: science's drop-down, the same drop-down on
+weapons, an incoming hail, docking, a cutscene, the Director, and helm or weapons
+reaching for the engine's own main-screen control. So a screen has an <strong>owner</strong>.</p>
 <p>The state lives in the <strong>player ship's inventory</strong> — the same place Cosmos already keeps
-<code>MAIN_SCREEN_VIEW</code>. Three consequences, all of them free:</p>
-<ul>
-<li><strong>Scope.</strong> Science on the Artemis cannot change what the Intrepid's main screen shows.</li>
-<li><strong>Arbitration.</strong> Helm's main-screen control writes the same key, so <strong>last writer
-  wins</strong>: helm reaching for the control simply takes the screen, and the science
-  drop-down falls back to <em>Off</em> on its next repaint. No negotiation, no lock.</li>
-<li><strong>Reset.</strong> It goes away with the mission, like any other agent state.</li>
-</ul>
+<code>MAIN_SCREEN_VIEW</code> — which buys the scope for free: science on the Artemis cannot change
+what the Intrepid's screen shows, and it goes away with the mission like any other agent
+state.</p>
+<h3 id="a-claim-carries-a-name">A claim carries a name</h3>
+<div class="highlight"><pre><span></span><code>viewscreen_set(ship, &quot;orbit&quot;, target, owner=viewscreen_owner_token(&quot;science&quot;, client_id))
+viewscreen_owns(ship, owner)      # is it still mine?
+viewscreen_clear(ship, owner)     # refused if it is not
+</code></pre></div>
+<p>The token is what lets a console tell <em>"still mine"</em> from <em>"weapons took it"</em>. Without
+one, a console has to guess — and the guess used to be <code>viewscreen_is_live</code>, which asks
+whether <strong>anybody</strong> is driving the screen, so science re-pointing on a new selection
+yanked whatever contact weapons had put up.</p>
+<p><code>viewscreen_revision(client_id)</code> moves whenever the screen changes hands. Watch it with
+<code>on change</code> so a drop-down that lost the screen repaints to <em>Off</em> instead of advertising
+a shot that is no longer its own. <strong><code>on change</code>, not <code>on signal</code></strong> — a GUI task sitting
+in <code>await gui()</code> does not repaint because a signal fired.</p>
+<h3 id="two-tiers-and-what-helm-can-take">Two tiers, and what helm can take</h3>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Who</th>
+<th>Helm's main-screen control</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>console</code></td>
+<td>science, weapons, docking</td>
+<td><strong>takes the screen.</strong> Helm's choice IS the new state</td>
+</tr>
+<tr>
+<td><code>story</code></td>
+<td>a cutscene, a hail, a mission beat</td>
+<td><strong>does not.</strong> The press is parked and applied when the beat ends</td>
+</tr>
+</tbody>
+</table>
+<p>The crew's physical control is their escape hatch from another <em>console</em>, not from a
+directed moment. A press that arrives during a story beat is not lost — it is held, and
+fires the instant the beat releases. A console pick made during one is held the same way.</p>
+<h3 id="flat-not-a-stack">Flat, not a stack</h3>
+<p><strong>Releasing goes back to what the CREW had, never to the previous claimant.</strong> Science
+puts a contact up, a hail takes the screen, the hail ends — the screen returns to the
+view the crew were flying with, not to science's shot. There is exactly one recorded
+baseline, captured the moment the screen goes from unclaimed to claimed, and everything
+restores to that. Every subsystem used to keep its own note of "before" and they
+overwrote each other, which is how a bridge ended up with no way back at all.</p>
 <p>A console re-reporting the state it is already in — a screen reconnecting — is not a
-takeover, so a shot survives a console joining the bridge.</p>
+takeover either way, so a shot survives a console joining the bridge.</p>
 <hr />
 <h2 id="from-a-mission">From a mission</h2>
 <div class="highlight"><pre><span></span><code><span class="n">viewscreen_set</span><span class="p">(</span><span class="n">ship</span><span class="p">,</span> <span class="s2">&quot;orbit&quot;</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>      <span class="c1"># off | dolly | orbit | tactical</span>
@@ -9735,7 +9963,27 @@ takeover, so a shot survives a console joining the bridge.</p>
 <span class="n">viewscreen_subject</span><span class="p">(</span><span class="n">ship</span><span class="p">)</span>                   <span class="c1"># what it is looking at</span>
 <span class="n">viewscreen_consoles</span><span class="p">(</span><span class="n">ship</span><span class="p">)</span>                  <span class="c1"># that ship&#39;s main screens</span>
 <span class="n">viewscreen_home_ship</span><span class="p">(</span><span class="n">client_id</span><span class="p">)</span>            <span class="c1"># see above</span>
+
+<span class="c1"># ownership</span>
+<span class="n">viewscreen_set</span><span class="p">(</span><span class="n">ship</span><span class="p">,</span> <span class="s2">&quot;orbit&quot;</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">owner</span><span class="o">=</span><span class="n">tok</span><span class="p">,</span> <span class="n">tier</span><span class="o">=</span><span class="s2">&quot;story&quot;</span><span class="p">)</span>
+<span class="n">viewscreen_owner_token</span><span class="p">(</span><span class="s2">&quot;science&quot;</span><span class="p">,</span> <span class="n">client_id</span><span class="p">)</span>   <span class="c1"># -&gt; &quot;science:&lt;id&gt;&quot;</span>
+<span class="n">viewscreen_owns</span><span class="p">(</span><span class="n">ship</span><span class="p">,</span> <span class="n">owner</span><span class="p">)</span>                   <span class="c1"># still mine?</span>
+<span class="n">viewscreen_revision</span><span class="p">(</span><span class="n">client_id</span><span class="p">)</span>                 <span class="c1"># poll with `on change`</span>
+<span class="n">viewscreen_restore</span><span class="p">(</span><span class="n">ship</span><span class="p">,</span> <span class="n">owner</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>           <span class="c1"># the door home; owner=None forces</span>
+<span class="n">viewscreen_take</span><span class="p">(</span><span class="n">ship</span><span class="p">,</span> <span class="n">owner</span><span class="p">,</span> <span class="n">tier</span><span class="p">)</span>             <span class="c1"># claim it, drive the camera yourself</span>
+
+<span class="c1"># for a main-screen console to call</span>
+<span class="n">viewscreen_console_enter</span><span class="p">(</span><span class="n">client_id</span><span class="p">)</span>            <span class="c1"># FIRST line: record where it belongs</span>
+<span class="n">viewscreen_view_modes</span><span class="p">(</span><span class="n">client_id</span><span class="p">)</span>               <span class="c1"># -&gt; (view, facing, mode)</span>
 </code></pre></div>
+<p><strong><code>viewscreen_set</code> returns <code>False</code> for two different reasons now</strong> — "already showing
+exactly that", and "a story beat holds the screen, so your request was parked". Ask
+<code>viewscreen_owns</code> when you need to tell them apart; that is the question a console
+actually has.</p>
+<p><code>viewscreen_take</code> is for anything that drives the screen its <strong>own</strong> way and still needs
+arbitrating — a cutscene, the Director, a beat pointing the camera by hand. It records
+the baseline without starting one of the viewer's shots, so <code>viewscreen_restore</code> can put
+the bridge back afterwards.</p>
 <p>Everything the console does is one of these calls, so a mission can drive the main
 screen from a story beat exactly the way science drives it from the drop-down — and a
 cutscene still takes the screen off the viewer, because cutscenes and hero cards draw
