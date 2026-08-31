@@ -166,7 +166,7 @@ def object_exists (so_id):
     
     Returns:
         bool: ``True`` if the engine reports the object present."""
-def orbit_capture (ship, center, radius=None, speed=None, seconds=None):
+def orbit_capture (ship, center, radius=None, speed=None, seconds=None, release_on_undock=True):
     """Put ``ship`` into a held orbit around ``center``.
     
     Idempotent: a ship already orbiting the same center keeps the orbit it has and the
@@ -198,6 +198,12 @@ def orbit_count ():
     """How many orbits are live. Cheap probe for tests, diagnostics and the reset ledger."""
 def orbit_is (ship):
     """Whether a ship is currently held in an orbit."""
+def orbit_swept_of (ship):
+    """Total radians this ship has flown since capture, or None if it is not orbiting.
+
+    Cumulative, deliberately NOT wrapped to a turn: a caller ending a maneuver after half
+    a lap has to be able to tell half a lap from one and a half. ``math.pi`` is the far
+    side of the body, ``2*math.pi`` is all the way round."""
 def orbit_radius_of (ship):
     """The radius a ship is orbiting at, or None."""
 def orbit_release (ship, delete_carrier=True):

@@ -165,6 +165,7 @@ ORBIT_KEY_CENTER = "orbit:center"
 ORBIT_KEY_RADIUS = "orbit:radius"
 ORBIT_KEY_SPEED = "orbit:speed"
 ORBIT_KEY_ANGLE = "orbit:angle"
+ORBIT_KEY_SWEPT = "orbit:swept"        # total radians flown, NOT wrapped - see orbit_swept_of
 ORBIT_KEY_RADIAL = "orbit:radial"      # r_hat at capture, as a plain tuple
 ORBIT_KEY_TANGENT = "orbit:tangent"    # t_hat at capture, as a plain tuple
 ORBIT_KEY_INTEGRAL = "orbit:integral"  # accumulated radius error, for the corrector
@@ -174,12 +175,28 @@ ORBIT_KEY_LEAD = "orbit:heading_lead"  # how far ahead of the tangent the nose i
 #: back exactly rather than guess a default.
 ORBIT_KEY_HELM = "orbit:helm"
 
+#: Inventory key on the carrier: does undocking end this orbit? True for the docking case
+#: this module was written for, False for an orbit a ship flew into rather than docked in.
+ORBIT_KEY_UNDOCK = "orbit:release_on_undock"
+
 _orbit_tick_task = None
 
-#: How often the carrier is re-aimed. The engine integrates its motion at 30 Hz between
-#: our passes, so this only has to keep the aim point ahead - it is not the frame rate of
-#: the orbit.
+#: How often the carrier is re-aimed, at MOST. The engine integrates its motion at 30 Hz
+#: between our passes, so this only has to keep the aim point ahead - it is not the frame
+#: rate of the orbit.
 ORBIT_TICK_SECONDS = 1.0
+
+#: Floor on the re-aim period, for orbits fast enough to need more than a pass a second.
+ORBIT_TICK_MIN_SECONDS = 0.1
+
+#: How far the carrier may sweep between re-aims, in radians.
+#:
+#: THE CADENCE IS A PROPERTY OF THE ORBIT, NOT OF THE CLOCK. A fixed second was sized for
+#: ORBIT_DEFAULT_SPEED on a wide circle, where it is plenty. Ask for a fast orbit on a
+#: tight one and the same second is a third of a lap: the carrier sails past the aim point
+#: it was given and then chases it BACKWARDS, and the circle collapses. Half the lead
+#: angle keeps the aim point still ahead whenever we move it, at any speed and radius.
+ORBIT_AIM_SWEEP = ORBIT_LEAD_ANGLE / 2.0
 
 
 def _orbit_sim():
@@ -408,7 +425,8 @@ def _orbit_give_back_helm(ship_obj):
     set_inventory_value(ship_obj.id, ORBIT_KEY_HELM, None)
 
 
-def orbit_capture(ship, center, radius=None, speed=None, seconds=None):
+def orbit_capture(ship, center, radius=None, speed=None, seconds=None,
+                  release_on_undock=True):
     """Put ``ship`` into a held orbit around ``center``.
 
     Idempotent: a ship already orbiting the same center keeps the orbit it has and the
@@ -425,6 +443,11 @@ def orbit_capture(ship, center, radius=None, speed=None, seconds=None):
         speed (float, optional): Orbital speed in units/sec. Defaults to
             ``ORBIT_DEFAULT_SPEED``. Ignored when ``seconds`` is given.
         seconds (float, optional): Wanted period for one full lap. Overrides ``speed``.
+        release_on_undock (bool): End the orbit when the ship reads as undocked. True is
+            the docking case this module was written for. **A ship that flew here rather
+            than docked is undocked the whole time**, so a free-flying capture - a
+            slingshot round a black hole, a scripted flyby - is released on its very
+            first tick unless this is False.
 
     Returns:
         int | None: The carrier's id, or None if either object is missing or the engine
@@ -488,14 +511,16 @@ def orbit_capture(ship, center, radius=None, speed=None, seconds=None):
     set_inventory_value(carrier_id, ORBIT_KEY_RADIUS, radius)
     set_inventory_value(carrier_id, ORBIT_KEY_SPEED, speed)
     set_inventory_value(carrier_id, ORBIT_KEY_ANGLE, 0.0)
+    set_inventory_value(carrier_id, ORBIT_KEY_SWEPT, 0.0)
     set_inventory_value(carrier_id, ORBIT_KEY_INTEGRAL, 0.0)
     set_inventory_value(carrier_id, ORBIT_KEY_LEAD, 0.0)
+    set_inventory_value(carrier_id, ORBIT_KEY_UNDOCK, bool(release_on_undock))
     set_inventory_value(carrier_id, ORBIT_KEY_RADIAL, (r_hat.x, r_hat.y, r_hat.z))
     set_inventory_value(carrier_id, ORBIT_KEY_TANGENT, (t_hat.x, t_hat.y, t_hat.z))
 
     _orbit_take_helm(ship_obj, _orbit_heading(r_hat, t_hat, 0.0))
-    _orbit_aim(carrier_id, 0.0)
-    _orbit_ensure_tick()
+    _orbit_aim(carrier_id, 0.0, dt=0.0)
+    _orbit_ensure_tick(_orbit_aim_period(radius, speed))
     signal_emit("orbit_captured", {"ORBIT_SHIP_ID": ship_id,
                                    "ORBIT_CENTER_ID": center_id,
                                    "ORBIT_RADIUS": radius,
@@ -584,6 +609,19 @@ def orbit_radius_of(ship):
     return get_inventory_value(carrier_id, ORBIT_KEY_RADIUS, None)
 
 
+def orbit_swept_of(ship):
+    """Total radians this ship has flown since capture, or None if it is not orbiting.
+
+    Cumulative, deliberately NOT wrapped to a turn: a caller ending a maneuver after half
+    a lap has to be able to tell half a lap from one and a half. ``math.pi`` is the far
+    side of the body, ``2*math.pi`` is all the way round.
+    """
+    carrier_id = orbit_carrier_of(ship)
+    if carrier_id is None:
+        return None
+    return get_inventory_value(carrier_id, ORBIT_KEY_SWEPT, 0.0) or 0.0
+
+
 def orbit_riders():
     """Every ship currently held in an orbit, as a set of ids."""
     out = set()
@@ -626,10 +664,30 @@ def orbit_release_all():
 
 # --- the tick -------------------------------------------------------------------------
 
-def _orbit_ensure_tick():
+def _orbit_aim_period(radius, speed):
+    """How often THIS orbit needs re-aiming, in seconds. See ORBIT_AIM_SWEEP."""
+    omega = float(speed) / max(float(radius), 1.0)
+    if omega <= 0.0:
+        return ORBIT_TICK_SECONDS
+    return min(ORBIT_TICK_SECONDS, max(ORBIT_TICK_MIN_SECONDS, ORBIT_AIM_SWEEP / omega))
+
+
+def _orbit_ensure_tick(period=None):
+    """One shared pass, run at whatever the FASTEST live orbit needs.
+
+    Aiming a slow orbit more often than it asked for is harmless - every rate in here is
+    multiplied by the real dt - while aiming a fast one too rarely collapses its circle.
+    So the period only ever ratchets DOWN while orbits are live; it goes back to the
+    default when the last one ends and the task is dropped.
+    """
     global _orbit_tick_task
-    if _orbit_tick_task is None and FrameContext.context is not None:
-        _orbit_tick_task = TickDispatcher.do_interval(orbit_tick, ORBIT_TICK_SECONDS)
+    if FrameContext.context is None:
+        return
+    want = ORBIT_TICK_SECONDS if period is None else float(period)
+    if _orbit_tick_task is None:
+        _orbit_tick_task = TickDispatcher.do_interval(orbit_tick, want)
+    elif want < _orbit_tick_task.delay:
+        _orbit_tick_task.delay = want
 
 
 def _orbit_maybe_stop_tick():
@@ -639,7 +697,7 @@ def _orbit_maybe_stop_tick():
         _orbit_tick_task = None
 
 
-def _orbit_aim(carrier_id, angle):
+def _orbit_aim(carrier_id, angle, dt=None):
     """Point the carrier at a spot further round the circle and let it fly there.
 
     It is aimed AHEAD rather than at where it should be: a carrier told to go where it
@@ -652,13 +710,13 @@ def _orbit_aim(carrier_id, angle):
     radius = get_inventory_value(carrier_id, ORBIT_KEY_RADIUS, 0.0)
     r = get_inventory_value(carrier_id, ORBIT_KEY_RADIAL, (0.0, 0.0, 1.0))
     t = get_inventory_value(carrier_id, ORBIT_KEY_TANGENT, (1.0, 0.0, 0.0))
-    aim_radius = _orbit_aim_radius(carrier_id, center_obj, radius)
+    aim_radius = _orbit_aim_radius(carrier_id, center_obj, radius, dt=dt)
     aim = _orbit_point(center_obj, aim_radius, Vec3(*r), Vec3(*t), angle + ORBIT_LEAD_ANGLE)
     target_pos(carrier_id, aim.x, aim.y, aim.z, 1.0)
     return True
 
 
-def _orbit_aim_radius(carrier_id, center_obj, radius, accumulate=True):
+def _orbit_aim_radius(carrier_id, center_obj, radius, accumulate=True, dt=None):
     """Where to put the aim point so the carrier's PATH ends up at ``radius``.
 
     A PI controller on the radius error. See ORBIT_RADIUS_GAIN for why aiming at the wanted
@@ -679,7 +737,10 @@ def _orbit_aim_radius(carrier_id, center_obj, radius, accumulate=True):
 
     acc = get_inventory_value(carrier_id, ORBIT_KEY_INTEGRAL, 0.0) or 0.0
     if accumulate:
-        acc = acc + err * ORBIT_TICK_SECONDS
+        # The REAL elapsed time, not the default period: a fast orbit is aimed several
+        # times a second, and an integrator fed a fixed second would wind up that much
+        # faster than the error it is integrating.
+        acc = acc + err * (ORBIT_TICK_SECONDS if dt is None else float(dt))
         # Anti-windup: clamp the accumulator itself, not just its effect, or it keeps
         # growing while the output is clamped and then overshoots when the error flips.
         limit = radius * ORBIT_INTEGRAL_LIMIT / max(ORBIT_RADIUS_INTEGRAL_GAIN, 1e-6)
@@ -697,7 +758,7 @@ def orbit_tick(tick_task=None):
     holding a ship still is a thing that has to be done repeatedly, not once - the same
     reason grav_tether re-applies its impulse cap every pass.
     """
-    dt = ORBIT_TICK_SECONDS
+    dt = ORBIT_TICK_SECONDS if tick_task is None else float(tick_task.delay)
     for carrier_id in list(role(ORBIT_CARRIER_ROLE)):
         if not object_exists(carrier_id):
             continue
@@ -714,24 +775,47 @@ def orbit_tick(tick_task=None):
         if center_id is None or not object_exists(center_id):
             orbit_release(ship_id)
             continue
-        if ship_obj.data_set.get("dock_state", 0) == "undocked":
+        if (get_inventory_value(carrier_id, ORBIT_KEY_UNDOCK, True)
+                and ship_obj.data_set.get("dock_state", 0) == "undocked"):
             orbit_release(ship_id)
             continue
 
         radius = get_inventory_value(carrier_id, ORBIT_KEY_RADIUS, 0.0)
         speed = get_inventory_value(carrier_id, ORBIT_KEY_SPEED, ORBIT_DEFAULT_SPEED)
         angle = get_inventory_value(carrier_id, ORBIT_KEY_ANGLE, 0.0)
-        if radius > 0.0:
-            angle = (angle + (speed / radius) * dt) % (2.0 * math.pi)
-            set_inventory_value(carrier_id, ORBIT_KEY_ANGLE, angle)
-        _orbit_aim(carrier_id, angle)
         r_hat = Vec3(*get_inventory_value(carrier_id, ORBIT_KEY_RADIAL, (0.0, 0.0, 1.0)))
         t_hat = Vec3(*get_inventory_value(carrier_id, ORBIT_KEY_TANGENT, (1.0, 0.0, 0.0)))
-        # Point the nose along the tangent at where the carrier REALLY is, then lead that
-        # by however far the hull is measurably still behind.
         carrier = to_object(carrier_id)
         center_obj = to_object(center_id)
         bearing = _orbit_bearing(carrier, center_obj, r_hat, t_hat) if carrier else None
+
+        if radius > 0.0:
+            prev = angle
+            angle = angle + (speed / radius) * dt
+            # THE COMMAND MAY NEVER GET FURTHER AHEAD THAN THE LEAD IT IS SUPPOSED TO BE.
+            #
+            # The advance is a clock, and a carrier that cannot keep up with it - which is
+            # every carrier for its first second, since speed approaches its target with a
+            # lag - ends up chasing a point that keeps running away. It stops flying a
+            # circle and flies the chord to wherever the aim has got to. Measured on a fast
+            # wide arc before this bound: the radius sagged 8000 -> 5494 and the ship came
+            # round 149 of the 180 degrees it was promised. Clamping to the truth plus the
+            # lead costs the gas-giant case nothing, because there the carrier keeps up and
+            # the clamp never binds.
+            if bearing is not None:
+                ahead = (angle - bearing) % (2.0 * math.pi)
+                if ORBIT_LEAD_ANGLE < ahead < math.pi:
+                    angle = bearing + ORBIT_LEAD_ANGLE
+            angle = angle % (2.0 * math.pi)
+            step = (angle - prev) % (2.0 * math.pi)
+            if step > math.pi:
+                step -= 2.0 * math.pi
+            set_inventory_value(carrier_id, ORBIT_KEY_ANGLE, angle)
+            swept = (get_inventory_value(carrier_id, ORBIT_KEY_SWEPT, 0.0) or 0.0)
+            set_inventory_value(carrier_id, ORBIT_KEY_SWEPT, swept + max(step, 0.0))
+        _orbit_aim(carrier_id, angle, dt=dt)
+        # Point the nose along the tangent at where the carrier REALLY is, then lead that
+        # by however far the hull is measurably still behind.
         if bearing is None:
             bearing = angle
         lead = _orbit_lead(carrier_id, ship_obj, r_hat, t_hat, bearing)

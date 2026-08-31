@@ -472,5 +472,112 @@ class TestQueries(OrbitTestBase):
         self.assertFalse(ob.orbit_is(self.ship_id))
 
 
+class TestOrbitAimCadence(unittest.TestCase):
+    """The re-aim period is a property of the orbit, not of the clock.
+
+    A fixed second was sized for ORBIT_DEFAULT_SPEED on a wide circle. Ask for a fast
+    orbit on a tight one and the same second is a third of a lap: the carrier sails past
+    the aim point it was given and then chases it backwards.
+    """
+
+    def setUp(self):
+        reset_mock(sbs)
+        sbs.resume_sim()          # reset_mock leaves it paused, and physics_tick no-ops
+        ob.orbit_release_all()
+        self.ship = to_id(player_spawn(8000, 0, 0, "Tug", "tsn", "tsn_light_cruiser"))
+        self.body = to_id(npc_spawn(0, 0, 0, "Rock", "tsn", "tsn_light_cruiser",
+                                    "behav_npcship"))
+
+    def tearDown(self):
+        ob.orbit_release_all()
+        sbs.pause_sim()      # leave it as we found it: a running sim keeps moving
+                             # objects under every test that follows, and the mock's
+                             # physics thread does not care whose test it is
+
+    def test_a_slow_wide_orbit_keeps_the_default_period(self):
+        # The guard on the gas-giant dock: nothing about a normal orbit changes.
+        self.assertEqual(ob._orbit_aim_period(9000, ob.ORBIT_DEFAULT_SPEED),
+                         ob.ORBIT_TICK_SECONDS)
+
+    def test_a_fast_tight_orbit_is_aimed_more_often(self):
+        period = ob._orbit_aim_period(3000, 4000.0)
+        self.assertLess(period, ob.ORBIT_TICK_SECONDS)
+        # Whatever it picks, the carrier must not out-sweep the lead it is chasing.
+        self.assertLessEqual((4000.0 / 3000.0) * period, ob.ORBIT_LEAD_ANGLE)
+
+    def test_the_period_never_goes_below_the_floor(self):
+        self.assertGreaterEqual(ob._orbit_aim_period(1.0, 1e9),
+                                ob.ORBIT_TICK_MIN_SECONDS)
+
+    def test_the_shared_pass_runs_at_what_the_fastest_orbit_needs(self):
+        ob.orbit_capture(self.ship, self.body, radius=9000,
+                            speed=ob.ORBIT_DEFAULT_SPEED)
+        slow = ob._orbit_tick_task.delay
+        other = to_id(player_spawn(500, 0, 0, "Two", "tsn", "tsn_light_cruiser"))
+        ob.orbit_capture(other, self.body, radius=3000, speed=4000.0)
+        self.assertLess(ob._orbit_tick_task.delay, slow)
+
+
+class TestOrbitSwept(unittest.TestCase):
+    def setUp(self):
+        reset_mock(sbs)
+        sbs.resume_sim()          # reset_mock leaves it paused, and physics_tick no-ops
+        ob.orbit_release_all()
+        self.ship = to_id(player_spawn(8000, 0, 0, "Tug", "tsn", "tsn_light_cruiser"))
+        self.body = to_id(npc_spawn(0, 0, 0, "Rock", "tsn", "tsn_light_cruiser",
+                                    "behav_npcship"))
+
+    def tearDown(self):
+        ob.orbit_release_all()
+        sbs.pause_sim()      # leave it as we found it: a running sim keeps moving
+                             # objects under every test that follows, and the mock's
+                             # physics thread does not care whose test it is
+
+    def test_a_free_ship_has_no_swept_angle(self):
+        self.assertIsNone(ob.orbit_swept_of(self.ship))
+
+    def _fly(self, laps_of_ticks):
+        """Tick the orbit AND the physics. Both, deliberately: the commanded angle is
+        clamped to the lead ahead of where the carrier really is, so an orbit nothing is
+        flying does not advance - which is the point of the clamp."""
+        task = ob._orbit_tick_task
+        for _ in range(laps_of_ticks):
+            ob.orbit_tick(task)
+            sbs.physics_tick(task.delay)
+
+    def test_it_starts_at_zero_and_only_grows(self):
+        ob.orbit_capture(self.ship, self.body, radius=8000, speed=4000.0,
+                         release_on_undock=False)
+        self.assertEqual(ob.orbit_swept_of(self.ship), 0.0)
+        seen = []
+        task = ob._orbit_tick_task
+        for _ in range(20):
+            ob.orbit_tick(task)
+            sbs.physics_tick(task.delay)
+            seen.append(ob.orbit_swept_of(self.ship))
+        self.assertEqual(seen, sorted(seen))
+        self.assertGreater(seen[-1], 0.0)
+
+    def test_it_does_NOT_wrap_at_a_full_turn(self):
+        # The whole reason it is separate from ORBIT_KEY_ANGLE: a caller ending a maneuver
+        # after half a lap has to tell half a lap from one and a half.
+        # A slingshot-scale circle, not a pathological one: at radius 1000 the arrival
+        # braking band (2 * speed / turn_rate) is a third of the way to the aim point and
+        # the carrier hovers instead of flying.
+        ob.orbit_capture(self.ship, self.body, radius=3000, speed=4000.0,
+                         release_on_undock=False)
+        self._fly(120)
+        self.assertGreater(ob.orbit_swept_of(self.ship), 2.0 * math.pi)
+
+    def test_the_command_cannot_run_away_from_the_carrier(self):
+        # The bound that stops a fast orbit flying the chord instead of the circle: with
+        # nothing moving the carrier, the clock must stall at the lead rather than wind on.
+        ob.orbit_capture(self.ship, self.body, radius=8000, speed=4000.0,
+                         release_on_undock=False)
+        for _ in range(50):
+            ob.orbit_tick(ob._orbit_tick_task)       # no physics: the carrier never moves
+        self.assertLessEqual(ob.orbit_swept_of(self.ship), ob.ORBIT_LEAD_ANGLE + 1e-6)
+
+
 if __name__ == "__main__":
     unittest.main()
