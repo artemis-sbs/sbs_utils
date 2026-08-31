@@ -119,8 +119,9 @@ no raycast).
     mass of everyone **hauling** it - `grav_tether_pullers_of` excludes a swing's anchor
     and a reversed tether's registered source, neither of which is pulling anything, and
     counting either would make the haul look lighter than it is.
-    `grav_tether_load_ratio(source, target)` is what the load is measured against. Lag and drag both read it, and the **energy bill is shared** - each
-    puller pays in proportion to its own mass. Billing every ship the full amount, which
+    `grav_tether_load_ratio(source, target)` is what the load is measured against. Pull
+    speed and drag both read it, and the **energy bill is shared** - each puller pays in
+    proportion to its own mass. Billing every ship the full amount, which
     is what it did, means four hulls each drain at the solo rate and all cut out at the
     same moment: four times the fleet's power for not one extra second of haul.
 

@@ -181,6 +181,43 @@ A tractor beam for Weapons and fighters — one system, scaled by hull.
 - **Impulse only** (the canonical rule): a tether can't hold at warp — it caps you
   back to impulse, or optionally snaps and drops the load.
 
+### The beam now feels the weight
+
+- **Tow a starbase.** It is slow, it drinks your reserves, and one ship will not get it
+  far — but it moves. A crate still comes in like a crate; a freighter is a real load
+  you feel on the helm; a station is a job.
+- **Call for help, and mean it.** Every ship on the same beam pulls harder *and* takes a
+  share of the power bill, so four hulls haul a station further than one ever will — not
+  four times harder, but four times longer before anyone runs dry. Weapons counts the
+  crew on the readout: **TOW ×4**.
+- **The beam tells you it is struggling.** A haul reports **light**, **heavy** or
+  **overloaded**, and an overloaded one says outright that it wants another ship on it.
+  No more wondering why the helm feels like treacle.
+- **Grav Lock on something enormous pulls *you* over.** Lock a station and the station
+  wins — it reels you in and holds you there, which is a fast way to park. It now winches
+  you across instead of snapping you over in one frame.
+
+### 🔧 Tug rigs
+
+Two ways to make a ship better at hauling, and they stack.
+
+- **Heavy Tug Rig** — the ship hauls as if it were four. Permanent once fitted, and
+  **bought at a station market**, not found floating in space.
+- **Tug Rig Mk I** — an early-pattern rig you **find** out in the world. Two and a half
+  ships' worth of pull, and it burns itself out after ten minutes. Good for one delivery.
+
+Fit both and they add up. Neither changes what your ship weighs, so a rig will not make
+you harder to grab or make your own wreck worth more.
+
+### Fixed along the way
+
+- **Reeling a cargo pod no longer brakes your ship.** A canister used to weigh as much as
+  a corvette, which cost you a third of your throttle and turn for picking up a crate.
+- **A fighter can reel a pickup again.** For the same reason, a fighter's reel used to run
+  backwards and drag the *fighter* onto the canister.
+- **Turret crates tow properly.** The crate is built to be towed into position, and it was
+  heavy enough that a light cruiser's beam flipped and dragged the cruiser to the crate.
+
 Built on the engine's native tractor.
 
 ---
