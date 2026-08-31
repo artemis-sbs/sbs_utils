@@ -1,3 +1,4 @@
+import logging
 from ..gui import Gui, Page
 from ..helpers import FakeEvent, FrameContext, FrameContextOverride
 from ..message_chain import compose_handler
@@ -332,6 +333,33 @@ class StoryPage(Page):
         else:
             Gui.widget_parked.pop(client_id, None)
             Gui.widget_rects.pop(client_id, None)
+
+    def _log_page_death(self, client_id):
+        """Name the console and the last thing its GUI task was standing on.
+
+        Called only from the non-dev branch that pops a page whose tasks have all
+        finished. The screen going dark is the symptom a scripter reports; this
+        is the one line that says which console and which label, so the report
+        arrives with something to look at.
+        """
+        try:
+            from ..procedural.gui.message import _handler_site
+            task = self.gui_task
+            where = "unknown"
+            if task is not None:
+                ticker = getattr(task, "active_ticker", None)
+                site = _handler_site(task, task.active_label,
+                                     getattr(ticker, "active_cmd", 0))
+                where = f"{site[0]} line {site[1]}" if site[0] else f"label {site[1]}"
+            logging.getLogger("mast.runtime").warning(
+                f"console {self.console or '?'} (client {client_id}) has no tasks "
+                f"left, so its page is being closed and the screen will go blank. "
+                f"Last at {where}. A GUI task must park (`await gui()`) rather than "
+                f"end - see handler-lifetime.md."
+            )
+        except Exception:
+            # Diagnostics must never be the thing that takes a console down.
+            pass
 
     def swap_layout(self):
         # self.on_change_items= self.pending_on_change_items
@@ -914,6 +942,12 @@ class StoryPage(Page):
                     if is_dev_build():
                         raise Exception("EDGE CASE: Did you set END or Yield the last GUI Task?")
                     else:
+                        # The console's last task is gone, so this page is popped
+                        # and the screen goes dark. In a dev build that is the
+                        # exception above; in the ENGINE it used to be silent,
+                        # which is how "all the controls vanished" reaches us
+                        # with no error text to work from. Say where it died.
+                        self._log_page_death(event.client_id)
                         Gui.pop(event.client_id)
                         return
             

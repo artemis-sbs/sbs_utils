@@ -137,6 +137,18 @@ explicit redirect:
     ended. That is the trap behind the `->END`-after-`map_start` warning in
     [map_picker](../api/procedural/map_picker.md).
 
+!!! note "What happens to the handler after it paints"
+    When the console follows a handler's `await gui()`, the GUI task takes that
+    command over and the handler is finished: the code after its `await gui()`
+    never runs, and the promise it was handed is **superseded** &mdash; it can
+    never present again. That matters because the handler can be woken later to
+    run one of its own `on change` / `on gui_message` blocks, and it then
+    resumes on that same await. A superseded promise sits there doing nothing,
+    which is correct; before that was enforced it re-presented an already-spent
+    build and took the console to a **blank screen it never recovered from**
+    (seen on the end-of-game results screen: open the Quests tab, click a
+    quest, every control disappears).
+
 ---
 
 ## Splitting a screen across tasks

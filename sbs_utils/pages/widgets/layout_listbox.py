@@ -507,64 +507,70 @@ class LayoutListbox(layout.Column):
         # See self.owner_task: the row template builds under the task that owns THIS
         # listbox, not under whatever is presenting.
         FrameContext.task = self.owner_task if self.owner_task is not None else restore.gui_task
+        try:
         
         
-        slot = 0
-        collapsed = False
-        if self.collapsible:
-            self._items = []
-
-        last_indent =0
-        last_visual_indent =0
-        for item in self.unfiltered_items:
+            slot = 0
+            collapsed = False
             if self.collapsible:
-                is_header = isinstance(item, LayoutListBoxHeader)
-                if collapsed and not is_header:
-                    continue
-                if collapsed and is_header and item.indent > last_indent:
-                    continue
-                self._items.append(item)
+                self._items = []
+
+            last_indent =0
+            last_visual_indent =0
+            for item in self.unfiltered_items:
+                if self.collapsible:
+                    is_header = isinstance(item, LayoutListBoxHeader)
+                    if collapsed and not is_header:
+                        continue
+                    if collapsed and is_header and item.indent > last_indent:
+                        continue
+                    self._items.append(item)
                 
-                collapsed =  is_header and item.collapse
-                if is_header and collapsed:
-                    last_indent = item.indent
-                    last_visual_indent = item.visual_indent
+                    collapsed =  is_header and item.collapse
+                    if is_header and collapsed:
+                        last_indent = item.indent
+                        last_visual_indent = item.visual_indent
 
             
-            sec = layout.Layout("unused", None, 0, 0, 100, measure_height)
-            sub_page.next_slot(slot, sec)
-            slot+=1
-            #
-            # This passes data, It is best to match the kwargs
-            # But it may not be 100% needed
-            #
-            size = self.template_func(item, listbox=self, selected=False, section=sec, click_tag=None, collapse_tag=None)
-            sec.calc(CID)
-            b = sec.get_content_bounds(False)
-            max_height = max(max_height, b.height)
-            if size is not None:
-                max_height = max(max_height, size)
-            # This assure a minimum height
-            # Listbox rows get_content_from_bounds
-            # ONLY looks at rows
-            max_height = max(max_height, 0.2)
-            max_height = max(max_height, row_floor)
-            max_width = max(max_width, b.width)
+                sec = layout.Layout("unused", None, 0, 0, 100, measure_height)
+                sub_page.next_slot(slot, sec)
+                slot+=1
+                #
+                # This passes data, It is best to match the kwargs
+                # But it may not be 100% needed
+                #
+                size = self.template_func(item, listbox=self, selected=False, section=sec, click_tag=None, collapse_tag=None)
+                sec.calc(CID)
+                b = sec.get_content_bounds(False)
+                max_height = max(max_height, b.height)
+                if size is not None:
+                    max_height = max(max_height, size)
+                # This assure a minimum height
+                # Listbox rows get_content_from_bounds
+                # ONLY looks at rows
+                max_height = max(max_height, 0.2)
+                max_height = max(max_height, row_floor)
+                max_width = max(max_width, b.width)
 
-            # This item's own height, for the average.
-            this_height = b.height
-            if size is not None:
-                this_height = max(this_height, size)
-            this_height = max(this_height, 0.2)
-            # The declared row height is a FLOOR here too, so the packer and the draw
-            # loop agree about how tall an item is. They used to be able to disagree.
-            this_height = max(this_height, row_floor)
-            self._item_heights[id(item)] = this_height
-            total_height += this_height
-            counted += 1
+                # This item's own height, for the average.
+                this_height = b.height
+                if size is not None:
+                    this_height = max(this_height, size)
+                this_height = max(this_height, 0.2)
+                # The declared row height is a FLOOR here too, so the packer and the draw
+                # loop agree about how tall an item is. They used to be able to disagree.
+                this_height = max(this_height, row_floor)
+                self._item_heights[id(item)] = this_height
+                total_height += this_height
+                counted += 1
 
-        FrameContext.page = restore
-        FrameContext._task = restore_task
+        finally:
+            # A row template that RAISES must not leave the frame pointing at this
+            # throwaway SubPage. Every gui_* call after that builds into a page
+            # nothing presents, so the console goes blank and STAYS blank - and the
+            # original exception is the only clue, far from where it lands.
+            FrameContext.page = restore
+            FrameContext._task = restore_task
         # f = len(self._items)
         # uf = len(self.unfiltered_items)
         #print(f"LISTBOX  {self.collapsible} {uf} {f}")
@@ -592,408 +598,414 @@ class LayoutListbox(layout.Column):
         FrameContext.page = sub_page
         # See self.owner_task.
         FrameContext.task = self.owner_task if self.owner_task is not None else task
+        try:
 
 
 
-        top = self.bounds.top
-        left = self.bounds.left
-        right = self.bounds.right
-        bottom = self.bounds.bottom
+            top = self.bounds.top
+            left = self.bounds.left
+            right = self.bounds.right
+            bottom = self.bounds.bottom
 
-# region Draw Title
-        if self.title_template_func is not None:
-            tag = f"{self.tag_prefix}"
-            sec = layout.Layout(tag+":title", None, left, top, right, top+2)
-            sec.region_tag = self.local_region_tag
-            apply_control_styles("", self.title_section_style, sec, task)
-            #self.title_section_style
-            sub_page.next_slot(-1, sec)
-            #
-            # Allow item to force size
-            #
-            size = self.title_template_func(listbox=self)
-            #
-            # Set the task values
-            #
-            sec.calc(CID)
-            if size is None:
-                sec.resize_to_content()
-                top += sec.bounds.height
-            else:
-                top+= size
-            sec.present(event)
-            # sub_page.tags |= sec.get_tags()
-# endregion
+    # region Draw Title
+            if self.title_template_func is not None:
+                tag = f"{self.tag_prefix}"
+                sec = layout.Layout(tag+":title", None, left, top, right, top+2)
+                sec.region_tag = self.local_region_tag
+                apply_control_styles("", self.title_section_style, sec, task)
+                #self.title_section_style
+                sub_page.next_slot(-1, sec)
+                #
+                # Allow item to force size
+                #
+                size = self.title_template_func(listbox=self)
+                #
+                # Set the task values
+                #
+                sec.calc(CID)
+                if size is None:
+                    sec.resize_to_content()
+                    top += sec.bounds.height
+                else:
+                    top+= size
+                sec.present(event)
+                # sub_page.tags |= sec.get_tags()
+    # endregion
 
 
         
-        item_width = 0# self.bounds.width 
-        item_gap = 0 #self.bounds.height
-        aspect_ratio = get_client_aspect_ratio(event.client_id)
-        if not self.horizontal:
-            item_width = self.bounds.width 
+            item_width = 0# self.bounds.width 
             item_gap = 0 #self.bounds.height
-        else:
-            item_width = 0 #self.bounds.width 
-            item_gap = self.bounds.height
-        
-        if self.default_item_width:
-            item_width = self._listbox_size(self.default_item_width, aspect_ratio.x)
-            if self.horizontal is None:
-                self.horizontal = True
-        if self.item_gap:
-            item_gap = self._listbox_size(self.item_gap, aspect_ratio.y)
-        # The floor every item section starts at. Zero when nothing is declared, which
-        # is exactly the previous behaviour for every list that declares nothing.
-        row_height = self._listbox_size(self.item_row_height, aspect_ratio.y)
-        
-        # At this point is should assume it is vertical
-        if self.horizontal is None:
-            self.horizontal = False
-
-
-        max_item_width, max_item_height, avg_item_height = self.calc_max(CID)
-        # Apply the hint once, here rather than in __init__: a collapsible list
-        # rebuilds its shown items during present, and an index applied before
-        # that points into the wrong list.
-        if self._hint is not None and not self._hint_applied:
-            self._hint_applied = True
-            self.apply_selection_hint(self._hint)
-
-        # Where the visible window starts -- packing depends on it.
-        cur_start = self.cur if self.cur and self.cur > 0 else 0
-        
-        max_item_width += item_width
-        max_item_height += item_gap
-        avg_item_height += item_gap
-        
-        # This can be because len items == 0
-        if max_item_width == 0:
-            max_item_width = 1
-        if max_item_height == 0:
-            max_item_height = 1
-        if avg_item_height <= 0:
-            avg_item_height = max_item_height
-
-
-        if self.horizontal:
-            max_slots = (self.bounds.right - self.bounds.left) // max_item_width #max(item_width,5) 
-        else:
-            #
-            # PACK by each row's real height, rather than dividing the space by
-            # the tallest row. Budgeting on the tallest silently assumes every
-            # row is the same height: eleven 48px consoles with one 96px row
-            # showed six and left half the box empty.
-            #
-            # For a UNIFORM list this produces exactly floor(available / height)
-            # -- the same number as before -- so no existing listbox moves.
-            #
-            avail = self.bounds.bottom - top
-            heights = [self._item_heights.get(id(it), avg_item_height)
-                       for it in self.items]
-
-            # The scroll RANGE, and the only place that knows the geometry it
-            # depends on. Every path that moves the view -- set_selected_index,
-            # apply_selection_hint, on_scroll, a bare `lb.cur = n` -- funnels
-            # through here, so this is the one clamp instead of several that
-            # would each need `heights` and `avail`. Without it
-            # set_selected_index(35) of 40 scrolled past the end of the list and
-            # the scrollbar grew its own `high` to cover for it.
-            #
-            # Not a carousel: its window is one item BY DEFINITION, so `cur`
-            # picks which item rather than where a window starts, and a packed
-            # range would pin it to the first one. Same carve-out as the reveal
-            # below.
-            scroll_max = max_cur(heights, avail, item_gap)
-            if not self.carousel:
-                cur_start = min(cur_start, scroll_max)
-                self.cur = cur_start
-            max_slots = pack_slots(heights, avail, item_gap, cur_start)
-
-            # Opt-in, vertical only, never a carousel (whose window is one item
-            # by definition), and never horizontal (a separate packing path with
-            # known problems -- left alone deliberately).
-            if (self.reveal and self._reveal_pending
-                    and self.select and not self.carousel):
-                sel = None
-                if self.selected and self._items:
-                    try:
-                        sel = self._items.index(self.selected[0])   # DISPLAY space
-                    except ValueError:
-                        sel = None
-                if sel is not None:
-                    cur_start = reveal_cur(sel, cur_start, heights, avail, item_gap)
-                    max_slots = pack_slots(heights, avail, item_gap, cur_start)
-                    self.cur = cur_start
-                self._reveal_pending = False
-
-
-        max_slots = int(max_slots)
-        if self.carousel:
-            max_slots = 1
-        if self.horizontal or self.carousel:
-            # Uniform widths, and a carousel window is one item by definition --
-            # both counts are already independent of where the view is.
-            extra_slot_count = len(self._items)-max_slots
-        else:
-            extra_slot_count = scroll_max
-
-        if extra_slot_count <0:
-            extra_slot_count = 0
-            self.cur = 0
-        
-
-# region Draw Carousel Nav Buttons
-        from ...procedural.gui.icon_sheet import icon_props
-        em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
-        if self.carousel and not self.horizontal:
-            icon_size = em2*2
-            if self.cur>0:
-                # By NAME, so a mission that ships its own icon sheet re-skins the
-                # carousel arrows too - see procedural/gui/icon_sheet.py.
-                kind, props = icon_props("list.prev", "#aaa", "draw_layer:1000")
-                send = SBS.send_gui_image if kind == "image" else SBS.send_gui_icon
-                send(event.client_id, self.local_region_tag, f"{self.tag_prefix}idec",
-                    props,
-                    self.bounds.left, self.bounds.bottom-icon_size*2, self.bounds.left+icon_size, self.bounds.bottom)
-                    #self.bounds.left, self.bounds.top, self.bounds.left+icon_size, self.bounds.bottom)
-
-                # ctx.sbs.send_gui_text(CID, self.local_region_tag,
-                #     tag, message,  
-                #     bounds.left+indent*space_width, bounds.top, bounds.right, bounds.bottom)
-
-                SBS.send_gui_text(event.client_id, self.local_region_tag, 
-                    f"{self.tag_prefix}dec_text", f"$text:`prev`;font:gui-1;justify:center;color:#222;",
-                    self.bounds.left, self.bounds.bottom-icon_size*2, self.bounds.left+icon_size, self.bounds.bottom)
-                SBS.send_gui_clickregion(event.client_id, self.local_region_tag, 
-                    f"{self.tag_prefix}dec", "background_color:#6663",
-                    self.bounds.left, self.bounds.top, self.bounds.left+em2*5, self.bounds.bottom)
-            max_item = len(self._items)-1
-            if self.cur<max_item:
-                kind, props = icon_props("list.next", "#aaa", "draw_layer:1000")
-                send = SBS.send_gui_image if kind == "image" else SBS.send_gui_icon
-                send(event.client_id, self.local_region_tag, f"{self.tag_prefix}iinc",
-                    props,
-                    self.bounds.right-icon_size , self.bounds.bottom-icon_size*2, self.bounds.right, self.bounds.bottom)
-                    #self.bounds.right-icon_size , self.bounds.top, self.bounds.right, self.bounds.bottom)
-                SBS.send_gui_text(event.client_id, self.local_region_tag, 
-                    f"{self.tag_prefix}inc_text", f"$text:`next`;font:gui-1;justify:center;color:#222;",
-                    self.bounds.right-icon_size , self.bounds.bottom-icon_size*2, self.bounds.right, self.bounds.bottom)
-                SBS.send_gui_clickregion(event.client_id, self.local_region_tag,
-                    f"{self.tag_prefix}inc", "background_color:#6663",
-                    self.bounds.right-em2*5, self.bounds.top, self.bounds.right, self.bounds.bottom)
-        elif self.carousel and self.horizontal:
-            pass
-        elif extra_slot_count > 0:
-            self.extra_slot_count = extra_slot_count
-            em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
-            if self.horizontal:
-                SBS.send_gui_slider(CID, self.local_region_tag,f"{self.tag_prefix}cur", int(self.cur), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
-                        left, bottom-em2,
-                        self.bounds.right, bottom)
-                bottom-=em2
+            aspect_ratio = get_client_aspect_ratio(event.client_id)
+            if not self.horizontal:
+                item_width = self.bounds.width 
+                item_gap = 0 #self.bounds.height
             else:
-                em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.x, 20)
-                SBS.send_gui_slider(CID, self.local_region_tag, f"{self.tag_prefix}cur", int(extra_slot_count-self.cur +0.5), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
-                        (right-em2), top,
-                        right, self.bounds.bottom)
-                right -= em2
-                
-# endregion 
+                item_width = 0 #self.bounds.width 
+                item_gap = self.bounds.height
+        
+            if self.default_item_width:
+                item_width = self._listbox_size(self.default_item_width, aspect_ratio.x)
+                if self.horizontal is None:
+                    self.horizontal = True
+            if self.item_gap:
+                item_gap = self._listbox_size(self.item_gap, aspect_ratio.y)
+            # The floor every item section starts at. Zero when nothing is declared, which
+            # is exactly the previous behaviour for every list that declares nothing.
+            row_height = self._listbox_size(self.item_row_height, aspect_ratio.y)
+        
+            # At this point is should assume it is vertical
+            if self.horizontal is None:
+                self.horizontal = False
 
-        slot = 0
-        cur = self.cur
+
+            max_item_width, max_item_height, avg_item_height = self.calc_max(CID)
+            # Apply the hint once, here rather than in __init__: a collapsible list
+            # rebuilds its shown items during present, and an index applied before
+            # that points into the wrong list.
+            if self._hint is not None and not self._hint_applied:
+                self._hint_applied = True
+                self.apply_selection_hint(self._hint)
+
+            # Where the visible window starts -- packing depends on it.
+            cur_start = self.cur if self.cur and self.cur > 0 else 0
+        
+            max_item_width += item_width
+            max_item_height += item_gap
+            avg_item_height += item_gap
+        
+            # This can be because len items == 0
+            if max_item_width == 0:
+                max_item_width = 1
+            if max_item_height == 0:
+                max_item_height = 1
+            if avg_item_height <= 0:
+                avg_item_height = max_item_height
+
+
+            if self.horizontal:
+                max_slots = (self.bounds.right - self.bounds.left) // max_item_width #max(item_width,5) 
+            else:
+                #
+                # PACK by each row's real height, rather than dividing the space by
+                # the tallest row. Budgeting on the tallest silently assumes every
+                # row is the same height: eleven 48px consoles with one 96px row
+                # showed six and left half the box empty.
+                #
+                # For a UNIFORM list this produces exactly floor(available / height)
+                # -- the same number as before -- so no existing listbox moves.
+                #
+                avail = self.bounds.bottom - top
+                heights = [self._item_heights.get(id(it), avg_item_height)
+                           for it in self.items]
+
+                # The scroll RANGE, and the only place that knows the geometry it
+                # depends on. Every path that moves the view -- set_selected_index,
+                # apply_selection_hint, on_scroll, a bare `lb.cur = n` -- funnels
+                # through here, so this is the one clamp instead of several that
+                # would each need `heights` and `avail`. Without it
+                # set_selected_index(35) of 40 scrolled past the end of the list and
+                # the scrollbar grew its own `high` to cover for it.
+                #
+                # Not a carousel: its window is one item BY DEFINITION, so `cur`
+                # picks which item rather than where a window starts, and a packed
+                # range would pin it to the first one. Same carve-out as the reveal
+                # below.
+                scroll_max = max_cur(heights, avail, item_gap)
+                if not self.carousel:
+                    cur_start = min(cur_start, scroll_max)
+                    self.cur = cur_start
+                max_slots = pack_slots(heights, avail, item_gap, cur_start)
+
+                # Opt-in, vertical only, never a carousel (whose window is one item
+                # by definition), and never horizontal (a separate packing path with
+                # known problems -- left alone deliberately).
+                if (self.reveal and self._reveal_pending
+                        and self.select and not self.carousel):
+                    sel = None
+                    if self.selected and self._items:
+                        try:
+                            sel = self._items.index(self.selected[0])   # DISPLAY space
+                        except ValueError:
+                            sel = None
+                    if sel is not None:
+                        cur_start = reveal_cur(sel, cur_start, heights, avail, item_gap)
+                        max_slots = pack_slots(heights, avail, item_gap, cur_start)
+                        self.cur = cur_start
+                    self._reveal_pending = False
+
+
+            max_slots = int(max_slots)
+            if self.carousel:
+                max_slots = 1
+            if self.horizontal or self.carousel:
+                # Uniform widths, and a carousel window is one item by definition --
+                # both counts are already independent of where the view is.
+                extra_slot_count = len(self._items)-max_slots
+            else:
+                extra_slot_count = scroll_max
+
+            if extra_slot_count <0:
+                extra_slot_count = 0
+                self.cur = 0
+        
+
+    # region Draw Carousel Nav Buttons
+            from ...procedural.gui.icon_sheet import icon_props
+            em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
+            if self.carousel and not self.horizontal:
+                icon_size = em2*2
+                if self.cur>0:
+                    # By NAME, so a mission that ships its own icon sheet re-skins the
+                    # carousel arrows too - see procedural/gui/icon_sheet.py.
+                    kind, props = icon_props("list.prev", "#aaa", "draw_layer:1000")
+                    send = SBS.send_gui_image if kind == "image" else SBS.send_gui_icon
+                    send(event.client_id, self.local_region_tag, f"{self.tag_prefix}idec",
+                        props,
+                        self.bounds.left, self.bounds.bottom-icon_size*2, self.bounds.left+icon_size, self.bounds.bottom)
+                        #self.bounds.left, self.bounds.top, self.bounds.left+icon_size, self.bounds.bottom)
+
+                    # ctx.sbs.send_gui_text(CID, self.local_region_tag,
+                    #     tag, message,  
+                    #     bounds.left+indent*space_width, bounds.top, bounds.right, bounds.bottom)
+
+                    SBS.send_gui_text(event.client_id, self.local_region_tag, 
+                        f"{self.tag_prefix}dec_text", f"$text:`prev`;font:gui-1;justify:center;color:#222;",
+                        self.bounds.left, self.bounds.bottom-icon_size*2, self.bounds.left+icon_size, self.bounds.bottom)
+                    SBS.send_gui_clickregion(event.client_id, self.local_region_tag, 
+                        f"{self.tag_prefix}dec", "background_color:#6663",
+                        self.bounds.left, self.bounds.top, self.bounds.left+em2*5, self.bounds.bottom)
+                max_item = len(self._items)-1
+                if self.cur<max_item:
+                    kind, props = icon_props("list.next", "#aaa", "draw_layer:1000")
+                    send = SBS.send_gui_image if kind == "image" else SBS.send_gui_icon
+                    send(event.client_id, self.local_region_tag, f"{self.tag_prefix}iinc",
+                        props,
+                        self.bounds.right-icon_size , self.bounds.bottom-icon_size*2, self.bounds.right, self.bounds.bottom)
+                        #self.bounds.right-icon_size , self.bounds.top, self.bounds.right, self.bounds.bottom)
+                    SBS.send_gui_text(event.client_id, self.local_region_tag, 
+                        f"{self.tag_prefix}inc_text", f"$text:`next`;font:gui-1;justify:center;color:#222;",
+                        self.bounds.right-icon_size , self.bounds.bottom-icon_size*2, self.bounds.right, self.bounds.bottom)
+                    SBS.send_gui_clickregion(event.client_id, self.local_region_tag,
+                        f"{self.tag_prefix}inc", "background_color:#6663",
+                        self.bounds.right-em2*5, self.bounds.top, self.bounds.right, self.bounds.bottom)
+            elif self.carousel and self.horizontal:
+                pass
+            elif extra_slot_count > 0:
+                self.extra_slot_count = extra_slot_count
+                em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.y, 20)
+                if self.horizontal:
+                    SBS.send_gui_slider(CID, self.local_region_tag,f"{self.tag_prefix}cur", int(self.cur), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
+                            left, bottom-em2,
+                            self.bounds.right, bottom)
+                    bottom-=em2
+                else:
+                    em2 = LayoutAreaParser.compute(self.slider_style, None, aspect_ratio.x, 20)
+                    SBS.send_gui_slider(CID, self.local_region_tag, f"{self.tag_prefix}cur", int(extra_slot_count-self.cur +0.5), f"low:0.0; high: {(extra_slot_count+0.5)}; show_number:no",
+                            (right-em2), top,
+                            right, self.bounds.bottom)
+                    right -= em2
+                
+    # endregion 
+
+            slot = 0
+            cur = self.cur
 
 
         
-        #draw_slots = max_slot
-        self.sections = []
-        collapse = False
+            #draw_slots = max_slot
+            self.sections = []
+            collapse = False
 
-        if len(self.items) <= max_slots:
-            cur = 0
+            if len(self.items) <= max_slots:
+                cur = 0
 
-        # Last indention level
-        last_indent = 0
+            # Last indention level
+            last_indent = 0
 
-        # Have to walk them all for collapse to work    
-        for i, item in enumerate(self.items):
-            #
-            # If this is a header at the same or higher indent level
-            # Update collapse state
-            #
-            if not self.carousel:
-                if isinstance(item, LayoutListBoxHeader) and item.indent <= last_indent:
-                    collapse = item.collapse
-                    last_indent = item.indent
-                elif collapse and not isinstance(item, LayoutListBoxHeader):
-                    # Skip non-headers if collapse    
-                    continue
-                # Or a sub header
-                elif collapse and isinstance(item, LayoutListBoxHeader) and item.indent > last_indent:
-                    continue
-                # Check to collapse sub-header
-                elif not collapse and isinstance(item, LayoutListBoxHeader) and item.indent > last_indent:
-                    collapse = item.collapse
-                    if collapse:
+            # Have to walk them all for collapse to work    
+            for i, item in enumerate(self.items):
+                #
+                # If this is a header at the same or higher indent level
+                # Update collapse state
+                #
+                if not self.carousel:
+                    if isinstance(item, LayoutListBoxHeader) and item.indent <= last_indent:
+                        collapse = item.collapse
                         last_indent = item.indent
-            #
-            #
-            # Scan until cur is reached
-            if i<cur:
-                continue
-            #
-            #  Should be header or non-collapsed item
-            #     
-            sel_width = 0
-            item_indent= 0
+                    elif collapse and not isinstance(item, LayoutListBoxHeader):
+                        # Skip non-headers if collapse    
+                        continue
+                    # Or a sub header
+                    elif collapse and isinstance(item, LayoutListBoxHeader) and item.indent > last_indent:
+                        continue
+                    # Check to collapse sub-header
+                    elif not collapse and isinstance(item, LayoutListBoxHeader) and item.indent > last_indent:
+                        collapse = item.collapse
+                        if collapse:
+                            last_indent = item.indent
+                #
+                #
+                # Scan until cur is reached
+                if i<cur:
+                    continue
+                #
+                #  Should be header or non-collapsed item
+                #     
+                sel_width = 0
+                item_indent= 0
             
-            if (self.select or self.multi) and not self.carousel:
-                pixel_indent = last_indent * self.indent_pixels
+                if (self.select or self.multi) and not self.carousel:
+                    pixel_indent = last_indent * self.indent_pixels
                 
-                if hasattr(item, "visual_indent"):
-                    pixel_indent = item.visual_indent*self.indent_pixels
-                elif hasattr(item, "indent"):
-                    pixel_indent = item.indent*self.indent_pixels
+                    if hasattr(item, "visual_indent"):
+                        pixel_indent = item.visual_indent*self.indent_pixels
+                    elif hasattr(item, "indent"):
+                        pixel_indent = item.indent*self.indent_pixels
                     
-                item_indent = 100.0*(pixel_indent/aspect_ratio.x)
-                sel_width = 100.0*(5/aspect_ratio.x)
+                    item_indent = 100.0*(pixel_indent/aspect_ratio.x)
+                    sel_width = 100.0*(5/aspect_ratio.x)
                 
 
 
-            tag = f"{self.tag_prefix}:{slot}"
-            this_right =   left + item_indent #+item_width
-            # A REAL height, not zero. A zero-height section makes every flex row
-            # inside it resolve to 0 (the flex pass divides an available height of
-            # zero), so an item whose template declares no height vanished - and the
-            # click region, emitted from these bounds, went with it. The carousel
-            # branch below already had to solve this for itself.
-            this_bottom =   top + row_height
+                tag = f"{self.tag_prefix}:{slot}"
+                this_right =   left + item_indent #+item_width
+                # A REAL height, not zero. A zero-height section makes every flex row
+                # inside it resolve to 0 (the flex pass divides an available height of
+                # zero), so an item whose template declares no height vanished - and the
+                # click region, emitted from these bounds, went with it. The carousel
+                # branch below already had to solve this for itself.
+                this_bottom =   top + row_height
             
 
           
 
-            if self.horizontal:
-                this_bottom = bottom
-            else:
-                this_right = right
-                if self.carousel:
-                    #
-                    # A carousel shows exactly ONE item, so that item IS the
-                    # panel -- give it the box's remaining height rather than
-                    # starting it at zero like a stacked item.
-                    #
-                    # A zero-height section means NOTHING in the template can be
-                    # sized against the panel: a flex row resolves to 0, so the
-                    # only thing that works is a FIXED height, and a fixed height
-                    # does not shrink with the window. That is how LM's mission
-                    # picker (a `15em` description row) ran its text to 108% of
-                    # the screen at 1024x600 -- correct at the resolution it was
-                    # tuned at, off the bottom at a shorter one.
-                    #
-                    # The nav band is held back so item content is never drawn
-                    # under the prev/next buttons, which are bottom-anchored
-                    # em2*4 tall (see the nav region above).
-                    #
-                    this_bottom = max(top, self.bounds.bottom - em2 * 4)
-
-            
-
-            sec = layout.Layout(tag+":sec", None, left+item_indent, top, this_right, this_bottom, 100)
-            sec.region_tag = self.local_region_tag
-            sec.item_index = i
-            
-            is_sel = False
-            click_tag = f"{tag}:__click"
-            if (self.select or self.multi) and not self.carousel:
-                is_sel =  item in self.selected
-
-            if (self.select or self.multi) and not self.carousel:
-                #sec.click_text = "__________________"
-                sec.click_text = ""
-                sec.click_background = "#aaaa"
-                sec.click_color = "black"
-                if is_sel:
-                    sec.background_color = self.select_color
+                if self.horizontal:
+                    this_bottom = bottom
                 else:
-                    sec.background_color = "#0000"
-                sec.click_tag = click_tag
+                    this_right = right
+                    if self.carousel:
+                        #
+                        # A carousel shows exactly ONE item, so that item IS the
+                        # panel -- give it the box's remaining height rather than
+                        # starting it at zero like a stacked item.
+                        #
+                        # A zero-height section means NOTHING in the template can be
+                        # sized against the panel: a flex row resolves to 0, so the
+                        # only thing that works is a FIXED height, and a fixed height
+                        # does not shrink with the window. That is how LM's mission
+                        # picker (a `15em` description row) ran its text to 108% of
+                        # the screen at 1024x600 -- correct at the resolution it was
+                        # tuned at, off the bottom at a shorter one.
+                        #
+                        # The nav band is held back so item content is never drawn
+                        # under the prev/next buttons, which are bottom-anchored
+                        # em2*4 tall (see the nav region above).
+                        #
+                        this_bottom = max(top, self.bounds.bottom - em2 * 4)
+
             
-            collapse_tag = f"{tag}:__collapse"
-            if isinstance(item, LayoutListBoxHeader):
-                # This needs to be the actual index
-                #tag = f"{self.tag_prefix}:{cur}"
-                if item.selectable:
-                    item.collapse_tag = collapse_tag
-                else:
+
+                sec = layout.Layout(tag+":sec", None, left+item_indent, top, this_right, this_bottom, 100)
+                sec.region_tag = self.local_region_tag
+                sec.item_index = i
+            
+                is_sel = False
+                click_tag = f"{tag}:__click"
+                if (self.select or self.multi) and not self.carousel:
+                    is_sel =  item in self.selected
+
+                if (self.select or self.multi) and not self.carousel:
+                    #sec.click_text = "__________________"
                     sec.click_text = ""
                     sec.click_background = "#aaaa"
                     sec.click_color = "black"
-                    sec.background_color = self.select_color
-                    sec.click_tag = collapse_tag
-
-            if self.section_style:
-                apply_control_styles("", self.section_style, sec, task)
-            sub_page.next_slot(slot, sec)
+                    if is_sel:
+                        sec.background_color = self.select_color
+                    else:
+                        sec.background_color = "#0000"
+                    sec.click_tag = click_tag
             
-            size = self.template_func(item, listbox=self, 
-                        selected=is_sel, section=sec, click_tag=click_tag, collapse_tag=collapse_tag)
-            #
-            # The template just rebuilt this row from the item data, discarding
-            # anything gui_update() had put there. Put it back before the row is
-            # measured and drawn, so an update survives scrolling away and back.
-            #
-            if self._alias_overrides:
-                for alias in sub_page.aliases:
-                    props = self._alias_overrides.get(alias)
-                    if props is None:
-                        continue
-                    entry = sub_page.tag_map.get(alias)
-                    if entry is not None:
-                        entry[0].update(props)
-            sec.calc(CID)
+                collapse_tag = f"{tag}:__collapse"
+                if isinstance(item, LayoutListBoxHeader):
+                    # This needs to be the actual index
+                    #tag = f"{self.tag_prefix}:{cur}"
+                    if item.selectable:
+                        item.collapse_tag = collapse_tag
+                    else:
+                        sec.click_text = ""
+                        sec.click_background = "#aaaa"
+                        sec.click_color = "black"
+                        sec.background_color = self.select_color
+                        sec.click_tag = collapse_tag
 
-            # if self.horizontal:
-            #     left+= item_width
-            # else:
-            #     top+= item_gap
+                if self.section_style:
+                    apply_control_styles("", self.section_style, sec, task)
+                sub_page.next_slot(slot, sec)
+            
+                size = self.template_func(item, listbox=self, 
+                            selected=is_sel, section=sec, click_tag=click_tag, collapse_tag=collapse_tag)
+                #
+                # The template just rebuilt this row from the item data, discarding
+                # anything gui_update() had put there. Put it back before the row is
+                # measured and drawn, so an update survives scrolling away and back.
+                #
+                if self._alias_overrides:
+                    for alias in sub_page.aliases:
+                        props = self._alias_overrides.get(alias)
+                        if props is None:
+                            continue
+                        entry = sub_page.tag_map.get(alias)
+                        if entry is not None:
+                            entry[0].update(props)
+                sec.calc(CID)
 
-            if size is None:
-                sec.resize_to_content()
+                # if self.horizontal:
+                #     left+= item_width
+                # else:
+                #     top+= item_gap
+
+                if size is None:
+                    sec.resize_to_content()
+                    if self.horizontal:
+                        size = sec.bounds.width + item_width
+                    else:
+                        size = sec.bounds.height + item_gap
+                #
+                # Draw the selection Tick
+                #
+                if (self.select or self.multi) and not self.carousel and item in self.selected:
+                    props = "image:smallWhite; color:white;draw_layer:1000;" # sub_rect: 0,0,etc"
+                    SBS.send_gui_image(event.client_id, self.local_region_tag,
+                        "__selbg:"+self.tag, props,left+item_indent, top, left+item_indent+sel_width, top+sec.bounds.height)
+            
                 if self.horizontal:
-                    size = sec.bounds.width + item_width
+                    left+= size
                 else:
-                    size = sec.bounds.height + item_gap
-            #
-            # Draw the selection Tick
-            #
-            if (self.select or self.multi) and not self.carousel and item in self.selected:
-                props = "image:smallWhite; color:white;draw_layer:1000;" # sub_rect: 0,0,etc"
-                SBS.send_gui_image(event.client_id, self.local_region_tag,
-                    "__selbg:"+self.tag, props,left+item_indent, top, left+item_indent+sel_width, top+sec.bounds.height)
-            
-            if self.horizontal:
-                left+= size
-            else:
-                top+= size
+                    top+= size
 
-            # sec.present(event)
+                # sec.present(event)
             
-            self.sections.append(sec)
-            #sub_page.tags |= sec.get_tags()
+                self.sections.append(sec)
+                #sub_page.tags |= sec.get_tags()
 
-            #cur += 1
-            slot += 1
-            if slot >= max_slots or self.carousel:
-                break
+                #cur += 1
+                slot += 1
+                if slot >= max_slots or self.carousel:
+                    break
 
             
 
             
         
-        sub_page.present(event)   
-        FrameContext.page = restore
-        FrameContext._task = restore_task
+            sub_page.present(event)   
+        finally:
+            # A row template that RAISES must not leave the frame pointing at this
+            # throwaway SubPage. Every gui_* call after that builds into a page
+            # nothing presents, so the console goes blank and STAYS blank - and the
+            # original exception is the only clue, far from where it lands.
+            FrameContext.page = restore
+            FrameContext._task = restore_task
         self._merge_tags(CID, sub_page)
         
 

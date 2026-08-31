@@ -548,11 +548,47 @@ class GuiPromise(ButtonPromise):
 
         self.page = page
         self.button_layout = None
+        # Set when promote_await_gui hands this `await gui()` to the GUI task.
+        # See initial_poll.
+        self.superseded = False
 
     def initial_poll(self):
         if self._initial_poll:
             return
-        
+
+        #
+        # A SUPERSEDED promise must never present.
+        #
+        # When a handler paints a screen and awaits, promote_await_gui sends the
+        # GUI task to that same `await gui()` command and ENDS the handler. The
+        # GUI task then re-evaluates gui() and adopts a promise of its OWN, so
+        # the handler's promise is left over: nothing owns it, and the build it
+        # would have presented has already been presented by the adopted one.
+        #
+        # It is normally never polled again -- until the handler task is revived
+        # to run one of its own handlers (revive_for_handler, LM #707). It then
+        # resumes on its `await gui()` node, and set_button_layout below swaps in
+        # whatever is PENDING. Pending is now the empty stub swap_layout leaves
+        # behind, so the console goes to zero widgets and, because gui_state
+        # settles on 'presenting', it never comes back.
+        #
+        # Measured on the end-of-game results screen: open the Quests tab (which
+        # is painted by an on_press handler) and click any quest, and every
+        # control on the screen disappears. The click correctly ran the tab
+        # handler's `on change` block; the revived handler then resumed onto its
+        # superseded await and blanked the page.
+        #
+        # Consumed, not deferred: mark it so it does not retry every tick. The
+        # revived task parks on the await with nothing to do, which is what
+        # promotion already decided for it ("it must not run the code after the
+        # await"). Only promotion sets this flag -- a promise that was never
+        # promoted (promote_await_gui off, or NOT_PROMOTED) still presents
+        # exactly as it always did.
+        #
+        if self.superseded:
+            self._initial_poll = True
+            return
+
         super().initial_poll()
         self.show_buttons()
         self.page.set_button_layout(self.button_layout, self)
@@ -769,6 +805,10 @@ def gui(buttons=None, timeout=None):
     if task != gui_task:
         if promote_await_gui(page, task, gui_task) is NOT_PROMOTED:
             warn_await_gui_off_gui_task(task)
+        else:
+            # The GUI task owns this await now and will build its own promise.
+            # This one is left over; it must never present. See initial_poll.
+            ret.superseded = True
     else:
         page.swap_gui_promise(ret)
     return ret
