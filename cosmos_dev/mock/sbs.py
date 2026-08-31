@@ -4491,23 +4491,48 @@ def _physics_collision(sim, active: list) -> None:
 # Physics tick
 # ---------------------------------------------------------------------------
 
-# Tractor pull lag: seconds of first-order time-constant per unit of connection .offset
-# (stiffness). Calibrated QUALITATIVELY to the engine data harness (LM_TestRange
-# test_grav_tether): with offset ~5 a static pull reeled a target 1500 -> ~1040 (3s) ->
-# ~430 (7s) -> floor, i.e. tau ~6s, so ~1.2s per offset unit. offset 0 = instant snap
-# (rigid lock). Not an exact fit - a controlled .offset sweep would refine it - but it
-# reproduces the qualitative behavior the grav_tether primitive relies on.
-_TRACTOR_TAU_PER_OFFSET = 1.2
+# Units per second of pull, per unit of connection .offset.
+#
+# ENGINE-MEASURED, controlled sweep (LM_TestRange map test_tractor_calibrate: one source,
+# identical targets at 30000u, raw AddTractorConnection, pull_distance 0, offsets 0-80
+# read at 10s and 20s):
+#
+#     offset  1  ->    302u / 10s,    604u / 20s
+#     offset  5  ->   1509u / 10s,   3019u / 20s
+#     offset 20  ->   6040u / 10s,  12080u / 20s
+#     offset 80  ->  24159u / 10s,  (arriving)
+#
+# Two facts, and the mock had BOTH backwards. Distance closed is LINEAR IN TIME - 20s is
+# exactly twice 10s at every offset - so the pull is CONSTANT VELOCITY, not the
+# first-order lag this modelled. And speed is LINEAR IN OFFSET at 30.2 u/s per unit, so a
+# HIGHER offset pulls FASTER; the old model, and grav_tether's docstrings, had it as a
+# lag dial where higher meant looser and slower.
+#
+# 30.2 is 30 within the window's own timing error, and TICKS_PER_SECOND is 30 - so the
+# engine is almost certainly moving the target `offset` units per TICK. Kept as the
+# measured 30.2 rather than rounded, so it is obvious this is data and not a guess.
+#
+# Back-predicts the two earlier probes exactly: a grav lock at offset 5 moved a ship
+# 2260u in 15s, against 5 x 30.2 x 15 = 2265u.
+_TRACTOR_SPEED_PER_OFFSET = 30.2
 
 
 def _physics_tractors(sim, dt: float) -> None:
-    """Approximate the engine tractor beam: pull each connection's target toward
-    ``source.pos + offset_point`` with a first-order lag set by ``.offset``. A static
-    connection reels the target all the way to the point (floored at the source's
-    exclusion radius); ``pull_distance`` is NOT a rest-length so it's ignored - holding a
-    load AT a distance is the grav_tether primitive's own rope-toggle, which adds/removes
-    connections. Moves the target's _pos directly (works for NPC, player, or terrain
-    pickups), before collision so a reeled item can collide + be collected."""
+    """Pull each connection's target toward ``source.pos + offset_point`` at a constant
+    speed of ``.offset`` x :data:`_TRACTOR_SPEED_PER_OFFSET`, engine-measured.
+
+    ``.offset`` is a SPEED dial, not a lag one: 0 snaps the target onto the point in a
+    single tick (which is what makes a rigid grav lock across a gap a teleport), and every
+    value above that pulls proportionally faster. It reads as "stiffness" in the engine
+    API and older notes here called higher values "looser/laggier" - that was never
+    measured and is the reverse of what the engine does.
+
+    A connection reels the target all the way to the point (floored at the source's
+    exclusion radius); ``pull_distance`` is NOT a rest-length so it is ignored - holding a
+    load AT a distance is the grav_tether primitive's own rope-toggle, which adds and
+    removes connections. Moves the target's _pos directly (works for NPC, player, or
+    terrain pickups), before collision so a reeled item can collide and be collected.
+    """
     cons = list(sim.tractor_connections.values())
     if not cons:
         return
@@ -4525,11 +4550,10 @@ def _physics_tractors(sim, dt: float) -> None:
         if dist <= floor or dist <= 1e-6:
             continue
         if con._offset <= 0.0:
-            frac = 1.0                       # rigid lock: snap to the point
+            step = dist                      # rigid: onto the point this tick
         else:
-            tau = con._offset * _TRACTOR_TAU_PER_OFFSET
-            frac = 1.0 - math.exp(-dt / tau) if tau > 1e-6 else 1.0
-        step = min(dist * frac, dist - floor)   # don't cross the exclusion floor
+            step = con._offset * _TRACTOR_SPEED_PER_OFFSET * dt
+        step = min(step, dist - floor)       # never cross the exclusion floor
         tgt._pos.x += (dx / dist) * step
         tgt._pos.y += (dy / dist) * step
         tgt._pos.z += (dz / dist) * step

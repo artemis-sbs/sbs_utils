@@ -596,18 +596,23 @@ class TestHeavyTow(unittest.TestCase):
         self.assertEqual(self._lag(self.ship, self.base), gt.DEFAULT_TOW_STIFFNESS)
 
     def test_a_starbase_wallows(self):
+        """con.offset is a SPEED, engine-measured at offset x 30.2 u/s - so a heavy load
+        DIVIDES it down. The first version of this multiplied, which reeled a starbase in
+        four times faster than a fighter; only a mock calibrated to the engine caught it."""
         gt.grav_tether_tow(self.ship, self.base, 500)
-        self.assertGreater(self._lag(self.ship, self.base), gt.DEFAULT_TOW_STIFFNESS * 5)
+        self.assertLess(self._lag(self.ship, self.base), gt.DEFAULT_TOW_STIFFNESS / 5)
 
     def test_a_second_tug_makes_the_load_move_better(self):
-        """The whole point of B. A CLAMPED curve would make these two equal."""
+        """More pull mass means a FASTER beam, because offset is a speed. A clamped or
+        floored-out curve would make these two equal and cooperating would buy nothing."""
         gt.grav_tether_tow(self.ship, self.base, 500)
         solo = self._lag(self.ship, self.base)
         gt.grav_tether_tow(self.mate, self.base, 500)
-        self.assertLess(self._lag(self.ship, self.base), solo)
+        self.assertGreater(self._lag(self.ship, self.base), solo)
 
     def test_the_lag_really_does_slow_the_load_down(self):
-        """Not just a bigger number - measurably less distance closed, in the mock."""
+        """Not just a smaller number - measurably less distance closed, against a mock
+        whose tractor model is calibrated to a controlled engine sweep."""
         def close(target):
             gt.grav_tether_clear_all()
             to_object(target).pos = sbs.vec3(3000, 0, 0)
@@ -705,14 +710,16 @@ class TestHeavyTow(unittest.TestCase):
         gt.grav_tether_tow(self.mate, self.base, 500)
         self.assertEqual(gt.grav_tether_status(self.ship)["pullers"], 2)
 
-    def test_the_lag_is_capped(self):
-        """A mass table is a mission's to write, and nothing stops it holding a 100000.
-        Uncapped that is a beam with a tau of half an hour - not a slow tow, a tether that
-        does nothing and then snaps."""
+    def test_the_pull_has_a_floor_and_the_floor_is_not_zero(self):
+        """A mass table is a mission's to write and nothing stops it holding 100000.
+        Without a floor that ratio divides the dial to nothing - and offset 0 is the RIGID
+        case, which puts the load on the source point in a single tick. The gentlest
+        possible tow would become a teleport."""
         self._masses({self.ship: 1.0, self.base: 100000.0})
         gt.grav_tether_tow(self.ship, self.base, 500)
-        self.assertEqual(self._lag(self.ship, self.base),
-                         gt.DEFAULT_TOW_STIFFNESS * gt.TOW_LAG_MAX_SCALE)
+        lag = self._lag(self.ship, self.base)
+        self.assertEqual(lag, gt.DEFAULT_TOW_STIFFNESS * gt.TOW_LAG_MIN_SCALE)
+        self.assertGreater(lag, 0.0, "offset 0 is a snap, not a slow pull")
 
     def test_lock_and_swing_stiffness_are_untouched_by_mass(self):
         """The Lock/Tow split, as an assertion. A lock on something heavy is REVERSED -
@@ -743,7 +750,7 @@ class TestHeavyTow(unittest.TestCase):
         gt.grav_tether_tow(self.ship, self.base, 500)
         solo = self._lag(self.ship, self.base)
         gt.grav_tether_set_pull_bonus_fn(lambda oid: 4.0)
-        self.assertLess(self._lag(self.ship, self.base), solo)
+        self.assertGreater(self._lag(self.ship, self.base), solo)
         self.assertEqual(gt.grav_tether_pull_mass(self.base), 12.0)
         gt.grav_tether_set_pull_bonus_fn(None)
 

@@ -9,8 +9,12 @@ Confirmed in-engine (Phase 0 spike, GRAV_TETHER_PLAN.md):
   * ``AddTractorConnection(src, tgt, offset_point, pull_distance)`` pulls ``tgt`` toward
     ``src + offset_point``; ``pull_distance`` is a **rope rest-length** (the target
     settles at that distance).
-  * the connection's ``.offset`` float is a **stiffness** dial: 0 = rigid lock,
-    ~5 = a good taut tow, higher = looser/laggier.
+  * the connection's ``.offset`` float is a **pull SPEED** dial, engine-measured at
+    ``offset x 30.2`` u/s, linear in offset and linear in time: 0 = rigid lock (the
+    target is placed on the point in one tick), ~5 = a good taut tow at ~151 u/s, and
+    higher pulls FASTER. Earlier notes here called it stiffness and said higher was
+    "looser/laggier" - never measured, and backwards. See LM_TestRange map
+    test_tractor_calibrate.
   * a tether can only hold at **impulse** — warp (playerThrottle > 1) outruns the
     rate-limited pull. Canonical (old-game Arena a28 precedent). Enforced here per
     tether: ``cap`` (default, governs the source back to impulse) or ``snap`` (breaks
@@ -95,32 +99,33 @@ DEFAULT_MASS = 1.0
 #: So a tow never flips, and pays for the privilege in lag, drag and power instead.
 MASS_REVERSE_RATIO = 2.0
 
-#: Exponent on the mass ratio when a tow scales its beam lag. 0.5 = square root.
+#: Exponent on the mass ratio when a tow scales its pull speed. 0.5 = square root.
 #:
-#: WHAT THIS ACTUALLY CHANGES, because it is easy to overclaim: the beam's lag sets how
-#: far behind you the load SETTLES (roughly your speed x tau) and how long it takes to get
-#: moving - not the speed of the convoy once it is under way, which is set by the drag on
-#: the tug. A heavy load therefore trails much further back, starts slowly and swings wide
-#: on a turn. That is the "it feels heavy" half; the "the trip is slow" half is drag.
+#: The dial this divides is ``con.offset``, and it is a SPEED, engine-measured: the target
+#: closes at ``offset x 30.2`` units per second, linearly in both offset and time
+#: (LM_TestRange map test_tractor_calibrate, offsets 1-80 read at 10s and 20s). So a
+#: heavier load gets a SMALLER offset and reels in slower. The engine API calls the field
+#: "stiffness" and older notes in this module called higher values "looser and laggier" -
+#: that was never measured and is backwards, which is why the first version of this
+#: function multiplied and made a starbase arrive four times faster than a fighter.
 #:
-#: SUBLINEAR ON PURPOSE, and the two obvious alternatives are both worse. A LINEAR scale
-#: on a 66:1 starbase grab gives a tau near 400s and a trailing distance around 18000u -
-#: past SNAP_RANGE_FACTOR, so the beam tears itself off before the load has moved. A hard
-#: CLAMP is worse still: every ratio past the cap lands on the same lag, so one tug and
-#: four tugs tow identically and cooperating buys literally nothing. A root curve is
-#: monotone the whole way, so every extra hull is worth bringing.
+#: SUBLINEAR ON PURPOSE. Linear would put a 66:1 starbase grab at a fifteenth of the base
+#: speed - slow enough that the power bill cuts the beam before the load has gone
+#: anywhere, so "you can drag a starbase" stops being true. A root curve is monotone the
+#: whole way, so every extra hull on the beam is worth bringing.
 TOW_LAG_CURVE = 0.5
 
-#: Ceiling on the scaled lag, as a multiple of the tow's base stiffness. 8x is reached at
-#: a ratio of 64 - a lone cruiser on a command starbase, i.e. exactly the case that is
-#: meant to be at the wall. Every realistic TEAM lands well under it (four cruisers on
-#: that same starbase is ratio 17, about half the cap), so the cap is a safety rail and
-#: never the mechanic.
+#: Floor on the scaled pull, as a fraction of the tow's base stiffness. An eighth is
+#: reached at a ratio of 64 - a lone cruiser on a command starbase, i.e. exactly the case
+#: meant to be at the wall. Every realistic TEAM lands well above it, so the floor is a
+#: safety rail and never the mechanic.
 #:
-#: It exists because a mass table is a mission's to write and nothing stops it holding a
-#: 100000 for a planet. Uncapped that is a beam with a tau of half an hour, which is not
-#: a slow tow - it is a tether that does nothing and then snaps.
-TOW_LAG_MAX_SCALE = 8.0
+#: It has to be strictly ABOVE ZERO, and that is not a rounding nicety: offset 0 is the
+#: rigid case, and a rigid connection puts the load on the source point in a single tick.
+#: A mass table is a mission's to write and nothing stops it holding 100000 for a planet;
+#: without this floor that ratio would divide the dial to nothing and turn the gentlest
+#: possible tow into a teleport.
+TOW_LAG_MIN_SCALE = 0.125
 
 #: Above this throttle a target is moving too fast to get hold of - None disables the
 #: rule. Off in the library and switched on by the mission, because "can you grab a ship
@@ -922,22 +927,23 @@ def _enforce_impulse(src, tgt, st):
 def _tow_lag(src, tgt, st):
     """The beam's stiffness dial, scaled by how outmatched the ships on the load are.
 
-    ``con.offset`` is a LAG dial: 0 snaps, ~5 is a taut tow, higher trails further and
-    settles slower. It was flat, so a 200-mass starbase came to the rope exactly as
-    briskly as a 1-mass fighter - the tug felt the weight in drag and power and the LOAD
+    ``con.offset`` is a SPEED dial - engine-measured at ``offset x 30.2`` units per
+    second, linear in offset and linear in time - so a heavy load divides it down and
+    comes in slower. It was flat, so a 200-mass starbase came to the rope exactly as
+    briskly as a 1-mass fighter: the tug felt the weight in drag and power and the LOAD
     felt nothing, which is why hauling a station read as free.
 
-    Measured in the mock's tractor model, closing a 3000u gap over 30s: offset 5 closes
-    2950u, offset 20 closes 2141u, offset 40 closes 1180u. A lone cruiser on a command
-    starbase lands at the cap and four of them near 20.
+    Engine-measured pull speeds at the base stiffness of 5: 151 u/s evenly matched, about
+    75 u/s on a freighter, and near 26 u/s for a lone cruiser on a science station - which
+    four cruisers lift back to about 52.
 
     ONLY A TOW. Gated on the mode rather than on ``st["rope"]`` because grav_tether_rope
     is public and a mission may open a rope-hold that is not a tow. A swing's anchor is a
     rock (scaling would kill the orbit the mode exists for) and a lock on something heavy
     is REVERSED - the station is pulling you, which should be strong, not sluggish.
 
-    Never below the nominal stiffness, and short-circuited entirely when no mission has
-    said what anything weighs: an evenly matched tow, and every mission with no mass
+    Never faster than the nominal stiffness, and short-circuited entirely when no mission
+    has said what anything weighs: an evenly matched tow, and every mission with no mass
     table, tows exactly as it always did.
     """
     base = st["stiffness"]
@@ -946,7 +952,7 @@ def _tow_lag(src, tgt, st):
     ratio = grav_tether_load_ratio(src, tgt)
     if ratio <= 1.0:
         return base
-    return min(base * TOW_LAG_MAX_SCALE, base * (ratio ** TOW_LAG_CURVE))
+    return max(base * TOW_LAG_MIN_SCALE, base / (ratio ** TOW_LAG_CURVE))
 
 
 def _tick_rope(src, tgt, st):

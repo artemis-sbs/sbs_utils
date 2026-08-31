@@ -72,26 +72,45 @@ no raycast).
     the rope at exactly the rate of a 1-mass fighter. The load was free; only the ship
     holding it felt anything. Three changes, each on an axis a crew can act on:
 
-    **The beam lags with the weight.** `_tow_lag` scales the stiffness dial by
-    `grav_tether_load_ratio(source, target) ** TOW_LAG_CURVE` - a **square root**, capped
-    at `TOW_LAG_MAX_SCALE` (8x).
+    **The beam pulls slower under weight.** `_tow_lag` divides the offset dial by
+    `grav_tether_load_ratio(source, target) ** TOW_LAG_CURVE` - a **square root** - with a
+    floor at `TOW_LAG_MIN_SCALE` (an eighth).
 
-    Be precise about what this does, because it is easy to overclaim: `con.offset` sets
-    how far behind you the load **settles** (roughly your speed x tau) and how long it
-    takes to get moving - *not* the speed of the convoy once under way, which is set by
-    the drag on the tug. So a heavy load trails much further back, starts slowly and
-    swings wide on a turn. That is the "it feels heavy" half; "the trip is slow" is drag.
+    !!! danger "`.offset` is a SPEED, and it was documented backwards"
+        Engine-measured on a controlled sweep (`LM_TestRange` map
+        `test_tractor_calibrate`: one source, identical targets at 30000u, raw
+        `AddTractorConnection`, offsets 1-80 read at 10s and 20s): the target closes at
+        **`offset x 30.2` units per second**, linear in offset *and* linear in time. 20s
+        closes exactly twice what 10s closes at every value, so it is constant velocity -
+        not the first-order lag both this page and the mock assumed. 30.2 against a
+        30-tick second means the engine is almost certainly moving the target `offset`
+        units per tick.
 
-    A square root because the two obvious alternatives are both worse. **Linear** on a
-    66:1 starbase grab gives a tau near 400s and a trailing distance around 18000u - past
-    `SNAP_RANGE_FACTOR`, so the beam tears itself off before the load has moved. A hard
-    **clamp** is worse still: every ratio past the cap lands on the same lag, so one tug
-    and four move the load identically and cooperating buys *nothing*. The cap is a safety
-    rail, not the mechanic - it is reached at ratio 64, a lone cruiser on a command
-    starbase, while every realistic team lands well under it. It exists because a mass
-    table is a mission's to write and nothing stops it holding 100000 for a planet.
+        So **higher offset pulls FASTER.** The engine API calls the field "stiffness" and
+        the notes here called higher values "looser and laggier"; that was never measured
+        and is the reverse of the truth. The first version of this feature therefore
+        *multiplied* the dial for heavy loads and reeled a starbase in **four times faster
+        than a fighter** - the exact opposite of its stated intent. Measured before and
+        after on a real bridge, a light cruiser hauling a science station: **240 u/s
+        before, 26 u/s after.**
 
-    A ratio of 1 or less returns the nominal stiffness untouched, and the whole thing
+        It was invisible because the mock modelled the pull as `tau = offset x 1.2`,
+        fitted qualitatively to a single point. A kinder-than-the-engine mock does not
+        merely miss bugs; here it confidently reported the inverse of the truth and every
+        test agreed with it.
+
+    Pull speeds at the base stiffness of 5: **151 u/s** evenly matched, ~75 u/s on a
+    freighter, ~26 u/s for a lone cruiser on a science station - which four cruisers lift
+    back to ~52.
+
+    A square root because linear would put a 66:1 starbase grab at a fifteenth of base
+    speed, slow enough that the power bill cuts the beam before the load has gone
+    anywhere, so "you can drag a starbase" stops being true. The floor has to be strictly
+    **above zero**: offset 0 is the rigid case, which puts the load on the source point in
+    a single tick, so a mass table holding 100000 for a planet would otherwise divide the
+    gentlest possible tow into a teleport.
+
+    A ratio of 1 or less returns the nominal offset untouched, and the whole thing
     short-circuits when no mass provider is installed, so every existing tow - and every
     mission with no mass table - is unchanged. It applies to `MODE_TOW` only: a swing's
     anchor is a rock, and a lock on something heavy is *reversed*.
