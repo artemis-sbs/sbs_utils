@@ -263,12 +263,12 @@ seconds is not obviously wrong, it just commits to whatever it last chose for tw
 long as intended. You saw it as enemies that kept chasing a target after you slipped
 away, or a hunter that took a beat too long to notice you.
 
-Brains, [objectives](../mast/ai/objectives.md) and urges now run at the period they
+Brains, [objectives](mast/objectives.md) and urges now run at the period they
 declare. In practice things react about **twice as fast** to a situation changing —
 without any of them being made more aggressive.
 
 !!! note "It showed up as a ship that would not warp"
-    The tell came from the [attract-mode](#-attract-mode--the-ship-flies-itself) pilot.
+    The tell came from the [attract-mode](#attract-mode-the-ship-flies-itself) pilot.
     Rewritten as a brain, it almost never used its warp drive, while the older version
     warped constantly with the same rules. It was not choosing differently: it was only
     re-checking its speed every fifteen seconds, so by the time it looked, it had already
