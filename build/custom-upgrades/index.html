@@ -9624,11 +9624,83 @@ bonus fraction). Passing `duration=` makes a consumable auto-expire. Common keys
 
 ## Spawn it as a pickup
 </code></pre></div>
-pickup_spawn(x, y, z, "carapaction_coil")   # by key
-```</p>
-<p>Collecting the pickup applies the effect through the upgrade system (which calls
-<code>upgrade_add</code>, running the prefab body). Players see held upgrades in a generic
-Upgrades GUI.</p>
+item_spawn("carapaction_coil", x, y, z)          # by key
+item_spawn("salvage", x, y, z, qty=5)            # one crate worth several units
+<div class="highlight"><pre><span></span><code>(`pickup_spawn(x, y, z, key)` is the older argument order and still works.)
+
+Collecting the pickup puts it in the ship&#39;s inventory; the crew then activates it from
+the Upgrades tab, which calls `upgrade_add` and runs the prefab body. An item can also
+apply itself the instant it is collected &amp;mdash; give it a `pickup_trigger:` naming who it
+fires for.
+
+## Three metadata fields decide where an item comes from
+
+This is the part that surprises people: `type:`, `price:` and `mode:` are read by
+*different* systems, and two of them look like pure description.
+
+| field | who reads it | effect |
+|---|---|---|
+| `type:` segments | `_item_spawn_pool` | an `upgrade` or `resource` segment puts the item in the **random world scatter** that `terrain_spawn_items` / `terrain_spawn_pickups` sample |
+| `price:` | `market_purchasable` | any positive price stocks it at **station markets**, with no type check at all |
+| `mode: install` | `_item_spawn_pool`, `item_activate` | **never scattered**, and **not consumed** when activated |
+
+So `type: item/quest/rescue` on the Escape Pod is not a label, it is what keeps a carried
+objective out of the loot table; and an item is buyable purely because someone wrote a
+`price:`.
+
+!!! warning &quot;An `install` item is not consumed, so the crate survives the fitting&quot;
+    `item_activate` skips the decrement for `mode: install`. Left alone, the crate stays
+    in the hold after the upgrade is bolted on and a station will buy it back at half
+    price while the fitting stays fitted &amp;mdash; which quietly halves what the upgrade
+    cost. If the item represents something *fitted*, spend the crate in the body:
+
+    ```
+    set_inventory_value(UPGRADE_AGENT_ID, &quot;grav_tug_rig_fitted&quot;, 1)
+    set_inventory_value(UPGRADE_AGENT_ID, &quot;grav_tug_rig&quot;, 0)   # fitted now, not cargo
+    ```
+
+    Note the two different keys. The **item key is an inventory key too** &amp;mdash; buying one
+    writes `set_inventory_value(ship, &quot;grav_tug_rig&quot;, n)` &amp;mdash; so a &quot;fitted&quot; flag sharing
+    that name is raised by merely *carrying* the crate, and selling the crate rips the
+    upgrade back out of a fitted hull.
+
+## If the effect is not a modifier, nothing will undo it
+
+`modifier_add(..., duration=)` expires on its own, swept by the modifier handler. That is
+the **only** self-expiring path. `upgrade_add` takes no duration, `Upgrade` has no expiry
+or deactivate hook, and `duration:` on its own drives nothing but the re-use cooldown and
+the &quot;active&quot; countdown on the tab.
+
+So a `mode: consumable` body that writes a plain inventory value is **permanent by
+accident**. Give the effect its own window and read that instead of a flag:
+</code></pre></div>
+=== prefab_item_tug_rig_mk1
+metadata: ``` yaml
+type: item/upgrade/engineering
+key: tug_rig_mk1
+mode: consumable
+duration: 600
+desc: An early-pattern grav rig - hauls as if the ship were two and a half, for a time.
+<div class="highlight"><pre><span></span><code>    set_timer(UPGRADE_AGENT_ID, &quot;tug_rig_mk1&quot;, seconds=duration)
+    -&gt;END
+</code></pre></div></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># and whatever consumes it asks the window, not a flag:</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">is_timer_finished</span><span class="p">(</span><span class="n">ship_id</span><span class="p">,</span> <span class="s2">&quot;tug_rig_mk1&quot;</span><span class="p">):</span>
+    <span class="o">...</span>
+</code></pre></div>
+<p><code>is_timer_finished</code> answers <code>True</code> for a timer that was never set, so a ship that never
+fitted one falls through &mdash; the guard fails closed. An <code>await delay_sim(duration)</code> in
+the body would also work (the body is a real suspendable server task), but nothing binds
+that task to the holder: a destroyed ship leaves it running, and a mission reload rebuilds
+the scheduler with the flag still set. A timer has no task and dies with the agent.</p>
+<div class="admonition tip">
+<p class="admonition-title">Put <code>for a time</code> in the description</p>
+<p><code>item_describe</code> expands that exact phrase to the real window, so the tab reads
+<em>"for 10 min"</em>. Any other wording stays vague.</p>
+</div>
+<p>The <strong>Heavy Tug Rig</strong> and <strong>Tug Rig Mk I</strong> in Legendary Missions are the worked pair:
+permanent-and-bought against found-and-expiring, one item key each, no code outside their
+own metadata blocks.</p>
 <h2 id="where-they-live">Where they live</h2>
 <p>Mission-wide item definitions go in a <code>.mast</code> file loaded by the mission (Legendary
 Missions keeps them in its <code>items</code> add-on, e.g. <code>item_defs.mast</code>). Because they're
