@@ -83,9 +83,17 @@ def _walk(item, out):
 
 
 def _all_items(page):
+    """Everything built so far - INCLUDING the row still pending.
+
+    A row only lands in pending_layouts when the next row starts (or at present
+    time), so the last thing a builder added is still in `pending_row`. The grid path
+    flushes as it goes and looked complete; the list path does not, and its listbox
+    was invisible here until this walked it too."""
     out = []
     for layout in page.pending_layouts:
         _walk(layout, out)
+    if page.pending_row is not None:
+        _walk(page.pending_row, out)
     return out
 
 
@@ -284,3 +292,119 @@ class TestAdoptedTilesDraw(EpaddShellBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestColumnsFollowTheScreen(unittest.TestCase):
+    """Four columns is four columns whether the console is 1920 or 1024 wide - and at
+    1024 that is a ~230px tile with ~174px for the title, where a two-word name wraps
+    and that one tile stops matching its neighbours. Reported from a real 1024x768
+    bridge as "the brain scan behaves different than the others"; "Brain scan" is the
+    only two-word title LM registers.
+    """
+
+    def setUp(self):
+        from sbs_utils.helpers import FrameContext as FC
+        self.saved = dict(FC.aspect_ratios)
+        self.addCleanup(lambda: (FC.aspect_ratios.clear(),
+                                 FC.aspect_ratios.update(self.saved)))
+
+    def cols(self, width, dense=False):
+        from sbs_utils.helpers import FrameContext as FC
+        from sbs_utils.vec import Vec3
+        from sbs_utils.procedural.gui.epadd import _columns_for
+        FC.aspect_ratios[ENGI] = Vec3(width, 768, 0)
+        return _columns_for(ENGI, dense)
+
+    def test_a_wide_console_gets_the_full_four(self):
+        self.assertEqual(self.cols(1920), 4)
+
+    def test_1024_drops_to_three(self):
+        self.assertEqual(self.cols(1024), 3)
+
+    def test_a_narrow_console_never_goes_below_one(self):
+        self.assertEqual(self.cols(200), 1)
+
+    def test_dense_still_capped_by_the_screen(self):
+        self.assertEqual(self.cols(1920, dense=True), 6)
+        self.assertEqual(self.cols(1024, dense=True), 3)
+
+    def test_an_unknown_client_falls_back_to_the_default(self):
+        """A build with no client to ask must not collapse to one column."""
+        from sbs_utils.procedural.gui.epadd import _columns_for
+        self.assertEqual(_columns_for(None, False), 4)
+
+
+class TestItFallsBackToAList(EpaddShellBase):
+    """A grid does not scroll and the engine does not clip, so a sheet that overflows
+    draws over itself. Past what fits, the same apps become a scrolling list with
+    collapsible group headers - which is the only reason "nothing is hidden" is true
+    rather than aspirational.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.helpers import FrameContext as FC
+        self.saved = dict(FC.aspect_ratios)
+        self.addCleanup(lambda: (FC.aspect_ratios.clear(),
+                                 FC.aspect_ratios.update(self.saved)))
+
+    def screen(self, w, h):
+        from sbs_utils.helpers import FrameContext as FC
+        from sbs_utils.vec import Vec3
+        FC.aspect_ratios[ENGI] = Vec3(w, h, 0)
+
+    def register(self, n):
+        for i in range(n):
+            name = f"app{i:02d}"
+            GuiTabDecoratorLabel(name)
+            gui_app_register(name, title=f"App {i}", group="Ship",
+                             description="something")
+
+    def listboxes(self, page):
+        from sbs_utils.pages.widgets.layout_listbox import LayoutListbox
+        return [i for i in _all_items(page) if isinstance(i, LayoutListbox)]
+
+    def test_a_few_apps_stay_a_grid(self):
+        self.screen(1920, 1080)
+        self.register(6)
+        page = self.build()
+        self.assertEqual(self.listboxes(page), [])
+        self.assertEqual(len(_tile_tags(page)), 6)
+
+    def test_too_many_for_the_screen_becomes_a_list(self):
+        self.screen(1024, 768)
+        self.register(40)
+        page = self.build()
+        self.assertTrue(self.listboxes(page), "should have fallen back to a list")
+        self.assertEqual(_tile_tags(page), [], "and drawn no tiles")
+
+    def test_the_same_count_still_fits_on_a_bigger_screen(self):
+        """The switch is about the SCREEN, not about a magic number of apps."""
+        self.screen(1024, 768)
+        self.register(30)
+        small = self.build()
+        self.setUp()
+        self.screen(1920, 1080)
+        self.register(30)
+        big = self.build()
+        self.assertTrue(self.listboxes(small))
+        self.assertEqual(self.listboxes(big), [])
+
+    def test_a_client_that_has_not_reported_its_size_is_assumed_SMALL(self):
+        """It answers 1024x768 with z=99. Assuming the smallest common console is the
+        safe direction: a list that scrolls is never broken, a grid that overflows
+        draws over itself. The page rebuilds when the real size arrives."""
+        self.register(40)
+        page = self.build()
+        self.assertTrue(self.listboxes(page))
+
+    def test_the_list_carries_a_header_per_group(self):
+        from sbs_utils.procedural.gui.listbox import gui_list_box_is_header
+        self.screen(1024, 768)
+        self.register(40)
+        GuiTabDecoratorLabel("quest")
+        gui_app_register("quest", title="Quests", group="Mission")
+        page = self.build()
+        lb = self.listboxes(page)[0]
+        heads = [i for i in lb.items if gui_list_box_is_header(i)]
+        self.assertEqual([h.label for h in heads], ["SHIP", "MISSION"])

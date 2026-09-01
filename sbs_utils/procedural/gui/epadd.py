@@ -369,6 +369,23 @@ TILE_GAP = "14px"     # between cards; padding would sit inside the panel
 TILE_COLUMNS = 4
 TILE_COLUMNS_DENSE = 6   # past DENSE_AFTER apps, narrower tiles without descriptions
 DENSE_AFTER = 12
+# A tile narrower than this cannot hold an icon and a title on one line, and a title
+# that wraps makes its tile a different height from every other tile - which is what
+# "the brain scan behaves different than the others" was at 1024x768. "Brain scan" is
+# the only two-word title LM registers, so it was the only one that could wrap.
+#
+# 300px is also where the mock and the engine agree about wrapping (measure.py: >=600
+# is exact, >=300 is 94%, below that they diverge), so it is the width below which a
+# layout tuned here stops predicting the bridge.
+MIN_TILE_PX = 300
+
+# What a band actually costs, so the code can work out whether the tiles fit instead
+# of anyone predicting it. These follow the styles below - change one, change both.
+BODY_TOP_PX = 45      # where a console's content starts, under the 35px strip
+BAR_PX = 40           # BAR_HEIGHT "1em+16px" at the default gui-2 row font
+HEADING_PX = 40       # a gui-1 heading line plus its row padding
+TILE_PX = 88          # title 32 + description 22 + padding 20 + margin 14
+TILE_PX_DENSE = 66    # the same without the description
 
 
 def gui_app_open(tab):
@@ -465,7 +482,10 @@ def _tile(app, dense):
             # unknown NAME is different: gui_icon_name draws nothing and says so
             # once, which is what lets an app be registered before its art exists.
             gui_icon_name(app["icon"], color=ACCENT, style="col-width: content;")
-        gui_text(f"$text:{_esc(title)};font:gui-4;")
+        # shrink, not wrap: a tile whose title takes two lines is a different
+        # height from every other tile, and the engine does not clip - the second
+        # line draws over the description.
+        gui_text(f"$text:{_esc(title)};font:gui-4;overflow:shrink;")
         if not dense and app.get("description"):
             gui_row("row-height: content;")
             gui_text(f"$text:{_esc(app['description'])};font:gui-1;color:{DIM};")
@@ -485,6 +505,102 @@ def _tile(app, dense):
 
     gui_message_callback(item, _open)
     return tile
+
+
+def _columns_for(client_id, dense):
+    """How many tiles fit across THIS client's screen.
+
+    The layout is in percent, so four columns is four columns whether the console is
+    1920 or 1024 wide - and at 1024 that is a ~230px tile with ~174px left for the
+    title, where a two-word name wraps and that one tile stops matching its
+    neighbours. Ask the client how wide it actually is.
+    """
+    want = TILE_COLUMNS_DENSE if dense else TILE_COLUMNS
+    if client_id is None:
+        return want
+    try:
+        from ...gui import get_client_aspect_ratio
+        width = getattr(get_client_aspect_ratio(client_id), "x", 0) or 0
+    except Exception:
+        return want                      # no client to ask (tests, server-side build)
+    if width <= 0:
+        return want
+    return max(1, min(want, int(width // MIN_TILE_PX)))
+
+
+def _grid_fits(client_id, groups, columns, dense):
+    """Whether the tiles fit on this screen without anything being cut off.
+
+    There is no scrolling in a grid, and the engine does NOT clip - a band that runs
+    out of room draws over whatever is under it. So the grid is for the case where
+    everything fits, and the list below is for the case where it does not.
+
+    A client that has not reported its size yet answers 1024x768 with z=99, and that
+    assumption is deliberately kept rather than special-cased: assuming the SMALLEST
+    common console is the safe direction, because a list that scrolls is never broken
+    while a grid that overflows draws over itself. The page rebuilds once the real
+    size arrives.
+    """
+    if client_id is None:
+        return True
+    try:
+        from ...gui import get_client_aspect_ratio
+        height = getattr(get_client_aspect_ratio(client_id), "y", 0) or 0
+    except Exception:
+        return True
+    if height <= 0:
+        return True
+    available = height - BODY_TOP_PX - BAR_PX - len(groups) * HEADING_PX
+    rows = sum(-(-len(apps) // max(1, columns)) for _, apps in groups)
+    return rows * (TILE_PX_DENSE if dense else TILE_PX) <= available
+
+
+def _app_row(item):
+    """One row of the list the PADD falls back to. Sizes its ROW and returns None -
+    a listbox only calls resize_to_content() when the template returns nothing, and an
+    item section that keeps a returned size is degenerate, which kills the click
+    region along with the selection."""
+    from .row import gui_row
+    from .text import gui_text
+    from .icon import gui_icon_name
+    from .listbox import gui_list_box_is_header
+    if gui_list_box_is_header(item):
+        return                      # the listbox draws its own headers
+    gui_row("row-height: 1.6em;")
+    if item.get("icon"):
+        gui_icon_name(item["icon"], color=ACCENT, style="col-width: content;")
+    gui_text(f"$text:{_esc(item['title'])};font:gui-3;overflow:shrink;")
+    if item.get("description"):
+        gui_text(f"$text:{_esc(item['description'])};font:gui-1;color:{DIM};")
+
+
+def _app_list(groups):
+    """The PADD's app sheet as a scrolling list, for when the tiles do not fit.
+
+    A listbox brings the two things the grid has no answer for: it scrolls, and its
+    headers collapse - so the groups survive rather than being flattened away.
+    """
+    from .row import gui_row
+    from .listbox import (gui_list_box, gui_list_box_header, gui_list_box_is_header)
+    from .message import gui_message_callback
+
+    items = []
+    for name, apps in groups:
+        items.append(gui_list_box_header(name.upper()))
+        items.extend(apps)
+
+    gui_row("padding: 24px, 10px, 24px, 10px;")
+    lb = gui_list_box(items, "item-gap: 0.2em;", item_template=_app_row,
+                      select=True, collapsible=True, reveal=True)
+
+    def _pick(event, sender):
+        item = lb.get_value()
+        if item is None or gui_list_box_is_header(item):
+            return
+        gui_app_open(item["tab"])
+
+    gui_message_callback(lb, _pick)
+    return lb
 
 
 def gui_app_home(ship_name=None, columns=None, title="ePADD"):
@@ -511,7 +627,7 @@ def gui_app_home(ship_name=None, columns=None, title="ePADD"):
     total = sum(len(apps) for _, apps in groups)
     dense = total > DENSE_AFTER
     if columns is None:
-        columns = TILE_COLUMNS_DENSE if dense else TILE_COLUMNS
+        columns = _columns_for(getattr(page, "client_id", None), dense)
 
     # The body below the strip. 45px is where every console's content starts - the
     # strip is 35px on a 3% layout, and LM has drawn from 45px since.
@@ -530,6 +646,13 @@ def gui_app_home(ship_name=None, columns=None, title="ePADD"):
     if not groups:
         gui_row("row-height: content; padding: 24px, 16px, 24px, 0;")
         gui_text(f"$text:No apps on this console.;font:gui-2;color:{DIM};")
+        return
+
+    # A grid does not scroll and the engine does not clip, so a sheet that overflows
+    # draws over itself. Past what fits, the same apps become a scrolling list with
+    # collapsible group headers - nothing is hidden either way.
+    if not _grid_fits(getattr(page, "client_id", None), groups, columns, dense):
+        _app_list(groups)
         return
 
     for name, apps in groups:
