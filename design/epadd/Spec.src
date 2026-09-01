@@ -150,31 +150,37 @@
         <table>
           <tbody>
           <tr><th>Cell</th><th>Name</th><th>Cell</th><th>Name</th></tr>
-          <tr><td class="v">0</td><td>cargo</td><td class="v">8</td><td>damage</td></tr>
-          <tr><td class="v">1</td><td>fabricate</td><td class="v">9</td><td>hangar</td></tr>
-          <tr><td class="v">2</td><td>upgrades</td><td class="v">10</td><td>comms_log</td></tr>
-          <tr><td class="v">3</td><td>quests</td><td class="v">11</td><td>standings</td></tr>
-          <tr><td class="v">4</td><td>library</td><td class="v">12</td><td>debug</td></tr>
-          <tr><td class="v">5</td><td>help</td><td class="v">13</td><td>mast</td></tr>
-          <tr><td class="v">6</td><td>airwing</td><td class="v">14</td><td>brain</td></tr>
-          <tr><td class="v">7</td><td>casino</td><td class="v">15</td><td>coverage</td></tr>
+          <tr><td class="v">0</td><td>epadd.cargo</td><td class="v">8</td><td>epadd.damage</td></tr>
+          <tr><td class="v">1</td><td>epadd.fabricate</td><td class="v">9</td><td>epadd.hangar</td></tr>
+          <tr><td class="v">2</td><td>epadd.upgrades</td><td class="v">10</td><td>epadd.comms_log</td></tr>
+          <tr><td class="v">3</td><td>epadd.quests</td><td class="v">11</td><td>epadd.standings</td></tr>
+          <tr><td class="v">4</td><td>epadd.library</td><td class="v">12</td><td>epadd.debug</td></tr>
+          <tr><td class="v">5</td><td>epadd.help</td><td class="v">13</td><td>epadd.mast</td></tr>
+          <tr><td class="v">6</td><td>epadd.airwing</td><td class="v">14</td><td>epadd.brain</td></tr>
+          <tr><td class="v">7</td><td>epadd.casino</td><td class="v">15</td><td>epadd.coverage</td></tr>
           </tbody>
         </table>
-        <div class="warn" style="margin-top: 26px;">Claiming the names is one call - the same
+        <div class="warn" style="margin-top: 26px;"><b>The names are namespaced.</b> The icon
+          registry is one flat namespace and a registration is a CLAIM on it: a bare
+          <span class="v" style="color:var(--accent)">brain</span> takes over the built-in
+          glyph for everything else that draws it, and a bare
+          <span class="v" style="color:var(--accent)">cargo</span> is one addon claiming a
+          word every other addon might want.</div>
+        <div class="warn" style="margin-top: 14px;">Claiming them is one call - the same
           one a mission would use to re-skin them. Nothing that DRAWS an icon changes, which is
           the point of naming them: a mission can re-point
           <span class="v" style="color:var(--accent)">cargo</span> at its own art and every
           screen that draws it follows.</div>
       </div>
     </div>
-    <pre style="margin-top: 26px;">gui_icon_add_atlas_grid(media_shared(<span class="k">"icons/epadd-sheet"</span>), cols=4, cell=128,
-    names=[<span class="k">"cargo"</span>, <span class="k">"fabricate"</span>, <span class="k">"upgrades"</span>, <span class="k">"quests"</span>,
-           <span class="k">"library"</span>, <span class="k">"help"</span>, <span class="k">"airwing"</span>, <span class="k">"casino"</span>,
-           <span class="k">"damage"</span>, <span class="k">"hangar"</span>, <span class="k">"comms_log"</span>, <span class="k">"standings"</span>,
-           <span class="k">"debug"</span>, <span class="k">"mast"</span>, <span class="k">"brain"</span>, <span class="k">"coverage"</span>])
+    <pre style="margin-top: 26px;">gui_icon_add_atlas_grid(media_shared(<span class="k">"epadd/icons"</span>), 4, 4, cell=128, names=[
+    <span class="k">"epadd.cargo"</span>, <span class="k">"epadd.fabricate"</span>, <span class="k">"epadd.upgrades"</span>, <span class="k">"epadd.quests"</span>,
+    <span class="k">"epadd.library"</span>, <span class="k">"epadd.help"</span>, <span class="k">"epadd.airwing"</span>, <span class="k">"epadd.casino"</span>,
+    <span class="k">"epadd.damage"</span>, <span class="k">"epadd.hangar"</span>, <span class="k">"epadd.comms_log"</span>, <span class="k">"epadd.standings"</span>,
+    <span class="k">"epadd.debug"</span>, <span class="k">"epadd.mast"</span>, <span class="k">"epadd.brain"</span>, <span class="k">"epadd.coverage"</span>])
 
 <span class="c"># thereafter an app just names one, and gui_icon_name resolves it</span>
-gui_app_register(<span class="k">"cargo"</span>, title=<span class="k">"Cargo"</span>, icon=<span class="k">"cargo"</span>, consoles=<span class="k">"engineering"</span>)</pre>
+gui_app_register(<span class="k">"cargo"</span>, title=<span class="k">"Cargo"</span>, icon=<span class="k">"epadd.cargo"</span>, consoles=<span class="k">"engineering"</span>)</pre>
   </section>
 
   <section>
