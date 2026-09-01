@@ -277,3 +277,39 @@ class TestOrdering(EpaddBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTheAwayConsoleOptsIn(EpaddBase):
+    """`"*"` is every SHIP console. An away team is not everywhere on the ship, it is
+    somewhere else entirely, and a landing party carrying the fabricator is not a
+    scoping bug anybody notices until it is on screen."""
+
+    def setUp(self):
+        super().setUp()
+        for p in ("cargo", "messages", "surveying"):
+            GuiTabDecoratorLabel(p)
+        gui_app_register("cargo", title="Cargo", consoles="engineering")
+        gui_app_register("messages", title="Messages", away=True)
+        gui_app_register("surveying", title="Surveying", consoles="away")
+
+    def test_a_star_app_does_NOT_follow_the_team_down(self):
+        self.assertNotIn("Cargo", self.titles("away"))
+
+    def test_an_app_that_opts_in_does(self):
+        self.assertIn("Messages", self.titles("away"))
+
+    def test_and_still_shows_on_the_ship(self):
+        self.assertIn("Messages", self.titles("helm"))
+
+    def test_an_away_only_app_stays_off_the_bridge(self):
+        self.assertIn("Surveying", self.titles("away"))
+        self.assertNotIn("Surveying", self.titles("helm"))
+        self.assertNotIn("Surveying", self.titles("engineering"))
+
+    def test_an_adopted_tab_still_reaches_the_away_console(self):
+        """It is whatever that console enabled, so it was already scoped by the
+        console itself - second-guessing it would hide somebody's panel."""
+        GuiTabDecoratorLabel("mystery")
+        FrameContext.page = _Page(ENGI, console="away")
+        gui_app_adopt_record({"mystery"}, back_tab="away", console="away")
+        self.assertIn("Mystery", self.titles("away", ENGI))

@@ -168,3 +168,40 @@ class TestTheDoor(DoorBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAnUnregisteredConsoleType(DoorBase):
+    """A console entered by a name that never registered as a `@console/` type.
+
+    The away console is exactly this - `gui_console_enter(cid, "away")` with no
+    `@console/away` label anywhere - and the strip loop only walked the REGISTERED
+    types, so `away` was added on beam-down and never removed on the way back up. A
+    crew member at helm was still wearing it, and anything gated on the role answered
+    yes for the rest of the mission.
+    """
+
+    def test_its_role_is_stripped_when_the_console_moves_on(self):
+        gui_console_enter(self.cid, "away")
+        self.assertTrue(has_role(self.cid, "away"))
+        gui_console_enter(self.cid, "helm")
+        self.assertFalse(has_role(self.cid, "away"),
+                         "the away role outlived the away console")
+
+    def test_the_new_console_still_gets_its_own_role(self):
+        gui_console_enter(self.cid, "away")
+        gui_console_enter(self.cid, "helm")
+        self.assertTrue(has_role(self.cid, "helm"))
+        self.assertEqual(get_inventory_value(self.cid, "CONSOLE_TYPE"), "helm")
+
+    def test_two_unregistered_types_in_a_row_leave_nothing_behind(self):
+        gui_console_enter(self.cid, "away")
+        gui_console_enter(self.cid, "brig")
+        self.assertFalse(has_role(self.cid, "away"))
+        self.assertTrue(has_role(self.cid, "brig"))
+        gui_console_enter(self.cid, "helm")
+        self.assertFalse(has_role(self.cid, "brig"))
+
+    def test_a_registered_type_is_still_stripped_the_old_way(self):
+        gui_console_enter(self.cid, "science")
+        gui_console_enter(self.cid, "helm")
+        self.assertFalse(has_role(self.cid, "science"))

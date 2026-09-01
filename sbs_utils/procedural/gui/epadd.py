@@ -132,8 +132,11 @@ def gui_app_mode_is_on(client_id=None):
 
 # --- registration -----------------------------------------------------------------
 
+AWAY_CONSOLE = "away"
+
+
 def gui_app_register(tab, title=None, icon=None, consoles="*", group=None, sort=100,
-                     description=None, status=None):
+                     description=None, status=None, away=False):
     """Present an existing `//gui/tab/<tab>` route as an ePADD app.
 
     The route is not touched and keeps its own `if` condition, which is still what
@@ -151,9 +154,13 @@ def gui_app_register(tab, title=None, icon=None, consoles="*", group=None, sort=
         icon (str, optional): an icon NAME for `gui_icon_name` - a meaning or a look,
             never a sheet index. An unknown name draws nothing and says so once, so an
             app can be registered before its art exists.
-        consoles (str, optional): comma list of console names, or "*" for every
+        consoles (str, optional): comma list of console names, or "*" for every SHIP
             console. Matched after `epadd_console_name`, so "engineering" matches the
             engine's `normal_engi`. Defaults to "*".
+        away (bool, optional): also offer this app to the away console. `"*"` does NOT
+            include it: an away team is not everywhere on the ship, it is somewhere
+            else entirely, and a landing party has no use for the cargo hold. An app
+            opts in, or names `consoles="away"` to go there and nowhere else.
         group (str, optional): heading to file the tile under. Defaults to "Mission".
         sort (int, optional): order within the group, low first. Ties break on title.
         description (str, optional): the tile's second line.
@@ -167,6 +174,7 @@ def gui_app_register(tab, title=None, icon=None, consoles="*", group=None, sort=
         "title": title if title else tab.replace("_", " ").title(),
         "icon": icon,
         "consoles": _console_set(consoles),
+        "away": bool(away),
         "group": group if group else "Mission",
         "sort": sort,
         "description": description,
@@ -290,8 +298,7 @@ def gui_app_list(console=None, client_id=None):
     for tab, app in apps.items():
         if tab in NEVER_AN_APP:
             continue
-        wanted = app.get("consoles")
-        if wanted is not None and console is not None and console not in wanted:
+        if not _scoped_here(app, console):
             continue
         label = route_ok(tab)
         if label is None:
@@ -324,6 +331,21 @@ def gui_app_list(console=None, client_id=None):
     out.sort(key=lambda a: (_group_rank(a["group"]), a["group"],
                             a["sort"], a["title"].lower()))
     return out
+
+
+def _scoped_here(app, console):
+    """Whether this app belongs on this console.
+
+    `"*"` means every SHIP console. The away console has to be named or opted into,
+    because a landing party carrying the fabricator is not a scoping bug anybody would
+    notice until it was on screen.
+    """
+    wanted = app.get("consoles")
+    if console == AWAY_CONSOLE:
+        return bool(app.get("away")) or (wanted is not None and AWAY_CONSOLE in wanted)
+    if wanted is None:
+        return True
+    return console is None or console in wanted
 
 
 def _group_rank(group):
