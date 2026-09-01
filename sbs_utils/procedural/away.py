@@ -494,6 +494,19 @@ def away_answer(client_id, index, seq=None, agent=None):
         # would reopen the same-frame race this exists to close.
         return False
 
+    # Tell the transcript what was said, and what was not. The beat's replies live
+    # here rather than on the message, so the inbox cannot work this out on its own -
+    # and an answered beat showing nothing is the transcript losing the half that
+    # matters. Best effort: a mission running without the inbox is unaffected.
+    try:
+        from .messages import message_answer_scene
+        message_answer_scene(from_key, choice.label,
+                             by=_name_of(actor),
+                             others=[c.label for c in choices
+                                     if c.label != choice.label])
+    except Exception:
+        pass
+
     scenes = _SCENE.get("scenes")
     if not choice.target:
         away_scene_end()
@@ -501,6 +514,17 @@ def away_answer(client_id, index, seq=None, agent=None):
         return True
     away_scene_begin(scenes, choice.target, speaker)
     return True
+
+
+def _name_of(lifeform_id):
+    """Who answered, for the transcript. The character, not the console - a console
+    speaking for two bodies would otherwise credit both to the primary."""
+    try:
+        from .query import to_object
+        who = to_object(lifeform_id)
+        return who.name if who is not None else "the away team"
+    except Exception:
+        return "the away team"
 
 
 def away_scene_count():

@@ -50,6 +50,25 @@ def _row_template(item):
     gui_text(f"$text:{_esc(subject)};font:gui-2;color:{tone};overflow:ellipsis;")
 
 
+FOLLOWED_VAR = "epadd_msg_followed"
+
+
+def _follow_once(live):
+    """Whether to move this console to `live` - true only the first time it is seen.
+
+    Without this the auto-follow fights the crew: the panel repaints on its own
+    counter, so every repaint dragged the selection back to the live beat and no
+    other message could be opened while a scene was running.
+    """
+    page = FrameContext.page
+    cid = getattr(page, "client_id", None) if page is not None else None
+    key = live.get("scene")
+    if get_inventory_value(cid, FOLLOWED_VAR, None) == key:
+        return False
+    set_inventory_value(cid, FOLLOWED_VAR, key)
+    return True
+
+
 def _live_beat(inbox):
     """The message carrying the away beat that is open right now, if any."""
     from ..away import away_scene
@@ -66,6 +85,29 @@ def _is_stale_beat(msg):
     return bool(msg.get("scene")) and msg.get("scene") != away_scene()
 
 
+def _answered_strip(answered):
+    """The decision, in place of the buttons.
+
+    A settled message must not still offer its replies - the press could only be
+    refused - but it must not go blank either: what was said IS the transcript. The
+    roads not taken are shown dimmed underneath, because a decision reads better
+    beside the options it was made against.
+    """
+    from .row import gui_row
+    from .text import gui_text
+
+    who = answered.get("by")
+    said = answered.get("label") or ""
+    lead = f"{who} said:" if who and who not in ("unknown",) else "You replied:"
+    gui_row("row-height: content; padding: 0, 12px, 0, 2px;")
+    gui_text(f"$text:{_esc(lead)};font:gui-1;color:{DIM};",
+             style="col-width: content;")
+    gui_text(f"$text:{_esc(said)};font:gui-3;color:{ACCENT};overflow:shrink;")
+    for other in (answered.get("others") or []):
+        gui_row("row-height: content; padding: 0, 2px, 0, 0;")
+        gui_text(f"$text:{_esc(other)};font:gui-1;color:#667;overflow:ellipsis;")
+
+
 def _reply_strip(msg):
     """The replies this message offers, or what was already chosen.
 
@@ -79,9 +121,7 @@ def _reply_strip(msg):
 
     answered = message_answered(msg.get("id"))
     if answered is not None:
-        gui_row("row-height: content; padding: 0, 12px, 0, 0;")
-        gui_text(f"$text:{_esc('You replied: ' + answered['label'])};"
-                 f"font:gui-1;color:{ACCENT};")
+        _answered_strip(answered)
         return
 
     if msg.get("scene"):
@@ -197,13 +237,16 @@ def gui_messages_screen(consoles=None, title="Messages"):
         chosen = message_selected()
         if chosen is not None:
             reading = next((m for m in inbox if m.get("id") == chosen), None)
-        # A conversation moves on. Answering a beat opens the next one, and a pick
-        # that stayed on the beat just answered would leave the team reading a
-        # question they have already settled while the new one sat unseen in the
-        # list. Follow the live beat ONLY from a stale one, so a letter somebody
-        # deliberately opened mid-scene is not yanked away from them.
+        # A conversation moves on: answering a beat opens the next one, and a pick
+        # left on the beat just answered would leave the team reading a settled
+        # question while the new one sat unseen.
+        #
+        # ONCE PER BEAT, THOUGH. Following on every repaint meant selecting anything
+        # else while a scene was open was undone immediately - the screen repaints on
+        # its own counter, so the pick was snatched back before it could be read. The
+        # console remembers the last beat it was moved to and does not do it twice.
         live = _live_beat(inbox)
-        if live is not None and (reading is None or _is_stale_beat(reading)):
+        if live is not None and _follow_once(live):
             reading = live
             message_select(live.get("id"))
         if reading is None and inbox:

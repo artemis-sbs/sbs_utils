@@ -94,8 +94,16 @@ class TestArbitration(ChoiceBase):
     def test_answering_records_the_choice_and_who_made_it(self):
         msg = self.ask()
         message_answer(msg["id"], 0, "helm")
-        self.assertEqual(message_answered(msg["id"]),
-                         {"label": "Hold", "by": "helm", "at": 0})
+        got = message_answered(msg["id"])
+        self.assertEqual(got["label"], "Hold")
+        self.assertEqual(got["by"], "helm")
+
+    def test_and_the_roads_not_taken(self):
+        """A settled message shows what was said INSTEAD of its buttons, and a
+        decision reads better beside the options it was made against."""
+        msg = self.ask()
+        message_answer(msg["id"], 0, "helm")
+        self.assertEqual(message_answered(msg["id"])["others"], ["Break off"])
 
     def test_A_SECOND_PRESS_IN_THE_SAME_FRAME_IS_REFUSED(self):
         """The property the whole design rests on. The seq moves BEFORE outcomes run,
@@ -445,3 +453,99 @@ class TestAConversationAdvances(ChoiceBase):
         self.answer()
         self.assertIsNone(self.A.away_scene() and None)
         self.assertEqual(len(message_inbox("away")), 3)
+
+
+class TestASettledBeatShowsWhatWasSaid(ChoiceBase):
+    """An answered beat must not still offer its replies - the press could only be
+    refused - but it must not go blank either. What was said IS the transcript."""
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural import away as away_mod
+        self.A = away_mod
+        away_mod.away_clear()
+        away_mod._TEAM.clear()
+        away_mod._TEAM[7] = [1]
+        self.addCleanup(away_mod.away_clear)
+        self.addCleanup(away_mod._TEAM.clear)
+        self.scenes = {
+            "door": {"key": "door", "display_text": "door", "data": {}, "children": [],
+                     "description": "The door is shut.\n\n"
+                                    "- [Knock](inside)\n- [Listen first](inside)\n"},
+            "inside": {"key": "inside", "display_text": "inside", "data": {},
+                       "children": [], "description": "It opens.\n"},
+        }
+        self.A.away_scene_begin(self.scenes, "door", speaker="The Keeper")
+
+    def test_the_beat_records_what_was_chosen(self):
+        beat = message_inbox("away")[0]
+        self.A.away_answer(7, 0, seq=self.A.away_seq(), agent=self.A.away_me(7))
+        got = message_answered(beat["id"])
+        self.assertIsNotNone(got, "an answered beat showed nothing at all")
+        self.assertEqual(got["label"], "Knock")
+
+    def test_and_what_was_not(self):
+        beat = message_inbox("away")[0]
+        self.A.away_answer(7, 0, seq=self.A.away_seq(), agent=self.A.away_me(7))
+        self.assertEqual(message_answered(beat["id"])["others"], ["Listen first"])
+
+    def test_a_beat_nobody_answered_records_nothing(self):
+        self.assertIsNone(message_answered(message_inbox("away")[0]["id"]))
+
+    def test_a_refused_pick_leaves_the_beat_unanswered(self):
+        """The token moves on a refusal, but nothing was decided."""
+        beat = message_inbox("away")[0]
+        self.A.away_answer(7, 99, seq=self.A.away_seq(), agent=self.A.away_me(7))
+        self.assertIsNone(message_answered(beat["id"]))
+
+
+class TestYouCanReadSomethingElse(ChoiceBase):
+    """Reported: "I could not select other messages while a choice was up."
+
+    The panel repaints on its own counter, and the auto-follow ran on EVERY repaint -
+    so a pick was dragged back to the live beat before it could be read. It follows a
+    beat once, the first time that console sees it.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural.gui import messages_gui
+        self.gui = messages_gui
+        from sbs_utils.procedural import away as away_mod
+        self.A = away_mod
+        away_mod.away_clear()
+        away_mod._TEAM.clear()
+        away_mod._TEAM[7] = [1]
+        self.addCleanup(away_mod.away_clear)
+        self.addCleanup(away_mod._TEAM.clear)
+        FrameContext.page = _Page("away", client_id=7)
+        from sbs_utils.gui import GuiClient
+        GuiClient(7)
+        scenes = {
+            "door": {"key": "door", "display_text": "door", "data": {},
+                     "children": [],
+                     "description": "Shut." + chr(10) * 2 + "- [Knock](inside)" + chr(10)},
+            "inside": {"key": "inside", "display_text": "inside", "data": {},
+                       "children": [], "description": "It opens." + chr(10)},
+        }
+        self.A.away_scene_begin(scenes, "door", speaker="The Keeper")
+
+    def test_a_beat_is_followed_the_first_time_it_is_seen(self):
+        live = self.gui._live_beat(message_inbox("away"))
+        self.assertTrue(self.gui._follow_once(live))
+
+    def test_and_NOT_on_every_repaint_after_that(self):
+        """The bug: five repaints a second, each one snatching the selection back."""
+        live = self.gui._live_beat(message_inbox("away"))
+        self.gui._follow_once(live)
+        for _ in range(5):
+            self.assertFalse(self.gui._follow_once(live),
+                             "the selection would be dragged back on every repaint")
+
+    def test_a_NEW_beat_is_followed_again(self):
+        live = self.gui._live_beat(message_inbox("away"))
+        self.gui._follow_once(live)
+        self.A.away_answer(7, 0, seq=self.A.away_seq(), agent=self.A.away_me(7))
+        nxt = self.gui._live_beat(message_inbox("away"))
+        self.assertIsNotNone(nxt)
+        self.assertTrue(self.gui._follow_once(nxt), "the conversation stopped moving")

@@ -526,7 +526,11 @@ def message_answer(mid, index, console=None, seq=None):
         _save(msgs)                      # the token still moved; hail.py:451 does this
         return None
     msg["answered"] = {"label": chosen["label"], "by": console or "unknown",
-                       "at": _stamp()}
+                       "at": _stamp(),
+                       # What was NOT said. A decision reads better beside the
+                       # options it was made against.
+                       "others": [c["label"] for c in offered
+                                  if c["label"] != chosen["label"]]}
     _save(msgs)
     message_bump()
 
@@ -552,6 +556,25 @@ def _reply_to(msg):
     thread stays with the same people. An announcement is replied to in public."""
     to = msg.get("to")
     return "*" if to is None else ",".join(sorted(to))
+
+
+def message_answer_scene(scene_key, label, by=None, others=None):
+    """Record what an away beat was answered with.
+
+    The beat's replies live in away.py, not on the message, so the message cannot
+    know on its own that it has been settled - and an answered beat that still showed
+    live buttons, or showed nothing at all, is the transcript losing the half that
+    matters. Called by `away_answer` once a pick has actually been applied.
+    """
+    msgs = _all()
+    msg = next((m for m in reversed(msgs) if m.get("scene") == scene_key), None)
+    if msg is None or msg.get("answered") is not None:
+        return None
+    msg["answered"] = {"label": label, "by": by or "the away team", "at": _stamp(),
+                       "others": list(others or [])}
+    _save(msgs)
+    message_bump()
+    return msg
 
 
 def message_answered(mid):
