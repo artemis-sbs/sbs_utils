@@ -133,7 +133,7 @@ def gui_app_mode_is_on(client_id=None):
 # --- registration -----------------------------------------------------------------
 
 def gui_app_register(tab, title=None, icon=None, consoles="*", group=None, sort=100,
-                     description=None):
+                     description=None, status=None):
     """Present an existing `//gui/tab/<tab>` route as an ePADD app.
 
     The route is not touched and keeps its own `if` condition, which is still what
@@ -142,6 +142,12 @@ def gui_app_register(tab, title=None, icon=None, consoles="*", group=None, sort=
     Args:
         tab (str): the `//gui/tab/` path this app opens.
         title (str, optional): the tile's name. Defaults to the tab path, title-cased.
+        status (callable | str, optional): a short live value for the tile's badge -
+            "3 unread", "2 building", "42/60". A callable is called at build time and
+            anything it raises is swallowed, because a badge must never be able to
+            take the home screen down with it. This is what the crew read WITHOUT
+            opening anything, and it is why the apps that carry live state do not each
+            need a panel of their own.
         icon (str, optional): an icon NAME for `gui_icon_name` - a meaning or a look,
             never a sheet index. An unknown name draws nothing and says so once, so an
             app can be registered before its art exists.
@@ -164,6 +170,7 @@ def gui_app_register(tab, title=None, icon=None, consoles="*", group=None, sort=
         "group": group if group else "Mission",
         "sort": sort,
         "description": description,
+        "status": status,
         "adopted": False,
     }
     _save(apps)
@@ -308,6 +315,7 @@ def gui_app_list(console=None, client_id=None):
             "group": ADOPTED_GROUP,
             "sort": 100,
             "description": None,
+            "status": None,
             "adopted": True,
             "label": label,
         })
@@ -449,6 +457,22 @@ def gui_app_chrome(title, subtitle=None, home_text="HOME", on_home=None):
         gui_blank()
 
 
+def gui_app_badge(app):
+    """An app's live badge, as text. Never raises: a provider that throws is reported
+    once by the log and the tile draws without one."""
+    provider = app.get("status")
+    if provider is None:
+        return None
+    try:
+        value = provider() if callable(provider) else provider
+    except Exception:
+        from ..execution import log
+        log(f"status provider for {app.get('tab')!r} raised", "epadd", "warning")
+        return None
+    value = "" if value is None else str(value).strip()
+    return value or None
+
+
 def _tile(app, dense):
     """One app tile: a clickable panel holding its icon, name and description.
 
@@ -486,6 +510,10 @@ def _tile(app, dense):
         # height from every other tile, and the engine does not clip - the second
         # line draws over the description.
         gui_text(f"$text:{_esc(title)};font:gui-4;overflow:shrink;")
+        badge = gui_app_badge(app)
+        if badge:
+            gui_text(f"$text:{_esc(badge)};font:gui-1;color:{ACCENT};",
+                     style="col-width: content;")
         if not dense and app.get("description"):
             gui_row("row-height: content;")
             gui_text(f"$text:{_esc(app['description'])};font:gui-1;color:{DIM};")

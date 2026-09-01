@@ -411,6 +411,12 @@ register_reset_state("mod face registry", _face_mod_size)
 # this should always report 0 - registered so a future move off SHARED cannot go unnoticed.
 from .procedural.gui.epadd import _apps_count as _epadd_apps_count
 register_reset_state("ePADD apps", _epadd_apps_count)
+# Both live on Agent.SHARED, which clear_shared() rebuilds - registered so a future
+# move off SHARED cannot leave a party's mail in the next mission.
+from .procedural.messages import messages_count as _messages_count
+from .procedural.messages import message_pending_count as _messages_pending
+register_reset_state("messages", _messages_count)
+register_reset_state("messages pending", _messages_pending)
 # TWO probes, not one: declared rosters and occupied seats leak for different reasons, and a
 # single probe covering both cannot say which of them happened.
 from .procedural.crew import crew_count as _crew_count
