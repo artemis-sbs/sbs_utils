@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <style>
-  /* The ePADD icon sheet: 4 x 4 cells of 128px = 512 x 512.
+  /* The ePADD icon sheet: 4 x 5 cells of 128px = 512 x 640.
      White on transparent, matching data/graphics/grid-icon-sheet.png, so a
      style string's `color:` does all the tinting - one glyph, every state.
      Drawn flat and geometric to sit with Goldman's squared letterforms,
@@ -82,12 +82,12 @@
     <path d="M16 5l-4 7 6 3-5 5 4 7"></path>
   </svg>
 
-  <!-- 9 hangar: an open bay with a craft on the deck -->
+  <!-- 9 hangar -->
   <svg viewBox="0 0 32 32" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter">
-    <path d="M3 27V11l13-6 13 6v16"></path>
+    <path d="M3 5h26v18H3z"></path>
     <path d="M3 27h26"></path>
-    <path d="M10 27v-9h12v9"></path>
-    <path d="M16 18v9"></path>
+    <path d="M12 5v18M20 5v18"></path>
+    <path d="M12 9l-5 5 5 5M20 9l5 5-5 5"></path>
   </svg>
 
   <!-- 10 comms log: a hail bubble with entries -->
@@ -96,12 +96,12 @@
     <path d="M9 12h14M9 16h9"></path>
   </svg>
 
-  <!-- 11 standings: a balance -->
+  <!-- 11 standings -->
   <svg viewBox="0 0 32 32" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter">
-    <path d="M16 5v22"></path>
-    <path d="M8 27h16"></path>
-    <path d="M5 9h22"></path>
-    <path d="M5 9l-3 8h6zM27 9l-3 8h6z"></path>
+    <path d="M4 27h24"></path>
+    <path d="M7 27V19h5v8"></path>
+    <path d="M13.5 27V11h5v16"></path>
+    <path d="M20 27V15h5v12"></path>
   </svg>
 
   <!-- 12 debug: a lens over a circuit node -->
@@ -134,6 +134,22 @@
     <path d="M10 10l2.5 2.5L17 8" stroke-linecap="round"></path>
     <path d="M10 20l2.5 2.5L17 18" stroke-linecap="round"></path>
     <path d="M20 11h3M20 21h3"></path>
+  </svg>
+
+  <!-- 16 messages: an envelope. `comms_log` is already the speech bubble, and these
+       are letters from home as much as they are texts between consoles. -->
+  <svg viewBox="0 0 32 32" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M3 7h26v18H3z"></path>
+    <path d="M3 7l13 10L29 7"></path>
+    <path d="M3 25l9-8M29 25l-9-8"></path>
+  </svg>
+
+  <!-- 17 status: a gauge. What the crew read at a glance, so it reads as a reading. -->
+  <svg viewBox="0 0 32 32" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M4 24a12 12 0 0 1 24 0"></path>
+    <path d="M4 24h6M22 24h6"></path>
+    <path d="M16 24L23 14" stroke-linecap="round"></path>
+    <path d="M8.5 15.5l2 2M16 10v3M23.5 15.5l-2 2"></path>
   </svg>
 
 </div>
