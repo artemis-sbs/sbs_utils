@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+@@STYLE@@
+    body { height: 620px; }
+    .pane { position: relative; height: 250px; margin: 0 0 30px 0; }
+    .caption { position: absolute; left: 40px; top: 0; width: 340px; }
+    .caption h2 { margin: 0 0 8px 0; font-family: var(--display); font-weight: 700;
+                  font-size: 28px; letter-spacing: .16em; }
+    .caption p { margin: 0; font-size: 22px; line-height: 1.3; color: var(--dim); }
+    .caption .bad { color: var(--warn); }
+    .caption .ok  { color: var(--good); }
+    .strip.crowded { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+    .body-hint { position: absolute; left: 20%; right: 0; top: 55px; bottom: 0;
+                 background: var(--panel); border: 1px solid var(--hair);
+                 display: flex; align-items: center; justify-content: center;
+                 font-size: 22px; letter-spacing: .16em; color: rgba(153,170,187,.45); }
+    .ruler { position: absolute; left: 20%; right: 0; top: 40px; height: 14px;
+             border-left: 1px solid var(--hair); border-right: 1px solid var(--hair); }
+    .ruler span { position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
+                  font-size: 18px; color: var(--dim); background: var(--ground); padding: 0 8px; }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 1920px; height: 620px; padding-top: 30px;">
+
+  <div class="pane">
+    <div class="caption">
+      <h2 class="bad">TODAY</h2>
+      <p>Engineering in a dev build with lore registered: seven tabs plus the console
+        back button, all eight slots spent. A ninth rolls into a <em>More (n)</em>
+        dropdown. Order is .mast load order, reversed - it cannot be chosen.</p>
+    </div>
+    <div class="strip crowded" style="top: 0;">
+      <div class="slot"><div class="tab">debug</div></div>
+      <div class="slot"><div class="tab">cargo</div></div>
+      <div class="slot"><div class="tab">fabricate</div></div>
+      <div class="slot"><div class="tab">upgrade</div></div>
+      <div class="slot"><div class="tab">quest</div></div>
+      <div class="slot"><div class="tab">library</div></div>
+      <div class="slot"><div class="tab">help</div></div>
+      <div class="slot"><div class="tab back">engineering</div></div>
+    </div>
+    <div class="ruler"><span>8 of 8 slots - 192px each</span></div>
+    <div class="body-hint" style="top: 90px;">CONSOLE BODY</div>
+  </div>
+
+  <div class="pane">
+    <div class="caption">
+      <h2 class="ok">ePADD</h2>
+      <p>One button. Everything the strip carried moves inside it, grouped and named
+        properly, scoped to the station that should see it. The console back button
+        keeps its place and its color.</p>
+    </div>
+    <div class="strip" style="top: 0;">
+      <div class="slot"></div>
+      <div class="slot"></div>
+      <div class="slot"></div>
+      <div class="slot"></div>
+      <div class="slot"><div class="tab">ePADD</div></div>
+      <div class="slot"><div class="tab back">engineering</div></div>
+    </div>
+    <div class="ruler"><span>2 of 6 slots - 256px each</span></div>
+    <div class="body-hint" style="top: 90px;">CONSOLE BODY</div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1920, "height": 620}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>

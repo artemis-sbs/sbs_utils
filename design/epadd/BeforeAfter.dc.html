@@ -1,0 +1,174 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap');
+    /* Cosmos console vocabulary, lifted from the engine + LM sources:
+       fonts GoldmanSansCd_Rg / Goldman-Bold, sizes gui-1..6 = 22/24/28/32/36/52,
+       panels background:#1572 and headers #1578, tab strip #333 / back #999.
+       Goldman is the same family on Google Fonts; Barlow Semi Condensed stands in
+       for GoldmanSansCd_Rg, which is not published there. */
+    :root {
+      --ground:      #0a1420;
+      --panel:       rgba(17, 85, 119, 0.13);   /* #1572 */
+      --panel-hi:    rgba(17, 85, 119, 0.33);   /* #1575 */
+      --panel-head:  rgba(17, 85, 119, 0.53);   /* #1578 */
+      --hair:        rgba(136, 204, 255, 0.16);
+      --text:        #ffffff;
+      --dim:         #9ab;
+      --accent:      #8cf;
+      --good:        #8f8;
+      --warn:        #ffd76a;
+      --alert:       #f55;
+      --strip:       #333333;
+      --strip-back:  #999999;
+      --display: 'Goldman', 'Goldman-Bold', system-ui, sans-serif;
+      --body: 'Barlow Semi Condensed', 'GoldmanSansCd_Rg', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; width: 1920px; height: 1080px; overflow: hidden;
+      background-color: var(--ground);
+      /* the faint tile field the console paints behind every panel */
+      background-image:
+        repeating-linear-gradient(90deg, rgba(255,255,255,.018) 0 1px, transparent 1px 160px),
+        repeating-linear-gradient(0deg,  rgba(255,255,255,.018) 0 1px, transparent 1px 160px),
+        radial-gradient(120% 90% at 22% 8%, rgba(30,72,110,.34), transparent 62%);
+      color: var(--text);
+      font-family: var(--body);
+      font-size: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: #bdf; }
+
+    /* --- the engine tab strip: Layout(20,0,100,3), row-height 35px --------- */
+    .strip { position: absolute; left: 20%; top: 0; width: 80%; height: 35px;
+             display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .strip .slot { margin: 1px 0 0 0; }
+    .strip .tab  { height: 34px; display: flex; align-items: center; justify-content: center;
+                   background: var(--strip); color: #000; font-family: var(--body);
+                   font-size: 24px; font-weight: 600; letter-spacing: .02em; }
+    .strip .tab.back { background: var(--strip-back); }
+
+    /* --- PADD chrome ------------------------------------------------------- */
+    .padd { position: absolute; left: 0; top: 45px; width: 1920px; height: 1035px;
+            display: flex; flex-direction: column; }
+    .padd-bar { height: 64px; flex: 0 0 auto; display: flex; align-items: center; gap: 24px;
+                padding: 0 40px; background: var(--panel-head);
+                border-bottom: 1px solid var(--hair); }
+    .mark { font-family: var(--display); font-weight: 700; font-size: 32px;
+            letter-spacing: .06em; color: var(--text); }
+    .mark em { font-style: normal; color: var(--accent); }
+    .bar-dim { font-size: 22px; color: var(--dim); letter-spacing: .04em; }
+    .bar-right { margin-left: auto; display: flex; align-items: center; gap: 28px; }
+    .pill { font-family: var(--display); font-size: 22px; letter-spacing: .10em;
+            padding: 4px 14px; color: var(--ground); background: var(--good); }
+    .pill.red { background: var(--alert); color: #fff; }
+
+    /* --- app grid ---------------------------------------------------------- */
+    .sheet { flex: 1 1 auto; padding: 36px 96px 0 96px; display: flex;
+             flex-direction: column; gap: 30px; }
+    .group-head { display: flex; align-items: center; gap: 20px; }
+    .group-head h2 { margin: 0; font-family: var(--display); font-weight: 700;
+                     font-size: 24px; letter-spacing: .18em; color: var(--accent);
+                     text-transform: uppercase; }
+    .group-head .rule { flex: 1 1 auto; height: 1px; background: var(--hair); }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; }
+    /* sc-if may introduce a wrapper around a tile; make either shape fill its cell. */
+    .grid > * { min-width: 0; display: flex; }
+    .grid > * > .tile { flex: 1 1 auto; }
+    .tile { width: 100%; display: flex; align-items: center; gap: 24px; padding: 26px 28px;
+            background: var(--panel); border: 1px solid var(--hair);
+            cursor: pointer; text-align: left; color: inherit; font: inherit;
+            transition: background .12s, border-color .12s; }
+    .tile:hover { background: var(--panel-hi); border-color: rgba(136,204,255,.42); }
+    /* icons come from the ePADD sheet, sliced per app - see design/epadd/sheet.html */
+    .tile .ico { flex: 0 0 auto; width: 72px; height: 72px; display: block;
+                 object-fit: contain; image-rendering: auto; }
+    .tile .lbl { min-width: 0; }
+    .tile h3 { margin: 0 0 4px 0; font-family: var(--display); font-weight: 700;
+               font-size: 32px; line-height: 1.05; letter-spacing: .01em; color: var(--text); }
+    .tile p  { margin: 0; font-size: 22px; line-height: 1.2; color: var(--dim); }
+    .exit { padding: 0 96px 26px 96px; display: flex; justify-content: flex-end; }
+    .exit button { background: none; border: 1px solid var(--hair); color: var(--dim);
+                   font-family: var(--display); font-size: 22px; letter-spacing: .12em;
+                   padding: 10px 22px; cursor: pointer; }
+    .exit button:hover { color: var(--text); border-color: var(--accent); }
+
+    body { height: 620px; }
+    .pane { position: relative; height: 250px; margin: 0 0 30px 0; }
+    .caption { position: absolute; left: 40px; top: 0; width: 340px; }
+    .caption h2 { margin: 0 0 8px 0; font-family: var(--display); font-weight: 700;
+                  font-size: 28px; letter-spacing: .16em; }
+    .caption p { margin: 0; font-size: 22px; line-height: 1.3; color: var(--dim); }
+    .caption .bad { color: var(--warn); }
+    .caption .ok  { color: var(--good); }
+    .strip.crowded { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+    .body-hint { position: absolute; left: 20%; right: 0; top: 55px; bottom: 0;
+                 background: var(--panel); border: 1px solid var(--hair);
+                 display: flex; align-items: center; justify-content: center;
+                 font-size: 22px; letter-spacing: .16em; color: rgba(153,170,187,.45); }
+    .ruler { position: absolute; left: 20%; right: 0; top: 40px; height: 14px;
+             border-left: 1px solid var(--hair); border-right: 1px solid var(--hair); }
+    .ruler span { position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
+                  font-size: 18px; color: var(--dim); background: var(--ground); padding: 0 8px; }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 1920px; height: 620px; padding-top: 30px;">
+
+  <div class="pane">
+    <div class="caption">
+      <h2 class="bad">TODAY</h2>
+      <p>Engineering in a dev build with lore registered: seven tabs plus the console
+        back button, all eight slots spent. A ninth rolls into a <em>More (n)</em>
+        dropdown. Order is .mast load order, reversed - it cannot be chosen.</p>
+    </div>
+    <div class="strip crowded" style="top: 0;">
+      <div class="slot"><div class="tab">debug</div></div>
+      <div class="slot"><div class="tab">cargo</div></div>
+      <div class="slot"><div class="tab">fabricate</div></div>
+      <div class="slot"><div class="tab">upgrade</div></div>
+      <div class="slot"><div class="tab">quest</div></div>
+      <div class="slot"><div class="tab">library</div></div>
+      <div class="slot"><div class="tab">help</div></div>
+      <div class="slot"><div class="tab back">engineering</div></div>
+    </div>
+    <div class="ruler"><span>8 of 8 slots - 192px each</span></div>
+    <div class="body-hint" style="top: 90px;">CONSOLE BODY</div>
+  </div>
+
+  <div class="pane">
+    <div class="caption">
+      <h2 class="ok">ePADD</h2>
+      <p>One button. Everything the strip carried moves inside it, grouped and named
+        properly, scoped to the station that should see it. The console back button
+        keeps its place and its color.</p>
+    </div>
+    <div class="strip" style="top: 0;">
+      <div class="slot"></div>
+      <div class="slot"></div>
+      <div class="slot"></div>
+      <div class="slot"></div>
+      <div class="slot"><div class="tab">ePADD</div></div>
+      <div class="slot"><div class="tab back">engineering</div></div>
+    </div>
+    <div class="ruler"><span>2 of 6 slots - 256px each</span></div>
+    <div class="body-hint" style="top: 90px;">CONSOLE BODY</div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1920, "height": 620}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>

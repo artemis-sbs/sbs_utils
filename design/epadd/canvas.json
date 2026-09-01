@@ -1,0 +1,79 @@
+{
+  "artboards": [
+    {
+      "file": "BeforeAfter.dc.html",
+      "title": "The problem",
+      "x": 0,
+      "y": 0,
+      "w": 1920,
+      "h": 620
+    },
+    {
+      "file": "Main.dc.html",
+      "title": "ePADD home - Engineering",
+      "x": 0,
+      "y": 800,
+      "w": 1920,
+      "h": 1080,
+      "is_interactive": true
+    },
+    {
+      "file": "HomeHelm.dc.html",
+      "title": "ePADD home - Helm",
+      "x": 2080,
+      "y": 800,
+      "w": 1920,
+      "h": 1080
+    },
+    {
+      "file": "AppCargo.dc.html",
+      "title": "Cargo, open",
+      "x": 4160,
+      "y": 800,
+      "w": 1920,
+      "h": 1080
+    },
+    {
+      "file": "ManyApps.dc.html",
+      "title": "Twelve apps and up",
+      "x": 0,
+      "y": 2100,
+      "w": 1920,
+      "h": 1080
+    },
+    {
+      "file": "Spec.dc.html",
+      "title": "Build sheet",
+      "x": 0,
+      "y": 3400,
+      "w": 1920,
+      "h": 2020
+    }
+  ],
+  "annotations": [
+    {
+      "id": "n-problem",
+      "x": 0,
+      "y": -180,
+      "w": 900,
+      "text": "Engineering in a dev build spends all eight strip slots before anything else is added. Order is .mast load order, reversed - it cannot be chosen."
+    },
+    {
+      "id": "n-main",
+      "x": 0,
+      "y": 640,
+      "w": 900,
+      "text": "The direction. Click a tile to open it - the app view shows what ePADD supplies and what it does not. Station and dev build are tweak chips above the artboard."
+    },
+    {
+      "id": "n-spec",
+      "x": 0,
+      "y": 3240,
+      "w": 900,
+      "text": "Every number lifted from the engine or from LM, with three things the implementation has to get right."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

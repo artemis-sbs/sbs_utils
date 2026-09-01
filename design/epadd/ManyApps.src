@@ -1,0 +1,145 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+@@STYLE@@
+    /* Compact tiles: the rule for a console carrying more than 12 apps.
+       Same panel, same hairline, icon over title, six to a row. */
+    .grid.compact { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 22px; }
+    .grid.compact .tile { flex-direction: column; align-items: flex-start; gap: 14px;
+                          padding: 22px 22px 20px 22px; }
+    .grid.compact .tile .ico { width: 52px; height: 52px; }
+    .grid.compact .tile h3 { font-size: 26px; }
+    .grid.compact .tile p { font-size: 20px; }
+    .sheet.dense { gap: 24px; padding-top: 28px; }
+    .note { margin: 0 96px; padding: 20px 26px; border-left: 3px solid var(--accent);
+            background: rgba(17,85,119,.10); color: var(--dim); font-size: 22px; line-height: 1.35; }
+    .note b { color: var(--text); font-weight: 600; }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 1920px; height: 1080px;">
+
+  <div class="strip">
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"><div class="tab">ePADD</div></div>
+    <div class="slot"><div class="tab back">engineering</div></div>
+  </div>
+
+  <div class="padd">
+    <div class="padd-bar">
+      <div class="mark">e<em>PADD</em></div>
+      <div class="bar-dim">TSN Artemis</div>
+      <div class="bar-right">
+        <div class="bar-dim">ENGINEERING - DEV BUILD</div>
+        <div class="bar-dim">14:32</div>
+        <div class="pill red">RED ALERT</div>
+      </div>
+    </div>
+
+    <div class="sheet dense">
+
+      <div>
+        <div class="group-head"><h2>Ship</h2><div class="rule"></div></div>
+        <div class="grid compact" style="margin-top: 18px;">
+          <button class="tile">
+            <img class="ico" src="epadd-cargo.png" alt="">
+            <span class="lbl"><h3>Cargo</h3><p>Hold manifest</p></span>
+          </button>
+          <button class="tile">
+            <img class="ico" src="epadd-fabricate.png" alt="">
+            <span class="lbl"><h3>Fabricate</h3><p>Build queue</p></span>
+          </button>
+          <button class="tile">
+            <img class="ico" src="epadd-upgrades.png" alt="">
+            <span class="lbl"><h3>Upgrades</h3><p>Refits</p></span>
+          </button>
+          <button class="tile">
+            <img class="ico" src="epadd-airwing.png" alt="">
+            <span class="lbl"><h3>Airwing</h3><p>Sortie board</p></span>
+          </button>
+          <button class="tile">
+            <img class="ico" src="epadd-damage.png" alt="">
+            <span class="lbl"><h3>Damage</h3><p>Repair queue</p></span>
+          </button>
+          <button class="tile">
+            <img class="ico" src="epadd-hangar.png" alt="">
+            <span class="lbl"><h3>Hangar</h3><p>Deck status</p></span>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div class="group-head"><h2>Mission</h2><div class="rule"></div></div>
+        <div class="grid compact" style="margin-top: 18px;">
+          <button class="tile">
+            <img class="ico" src="epadd-quests.png" alt="">
+            <span class="lbl"><h3>Quests</h3><p>3 running</p></span>
+          </button>
+          <button class="tile">
+            <img class="ico" src="epadd-library.png" alt="">
+            <span class="lbl"><h3>Library</h3><p>Codex</p></span>
+          </button>
+          <button class="tile">
+            <img class="ico" src="epadd-help.png" alt="">
+            <span class="lbl"><h3>Help</h3><p>Reference</p></span>
+          </button>
+          <button class="tile">
+            <img class="ico" src="epadd-comms_log.png" alt="">
+            <span class="lbl"><h3>Comms log</h3><p>Hail history</p></span>
+          </button>
+          <button class="tile">
+            <img class="ico" src="epadd-standings.png" alt="">
+            <span class="lbl"><h3>Standings</h3><p>Faction ties</p></span>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div class="group-head"><h2>Systems</h2><div class="rule"></div></div>
+        <div class="grid compact" style="margin-top: 18px;">
+          <button class="tile">
+            <img class="ico" src="epadd-debug.png" alt="">
+            <span class="lbl"><h3>Debug</h3><p>Dev build</p></span>
+          </button>
+          <button class="tile">
+            <img class="ico" src="epadd-mast.png" alt="">
+            <span class="lbl"><h3>MAST</h3><p>Task list</p></span>
+          </button>
+          <button class="tile">
+            <img class="ico" src="epadd-brain.png" alt="">
+            <span class="lbl"><h3>Brain scan</h3><p>NPC state</p></span>
+          </button>
+          <button class="tile">
+            <img class="ico" src="epadd-coverage.png" alt="">
+            <span class="lbl"><h3>Coverage</h3><p>Label hits</p></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="note">
+        <b>Past twelve apps the tiles go compact</b> - icon over title, six to a row - rather
+        than paging or scrolling. Groups do the work the <em>More (n)</em> dropdown used to do,
+        and unlike that dropdown nothing is hidden.
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1920, "height": 1080}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+@@STYLE@@
+    .note { margin: 8px 96px 0 96px; padding: 22px 26px; border-left: 3px solid var(--accent);
+            background: rgba(17,85,119,.10); color: var(--dim); font-size: 22px; line-height: 1.35; }
+    .note b { color: var(--text); font-weight: 600; }
+    .note code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 20px;
+                 color: var(--accent); }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 1920px; height: 1080px;">
+
+  <div class="strip">
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"><div class="tab">ePADD</div></div>
+    <div class="slot"><div class="tab back">helm</div></div>
+  </div>
+
+  <div class="padd">
+    <div class="padd-bar">
+      <div class="mark">e<em>PADD</em></div>
+      <div class="bar-dim">TSN Artemis</div>
+      <div class="bar-right">
+        <div class="bar-dim">HELM</div>
+        <div class="bar-dim">14:32</div>
+        <div class="pill">CONDITION GREEN</div>
+      </div>
+    </div>
+
+    <div class="sheet">
+      <div>
+        <div class="group-head"><h2>Mission</h2><div class="rule"></div></div>
+        <div class="grid" style="margin-top: 22px;">
+
+          <button class="tile">
+            <img class="ico" src="epadd-quests.png" alt="">
+            <span class="lbl"><h3>Quests</h3><p>Jobs offered, taken and running</p></span>
+          </button>
+
+          <button class="tile">
+            <img class="ico" src="epadd-library.png" alt="">
+            <span class="lbl"><h3>Library</h3><p>Codex, lore and ship records</p></span>
+          </button>
+
+          <button class="tile">
+            <img class="ico" src="epadd-help.png" alt="">
+            <span class="lbl"><h3>Help</h3><p>How this console works</p></span>
+          </button>
+
+        </div>
+      </div>
+
+      <div class="note">
+        <b>Helm registers no ship apps today</b>, so only the Mission group renders and the
+        Ship heading is not drawn at all. That is the honest current state, not a gap in the
+        design - Cargo, Fabricate and Upgrades belong to Engineering. A mission that wants a
+        Helm app adds one line: <code>gui_app_register("navplan", consoles="helm")</code>.
+      </div>
+    </div>
+
+    <div class="exit">
+      <button>RETURN TO HELM</button>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1920, "height": 1080}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>
