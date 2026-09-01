@@ -1,0 +1,7 @@
+# The seeded canvas is a build artifact: ~2.6MB, because the design-canvas editor is
+# baked into every published copy. Regenerate it from the .src files, canvas.json and
+# the icon PNGs rather than committing it.
+epadd-console-tablet.html
+
+# Contact sheets and tint previews used while drawing the icon sheet.
+_*.png

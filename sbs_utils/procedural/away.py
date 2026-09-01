@@ -42,6 +42,7 @@ Stdlib only; no threading. Safe to call with no MAST context.
 from .amd_dialogue import (dialogue_parse, dialogue_get, dialogue_choices, dialogue_pick_line,
                            dialogue_apply, dialogue_register_outcome,
                            dialogue_set_metric_resolver)
+from ..agent import Agent
 from .query import to_id
 from .roles import has_role, get_role_list
 from .signal import signal_emit
@@ -317,7 +318,45 @@ def away_scene_begin(scenes, key, speaker=None):
     })
     # Picked ONCE, here, so every console is told the same thing. See the module docstring.
     _SCENE["line"] = dialogue_pick_line(parsed, None, _SCENE["speaker"])
+    _mirror_to_inbox()
     return key
+
+
+# The away team's only channel to the ship has always been the shared main screen,
+# read-only. Mirroring each beat into the inbox gives them a transcript they can scroll
+# and, through the reply strip, a place to answer from - without touching the away
+# console, which keeps rendering the scene exactly as it did.
+MIRROR_TO_INBOX = True
+
+
+def away_mirror_to_inbox(on=True):
+    """Whether each beat also arrives as a message. On by default; a mission whose
+    away play is entirely on the away console can turn it off."""
+    global MIRROR_TO_INBOX
+    MIRROR_TO_INBOX = bool(on)
+
+
+def _mirror_to_inbox():
+    """Post the current beat to the away team's inbox.
+
+    The message carries the LINE only. Its replies are asked of `away_choices` when
+    the inbox draws them, because they differ per character and `away_answer` already
+    arbitrates them - a copy on the message would be a second, competing path over
+    one scene.
+    """
+    if not MIRROR_TO_INBOX:
+        return
+    line = _SCENE.get("line")
+    if not line:
+        return
+    try:
+        from .messages import message_send
+        message_send(str(line), to="away", kind="scene",
+                     sender=_SCENE.get("speaker") or "Away",
+                     subject=_SCENE.get("key"), scene=_SCENE.get("key"))
+    except Exception:
+        from .execution import log
+        log("could not mirror an away beat to the inbox", "away", "warning")
 
 
 def away_scene_end():
@@ -456,6 +495,19 @@ def away_answer(client_id, index, seq=None, agent=None):
         # would reopen the same-frame race this exists to close.
         return False
 
+    # Tell the transcript what was said, and what was not. The beat's replies live
+    # here rather than on the message, so the inbox cannot work this out on its own -
+    # and an answered beat showing nothing is the transcript losing the half that
+    # matters. Best effort: a mission running without the inbox is unaffected.
+    try:
+        from .messages import message_answer_scene
+        message_answer_scene(from_key, choice.label,
+                             by=_name_of(actor),
+                             others=[c.label for c in choices
+                                     if c.label != choice.label])
+    except Exception:
+        pass
+
     scenes = _SCENE.get("scenes")
     if not choice.target:
         away_scene_end()
@@ -463,6 +515,17 @@ def away_answer(client_id, index, seq=None, agent=None):
         return True
     away_scene_begin(scenes, choice.target, speaker)
     return True
+
+
+def _name_of(lifeform_id):
+    """Who answered, for the transcript. The character, not the console - a console
+    speaking for two bodies would otherwise credit both to the primary."""
+    try:
+        from .query import to_object
+        who = to_object(lifeform_id)
+        return who.name if who is not None else "the away team"
+    except Exception:
+        return "the away team"
 
 
 def away_scene_count():
@@ -475,4 +538,119 @@ def away_clear():
     away_team_clear()
     _SCENE.clear()
     _FACTS.clear()
+    away_invite_clear()
     away_metric_uninstall()
+
+
+# --- the invitation: a party you JOIN, rather than one you are dealt ----------------
+#
+# The original flow dealt characters round-robin across every console on the ship and
+# rerouted all of them in one go. That works, and it takes the choice away: a console
+# was on the surface before anybody at it had agreed to go, playing whoever the loop
+# reached. An invitation is the same information, offered instead of applied - the
+# mission says a party is forming and who is available, and each console decides.
+#
+# It also makes the surplus honest. Dealing had to double consoles up or strand
+# characters; with an invitation, whoever wants to go takes somebody, and anyone left
+# at their post simply stays there.
+
+INVITE_KEY = "__AWAY_INVITE__"
+
+
+def away_invite(ship, roster, title=None):
+    """Open a landing party. Nobody moves until a console beams down.
+
+    Args:
+        ship: the ship the party leaves from.
+        roster (list): the lifeforms available to play, in offer order.
+        title (str, optional): what this place is called on screen.
+
+    Returns:
+        dict: the invitation.
+    """
+    invite = {
+        "ship": to_id(ship),
+        "roster": [to_id(m) for m in (roster or []) if to_id(m)],
+        "title": title or "AWAY TEAM",
+        "open": True,
+    }
+    Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
+    return invite
+
+
+def away_invitation():
+    """The open invitation, or None."""
+    invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
+    return invite if isinstance(invite, dict) and invite.get("open") else None
+
+
+def away_invite_close():
+    """Stop offering places. Anyone already down stays down."""
+    invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
+    if isinstance(invite, dict):
+        invite["open"] = False
+        Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
+
+
+def away_invite_title():
+    invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
+    return (invite or {}).get("title") or "AWAY TEAM"
+
+
+def away_invite_ship():
+    invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
+    return (invite or {}).get("ship")
+
+
+def away_open_roster():
+    """The characters nobody has taken yet, in the order they were offered."""
+    invite = away_invitation()
+    if invite is None:
+        return []
+    taken = away_team()
+    return [m for m in invite.get("roster") or [] if m not in taken]
+
+
+def away_beam_down(client_id, lifeform=None):
+    """Take a place in the landing party.
+
+    Args:
+        client_id: the console volunteering.
+        lifeform (optional): who to play. Defaults to the first character still free,
+            so a console can simply say yes.
+
+    Returns:
+        The lifeform taken, or None when the invitation is closed or nobody is left -
+        which a caller shows as "the party is full" rather than treating as an error.
+    """
+    if away_invitation() is None:
+        return None
+    free = away_open_roster()
+    if lifeform is None:
+        lifeform = free[0] if free else None
+    else:
+        lifeform = to_id(lifeform)
+        if lifeform not in free:
+            return None                  # somebody else took them first
+    if lifeform is None:
+        return None
+    away_assign(client_id, lifeform)
+    return lifeform
+
+
+def away_beam_up(client_id):
+    """Leave the surface. The console's own screen is the caller's business - this
+    releases the character so somebody else could take them."""
+    if not away_held(client_id):
+        return False
+    away_assign(client_id, None)
+    return True
+
+
+def away_invite_clear():
+    Agent.SHARED.set_inventory_value(INVITE_KEY, None)
+
+
+def away_invite_count():
+    """Reset-ledger probe."""
+    return 1 if Agent.SHARED.get_inventory_value(INVITE_KEY, None) else 0

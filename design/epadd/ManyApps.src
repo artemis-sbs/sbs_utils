@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+@@STYLE@@
+    /* What the PADD does when the tiles do not fit: the same apps as a scrolling
+       list with collapsible group headers. The switch is about the SCREEN, not a
+       count - gui_app_home works the rows out against the client's real height. */
+    .listwrap { flex: 1 1 auto; margin: 24px 40px 40px 40px; display: flex; }
+    .lb { flex: 1 1 auto; background: var(--panel); border: 1px solid var(--hair);
+          display: flex; flex-direction: column; overflow: hidden; }
+    .lb-head { background: var(--panel-head); padding: 10px 20px;
+               font-family: var(--display); font-weight: 700; font-size: 22px;
+               letter-spacing: .16em; color: var(--accent); display: flex;
+               align-items: center; gap: 14px; }
+    .lb-head .caret { font-family: var(--body); font-size: 20px; color: var(--dim); }
+    .lb-row { display: flex; align-items: center; gap: 18px; padding: 11px 20px 11px 44px;
+              border-bottom: 1px solid rgba(136,204,255,.08); }
+    .lb-row.sel { background: rgba(17,85,119,.42); }
+    .lb-row img { width: 30px; height: 30px; flex: 0 0 auto; display: block;
+                  object-fit: contain; }
+    .lb-row .n { font-family: var(--display); font-weight: 700; font-size: 26px;
+                 flex: 0 0 auto; }
+    .lb-row .d { font-size: 21px; color: var(--dim); }
+    .scroll { width: 10px; background: rgba(136,204,255,.10); position: relative; }
+    .scroll i { position: absolute; left: 0; right: 0; top: 6%; height: 46%;
+                background: rgba(136,204,255,.42); }
+    .note { margin: 0 40px 26px 40px; padding: 20px 26px;
+            border-left: 3px solid var(--accent); background: rgba(17,85,119,.10);
+            color: var(--dim); font-size: 22px; line-height: 1.35; }
+    .note b { color: var(--text); font-weight: 600; }
+    .note code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 20px;
+                 color: var(--accent); }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 1920px; height: 1080px;">
+
+  <div class="strip">
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"><div class="tab">ePADD</div></div>
+    <div class="slot"><div class="tab back">engineering</div></div>
+  </div>
+
+  <div class="padd">
+    <div class="padd-bar">
+      <div class="mark">e<em>PADD</em></div>
+      <div class="bar-dim">TSN Artemis</div>
+      <div class="bar-right">
+        <div class="bar-dim">ENGINEERING - 30 APPS</div>
+        <div class="bar-dim">14:32</div>
+        <div class="pill red">RED ALERT</div>
+      </div>
+    </div>
+
+    <div class="listwrap">
+      <div class="lb">
+        <div class="lb-head"><span class="caret">v</span>SHIP</div>
+        <div class="lb-row sel"><img src="epadd-cargo.png" alt=""><span class="n">Cargo</span><span class="d">Hold manifest, transfer, jettison</span></div>
+        <div class="lb-row"><img src="epadd-fabricate.png" alt=""><span class="n">Fabricate</span><span class="d">Beacons, parts, build queue</span></div>
+        <div class="lb-row"><img src="epadd-upgrades.png" alt=""><span class="n">Upgrades</span><span class="d">Installed and available refits</span></div>
+        <div class="lb-row"><img src="epadd-airwing.png" alt=""><span class="n">Airwing</span><span class="d">Craft, pilots, sortie board</span></div>
+        <div class="lb-row"><img src="epadd-damage.png" alt=""><span class="n">Damage</span><span class="d">Repair queue</span></div>
+        <div class="lb-row"><img src="epadd-hangar.png" alt=""><span class="n">Hangar</span><span class="d">Deck status</span></div>
+        <div class="lb-head"><span class="caret">v</span>MISSION</div>
+        <div class="lb-row"><img src="epadd-quests.png" alt=""><span class="n">Quests</span><span class="d">3 running</span></div>
+        <div class="lb-row"><img src="epadd-library.png" alt=""><span class="n">Library</span><span class="d">Codex, lore and ship records</span></div>
+        <div class="lb-row"><img src="epadd-help.png" alt=""><span class="n">Help</span><span class="d">How this console works</span></div>
+        <div class="lb-row"><img src="epadd-comms_log.png" alt=""><span class="n">Comms log</span><span class="d">Hail history</span></div>
+        <div class="lb-head"><span class="caret">&gt;</span>SYSTEMS</div>
+      </div>
+      <div class="scroll"><i></i></div>
+    </div>
+
+    <div class="note">
+      <b>The switch is about the screen, not a count.</b> <code>gui_app_home</code> works
+      out the rows the tiles need against the client's real height; the same thirty apps
+      are a list at 1024x768 and still a grid at 1920x1080. A grid does not scroll and
+      the engine does not clip, so an overflowing sheet draws over itself - this is what
+      makes "nothing is hidden" true rather than aspirational. The headers collapse, so
+      the groups survive instead of being flattened.
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1920, "height": 1080}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>

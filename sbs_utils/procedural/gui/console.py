@@ -207,8 +207,16 @@ def gui_console_enter(client_id, console_type, ship=None):
         camera_assign(client_id, home)
     camera_auto(client_id)
 
+    # Every console role this client might be wearing. The REGISTERED types are not
+    # enough on their own: a console entered by a name that never registered as a type
+    # leaves its role behind for good, and roles accumulate. The away console is
+    # exactly that - `gui_console_enter(cid, "away")` with no `@console/away` label
+    # anywhere - so a crew member who beamed up was still wearing `away`.
+    was = get_inventory_value(client_id, "CONSOLE_TYPE", None)
     for name in gui_get_console_types():
         remove_role(client_id, name)
+    if was:
+        remove_role(client_id, was)
     add_role(client_id, "console, %s" % console_type)
     set_inventory_value(client_id, "CONSOLE_TYPE", console_type)
 

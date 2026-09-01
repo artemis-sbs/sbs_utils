@@ -622,6 +622,12 @@ class StoryPage(Page):
                 if add_content:
                     p_row.add(sub)
                 self.pending_row = p_row
+                if add_content:
+                    # A sub-section is added to its parent row HERE rather than
+                    # through add_content, so this is the only place a grid can see
+                    # one - and a grid of sub-sections is the common case
+                    # (`with gui_grid(4): ... gui_sub_section()` per cell).
+                    self._grid_note_cell()
                 return
         # If get here started pretty much empty
         if add_content:
@@ -637,20 +643,52 @@ class StoryPage(Page):
 
         self.pending_row.add(layout_item)
 
-        # gui_grid() auto-flow: after every N cells, break to a fresh row so
-        # items lay out as an N-column grid. Inert unless a grid is active.
-        if self._grid_stack:
-            grid = self._grid_stack[-1]
-            grid["count"] += 1
-            if grid["count"] % grid["columns"] == 0:
-                self.add_row()
+        # gui_grid() auto-flow: after every N CELLS, break to a fresh row so items
+        # lay out as an N-column grid. Inert unless a grid is active.
+        self._grid_note_cell()
 
-    def grid_begin(self, columns):
+    def _grid_style_row(self):
+        """Apply the grid's row style to the row it just started. A grid creates its
+        own rows, so this is the only way an author can size them - and a row that
+        declares nothing is 1fr, which stretches a short grid over the whole section.
+        """
+        if not self._grid_stack:
+            return
+        style = self._grid_stack[-1].get("row_style")
+        if style and self.pending_row is not None:
+            apply_control_styles(".row", style, self.pending_row, self.gui_task)
+
+    def _grid_note_cell(self):
+        """Count one grid cell, and break the row after every N.
+
+        Only at the grid's OWN depth: anything a cell builds inside itself belongs to
+        that cell, not to the grid.
+        """
+        if not self._grid_stack:
+            return
+        grid = self._grid_stack[-1]
+        if grid.get("depth") != len(self.pending_layouts):
+            return
+        grid["count"] += 1
+        if grid["count"] % grid["columns"] == 0:
+            self.add_row()
+            self._grid_style_row()
+
+    def grid_begin(self, columns, row_style=None):
         """Enter a gui_grid() context: subsequent add_content()s flow into an
         ``columns``-wide grid, auto-breaking rows. Nestable."""
         columns = max(1, int(columns))
         self.add_row()                       # start the grid on a clean row
-        self._grid_stack.append({"columns": columns, "count": 0})
+        # `depth` is what makes a CELL a cell. The counter used to run on every
+        # add_content while a grid was open, including widgets nested inside a cell -
+        # so a grid of sub-sections counted their CONTENTS and broke rows in the
+        # middle of them. A tile of icon+title+description in a 4-column grid put its
+        # second tile's icon on cell 4 and got a row break between the icon and its
+        # own title, which read as "that one icon paints differently".
+        self._grid_stack.append({"columns": columns, "count": 0,
+                                 "depth": len(self.pending_layouts),
+                                 "row_style": row_style})
+        self._grid_style_row()
 
     def grid_end(self):
         """Leave the current gui_grid() context, padding the final row with Hole
@@ -742,18 +780,12 @@ class StoryPage(Page):
         self.swap_layout()
 
     def gui_queue_console_tabs(self):
-        console = self.console
-        if self.console is not None: 
-            console = self.console.lower()
-        
-        convert = {
-            "normal_helm": "helm",
-            "normal_weap": "weapons",
-            "normal_sci": "science",
-            "normal_engi": "engineering",
-            "normal_comm": "comms"
-        }
-        console = convert.get(console, console)
+        from ..procedural.gui.epadd import (epadd_console_name, gui_app_mode_is_on,
+                                            gui_app_adopt_record)
+        # The normal_engi -> engineering table used to be computed here and then never
+        # used. It lives in epadd.py now because app scoping needs it too, and there
+        # must be exactly one of it.
+        console = epadd_console_name(self.console)
         #
         # tabs can be for all ships or single
         #
@@ -795,6 +827,21 @@ class StoryPage(Page):
                 back_entry = (tab_text, tab_label)
             else:
                 entries.append((tab_text, tab_label))
+
+        # --- ePADD mode -------------------------------------------------------
+        # One button instead of the whole strip. Everything the build declared is
+        # still CONSUMED below exactly as before - what changes is only what gets
+        # drawn - and the console's enabled set is handed to the app registry first,
+        # so a tab no addon registered as an app is adopted rather than lost.
+        #
+        # It falls back to the classic strip when the mission has no //gui/tab/epadd
+        # route: turning the mode on without the route would otherwise leave the
+        # console with a single button that does nothing.
+        epadd_label = GuiTabDecoratorLabel.all.get("epadd")
+        if epadd_label is not None and gui_app_mode_is_on(self.client_id):
+            gui_app_adopt_record(set(enabled_tabs.keys()), back_tab,
+                                 client_id=self.client_id, console=console)
+            entries = [("ePADD", epadd_label)]
 
         def _button(text, label, is_back):
             msg = f"justify:center;color:black;$text:{text};"

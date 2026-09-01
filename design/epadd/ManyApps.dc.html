@@ -1,0 +1,194 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap');
+    /* Cosmos console vocabulary, lifted from the engine + LM sources:
+       fonts GoldmanSansCd_Rg / Goldman-Bold, sizes gui-1..6 = 22/24/28/32/36/52,
+       panels background:#1572 and headers #1578, tab strip #333 / back #999.
+       Goldman is the same family on Google Fonts; Barlow Semi Condensed stands in
+       for GoldmanSansCd_Rg, which is not published there. */
+    :root {
+      --ground:      #0a1420;
+      --panel:       rgba(17, 85, 119, 0.13);   /* #1572 */
+      --panel-hi:    rgba(17, 85, 119, 0.33);   /* #1575 */
+      --panel-head:  rgba(17, 85, 119, 0.53);   /* #1578 */
+      --hair:        rgba(136, 204, 255, 0.16);
+      --text:        #ffffff;
+      --dim:         #9ab;
+      --accent:      #8cf;
+      --good:        #8f8;
+      --warn:        #ffd76a;
+      --alert:       #f55;
+      --strip:       #333333;
+      --strip-back:  #999999;
+      --display: 'Goldman', 'Goldman-Bold', system-ui, sans-serif;
+      --body: 'Barlow Semi Condensed', 'GoldmanSansCd_Rg', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; width: 1920px; height: 1080px; overflow: hidden;
+      background-color: var(--ground);
+      /* the faint tile field the console paints behind every panel */
+      background-image:
+        repeating-linear-gradient(90deg, rgba(255,255,255,.018) 0 1px, transparent 1px 160px),
+        repeating-linear-gradient(0deg,  rgba(255,255,255,.018) 0 1px, transparent 1px 160px),
+        radial-gradient(120% 90% at 22% 8%, rgba(30,72,110,.34), transparent 62%);
+      color: var(--text);
+      font-family: var(--body);
+      font-size: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: #bdf; }
+
+    /* --- the engine tab strip: Layout(20,0,100,3), row-height 35px --------- */
+    .strip { position: absolute; left: 20%; top: 0; width: 80%; height: 35px;
+             display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .strip .slot { margin: 1px 0 0 0; }
+    .strip .tab  { height: 34px; display: flex; align-items: center; justify-content: center;
+                   background: var(--strip); color: #000; font-family: var(--body);
+                   font-size: 24px; font-weight: 600; letter-spacing: .02em; }
+    .strip .tab.back { background: var(--strip-back); }
+
+    /* --- PADD chrome ------------------------------------------------------- */
+    .padd { position: absolute; left: 0; top: 45px; width: 1920px; height: 1035px;
+            display: flex; flex-direction: column; }
+    .padd-bar { height: 64px; flex: 0 0 auto; display: flex; align-items: center; gap: 24px;
+                padding: 0 40px; background: var(--panel-head);
+                border-bottom: 1px solid var(--hair); }
+    .mark { font-family: var(--display); font-weight: 700; font-size: 32px;
+            letter-spacing: .06em; color: var(--text); }
+    .mark em { font-style: normal; color: var(--accent); }
+    .bar-dim { font-size: 22px; color: var(--dim); letter-spacing: .04em; }
+    .bar-right { margin-left: auto; display: flex; align-items: center; gap: 28px; }
+    .pill { font-family: var(--display); font-size: 22px; letter-spacing: .10em;
+            padding: 4px 14px; color: var(--ground); background: var(--good); }
+    .pill.red { background: var(--alert); color: #fff; }
+
+    /* --- app grid ---------------------------------------------------------- */
+    .sheet { flex: 1 1 auto; padding: 36px 96px 0 96px; display: flex;
+             flex-direction: column; gap: 30px; }
+    .group-head { display: flex; align-items: center; gap: 20px; }
+    .group-head h2 { margin: 0; font-family: var(--display); font-weight: 700;
+                     font-size: 24px; letter-spacing: .18em; color: var(--accent);
+                     text-transform: uppercase; }
+    .group-head .rule { flex: 1 1 auto; height: 1px; background: var(--hair); }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; }
+    /* sc-if may introduce a wrapper around a tile; make either shape fill its cell. */
+    .grid > * { min-width: 0; display: flex; }
+    .grid > * > .tile { flex: 1 1 auto; }
+    .tile { width: 100%; display: flex; align-items: center; gap: 24px; padding: 26px 28px;
+            background: var(--panel); border: 1px solid var(--hair);
+            cursor: pointer; text-align: left; color: inherit; font: inherit;
+            transition: background .12s, border-color .12s; }
+    .tile:hover { background: var(--panel-hi); border-color: rgba(136,204,255,.42); }
+    /* icons come from the ePADD sheet, sliced per app - see design/epadd/sheet.html */
+    .tile .ico { flex: 0 0 auto; width: 72px; height: 72px; display: block;
+                 object-fit: contain; image-rendering: auto; }
+    .tile .lbl { min-width: 0; }
+    .tile h3 { margin: 0 0 4px 0; font-family: var(--display); font-weight: 700;
+               font-size: 32px; line-height: 1.05; letter-spacing: .01em; color: var(--text); }
+    .tile p  { margin: 0; font-size: 22px; line-height: 1.2; color: var(--dim); }
+    .exit { padding: 0 96px 26px 96px; display: flex; justify-content: flex-end; }
+    .exit button { background: none; border: 1px solid var(--hair); color: var(--dim);
+                   font-family: var(--display); font-size: 22px; letter-spacing: .12em;
+                   padding: 10px 22px; cursor: pointer; }
+    .exit button:hover { color: var(--text); border-color: var(--accent); }
+
+    /* What the PADD does when the tiles do not fit: the same apps as a scrolling
+       list with collapsible group headers. The switch is about the SCREEN, not a
+       count - gui_app_home works the rows out against the client's real height. */
+    .listwrap { flex: 1 1 auto; margin: 24px 40px 40px 40px; display: flex; }
+    .lb { flex: 1 1 auto; background: var(--panel); border: 1px solid var(--hair);
+          display: flex; flex-direction: column; overflow: hidden; }
+    .lb-head { background: var(--panel-head); padding: 10px 20px;
+               font-family: var(--display); font-weight: 700; font-size: 22px;
+               letter-spacing: .16em; color: var(--accent); display: flex;
+               align-items: center; gap: 14px; }
+    .lb-head .caret { font-family: var(--body); font-size: 20px; color: var(--dim); }
+    .lb-row { display: flex; align-items: center; gap: 18px; padding: 11px 20px 11px 44px;
+              border-bottom: 1px solid rgba(136,204,255,.08); }
+    .lb-row.sel { background: rgba(17,85,119,.42); }
+    .lb-row img { width: 30px; height: 30px; flex: 0 0 auto; display: block;
+                  object-fit: contain; }
+    .lb-row .n { font-family: var(--display); font-weight: 700; font-size: 26px;
+                 flex: 0 0 auto; }
+    .lb-row .d { font-size: 21px; color: var(--dim); }
+    .scroll { width: 10px; background: rgba(136,204,255,.10); position: relative; }
+    .scroll i { position: absolute; left: 0; right: 0; top: 6%; height: 46%;
+                background: rgba(136,204,255,.42); }
+    .note { margin: 0 40px 26px 40px; padding: 20px 26px;
+            border-left: 3px solid var(--accent); background: rgba(17,85,119,.10);
+            color: var(--dim); font-size: 22px; line-height: 1.35; }
+    .note b { color: var(--text); font-weight: 600; }
+    .note code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 20px;
+                 color: var(--accent); }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 1920px; height: 1080px;">
+
+  <div class="strip">
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"><div class="tab">ePADD</div></div>
+    <div class="slot"><div class="tab back">engineering</div></div>
+  </div>
+
+  <div class="padd">
+    <div class="padd-bar">
+      <div class="mark">e<em>PADD</em></div>
+      <div class="bar-dim">TSN Artemis</div>
+      <div class="bar-right">
+        <div class="bar-dim">ENGINEERING - 30 APPS</div>
+        <div class="bar-dim">14:32</div>
+        <div class="pill red">RED ALERT</div>
+      </div>
+    </div>
+
+    <div class="listwrap">
+      <div class="lb">
+        <div class="lb-head"><span class="caret">v</span>SHIP</div>
+        <div class="lb-row sel"><img src="epadd-cargo.png" alt=""><span class="n">Cargo</span><span class="d">Hold manifest, transfer, jettison</span></div>
+        <div class="lb-row"><img src="epadd-fabricate.png" alt=""><span class="n">Fabricate</span><span class="d">Beacons, parts, build queue</span></div>
+        <div class="lb-row"><img src="epadd-upgrades.png" alt=""><span class="n">Upgrades</span><span class="d">Installed and available refits</span></div>
+        <div class="lb-row"><img src="epadd-airwing.png" alt=""><span class="n">Airwing</span><span class="d">Craft, pilots, sortie board</span></div>
+        <div class="lb-row"><img src="epadd-damage.png" alt=""><span class="n">Damage</span><span class="d">Repair queue</span></div>
+        <div class="lb-row"><img src="epadd-hangar.png" alt=""><span class="n">Hangar</span><span class="d">Deck status</span></div>
+        <div class="lb-head"><span class="caret">v</span>MISSION</div>
+        <div class="lb-row"><img src="epadd-quests.png" alt=""><span class="n">Quests</span><span class="d">3 running</span></div>
+        <div class="lb-row"><img src="epadd-library.png" alt=""><span class="n">Library</span><span class="d">Codex, lore and ship records</span></div>
+        <div class="lb-row"><img src="epadd-help.png" alt=""><span class="n">Help</span><span class="d">How this console works</span></div>
+        <div class="lb-row"><img src="epadd-comms_log.png" alt=""><span class="n">Comms log</span><span class="d">Hail history</span></div>
+        <div class="lb-head"><span class="caret">&gt;</span>SYSTEMS</div>
+      </div>
+      <div class="scroll"><i></i></div>
+    </div>
+
+    <div class="note">
+      <b>The switch is about the screen, not a count.</b> <code>gui_app_home</code> works
+      out the rows the tiles need against the client's real height; the same thirty apps
+      are a list at 1024x768 and still a grid at 1920x1080. A grid does not scroll and
+      the engine does not clip, so an overflowing sheet draws over itself - this is what
+      makes "nothing is hidden" true rather than aspirational. The headers collapse, so
+      the groups survive instead of being flattened.
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1920, "height": 1080}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>

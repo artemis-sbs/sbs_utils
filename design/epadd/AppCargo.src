@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+@@STYLE@@
+    .app-bar { height: 64px; flex: 0 0 auto; display: flex; align-items: center; gap: 28px;
+               padding: 0 40px; background: var(--panel-head);
+               border-bottom: 1px solid var(--hair); }
+    .home-btn { display: flex; align-items: center; gap: 12px; background: var(--strip-back);
+                color: #000; border: none; font-family: var(--display); font-weight: 700;
+                font-size: 22px; letter-spacing: .10em; padding: 8px 20px; cursor: pointer; }
+    .app-title { font-family: var(--display); font-weight: 700; font-size: 32px;
+                 letter-spacing: .04em; }
+    .app-sub { font-size: 22px; color: var(--dim); }
+
+    /* The app's own body: LM's list+detail shape, unchanged.
+       Left col-width:35, list background #1572 with a #1578 title section. */
+    .work { flex: 1 1 auto; display: flex; gap: 0; padding: 34px 40px 40px 40px; }
+    .col-list { width: 35%; display: flex; flex-direction: column;
+                background: var(--panel); border: 1px solid var(--hair); }
+    .col-head { background: var(--panel-head); padding: 12px 20px; font-family: var(--display);
+                font-weight: 700; font-size: 24px; letter-spacing: .10em; }
+    .row { display: flex; align-items: baseline; gap: 14px; padding: 13px 20px;
+           border-bottom: 1px solid rgba(136,204,255,.08); font-size: 24px; }
+    .row.sel { background: rgba(17,85,119,.42); }
+    .row .n { flex: 1 1 auto; }
+    .row .q { color: var(--dim); font-variant-numeric: tabular-nums; }
+    .row.sel .q { color: var(--text); }
+    .col-detail { flex: 1 1 auto; padding: 0 0 0 46px; display: flex; flex-direction: column; }
+    .col-detail h1 { margin: 0 0 6px 0; font-family: var(--display); font-weight: 700;
+                     font-size: 36px; letter-spacing: .02em; }
+    .col-detail .kicker { font-size: 22px; letter-spacing: .14em; color: var(--accent);
+                          text-transform: uppercase; margin-bottom: 18px; }
+    .col-detail p { margin: 0 0 22px 0; font-size: 24px; line-height: 1.4; color: var(--dim);
+                    max-width: 900px; }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+             gap: 1px; background: var(--hair); border: 1px solid var(--hair);
+             max-width: 900px; margin-bottom: 34px; }
+    .facts div { background: var(--ground); padding: 16px 20px; }
+    .facts dt { font-size: 20px; letter-spacing: .12em; color: var(--dim);
+                text-transform: uppercase; margin: 0 0 4px 0; }
+    .facts dd { margin: 0; font-family: var(--display); font-weight: 700; font-size: 28px; }
+    .actions { display: flex; gap: 16px; margin-top: auto; }
+    .actions button { font-family: var(--display); font-weight: 700; font-size: 24px;
+                      letter-spacing: .08em; padding: 14px 30px; cursor: pointer;
+                      border: 1px solid var(--hair); background: var(--panel); color: var(--text); }
+    .actions button:hover { background: var(--panel-hi); border-color: var(--accent); }
+    .actions button.danger { border-color: rgba(255,85,85,.5); color: #fbb; }
+    .actions button.danger:hover { background: rgba(255,85,85,.16); border-color: var(--alert); }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 1920px; height: 1080px;">
+
+  <div class="strip">
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"><div class="tab">ePADD</div></div>
+    <div class="slot"><div class="tab back">engineering</div></div>
+  </div>
+
+  <div class="padd">
+    <div class="app-bar">
+      <button class="home-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"></path><path d="M6.5 9.5V20h11V9.5"></path></svg>
+        HOME
+      </button>
+      <div class="app-title">Cargo</div>
+      <div class="app-sub">42 of 60 units held</div>
+      <div class="bar-right">
+        <div class="bar-dim">ENGINEERING</div>
+        <div class="bar-dim">14:32</div>
+        <div class="pill">CONDITION GREEN</div>
+      </div>
+    </div>
+
+    <div class="work">
+      <div class="col-list">
+        <div class="col-head">HOLD</div>
+        <div class="row"><span class="n">Raw ore</span><span class="q">18</span></div>
+        <div class="row sel"><span class="n">Refined tungsten</span><span class="q">12</span></div>
+        <div class="row"><span class="n">Coolant cell</span><span class="q">6</span></div>
+        <div class="row"><span class="n">Sensor probe</span><span class="q">4</span></div>
+        <div class="row"><span class="n">Spare coil</span><span class="q">2</span></div>
+      </div>
+
+      <div class="col-detail">
+        <div class="kicker">Refined material</div>
+        <h1>Refined tungsten</h1>
+        <p>Milled from raw ore at the fabricator. Feeds beacon frames and torpedo
+          casings. Keeps indefinitely; takes no damage from hull breaches.</p>
+        <dl class="facts">
+          <div><dt>Held</dt><dd>12</dd></div>
+          <div><dt>Mass each</dt><dd>1.5 u</dd></div>
+          <div><dt>Value</dt><dd>240 cr</dd></div>
+        </dl>
+        <div class="actions">
+          <button>TRANSFER</button>
+          <button>SPLIT STACK</button>
+          <button class="danger">JETTISON</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1920, "height": 1080}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>

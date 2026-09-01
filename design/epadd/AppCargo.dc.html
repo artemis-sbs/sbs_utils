@@ -1,0 +1,214 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap');
+    /* Cosmos console vocabulary, lifted from the engine + LM sources:
+       fonts GoldmanSansCd_Rg / Goldman-Bold, sizes gui-1..6 = 22/24/28/32/36/52,
+       panels background:#1572 and headers #1578, tab strip #333 / back #999.
+       Goldman is the same family on Google Fonts; Barlow Semi Condensed stands in
+       for GoldmanSansCd_Rg, which is not published there. */
+    :root {
+      --ground:      #0a1420;
+      --panel:       rgba(17, 85, 119, 0.13);   /* #1572 */
+      --panel-hi:    rgba(17, 85, 119, 0.33);   /* #1575 */
+      --panel-head:  rgba(17, 85, 119, 0.53);   /* #1578 */
+      --hair:        rgba(136, 204, 255, 0.16);
+      --text:        #ffffff;
+      --dim:         #9ab;
+      --accent:      #8cf;
+      --good:        #8f8;
+      --warn:        #ffd76a;
+      --alert:       #f55;
+      --strip:       #333333;
+      --strip-back:  #999999;
+      --display: 'Goldman', 'Goldman-Bold', system-ui, sans-serif;
+      --body: 'Barlow Semi Condensed', 'GoldmanSansCd_Rg', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; width: 1920px; height: 1080px; overflow: hidden;
+      background-color: var(--ground);
+      /* the faint tile field the console paints behind every panel */
+      background-image:
+        repeating-linear-gradient(90deg, rgba(255,255,255,.018) 0 1px, transparent 1px 160px),
+        repeating-linear-gradient(0deg,  rgba(255,255,255,.018) 0 1px, transparent 1px 160px),
+        radial-gradient(120% 90% at 22% 8%, rgba(30,72,110,.34), transparent 62%);
+      color: var(--text);
+      font-family: var(--body);
+      font-size: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: #bdf; }
+
+    /* --- the engine tab strip: Layout(20,0,100,3), row-height 35px --------- */
+    .strip { position: absolute; left: 20%; top: 0; width: 80%; height: 35px;
+             display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .strip .slot { margin: 1px 0 0 0; }
+    .strip .tab  { height: 34px; display: flex; align-items: center; justify-content: center;
+                   background: var(--strip); color: #000; font-family: var(--body);
+                   font-size: 24px; font-weight: 600; letter-spacing: .02em; }
+    .strip .tab.back { background: var(--strip-back); }
+
+    /* --- PADD chrome ------------------------------------------------------- */
+    .padd { position: absolute; left: 0; top: 45px; width: 1920px; height: 1035px;
+            display: flex; flex-direction: column; }
+    .padd-bar { height: 64px; flex: 0 0 auto; display: flex; align-items: center; gap: 24px;
+                padding: 0 40px; background: var(--panel-head);
+                border-bottom: 1px solid var(--hair); }
+    .mark { font-family: var(--display); font-weight: 700; font-size: 32px;
+            letter-spacing: .06em; color: var(--text); }
+    .mark em { font-style: normal; color: var(--accent); }
+    .bar-dim { font-size: 22px; color: var(--dim); letter-spacing: .04em; }
+    .bar-right { margin-left: auto; display: flex; align-items: center; gap: 28px; }
+    .pill { font-family: var(--display); font-size: 22px; letter-spacing: .10em;
+            padding: 4px 14px; color: var(--ground); background: var(--good); }
+    .pill.red { background: var(--alert); color: #fff; }
+
+    /* --- app grid ---------------------------------------------------------- */
+    .sheet { flex: 1 1 auto; padding: 36px 96px 0 96px; display: flex;
+             flex-direction: column; gap: 30px; }
+    .group-head { display: flex; align-items: center; gap: 20px; }
+    .group-head h2 { margin: 0; font-family: var(--display); font-weight: 700;
+                     font-size: 24px; letter-spacing: .18em; color: var(--accent);
+                     text-transform: uppercase; }
+    .group-head .rule { flex: 1 1 auto; height: 1px; background: var(--hair); }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; }
+    /* sc-if may introduce a wrapper around a tile; make either shape fill its cell. */
+    .grid > * { min-width: 0; display: flex; }
+    .grid > * > .tile { flex: 1 1 auto; }
+    .tile { width: 100%; display: flex; align-items: center; gap: 24px; padding: 26px 28px;
+            background: var(--panel); border: 1px solid var(--hair);
+            cursor: pointer; text-align: left; color: inherit; font: inherit;
+            transition: background .12s, border-color .12s; }
+    .tile:hover { background: var(--panel-hi); border-color: rgba(136,204,255,.42); }
+    /* icons come from the ePADD sheet, sliced per app - see design/epadd/sheet.html */
+    .tile .ico { flex: 0 0 auto; width: 72px; height: 72px; display: block;
+                 object-fit: contain; image-rendering: auto; }
+    .tile .lbl { min-width: 0; }
+    .tile h3 { margin: 0 0 4px 0; font-family: var(--display); font-weight: 700;
+               font-size: 32px; line-height: 1.05; letter-spacing: .01em; color: var(--text); }
+    .tile p  { margin: 0; font-size: 22px; line-height: 1.2; color: var(--dim); }
+    .exit { padding: 0 96px 26px 96px; display: flex; justify-content: flex-end; }
+    .exit button { background: none; border: 1px solid var(--hair); color: var(--dim);
+                   font-family: var(--display); font-size: 22px; letter-spacing: .12em;
+                   padding: 10px 22px; cursor: pointer; }
+    .exit button:hover { color: var(--text); border-color: var(--accent); }
+
+    .app-bar { height: 64px; flex: 0 0 auto; display: flex; align-items: center; gap: 28px;
+               padding: 0 40px; background: var(--panel-head);
+               border-bottom: 1px solid var(--hair); }
+    .home-btn { display: flex; align-items: center; gap: 12px; background: var(--strip-back);
+                color: #000; border: none; font-family: var(--display); font-weight: 700;
+                font-size: 22px; letter-spacing: .10em; padding: 8px 20px; cursor: pointer; }
+    .app-title { font-family: var(--display); font-weight: 700; font-size: 32px;
+                 letter-spacing: .04em; }
+    .app-sub { font-size: 22px; color: var(--dim); }
+
+    /* The app's own body: LM's list+detail shape, unchanged.
+       Left col-width:35, list background #1572 with a #1578 title section. */
+    .work { flex: 1 1 auto; display: flex; gap: 0; padding: 34px 40px 40px 40px; }
+    .col-list { width: 35%; display: flex; flex-direction: column;
+                background: var(--panel); border: 1px solid var(--hair); }
+    .col-head { background: var(--panel-head); padding: 12px 20px; font-family: var(--display);
+                font-weight: 700; font-size: 24px; letter-spacing: .10em; }
+    .row { display: flex; align-items: baseline; gap: 14px; padding: 13px 20px;
+           border-bottom: 1px solid rgba(136,204,255,.08); font-size: 24px; }
+    .row.sel { background: rgba(17,85,119,.42); }
+    .row .n { flex: 1 1 auto; }
+    .row .q { color: var(--dim); font-variant-numeric: tabular-nums; }
+    .row.sel .q { color: var(--text); }
+    .col-detail { flex: 1 1 auto; padding: 0 0 0 46px; display: flex; flex-direction: column; }
+    .col-detail h1 { margin: 0 0 6px 0; font-family: var(--display); font-weight: 700;
+                     font-size: 36px; letter-spacing: .02em; }
+    .col-detail .kicker { font-size: 22px; letter-spacing: .14em; color: var(--accent);
+                          text-transform: uppercase; margin-bottom: 18px; }
+    .col-detail p { margin: 0 0 22px 0; font-size: 24px; line-height: 1.4; color: var(--dim);
+                    max-width: 900px; }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+             gap: 1px; background: var(--hair); border: 1px solid var(--hair);
+             max-width: 900px; margin-bottom: 34px; }
+    .facts div { background: var(--ground); padding: 16px 20px; }
+    .facts dt { font-size: 20px; letter-spacing: .12em; color: var(--dim);
+                text-transform: uppercase; margin: 0 0 4px 0; }
+    .facts dd { margin: 0; font-family: var(--display); font-weight: 700; font-size: 28px; }
+    .actions { display: flex; gap: 16px; margin-top: auto; }
+    .actions button { font-family: var(--display); font-weight: 700; font-size: 24px;
+                      letter-spacing: .08em; padding: 14px 30px; cursor: pointer;
+                      border: 1px solid var(--hair); background: var(--panel); color: var(--text); }
+    .actions button:hover { background: var(--panel-hi); border-color: var(--accent); }
+    .actions button.danger { border-color: rgba(255,85,85,.5); color: #fbb; }
+    .actions button.danger:hover { background: rgba(255,85,85,.16); border-color: var(--alert); }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 1920px; height: 1080px;">
+
+  <div class="strip">
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"><div class="tab">ePADD</div></div>
+    <div class="slot"><div class="tab back">engineering</div></div>
+  </div>
+
+  <div class="padd">
+    <div class="app-bar">
+      <button class="home-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"></path><path d="M6.5 9.5V20h11V9.5"></path></svg>
+        HOME
+      </button>
+      <div class="app-title">Cargo</div>
+      <div class="app-sub">42 of 60 units held</div>
+      <div class="bar-right">
+        <div class="bar-dim">ENGINEERING</div>
+        <div class="bar-dim">14:32</div>
+        <div class="pill">CONDITION GREEN</div>
+      </div>
+    </div>
+
+    <div class="work">
+      <div class="col-list">
+        <div class="col-head">HOLD</div>
+        <div class="row"><span class="n">Raw ore</span><span class="q">18</span></div>
+        <div class="row sel"><span class="n">Refined tungsten</span><span class="q">12</span></div>
+        <div class="row"><span class="n">Coolant cell</span><span class="q">6</span></div>
+        <div class="row"><span class="n">Sensor probe</span><span class="q">4</span></div>
+        <div class="row"><span class="n">Spare coil</span><span class="q">2</span></div>
+      </div>
+
+      <div class="col-detail">
+        <div class="kicker">Refined material</div>
+        <h1>Refined tungsten</h1>
+        <p>Milled from raw ore at the fabricator. Feeds beacon frames and torpedo
+          casings. Keeps indefinitely; takes no damage from hull breaches.</p>
+        <dl class="facts">
+          <div><dt>Held</dt><dd>12</dd></div>
+          <div><dt>Mass each</dt><dd>1.5 u</dd></div>
+          <div><dt>Value</dt><dd>240 cr</dd></div>
+        </dl>
+        <div class="actions">
+          <button>TRANSFER</button>
+          <button>SPLIT STACK</button>
+          <button class="danger">JETTISON</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1920, "height": 1080}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>

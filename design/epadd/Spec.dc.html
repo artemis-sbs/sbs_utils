@@ -1,0 +1,313 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap');
+    /* Cosmos console vocabulary, lifted from the engine + LM sources:
+       fonts GoldmanSansCd_Rg / Goldman-Bold, sizes gui-1..6 = 22/24/28/32/36/52,
+       panels background:#1572 and headers #1578, tab strip #333 / back #999.
+       Goldman is the same family on Google Fonts; Barlow Semi Condensed stands in
+       for GoldmanSansCd_Rg, which is not published there. */
+    :root {
+      --ground:      #0a1420;
+      --panel:       rgba(17, 85, 119, 0.13);   /* #1572 */
+      --panel-hi:    rgba(17, 85, 119, 0.33);   /* #1575 */
+      --panel-head:  rgba(17, 85, 119, 0.53);   /* #1578 */
+      --hair:        rgba(136, 204, 255, 0.16);
+      --text:        #ffffff;
+      --dim:         #9ab;
+      --accent:      #8cf;
+      --good:        #8f8;
+      --warn:        #ffd76a;
+      --alert:       #f55;
+      --strip:       #333333;
+      --strip-back:  #999999;
+      --display: 'Goldman', 'Goldman-Bold', system-ui, sans-serif;
+      --body: 'Barlow Semi Condensed', 'GoldmanSansCd_Rg', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; width: 1920px; height: 1080px; overflow: hidden;
+      background-color: var(--ground);
+      /* the faint tile field the console paints behind every panel */
+      background-image:
+        repeating-linear-gradient(90deg, rgba(255,255,255,.018) 0 1px, transparent 1px 160px),
+        repeating-linear-gradient(0deg,  rgba(255,255,255,.018) 0 1px, transparent 1px 160px),
+        radial-gradient(120% 90% at 22% 8%, rgba(30,72,110,.34), transparent 62%);
+      color: var(--text);
+      font-family: var(--body);
+      font-size: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: #bdf; }
+
+    /* --- the engine tab strip: Layout(20,0,100,3), row-height 35px --------- */
+    .strip { position: absolute; left: 20%; top: 0; width: 80%; height: 35px;
+             display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .strip .slot { margin: 1px 0 0 0; }
+    .strip .tab  { height: 34px; display: flex; align-items: center; justify-content: center;
+                   background: var(--strip); color: #000; font-family: var(--body);
+                   font-size: 24px; font-weight: 600; letter-spacing: .02em; }
+    .strip .tab.back { background: var(--strip-back); }
+
+    /* --- PADD chrome ------------------------------------------------------- */
+    .padd { position: absolute; left: 0; top: 45px; width: 1920px; height: 1035px;
+            display: flex; flex-direction: column; }
+    .padd-bar { height: 64px; flex: 0 0 auto; display: flex; align-items: center; gap: 24px;
+                padding: 0 40px; background: var(--panel-head);
+                border-bottom: 1px solid var(--hair); }
+    .mark { font-family: var(--display); font-weight: 700; font-size: 32px;
+            letter-spacing: .06em; color: var(--text); }
+    .mark em { font-style: normal; color: var(--accent); }
+    .bar-dim { font-size: 22px; color: var(--dim); letter-spacing: .04em; }
+    .bar-right { margin-left: auto; display: flex; align-items: center; gap: 28px; }
+    .pill { font-family: var(--display); font-size: 22px; letter-spacing: .10em;
+            padding: 4px 14px; color: var(--ground); background: var(--good); }
+    .pill.red { background: var(--alert); color: #fff; }
+
+    /* --- app grid ---------------------------------------------------------- */
+    .sheet { flex: 1 1 auto; padding: 36px 96px 0 96px; display: flex;
+             flex-direction: column; gap: 30px; }
+    .group-head { display: flex; align-items: center; gap: 20px; }
+    .group-head h2 { margin: 0; font-family: var(--display); font-weight: 700;
+                     font-size: 24px; letter-spacing: .18em; color: var(--accent);
+                     text-transform: uppercase; }
+    .group-head .rule { flex: 1 1 auto; height: 1px; background: var(--hair); }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; }
+    /* sc-if may introduce a wrapper around a tile; make either shape fill its cell. */
+    .grid > * { min-width: 0; display: flex; }
+    .grid > * > .tile { flex: 1 1 auto; }
+    .tile { width: 100%; display: flex; align-items: center; gap: 24px; padding: 26px 28px;
+            background: var(--panel); border: 1px solid var(--hair);
+            cursor: pointer; text-align: left; color: inherit; font: inherit;
+            transition: background .12s, border-color .12s; }
+    .tile:hover { background: var(--panel-hi); border-color: rgba(136,204,255,.42); }
+    /* icons come from the ePADD sheet, sliced per app - see design/epadd/sheet.html */
+    .tile .ico { flex: 0 0 auto; width: 72px; height: 72px; display: block;
+                 object-fit: contain; image-rendering: auto; }
+    .tile .lbl { min-width: 0; }
+    .tile h3 { margin: 0 0 4px 0; font-family: var(--display); font-weight: 700;
+               font-size: 32px; line-height: 1.05; letter-spacing: .01em; color: var(--text); }
+    .tile p  { margin: 0; font-size: 22px; line-height: 1.2; color: var(--dim); }
+    .exit { padding: 0 96px 26px 96px; display: flex; justify-content: flex-end; }
+    .exit button { background: none; border: 1px solid var(--hair); color: var(--dim);
+                   font-family: var(--display); font-size: 22px; letter-spacing: .12em;
+                   padding: 10px 22px; cursor: pointer; }
+    .exit button:hover { color: var(--text); border-color: var(--accent); }
+
+    body { height: 2020px; }
+    .doc { padding: 56px 96px 80px 96px; display: flex; flex-direction: column; gap: 40px; }
+    .doc h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 52px;
+              letter-spacing: .02em; }
+    .doc .lede { margin: 10px 0 0 0; font-size: 24px; color: var(--dim); max-width: 1200px;
+                 line-height: 1.4; }
+    section h2 { margin: 0 0 18px 0; font-family: var(--display); font-weight: 700;
+                 font-size: 24px; letter-spacing: .18em; color: var(--accent);
+                 text-transform: uppercase; }
+    .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; }
+    table { border-collapse: collapse; width: 100%; font-size: 22px; }
+    th { text-align: left; font-family: var(--display); font-weight: 700; font-size: 20px;
+         letter-spacing: .12em; text-transform: uppercase; color: var(--dim);
+         padding: 0 16px 10px 0; border-bottom: 1px solid var(--hair); }
+    td { padding: 11px 16px 11px 0; border-bottom: 1px solid rgba(136,204,255,.08);
+         vertical-align: top; }
+    td.v { font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--accent);
+           white-space: nowrap; }
+    .sw { display: inline-block; width: 26px; height: 26px; border: 1px solid var(--hair);
+          vertical-align: -6px; margin-right: 12px; }
+    pre { margin: 0; padding: 22px 26px; background: var(--panel); border: 1px solid var(--hair);
+          font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 22px;
+          line-height: 1.5; color: var(--text); overflow-x: auto; }
+    pre .c { color: var(--dim); }
+    pre .k { color: var(--accent); }
+    .warn { padding: 22px 26px; border-left: 3px solid var(--warn);
+            background: rgba(255,215,106,.07); font-size: 22px; line-height: 1.4;
+            color: var(--dim); }
+    .warn b { color: var(--text); font-weight: 600; }
+    .warn + .warn { margin-top: 14px; }
+    .ramp div { display: flex; align-items: baseline; gap: 20px; padding: 8px 0;
+                border-bottom: 1px solid rgba(136,204,255,.08); }
+    .ramp .tag { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 20px;
+                 color: var(--accent); width: 110px; flex: 0 0 auto; }
+    .ramp .px { font-size: 20px; color: var(--dim); width: 70px; flex: 0 0 auto; }
+  </style>
+</helmet>
+
+<div class="doc">
+
+  <div>
+    <h1>ePADD build sheet</h1>
+    <p class="lede">Every number here is lifted from the engine or from LegendaryMissions,
+      not invented, so implementation is transcription. Screen is 1920 x 1080 - the engine's
+      font sizes are absolute pixels, so the artboards are drawn at native resolution.</p>
+  </div>
+
+  <section>
+    <h2>Geometry</h2>
+    <div class="cols">
+      <table>
+        <tbody>
+        <tr><th>Element</th><th>Rect</th><th>From</th></tr>
+        <tr><td>Tab strip</td><td class="v">20%, 0, 100%, 3% - 35px row</td><td>maststorypage.py:766, 771</td></tr>
+        <tr><td>Strip slots</td><td class="v">6 even - 256px each</td><td>maststorypage.py:830</td></tr>
+        <tr><td>Console body top</td><td class="v">45px</td><td>LM convention, every tab body</td></tr>
+        <tr><td>PADD bar</td><td class="v">45px .. 109px (64px)</td><td>new</td></tr>
+        <tr><td>App sheet</td><td class="v">inset 96px l/r, 36px top</td><td>new</td></tr>
+        </tbody>
+      </table>
+      <table>
+        <tbody>
+        <tr><th>Element</th><th>Value</th><th>Note</th></tr>
+        <tr><td>Grid</td><td class="v">repeat(4, 1fr), gap 28px</td><td>408px tiles</td></tr>
+        <tr><td>Grid, 12+ apps</td><td class="v">repeat(6, 1fr), gap 22px</td><td>compact tiles</td></tr>
+        <tr><td>Tile padding</td><td class="v">26px 28px</td><td>icon 72px, compact 52px</td></tr>
+        <tr><td>Group gap</td><td class="v">30px (dense 24px)</td><td>heading + 22px + grid</td></tr>
+        <tr><td>Corners</td><td class="v">0</td><td>the engine draws flat rects</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Color</h2>
+    <div class="cols">
+      <table>
+        <tbody>
+        <tr><th>Token</th><th>Style string</th><th>Used for</th></tr>
+        <tr><td><span class="sw" style="background:#0a1420"></span>ground</td><td class="v">-</td><td>space behind everything</td></tr>
+        <tr><td><span class="sw" style="background:rgba(17,85,119,.13)"></span>panel</td><td class="v">background:#1572</td><td>tiles, list bodies</td></tr>
+        <tr><td><span class="sw" style="background:rgba(17,85,119,.33)"></span>panel-hi</td><td class="v">background:#1575</td><td>hover, selected row</td></tr>
+        <tr><td><span class="sw" style="background:rgba(17,85,119,.53)"></span>panel-head</td><td class="v">background:#1578</td><td>PADD bar, list titles</td></tr>
+        </tbody>
+      </table>
+      <table>
+        <tbody>
+        <tr><th>Token</th><th>Style string</th><th>Used for</th></tr>
+        <tr><td><span class="sw" style="background:#333"></span>strip</td><td class="v">#333</td><td>a normal tab button</td></tr>
+        <tr><td><span class="sw" style="background:#999"></span>strip-back</td><td class="v">#999</td><td>the console back button</td></tr>
+        <tr><td><span class="sw" style="background:#8cf"></span>accent</td><td class="v">color:#8cf</td><td>icons, group headings</td></tr>
+        <tr><td><span class="sw" style="background:#9ab"></span>dim</td><td class="v">color:#9ab</td><td>subtitles, metadata</td></tr>
+        <tr><td><span class="sw" style="background:#8f8"></span>good</td><td class="v">color:#8f8</td><td>condition green</td></tr>
+        <tr><td><span class="sw" style="background:#f55"></span>alert</td><td class="v">color:#f55</td><td>red alert, jettison</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Type</h2>
+    <div class="cols">
+      <div class="ramp">
+        <div><span class="tag">gui-6</span><span class="px">52px</span><span style="font-family:var(--display);font-weight:700;font-size:36px;">Goldman Bold</span></div>
+        <div><span class="tag">gui-5</span><span class="px">36px</span><span style="font-family:var(--display);font-weight:700;font-size:32px;">Goldman Bold</span></div>
+        <div><span class="tag">gui-4</span><span class="px">32px</span><span style="font-family:var(--display);font-weight:700;font-size:30px;">App tile titles</span></div>
+        <div><span class="tag">gui-3</span><span class="px">28px</span><span style="font-family:var(--display);font-weight:700;font-size:26px;">Goldman Bold</span></div>
+        <div><span class="tag">gui-2</span><span class="px">24px</span><span style="font-size:24px;">Body - the engine default</span></div>
+        <div><span class="tag">gui-1</span><span class="px">22px</span><span style="font-size:22px;">Subtitles and metadata</span></div>
+        <div><span class="tag">smallest</span><span class="px">18px</span><span style="font-size:18px;">Rulers and captions</span></div>
+      </div>
+      <div>
+        <div class="warn"><b>Goldman-Bold</b> is the engine's display face and is published on
+          Google Fonts under the same name, so these artboards use the real thing.
+          <b>GoldmanSansCd_Rg</b> - the body face - is not published there; the artboards
+          substitute <b>Barlow Semi Condensed</b>, which is close in width and weight. Exported
+          PNG/PDF falls back further, so treat exported type as indicative.</div>
+        <div class="warn">Sizes are ABSOLUTE pixels in the engine, not relative - which is why
+          these artboards are drawn at 1920 x 1080 rather than a smaller frame.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Icons - a sheet of our own</h2>
+    <p class="lede" style="margin-bottom: 22px;">The built-in sheet is game-icons.net art:
+      solid, fantasy-flavored, and thin in the places ePADD needs it - Help is a pointing
+      hand, Airwing an unreadable blob, and Quests a WANTED poster with text baked into the
+      glyph. So ePADD ships its own: <b>512 x 512, 4 x 4 cells of 128px</b>, white on
+      transparent exactly like the engine sheet, so a style string&#39;s
+      <span class="v" style="color:var(--accent)">color:</span> still does all the tinting.
+      Source is <span class="v" style="color:var(--accent)">design/epadd/sheet.html</span> -
+      SVG, rasterized headless, so a glyph is edited rather than redrawn.</p>
+    <div style="display: flex; gap: 46px; align-items: flex-start;">
+      <div style="background: var(--panel); border: 1px solid var(--hair); padding: 16px;">
+        <img src="epadd-icon-sheet.png" alt="" style="width: 512px; height: 512px; display: block;">
+      </div>
+      <div style="flex: 1 1 auto;">
+        <table>
+          <tbody>
+          <tr><th>Cell</th><th>Name</th><th>Cell</th><th>Name</th></tr>
+          <tr><td class="v">0</td><td>epadd.cargo</td><td class="v">8</td><td>epadd.damage</td></tr>
+          <tr><td class="v">1</td><td>epadd.fabricate</td><td class="v">9</td><td>epadd.hangar</td></tr>
+          <tr><td class="v">2</td><td>epadd.upgrades</td><td class="v">10</td><td>epadd.comms_log</td></tr>
+          <tr><td class="v">3</td><td>epadd.quests</td><td class="v">11</td><td>epadd.standings</td></tr>
+          <tr><td class="v">4</td><td>epadd.library</td><td class="v">12</td><td>epadd.debug</td></tr>
+          <tr><td class="v">5</td><td>epadd.help</td><td class="v">13</td><td>epadd.mast</td></tr>
+          <tr><td class="v">6</td><td>epadd.airwing</td><td class="v">14</td><td>epadd.brain</td></tr>
+          <tr><td class="v">7</td><td>epadd.casino</td><td class="v">15</td><td>epadd.coverage</td></tr>
+          </tbody>
+        </table>
+        <div class="warn" style="margin-top: 26px;"><b>The names are namespaced.</b> The icon
+          registry is one flat namespace and a registration is a CLAIM on it: a bare
+          <span class="v" style="color:var(--accent)">brain</span> takes over the built-in
+          glyph for everything else that draws it, and a bare
+          <span class="v" style="color:var(--accent)">cargo</span> is one addon claiming a
+          word every other addon might want.</div>
+        <div class="warn" style="margin-top: 14px;">Claiming them is one call - the same
+          one a mission would use to re-skin them. Nothing that DRAWS an icon changes, which is
+          the point of naming them: a mission can re-point
+          <span class="v" style="color:var(--accent)">cargo</span> at its own art and every
+          screen that draws it follows.</div>
+      </div>
+    </div>
+    <pre style="margin-top: 26px;">gui_icon_add_atlas_grid(media_shared(<span class="k">"epadd/icons"</span>), 4, 4, cell=128, names=[
+    <span class="k">"epadd.cargo"</span>, <span class="k">"epadd.fabricate"</span>, <span class="k">"epadd.upgrades"</span>, <span class="k">"epadd.quests"</span>,
+    <span class="k">"epadd.library"</span>, <span class="k">"epadd.help"</span>, <span class="k">"epadd.airwing"</span>, <span class="k">"epadd.casino"</span>,
+    <span class="k">"epadd.damage"</span>, <span class="k">"epadd.hangar"</span>, <span class="k">"epadd.comms_log"</span>, <span class="k">"epadd.standings"</span>,
+    <span class="k">"epadd.debug"</span>, <span class="k">"epadd.mast"</span>, <span class="k">"epadd.brain"</span>, <span class="k">"epadd.coverage"</span>])
+
+<span class="c"># thereafter an app just names one, and gui_icon_name resolves it</span>
+gui_app_register(<span class="k">"cargo"</span>, title=<span class="k">"Cargo"</span>, icon=<span class="k">"epadd.cargo"</span>, consoles=<span class="k">"engineering"</span>)</pre>
+  </section>
+
+  <section>
+    <h2>Registration</h2>
+    <pre><span class="c"># the route is untouched - it stays a tab, and keeps its own condition</span>
+<span class="k">//gui/tab/cargo</span>
+    jump cargo_screen
+
+<span class="c"># one new line, at the addon's top level, turns it into an app</span>
+gui_app_register(<span class="k">"cargo"</span>, title=<span class="k">"Cargo"</span>, icon=<span class="k">"container"</span>,
+                 consoles=<span class="k">"engineering"</span>, group=<span class="k">"Ship"</span>, sort=10)
+
+<span class="c"># and the addon DELETES the gui_tab_add_top / gui_tab_enable it replaces</span></pre>
+  </section>
+
+  <section>
+    <h2>Three things to get right in the code</h2>
+    <div class="warn"><b>The strip button must carry a literal, not the route path.</b> Today
+      the label is the raw lowercase path (<span class="v" style="color:var(--accent)">$text:{tab}</span>
+      at maststorypage.py:788), so a route named <span class="v" style="color:var(--accent)">epadd</span>
+      would draw as "epadd". Phase 3 draws this button itself and must pass "ePADD".</div>
+    <div class="warn"><b>Group order is not registration order.</b> The existing strip iterates
+      a dict and reverses it with add_front, which is exactly the ordering problem being fixed -
+      the app list must sort explicitly on (group, sort, title).</div>
+    <div class="warn"><b>Drawing still consumes the declaration.</b> ePADD mode changes what is
+      drawn, not the declare-every-build contract: console_tabs and __back_tab__ are still
+      cleared at the end of the build, and the app registry is a separate, mission-scoped table.</div>
+  </section>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1920, "height": 2020}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>
