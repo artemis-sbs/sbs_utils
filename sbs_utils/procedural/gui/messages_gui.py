@@ -13,7 +13,8 @@ is what a person is sitting at - see `procedural/messages.py` for why not a crew
 """
 from ...helpers import FrameContext
 from ..messages import (message_inbox, message_send, message_mark_read,
-                        message_is_read, message_unread)
+                        message_is_read, message_unread, message_choices,
+                        message_answer, message_answered)
 from .epadd import ACCENT, DIM, PANEL, PANEL_HEAD, _esc, gui_app_chrome
 
 
@@ -45,6 +46,41 @@ def _row_template(item):
     gui_text(f"$text:{_esc(mark + who)};font:gui-2;color:{tone};"
              f"overflow:shrink;", style="col-width: 30;")
     gui_text(f"$text:{_esc(subject)};font:gui-2;color:{tone};overflow:ellipsis;")
+
+
+def _reply_strip(msg):
+    """The replies this message offers, or what was already chosen.
+
+    `on_press=` with a bound closure, never a MAST label: the builder here is the console's
+    own GUI task, and a label handler jumps that task - which takes the console over.
+    `overlay.py:1510` documents the same constraint for an overlay's buttons.
+    """
+    from .row import gui_row
+    from .text import gui_text
+    from .button import gui_button
+
+    answered = message_answered(msg.get("id"))
+    if answered is not None:
+        gui_row("row-height: content; padding: 0, 12px, 0, 0;")
+        gui_text(f"$text:{_esc('You replied: ' + answered['label'])};"
+                 f"font:gui-1;color:{ACCENT};")
+        return
+
+    offered = message_choices(msg.get("id"))
+    if not offered:
+        return
+    gui_row("row-height: 2.2em; padding: 0, 12px, 0, 0;")
+    mid = msg.get("id")
+    for choice in offered:
+        # A closure with BOUND DEFAULTS, not a reference to the loop variable: the
+        # buttons are built in a loop and every one of them would otherwise answer
+        # with the last choice's index. `on_press` calls a callable with NO
+        # arguments, so the press cannot be told apart any other way.
+        def press(_mid=mid, _index=choice["index"], _seq=choice["seq"]):
+            message_answer(_mid, _index, seq=_seq)
+
+        gui_button(f"$text:{_esc(choice['label'])};",
+                   style="col-width: content;", on_press=press)
 
 
 def gui_messages_screen(consoles=None, title="Messages"):
@@ -98,6 +134,7 @@ def gui_messages_screen(consoles=None, title="Messages"):
                      f"font:gui-1;color:{ACCENT};")
             gui_row()
             gui_text_area(reading.get("text") or "")
+            _reply_strip(reading)
 
     if lb is not None:
         def _open(event, sender):

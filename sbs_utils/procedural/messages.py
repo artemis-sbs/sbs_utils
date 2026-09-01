@@ -38,6 +38,9 @@ READ_KEY = "__MESSAGES_READ__"
 MAX_TEXT = 600
 # Oldest are dropped past this. A party runs for hours and nothing prunes otherwise.
 MAX_KEPT = 200
+# Four is what a hail offers (hail.py HAIL_MAX_CHOICES) and the reason is the same: a
+# reply strip wider than that stops being a decision and starts being a menu.
+MAX_CHOICES = 4
 
 
 def _all():
@@ -60,8 +63,17 @@ def _here():
     return _console_name(getattr(page, "console", None) if page is not None else None)
 
 
+# Audiences that are a QUESTION, not a name. Who is away changes during a mission, so
+# these are resolved when the inbox is read rather than when the message is sent - a
+# note addressed to the away team must reach whoever is down there when they read it,
+# not whoever was down there when it was written.
+LIVE_AUDIENCES = ("away", "ship")
+
+
 def _audience(to):
-    """`to` as a set of console names, or None meaning everyone."""
+    """`to` as a set of console names, or None meaning everyone.
+
+    A live token (`away`, `ship`) is kept as-is and answered at read time."""
     if to is None:
         return None
     if not isinstance(to, str):
@@ -69,10 +81,49 @@ def _audience(to):
     to = to.strip()
     if to in ("", "*", "all"):
         return None
-    return {_console_name(t) for t in to.split(",") if t.strip()}
+    out = set()
+    for t in to.split(","):
+        t = t.strip()
+        if not t:
+            continue
+        out.add(t.lower() if t.strip().lower() in LIVE_AUDIENCES else _console_name(t))
+    return out
 
 
-def message_send(text, to="*", sender=None, subject=None, kind="crew"):
+def _is_away(console, client_id=None):
+    """Whether this reader is on the away team.
+
+    Asked of the CLIENT, because that is what away.py tracks - a console name cannot
+    answer it. Falls back to the console name, which `gui_console_enter` sets to
+    "away" when it morphs a console into a character.
+    """
+    if console == "away":
+        return True
+    try:
+        from .away import away_clients
+    except Exception:
+        return False
+    if client_id is None:
+        page = FrameContext.page
+        client_id = getattr(page, "client_id", None) if page is not None else None
+    return client_id is not None and client_id in away_clients()
+
+
+def _audience_matches(want, console, client_id=None):
+    """Does this reader fall inside the message's audience?"""
+    if want is None:
+        return True
+    if console and console in want:
+        return True
+    if "away" in want and _is_away(console, client_id):
+        return True
+    if "ship" in want and not _is_away(console, client_id):
+        return True
+    return False
+
+
+def message_send(text, to="*", sender=None, subject=None, kind="crew",
+                 choices=None):
     """Put a message in an inbox.
 
     Args:
@@ -83,6 +134,9 @@ def message_send(text, to="*", sender=None, subject=None, kind="crew"):
         subject (str, optional): a short line for the list.
         kind (str, optional): "crew" or "mail" - what a story sends. The inbox shows
             them differently; nothing else depends on it.
+        choices (list, optional): replies to offer, as `amd_choice` dicts
+            (`{label, target, guard, outcomes}`). Capped at MAX_CHOICES. A message
+            with none behaves exactly as it always did.
 
     Returns:
         dict: the stored message.
@@ -99,7 +153,16 @@ def message_send(text, to="*", sender=None, subject=None, kind="crew"):
         "subject": subject,
         "kind": kind,
         "at": _stamp(),
+        # A message can ask a question. `seq` is the arbitration token - see
+        # message_answer - and is bumped on every answer so a second press landing in
+        # the same frame is already stale.
+        # Normalised HERE, at the one door, so every caller agrees: labels, pairs
+        # and dicts all arrive as dicts and nothing downstream has to ask which.
+        "choices": _choices_from(choices),
+        "seq": 1,
+        "answered": None,
     }
+    msg["choices"] = msg["choices"][:MAX_CHOICES]
     msgs.append(msg)
     if len(msgs) > MAX_KEPT:
         del msgs[:len(msgs) - MAX_KEPT]
@@ -128,8 +191,7 @@ def _stamp():
 def message_inbox(console=None):
     """Messages this console can see, newest first."""
     console = _console_name(console) if console else _here()
-    out = [m for m in _all()
-           if m.get("to") is None or (console and console in m["to"])]
+    out = [m for m in _all() if _audience_matches(m.get("to"), console)]
     out.reverse()
     return out
 
@@ -239,7 +301,7 @@ def message_load_amd(doc, to=None):
         sender = data.get("from")
         if not sender:
             continue
-        body = (n.get("description") or "").strip()
+        body, choices = _split_choices(n.get("description") or "")
         pending.append({
             "key": n.get("key") or data.get("key"),
             "text": body,
@@ -247,6 +309,7 @@ def message_load_amd(doc, to=None):
             "from": sender,
             "to": data.get("to") or to or "*",
             "after": _seconds(data.get("after")),
+            "choices": choices,
         })
         n_loaded += 1
     _save_pending(pending)
@@ -262,6 +325,25 @@ def _pending():
 
 def _save_pending(items):
     Agent.SHARED.set_inventory_value(PENDING_KEY, items)
+
+
+def _split_choices(body):
+    """A message body -> (prose, choices).
+
+    A `- [label](target) if guard ; outcomes` line is a reply, anything else is the
+    message. The grammar is `amd_choice`'s, unchanged - it is what OU dialogue, hails
+    and away scenes already use, so a writer who has authored any of those has
+    nothing new to learn and `sbs lint` already understands the line.
+    """
+    from .amd import amd_choice
+    prose, choices = [], []
+    for line in str(body or "").splitlines():
+        ch = amd_choice(line)
+        if ch is None:
+            prose.append(line)
+        else:
+            choices.append(ch)
+    return "\n".join(prose).strip(), choices[:MAX_CHOICES]
 
 
 def _seconds(value):
@@ -290,7 +372,8 @@ def message_deliver_due(now=None):
     if not due:
         return 0
     for m in due:
-        message_mail(m["text"], to=m["to"], sender=m["from"], subject=m["subject"])
+        message_send(m["text"], to=m["to"], sender=m["from"], subject=m["subject"],
+                     kind="mail", choices=m.get("choices"))
     _save_pending([m for m in pending if m["after"] > now])
     return len(due)
 
@@ -301,3 +384,162 @@ def message_pending_count():
         return len(_pending())
     except Exception:
         return 0
+
+
+# --- a message that asks a question ------------------------------------------------
+#
+# The architecture is `hail.py`'s, because a hail is already exactly this: something a
+# script starts, that waits until a person opens it, and then offers replies. What is
+# borrowed, specifically:
+#
+#   * choices cached ON the message, not recomputed per draw (hail.py:597)
+#   * the seq bumped BEFORE outcomes run (hail.py:826), so a second press landing in
+#     the same frame is already stale rather than racing
+#   * both a signal AND a promise settled on an answer, the way _reply_emitter does
+#     for overlays (overlay.py:1389) - a route can react, or a task can await
+#
+# What is NOT borrowed: a hail belongs to a ship and blocks on being accepted. A
+# message sits in an inbox, is addressed per console, and several can be open at once.
+
+REPLY_SIGNAL = "message_reply"
+
+
+def _guard_agent():
+    """Whose state a choice guard is asked about.
+
+    The shared agent, not the reader's ship: a message is addressed to a CONSOLE and
+    consoles do not own state - the mission does. A caller that wants a ship's own
+    guards passes the message a pre-filtered choice list instead.
+    """
+    return Agent.SHARED_ID
+
+
+def message_choices(mid, console=None):
+    """The replies this console is offered on this message, guards applied.
+
+    Empty once the message is answered - a decision that has been taken is not still
+    on offer, and leaving the buttons up invites a second press that can only be
+    refused.
+    """
+    from .amd_dialogue import dialogue_guard_ok
+    msg = message_get(mid)
+    if msg is None or msg.get("answered") is not None:
+        return []
+    console = _console_name(console) if console else _here()
+    out = []
+    for ch in (msg.get("choices") or []):
+        if dialogue_guard_ok(ch.get("guard"), _guard_agent(), msg.get("from")):
+            out.append(dict(ch, index=len(out), seq=msg.get("seq", 1)))
+    return out
+
+
+def message_answer(mid, index, console=None, seq=None):
+    """Take one of a message's replies.
+
+    Returns the chosen dict, or None when the answer is refused - a stale seq, an
+    already-answered message, an index that is not on offer for this console, or an
+    outcome handler that says no (an unaffordable cost, say).
+
+    The seq moves BEFORE the outcomes run, so a second console pressing in the same
+    frame is refused rather than applying the outcome twice. That is hail.py's
+    discipline and the reason is the same: the outcomes are the part that cannot be
+    undone.
+    """
+    from .amd_dialogue import dialogue_apply
+    from .signal import signal_emit
+    msgs = _all()
+    msg = next((m for m in msgs if m.get("id") == mid), None)
+    if msg is None or msg.get("answered") is not None:
+        return None
+    if seq is not None and seq != msg.get("seq", 1):
+        return None                      # somebody already answered this one
+    console = _console_name(console) if console else _here()
+    offered = message_choices(mid, console)
+    if not (0 <= int(index) < len(offered)):
+        return None
+    chosen = offered[int(index)]
+
+    msg["seq"] = msg.get("seq", 1) + 1
+    if dialogue_apply(_guard_agent(), msg.get("from"), chosen.get("outcomes")) is False:
+        _save(msgs)                      # the token still moved; hail.py:451 does this
+        return None
+    msg["answered"] = {"label": chosen["label"], "by": console or "unknown",
+                       "at": _stamp()}
+    _save(msgs)
+
+    # The reply goes back into the inbox as a message of its own, which is what makes
+    # a thread read as a conversation rather than as a form that was filled in.
+    message_send(chosen["label"], to=_reply_to(msg), sender=(console or "unknown"),
+                 subject=f"Re: {msg.get('subject') or ''}".strip().rstrip(":"),
+                 kind="reply")
+
+    signal_emit(REPLY_SIGNAL, {
+        "MESSAGE_ID": mid, "MESSAGE_CHOICE": chosen["label"],
+        "MESSAGE_TARGET": chosen.get("target"), "MESSAGE_CONSOLE": console,
+        "MESSAGE_FROM": msg.get("from"),
+    })
+    prom = _PROMISES.pop(mid, None)
+    if prom is not None:
+        prom.set_result(chosen)
+    return chosen
+
+
+def _reply_to(msg):
+    """Who a reply is addressed to: whoever the message was addressed to, so the
+    thread stays with the same people. An announcement is replied to in public."""
+    to = msg.get("to")
+    return "*" if to is None else ",".join(sorted(to))
+
+
+def message_answered(mid):
+    """What was chosen, or None. A console that arrives late reads the decision."""
+    msg = message_get(mid)
+    return None if msg is None else msg.get("answered")
+
+
+# Story tasks awaiting a reply, by message id. Not on Agent.SHARED: a promise is a
+# live Python object belonging to one task, and nothing about it survives a reload.
+_PROMISES = {}
+
+
+def message_ask(text, to="*", sender=None, subject=None, choices=None, kind="mail"):
+    """Send a message and wait for its reply.
+
+        answer = await message_ask("Do we hold?", to="helm",
+                                   sender="The Captain", choices=["Hold", "Break off"])
+
+    Resolves with the chosen dict. A message nobody answers keeps the task waiting -
+    compose it with a timeout when that matters:
+    `promise_any(message_ask(...), delay_sim(60))`.
+    """
+    from ..futures import Promise
+    msg = message_send(text, to=to, sender=sender, subject=subject, kind=kind,
+                       choices=choices)
+    prom = Promise()
+    _PROMISES[msg["id"]] = prom
+    return prom
+
+
+def _choices_from(choices):
+    """Labels, `(label, target)` pairs or full dicts -> choice dicts.
+
+    The same shape hail.py accepts (`_hail_choices_from`), so a story that offers a
+    hail and a story that sends a message are written the same way.
+    """
+    out = []
+    for ch in (choices or []):
+        if isinstance(ch, dict):
+            out.append({"label": ch.get("label", ""), "target": ch.get("target"),
+                        "guard": ch.get("guard"), "outcomes": ch.get("outcomes") or []})
+        elif isinstance(ch, (tuple, list)) and len(ch) >= 2:
+            out.append({"label": str(ch[0]), "target": str(ch[1]),
+                        "guard": None, "outcomes": []})
+        else:
+            out.append({"label": str(ch), "target": None,
+                        "guard": None, "outcomes": []})
+    return out
+
+
+def message_promise_count():
+    """Reset-ledger probe: a task waiting on a reply that a reload will never bring."""
+    return len(_PROMISES)
