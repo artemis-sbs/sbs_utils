@@ -2,23 +2,58 @@ from ..fs import load_data, load_yaml_string, get_artemis_data_dir, get_mission_
 import os
 
 
-# --- HOT FIX 2026-08-27: the whole extra-ship-data path is OFF ---------------
-# Set False to restore the feature; nothing else has to change.
+# --- extra ship data: OFF unless the mission asks for it ---------------------
 #
-# Every route by which a runtime ("#mod") ship entry can reach the library or the
-# engine is gated on this: the mission's own `extraShipData`, `add_extra()`,
-# `merge_mod_ship_yaml()` (which every mod merge funnels through),
-# `extra_replay()` after `create_new_sim()`, and the `extraShipData.json` that
-# `ship_data_mod.ship_data_flush_mod_file()` writes.
+#     EXTRA_SHIP_DATA: true        # settings.yaml, a profile, or COSMOS_SETTINGS
 #
-# Guarding the LOADER alone is not enough and must not be done alone: a caller that
-# still spawns one of these hulls asks the engine for a ship type it was never given,
-# and that does not fail where it is written - it dies INSIDE the engine with
-# `bad allocation`, minutes later, against unrelated code. So the consumers are
-# switched off in step with this (LegendaryMissions turrets + the non-Typhon
-# monsters); see `extra_enabled()` for the narrower, engine-only switch this
-# deliberately is NOT.
-EXTRA_SHIP_DATA_DISABLED = True
+# The answer differs per INSTALL, not per build of this library, which is why this
+# stopped being the hardcoded constant the 2026-08-27 hot fix introduced. The engine
+# only grew a working extra-ship-data path in v1.3.7 and people are still running
+# v1.3.4, where a declared hull never registers - and asking to spawn one does not
+# fail where it is written: it dies INSIDE the engine with `bad allocation`, minutes
+# later, against unrelated code. Off is therefore the only safe default, and a
+# mission that knows which engine it is running on turns it on.
+#
+# Everything that could load one is gated on this: the mission's own `extraShipData`,
+# `add_extra()`, `merge_mod_ship_yaml()` (the choke point every mod merge funnels
+# through), `extra_replay()` after `create_new_sim()`, and the `extraShipData.json`
+# that `ship_data_mod.ship_data_flush_mod_file()` writes. The file write is in the set
+# deliberately: the engine reads that file INSIDE `create_new_sim()`, so leaving it
+# would re-introduce the loading by putting a file on disk that outlives the run.
+#
+# TURNING IT ON IS SAFE IN ONE DIRECTION ONLY. Loader on with consumers off is fine;
+# consumers on with the loader off is the crash above. See `extra_enabled()` for the
+# narrower, engine-only switch this deliberately is NOT.
+_EXTRA_SHIP_DATA_FORCE = None
+
+
+def extra_ship_data_enabled():
+    """Whether extra ship data may be loaded at all.
+
+    Reads the `EXTRA_SHIP_DATA` setting, defaulting to False. A caller that has to
+    decide before settings exist - or a test - overrides it with
+    `extra_ship_data_force`.
+    """
+    if _EXTRA_SHIP_DATA_FORCE is not None:
+        return _EXTRA_SHIP_DATA_FORCE
+    # Imported here, not at module scope: settings reads ship data for its race
+    # lists, so the two modules cannot import each other at load time.
+    from .settings import settings_get_defaults
+    value = settings_get_defaults().get("EXTRA_SHIP_DATA", False)
+    # NOT bool(): a quoted "false" is a non-empty string and bool() calls it True,
+    # which would turn the feature ON in the one place it must not be - a v1.3.4
+    # install, where the engine dies on the first spawn of a declared hull. YAML
+    # gives a real bool for a bare `false`, but a hand-edit or COSMOS_SETTINGS can
+    # hand over a string, and this must fail SAFE.
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "yes", "on", "1")
+    return bool(value)
+
+
+def extra_ship_data_force(on=True):
+    """Override the setting. `None` hands control back to it."""
+    global _EXTRA_SHIP_DATA_FORCE
+    _EXTRA_SHIP_DATA_FORCE = None if on is None else bool(on)
 
 
 ship_data_cache = None
@@ -63,7 +98,7 @@ def get_ship_data():
     # which is the point. A mission folder can still hold the file (ours generated it for
     # a year), and reading it back is exactly the loading this is meant to stop.
     script_ship_data = None
-    if not EXTRA_SHIP_DATA_DISABLED:
+    if extra_ship_data_enabled():
         script_ship_data = load_data( os.path.join(get_mission_dir(), "extraShipData"))
     if script_ship_data is not None:
         # A file that parsed but carries no `#ship-list` is a shape error, not a crash.
@@ -339,7 +374,7 @@ def merge_mod_ship_yaml(content, mod=None):
     # HOT FIX: the single choke point every mod merge funnels through - add_extra(),
     # ship_data_merge_mod() and any direct caller. Nothing stamped `#mod` enters the
     # cache while this is off, so `mod_ship_data_process` never runs either.
-    if EXTRA_SHIP_DATA_DISABLED:
+    if not extra_ship_data_enabled():
         return None
     global ship_data_cache
     data = load_yaml_string(content)
@@ -1159,7 +1194,7 @@ def extra_replay():
 
     Replayed from the record rather than from the files: the library merge already happened
     and only the engine forgot."""
-    if EXTRA_SHIP_DATA_DISABLED or not _EXTRA_SHIP_DATA_ENGINE:
+    if not extra_ship_data_enabled() or not _EXTRA_SHIP_DATA_ENGINE:
         return 0
     told = 0
     for filename, _path, _reached, engine_arg in list(_extra_ship_data_loaded):
@@ -1227,7 +1262,7 @@ def extra_report_untold():
     # HOT FIX: silent while the feature is off. With nothing merged there is nothing to
     # report, and the warning it prints ("the engine was never told about these hulls")
     # would be describing the fix rather than a fault.
-    if EXTRA_SHIP_DATA_DISABLED:
+    if not extra_ship_data_enabled():
         return []
     untold = extra_untold()
     if not untold:
@@ -1493,7 +1528,7 @@ def add_extra(name, path=None, mod=None):
     # Returns False, which is the SAME answer a missing file already gave - so every
     # existing caller's "engine was not told" branch handles this and none of them
     # need to know the feature is off.
-    if EXTRA_SHIP_DATA_DISABLED:
+    if not extra_ship_data_enabled():
         return False
     folder, _, stem = str(name).replace(chr(92), "/").rpartition("/")
     filename = stem or str(name)

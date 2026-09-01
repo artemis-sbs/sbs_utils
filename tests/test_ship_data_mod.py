@@ -43,18 +43,20 @@ _MOD_B = """
 
 
 def setUpModule():
-    """Skipped while the extra-ship-data hot fix is in force.
+    """Extra ship data is off by DEFAULT (the `EXTRA_SHIP_DATA` setting), so these
+    force it on rather than skipping: everything below describes the feature, and a
+    mission that turns the setting on gets exactly this behaviour.
 
-    HOT FIX 2026-08-27: `ship_data.EXTRA_SHIP_DATA_DISABLED` switches the whole
-    feature off, and everything below describes that feature - so these would report
-    the fix as a fault. Skipped rather than deleted or marked expected-failure: they
-    are the contract the feature has to satisfy again, and they come back on their own
-    the moment the flag is cleared, with no edit here.
+    Was a module-level skip from 2026-08-27 to 2026-09-01, while the switch was a
+    hardcoded constant and there was no way to ask for the feature at all.
     """
-    from sbs_utils.procedural.ship_data import EXTRA_SHIP_DATA_DISABLED
-    if EXTRA_SHIP_DATA_DISABLED:
-        raise unittest.SkipTest(
-            "extra ship data is off (ship_data.EXTRA_SHIP_DATA_DISABLED)")
+    from sbs_utils.procedural.ship_data import extra_ship_data_force
+    extra_ship_data_force(True)
+
+
+def tearDownModule():
+    from sbs_utils.procedural.ship_data import extra_ship_data_force
+    extra_ship_data_force(None)
 
 class _Tmp(unittest.TestCase):
     def setUp(self):
