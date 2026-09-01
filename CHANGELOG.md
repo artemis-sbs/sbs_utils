@@ -25,6 +25,19 @@
 
 ### sbs_utils
 
+- `learn` is an outcome verb and `learned` is a guard word, so a scene can say what the away
+  team worked out and gate on it: `- [Read the spur](spur) if engineering >= 1 ; learn cold`
+  unlocks `- [Open the shed](shed) if learned >= 3`. The count belongs to the PARTY, not to a
+  character - four people each holding a piece is the whole design, and a per-character tally
+  is a door nobody can ever open.
+
+  It replaces what a mission reaches for first: a signal per fact, a route per signal, and a
+  role granted at the threshold - four moving parts across three files. That version also
+  cannot dedupe. A `signal` outcome carries nothing but its name, and by the time a route
+  sees it the choice that fired it is gone, so a reading the party walks back into counts
+  twice and the door opens early. `learn` is a set. Registered at IMPORT rather than at
+  `away_metric_install`, because `dialogue_outcome_verbs()` is what `sbs lint` reads and the
+  linter does not run a mission.
 - The orbital establishing shot: `camera_establishing(to, subject, world, angle=...)` and a
   `viewscreen_set(ship, "establishing", body)` mode that cuts between four angles. The ship in
   frame with the world behind it, beside it, or below it - the shot everyone pictures when they

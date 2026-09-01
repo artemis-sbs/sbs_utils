@@ -40,7 +40,8 @@ told the same one - the same reason hail resolves its choices once at accept.
 Stdlib only; no threading. Safe to call with no MAST context.
 """
 from .amd_dialogue import (dialogue_parse, dialogue_get, dialogue_choices, dialogue_pick_line,
-                           dialogue_apply, dialogue_set_metric_resolver)
+                           dialogue_apply, dialogue_register_outcome,
+                           dialogue_set_metric_resolver)
 from .query import to_id
 from .roles import has_role, get_role_list
 from .signal import signal_emit
@@ -155,6 +156,49 @@ _PREV_METRIC = None
 _INSTALLED = False
 
 
+# What the party has WORKED OUT, by name. A set, so the same reading taken twice - and a
+# scene the crew walks back into - counts once.
+#
+# The party's, not a character's: the whole design is that four people each see a piece
+# and the picture only exists once they compare. A per-character tally would be a
+# different game, and a worse one.
+_FACTS = set()
+
+
+def away_facts():
+    """Everything the party has worked out so far, as a sorted list."""
+    return sorted(_FACTS)
+
+
+def away_learned(fact=None):
+    """How many distinct things the party knows - or whether it knows a given one."""
+    if fact is None:
+        return len(_FACTS)
+    return 1 if str(fact).strip() in _FACTS else 0
+
+
+def _away_learn_outcome(agent_id, speaker, tokens):
+    """The `learn` outcome verb: `- [Read the panel](panel) if engineering >= 1 ; learn cold`
+
+    DECLARED IN THE FILE, counted here. The alternative a mission reaches for first is a
+    signal per fact plus a route per signal plus a role granted at the threshold - four
+    moving parts, in three files, to express "they worked something out". And it cannot
+    dedupe: a `signal` outcome carries no data but its NAME, and by the time a route sees
+    it the choice that fired it is gone, so a reading taken twice counts twice.
+    """
+    if not tokens:
+        return None
+    _FACTS.add(" ".join(str(t) for t in tokens).strip())
+    return None
+
+
+# Registered AT IMPORT, not inside `away_metric_install`. `dialogue_outcome_verbs()` is
+# what `sbs lint` reads to decide whether an authored verb exists, and the linter does
+# not run a mission - so a verb registered at install time is one the linter reports as
+# unknown on a file that works perfectly. Registering is also harmless on its own: the
+# verb only records, and it is `away_metric_install` that makes `learned` answerable.
+dialogue_register_outcome("learn", _away_learn_outcome)
+
 def _away_metric(name, agent_id, speaker):
     """A guard's left side, for an away scene.
 
@@ -166,6 +210,10 @@ def _away_metric(name, agent_id, speaker):
     the character LACKS also falls through rather than short-circuiting to 0, so a mission
     that means `credits` by a word we happen not to hold still gets the right answer.
     """
+    # `learned` is the PARTY's, so it is answered before the role lookup and without an
+    # agent - it is the one guard word that is not about who is asking.
+    if str(name).strip() == "learned":
+        return len(_FACTS)
     if agent_id is not None and has_role(agent_id, str(name).strip()):
         return 1
     if _PREV_METRIC is not None:
@@ -333,4 +381,5 @@ def away_clear():
     """The per-mission reset: no team, no beat, resolver handed back."""
     away_team_clear()
     _SCENE.clear()
+    _FACTS.clear()
     away_metric_uninstall()

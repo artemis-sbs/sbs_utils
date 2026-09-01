@@ -324,5 +324,125 @@ class AwayMastRegistrationTests(unittest.TestCase):
             self.assertIn(name, MastGlobals.globals, f"{name} is not reachable from MAST")
 
 
+# One room, three readings, and a door that opens once the party has three of them.
+LEARN_FIELD = (
+    "% Swept, and too quiet.\n"
+    "- [Read the people](field_med) if medical >= 1 ; learn thin\n"
+    "- [Read the power spur](field_eng) if engineering >= 1 ; learn cold\n"
+    "- [Count the doors](field_sec) if security >= 1 ; learn watched\n"
+    "- [Open the shed](shed) if learned >= 3\n"
+    "- [Walk on](field)\n"
+)
+
+
+def _learn_scenes():
+    def node(key, body):
+        return {"key": key, "display_text": key, "description": body,
+                "data": {"speaker": "bel"}}
+    return {
+        "field": node("field", LEARN_FIELD),
+        "field_med": node("field_med", "% A tremor in every hand.\n- [Say it](field)\n"),
+        "field_eng": node("field_eng", "% Drawing for forty.\n- [Say it](field)\n"),
+        "field_sec": node("field_sec", "% They lock from outside.\n- [Say it](field)\n"),
+        "shed": node("shed", "% Thirty of them, asleep.\n- [Oh]()\n"),
+    }
+
+
+# Consoles are plain ints here, as everywhere else in this file.
+LEARN_CID = 201
+
+
+class AwayLearnTests(_AwayBase):
+    """`; learn cold` on a choice, `if learned >= 3` on the one it unlocks.
+
+    The mission's first instinct is a signal per fact, a route per signal, and a role
+    granted at the threshold - four moving parts across three files to say "they worked
+    something out". Worse, it CANNOT dedupe: a `signal` outcome carries nothing but its
+    name, and by the time a route sees it the choice that fired it is gone, so a reading
+    the party walks back into counts twice and the door opens early.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.scenes = _learn_scenes()
+
+    def _answer(self, who, label):
+        A.away_assign(LEARN_CID, who)
+        labels = self._labels(LEARN_CID)
+        self.assertIn(label, labels, f"{label} not offered: {labels}")
+        return A.away_answer(LEARN_CID, labels.index(label), A.away_seq())
+
+    def test_nothing_is_known_at_the_start(self):
+        A.away_scene_begin(self.scenes, "field")
+        self.assertEqual(A.away_learned(), 0)
+        self.assertEqual(A.away_facts(), [])
+
+    def test_a_reading_is_recorded_by_name(self):
+        A.away_scene_begin(self.scenes, "field")
+        self._answer(self.eng, "Read the power spur")
+        self.assertEqual(A.away_facts(), ["cold"])
+        self.assertEqual(A.away_learned("cold"), 1)
+        self.assertEqual(A.away_learned("thin"), 0)
+
+    def test_the_same_reading_twice_counts_once(self):
+        # THE REASON THIS IS NOT A SIGNAL. Every reading returns the party to the room it
+        # came from, so walking back into one is the normal way to play, not an abuse.
+        for _ in range(3):
+            A.away_scene_begin(self.scenes, "field")
+            self._answer(self.eng, "Read the power spur")
+        self.assertEqual(A.away_learned(), 1)
+
+    def test_the_gate_is_shut_until_enough_is_known(self):
+        A.away_scene_begin(self.scenes, "field")
+        A.away_assign(LEARN_CID, self.eng)
+        self.assertNotIn("Open the shed", self._labels(LEARN_CID))
+
+    def test_three_readings_open_it(self):
+        for who, label in ((self.doc, "Read the people"),
+                           (self.eng, "Read the power spur"),
+                           (self.sec, "Count the doors")):
+            A.away_scene_begin(self.scenes, "field")
+            self._answer(who, label)
+        A.away_scene_begin(self.scenes, "field")
+        A.away_assign(LEARN_CID, self.eng)
+        self.assertEqual(A.away_learned(), 3)
+        self.assertIn("Open the shed", self._labels(LEARN_CID))
+
+    def test_the_gate_belongs_to_the_PARTY_not_the_character(self):
+        # Four people each holding a piece is the whole design. Were `learned` per
+        # character, nobody would ever reach three and the door would never open.
+        for who, label in ((self.doc, "Read the people"),
+                           (self.eng, "Read the power spur"),
+                           (self.sec, "Count the doors")):
+            A.away_scene_begin(self.scenes, "field")
+            self._answer(who, label)
+        # Asked as the MEDIC, who personally read exactly one thing.
+        A.away_scene_begin(self.scenes, "field")
+        A.away_assign(LEARN_CID, self.doc)
+        self.assertIn("Open the shed", self._labels(LEARN_CID))
+
+    def test_a_role_guard_still_works_beside_it(self):
+        A.away_scene_begin(self.scenes, "field")
+        A.away_assign(LEARN_CID, self.doc)
+        labels = self._labels(LEARN_CID)
+        self.assertIn("Read the people", labels)
+        self.assertNotIn("Read the power spur", labels)
+
+    def test_a_reset_forgets_what_the_party_knew(self):
+        A.away_scene_begin(self.scenes, "field")
+        self._answer(self.eng, "Read the power spur")
+        A.away_clear()
+        self.assertEqual(A.away_learned(), 0)
+
+    def test_learn_with_no_token_records_nothing(self):
+        # An authoring slip (`; learn`) must not bank an empty fact that still counts.
+        A._away_learn_outcome(None, None, ())
+        self.assertEqual(A.away_learned(), 0)
+
+    def test_a_multi_word_fact_is_one_fact(self):
+        A._away_learn_outcome(None, None, ("the", "power", "spur"))
+        self.assertEqual(A.away_facts(), ["the power spur"])
+
+
 if __name__ == "__main__":
     unittest.main()
