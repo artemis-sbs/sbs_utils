@@ -165,13 +165,20 @@ def _away_reply_strip(msg):
     from .row import gui_row
     from .text import gui_text
     from .button import gui_button
-    from ..away import away_scene, away_choices, away_answer, away_seq
+    from ..away import away_scene, away_choices, away_choices_for, away_answer, away_seq
+    from .away_gui import away_who
 
     page = FrameContext.page
     client_id = getattr(page, "client_id", None) if page is not None else None
     if client_id is None or msg.get("scene") != away_scene():
         return
-    offered = away_choices(client_id)
+    # `away_choices_for` for the ACTIVE character, not the deduped `away_choices`.
+    # The deduped list collapses a shared choice - "Beam back up", "Walk in with her" -
+    # onto the primary, so a console speaking for two bodies had no way to take one as
+    # the second character. The roster picker in the Away Team app chooses who acts.
+    active = away_who(client_id)
+    offered = (away_choices_for(client_id, active) if active is not None
+               else away_choices(client_id))
     if not offered:
         return
 

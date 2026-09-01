@@ -427,6 +427,8 @@ from .procedural.away import away_team_count as _away_team_count
 from .procedural.away import away_scene_count as _away_scene_count
 register_reset_state("away team", _away_team_count)
 register_reset_state("away scene", _away_scene_count)
+from .procedural.away import away_invite_count as _away_invite_count
+register_reset_state("away invitation", _away_invite_count)
 from .procedural.volume import volume_count as _volume_count
 from .procedural.volume import volume_watch_count as _volume_watch_count
 register_reset_state("volumes", _volume_count)

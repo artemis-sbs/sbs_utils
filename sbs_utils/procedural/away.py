@@ -42,6 +42,7 @@ Stdlib only; no threading. Safe to call with no MAST context.
 from .amd_dialogue import (dialogue_parse, dialogue_get, dialogue_choices, dialogue_pick_line,
                            dialogue_apply, dialogue_register_outcome,
                            dialogue_set_metric_resolver)
+from ..agent import Agent
 from .query import to_id
 from .roles import has_role, get_role_list
 from .signal import signal_emit
@@ -537,4 +538,119 @@ def away_clear():
     away_team_clear()
     _SCENE.clear()
     _FACTS.clear()
+    away_invite_clear()
     away_metric_uninstall()
+
+
+# --- the invitation: a party you JOIN, rather than one you are dealt ----------------
+#
+# The original flow dealt characters round-robin across every console on the ship and
+# rerouted all of them in one go. That works, and it takes the choice away: a console
+# was on the surface before anybody at it had agreed to go, playing whoever the loop
+# reached. An invitation is the same information, offered instead of applied - the
+# mission says a party is forming and who is available, and each console decides.
+#
+# It also makes the surplus honest. Dealing had to double consoles up or strand
+# characters; with an invitation, whoever wants to go takes somebody, and anyone left
+# at their post simply stays there.
+
+INVITE_KEY = "__AWAY_INVITE__"
+
+
+def away_invite(ship, roster, title=None):
+    """Open a landing party. Nobody moves until a console beams down.
+
+    Args:
+        ship: the ship the party leaves from.
+        roster (list): the lifeforms available to play, in offer order.
+        title (str, optional): what this place is called on screen.
+
+    Returns:
+        dict: the invitation.
+    """
+    invite = {
+        "ship": to_id(ship),
+        "roster": [to_id(m) for m in (roster or []) if to_id(m)],
+        "title": title or "AWAY TEAM",
+        "open": True,
+    }
+    Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
+    return invite
+
+
+def away_invitation():
+    """The open invitation, or None."""
+    invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
+    return invite if isinstance(invite, dict) and invite.get("open") else None
+
+
+def away_invite_close():
+    """Stop offering places. Anyone already down stays down."""
+    invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
+    if isinstance(invite, dict):
+        invite["open"] = False
+        Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
+
+
+def away_invite_title():
+    invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
+    return (invite or {}).get("title") or "AWAY TEAM"
+
+
+def away_invite_ship():
+    invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
+    return (invite or {}).get("ship")
+
+
+def away_open_roster():
+    """The characters nobody has taken yet, in the order they were offered."""
+    invite = away_invitation()
+    if invite is None:
+        return []
+    taken = away_team()
+    return [m for m in invite.get("roster") or [] if m not in taken]
+
+
+def away_beam_down(client_id, lifeform=None):
+    """Take a place in the landing party.
+
+    Args:
+        client_id: the console volunteering.
+        lifeform (optional): who to play. Defaults to the first character still free,
+            so a console can simply say yes.
+
+    Returns:
+        The lifeform taken, or None when the invitation is closed or nobody is left -
+        which a caller shows as "the party is full" rather than treating as an error.
+    """
+    if away_invitation() is None:
+        return None
+    free = away_open_roster()
+    if lifeform is None:
+        lifeform = free[0] if free else None
+    else:
+        lifeform = to_id(lifeform)
+        if lifeform not in free:
+            return None                  # somebody else took them first
+    if lifeform is None:
+        return None
+    away_assign(client_id, lifeform)
+    return lifeform
+
+
+def away_beam_up(client_id):
+    """Leave the surface. The console's own screen is the caller's business - this
+    releases the character so somebody else could take them."""
+    if not away_held(client_id):
+        return False
+    away_assign(client_id, None)
+    return True
+
+
+def away_invite_clear():
+    Agent.SHARED.set_inventory_value(INVITE_KEY, None)
+
+
+def away_invite_count():
+    """Reset-ledger probe."""
+    return 1 if Agent.SHARED.get_inventory_value(INVITE_KEY, None) else 0

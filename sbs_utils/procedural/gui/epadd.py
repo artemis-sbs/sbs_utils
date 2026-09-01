@@ -474,9 +474,41 @@ def gui_app_chrome(title, subtitle=None, home_text="HOME", on_home=None):
                on_press=on_home)
     gui_text(f"$text:{_esc(title)};font:gui-4;", style="col-width: content;")
     if subtitle:
-        gui_text(f"$text:{_esc(subtitle)};font:gui-1;color:{DIM};")
+        gui_text(f"$text:{_esc(subtitle)};font:gui-1;color:{DIM};",
+                 style="col-width: content;")
     else:
         gui_blank()
+    _who_am_i()
+
+
+def _who_am_i():
+    """WHO THIS CONSOLE IS, when it is somebody.
+
+    Identity is not a property of an app - it belongs to the console right now - so it
+    lives in the chrome. That is the difference between the away team carrying it into
+    every app they open and it existing on one screen: a crew member reading Quests on
+    the surface still knows who they are, and the job words are what the scene guards
+    read, so they are worth having in front of them.
+
+    Draws nothing on a console that is nobody, which is every bridge console.
+    """
+    from .text import gui_text
+    from .face import gui_face
+    try:
+        from .away_gui import away_who, away_label
+        from ...faces import get_face
+    except Exception:
+        return
+    who = away_who()
+    if who is None:
+        return
+    name, job = away_label(who)
+    face = get_face(who)
+    if face:
+        gui_face(face)
+    gui_text(f"$text:{_esc(name)};font:gui-2;", style="col-width: content;")
+    gui_text(f"$text:{_esc(job)};font:gui-1;color:{ACCENT};",
+             style="col-width: content;")
 
 
 def gui_app_badge(app):
