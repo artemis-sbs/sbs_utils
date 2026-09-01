@@ -50,6 +50,22 @@ def _row_template(item):
     gui_text(f"$text:{_esc(subject)};font:gui-2;color:{tone};overflow:ellipsis;")
 
 
+def _live_beat(inbox):
+    """The message carrying the away beat that is open right now, if any."""
+    from ..away import away_scene
+    key = away_scene()
+    if not key:
+        return None
+    return next((m for m in inbox if m.get("scene") == key), None)
+
+
+def _is_stale_beat(msg):
+    """A beat whose scene has moved on. Still readable as a transcript line; just no
+    longer the thing being asked."""
+    from ..away import away_scene
+    return bool(msg.get("scene")) and msg.get("scene") != away_scene()
+
+
 def _reply_strip(msg):
     """The replies this message offers, or what was already chosen.
 
@@ -75,9 +91,13 @@ def _reply_strip(msg):
     offered = message_choices(msg.get("id"))
     if not offered:
         return
-    gui_row("row-height: 2.2em; padding: 0, 12px, 0, 0;")
     mid = msg.get("id")
     for choice in offered:
+        # ONE BUTTON PER ROW. A reply is a sentence, not a word - side by side they
+        # divide a fixed width and the engine does not clip, so they draw over each
+        # other and none of them can be read.
+        gui_row("row-height: 2.4em; padding: 0, 6px, 0, 0;")
+
         # A closure with BOUND DEFAULTS, not a reference to the loop variable: the
         # buttons are built in a loop and every one of them would otherwise answer
         # with the last choice's index. `on_press` calls a callable with NO
@@ -85,8 +105,10 @@ def _reply_strip(msg):
         def press(_mid=mid, _index=choice["index"], _seq=choice["seq"]):
             message_answer(_mid, _index, seq=_seq)
 
-        gui_button(f"$text:{_esc(choice['label'])};",
-                   style="col-width: content;", on_press=press)
+        # The label PLAINLY. Wrapped in a `$text:`...`;` style string the engine draws
+        # the BACKTICKS - they quote a style value, they are not markup the renderer
+        # strips - so every reply read with the marks still around it.
+        gui_button(choice["label"], on_press=press)
 
 
 def _away_reply_strip(msg):
@@ -113,15 +135,15 @@ def _away_reply_strip(msg):
     if not offered:
         return
 
-    gui_row("row-height: 2.2em; padding: 0, 12px, 0, 0;")
     seq = away_seq()
     for index, choice in enumerate(offered):
+        gui_row("row-height: 2.4em; padding: 0, 6px, 0, 0;")
+
         def press(_cid=client_id, _i=index, _seq=seq,
                   _agent=getattr(choice, "agent", None)):
             away_answer(_cid, _i, seq=_seq, agent=_agent)
 
-        gui_button(f"$text:{_esc(getattr(choice, 'label', ''))};",
-                   style="col-width: content;", on_press=press)
+        gui_button(getattr(choice, "label", ""), on_press=press)
 
 
 def gui_messages_screen(consoles=None, title="Messages"):
@@ -175,6 +197,15 @@ def gui_messages_screen(consoles=None, title="Messages"):
         chosen = message_selected()
         if chosen is not None:
             reading = next((m for m in inbox if m.get("id") == chosen), None)
+        # A conversation moves on. Answering a beat opens the next one, and a pick
+        # that stayed on the beat just answered would leave the team reading a
+        # question they have already settled while the new one sat unseen in the
+        # list. Follow the live beat ONLY from a stale one, so a letter somebody
+        # deliberately opened mid-scene is not yanked away from them.
+        live = _live_beat(inbox)
+        if live is not None and (reading is None or _is_stale_beat(reading)):
+            reading = live
+            message_select(live.get("id"))
         if reading is None and inbox:
             reading = inbox[0]
         if reading is not None and lb is not None:

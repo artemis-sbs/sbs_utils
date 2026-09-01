@@ -361,3 +361,87 @@ class TestAwayBeatsReachTheInbox(ChoiceBase):
         self.open()
         self.assertEqual(self.away_mod.away_scene(), "door")
         self.assertTrue(self.away_mod.away_line())
+
+
+class TestAConversationAdvances(ChoiceBase):
+    """Reported from the engine: answering a beat did nothing, or the first one worked
+    and then no further messages were visible.
+
+    The beats WERE arriving - `away_answer` opens the next scene and that mirrors a
+    message. What did not move was the SELECTION: it stayed pinned to the beat just
+    answered, so the pane kept showing a question already settled while the new one
+    sat unseen in the list.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural import away as away_mod
+        self.A = away_mod
+        away_mod.away_clear()
+        away_mod._TEAM.clear()
+        away_mod._TEAM[7] = [1]
+        self.addCleanup(away_mod.away_clear)
+        self.addCleanup(away_mod._TEAM.clear)
+
+        def node(key, body):
+            return {"key": key, "display_text": key, "data": {}, "children": [],
+                    "description": body}
+        self.scenes = {
+            "door": node("door", "The door is shut.\n\n- [Knock](inside)\n"),
+            "inside": node("inside", "It opens on a dim room.\n\n- [Step in](done)\n"),
+            "done": node("done", "You step in. That is all of it.\n"),
+        }
+        self.A.away_scene_begin(self.scenes, "door", speaker="The Keeper")
+
+    def pane(self):
+        """What the screen would land on, by its own rule."""
+        from sbs_utils.procedural.gui.messages_gui import _live_beat, _is_stale_beat
+        from sbs_utils.procedural.messages import message_select
+        inbox = message_inbox("away")
+        sel = None
+        from sbs_utils.procedural.messages import message_selected
+        chosen = message_selected("away")
+        if chosen is not None:
+            sel = next((m for m in inbox if m["id"] == chosen), None)
+        live = _live_beat(inbox)
+        if live is not None and (sel is None or _is_stale_beat(sel)):
+            sel = live
+            message_select(live["id"], "away")
+        return sel
+
+    def answer(self):
+        return self.A.away_answer(7, 0, seq=self.A.away_seq(), agent=self.A.away_me(7))
+
+    def test_the_pane_follows_the_conversation(self):
+        self.assertIn("door is shut", self.pane()["text"])
+        self.answer()
+        self.assertIn("dim room", self.pane()["text"])
+        self.answer()
+        self.assertIn("You step in", self.pane()["text"])
+
+    def test_every_beat_is_kept_as_a_transcript(self):
+        self.answer()
+        self.answer()
+        self.assertEqual(len(message_inbox("away")), 3)
+
+    def test_an_answered_beat_stops_offering_its_replies(self):
+        from sbs_utils.procedural.gui.messages_gui import _is_stale_beat
+        first = message_inbox("away")[0]
+        self.answer()
+        self.assertTrue(_is_stale_beat(first))
+
+    def test_a_letter_opened_mid_scene_is_NOT_yanked_away(self):
+        """The rule follows the live beat only from a STALE one. Somebody reading a
+        letter from home while the scene runs keeps reading it."""
+        from sbs_utils.procedural.messages import message_select, message_selected
+        letter = message_send("Your nan says hello.", to="away", sender="Mum")
+        message_select(letter["id"], "away")
+        self.answer()
+        self.assertEqual(self.pane()["id"], letter["id"])
+        self.assertEqual(message_selected("away"), letter["id"])
+
+    def test_the_scene_ending_leaves_the_transcript_alone(self):
+        self.answer()
+        self.answer()
+        self.assertIsNone(self.A.away_scene() and None)
+        self.assertEqual(len(message_inbox("away")), 3)
