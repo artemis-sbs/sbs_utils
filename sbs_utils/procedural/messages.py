@@ -27,6 +27,7 @@ inbox does not survive into the next mission.
 """
 from ..agent import Agent
 from ..helpers import FrameContext
+from .inventory import get_inventory_value as _client_value
 
 
 # A counter the inbox screen watches. A signal does NOT wake `await gui()`, so a live
@@ -110,9 +111,26 @@ def _console_name(console):
 
 
 def _here():
-    """The console reading right now, off the page."""
+    """The console reading right now.
+
+    `page.console` is set by `gui_console()` at swap time and is NOT what a morphed
+    console answers: `gui_console_enter` - the one door, and how the away console is
+    entered - writes CONSOLE_TYPE into the client's inventory and never touches
+    `page.console`. So an away console reported no console at all, `message_select`
+    returned early, and nothing a crew member picked was ever remembered.
+
+    CONSOLE_TYPE is the authoritative answer; the page is the fallback for a console
+    that was never entered through that door.
+    """
     page = FrameContext.page
-    return _console_name(getattr(page, "console", None) if page is not None else None)
+    if page is None:
+        return None
+    client_id = getattr(page, "client_id", None)
+    if client_id is not None:
+        typed = _client_value(client_id, "CONSOLE_TYPE", None)
+        if typed:
+            return _console_name(typed)
+    return _console_name(getattr(page, "console", None))
 
 
 # Audiences that are a QUESTION, not a name. Who is away changes during a mission, so
