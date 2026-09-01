@@ -1,4 +1,5 @@
 from __future__ import annotations
+import re
 from typing import Callable
 from enum import IntEnum
 from .agent import Agent, SpawnData
@@ -60,6 +61,50 @@ def ascii_name(name):
     import unicodedata
     folded = unicodedata.normalize("NFKD", folded)
     return folded.encode("ascii", "ignore").decode("ascii")
+
+
+# --- Characters a name must never carry ------------------------------------------
+#
+# Separate from the ASCII workaround above, and NOT part of its revert: these are
+# ASCII characters that mean something to the engine, so they corrupt whatever draws
+# the name rather than merely looking wrong.
+#
+#   ^   The engine's LINE BREAK, and the separator in `send_client_widget_list`.
+#       Backtick quoting does not neutralise it -- a caret breaks the line either
+#       way, so a name carrying one splits across two lines wherever it is drawn.
+#   ;   Terminates a style property. `gui_text_escape` protects the callers that
+#       use it, but the common mission spelling is a hand-built `f"$text:{name};"`,
+#       and there the name ends early and its tail is parsed as styling.
+#   `   The delimiter `gui_text_escape` quotes values with; one inside the value
+#       closes the quote.
+#   Control characters, newline and tab included. Nothing downstream expects them.
+#
+# `:` is deliberately left alone: it is legitimate inside a name ("Home: Reborn")
+# and, unlike `;`, it cannot start a new property on its own.
+#
+# Everything but the backtick folds to a SPACE so words stay apart ("Ares^Beta" ->
+# "Ares Beta"); the backtick is dropped, matching `gui_text_escape`. Whitespace runs
+# are collapsed afterwards, but ONLY for a name that actually contained one of these
+# -- a name that was already clean is returned untouched, double spaces and all.
+#
+# COST. A compiled `search` over a short string, once per name. The clean path
+# allocates nothing.
+_NAME_UNSAFE_RE = re.compile(r"[\^;`\x00-\x1f\x7f]")
+
+
+def safe_name(name):
+    """A name safe to hand the engine: no `^`, `;`, backtick or control characters.
+
+    Applies `ascii_name` as well, so this is the single call every name path needs.
+    Returns `name` unchanged when it is a non-string (`None` is a legal name) or is
+    already clean.
+    """
+    if not isinstance(name, str):
+        return name
+    if _NAME_UNSAFE_RE.search(name):
+        name = _NAME_UNSAFE_RE.sub(" ", name.replace("`", ""))
+        name = " ".join(name.split())
+    return ascii_name(name)
 
 
 class TickType(IntEnum):
@@ -256,7 +301,7 @@ class SpaceObject(Agent):
             str: The name of the object.
         """
         so = self.space_object()
-        name = ascii_name(name)
+        name = safe_name(name)
         self._name = name
         self.update_comms_id()
         if so is None:
@@ -529,6 +574,10 @@ class MSpawn:
         self._data_set = blob
 
         if name is not None:
+            # Sanitised HERE too, not only in set_name: spawn writes the blob
+            # directly, so every npc_spawn/player_spawn/terrain_spawn name used to
+            # miss the fold entirely.
+            name = safe_name(name)
             self._name = name
             blob.set("name_tag", name, 0)
 

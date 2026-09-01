@@ -25,6 +25,19 @@
 
 ### sbs_utils
 
+- A ship name can no longer carry the engine's own control characters. `^` is the
+  engine's line break (and the widget-list separator), `;` terminates a style property,
+  and a backtick closes the quoting `gui_text_escape` adds - so a name containing one
+  split across two lines, or ended early with its tail parsed as styling, on every
+  screen that drew it. `safe_name` folds all three plus control characters to a space
+  and does the existing non-ASCII fold in the same call. It now runs on the SPAWN path
+  as well: `spawn_common` writes `name_tag` directly, so every npc_spawn /
+  player_spawn / terrain_spawn name previously skipped even the ASCII fold. `:` is
+  deliberately still allowed - it is legitimate in a name and cannot start a property
+  on its own.
+- The typein drops `^` and control characters as well as the backtick it already
+  stripped, so a caret cannot enter through a player-typed ship name in the lobby.
+
 - A console can speak for SEVERAL away characters, so a landing party smaller than its cast
   no longer leaves people standing on the surface that nobody controls. `_TEAM` holds a list
   per console; `away_assign` still means "you are Sorel" and `away_assign_also` adds another;

@@ -202,8 +202,10 @@ def place_player(x, y, z, slot=0, name=None, side=None):
     if eo is not None:
         FrameContext.context.sim.reposition_space_object(eo, v.x, v.y, v.z)
     if name:
+        # `so.name` already writes name_tag through SpaceObject.set_name, which
+        # is also where the name is made safe for the engine. The duplicate raw
+        # blob write that used to follow put the UNSANITISED name straight back.
         so.name = name
-        so.data_set.set("name_tag", name, 0)
     if side:
         so.side = side
         set_hull_side(sid, side)

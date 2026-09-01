@@ -33,13 +33,31 @@ class TextInput(Column):
 
         self.props = props
 
+    # Characters that cannot survive a round trip through the engine, whatever
+    # the player pressed to produce them:
+    #
+    #   `   the delimiter gui_text_escape quotes the value with -- one inside
+    #       the value closes the quote early.
+    #   ^   the engine's LINE BREAK. Quoting does NOT neutralise it, so a caret
+    #       in a typein splits the box's text across two lines, and a value bound
+    #       to a ship name carries that break onward to every screen that draws
+    #       the name (see spaceobject.safe_name, which strips the same character
+    #       on the way to the engine).
+    #   control characters, newline included. A typein is one line.
+    #
+    # All of them are DROPPED rather than folded to a space: this is text someone
+    # is typing, and a keystroke that quietly turns into a space reads as a bug.
+    # ':' and ';' are left alone -- _text_prop re-quotes on every present, so they
+    # are literal text, and both are legitimate in a typed value.
+    _UNSAFE = re.compile(r"[`\^\x00-\x1f\x7f]")
+
     @staticmethod
     def _sanitize(v):
-        # Store the value with the backtick delimiter stripped so it round-trips
+        # Store the value with the unsafe characters stripped so it round-trips
         # cleanly to the bound var / persistence. Wrapping for the wire happens
         # in _text_prop via the shared gui_text_escape helper.
-        if v and "`" in v:
-            v = v.replace("`", "")
+        if v:
+            v = TextInput._UNSAFE.sub("", v)
         return v
 
     def _text_prop(self):
@@ -104,8 +122,9 @@ class TextInput(Column):
             self._value = self._sanitize(event.value_tag)
             self.update_variable()
             if self._value != event.value_tag:
-                # A character had to be stripped (a backtick); push the
-                # corrected value back so the box matches what we stored.
+                # A character had to be stripped (a backtick, a caret, a
+                # control character); push the corrected value back so the box
+                # matches what we stored.
                 self.mark_value_dirty()
         super().on_message(event)
 
