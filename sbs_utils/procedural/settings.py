@@ -274,6 +274,12 @@ def settings_get_defaults():
         },
         "AUTO_START": False,
         "AUTO_START_DELAY": 10,
+        # Let a mission or mod declare extra hulls. OFF, because the answer depends on
+        # the INSTALL: the engine only grew a working extra-ship-data path in v1.3.7,
+        # and on v1.3.4 a declared hull never registers - then spawning one dies inside
+        # the engine as `bad allocation`, minutes later, against unrelated code. A
+        # mission that knows its engine sets this true, usually in a profile.
+        "EXTRA_SHIP_DATA": False,
         # Come back on the setup screen with the settings the LAST game started with,
         # instead of the ones in settings.yaml. Off by default, deliberately: a venue or
         # convention machine wants every group to start from the same known state, and
