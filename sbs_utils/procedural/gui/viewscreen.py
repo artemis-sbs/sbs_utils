@@ -39,7 +39,8 @@ from ...mast.mast import DEBUG
 from ..inventory import get_inventory_value, set_inventory_value
 from ..query import to_id, to_object, is_alt_ship_target
 from ..signal import signal_emit
-from .camera import camera_assign, camera_auto, camera_dolly, camera_move_stop, camera_orbit
+from .camera import (ESTABLISHING_ANGLES, camera_assign, camera_auto, camera_dolly,
+                     camera_establishing, camera_move_stop, camera_orbit)
 from .overlay import (consoles_of, overlay_auto_dwell, overlay_clear, overlay_register,
                       overlay_show, overlay_slot_define)
 from .viewscreen_claims import (OWNER_ANON, TIER_CONSOLE, TIER_STORY, viewscreen_baseline,
@@ -57,7 +58,7 @@ from .viewscreen_pages import viewscreen_pages
 
 
 # The shots a console can ask for. "off" is not a shot - it is handing the screen back.
-MODES = ("off", "dolly", "orbit", "tactical")
+MODES = ("off", "dolly", "orbit", "tactical", "establishing")
 
 # The engine main-screen VIEW each mode needs. Facing and mode (chase/first_person,
 # long/short) are deliberately left alone: the viewer has an opinion about WHAT the
@@ -66,6 +67,7 @@ MODES = ("off", "dolly", "orbit", "tactical")
 _MODE_VIEW = {
     "dolly":    "3d_view",
     "orbit":    "3d_view",
+    "establishing": "3d_view",
     "tactical": "tactical",
 }
 
@@ -97,6 +99,12 @@ DOLLY_SECONDS = 22.0    # one leg: in, then out
 ORBIT_SECONDS = 48.0    # one full turn
 ORBIT_PITCH = 12.0
 DOLLY_YAW = -25.0
+# One angle of the establishing loop. Long enough to be a shot rather than a channel
+# hop, short enough that a crew parked in orbit sees more than one composition.
+ESTABLISHING_SECONDS = 20.0
+# The order the angles are cut in. Not random: two adjacent legs should not look the
+# same, and starting BEHIND gives the classic arrival frame first.
+ESTABLISHING_ORDER = ("behind", "side", "high", "low")
 
 # The data column. The SAME rect in both modes: in tactical the radar is reflowed to
 # leave this gutter free (LM), in a 3D shot the engine renders full-bleed and the column
@@ -117,6 +125,7 @@ SHOT_LABELS = (
     ("Off", "off"),
     ("On Screen - Dolly", "dolly"),
     ("On Screen - Orbit", "orbit"),
+    ("On Screen - In Orbit Of", "establishing"),
     ("Tactical 2D", "tactical"),
 )
 
@@ -858,7 +867,16 @@ def _next_leg(record):
     """
     near, far = viewscreen_framing(record["subject"])
     cids = record["cids"]
-    if record["mode"] == "orbit":
+    if record["mode"] == "establishing":
+        # SUBJECT IS THE SHIP, not the body. That is the whole difference between this
+        # and `orbit`: the ship is what stays framed, and the world is what it is framed
+        # AGAINST. `subject` still names the world, because that is what the caller said
+        # the shot is about, so the two swap roles here.
+        angle = ESTABLISHING_ORDER[record["leg"] % len(ESTABLISHING_ORDER)]
+        record["prom"] = camera_establishing(cids, record["ship"], record["subject"],
+                                             angle=angle,
+                                             seconds=ESTABLISHING_SECONDS)
+    elif record["mode"] == "orbit":
         yaw = record["yaw"]
         record["prom"] = camera_orbit(cids, record["subject"], far, from_yaw=yaw,
                                       to_yaw=yaw + 360.0, seconds=ORBIT_SECONDS,

@@ -25,6 +25,29 @@
 
 ### sbs_utils
 
+- The orbital establishing shot: `camera_establishing(to, subject, world, angle=...)` and a
+  `viewscreen_set(ship, "establishing", body)` mode that cuts between four angles. The ship in
+  frame with the world behind it, beside it, or below it - the shot everyone pictures when they
+  say "in orbit". `camera_orbit` cannot make it: it swings the lens around ONE object, so aimed
+  at the world there is no ship in shot, and aimed at the ship the world falls wherever the
+  heading puts it. The lens sits within a narrow cone about the WORLD-WARD axis (the line from
+  the world out through the ship) so the camera always looks world-ward and the body cannot
+  leave frame; the roll around that axis is what changes the composition. Taking orbit at a gas
+  giant now uses it (LegendaryMissions docking).
+
+- **`camera_chase` sat in FRONT of what it was chasing.** The engine places the lens on the far
+  side of the offset it is handed - mirrored through the dolly - and `camera_chase` computes a
+  real world position from the subject's heading, so "behind" rendered as in front: the one
+  thing its docstring promises not to do. It had no test of its own, which is how it shipped
+  that way. Now goes through `_engine_lens`, the single named place for the convention.
+
+  The mirror is invisible to a single-subject shot - a lens mirrored through its subject still
+  frames that subject, just from a side nobody asked for - which is why it survived. Only shots
+  computing a world position from real geometry are affected. `camera_dolly` and `camera_orbit`
+  build their offsets in the engine's own convention (`camera_orbit_lens` documents
+  `Vec3(0,0,distance)` as "straight back", true only once mirrored) and are deliberately left
+  alone: fixing this inside `camera_shot` would silently re-frame every authored cutscene.
+  `tests/test_camera_convention.py` pins both halves.
 - A console can be made DISPLAY-ONLY for one selection surface:
   `inc_disable_client_selection(client_id, uid)` / `dec_disable_client_selection`, with
   `..._client_grid_selection` / `..._client_science_selection` / `..._client_weapons_selection` /

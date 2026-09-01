@@ -666,12 +666,16 @@ def camera_chase(to, subject, distance, height=0.0, seconds=30.0, consoles=None)
             flen = math.sqrt(fx * fx + fy * fy + fz * fz)
         except Exception:
             flen = 0.0
+        # _engine_lens: this computes a real world position from the subject's HEADING,
+        # so it is one of the shots the engine's mirrored offset actually breaks. Handed
+        # over straight, "behind" rendered in FRONT of the thing being chased - the one
+        # thing the docstring above promises not to do.
         if flen <= 1e-6:
-            return Vec3(base.x, base.y + height, base.z - distance)
+            return _engine_lens(base, Vec3(base.x, base.y + height, base.z - distance))
         fx, fy, fz = fx / flen, fy / flen, fz / flen
-        return Vec3(base.x - fx * distance,
-                    base.y + height - fy * distance,
-                    base.z - fz * distance)
+        return _engine_lens(base, Vec3(base.x - fx * distance,
+                                       base.y + height - fy * distance,
+                                       base.z - fz * distance))
 
     return _drive(to, consoles, subject, seconds, _at, "linear")
 
@@ -696,3 +700,176 @@ def camera_rack(to, subject, consoles=None):
         _MOVES[cid] = {"task": None, "lens": lens, "subject": subject,
                        "token": None}
     return n
+
+
+# --- The establishing two-shot ----------------------------------------------
+#
+# The shot everyone pictures when they say "in orbit": the ship in frame with the
+# world behind it, or beside it, or dropping away below. `camera_orbit` cannot make
+# it - that swings the lens around ONE object, so pointing it at the planet gives a
+# planet with no ship in it, and pointing it at the ship gives a ship against stars
+# with the planet wherever it happens to fall.
+#
+# What makes this shot is that the lens is placed in the frame the TWO bodies define:
+#
+#   r  radial   - from the world out to the ship. Sit here and the world is BEHIND.
+#   t  tangent  - along the ship's travel. Sit here and the world is to one SIDE.
+#   u  up       - sit here and look down across the ship at the world below.
+#
+# Every angle below is a blend of those three, so it keeps working as the ship moves
+# round its orbit: the frame is recomputed from live positions each tick, not fixed
+# in world space.
+
+# name -> (cone, roll). NOT a free blend of the three axes, and that distinction is the
+# whole difference between a shot that works and one that merely runs.
+#
+# The lens always sits within a narrow CONE about the radial axis - the line from the
+# world out through the ship - so the camera is always looking roughly world-ward and the
+# body is always in the picture. `cone` is how far off that axis to lean, in degrees;
+# `roll` is which way to lean, around the axis. Roll is what changes the COMPOSITION -
+# world behind, off one edge, below, above - while the cone keeps it on screen.
+#
+# A free blend does not do this. A tangent-dominant offset puts the lens abeam the ship,
+# and from there the world is ~70 degrees off the view axis: still "in frame" if you only
+# ask whether its limb clips the corner, and not on screen at all in any real field of
+# view. That is exactly what shipped first, and what the reference stills are not.
+# Retuned once the camera moved onto its OWN wider orbit. The cone is how far around
+# the world the lens sits from the ship's own bearing - it is NOT the on-screen gap.
+# Sitting further out multiplies it: at 1.45x the ship's radius a 34 degree cone opens
+# a 42 degree gap between hull and world on screen, which is most of a frame.
+ESTABLISHING_ANGLES = {
+    "behind": (14.0, 25.0),    # world filling the frame behind the ship
+    "side":   (34.0, 0.0),     # world crowded into one edge
+    "high":   (30.0, 95.0),    # looking down across the hull, world below
+    "low":    (28.0, 255.0),   # up past the hull, world above it
+}
+# How far off the world-ward axis any angle may lean. A composition wider than this puts
+# the body off screen on a normal lens, whatever its size.
+ESTABLISHING_MAX_CONE = 40.0
+def _engine_lens(base, want):
+    """The offset to HAND the engine so the lens ends up at ``want``.
+
+    THE ENGINE PUTS THE LENS ON THE FAR SIDE OF THE OFFSET IT IS GIVEN - mirrored
+    through the dolly. Engine-observed 2026-08-31 on an orbital establishing shot, with
+    the geometry logged and correct: the shot came out on the world side of the ship
+    looking away from it, and the orbit tether ran from the hull toward the camera,
+    which it can only do if the camera is between ship and world.
+
+    It hid for as long as it did because it is INVISIBLE to a single-subject shot: a
+    lens mirrored through its subject still frames that subject, just from a side
+    nobody asked for. `camera_orbit_lens` even documents ``Vec3(0, 0, distance)`` as
+    "straight back", which is only true once mirrored - the offsets in this module were
+    authored against the behavior, not against the arithmetic.
+
+    So the shots that are WRONG are the ones that compute a real world position from
+    real geometry - a chase that must be behind a heading, an establishing shot that
+    must be opposite a world. Those go through here. The angle-based shots
+    (`camera_dolly`, `camera_orbit`) build their offset in the engine's own convention
+    and are left exactly as they are.
+    """
+    return Vec3(2.0 * base.x - want.x, 2.0 * base.y - want.y, 2.0 * base.z - want.z)
+
+def camera_establishing(to, subject, world, angle="behind", distance=None,
+                        seconds=14.0, arc=8.0, consoles=None):
+    """Frame ``subject`` AND ``world`` together - the orbital establishing shot.
+
+    Both bodies in one picture: the ship close enough to read, the world filling the
+    space behind it or crowding one edge. `camera_orbit` cannot make this - it swings
+    around ONE object, so pointed at the world there is no ship in shot, and pointed at
+    the ship the world falls wherever the heading puts it.
+
+    The lens is placed within a narrow cone about the WORLD-WARD axis (the line from the
+    world out through the ship), so the camera always looks roughly world-ward and the
+    body cannot leave the picture. ``angle`` names how far off that axis to lean and
+    which way, and the frame is rebuilt from live positions each tick, so the
+    composition holds all the way round the orbit.
+
+    Args:
+        to: audience (see ``consoles_of``).
+        subject: what is framed and tracked - the SHIP.
+        world: the body it is in orbit of. Only its position is used, so a planet, a
+            station or a marker all work. ``None`` degrades to a plain tracking shot.
+        angle (str): a key of ``ESTABLISHING_ANGLES``, or a ``(cone, roll)`` pair in
+            degrees. Cone is clamped to ``ESTABLISHING_MAX_CONE``.
+        distance (float, optional): lens distance from the subject. Defaults to a
+            framing scaled off the subject's own size.
+        seconds (float): length of the leg.
+        arc (float): degrees of slow roll across the leg, so the shot breathes rather
+            than sitting dead still. 0 holds it fixed.
+
+    Returns:
+        Promise: resolves when the leg ends.
+
+    Example:
+        await camera_establishing(role("mainscreen"), ship, planet, angle="side")
+    """
+    from ..query import to_object
+
+    pair = ESTABLISHING_ANGLES.get(angle, angle) if isinstance(angle, str) else angle
+    try:
+        cone, roll = float(pair[0]), float(pair[1])
+    except Exception:
+        cone, roll = ESTABLISHING_ANGLES["behind"]
+    cone = max(0.0, min(float(ESTABLISHING_MAX_CONE), cone))
+
+    if distance is None:
+        # Scaled off the SHIP. Putting the camera on its own wider orbit round the
+        # world was tried and is worse: the hull shrinks to a speck and the angles
+        # stop reading as angles.
+        from .viewscreen import viewscreen_framing
+        near, far = viewscreen_framing(subject)
+        distance = (near + far) * 0.5
+    distance = float(distance)
+
+    def _at(u):
+        # Resolved per tick for the same reason camera_dolly does it: a subject that is
+        # not resolvable at ISSUE time would pin the frame to the world origin for the
+        # life of the move, with no recovery.
+        subj = to_object(subject)
+        body = to_object(world)
+        if subj is None:
+            return Vec3(0, 0, 0)
+        base = subj.pos
+        if body is None:
+            # Nothing to play the ship against - degrade to a plain back-and-above
+            # angle rather than framing the world origin.
+            from .viewscreen import viewscreen_framing
+            _near, _far = viewscreen_framing(subject)
+            off = camera_orbit_lens((_near + _far) * 0.5, yaw=0.0, pitch=12.0)
+            return Vec3(base.x + off.x, base.y + off.y, base.z + off.z)
+
+        # The world-ward axis: from the body out through the ship. Sit ON it and the
+        # world is dead behind the ship; every angle is a small lean off it.
+        radial = Vec3(base.x - body.pos.x, base.y - body.pos.y, base.z - body.pos.z)
+        rl = radial.length()
+        if rl < 0.001:
+            radial = Vec3(0, 0, 1)
+            rl = 1.0
+        radial = Vec3(radial.x / rl, radial.y / rl, radial.z / rl)
+
+        side = Vec3(0, 1, 0).cross(radial)
+        sl = side.length()
+        if sl < 0.001:
+            # Directly over a pole: "along the orbit" is undefined and the cross product
+            # collapses, so any perpendicular will do.
+            side = Vec3(1, 0, 0)
+            sl = 1.0
+        side = Vec3(side.x / sl, side.y / sl, side.z / sl)
+        upish = radial.cross(side)
+
+        theta = math.radians(cone)
+        phi = math.radians(roll + (u - 0.5) * float(arc))
+        ct, st = math.cos(theta), math.sin(theta)
+        cp, sp = math.cos(phi), math.sin(phi)
+        dx = radial.x * ct + (side.x * cp + upish.x * sp) * st
+        dy = radial.y * ct + (side.y * cp + upish.y * sp) * st
+        dz = radial.z * ct + (side.z * cp + upish.z * sp) * st
+
+        # Where the lens should BE: out past the ship along the world-ward axis, so the
+        # shot looks back down that axis at the hull with the world behind it.
+        want_x = base.x + dx * distance
+        want_y = base.y + dy * distance
+        want_z = base.z + dz * distance
+        return _engine_lens(base, Vec3(want_x, want_y, want_z))
+
+    return _drive(to, consoles, subject, seconds, _at, "in_out")
