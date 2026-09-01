@@ -16,7 +16,8 @@ from sbs_utils.agent import clear_shared
 from sbs_utils.procedural.messages import (
     message_send, message_mail, message_inbox, message_unread, message_mark_read,
     message_is_read, message_clear, message_load_amd, message_deliver_due,
-    messages_count, MAX_TEXT, MAX_KEPT)
+    messages_count, message_revision, message_select, message_selected,
+    message_answer, MAX_TEXT, MAX_KEPT)
 
 
 class _Sim:
@@ -220,3 +221,71 @@ class TestAuthoredContent(MessagesBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTheScreenKnowsToRepaint(MessagesBase):
+    """Reported from the engine: new mail did not appear, and picking a different
+    message did not change the pane beside the list.
+
+    Both are the same cause - the screen is built once and sits in `await gui()`, and
+    A SIGNAL DOES NOT WAKE THAT. A live panel has to poll something that changes,
+    which is why the away console watches `away_seq()`. This is the inbox's counter.
+    """
+
+    def test_new_mail_moves_it(self):
+        before = message_revision("helm")
+        message_send("something", sender="a")
+        self.assertNotEqual(message_revision("helm"), before)
+
+    def test_picking_a_different_message_moves_it(self):
+        """The second half of the report: the reading pane is drawn from the
+        selection, so the selection changing has to be a repaint."""
+        message_send("one", sender="a")
+        message_send("two", sender="b")
+        first, second = message_inbox("helm")
+        message_select(first["id"], "helm")
+        before = message_revision("helm")
+        message_select(second["id"], "helm")
+        self.assertNotEqual(message_revision("helm"), before)
+
+    def test_reading_one_moves_it(self):
+        """The row's unread mark is on screen, so it has to redraw."""
+        message_send("one", sender="a")
+        before = message_revision("helm")
+        message_mark_read(message_inbox("helm")[0]["id"], "helm")
+        self.assertNotEqual(message_revision("helm"), before)
+
+    def test_answering_moves_it(self):
+        msg = message_send("Do we hold?", sender="a", choices=["Hold"])
+        before = message_revision("helm")
+        message_answer(msg["id"], 0, "helm")
+        self.assertNotEqual(message_revision("helm"), before)
+
+    def test_ONE_CONSOLE_ACTING_DOES_NOT_REPAINT_THE_OTHERS(self):
+        """Six consoles rebuilding every time one crew member clicks a row is the
+        difference between a counter and a broadcast."""
+        message_send("one", sender="a")
+        mid = message_inbox("helm")[0]["id"]
+        weapons_before = message_revision("weapons")
+        message_select(mid, "helm")
+        message_mark_read(mid, "helm")
+        self.assertEqual(message_revision("weapons"), weapons_before)
+
+    def test_but_new_mail_wakes_everybody(self):
+        weapons_before = message_revision("weapons")
+        message_send("all hands", sender="The Captain")
+        self.assertNotEqual(message_revision("weapons"), weapons_before)
+
+    def test_the_selection_is_remembered_per_console(self):
+        """A repaint builds a NEW listbox whose selection starts empty, so the pane
+        would snap back to the newest message without this."""
+        message_send("one", sender="a")
+        message_send("two", sender="b")
+        first, second = message_inbox("helm")
+        message_select(first["id"], "helm")
+        message_select(second["id"], "weapons")
+        self.assertEqual(message_selected("helm"), first["id"])
+        self.assertEqual(message_selected("weapons"), second["id"])
+
+    def test_nothing_selected_reads_as_nothing(self):
+        self.assertIsNone(message_selected("helm"))

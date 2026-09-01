@@ -12,9 +12,11 @@ Composing is a `To` dropdown plus a line of text. Addressed to a CONSOLE, becaus
 is what a person is sitting at - see `procedural/messages.py` for why not a crew name.
 """
 from ...helpers import FrameContext
+from ..inventory import get_inventory_value, set_inventory_value
 from ..messages import (message_inbox, message_send, message_mark_read,
                         message_is_read, message_unread, message_choices,
-                        message_answer, message_answered)
+                        message_answer, message_answered, message_select,
+                        message_selected)
 from .epadd import ACCENT, DIM, PANEL, PANEL_HEAD, _esc, gui_app_chrome
 
 
@@ -156,13 +158,27 @@ def gui_messages_screen(consoles=None, title="Messages"):
             gui_text(f"$text:No messages.;font:gui-2;color:{DIM};")
             lb = None
         else:
+            # `reveal=` AND `hint=`: this page repaints BECAUSE of its own selection.
+            # Reveal scrolls the pick into view; without the hint a rebuild starts at
+            # the top and the row that was clicked lands somewhere else under the
+            # mouse. A stale hint is clamped, not an error.
+            hint = get_inventory_value(page.client_id if page else None,
+                                       "epadd_msg_hint", None)
             lb = gui_list_box(inbox, "item-gap: 0.15em;", item_template=_row_template,
-                              select=True, reveal=True)
+                              select=True, reveal=True, hint=hint)
 
     with gui_sub_section():
-        reading = lb.get_value() if lb is not None else None
+        # The selection has to be RESTORED, not read off the listbox: a repaint makes
+        # a new one whose selection starts empty, so the reading pane would otherwise
+        # snap back to the newest message every time anything arrived.
+        reading = None
+        chosen = message_selected()
+        if chosen is not None:
+            reading = next((m for m in inbox if m.get("id") == chosen), None)
         if reading is None and inbox:
             reading = inbox[0]
+        if reading is not None and lb is not None:
+            lb.value = reading
         if reading is not None:
             message_mark_read(reading.get("id"))
             gui_row("row-height: content; padding: 0, 0, 0, 4px;")
@@ -178,8 +194,14 @@ def gui_messages_screen(consoles=None, title="Messages"):
     if lb is not None:
         def _open(event, sender):
             item = lb.get_value()
-            if item is not None:
-                message_mark_read(item.get("id"))
+            if item is None:
+                return
+            message_mark_read(item.get("id"))
+            # Recorded, and the revision moved, so the label's `on change` repaints
+            # the reading pane. Selecting a row is not itself a rebuild.
+            message_select(item.get("id"))
+            set_inventory_value(page.client_id if page else None, "epadd_msg_hint",
+                                lb.get_selection_hint())
         gui_message_callback(lb, _open)
 
     # --- the line they write back on -------------------------------------------

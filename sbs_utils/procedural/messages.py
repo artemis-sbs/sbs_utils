@@ -29,8 +29,14 @@ from ..agent import Agent
 from ..helpers import FrameContext
 
 
+# A counter the inbox screen watches. A signal does NOT wake `await gui()`, so a live
+# panel has to poll something that changes - the same shape as `away_seq()`, which the
+# away console has used for exactly this since it was written. Bumped by anything the
+# screen would want to redraw for: new mail, an answer, a read mark, a new selection.
+REVISION_KEY = "__MESSAGES_REV__"
 MESSAGES_KEY = "__MESSAGES__"
 READ_KEY = "__MESSAGES_READ__"
+SELECT_KEY = "__MESSAGES_SEL__"   # console -> the message it is reading
 
 # Long enough for a note, short enough that the inbox stays a list of messages rather
 # than a document viewer. Text past this is cut with an ellipsis at send time, where
@@ -41,6 +47,52 @@ MAX_KEPT = 200
 # Four is what a hail offers (hail.py HAIL_MAX_CHOICES) and the reason is the same: a
 # reply strip wider than that stops being a decision and starts being a menu.
 MAX_CHOICES = 4
+
+
+def message_revision(console=None):
+    """What the inbox screen watches to know it must repaint.
+
+    Combines the mail itself with THIS console's selection, because both change what
+    is on screen and neither wakes `await gui()` on its own. Two consoles reading
+    different messages therefore repaint independently.
+    """
+    console = _console_name(console) if console else _here()
+    rev = Agent.SHARED.get_inventory_value(REVISION_KEY, 0) or 0
+    if not console:
+        return rev * 1000000
+    # Per console, so one crew member picking a message does not repaint the other
+    # five screens. Read state is already per console; so is the selection.
+    seen = len(_read_map().get(console) or ())
+    sel = int(message_selected(console) or 0)
+    return rev * 1000000 + seen * 1000 + sel
+
+
+def message_bump():
+    """Say that something the inbox draws has changed."""
+    Agent.SHARED.set_inventory_value(
+        REVISION_KEY, (Agent.SHARED.get_inventory_value(REVISION_KEY, 0) or 0) + 1)
+
+
+def message_select(mid, console=None):
+    """Remember which message this console is reading, so it survives the repaint.
+
+    A rebuild makes a NEW listbox whose selection starts empty; without this the
+    reading pane would snap back to the newest message every time anything arrived.
+    """
+    console = _console_name(console) if console else _here()
+    if not console:
+        return
+    sel = dict(Agent.SHARED.get_inventory_value(SELECT_KEY, {}) or {})
+    sel[console] = int(mid or 0)
+    Agent.SHARED.set_inventory_value(SELECT_KEY, sel)
+
+
+def message_selected(console=None):
+    """The message id this console is reading, or None."""
+    console = _console_name(console) if console else _here()
+    if not console:
+        return None
+    return (Agent.SHARED.get_inventory_value(SELECT_KEY, {}) or {}).get(console) or None
 
 
 def _all():
@@ -174,6 +226,7 @@ def message_send(text, to="*", sender=None, subject=None, kind="crew",
     if len(msgs) > MAX_KEPT:
         del msgs[:len(msgs) - MAX_KEPT]
     _save(msgs)
+    message_bump()
     return msg
 
 
@@ -250,6 +303,8 @@ def message_clear():
     inbox mid-game; the mission reset already does this on its own."""
     Agent.SHARED.set_inventory_value(MESSAGES_KEY, [])
     Agent.SHARED.set_inventory_value(READ_KEY, {})
+    Agent.SHARED.set_inventory_value(SELECT_KEY, {})
+    message_bump()
 
 
 def messages_count():
@@ -473,6 +528,7 @@ def message_answer(mid, index, console=None, seq=None):
     msg["answered"] = {"label": chosen["label"], "by": console or "unknown",
                        "at": _stamp()}
     _save(msgs)
+    message_bump()
 
     # The reply goes back into the inbox as a message of its own, which is what makes
     # a thread read as a conversation rather than as a form that was filled in.
