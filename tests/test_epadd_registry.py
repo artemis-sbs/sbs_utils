@@ -19,7 +19,7 @@ from sbs_utils.agent import Agent, clear_shared
 from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
 from sbs_utils.procedural.gui.epadd import (
     gui_app_register, gui_app_unregister, gui_app_is_registered, gui_app_list,
-    gui_app_groups, gui_app_mode, gui_app_mode_is_on, gui_app_adopt_record,
+    gui_app_groups, gui_app_mode, gui_app_mode_is_on, gui_app_mode_default, gui_app_adopt_record,
     gui_app_adopted, epadd_console_name)
 
 from cosmos_dev.mock import sbs
@@ -88,6 +88,26 @@ class TestMode(EpaddBase):
     def test_mode_is_OFF_until_asked(self):
         """The whole opt-in promise. Nothing else in this file matters if this fails."""
         self.assertFalse(gui_app_mode_is_on(ENGI))
+        self.assertFalse(gui_app_mode_is_on(HELM))
+
+    def test_the_mission_default_turns_every_console_on_at_once(self):
+        """The switch a mission actually throws - per client would need a call in
+        every console's activation path, including ones the mission does not own."""
+        gui_app_mode_default(True)
+        self.assertTrue(gui_app_mode_is_on(ENGI))
+        self.assertTrue(gui_app_mode_is_on(HELM))
+
+    def test_a_client_that_said_so_itself_beats_the_default(self):
+        gui_app_mode_default(True)
+        FrameContext.page = _Page(HELM)
+        gui_app_mode(False)
+        self.assertTrue(gui_app_mode_is_on(ENGI))
+        self.assertFalse(gui_app_mode_is_on(HELM))
+
+    def test_and_the_other_way_round(self):
+        FrameContext.page = _Page(ENGI)
+        gui_app_mode(True)
+        self.assertTrue(gui_app_mode_is_on(ENGI))
         self.assertFalse(gui_app_mode_is_on(HELM))
 
     def test_mode_is_per_client(self):

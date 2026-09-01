@@ -115,7 +115,7 @@ def gui_tab_get_active():
         tab_name (str): The path of a //gui/tab
     """
     client_id = _tab_client_id()
-    get_inventory_value(client_id, "__active_tab__", "")
+    return get_inventory_value(client_id, "__active_tab__", "")
 
 
 def gui_tab_add_top(tab_name: str):

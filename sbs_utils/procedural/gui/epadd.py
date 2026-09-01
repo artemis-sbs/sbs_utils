@@ -40,7 +40,8 @@ from ..inventory import get_inventory_value, set_inventory_value
 
 
 APPS_KEY = "__EPADD_APPS__"
-MODE_KEY = "epadd_mode"
+MODE_KEY = "epadd_mode"            # per client
+MODE_DEFAULT_KEY = "__EPADD_MODE__"  # mission-wide, on Agent.SHARED
 ADOPTED_KEY = "epadd_adopted"
 
 # Groups render in this order; anything else lands after them alphabetically, and
@@ -97,8 +98,7 @@ def _save(apps):
 # --- mode -------------------------------------------------------------------------
 
 def gui_app_mode(on=True):
-    """Turn the ePADD strip on for this client. Off is the default and is unchanged
-    behaviour - the full tab strip, exactly as it draws today.
+    """Turn the ePADD strip on for THIS client, overriding the mission default.
 
     Args:
         on (bool): True for the two-button ePADD strip, False for the classic strip.
@@ -106,11 +106,28 @@ def gui_app_mode(on=True):
     set_inventory_value(_client_id(), MODE_KEY, bool(on))
 
 
+def gui_app_mode_default(on=True):
+    """Turn ePADD on for every console in the mission.
+
+    This is the switch a mission actually throws - once, at the top level, off a
+    setting. Doing it per client would mean a call in every console's activation
+    path, and a console the mission does not own would never get one.
+
+    A client that has called `gui_app_mode` keeps its own answer, so a single
+    console can still be held back (or brought forward) on a mission-wide default.
+    """
+    Agent.SHARED.set_inventory_value(MODE_DEFAULT_KEY, bool(on))
+
+
 def gui_app_mode_is_on(client_id=None):
-    """Whether this client draws the ePADD strip."""
+    """Whether this client draws the ePADD strip: its own setting, else the
+    mission default, else off - which is what every existing mission gets."""
     if client_id is None:
         client_id = _client_id()
-    return bool(get_inventory_value(client_id, MODE_KEY, False))
+    own = get_inventory_value(client_id, MODE_KEY, None)
+    if own is not None:
+        return bool(own)
+    return bool(Agent.SHARED.get_inventory_value(MODE_DEFAULT_KEY, False))
 
 
 # --- registration -----------------------------------------------------------------
@@ -183,7 +200,7 @@ def _console_set(consoles):
 
 # --- adoption ---------------------------------------------------------------------
 
-def gui_app_adopt_record(tabs, back_tab=None):
+def gui_app_adopt_record(tabs, back_tab=None, client_id=None, console=None):
     """Remember what THIS console enabled, so unregistered tabs still reach the PADD.
 
     Called by the page as it draws the ePADD strip, with the tab set it was about to
@@ -193,6 +210,13 @@ def gui_app_adopt_record(tabs, back_tab=None):
 
     Unlike `console_tabs`, this is NOT consumed by drawing - the home screen is a
     different build from the console's, so it has to survive one.
+
+    AN EMPTY SET DOES NOT OVERWRITE, and that is the whole subtlety. Opening the PADD
+    is itself a build, and the home screen declares no apps - only its own back tab -
+    so the very next strip after the console's would otherwise record nothing and the
+    home screen would read an empty set and draw no adopted tiles. What DOES clear it
+    is a different console: the record is stamped with the console it came from, so
+    moving to another station replaces it rather than inheriting the last one's apps.
     """
     keep = set()
     for tab in (tabs or ()):
@@ -202,14 +226,23 @@ def gui_app_adopt_record(tabs, back_tab=None):
         if back_tab is not None and tab == str(back_tab).strip().lower():
             continue    # the console you came from is the back button, not an app
         keep.add(tab)
-    set_inventory_value(_client_id(), ADOPTED_KEY, keep)
+
+    cid = _client_id() if client_id is None else client_id
+    console = epadd_console_name(console)
+    record = get_inventory_value(cid, ADOPTED_KEY, None)
+    if isinstance(record, dict) and not keep and record.get("console") == console:
+        return                      # a build that offered nothing; the last one stands
+    set_inventory_value(cid, ADOPTED_KEY, {"console": console, "tabs": keep})
 
 
 def gui_app_adopted(client_id=None):
     """The tab names this console enabled, as last recorded."""
     if client_id is None:
         client_id = _client_id()
-    return set(get_inventory_value(client_id, ADOPTED_KEY, set()) or set())
+    record = get_inventory_value(client_id, ADOPTED_KEY, None)
+    if isinstance(record, dict):
+        return set(record.get("tabs") or set())
+    return set(record or set())     # tolerate a record written before the stamp
 
 
 # --- the list the home screen draws ------------------------------------------------
@@ -318,3 +351,183 @@ def _apps_count():
         return len(_apps())
     except Exception:
         return 0
+
+
+# --- the shell ---------------------------------------------------------------------
+# One place for the numbers, so the design canvas and the code cannot drift. Values
+# from design/epadd/Spec.dc.html, which took them off the engine and off LM.
+PANEL = "#1572"          # the house panel fill
+PANEL_HI = "#1575"       # hover / selected
+PANEL_HEAD = "#1578"     # the PADD bar, and every list title section
+ACCENT = "#8cf"
+DIM = "#9ab"
+BAR_HEIGHT = "1em+16px"
+TILE_COLUMNS = 4
+TILE_COLUMNS_DENSE = 6   # past DENSE_AFTER apps, narrower tiles without descriptions
+DENSE_AFTER = 12
+
+
+def gui_app_open(tab):
+    """Open an app: send the GUI task to that tab's label.
+
+    The same two lines `TabControl.on_message` runs when a tab button is clicked, so
+    an app opened from the PADD arrives exactly as it would have from the strip.
+
+    Returns:
+        bool: False when the tab has no route or there is no GUI task to send.
+    """
+    from ...mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
+    label = GuiTabDecoratorLabel.all.get(str(tab).strip().lower())
+    if label is None:
+        return False
+    page = FrameContext.page
+    task = getattr(page, "gui_task", None) if page is not None else None
+    if task is None:
+        return False
+    task.jump(label)
+    task.tick_in_context()
+    return True
+
+
+def _esc(text):
+    """Free prose in a style string. A `:` or `;` in a title or description would
+    otherwise be read as style properties and silently truncate the widget - the same
+    trap `gui_map_picker` documents on its cards."""
+    from ...helpers import gui_text_escape
+    return gui_text_escape("" if text is None else str(text))
+
+
+def gui_app_chrome(title, subtitle=None, home_text="HOME", on_home=None):
+    """The bar an app draws instead of `gui_tab_back(CONSOLE_SELECT)`.
+
+    ePADD owns this row and nothing below it, so an app's own body is unchanged.
+
+    Args:
+        title (str): the app's name.
+        subtitle (str, optional): a second, dimmer line of context.
+        home_text (str, optional): the home button's label.
+        on_home (callable | label, optional): what the home button does. Defaults to
+            re-entering the PADD home through its own `//gui/tab/epadd` route, so an
+            app does not need to know how the home screen is reached.
+    """
+    from .row import gui_row
+    from .text import gui_text
+    from .button import gui_button
+    from .blank import gui_blank
+
+    if on_home is None:
+        on_home = lambda *_a: gui_app_open("epadd")
+
+    gui_row(f"row-height: {BAR_HEIGHT}; background: {PANEL_HEAD};")
+    gui_button(f"$text:{_esc(home_text)};", style="col-width: content;",
+               on_press=on_home)
+    gui_text(f"$text:{_esc(title)};font:gui-4;", style="col-width: content;")
+    if subtitle:
+        gui_text(f"$text:{_esc(subtitle)};font:gui-1;color:{DIM};")
+    else:
+        gui_blank()
+
+
+def _tile(app, dense):
+    """One app tile: a clickable panel holding its icon, name and description.
+
+    The WHOLE panel is the hit target, not just a button inside it - a sub-section
+    with `click_text` emits a click region over its own bounds (Layout._post_present),
+    which is the same mechanism the tab strip and the text area's links use.
+    """
+    from .section import gui_sub_section
+    from .row import gui_row
+    from .text import gui_text
+    from .icon import gui_icon_name
+    from .message import gui_message_callback
+
+    tab = app["tab"]
+    title = app["title"]
+    # click_tag is a real engine tag matched against event.sub_tag, so it has to be
+    # unique per tile; the tab name already is.
+    style = (f"background: {PANEL};"
+             f"click_tag: epadd-app-{tab};"
+             f"click_text: {_esc(title)};"
+             f"click_background: {PANEL_HI};"
+             f"padding: 12px, 8px, 12px, 8px;")
+    tile = gui_sub_section(style=style)
+    with tile:
+        gui_row("row-height: content;")
+        if app.get("icon"):
+            # No icon name means no icon column and the title spans the row. An
+            # unknown NAME is different: gui_icon_name draws nothing and says so
+            # once, which is what lets an app be registered before its art exists.
+            gui_icon_name(app["icon"], color=ACCENT, style="col-width: content;")
+        gui_text(f"$text:{_esc(title)};font:gui-4;")
+        if not dense and app.get("description"):
+            gui_row("row-height: content;")
+            gui_text(f"$text:{_esc(app['description'])};font:gui-1;color:{DIM};")
+
+    # The callback MUST check the tag itself. Layout.on_message calls on_message_cb
+    # for every event delivered to the item during the page's walk of the layout
+    # tree, not only ones aimed at it - a listbox filters first, a plain section does
+    # not. Unfiltered, any click anywhere on the PADD would open an app, and which
+    # one would depend on tree order.
+    click_tag = f"epadd-app-{tab}"
+    item = getattr(tile, "sub_section", tile)
+
+    def _open(event, sender, _tab=tab, _tag=click_tag):
+        if getattr(event, "sub_tag", None) != _tag:
+            return
+        gui_app_open(_tab)
+
+    gui_message_callback(item, _open)
+    return tile
+
+
+def gui_app_home(ship_name=None, columns=None, title="ePADD"):
+    """Draw the PADD home screen for this console.
+
+    Called from the `//gui/tab/epadd` route's screen label, which then sits in
+    `await gui()` - so the tile handlers belong to a task that stays alive.
+
+    Args:
+        ship_name (str, optional): shown beside the wordmark.
+        columns (int, optional): tiles per row. Defaults to 4, or 6 once the console
+            carries more than twelve apps, where the descriptions are dropped too.
+        title (str, optional): the wordmark.
+    """
+    from .section import gui_section
+    from .row import gui_row
+    from .text import gui_text
+    from .blank import gui_blank
+    from .grid import gui_grid
+
+    page = FrameContext.page
+    console = epadd_console_name(getattr(page, "console", None) if page else None)
+    groups = gui_app_groups(console)
+    total = sum(len(apps) for _, apps in groups)
+    dense = total > DENSE_AFTER
+    if columns is None:
+        columns = TILE_COLUMNS_DENSE if dense else TILE_COLUMNS
+
+    # The body below the strip. 45px is where every console's content starts - the
+    # strip is 35px on a 3% layout, and LM has drawn from 45px since.
+    gui_section(style="area: 0, 45px, 100, 100;")
+
+    gui_row(f"row-height: {BAR_HEIGHT}; background: {PANEL_HEAD};")
+    gui_text(f"$text:{_esc(title)};font:gui-4;", style="col-width: content;")
+    if ship_name:
+        gui_text(f"$text:{_esc(ship_name)};font:gui-1;color:{DIM};",
+                 style="col-width: content;")
+    gui_blank()
+    if console:
+        gui_text(f"$text:{_esc(console.upper())};font:gui-1;color:{DIM};",
+                 style="col-width: content;")
+
+    if not groups:
+        gui_row("row-height: content; padding: 24px, 16px, 24px, 0;")
+        gui_text(f"$text:No apps on this console.;font:gui-2;color:{DIM};")
+        return
+
+    for name, apps in groups:
+        gui_row("row-height: content; padding: 24px, 14px, 24px, 4px;")
+        gui_text(f"$text:{_esc(name.upper())};font:gui-1;color:{ACCENT};")
+        with gui_grid(columns):
+            for app in apps:
+                _tile(app, dense)

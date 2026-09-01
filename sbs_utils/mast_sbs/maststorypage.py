@@ -742,18 +742,12 @@ class StoryPage(Page):
         self.swap_layout()
 
     def gui_queue_console_tabs(self):
-        console = self.console
-        if self.console is not None: 
-            console = self.console.lower()
-        
-        convert = {
-            "normal_helm": "helm",
-            "normal_weap": "weapons",
-            "normal_sci": "science",
-            "normal_engi": "engineering",
-            "normal_comm": "comms"
-        }
-        console = convert.get(console, console)
+        from ..procedural.gui.epadd import (epadd_console_name, gui_app_mode_is_on,
+                                            gui_app_adopt_record)
+        # The normal_engi -> engineering table used to be computed here and then never
+        # used. It lives in epadd.py now because app scoping needs it too, and there
+        # must be exactly one of it.
+        console = epadd_console_name(self.console)
         #
         # tabs can be for all ships or single
         #
@@ -795,6 +789,21 @@ class StoryPage(Page):
                 back_entry = (tab_text, tab_label)
             else:
                 entries.append((tab_text, tab_label))
+
+        # --- ePADD mode -------------------------------------------------------
+        # One button instead of the whole strip. Everything the build declared is
+        # still CONSUMED below exactly as before - what changes is only what gets
+        # drawn - and the console's enabled set is handed to the app registry first,
+        # so a tab no addon registered as an app is adopted rather than lost.
+        #
+        # It falls back to the classic strip when the mission has no //gui/tab/epadd
+        # route: turning the mode on without the route would otherwise leave the
+        # console with a single button that does nothing.
+        epadd_label = GuiTabDecoratorLabel.all.get("epadd")
+        if epadd_label is not None and gui_app_mode_is_on(self.client_id):
+            gui_app_adopt_record(set(enabled_tabs.keys()), back_tab,
+                                 client_id=self.client_id, console=console)
+            entries = [("ePADD", epadd_label)]
 
         def _button(text, label, is_back):
             msg = f"justify:center;color:black;$text:{text};"
