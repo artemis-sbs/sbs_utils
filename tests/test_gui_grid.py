@@ -121,3 +121,117 @@ class TestPageGridContextManager(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class TestGridOfSubSections(unittest.TestCase):
+    """A grid counts CELLS, not everything a cell builds inside itself.
+
+    The counter used to run on every add_content while a grid was open. A sub-section
+    is added to its parent row when it POPS, not through add_content, so a grid of
+    sub-sections counted their CONTENTS instead - and broke rows in the middle of
+    them. Three tiles of icon+title+description in a 4-column grid put the second
+    tile's icon on cell 4, so that tile alone got a row break between its icon and its
+    own title. It read as "one icon paints differently from the others" (ePADD, first
+    engine screenshot).
+    """
+
+    def _tile(self, page, widgets):
+        # PageSubSection reads FrameContext.page at construction.
+        from sbs_utils.procedural.gui.section import PageSubSection
+        FrameContext.page = page
+        self.addCleanup(setattr, FrameContext, "page", None)
+        sub = PageSubSection(None)
+        sub.__enter__()
+        for i in range(widgets):
+            c = Column()
+            c.tag = f"w{i}"
+            page.add_content(c, None)
+        sub.__exit__()
+        return sub
+
+    def test_three_tiles_of_three_widgets_are_three_cells_in_one_row(self):
+        page = _new_page()
+        page.grid_begin(4)
+        for _ in range(3):
+            self._tile(page, 3)          # 9 inner widgets - none of them are cells
+        page.grid_end()
+        rows = _grid_rows(page)
+        self.assertEqual(len(rows), 1, "the tiles are one row of cells")
+        self.assertEqual(len(rows[0].columns), 4, "3 tiles + 1 Hole of padding")
+
+    def test_every_tile_keeps_its_own_shape(self):
+        """The actual symptom: one tile had an extra row and the others did not."""
+        page = _new_page()
+        page.grid_begin(4)
+        for _ in range(3):
+            self._tile(page, 3)
+        page.grid_end()
+        tiles = [c for c in _grid_rows(page)[0].columns if not isinstance(c, Hole)]
+        shapes = [len(t.rows) for t in tiles]
+        self.assertEqual(len(set(shapes)), 1,
+                         f"tiles disagree on how many rows they have: {shapes}")
+
+    def test_a_grid_of_plain_widgets_is_unchanged(self):
+        """The ordinary case has to keep working exactly as it did."""
+        page = _new_page()
+        page.grid_begin(3)
+        _fill(page, 7)
+        page.grid_end()
+        rows = _grid_rows(page)
+        self.assertEqual([len(r.columns) for r in rows], [3, 3, 3])
+
+    def test_cells_still_wrap_when_there_are_more_than_fit(self):
+        page = _new_page()
+        page.grid_begin(2)
+        for _ in range(5):
+            self._tile(page, 2)
+        page.grid_end()
+        rows = [r for r in _grid_rows(page) if r.columns]
+        self.assertEqual([len(r.columns) for r in rows], [2, 2, 2])
+
+class _Main:
+    def __init__(self, page):
+        self.page = page
+
+
+class _StyleTask:
+    """Style parsing reaches the client through `task.main.page.client_id`."""
+
+    def __init__(self, page):
+        self.main = _Main(page)
+
+    def compile_and_format_string(self, s):
+        return s
+
+    def format_string(self, s):
+        return s
+
+
+def _styled_page():
+    page = _new_page()
+    page.client_id = 1
+    page.gui_task = _StyleTask(page)
+    return page
+
+
+class TestGridRowStyle(unittest.TestCase):
+    """A grid makes its own rows, so `row_style` is the only way to size them."""
+
+    def test_the_style_reaches_every_row_the_grid_starts(self):
+        page = _styled_page()
+        page.grid_begin(2, "row-height: content;")
+        _fill(page, 4)
+        page.grid_end()
+        rows = [r for r in _grid_rows(page) if r.columns]
+        self.assertEqual(len(rows), 2)
+        for r in rows:
+            self.assertEqual(str(getattr(r, "default_height", None)),
+                             "ContentSize(content)")
+
+    def test_no_style_leaves_rows_alone(self):
+        page = _styled_page()
+        page.grid_begin(2)
+        _fill(page, 2)
+        page.grid_end()
+        row = [r for r in _grid_rows(page) if r.columns][0]
+        self.assertNotEqual(str(getattr(row, "default_height", None)),
+                            "ContentSize(content)")

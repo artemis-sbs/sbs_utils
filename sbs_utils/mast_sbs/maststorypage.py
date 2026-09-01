@@ -622,6 +622,12 @@ class StoryPage(Page):
                 if add_content:
                     p_row.add(sub)
                 self.pending_row = p_row
+                if add_content:
+                    # A sub-section is added to its parent row HERE rather than
+                    # through add_content, so this is the only place a grid can see
+                    # one - and a grid of sub-sections is the common case
+                    # (`with gui_grid(4): ... gui_sub_section()` per cell).
+                    self._grid_note_cell()
                 return
         # If get here started pretty much empty
         if add_content:
@@ -637,20 +643,52 @@ class StoryPage(Page):
 
         self.pending_row.add(layout_item)
 
-        # gui_grid() auto-flow: after every N cells, break to a fresh row so
-        # items lay out as an N-column grid. Inert unless a grid is active.
-        if self._grid_stack:
-            grid = self._grid_stack[-1]
-            grid["count"] += 1
-            if grid["count"] % grid["columns"] == 0:
-                self.add_row()
+        # gui_grid() auto-flow: after every N CELLS, break to a fresh row so items
+        # lay out as an N-column grid. Inert unless a grid is active.
+        self._grid_note_cell()
 
-    def grid_begin(self, columns):
+    def _grid_style_row(self):
+        """Apply the grid's row style to the row it just started. A grid creates its
+        own rows, so this is the only way an author can size them - and a row that
+        declares nothing is 1fr, which stretches a short grid over the whole section.
+        """
+        if not self._grid_stack:
+            return
+        style = self._grid_stack[-1].get("row_style")
+        if style and self.pending_row is not None:
+            apply_control_styles(".row", style, self.pending_row, self.gui_task)
+
+    def _grid_note_cell(self):
+        """Count one grid cell, and break the row after every N.
+
+        Only at the grid's OWN depth: anything a cell builds inside itself belongs to
+        that cell, not to the grid.
+        """
+        if not self._grid_stack:
+            return
+        grid = self._grid_stack[-1]
+        if grid.get("depth") != len(self.pending_layouts):
+            return
+        grid["count"] += 1
+        if grid["count"] % grid["columns"] == 0:
+            self.add_row()
+            self._grid_style_row()
+
+    def grid_begin(self, columns, row_style=None):
         """Enter a gui_grid() context: subsequent add_content()s flow into an
         ``columns``-wide grid, auto-breaking rows. Nestable."""
         columns = max(1, int(columns))
         self.add_row()                       # start the grid on a clean row
-        self._grid_stack.append({"columns": columns, "count": 0})
+        # `depth` is what makes a CELL a cell. The counter used to run on every
+        # add_content while a grid was open, including widgets nested inside a cell -
+        # so a grid of sub-sections counted their CONTENTS and broke rows in the
+        # middle of them. A tile of icon+title+description in a 4-column grid put its
+        # second tile's icon on cell 4 and got a row break between the icon and its
+        # own title, which read as "that one icon paints differently".
+        self._grid_stack.append({"columns": columns, "count": 0,
+                                 "depth": len(self.pending_layouts),
+                                 "row_style": row_style})
+        self._grid_style_row()
 
     def grid_end(self):
         """Leave the current gui_grid() context, padding the final row with Hole

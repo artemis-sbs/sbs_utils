@@ -362,6 +362,10 @@ PANEL_HEAD = "#1578"     # the PADD bar, and every list title section
 ACCENT = "#8cf"
 DIM = "#9ab"
 BAR_HEIGHT = "1em+16px"
+# A grid row that declares nothing is 1fr and shares out the whole sheet, so
+# three short bands of cards stretch over the screen. Size them to content.
+TILE_ROW = "row-height: content;"
+TILE_GAP = "14px"     # between cards; padding would sit inside the panel
 TILE_COLUMNS = 4
 TILE_COLUMNS_DENSE = 6   # past DENSE_AFTER apps, narrower tiles without descriptions
 DENSE_AFTER = 12
@@ -445,11 +449,14 @@ def _tile(app, dense):
     title = app["title"]
     # click_tag is a real engine tag matched against event.sub_tag, so it has to be
     # unique per tile; the tab name already is.
+    # margin, not just padding: padding is INSIDE the panel, so tiles drawn with
+    # padding alone have their backgrounds touching and read as one block.
     style = (f"background: {PANEL};"
              f"click_tag: epadd-app-{tab};"
              f"click_text: {_esc(title)};"
              f"click_background: {PANEL_HI};"
-             f"padding: 12px, 8px, 12px, 8px;")
+             f"margin: 0, 0, {TILE_GAP}, {TILE_GAP};"
+             f"padding: 14px, 10px, 14px, 10px;")
     tile = gui_sub_section(style=style)
     with tile:
         gui_row("row-height: content;")
@@ -528,6 +535,6 @@ def gui_app_home(ship_name=None, columns=None, title="ePADD"):
     for name, apps in groups:
         gui_row("row-height: content; padding: 24px, 14px, 24px, 4px;")
         gui_text(f"$text:{_esc(name.upper())};font:gui-1;color:{ACCENT};")
-        with gui_grid(columns):
+        with gui_grid(columns, row_style=TILE_ROW):
             for app in apps:
                 _tile(app, dense)
