@@ -1068,47 +1068,41 @@ avatar_widgets = ~~{
 }~~
 ```
 
-**Never span a bare `{}`/dict across lines.** MAST parses **line by line**, so a
-dict literal broken across lines — even as a normal function argument — makes the
-first line an unclosed `{`:
+**A multi-line `{}` / `[]` / `()` is FINE, and needs no `~~`** (since 2026-07-03,
+engine-verified). `Mast.compile()` runs `join_bracket_continuations` over the source
+first, so a literal spanning physical lines is merged into one logical line before any
+node rule sees it, and line numbers still resolve. All of these compile:
 
 ```
-# BROKEN — compiles to "'{' was never closed", then cascades:
 prefab_spawn("prefab_fleet_raider", {
     "race": "skaraan",
-    "fleet_difficulty": 4
+    "fleet_difficulty": 4,
 })
+
+signal_emit("away_begin", {"AWAY_SHIP": ship, "AWAY_ROSTER": roster})
 ```
 
-**The failure is silent and cascading.** The unclosed-brace error desyncs the parser
-for the rest of the file (spurious "Weighted text without start" / "Unrecognized
-syntax" on the continuation lines), which can leave the **whole story's main task
-empty** — the mission then runs with **0 labels executed, no output, and still
-reports "PASS - no runtime errors"** (a headless `--test` shows `labels 0/N`). If a
-mission mysteriously does nothing, suspect a multi-line literal first.
+> **This section used to say the opposite** - that a bare multi-line dict was a silent,
+> cascading parse failure that emptied the whole story, and that the fix was to wrap it
+> in `~~ … ~~`. That was true before the pre-pass and is not true now. Left in as a
+> correction rather than deleted, because the old advice reads as a hard-won gotcha and
+> is easy to reintroduce: writing `~~` around a dict is not merely unnecessary now, it
+> is how you MAKE the compile error, since `~~ … ~~` is a statement form.
 
-**`~~ … ~~` is a STATEMENT form, not a sub-expression.** Inline in a call argument
-it is a compile error — `invalid syntax (<string>, line 1)`, reported against the
-whole line:
+**`~~ … ~~` is a STATEMENT form, not a sub-expression.** Inline in a call argument it is
+a compile error - `invalid syntax (<string>, line 1)`, reported against the whole line -
+and a compile error takes the whole story to **0 labels**:
 
 ```
 # BROKEN:
 gui_properties_set(~~{"Heading": "gui_text(str(h))"}~~)
 
-# Bind it first:
-props = ~~{"Heading": "gui_text(str(h))"}~~
-gui_properties_set(props)
+# Just write it:
+gui_properties_set({"Heading": "gui_text(str(h))"})
 ```
 
-Two fixes — keep it on **one line**, or wrap the multi-line literal in `~~ … ~~`
-(as the `avatar_widgets` example above; multi-line *is* fine inside `~~`):
-
-```
-# both compile:
-fleet_data = ~~{"race": "skaraan", "fleet_difficulty": 4, "START_X": x, "START_Y": y, "START_Z": z}~~
-prefab_spawn("prefab_fleet_raider", fleet_data)
-```
-
+So `~~` is now for the narrow case it was always meant for: Python STATEMENTS the MAST
+parser has no node for. A dict, a list or a call - on one line or many - is not one.
 ---
 
 ## Common Idioms

@@ -25,6 +25,21 @@
 
 ### sbs_utils
 
+- A console can speak for SEVERAL away characters, so a landing party smaller than its cast
+  no longer leaves people standing on the surface that nobody controls. `_TEAM` holds a list
+  per console; `away_assign` still means "you are Sorel" and `away_assign_also` adds another;
+  `away_me` is the primary, `away_held` the whole list, `away_team()` the union.
+  `away_choices` merges the held characters' menus, **deduped** (an ungated choice is offered
+  to every character, so a plain union showed "Beam back up" once per body) and tagged with
+  who may take it - `away_answer` applies outcomes as that character, not as the console's
+  primary. `away_choices_for(client, character)` is one character's own menu, for a screen
+  showing them one at a time, and `away_answer(..., agent=)` reads the index against that
+  list; the two lists differ in length and order, so without it the same index presses
+  something else.
+
+  Deliberately NOT a filter over `away_choices`: the shared choices are deduped onto the
+  primary there, so filtering by tag would leave every other character with no way to say
+  "beam back up".
 - `learn` is an outcome verb and `learned` is a guard word, so a scene can say what the away
   team worked out and gate on it: `- [Read the spur](spur) if engineering >= 1 ; learn cold`
   unlocks `- [Open the shed](shed) if learned >= 3`. The count belongs to the PARTY, not to a

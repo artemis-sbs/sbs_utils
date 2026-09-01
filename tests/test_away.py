@@ -444,5 +444,185 @@ class AwayLearnTests(_AwayBase):
         self.assertEqual(A.away_facts(), ["the power spur"])
 
 
+DOUBLE_CID = 301
+DOUBLE_OTHER = 302
+
+
+class AwayDoublingUpTests(_AwayBase):
+    """One console speaking for several characters, when the party is short.
+
+    `universe_site_spawn_cast` spawns the whole `## Away Team`, but a bridge with two
+    consoles and a cast of four used to leave two characters standing on the surface that
+    NOBODY controlled - in nobody's `away_team()`, with the readings only they could take
+    unreachable. The story was quietly smaller and there were idle bodies in it.
+
+    Doubling up keeps every reading in play AND keeps it attached to a named person,
+    which is the difference between a party game and one menu.
+    """
+
+    def test_a_console_starts_with_one_character(self):
+        A.away_assign(DOUBLE_CID, self.doc)
+        self.assertEqual(A.away_held(DOUBLE_CID), [self.doc.id])
+        self.assertEqual(A.away_me(DOUBLE_CID), self.doc.id)
+
+    def test_also_adds_a_second_without_losing_the_first(self):
+        A.away_assign(DOUBLE_CID, self.doc)
+        A.away_assign_also(DOUBLE_CID, self.eng)
+        self.assertEqual(A.away_held(DOUBLE_CID), [self.doc.id, self.eng.id])
+        # The PRIMARY is still whose face and name the screen shows.
+        self.assertEqual(A.away_me(DOUBLE_CID), self.doc.id)
+
+    def test_assign_replaces_rather_than_appends(self):
+        # `away_assign` still means "you are Sorel", or beaming one person up would need
+        # to know how many bodies a console had accumulated.
+        A.away_assign(DOUBLE_CID, self.doc)
+        A.away_assign_also(DOUBLE_CID, self.eng)
+        A.away_assign(DOUBLE_CID, self.sec)
+        self.assertEqual(A.away_held(DOUBLE_CID), [self.sec.id])
+
+    def test_releasing_drops_every_character_it_held(self):
+        A.away_assign(DOUBLE_CID, self.doc)
+        A.away_assign_also(DOUBLE_CID, self.eng)
+        A.away_assign(DOUBLE_CID, None)
+        self.assertEqual(A.away_held(DOUBLE_CID), [])
+        self.assertEqual(A.away_team(), set())
+
+    def test_the_team_is_the_union(self):
+        A.away_assign(DOUBLE_CID, self.doc)
+        A.away_assign_also(DOUBLE_CID, self.eng)
+        A.away_assign(DOUBLE_OTHER, self.sec)
+        self.assertEqual(A.away_team(), {self.doc.id, self.eng.id, self.sec.id})
+
+    def test_client_of_finds_either_character(self):
+        A.away_assign(DOUBLE_CID, self.doc)
+        A.away_assign_also(DOUBLE_CID, self.eng)
+        self.assertEqual(A.away_client_of(self.doc), DOUBLE_CID)
+        self.assertEqual(A.away_client_of(self.eng), DOUBLE_CID)
+
+    def test_a_character_another_console_holds_is_refused(self):
+        # "Two consoles answering as one person is worse than a console with nothing to
+        # answer" - the rule the late-join watcher already stated. Now it is enforced in
+        # the one place that can enforce it.
+        A.away_assign(DOUBLE_OTHER, self.eng)
+        A.away_assign(DOUBLE_CID, self.doc)
+        self.assertIsNone(A.away_assign_also(DOUBLE_CID, self.eng))
+        self.assertEqual(A.away_held(DOUBLE_CID), [self.doc.id])
+
+    # --- the choices, which are the point -----------------------------------
+
+    def test_one_console_gets_both_characters_readings(self):
+        A.away_scene_begin(self.scenes, "lab")
+        A.away_assign(DOUBLE_CID, self.doc)
+        A.away_assign_also(DOUBLE_CID, self.eng)
+        labels = self._labels(DOUBLE_CID)
+        self.assertIn("Examine the body", labels)      # medical
+        self.assertIn("Force the panel", labels)       # engineering
+        self.assertNotIn("Cover the doorway", labels)  # nobody here is security
+
+    def test_a_shared_choice_appears_once(self):
+        # THE DEDUPE. An ungated choice is offered to every character, so a plain union
+        # shows it once per body held.
+        A.away_scene_begin(self.scenes, "lab")
+        A.away_assign(DOUBLE_CID, self.doc)
+        A.away_assign_also(DOUBLE_CID, self.eng)
+        A.away_assign_also(DOUBLE_CID, self.sec)
+        labels = self._labels(DOUBLE_CID)
+        self.assertEqual(labels.count("Back out"), 1)
+
+    def test_the_primary_is_listed_first(self):
+        # Ordering is not cosmetic: it is what lets a screen group the list by character.
+        A.away_scene_begin(self.scenes, "lab")
+        A.away_assign(DOUBLE_CID, self.eng)
+        A.away_assign_also(DOUBLE_CID, self.doc)
+        labels = self._labels(DOUBLE_CID)
+        self.assertLess(labels.index("Force the panel"), labels.index("Examine the body"))
+
+    def test_every_choice_says_who_is_acting(self):
+        A.away_scene_begin(self.scenes, "lab")
+        A.away_assign(DOUBLE_CID, self.doc)
+        A.away_assign_also(DOUBLE_CID, self.eng)
+        by_label = {c.label: c.get("agent") for c in A.away_choices(DOUBLE_CID)}
+        self.assertEqual(by_label["Examine the body"], self.doc.id)
+        self.assertEqual(by_label["Force the panel"], self.eng.id)
+        # A shared choice belongs to the primary, because the primary was iterated first.
+        self.assertEqual(by_label["Back out"], self.doc.id)
+
+    def test_an_answer_is_applied_as_the_acting_character(self):
+        # The reason the tag has to survive onto the choice: `away_answer` cannot ask the
+        # console whose body acted, because the console has several.
+        seen = []
+        D.dialogue_register_outcome("whodunit", lambda agent, speaker, tokens: seen.append(agent))
+        scenes = _scenes()
+        scenes["lab"]["description"] = (
+            "% The body is cold.\n"
+            "- [Examine the body](corridor) if medical >= 1 ; whodunit x\n"
+            "- [Force the panel](corridor) if engineering >= 1 ; whodunit x\n")
+        A.away_scene_begin(scenes, "lab")
+        A.away_assign(DOUBLE_CID, self.doc)
+        A.away_assign_also(DOUBLE_CID, self.eng)
+        labels = self._labels(DOUBLE_CID)
+        A.away_answer(DOUBLE_CID, labels.index("Force the panel"), A.away_seq())
+        self.assertEqual(seen, [self.eng.id],
+                         "the outcome was credited to the console's primary, not the actor")
+
+    def test_a_console_with_no_character_still_gets_the_open_choices(self):
+        A.away_scene_begin(self.scenes, "lab")
+        labels = self._labels(DOUBLE_OTHER)
+        self.assertEqual(labels, ["Back out"])
+
+
+class AwayOneCharacterAtATimeTests(_AwayBase):
+    """`away_choices_for` - the detail half of a roster listbox.
+
+    A doubled-up console showing every character's readings at once is a dozen buttons.
+    The settled pattern is a listbox plus a detail panel acting on the selection, so the
+    console shows ONE character at a time and this is what fills that panel.
+    """
+
+    def setUp(self):
+        super().setUp()
+        A.away_assign(DOUBLE_CID, self.doc)
+        A.away_assign_also(DOUBLE_CID, self.eng)
+        A.away_scene_begin(self.scenes, "lab")
+
+    def test_it_offers_that_character_and_not_the_other(self):
+        labels = [c.label for c in A.away_choices_for(DOUBLE_CID, self.eng)]
+        self.assertIn("Force the panel", labels)
+        self.assertNotIn("Examine the body", labels)
+
+    def test_the_open_choices_belong_to_EVERY_character(self):
+        # NOT a filter over away_choices. There the shared choices are deduped onto the
+        # primary, so filtering by tag would hide "Back out" from everyone else - the
+        # second character on a console would have no way to leave.
+        for who in (self.doc, self.eng):
+            labels = [c.label for c in A.away_choices_for(DOUBLE_CID, who)]
+            self.assertIn("Back out", labels, f"{who.name} cannot take the open choice")
+
+    def test_every_choice_still_says_who_is_acting(self):
+        for ch in A.away_choices_for(DOUBLE_CID, self.eng):
+            self.assertEqual(ch.get("agent"), self.eng.id)
+
+    def test_a_character_this_console_does_not_hold_falls_back(self):
+        # A stale selection - somebody else took that body over between repaints.
+        labels = [c.label for c in A.away_choices_for(DOUBLE_CID, self.sec)]
+        self.assertEqual(labels, [c.label for c in A.away_choices(DOUBLE_CID)])
+
+    def test_an_answer_indexes_the_list_the_console_rendered(self):
+        # THE REASON `agent` is a parameter. The per-character list and the console's
+        # full list are different lengths and in a different order, so an index read
+        # against the wrong one presses the wrong thing.
+        shown = A.away_choices_for(DOUBLE_CID, self.eng)
+        i = [c.label for c in shown].index("Force the panel")
+        self.assertTrue(A.away_answer(DOUBLE_CID, i, A.away_seq(), agent=self.eng.id))
+        self.assertEqual(A.away_scene(), "panel_open")
+
+    def test_without_the_agent_the_same_index_presses_something_else(self):
+        # Proves the parameter is load-bearing rather than decorative.
+        shown = A.away_choices_for(DOUBLE_CID, self.eng)
+        i = [c.label for c in shown].index("Force the panel")
+        full = [c.label for c in A.away_choices(DOUBLE_CID)]
+        self.assertNotEqual(full[i], "Force the panel")
+
+
 if __name__ == "__main__":
     unittest.main()

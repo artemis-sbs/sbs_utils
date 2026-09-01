@@ -57,20 +57,53 @@ _TEAM = {}
 def away_assign(client_id, lifeform):
     """Put this client in control of this character. Returns the character's id.
 
-    Passing ``None`` releases the client, which is what beaming one person back up is.
+    REPLACES whatever the console was holding, so this is still "you are Sorel". Passing
+    ``None`` releases the console entirely, which is what beaming one person back up is.
+    Use :func:`away_assign_also` to add a second character to the same console.
     """
     cid = to_id(client_id)
     lf_id = to_id(lifeform)
     if lf_id is None:
         _TEAM.pop(cid, None)
         return None
-    _TEAM[cid] = lf_id
+    _TEAM[cid] = [lf_id]
+    return lf_id
+
+
+def away_assign_also(client_id, lifeform):
+    """Give this console ANOTHER character to speak for. Returns the character's id.
+
+    A landing party smaller than its cast would otherwise leave characters standing on the
+    surface that nobody controls - in nobody's :func:`away_team`, with the readings only
+    they can take unreachable. Doubling up keeps every reading in play AND keeps it
+    attached to a named person, which is the difference between a party game and one menu.
+
+    Idempotent per character, and a no-op for a character another console already holds:
+    two consoles answering as one person is worse than a console with nothing to answer.
+    """
+    cid = to_id(client_id)
+    lf_id = to_id(lifeform)
+    if lf_id is None:
+        return None
+    if lf_id in away_team():
+        return None
+    _TEAM.setdefault(cid, []).append(lf_id)
     return lf_id
 
 
 def away_me(client_id):
-    """The character this client is playing, or None if they are not on the team."""
-    return _TEAM.get(to_id(client_id))
+    """The character this client is playing - the PRIMARY, when it holds several.
+
+    Stays the answer to "whose face and name is on this screen", which is what every
+    caller wants it for. :func:`away_held` is the whole list.
+    """
+    held = _TEAM.get(to_id(client_id))
+    return held[0] if held else None
+
+
+def away_held(client_id):
+    """Every character this console speaks for, primary first."""
+    return list(_TEAM.get(to_id(client_id)) or ())
 
 
 def away_team():
@@ -79,7 +112,10 @@ def away_team():
     A set rather than a list: callers intersect it with role queries, and the same character
     must never appear twice however many clients were bound to it.
     """
-    return set(_TEAM.values())
+    out = set()
+    for held in _TEAM.values():
+        out.update(held)
+    return out
 
 
 def away_clients():
@@ -127,7 +163,7 @@ def away_client_of(lifeform):
     """Which client is playing this character, or None. The reverse of :func:`away_me`."""
     lf_id = to_id(lifeform)
     for cid, held in _TEAM.items():
-        if held == lf_id:
+        if lf_id in held:
             return cid
     return None
 
@@ -326,11 +362,64 @@ def away_choices(client_id):
     parsed = _SCENE.get("parsed")
     if parsed is None:
         return []
-    return dialogue_choices(parsed, away_me(client_id), _SCENE.get("speaker"))
+    speaker = _SCENE.get("speaker")
+    held = away_held(client_id)
+    if not held:
+        # No character: the unguarded choices only, which is the right answer for an
+        # observer rather than an error.
+        return dialogue_choices(parsed, None, speaker)
+
+    out = []
+    seen = set()
+    for lf_id in held:
+        for ch in dialogue_choices(parsed, lf_id, speaker):
+            # DEDUPE. An ungated choice - "Beam back up", "Walk in with her" - is offered
+            # to EVERY character, so a plain union shows it once per body held. Keep the
+            # first, which belongs to the primary because the primary is iterated first;
+            # each later character then contributes only what is exclusively theirs, and
+            # that ordering is what makes the grouping on screen read.
+            mark = (ch.get("label"), ch.get("target"))
+            if mark in seen:
+                continue
+            seen.add(mark)
+            # WHO IS ACTING, carried on the choice. Guards and outcomes are per character,
+            # so `away_answer` cannot ask the console - the console has several. A
+            # MastDataObject stores values as ATTRIBUTES, so `ch["agent"] = ...` raises.
+            setattr(ch, "agent", lf_id)
+            out.append(ch)
+    return out
 
 
-def away_answer(client_id, index, seq=None):
+def away_choices_for(client_id, lifeform):
+    """Just THIS character's choices, tagged, for a console holding several.
+
+    A doubled-up console shows one character at a time - a roster listbox picks who, and
+    this is the detail panel's half of that. Not a filter over :func:`away_choices`: the
+    shared, ungated choices are deduped onto the PRIMARY there, so filtering by tag would
+    hide "Beam back up" from everybody except the first character. Asked directly, every
+    character offers the open choices as well as its own.
+
+    Falls back to the console's whole list when it is not holding this character, which
+    is what a stale selection looks like after somebody else took a body over.
+    """
+    parsed = _SCENE.get("parsed")
+    if parsed is None:
+        return []
+    lf_id = to_id(lifeform)
+    if lf_id is None or lf_id not in away_held(client_id):
+        return away_choices(client_id)
+    out = dialogue_choices(parsed, lf_id, _SCENE.get("speaker"))
+    for ch in out:
+        setattr(ch, "agent", lf_id)
+    return out
+
+def away_answer(client_id, index, seq=None, agent=None):
     """Take one console's pick. True when it was accepted and the scene moved.
+
+    ``agent`` names the character whose list the console RENDERED, for a doubled-up
+    console showing one character at a time. Without it the index would be read against
+    the console's full list and press the wrong thing - the lists are different lengths
+    and in a different order.
 
     REFUSES, changing nothing, when: no beat is open; the token has moved on (somebody else
     already answered this beat); the index names no choice THIS character may take; or an
@@ -346,7 +435,7 @@ def away_answer(client_id, index, seq=None):
     if seq is not None and seq != _SCENE.get("seq", 0):
         return False
     cid = to_id(client_id)
-    choices = away_choices(cid)
+    choices = away_choices_for(cid, agent) if agent is not None else away_choices(cid)
     if not isinstance(index, int) or index < 0 or index >= len(choices):
         return False
     choice = choices[index]
@@ -355,7 +444,11 @@ def away_answer(client_id, index, seq=None):
     _SCENE["seq"] = _SCENE.get("seq", 0) + 1
 
     speaker = _SCENE.get("speaker")
-    if dialogue_apply(away_me(cid), speaker, choice.outcomes) is False:
+    # The character that OWNS the choice, not the console's primary. With a doubled-up
+    # console those differ, and applying as the primary would credit the wrong body -
+    # and evaluate a cost or a refusal against someone who was not acting.
+    actor = choice.get("agent") or away_me(cid)
+    if dialogue_apply(actor, speaker, choice.outcomes) is False:
         # A handler refused (a cost that cannot be paid). The token has ALREADY moved, so
         # every console is holding a stale one and the beat is briefly unanswerable - which
         # is correct, not a deadlock: consoles repaint off the token, re-render with the new
