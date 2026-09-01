@@ -123,7 +123,7 @@ def _audience_matches(want, console, client_id=None):
 
 
 def message_send(text, to="*", sender=None, subject=None, kind="crew",
-                 choices=None):
+                 choices=None, scene=None):
     """Put a message in an inbox.
 
     Args:
@@ -137,6 +137,9 @@ def message_send(text, to="*", sender=None, subject=None, kind="crew",
         choices (list, optional): replies to offer, as `amd_choice` dicts
             (`{label, target, guard, outcomes}`). Capped at MAX_CHOICES. A message
             with none behaves exactly as it always did.
+        scene (str, optional): an away scene key. Marks this message as that beat, so
+            the inbox asks `away.py` for the replies instead of carrying its own -
+            they differ per character and away already arbitrates them.
 
     Returns:
         dict: the stored message.
@@ -161,6 +164,10 @@ def message_send(text, to="*", sender=None, subject=None, kind="crew",
         "choices": _choices_from(choices),
         "seq": 1,
         "answered": None,
+        # An away scene's beat. The message carries the LINE; the replies are asked
+        # of away.py at draw time, because they are per character and it already
+        # arbitrates them. Two arbitration paths over one scene is a bug waiting.
+        "scene": scene,
     }
     msg["choices"] = msg["choices"][:MAX_CHOICES]
     msgs.append(msg)

@@ -287,3 +287,77 @@ class TestAsk(ChoiceBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _scene_doc(key="door", body=None):
+    """The shape dialogue_get wants: key -> node, as dialogue_scenes() produces."""
+    return {key: {"key": key, "display_text": key, "data": {}, "children": [],
+                  "description": body or (
+                      "The door is shut. Something behind it is breathing.\n"
+                      "\n"
+                      "- [Knock](knocked)\n"
+                      "- [Listen first](listened)\n")}}
+
+
+class TestAwayBeatsReachTheInbox(ChoiceBase):
+    """The away team's only channel has always been the shared main screen, read-only.
+    Mirroring each beat gives them a transcript they can scroll and a place to answer
+    from, without touching the away console - which keeps rendering the scene as it
+    always did, so `LandingParty` is unaffected.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural import away as away_mod
+        self.away_mod = away_mod
+        away_mod.away_clear()
+        away_mod._TEAM.clear()
+        self.addCleanup(away_mod.away_clear)
+        self.addCleanup(away_mod._TEAM.clear)
+        self.addCleanup(away_mod.away_mirror_to_inbox, True)
+
+    def open(self, **kw):
+        return self.away_mod.away_scene_begin(_scene_doc(), "door",
+                                              speaker=kw.get("speaker", "The Keeper"))
+
+    def test_a_beat_arrives_as_a_message(self):
+        self.open()
+        got = message_inbox("away")
+        self.assertEqual(len(got), 1)
+        self.assertEqual(got[0]["kind"], "scene")
+        self.assertEqual(got[0]["from"], "The Keeper")
+        self.assertTrue(got[0]["text"].startswith("The door is shut"))
+
+    def test_it_is_addressed_to_the_away_team_only(self):
+        """A bridge console is not on the surface and should not read its transcript."""
+        self.open()
+        self.assertEqual(message_inbox("helm"), [])
+
+    def test_it_carries_the_scene_key(self):
+        self.open()
+        self.assertEqual(message_inbox("away")[0]["scene"], "door")
+
+    def test_it_carries_NO_choices_of_its_own(self):
+        """The replies differ per character and away_answer already arbitrates them.
+        A copy on the message would give one scene two competing paths."""
+        self.open()
+        self.assertEqual(message_inbox("away")[0]["choices"], [])
+        self.assertEqual(message_choices(message_inbox("away")[0]["id"], "away"), [])
+
+    def test_each_beat_adds_to_the_transcript(self):
+        self.open()
+        self.open()
+        self.assertEqual(len(message_inbox("away")), 2)
+
+    def test_a_mission_can_turn_the_mirror_off(self):
+        self.away_mod.away_mirror_to_inbox(False)
+        self.open()
+        self.assertEqual(message_inbox("away"), [])
+
+    def test_the_away_console_still_gets_its_own_choices(self):
+        """The regression that matters: mirroring is additive, and away play is
+        unchanged for a mission that never opens the PADD."""
+        self.away_mod._TEAM[7] = [1]
+        self.open()
+        self.assertEqual(self.away_mod.away_scene(), "door")
+        self.assertTrue(self.away_mod.away_line())

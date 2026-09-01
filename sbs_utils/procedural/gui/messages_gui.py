@@ -66,6 +66,10 @@ def _reply_strip(msg):
                  f"font:gui-1;color:{ACCENT};")
         return
 
+    if msg.get("scene"):
+        _away_reply_strip(msg)
+        return
+
     offered = message_choices(msg.get("id"))
     if not offered:
         return
@@ -80,6 +84,41 @@ def _reply_strip(msg):
             message_answer(_mid, _index, seq=_seq)
 
         gui_button(f"$text:{_esc(choice['label'])};",
+                   style="col-width: content;", on_press=press)
+
+
+def _away_reply_strip(msg):
+    """The replies an away BEAT offers this console.
+
+    Asked of away.py rather than carried on the message: the options differ per
+    character (`away_choices` is per client and guard-filtered), and `away_answer` is
+    already seq-arbitrated. Copying them onto the message would give one scene two
+    competing arbitration paths.
+
+    A beat that has moved on offers nothing - the scene key on the message no longer
+    matches the open one, so an old line in the transcript is just a line.
+    """
+    from .row import gui_row
+    from .text import gui_text
+    from .button import gui_button
+    from ..away import away_scene, away_choices, away_answer, away_seq
+
+    page = FrameContext.page
+    client_id = getattr(page, "client_id", None) if page is not None else None
+    if client_id is None or msg.get("scene") != away_scene():
+        return
+    offered = away_choices(client_id)
+    if not offered:
+        return
+
+    gui_row("row-height: 2.2em; padding: 0, 12px, 0, 0;")
+    seq = away_seq()
+    for index, choice in enumerate(offered):
+        def press(_cid=client_id, _i=index, _seq=seq,
+                  _agent=getattr(choice, "agent", None)):
+            away_answer(_cid, _i, seq=_seq, agent=_agent)
+
+        gui_button(f"$text:{_esc(getattr(choice, 'label', ''))};",
                    style="col-width: content;", on_press=press)
 
 

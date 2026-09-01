@@ -317,7 +317,45 @@ def away_scene_begin(scenes, key, speaker=None):
     })
     # Picked ONCE, here, so every console is told the same thing. See the module docstring.
     _SCENE["line"] = dialogue_pick_line(parsed, None, _SCENE["speaker"])
+    _mirror_to_inbox()
     return key
+
+
+# The away team's only channel to the ship has always been the shared main screen,
+# read-only. Mirroring each beat into the inbox gives them a transcript they can scroll
+# and, through the reply strip, a place to answer from - without touching the away
+# console, which keeps rendering the scene exactly as it did.
+MIRROR_TO_INBOX = True
+
+
+def away_mirror_to_inbox(on=True):
+    """Whether each beat also arrives as a message. On by default; a mission whose
+    away play is entirely on the away console can turn it off."""
+    global MIRROR_TO_INBOX
+    MIRROR_TO_INBOX = bool(on)
+
+
+def _mirror_to_inbox():
+    """Post the current beat to the away team's inbox.
+
+    The message carries the LINE only. Its replies are asked of `away_choices` when
+    the inbox draws them, because they differ per character and `away_answer` already
+    arbitrates them - a copy on the message would be a second, competing path over
+    one scene.
+    """
+    if not MIRROR_TO_INBOX:
+        return
+    line = _SCENE.get("line")
+    if not line:
+        return
+    try:
+        from .messages import message_send
+        message_send(str(line), to="away", kind="scene",
+                     sender=_SCENE.get("speaker") or "Away",
+                     subject=_SCENE.get("key"), scene=_SCENE.get("key"))
+    except Exception:
+        from .execution import log
+        log("could not mirror an away beat to the inbox", "away", "warning")
 
 
 def away_scene_end():
