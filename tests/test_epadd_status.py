@@ -21,7 +21,7 @@ from sbs_utils.gui import GuiClient
 from sbs_utils.agent import clear_shared
 from sbs_utils.mast_sbs.maststorypage import StoryPage
 from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
-from sbs_utils.procedural.gui.epadd import gui_app_register, gui_app_badge, gui_app_list
+from sbs_utils.procedural.gui.epadd import gui_app_register, gui_app_badge, gui_app_list, gui_app_revision
 from sbs_utils.procedural.gui.status_gui import status_rows, gui_status_screen
 
 ENGI = 7
@@ -230,3 +230,44 @@ class TestTheScreen(StatusBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTheHomeScreenKnowsToRepaint(StatusBase):
+    """A signal does not wake `await gui()`, so the home screen polls - the same shape
+    the inbox and the away console use. Without it the home was frozen at whatever it
+    said when it was opened: mail arriving never moved the Messages badge, and an app
+    whose route condition turned on never appeared."""
+
+    def test_a_badge_changing_moves_it(self):
+        count = [0]
+        self.app("messages", title="Messages", status=lambda: f"{count[0]} new")
+        before = gui_app_revision("engineering")
+        count[0] = 3
+        self.assertNotEqual(gui_app_revision("engineering"), before)
+
+    def test_an_app_appearing_moves_it(self):
+        """A route condition can turn an app on while the PADD is open - which is how
+        the Away Team app shows up when a party forms."""
+        self.app("cargo", title="Cargo")
+        before = gui_app_revision("engineering")
+        self.app("quest", title="Quests")
+        self.assertNotEqual(gui_app_revision("engineering"), before)
+
+    def test_an_app_disappearing_moves_it(self):
+        from sbs_utils.procedural.gui.epadd import gui_app_unregister
+        self.app("cargo", title="Cargo")
+        self.app("quest", title="Quests")
+        before = gui_app_revision("engineering")
+        gui_app_unregister("quest")
+        self.assertNotEqual(gui_app_revision("engineering"), before)
+
+    def test_nothing_changing_leaves_it_alone(self):
+        """Otherwise the console rebuilds five times a second for no reason."""
+        self.app("cargo", title="Cargo", status=lambda: "42/60")
+        self.assertEqual(gui_app_revision("engineering"),
+                         gui_app_revision("engineering"))
+
+    def test_it_is_per_console(self):
+        self.app("cargo", title="Cargo", consoles="engineering", status=lambda: "42/60")
+        self.assertNotEqual(gui_app_revision("engineering"),
+                            gui_app_revision("helm"))

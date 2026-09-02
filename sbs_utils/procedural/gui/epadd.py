@@ -359,6 +359,24 @@ def _group_rank(group):
         return len(GROUP_ORDER)
 
 
+def gui_app_revision(console=None, client_id=None):
+    """What the HOME screen watches to know it must repaint.
+
+    A signal does not wake `await gui()`, so the home screen polls - the same shape
+    the inbox and the away console use. Two things change under it: a badge (mail
+    arrives, a build finishes) and the app LIST itself, because a route condition can
+    turn an app on or off while the PADD is open. Without this the home screen was
+    frozen at whatever it said when it was opened.
+
+    Cheap: the badges are computed for the tiles anyway.
+    """
+    parts = []
+    for app in gui_app_list(console, client_id):
+        parts.append(app.get("tab") or "")
+        parts.append(gui_app_badge(app) or "")
+    return hash(tuple(parts)) & 0x7FFFFFFF
+
+
 def gui_app_groups(console=None, client_id=None):
     """`gui_app_list` folded into (heading, apps) pairs, in drawing order.
 

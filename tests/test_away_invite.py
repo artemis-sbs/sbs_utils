@@ -221,3 +221,46 @@ class TestTheConsoleHalf(InviteBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTheAppOnlyExistsWhenItIsUseful(InviteBase):
+    """A playtest reported six consoles each carrying a button that read "No landing
+    party". A mission with no away content in it should not show the app at all."""
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.gui import GuiClient
+        from sbs_utils.procedural.gui.away_gui import away_relevant
+        from sbs_utils.procedural.gui import away_gui
+        self.gui = away_gui
+        self.relevant = away_relevant
+        GuiClient(HELM)
+
+    def test_no_party_and_nobody_down_means_no_app(self):
+        self.assertFalse(self.relevant(HELM))
+
+    def test_an_open_invitation_makes_it_relevant_to_everybody(self):
+        self.invite()
+        self.assertTrue(self.relevant(HELM))
+        self.assertTrue(self.relevant(WEAP))
+
+    def test_a_console_that_is_down_keeps_it(self):
+        """Even once the invitation closes - it is how they get back."""
+        self.invite()
+        A.away_beam_down(HELM)
+        A.away_invite_close()
+        self.assertTrue(self.relevant(HELM))
+
+    def test_and_a_console_that_is_not_down_loses_it(self):
+        self.invite()
+        A.away_beam_down(HELM)
+        A.away_invite_close()
+        self.assertFalse(self.relevant(WEAP))
+
+    def test_coming_back_gives_it_up(self):
+        self.invite()
+        A.away_beam_down(HELM)
+        self.gui.away_go_down(HELM)
+        A.away_invite_close()
+        self.gui.away_go_up(HELM)
+        self.assertFalse(self.relevant(HELM))
