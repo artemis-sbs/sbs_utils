@@ -156,6 +156,21 @@ STRIP_ROW_PX = 35
 STRIP_FALLBACK_PCT = 3
 
 
+#: The strip's rect as an `area:` STYLE, in pixels.
+#:
+#: A style, not numbers, because `Layout.calc` re-resolves `bounds_style` against the
+#: CURRENT aspect ratio on every layout pass - so a px area follows a window resize on
+#: its own. Bounds passed to the constructor do not: they are frozen at whatever the
+#: build computed, and a resize only sets `gui_state = "refresh"`, which re-presents the
+#: EXISTING layouts rather than rebuilding them. Converting px to percent by hand at
+#: build time therefore looked right until the window changed size, and then the badge
+#: drifted off the Options button while the PADD's own screens - which do rebuild -
+#: stayed correct (reported 2026-09-02).
+def _strip_area(left_px, right="100"):
+    """`area:` for a strip-height band starting at `left_px`."""
+    return f"area: {left_px}px, 0, {right}, {STRIP_ROW_PX}px;"
+
+
 def _pct_x(client_id, px, fallback):
     """A horizontal pixel measurement as the PERCENT a Layout's bounds want."""
     try:
@@ -1020,8 +1035,12 @@ class StoryPage(Page):
         #
         _left = (_identity_right(self.client_id) if show_epadd
                  else _strip_left(self.client_id))
+        _left_px = (STRIP_LEFT_PX + IDENTITY_WIDTH_PX) if show_epadd else STRIP_LEFT_PX
         _layout = Layout(self.get_tag(), None, _left, 0, 100,
                          _strip_bottom(self.client_id))
+        # The constructor bounds are the first frame's answer; the STYLE is what every
+        # later calc uses, which is what makes this survive a resize.
+        apply_control_styles(".section", _strip_area(_left_px), _layout, self.gui_task)
         _row = Row()
         #
         # MAKE the tab button 40px
@@ -1224,6 +1243,10 @@ class StoryPage(Page):
                         _strip_left(self.client_id), 0,
                         _identity_right(self.client_id),
                         _strip_bottom(self.client_id))
+        apply_control_styles(".section",
+                             _strip_area(STRIP_LEFT_PX,
+                                         f"{STRIP_LEFT_PX + IDENTITY_WIDTH_PX}px"),
+                             layout, self.gui_task)
         # NO CLICK TEXT ANYWHERE ON THIS CONTROL. A press must tint the region and
         # nothing else: the engine draws click text at its own size over the region's
         # whole rect, so the crew name came back oversized and centred, spilling up over

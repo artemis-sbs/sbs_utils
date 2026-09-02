@@ -430,6 +430,54 @@ class TestWhereItSits(BadgeBase):
         src = inspect.getsource(MSP.StoryPage.gui_queue_console_tabs)
         self.assertIn("_strip_bottom(self.client_id)", src)
 
+    def test_IT_FOLLOWS_A_WINDOW_RESIZE(self):
+        """Without a rebuild - which is all a resize gets.
+
+        `screen_size` sets `gui_state = "refresh"`, and refresh re-presents the EXISTING
+        layouts; it does not build new ones. So bounds passed to the Layout constructor
+        are frozen at whatever the build computed, and converting px to percent by hand
+        at build time is only right until the window changes size. Measured before the
+        fix: a band starting at 555px on a 1024 screen started at 2081px on a 4K one.
+
+        `Layout.calc` re-resolves `bounds_style` against the CURRENT aspect ratio every
+        pass, so the rect is declared as a px `area:` and follows the window on its own.
+        The PADD's own screens hid this by rebuilding; the console screen does not.
+        """
+        from sbs_utils.vec import Vec3
+        saved = FrameContext.aspect_ratios
+        try:
+            badge = self.padd_region()
+            for w, h in ((1024, 768), (1920, 1080), (2560, 1440), (3840, 2160)):
+                FrameContext.aspect_ratios = {CID: Vec3(w, h, 0)}
+                badge.calc(CID)                      # a resize calcs; it does NOT build
+                b = badge.bounds
+                self.assertAlmostEqual(b.left / 100 * w, MSP.STRIP_LEFT_PX, places=2,
+                                       msg=f"{w}x{h} left")
+                self.assertAlmostEqual(b.right / 100 * w,
+                                       MSP.STRIP_LEFT_PX + MSP.IDENTITY_WIDTH_PX,
+                                       places=2, msg=f"{w}x{h} right")
+                self.assertAlmostEqual(b.bottom / 100 * h, MSP.STRIP_ROW_PX, places=2,
+                                       msg=f"{w}x{h} bottom")
+        finally:
+            FrameContext.aspect_ratios = saved
+
+    def test_and_so_does_the_tab_strip_beside_it(self):
+        """One bar: if only half of it follows the window, they part company."""
+        from sbs_utils.vec import Vec3
+        saved = FrameContext.aspect_ratios
+        try:
+            self.build()
+            badge = self.page.identity_badge
+            strip = next(l for l in self.page.pending_layouts if l is not badge)
+            for w, h in ((1024, 768), (3840, 2160)):
+                FrameContext.aspect_ratios = {CID: Vec3(w, h, 0)}
+                strip.calc(CID)
+                self.assertAlmostEqual(strip.bounds.left / 100 * w,
+                                       MSP.STRIP_LEFT_PX + MSP.IDENTITY_WIDTH_PX,
+                                       places=2, msg=f"{w}x{h}")
+        finally:
+            FrameContext.aspect_ratios = saved
+
     def test_the_press_flash_is_not_opaque_white(self):
         """The engine default blanks whatever is under it while a finger is down."""
         region = self.padd_region()
