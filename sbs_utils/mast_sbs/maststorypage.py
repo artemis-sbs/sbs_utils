@@ -17,6 +17,22 @@ from ..pages.layout.text import Text
 from ..helpers import gui_text_escape
 
 
+def _is_main_screen(client_id, console):
+    """Whether this console is the shared view rather than one person's station.
+
+    The badge names the person at the console, and the main screen is the whole
+    room's - a name on it is either wrong or somebody else's. The same test the away
+    team already uses to decide the main screen takes no character.
+    """
+    if console and str(console).strip().lower() in ("mainscreen", "main_screen"):
+        return True
+    try:
+        from ..procedural.roles import has_role
+        return bool(has_role(client_id, "mainscreen"))
+    except Exception:
+        return False
+
+
 def _identity_style(text, accent):
     """The badge's style string, in one place because two callers build it.
 
@@ -943,6 +959,8 @@ class StoryPage(Page):
         self._identity_tick = tick
         from ..procedural.gui.epadd import (epadd_console_name, gui_app_identity_text,
                                             ACCENT)
+        if _is_main_screen(self.client_id, epadd_console_name(self.console)):
+            return
         try:
             text = gui_app_identity_text(client_id=self.client_id,
                                          console=epadd_console_name(self.console))
@@ -963,6 +981,8 @@ class StoryPage(Page):
         """
         from ..procedural.gui.epadd import (gui_app_identity_bounds,
                                             gui_app_identity_text, PANEL, ACCENT)
+        if _is_main_screen(self.client_id, console):
+            return                       # the room's view, not one person's
         text = gui_app_identity_text(client_id=self.client_id, console=console)
         if not text:
             return                       # nothing to say: draw no box at all

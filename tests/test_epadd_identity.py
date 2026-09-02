@@ -383,3 +383,40 @@ class TestAwkwardNames(BadgeBase):
     def test_an_ordinary_name_is_untouched(self):
         self.crew("Marek", "Lt")
         self.assertIn("Lt Marek", self.badge_text() or "")
+
+
+class TestTheMainScreenGetsNoBadge(BadgeBase):
+    """The badge names the person at the console. The main screen is the whole room's
+    view, so a name on it is either wrong or somebody else's - the same reason the
+    away team gives it no character."""
+
+    def test_not_by_console_name(self):
+        self.page.console = "mainscreen"
+        self.crew("Marek", "Lt")
+        self.assertIsNone(self.badge_text())
+
+    def test_not_by_role_either(self):
+        """A morphed main screen reports its type through the role, and `page.console`
+        is empty on a console that came through `gui_console_enter`."""
+        from sbs_utils.procedural.roles import add_role, remove_role
+        add_role(CID, "mainscreen")
+        # A role on a CLIENT outlives clear_shared(), so without this the next test
+        # class runs against a console that is still the main screen.
+        self.addCleanup(remove_role, CID, "mainscreen")
+        self.crew("Marek", "Lt")
+        self.assertIsNone(self.badge_text())
+
+    def test_AND_AN_ORDINARY_CONSOLE_STILL_GETS_ONE(self):
+        """The guard must not be so broad it takes the badge off the bridge."""
+        self.crew("Marek", "Lt")
+        self.assertIn("Lt Marek", self.badge_text() or "")
+
+    def test_the_live_refresh_skips_it_too(self):
+        """`present` runs on the main screen as well, and a badge built nowhere would
+        otherwise be refreshed into existence."""
+        self.page.console = "mainscreen"
+        self.crew("Marek", "Lt")
+        self.build()
+        FrameContext.context.sim.time_tick_counter += 100
+        self.page._tick_identity_badge()
+        self.assertIsNone(getattr(self.page, "identity_label", None))
