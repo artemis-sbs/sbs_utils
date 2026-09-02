@@ -123,11 +123,7 @@ IDENTITY_SLOTS = 3
 _SLOT_W = (100 - STRIP_LEFT) / STRIP_SLOTS
 IDENTITY_RIGHT = STRIP_LEFT + IDENTITY_SLOTS * _SLOT_W
 
-#: The press flash. The engine's own default for a click region is OPAQUE white
-#: (`background_color: white` in Layout/Column `_post_present`), which blanks whatever
-#: is under it for as long as a finger is down. Alpha keeps the control readable while
-#: it is being pressed - the same four-digit #RGBA the house panels use.
-CLICK_HIGHLIGHT = "#FFF4"
+# CLICK_HIGHLIGHT lives with the other design tokens in procedural/gui/epadd.py.
 
 
 def _identity_icon_props(accent):
@@ -909,7 +905,8 @@ class StoryPage(Page):
         return bool(gui_app_get_active(self.client_id)) or bool(self.console) or bool(enabled_tabs)
 
     def gui_queue_console_tabs(self):
-        from ..procedural.gui.epadd import epadd_console_name, SHELL_APP
+        from ..procedural.gui.epadd import (epadd_console_name, SHELL_APP,
+                                            CLICK_HIGHLIGHT)
         from ..procedural.gui.console_tab import gui_app_get_active
         from .story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
         # The normal_engi -> engineering table used to be computed here and then never
@@ -1124,7 +1121,8 @@ class StoryPage(Page):
         grid-icon-sheet the engineering grid draws from, so the label is free to say who
         is sitting there instead of naming the button.
         """
-        from ..procedural.gui.epadd import gui_app_identity_text, ACCENT, PANEL
+        from ..procedural.gui.epadd import (gui_app_identity_text, ACCENT, PANEL,
+                                            CLICK_HIGHLIGHT)
         text = gui_app_identity_text(client_id=self.client_id, console=console)
 
         layout = Layout(self.get_tag(), None, STRIP_LEFT, 0, IDENTITY_RIGHT, 3)

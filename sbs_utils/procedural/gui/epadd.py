@@ -356,8 +356,16 @@ BAR_BOTTOM = "80px"
 #: A normal tab button's fill, and the console back button's - `Spec.src`, "strip" and
 #: "strip-back". A sub-app button wears the tab fill so it reads as the same kind of
 #: control the crew already knows how to press.
+#: BLACK ON #333 IS UNREADABLE, which is what the strip's ordinary tabs are and what a
+#: sub-app first copied. The console's own back button is #999 for exactly this reason -
+#: it is the light one you can actually read - so a sub-app wears that.
 STRIP = "#333"
 STRIP_BACK = "#999"
+
+#: The press flash. The engine's own default for a click region is OPAQUE white, which
+#: blanks whatever is under it for as long as a finger is down; alpha keeps the control
+#: readable while it is being pressed. Four-digit #RGBA, like the house panels.
+CLICK_HIGHLIGHT = "#FFF4"
 
 #: A sub-app button is A TAB, in size as well as look. `Spec.src` gives the strip as six
 #: even slots of 256px at the 1920 baseline, so that is the slot - fixed in PIXELS, so a
@@ -527,38 +535,49 @@ def gui_app_subnav(apps):
 
 
 def _app_link(tab):
-    """One screen this one can reach, as a button in the TAB STRIP'S style.
+    """One screen this one can reach, drawn as a TAB - not as a button.
 
-    Sized like a tab slot and coloured like one - centred black text on the strip fill -
-    rather than to its own glyphs. Text sized to its content gave a hit area the width of
-    the word and no chrome to say it was pressable: the playtest read "BrainMast" as a
-    label and never tried clicking it. A tab-shaped button is a control the crew already
-    knows how to press.
+    A `gui_button` is the wrong widget here for two reasons the playtest saw at once:
+    the engine draws it with its own bevelled chrome, and it renders the backticks that
+    `_esc` adds for quoting as literal characters. The tab strip's own buttons are not
+    buttons either - `TabControl` subclasses Text - which is exactly why they are flat.
 
-    FIXED IN PIXELS, so a wider display gives wider gaps rather than wider buttons.
+    So this is a Text with a background, a fixed slot and a click tag, built the same way
+    `MastStoryPage._button` builds one. It gets the flat look, the same 256px slot, black
+    on the light fill the console's own back button uses, and a hit region the width of
+    the whole slot rather than the width of the word.
 
-    `on_press=` rather than a registered handler, because these are built in a LOOP: an
-    `on gui_message` block in a loop captures the loop variable at its last value, and
-    `on_press` with a default-argument closure is the path that does not.
+    `_esc` is safe here: a Text widget resolves the quoting, which is why the bar's title
+    has always drawn clean while these did not.
 
     Uses the app's registered title when it has one and its raw name when it does not: a
     sub-app is an app route nobody registered, so there is no registration to ask.
     """
-    from .button import gui_button
+    from .text import gui_text
+    from .message import gui_message_callback
 
     tab = str(tab).strip().lower()
     app = _apps().get(tab)
     title = (app or {}).get("title") or tab.replace("_", " ").title()
+    click = f"epadd-sub-{tab}"
 
-    def _open(event=None, sender=None, _tab=tab):
+    w = gui_text(f"$text:{_esc(title)};justify:center;color:black;font:gui-1;",
+                 style=f"col-width: {SUBNAV_W};")
+    if w is None:
+        return None
+    w.background_color = STRIP_BACK
+    w.click_tag = click
+    w.click_color = "#FFF"
+    w.click_background = CLICK_HIGHLIGHT
+
+    def _open(event, sender, _tab=tab, _click=click):
+        # Filtered: `Layout.on_message` hands every event to every callback, and an
+        # unfiltered one fires on somebody else's click. That cost a playtest round.
+        if getattr(event, "sub_tag", None) != _click:
+            return
         gui_app_open(_tab)
-
-    # `$text:` FIRST. With it later in the string the quoting backticks that `_esc` adds
-    # were drawn as literal characters - the buttons read `Brain` and `Mast`, backticks
-    # and all. Every working escaped button in the library puts it first.
-    return gui_button(f"$text:{_esc(title)};justify:center;color:black;font:gui-1;",
-                      style=f"col-width: {SUBNAV_W}; background: {STRIP};",
-                      on_press=_open)
+    gui_message_callback(w, _open)
+    return w
 
 
 #: Tabs whose status provider is running right now, so a provider that asks for its own

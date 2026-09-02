@@ -400,3 +400,72 @@ class TestItFallsBackToAList(EpaddShellBase):
         lb = self.listboxes(page)[0]
         heads = [i for i in lb.items if gui_list_box_is_header(i)]
         self.assertEqual([h.label for h in heads], ["SHIP", "MISSION"])
+
+
+class TestSubAppNav(EpaddShellBase):
+    """Debug's links to Brain scan and MAST.
+
+    Three faults the playtest reported in one screenshot, all from reaching for
+    `gui_button`: the engine draws a button with its own bevelled chrome, it rendered
+    the quoting backticks `_esc` adds as literal characters (`Brain`, `Mast`), and black
+    on the strip's #333 is unreadable. The tab strip's own buttons are not buttons -
+    `TabControl` subclasses Text - which is exactly why they are flat.
+    """
+
+    def setUp(self):
+        super().setUp()
+        GuiAppDecoratorLabel("brain")
+        gui_app_register("brain", title="Brain scan", group="Systems")
+        self.page = _page()
+        FrameContext.page = self.page
+        FrameContext.task = self.page.gui_task
+        from sbs_utils.procedural.gui.epadd import _app_link
+        self.w = _app_link("brain")
+
+    def test_IT_IS_NOT_A_BUTTON(self):
+        """The engine's bevelled chrome comes with the Button widget."""
+        from sbs_utils.pages.layout.button import Button
+        from sbs_utils.pages.layout.text import Text
+        self.assertNotIsInstance(self.w, Button)
+        self.assertIsInstance(self.w, Text)
+
+    def test_NO_BACKTICKS_REACH_THE_SCREEN(self):
+        """`_esc` quotes in backticks so a `:` or `;` cannot be read as style. A Text
+        widget resolves that quoting; a Button drew it."""
+        shown = self.w.message.split("$text:")[1].split(";")[0]
+        self.assertNotIn("`", shown.strip("`"))
+        self.assertIn("Brain scan", shown)
+
+    def test_it_is_readable(self):
+        """Black on #333 - the ordinary tab fill - is not. The console's own back button
+        is the light one for this reason, and a sub-app wears it."""
+        from sbs_utils.procedural.gui.epadd import STRIP_BACK, STRIP
+        self.assertEqual(self.w.background_color, STRIP_BACK)
+        self.assertNotEqual(self.w.background_color, STRIP)
+
+    def test_the_hit_area_is_the_whole_slot(self):
+        """Sized to its own glyphs it was the width of the word, and the playtest never
+        realised it was pressable."""
+        from sbs_utils.procedural.gui.epadd import SUBNAV_W
+        self.assertIsNotNone(self.w.click_tag)
+        # `col-width` lands on `default_width` via set_col_width, not on a
+        # `style` attribute.
+        # A parsed LayoutAreaNode, so assert it EXISTS rather than its text: the
+        # property is "this has a slot width", as against content width, which is
+        # what made the hit area the width of the word.
+        self.assertIsNotNone(self.w.default_width,
+                             "no slot width: the hit area is only the word")
+        self.assertTrue(SUBNAV_W.endswith("px"),
+                        "the slot is pixels, so it does not grow with the screen")
+
+    def test_a_click_meant_for_something_else_does_nothing(self):
+        opened = []
+        from sbs_utils.procedural.gui import epadd as E
+        real, E.gui_app_open = E.gui_app_open, lambda t: opened.append(t)
+        try:
+            self.w.on_message(FakeEvent(ENGI, "gui_message", sub_tag="somebody-else"))
+        finally:
+            E.gui_app_open = real
+        self.assertEqual(opened, [])
+
+
