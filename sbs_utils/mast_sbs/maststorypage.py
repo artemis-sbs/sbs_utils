@@ -1388,10 +1388,46 @@ class StoryPage(Page):
                 else:
                     self.gui_state = "presenting"
 
+    def _epadd_trace(self, event):
+        """TEMPORARY. One line per click while the ePADD is open.
+
+        Chasing a reported 1:1 - press the status region N times and it takes N presses
+        of the bar's Back to leave the console. A live repro against the mock shows every
+        library-side counter flat, and the mock cannot model engine sub-region or
+        click-region lifetime (see the gui_region ghost note), so this prints the counters
+        from a REAL session to tell those two apart.
+
+        `print`, not `log`: log() goes to Python logging with no handler and is invisible
+        in the engine.
+
+        If the counters are flat and only `regiontag` climbs, the accumulation is
+        engine-side. Delete this method and its call once that is settled.
+        """
+        try:
+            from ..procedural.gui.console_tab import gui_app_get_active
+            app = gui_app_get_active(self.client_id)
+            if not app:
+                return
+            task = self.gui_task
+            ticker = getattr(task, "active_ticker", None)
+            badge = getattr(self, "identity_badge", None)
+            print("EPADD-TRACE app=%s sub_tag=%s stack=%s poj=%s subtasks=%s "
+                  "onchange=%s layouts=%s tagmap=%s regiontag=%s"
+                  % (app, getattr(event, "sub_tag", None),
+                     len(getattr(task, "label_stack", []) or []),
+                     getattr(ticker, "pop_on_jump", "?"),
+                     len(getattr(task, "sub_tasks", []) or []),
+                     len(getattr(task, "on_change_items", []) or []),
+                     len(self.layouts or []), len(self.tag_map or {}),
+                     getattr(badge, "tag", None)))
+        except Exception as e:                      # a trace never breaks a console
+            print("EPADD-TRACE failed: %r" % (e,))
+
     def on_message(self, event):
         if event.client_id != self.client_id:
             return
-        
+        self._epadd_trace(event)
+
         message_tag = event.sub_tag
         if message_tag == "$Error$resume":
             self.errors = []
