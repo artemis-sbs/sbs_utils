@@ -189,7 +189,107 @@ def _audience_matches(want, console, client_id=None):
         return True
     if "ship" in want and not _is_away(console, client_id):
         return True
-    return False
+    return _forwarded_here(want, console, client_id)
+
+
+# --- mail for somebody who is not at their post ---------------------------------------
+#
+# A mission addresses mail to a CONSOLE - `To: science` - and then the science officer
+# beams down. Nobody is at science any more, so the letter is delivered to an empty
+# chair: it is in the store, it matches nobody, and no one ever knows it existed. The
+# same happens to a party short of people, which is what makes this the messages half
+# of forwarding.
+#
+# A ship forwards. The letter goes to whoever is covering, marked so the reader knows
+# it was not addressed to them.
+
+FORWARD_UNSTAFFED = True
+
+
+def message_forwarding(on=True):
+    """Whether mail for an empty post is forwarded to somebody. On by default."""
+    global FORWARD_UNSTAFFED
+    FORWARD_UNSTAFFED = bool(on)
+
+
+def _staffed():
+    """Console names somebody is actually sitting at, as this frame sees it.
+
+    Read from the `console` ROLE rather than from a client list, because that role
+    and `CONSOLE_TYPE` are written as a pair by `gui_console_enter` - the one door -
+    and are what every other console-scoped thing in the library already tests. A
+    client registry would have been a second answer to the same question, and the one
+    that is empty until the engine fills it.
+    """
+    out = set()
+    try:
+        from .roles import role
+        from .inventory import get_inventory_value
+    except Exception:
+        return out
+    for client_id in role("console") or ():
+        typed = get_inventory_value(client_id, "CONSOLE_TYPE", None)
+        if typed:
+            out.add(_console_name(typed))
+    return out
+
+
+def _cover_console():
+    """Who catches mail for an empty post.
+
+    The away team's duty console when anybody is down - the same console `away.py`
+    hands a forwarded job to, deliberately, so one person is covering rather than two
+    halves of the job landing in different places. Nobody away means nobody is
+    missing, and nothing is forwarded.
+    """
+    try:
+        from .away import away_duty_client
+    except Exception:
+        return None, None
+    cid = away_duty_client()
+    if cid is None:
+        return None, None
+    from .inventory import get_inventory_value
+    return cid, _console_name(get_inventory_value(cid, "CONSOLE_TYPE", "away") or "away")
+
+
+def _forwarded_here(want, console, client_id=None):
+    """Whether this reader is covering for the post this message was sent to."""
+    if not FORWARD_UNSTAFFED or not want:
+        return False
+    # A live token addresses whoever is there by definition, so it can never be
+    # orphaned - and forwarding one would deliver every away broadcast twice.
+    posts = {w for w in want if w not in LIVE_AUDIENCES}
+    if not posts or posts & _staffed():
+        return False
+    cover_id, cover_console = _cover_console()
+    if cover_id is None:
+        return False
+    if client_id is None:
+        page = FrameContext.page
+        client_id = getattr(page, "client_id", None) if page is not None else None
+    if client_id is not None:
+        return client_id == cover_id
+    return bool(console) and console == cover_console
+
+
+def message_forwarded_from(msg, console=None, client_id=None):
+    """The post this message was really addressed to, when the reader is covering.
+
+    None when it is their own mail - so a screen can label a forwarded letter without
+    having to work out the addressing a second time.
+    """
+    want = msg.get("to") if isinstance(msg, dict) else None
+    if not want:
+        return None
+    if console is None:
+        console = _here()
+    if console and console in want:
+        return None
+    if not _forwarded_here(want, console, client_id):
+        return None
+    posts = sorted(w for w in want if w not in LIVE_AUDIENCES)
+    return ", ".join(posts) if posts else None
 
 
 def message_send(text, to="*", sender=None, subject=None, kind="crew",

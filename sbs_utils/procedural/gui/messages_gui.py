@@ -16,7 +16,7 @@ from ..inventory import get_inventory_value, set_inventory_value
 from ..messages import (message_inbox, message_send, message_mark_read,
                         message_is_read, message_unread, message_choices,
                         message_answer, message_answered, message_select,
-                        message_selected)
+                        message_selected, message_forwarded_from)
 from .epadd import ACCENT, DIM, PANEL, PANEL_HEAD, _esc, gui_app_chrome
 
 
@@ -190,7 +190,23 @@ def _away_reply_strip(msg):
                   _agent=getattr(choice, "agent", None)):
             away_answer(_cid, _i, seq=_seq, agent=_agent)
 
-        gui_button(getattr(choice, "label", ""), on_press=press)
+        gui_button(_choice_label(choice), on_press=press)
+
+
+def _choice_label(choice):
+    """A choice as a button label, saying so when it is somebody else's job.
+
+    A party short of a medic is still offered the medic's line (see
+    `away.away_orphan_choices`), and handing it over unmarked would read as though
+    the character were qualified. Saying who is being covered for is the difference
+    between a bug and a decision.
+    """
+    label = getattr(choice, "label", "")
+    covering = choice.get("forwarded") if hasattr(choice, "get") else None
+    if not covering:
+        return label
+    word = str(covering).split(">=")[0].strip()
+    return f"{label} (covering for {word})" if word else label
 
 
 def gui_messages_screen(consoles=None, title="Messages"):
@@ -268,6 +284,13 @@ def gui_messages_screen(consoles=None, title="Messages"):
             gui_row("row-height: content; padding: 0, 0, 0, 10px;")
             gui_text(f"$text:{_esc('From ' + (reading.get('from') or 'unknown'))};"
                      f"font:gui-1;color:{ACCENT};")
+            # Mail for an empty post is forwarded here rather than lost. Say so, or a
+            # letter addressed to somebody else reads as a mistake.
+            covering = message_forwarded_from(reading)
+            if covering:
+                gui_row("row-height: content; padding: 0, 0, 0, 8px;")
+                gui_text(f"$text:{_esc('Forwarded - addressed to ' + covering)};"
+                         f"font:gui-1;color:{DIM};")
             gui_row()
             gui_text_area(reading.get("text") or "")
             _reply_strip(reading)

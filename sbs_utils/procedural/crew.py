@@ -74,7 +74,7 @@ BY_PERSON = "person"
 # unchanged - `director_overlays._tok_crew_name` and the Gamemaster's message list already
 # read it and must keep working with no edit at all.
 CREW_KEYS = ("CREW_NAME", "CREW_RANK", "CREW_FACE", "CREW_PORTRAIT",
-             "CREW_KEY", "CREW_ROSTER", "CREW_SOURCE")
+             "CREW_KEY", "CREW_ROSTER", "CREW_SOURCE", "CREW_ROLES")
 
 SOURCE_UNMANNED = "unmanned"
 
@@ -562,12 +562,21 @@ def crew_face_gallery(race, count=12):
 # --- resolution ----------------------------------------------------------------------------
 
 
-def _post(name, rank="", face="", portrait="", key="", roster="", source=SOURCE_UNMANNED):
+def _post(name, rank="", face="", portrait="", key="", roster="",
+          source=SOURCE_UNMANNED, roles=""):
     from ..mast.mast_node import MastDataObject
+    if not isinstance(roles, str):
+        roles = ", ".join(str(r) for r in (roles or ()))
     return MastDataObject({
         "name": _plain(name), "rank": _plain(rank),
         "face": str(face or ""), "portrait": str(portrait or ""),
         "key": str(key or ""), "roster": str(roster or ""), "source": source,
+        # WHAT THEY ARE FOR, beside who they are. `Roles:` has always been an accepted
+        # field on a crew member (`amd_crew._CSV_FIELDS`) and was read no further than
+        # the roster - so a mission could write `Roles: medical` and nothing could see
+        # it. A landing party derived from the crew is what needs it: an away scene
+        # guards its choices on exactly these words.
+        "roles": roles,
     })
 
 
@@ -628,7 +637,8 @@ def _member_post(roster, member, source):
     if portrait and roster.get("portraits") and not portrait.startswith("crew:"):
         portrait = str(roster.get("portraits")).rstrip("/") + "/" + portrait
     return _post(member.get("name"), member.get("rank"), face, portrait,
-                 member.get("key"), roster.get("key"), source)
+                 member.get("key"), roster.get("key"), source,
+                 member.get("roles") or "")
 
 
 def crew_resolve(client_id, ship_id, console,
@@ -783,6 +793,7 @@ def crew_assign(client_id, ship_id, console,
     set_inventory_value(client_id, "CREW_PORTRAIT", post.portrait)
     set_inventory_value(client_id, "CREW_KEY", post.key)
     set_inventory_value(client_id, "CREW_ROSTER", post.roster)
+    set_inventory_value(client_id, "CREW_ROLES", post.get("roles", ""))
     set_inventory_value(client_id, "CREW_SOURCE", post.source)
 
     if post.face:
@@ -803,7 +814,8 @@ def crew_post_of(client_id):
                  get_inventory_value(client_id, "CREW_PORTRAIT", ""),
                  get_inventory_value(client_id, "CREW_KEY", ""),
                  get_inventory_value(client_id, "CREW_ROSTER", ""),
-                 get_inventory_value(client_id, "CREW_SOURCE", SOURCE_UNMANNED))
+                 get_inventory_value(client_id, "CREW_SOURCE", SOURCE_UNMANNED),
+                 get_inventory_value(client_id, "CREW_ROLES", ""))
 
 
 def crew_choices_for(ship_id, console=None, client_id=None):

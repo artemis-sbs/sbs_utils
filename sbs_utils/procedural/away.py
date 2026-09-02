@@ -41,7 +41,10 @@ Stdlib only; no threading. Safe to call with no MAST context.
 """
 from .amd_dialogue import (dialogue_parse, dialogue_get, dialogue_choices, dialogue_pick_line,
                            dialogue_apply, dialogue_register_outcome,
-                           dialogue_set_metric_resolver)
+                           dialogue_set_metric_resolver, dialogue_guard_ok)
+from ..mast.mast_node import MastDataObject
+import re
+
 from ..agent import Agent
 from .query import to_id
 from .roles import has_role, get_role_list
@@ -426,6 +429,14 @@ def away_choices(client_id):
             # MastDataObject stores values as ATTRIBUTES, so `ch["agent"] = ...` raises.
             setattr(ch, "agent", lf_id)
             out.append(ch)
+    # FORWARDED WORK, on one console only. See `away_orphan_choices`: a party short of
+    # a medic still has to be able to treat her, and the duty console is the stable
+    # answer to "who catches it" that every console computes identically.
+    if client_id == away_duty_client():
+        seen_labels = {(c.get("label"), c.get("target")) for c in out}
+        for ch in away_orphan_choices():
+            if (ch.get("label"), ch.get("target")) not in seen_labels:
+                out.append(ch)
     return out
 
 
@@ -450,6 +461,17 @@ def away_choices_for(client_id, lifeform):
     out = dialogue_choices(parsed, lf_id, _SCENE.get("speaker"))
     for ch in out:
         setattr(ch, "agent", lf_id)
+    # The SAME forwarded tail `away_choices` appends, and for the same console. It has
+    # to be here too, not only there: the inbox reply strip asks this function whenever
+    # a character is active, which is the away team's main surface - so forwarding that
+    # lived only in `away_choices` would be invisible exactly where it is needed. Both
+    # lists must also agree, because `away_answer` re-derives one of them to read the
+    # index back.
+    if client_id == away_duty_client():
+        seen = {(c.get("label"), c.get("target")) for c in out}
+        for ch in away_orphan_choices():
+            if (ch.get("label"), ch.get("target")) not in seen:
+                out.append(ch)
     return out
 
 def away_answer(client_id, index, seq=None, agent=None):
@@ -602,13 +624,22 @@ def away_invite_ship():
     return (invite or {}).get("ship")
 
 
-def away_open_roster():
-    """The characters nobody has taken yet, in the order they were offered."""
+def away_open_roster(client_id=None):
+    """The characters this console may still take, in the order they were offered.
+
+    A body RESERVED for another console is not on offer - a crew-derived party knows
+    who everybody is, and offering Lt Marek to the person who is not Lt Marek is how
+    two consoles end up fighting over one body. Asked without a console, this is the
+    unreserved remainder, which is what "who is still free" means to a script.
+    """
     invite = away_invitation()
     if invite is None:
         return []
     taken = away_team()
-    return [m for m in invite.get("roster") or [] if m not in taken]
+    held_for_others = {lf for cid, lf in (invite.get("reserved") or {}).items()
+                       if cid != client_id}
+    return [m for m in invite.get("roster") or []
+            if m not in taken and m not in held_for_others]
 
 
 def away_beam_down(client_id, lifeform=None):
@@ -625,9 +656,12 @@ def away_beam_down(client_id, lifeform=None):
     """
     if away_invitation() is None:
         return None
-    free = away_open_roster()
+    free = away_open_roster(client_id)
     if lifeform is None:
-        lifeform = free[0] if free else None
+        # THEIR OWN CHARACTER FIRST. A crew-derived party has one held for this
+        # console, so "yes" means "go as myself" rather than "go as whoever is next".
+        reserved = away_reserved(client_id)
+        lifeform = reserved if reserved in free else (free[0] if free else None)
     else:
         lifeform = to_id(lifeform)
         if lifeform not in free:
@@ -654,3 +688,216 @@ def away_invite_clear():
 def away_invite_count():
     """Reset-ledger probe."""
     return 1 if Agent.SHARED.get_inventory_value(INVITE_KEY, None) else 0
+
+# --- the party is the CREW -----------------------------------------------------------
+#
+# The older shape asked a mission for a separate cast: a crew post was "a label on a
+# seat occupied by a human" and an away character "a body in the world", declared in
+# two files. It works, and it means the person who has been Lt Marek all evening beams
+# down as a stranger.
+#
+# Deriving the party from the crew makes you play YOURSELF, and it removes the step
+# where a mission has to keep two rosters in step with each other.
+
+CREW_ROLE = "away"
+
+
+def _crew_bodies(ship_id, consoles=None, assign_missing=True):
+    """[(client_id, lifeform)] - one body per console, from that console's crew post."""
+    from .links import linked_to
+    from .crew import crew_post_of
+    from .roles import has_role
+
+    if consoles is None:
+        consoles = sorted(linked_to(ship_id, "consoles"))
+    out = []
+    for client_id in consoles:
+        # The main screen is the whole room's view, not a person. It takes no body.
+        if has_role(client_id, "mainscreen"):
+            continue
+        post = crew_post_of(client_id)
+        if post is None and assign_missing:
+            post = _assign_a_crew_member(ship_id, client_id)
+        if post is None:
+            continue
+        body = _body_for(post, client_id)
+        if body is not None:
+            out.append((client_id, body))
+    return out
+
+
+def away_crew_roster(ship, consoles=None, assign_missing=True):
+    """A landing party built from the people already at the consoles.
+
+    One character per console, spawned from that console's crew post - their name,
+    their face, their roles. A console that never picked somebody is ASSIGNED the next
+    free member of the ship's roster, the way the picker would have, so skipping the
+    crew screen does not lock a player out of the away mission.
+
+    WHAT A SCENE GUARD READS. `Roles:` on the crew record when it has one; otherwise
+    the CONSOLE they came from, added as a role here so `if science` gates a scan
+    without the guard needing a second rule. A mission that already writes
+    `Roles: medical` keeps working unchanged, and one that writes none still gates.
+    """
+    return [body for _cid, body in _crew_bodies(to_id(ship), consoles, assign_missing)]
+
+
+def _assign_a_crew_member(ship_id, client_id):
+    """Give a console that skipped the picker somebody to be."""
+    from .crew import crew_choices_for, crew_pick_for, crew_assign, crew_post_of
+    from .inventory import get_inventory_value
+    console = get_inventory_value(client_id, "CONSOLE_TYPE", None)
+    free = (crew_choices_for(ship_id, console, client_id)
+            or crew_choices_for(ship_id, None, client_id))
+    if not free:
+        return None
+    member = free[0]
+    try:
+        crew_assign(client_id, ship_id, console or "",
+                    own_pick=crew_pick_for(ship_id, member.get("name"), client_id))
+    except Exception:
+        return None
+    return crew_post_of(client_id)
+
+
+def _body_for(post, client_id):
+    """One crew post as a body on the ground."""
+    from .lifeform import lifeform_spawn
+    from .inventory import get_inventory_value
+    name = getattr(post, "name", None) or "Crew"
+    rank = getattr(post, "rank", "") or ""
+    face = getattr(post, "face", "") or ""
+    roles = getattr(post, "roles", "") or ""
+    if not roles:
+        # THE FALLBACK. No Roles on the record, so the seat they left is who they are -
+        # added as a role rather than handled as a second rule at guard time, which
+        # keeps `dialogue_guard_ok` one thing.
+        roles = get_inventory_value(client_id, "CONSOLE_TYPE", "") or ""
+    full = f"{rank} {name}".strip() if rank else name
+    words = [CREW_ROLE] + [w.strip() for w in str(roles).split(",")]
+    return lifeform_spawn(full, face, ", ".join([w for w in words if w]))
+
+
+def away_invite_crew(ship, title=None, consoles=None, assign_missing=True):
+    """Open a landing party made of the crew, each body RESERVED to its own console.
+
+    The difference from :func:`away_invite` is the reservation. A crew-derived party
+    already knows who everybody is - the person has been Lt Marek all evening - so
+    beaming down is a confirmation, not a casting call, and the away screen shows the
+    character instead of a roster.
+    """
+    pairs = _crew_bodies(to_id(ship), consoles, assign_missing)
+    invite = away_invite(ship, [body for _cid, body in pairs], title)
+    for client_id, body in pairs:
+        away_reserve(client_id, body)
+    # A crew party is whoever was on the bridge, so a missing job is an accident of
+    # seating rather than the mission saying something. See `away_forwarding`. Only
+    # when there IS one: a ship with no crew assigned at all falls back to whatever
+    # cast the mission authored, and that cast is deliberate.
+    if pairs:
+        away_forwarding(True)
+    return invite
+
+
+# --- a place held for one console ----------------------------------------------------
+
+def away_reserve(client_id, lifeform):
+    """Hold one character for one console. Nobody else is offered them."""
+    invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
+    if not isinstance(invite, dict):
+        return False
+    lf_id = to_id(lifeform)
+    if lf_id is None:
+        return False
+    invite.setdefault("reserved", {})[client_id] = lf_id
+    Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
+    return True
+
+
+def away_reserved(client_id):
+    """The character held for this console, or None."""
+    invite = away_invitation()
+    if invite is None:
+        return None
+    lf_id = (invite.get("reserved") or {}).get(client_id)
+    return lf_id if lf_id in (invite.get("roster") or []) else None
+
+
+# --- a party that is short of people --------------------------------------------------
+#
+# A scene guards its choices on job words - `if medical`, `if security` - and a crew
+# party is whoever happened to be on the bridge. So a beat can carry a choice NOBODY
+# present is qualified for, and that content is simply lost: the medic's line never
+# appears, and a beat whose only way onward is guarded dead-ends.
+#
+# FORWARDING is the answer the crew already expect from a ship: the job goes to whoever
+# is there. The choice is still offered, marked as forwarded so the player knows they
+# are covering for somebody, and it goes to exactly ONE console - otherwise two people
+# are offered the same orphaned job and the first press wins a race nobody knew about.
+
+FORWARDING = False
+
+#: A guard that is a JOB - `if medical`, which the parser normalizes to `medical >= 1`.
+#: Anything else is the story's own lock and is never forwarded: `learned >= 3` is not
+#: "we are short a medic", it is "you have not worked it out yet", and handing that over
+#: because nobody qualifies would give away the answer. `learned` is named in
+#: `_away_metric` as the one guard word that is not about who is asking; the shape test
+#: catches the rest without needing a list.
+_JOB_GUARD = re.compile(r"^(?P<word>[\w ]+?)\s*>=\s*1$")
+_NOT_A_JOB_GUARD = ("learned",)
+
+
+def away_forwarding(on=True):
+    """Whether orphaned job choices are offered to somebody who is not qualified.
+
+    OFF by default, and `away_invite_crew` turns it ON. That split is the whole
+    judgement: a hand-authored roster is CAST, so a party with no medic is the mission
+    saying something, and quietly handing the medic's line to a pilot would undo it. A
+    crew-derived party is just whoever was on the bridge when it happened, so the same
+    gap is an accident of seating and the crew rightly expect the job to go to
+    somebody.
+    """
+    global FORWARDING
+    FORWARDING = bool(on)
+
+
+def _is_job_guard(guard):
+    """Whether a guard names a JOB rather than the story's own progress."""
+    m = _JOB_GUARD.match(str(guard).strip())
+    return bool(m) and m.group("word").strip().lower() not in _NOT_A_JOB_GUARD
+
+
+def away_duty_client():
+    """The console that catches what nobody else can take.
+
+    The lowest client id on the surface - an arbitrary rule, but a STABLE one, which
+    is the property that matters: every console computes the same answer, so a
+    forwarded choice appears once rather than on whichever screen repainted last.
+    """
+    down = sorted(c for c in away_clients() if away_held(c))
+    return down[0] if down else None
+
+
+def away_orphan_choices():
+    """Choices in the open beat that no character on the surface can take."""
+    parsed = _SCENE.get("parsed")
+    if parsed is None or not FORWARDING:
+        return []
+    speaker = _SCENE.get("speaker")
+    team = away_team()
+    if not team:
+        return []
+    out = []
+    for ch in parsed.get("choices") or []:
+        guard = ch.get("guard")
+        if not guard or not _is_job_guard(guard):
+            continue                     # open to everybody, or not a job at all
+        if any(dialogue_guard_ok(guard, lf, speaker) for lf in team):
+            continue                     # somebody here is qualified
+        obj = MastDataObject({"label": ch["label"], "target": ch["target"],
+                              "outcomes": ch.get("outcomes") or []})
+        # WHAT IT IS FOR, so the screen can say "nobody here is a medic" rather than
+        # silently handing over a job. The guard text is what the author wrote.
+        setattr(obj, "forwarded", str(guard))
+        out.append(obj)
+    return out

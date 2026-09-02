@@ -11,7 +11,8 @@ mission adds sit beside this one.
 from ...helpers import FrameContext
 from ..away import (away_invitation, away_invite_title, away_open_roster,
                     away_beam_down, away_beam_up, away_held, away_me, away_team,
-                    away_clients, away_job_text, away_is_open, away_client_of)
+                    away_clients, away_job_text, away_is_open, away_client_of,
+                    away_reserved)
 from ..query import to_object
 from .epadd import ACCENT, DIM, PANEL, PANEL_HEAD, _esc, gui_app_chrome
 
@@ -98,7 +99,12 @@ def gui_away_screen(title="Away Team"):
                  f"font:gui-1;color:{DIM};")
         return
 
-    free = away_open_roster()
+    mine = away_reserved(client_id)
+    if mine is not None:
+        _going_as(client_id, mine)
+        return
+
+    free = away_open_roster(client_id)
     if not free:
         gui_row("row-height: content; padding: 24px, 16px, 24px, 0;")
         gui_text(f"$text:The party is full.;font:gui-3;color:{DIM};")
@@ -122,6 +128,42 @@ def gui_away_screen(title="Away Team"):
             away_go_down(_cid)
 
     gui_row("row-height: 2.6em; padding: 24px, 8px, 24px, 8px;")
+    gui_button("BEAM DOWN", on_press=_go)
+
+
+def _going_as(client_id, lifeform):
+    """A place held for this console: who they already are, and one button.
+
+    No picker. The crew member has BEEN this person all evening - the party was
+    derived from the bridge, not cast - so asking them to choose themselves off a list
+    is a step that can only be got wrong. What they need to see is the face and the
+    job words the scene guards will read.
+    """
+    from .row import gui_row
+    from .text import gui_text
+    from .button import gui_button
+    from .face import gui_face
+    from ...faces import get_face
+
+    name, job = away_label(lifeform)
+    gui_row("row-height: content; padding: 24px, 14px, 24px, 6px;")
+    gui_text(f"$text:{_esc('Going down to ' + away_invite_title())};"
+             f"font:gui-1;color:{ACCENT};")
+
+    gui_row("row-height: content; padding: 24px, 10px, 24px, 4px;")
+    face = get_face(lifeform)
+    if face:
+        gui_face(face)
+    gui_text(f"$text:{_esc(name)};font:gui-4;", style="col-width: content;")
+    gui_text(f"$text:{_esc(job)};font:gui-1;color:{ACCENT};")
+
+    _who_is_down()
+
+    def _go(_cid=client_id):
+        if away_beam_down(_cid) is not None:
+            away_go_down(_cid)
+
+    gui_row("row-height: 2.6em; padding: 24px, 14px, 24px, 8px;")
     gui_button("BEAM DOWN", on_press=_go)
 
 
@@ -231,3 +273,23 @@ def away_go_up(client_id):
     gui_console_enter(client_id, back)
     signal_emit("away_came_back", {"AWAY_CLIENT": client_id, "AWAY_CONSOLE": back})
     return True
+
+
+def away_relevant(client_id=None):
+    """Whether the Away Team app has anything to offer this console.
+
+    True when a party is forming, or when this console is already down there. A
+    mission with no landing parties in it has neither, and the tile is then pure
+    noise on every console - which is what a playtest reported: six screens each
+    carrying a button that says "No landing party".
+
+    Put this on the ROUTE (`//gui/tab/away_team if away_relevant()`) rather than
+    inventing a visibility flag: a route's own condition is already what ePADD tests
+    when it builds the app list, and it is how `casino` and `brain` gate themselves.
+    """
+    if away_invitation() is not None:
+        return True
+    if client_id is None:
+        page = FrameContext.page
+        client_id = getattr(page, "client_id", None) if page is not None else None
+    return bool(client_id is not None and away_held(client_id))
