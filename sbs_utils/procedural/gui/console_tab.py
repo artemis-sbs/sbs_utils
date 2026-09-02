@@ -112,6 +112,10 @@ def gui_tab_activate(tab_name: str):
     client_id = _tab_client_id()
     set_inventory_value(client_id, "__active_tab__", tab_name)
     set_inventory_value(client_id, "__active_app__", None)
+    # And forget the trail through the PADD, so re-entering it starts at home rather
+    # than wherever the player happened to leave off two consoles ago.
+    from .epadd import gui_app_nav_reset
+    gui_app_nav_reset(client_id)
 
 def gui_tab_get_active():
     """returns the active tab

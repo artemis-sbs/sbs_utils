@@ -72,6 +72,27 @@ CONSOLE_ALIASES = {
 }
 
 
+def _console_identity(client_id=None):
+    """Which console this client is on, for scoping the app list.
+
+    The BUILD's own declaration first, the door's record as the fallback - the same
+    precedence `MastStoryPage._console_identity` uses, and for the same reason.
+
+    Reading `page.console` alone is what broke here: it is per BUILD and reset to "" at
+    every swap, and the PADD's own screens declare no console at all. So once a player
+    opened the PADD, `_scoped_here` saw "" and dropped every app scoped to a console -
+    Cargo and Fabricate on engineering, Airwing and Casino on the hangar - and
+    `gui_app_revision` moved for the same reason, re-entering home once on its own. The
+    guard existed in the page and had been applied in one place only.
+    """
+    page = FrameContext.page
+    page_console = getattr(page, "console", None) if page is not None else None
+    if page_console:
+        return page_console
+    cid = _client_id() if client_id is None else client_id
+    return get_inventory_value(cid, "CONSOLE_TYPE", None)
+
+
 def epadd_console_name(console):
     """The name a script would use for a console, whatever the engine calls it."""
     if console is None:
@@ -198,8 +219,7 @@ def gui_app_list(console=None, client_id=None):
     from ...mast_sbs.story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
 
     if console is None:
-        page = FrameContext.page
-        console = getattr(page, "console", None) if page is not None else None
+        console = _console_identity(client_id)
     console = epadd_console_name(console)
 
     routes = GuiAppDecoratorLabel.all
@@ -371,9 +391,84 @@ def gui_app_open(tab):
     task = getattr(page, "gui_task", None) if page is not None else None
     if task is None:
         return False
+    _nav_push(tab)
     task.jump(label)
     task.tick_in_context()
     return True
+
+
+# --- the PADD's own navigation ----------------------------------------------------
+#
+# THE PADD KNOWS WHERE IT IS. Opening an app used to be `task.jump(label)` and nothing
+# else - the same call a tab click makes - so the PADD had no idea it was open, and its
+# Back had to be reconstructed from tab state. A stack of its own is what lets home be a
+# STATE rather than an app you happen to open, and gives a future app-to-app drill-down
+# a real way back.
+#
+# NOT `procedural/gui/navigation.py`. Its `gui_history_jump` / `gui_history_back` look
+# like exactly this, but `gui_history_store` is a STUB that computes `back_label` and
+# returns without storing it, and nothing in the library or in LegendaryMissions calls
+# any of it. An unexercised API is a worse bet than a small stack that does one job.
+# Please do not "helpfully" merge them without fixing that first.
+
+#: Per client, the apps entered, deepest last. It rides the client's own Agent
+#: inventory, which `reset_mission_state` wipes wholesale via `Agent.clear()` - the same
+#: place `__active_tab__` and `__active_app__` live - so it needs no reset-ledger entry
+#: of its own. A module-level container WOULD have needed one.
+NAV_KEY = "epadd_nav"
+
+
+def _nav(client_id=None):
+    cid = _client_id() if client_id is None else client_id
+    return list(get_inventory_value(cid, NAV_KEY, None) or [])
+
+
+def _nav_set(stack, client_id=None):
+    cid = _client_id() if client_id is None else client_id
+    set_inventory_value(cid, NAV_KEY, list(stack))
+
+
+def _nav_push(tab):
+    """Record an app as entered. The SHELL clears instead: home is the bottom of the
+    stack, not an entry on it, so opening the PADD is always a fresh trail."""
+    if tab == SHELL_APP:
+        _nav_set([])
+        return
+    stack = _nav()
+    if stack and stack[-1] == tab:
+        return                          # re-opening the app you are on is not depth
+    stack.append(tab)
+    _nav_set(stack)
+
+
+def gui_app_depth(client_id=None):
+    """How deep into the PADD this client is. 0 is home (or not in the PADD)."""
+    return len(_nav(client_id))
+
+
+def gui_app_back(client_id=None):
+    """One step back inside the PADD.
+
+    Pops to the app UNDERNEATH, and returns it. Returns None when there is nothing
+    underneath - which is the caller's cue to leave the PADD entirely, and is what the
+    strip's single Back does at depth 1.
+
+    Home is deliberately not a Back destination: the status area goes home, so an app
+    needs no Back of its own and the bar's one Back always means "out".
+    """
+    stack = _nav(client_id)
+    if len(stack) < 2:
+        return None
+    stack.pop()
+    _nav_set(stack, client_id)
+    target = stack[-1]
+    gui_app_open(target)
+    return target
+
+
+def gui_app_nav_reset(client_id=None):
+    """Forget the trail - leaving the PADD, and the mission reset."""
+    _nav_set([], client_id)
 
 
 def _esc(text):

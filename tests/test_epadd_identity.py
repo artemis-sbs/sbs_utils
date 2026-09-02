@@ -271,6 +271,24 @@ class TestWhereItSits(BadgeBase):
         self.assertEqual(len(self.page.gui_task.jumped), 1,
                          "pressing the region jumps to the epadd route")
 
+    def test_A_CLICK_MEANT_FOR_SOMETHING_ELSE_DOES_NOTHING(self):
+        """The test whose absence let the PADD bounce reach an engine.
+
+        `Layout.on_message` calls `on_message_cb` for EVERY event handed to it, not
+        only ones aimed at it - unlike `Column.on_message`, which returns early on a
+        tag miss. `StoryPage.on_message` walks every layout for every event, so an
+        unfiltered callback on the identity region fires on somebody else's click.
+
+        Reported from a real engine run as "on the ePADD home, clicking an app just
+        seems to run home again": the tile's own filtered handler opened the app, and
+        then this region's unfiltered one re-entered the PADD shell in the same walk.
+        Two builds per click, and the last one always won.
+        """
+        region = self.padd_region()
+        region.on_message(FakeEvent(CID, "test", sub_tag="epadd-app-cargo"))
+        self.assertEqual(self.page.gui_task.jumped, [],
+                         "the status region must ignore a click aimed elsewhere")
+
     def test_the_press_flash_is_not_opaque_white(self):
         """The engine default blanks whatever is under it while a finger is down."""
         region = self.padd_region()

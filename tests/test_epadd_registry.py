@@ -17,6 +17,7 @@ import unittest
 from sbs_utils.helpers import Context, FakeEvent, FrameContext
 from sbs_utils.gui import GuiClient
 from sbs_utils.agent import Agent, clear_shared
+from sbs_utils.procedural.inventory import set_inventory_value
 from sbs_utils.mast_sbs.story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
 from sbs_utils.procedural.gui.epadd import (
     gui_app_register, gui_app_unregister, gui_app_is_registered, gui_app_list,
@@ -181,6 +182,40 @@ class TestAnAppNeedsItsOwnRoute(EpaddBase):
         route("epadd")
         gui_app_register("epadd", title="ePADD", consoles="engineering")
         self.assertNotIn("epadd", [a["tab"] for a in gui_app_list("engineering", ENGI)])
+
+
+class TestScopingSurvivesThePadd(EpaddBase):
+    """A console-scoped app must not vanish the moment you open the PADD.
+
+    `gui_app_list` used to read `page.console` raw, and that is per BUILD - reset to ""
+    at every swap - while the PADD's own screens declare no console at all. So once a
+    player opened the PADD, `_scoped_here` saw "" and dropped Cargo and Fabricate
+    (engineering) and Airwing and Casino (hangar). It also moved `gui_app_revision`,
+    which re-entered home once on its own.
+
+    The page already guarded this with its own `_console_identity`; the fix had been
+    applied in one place only.
+    """
+
+    def setUp(self):
+        super().setUp()
+        route("cargo")
+        route("help")
+        gui_app_register("cargo", title="Cargo", consoles="engineering", group="Ship")
+        gui_app_register("help", title="Help", group="Mission")
+        set_inventory_value(ENGI, "CONSOLE_TYPE", "engineering")
+
+    def titles(self):
+        return sorted(a["title"] for a in gui_app_list(client_id=ENGI))
+
+    def test_on_the_console_it_is_there(self):
+        FrameContext.page = _Page(ENGI, console="normal_engi")
+        self.assertEqual(self.titles(), ["Cargo", "Help"])
+
+    def test_AND_IT_IS_STILL_THERE_INSIDE_THE_PADD(self):
+        """The PADD's screens declare no console, so the page answers "" here."""
+        FrameContext.page = _Page(ENGI, console="")
+        self.assertEqual(self.titles(), ["Cargo", "Help"])
 
 
 class TestGroupOrder(EpaddBase):

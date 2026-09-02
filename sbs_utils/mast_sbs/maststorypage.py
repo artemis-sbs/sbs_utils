@@ -134,6 +134,30 @@ def _identity_icon_props(accent):
     return f"icon_index:{index};color:{accent};"
 
 
+class PaddBackControl(TabControl):
+    """The PADD's single Back.
+
+    One step back INSIDE the PADD when there is somewhere to go back to, and out to the
+    tab you came from when there is not. Depth is asked at PRESS time, not at build
+    time: the build only knows where you were when the bar was drawn.
+
+    Home is not a Back destination - the status area goes home - so at depth 1 this
+    always means "leave", which is the "single tab to go BACK to where it was in the
+    tabs" the PADD is supposed to have.
+    """
+
+    def on_message(self, event):
+        if event.sub_tag != self.click_tag:
+            return
+        from ..procedural.gui.epadd import gui_app_back, gui_app_nav_reset
+        if gui_app_back(self.page.client_id) is not None:
+            return                      # popped to the app underneath
+        gui_app_nav_reset(self.page.client_id)
+        if self.label is not None:
+            self.page.gui_task.jump(self.label)
+            self.page.gui_task.tick_in_context()
+
+
 # How many tabs the strip shows before the rest go into an overflow menu.
 #
 # The strip is a FIXED width (20%..100%) divided evenly, so it never dropped a tab and
@@ -1036,9 +1060,10 @@ class StoryPage(Page):
                     log(f"the PADD has no way back: no //gui/tab/{_return} route",
                         "gui", "warning")
 
-        def _button(text, label, is_back):
+        def _button(text, label, is_back, padd_back=False):
             msg = f"justify:center;color:black;$text:{text};"
-            button = TabControl(self.get_tag(), msg, label, self)
+            cls = PaddBackControl if padd_back else TabControl
+            button = cls(self.get_tag(), msg, label, self)
             button.click_text = text
             button.click_color = "#FFF"
             button.click_background = CLICK_HIGHLIGHT
@@ -1063,7 +1088,7 @@ class StoryPage(Page):
                                {t: l for t, l in overflow}, self)
             _row.add_front(menu)
         if back_entry:
-            _row.add(_button(back_entry[0], back_entry[1], True))
+            _row.add(_button(back_entry[0], back_entry[1], True, padd_back=in_padd))
 
         count = len(visible) + (1 if back_entry else 0) + (1 if overflow else 0)
         # Pad to six so a console with only a few tabs keeps them the size they have
@@ -1165,7 +1190,21 @@ class StoryPage(Page):
         layout.click_text = ""
         layout.click_background = CLICK_HIGHLIGHT
 
-        def _open(event, sender, _label=epadd_label):
+        # THE CALLBACK MUST CHECK THE TAG ITSELF. `Layout.on_message` calls
+        # `on_message_cb` for EVERY event handed to it during the page's walk of the
+        # layout tree, not only ones aimed at it - unlike `Column.on_message`, which
+        # returns early on a tag miss. `StoryPage.on_message` walks every layout for
+        # every event, and this region is in that list on every build.
+        #
+        # Unfiltered, it re-entered the PADD shell on somebody else's click: pressing a
+        # tile ran the tile's own filtered handler AND then this one, so every click
+        # produced two builds and the last one - always home - won. Reported from a real
+        # engine run as "clicking an app just seems to run home again", with a Back that
+        # needed several presses because each one rebuilt twice and the stale click was
+        # dropped. `epadd._tile` carries the same guard and the same warning.
+        def _open(event, sender, _label=epadd_label, _tag=layout.click_tag):
+            if getattr(event, "sub_tag", None) != _tag:
+                return
             self.gui_task.jump(_label)
             self.gui_task.tick_in_context()
         layout.on_message_cb = _open
