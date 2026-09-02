@@ -121,16 +121,56 @@ def _here():
 
     CONSOLE_TYPE is the authoritative answer; the page is the fallback for a console
     that was never entered through that door.
+
+    AND IT IS STICKY, because the answer decides what the inbox CONTAINS. Every read
+    here is of ambient state - the frame's page, the client's inventory - and a moment
+    when neither resolves is not the same fact as "this console has no mail". It used
+    to be treated as one, and both halves of the screen changed at once:
+
+    * `message_inbox()` filtered to nothing, so the panel repainted EMPTY.
+    * `message_revision()` dropped its per-console part, so the number MOVED - and the
+      number moving is exactly what `on change message_revision()` repaints on. The
+      next frame resolved the console again, the number moved back, and it repainted
+      again. An unresolved frame therefore cost two repaints and showed an empty inbox
+      in between (reported 2026-09-02: "change the dropdown and it repaints empty",
+      "sometimes it looks like two list boxes").
+
+    So a resolved console is remembered, and an unresolved read answers with the last
+    one rather than with nothing. A console that genuinely changes overwrites it on its
+    next resolved read.
     """
     page = FrameContext.page
-    if page is None:
-        return None
-    client_id = getattr(page, "client_id", None)
+    client_id = getattr(page, "client_id", None) if page is not None else None
+    if client_id is None:
+        client_id = FrameContext.client_id
     if client_id is not None:
         typed = _client_value(client_id, "CONSOLE_TYPE", None)
         if typed:
-            return _console_name(typed)
-    return _console_name(getattr(page, "console", None))
+            return _remember_console(client_id, _console_name(typed))
+    named = _console_name(getattr(page, "console", None)) if page is not None else None
+    if named:
+        return _remember_console(client_id, named)
+    return _last_console(client_id)
+
+
+#: Where the last resolved console is kept, per client.
+LAST_CONSOLE_KEY = "epadd_msg_console"
+
+
+def _remember_console(client_id, console):
+    """Record a console that DID resolve, and hand it back."""
+    if console and client_id is not None:
+        from .inventory import set_inventory_value
+        if _client_value(client_id, LAST_CONSOLE_KEY, None) != console:
+            set_inventory_value(client_id, LAST_CONSOLE_KEY, console)
+    return console
+
+
+def _last_console(client_id):
+    """The console this client last resolved to, or None if it never has."""
+    if client_id is None:
+        return None
+    return _client_value(client_id, LAST_CONSOLE_KEY, None)
 
 
 # Audiences that are a QUESTION, not a name. Who is away changes during a mission, so

@@ -24,6 +24,7 @@ from .epadd import ACCENT, DIM, PANEL, PANEL_HEAD, _esc, gui_app_chrome
 # passes its own list; these are the ones every bridge has.
 DEFAULT_TO = ["Everyone", "helm", "weapons", "engineering", "science", "comms"]
 
+
 # What a message is stored under while it is being typed. Per client, because two
 # consoles compose at the same time and neither should see the other's half-sentence.
 DRAFT_VAR = "epadd_message_draft"
@@ -33,7 +34,13 @@ TO_VAR = "epadd_message_to"
 def _row_template(item):
     """One inbox row: who it is from, the subject, and whether it has been read.
 
-    Sizes its ROW and returns None - a listbox only calls resize_to_content() when the
+    TWO ROWS, NOT TWO COLUMNS. Side by side, the subject had 70% of a panel that is
+    itself 42% of the screen - about a quarter of the width - for the one line here
+    that is actually prose. It ellipsized to nothing readable, and where it did not, it
+    wrapped past a fixed 1.5em row and drew over the message under it (playtest image,
+    2026-09-02). Stacked, the subject gets the panel's whole width.
+
+    Sizes its ROWS and returns None - a listbox only calls resize_to_content() when the
     template returns nothing, and an item section that keeps a returned size is
     degenerate, which kills the click region along with the selection.
     """
@@ -44,10 +51,16 @@ def _row_template(item):
     subject = item.get("subject") or (item.get("text") or "")[:48]
     tone = DIM if read else "#fff"
     mark = "  " if read else "* "
-    gui_row("row-height: 1.5em;")
+    gui_row("row-height: 1.4em;")
     gui_text(f"$text:{_esc(mark + who)};font:gui-2;color:{tone};"
-             f"overflow:shrink;", style="col-width: 30;")
-    gui_text(f"$text:{_esc(subject)};font:gui-2;color:{tone};overflow:ellipsis;")
+             f"overflow:shrink;")
+    # INDENTED past the unread mark, so the two lines read as one message rather than
+    # as two entries. Ellipsis rather than shrink: a subject that has to shrink to fit
+    # is no more readable small than it is cut, and a shrunk line changes the row's
+    # height under the one beside it.
+    gui_row("row-height: 1.2em; padding: 18px, 0, 0, 2px;")
+    gui_text(f"$text:{_esc(subject)};font:gui-1;color:{DIM if read else ACCENT};"
+             f"overflow:ellipsis;")
 
 
 FOLLOWED_VAR = "epadd_msg_followed"
@@ -231,9 +244,11 @@ def gui_messages_screen(consoles=None, title="Messages"):
     inbox = message_inbox()
 
     unread = message_unread()
-    # Only when there IS something. "all read" is the absence of news, and the list
-    # below says it better by having nothing bold in it.
-    gui_app_chrome(title, subtitle=(f"{unread} unread" if unread else None))
+    # "" rather than None when everything is read: the widget is made either way, so the
+    # count can appear and disappear without the page being rebuilt to carry it. The
+    # line still says nothing when there is nothing to say.
+    subtitle_widget = gui_app_chrome(title,
+                                     subtitle=(f"{unread} unread" if unread else ""))
 
     gui_section(style="area: 0, 80px, 100, 100;")
 
@@ -254,48 +269,14 @@ def gui_messages_screen(consoles=None, title="Messages"):
             lb = gui_list_box(inbox, "item-gap: 0.15em;", item_template=_row_template,
                               select=True, reveal=True, hint=hint)
 
-    with gui_sub_section():
-        # The selection has to be RESTORED, not read off the listbox: a repaint makes
-        # a new one whose selection starts empty, so the reading pane would otherwise
-        # snap back to the newest message every time anything arrived.
-        reading = None
-        chosen = message_selected()
-        if chosen is not None:
-            reading = next((m for m in inbox if m.get("id") == chosen), None)
-        # A conversation moves on: answering a beat opens the next one, and a pick
-        # left on the beat just answered would leave the team reading a settled
-        # question while the new one sat unseen.
-        #
-        # ONCE PER BEAT, THOUGH. Following on every repaint meant selecting anything
-        # else while a scene was open was undone immediately - the screen repaints on
-        # its own counter, so the pick was snatched back before it could be read. The
-        # console remembers the last beat it was moved to and does not do it twice.
-        live = _live_beat(inbox)
-        if live is not None and _follow_once(live):
-            reading = live
-            message_select(live.get("id"))
-        if reading is None and inbox:
-            reading = inbox[0]
-        if reading is not None and lb is not None:
-            lb.value = reading
-        if reading is not None:
-            message_mark_read(reading.get("id"))
-            gui_row("row-height: content; padding: 0, 0, 0, 4px;")
-            gui_text(f"$text:{_esc(reading.get('subject') or '')};font:gui-4;"
-                     f"overflow:shrink;")
-            gui_row("row-height: content; padding: 0, 0, 0, 10px;")
-            gui_text(f"$text:{_esc('From ' + (reading.get('from') or 'unknown'))};"
-                     f"font:gui-1;color:{ACCENT};")
-            # Mail for an empty post is forwarded here rather than lost. Say so, or a
-            # letter addressed to somebody else reads as a mistake.
-            covering = message_forwarded_from(reading)
-            if covering:
-                gui_row("row-height: content; padding: 0, 0, 0, 8px;")
-                gui_text(f"$text:{_esc('Forwarded - addressed to ' + covering)};"
-                         f"font:gui-1;color:{DIM};")
-            gui_row()
-            gui_text_area(reading.get("text") or "")
-            _reply_strip(reading)
+    pane = gui_sub_section()
+    with pane:
+        _reading_pane(inbox, lb)
+
+    view = {"lb": lb, "pane": pane, "subtitle": subtitle_widget,
+            "ids": [m.get("id") for m in inbox], "unread": unread}
+    if page is not None:
+        setattr(page, VIEW_ATTR, view)
 
     if lb is not None:
         def _open(event, sender):
@@ -330,3 +311,106 @@ def gui_messages_screen(consoles=None, title="Messages"):
         entry.value = ""
 
     gui_button("$text:SEND;", style="col-width: content;", on_press=_send)
+
+
+#: Where the built screen is remembered, so a later tick can update it instead of
+#: drawing it again. On the PAGE, so it dies with the page and needs no reset ledger.
+VIEW_ATTR = "_epadd_messages_view"
+
+
+def gui_messages_tick():
+    """Bring the open inbox up to date WITHOUT rebuilding the screen.
+
+    This is what the app's route calls on `on change message_revision()`. It used to
+    `jump` the screen's own label, which tears down and rebuilds the whole page - the
+    chrome, the list, the reading pane and the compose line - every time a single number
+    moved. That is why the panel flickered, why it could be caught mid-build showing an
+    empty list, and why scrolling sometimes showed what looked like two list boxes: the
+    old page and the new one, briefly both on screen.
+
+    Nothing here needs a rebuild. A listbox re-renders its own rows from `items`, and the
+    reading pane is a sub-section that can be refilled on its own - so an arriving message
+    touches the list, and a new selection touches the pane, and neither touches anything
+    else.
+
+    Safe to call when the screen is not up: it does nothing without a recorded view.
+    """
+    page = FrameContext.page
+    view = getattr(page, VIEW_ATTR, None) if page is not None else None
+    if not view:
+        return False
+    inbox = message_inbox()
+    changed = False
+
+    ids = [m.get("id") for m in inbox]
+    lb = view.get("lb")
+    if lb is not None and ids != view.get("ids"):
+        # THE LIST ONLY. `items` swaps the data and marks the widget dirty; the engine
+        # re-renders its rows next tick.
+        lb.items = inbox
+        view["ids"] = ids
+        changed = True
+
+    pane = view.get("pane")
+    if pane is not None and pane.sub_section is not None:
+        pane.sub_section.rebuild()
+        with pane:
+            _reading_pane(inbox, lb)
+        changed = True
+
+    unread = message_unread()
+    sub = view.get("subtitle")
+    if sub is not None and unread != view.get("unread"):
+        sub.update(f"$text:{_esc(str(unread) + ' unread') if unread else ''};"
+                   f"font:gui-1;color:{DIM};")
+        view["unread"] = unread
+        changed = True
+    return changed
+
+
+def _reading_pane(inbox, lb):
+    """The message being read, drawn on its own so a tick can redraw JUST this."""
+    from .row import gui_row
+    from .text import gui_text, gui_text_area
+
+    # The selection has to be RESTORED, not read off the listbox: a repaint makes
+    # a new one whose selection starts empty, so the reading pane would otherwise
+    # snap back to the newest message every time anything arrived.
+    reading = None
+    chosen = message_selected()
+    if chosen is not None:
+        reading = next((m for m in inbox if m.get("id") == chosen), None)
+    # A conversation moves on: answering a beat opens the next one, and a pick
+    # left on the beat just answered would leave the team reading a settled
+    # question while the new one sat unseen.
+    #
+    # ONCE PER BEAT, THOUGH. Following on every repaint meant selecting anything
+    # else while a scene was open was undone immediately - the screen repaints on
+    # its own counter, so the pick was snatched back before it could be read. The
+    # console remembers the last beat it was moved to and does not do it twice.
+    live = _live_beat(inbox)
+    if live is not None and _follow_once(live):
+        reading = live
+        message_select(live.get("id"))
+    if reading is None and inbox:
+        reading = inbox[0]
+    if reading is not None and lb is not None:
+        lb.value = reading
+    if reading is not None:
+        message_mark_read(reading.get("id"))
+        gui_row("row-height: content; padding: 0, 0, 0, 4px;")
+        gui_text(f"$text:{_esc(reading.get('subject') or '')};font:gui-4;"
+                 f"overflow:shrink;")
+        gui_row("row-height: content; padding: 0, 0, 0, 10px;")
+        gui_text(f"$text:{_esc('From ' + (reading.get('from') or 'unknown'))};"
+                 f"font:gui-1;color:{ACCENT};")
+        # Mail for an empty post is forwarded here rather than lost. Say so, or a
+        # letter addressed to somebody else reads as a mistake.
+        covering = message_forwarded_from(reading)
+        if covering:
+            gui_row("row-height: content; padding: 0, 0, 0, 8px;")
+            gui_text(f"$text:{_esc('Forwarded - addressed to ' + covering)};"
+                     f"font:gui-1;color:{DIM};")
+        gui_row()
+        gui_text_area(reading.get("text") or "")
+        _reply_strip(reading)

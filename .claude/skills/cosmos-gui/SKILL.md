@@ -29,7 +29,9 @@ gotchas that **bite repeatedly** — read it before building a console or panel.
 
 - **Build the layout once, update the data.** Lean on the dirty system (below):
   set `.value` / `.update()` or drive an `on change`, rather than tearing down and
-  rebuilding the whole page every time one number moves.
+  rebuilding the whole page every time one number moves. **A full repaint is not an
+  update strategy** - see "Never repaint the page to update a control" below, which is
+  the single most-repeated mistake in this file.
 - **One main GUI task per client.** Each console client sits in a single
   `await gui()`. Run live watchers as **sub-tasks** (`gui_sub_task_schedule`) that
   auto-cancel when a new page is presented — don't spin your own loops on the main
@@ -59,6 +61,81 @@ gotchas that **bite repeatedly** — read it before building a console or panel.
 - **Verify tiers in order:** `--test` (compiles / doesn't crash) → `--exercise`
   (drives the GUI, catches MAST-layer errors the suite can't) → **browser** (the
   only place layout and render are real). Never call a GUI done off `--test` alone.
+
+---
+
+## Never repaint the page to update a control
+
+**A repaint goes over the NETWORK, to every console.** A GUI build is a stream of
+`sbs.send_gui_*` commands sent to a client; rebuilding a screen re-sends every widget on
+it. So "just repaint it" is not a cheap local redraw - it is the whole screen, on the
+wire, per client, per change. Doing that on a watcher means doing it forever.
+
+**The anti-pattern, by name:**
+
+```
+    gui_my_screen()
+    on change my_revision():
+        jump my_screen_label          # <-- THE WHOLE PAGE, on every change
+    await gui()
+```
+
+That rebuilds the chrome, the lists, the panes and the buttons because one number moved.
+It is also how a screen gets caught mid-build showing empty data, and how two builds end
+up briefly on screen at once - reported from real play as "it repaints empty" and
+"it looks like there are two list boxes". Neither symptom is a layout bug; both are the
+repaint.
+
+**Update the control instead. Everything needed is already built:**
+
+| what changed | what to touch | NOT |
+|---|---|---|
+| a list's contents | `lb.items = new_items` (marks dirty, re-renders its own rows) | rebuild the page |
+| one value / label | `w.value = x` or `w.update("<full style>")` | rebuild the page |
+| a widget you cannot reach | `gui_update("name", props)` (needs a `tag:` style) | rebuild the page |
+| a whole variable-shaped panel | hold a `gui_sub_section`, then `pane.sub_section.rebuild()` and re-enter `with pane:` | rebuild the page |
+| a section's layout | `gui_rebuild(region)` | rebuild the page |
+
+A held sub-section can be refilled **outside a build**, from an event callback or a
+watcher - `push_sub_section` handles re-entry, and `pending_layouts` comes back balanced.
+That is what makes a list/detail screen updatable without a repaint: the list takes new
+`items`, the detail pane is refilled, and nothing else is touched.
+
+**The shape that works** - build once, then a tick that updates only what moved:
+
+```python
+def my_screen():
+    sub = gui_app_chrome("Inbox", subtitle="")   # "" makes the widget, for later
+    lb = gui_list_box(items, item_template=row)
+    pane = gui_sub_section()
+    with pane:
+        draw_detail()
+    setattr(FrameContext.page, VIEW_ATTR,        # on the PAGE: dies with it
+            {"lb": lb, "pane": pane, "subtitle": sub, "ids": ids})
+
+def my_screen_tick():                            # the `on change` calls THIS
+    view = getattr(FrameContext.page, VIEW_ATTR, None)
+    if not view:
+        return False                             # the handler can outlive the screen
+    if new_ids != view["ids"]:
+        view["lb"].items = new_items
+    view["pane"].sub_section.rebuild()
+    with view["pane"]:
+        draw_detail()
+```
+
+```
+    on change my_revision():
+        my_screen_tick()          # not `jump`
+```
+
+**Prove it, don't assume it.** Count `len(page.pending_layouts)` before and after the
+tick: unchanged means no page rebuild happened. A test that only checks the new value
+appeared cannot tell an update from a repaint.
+
+**When a full rebuild IS right:** the screen's STRUCTURE changes - a different app, a
+different mode, a panel appearing that was never built. Changing what a built widget
+*says* is never in that category.
 
 ---
 

@@ -26,7 +26,8 @@ from sbs_utils.mast_sbs.maststorypage import StoryPage
 from sbs_utils.pages.widgets.layout_listbox import LayoutListbox
 from sbs_utils.procedural.inventory import set_inventory_value
 from sbs_utils.procedural.messages import (
-    message_send, message_inbox, message_selected, message_revision, message_is_read)
+    message_send, message_inbox, message_selected, message_revision, message_is_read,
+    message_select)
 from sbs_utils.procedural.gui import messages_gui
 
 CID = 7
@@ -190,6 +191,144 @@ class TestAnOrdinaryBridgeConsole(ScreenBase):
         self.build()
         self.click(oldest)
         self.assertEqual(message_selected("engineering"), oldest["id"])
+
+
+class TestAFrameThatCannotSeeTheConsole(ScreenBase):
+    """A moment when the console does not resolve is not the same fact as "no mail".
+
+    It used to be treated as one, and it cost two repaints and an empty screen between
+    them: `message_inbox()` filtered to nothing, and `message_revision()` dropped its
+    per-console part - so the number the screen repaints ON moved, the empty build was
+    drawn, the next frame resolved the console again, the number moved back, and it
+    repainted a second time. Reported as "change the dropdown and it repaints empty"
+    and "sometimes it looks like two list boxes" (2026-09-02).
+
+    Both halves are pinned here, because either one alone still produces a symptom: a
+    stable revision with an empty inbox blanks the panel silently, and a full inbox
+    with a moving revision repaints for no reason.
+    """
+
+    console_type = "away"
+
+    def setUp(self):
+        super().setUp()
+        message_send("one", to="away", sender="A")
+        message_send("two", to="away", sender="B")
+        self.build()
+        self.inbox = len(message_inbox())
+        self.revision = message_revision()
+        self.assertEqual(self.inbox, 2)
+
+    def test_no_page_at_all_answers_the_same(self):
+        """`on change` expressions are evaluated on the task, and the frame's page is
+        not guaranteed to be set when they run."""
+        saved = FrameContext.page
+        FrameContext.page = None
+        try:
+            self.assertEqual(len(message_inbox()), self.inbox)
+            self.assertEqual(message_revision(), self.revision)
+        finally:
+            FrameContext.page = saved
+
+    def test_a_console_that_reports_nothing_answers_the_same(self):
+        """A morphed console mid-swap: CONSOLE_TYPE not written yet and `page.console`
+        still empty - the exact hole `_here` was built for."""
+        set_inventory_value(CID, "CONSOLE_TYPE", "")
+        self.page.console = ""
+        self.assertEqual(len(message_inbox()), self.inbox)
+        self.assertEqual(message_revision(), self.revision)
+
+    def test_BUT_A_REAL_CONSOLE_CHANGE_STILL_WINS(self):
+        """Sticky must not mean stuck. Moving to a console with no away mail shows an
+        empty inbox, because that one really is empty."""
+        set_inventory_value(CID, "CONSOLE_TYPE", "science")
+        self.assertEqual(len(message_inbox()), 0)
+        self.assertNotEqual(message_revision(), self.revision)
+
+
+class TestItUpdatesInsteadOfRebuilding(ScreenBase):
+    """The screen is built ONCE, and a change touches only what changed.
+
+    It used to repaint the whole page on every `message_revision()` move - the route
+    ran `jump epadd_messages_screen`, which tears down and redraws the chrome, the list,
+    the reading pane and the compose line because one number changed. That is what made
+    the panel flicker, what let it be caught mid-build showing an empty list, and what
+    made scrolling look like two overlapping list boxes (2026-09-02).
+
+    A listbox re-renders its own rows from `items`; the reading pane is a sub-section
+    that can be refilled alone. Neither needs the page.
+    """
+
+    console_type = "away"
+
+    def setUp(self):
+        super().setUp()
+        message_send("one", to="away", sender="A", subject="First")
+        message_send("two", to="away", sender="B", subject="Second")
+        self.build()
+        self.view = getattr(self.page, messages_gui.VIEW_ATTR)
+        self.layouts = len(self.page.pending_layouts)
+
+    def pane_text(self):
+        out, seen = [], set()
+
+        def walk(o, d=0):
+            if d > 8 or id(o) in seen:
+                return
+            seen.add(id(o))
+            m = getattr(o, "message", None)
+            if isinstance(m, str):
+                out.append(m)
+            for attr in ("rows", "columns"):
+                for c in getattr(o, attr, None) or ():
+                    walk(c, d + 1)
+        walk(self.view["pane"].sub_section)
+        return " ".join(out)
+
+    def test_NEW_MAIL_TOUCHES_THE_LIST_AND_NOTHING_ELSE(self):
+        message_send("three", to="away", sender="C", subject="Third")
+        self.assertTrue(messages_gui.gui_messages_tick())
+        self.assertEqual(len(self.view["lb"].items), 3)
+        self.assertEqual(len(self.page.pending_layouts), self.layouts,
+                         "a new layout means the page was rebuilt")
+
+    def test_a_new_selection_refills_only_the_pane(self):
+        oldest = message_inbox()[-1]
+        message_select(oldest.get("id"))
+        messages_gui.gui_messages_tick()
+        self.assertIn("First", self.pane_text())
+        self.assertEqual(len(self.page.pending_layouts), self.layouts)
+
+    def test_the_unread_count_updates_in_place(self):
+        """The chrome carries it, and the widget exists even at zero - so the count can
+        come and go without a rebuild to bring the line into being."""
+        sub = self.view["subtitle"]
+        self.assertIsNotNone(sub)
+        message_send("four", to="away", sender="D", subject="Fourth")
+        messages_gui.gui_messages_tick()
+        self.assertIn("unread", sub.message or "")
+
+    def test_a_tick_with_no_screen_up_does_nothing(self):
+        """The handler can outlive the screen; it must not raise or half-draw."""
+        delattr(self.page, messages_gui.VIEW_ATTR)
+        self.assertFalse(messages_gui.gui_messages_tick())
+
+    def test_THE_ROUTE_CALLS_THE_TICK_AND_DOES_NOT_JUMP(self):
+        """The library half is useless if the mission still jumps its own label."""
+        import os
+        mast = os.path.join(os.path.dirname(__file__), "..", "..",
+                            "LegendaryMissions", "consoles", "epadd.mast")
+        if not os.path.exists(mast):
+            self.skipTest("LegendaryMissions is not checked out beside sbs_utils")
+        with open(mast, encoding="utf-8") as f:
+            src = f.read()
+        # The ROUTE still jumps - that is how the screen is entered. What must not
+        # happen is the WATCHER jumping, which is the full repaint.
+        watcher = src.split("on change message_revision():")[-1]
+        self.assertIn("gui_messages_tick()", watcher.split("await gui()")[0])
+        self.assertNotIn("jump epadd_messages_screen",
+                         watcher.split("await gui()")[0],
+                         "the inbox watcher is still repainting the whole page")
 
 
 class TestAnEmptyInbox(ScreenBase):

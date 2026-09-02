@@ -475,6 +475,13 @@ def gui_app_chrome(title, subtitle=None):
         subtitle (str, optional): a second, dimmer line. Leave it out unless it says
             something the screen below does not - a board captioned with the count of
             what it is already listing says nothing.
+
+            Pass "" rather than None for a line that is EMPTY NOW but will have text
+            later: the widget is created either way, so a live screen can update it in
+            place instead of rebuilding the page to make one appear.
+
+    Returns:
+        Text | None: the subtitle widget, so a caller can keep it and update it.
     """
     from .section import gui_section
     from .row import gui_row
@@ -487,12 +494,17 @@ def gui_app_chrome(title, subtitle=None):
     # gui-3 (28px), not gui-4 (32px): the band is the strip's 35px now, and a 32px line
     # in a 35px row has 3px to live in.
     gui_text(f"$text:{_esc(title)};font:gui-3;", style="col-width: content;")
-    if subtitle:
-        gui_text(f"$text:{_esc(subtitle)};font:gui-1;color:{DIM};",
-                 style="col-width: content;")
+    # `is not None`, not truthiness: "" MAKES the widget, empty, so a live screen can
+    # fill it in later without rebuilding the page to bring one into existence. None
+    # still means "this screen has no subtitle at all".
+    sub = None
+    if subtitle is not None:
+        sub = gui_text(f"$text:{_esc(subtitle)};font:gui-1;color:{DIM};",
+                       style="col-width: content;")
     # THE SLACK GOES HERE. Two content-sized cells in a row with nothing spare have
     # nothing to give, and the engine does not clip - they draw over each other.
     gui_blank()
+    return sub
 
 
 def gui_app_subnav(apps):
