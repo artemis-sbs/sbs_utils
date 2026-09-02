@@ -1,23 +1,22 @@
-"""Back, as the PADD's chrome means it.
+"""One gui tab, and it is the way back to the console.
 
-Reported from the Gamma with a Q playtest: "Once on the ePADD, clicking Back to the
-console is inconsistent", and later "reusing the Tab's back button is not working... the
+Reported across three rounds of the Gamma with a Q playtest: "clicking Back to the
+console is inconsistent", then "reusing the Tab's back button is not working", then "the
 current system still breaks the historic tab back".
 
-Both are the same mistake from opposite ends. The PADD's Back was a button on the
-CONSOLE'S TAB BAR, so it inherited everything about tabs - a route's `if` (which is what
-stranded the away console, whose route is deliberately gated off while ePADD owns away),
-the need for a route to exist at all, and a slot on a strip it does not own. And
-overriding that button's behaviour broke the bar's own back for everyone else.
+All three were the same mistake. Every PADD screen used to declare
+`gui_tab_back(CONSOLE_SELECT)` - one tab, back to the console, exactly like any other
+screen - and that line was deleted on the theory that "apps have no back". What replaced
+it was the strip SYNTHESISING a back entry while the PADD was open, which meant the PADD
+reaching into the tab system's per-build state, and that is what kept breaking the bar's
+own back button.
 
-So the PADD owns its navigation now. `gui_app_go_back` is the chrome's control:
+So the property is now the absence of cleverness: the PADD adds nothing to the strip and
+changes nothing about it. It declares a back tab; the bar draws it the way it always has.
+`test_it_is_a_plain_TabControl` is the guard against the subclass creeping back.
 
-* one screen back through the PADD's own history, and
-* at the bottom - home - it leaves, returning the console to the tab it came from.
-
-The tab bar is not involved at any point, which is why these tests drive the function
-rather than reading the strip. `test_the_strip_is_untouched` is the one that pins the
-report: the bar's back button must be exactly what it would have been.
+Navigating INSIDE the PADD is HOME on the bar - see `gui_app_chrome`. There is no PADD
+history, no depth, and no second Back.
 """
 import unittest
 
@@ -31,9 +30,7 @@ from sbs_utils.helpers import Context, FakeEvent, FrameContext
 from sbs_utils.mast_sbs.maststorypage import StoryPage, TabControl
 from sbs_utils.mast_sbs.story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
 from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
-from sbs_utils.procedural.gui.console_tab import gui_app_activate, gui_tab_activate
-from sbs_utils.procedural.gui.epadd import (
-    gui_app_depth, gui_app_go_back, gui_app_open)
+from sbs_utils.procedural.gui.console_tab import gui_app_activate, gui_tab_back
 from sbs_utils.procedural.inventory import set_inventory_value
 from sbs_utils.spaceobject import SpaceObject
 
@@ -68,7 +65,7 @@ class _FakeGuiTask:
 
 
 class _ConditionFalse(GuiTabDecoratorLabel):
-    """`//gui/tab/away if not gui_app_mode_is_on()`, back when that existed."""
+    """A tab route whose own `if` is false right now."""
 
     def __init__(self, name):
         self.name = name
@@ -111,85 +108,8 @@ class BackBase(unittest.TestCase):
         GuiTabDecoratorLabel.all[name] = (_ConditionFalse(name) if condition_false
                                           else "label_%s" % name)
 
-    def jumped(self):
-        return list(self.page.gui_task.jumped)
-
-
-class TestBackInsideThePadd(BackBase):
-    def test_from_an_app_it_goes_home(self):
-        self.tab("helm")
-        gui_tab_activate("helm")
-        gui_app_open("epadd")
-        gui_app_open("cargo")
-        self.page.gui_task.jumped.clear()
-        self.assertTrue(gui_app_go_back(CID))
-        self.assertEqual(self.jumped(), ["label_epadd"])
-
-    def test_from_a_screen_that_is_not_a_tile_it_goes_to_what_opened_it(self):
-        """`mast` is an app route nobody registered - reachable from Debug, never on
-        the home grid."""
-        self.tab("helm")
-        gui_tab_activate("helm")
-        gui_app_open("epadd")
-        gui_app_open("debug")
-        gui_app_open("mast")
-        self.page.gui_task.jumped.clear()
-        self.assertTrue(gui_app_go_back(CID))
-        self.assertEqual(self.jumped(), ["label_debug"])
-
-
-class TestBackAtHomeLeaves(BackBase):
-    def test_IT_RETURNS_TO_THE_TAB_YOU_CAME_FROM(self):
-        """The reported behaviour, now owned by the PADD instead of borrowed from the
-        bar. An app route never writes `__active_tab__`, so Helm is still recorded."""
-        self.tab("helm")
-        gui_tab_activate("helm")
-        gui_app_open("epadd")
-        self.page.gui_task.jumped.clear()
-        self.assertTrue(gui_app_go_back(CID))
-        self.assertEqual(self.jumped(), ["label_helm"])
-        self.assertEqual(gui_app_depth(CID), 0)
-
-    def test_it_is_the_ACTIVE_tab_not_the_console_default(self):
-        self.tab("helm")
-        self.tab("weapons")
-        gui_tab_activate("helm")
-        gui_tab_activate("weapons")
-        set_inventory_value(CID, "CONSOLE_TYPE", "helm")
-        gui_app_open("epadd")
-        self.page.gui_task.jumped.clear()
-        gui_app_go_back(CID)
-        self.assertEqual(self.jumped(), ["label_weapons"])
-
-    def test_THE_AWAY_CONSOLE_IS_NOT_STRANDED(self):
-        """The shipped case that started this. Away's tab route was condition-gated
-        off while ePADD owned away - correct as a tab - and the PADD's Back used to
-        inherit that condition and vanish. It no longer asks the route anything."""
-        self.tab("away", condition_false=True)
-        gui_tab_activate("away")
-        gui_app_open("epadd")
-        self.page.gui_task.jumped.clear()
-        self.assertTrue(gui_app_go_back(CID))
-        self.assertEqual(self.jumped(),
-                         [GuiTabDecoratorLabel.all["away"]],
-                         "the condition is not asked - you came from there")
-
-    def test_walking_all_the_way_out_takes_one_press_per_screen(self):
-        self.tab("helm")
-        gui_tab_activate("helm")
-        gui_app_open("epadd")
-        gui_app_open("debug")
-        gui_app_open("mast")
-        self.page.gui_task.jumped.clear()
-        for _ in range(3):
-            gui_app_go_back(CID)
-        self.assertEqual(self.jumped(),
-                         ["label_debug", "label_epadd", "label_helm"])
-
-
-class TestTheTabBarIsNotInvolved(BackBase):
-    def strip(self, declared=()):
-        set_inventory_value(CID, "console_tabs", {n: True for n in declared})
+    def build(self):
+        """What a PADD screen leaves behind: one back tab, and nothing else."""
         self.page.pending_layouts = []
         self.page.gui_queue_console_tabs()
         padd = getattr(self.page, "identity_badge", None)
@@ -197,54 +117,62 @@ class TestTheTabBarIsNotInvolved(BackBase):
         for layout in self.page.pending_layouts:
             if layout is not padd and getattr(layout, "rows", None):
                 cols = list(layout.rows[0].columns)
-        return [t for t in (getattr(c, "click_text", None)
-                            for c in cols if isinstance(c, TabControl)) if t]
+        return [c for c in cols if isinstance(c, TabControl)]
 
-    def test_the_bar_keeps_its_back_to_console(self):
-        """Two backs, and they mean different things. The chrome's arrow walks the
-        PADD's history; this one is the bar's ordinary back-to-console, rightmost as
-        always, so leaving is one press from any depth.
+    def labels(self):
+        return [getattr(c, "click_text", None) for c in self.build()]
 
-        A PADD screen declares no tabs, so without the strip supplying the destination
-        the button would simply be absent - the console's own build set it and drawing
-        consumed it.
-        """
-        self.tab("helm")
-        gui_tab_activate("helm")
+
+class TestOneTab(BackBase):
+    def test_a_padd_screen_declares_one_and_the_bar_draws_one(self):
+        self.tab("engineering")
         gui_app_activate("cargo")
-        self.assertEqual(self.strip(), ["helm"])
+        gui_tab_back("engineering")
+        self.assertEqual(self.labels(), ["engineering"])
 
-    def test_AND_IT_IS_NOT_OVERRIDDEN(self):
-        """The second half of the report. Supplying the button's DESTINATION is fine;
-        replacing its BEHAVIOUR with PADD semantics is what broke the bar's own back
-        for everything else, so it stays a plain TabControl."""
-        self.tab("helm")
-        gui_tab_activate("helm")
+    def test_IT_IS_A_PLAIN_TabControl(self):
+        """The guard. Supplying the button's destination is fine; replacing its
+        BEHAVIOUR with PADD semantics is what broke the bar's back for everything
+        else, and a subclass here is how that comes back."""
+        self.tab("engineering")
         gui_app_activate("cargo")
-        set_inventory_value(CID, "console_tabs", {})
-        self.page.pending_layouts = []
-        self.page.gui_queue_console_tabs()
-        padd = getattr(self.page, "identity_badge", None)
-        for layout in self.page.pending_layouts:
-            if layout is padd or not getattr(layout, "rows", None):
-                continue
-            for col in layout.rows[0].columns:
-                if isinstance(col, TabControl):
-                    self.assertIs(type(col), TabControl,
-                                  "the bar's back must not be a PADD subclass")
+        gui_tab_back("engineering")
+        for c in self.build():
+            self.assertIs(type(c), TabControl)
 
-    def test_a_consoles_own_back_tab_still_works(self):
-        """Nothing about an ordinary console's strip changed."""
+    def test_the_same_at_every_depth(self):
+        """Home, an app, a sub-app - the bar is the same one tab throughout, because
+        each screen declares it and nothing accumulates."""
+        self.tab("engineering")
+        for screen in ("epadd", "debug", "mast"):
+            gui_app_activate(screen)
+            gui_tab_back("engineering")
+            self.assertEqual(self.labels(), ["engineering"], screen)
+
+    def test_a_condition_on_the_route_is_not_asked(self):
+        """The away console. Its tab route is deliberately gated off, and the back tab
+        answers "where did you come from", not "may this be picked from here"."""
+        self.tab("away", condition_false=True)
+        gui_app_activate("cargo")
+        gui_tab_back("away")
+        self.assertEqual(self.labels(), ["away"])
+
+
+class TestThePaddAddsNothing(BackBase):
+    def test_a_screen_that_declares_no_tab_gets_no_tab(self):
+        """The strip does not invent one. It used to synthesise a back entry from the
+        active tab whenever the PADD was open, which is the special-casing this whole
+        change removed."""
+        self.tab("engineering")
+        gui_app_activate("cargo")
+        self.assertEqual(self.build(), [])
+
+    def test_but_the_status_region_is_still_drawn(self):
+        """It is the way IN to the PADD, so it survives on a console."""
         self.tab("engineering")
         self.page.console = "normal_engi"
-        set_inventory_value(CID, "__back_tab__", "engineering")
-        self.assertEqual(self.strip(declared=("engineering",)), ["engineering"])
-
-    def test_the_status_region_is_still_the_way_in(self):
-        """It stays on the strip on a console - that is the door to the PADD."""
-        self.tab("engineering")
-        self.page.console = "normal_engi"
-        self.strip(declared=("engineering",))
+        gui_tab_back("engineering")
+        self.build()
         self.assertIsNotNone(getattr(self.page, "identity_badge", None))
 
 

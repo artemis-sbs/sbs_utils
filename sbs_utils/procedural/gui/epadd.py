@@ -337,7 +337,16 @@ PANEL_HI = "#1575"       # hover / selected
 PANEL_HEAD = "#1578"     # the PADD bar, and every list title section
 ACCENT = "#8cf"
 DIM = "#9ab"
-BAR_HEIGHT = "1em+16px"
+#: The PADD bar. 64px, from `design/epadd/Spec.src` - the build sheet's own lede says
+#: every number in it is lifted from the engine rather than invented, so this is
+#: transcription. ABSOLUTE, not `1em+16px`: `em` resolves against the ROW's font and an
+#: unfonted row is gui-2 (24px), while the title in this row is gui-4 (32px) - which is
+#: the mismatch class behind the bar drawing over itself.
+BAR_HEIGHT = "64px"
+
+#: The console's own back button's fill. The HOME button wears it so the two read as the
+#: same kind of control - `Spec.src`, "strip-back".
+STRIP_BACK = "#999"
 # A grid row that declares nothing is 1fr and shares out the whole sheet, so
 # three short bands of cards stretch over the screen. Size them to content.
 TILE_ROW = "row-height: content;"
@@ -395,86 +404,16 @@ def gui_app_open(tab):
     task = getattr(page, "gui_task", None) if page is not None else None
     if task is None:
         return False
-    _nav_push(tab)
     task.jump(label)
     task.tick_in_context()
     return True
 
 
-# --- the PADD's own navigation ----------------------------------------------------
-#
-# THE PADD KNOWS WHERE IT IS. Opening an app used to be `task.jump(label)` and nothing
-# else - the same call a tab click makes - so the PADD had no idea it was open, and its
-# Back had to be reconstructed from tab state. A stack of its own is what lets home be a
-# STATE rather than an app you happen to open, and gives a future app-to-app drill-down
-# a real way back.
-#
-# NOT `procedural/gui/navigation.py`. Its `gui_history_jump` / `gui_history_back` look
-# like exactly this, but `gui_history_store` is a STUB that computes `back_label` and
-# returns without storing it, and nothing in the library or in LegendaryMissions calls
-# any of it. An unexercised API is a worse bet than a small stack that does one job.
-# Please do not "helpfully" merge them without fixing that first.
-
-#: Per client, the apps entered, deepest last. It rides the client's own Agent
-#: inventory, which `reset_mission_state` wipes wholesale via `Agent.clear()` - the same
-#: place `__active_tab__` and `__active_app__` live - so it needs no reset-ledger entry
-#: of its own. A module-level container WOULD have needed one.
-NAV_KEY = "epadd_nav"
-
-
-def _nav(client_id=None):
-    cid = _client_id() if client_id is None else client_id
-    return list(get_inventory_value(cid, NAV_KEY, None) or [])
-
-
-def _nav_set(stack, client_id=None):
-    cid = _client_id() if client_id is None else client_id
-    set_inventory_value(cid, NAV_KEY, list(stack))
-
-
-def _nav_push(tab):
-    """Record a screen as entered. HOME IS AN ENTRY, like a browser's first page.
-
-    That is what makes a separate HOME button redundant: with history [home, messages],
-    Back from Messages IS home, and Back from home is what leaves the PADD. A HOME
-    control would only be a second way to do what Back already does.
-    """
-    stack = _nav()
-    if stack and stack[-1] == tab:
-        return                          # a repaint re-opening the current screen
-    stack.append(tab)
-    _nav_set(stack)
-
-
-def gui_app_depth(client_id=None):
-    """How many screens deep this client is. 0 is "not in the PADD", 1 is home."""
-    return len(_nav(client_id))
-
-
-def gui_app_back(client_id=None):
-    """One step back inside the PADD.
-
-    Browser semantics. Pops the current screen and returns the one underneath, which
-    from an app is HOME. Returns None when there is nothing underneath - the caller's
-    cue to leave the PADD entirely, which is what Back at home means.
-    """
-    stack = _nav(client_id)
-    if len(stack) < 2:
-        return None
-    stack.pop()
-    _nav_set(stack, client_id)
-    target = stack[-1]
-    # Re-entering re-pushes, so pop to the one BELOW and let the open put it back -
-    # otherwise going back would grow the trail instead of shortening it.
-    stack.pop()
-    _nav_set(stack, client_id)
-    gui_app_open(target)
-    return target
-
-
-def gui_app_nav_reset(client_id=None):
-    """Forget the trail - leaving the PADD, and the mission reset."""
-    _nav_set([], client_id)
+# The PADD keeps NO history. HOME is how you leave a screen, and the one Back in the
+# game is the console's, on the tab bar - which every PADD screen declares with
+# `gui_tab_back(CONSOLE_SELECT)` like any other screen. A stack was built here for a
+# browser-style Back and removed with it: nothing navigated deeply enough to need one,
+# and an unused stack is a thing that goes wrong the first time it is used.
 
 
 def _esc(text):
@@ -485,69 +424,77 @@ def _esc(text):
     return gui_text_escape("" if text is None else str(text))
 
 
-def gui_app_chrome(title, subtitle=None, apps=None, on_back=None):
-    """The PADD's own nav bar. Every screen inside the PADD draws it.
+def gui_app_chrome(title, subtitle=None, home_text="HOME", on_home=None):
+    """The PADD's bar. Every screen inside the PADD draws it, and draws the same one.
 
-    ePADD owns this row and nothing below it, so an app's own body is unchanged.
+    Transcribed from `design/epadd/AppCargo.src` `.app-bar`: 64px tall, panel-head fill,
+    HOME in the console back button's own colour, title at gui-4, subtitle at gui-1 dim.
 
-    ONE CONTROL, BROWSER-STYLE. It used to be a HOME button, which became redundant the
-    moment the PADD kept a real history: with a trail of [home, Messages], Back from
-    Messages IS home, so HOME was a second way to do what Back already does. Back at
-    home leaves the PADD for the tab the console came from.
+    HOME, NOT A BACK ARROW. Clicking an app and clicking HOME is what already works, so
+    an app gets no back control of its own - the one Back in the game is the console's,
+    on the tab bar, where it has always been.
 
-    IDENTITY IS NOT HERE ANY MORE. The strip's status region owns who this console is -
-    it has to, because it is also the way IN to the PADD from a console - and drawing it
-    here as well put two names in the same band, which is what the playtest screenshot
-    caught. The chrome owns navigation; the strip owns identity.
+    IDENTITY IS NOT HERE. The strip's status region owns who this console is - it has to,
+    being also the way IN - and drawing it here as well put two names in one band.
 
-    ROOM IS THE CONSTRAINT. The engine draws its own Options button at the left of this
-    band, so the bar starts already short - which is why Back is a GLYPH and not the
-    word, and why the row always ends in a blank that absorbs the slack. Without that
-    blank the title and its subtitle were both content-sized against a row with nothing
-    to give, and the engine does not clip: they drew over each other.
+    SUB-APPS ARE NOT HERE EITHER. Exactly one app has any, so they are `gui_app_subnav`,
+    drawn by the apps that need it. Folding one app's needs into the component every
+    screen draws is how this bar accumulated the special cases that made it wrong.
 
     Args:
         title (str): the screen's name.
-        subtitle (str, optional): a second, dimmer line of context. Leave it out unless
-            it says something the screen below does not - a board captioned with the
-            count of what it is already listing says nothing.
-        apps (list[str], optional): screens this one can reach, drawn as links. The
-            Debug app is the case: Brain scan and MAST are reachable only from it.
-        on_back (callable | label, optional): what Back does. Defaults to the PADD's own
-            history, so a screen does not need to know what opened it.
+        subtitle (str, optional): a second, dimmer line. Leave it out unless it says
+            something the screen below does not - a board captioned with the count of
+            what it is already listing says nothing.
+        home_text (str, optional): the home button's label.
+        on_home (callable | label, optional): what HOME does. Defaults to the PADD's own
+            home screen, so an app need not know how it is reached.
     """
     from .row import gui_row
     from .text import gui_text
     from .button import gui_button
     from .blank import gui_blank
-    from .icon import gui_icon_name
 
-    if on_back is None:
-        on_back = lambda *_a: gui_app_go_back()
+    if on_home is None:
+        on_home = lambda *_a: gui_app_open(SHELL_APP)
 
     gui_row(f"row-height: {BAR_HEIGHT}; background: {PANEL_HEAD};")
-    # A GLYPH, NOT THE WORD. `<` in a text button was a character in a box wide enough
-    # for a label, in a band the engine has already taken the left of for its Options
-    # button. The arrow is the same control at a fraction of the width.
-    _back = gui_icon_name("arrow-left", color=ACCENT,
-                          style=f"col-width: content; click_tag: epadd-back;")
-    if _back is None:                      # no such glyph: say it in words rather than
-        _back = gui_button("$text:Back;", style="col-width: content;",
-                           on_press=on_back)
-    else:
-        from .message import gui_message_callback
-
-        def _pressed(event, sender):
-            if getattr(event, "sub_tag", None) != "epadd-back":
-                return
-            on_back(event, sender)
-        gui_message_callback(_back, _pressed)
+    gui_button(f"$text:{_esc(home_text)};font:gui-1;color:black;",
+               style=f"col-width: content; background: {STRIP_BACK};",
+               on_press=on_home)
     gui_text(f"$text:{_esc(title)};font:gui-4;", style="col-width: content;")
     if subtitle:
         gui_text(f"$text:{_esc(subtitle)};font:gui-1;color:{DIM};",
                  style="col-width: content;")
-    for _app in (apps or ()):
-        _app_link(_app)
+    # THE SLACK GOES HERE. Two content-sized cells in a row that starts short - the
+    # engine's Options button is already in this band - have nothing to give, and the
+    # engine does not clip, so they draw over each other.
+    gui_blank()
+
+
+def gui_app_subnav(apps):
+    """The screens THIS app can reach, as links. Only apps with sub-apps draw it.
+
+    Its own component, deliberately: Debug is the only app with sub-apps today, and
+    `gui_app_chrome` is drawn by every screen. It sits under the bar, in the app's own
+    sheet, so the bar's geometry does not depend on whether an app uses this.
+
+    Replaces `gui_tab_enable("brain,mast")`, which put an app's sub-screens on the
+    CONSOLE'S tab bar - the last place the PADD and the tab system still met.
+
+    Args:
+        apps (list[str]): app names. A sub-app has no registration, so a name with no
+            registered title falls back to its own name.
+    """
+    from .row import gui_row
+    from .blank import gui_blank
+
+    apps = [a for a in (apps or ()) if a]
+    if not apps:
+        return
+    gui_row(f"row-height: content; padding: 40px, 8px, 40px, 8px;")
+    for tab in apps:
+        _app_link(tab)
     gui_blank()
 
 
@@ -585,28 +532,38 @@ def _app_link(tab):
     gui_message_callback(link, _open)
 
 
-def gui_app_go_back(client_id=None):
-    """Back, as the chrome's control means it: one screen, or out of the PADD.
+def _app_link(tab):
+    """One screen this one can reach, as a link in the chrome.
 
-    `gui_app_back` returns None when there is nothing underneath - that is home - and
-    leaving is then this function's job, because the history layer has no business
-    knowing about tabs.
+    THE DEV DRILL-DOWN IS WHY THIS EXISTS. Brain scan and MAST are reachable only from
+    Debug, and they used to be reached because Debug enabled them as TABS on the
+    console's bar - which is the coupling the PADD spent this whole change getting out
+    of. A screen that leads somewhere says so in its own chrome instead.
+
+    Uses the app's registered title when it has one, so a link reads the way its tile
+    does, and its raw name when it does not - a screen that is not a tile has no
+    registration to ask.
     """
-    from .console_tab import gui_tab_get_active
-    if gui_app_back(client_id) is not None:
-        return True
-    gui_app_nav_reset(client_id)
-    # Out. Back to whatever tab the console was showing when the PADD was opened; an
-    # app route never writes `__active_tab__`, so it still says.
-    from ...mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
-    label = GuiTabDecoratorLabel.all.get(gui_tab_get_active() or "")
-    page = FrameContext.page
-    task = getattr(page, "gui_task", None) if page is not None else None
-    if label is None or task is None:
-        return False
-    task.jump(label)
-    task.tick_in_context()
-    return True
+    from .text import gui_text
+    from .message import gui_message_callback
+
+    tab = str(tab).strip().lower()
+    app = _apps().get(tab)
+    title = (app or {}).get("title") or tab.replace("_", " ").title()
+    click = f"epadd-link-{tab}"
+    link = gui_text(f"$text:{_esc(title)};font:gui-2;color:{ACCENT};",
+                    style=f"col-width: content; click_tag: {click};")
+    if link is None:
+        return
+
+    def _open(event, sender, _tab=tab, _click=click):
+        # Filtered, like every other callback on this page: `Layout.on_message` hands
+        # every event to every callback, and an unfiltered one opens on somebody else's
+        # click. That cost a playtest round.
+        if getattr(event, "sub_tag", None) != _click:
+            return
+        gui_app_open(_tab)
+    gui_message_callback(link, _open)
 
 
 #: Tabs whose status provider is running right now, so a provider that asks for its own
@@ -853,12 +810,6 @@ def gui_app_home(ship_name=None, columns=None, title="ePADD"):
     gui_section(style="area: 0, 45px, 100, 100;")
 
     gui_row(f"row-height: {BAR_HEIGHT}; background: {PANEL_HEAD};")
-    # HOME HAS A BACK TOO, and at home it is what leaves the PADD - the bottom of the
-    # history. Same control, same place, on every screen inside the PADD: a bar whose
-    # first button moves depending on where you are is a bar you have to read.
-    from .button import gui_button
-    gui_button("$text:<;", style="col-width: content;",
-               on_press=lambda *_a: gui_app_go_back())
     gui_text(f"$text:{_esc(title)};font:gui-4;", style="col-width: content;")
     if ship_name:
         gui_text(f"$text:{_esc(ship_name)};font:gui-1;color:{DIM};",

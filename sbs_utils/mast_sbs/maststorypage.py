@@ -901,7 +901,7 @@ class StoryPage(Page):
 
     def gui_queue_console_tabs(self):
         from ..procedural.gui.epadd import epadd_console_name, SHELL_APP
-        from ..procedural.gui.console_tab import gui_tab_get_active, gui_app_get_active
+        from ..procedural.gui.console_tab import gui_app_get_active
         from .story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
         # The normal_engi -> engineering table used to be computed here and then never
         # used. It lives in epadd.py now because app scoping needs it too, and there
@@ -934,10 +934,6 @@ class StoryPage(Page):
         epadd_label = GuiAppDecoratorLabel.all.get(SHELL_APP)
         show_epadd = (epadd_label is not None
                       and self._epadd_belongs_here(console, enabled_tabs))
-        # IN THE PADD, as against merely on a console that has one. An app route sets
-        # this and `gui_tab_activate` clears it, so arriving at any tab ends the state
-        # without the tab having to know the PADD exists.
-        in_padd = show_epadd and bool(gui_app_get_active(self.client_id))
         #
         # Ok we're on a ship, on a console
         #
@@ -984,14 +980,6 @@ class StoryPage(Page):
         # consoles; a mission's own console (the director, a custom station) has to
         # declare one too. Said once per page, so it names the gap without filling the
         # log every build.
-        # A BACK TARGET MAY NAME AN APP. The dev screens are the case: `debug` is an
-        # app, and `mast`/`brain` stay tabs nested under it whose `gui_tab_back("debug")`
-        # has to resolve. Tabs first, then apps.
-        if back_tab and back_entry is None:
-            app_label = GuiAppDecoratorLabel.all.get(back_tab)
-            if app_label is not None:
-                back_entry = (back_tab, app_label)
-
         if back_tab and back_entry is None:
             warned = getattr(self, "_back_tab_warned", None)
             if warned is None:
@@ -1002,25 +990,11 @@ class StoryPage(Page):
                     f"button cannot be drawn, so this screen has no way back to it",
                     "gui", "warning")
 
-        # --- in the PADD ------------------------------------------------------
-        # TWO BACKS, AND THEY MEAN DIFFERENT THINGS. The chrome's arrow walks the PADD's
-        # own history; this one is the bar's ordinary back-to-console, and it stays
-        # exactly where it always is - rightmost - so leaving is one press from anywhere
-        # inside the PADD rather than as many presses as you are deep.
-        #
-        # A PLAIN TabControl, deliberately. Overriding this button with PADD semantics is
-        # what broke the bar's own back for everything else; supplying its DESTINATION is
-        # not the same thing. A PADD screen declares no tabs of its own, so without this
-        # the button would simply be absent - the console's own build set it and drawing
-        # consumed it.
-        if in_padd and back_entry is None:
-            _return = gui_tab_get_active() or ""
-            if not _return:
-                _return = str(get_inventory_value(self.client_id, "CONSOLE_TYPE", "")
-                              or "")
-            _label = GuiTabDecoratorLabel.all.get(_return) if _return else None
-            if _label is not None:
-                back_entry = (_return, _label)
+        # NOTHING ABOUT THE PADD HERE. It declares its own back tab like any other
+        # screen (`gui_tab_back(CONSOLE_SELECT)`), so the strip draws one the way it
+        # always has. Synthesising one from the active tab is what kept breaking the
+        # bar's own back button - the PADD sits ON TOP of the console, it does not
+        # modify it.
 
         def _button(text, label, is_back):
             msg = f"justify:center;color:black;$text:{text};"
@@ -1258,7 +1232,16 @@ class StoryPage(Page):
             return
         if self.disconnected:
             return
-        self._tick_identity_badge()
+        # SCOPED TO THIS PAGE. The ticker walks every app and calls every status
+        # provider, and a provider resolves its console AMBIENTLY - `lm_epadd_reporting`
+        # reaches `gui_app_list(None)`, `away_who()` reads `FrameContext.page.client_id`.
+        # `present` runs before `story_tick_tasks` sets the page, so without this the
+        # badge is computed against whatever page happens to be current: wrong words on
+        # a multi-console bridge, and a `gui_app_revision` that MOVES when nothing has
+        # changed, which repaints the PADD and eats the click that lands in that frame.
+        # The same override the click path uses.
+        with FrameContextOverride(self.gui_task, self):
+            self._tick_identity_badge()
         #
         # Cache sbs this should not change
         # cache will be used in updates they only need sbs, ratio and client_id

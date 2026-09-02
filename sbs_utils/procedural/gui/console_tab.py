@@ -74,10 +74,19 @@ def gui_tab_get_list():
 def gui_tab_enable(tab_name: str):
     """Enable a tab on the console tabs
 
+    A NAME THAT IS NOT A STRING IS IGNORED, not a crash. Callers pass a variable -
+    `gui_tab_back(CONSOLE_SELECT)` is the shipped shape - and a task variable that was
+    never set arrives as None, which used to reach `None.split(",")` and raise INSIDE a
+    GUI build. A screen that cannot draw is a far worse outcome than a screen with no
+    back tab, and the missing tab is reported where it is noticed rather than here.
+
     Args:
         tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons
     """
     client_id = _tab_client_id()
+
+    if not isinstance(tab_name, str) or not tab_name.strip():
+        return
 
     tabs = get_inventory_value(client_id, "console_tabs", {})
     tab_names = tab_name.split(",")
@@ -95,6 +104,8 @@ def gui_tab_back(tab_name: str):
         tab_name (str): The path of a //gui/tab
     """
     client_id = _tab_client_id()
+    if not isinstance(tab_name, str) or not tab_name.strip():
+        return                      # see gui_tab_enable: an unset variable, not a crash
     gui_tab_enable(tab_name)
     set_inventory_value(client_id, "__back_tab__", tab_name)
 
@@ -112,10 +123,6 @@ def gui_tab_activate(tab_name: str):
     client_id = _tab_client_id()
     set_inventory_value(client_id, "__active_tab__", tab_name)
     set_inventory_value(client_id, "__active_app__", None)
-    # And forget the trail through the PADD, so re-entering it starts at home rather
-    # than wherever the player happened to leave off two consoles ago.
-    from .epadd import gui_app_nav_reset
-    gui_app_nav_reset(client_id)
 
 def gui_tab_get_active():
     """returns the active tab

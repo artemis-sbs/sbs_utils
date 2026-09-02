@@ -4,7 +4,7 @@ from .messages_gui import gui_messages_screen
 from .status_gui import gui_status_screen, status_rows
 from .away_gui import (gui_away_screen, away_who, away_set_who, away_label,
                        away_go_down, away_go_up, away_relevant)
-from .epadd import (gui_app_back, gui_app_depth, gui_app_nav_reset,
+from .epadd import (gui_app_subnav,
                     gui_app_register, gui_app_unregister, gui_app_is_registered,
                     gui_app_get_registered, gui_app_list, gui_app_groups,
                     epadd_console_name,
