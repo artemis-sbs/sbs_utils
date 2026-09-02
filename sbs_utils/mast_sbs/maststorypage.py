@@ -134,30 +134,6 @@ def _identity_icon_props(accent):
     return f"icon_index:{index};color:{accent};"
 
 
-class PaddBackControl(TabControl):
-    """The PADD's single Back.
-
-    One step back INSIDE the PADD when there is somewhere to go back to, and out to the
-    tab you came from when there is not. Depth is asked at PRESS time, not at build
-    time: the build only knows where you were when the bar was drawn.
-
-    Home is not a Back destination - the status area goes home - so at depth 1 this
-    always means "leave", which is the "single tab to go BACK to where it was in the
-    tabs" the PADD is supposed to have.
-    """
-
-    def on_message(self, event):
-        if event.sub_tag != self.click_tag:
-            return
-        from ..procedural.gui.epadd import gui_app_back, gui_app_nav_reset
-        if gui_app_back(self.page.client_id) is not None:
-            return                      # popped to the app underneath
-        gui_app_nav_reset(self.page.client_id)
-        if self.label is not None:
-            self.page.gui_task.jump(self.label)
-            self.page.gui_task.tick_in_context()
-
-
 # How many tabs the strip shows before the rest go into an overflow menu.
 #
 # The strip is a FIXED width (20%..100%) divided evenly, so it never dropped a tab and
@@ -1027,43 +1003,17 @@ class StoryPage(Page):
                     "gui", "warning")
 
         # --- in the PADD ------------------------------------------------------
-        # The bar becomes the PADD's own: the status region (built below, and the way
-        # HOME), whatever tabs this app enabled for itself, and ONE Back to the tab the
-        # player was on when they opened it.
+        # NOTHING. The PADD's chrome owns its Back now, so the strip is left exactly as
+        # a console's strip - which is the point: reusing the bar's back button for the
+        # PADD is what broke the bar's own back behaviour. The status region below is
+        # still drawn, because it is also the way IN from a console.
         #
-        # `entries` at this point is only what THIS app declared, because a console's
-        # tabs were consumed by the console's own build - so a plain app contributes
-        # nothing and the bar is status + Back. The dev drill-down is the exception:
-        # `debug` enables `mast` and `brain`, and those are meant to draw.
-        #
-        # BACK IS THE ACTIVE TAB, not CONSOLE_SELECT. An app route never writes
-        # `__active_tab__`, so it still names the tab that was showing - which is what
-        # "go back to where it was in the tabs" means. `CONSOLE_SELECT` is the fallback
-        # for a console reached without going through a tab route at all.
-        if in_padd:
-            back_entry = None
-            _return = gui_tab_get_active() or ""
-            if _return in (SHELL_APP, gui_app_get_active(self.client_id)):
-                _return = ""                # do not offer the PADD as its own way out
-            if not _return:
-                _return = str(get_inventory_value(self.client_id, "CONSOLE_TYPE", "")
-                              or "")
-            _label = (GuiTabDecoratorLabel.all.get(_return) if _return else None)
-            if _label is not None:
-                back_entry = (_return, _label)
-            elif _return:
-                warned = getattr(self, "_back_tab_warned", None)
-                if warned is None:
-                    warned = self._back_tab_warned = set()
-                if _return not in warned:
-                    warned.add(_return)
-                    log(f"the PADD has no way back: no //gui/tab/{_return} route",
-                        "gui", "warning")
+        # A PADD build declares no tabs of its own (an app calls no `gui_tab_back`), so
+        # `entries` is empty here without anything having to empty it.
 
-        def _button(text, label, is_back, padd_back=False):
+        def _button(text, label, is_back):
             msg = f"justify:center;color:black;$text:{text};"
-            cls = PaddBackControl if padd_back else TabControl
-            button = cls(self.get_tag(), msg, label, self)
+            button = TabControl(self.get_tag(), msg, label, self)
             button.click_text = text
             button.click_color = "#FFF"
             button.click_background = CLICK_HIGHLIGHT
@@ -1088,7 +1038,7 @@ class StoryPage(Page):
                                {t: l for t, l in overflow}, self)
             _row.add_front(menu)
         if back_entry:
-            _row.add(_button(back_entry[0], back_entry[1], True, padd_back=in_padd))
+            _row.add(_button(back_entry[0], back_entry[1], True))
 
         count = len(visible) + (1 if back_entry else 0) + (1 if overflow else 0)
         # Pad to six so a console with only a few tabs keeps them the size they have

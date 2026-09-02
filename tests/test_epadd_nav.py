@@ -7,15 +7,14 @@ presses" were possible at all.
 
 The model these tests pin:
 
-* home is the BOTTOM of the stack, not an entry on it. Opening the shell clears.
-* the status area goes home, so an app needs no Back of its own.
-* the bar's single Back pops one level INSIDE the PADD, and at depth 1 means "leave" -
-  which is the "single tab to go BACK to where it was in the tabs" behavior.
+* HOME IS AN ENTRY, like a browser's first page. Back from an app is home; Back from
+  home leaves the PADD. That is what makes a separate HOME button redundant.
+* the PADD's chrome owns Back. The tab bar is not involved, so the bar's own back
+  button keeps working the way it always did.
 * arriving at any tab forgets the trail, so re-entering the PADD starts at home.
 
-The depth-2 cases are ahead of the shipped screens: nothing drills down today except
-the dev tools, which still nest with tabs. They are here because the stack exists for
-that shape and an untested stack is a stack that will be wrong when it is first used.
+A screen that is not a tile is just an app route nobody registered - `gui_app_list`
+reads the registry, not the route table. There is no separate kind for it.
 """
 import unittest
 
@@ -79,63 +78,68 @@ class NavBase(unittest.TestCase):
 
 
 class TestDepth(NavBase):
-    def test_home_is_depth_zero(self):
-        gui_app_open("epadd")
+    def test_not_in_the_padd_is_depth_zero(self):
         self.assertEqual(gui_app_depth(CID), 0)
 
-    def test_an_app_is_depth_one(self):
-        gui_app_open("cargo")
+    def test_HOME_IS_AN_ENTRY(self):
+        """Browser semantics, and it is what makes a HOME button redundant: with a
+        history of [home, app], Back from the app IS home."""
+        gui_app_open("epadd")
         self.assertEqual(gui_app_depth(CID), 1)
 
-    def test_opening_the_shell_clears_the_trail(self):
-        """Home is the bottom, so going home is a reset rather than another entry."""
-        gui_app_open("cargo")
+    def test_an_app_opened_from_home_is_depth_two(self):
         gui_app_open("epadd")
-        self.assertEqual(gui_app_depth(CID), 0)
+        gui_app_open("cargo")
+        self.assertEqual(gui_app_depth(CID), 2)
 
-    def test_reopening_the_same_app_is_not_depth(self):
-        """A repaint that re-opens the current app must not stack it."""
+    def test_reopening_the_same_screen_is_not_depth(self):
+        """A repaint that re-opens the current screen must not stack it."""
         gui_app_open("cargo")
         gui_app_open("cargo")
         self.assertEqual(gui_app_depth(CID), 1)
 
     def test_a_drill_down_stacks(self):
+        """`mast` is an app route with no registration - reachable from Debug,
+        never a tile on the home grid. That is all a "page" ever needed to be."""
+        gui_app_open("epadd")
         gui_app_open("debug")
         gui_app_open("mast")
-        self.assertEqual(gui_app_depth(CID), 2)
+        self.assertEqual(gui_app_depth(CID), 3)
 
 
 class TestBack(NavBase):
-    def test_AT_DEPTH_ONE_THERE_IS_NOWHERE_TO_GO_BACK_TO(self):
-        """None is the caller's cue to leave the PADD entirely - which is what the
-        bar's single Back does, and what the user asked for."""
-        gui_app_open("cargo")
-        self.assertIsNone(gui_app_back(CID))
-
-    def test_home_is_not_a_back_destination(self):
-        """The status area goes home. If Back went there too, an app would have two
-        ways up and the bar's Back would stop meaning "out"."""
+    def test_BACK_FROM_AN_APP_IS_HOME(self):
+        """Which is the whole reason the HOME button was redundant."""
+        gui_app_open("epadd")
         gui_app_open("cargo")
         self.page.gui_task.jumped.clear()
-        gui_app_back(CID)
-        self.assertEqual(self.jumped(), [])
+        self.assertEqual(gui_app_back(CID), "epadd")
+        self.assertEqual(self.jumped(), ["label_epadd"])
+        self.assertEqual(gui_app_depth(CID), 1)
 
-    def test_at_depth_two_it_pops_to_the_app_underneath(self):
+    def test_BACK_AT_HOME_LEAVES_THE_PADD(self):
+        """None is the caller's cue to leave - the chrome then returns the console to
+        the tab it came from."""
+        gui_app_open("epadd")
+        self.assertIsNone(gui_app_back(CID))
+
+    def test_a_page_pops_to_the_app_that_opened_it(self):
+        gui_app_open("epadd")
         gui_app_open("debug")
         gui_app_open("mast")
         self.page.gui_task.jumped.clear()
         self.assertEqual(gui_app_back(CID), "debug")
         self.assertEqual(self.jumped(), ["label_debug"])
-        self.assertEqual(gui_app_depth(CID), 1)
 
-    def test_and_then_the_next_press_leaves(self):
+    def test_and_the_presses_after_it_walk_all_the_way_out(self):
+        gui_app_open("epadd")
         gui_app_open("debug")
         gui_app_open("mast")
-        gui_app_back(CID)
+        self.assertEqual(gui_app_back(CID), "debug")
+        self.assertEqual(gui_app_back(CID), "epadd")
         self.assertIsNone(gui_app_back(CID))
 
-    def test_back_at_home_does_nothing(self):
-        gui_app_open("epadd")
+    def test_back_outside_the_padd_does_nothing(self):
         self.assertIsNone(gui_app_back(CID))
 
 
