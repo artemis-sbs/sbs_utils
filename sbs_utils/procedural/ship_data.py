@@ -1220,8 +1220,14 @@ def extra_loaded():
 
 def extra_reset():
     """Forget the record. Called by the per-mission reset, not by missions."""
+    global _extra_disabled_told
     _extra_ship_data_loaded.clear()
     _extra_keys.clear()
+    # The warning latch is per MISSION, not per interpreter. cosmos_dev reuses one
+    # interpreter across `run_next_mission` while the engine forks a fresh process, so
+    # a latch nothing resets goes quiet from run 2 onward - and the run that needed the
+    # warning most is the one that would not get it.
+    _extra_disabled_told = False
 
 
 def extra_untold():
@@ -1504,6 +1510,11 @@ def _looks_like_hjson(text):
     return True                 # empty file - a different complaint
 
 
+#: Whether the "extra ship data is off" warning has been given this mission. One is
+#: information; one per mod file is noise.
+_extra_disabled_told = False
+
+
 def add_extra(name, path=None, mod=None):
     """Load another ship-data file for this mission.
 
@@ -1529,6 +1540,19 @@ def add_extra(name, path=None, mod=None):
     # existing caller's "engine was not told" branch handles this and none of them
     # need to know the feature is off.
     if not extra_ship_data_enabled():
+        # SAY SO, ONCE. Returning False silently is how this becomes somebody else's
+        # bug: a mod's whole hull set is simply absent, and the failure surfaces two
+        # steps later as an empty ship picker or a race with no playable ships, with
+        # nothing anywhere connecting it to a setting that is off. Once per mission,
+        # named, because the caller is a mod that did nothing wrong.
+        global _extra_disabled_told
+        if not _extra_disabled_told:
+            _extra_disabled_told = True
+            from .execution import log
+            log("EXTRA_SHIP_DATA is off, so no mod ship data is being loaded - "
+                "hulls a mod adds will not exist, and a picker or race list filtered "
+                "to them will come up empty. Set EXTRA_SHIP_DATA: true to enable it.",
+                "ship_data", "warning")
         return False
     folder, _, stem = str(name).replace(chr(92), "/").rpartition("/")
     filename = stem or str(name)
