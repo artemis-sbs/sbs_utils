@@ -420,6 +420,43 @@ def _refresh_cached_blob(obj):
         return False
 
 
+def player_ship_rebuild_stats(obj):
+    """Re-derive a player ship's stats from the hull it is CURRENTLY wearing.
+
+    Setting the hull key only changes the ART. `SpaceObject.set_ship_data_key` writes
+    `data_tag` and tells the clients, and that is the whole of it - while the engine
+    derives shields, beams, tubes and turn rate from shipData at CREATION. So a ship
+    re-hulled after spawn keeps the previous hull's numbers: a Defiant that flies with
+    Galaxy shields, which is what the Gamma with a Q playtest reported (2026-09-01).
+
+    Also re-reads the data blob, because the rebuild replaces it. `SpaceObject._data_set`
+    is captured once at spawn and nothing else refreshes it, so afterwards the agent
+    would keep handing out the pre-rebuild handle while `_alive` stays True - and the
+    guard that exists for deletion never fires. Every later `to_blob(id).set(...)` would
+    write through the dead one.
+
+    Best-effort by design: an agent with no engine object keeps what it had, and a
+    rebuild must never be the thing that breaks its caller.
+
+    Args:
+        obj (SpaceObject): the player ship, already wearing the hull it should have.
+
+    Returns:
+        bool: True if the engine actually rebuilt it.
+    """
+    import sbs
+    try:
+        eo = obj.engine_object
+        if eo is None:
+            return False
+        sbs.player_ship_setup_defaults(eo)
+        sbs.player_ship_setup_from_data(eo)
+    except Exception:                               # noqa: BLE001
+        return False
+    _refresh_cached_blob(obj)
+    return True
+
+
 def player_roster_apply(loadout=None, force=False):
     """Reshape every active record's ship to match the record. Idempotent.
 
@@ -488,12 +525,10 @@ def player_roster_apply(loadout=None, force=False):
         if want_hull and obj.art_id != want_hull:
             obj.art_id = want_hull
             # Stats must follow the hull, or a Galaxy flies with a shuttle's shields.
-            sbs.player_ship_setup_defaults(obj.engine_object)
-            sbs.player_ship_setup_from_data(obj.engine_object)
+            player_ship_rebuild_stats(obj)
             dirty = rebuilt = True
         elif force:
-            sbs.player_ship_setup_defaults(obj.engine_object)
-            sbs.player_ship_setup_from_data(obj.engine_object)
+            player_ship_rebuild_stats(obj)
             dirty = rebuilt = True
 
         # RE-READ THE BLOB AFTER A REBUILD. `SpaceObject._data_set` is captured ONCE, at
@@ -506,8 +541,8 @@ def player_roster_apply(loadout=None, force=False):
         # force=True (rebuilding EVERY player blob), then `//shared/signal/game_started`
         # calls `grid_interior_arm()`. Both land inside the console-connect window that
         # `autostartserver` collapses to nothing.
-        if rebuilt:
-            _refresh_cached_blob(obj)
+        # (the blob re-read now lives inside player_ship_rebuild_stats, which is the
+        # only thing that can invalidate it)
 
         want_side = rec.get("side") or ""
         if rebuilt or obj.side != want_side:
