@@ -315,10 +315,15 @@ class TestWhereItSits(BadgeBase):
         texts = [getattr(c, "message", "") or "" for c in self.padd_columns()]
         self.assertFalse(any("ePADD" in t for t in texts), texts)
 
-    def test_the_tab_row_keeps_five_slots(self):
-        """Seven across the strip: the PADD holds two as its own region, so the row
-        beside it pads to the other five."""
-        self.assertEqual(len(self.tab_row_columns()), 5)
+    def test_the_tab_row_keeps_the_slots_the_padd_does_not(self):
+        """Seven across the strip, and the PADD's region holds three of them - a PADD
+        screen puts ONE tab on the bar, so the middle was empty while the name was
+        squeezed against the Options button. The row beside it pads to the rest.
+
+        Asserted against the constants rather than a literal, so moving the split moves
+        the test with it."""
+        self.assertEqual(len(self.tab_row_columns()),
+                         MSP.STRIP_SLOTS - MSP.IDENTITY_SLOTS)
 class TestItSurvivesBeingDrawn(BadgeBase):
     """Reported from the engine as a new runtime error, and it was the badge.
 

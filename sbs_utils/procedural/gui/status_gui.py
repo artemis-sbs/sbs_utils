@@ -68,7 +68,7 @@ def gui_status_screen(title="Status"):
     # NO SUBTITLE. "3 reporting" over a board that is already the three rows is the
     # status of Status. The one thing worth saying here is when there is nothing.
     gui_app_chrome(title, subtitle=(None if rows else "nothing to report"))
-    gui_section(style="area: 0, 109px, 100, 100;")
+    gui_section(style="area: 0, 80px, 100, 100;")
 
     if not rows:
         gui_row("row-height: content; padding: 24px, 16px, 24px, 0;")

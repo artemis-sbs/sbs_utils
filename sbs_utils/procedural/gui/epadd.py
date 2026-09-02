@@ -342,13 +342,16 @@ DIM = "#9ab"
 #: transcription. ABSOLUTE, not `1em+16px`: `em` resolves against the ROW's font and an
 #: unfonted row is gui-2 (24px), while the title in this row is gui-4 (32px) - which is
 #: the mismatch class behind the bar drawing over itself.
-BAR_HEIGHT = "64px"
+#: The bar is the tab strip's own height. 64px was the design's, drawn for a bar that
+#: also carried HOME and an identity; with those gone it is a title and some buttons, and
+#: a band twice the strip's height for that is space the app's own sheet should have.
+BAR_HEIGHT = "35px"
 
 #: The band the bar owns: under the tab strip, clear of the engine's Options button.
-#: 45px is the console body top - the LM convention every tab body follows - and 109 is
-#: 45 + the bar's own 64. Every caller already reserves `0, 109px, 100, 100` below it.
+#: 45px is the console body top - the LM convention every tab body follows - and 80 is
+#: 45 + the bar's own 35. Callers put their body at `0, 80px, 100, 100` below it.
 BAR_TOP = "45px"
-BAR_BOTTOM = "109px"
+BAR_BOTTOM = "80px"
 
 #: A normal tab button's fill, and the console back button's - `Spec.src`, "strip" and
 #: "strip-back". A sub-app button wears the tab fill so it reads as the same kind of
@@ -356,10 +359,10 @@ BAR_BOTTOM = "109px"
 STRIP = "#333"
 STRIP_BACK = "#999"
 
-#: A sub-app button, sized like a tab slot rather than to its own text. `Spec.src` gives
-#: the strip as six even slots of 256px at the 1920 baseline; a sub-app is a narrower
-#: version of the same idea, fixed in PIXELS so it does not grow with the display.
-SUBNAV_W = "180px"
+#: A sub-app button is A TAB, in size as well as look. `Spec.src` gives the strip as six
+#: even slots of 256px at the 1920 baseline, so that is the slot - fixed in PIXELS, so a
+#: wider display gives wider gaps rather than wider buttons.
+SUBNAV_W = "256px"
 SUBNAV_GAP = "16px"
 # A grid row that declares nothing is 1fr and shares out the whole sheet, so
 # three short bands of cards stretch over the screen. Size them to content.
@@ -471,9 +474,11 @@ def gui_app_chrome(title, subtitle=None):
     from .blank import gui_blank
 
     gui_section(style=f"area: 0, {BAR_TOP}, 100, {BAR_BOTTOM};")
-    gui_row(f"row-height: {BAR_HEIGHT}; font: gui-4; background: {PANEL_HEAD};"
+    gui_row(f"row-height: {BAR_HEIGHT}; font: gui-3; background: {PANEL_HEAD};"
             f"padding: 40px, 0, 40px, 0;")
-    gui_text(f"$text:{_esc(title)};font:gui-4;", style="col-width: content;")
+    # gui-3 (28px), not gui-4 (32px): the band is the strip's 35px now, and a 32px line
+    # in a 35px row has 3px to live in.
+    gui_text(f"$text:{_esc(title)};font:gui-3;", style="col-width: content;")
     if subtitle:
         gui_text(f"$text:{_esc(subtitle)};font:gui-1;color:{DIM};",
                  style="col-width: content;")
@@ -548,7 +553,10 @@ def _app_link(tab):
     def _open(event=None, sender=None, _tab=tab):
         gui_app_open(_tab)
 
-    return gui_button(f"justify:center;color:black;$text:{_esc(title)};font:gui-1;",
+    # `$text:` FIRST. With it later in the string the quoting backticks that `_esc` adds
+    # were drawn as literal characters - the buttons read `Brain` and `Mast`, backticks
+    # and all. Every working escaped button in the library puts it first.
+    return gui_button(f"$text:{_esc(title)};justify:center;color:black;font:gui-1;",
                       style=f"col-width: {SUBNAV_W}; background: {STRIP};",
                       on_press=_open)
 

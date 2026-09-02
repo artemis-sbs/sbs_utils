@@ -115,7 +115,11 @@ IDENTITY_ICON = "phone"
 #: exactly the width they would have been.
 STRIP_LEFT = 20
 STRIP_SLOTS = 7
-IDENTITY_SLOTS = 2
+#: THREE, not two. A PADD screen puts one tab on the bar - the way back to the console -
+#: so the whole middle of the strip is empty while the name is squeezed against the
+#: Options button. The extra slot costs a normal console nothing it was using: the tabs
+#: divide what is left, and six of them still fit.
+IDENTITY_SLOTS = 3
 _SLOT_W = (100 - STRIP_LEFT) / STRIP_SLOTS
 IDENTITY_RIGHT = STRIP_LEFT + IDENTITY_SLOTS * _SLOT_W
 

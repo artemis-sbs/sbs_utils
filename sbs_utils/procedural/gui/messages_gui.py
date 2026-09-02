@@ -235,7 +235,7 @@ def gui_messages_screen(consoles=None, title="Messages"):
     # below says it better by having nothing bold in it.
     gui_app_chrome(title, subtitle=(f"{unread} unread" if unread else None))
 
-    gui_section(style="area: 0, 109px, 100, 100;")
+    gui_section(style="area: 0, 80px, 100, 100;")
 
     # --- the inbox, and the message being read ---------------------------------
     gui_row("padding: 24px, 12px, 24px, 8px;")

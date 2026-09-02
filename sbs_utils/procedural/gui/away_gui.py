@@ -85,7 +85,7 @@ def gui_away_screen(title="Away Team"):
     held = away_held(client_id) if client_id is not None else []
 
     gui_app_chrome(title, subtitle=away_invite_title() if away_invitation() else None)
-    gui_section(style="area: 0, 109px, 100, 100;")
+    gui_section(style="area: 0, 80px, 100, 100;")
 
     if held:
         _down_here(client_id, held)
