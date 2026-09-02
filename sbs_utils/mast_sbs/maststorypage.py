@@ -63,9 +63,14 @@ def _identity_style(text, accent):
     ESCAPED, not hand-quoted: a crew member's name is authored content and a `;` or a
     backtick in it would otherwise end the style string early and draw the rest of it
     as text. `tests/test_gui_text_quoting` enforces this across the library.
+
+    NOT CENTRED. The region is a percentage of the screen, so on a wide display it is
+    a wide box - and a centred label in a wide box floats away from the glyph beside it,
+    which is the growing gap the playtest caught on a larger screen. Left is the default
+    and the column is content-sized, so the name sits against the glyph at any size.
     """
     return (f"$text:{gui_text_escape(text)};font:gui-1;color:{accent};"
-            f"justify:center;overflow:shrink;")
+            f"overflow:shrink;")
 from ..pages.layout.blank import Blank
 from ..pages.layout.dropdown import Dropdown
 from..fs import get_mission_name, get_startup_mission_name, is_dev_build
@@ -1154,12 +1159,18 @@ class StoryPage(Page):
             # would otherwise get an empty box welded to every console.
             apply_control_styles(".row", f"background: {PANEL};", row, self.gui_task)
 
+        # SIZED TO CONTENT, and the slack goes to a blank at the end. The region's rect
+        # is a percentage - it has to be, to track the engine's Options button - so on a
+        # bigger screen it is a wider box. A flexing label then stretched across it and
+        # drifted away from the glyph; the gap grew with the display.
         props = _identity_icon_props(ACCENT)
         icon = Icon(self.get_tag(), props) if props else None
         if icon is not None:
-            row.add(icon)
+            row.add(icon)                       # square: sized from the row, not the box
         label = Text(self.get_tag(), _identity_style(text or "", ACCENT))
+        apply_control_styles(".text", "col-width: content;", label, self.gui_task)
         row.add(label)
+        row.add(Blank())
         layout.add(row)
         self.pending_layouts.append(layout)
 

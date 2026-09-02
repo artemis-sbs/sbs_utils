@@ -344,9 +344,23 @@ DIM = "#9ab"
 #: the mismatch class behind the bar drawing over itself.
 BAR_HEIGHT = "64px"
 
-#: The console's own back button's fill. The HOME button wears it so the two read as the
-#: same kind of control - `Spec.src`, "strip-back".
+#: The band the bar owns: under the tab strip, clear of the engine's Options button.
+#: 45px is the console body top - the LM convention every tab body follows - and 109 is
+#: 45 + the bar's own 64. Every caller already reserves `0, 109px, 100, 100` below it.
+BAR_TOP = "45px"
+BAR_BOTTOM = "109px"
+
+#: A normal tab button's fill, and the console back button's - `Spec.src`, "strip" and
+#: "strip-back". A sub-app button wears the tab fill so it reads as the same kind of
+#: control the crew already knows how to press.
+STRIP = "#333"
 STRIP_BACK = "#999"
+
+#: A sub-app button, sized like a tab slot rather than to its own text. `Spec.src` gives
+#: the strip as six even slots of 256px at the 1920 baseline; a sub-app is a narrower
+#: version of the same idea, fixed in PIXELS so it does not grow with the display.
+SUBNAV_W = "180px"
+SUBNAV_GAP = "16px"
 # A grid row that declares nothing is 1fr and shares out the whole sheet, so
 # three short bands of cards stretch over the screen. Size them to content.
 TILE_ROW = "row-height: content;"
@@ -424,60 +438,68 @@ def _esc(text):
     return gui_text_escape("" if text is None else str(text))
 
 
-def gui_app_chrome(title, subtitle=None, home_text="HOME", on_home=None):
-    """The PADD's bar. Every screen inside the PADD draws it, and draws the same one.
+def gui_app_chrome(title, subtitle=None):
+    """An app's title bar. OPTIONAL - an app draws it when a title helps orient.
 
-    Transcribed from `design/epadd/AppCargo.src` `.app-bar`: 64px tall, panel-head fill,
-    HOME in the console back button's own colour, title at gui-4, subtitle at gui-1 dim.
+    ITS OWN BAND, 45px..109px, from `design/epadd/Spec.src`. It used to be a bare
+    `gui_row` with no section of its own, so it landed in the ambient full-screen section
+    at y=0 and painted over the engine's Options button. Every caller already reserved
+    `area: 0, 109px, 100, 100` for its body, so the bar was always MEANT to own this
+    band - it just never claimed it.
 
-    HOME, NOT A BACK ARROW. Clicking an app and clicking HOME is what already works, so
-    an app gets no back control of its own - the one Back in the game is the console's,
-    on the tab bar, where it has always been.
+    45px is the console body top, the LM convention every tab body already follows, so
+    this clears the tab strip as well as Options.
 
-    IDENTITY IS NOT HERE. The strip's status region owns who this console is - it has to,
-    being also the way IN - and drawing it here as well put two names in one band.
+    NO HOME BUTTON. The strip's status region opens the PADD home already; a HOME here
+    was a second control for the same thing. And no back: the one Back in the game is
+    the console's, on the tab bar, declared by every PADD screen with
+    `gui_tab_back(CONSOLE_SELECT)`.
 
-    SUB-APPS ARE NOT HERE EITHER. Exactly one app has any, so they are `gui_app_subnav`,
-    drawn by the apps that need it. Folding one app's needs into the component every
-    screen draws is how this bar accumulated the special cases that made it wrong.
+    NOT EVERY APP WANTS ONE. Upgrades and the other list/detail screens use their whole
+    sheet and read better for it, so this is opt-in rather than something every screen
+    must remember to draw.
 
     Args:
         title (str): the screen's name.
         subtitle (str, optional): a second, dimmer line. Leave it out unless it says
             something the screen below does not - a board captioned with the count of
             what it is already listing says nothing.
-        home_text (str, optional): the home button's label.
-        on_home (callable | label, optional): what HOME does. Defaults to the PADD's own
-            home screen, so an app need not know how it is reached.
     """
+    from .section import gui_section
     from .row import gui_row
     from .text import gui_text
-    from .button import gui_button
     from .blank import gui_blank
 
-    if on_home is None:
-        on_home = lambda *_a: gui_app_open(SHELL_APP)
-
-    gui_row(f"row-height: {BAR_HEIGHT}; background: {PANEL_HEAD};")
-    gui_button(f"$text:{_esc(home_text)};font:gui-1;color:black;",
-               style=f"col-width: content; background: {STRIP_BACK};",
-               on_press=on_home)
+    gui_section(style=f"area: 0, {BAR_TOP}, 100, {BAR_BOTTOM};")
+    gui_row(f"row-height: {BAR_HEIGHT}; font: gui-4; background: {PANEL_HEAD};"
+            f"padding: 40px, 0, 40px, 0;")
     gui_text(f"$text:{_esc(title)};font:gui-4;", style="col-width: content;")
     if subtitle:
         gui_text(f"$text:{_esc(subtitle)};font:gui-1;color:{DIM};",
                  style="col-width: content;")
-    # THE SLACK GOES HERE. Two content-sized cells in a row that starts short - the
-    # engine's Options button is already in this band - have nothing to give, and the
-    # engine does not clip, so they draw over each other.
+    # THE SLACK GOES HERE. Two content-sized cells in a row with nothing spare have
+    # nothing to give, and the engine does not clip - they draw over each other.
     gui_blank()
 
 
 def gui_app_subnav(apps):
-    """The screens THIS app can reach, as links. Only apps with sub-apps draw it.
+    """The screens THIS app can reach, on the bar's own line.
 
-    Its own component, deliberately: Debug is the only app with sub-apps today, and
-    `gui_app_chrome` is drawn by every screen. It sits under the bar, in the app's own
-    sheet, so the bar's geometry does not depend on whether an app uses this.
+    Called straight after `gui_app_chrome`, and deliberately opens NO row of its own -
+    it appends to the bar's, so the sub-apps sit to the right of the title in the same
+    45..109px band instead of eating a second one:
+
+        gui_app_chrome("Debug")
+        gui_app_subnav(["brain", "mast"])
+
+        [ Debug ..................... [Brain] [MAST] ]
+
+    The chrome's trailing blank is what puts them on the right: it takes the slack, so
+    everything after it is pushed to the far end of the row.
+
+    Its own call rather than a parameter on the bar, because exactly one app has
+    sub-apps and folding that into the component every screen draws is how the bar
+    accumulated the special cases that made it wrong.
 
     Replaces `gui_tab_enable("brain,mast")`, which put an app's sub-screens on the
     CONSOLE'S tab bar - the last place the PADD and the tab system still met.
@@ -486,84 +508,49 @@ def gui_app_subnav(apps):
         apps (list[str]): app names. A sub-app has no registration, so a name with no
             registered title falls back to its own name.
     """
-    from .row import gui_row
     from .blank import gui_blank
 
     apps = [a for a in (apps or ()) if a]
     if not apps:
         return
-    gui_row(f"row-height: content; padding: 40px, 8px, 40px, 8px;")
-    for tab in apps:
+    for i, tab in enumerate(apps):
+        if i:
+            # A fixed gap. A plain blank would take an equal share of the row and shove
+            # them apart; without one they abutted and read as a single word.
+            gui_blank(style=f"col-width: {SUBNAV_GAP};")
         _app_link(tab)
-    gui_blank()
 
 
 def _app_link(tab):
-    """One screen this one can reach, as a link in the chrome.
+    """One screen this one can reach, as a button in the TAB STRIP'S style.
 
-    THE DEV DRILL-DOWN IS WHY THIS EXISTS. Brain scan and MAST are reachable only from
-    Debug, and they used to be reached because Debug enabled them as TABS on the
-    console's bar - which is the coupling the PADD spent this whole change getting out
-    of. A screen that leads somewhere says so in its own chrome instead.
+    Sized like a tab slot and coloured like one - centred black text on the strip fill -
+    rather than to its own glyphs. Text sized to its content gave a hit area the width of
+    the word and no chrome to say it was pressable: the playtest read "BrainMast" as a
+    label and never tried clicking it. A tab-shaped button is a control the crew already
+    knows how to press.
 
-    Uses the app's registered title when it has one, so a link reads the way its tile
-    does, and its raw name when it does not - a screen that is not a tile has no
-    registration to ask.
+    FIXED IN PIXELS, so a wider display gives wider gaps rather than wider buttons.
+
+    `on_press=` rather than a registered handler, because these are built in a LOOP: an
+    `on gui_message` block in a loop captures the loop variable at its last value, and
+    `on_press` with a default-argument closure is the path that does not.
+
+    Uses the app's registered title when it has one and its raw name when it does not: a
+    sub-app is an app route nobody registered, so there is no registration to ask.
     """
-    from .text import gui_text
-    from .message import gui_message_callback
+    from .button import gui_button
 
     tab = str(tab).strip().lower()
     app = _apps().get(tab)
     title = (app or {}).get("title") or tab.replace("_", " ").title()
-    click = f"epadd-link-{tab}"
-    link = gui_text(f"$text:{_esc(title)};font:gui-2;color:{ACCENT};",
-                    style=f"col-width: content; click_tag: {click};")
-    if link is None:
-        return
 
-    def _open(event, sender, _tab=tab, _click=click):
-        # Filtered, like every other callback on this page: `Layout.on_message` hands
-        # every event to every callback, and an unfiltered one opens on somebody else's
-        # click. That cost a playtest round.
-        if getattr(event, "sub_tag", None) != _click:
-            return
+    def _open(event=None, sender=None, _tab=tab):
         gui_app_open(_tab)
-    gui_message_callback(link, _open)
 
-
-def _app_link(tab):
-    """One screen this one can reach, as a link in the chrome.
-
-    THE DEV DRILL-DOWN IS WHY THIS EXISTS. Brain scan and MAST are reachable only from
-    Debug, and they used to be reached because Debug enabled them as TABS on the
-    console's bar - which is the coupling the PADD spent this whole change getting out
-    of. A screen that leads somewhere says so in its own chrome instead.
-
-    Uses the app's registered title when it has one, so a link reads the way its tile
-    does, and its raw name when it does not - a screen that is not a tile has no
-    registration to ask.
-    """
-    from .text import gui_text
-    from .message import gui_message_callback
-
-    tab = str(tab).strip().lower()
-    app = _apps().get(tab)
-    title = (app or {}).get("title") or tab.replace("_", " ").title()
-    click = f"epadd-link-{tab}"
-    link = gui_text(f"$text:{_esc(title)};font:gui-2;color:{ACCENT};",
-                    style=f"col-width: content; click_tag: {click};")
-    if link is None:
-        return
-
-    def _open(event, sender, _tab=tab, _click=click):
-        # Filtered, like every other callback on this page: `Layout.on_message` hands
-        # every event to every callback, and an unfiltered one opens on somebody else's
-        # click. That cost a playtest round.
-        if getattr(event, "sub_tag", None) != _click:
-            return
-        gui_app_open(_tab)
-    gui_message_callback(link, _open)
+    return gui_button(f"justify:center;color:black;$text:{_esc(title)};font:gui-1;",
+                      style=f"col-width: {SUBNAV_W}; background: {STRIP};",
+                      on_press=_open)
 
 
 #: Tabs whose status provider is running right now, so a provider that asks for its own
