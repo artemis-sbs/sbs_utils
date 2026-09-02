@@ -20,7 +20,7 @@ from sbs_utils.helpers import Context, FakeEvent, FrameContext
 from sbs_utils.gui import GuiClient
 from sbs_utils.agent import clear_shared
 from sbs_utils.mast_sbs.maststorypage import StoryPage
-from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
+from sbs_utils.mast_sbs.story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
 from sbs_utils.procedural.gui.epadd import gui_app_register, gui_app_badge, gui_app_list, gui_app_revision
 from sbs_utils.procedural.gui.status_gui import status_rows, gui_status_screen
 
@@ -98,7 +98,7 @@ class StatusBase(unittest.TestCase):
         FrameContext.page = None
         FrameContext.task = None
         clear_shared()
-        GuiTabDecoratorLabel.clear()
+        GuiAppDecoratorLabel.clear()
         for cid in (SERVER, ENGI):
             GuiClient(cid)
 
@@ -106,10 +106,10 @@ class StatusBase(unittest.TestCase):
         FrameContext.page = None
         FrameContext.task = None
         FrameContext.context = None
-        GuiTabDecoratorLabel.clear()
+        GuiAppDecoratorLabel.clear()
 
     def app(self, tab, **kw):
-        GuiTabDecoratorLabel(tab)
+        GuiAppDecoratorLabel(tab)
         gui_app_register(tab, **kw)
 
     def one(self, tab):
@@ -190,7 +190,7 @@ class TestTheBoard(StatusBase):
 
     def test_nothing_reporting_is_an_empty_board(self):
         clear_shared()
-        GuiTabDecoratorLabel.clear()
+        GuiAppDecoratorLabel.clear()
         self.app("cargo", title="Cargo")
         self.assertEqual(status_rows("engineering"), [])
 

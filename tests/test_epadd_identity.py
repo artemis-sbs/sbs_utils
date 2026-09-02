@@ -22,7 +22,10 @@ import cosmos_dev.mock.sbs as sbs
 from sbs_utils.helpers import Context, FakeEvent, FrameContext
 from sbs_utils.agent import clear_shared
 from sbs_utils.gui import GuiClient
+import sbs_utils.mast_sbs.maststorypage as MSP
 from sbs_utils.mast_sbs.maststorypage import StoryPage
+from sbs_utils.pages.layout.icon import Icon
+from sbs_utils.mast_sbs.story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
 from sbs_utils.pages.layout.text import Text
 from sbs_utils.procedural.inventory import set_inventory_value
 from sbs_utils.procedural.gui import epadd as E
@@ -47,9 +50,10 @@ class _Main:
 class _Task:
     def __init__(self):
         self.main = None
+        self.jumped = []
 
     def jump(self, label):
-        pass
+        self.jumped.append(label)
 
     def tick_in_context(self):
         pass
@@ -101,12 +105,9 @@ class BadgeBase(unittest.TestCase):
         FrameContext.task = page.gui_task
         set_inventory_value(CID, "CONSOLE_TYPE", "helm")
 
-        from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import (
-            GuiTabDecoratorLabel)
-        self._saved_tabs = dict(GuiTabDecoratorLabel.all)
-        GuiTabDecoratorLabel.all["epadd"] = _Label()
-        self.addCleanup(self._restore, GuiTabDecoratorLabel)
-        E.gui_app_mode(True)
+        self._saved_tabs = dict(GuiAppDecoratorLabel.all)
+        GuiAppDecoratorLabel.all["epadd"] = _Label()
+        self.addCleanup(self._restore, GuiAppDecoratorLabel)
 
     def _restore(self, cls):
         cls.all.clear()
@@ -127,22 +128,42 @@ class BadgeBase(unittest.TestCase):
         return self.page.pending_layouts
 
     def badge_layout(self):
-        """The badge, as the page hands it over. A tab button subclasses Text, so
-        walking the layouts for text finds the topbar instead."""
+        """The PADD's glyph, as the page hands it over.
+
+        It is a slot of the tab strip now, not a band of its own under it - the old
+        absolutely-positioned box sat over the ship-data panel and collided with its
+        readouts on a real console (playtest, 2026-09-01).
+        """
         self.build()
         return getattr(self.page, "identity_badge", None)
 
     def badge_text(self):
-        """The badge's words, or None when no badge was drawn."""
-        layout = self.badge_layout()
-        if layout is None:
-            return None
-        for row in getattr(layout, "rows", None) or ():
-            for col in getattr(row, "columns", None) or ():
-                if isinstance(col, Text):
-                    return col.message
-        return None
+        """The name beside the glyph, or None when nothing was drawn."""
+        self.build()
+        label = getattr(self.page, "identity_label", None)
+        return None if label is None else label.message
 
+    def padd_region(self):
+        """The PADD's own layout - one region over the strip's left two slots."""
+        self.build()
+        return getattr(self.page, "identity_badge", None)
+
+    def tab_row_columns(self):
+        """The tab row - a SEPARATE layout from the PADD's region, found by not
+        being it rather than by position."""
+        self.build()
+        padd = getattr(self.page, "identity_badge", None)
+        for layout in self.page.pending_layouts:
+            if layout is not padd and getattr(layout, "rows", None):
+                return list(layout.rows[0].columns)
+        return []
+
+    def padd_columns(self):
+        """What is drawn inside that region, left to right."""
+        region = self.padd_region()
+        if region is None:
+            return []
+        return list(region.rows[0].columns)
 
 class TestItSaysWhoYouAre(BadgeBase):
     def test_the_crew_member_is_on_screen(self):
@@ -156,25 +177,22 @@ class TestItSaysWhoYouAre(BadgeBase):
 
     def test_NOTHING_TO_SAY_DRAWS_NO_BOX(self):
         """A mission using none of this must not get an empty panel welded to every
-        console."""
-        self.assertIsNone(self.badge_text())
+        console.
 
-    def test_it_is_gone_when_epadd_is_off(self):
-        """Opt-in, like everything else here - the classic strip is unchanged."""
-        self.crew("Marek", "Lt")
-        E.gui_app_mode(False)
-        self.assertIsNone(self.badge_text())
-
-
+        The SLOT still exists - it is the only way in to the PADD now that no button
+        spells the word - but with nothing to say it carries no panel, so what is on
+        screen is the glyph alone."""
+        cols = self.padd_columns()           # builds
+        self.assertIsNone(self.page.identity_text)
+        self.assertIsNone(cols[1].background_color,
+                          "an empty status must not draw a box")
 class TestItSaysWhatIsWaiting(BadgeBase):
     def setUp(self):
         super().setUp()
         self.crew("Marek", "Lt")
 
     def register(self, tab, status):
-        from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import (
-            GuiTabDecoratorLabel)
-        GuiTabDecoratorLabel.all[tab] = _Label()
+        GuiAppDecoratorLabel.all[tab] = _Label()
         set_inventory_value(CID, "console_tabs",
                             dict(get_tabs(CID), **{tab: True}))
         E.gui_app_register(tab, title=tab.title(), status=status)
@@ -202,258 +220,87 @@ class TestItSaysWhatIsWaiting(BadgeBase):
 
 
 class TestWhereItSits(BadgeBase):
-    """The rect, against the engine's own numbers.
+    """In the strip, as its left two slots.
 
-    Percent across, PIXELS down. The band between the strip and ship data is a fixed
-    height on every screen, and sizing it as a percentage grew it with the screen: on a
-    real bridge the badge landed inside the info panel at 1024x768 and again, lower, on
-    a bigger one.
+    It used to be a band of its own with an absolute pixel rect UNDER the strip, sized
+    from ship_data's own edges. That put it on top of the info panel, which is where it
+    collided with the panel's readouts on a real console - reported from the playtest
+    with a screenshot, 2026-09-01. The strip is where every other control on that bar
+    already lives, so the whole rect calculation is gone rather than corrected.
     """
 
     def setUp(self):
         super().setUp()
         self.crew("Marek", "Lt")
 
-    def style(self):
-        """The area string the badge is placed with. Asserted at the source: once
-        `apply_control_styles` has parsed it, `layout.bounds_style` is a style node
-        and the numbers are no longer readable as text."""
-        self.assertIsNotNone(self.badge_layout(), "no badge was drawn to place")
-        return E.gui_app_identity_bounds()
+    def test_the_glyph_is_the_leftmost_thing_in_the_strip(self):
+        cols = self.padd_columns()
+        self.assertIsInstance(cols[0], Icon)
 
-    def parts(self):
-        return [p.strip() for p in self.style().split(",")]
+    def test_and_the_name_sits_next_to_it(self):
+        cols = self.padd_columns()
+        self.assertIs(cols[1], self.page.identity_label)
+        self.assertIn("Lt Marek", cols[1].message)
 
-    def test_the_badge_is_actually_placed_with_it(self):
-        """Guards the seam the rest of this class asserts across: the geometry is read
-        from the function, so something has to check the layout uses it."""
-        layout = self.badge_layout()
-        self.assertIsNotNone(layout.bounds_style,
-                             "the badge layout was never given an area")
+    def test_the_glyph_is_drawn_rather_than_pressed(self):
+        """Part of the status, not a control of its own: a plain `Icon` and a plain
+        `Text` inside the region, neither of them a button. The REGION is what is
+        clickable - see the next test."""
+        cols = self.padd_columns()
+        self.assertIsInstance(cols[0], Icon)
+        self.assertFalse(hasattr(cols[0], "label"))
+        self.assertFalse(hasattr(cols[1], "label"))
 
-    def px(self, i):
-        return int(self.parts()[i].removesuffix("px"))
+    def test_THE_WHOLE_STATUS_IS_THE_CLICK_REGION(self):
+        """ONE region over both slots, not two that do the same thing.
 
-    def test_it_starts_where_ship_data_starts(self):
-        """Left of that is the icon column, and that icon collapses the info panel."""
-        self.assertEqual(self.px(0),
-                         round(SHIP_DATA_LEFT / 100.0 * E.IDENTITY_BASELINE_W))
+        A Row gives every column its own click region, so a glyph and a name side by
+        side were two hit targets and pressing either highlighted only its own half.
+        The PADD is its own Layout, which emits one region over its whole bounds."""
+        region = self.padd_region()
+        self.assertIsNotNone(region.click_tag)
+        for col in self.padd_columns():
+            self.assertIsNone(getattr(col, "click_tag", None),
+                              "a child must not open a second hit target")
 
-    def test_EVERY_EDGE_IS_PIXELS(self):
-        """The correction. The engine DRAWS the info panel at a fixed size inside its
-        percentage rect, so a percentage width grew out of the panel on a bigger screen
-        and landed on the widgets beside it - measured on a real bridge."""
-        for part in self.parts():
-            self.assertTrue(part.endswith("px"), part)
+    def test_pressing_the_region_opens_the_padd(self):
+        region = self.padd_region()
+        event = FakeEvent(CID, "test")
+        event.sub_tag = region.click_tag
+        region.on_message(event)
+        self.assertEqual(len(self.page.gui_task.jumped), 1,
+                         "pressing the region jumps to the epadd route")
 
-    def test_IT_IS_NO_WIDER_THAN_THE_PANEL(self):
-        """The reported fault, stated as the property that prevents it."""
-        panel = round((SHIP_DATA_RIGHT - SHIP_DATA_LEFT) / 100.0
-                      * E.IDENTITY_BASELINE_W)
-        self.assertLessEqual(self.px(2) - self.px(0), panel)
+    def test_the_press_flash_is_not_opaque_white(self):
+        """The engine default blanks whatever is under it while a finger is down."""
+        region = self.padd_region()
+        self.assertIsNotNone(region.click_background)
+        self.assertNotEqual(str(region.click_background).lower(), "white")
 
-    def test_and_that_width_does_not_move_with_the_screen(self):
-        """A percentage width is the same number here but a different box on every
-        console, which is exactly how it grew off the panel."""
-        self.assertEqual(self.px(2) - self.px(0),
-                         E.IDENTITY_RIGHT_PX - E.IDENTITY_LEFT_PX)
+    def test_the_status_says_nothing_extra_when_pressed(self):
+        """click_text unset, so `_pre_present` emits no `$text:` for the highlight -
+        flashing the crew member's own name back at them says nothing."""
+        self.assertIsNone(self.padd_columns()[1].click_text)
 
-    def test_IT_STOPS_BEFORE_SCIENCES_RADAR_ZOOM(self):
-        """The one console where the band is not free all the way across. Reaching
-        past ship_data's right edge draws over the magnifiers on science."""
-        self.assertLessEqual(self.px(2),
-                             round(SCIENCE_RADAR_LEFT / 100.0
-                                   * E.IDENTITY_BASELINE_W))
+    def test_the_glyph_is_the_engines_own_phone(self):
+        """Resolved through the NAME table, so a mission that re-skins `phone`
+        re-skins this. `134` is the cell in grid-icon-sheet the engineering grid
+        draws from."""
+        from sbs_utils.procedural.gui.icon_sheet import icon_resolve
+        index, _ = icon_resolve(MSP.IDENTITY_ICON)
+        self.assertEqual(index, 134)
+        self.assertIn(f"icon_index:{index}", self.padd_columns()[0].props)
 
-    def test_it_sits_below_the_strip(self):
-        top = self.px(1)
-        self.assertGreaterEqual(top, E.STRIP_PX)
+    def test_there_is_no_word_for_it(self):
+        """The glyph carries the meaning, which is what frees the label to say who you
+        are instead of naming the button."""
+        texts = [getattr(c, "message", "") or "" for c in self.padd_columns()]
+        self.assertFalse(any("ePADD" in t for t in texts), texts)
 
-    def test_IT_CLEARS_THE_INFO_PANEL_AT_1024x768(self):
-        """The tightest case, and the one that was reported. Ship data starts at
-        35 + 5% of (768 - 35) = 71.7px; anything at or past that is inside the panel.
-        """
-        self.assertLess(self.px(3), E.ship_data_top_px(768))
-
-    def test_and_clears_it_on_a_bigger_screen_too(self):
-        """A fixed band can only get safer as the screen grows - the percentage one
-        got worse, which is why it failed on both."""
-        for height in (1080, 1440, 2160):
-            self.assertLess(self.px(3), E.ship_data_top_px(height), height)
-
-    def test_the_band_is_the_same_height_on_every_screen(self):
-        """The property a percentage cannot have, stated directly."""
-        self.assertEqual(self.px(3) - self.px(1), E.IDENTITY_HEIGHT_PX)
-
-    def test_it_has_its_own_background(self):
-        """It draws over ship data's overhanging art, and that art goes away when the
-        panel is collapsed - so borrowing it would leave text on the radar."""
-        layout = self.badge_layout()
-        row = (getattr(layout, "rows", None) or [None])[0]
-        self.assertIsNotNone(row.background_color, "the badge row lost its background")
-
-
-class TestItStaysCurrentWithoutARebuild(BadgeBase):
-    """The case the badge exists for.
-
-    A signal does not wake `await gui()`. A console parked on Helm all game never
-    rebuilds its screen, so a badge that only updates on a build would be frozen at
-    whatever it said when they sat down - which is exactly the crew member who never
-    learns they have mail.
-    """
-
-    def setUp(self):
-        super().setUp()
-        self.crew("Marek", "Lt")
-        self.waiting = ""
-        from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import (
-            GuiTabDecoratorLabel)
-        GuiTabDecoratorLabel.all["messages"] = _Label()
-        set_inventory_value(CID, "console_tabs", {"messages": True})
-        E.gui_app_register("messages", title="Messages",
-                           status=lambda: self.waiting)
-        self.build()
-
-    def tick(self, by=None):
-        """Advance the sim past the throttle and run one present."""
-        sim = FrameContext.context.sim
-        sim.time_tick_counter += (by if by is not None
-                                  else self.page.IDENTITY_REFRESH_TICKS)
-        self.page._tick_identity_badge()
-
-    def text(self):
-        return self.page.identity_label.message
-
-    def test_mail_arriving_moves_it_with_no_rebuild(self):
-        self.assertNotIn("(1)", self.text())
-        self.waiting = "3"
-        self.tick()
-        self.assertIn("(1)", self.text())
-
-    def test_and_it_goes_away_again(self):
-        self.waiting = "3"
-        self.tick()
-        self.waiting = ""
-        self.tick()
-        self.assertNotIn("(1)", self.text())
-
-    def test_THE_THROTTLE_HOLDS_IT_BACK(self):
-        """Reading it calls every status provider, so it must not run every frame."""
-        self.waiting = "3"
-        self.tick(by=0)
-        self.assertNotIn("(1)", self.text())
-
-    def test_A_RAISE_INSIDE_THE_REFRESH_DOES_NOT_TAKE_THE_CONSOLE_DOWN(self):
-        """This runs inside `present`, on every console, every frame - so anything
-        that throws here takes the whole screen with it.
-
-        Patched at `gui_app_identity_text` rather than at a status provider: a
-        provider that raises is already swallowed by `gui_app_badge`, so going in
-        that way tests the wrong guard and passes with this one deleted.
-        """
-        def boom(*a, **k):
-            raise RuntimeError("no")
-        real, E.gui_app_identity_text = E.gui_app_identity_text, boom
-        try:
-            self.tick()
-        finally:
-            E.gui_app_identity_text = real
-        self.assertIn("Lt Marek", self.text())
-
-    def test_PRESENT_IS_WHAT_DRIVES_IT(self):
-        """The wiring, not the method. Calling `_tick_identity_badge` by hand passes
-        just as happily with the call removed from `present` - which would ship a
-        badge that never moves on a real bridge.
-        """
-        self.waiting = "3"
-        FrameContext.context.sim.time_tick_counter += (
-            self.page.IDENTITY_REFRESH_TICKS)
-        try:
-            self.page.present(FakeEvent(CID, "test"))
-        except Exception:
-            pass                 # present goes on to do far more than we need here
-        self.assertIn("(1)", self.text())
-
-    def test_nothing_to_update_is_not_an_error(self):
-        """A console with no badge at all still ticks."""
-        self.page.identity_label = None
-        self.tick()
-
-
-class TestAwkwardNames(BadgeBase):
-    """A crew name is authored content, and it lands inside a style string.
-
-    `gui_text_escape` wraps the value in backticks so a `:` or `;` inside it is read
-    as text, and STRIPS any backtick already in it - because that character is the
-    quoting delimiter, so hand-writing the quotes leaves it unbalanced and the style
-    parser loses the rest of the string. `tests/test_gui_text_quoting` enforces the
-    escaping library-wide; this is the behaviour behind the rule.
-    """
-
-    def test_A_BACKTICK_IN_A_NAME_LEAVES_THE_QUOTES_BALANCED(self):
-        """The case hand-quoting gets wrong: "O`Neil" written by hand produces
-        `O`Neil`, three delimiters, and the style parser loses the rest of the string.
-
-        Through the AWAY name deliberately. A crew post is run through `crew._plain`,
-        which already turns a backtick into an apostrophe, so that path cannot carry
-        one and proves nothing. A lifeform's name is not, so this is the source that
-        can actually reach the widget with a delimiter in it.
-        """
-        from sbs_utils.procedural.lifeform import lifeform_spawn
-        from sbs_utils.procedural.away import away_assign
-        away_assign(CID, lifeform_spawn("Ensign O`Neil", "", "away"))
-        self.addCleanup(away_assign, CID, None)
-        message = self.badge_text() or ""
-        text = message.split("$text:", 1)[1].split(";", 1)[0]
-        self.assertEqual(text.count("`"), 2, message)
-
-    def test_a_semicolon_is_quoted_rather_than_read_as_style(self):
-        self.crew("Marek; color:red")
-        message = self.badge_text() or ""
-        self.assertIn("`Marek; color:red`", message)
-
-    def test_an_ordinary_name_is_untouched(self):
-        self.crew("Marek", "Lt")
-        self.assertIn("Lt Marek", self.badge_text() or "")
-
-
-class TestTheMainScreenGetsNoBadge(BadgeBase):
-    """The badge names the person at the console. The main screen is the whole room's
-    view, so a name on it is either wrong or somebody else's - the same reason the
-    away team gives it no character."""
-
-    def test_not_by_console_name(self):
-        self.page.console = "mainscreen"
-        self.crew("Marek", "Lt")
-        self.assertIsNone(self.badge_text())
-
-    def test_not_by_role_either(self):
-        """A morphed main screen reports its type through the role, and `page.console`
-        is empty on a console that came through `gui_console_enter`."""
-        from sbs_utils.procedural.roles import add_role, remove_role
-        add_role(CID, "mainscreen")
-        # A role on a CLIENT outlives clear_shared(), so without this the next test
-        # class runs against a console that is still the main screen.
-        self.addCleanup(remove_role, CID, "mainscreen")
-        self.crew("Marek", "Lt")
-        self.assertIsNone(self.badge_text())
-
-    def test_AND_AN_ORDINARY_CONSOLE_STILL_GETS_ONE(self):
-        """The guard must not be so broad it takes the badge off the bridge."""
-        self.crew("Marek", "Lt")
-        self.assertIn("Lt Marek", self.badge_text() or "")
-
-    def test_the_live_refresh_skips_it_too(self):
-        """`present` runs on the main screen as well, and a badge built nowhere would
-        otherwise be refreshed into existence."""
-        self.page.console = "mainscreen"
-        self.crew("Marek", "Lt")
-        self.build()
-        FrameContext.context.sim.time_tick_counter += 100
-        self.page._tick_identity_badge()
-        self.assertIsNone(getattr(self.page, "identity_label", None))
-
-
+    def test_the_tab_row_keeps_five_slots(self):
+        """Seven across the strip: the PADD holds two as its own region, so the row
+        beside it pads to the other five."""
+        self.assertEqual(len(self.tab_row_columns()), 5)
 class TestItSurvivesBeingDrawn(BadgeBase):
     """Reported from the engine as a new runtime error, and it was the badge.
 
@@ -479,12 +326,13 @@ class TestItSurvivesBeingDrawn(BadgeBase):
         layout.calc(CID)
         layout.present(FakeEvent(CID, "test"))
 
-    def test_the_row_itself_carries_a_tag(self):
-        """The rule, stated where it is cheap to check: a background needs a tag."""
-        layout = self.badge_layout()
-        row = (getattr(layout, "rows", None) or [None])[0]
-        self.assertIsNotNone(row.background_color, "the badge lost its background")
-        self.assertIsNotNone(row.tag, "a row with a background needs a tag")
+    def test_the_glyph_carries_a_tag(self):
+        """A background needs a tag - `_pre_present` builds the backdrop's own tag from
+        it. The badge used to own a ROW with a background, which is how the library
+        raised; now it is a column in the strip's row, and the strip's row declares no
+        background. The tag still matters: it is the click target."""
+        icon = self.badge_layout()
+        self.assertIsNotNone(icon.tag, "a drawn widget still needs its own tag")
 
     def test_and_the_bare_rule_holds_for_any_row(self):
         """Not specific to the badge - this is why the library raised at all."""

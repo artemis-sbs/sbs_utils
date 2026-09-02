@@ -14,9 +14,9 @@ from sbs_utils.helpers import Context, FakeEvent, FrameContext
 from sbs_utils.gui import GuiClient
 from sbs_utils.agent import clear_shared
 from sbs_utils.mast_sbs.maststorypage import StoryPage
-from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
+from sbs_utils.mast_sbs.story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
 from sbs_utils.procedural.gui.epadd import (
-    gui_app_register, gui_app_adopt_record, gui_app_home, gui_app_open,
+    gui_app_register, gui_app_home, gui_app_open,
     gui_app_chrome)
 
 ENGI = 7
@@ -113,7 +113,7 @@ class EpaddShellBase(unittest.TestCase):
         FrameContext.page = None
         FrameContext.task = None
         clear_shared()
-        GuiTabDecoratorLabel.clear()
+        GuiAppDecoratorLabel.clear()
         for cid in (SERVER, ENGI):
             GuiClient(cid)
 
@@ -121,7 +121,7 @@ class EpaddShellBase(unittest.TestCase):
         FrameContext.page = None
         FrameContext.task = None
         FrameContext.context = None
-        GuiTabDecoratorLabel.clear()
+        GuiAppDecoratorLabel.clear()
 
     def build(self, page=None, **kwargs):
         page = page or _page()
@@ -135,7 +135,7 @@ class TestHomeScreen(EpaddShellBase):
     def setUp(self):
         super().setUp()
         for p in ("cargo", "fabricate", "quests", "help"):
-            GuiTabDecoratorLabel(p)
+            GuiAppDecoratorLabel(p)
         gui_app_register("cargo", title="Cargo", group="Ship", sort=10,
                          consoles="engineering", description="Hold manifest")
         gui_app_register("fabricate", title="Fabricate", group="Ship", sort=20,
@@ -163,7 +163,7 @@ class TestHomeScreen(EpaddShellBase):
         self.assertNotIn("epadd-app-cargo", tags)      # Engineering's
 
     def test_a_console_with_no_apps_at_all_says_so_rather_than_drawing_nothing(self):
-        GuiTabDecoratorLabel.clear()                   # every route gone
+        GuiAppDecoratorLabel.clear()                   # every route gone
         page = self.build()
         self.assertEqual(_tile_tags(page), [])
         self.assertTrue(page.pending_layouts)           # the bar and the line still drew
@@ -188,16 +188,22 @@ class TestClickingATileOpensIt(EpaddShellBase):
 
     def setUp(self):
         super().setUp()
-        self.label = GuiTabDecoratorLabel("cargo")
+        self.label = GuiAppDecoratorLabel("cargo")
         gui_app_register("cargo", title="Cargo", group="Ship")
         self.page = self.build()
 
     def test_the_tile_carries_a_click_region(self):
-        """No click_text means Layout._post_present emits nothing and the tile is
-        decoration - the failure would be a home screen where nothing is clickable."""
+        """click_text None means Layout._post_present emits nothing and the tile is
+        decoration - the failure would be a home screen where nothing is clickable.
+
+        EMPTY is the distinction that matters: the region is still emitted, and it
+        draws no words. The tile already shows its title, so flashing the same word
+        back while the finger is down says nothing."""
         item = _tile_item(self.page, "cargo")
         self.assertIsNotNone(item)
-        self.assertTrue(getattr(item, "click_text", None))
+        self.assertIsNotNone(getattr(item, "click_text", None),
+                             "no click_text at all means no click region")
+        self.assertEqual(item.click_text, "", "and it says nothing")
 
     def test_a_click_on_it_sends_the_gui_task_to_the_app(self):
         item = _tile_item(self.page, "cargo")
@@ -215,7 +221,7 @@ class TestDenseMode(EpaddShellBase):
         super().setUp()
         for i in range(15):
             name = f"app{i:02d}"
-            GuiTabDecoratorLabel(name)
+            GuiAppDecoratorLabel(name)
             gui_app_register(name, title=f"App {i}", group="Ship")
 
     def test_more_than_twelve_apps_still_draws_them_all(self):
@@ -230,7 +236,7 @@ class TestDenseMode(EpaddShellBase):
 class TestOpen(EpaddShellBase):
     def setUp(self):
         super().setUp()
-        self.label = GuiTabDecoratorLabel("cargo")
+        self.label = GuiAppDecoratorLabel("cargo")
         self.page = _page()
         FrameContext.page = self.page
         FrameContext.task = self.page.gui_task
@@ -275,20 +281,6 @@ class TestChrome(EpaddShellBase):
         texts = [getattr(i, "message", "") or "" for i in _all_items(page)]
         joined = " ".join(str(t) for t in texts)
         self.assertNotIn("deck 3;", joined)
-
-
-class TestAdoptedTilesDraw(EpaddShellBase):
-    def test_an_adopted_tab_gets_a_tile_like_any_other(self):
-        """The safety property, at the drawing end: a tab nobody registered still
-        reaches the screen."""
-        GuiTabDecoratorLabel("mystery")
-        page = _page()
-        FrameContext.page = page
-        FrameContext.task = page.gui_task
-        gui_app_adopt_record({"mystery"}, back_tab="engineering")
-        gui_app_home()
-        self.assertIn("epadd-app-mystery", _tile_tags(page))
-
 
 if __name__ == "__main__":
     unittest.main()
@@ -356,7 +348,7 @@ class TestItFallsBackToAList(EpaddShellBase):
     def register(self, n):
         for i in range(n):
             name = f"app{i:02d}"
-            GuiTabDecoratorLabel(name)
+            GuiAppDecoratorLabel(name)
             gui_app_register(name, title=f"App {i}", group="Ship",
                              description="something")
 
@@ -402,7 +394,7 @@ class TestItFallsBackToAList(EpaddShellBase):
         from sbs_utils.procedural.gui.listbox import gui_list_box_is_header
         self.screen(1024, 768)
         self.register(40)
-        GuiTabDecoratorLabel("quest")
+        GuiAppDecoratorLabel("quest")
         gui_app_register("quest", title="Quests", group="Mission")
         page = self.build()
         lb = self.listboxes(page)[0]

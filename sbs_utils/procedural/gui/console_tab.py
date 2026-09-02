@@ -102,11 +102,16 @@ def gui_tab_activate(tab_name: str):
     """Sets the back tab (left most) tab for the console tabs.
     This is general called automatically by //gui/tab and //console labels
 
+    ALSO ENDS THE PADD. Arriving at a tab is how you leave the ePADD, so this clears
+    `__active_app__` - otherwise the strip would go on drawing the PADD's bar over a
+    console. Doing it here rather than in each tab means nothing has to remember to.
+
     Args:
         tab_name (str): The path of a //gui/tab
     """
     client_id = _tab_client_id()
     set_inventory_value(client_id, "__active_tab__", tab_name)
+    set_inventory_value(client_id, "__active_app__", None)
 
 def gui_tab_get_active():
     """returns the active tab
@@ -116,6 +121,33 @@ def gui_tab_get_active():
     """
     client_id = _tab_client_id()
     return get_inventory_value(client_id, "__active_tab__", "")
+
+
+def gui_app_activate(app_name: str):
+    """Records which ePADD app this client is on. Injected by every `//gui/app` label.
+
+    DELIBERATELY DOES NOT TOUCH `__active_tab__`. That asymmetry with
+    `gui_tab_activate` is the whole return-point mechanism: an app never overwrites the
+    tab you were on, so the PADD's single Back knows where to send you with nothing
+    having to capture it.
+
+    Args:
+        app_name (str): The path of a //gui/app
+    """
+    client_id = _tab_client_id()
+    set_inventory_value(client_id, "__active_app__", app_name)
+
+
+def gui_app_get_active(client_id=None):
+    """The ePADD app this client is on, or "" when they are not in the PADD.
+
+    Takes an explicit client because the PAGE asks this question while drawing, and
+    `_tab_client_id` answers with the ambient page - which during a strip build is not
+    reliably the page being built. The same distinction `epadd._client_id` documents.
+    """
+    if client_id is None:
+        client_id = _tab_client_id()
+    return get_inventory_value(client_id, "__active_app__", "") or ""
 
 
 def gui_tab_add_top(tab_name: str):

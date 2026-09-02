@@ -2,7 +2,8 @@
 
 Two properties matter more than the rest and each has a test that fails loudly:
 
-- **Off by default.** A mission that never calls `gui_app_mode()` must be untouched.
+- **The route is the opt-in.** A mission with no `//gui/app/epadd` route has no PADD;
+  there is no separate on/off, because an app is not a tab and cannot fall back to one.
 - **Nothing disappears.** Turning ePADD on must not hide a tab that no addon has
   registered as an app - it is ADOPTED instead, from what the console itself enabled.
   Without that, flipping the switch on a mission full of third-party addons silently
@@ -16,11 +17,11 @@ import unittest
 from sbs_utils.helpers import Context, FakeEvent, FrameContext
 from sbs_utils.gui import GuiClient
 from sbs_utils.agent import Agent, clear_shared
-from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
+from sbs_utils.mast_sbs.story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
 from sbs_utils.procedural.gui.epadd import (
     gui_app_register, gui_app_unregister, gui_app_is_registered, gui_app_list,
-    gui_app_groups, gui_app_mode, gui_app_mode_is_on, gui_app_mode_default, gui_app_adopt_record,
-    gui_app_adopted, epadd_console_name)
+    gui_app_groups,
+    epadd_console_name)
 
 from cosmos_dev.mock import sbs
 
@@ -59,7 +60,7 @@ class _FakeTask:
 
 def route(path, if_exp=None):
     """A real `//gui/tab/<path>` label, registered exactly as the compiler would."""
-    return GuiTabDecoratorLabel(path, if_exp)
+    return GuiAppDecoratorLabel(path, if_exp)
 
 
 class EpaddBase(unittest.TestCase):
@@ -70,7 +71,7 @@ class EpaddBase(unittest.TestCase):
         # set_inventory_value on an id with no Agent is a SILENT no-op, so the clients
         # have to exist before anything can be stored against them.
         clear_shared()
-        GuiTabDecoratorLabel.clear()
+        GuiAppDecoratorLabel.clear()
         for cid in (SERVER, ENGI, HELM):
             GuiClient(cid)
 
@@ -78,50 +79,10 @@ class EpaddBase(unittest.TestCase):
         FrameContext.page = None
         FrameContext.task = None
         FrameContext.context = None
-        GuiTabDecoratorLabel.clear()
+        GuiAppDecoratorLabel.clear()
 
     def titles(self, console=None, client_id=None):
         return [a["title"] for a in gui_app_list(console, client_id)]
-
-
-class TestMode(EpaddBase):
-    def test_mode_is_OFF_until_asked(self):
-        """The whole opt-in promise. Nothing else in this file matters if this fails."""
-        self.assertFalse(gui_app_mode_is_on(ENGI))
-        self.assertFalse(gui_app_mode_is_on(HELM))
-
-    def test_the_mission_default_turns_every_console_on_at_once(self):
-        """The switch a mission actually throws - per client would need a call in
-        every console's activation path, including ones the mission does not own."""
-        gui_app_mode_default(True)
-        self.assertTrue(gui_app_mode_is_on(ENGI))
-        self.assertTrue(gui_app_mode_is_on(HELM))
-
-    def test_a_client_that_said_so_itself_beats_the_default(self):
-        gui_app_mode_default(True)
-        FrameContext.page = _Page(HELM)
-        gui_app_mode(False)
-        self.assertTrue(gui_app_mode_is_on(ENGI))
-        self.assertFalse(gui_app_mode_is_on(HELM))
-
-    def test_and_the_other_way_round(self):
-        FrameContext.page = _Page(ENGI)
-        gui_app_mode(True)
-        self.assertTrue(gui_app_mode_is_on(ENGI))
-        self.assertFalse(gui_app_mode_is_on(HELM))
-
-    def test_mode_is_per_client(self):
-        """One console can run ePADD while the bridge next to it runs the old strip."""
-        FrameContext.page = _Page(ENGI)
-        gui_app_mode()
-        self.assertTrue(gui_app_mode_is_on(ENGI))
-        self.assertFalse(gui_app_mode_is_on(HELM))
-
-    def test_mode_can_be_turned_back_off(self):
-        FrameContext.page = _Page(ENGI)
-        gui_app_mode()
-        gui_app_mode(False)
-        self.assertFalse(gui_app_mode_is_on(ENGI))
 
 
 class TestScoping(EpaddBase):
@@ -181,61 +142,59 @@ class TestRouteAuthority(EpaddBase):
         self.assertIn("Casino", self.titles("hangar"))
 
 
-class TestAdoption(EpaddBase):
-    """Turning ePADD on must not hide anything."""
+class TestAnAppNeedsItsOwnRoute(EpaddBase):
+    """Apps are `//gui/app`, and a name can no longer be both.
+
+    There used to be an ADOPTION bridge: a `//gui/tab` nobody registered showed up
+    under "Other" so an addon that had never heard of ePADD kept working. It went when
+    apps got their own route kind - so the failure it used to absorb, an app whose route
+    does not exist, has to be REPORTED instead of silently leaving a gap.
+    """
 
     def setUp(self):
         super().setUp()
         FrameContext.page = _Page(ENGI, console="normal_engi")
         route("cargo")
-        route("mystery")            # some addon's tab, registered by nobody
         gui_app_register("cargo", title="Cargo", consoles="engineering", group="Ship")
 
-    def test_an_unregistered_tab_is_adopted(self):
-        gui_app_adopt_record({"cargo", "mystery"}, back_tab="engineering")
-        self.assertIn("Mystery", self.titles("engineering", ENGI))
+    def test_an_app_with_no_route_is_left_off(self):
+        gui_app_register("ghost", title="Ghost", consoles="engineering", group="Ship")
+        titles = [a["title"] for a in gui_app_list("engineering", ENGI)]
+        self.assertIn("Cargo", titles)
+        self.assertNotIn("Ghost", titles)
 
-    def test_it_lands_in_Other(self):
-        gui_app_adopt_record({"mystery"}, back_tab="engineering")
-        groups = dict(gui_app_groups("engineering", ENGI))
-        self.assertIn("Other", groups)
-        self.assertEqual([a["title"] for a in groups["Other"]], ["Mystery"])
-        self.assertTrue(groups["Other"][0]["adopted"])
+    def test_and_it_is_reported_by_name(self):
+        """The whole failure mode of the migration, so it must not be silent."""
+        from sbs_utils.procedural.gui import epadd as E
+        E._MISSING_ROUTE_REPORTED.clear()
+        import sbs_utils.procedural.execution as execution
+        seen, orig = [], execution.log
+        execution.log = lambda msg, *a, **k: seen.append(msg)
+        try:
+            gui_app_register("ghost", title="Ghost", consoles="engineering")
+            gui_app_list("engineering", ENGI)
+        finally:
+            execution.log = orig
+        self.assertTrue(any("ghost" in m for m in seen), seen)
 
-    def test_a_registered_tab_is_not_adopted_twice(self):
-        gui_app_adopt_record({"cargo", "mystery"}, back_tab="engineering")
-        self.assertEqual(self.titles("engineering", ENGI).count("Cargo"), 1)
-
-    def test_the_back_tab_is_not_an_app(self):
-        """It is how you leave the PADD, not something to open inside it."""
-        route("engineering")
-        gui_app_adopt_record({"cargo", "engineering"}, back_tab="engineering")
-        self.assertNotIn("engineering", gui_app_adopted(ENGI))
-
-    def test_epadd_itself_is_never_an_app(self):
+    def test_the_padd_shell_is_not_a_tile_on_itself(self):
         route("epadd")
-        gui_app_adopt_record({"epadd", "cargo"}, back_tab="engineering")
-        self.assertNotIn("epadd", gui_app_adopted(ENGI))
-        self.assertNotIn("Epadd", self.titles("engineering", ENGI))
-
-    def test_an_adopted_tab_still_obeys_its_route_condition(self):
-        route("devonly", if_exp="IS_DEV")
-        gui_app_adopt_record({"devonly"}, back_tab="engineering")
-        FrameContext.task = _FakeTask(answer=False)
-        self.assertNotIn("Devonly", self.titles("engineering", ENGI))
-
-    def test_adoption_is_per_client(self):
-        """Engineering's enabled set is not Helm's."""
-        gui_app_adopt_record({"mystery"}, back_tab="engineering")
-        self.assertEqual(gui_app_adopted(HELM), set())
-
-    def test_unregistering_falls_back_to_adoption_rather_than_vanishing(self):
-        gui_app_adopt_record({"cargo"}, back_tab="engineering")
-        gui_app_unregister("cargo")
-        self.assertFalse(gui_app_is_registered("cargo"))
-        self.assertIn("Cargo", self.titles("engineering", ENGI))
+        gui_app_register("epadd", title="ePADD", consoles="engineering")
+        self.assertNotIn("epadd", [a["tab"] for a in gui_app_list("engineering", ENGI)])
 
 
+class TestGroupOrder(EpaddBase):
+    def setUp(self):
+        super().setUp()
+        FrameContext.page = _Page(ENGI, console="normal_engi")
+        for name, group in (("a", "Systems"), ("b", "Mission"), ("c", "Ship")):
+            route(name)
+            gui_app_register(name, title=name.upper(), group=group,
+                             consoles="engineering")
+
+    def test_declared_order_wins_over_alphabetical(self):
+        self.assertEqual([g for g, _ in gui_app_groups("engineering", ENGI)],
+                         ["Ship", "Mission", "Systems"])
 class TestOrdering(EpaddBase):
     def setUp(self):
         super().setUp()
@@ -247,12 +206,6 @@ class TestOrdering(EpaddBase):
         gui_app_register("fabricate", title="Fabricate", group="Ship", sort=10)
         gui_app_register("upgrades", title="Upgrades", group="Ship", sort=20)
         gui_app_register("debug", title="Debug", group="Systems", sort=10)
-
-    def test_groups_come_out_in_declared_order_with_Other_last(self):
-        gui_app_adopt_record({"mystery"}, back_tab="engineering")
-        self.assertEqual([g for g, _ in gui_app_groups("engineering", ENGI)],
-                         ["Ship", "Mission", "Systems", "Other"])
-
     def test_sort_orders_within_a_group_and_title_breaks_the_tie(self):
         ship = dict(gui_app_groups("engineering", ENGI))["Ship"]
         self.assertEqual([a["title"] for a in ship],
@@ -287,7 +240,7 @@ class TestTheAwayConsoleOptsIn(EpaddBase):
     def setUp(self):
         super().setUp()
         for p in ("cargo", "messages", "surveying"):
-            GuiTabDecoratorLabel(p)
+            GuiAppDecoratorLabel(p)
         gui_app_register("cargo", title="Cargo", consoles="engineering")
         gui_app_register("messages", title="Messages", away=True)
         gui_app_register("surveying", title="Surveying", consoles="away")
@@ -305,11 +258,3 @@ class TestTheAwayConsoleOptsIn(EpaddBase):
         self.assertIn("Surveying", self.titles("away"))
         self.assertNotIn("Surveying", self.titles("helm"))
         self.assertNotIn("Surveying", self.titles("engineering"))
-
-    def test_an_adopted_tab_still_reaches_the_away_console(self):
-        """It is whatever that console enabled, so it was already scoped by the
-        console itself - second-guessing it would hide somebody's panel."""
-        GuiTabDecoratorLabel("mystery")
-        FrameContext.page = _Page(ENGI, console="away")
-        gui_app_adopt_record({"mystery"}, back_tab="away", console="away")
-        self.assertIn("Mystery", self.titles("away", ENGI))

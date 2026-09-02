@@ -21,9 +21,10 @@ from cosmos_dev.mock import sbs
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.mast_sbs.maststorypage import StoryPage, TabControl, TabOverflow
+from sbs_utils.pages.layout.icon import Icon
 from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
+from sbs_utils.mast_sbs.story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
 from sbs_utils.procedural.inventory import set_inventory_value, get_inventory_value
-from sbs_utils.procedural.gui.epadd import gui_app_adopted
 from sbs_utils.agent import Agent
 
 CID = 42
@@ -67,7 +68,9 @@ class EpaddStripBase(unittest.TestCase):
         self.client.id = CID
         self.client.add()
         self._saved = dict(GuiTabDecoratorLabel.all)
+        self._saved_apps = dict(GuiAppDecoratorLabel.all)
         GuiTabDecoratorLabel.all.clear()
+        GuiAppDecoratorLabel.all.clear()
         self.page = StoryPage()
         self.page.client_id = CID
         self.page.gui_task = _FakeGuiTask(self.page)
@@ -77,20 +80,26 @@ class EpaddStripBase(unittest.TestCase):
     def tearDown(self):
         GuiTabDecoratorLabel.all.clear()
         GuiTabDecoratorLabel.all.update(self._saved)
+        GuiAppDecoratorLabel.all.clear()
+        GuiAppDecoratorLabel.all.update(self._saved_apps)
         FrameContext.page = None
         FrameContext.context = None
 
     def declare(self, names, back=None, epadd_route=True):
         """What a console's build leaves behind. `gui_tab_back` ENABLES the back tab
         as well as naming it, and the strip only draws a tab that has a route, so the
-        back tab needs both here too."""
+        back tab needs both here too.
+
+        `names` are TABS. The PADD's shell is an `//gui/app` route, not a tab - which
+        is what keeps it off `__active_tab__` - so it is declared separately.
+        """
         names = list(names)
         if back is not None and back not in names:
             names.append(back)
         for name in names:
             GuiTabDecoratorLabel.all[name] = f"label_{name}"
         if epadd_route:
-            GuiTabDecoratorLabel.all["epadd"] = "label_epadd"
+            GuiAppDecoratorLabel.all["epadd"] = "label_epadd"
         set_inventory_value(CID, "console_tabs", {n: True for n in names})
         if back is not None:
             set_inventory_value(CID, "__back_tab__", back)
@@ -103,11 +112,6 @@ class EpaddStripBase(unittest.TestCase):
     def labels_on(self, items):
         return [getattr(i, "click_text", None) for i in items
                 if isinstance(i, TabControl)]
-
-    def mode_on(self):
-        set_inventory_value(CID, "epadd_mode", True)
-
-
 class TestModeOffIsUnchanged(EpaddStripBase):
     """The opt-in promise, at the drawing end."""
 
@@ -121,80 +125,66 @@ class TestModeOffIsUnchanged(EpaddStripBase):
         """Shipping the route in an addon must not switch any console over."""
         self.declare(["help", "cargo"], back="engineering", epadd_route=True)
         self.assertNotIn("ePADD", self.labels_on(self.build()))
-
-    def test_nothing_is_adopted_while_the_mode_is_off(self):
-        self.declare(["help", "cargo"], back="engineering")
-        self.build()
-        self.assertEqual(gui_app_adopted(CID), set())
-
-
 class TestModeOn(EpaddStripBase):
-    def test_the_strip_is_the_padd_and_the_back_button(self):
-        self.declare(["help", "cargo", "fabricate", "quest"], back="engineering")
-        self.mode_on()
-        self.assertEqual(sorted(self.labels_on(self.build())),
-                         ["ePADD", "engineering"])
+    def test_apps_are_not_on_the_bar_at_all(self):
+        """The collapse is now structural rather than a special case.
 
-    def test_the_padd_button_is_spelled_properly(self):
-        """The classic strip labels a tab with its raw lowercase route path, which
-        would draw this one as "epadd". This button is drawn here, so it carries a
-        literal."""
-        self.declare(["help"], back="engineering")
-        self.mode_on()
-        self.assertIn("ePADD", self.labels_on(self.build()))
+        `help`/`cargo`/`fabricate`/`quest` are `//gui/app` routes, so a console
+        enabling them by name matches nothing in the TAB table and they simply are not
+        strip entries - the code no longer has to empty a list it just built.
+        """
+        self.declare([], back="engineering")
+        set_inventory_value(CID, "console_tabs",
+                            {"engineering": True, "help": True, "cargo": True,
+                             "fabricate": True, "quest": True})
+        for n in ("help", "cargo", "fabricate", "quest"):
+            GuiAppDecoratorLabel.all[n] = f"label_{n}"
+        labels = [t for t in self.labels_on(self.build()) if t is not None]
+        self.assertEqual(labels, ["engineering"])
 
-    def test_the_padd_button_opens_the_epadd_route(self):
+    def test_there_is_no_button_spelling_the_word(self):
+        """It used to be a tab labelled "ePADD". The tablet glyph says it instead, so
+        the slot beside it is free to say who is sitting there."""
         self.declare(["help"], back="engineering")
-        self.mode_on()
-        padd = next(i for i in self.build()
-                    if isinstance(i, TabControl) and i.click_text == "ePADD")
+        self.assertNotIn("ePADD", self.labels_on(self.build()))
+
+    def test_the_status_region_opens_the_epadd_route(self):
+        """The PADD is a region of its own beside the tab row, and the region as a
+        whole is the hit target."""
+        self.declare(["help"], back="engineering")
+        self.build()
+        region = self.page.identity_badge
         event = FakeEvent(CID)
-        event.sub_tag = padd.click_tag
-        padd.on_message(event)
+        event.sub_tag = region.click_tag
+        region.on_message(event)
         self.assertEqual(self.page.gui_task.jumped, ["label_epadd"])
+
+    def test_the_glyph_is_not_a_button(self):
+        """Button chrome around it read as a second control beside the first, and a
+        second click region does the same thing twice."""
+        self.declare(["help"], back="engineering")
+        self.build()
+        cols = list(self.page.identity_badge.rows[0].columns)
+        glyph = next(c for c in cols if isinstance(c, Icon))
+        self.assertFalse(hasattr(glyph, "label"))
+        self.assertIsNone(getattr(glyph, "click_tag", None))
 
     def test_the_back_button_keeps_its_colour(self):
         """It is still how you leave; nothing about it moves."""
         self.declare(["help"], back="engineering")
-        self.mode_on()
         back = next(i for i in self.build()
                     if isinstance(i, TabControl) and i.click_text == "engineering")
         self.assertEqual(back.background_color, "#999")
 
     def test_there_is_never_an_overflow_menu(self):
-        self.declare([f"tab{i}" for i in range(20)], back="engineering")
-        self.mode_on()
+        """Twenty APPS put nothing on the bar, so there is nothing to overflow."""
+        self.declare([], back="engineering")
+        tabs = {"engineering": True}
+        for i in range(20):
+            tabs[f"app{i}"] = True
+            GuiAppDecoratorLabel.all[f"app{i}"] = f"label_app{i}"
+        set_inventory_value(CID, "console_tabs", tabs)
         self.assertFalse([i for i in self.build() if isinstance(i, TabOverflow)])
-
-
-class TestAdoption(EpaddStripBase):
-    def test_what_the_console_enabled_is_handed_to_the_registry(self):
-        self.declare(["help", "cargo", "fabricate"], back="engineering")
-        self.mode_on()
-        self.build()
-        self.assertEqual(gui_app_adopted(CID), {"help", "cargo", "fabricate"})
-
-    def test_the_back_tab_is_not_adopted(self):
-        self.declare(["help", "engineering"], back="engineering")
-        self.mode_on()
-        self.build()
-        self.assertEqual(gui_app_adopted(CID), {"help"})
-
-    def test_the_padd_itself_is_not_adopted(self):
-        self.declare(["help", "epadd"], back="engineering")
-        self.mode_on()
-        self.build()
-        self.assertEqual(gui_app_adopted(CID), {"help"})
-
-    def test_it_is_recorded_against_the_pages_client(self):
-        """The strip is read off the page's client_id, so the record has to match -
-        the same identity bug console_tab._tab_client_id exists to fix."""
-        FrameContext.context = Context(sbs.sim, sbs, FakeEvent(0, "test"))  # server
-        self.declare(["help"], back="engineering")
-        self.mode_on()
-        self.build()
-        self.assertEqual(gui_app_adopted(CID), {"help"})
-        self.assertEqual(get_inventory_value(0, "epadd_adopted", set()) or set(), set())
 
 
 class TestConsumption(EpaddStripBase):
@@ -202,67 +192,26 @@ class TestConsumption(EpaddStripBase):
 
     def test_console_tabs_are_cleared_in_epadd_mode(self):
         self.declare(["help", "cargo"], back="engineering")
-        self.mode_on()
         self.build()
         self.assertEqual(get_inventory_value(CID, "console_tabs", {}), {})
 
     def test_the_back_tab_is_cleared_too(self):
         self.declare(["help"], back="engineering")
-        self.mode_on()
         self.build()
         self.assertIsNone(get_inventory_value(CID, "__back_tab__"))
-
-    def test_the_adopted_record_SURVIVES_the_build(self):
-        """Unlike console_tabs. The home screen is a different build from the
-        console's, so a consumed record would be empty by the time it is read."""
-        self.declare(["help"], back="engineering")
-        self.mode_on()
-        self.build()
-        self.build()
-        self.assertEqual(gui_app_adopted(CID), {"help"})
-
-
 class TestChangingConsole(EpaddStripBase):
     """An empty declaration does not clobber the record - so the thing that MUST
     clobber it is moving to a station with different apps."""
-
-    def test_a_different_console_replaces_the_record(self):
-        self.declare(["cargo", "fabricate"], back="engineering")
-        self.mode_on()
-        self.build()
-        self.assertEqual(gui_app_adopted(CID), {"cargo", "fabricate"})
-
-        self.page.console = "normal_helm"
-        set_inventory_value(CID, "console_tabs", {"quest": True})
-        set_inventory_value(CID, "__back_tab__", "helm")
-        GuiTabDecoratorLabel.all["quest"] = "label_quest"
-        GuiTabDecoratorLabel.all["helm"] = "label_helm"
-        self.build()
-        self.assertEqual(gui_app_adopted(CID), {"quest"},
-                         "helm must not inherit engineering's apps")
-
-    def test_a_console_that_enables_nothing_ends_up_with_nothing(self):
-        self.declare(["cargo"], back="engineering")
-        self.mode_on()
-        self.build()
-        self.page.console = "normal_helm"
-        set_inventory_value(CID, "console_tabs", {})
-        self.build()
-        self.assertEqual(gui_app_adopted(CID), set())
-
-
 class TestWithoutTheRoute(EpaddStripBase):
     """Turning the mode on in a mission that never got the //gui/tab/epadd stub."""
 
     def test_it_falls_back_to_the_classic_strip(self):
         self.declare(["help", "cargo"], back="engineering", epadd_route=False)
-        self.mode_on()
         self.assertEqual(sorted(self.labels_on(self.build())),
                          ["cargo", "engineering", "help"])
 
     def test_and_draws_no_padd_button(self):
         self.declare(["help"], back="engineering", epadd_route=False)
-        self.mode_on()
         self.assertNotIn("ePADD", self.labels_on(self.build()))
 
 

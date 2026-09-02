@@ -1,4 +1,4 @@
-from .console_tab import gui_tab_enable,gui_tab_back,gui_tab_add_top,gui_tab_enable_top,gui_tab_activate, gui_tab_get_active, gui_tab_clear_top, gui_tab_remove_top, gui_tab_is_top
+from .console_tab import gui_tab_enable,gui_tab_back,gui_tab_add_top,gui_tab_enable_top,gui_tab_activate, gui_tab_get_active, gui_app_activate, gui_app_get_active, gui_tab_clear_top, gui_tab_remove_top, gui_tab_is_top
 from .console_tab import gui_tab_get_list
 from .messages_gui import gui_messages_screen
 from .status_gui import gui_status_screen, status_rows
@@ -6,9 +6,7 @@ from .away_gui import (gui_away_screen, away_who, away_set_who, away_label,
                        away_go_down, away_go_up, away_relevant)
 from .epadd import (gui_app_register, gui_app_unregister, gui_app_is_registered,
                     gui_app_get_registered, gui_app_list, gui_app_groups,
-                    gui_app_mode, gui_app_mode_is_on, gui_app_mode_default,
-                    gui_app_adopt_record,
-                    gui_app_adopted, epadd_console_name,
+                    epadd_console_name,
                     gui_app_home, gui_app_open, gui_app_chrome,
                     gui_app_badge, gui_app_revision)
 from .console_types import gui_add_console_type, gui_get_console_type, gui_get_console_type_list, gui_get_console_types, gui_remove_console_type

@@ -14,6 +14,7 @@ from ..agent import Agent
 from ..pages.layout.layout import Layout
 from ..pages.layout.row import Row
 from ..pages.layout.text import Text
+from ..pages.layout.icon import Icon
 from ..helpers import gui_text_escape
 
 
@@ -31,6 +32,29 @@ def _is_main_screen(client_id, console):
         return bool(has_role(client_id, "mainscreen"))
     except Exception:
         return False
+
+
+def _console_identity(client_id, page_console):
+    """Which console this client is on, for app scoping and the badge.
+
+    What THIS BUILD declared wins, and the door's record fills in only when the build
+    declared nothing. Both orders agree in the ordinary case; they part on a build that
+    activates one console while the client's sticky CONSOLE_TYPE still names another,
+    and there the screen being drawn is the honest answer.
+
+    The fallback is the point, though. `gui_console_enter` - the one door - writes
+    CONSOLE_TYPE and never touches `page.console`, so a console entered through it and
+    nothing else reports `page.console == ""` for the rest of its life. The away screen
+    is the shipped example (`gui_console_enter(cid, "away")`, no `@console/away`
+    label), and reading the page alone answered "" for it - which left the away console
+    scoped as if it were no console at all. The same mis-read cost three rounds on the
+    messages app (2026-09-01), where it made `message_select` drop every pick in
+    silence.
+
+    NOT a test for "is this a console screen" - CONSOLE_TYPE is sticky, and nothing
+    clears it when a client leaves one. See `_epadd_belongs_here`.
+    """
+    return page_console or get_inventory_value(client_id, "CONSOLE_TYPE", None)
 
 
 def _identity_style(text, accent):
@@ -72,6 +96,42 @@ class TabControl(Text):
                 self.page.gui_task.tick_in_context()
 
 
+
+
+#: The PADD's own glyph, from the engine's grid-icon-sheet - the same sheet the
+#: engineering grid draws from. So the strip needs no word for it.
+#:
+#: Resolved through the NAME table rather than written as an index, so a mission that
+#: re-skins `phone` with `gui_image_add_atlas` re-skins this too.
+IDENTITY_ICON = "phone"
+
+#: The strip spans x20..100. Seven slots across it, of which the PADD takes the left two
+#: as ONE region - so the tab row starts where that region ends and its slots stay
+#: exactly the width they would have been.
+STRIP_LEFT = 20
+STRIP_SLOTS = 7
+IDENTITY_SLOTS = 2
+_SLOT_W = (100 - STRIP_LEFT) / STRIP_SLOTS
+IDENTITY_RIGHT = STRIP_LEFT + IDENTITY_SLOTS * _SLOT_W
+
+#: The press flash. The engine's own default for a click region is OPAQUE white
+#: (`background_color: white` in Layout/Column `_post_present`), which blanks whatever
+#: is under it for as long as a finger is down. Alpha keeps the control readable while
+#: it is being pressed - the same four-digit #RGBA the house panels use.
+CLICK_HIGHLIGHT = "#FFF4"
+
+
+def _identity_icon_props(accent):
+    """The glyph's props, or None when nothing answers to that name.
+
+    A missing icon draws nothing rather than some arbitrary index - a wrong glyph is
+    worse than no glyph, because it looks deliberate.
+    """
+    from ..procedural.gui.icon_sheet import icon_resolve
+    index, atlas_key = icon_resolve(IDENTITY_ICON)
+    if index is None:
+        return None                  # a re-skinned name needs an Image, not an Icon
+    return f"icon_index:{index};color:{accent};"
 
 
 # How many tabs the strip shows before the rest go into an overflow menu.
@@ -807,15 +867,48 @@ class StoryPage(Page):
         
         self.swap_layout()
 
+    def _epadd_belongs_here(self, console, enabled_tabs):
+        """Whether THIS build is a console screen the PADD belongs on.
+
+        The PADD's shell route existing says the MISSION has one, not that this
+        particular screen is a console. Without this test the button replaced the strip
+        on every build that queued one - so it turned up on the start screen, on console
+        select and on the game-results screen, and on the main screen, which is what the
+        playtest reported (2026-09-01).
+
+        Three signals, and none works alone:
+
+        * **Being in the PADD** ends the question. An app screen declares no console and,
+          since apps stopped calling `gui_tab_back`, no tabs either - so without this the
+          status region would vanish the moment you opened an app, which is the one place
+          it is most wanted.
+        * `self.console` is PER BUILD - `pending_console` is reset after every swap - so
+          it means "this screen activated a console", not "this client was ever on one".
+          `gui_console()` sets it; console select, the results screen and the start
+          screen never call it. But a MORPHED console does not call it either.
+        * `enabled_tabs` is also per build, because drawing CONSUMES it. A morphed
+          console declares its back tab and so has one; the three screens above declare
+          nothing.
+
+        CONSOLE_TYPE is deliberately not the test. It is sticky - nothing clears it when
+        a client leaves a console - so the results screen still reports whatever station
+        the player last sat at, and console select sets it outright.
+        """
+        from ..procedural.gui.console_tab import gui_app_get_active
+        if _is_main_screen(self.client_id, console):
+            return False          # the whole room's view, not one person's station
+        return bool(gui_app_get_active(self.client_id)) or bool(self.console) or bool(enabled_tabs)
+
     def gui_queue_console_tabs(self):
-        from ..procedural.gui.epadd import (epadd_console_name, gui_app_mode_is_on,
-                                            gui_app_adopt_record,
-                                            gui_app_identity_bounds,
-                                            gui_app_identity_text, PANEL, ACCENT)
+        from ..procedural.gui.epadd import epadd_console_name, SHELL_APP
+        from ..procedural.gui.console_tab import gui_tab_get_active, gui_app_get_active
+        from .story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
         # The normal_engi -> engineering table used to be computed here and then never
         # used. It lives in epadd.py now because app scoping needs it too, and there
         # must be exactly one of it.
-        console = epadd_console_name(self.console)
+        # WHO this console is, for app scoping and the badge - not WHETHER the PADD
+        # belongs on this screen, which is `_epadd_belongs_here` below.
+        console = epadd_console_name(_console_identity(self.client_id, self.console))
         # Cleared every build. A tab button subclasses Text, so "the badge" cannot be
         # found by walking the layouts for text - the page holds it directly.
         self.identity_badge = None
@@ -825,10 +918,31 @@ class StoryPage(Page):
         enabled_tabs = get_inventory_value(self.client_id, "console_tabs", {})
 
         back_tab = get_inventory_value(self.client_id, "__back_tab__")
+
+        # DECIDED FIRST, because the tab row's left edge depends on it: the PADD owns
+        # the strip's left two slots as a region of its own, so the row of tabs starts
+        # where that region ends.
+        #
+        # It falls back to the classic strip when the mission has no //gui/tab/epadd
+        # route: turning the mode on without the route would otherwise leave the console
+        # with a single button that does nothing.
+        # NO MODE FLAG. The PADD draws wherever its shell route exists and the screen
+        # is a console. It used to be gated on `gui_app_mode_is_on` as well, and that
+        # went with the app/tab split: apps are `//gui/app` routes now, so suppressing
+        # the PADD does not fall back to the classic strip - it leaves every app with no
+        # way in. The route existing IS the mission's opt-in.
+        epadd_label = GuiAppDecoratorLabel.all.get(SHELL_APP)
+        show_epadd = (epadd_label is not None
+                      and self._epadd_belongs_here(console, enabled_tabs))
+        # IN THE PADD, as against merely on a console that has one. An app route sets
+        # this and `gui_tab_activate` clears it, so arriving at any tab ends the state
+        # without the tab having to know the PADD exists.
+        in_padd = show_epadd and bool(gui_app_get_active(self.client_id))
         #
         # Ok we're on a ship, on a console
         #
-        _layout = Layout(self.get_tag(), None, 20,0, 100, 3)
+        _left = IDENTITY_RIGHT if show_epadd else STRIP_LEFT
+        _layout = Layout(self.get_tag(), None, _left, 0, 100, 3)
         _row = Row()
         #
         # MAKE the tab button 40px
@@ -846,7 +960,10 @@ class StoryPage(Page):
             if not enabled_tabs.get(tab):
                 continue
             tab_label = GuiTabDecoratorLabel.all[tab]
-            if isinstance(tab_label, GuiTabDecoratorLabel):
+            # The back tab is still exempt from its own route's `if`: a tab's condition
+            # answers "may this be picked from here", and the back tab answers "where
+            # did you come from" - you demonstrably came from there.
+            if tab != back_tab and isinstance(tab_label, GuiTabDecoratorLabel):
                 if not tab_label.test(self.gui_task):
                     continue
 
@@ -861,26 +978,70 @@ class StoryPage(Page):
             else:
                 entries.append((tab_text, tab_label))
 
-        # --- ePADD mode -------------------------------------------------------
-        # One button instead of the whole strip. Everything the build declared is
-        # still CONSUMED below exactly as before - what changes is only what gets
-        # drawn - and the console's enabled set is handed to the app registry first,
-        # so a tab no addon registered as an app is adopted rather than lost.
+        # A BACK TAB WITH NO ROUTE AT ALL is a mission bug, not a library one - there
+        # is nothing to jump to - but it used to be a SILENT one, and the symptom is a
+        # console you cannot leave. `//gui/tab/<console>` exists for the six standard
+        # consoles; a mission's own console (the director, a custom station) has to
+        # declare one too. Said once per page, so it names the gap without filling the
+        # log every build.
+        # A BACK TARGET MAY NAME AN APP. The dev screens are the case: `debug` is an
+        # app, and `mast`/`brain` stay tabs nested under it whose `gui_tab_back("debug")`
+        # has to resolve. Tabs first, then apps.
+        if back_tab and back_entry is None:
+            app_label = GuiAppDecoratorLabel.all.get(back_tab)
+            if app_label is not None:
+                back_entry = (back_tab, app_label)
+
+        if back_tab and back_entry is None:
+            warned = getattr(self, "_back_tab_warned", None)
+            if warned is None:
+                warned = self._back_tab_warned = set()
+            if back_tab not in warned:
+                warned.add(back_tab)
+                log(f"no //gui/tab/{back_tab} or //gui/app/{back_tab} route - the Back "
+                    f"button cannot be drawn, so this screen has no way back to it",
+                    "gui", "warning")
+
+        # --- in the PADD ------------------------------------------------------
+        # The bar becomes the PADD's own: the status region (built below, and the way
+        # HOME), whatever tabs this app enabled for itself, and ONE Back to the tab the
+        # player was on when they opened it.
         #
-        # It falls back to the classic strip when the mission has no //gui/tab/epadd
-        # route: turning the mode on without the route would otherwise leave the
-        # console with a single button that does nothing.
-        epadd_label = GuiTabDecoratorLabel.all.get("epadd")
-        if epadd_label is not None and gui_app_mode_is_on(self.client_id):
-            gui_app_adopt_record(set(enabled_tabs.keys()), back_tab,
-                                 client_id=self.client_id, console=console)
-            entries = [("ePADD", epadd_label)]
+        # `entries` at this point is only what THIS app declared, because a console's
+        # tabs were consumed by the console's own build - so a plain app contributes
+        # nothing and the bar is status + Back. The dev drill-down is the exception:
+        # `debug` enables `mast` and `brain`, and those are meant to draw.
+        #
+        # BACK IS THE ACTIVE TAB, not CONSOLE_SELECT. An app route never writes
+        # `__active_tab__`, so it still names the tab that was showing - which is what
+        # "go back to where it was in the tabs" means. `CONSOLE_SELECT` is the fallback
+        # for a console reached without going through a tab route at all.
+        if in_padd:
+            back_entry = None
+            _return = gui_tab_get_active() or ""
+            if _return in (SHELL_APP, gui_app_get_active(self.client_id)):
+                _return = ""                # do not offer the PADD as its own way out
+            if not _return:
+                _return = str(get_inventory_value(self.client_id, "CONSOLE_TYPE", "")
+                              or "")
+            _label = (GuiTabDecoratorLabel.all.get(_return) if _return else None)
+            if _label is not None:
+                back_entry = (_return, _label)
+            elif _return:
+                warned = getattr(self, "_back_tab_warned", None)
+                if warned is None:
+                    warned = self._back_tab_warned = set()
+                if _return not in warned:
+                    warned.add(_return)
+                    log(f"the PADD has no way back: no //gui/tab/{_return} route",
+                        "gui", "warning")
 
         def _button(text, label, is_back):
             msg = f"justify:center;color:black;$text:{text};"
             button = TabControl(self.get_tag(), msg, label, self)
             button.click_text = text
             button.click_color = "#FFF"
+            button.click_background = CLICK_HIGHLIGHT
             button.click_tag = self.get_tag()
             button.background_color = "#999" if is_back else "#333"
             return button
@@ -908,20 +1069,21 @@ class StoryPage(Page):
         # Pad to six so a console with only a few tabs keeps them the size they have
         # always been rather than stretching each across the whole strip.
         spots = 6
+        if show_epadd:
+            # FIVE, because the PADD holds the other two - and it holds them as its own
+            # region beside this row rather than as columns of it, so that the glyph and
+            # the name are ONE click target instead of two that do the same thing.
+            spots = STRIP_SLOTS - IDENTITY_SLOTS
         blanks = spots-count
         if blanks <0: blanks = 0
         for _ in range(blanks):
             _row.add_front(Blank())
+        if show_epadd:
+            self._queue_identity_region(console, epadd_label)
 
         #_layout.calc()
         self.pending_layouts.append(_layout)
 
-        # The badge, in the band above ship data. Built HERE because this runs on every
-        # build of every console, which is the whole requirement - a readout each
-        # console's own label had to remember to draw would be missing from exactly the
-        # consoles nobody thought about.
-        if epadd_label is not None and gui_app_mode_is_on(self.client_id):
-            self._queue_identity_badge(console)
         # Clear up tabs for the next GUI
         set_inventory_value(self.client_id, "console_tabs", {})
         set_inventory_value(self.client_id, "__back_tab__", None)
@@ -959,57 +1121,79 @@ class StoryPage(Page):
         self._identity_tick = tick
         from ..procedural.gui.epadd import (epadd_console_name, gui_app_identity_text,
                                             ACCENT)
-        if _is_main_screen(self.client_id, epadd_console_name(self.console)):
+        # The same identity read the build used - the door's record when the build
+        # declared no console of its own, so a morphed console is not answered as "".
+        console = epadd_console_name(_console_identity(self.client_id, self.console))
+        if _is_main_screen(self.client_id, console):
             return
         try:
-            text = gui_app_identity_text(client_id=self.client_id,
-                                         console=epadd_console_name(self.console))
+            text = gui_app_identity_text(client_id=self.client_id, console=console)
         except Exception:
             return                       # never let a badge take the console down
         if not text or text == getattr(self, "identity_text", None):
             return
         self.identity_text = text
+        # The hover label follows the text, or the highlight says the previous name.
+        label.click_text = text
         label.update(_identity_style(text, ACCENT))
 
-    def _queue_identity_badge(self, console):
-        """Who this console is, and how much is waiting for them.
+    def _queue_identity_region(self, console, epadd_label):
+        """The PADD: the strip's left two slots, as ONE click target.
 
-        Its own region with its own background: the icon at the left collapses the info
-        panel, so anything relying on the ship-data art behind it would be left as text
-        over the radar. See `epadd.gui_app_identity_bounds` for where the rect comes
-        from - the engine's own guiboxdata, not a measurement.
+        It used to be a band of its own with an absolute pixel rect UNDER the strip,
+        which put it over the ship-data panel and collided with its readouts (playtest,
+        2026-09-01). It belongs on the strip, where every other control on that bar is.
+
+        A REGION, NOT TWO COLUMNS. Built as its own `Layout` rather than as two columns
+        of the tab row, because a Row gives each column its own click region - so a
+        glyph and a name sitting side by side were two hit targets that did the same
+        thing, and pressing either highlighted only its own half. One Layout emits one
+        region over its whole bounds, which is what makes the status read as a single
+        control.
+
+        NO WORD FOR IT. The glyph is the engine's own `phone`, from the same
+        grid-icon-sheet the engineering grid draws from, so the label is free to say who
+        is sitting there instead of naming the button.
         """
-        from ..procedural.gui.epadd import (gui_app_identity_bounds,
-                                            gui_app_identity_text, PANEL, ACCENT)
-        if _is_main_screen(self.client_id, console):
-            return                       # the room's view, not one person's
+        from ..procedural.gui.epadd import gui_app_identity_text, ACCENT, PANEL
         text = gui_app_identity_text(client_id=self.client_id, console=console)
-        if not text:
-            return                       # nothing to say: draw no box at all
-        layout = Layout(self.get_tag(), None, 0, 0, 100, 100)
-        # Through `apply_control_styles`, the way `gui_section` does it, because the
-        # constructor's numbers are percentages only and this band has to be PIXELS
-        # down: it is a fixed gap between the strip and ship data, and as a percentage
-        # it grew with the screen and landed inside the panel at every resolution.
-        apply_control_styles(".section", f"area: {gui_app_identity_bounds()};",
-                             layout, self.gui_task)
+
+        layout = Layout(self.get_tag(), None, STRIP_LEFT, 0, IDENTITY_RIGHT, 3)
+        # A Layout emits its click region only when click_text is not None
+        # (`Layout._post_present`), so "" is what keeps the region while drawing no
+        # words - a press that flashes the crew member's own name back says nothing.
+        layout.click_text = ""
+        layout.click_background = CLICK_HIGHLIGHT
+
+        def _open(event, sender, _label=epadd_label):
+            self.gui_task.jump(_label)
+            self.gui_task.tick_in_context()
+        layout.on_message_cb = _open
+
         row = Row()
-        # A ROW WITH A BACKGROUND NEEDS A TAG. `Row()` starts with `tag = None` and
-        # `_pre_present` builds the backdrop's own tag as `"__bg:" + self.tag`, so a
-        # background on an untagged row is a TypeError - raised from `present`, i.e. on
-        # every console, every frame, once the badge exists. The strip's row next to
-        # this one never hit it because it declares no background.
+        # A ROW WITH A BACKGROUND NEEDS A TAG - `_pre_present` builds the backdrop's own
+        # tag as "__bg:" + self.tag, and `Row()` starts with tag None.
         row.tag = self.get_tag()
-        apply_control_styles(".row", f"background: {PANEL};", row, self.gui_task)
-        label = Text(self.get_tag(), _identity_style(text, ACCENT))
+        apply_control_styles(".row", "row-height:35px", row, self.gui_task)
+        if text:
+            # THE PANEL ONLY WHEN THERE IS SOMETHING IN IT. A mission using none of this
+            # would otherwise get an empty box welded to every console.
+            apply_control_styles(".row", f"background: {PANEL};", row, self.gui_task)
+
+        props = _identity_icon_props(ACCENT)
+        icon = Icon(self.get_tag(), props) if props else None
+        if icon is not None:
+            row.add(icon)
+        label = Text(self.get_tag(), _identity_style(text or "", ACCENT))
         row.add(label)
         layout.add(row)
         self.pending_layouts.append(layout)
+
         self.identity_badge = layout
         self.identity_label = label
         self.identity_text = text
-        # The build just computed it, so start the throttle here rather than letting
-        # the next `present` in the SAME frame call every status provider again.
+        # The build just computed it, so start the throttle here rather than letting the
+        # next `present` in the SAME frame call every status provider again.
         try:
             self._identity_tick = int(
                 getattr(FrameContext.context.sim, "time_tick_counter", 0) or 0)

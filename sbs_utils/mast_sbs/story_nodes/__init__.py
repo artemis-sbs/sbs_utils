@@ -16,4 +16,5 @@ from .overlay_route_label import OverlayRouteDecoratorLabel   # //overlay/<kind>
 from .route_label import RouteDecoratorLabel
 # these need to be after route label
 from .gui_tab_decorator_label import GuiTabDecoratorLabel
+from .gui_app_decorator_label import GuiAppDecoratorLabel
 from .gui_console_decorator_label import GuiConsoleDecoratorLabel

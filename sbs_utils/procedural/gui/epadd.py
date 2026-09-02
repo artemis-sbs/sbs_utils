@@ -18,21 +18,22 @@ room for (`[\\w]+` and an optional `if` is the whole of it).
     gui_app_register("cargo", title="Cargo", icon="cargo",
                      consoles="engineering", group="Ship", sort=10)
 
-OPT-IN, AND SILENT UNTIL ASKED. `gui_app_mode()` is per client and defaults OFF, so
-a mission that never calls it draws the identical strip it draws today. Nothing about
-the declare-every-build contract changes either: the page still consumes `console_tabs`
-and `__back_tab__` at the end of every build.
+ALWAYS ON. It used to be opt-in, with `gui_app_mode()` per client and an
+`EPADD_ENABLED` setting behind it. That went when apps became their own route kind: an
+app is no longer a tab, so switching the PADD off does not fall back to the classic
+strip - it leaves the apps with no way in at all. Nothing about the declare-every-build
+contract changes: the page still consumes `console_tabs` and `__back_tab__` every build.
 
-NOTHING DISAPPEARS WHEN YOU TURN IT ON. A tab that no one registered as an app is
-ADOPTED: it shows up under "Other" with its raw name. That is what makes the switch
-safe to flip on a mission full of addons that have never heard of ePADD - and it is
-why the adopted set comes from the CONSOLE's own `gui_tab_enable` calls rather than
-from the route table. Walking the route table would surface every tab in the story on
-every console, losing the per-console scoping four different LM addons already express
-correctly; recording what the console actually enabled keeps all of it, for free.
+AN APP IS ITS OWN ROUTE KIND. A screen on the PADD is `//gui/app/<name>`, not
+`//gui/tab/<name>`, because the two answer different questions: a tab's `if` says
+whether it may be OFFERED ON THE BAR, an app's says whether the app is AVAILABLE. One
+route kind doing both is what let `//gui/tab/away if not gui_app_mode_is_on()` hide the
+away tab correctly and delete the way back to the away console with it.
 
-`gui_app_adopt_record` is how that recording happens - `StoryPage` calls it as it
-draws the ePADD strip, with the set it was about to draw.
+There used to be an ADOPTION bridge here: a tab nobody registered showed up under
+"Other" so an addon that had never heard of ePADD kept working. It was removed when
+apps got their own route kind - a name can no longer be both - so an app that names a
+route no `.mast` declares is now REPORTED rather than silently left off the PADD.
 """
 from ...agent import Agent
 from ...helpers import FrameContext
@@ -40,19 +41,23 @@ from ..inventory import get_inventory_value, set_inventory_value
 
 
 APPS_KEY = "__EPADD_APPS__"
-MODE_KEY = "epadd_mode"            # per client
-MODE_DEFAULT_KEY = "__EPADD_MODE__"  # mission-wide, on Agent.SHARED
-ADOPTED_KEY = "epadd_adopted"
+#: There is NO on/off any more, and that is a consequence of the app/tab split rather
+#: than a simplification for its own sake. Apps are `//gui/app` routes, so they are not
+#: on the tab bar at all - with the PADD suppressed an engineering console draws its
+#: Back button and nothing else, and Cargo, Fabricate, Help, Library, Quests and
+#: Upgrades become unreachable. "Off" is not the classic strip any more; it is no way in.
 
-# Groups render in this order; anything else lands after them alphabetically, and
-# "Other" - where adopted tabs go - is always last, because it is the leftovers.
+# Groups render in this order; anything else lands after them alphabetically.
 GROUP_ORDER = ["Ship", "Mission", "Systems"]
-ADOPTED_GROUP = "Other"
 
-# ePADD's own furniture, never an app. Just the PADD itself: the console-switch tabs
-# (helm/weapons/...) are deliberately NOT excluded, because a mission that turned
-# ALLOW_CONSOLE_TABS on asked for them and adopting them keeps that working.
-NEVER_AN_APP = {"epadd"}
+#: The PADD's own shell route. It is an app like any other - which is what keeps it off
+#: `__active_tab__` and so preserves the tab a player was on - but it is the CONTAINER,
+#: not a tile inside itself.
+SHELL_APP = "epadd"
+
+#: App names already reported as having no route. Per mission; cleared by
+#: `reset_mission_state`, which is also what stops the same line every build.
+_MISSING_ROUTE_REPORTED = set()
 
 # `normal_engi` is what the engine calls the console; `engineering` is what everything
 # a script writes calls it. This table lived, unused, inside gui_queue_console_tabs -
@@ -93,41 +98,6 @@ def _apps():
 
 def _save(apps):
     Agent.SHARED.set_inventory_value(APPS_KEY, apps)
-
-
-# --- mode -------------------------------------------------------------------------
-
-def gui_app_mode(on=True):
-    """Turn the ePADD strip on for THIS client, overriding the mission default.
-
-    Args:
-        on (bool): True for the two-button ePADD strip, False for the classic strip.
-    """
-    set_inventory_value(_client_id(), MODE_KEY, bool(on))
-
-
-def gui_app_mode_default(on=True):
-    """Turn ePADD on for every console in the mission.
-
-    This is the switch a mission actually throws - once, at the top level, off a
-    setting. Doing it per client would mean a call in every console's activation
-    path, and a console the mission does not own would never get one.
-
-    A client that has called `gui_app_mode` keeps its own answer, so a single
-    console can still be held back (or brought forward) on a mission-wide default.
-    """
-    Agent.SHARED.set_inventory_value(MODE_DEFAULT_KEY, bool(on))
-
-
-def gui_app_mode_is_on(client_id=None):
-    """Whether this client draws the ePADD strip: its own setting, else the
-    mission default, else off - which is what every existing mission gets."""
-    if client_id is None:
-        client_id = _client_id()
-    own = get_inventory_value(client_id, MODE_KEY, None)
-    if own is not None:
-        return bool(own)
-    return bool(Agent.SHARED.get_inventory_value(MODE_DEFAULT_KEY, False))
 
 
 # --- registration -----------------------------------------------------------------
@@ -179,14 +149,13 @@ def gui_app_register(tab, title=None, icon=None, consoles="*", group=None, sort=
         "sort": sort,
         "description": description,
         "status": status,
-        "adopted": False,
     }
     _save(apps)
 
 
 def gui_app_unregister(tab):
-    """Drop an app registration. The `//gui/tab/` route is untouched, so the tab is
-    adopted from then on rather than vanishing."""
+    """Drop an app registration. The `//gui/app/` route is untouched - it simply stops
+    being offered on the PADD."""
     apps = _apps()
     if apps.pop(str(tab).strip().lower(), None) is not None:
         _save(apps)
@@ -213,74 +182,27 @@ def _console_set(consoles):
     return {epadd_console_name(c) for c in consoles.split(",") if c.strip()}
 
 
-# --- adoption ---------------------------------------------------------------------
-
-def gui_app_adopt_record(tabs, back_tab=None, client_id=None, console=None):
-    """Remember what THIS console enabled, so unregistered tabs still reach the PADD.
-
-    Called by the page as it draws the ePADD strip, with the tab set it was about to
-    draw. Recording it is what lets an addon that knows nothing about ePADD keep
-    working: its `gui_tab_enable` in the console's activation hook still decides where
-    its panel appears, and the PADD picks it up from here.
-
-    Unlike `console_tabs`, this is NOT consumed by drawing - the home screen is a
-    different build from the console's, so it has to survive one.
-
-    AN EMPTY SET DOES NOT OVERWRITE, and that is the whole subtlety. Opening the PADD
-    is itself a build, and the home screen declares no apps - only its own back tab -
-    so the very next strip after the console's would otherwise record nothing and the
-    home screen would read an empty set and draw no adopted tiles. What DOES clear it
-    is a different console: the record is stamped with the console it came from, so
-    moving to another station replaces it rather than inheriting the last one's apps.
-    """
-    keep = set()
-    for tab in (tabs or ()):
-        tab = str(tab).strip().lower()
-        if not tab or tab in NEVER_AN_APP:
-            continue
-        if back_tab is not None and tab == str(back_tab).strip().lower():
-            continue    # the console you came from is the back button, not an app
-        keep.add(tab)
-
-    cid = _client_id() if client_id is None else client_id
-    console = epadd_console_name(console)
-    record = get_inventory_value(cid, ADOPTED_KEY, None)
-    if isinstance(record, dict) and not keep and record.get("console") == console:
-        return                      # a build that offered nothing; the last one stands
-    set_inventory_value(cid, ADOPTED_KEY, {"console": console, "tabs": keep})
-
-
-def gui_app_adopted(client_id=None):
-    """The tab names this console enabled, as last recorded."""
-    if client_id is None:
-        client_id = _client_id()
-    record = get_inventory_value(client_id, ADOPTED_KEY, None)
-    if isinstance(record, dict):
-        return set(record.get("tabs") or set())
-    return set(record or set())     # tolerate a record written before the stamp
-
-
 # --- the list the home screen draws ------------------------------------------------
 
 def gui_app_list(console=None, client_id=None):
     """The apps this console should offer, in the order they should be drawn.
 
-    Registered apps scoped to `console`, plus every adopted tab that no one
-    registered. An entry whose `//gui/tab/` route does not exist, or whose route
-    condition is false right now, is left out - the route's own `if` is still the
-    authority on whether a panel is available.
+    Registered apps scoped to `console`. An entry whose `//gui/app/` route does not
+    exist, or whose route condition is false right now, is left out - the route's own
+    `if` is still the authority on whether a panel is available. A MISSING route is
+    reported by name; it is almost always a typo or an unmigrated `//gui/tab`.
 
     Returns:
-        list[dict]: each with tab, title, icon, group, sort, description, adopted.
+        list[dict]: each with tab, title, icon, group, sort, description, label.
     """
-    from ...mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
+    from ...mast_sbs.story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
 
     if console is None:
         page = FrameContext.page
         console = getattr(page, "console", None) if page is not None else None
     console = epadd_console_name(console)
 
-    routes = GuiTabDecoratorLabel.all
+    routes = GuiAppDecoratorLabel.all
     task = FrameContext.task
     apps = _apps()
     out = []
@@ -289,15 +211,24 @@ def gui_app_list(console=None, client_id=None):
     def route_ok(tab):
         label = routes.get(tab)
         if label is None:
-            return None                     # nothing defines this tab
-        if task is not None and isinstance(label, GuiTabDecoratorLabel):
+            # SAID, NOT SWALLOWED. An app registered against a route no `.mast`
+            # declares used to be dropped in silence - no tile, no log - and with the
+            # adoption bridge gone that is the entire failure mode of a mistyped or
+            # unmigrated route. Once per name per mission.
+            if tab not in _MISSING_ROUTE_REPORTED:
+                _MISSING_ROUTE_REPORTED.add(tab)
+                from ..execution import log
+                log(f"app {tab!r} has no //gui/app/{tab} route - it cannot be opened, "
+                    f"so it is left off the PADD", "epadd", "warning")
+            return None
+        if task is not None and isinstance(label, GuiAppDecoratorLabel):
             if not label.test(task):
                 return None                 # its own `if` says no
         return label
 
     for tab, app in apps.items():
-        if tab in NEVER_AN_APP:
-            continue
+        if tab == SHELL_APP:
+            continue                        # the PADD is not a tile on itself
         if not _scoped_here(app, console):
             continue
         label = route_ok(tab)
@@ -306,26 +237,6 @@ def gui_app_list(console=None, client_id=None):
         entry = dict(app)
         entry["label"] = label
         out.append(entry)
-        seen.add(tab)
-
-    for tab in gui_app_adopted(client_id):
-        if tab in seen or tab in NEVER_AN_APP:
-            continue
-        label = route_ok(tab)
-        if label is None:
-            continue
-        out.append({
-            "tab": tab,
-            "title": tab.replace("_", " ").title(),
-            "icon": None,
-            "consoles": None,
-            "group": ADOPTED_GROUP,
-            "sort": 100,
-            "description": None,
-            "status": None,
-            "adopted": True,
-            "label": label,
-        })
         seen.add(tab)
 
     out.sort(key=lambda a: (_group_rank(a["group"]), a["group"],
@@ -349,10 +260,7 @@ def _scoped_here(app, console):
 
 
 def _group_rank(group):
-    """GROUP_ORDER first in the order given, then anything else alphabetically, then
-    "Other" - the adopted leftovers - always last."""
-    if group == ADOPTED_GROUP:
-        return len(GROUP_ORDER) + 1
+    """GROUP_ORDER first in the order given, then anything else alphabetically."""
     try:
         return GROUP_ORDER.index(group)
     except ValueError:
@@ -437,17 +345,27 @@ TILE_PX_DENSE = 66    # the same without the description
 
 
 def gui_app_open(tab):
-    """Open an app: send the GUI task to that tab's label.
+    """Open an app: send the GUI task to that app's label.
 
     The same two lines `TabControl.on_message` runs when a tab button is clicked, so
-    an app opened from the PADD arrives exactly as it would have from the strip.
+    an app opened from the PADD arrives exactly as a tab would have.
 
     Returns:
-        bool: False when the tab has no route or there is no GUI task to send.
+        bool: False when the app has no route or there is no GUI task to send.
     """
-    from ...mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
-    label = GuiTabDecoratorLabel.all.get(str(tab).strip().lower())
+    from ...mast_sbs.story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
+    tab = str(tab).strip().lower()
+    label = GuiAppDecoratorLabel.all.get(tab)
     if label is None:
+        # SAID, NOT SWALLOWED. A tile whose route is missing used to do NOTHING when
+        # pressed, with no log - "clicking the app does not go to the app", and nothing
+        # to go on. The likeliest cause is a half-built install: a library that reads the
+        # app table beside a mastlib still declaring `//gui/tab`, so rebuild BOTH.
+        if tab not in _MISSING_ROUTE_REPORTED:
+            _MISSING_ROUTE_REPORTED.add(tab)
+            from ..execution import log
+            log(f"no //gui/app/{tab} route - pressing that tile can do nothing. If the "
+                f"app used to be a //gui/tab, rebuild the mastlib too", "epadd", "warning")
         return False
     page = FrameContext.page
     task = getattr(page, "gui_task", None) if page is not None else None
@@ -529,18 +447,51 @@ def _who_am_i():
              style="col-width: content;")
 
 
+#: Tabs whose status provider is running right now, so a provider that asks for its own
+#: badge is answered rather than re-entered. Cleared in a `finally`, so it cannot outlive
+#: the call and does not need a reset-ledger entry.
+_BADGE_RUNNING = set()
+
+#: (tab, exception type) pairs already reported. A provider that keeps failing is worth
+#: saying ONCE - it is called per tile per build AND by the badge ticker, so an unguarded
+#: log is several lines a second for the rest of the mission.
+_BADGE_REPORTED = set()
+
+
 def gui_app_badge(app):
-    """An app's live badge, as text. Never raises: a provider that throws is reported
-    once by the log and the tile draws without one."""
+    """An app's live badge, as text.
+
+    Never raises: a provider that throws costs its own tile a badge and nothing else.
+
+    RE-ENTRANT PROVIDERS ARE ANSWERED, NOT RE-ENTERED. A provider is free to ask what
+    the other apps are reporting - LM's Status tile does exactly that, counting the apps
+    with something to say - and `status_rows` computes a badge for EVERY app, the asking
+    one included. That is a cycle: the provider was entered 332 times for one badge
+    (measured), unwound only when Python's own recursion limit tripped, and the
+    RecursionError caught below was logged as "status provider for 'status' raised" on
+    every badge computation, several times a second. The badge still came out right,
+    which is why it read as noise rather than as a bug.
+    """
     provider = app.get("status")
     if provider is None:
         return None
+    tab = app.get("tab")
+    if tab in _BADGE_RUNNING:
+        return None                     # asked for its own badge; it has no answer yet
+    _BADGE_RUNNING.add(tab)
     try:
         value = provider() if callable(provider) else provider
-    except Exception:
+    except Exception as e:              # noqa: BLE001 - a badge never takes a page down
         from ..execution import log
-        log(f"status provider for {app.get('tab')!r} raised", "epadd", "warning")
+        key = (tab, type(e).__name__)
+        if key not in _BADGE_REPORTED:
+            _BADGE_REPORTED.add(key)
+            # NAME THE CAUSE. Without it this is the same unactionable line forever.
+            log(f"status provider for {tab!r} raised "
+                f"{type(e).__name__}: {e}", "epadd", "warning")
         return None
+    finally:
+        _BADGE_RUNNING.discard(tab)
     value = "" if value is None else str(value).strip()
     return value or None
 
@@ -564,9 +515,15 @@ def _tile(app, dense):
     # unique per tile; the tab name already is.
     # margin, not just padding: padding is INSIDE the panel, so tiles drawn with
     # padding alone have their backgrounds touching and read as one block.
+    # EMPTY click_text, not absent. The tile already shows its title, so flashing the
+    # same word back while the finger is down says nothing - but a SUB-SECTION emits its
+    # whole click region only when `click_text is not None` (`Layout._post_present`), so
+    # dropping the property would make every tile decoration. `""` keeps the region and
+    # draws no words. (A Column is different: it also emits on `click_tag` alone, which
+    # is why the status slot in the strip can leave click_text unset.)
     style = (f"background: {PANEL};"
              f"click_tag: epadd-app-{tab};"
-             f"click_text: {_esc(title)};"
+             f"click_text: ;"
              f"click_background: {PANEL_HI};"
              f"margin: 0, 0, {TILE_GAP}, {TILE_GAP};"
              f"padding: 14px, 10px, 14px, 10px;")
@@ -785,53 +742,6 @@ def gui_app_home(ship_name=None, columns=None, title="ePADD"):
 # `ship_data` is an ENGINE widget the library can only send a rect to (see
 # `gui_panel_ship_data_show`), never put a row inside. The engine owns its collapse too,
 # so nothing here would be told when it fired.
-
-#: THE INFO PANEL IS A FIXED SIZE, and that is the whole of this block.
-#:
-#: `guiboxdata.txt` states `ship_data` as `3, 5, 27, 47` - percentages - but the engine
-#: DRAWS the panel at a fixed pixel size inside that rect rather than stretching it. So
-#: a badge that matched the percentages grew out of the panel on a bigger screen and
-#: landed on the widgets beside it: measured on a real bridge, the badge sat well right
-#: of ship data and over a neighbouring readout.
-#:
-#: Every edge is therefore pixels, taken from the percentages AT THE BASELINE the stock
-#: console layout is drawn for. Same box on every screen, which is what the panel does.
-IDENTITY_BASELINE_W = 1024   # the resolution the stock rects are sized against
-IDENTITY_BASELINE_H = 768
-
-STRIP_PX = 35            # the console tab strip's own row-height
-SHIP_DATA_LEFT = 3       # ship_data's rect, from guiboxdata.txt
-SHIP_DATA_RIGHT = 27
-SHIP_DATA_TOP = 5
-
-#: The badge's box, in screen pixels. Across: ship_data's own edges at the baseline, so
-#: the badge is exactly as wide as the panel it sits on and never wider. Down: the gap
-#: between the strip and the panel, which is fixed for the same reason.
-IDENTITY_LEFT_PX = round(SHIP_DATA_LEFT / 100.0 * IDENTITY_BASELINE_W)     # 31
-IDENTITY_RIGHT_PX = round(SHIP_DATA_RIGHT / 100.0 * IDENTITY_BASELINE_W)   # 277
-IDENTITY_TOP_PX = 36     # immediately under the strip
-IDENTITY_HEIGHT_PX = 28  # one line of gui-1, with room to breathe
-
-
-def gui_app_identity_bounds(client_id=None):
-    """The badge's area style - PIXELS on all four sides.
-
-    Percent could express neither dimension. Across, the panel is drawn at a fixed
-    size, so a percentage width grew past it. Down, the gap between the strip and the
-    panel is a fixed height, so a percentage grew into it.
-    """
-    return (f"{IDENTITY_LEFT_PX}px, {IDENTITY_TOP_PX}px, "
-            f"{IDENTITY_RIGHT_PX}px, {IDENTITY_TOP_PX + IDENTITY_HEIGHT_PX}px")
-
-
-def ship_data_top_px(height):
-    """Where the info panel starts, in SCREEN pixels, on a screen this tall.
-
-    The engine's rects are percentages of the console area, which begins under the
-    strip - so this is the conversion the badge has to stay clear of, and the reason a
-    percentage could never express "just above ship data".
-    """
-    return STRIP_PX + (SHIP_DATA_TOP / 100.0) * (max(0, height) - STRIP_PX)
 
 
 def gui_app_identity_text(client_id=None, console=None):

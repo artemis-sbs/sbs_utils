@@ -106,6 +106,7 @@ def reset_mission_state():
     # live in mast_sbs.story_nodes, which imports back into the mast layer).
     from .mast_sbs.story_nodes.media import MediaLabel
     from .mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
+    from .mast_sbs.story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
     from .procedural.media import music_reset
     from .procedural.settings import settings_profile_reset
     MediaLabel.clear()          # @media labels (folders APPENDS - reload would double)
@@ -124,6 +125,14 @@ def reset_mission_state():
     from .procedural.command_line import command_line_scope_reset
     command_line_scope_reset()
     GuiTabDecoratorLabel.clear()  # //gui/tab labels
+    GuiAppDecoratorLabel.clear()  # //gui/app labels - the PADD's screens
+    # Which failing ePADD status providers have already been reported. Per MISSION, so a
+    # provider that fails in two missions running is said twice rather than once - the
+    # point of the set is only to stop the same line every few ticks forever.
+    from .procedural.gui.epadd import _BADGE_REPORTED, _MISSING_ROUTE_REPORTED
+    _BADGE_REPORTED.clear()
+    # And which apps have been reported as having no //gui/app route.
+    _MISSING_ROUTE_REPORTED.clear()
     # Navigation routes (//comms, //science, //gui/...) register their LABEL OBJECTS
     # here as they compile, and nothing emptied it - so a second compile in one
     # interpreter left the map holding two generations of the same routes. Navigating
@@ -396,6 +405,8 @@ register_reset_state("Gui.widget_rects", lambda: len(Gui.widget_rects))
 # Route labels registered per compile. Unregistered until 2026-08-06, which is why it
 # grew silently across compiles instead of being reported by name.
 register_reset_state("log_panel", lambda: _log_size())
+from .procedural.gui.epadd import _BADGE_REPORTED as _EPADD_BADGE_REPORTED
+register_reset_state("epadd badge reports", lambda: len(_EPADD_BADGE_REPORTED))
 from .procedural.quest_driver import _QUEST_DISPATCH_VOICE
 register_reset_state("quest dispatch voice",
                      lambda: 1 if _QUEST_DISPATCH_VOICE[0] is not None else 0)
