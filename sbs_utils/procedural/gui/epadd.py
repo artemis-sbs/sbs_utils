@@ -761,3 +761,110 @@ def gui_app_home(ship_name=None, columns=None, title="ePADD"):
         with gui_grid(columns, row_style=TILE_ROW):
             for app in apps:
                 _tile(app, dense)
+
+
+# --- the badge that is there without opening anything ---------------------------------
+#
+# Playtest: people liked the PADD and wanted two things it could not give them - to see
+# the crew member they are playing, and to know there was something waiting without
+# opening it to find out. Both want the same thing: one small readout that is always on
+# screen.
+#
+# WHERE. The hard part was a spot that is the same on every console, and the engine's own
+# `data/guiboxdata.txt` answers it: `ship_data` sits at `3, 5, 27, 47` on helm, weapons,
+# engineering, science AND comms - identical. The band directly above it is free on all
+# five (on science it must stop at x=27, where `radar_zoom_ctrl` at `27,0,68,6` begins).
+# Engine `y=0` is the BOTTOM of the topbar, not the top of the screen.
+#
+# It gets its OWN background rather than sitting on the ship-data art that overhangs
+# there, because the icon at the left collapses that panel: borrowed art would leave the
+# badge as text over the radar exactly when the screen is busiest. For the same reason it
+# does not collapse with the panel - a readout you have to un-hide is not a readout.
+#
+# Not part of the info panel itself, which was worth wanting and is not available:
+# `ship_data` is an ENGINE widget the library can only send a rect to (see
+# `gui_panel_ship_data_show`), never put a row inside. The engine owns its collapse too,
+# so nothing here would be told when it fired.
+
+IDENTITY_LEFT = 3        # ship_data's own left edge - clear of the icon column
+IDENTITY_RIGHT = 27      # and its right edge - where science's radar zoom begins
+SHIP_DATA_TOP = 5        # where the info panel starts, in ENGINE coords
+
+
+def gui_app_identity_bounds(client_id):
+    """The badge's rect in SCREEN percent: (left, top, right, bottom).
+
+    Engine widget rects are percentages of the console area, which starts under the
+    topbar - so the band has to be converted before a Layout can use it. `BODY_TOP_PX`
+    is the library's own answer for where that is.
+    """
+    height = 0
+    try:
+        from ...gui import get_client_aspect_ratio
+        height = getattr(get_client_aspect_ratio(client_id), "y", 0) or 0
+    except Exception:
+        height = 0
+    if height <= 0:
+        height = 1080                    # the assumption `_columns_for` already makes
+    top = BODY_TOP_PX / float(height) * 100.0
+    bottom = top + (SHIP_DATA_TOP / 100.0) * (100.0 - top)
+    return IDENTITY_LEFT, top, IDENTITY_RIGHT, bottom
+
+
+def gui_app_identity_text(client_id=None, console=None):
+    """What the badge says: who you are, and how much is waiting.
+
+    None when there is nothing worth a line - then no badge is drawn at all, rather
+    than an empty box on every console of a mission that uses none of this.
+    """
+    who = _identity_name(client_id)
+    waiting = gui_app_waiting(console=console, client_id=client_id)
+    if not who and not waiting:
+        return None
+    if not waiting:
+        return who
+    # ASCII only - this is drawn by the engine.
+    return f"{who} ({waiting})" if who else f"ePADD ({waiting})"
+
+
+def _identity_name(client_id):
+    """The person at this console: their away character first, then their crew post.
+
+    The away character wins because it is who they are RIGHT NOW - a crew member on the
+    surface is playing that body, and the badge saying their bridge name there would be
+    the stranger problem all over again.
+    """
+    try:
+        from .away_gui import away_who, away_label
+        active = away_who(client_id)
+        if active is not None:
+            return away_label(active)[0]
+    except Exception:
+        pass
+    try:
+        from ..crew import crew_post_of
+        post = crew_post_of(client_id)
+    except Exception:
+        return ""
+    if post is None:
+        return ""
+    name = getattr(post, "name", "") or ""
+    rank = getattr(post, "rank", "") or ""
+    return f"{rank} {name}".strip() if rank and name else name
+
+
+def gui_app_waiting(console=None, client_id=None):
+    """How many apps have something to say - the count the badge carries.
+
+    Apps, not messages. Unread mail is only one of the things a badge reports, and the
+    number a crew member cannot get any other way is "how many of these should I open".
+    """
+    total = 0
+    try:
+        apps = gui_app_list(console=console, client_id=client_id)
+    except Exception:
+        return 0
+    for app in apps:
+        if gui_app_badge(app):
+            total += 1
+    return total

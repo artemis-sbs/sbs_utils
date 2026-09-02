@@ -14,6 +14,18 @@ from ..agent import Agent
 from ..pages.layout.layout import Layout
 from ..pages.layout.row import Row
 from ..pages.layout.text import Text
+from ..helpers import gui_text_escape
+
+
+def _identity_style(text, accent):
+    """The badge's style string, in one place because two callers build it.
+
+    ESCAPED, not hand-quoted: a crew member's name is authored content and a `;` or a
+    backtick in it would otherwise end the style string early and draw the rest of it
+    as text. `tests/test_gui_text_quoting` enforces this across the library.
+    """
+    return (f"$text:{gui_text_escape(text)};font:gui-1;color:{accent};"
+            f"justify:center;overflow:shrink;")
 from ..pages.layout.blank import Blank
 from ..pages.layout.dropdown import Dropdown
 from..fs import get_mission_name, get_startup_mission_name, is_dev_build
@@ -781,11 +793,16 @@ class StoryPage(Page):
 
     def gui_queue_console_tabs(self):
         from ..procedural.gui.epadd import (epadd_console_name, gui_app_mode_is_on,
-                                            gui_app_adopt_record)
+                                            gui_app_adopt_record,
+                                            gui_app_identity_bounds,
+                                            gui_app_identity_text, PANEL, ACCENT)
         # The normal_engi -> engineering table used to be computed here and then never
         # used. It lives in epadd.py now because app scoping needs it too, and there
         # must be exactly one of it.
         console = epadd_console_name(self.console)
+        # Cleared every build. A tab button subclasses Text, so "the badge" cannot be
+        # found by walking the layouts for text - the page holds it directly.
+        self.identity_badge = None
         #
         # tabs can be for all ships or single
         #
@@ -882,12 +899,91 @@ class StoryPage(Page):
 
         #_layout.calc()
         self.pending_layouts.append(_layout)
+
+        # The badge, in the band above ship data. Built HERE because this runs on every
+        # build of every console, which is the whole requirement - a readout each
+        # console's own label had to remember to draw would be missing from exactly the
+        # consoles nobody thought about.
+        if epadd_label is not None and gui_app_mode_is_on(self.client_id):
+            self._queue_identity_badge(console)
         # Clear up tabs for the next GUI
         set_inventory_value(self.client_id, "console_tabs", {})
         set_inventory_value(self.client_id, "__back_tab__", None)
 
 
 
+
+    #: How often the badge re-reads what is waiting. It is a THROTTLE, not a
+    #: guarantee: reading it walks every app and calls each status provider, and
+    #: `gui_app_revision` is no cheaper because it calls exactly the same ones. At the
+    #: engine's tick rate this is a few times a second, which is far faster than a
+    #: crew member can notice and a fraction of the per-frame cost.
+    IDENTITY_REFRESH_TICKS = 8
+
+    def _tick_identity_badge(self):
+        """Keep the badge current while the console sits in `await gui()`.
+
+        A SIGNAL DOES NOT WAKE `await gui()`, and a console parked on Helm all game
+        never rebuilds - so without this the count is frozen at whatever it said when
+        the screen was built, which is precisely the case the badge exists for.
+
+        Updates the widget rather than the page: the dirty system re-renders a changed
+        widget on its own, so nothing here repaints a screen.
+        """
+        label = getattr(self, "identity_label", None)
+        if label is None:
+            return
+        try:
+            ctx = FrameContext.context
+            tick = int(getattr(ctx.sim, "time_tick_counter", 0) or 0)
+        except Exception:
+            return
+        if tick - getattr(self, "_identity_tick", -999) < self.IDENTITY_REFRESH_TICKS:
+            return
+        self._identity_tick = tick
+        from ..procedural.gui.epadd import (epadd_console_name, gui_app_identity_text,
+                                            ACCENT)
+        try:
+            text = gui_app_identity_text(client_id=self.client_id,
+                                         console=epadd_console_name(self.console))
+        except Exception:
+            return                       # never let a badge take the console down
+        if not text or text == getattr(self, "identity_text", None):
+            return
+        self.identity_text = text
+        label.update(_identity_style(text, ACCENT))
+
+    def _queue_identity_badge(self, console):
+        """Who this console is, and how much is waiting for them.
+
+        Its own region with its own background: the icon at the left collapses the info
+        panel, so anything relying on the ship-data art behind it would be left as text
+        over the radar. See `epadd.gui_app_identity_bounds` for where the rect comes
+        from - the engine's own guiboxdata, not a measurement.
+        """
+        from ..procedural.gui.epadd import (gui_app_identity_bounds,
+                                            gui_app_identity_text, PANEL, ACCENT)
+        text = gui_app_identity_text(client_id=self.client_id, console=console)
+        if not text:
+            return                       # nothing to say: draw no box at all
+        left, top, right, bottom = gui_app_identity_bounds(self.client_id)
+        layout = Layout(self.get_tag(), None, left, top, right, bottom)
+        row = Row()
+        apply_control_styles(".row", f"background: {PANEL};", row, self.gui_task)
+        label = Text(self.get_tag(), _identity_style(text, ACCENT))
+        row.add(label)
+        layout.add(row)
+        self.pending_layouts.append(layout)
+        self.identity_badge = layout
+        self.identity_label = label
+        self.identity_text = text
+        # The build just computed it, so start the throttle here rather than letting
+        # the next `present` in the SAME frame call every status provider again.
+        try:
+            self._identity_tick = int(
+                getattr(FrameContext.context.sim, "time_tick_counter", 0) or 0)
+        except Exception:
+            self._identity_tick = 0
 
     def update_props_by_tag(self, tag, props, test):
         """Apply props to the widget registered under `tag`.
@@ -947,6 +1043,7 @@ class StoryPage(Page):
             return
         if self.disconnected:
             return
+        self._tick_identity_badge()
         #
         # Cache sbs this should not change
         # cache will be used in updates they only need sbs, ratio and client_id
