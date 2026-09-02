@@ -123,6 +123,20 @@ class ShipPicker(Control):
                     CID,  self.local_region_tag, f"{self.tag}error", f"$text:Error {self.test}",the_bounds.left, the_bounds.top, the_bounds.right, the_bounds.top+5)
             return
 
+        # EMPTY IS NOT THE SAME AS MISSING. `ships is None` means the ship data could
+        # not be read at all; an empty LIST means it was read and the roles/sides/keys
+        # filter matched nothing in it - a mod whose ships did not load, or a filter
+        # naming a role this shipData does not have. That is ordinary, and it used to
+        # crash the console picker with an IndexError from `self.ships[self.cur]`
+        # (reported from Gamma with a Q). Say so instead: the crew can still change
+        # console, and the message names the reason rather than a stack.
+        if not self.ships:
+            SBS.send_gui_text(
+                    CID, self.local_region_tag, f"{self.tag}error",
+                    "$text:No ships match this filter;",
+                    the_bounds.left, the_bounds.top, the_bounds.right, the_bounds.top+5)
+            return
+
         ship = self.ships[self.cur]
         top = the_bounds.top
 
@@ -199,6 +213,8 @@ class ShipPicker(Control):
             str|None: The selected ship key.
         """
 
+        if not self.ships or self.cur >= len(self.ships):
+            return None                  # nothing matched the filter - see `_present`
         ship = self.ships[self.cur]
         if "key" in ship:
             return ship["key"]
@@ -209,6 +225,8 @@ class ShipPicker(Control):
         Returns:
             str|None: The name of the selected ship as defined in the shipData.
         """
+        if not self.ships or self.cur >= len(self.ships):
+            return None
         ship = self.ships[self.cur]
         if "name" in ship:
             return ship["name"]
