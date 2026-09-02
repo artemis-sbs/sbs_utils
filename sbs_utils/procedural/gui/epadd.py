@@ -485,7 +485,7 @@ def _esc(text):
     return gui_text_escape("" if text is None else str(text))
 
 
-def gui_app_chrome(title, subtitle=None, back_text="<", on_back=None):
+def gui_app_chrome(title, subtitle=None, apps=None, on_back=None):
     """The PADD's own nav bar. Every screen inside the PADD draws it.
 
     ePADD owns this row and nothing below it, so an app's own body is unchanged.
@@ -500,10 +500,19 @@ def gui_app_chrome(title, subtitle=None, back_text="<", on_back=None):
     here as well put two names in the same band, which is what the playtest screenshot
     caught. The chrome owns navigation; the strip owns identity.
 
+    ROOM IS THE CONSTRAINT. The engine draws its own Options button at the left of this
+    band, so the bar starts already short - which is why Back is a GLYPH and not the
+    word, and why the row always ends in a blank that absorbs the slack. Without that
+    blank the title and its subtitle were both content-sized against a row with nothing
+    to give, and the engine does not clip: they drew over each other.
+
     Args:
         title (str): the screen's name.
-        subtitle (str, optional): a second, dimmer line of context.
-        back_text (str, optional): the back control's label.
+        subtitle (str, optional): a second, dimmer line of context. Leave it out unless
+            it says something the screen below does not - a board captioned with the
+            count of what it is already listing says nothing.
+        apps (list[str], optional): screens this one can reach, drawn as links. The
+            Debug app is the case: Brain scan and MAST are reachable only from it.
         on_back (callable | label, optional): what Back does. Defaults to the PADD's own
             history, so a screen does not need to know what opened it.
     """
@@ -511,19 +520,69 @@ def gui_app_chrome(title, subtitle=None, back_text="<", on_back=None):
     from .text import gui_text
     from .button import gui_button
     from .blank import gui_blank
+    from .icon import gui_icon_name
 
     if on_back is None:
         on_back = lambda *_a: gui_app_go_back()
 
     gui_row(f"row-height: {BAR_HEIGHT}; background: {PANEL_HEAD};")
-    gui_button(f"$text:{_esc(back_text)};", style="col-width: content;",
-               on_press=on_back)
+    # A GLYPH, NOT THE WORD. `<` in a text button was a character in a box wide enough
+    # for a label, in a band the engine has already taken the left of for its Options
+    # button. The arrow is the same control at a fraction of the width.
+    _back = gui_icon_name("arrow-left", color=ACCENT,
+                          style=f"col-width: content; click_tag: epadd-back;")
+    if _back is None:                      # no such glyph: say it in words rather than
+        _back = gui_button("$text:Back;", style="col-width: content;",
+                           on_press=on_back)
+    else:
+        from .message import gui_message_callback
+
+        def _pressed(event, sender):
+            if getattr(event, "sub_tag", None) != "epadd-back":
+                return
+            on_back(event, sender)
+        gui_message_callback(_back, _pressed)
     gui_text(f"$text:{_esc(title)};font:gui-4;", style="col-width: content;")
     if subtitle:
         gui_text(f"$text:{_esc(subtitle)};font:gui-1;color:{DIM};",
                  style="col-width: content;")
-    else:
-        gui_blank()
+    for _app in (apps or ()):
+        _app_link(_app)
+    gui_blank()
+
+
+def _app_link(tab):
+    """One screen this one can reach, as a link in the chrome.
+
+    THE DEV DRILL-DOWN IS WHY THIS EXISTS. Brain scan and MAST are reachable only from
+    Debug, and they used to be reached because Debug enabled them as TABS on the
+    console's bar - which is the coupling the PADD spent this whole change getting out
+    of. A screen that leads somewhere says so in its own chrome instead.
+
+    Uses the app's registered title when it has one, so a link reads the way its tile
+    does, and its raw name when it does not - a screen that is not a tile has no
+    registration to ask.
+    """
+    from .text import gui_text
+    from .message import gui_message_callback
+
+    tab = str(tab).strip().lower()
+    app = _apps().get(tab)
+    title = (app or {}).get("title") or tab.replace("_", " ").title()
+    click = f"epadd-link-{tab}"
+    link = gui_text(f"$text:{_esc(title)};font:gui-2;color:{ACCENT};",
+                    style=f"col-width: content; click_tag: {click};")
+    if link is None:
+        return
+
+    def _open(event, sender, _tab=tab, _click=click):
+        # Filtered, like every other callback on this page: `Layout.on_message` hands
+        # every event to every callback, and an unfiltered one opens on somebody else's
+        # click. That cost a playtest round.
+        if getattr(event, "sub_tag", None) != _click:
+            return
+        gui_app_open(_tab)
+    gui_message_callback(link, _open)
 
 
 def gui_app_go_back(client_id=None):

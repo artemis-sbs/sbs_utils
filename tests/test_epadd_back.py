@@ -200,13 +200,38 @@ class TestTheTabBarIsNotInvolved(BackBase):
         return [t for t in (getattr(c, "click_text", None)
                             for c in cols if isinstance(c, TabControl)) if t]
 
-    def test_the_strip_is_untouched_while_the_padd_is_open(self):
-        """The second half of the report: overriding the bar's back button for the
-        PADD broke it for everyone else. The PADD contributes nothing to the strip."""
+    def test_the_bar_keeps_its_back_to_console(self):
+        """Two backs, and they mean different things. The chrome's arrow walks the
+        PADD's history; this one is the bar's ordinary back-to-console, rightmost as
+        always, so leaving is one press from any depth.
+
+        A PADD screen declares no tabs, so without the strip supplying the destination
+        the button would simply be absent - the console's own build set it and drawing
+        consumed it.
+        """
         self.tab("helm")
         gui_tab_activate("helm")
         gui_app_activate("cargo")
-        self.assertEqual(self.strip(), [])
+        self.assertEqual(self.strip(), ["helm"])
+
+    def test_AND_IT_IS_NOT_OVERRIDDEN(self):
+        """The second half of the report. Supplying the button's DESTINATION is fine;
+        replacing its BEHAVIOUR with PADD semantics is what broke the bar's own back
+        for everything else, so it stays a plain TabControl."""
+        self.tab("helm")
+        gui_tab_activate("helm")
+        gui_app_activate("cargo")
+        set_inventory_value(CID, "console_tabs", {})
+        self.page.pending_layouts = []
+        self.page.gui_queue_console_tabs()
+        padd = getattr(self.page, "identity_badge", None)
+        for layout in self.page.pending_layouts:
+            if layout is padd or not getattr(layout, "rows", None):
+                continue
+            for col in layout.rows[0].columns:
+                if isinstance(col, TabControl):
+                    self.assertIs(type(col), TabControl,
+                                  "the bar's back must not be a PADD subclass")
 
     def test_a_consoles_own_back_tab_still_works(self):
         """Nothing about an ordinary console's strip changed."""

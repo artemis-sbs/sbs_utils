@@ -1003,13 +1003,24 @@ class StoryPage(Page):
                     "gui", "warning")
 
         # --- in the PADD ------------------------------------------------------
-        # NOTHING. The PADD's chrome owns its Back now, so the strip is left exactly as
-        # a console's strip - which is the point: reusing the bar's back button for the
-        # PADD is what broke the bar's own back behaviour. The status region below is
-        # still drawn, because it is also the way IN from a console.
+        # TWO BACKS, AND THEY MEAN DIFFERENT THINGS. The chrome's arrow walks the PADD's
+        # own history; this one is the bar's ordinary back-to-console, and it stays
+        # exactly where it always is - rightmost - so leaving is one press from anywhere
+        # inside the PADD rather than as many presses as you are deep.
         #
-        # A PADD build declares no tabs of its own (an app calls no `gui_tab_back`), so
-        # `entries` is empty here without anything having to empty it.
+        # A PLAIN TabControl, deliberately. Overriding this button with PADD semantics is
+        # what broke the bar's own back for everything else; supplying its DESTINATION is
+        # not the same thing. A PADD screen declares no tabs of its own, so without this
+        # the button would simply be absent - the console's own build set it and drawing
+        # consumed it.
+        if in_padd and back_entry is None:
+            _return = gui_tab_get_active() or ""
+            if not _return:
+                _return = str(get_inventory_value(self.client_id, "CONSOLE_TYPE", "")
+                              or "")
+            _label = GuiTabDecoratorLabel.all.get(_return) if _return else None
+            if _label is not None:
+                back_entry = (_return, _label)
 
         def _button(text, label, is_back):
             msg = f"justify:center;color:black;$text:{text};"

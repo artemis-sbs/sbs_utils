@@ -231,7 +231,9 @@ def gui_messages_screen(consoles=None, title="Messages"):
     inbox = message_inbox()
 
     unread = message_unread()
-    gui_app_chrome(title, subtitle=(f"{unread} unread" if unread else "all read"))
+    # Only when there IS something. "all read" is the absence of news, and the list
+    # below says it better by having nothing bold in it.
+    gui_app_chrome(title, subtitle=(f"{unread} unread" if unread else None))
 
     gui_section(style="area: 0, 109px, 100, 100;")
 
