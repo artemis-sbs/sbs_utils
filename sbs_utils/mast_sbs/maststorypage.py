@@ -113,6 +113,17 @@ IDENTITY_ICON = "phone"
 #: The strip spans x20..100. Seven slots across it, of which the PADD takes the left two
 #: as ONE region - so the tab row starts where that region ends and its slots stay
 #: exactly the width they would have been.
+#: IN PIXELS, because the thing it has to sit beside is. The engine's Options button is
+#: a fixed-pixel control, so a percentage only touches it at ONE resolution - 20% of 1024
+#: is 205px, which is why this looked right at 1024x768 and opened a growing gap on
+#: anything larger (playtest images, 2026-09-02). Converted per client instead.
+STRIP_LEFT_PX = 205
+#: The badge's own width, also in pixels and for the same reason. As a share of the
+#: screen its click region grew with the display, so on a big monitor a press a long way
+#: from the badge still opened the PADD.
+IDENTITY_WIDTH_PX = 350
+#: The percentages these used to be, kept as the fallback for a client that has not
+#: reported its resolution yet, and as the reference the pixel numbers came from.
 STRIP_LEFT = 20
 STRIP_SLOTS = 7
 #: THREE, not two. A PADD screen puts one tab on the bar - the way back to the console -
@@ -134,6 +145,58 @@ IDENTITY_RIGHT = STRIP_LEFT + IDENTITY_SLOTS * _SLOT_W
 #:
 #: One region, one name, reused every build.
 IDENTITY_CLICK_TAG = "epadd-status-region"
+
+#: The strip's row height. The tab buttons declare `row-height:35px`, so this is how
+#: tall the bar actually IS - and the click region has to match it or the hit target
+#: stops short of the control it belongs to.
+STRIP_ROW_PX = 35
+#: The fallback when the client has not reported its resolution yet: 3% of a 768-high
+#: screen is ~23px, short of the row, but it is the historic number and it is only ever
+#: used for the first build or two.
+STRIP_FALLBACK_PCT = 3
+
+
+def _pct_x(client_id, px, fallback):
+    """A horizontal pixel measurement as the PERCENT a Layout's bounds want."""
+    try:
+        from ..procedural.gui.gui import gui_percent_from_pixels
+        pct = gui_percent_from_pixels(client_id, px).x
+        if pct and pct > 0:
+            return pct
+    except Exception:
+        pass
+    return fallback
+
+
+def _strip_left(client_id):
+    """Where the strip starts: just past the engine's Options button."""
+    return _pct_x(client_id, STRIP_LEFT_PX, STRIP_LEFT)
+
+
+def _identity_right(client_id):
+    """Where the badge ends, and therefore where the tab row begins."""
+    return _strip_left(client_id) + _pct_x(client_id, IDENTITY_WIDTH_PX,
+                                           IDENTITY_SLOTS * _SLOT_W)
+
+
+def _strip_bottom(client_id):
+    """How far down the strip reaches, as the PERCENT a Layout's bounds want.
+
+    A Layout's rect is a percentage while the row inside it is declared in PIXELS, so
+    the two only agree at one resolution. They did not agree at the playtest's: the
+    region was 3% (~32px at 1080) against a 35px row, so the press highlight stopped
+    above the bottom of the bar and the badge read as floating in it.
+
+    Converted per client, because that is what the percentage has to track.
+    """
+    try:
+        from ..procedural.gui.gui import gui_percent_from_pixels
+        pct = gui_percent_from_pixels(client_id, STRIP_ROW_PX).y
+        if pct and pct > 0:
+            return pct
+    except Exception:
+        pass
+    return STRIP_FALLBACK_PCT
 
 # CLICK_HIGHLIGHT lives with the other design tokens in procedural/gui/epadd.py.
 
@@ -955,8 +1018,10 @@ class StoryPage(Page):
         #
         # Ok we're on a ship, on a console
         #
-        _left = IDENTITY_RIGHT if show_epadd else STRIP_LEFT
-        _layout = Layout(self.get_tag(), None, _left, 0, 100, 3)
+        _left = (_identity_right(self.client_id) if show_epadd
+                 else _strip_left(self.client_id))
+        _layout = Layout(self.get_tag(), None, _left, 0, 100,
+                         _strip_bottom(self.client_id))
         _row = Row()
         #
         # MAKE the tab button 40px
@@ -1123,8 +1188,10 @@ class StoryPage(Page):
         if not text or text == getattr(self, "identity_text", None):
             return
         self.identity_text = text
-        # The hover label follows the text, or the highlight says the previous name.
-        label.click_text = text
+        # THE LABEL GETS NO CLICK TEXT. Setting it gave the label its own click region on
+        # top of the region the badge already had - a second hit target with different
+        # bounds, painting the name over the strip on every press. The badge's Layout is
+        # the one control here.
         label.update(_identity_style(text, ACCENT))
 
     def _queue_identity_region(self, console, epadd_label):
@@ -1149,11 +1216,19 @@ class StoryPage(Page):
                                             CLICK_HIGHLIGHT)
         text = gui_app_identity_text(client_id=self.client_id, console=console)
 
-        layout = Layout(self.get_tag(), None, STRIP_LEFT, 0, IDENTITY_RIGHT, 3)
-        # A Layout emits its click region only when click_text is not None
-        # (`Layout._post_present`), so "" is what keeps the region while drawing no
-        # words - a press that flashes the crew member's own name back says nothing.
-        layout.click_text = ""
+        # THE SAME BOTTOM AS THE TAB STRIP. Its rect is what the engine turns into the
+        # click region, so a rect shorter than the row leaves the bottom of the badge
+        # unclickable and the press highlight stopping mid-control (playtest image,
+        # 2026-09-02).
+        layout = Layout(self.get_tag(), None,
+                        _strip_left(self.client_id), 0,
+                        _identity_right(self.client_id),
+                        _strip_bottom(self.client_id))
+        # NO CLICK TEXT ANYWHERE ON THIS CONTROL. A press must tint the region and
+        # nothing else: the engine draws click text at its own size over the region's
+        # whole rect, so the crew name came back oversized and centred, spilling up over
+        # the topbar and reading as a second copy of the label. The region comes from the
+        # TAG alone - see `Layout._post_present`.
         layout.click_background = CLICK_HIGHLIGHT
         # A STABLE TAG - see IDENTITY_CLICK_TAG. Set before `_open` closes over it.
         layout.click_tag = IDENTITY_CLICK_TAG

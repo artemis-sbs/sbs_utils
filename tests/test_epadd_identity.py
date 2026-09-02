@@ -143,6 +143,30 @@ class BadgeBase(unittest.TestCase):
         label = getattr(self.page, "identity_label", None)
         return None if label is None else label.message
 
+    def regions(self):
+        """Every click region the badge emits, as {tag: (props, rect)}.
+
+        Driven through `_post_present`, because "how many regions" and "what is painted
+        in them" are things only the SEND shows - the model was right in both of the
+        bugs this pins.
+        """
+        badge = self.padd_region()
+        sent = {}
+        real = sbs.send_gui_clickregion
+        sbs.send_gui_clickregion = (
+            lambda cid, parent, tag, props, l, t, r, b:
+                sent.__setitem__(tag, (props, (l, t, r, b))))
+        try:
+            badge.calc(CID)
+            badge._post_present(FakeEvent(CID))
+            for row in badge.rows:
+                row._post_present(FakeEvent(CID))
+                for col in row.columns:
+                    col._post_present(FakeEvent(CID))
+        finally:
+            sbs.send_gui_clickregion = real
+        return sent
+
     def padd_region(self):
         """The PADD's own layout - one region over the strip's left two slots."""
         self.build()
@@ -308,6 +332,103 @@ class TestWhereItSits(BadgeBase):
         self.assertEqual(first, MSP.IDENTITY_CLICK_TAG)
         self.assertNotIn("__click:", str(first),
                          "a derived tag is a new engine region every build")
+
+    def test_A_PRESS_PAINTS_NO_WORDS(self):
+        """The engine draws click text at its own size over the region's WHOLE rect, so
+        the crew name came back oversized and centred, spilling up over the topbar and
+        reading as a second copy of the label (playtest image, 2026-09-02).
+
+        The region is asked for by TAG. Nothing on this control carries click text.
+        """
+        region = self.padd_region()
+        self.assertIsNone(region.click_text)
+        props = self.regions()[MSP.IDENTITY_CLICK_TAG][0]
+        self.assertNotIn("$text:", props)
+        self.assertIn("background_color", props)     # it still tints on press
+
+    def test_THE_BADGE_EMITS_EXACTLY_ONE_REGION(self):
+        """The bounds looked wrong because there were TWO.
+
+        The refresh ticker used to set `click_text` on the NAME LABEL, which gave the
+        label its own click region on top of the badge's - a second hit target, with the
+        label's content-sized bounds rather than the badge's, painting the name over the
+        strip. One control, one region.
+        """
+        self.crew("Ione Marek", "Commander")
+        self.build()
+        self.page._identity_tick = -999               # let the ticker actually run
+        self.page.sim = _Sim()
+        self.page._tick_identity_badge()
+        label = self.page.identity_label
+        self.assertIsNone(getattr(label, "click_text", None))
+
+        regions = self.regions()
+        self.assertEqual(list(regions), [MSP.IDENTITY_CLICK_TAG], regions)
+
+    def test_the_region_covers_the_badge_and_not_more(self):
+        """And its rect is the badge's own - the strip's left slots."""
+        rect = self.regions()[MSP.IDENTITY_CLICK_TAG][1]
+        self.assertEqual(rect, (MSP._strip_left(CID), 0, MSP._identity_right(CID),
+                                MSP._strip_bottom(CID)))
+
+    def test_IT_SITS_AGAINST_THE_OPTIONS_BUTTON_AT_ANY_SIZE(self):
+        """The Options button is a fixed-PIXEL control, so a percentage only touches it
+        at one resolution. 20% is 205px on a 1024 screen - right where it ended - and
+        768px on a 4K one, leaving 563px of empty bar between the button and the badge
+        (playtest images, 2026-09-02).
+
+        Both edges are pixels now, so the badge is the same box on every display.
+        """
+        from sbs_utils.vec import Vec3
+        saved = FrameContext.aspect_ratios
+        try:
+            for w, h in ((1024, 768), (1920, 1080), (2560, 1440), (3840, 2160)):
+                FrameContext.aspect_ratios = {CID: Vec3(w, h, 0)}
+                left = MSP._strip_left(CID) / 100 * w
+                width = (MSP._identity_right(CID) - MSP._strip_left(CID)) / 100 * w
+                self.assertAlmostEqual(left, MSP.STRIP_LEFT_PX, places=2,
+                                       msg=f"{w}x{h} left {left:.0f}px")
+                self.assertAlmostEqual(width, MSP.IDENTITY_WIDTH_PX, places=2,
+                                       msg=f"{w}x{h} width {width:.0f}px")
+        finally:
+            FrameContext.aspect_ratios = saved
+
+    def test_the_tab_row_starts_where_the_badge_ends(self):
+        """One bar, no overlap and no hole - the tabs take whatever is left of it."""
+        import inspect
+        src = inspect.getsource(MSP.StoryPage.gui_queue_console_tabs)
+        self.assertIn("_identity_right(self.client_id) if show_epadd", src)
+        self.assertIn("else _strip_left(self.client_id)", src)
+
+    def test_IT_IS_AS_TALL_AS_THE_BAR(self):
+        """A Layout's rect is a PERCENT; the row inside it is declared in PIXELS. The
+        two only agree at one resolution, and the playtest's was not it: 3% of a 768
+        screen is 23px against a 35px row, so the press highlight stopped a third of the
+        way up from the bottom of the bar and the badge read as floating in it.
+
+        Checked in pixels at four resolutions, because a percentage that is right at one
+        of them is exactly the bug.
+        """
+        from sbs_utils.vec import Vec3
+        # RESTORED. `aspect_ratios` is a class attribute on FrameContext, so leaving a
+        # resolution behind here decides the answer for every later test in the run -
+        # it took out test_epadd_shell's unreported-size case on the first attempt.
+        saved = FrameContext.aspect_ratios
+        try:
+            for w, h in ((1024, 768), (1920, 1080), (2560, 1440), (3840, 2160)):
+                FrameContext.aspect_ratios = {CID: Vec3(w, h, 0)}
+                px = MSP._strip_bottom(CID) / 100 * h
+                self.assertAlmostEqual(px, MSP.STRIP_ROW_PX, places=3,
+                                       msg=f"{w}x{h} gave {px:.1f}px")
+        finally:
+            FrameContext.aspect_ratios = saved
+
+    def test_and_the_tab_strip_takes_the_same_bottom(self):
+        """One bar. The tabs and the badge sit on it, so a press on either has to reach
+        the same depth - they were 3% and 3% while the row was 35px."""
+        import inspect
+        src = inspect.getsource(MSP.StoryPage.gui_queue_console_tabs)
+        self.assertIn("_strip_bottom(self.client_id)", src)
 
     def test_the_press_flash_is_not_opaque_white(self):
         """The engine default blanks whatever is under it while a finger is down."""

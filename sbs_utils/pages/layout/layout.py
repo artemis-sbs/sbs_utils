@@ -1405,8 +1405,15 @@ class Layout(Clickable):
         
 
     def _post_present(self, event):
-        if self.click_text is not None:
-            click_props = f"$text:{self.click_text};"
+        # A TAG IS ENOUGH. `Column._post_present` has always emitted on either, and this
+        # matching the Column is what lets a caller ask for a hit target WITHOUT asking
+        # for the engine to paint a word over it on press. The gate used to be click_text
+        # alone, so wanting a silent region meant setting click_text to "" - which is a
+        # value, so the engine drew it, and a name set later drew that.
+        if self.click_text is not None or self.click_tag is not None:
+            click_props = ""
+            if self.click_text is not None:
+                click_props = f"$text:{self.click_text};"
             if self.click_color is not None:
                 click_props += f"color: {self.click_color};"
             if self.click_font is not None:
