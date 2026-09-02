@@ -786,29 +786,52 @@ def gui_app_home(ship_name=None, columns=None, title="ePADD"):
 # `gui_panel_ship_data_show`), never put a row inside. The engine owns its collapse too,
 # so nothing here would be told when it fired.
 
-IDENTITY_LEFT = 3        # ship_data's own left edge - clear of the icon column
-IDENTITY_RIGHT = 27      # and its right edge - where science's radar zoom begins
-SHIP_DATA_TOP = 5        # where the info panel starts, in ENGINE coords
+#: THE INFO PANEL IS A FIXED SIZE, and that is the whole of this block.
+#:
+#: `guiboxdata.txt` states `ship_data` as `3, 5, 27, 47` - percentages - but the engine
+#: DRAWS the panel at a fixed pixel size inside that rect rather than stretching it. So
+#: a badge that matched the percentages grew out of the panel on a bigger screen and
+#: landed on the widgets beside it: measured on a real bridge, the badge sat well right
+#: of ship data and over a neighbouring readout.
+#:
+#: Every edge is therefore pixels, taken from the percentages AT THE BASELINE the stock
+#: console layout is drawn for. Same box on every screen, which is what the panel does.
+IDENTITY_BASELINE_W = 1024   # the resolution the stock rects are sized against
+IDENTITY_BASELINE_H = 768
+
+STRIP_PX = 35            # the console tab strip's own row-height
+SHIP_DATA_LEFT = 3       # ship_data's rect, from guiboxdata.txt
+SHIP_DATA_RIGHT = 27
+SHIP_DATA_TOP = 5
+
+#: The badge's box, in screen pixels. Across: ship_data's own edges at the baseline, so
+#: the badge is exactly as wide as the panel it sits on and never wider. Down: the gap
+#: between the strip and the panel, which is fixed for the same reason.
+IDENTITY_LEFT_PX = round(SHIP_DATA_LEFT / 100.0 * IDENTITY_BASELINE_W)     # 31
+IDENTITY_RIGHT_PX = round(SHIP_DATA_RIGHT / 100.0 * IDENTITY_BASELINE_W)   # 277
+IDENTITY_TOP_PX = 36     # immediately under the strip
+IDENTITY_HEIGHT_PX = 28  # one line of gui-1, with room to breathe
 
 
-def gui_app_identity_bounds(client_id):
-    """The badge's rect in SCREEN percent: (left, top, right, bottom).
+def gui_app_identity_bounds(client_id=None):
+    """The badge's area style - PIXELS on all four sides.
 
-    Engine widget rects are percentages of the console area, which starts under the
-    topbar - so the band has to be converted before a Layout can use it. `BODY_TOP_PX`
-    is the library's own answer for where that is.
+    Percent could express neither dimension. Across, the panel is drawn at a fixed
+    size, so a percentage width grew past it. Down, the gap between the strip and the
+    panel is a fixed height, so a percentage grew into it.
     """
-    height = 0
-    try:
-        from ...gui import get_client_aspect_ratio
-        height = getattr(get_client_aspect_ratio(client_id), "y", 0) or 0
-    except Exception:
-        height = 0
-    if height <= 0:
-        height = 1080                    # the assumption `_columns_for` already makes
-    top = BODY_TOP_PX / float(height) * 100.0
-    bottom = top + (SHIP_DATA_TOP / 100.0) * (100.0 - top)
-    return IDENTITY_LEFT, top, IDENTITY_RIGHT, bottom
+    return (f"{IDENTITY_LEFT_PX}px, {IDENTITY_TOP_PX}px, "
+            f"{IDENTITY_RIGHT_PX}px, {IDENTITY_TOP_PX + IDENTITY_HEIGHT_PX}px")
+
+
+def ship_data_top_px(height):
+    """Where the info panel starts, in SCREEN pixels, on a screen this tall.
+
+    The engine's rects are percentages of the console area, which begins under the
+    strip - so this is the conversion the badge has to stay clear of, and the reason a
+    percentage could never express "just above ship data".
+    """
+    return STRIP_PX + (SHIP_DATA_TOP / 100.0) * (max(0, height) - STRIP_PX)
 
 
 def gui_app_identity_text(client_id=None, console=None):

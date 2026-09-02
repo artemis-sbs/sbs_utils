@@ -986,9 +986,20 @@ class StoryPage(Page):
         text = gui_app_identity_text(client_id=self.client_id, console=console)
         if not text:
             return                       # nothing to say: draw no box at all
-        left, top, right, bottom = gui_app_identity_bounds(self.client_id)
-        layout = Layout(self.get_tag(), None, left, top, right, bottom)
+        layout = Layout(self.get_tag(), None, 0, 0, 100, 100)
+        # Through `apply_control_styles`, the way `gui_section` does it, because the
+        # constructor's numbers are percentages only and this band has to be PIXELS
+        # down: it is a fixed gap between the strip and ship data, and as a percentage
+        # it grew with the screen and landed inside the panel at every resolution.
+        apply_control_styles(".section", f"area: {gui_app_identity_bounds()};",
+                             layout, self.gui_task)
         row = Row()
+        # A ROW WITH A BACKGROUND NEEDS A TAG. `Row()` starts with `tag = None` and
+        # `_pre_present` builds the backdrop's own tag as `"__bg:" + self.tag`, so a
+        # background on an untagged row is a TypeError - raised from `present`, i.e. on
+        # every console, every frame, once the badge exists. The strip's row next to
+        # this one never hit it because it declares no background.
+        row.tag = self.get_tag()
         apply_control_styles(".row", f"background: {PANEL};", row, self.gui_task)
         label = Text(self.get_tag(), _identity_style(text, ACCENT))
         row.add(label)

@@ -202,63 +202,95 @@ class TestItSaysWhatIsWaiting(BadgeBase):
 
 
 class TestWhereItSits(BadgeBase):
-    """The rect, against the engine's own numbers."""
+    """The rect, against the engine's own numbers.
+
+    Percent across, PIXELS down. The band between the strip and ship data is a fixed
+    height on every screen, and sizing it as a percentage grew it with the screen: on a
+    real bridge the badge landed inside the info panel at 1024x768 and again, lower, on
+    a bigger one.
+    """
 
     def setUp(self):
         super().setUp()
         self.crew("Marek", "Lt")
 
-    def bounds(self):
+    def style(self):
+        """The area string the badge is placed with. Asserted at the source: once
+        `apply_control_styles` has parsed it, `layout.bounds_style` is a style node
+        and the numbers are no longer readable as text."""
+        self.assertIsNotNone(self.badge_layout(), "no badge was drawn to place")
+        return E.gui_app_identity_bounds()
+
+    def parts(self):
+        return [p.strip() for p in self.style().split(",")]
+
+    def test_the_badge_is_actually_placed_with_it(self):
+        """Guards the seam the rest of this class asserts across: the geometry is read
+        from the function, so something has to check the layout uses it."""
         layout = self.badge_layout()
-        self.assertIsNotNone(layout, "no badge was drawn to place")
-        b = layout.bounds
-        return b.left, b.top, b.right, b.bottom
+        self.assertIsNotNone(layout.bounds_style,
+                             "the badge layout was never given an area")
+
+    def px(self, i):
+        return int(self.parts()[i].removesuffix("px"))
 
     def test_it_starts_where_ship_data_starts(self):
         """Left of that is the icon column, and that icon collapses the info panel."""
-        self.assertEqual(self.bounds()[0], SHIP_DATA_LEFT)
+        self.assertEqual(self.px(0),
+                         round(SHIP_DATA_LEFT / 100.0 * E.IDENTITY_BASELINE_W))
+
+    def test_EVERY_EDGE_IS_PIXELS(self):
+        """The correction. The engine DRAWS the info panel at a fixed size inside its
+        percentage rect, so a percentage width grew out of the panel on a bigger screen
+        and landed on the widgets beside it - measured on a real bridge."""
+        for part in self.parts():
+            self.assertTrue(part.endswith("px"), part)
+
+    def test_IT_IS_NO_WIDER_THAN_THE_PANEL(self):
+        """The reported fault, stated as the property that prevents it."""
+        panel = round((SHIP_DATA_RIGHT - SHIP_DATA_LEFT) / 100.0
+                      * E.IDENTITY_BASELINE_W)
+        self.assertLessEqual(self.px(2) - self.px(0), panel)
+
+    def test_and_that_width_does_not_move_with_the_screen(self):
+        """A percentage width is the same number here but a different box on every
+        console, which is exactly how it grew off the panel."""
+        self.assertEqual(self.px(2) - self.px(0),
+                         E.IDENTITY_RIGHT_PX - E.IDENTITY_LEFT_PX)
 
     def test_IT_STOPS_BEFORE_SCIENCES_RADAR_ZOOM(self):
         """The one console where the band is not free all the way across. Reaching
-        past x=27 would draw over the magnifiers on science and nowhere else, which
-        is the worst kind of bug to find."""
-        self.assertLessEqual(self.bounds()[2], SCIENCE_RADAR_LEFT)
+        past ship_data's right edge draws over the magnifiers on science."""
+        self.assertLessEqual(self.px(2),
+                             round(SCIENCE_RADAR_LEFT / 100.0
+                                   * E.IDENTITY_BASELINE_W))
 
-    def test_it_sits_above_the_info_panel(self):
-        """Computed here from the engine numbers rather than read back off the badge,
-        so this checks the CONVERSION - engine percentages are of the console area,
-        which starts under the topbar, and using 5 raw would put the badge inside the
-        info panel on every console."""
-        bottom = self.bounds()[3]
-        self.assertLessEqual(bottom, self.ship_data_top() + 0.001)
+    def test_it_sits_below_the_strip(self):
+        top = self.px(1)
+        self.assertGreaterEqual(top, E.STRIP_PX)
 
-    def ship_data_top(self):
-        from sbs_utils.gui import get_client_aspect_ratio
-        height = getattr(get_client_aspect_ratio(CID), "y", 0) or 1080
-        console_top = E.BODY_TOP_PX / float(height) * 100.0
-        return console_top + (SHIP_DATA_TOP / 100.0) * (100.0 - console_top)
+    def test_IT_CLEARS_THE_INFO_PANEL_AT_1024x768(self):
+        """The tightest case, and the one that was reported. Ship data starts at
+        35 + 5% of (768 - 35) = 71.7px; anything at or past that is inside the panel.
+        """
+        self.assertLess(self.px(3), E.ship_data_top_px(768))
 
-    def test_it_sits_below_the_topbar(self):
-        """Engine y=0 is the BOTTOM of the topbar, not the top of the screen, so the
-        badge has to start under the strip rather than at zero."""
-        self.assertGreater(self.bounds()[1], 0)
+    def test_and_clears_it_on_a_bigger_screen_too(self):
+        """A fixed band can only get safer as the screen grows - the percentage one
+        got worse, which is why it failed on both."""
+        for height in (1080, 1440, 2160):
+            self.assertLess(self.px(3), E.ship_data_top_px(height), height)
+
+    def test_the_band_is_the_same_height_on_every_screen(self):
+        """The property a percentage cannot have, stated directly."""
+        self.assertEqual(self.px(3) - self.px(1), E.IDENTITY_HEIGHT_PX)
 
     def test_it_has_its_own_background(self):
         """It draws over ship data's overhanging art, and that art goes away when the
         panel is collapsed - so borrowing it would leave text on the radar."""
         layout = self.badge_layout()
         row = (getattr(layout, "rows", None) or [None])[0]
-        style = str(getattr(row, "background_color", "")) + str(getattr(row, "message", ""))
-        self.assertTrue(style.strip(), "the badge row declared no background")
-
-
-def get_tabs(cid):
-    from sbs_utils.procedural.inventory import get_inventory_value
-    return get_inventory_value(cid, "console_tabs", {}) or {}
-
-
-if __name__ == "__main__":
-    unittest.main()
+        self.assertIsNotNone(row.background_color, "the badge row lost its background")
 
 
 class TestItStaysCurrentWithoutARebuild(BadgeBase):
@@ -420,3 +452,53 @@ class TestTheMainScreenGetsNoBadge(BadgeBase):
         FrameContext.context.sim.time_tick_counter += 100
         self.page._tick_identity_badge()
         self.assertIsNone(getattr(self.page, "identity_label", None))
+
+
+class TestItSurvivesBeingDrawn(BadgeBase):
+    """Reported from the engine as a new runtime error, and it was the badge.
+
+        row.py:258  "__bg:" + self.tag
+        TypeError: can only concatenate str (not "NoneType") to str
+
+    `Row()` starts with `tag = None`, and `_pre_present` builds the backdrop's own tag
+    from it - so a row with a BACKGROUND and no tag raises. The badge is the first row
+    here to want a background of its own, which is why nothing else had hit it: the
+    strip's row, built four lines away, declares none.
+
+    Every test above this one BUILDS the badge and never presents it, and every one of
+    them passed with the bug in place. Presenting is the whole test.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.crew("Marek", "Lt")
+
+    def test_THE_BADGE_PRESENTS(self):
+        layout = self.badge_layout()
+        self.assertIsNotNone(layout, "no badge to present")
+        layout.calc(CID)
+        layout.present(FakeEvent(CID, "test"))
+
+    def test_the_row_itself_carries_a_tag(self):
+        """The rule, stated where it is cheap to check: a background needs a tag."""
+        layout = self.badge_layout()
+        row = (getattr(layout, "rows", None) or [None])[0]
+        self.assertIsNotNone(row.background_color, "the badge lost its background")
+        self.assertIsNotNone(row.tag, "a row with a background needs a tag")
+
+    def test_and_the_bare_rule_holds_for_any_row(self):
+        """Not specific to the badge - this is why the library raised at all."""
+        from sbs_utils.pages.layout.row import Row
+        bare = Row()
+        bare.background_color = "#1572"
+        with self.assertRaises(TypeError):
+            bare._pre_present(FakeEvent(CID, "test"))
+
+
+def get_tabs(cid):
+    from sbs_utils.procedural.inventory import get_inventory_value
+    return get_inventory_value(cid, "console_tabs", {}) or {}
+
+
+if __name__ == "__main__":
+    unittest.main()
