@@ -289,6 +289,26 @@ class TestWhereItSits(BadgeBase):
         self.assertEqual(self.page.gui_task.jumped, [],
                          "the status region must ignore a click aimed elsewhere")
 
+    def test_THE_CLICK_TAG_DOES_NOT_MOVE_BETWEEN_BUILDS(self):
+        """The region is re-created every build, and a Layout's default click tag is
+        `__click:{tag}` where tag is a build-order ordinal that jumps ~2100 each time.
+        So every visit to the PADD asked the engine for a NEW click region and left the
+        old one live.
+
+        Measured in a real session: presses arriving as `__click:68684` while the
+        current region was `81284`. The press is answered by a region that belongs to
+        nothing, this handler correctly ignores it, and the click is consumed rather
+        than reaching the bar's Back - one dead press per stale region, which is the
+        reported "N visits, N presses to get out".
+        """
+        first = self.padd_region().click_tag
+        self.page.identity_badge = None
+        second = self.padd_region().click_tag
+        self.assertEqual(first, second)
+        self.assertEqual(first, MSP.IDENTITY_CLICK_TAG)
+        self.assertNotIn("__click:", str(first),
+                         "a derived tag is a new engine region every build")
+
     def test_the_press_flash_is_not_opaque_white(self):
         """The engine default blanks whatever is under it while a finger is down."""
         region = self.padd_region()

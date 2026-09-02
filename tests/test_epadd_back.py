@@ -158,6 +158,58 @@ class TestOneTab(BackBase):
         self.assertEqual(self.labels(), ["away"])
 
 
+class TestTheClickTagDoesNotMoveBetweenBuilds(BackBase):
+    """A tab's click tag is keyed by its NAME, not by the build counter.
+
+    `get_tag()` is a build-order ordinal that jumps ~2100 every rebuild, so a fresh
+    click tag per build asked the engine for a NEW click region each time and left the
+    previous one live. A press could then be answered by a region belonging to a build
+    that no longer exists, and do nothing.
+
+    Measured in a real session: Back presses arriving as `9483` and `70583` while the
+    current build was at `15784` and `76884` - about three builds stale, each a press
+    that did nothing. That is the reported "Back takes several presses"; the ones that
+    worked were the ones that happened to land on the current build.
+    """
+
+    def build_back(self):
+        self.tab("engineering")
+        gui_tab_back("engineering")
+        cols = self.build()
+        return next(c for c in cols if getattr(c, "click_text", None) == "engineering")
+
+    def test_the_same_tab_keeps_the_same_click_tag(self):
+        first = self.build_back().click_tag
+        second = self.build_back().click_tag       # a second build of the same strip
+        self.assertEqual(first, second)
+
+    def test_it_is_not_a_build_counter(self):
+        """A bare ordinal is what moved. The name is what does not."""
+        tag = str(self.build_back().click_tag)
+        self.assertFalse(tag.isdigit(), tag)
+        self.assertIn("engineering", tag)
+
+    def test_two_tabs_still_differ(self):
+        """Stable must not mean shared - a tab appears once in a strip, so its name is
+        unique within a build."""
+        self.tab("engineering")
+        self.tab("science")
+        gui_tab_back("engineering")
+        set_inventory_value(CID, "console_tabs",
+                            {"engineering": True, "science": True})
+        self.page.pending_layouts = []
+        self.page.gui_queue_console_tabs()
+        padd = getattr(self.page, "identity_badge", None)
+        tags = []
+        for layout in self.page.pending_layouts:
+            if layout is padd or not getattr(layout, "rows", None):
+                continue
+            for c in layout.rows[0].columns:
+                if isinstance(c, TabControl):
+                    tags.append(c.click_tag)
+        self.assertEqual(len(tags), len(set(tags)), tags)
+
+
 class TestThePaddAddsNothing(BackBase):
     def test_a_screen_that_declares_no_tab_gets_no_tab(self):
         """The strip does not invent one. It used to synthesise a back entry from the

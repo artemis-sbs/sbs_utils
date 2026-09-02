@@ -123,6 +123,18 @@ IDENTITY_SLOTS = 3
 _SLOT_W = (100 - STRIP_LEFT) / STRIP_SLOTS
 IDENTITY_RIGHT = STRIP_LEFT + IDENTITY_SLOTS * _SLOT_W
 
+#: The status region's click tag, FIXED rather than derived.
+#:
+#: A Layout's default is `__click:{tag}`, and `tag` is a build-order ordinal that jumps
+#: ~2100 every rebuild - so each visit to the PADD asked the engine for a NEW click
+#: region and left the previous one live. A press answered by one of those reaches a
+#: region belonging to a build that is gone: the handler correctly ignores it, but the
+#: press is spent. Measured in a real session as `__click:68684` arriving while the
+#: current region was `81284`.
+#:
+#: One region, one name, reused every build.
+IDENTITY_CLICK_TAG = "epadd-status-region"
+
 # CLICK_HIGHLIGHT lives with the other design tokens in procedural/gui/epadd.py.
 
 
@@ -1008,7 +1020,19 @@ class StoryPage(Page):
             button.click_text = text
             button.click_color = "#FFF"
             button.click_background = CLICK_HIGHLIGHT
-            button.click_tag = self.get_tag()
+            # A STABLE CLICK TAG, keyed by the tab's NAME. `get_tag()` is a build-order
+            # ordinal that moves ~2100 every rebuild, so a fresh one per build asked the
+            # engine for a NEW click region each time and left the previous one live -
+            # and a press could then be answered by a region belonging to a build that
+            # is gone. Measured in a real session: Back presses arriving as `9483` and
+            # `70583` while the current build was at `15784` and `76884`, roughly three
+            # builds stale, each doing nothing. That is the reported "Back takes several
+            # presses": the ones that did nothing were answered by dead regions.
+            #
+            # The name is stable across builds and unique within one - a tab appears in
+            # the strip once - which is exactly what a click tag needs to be. Prefixed so
+            # it cannot collide with a generated ordinal.
+            button.click_tag = f"console-tab:{text}"
             button.background_color = "#999" if is_back else "#333"
             return button
 
@@ -1131,6 +1155,8 @@ class StoryPage(Page):
         # words - a press that flashes the crew member's own name back says nothing.
         layout.click_text = ""
         layout.click_background = CLICK_HIGHLIGHT
+        # A STABLE TAG - see IDENTITY_CLICK_TAG. Set before `_open` closes over it.
+        layout.click_tag = IDENTITY_CLICK_TAG
 
         # THE CALLBACK MUST CHECK THE TAG ITSELF. `Layout.on_message` calls
         # `on_message_cb` for EVERY event handed to it during the page's walk of the
@@ -1388,45 +1414,9 @@ class StoryPage(Page):
                 else:
                     self.gui_state = "presenting"
 
-    def _epadd_trace(self, event):
-        """TEMPORARY. One line per click while the ePADD is open.
-
-        Chasing a reported 1:1 - press the status region N times and it takes N presses
-        of the bar's Back to leave the console. A live repro against the mock shows every
-        library-side counter flat, and the mock cannot model engine sub-region or
-        click-region lifetime (see the gui_region ghost note), so this prints the counters
-        from a REAL session to tell those two apart.
-
-        `print`, not `log`: log() goes to Python logging with no handler and is invisible
-        in the engine.
-
-        If the counters are flat and only `regiontag` climbs, the accumulation is
-        engine-side. Delete this method and its call once that is settled.
-        """
-        try:
-            from ..procedural.gui.console_tab import gui_app_get_active
-            app = gui_app_get_active(self.client_id)
-            if not app:
-                return
-            task = self.gui_task
-            ticker = getattr(task, "active_ticker", None)
-            badge = getattr(self, "identity_badge", None)
-            print("EPADD-TRACE app=%s sub_tag=%s stack=%s poj=%s subtasks=%s "
-                  "onchange=%s layouts=%s tagmap=%s regiontag=%s"
-                  % (app, getattr(event, "sub_tag", None),
-                     len(getattr(task, "label_stack", []) or []),
-                     getattr(ticker, "pop_on_jump", "?"),
-                     len(getattr(task, "sub_tasks", []) or []),
-                     len(getattr(task, "on_change_items", []) or []),
-                     len(self.layouts or []), len(self.tag_map or {}),
-                     getattr(badge, "tag", None)))
-        except Exception as e:                      # a trace never breaks a console
-            print("EPADD-TRACE failed: %r" % (e,))
-
     def on_message(self, event):
         if event.client_id != self.client_id:
             return
-        self._epadd_trace(event)
 
         message_tag = event.sub_tag
         if message_tag == "$Error$resume":
