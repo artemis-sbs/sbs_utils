@@ -1809,6 +1809,44 @@ def grid_wear_shield_hit(ship_id, face):
     return grid_wear_system(ship_id, pool, WEAR_PER_SHIELD_HIT)
 
 
+def grid_wear_beam_hit(ship_id, count=1):
+    """Wear a ship's beam systems for landing `count` beam hits.
+
+    THE AMOUNT IS LOOKED UP HERE, which is the whole reason this exists. `WEAR_PER_*` are
+    module-level constants, and only FUNCTIONS become MAST globals - a constant named in
+    a `.mast` expression is a NameError, every time, at the moment the route fires. So
+    `grid_wear_system(id, "beam", WEAR_PER_BEAM_HIT)` in a route reads perfectly and
+    crashes on the first shot.
+
+    `grid_wear_shield_hit` and `grid_wear_travel` already had this shape; beams and tubes
+    did not, and those were the two routes that fired.
+
+    Args:
+        ship_id: the ship that fired.
+        count (int, optional): how many hits to charge for. Defaults to 1.
+
+    Returns:
+        int: how many nodes were worn.
+    """
+    return grid_wear_system(ship_id, "beam", WEAR_PER_BEAM_HIT, count)
+
+
+def grid_wear_tube_shot(ship_id, count=1):
+    """Wear a ship's torpedo systems for launching `count` rounds.
+
+    See `grid_wear_beam_hit` for why the amount is looked up here rather than passed in
+    from MAST.
+
+    Args:
+        ship_id: the ship that launched.
+        count (int, optional): how many launches to charge for. Defaults to 1.
+
+    Returns:
+        int: how many nodes were worn.
+    """
+    return grid_wear_system(ship_id, "torpedo", WEAR_PER_TUBE_SHOT, count)
+
+
 def grid_tune_grid_object(ship_id, node_id, who=None):
     """A node brought back to spec - what a maintenance order delivers.
 
