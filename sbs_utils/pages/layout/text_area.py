@@ -318,8 +318,14 @@ class TextArea(Control):
         "nh1":{"style": "font:gui-5;color:#bbb;", "prepend": "1", "indent": 0, "height": 32},
         "nh2":{"style": "font:gui-4;color:#bbb;", "prepend": "1", "indent": 0, "height": 28},
         "nh3":{"style": "font:gui-3;color:#bbb;", "prepend": "1", "indent": 0, "height": 24},
-        "p1":{"style":  "font:gui-2;color:#11f;", "prepend": "", "indent": 0, "height": 20},
-        "ul":{"style":  "font:gui-2;color:#11f;", "prepend": "-", "indent": 2, "height": 20},
+        # #8FA8FF, not #11f. Body text and bullets are what a text area is mostly
+        # MADE of, and a saturated blue on the near-black a console draws over is
+        # about 2.5:1 contrast - under the 4.5:1 that ordinary text needs to be
+        # comfortably readable. This periwinkle keeps the blue identity and measures
+        # ~9:1 on the same ground. Reported from play as "hard to read", which is
+        # exactly what a number that low predicts.
+        "p1":{"style":  "font:gui-2;color:#8FA8FF;", "prepend": "", "indent": 0, "height": 20},
+        "ul":{"style":  "font:gui-2;color:#8FA8FF;", "prepend": "-", "indent": 2, "height": 20},
         "ol":{"style":  "font:gui-2;color:white;", "prepend": "1", "indent": 2, "height": 20},
         "_" :{"style":  "font:gui-2;color:white;", "prepend": "", "indent": 0, "height": 20}
         }
