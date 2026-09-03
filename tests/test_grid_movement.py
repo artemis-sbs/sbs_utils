@@ -216,6 +216,68 @@ class GridMoverTest(unittest.TestCase):
         self.assertEqual(self._cell(go), (4, 9))
 
 
+class PathLengthTest(GridMoverTest):
+    """`path_length` - cells REMAINING, and the arrival signal the brains turn on.
+
+    Measured against the engine on 2026-09-03: across a real damcon traverse it read 14
+    at the moment the order landed and counted down by exactly 1 per cell, reaching 0 on
+    arrival.
+
+    This is not cosmetic. `ai_lifeform_move_to_location` treats `path_length < 0.01` as
+    HAVING ARRIVED, so while the mock left it unset the blob's typed default of 0 said
+    every team was already there - and the whole arrival/idle_state machine collapsed
+    with nothing failing anywhere.
+    """
+
+    def test_it_is_the_full_distance_when_the_order_lands(self):
+        go = self._team(7, 6)
+        self._order(go, 1, 14, 0.05)
+        self._run(1)
+        # Manhattan on an open map: |7-1| + |6-14|.
+        self.assertEqual(go.data_set.get("path_length", 0), 14)
+
+    def test_it_loses_exactly_one_per_cell(self):
+        go = self._team(7, 6)
+        self._order(go, 1, 14, 0.05)
+        seen = []
+        last = None
+        for _ in range(4000):
+            self._run(1)
+            cell = self._cell(go)
+            if cell != last:
+                seen.append(go.data_set.get("path_length", 0))
+                last = cell
+            if cell == (1, 14):
+                break
+        # 14 at the start cell, then one per step down to 0 - the engine's own trace.
+        self.assertEqual(seen, list(range(14, -1, -1)),
+                         "path_length did not count down one per step: %r" % (seen,))
+
+    def test_it_is_zero_on_arrival(self):
+        go = self._team(4, 3)
+        self._order(go, 4, 6, 0.5)
+        self._run(400)
+        self.assertEqual(self._cell(go), (4, 6))
+        self.assertEqual(go.data_set.get("path_length", 0), 0)
+
+    def test_it_counts_the_way_ROUND_a_bulkhead(self):
+        """A straight-line estimate would say 9 and be wrong by the whole detour."""
+        self.hm._walls = {(x, 5) for x in range(self.hm.w) if x != 9}
+        go = self._team(4, 0)
+        self._order(go, 4, 9, 0.5)
+        self._run(1)
+        direct = abs(4 - 4) + abs(0 - 9)
+        self.assertGreater(go.data_set.get("path_length", 0), direct,
+                           "path_length ignored the bulkhead")
+
+    def test_a_sealed_target_leaves_it_at_zero(self):
+        self.hm._walls = {(x, 5) for x in range(self.hm.w)}
+        go = self._team(4, 0)
+        self._order(go, 4, 9, 0.5)
+        self._run(50)
+        self.assertEqual(go.data_set.get("path_length", 0), 0)
+
+
 class GridMoverWiringTest(unittest.TestCase):
     """The mover is actually CALLED by the sim's physics tick.
 

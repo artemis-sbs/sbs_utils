@@ -4642,6 +4642,23 @@ def _grid_dist_field(hm, tx, ty):
     return dist
 
 
+def _grid_remaining(hm, cx, cy, tx, ty):
+    """Cells still to walk from (cx,cy) to (tx,ty), or None when there is no route.
+
+    This is `path_length`, and the engine's own value is exactly this: measured across a
+    real damcon traverse it counted 14 down to 0, losing exactly 1 per cell step and
+    hitting 0 on arrival. So it is the distance field read at the current cell, which the
+    router already computes - which also means it stays right around a bulkhead, where a
+    straight-line estimate would not.
+
+    It matters more than a status number: `ai_lifeform_move_to_location` treats
+    `path_length < 0.01` as HAVING ARRIVED. Left unset it reads 0 from the mock's typed
+    default, so a team is "there" the moment it is told to go, and the whole
+    arrival/idle_state machine collapses without anything failing.
+    """
+    return _grid_dist_field(hm, tx, ty).get((cx, cy))
+
+
 def _grid_next_cell(hm, cx, cy, tx, ty):
     """One four-connected step from (cx,cy) toward (tx,ty), engine tie-break.
 
@@ -4678,6 +4695,14 @@ def _grid_next_cell(hm, cx, cy, tx, ty):
     return None
 
 
+def _grid_set_path_length(hm, b, dest, at=None):
+    """Write `path_length` for a team at `at` (default: where the blob says it is)."""
+    if at is None:
+        at = (int(b.get("curx", 0) or 0), int(b.get("cury", 0) or 0))
+    left = _grid_remaining(hm, at[0], at[1], dest[0], dest[1])
+    b.set("path_length", 0 if left is None else left, 0)
+
+
 def _physics_grid_movers(dt: float) -> None:
     """Walk every grid object that has somewhere to be."""
     for hm in list(hull_map_objects.values()):
@@ -4697,6 +4722,9 @@ def _physics_grid_movers(dt: float) -> None:
                 go._dest = dest
                 b.set("pathx", -1, 0)
                 b.set("pathy", -1, 0)
+                # The engine reports the full distance from the moment the order lands,
+                # before a single cell is walked.
+                _grid_set_path_length(hm, b, dest)
             dest = getattr(go, "_dest", None)
             speed = b.get("move_speed", 0) or 0.0
             if dest is None or speed <= 0.0:
@@ -4707,6 +4735,7 @@ def _physics_grid_movers(dt: float) -> None:
                 go._dest = None
                 b.set("percent", 1.0, 0)
                 b.set("move_speed", 0, 0)
+                b.set("path_length", 0, 0)
                 continue
             pct = (b.get("percent", 0) or 0.0) + speed * dt * TICKS_PER_SECOND
             if pct < 1.0:
@@ -4718,6 +4747,7 @@ def _physics_grid_movers(dt: float) -> None:
                 go._dest = None
                 b.set("percent", 1.0, 0)
                 b.set("move_speed", 0, 0)
+                b.set("path_length", 0, 0)
                 continue
             b.set("curx", step[0], 0)
             b.set("cury", step[1], 0)
@@ -4730,8 +4760,10 @@ def _physics_grid_movers(dt: float) -> None:
                 go._dest = None
                 b.set("percent", 1.0, 0)
                 b.set("move_speed", 0, 0)
+                b.set("path_length", 0, 0)
             else:
                 b.set("percent", pct - 1.0, 0)
+                _grid_set_path_length(hm, b, dest, step)
 
 
 def _physics_tick_locked(dt: float) -> None:
