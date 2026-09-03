@@ -553,6 +553,30 @@ Properties:
     ->END
 ```
 
+A map can also declare **what the crew flies**, as a `Crew:` block beside `Properties:`
+and `Defaults:`:
+
+```
+@map/trial_ds9 "II - The Siege of Deep Space Nine"
+metadata:``` yaml
+Crew:
+  hull: tng_fed_defiant
+  side: federation
+```
+```
+
+`map_apply_crew` publishes it and `player_roster_apply` wears it, and the server console
+runs those two together while the picker is the only thing on screen - so the crew is
+seated **as the mission is selected**, not seconds into the map body. Re-hulling from a
+map BODY is too late: everyone has already spent the console-select screen looking at the
+ship they are about to stop flying.
+
+It is deliberately **not** a `Defaults:` entry. `Defaults:` is set-if-absent, so browsing
+the picker would pin whichever map was looked at first; `Crew:` always writes, and clears
+when the selected map declares none. The layer loses to a hull the crew picked themselves
+(lock the picker with `SHIP_PICK_READ_ONLY` if the map must win), and a hull that is not in
+the ship table is ignored with one warning.
+
 ### Media labels
 
 ```
