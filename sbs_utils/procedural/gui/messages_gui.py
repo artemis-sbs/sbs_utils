@@ -11,7 +11,7 @@ it and marks it read, which is what makes the unread badge on the tile mean anyt
 Composing is a `To` dropdown plus a line of text. Addressed to a CONSOLE, because that
 is what a person is sitting at - see `procedural/messages.py` for why not a crew name.
 """
-from ...helpers import FrameContext
+from ...helpers import FakeEvent, FrameContext
 from ..inventory import get_inventory_value, set_inventory_value
 from ..messages import (message_inbox, message_send, message_mark_read,
                         message_is_read, message_unread, message_choices,
@@ -356,6 +356,16 @@ def gui_messages_tick():
         pane.sub_section.rebuild()
         with pane:
             _reading_pane(inbox, lb)
+        # AND SEND IT. `rebuild()` empties the rows and the refill builds new widgets,
+        # but neither marks anything dirty - so the pane changed in the model and nothing
+        # reached the client. Reported as "selecting a message doesn't show the message",
+        # and measured: zero send_gui_* calls during a tick, three the moment this line
+        # is added.
+        #
+        # This is the half a mock cannot see. The model was right the whole time, which
+        # is why the tick's own tests passed.
+        pane.sub_section.invalidate_all()
+        pane.sub_section.represent(FakeEvent(page.client_id))
         changed = True
 
     unread = message_unread()

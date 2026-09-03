@@ -292,6 +292,35 @@ class TestItUpdatesInsteadOfRebuilding(ScreenBase):
         self.assertEqual(len(self.page.pending_layouts), self.layouts,
                          "a new layout means the page was rebuilt")
 
+    def test_SELECTING_A_MESSAGE_ACTUALLY_SENDS_IT(self):
+        """The bug this class did not catch the first time.
+
+        `rebuild()` empties the pane's rows and the refill builds new widgets, but
+        neither marks anything dirty - so the pane changed in the MODEL and nothing ever
+        reached the client. Reported from the engine as "selecting a message doesn't show
+        the message", and every test here passed throughout, because they all read the
+        model.
+
+        So this one counts what is put on the wire. Measured before the fix: zero.
+        """
+        for layout in self.page.pending_layouts:
+            layout.calc(CID)
+            layout.present(FakeEvent(CID))
+        oldest = message_inbox()[-1]
+        message_select(oldest.get("id"))
+
+        sent = []
+        real = sbs.send_gui_text
+        sbs.send_gui_text = (lambda cid, parent, tag, props, l, t, r, b:
+                             sent.append(props))
+        try:
+            messages_gui.gui_messages_tick()
+        finally:
+            sbs.send_gui_text = real
+        self.assertTrue(sent, "the pane was refilled but never transmitted")
+        self.assertTrue(any("First" in s for s in sent),
+                        "the selected message was not among what was sent: %r" % (sent,))
+
     def test_a_new_selection_refills_only_the_pane(self):
         oldest = message_inbox()[-1]
         message_select(oldest.get("id"))
