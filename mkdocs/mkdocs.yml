@@ -206,6 +206,7 @@ nav:
       - torpedoes: api/procedural/torpedoes.md
       - turret: api/procedural/turret.md
       - upgrades: api/procedural/upgrades.md
+      - work_orders: api/procedural/work_orders.md
       - urge: api/procedural/urge.md
       - volume: api/procedural/volume.md
       - web: api/procedural/web.md
