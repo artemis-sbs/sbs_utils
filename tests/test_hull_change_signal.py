@@ -7,7 +7,7 @@ runs again. That grace covers the setup screen. It does not cover a hull changed
 
 When the hull changes the engine re-sizes the ship's internal map, but the grid objects
 standing in it are the old hull's, so Engineering goes blank or wrong - and nothing is
-logged, because nothing noticed. Found on Cosmos-TNG-Missions, where all 8 trial maps
+logged, because nothing noticed. Found on GammaWithAQ, where all 8 trial maps
 seat the crew in a story hull minutes after spawn.
 
 ``set_ship_data_key`` is the single funnel every hull change passes through, so it is
