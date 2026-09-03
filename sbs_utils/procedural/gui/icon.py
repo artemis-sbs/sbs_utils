@@ -89,6 +89,57 @@ def gui_icon_name(name, color=None, style=None, props=None):
     return gui_icon(";".join(parts) + ";", style)
 
 
+def gui_icon_name_button(name, color=None, style=None, props=None, data=None,
+                         on_press=None, is_sub_task=None):
+    """`gui_icon_name`, but clickable - the button form of drawing an icon BY NAME.
+
+    Without this a caller that wanted a named icon it could press had to resolve the
+    sheet index itself and hand it to `gui_icon_button`, which is exactly the bare
+    index the name indirection exists to remove: a mission that re-skins the sheet
+    then moves every icon on the screen EXCEPT the ones you can click.
+
+    `data`/`on_press` behave as on `gui_button`, so a row of these built in a plain
+    `for` loop each knows which row it belongs to - the documented escape from the
+    for-loop handler trap.
+
+    An unknown name draws NOTHING and says so once, same as `gui_icon_name`: a wrong
+    icon is worse than a missing one because it looks deliberate.
+
+    Args:
+        name (str): a meaning or a look - see `icon_names.icon_names()`.
+        color (str, optional): tint.
+        style (str, optional): layout style.
+        props (str, optional): extra icon properties appended verbatim.
+        data (object, optional): carried by the widget; a dict is unpacked into the
+            handler's variables.
+        on_press (label | callable | Promise, optional): what a press does.
+        is_sub_task (bool, optional): how an `on_press` LABEL runs. See
+            `gui_icon_button`.
+
+    Returns:
+        IconButton | None
+    """
+    from .icon_sheet import icon_resolve
+    index, atlas_key = icon_resolve(name)
+    if index is None:
+        # An atlas-backed name resolves to an Image, which has no click path - so
+        # this cannot honor a re-skin yet. Saying so beats drawing something inert
+        # that looks like a button and is not.
+        from ..execution import log
+        if atlas_key is not None:
+            log(f"icon {name!r} is atlas art, which cannot be a button yet - nothing drawn",
+                "gui", "warning")
+        else:
+            log(f"no icon named {name!r} - nothing drawn", "gui", "warning")
+        return None
+    parts = [f"icon_index:{index}"]
+    if color:
+        parts.append(f"color:{color}")
+    if props:
+        parts.append(props.strip().strip(";"))
+    return gui_icon_button(";".join(parts) + ";", style, data, on_press, is_sub_task)
+
+
 def gui_icon_recolor(widget, color):
     """Tint an icon that is already on screen, whatever `gui_icon_name` gave back.
 

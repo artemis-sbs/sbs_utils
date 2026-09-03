@@ -59,6 +59,8 @@ MastGlobals.import_python_module('sbs_utils.procedural.spawn')
 
 MastGlobals.import_python_module('sbs_utils.procedural.grid')
 MastGlobals.import_python_module('sbs_utils.procedural.internal_damage')
+# After internal_damage: work_orders reads grid_node_state from it.
+MastGlobals.import_python_module('sbs_utils.procedural.work_orders')
 MastGlobals.import_python_module('sbs_utils.procedural.space_objects')
 MastGlobals.import_python_module('sbs_utils.procedural.roles')
 MastGlobals.import_python_module('sbs_utils.procedural.inventory')

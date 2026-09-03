@@ -717,6 +717,14 @@ def grid_merge_mod_theme(content):
     return themes
 
 _grid_theme_current = 0
+# Where a node's icon color falls back to when the theme names no color for a
+# condition tier. A theme re-skins these by adding a `worn_colors` / `tuned_colors`
+# map beside `colors` and `damage_colors`; no shipped theme has one yet, and none
+# has to - these are what makes the tiers work out of the box.
+GRID_WORN_COLOR = "Gold"
+GRID_TUNED_COLOR = "#40E0E0"
+
+
 def grid_get_grid_current_theme():
     """Get the currently active grid theme data.
 
@@ -734,7 +742,8 @@ def grid_get_grid_current_theme():
     # once any theme has loaded.
     if td:
         return td[0]
-    return {"name": "", "colors": {}, "damage_colors": {}, "icons": {}}
+    return {"name": "", "colors": {}, "damage_colors": {},
+            "worn_colors": {}, "tuned_colors": {}, "icons": {}}
 
 def grid_set_grid_current_theme(i):
     """Set the active grid theme by index.
@@ -843,39 +852,65 @@ def grid_get_item_theme_data(roles, name=None):
     """
     roles = roles.strip().lower().split(",") # Last is used first
     td = grid_get_grid_named_theme(name)
-    
-    icon = None # td["icons"].get("default", def_icon)
-    damage_color = None # icon["scale"]
-    color = None # td.get("default", "red")
+
+    # .get() on every map, not td["colors"]. The two condition tiers below are new
+    # keys, and NO shipped theme has them - neither `cosmos` nor `Retro` in
+    # data/grid_theme.json, nor the hardcoded empty fallback above. Subscripting
+    # would KeyError on every existing theme, and it also hardens the three original
+    # maps against a mod theme that omits one (grid_merge_mod_theme replaces a theme
+    # wholesale, by name).
+    icons = td.get("icons") or {}
+    colors = td.get("colors") or {}
+    damage_colors = td.get("damage_colors") or {}
+    worn_colors = td.get("worn_colors") or {}
+    tuned_colors = td.get("tuned_colors") or {}
+
+    icon = None
+    color = None
+    damage_color = None
+    worn_color = None
+    tuned_color = None
 
     for r in reversed(roles):
         r = r.strip()
         if icon is None:
-            icon = td["icons"].get(r, None)
+            icon = icons.get(r, None)
         if color is None:
-            color = td["colors"].get(r, None)
+            color = colors.get(r, None)
         if damage_color is None:
-            damage_color = td["damage_colors"].get(r, None)
-        if color is not None and icon is not None and damage_color is not None:
+            damage_color = damage_colors.get(r, None)
+        if worn_color is None:
+            worn_color = worn_colors.get(r, None)
+        if tuned_color is None:
+            tuned_color = tuned_colors.get(r, None)
+        if (color is not None and icon is not None and damage_color is not None
+                and worn_color is not None and tuned_color is not None):
             break
-    
+
     if icon is None:
         icon = {"icon": 120, "scale": 1.0}
     if color is None:
-        color = td["colors"].get("default", "red")
+        color = colors.get("default", "red")
     if damage_color is None:
-        damage_color = td["damage_colors"].get("default", "red")
+        damage_color = damage_colors.get("default", "red")
+    if worn_color is None:
+        worn_color = worn_colors.get("default", GRID_WORN_COLOR)
+    if tuned_color is None:
+        tuned_color = tuned_colors.get("default", GRID_TUNED_COLOR)
 
 
     class RetVal:
-        def __init__(self, i,s,c, d) -> None:
+        def __init__(self, i, s, c, d, w, t) -> None:
             self.icon = i
             self.scale = s
             self.color = c
             self.damage_color = d
-    
-    r = RetVal(icon["icon"], icon["scale"], color, damage_color)
-    
+            self.worn_color = w
+            self.tuned_color = t
+
+    r = RetVal(icon["icon"], icon["scale"], color, damage_color, worn_color,
+               tuned_color)
+
     return r
 
 def grid_delete_object(host_id_or_obj, id_or_obj):

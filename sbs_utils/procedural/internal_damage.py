@@ -5,7 +5,8 @@ from .inventory import get_inventory_value, set_inventory_value
 from .grid import (grid_objects, grid_objects_at, grid_closest, grid_get_grid_data,
                    grid_get_item_theme_data, grid_get_grid_current_theme,
                    grid_get_grid_named_theme, grid_get_layout, grid_get_theme_name,
-                   grid_delete_object, grid_valid_blob, grid_get_damcons)
+                   grid_delete_object, grid_valid_blob, grid_get_damcons,
+                   GRID_WORN_COLOR, GRID_TUNED_COLOR)
 from .spawn import grid_spawn
 from .comms import comms_broadcast
 from .settings import settings_get_defaults
@@ -1049,13 +1050,23 @@ def set_damage_coefficients(id_or_obj):
         _blob_name = system[1]
         _idx = system[2]
 
-        _undam = undamaged & all_roles(sys_role)
-        _dam = damaged & all_roles(sys_role)
-        _total = max(1, len(_dam)+len(_undam))
-        if (len(_undam) + len(_dam)) == 0:
+        pool = ship_gos & all_roles(sys_role)
+        total = len(pool)
+        if total == 0:
             _coef = 1.0
         else:
-            _coef = len(_undam) / _total
+            # A weighted mean over the pool, not a count of undamaged nodes: a
+            # damaged node contributes 0, a nominal one 1, a WORN one
+            # WEAR_WORN_FACTOR and a TUNED one 1 + WEAR_TUNED_BONUS - which is the
+            # only place the over-unity bonus can come from, capped so a fully tuned
+            # ship is exactly +10 percent and no arithmetic can make it more.
+            #
+            # With no wear anywhere every node weighs 1.0 or 0.0, so this is
+            # NUMERICALLY IDENTICAL to the len(undamaged)/total it replaced. That is
+            # what test_grid_wear pins, and it is why this is inert on every mission
+            # that never wears anything.
+            _coef = min(WEAR_COEFF_MAX,
+                        sum(grid_node_efficiency(i) for i in pool) / total)
         # do print(f"damage {_coef} {_blob_name}")
         blob.set(_blob_name, _coef, _idx)
 
@@ -1079,6 +1090,9 @@ def grid_damage_grid_object(ship_id, grid_id, damage_color):
     link(ship_id, "damage", grid_id) 
     add_role(grid_id, "__damaged__")
     remove_role(grid_id, "__undamaged__")
+    # Damage supersedes wear: a broken node is not also a tired one, and leaving
+    # __worn__ on it would have it counted in the worn pool AND the damaged one.
+    remove_role(grid_id, "__worn__")
 
 # def grid_mark_repaired_grid_object(ship_id, grid_id, repair_color):
 #     blob = to_blob(grid_id)
@@ -1263,6 +1277,8 @@ def grid_take_internal_damage_at(id_or_obj, source_point, system_hit=None, damag
             link(ship_id, "damage", go_id)
             add_role(go_id, "__damaged__")
             remove_role(go_id, "__undamaged__")
+            # Damage supersedes wear, same as grid_damage_grid_object.
+            remove_role(go_id, "__worn__")
         #
         # I all damage was new, we are done
         #
@@ -1365,13 +1381,17 @@ def grid_repair_grid_objects(player_ship, id_or_set, who_repaired=None):
     damcon_repairer = to_id(who_repaired)
     player_ship_id = to_id(player_ship)
 
+    # Local import: work_orders imports THIS module for grid_node_state, so a
+    # top-level import here would be a cycle.
+    from .work_orders import work_order_cancel, work_order_cancel_all, work_order_is_satisfied
+
     something_healed = False
     for id in at_point:
         #
         # Remove work order, even if no longer damaged
         # 
         if damcon_repairer is not None:
-            unlink(damcon_repairer, "work-order", id)
+            work_order_cancel(damcon_repairer, id)
 
         # Only deal with Damage
         if not has_role(id, "__damaged__"): continue 
@@ -1385,6 +1405,13 @@ def grid_repair_grid_objects(player_ship, id_or_set, who_repaired=None):
         remove_role(id, "__damaged__")
         add_role(id, "__undamaged__")
 
+        # The ORDER is done, not just this worker's part of it. Dropping only the
+        # repairer's own link left a SECOND team walking to a room that was already
+        # fixed: the role filter stopped them acting on it, silently, but the link
+        # itself never went away.
+        if work_order_is_satisfied(id):
+            work_order_cancel_all(id)
+
 
         # If hallway damage delete
         # else restore color and repair system
@@ -1395,12 +1422,17 @@ def grid_repair_grid_objects(player_ship, id_or_set, who_repaired=None):
         # This is a room, fix
         #
         else:
-            blob = to_blob(id)
-            color = get_inventory_value(id, "color")
-
-            if color is None:
-                color = "purple"
-            blob.set("icon_color", color, 0)
+            # A damage-control team PATCHES; a dockyard RESTORES. `damcon_repairer`
+            # is already the argument that tells the two apart - the brain passes the
+            # team, while docking and grid_repair_system_damage pass nothing - so a
+            # patched node comes back in service but WORN, and wants a maintenance
+            # pass before it is fully itself again. That is where the whole
+            # maintenance loop comes from: nothing invents work, damage does.
+            #
+            # grid_set_node_wear repaints through grid_node_apply_color, which is why
+            # there is no icon_color write here any more.
+            grid_set_node_wear(id, WEAR_AFTER_PATCH if damcon_repairer is not None
+                               else WEAR_NOMINAL, player_ship_id)
             if has_role(id, "sensor"):
                 system_heal = SBS.SHPSYS.SENSORS
             elif has_role(id, "weapon"):
@@ -1457,3 +1489,453 @@ def grid_count_grid_data(ship_key, role, default=0):
             count += 1
     
     return count
+
+
+
+# --- node condition ----------------------------------------------------------
+# A grid node has a CONDITION as well as a damage state. Damage is the two roles
+# `__damaged__`/`__undamaged__` the engine and every existing query already use;
+# condition is a wear value on top of that, and `__worn__` is its role. The two are
+# deliberately orthogonal - a worn node keeps `__undamaged__`, so nothing that counts
+# undamaged system nodes (the explode check, `system_damage[]`, every mission's own
+# `role("__undamaged__")`) changes meaning because a node got tired.
+#
+# Wear runs 0.0 (perfect) to 1.0 (worn out). The DEFAULT is WEAR_NOMINAL, not 0.0:
+# that is what makes the whole idea inert until something writes wear - an untouched
+# node reads nominal and weighs exactly 1.0 - and it means "tuned" has to be earned
+# rather than being the state everything spawns in.
+WEAR_TUNED_MAX = 0.10       # <= this is TUNED
+WEAR_NOMINAL = 0.25         # a fresh node, and what a DOCKYARD repair restores
+WEAR_WORN_MIN = 0.60        # >= this is WORN
+WEAR_AFTER_PATCH = 0.75     # a damcon patch: back in service, but worn
+
+# How fast wear ARRIVES. A node travels WEAR_NOMINAL -> WEAR_WORN_MIN, i.e. 0.35, so
+# every rate below reads as "0.35 / rate events to wear a node out". These are the
+# numbers to argue about in playtest, not in code review - grid_set_wear_tuning moves
+# them at runtime, and a mission can set its own in its map body.
+WEAR_UPKEEP_RATE = 0.005          # per sim-minute, EVERY node   -> ~70 min
+WEAR_PER_BEAM_HIT = 0.002         # per beam hit landed          -> ~175 hits
+WEAR_PER_TUBE_SHOT = 0.01         # per torpedo launched         -> ~35 shots
+WEAR_PER_SHIELD_HIT = 0.004       # per hit taken on that facing -> ~88 hits
+WEAR_PER_IMPULSE_MINUTE = 0.004   # at full impulse              -> ~88 min
+WEAR_PER_WARP_MINUTE = 0.02       # per warp factor over 1       -> ~18 min at warp 1
+
+# Kept as this module's names for the theme fallbacks, which live with the theme.
+GRID_WORN_COLOR_DEFAULT = GRID_WORN_COLOR
+GRID_TUNED_COLOR_DEFAULT = GRID_TUNED_COLOR
+
+# What each condition tier is WORTH. A worn node still works, just not as well; a
+# tuned one is the reward for maintaining it, and is the only source of over-unity.
+WEAR_WORN_FACTOR = 0.75
+WEAR_TUNED_BONUS = 0.10
+WEAR_COEFF_MAX = 1.0 + WEAR_TUNED_BONUS
+
+
+def grid_node_wear(id_or_obj):
+    """How worn a grid node is, 0.0 (perfect) to 1.0 (worn out).
+
+    A node nothing has ever worn reads WEAR_NOMINAL, so callers never have to
+    special-case "no wear recorded".
+
+    Args:
+        id_or_obj: The grid node (id or Agent).
+
+    Returns:
+        float: the node's wear.
+    """
+    return get_inventory_value(to_id(id_or_obj), "wear", WEAR_NOMINAL)
+
+
+def grid_node_state(id_or_obj):
+    """The node's condition as one word.
+
+    Damage wins over wear - a broken node is "damaged" whatever its wear says,
+    which is why grid_damage_grid_object clears `__worn__`.
+
+    Args:
+        id_or_obj: The grid node (id or Agent).
+
+    Returns:
+        str: "damaged", "worn", "tuned" or "nominal".
+    """
+    node_id = to_id(id_or_obj)
+    if has_role(node_id, "__damaged__"):
+        return "damaged"
+    wear = grid_node_wear(node_id)
+    if wear >= WEAR_WORN_MIN:
+        return "worn"
+    if wear <= WEAR_TUNED_MAX:
+        return "tuned"
+    return "nominal"
+
+def grid_node_efficiency(id_or_obj):
+    """What this node contributes to its system's effectiveness.
+
+    damaged 0.0 | worn WEAR_WORN_FACTOR | nominal 1.0 | tuned 1.0 + WEAR_TUNED_BONUS.
+
+    A node nothing has ever worn reads WEAR_NOMINAL and so weighs exactly 1.0 - which
+    is what makes the whole idea inert until something writes wear, and why
+    set_damage_coefficients produces numbers identical to the old undamaged/total
+    fraction on a ship that has never worn anything.
+    """
+    state = grid_node_state(id_or_obj)
+    if state == "damaged":
+        return 0.0
+    if state == "worn":
+        return WEAR_WORN_FACTOR
+    if state == "tuned":
+        return 1.0 + WEAR_TUNED_BONUS
+    return 1.0
+
+
+def grid_node_apply_color(id_or_obj, theme_name=None):
+    """THE place a grid node's icon color is decided.
+
+    Four tiers, one write point - so a node can never be drawn in a color that
+    disagrees with its condition:
+
+    * damaged -> the theme's ``damage_colors``
+    * worn    -> the theme's ``worn_colors`` (Gold by default)
+    * tuned   -> the theme's ``tuned_colors`` (cyan by default)
+    * nominal -> the node's OWN cached healthy color, from inventory ``color``,
+      written at spawn - so a re-skinned room keeps its own hue instead of being
+      flattened to a theme default.
+
+    Args:
+        id_or_obj: the grid node.
+        theme_name (str, optional): theme to read; None uses the current one.
+
+    Returns:
+        str | None: the color written, or None if there was no blob to write to.
+    """
+    node_id = to_id(id_or_obj)
+    blob = to_blob(node_id)
+    if blob is None:
+        return None
+    state = grid_node_state(node_id)
+    if state == "nominal":
+        color = get_inventory_value(node_id, "color", None) or "purple"
+    else:
+        # The node's own roles decide which shade of the tier it takes, the same way
+        # its healthy color was chosen at spawn.
+        agent = Agent.get(node_id)
+        roles = ",".join(agent.get_roles()) if agent is not None else ""
+        theme = grid_get_item_theme_data(roles, theme_name)
+        if state == "damaged":
+            color = get_inventory_value(node_id, "damage_color", None) or theme.damage_color
+        elif state == "worn":
+            color = theme.worn_color
+        else:
+            color = theme.tuned_color
+    blob.set("icon_color", color, 0)
+    return color
+
+
+def grid_set_node_wear(id_or_obj, value, ship_id=None):
+    """Set a node's wear, reconciling everything that follows from it.
+
+    The ONLY writer. It clamps, stores, adds or removes ``__worn__``, repaints
+    through grid_node_apply_color, and recomputes the ship's coefficients - but only
+    when the ROLE actually flipped, so wear moving within a band costs one dict write
+    and nothing else.
+
+    ``__worn__`` never coexists with ``__damaged__``: damage supersedes wear, and a
+    worn node keeps ``__undamaged__`` so nothing that counts undamaged system nodes
+    changes meaning because a node got tired.
+
+    Args:
+        id_or_obj: the grid node.
+        value (float): the new wear, clamped to 0.0 - 1.0.
+        ship_id (optional): the host, for the coefficient recompute. Read from the
+            node when not given.
+
+    Returns:
+        float: the wear actually stored.
+    """
+    node_id = to_id(id_or_obj)
+    node = to_object(node_id)
+    if node is None:
+        return 0.0
+    value = max(0.0, min(1.0, float(value)))
+    set_inventory_value(node_id, "wear", value)
+
+    was_worn = has_role(node_id, "__worn__")
+    should_be_worn = value >= WEAR_WORN_MIN and not has_role(node_id, "__damaged__")
+    if should_be_worn and not was_worn:
+        add_role(node_id, "__worn__")
+    elif was_worn and not should_be_worn:
+        remove_role(node_id, "__worn__")
+
+    grid_node_apply_color(node_id)
+
+    # Only a tier change moves a coefficient, and this can run per node per minute.
+    if was_worn != should_be_worn:
+        host = ship_id if ship_id is not None else getattr(node, "host_id", None)
+        if host is not None:
+            set_damage_coefficients(host)
+    return value
+
+
+def grid_add_node_wear(id_or_obj, amount, ship_id=None):
+    """Add to a node's wear. Negative restores it."""
+    return grid_set_node_wear(id_or_obj, grid_node_wear(id_or_obj) + amount, ship_id)
+
+
+def grid_wear_system(ship_id, sys_role, amount, count=1):
+    """Wear `count` random working nodes of a system.
+
+    Random rather than spread evenly: wearing every node a hair each time would move
+    a whole pool across the threshold together, so the ship would go from fine to
+    fully worn in one tick with nothing in between.
+
+    Damaged nodes are skipped - they are already at zero effectiveness, so wear on
+    them would mean nothing and would be lost the moment they were repaired.
+
+    Args:
+        ship_id: the ship.
+        sys_role (str): a role or comma-separated roles, e.g. "beam", "shield,fwd".
+        amount (float): wear to add to each chosen node.
+        count (int, optional): how many nodes. Defaults to 1.
+
+    Returns:
+        int: how many nodes were worn.
+    """
+    pool = list(grid_objects(ship_id) & all_roles(sys_role) & role("__undamaged__"))
+    if not pool:
+        return 0
+    count = max(1, count)
+    random.shuffle(pool)
+    for node_id in pool[:count]:
+        grid_add_node_wear(node_id, amount, ship_id)
+    return min(len(pool), count)
+
+
+def grid_wear_upkeep(ship_id, amount=None):
+    """Age every working node on a ship by one upkeep step.
+
+    Args:
+        ship_id: the ship.
+        amount (float, optional): defaults to WEAR_UPKEEP_RATE.
+
+    Returns:
+        int: how many nodes were aged.
+    """
+    if amount is None:
+        amount = WEAR_UPKEEP_RATE
+    nodes = grid_objects(ship_id) & role("__undamaged__")
+    for node_id in nodes:
+        grid_add_node_wear(node_id, amount, ship_id)
+    return len(nodes)
+
+
+def grid_wear_travel(ship_id, throttle=None):
+    """Wear the drive a ship is actually using, for one minute of travel.
+
+    ``playerThrottle`` is <= 1.0 for impulse and > 1.0 for warp (the mock's model is
+    calibrated against the engine's own speed capture), so this splits the wear
+    between the impulse and warp pools rather than charging both.
+
+    The read is coalesced because **the engine answers None for a blob field nothing
+    has set** - a ship sitting still since spawn has never had a throttle written.
+    An unguarded compare is ``None > 1.0`` on a real bridge, and since a failing
+    expression stops the command, the caller would simply stop working with no
+    symptom beyond "wear stopped happening".
+
+    Args:
+        ship_id: the ship.
+        throttle (float, optional): override, for tests. Read from the blob when None.
+
+    Returns:
+        str | None: which pool was worn - "warp", "impulse", or None when stopped.
+    """
+    if throttle is None:
+        blob = to_blob(ship_id)
+        throttle = 0 if blob is None else blob.get("playerThrottle", 0)
+    throttle = throttle or 0
+    if throttle > 1.0:
+        grid_wear_system(ship_id, "warp", WEAR_PER_WARP_MINUTE * (throttle - 1.0))
+        return "warp"
+    if throttle > 0.0:
+        grid_wear_system(ship_id, "impulse", WEAR_PER_IMPULSE_MINUTE * throttle)
+        return "impulse"
+    return None
+
+
+def grid_wear_shield_hit(ship_id, face):
+    """Wear the shield facing that took a hit.
+
+    Args:
+        ship_id: the ship that was hit.
+        face (int): 0 forward, anything else aft - the same two pools
+            set_damage_coefficients writes as shield_damage_coeff[0] and [1].
+
+    Returns:
+        int: how many nodes were worn.
+    """
+    pool = "shield,fwd" if face == 0 else "shield,aft"
+    return grid_wear_system(ship_id, pool, WEAR_PER_SHIELD_HIT)
+
+
+def grid_tune_grid_object(ship_id, node_id, who=None):
+    """A node brought back to spec - what a maintenance order delivers.
+
+    Wear to zero, ``__worn__`` off, drawn in the tuned color, coefficients
+    recomputed, and the order closed for EVERY team on it rather than just whoever
+    happened to be standing there.
+
+    Args:
+        ship_id: the host ship.
+        node_id: the node to tune.
+        who (optional): the team that did it, carried on the signal.
+
+    Returns:
+        bool: whether anything was tuned.
+    """
+    from .work_orders import work_order_cancel_all
+    if to_object(node_id) is None:
+        return False
+    grid_set_node_wear(node_id, 0.0, ship_id)
+    work_order_cancel_all(node_id)
+    set_damage_coefficients(ship_id)
+    signal_emit("grid_node_tuned", {"SHIP_ID": to_id(ship_id),
+                                    "NODE_ID": to_id(node_id),
+                                    "WHO_ID": to_id(who)})
+    return True
+
+
+def grid_set_wear_tuning(worn_factor=None, tuned_bonus=None, worn_min=None,
+                         tuned_max=None, upkeep_rate=None, **rates):
+    """Retune the wear model for a mission that wants different numbers.
+
+    ``grid_set_wear_tuning(tuned_bonus=0.0)`` gives strict parity with the old
+    coefficients even on a ship with tuned nodes - the escape hatch for a mission
+    that wants the maintenance loop without any over-unity.
+
+    Any arrival RATE can be passed by its short name as a keyword, so a mission tunes
+    the feel without touching the library::
+
+        grid_set_wear_tuning(beam_hit=0.0005, warp_minute=0.05)
+        grid_set_wear_tuning(upkeep_rate=0)     # no time-based upkeep at all
+
+    An unknown rate name is a warning, not a silent no-op - a typo here would look
+    exactly like "the dial does nothing".
+    """
+    global WEAR_WORN_FACTOR, WEAR_TUNED_BONUS, WEAR_COEFF_MAX
+    global WEAR_WORN_MIN, WEAR_TUNED_MAX, WEAR_UPKEEP_RATE
+    global WEAR_PER_BEAM_HIT, WEAR_PER_TUBE_SHOT, WEAR_PER_SHIELD_HIT
+    global WEAR_PER_IMPULSE_MINUTE, WEAR_PER_WARP_MINUTE
+    if worn_factor is not None:
+        WEAR_WORN_FACTOR = worn_factor
+    if tuned_bonus is not None:
+        WEAR_TUNED_BONUS = tuned_bonus
+        WEAR_COEFF_MAX = 1.0 + tuned_bonus
+    if worn_min is not None:
+        WEAR_WORN_MIN = worn_min
+    if tuned_max is not None:
+        WEAR_TUNED_MAX = tuned_max
+    if upkeep_rate is not None:
+        WEAR_UPKEEP_RATE = upkeep_rate
+    for _name, _value in rates.items():
+        _key = _name.upper() if _name.startswith("WEAR_") else "WEAR_PER_" + _name.upper()
+        if _key not in globals():
+            log(f"grid_set_wear_tuning: no rate named {_name!r}", "grid", "warning")
+            continue
+        globals()[_key] = _value
+
+
+# --- system indicators -------------------------------------------------------
+# What each of a ship's system pools is worth right now, as data. The cockpit HUD
+# has had this for a while (LM hangar.py) as a two-state ok/hurt row; Engineering
+# needs the same answer with the wear tiers in it, and two copies of "which nodes
+# count as weapons" is one too many. This is the promoted model - the GUI half
+# (drawing the glyphs, recoloring them) stays with whoever draws them.
+#
+# Nothing here writes. An indicator that could disagree with the grid it is
+# reporting on would be worse than no indicator, so this reads the same roles the
+# grid draws from and the same theme colors it draws in.
+#
+# Icons are asked for BY NAME (procedural/gui/icon_sheet), so a mission that
+# re-skins the sheet moves these with it and no caller carries a bare sheet index.
+GRID_SYSTEM_ICONS = (
+    ("weapon", "turret"),
+    ("engine", "turbine"),
+    ("sensor", "radar"),
+    ("shield", "shield"),
+)
+
+# Where an indicator falls back to when the theme has nothing to say. `system` is
+# the shipped cosmos theme's healthy color; the other three are the tiers.
+GRID_SYSTEM_OK_COLOR = "springgreen"
+GRID_SYSTEM_HURT_COLOR = "Crimson"
+
+
+def grid_system_states(id_or_obj):
+    """What each of the ship's system pools is worth right now.
+
+    Only pools the ship actually HAS are returned - a fighter with no shield rooms
+    gets no shield light rather than a permanently-green one for a system it cannot
+    lose. Order is fixed by GRID_SYSTEM_ICONS so a row built from this never
+    reshuffles under the player between repaints.
+
+    Args:
+        id_or_obj: The ship (id, Agent or SpaceObject).
+
+    Returns:
+        list[dict]: one per pool, with ``role``, ``icon``, ``hurt``, ``worn``,
+        ``tuned``, ``total``, ``state`` ("hurt"/"worn"/"tuned"/"ok") and the theme
+        ``color`` to draw it in.
+    """
+    out = []
+    ship_id = to_id(id_or_obj)
+    if not ship_id:
+        return out
+    nodes = grid_objects(ship_id)
+    if not nodes:
+        return out
+    theme = grid_get_grid_current_theme()
+    ok_color = (theme.get("colors") or {}).get("system", GRID_SYSTEM_OK_COLOR)
+    hurt_color = (theme.get("damage_colors") or {}).get("default", GRID_SYSTEM_HURT_COLOR)
+    worn_color = (theme.get("worn_colors") or {}).get("default", GRID_WORN_COLOR_DEFAULT)
+    tuned_color = (theme.get("tuned_colors") or {}).get("default", GRID_TUNED_COLOR_DEFAULT)
+    damaged = nodes & role("__damaged__")
+    worn_nodes = nodes & role("__worn__")
+    for role_name, icon_name in GRID_SYSTEM_ICONS:
+        pool = nodes & role(role_name)
+        total = len(pool)
+        if total == 0:
+            continue
+        hurt = len(pool & damaged)
+        worn = len(pool & worn_nodes)
+        tuned = sum(1 for i in pool if grid_node_state(i) == "tuned")
+        # Worst-first: a pool with anything broken reads broken, whatever else is
+        # tuned in it. "tuned" is only claimed when the WHOLE pool is.
+        if hurt:
+            state, color = "hurt", hurt_color
+        elif worn:
+            state, color = "worn", worn_color
+        elif tuned == total:
+            state, color = "tuned", tuned_color
+        else:
+            state, color = "ok", ok_color
+        out.append({"role": role_name, "icon": icon_name, "hurt": hurt,
+                    "worn": worn, "tuned": tuned, "total": total,
+                    "state": state, "color": color})
+    return out
+
+
+def grid_system_signature(id_or_obj):
+    """A value that CHANGES whenever an indicator row should be redrawn.
+
+    For ``on change grid_system_signature(ship_id):`` - the polling form, which is
+    what a console layout can actually use. A ``//damage/internal`` route fires on
+    the SERVER and would not repaint a client's panel; ``on change`` re-evaluates on
+    the console itself and so cannot miss a hit.
+
+    Args:
+        id_or_obj: The ship (id, Agent or SpaceObject).
+
+    Returns:
+        str: e.g. ``"weapon1/0/0/6,engine0/1/0/4"`` - hurt/worn/tuned/total per pool.
+    """
+    return ",".join(f"{s['role']}{s['hurt']}/{s['worn']}/{s['tuned']}/{s['total']}"
+                    for s in grid_system_states(id_or_obj))

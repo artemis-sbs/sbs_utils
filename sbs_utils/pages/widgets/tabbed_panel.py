@@ -33,7 +33,9 @@ class TabbedPanel(layout.Column):
         self.tab_location = tab_location
         self.icon_size = icon_size if icon_size >0 else 30
         self.default_tab = 0
-        
+        # The path of the tab currently presented; present_panel keeps it current.
+        self.current_path = None
+
         self.panels = panels
         self.sec = None
         self.tick_task = None
@@ -82,9 +84,22 @@ class TabbedPanel(layout.Column):
         path = panel.get("path")
         self.set_tab_tick_cb(panel.get("tick"))
 
+        # Which tab is showing, for our own callers to read. Always recorded.
+        self.current_path = path
+
+        # $INFO_PATH is a single SHARED task variable, and the standard message/log tab
+        # functions read it at TICK time, not at show time. A console that also builds a
+        # second, private tabbed panel (Engineering's grid panel) would otherwise leave
+        # its own path there, so the info panel's tick reads a queue that does not exist,
+        # returns 0, and set_tab(default_tab) bounces that panel back to ship data once a
+        # second. Only the page's INFO panel owns the shared name.
         task = gui_task_for_client(CID)
         if task is not None:
-            task.set_variable("$INFO_PATH", path) 
+            owner = FrameContext.page
+            if (owner is None
+                    or getattr(owner, "info_panel", None) is self
+                    or getattr(owner, "pending_info_panel", None) is self):
+                task.set_variable("$INFO_PATH", path)
 
         self.sec = None
         if show is not None:
