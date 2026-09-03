@@ -289,16 +289,29 @@ def torpedo_make_available(id, key:str, count:int=0, fill:bool=True) -> None:
     if key not in type_list:
         type_list.append(key)
         set_data_set_value(id, "torpedo_types_available", ",".join(type_list))
-    # OUTSIDE the membership test, deliberately. Being LISTED and having CAPACITY are two
-    # different facts, and shipData sets the first without the second: a `torpedostart`
-    # entry of `Nuke: 0` writes Nuke_MAX 0 and still puts "Nuke" in this list
-    # (ship_data.py), after which this function was a permanent no-op for that key - the
-    # tube drew, hard-capped at 0/0, and no station or prefab could ever grant it. Both
-    # LegendaryMissions callers guard with "only if _MAX is 0", so they were asking for
-    # precisely the case that was silently refused.
-    set_data_set_value(id, f"{key}_MAX", count)
-    if fill:  # Set count to max number
-        set_data_set_value(id, f"{key}_NUM", count)
+        set_data_set_value(id, f"{key}_MAX", count)
+        if fill:  # Set count to max number
+            set_data_set_value(id, f"{key}_NUM", count)
+    # INSIDE the membership test, and that is load-bearing: THE HULL DECIDES WHAT IT
+    # CARRIES.
+    #
+    # `torpedostart` in shipData is a per-hull declaration and the stock data means it
+    # precisely - a tsn_fighter is `Homing 5, Nuke 0, EMP 0, Mine 0, PShock 0, Tag 0`, and
+    # a tsn_shuttle is zero of everything. `ship_data.py` writes `{type}_MAX` and the
+    # available-types list from exactly that, so a declared 0 means "this hull does not
+    # carry this round", not "nobody has filled it in yet".
+    #
+    # This write was briefly moved OUT of the test, so a type already listed could have
+    # its capacity granted anyway. That reads reasonable and is not: LegendaryMissions'
+    # spawn loop grants every type matching the ship's SIDE, guarded on
+    # `counts[1] == 0` - which a declared zero satisfies. So every hull that shipData says
+    # carries none of something was handed ten of it, and a shuttle came out armed.
+    # Reported from the TNG playtest as a Galaxy showing Homing/Nuke/EMP/Mine/PShock all
+    # at 10/10 beside its real Photon 16/16.
+    #
+    # A type the hull does NOT list is still grantable - it falls in the branch above,
+    # which is how a mod adds Quantum to a Defiant or a prefab hands out a new round. What
+    # cannot happen any more is overruling a hull that has already answered.
 
 def torpedo_make_unavailable(id, key:str) -> None:
     """Remove a torpedo type from a player ship's loadout and zero its count.
