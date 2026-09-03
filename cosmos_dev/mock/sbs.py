@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import List
 from sbs_utils.vec import Vec3
 
+import collections
 import math
 import os
 import queue
@@ -1619,6 +1620,10 @@ class grid_object(object): ### from pybind
         self._layer = 0
         self._id = _grid_object_ids
         _grid_object_ids += 1
+        # Where it was told to walk. pathx/pathy is a one-shot COMMAND the engine
+        # consumes (it writes -1 back within a tick); the destination itself is
+        # remembered engine-side, so the mock keeps it here.
+        self._dest = None
 
     @property
     def data_set(self: grid_object) -> object_data_set:
@@ -4586,6 +4591,149 @@ def physics_tick(dt: float = 1.0 / 60.0) -> None:
         _IN_PHYSICS = False
 
 
+# ---------------------------------------------------------------------------
+# Grid-object movement - damage-control teams walking a ship interior.
+#
+# MEASURED AGAINST THE ENGINE (2026-09-03) by driving a real LM damcon across a
+# tsn_battle_cruiser and sampling its blob on the engine's own tick. The route from
+# (4,3) to (8,14) came back as:
+#
+#   (4,3) (4,4) (4,5) (4,6) (4,7) (4,8) (4,9) (4,10)
+#   (5,10) (5,11) (6,11) (6,12) (7,12) (7,13) (8,13) (8,14)
+#
+# which is four-connected throughout - no diagonals - and is reproduced cell for cell
+# by "step the axis with the larger remaining delta, ties to x".
+#
+# Three more things the probe settled, each of which the mock got wrong by doing
+# nothing at all:
+#
+#   * `pathx`/`pathy` is a one-shot COMMAND. The engine consumes it and writes -1 back
+#     within a tick, then remembers the destination itself. So a caller cannot read
+#     back where a team is headed, and `grid_target_pos`'s "already going there" test
+#     never matches - it re-issues every call, which is harmless and expected.
+#   * `percent` is the progress of the CURRENT one-cell step and advances by
+#     `move_speed` per 30Hz tick. At move_speed 0.05 the team covered ~1.4 cells/sec,
+#     i.e. move_speed x TICKS_PER_SECOND. The library default of 0.01 is ~3.3s a cell.
+#   * `lastx`/`lasty` TRACK `curx`/`cury` - they are not a from/to pair for
+#     interpolation, as the names suggest. Both read the same cell the whole way.
+#
+# Until this existed a damcon never moved in the mock, so nothing headless could reach
+# an arrival: `grid_arrive_location` never fired and a repair could not be driven to
+# completion. That is why the standing advice was "never gate progress on repair alone".
+# ---------------------------------------------------------------------------
+def _grid_dist_field(hm, tx, ty):
+    """Steps-to-target for every open cell, by breadth-first search from the target."""
+    w, h = getattr(hm, "w", 0) or 0, getattr(hm, "h", 0) or 0
+    if not w or not h or not hm.is_grid_point_open(tx, ty):
+        return {}
+    dist = {(tx, ty): 0}
+    q = collections.deque([(tx, ty)])
+    while q:
+        x, y = q.popleft()
+        d = dist[(x, y)] + 1
+        for nxt in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            nx, ny = nxt
+            if nxt in dist or not (0 <= nx < w and 0 <= ny < h):
+                continue
+            if not hm.is_grid_point_open(nx, ny):
+                continue
+            dist[nxt] = d
+            q.append(nxt)
+    return dist
+
+
+def _grid_next_cell(hm, cx, cy, tx, ty):
+    """One four-connected step from (cx,cy) toward (tx,ty), engine tie-break.
+
+    A DISTANCE FIELD, not a greedy walk. Only neighbours strictly closer to the target
+    are eligible, so a team can never cycle; among those the engine's own preference -
+    the axis with the larger remaining delta, ties to x - picks which one, and on an
+    unobstructed interior every monotone neighbour is eligible, so that preference alone
+    decides and the measured route comes out cell for cell.
+
+    Greedy-with-a-fallback is the obvious implementation and it DEADLOCKS: at a bulkhead
+    the fallback steps aside, the next greedy step steps straight back, and the team
+    ping-pongs between two cells forever. Two tests here pin that (`test_routes_around_a
+    _bulkhead`, `test_a_sealed_target_stops_the_team`); both failed against the greedy
+    version.
+    """
+    if (cx, cy) == (tx, ty):
+        return None
+    dist = _grid_dist_field(hm, tx, ty)
+    here = dist.get((cx, cy))
+    if here is None:
+        return None                     # sealed off - no route exists at all
+    dx, dy = tx - cx, ty - cy
+    sx = (dx > 0) - (dx < 0)
+    sy = (dy > 0) - (dy < 0)
+    # The engine's preference order, best first.
+    order = []
+    if sx and (abs(dx) >= abs(dy) or not sy):
+        order = [(cx + sx, cy), (cx, cy + sy)]
+    elif sy:
+        order = [(cx, cy + sy), (cx + sx, cy)]
+    for cell in order + [(cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)]:
+        if dist.get(cell) == here - 1:
+            return cell
+    return None
+
+
+def _physics_grid_movers(dt: float) -> None:
+    """Walk every grid object that has somewhere to be."""
+    for hm in list(hull_map_objects.values()):
+        items = getattr(hm, "grid_items", None)
+        if not items:
+            continue
+        for go in list(items):
+            b = go._data_set
+            px, py = b.get("pathx", 0), b.get("pathy", 0)
+            if px is not None and py is not None and px >= 0 and py >= 0:
+                dest = (int(px), int(py))
+                if dest != go._dest:
+                    # A new order restarts the current step. At rest percent reads 1.0;
+                    # the engine showed it running 0.05, 0.10 ... from the order, so a
+                    # team does not get a free first cell out of the resting value.
+                    b.set("percent", 0.0, 0)
+                go._dest = dest
+                b.set("pathx", -1, 0)
+                b.set("pathy", -1, 0)
+            dest = getattr(go, "_dest", None)
+            speed = b.get("move_speed", 0) or 0.0
+            if dest is None or speed <= 0.0:
+                continue
+            cx = int(b.get("curx", 0) or 0)
+            cy = int(b.get("cury", 0) or 0)
+            if (cx, cy) == dest:
+                go._dest = None
+                b.set("percent", 1.0, 0)
+                b.set("move_speed", 0, 0)
+                continue
+            pct = (b.get("percent", 0) or 0.0) + speed * dt * TICKS_PER_SECOND
+            if pct < 1.0:
+                b.set("percent", pct, 0)
+                continue
+            step = _grid_next_cell(hm, cx, cy, dest[0], dest[1])
+            if step is None:
+                # Walled off with no route at all - stop rather than spin forever.
+                go._dest = None
+                b.set("percent", 1.0, 0)
+                b.set("move_speed", 0, 0)
+                continue
+            b.set("curx", step[0], 0)
+            b.set("cury", step[1], 0)
+            b.set("lastx", step[0], 0)
+            b.set("lasty", step[1], 0)
+            if step == dest:
+                # Settle on the tick it lands, not the one after. A caller that watches
+                # for the arrival cell and then reads move_speed would otherwise see the
+                # team still under way for one tick after it had plainly stopped.
+                go._dest = None
+                b.set("percent", 1.0, 0)
+                b.set("move_speed", 0, 0)
+            else:
+                b.set("percent", pct - 1.0, 0)
+
+
 def _physics_tick_locked(dt: float) -> None:
     """The body of physics_tick - see it for the contract."""
     global sim
@@ -4660,6 +4808,9 @@ def _physics_tick_locked(dt: float) -> None:
 
         # 2b. Tractor beams — pull connected targets toward their source point.
         _physics_tractors(sim, dt)
+
+        # 2c. Grid movers - damcon teams walking the interior.
+        _physics_grid_movers(dt)
 
         # 3. Collision — spatial hash; active-active + active-terrain only.
         _physics_collision(sim, active)
