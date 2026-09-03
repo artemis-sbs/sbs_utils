@@ -1070,6 +1070,34 @@ def set_damage_coefficients(id_or_obj):
         # do print(f"damage {_coef} {_blob_name}")
         blob.set(_blob_name, _coef, _idx)
 
+def _grid_promote_maintenance_to_repair(node_id):
+    """A node under a TUNE order just broke - the order becomes a REPAIR order.
+
+    Local import: work_orders imports this module for grid_node_state, so a
+    top-level import would be a cycle.
+
+    Without this the order keeps its `maintain` kind, and `work_order_is_satisfied`
+    for maintenance asks "is it tuned" - which a broken node never is - so the team
+    keeps walking to it and `ai_tune_node` tries to tune something in pieces.
+    """
+    try:
+        from .work_orders import (work_order_get, work_order_set_priority,
+                                  KIND_REPAIR, KIND_MAINTAIN, MAINTENANCE_ROLE,
+                                  PRIORITY_NORMAL)
+    except ImportError:                             # pragma: no cover
+        return
+    order = work_order_get(node_id)
+    if order is None or order.get("kind") != KIND_MAINTAIN:
+        return
+    remove_role(node_id, MAINTENANCE_ROLE)
+    set_inventory_value(node_id, "work_order",
+                        {"kind": KIND_REPAIR,
+                         # A repair on something a team was already sent to is worth
+                         # at least the normal rung; maintenance defaults to LOW and
+                         # would leave a live break at the bottom of the list.
+                         "priority": max(order.get("priority", 0), PRIORITY_NORMAL)})
+
+
 def grid_damage_grid_object(ship_id, grid_id, damage_color):
     """Mark a grid object as damaged and apply a damage color to its icon.
 
@@ -1093,6 +1121,10 @@ def grid_damage_grid_object(ship_id, grid_id, damage_color):
     # Damage supersedes wear: a broken node is not also a tired one, and leaving
     # __worn__ on it would have it counted in the worn pool AND the damaged one.
     remove_role(grid_id, "__worn__")
+    # A tune job on a node that just broke is now a REPAIR job - the work got more
+    # urgent, not irrelevant. Promoting it keeps the team that was already sent here
+    # walking, and stops ai_tune_node trying to tune something that is in pieces.
+    _grid_promote_maintenance_to_repair(grid_id)
 
 # def grid_mark_repaired_grid_object(ship_id, grid_id, repair_color):
 #     blob = to_blob(grid_id)
@@ -1279,6 +1311,7 @@ def grid_take_internal_damage_at(id_or_obj, source_point, system_hit=None, damag
             remove_role(go_id, "__undamaged__")
             # Damage supersedes wear, same as grid_damage_grid_object.
             remove_role(go_id, "__worn__")
+            _grid_promote_maintenance_to_repair(go_id)
         #
         # I all damage was new, we are done
         #

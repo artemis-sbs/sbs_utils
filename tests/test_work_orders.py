@@ -247,12 +247,18 @@ class TestSatisfied(WorkOrderBase):
         Agent.get(node).remove_role("__damaged__")
         self.assertTrue(W.work_order_is_satisfied(node))
 
-    def test_maintenance_is_satisfied_when_the_node_is_no_longer_worn(self):
+    def test_maintenance_is_satisfied_only_when_the_node_is_TUNED(self):
+        """Not merely when it stopped being worn. Reading it that way made an order
+        on a nominal node complete on its first read, so a healthy system could
+        never be tuned at all."""
         node = self.worn(0)
         W.work_order_add(self.team(1), node)
         self.assertFalse(W.work_order_is_satisfied(node))
         Agent.get(node).remove_role("__worn__")
         set_inventory_value(node, "wear", WEAR_NOMINAL)
+        self.assertFalse(W.work_order_is_satisfied(node),
+                         "back to nominal is not the same as brought up to spec")
+        set_inventory_value(node, "wear", 0.0)
         self.assertTrue(W.work_order_is_satisfied(node))
 
     def test_a_node_with_no_order_is_trivially_satisfied(self):
@@ -356,8 +362,15 @@ class TestKindWanted(WorkOrderBase):
     def test_worn_wants_maintenance(self):
         self.assertEqual(W.work_order_kind_wanted(self.worn(0)), W.KIND_MAINTAIN)
 
-    def test_a_healthy_node_wants_nothing(self):
-        self.assertIsNone(W.work_order_kind_wanted(self.healthy(0)))
+    def test_a_healthy_node_accepts_maintenance(self):
+        """"Wanted" is what it would ACCEPT, not what it needs - tuning a nominal
+        node is how the tuned tier is earned in the first place."""
+        self.assertEqual(W.work_order_kind_wanted(self.healthy(0)), W.KIND_MAINTAIN)
+
+    def test_an_already_tuned_node_wants_nothing(self):
+        node = self.healthy(0)
+        set_inventory_value(node, "wear", 0.0)
+        self.assertIsNone(W.work_order_kind_wanted(node))
 
 
 class TestRepairClosesTheOrder(WorkOrderBase):
@@ -401,6 +414,89 @@ class TestRepairClosesTheOrder(WorkOrderBase):
         W.work_order_add(dc, other)
         grid_repair_grid_objects(self.ship, fixed, dc)
         self.assertEqual(linked_to(dc, "work-order"), {other})
+
+
+class TestTuningAHealthyNode(WorkOrderBase):
+    """green -> cyan. A crew that looks after a system should be able to tune it
+    BEFORE anything goes wrong; gating maintenance on `__worn__` made the tuned tier
+    reachable only by neglecting a system first, which is backwards."""
+
+    def test_a_nominal_node_accepts_a_maintenance_order(self):
+        node = self.healthy(0)
+        self.assertEqual(W.work_order_kind_wanted(node), W.KIND_MAINTAIN)
+
+    def test_an_order_on_a_nominal_node_is_NOT_instantly_satisfied(self):
+        """The bug: 'satisfied' for maintenance meant 'not worn', so an order on a
+        healthy node completed on the first read and was purged before anyone moved."""
+        node = self.healthy(0)
+        dc = self.team(1)
+        W.work_order_add(dc, node, W.KIND_MAINTAIN)
+        self.assertFalse(W.work_order_is_satisfied(node))
+        self.assertEqual(W.work_orders_for(dc), {node},
+                         "a tune order on a healthy node must survive the purge")
+
+    def test_it_is_satisfied_only_once_the_node_is_TUNED(self):
+        node = self.healthy(0)
+        dc = self.team(1)
+        W.work_order_add(dc, node, W.KIND_MAINTAIN)
+        set_inventory_value(node, "wear", 0.0)
+        self.assertTrue(W.work_order_is_satisfied(node))
+
+    def test_an_already_tuned_node_offers_nothing(self):
+        node = self.healthy(0)
+        set_inventory_value(node, "wear", 0.0)
+        self.assertIsNone(W.work_order_kind_wanted(node),
+                          "there is nothing left to do to a tuned node")
+
+    def test_the_brain_can_FIND_a_nominal_node_it_was_sent_to(self):
+        """The marker role exists because the brain matches its idle room by role,
+        and a nominal node is not `__worn__`."""
+        node = self.healthy(0)
+        dc = self.team(1)
+        W.work_order_add(dc, node, W.KIND_MAINTAIN)
+        self.assertTrue(has_role(node, W.MAINTENANCE_ROLE))
+        self.assertEqual(W.work_order_best(dc), node)
+
+    def test_the_marker_goes_when_the_order_does(self):
+        node = self.healthy(0)
+        dc = self.team(1)
+        W.work_order_add(dc, node, W.KIND_MAINTAIN)
+        W.work_order_cancel(dc, node)
+        self.assertFalse(has_role(node, W.MAINTENANCE_ROLE))
+
+    def test_a_bare_link_does_not_carry_the_marker(self):
+        """A bare link has always meant a repair, so it must not look like a tune."""
+        node = self.broken(0)
+        link(self.team(1), "work-order", node)
+        self.assertFalse(has_role(node, W.MAINTENANCE_ROLE))
+        self.assertEqual(W.work_order_kind(node), W.KIND_REPAIR)
+
+
+class TestDamagePromotesATuneJob(WorkOrderBase):
+    def test_a_node_that_breaks_mid_tune_becomes_a_repair(self):
+        from sbs_utils.procedural.internal_damage import grid_damage_grid_object
+        node = self.healthy(0)
+        dc = self.team(1)
+        W.work_order_add(dc, node, W.KIND_MAINTAIN)
+        grid_damage_grid_object(self.ship, node, "Crimson")
+        self.assertEqual(W.work_order_kind(node), W.KIND_REPAIR)
+        self.assertFalse(has_role(node, W.MAINTENANCE_ROLE))
+
+    def test_the_team_is_still_on_it(self):
+        from sbs_utils.procedural.internal_damage import grid_damage_grid_object
+        node = self.healthy(0)
+        dc = self.team(1)
+        W.work_order_add(dc, node, W.KIND_MAINTAIN)
+        grid_damage_grid_object(self.ship, node, "Crimson")
+        self.assertEqual(W.work_orders_for(dc), {node},
+                         "the work got more urgent, not irrelevant")
+
+    def test_a_promoted_order_is_not_left_at_the_bottom_of_the_list(self):
+        from sbs_utils.procedural.internal_damage import grid_damage_grid_object
+        node = self.healthy(0)
+        W.work_order_add(self.team(1), node, W.KIND_MAINTAIN)   # LOW
+        grid_damage_grid_object(self.ship, node, "Crimson")
+        self.assertGreaterEqual(W.work_order_priority(node), W.PRIORITY_NORMAL)
 
 
 if __name__ == "__main__":

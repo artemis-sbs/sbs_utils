@@ -54,7 +54,20 @@ A node carries at most one order - a kind and a priority, in its own inventory. 
 number of teams link to it. A target with links but no record **synthesizes** one, so
 a bare `link()` reads back as an ordinary order.
 
-Two kinds: `KIND_REPAIR` for a damaged node, `KIND_MAINTAIN` for a worn one.
+Two kinds: `KIND_REPAIR` for a damaged node, `KIND_MAINTAIN` for a worn **or
+nominal** one. `work_order_kind_wanted` answers what a node would *accept*, not what
+it needs - **a healthy system can be tuned**, and that is how the tuned tier is
+earned at all. Only an already-tuned node answers `None`. Maintenance is satisfied
+when the node is TUNED, not merely when it stopped being worn; reading it the other
+way made an order on a nominal node complete on its first read and get purged before
+anyone moved.
+
+A maintenance order marks its target with `MAINTENANCE_ROLE` (`__maintenance__`) so a
+brain can match on it. It has to: the brain picks its idle room by role, and a
+nominal node is not `__worn__`. A bare `link()` never carries it, which is right -
+a bare link has always meant a repair. If a node under a tune order breaks, the order
+is **promoted** to a repair at normal priority rather than left as a tune job on
+something in pieces.
 Priorities are plain numbers with four named rungs - `PRIORITY_LOW` (10), `NORMAL`
 (50), `HIGH` (80), `CRITICAL` (100) - so a mission can invent its own and
 `work_order_bump` still moves sensibly from the nearest rung.
@@ -149,10 +162,11 @@ re-skins them the usual way - `extra_grid_theme.json`, or `grid_merge_mod_theme`
 
 ## Gotchas
 
-- **`work_order_kind_wanted` answers `None` for a healthy node.** Gate a menu on that,
-  not on `__damaged__`, or maintenance orders can never be offered.
+- **`work_order_kind_wanted` answers `None` only for an already-tuned node.** Gate a
+  menu on that, not on `__damaged__`, or maintenance can never be offered at all.
 - **A brain node that filters on `room: __damaged__` will never see a maintenance
-  order.** `ai_lifeform_move_to_work_order` defaults to no filter for that reason.
+  order.** `ai_lifeform_move_to_work_order` defaults to no filter for that reason,
+  and the idle room matches `__maintenance__` rather than `__worn__`.
 - **Only a tier change recomputes coefficients.** Wear moving *within* a band costs
   one dict write, which is what makes a per-minute sweep over every node cheap.
 - **`grid_wear_system` picks nodes at random** rather than spreading wear evenly. Even

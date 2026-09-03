@@ -25,7 +25,7 @@ caller already runs per damcon. No timer, no module-level state, nothing to regi
 with the reset ledger.
 """
 from .query import to_id, to_object, to_set
-from .roles import role, has_role
+from .roles import role, has_role, add_role, remove_role
 from .links import link, unlink, linked_to, has_link, has_link_to
 from .inventory import get_inventory_value, set_inventory_value
 from .grid import grid_objects, grid_closest, grid_valid_blob, grid_object_valid
@@ -35,6 +35,16 @@ WORK_ORDER_LINK = "work-order"
 
 KIND_REPAIR = "repair"
 KIND_MAINTAIN = "maintain"
+
+# A marker role saying "a team has been SENT here to tune this", carried only while a
+# maintenance order is open. The brain needs something to match on and it cannot use
+# `__worn__`: the whole point is that a NOMINAL node can be tuned, and a nominal node
+# is not worn.
+#
+# A marker, never the order store - `work_order_add` is its only writer, so a bare
+# `link()` from an older mission does not carry it. That is exactly right, because a
+# bare link has always meant a repair.
+MAINTENANCE_ROLE = "__maintenance__"
 
 # A priority is a plain number so a mission can invent its own; these are the rungs
 # the comms buttons and `work_order_bump` step between.
@@ -49,21 +59,29 @@ _ORDER_KEY = "work_order"
 
 
 def work_order_kind_wanted(id_or_obj):
-    """What kind of order this node would take, or None if it needs nothing.
+    """What kind of order this node would ACCEPT, or None if there is nothing to gain.
+
+    Note "accept", not "need". A **nominal** node takes a maintenance order too -
+    tuning it is how a crew earns the tuned tier at all. Gating this on `__worn__`
+    made cyan reachable only by neglecting a system and then fixing it, which is the
+    exact opposite of rewarding a well-run ship.
+
+    Only an already-tuned node answers None: there is genuinely nothing left to do.
 
     Args:
         id_or_obj: a grid node.
 
     Returns:
-        str | None: KIND_REPAIR for a damaged node, KIND_MAINTAIN for a worn one.
+        str | None: KIND_REPAIR for a damaged node, KIND_MAINTAIN for a worn or
+        nominal one, None for one already at spec.
     """
     node_id = to_id(id_or_obj)
     state = grid_node_state(node_id)
     if state == "damaged":
         return KIND_REPAIR
-    if state == "worn":
-        return KIND_MAINTAIN
-    return None
+    if state == "tuned":
+        return None
+    return KIND_MAINTAIN
 
 
 def _default_kind(node_id):
@@ -150,6 +168,10 @@ def work_order_add(worker, id_or_obj, kind=None, priority=None):
                          else existing.get("priority", _default_priority(this_kind)))
         order = {"kind": this_kind, "priority": this_priority}
         set_inventory_value(node_id, _ORDER_KEY, order)
+        if this_kind == KIND_MAINTAIN:
+            add_role(node_id, MAINTENANCE_ROLE)
+        else:
+            remove_role(node_id, MAINTENANCE_ROLE)
     return order
 
 
@@ -159,6 +181,7 @@ def work_order_cancel(worker, id_or_obj):
     for node_id in (to_id(x) for x in to_set(id_or_obj)):
         if node_id is not None and not work_order_workers(node_id):
             set_inventory_value(node_id, _ORDER_KEY, None)
+            remove_role(node_id, MAINTENANCE_ROLE)
 
 
 def work_order_cancel_all(id_or_obj):
@@ -174,6 +197,7 @@ def work_order_cancel_all(id_or_obj):
         for worker_id in list(work_order_workers(node_id)):
             unlink(worker_id, WORK_ORDER_LINK, node_id)
         set_inventory_value(node_id, _ORDER_KEY, None)
+        remove_role(node_id, MAINTENANCE_ROLE)
 
 
 def work_order_workers(id_or_obj):
@@ -228,15 +252,20 @@ def work_order_bump(id_or_obj, step=1):
 def work_order_is_satisfied(id_or_obj):
     """Whether the work this order asked for has been done.
 
-    A repair is satisfied when the node is no longer damaged; maintenance when it is
-    no longer worn. A node with no order is trivially satisfied.
+    A repair is satisfied when the node is no longer damaged. Maintenance is
+    satisfied when the node is **tuned** - not merely when it stopped being worn.
+    Reading it as "no longer `__worn__`" made an order on a nominal node instantly
+    complete, so it was purged on the first read and a healthy system could never be
+    tuned at all.
+
+    A node with no order is trivially satisfied.
     """
     node_id = to_id(id_or_obj)
     kind = work_order_kind(node_id)
     if kind is None:
         return True
     if kind == KIND_MAINTAIN:
-        return not has_role(node_id, "__worn__")
+        return grid_node_state(node_id) == "tuned"
     return not has_role(node_id, "__damaged__")
 
 
@@ -296,6 +325,7 @@ def work_orders_for(worker, purge=True):
         for node_id in stale:
             if not work_order_workers(node_id):
                 set_inventory_value(node_id, _ORDER_KEY, None)
+                remove_role(node_id, MAINTENANCE_ROLE)
     return live
 
 
