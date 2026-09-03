@@ -92,19 +92,22 @@ class TestMapStart(unittest.TestCase):
         import sbs_utils.procedural.signal as sig
         import sbs_utils.procedural.cosmos as cos
         self._orig = (ex.task_schedule, ex.set_shared_variable, sig.signal_emit,
-                      cos.sim_resume, maps_mod.map_apply_defaults)
+                      cos.sim_resume, maps_mod.map_apply_defaults,
+                      maps_mod.map_apply_crew)
         ex.task_schedule = lambda l, **k: self.calls.append(("schedule", l, k))
         ex.set_shared_variable = lambda k, v: self.calls.append(("shared", k, v))
         sig.signal_emit = lambda n, d=None: self.calls.append(("signal", n))
         cos.sim_resume = lambda: self.calls.append(("resume",))
         maps_mod.map_apply_defaults = lambda m: self.calls.append(("defaults", m))
+        maps_mod.map_apply_crew = lambda m: self.calls.append(("crew", m))
 
     def tearDown(self):
         import sbs_utils.procedural.execution as ex
         import sbs_utils.procedural.signal as sig
         import sbs_utils.procedural.cosmos as cos
         (ex.task_schedule, ex.set_shared_variable, sig.signal_emit,
-         cos.sim_resume, maps_mod.map_apply_defaults) = self._orig
+         cos.sim_resume, maps_mod.map_apply_defaults,
+         maps_mod.map_apply_crew) = self._orig
 
     def test_none_is_a_no_op(self):
         self.assertIsNone(map_start(None))
@@ -114,7 +117,9 @@ class TestMapStart(unittest.TestCase):
         m = FakeMap("alpha")
         self.assertIs(map_start(m), m)
         kinds = [c[0] for c in self.calls]
-        self.assertEqual(kinds, ["defaults", "resume", "schedule", "shared", "signal"])
+        # `crew` sits with `defaults` and BEFORE the map is scheduled: what the crew
+        # flies has to be settled before the map body can look at it.
+        self.assertEqual(kinds, ["defaults", "crew", "resume", "schedule", "shared", "signal"])
 
     def test_schedules_deferred_so_consoles_repaint_first(self):
         map_start(FakeMap("alpha"))

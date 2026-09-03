@@ -23,7 +23,7 @@ maps, not a replacement for LM's console. Keep the line where it is.
 """
 from ...futures import Promise
 from ...mast.pollresults import PollResults
-from ..maps import maps_get_list, map_get_properties, map_apply_defaults
+from ..maps import maps_get_list, map_get_properties, map_apply_defaults, map_apply_crew
 from .listbox import gui_list_box
 from .button import gui_button
 from .text import gui_text
@@ -124,6 +124,7 @@ def gui_map_picker(maps=None, properties=True, title=None, start_text="Start",
         # Defaults are set-if-absent, so applying them per selection is safe and is what
         # makes the panel show the map's own starting values.
         map_apply_defaults(_selected())
+        map_apply_crew(_selected())
         gui_property_list_box(name="Options")
         gui_properties_set(map_get_properties(_selected()))
 
@@ -134,6 +135,7 @@ def gui_map_picker(maps=None, properties=True, title=None, start_text="Start",
             # when it is not the first build, so the panel updates in place instead.
             sel = _selected()
             map_apply_defaults(sel)
+            map_apply_crew(sel)
             gui_properties_set(map_get_properties(sel))
 
         gui_message_callback(lb, _on_select)

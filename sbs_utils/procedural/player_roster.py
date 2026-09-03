@@ -62,6 +62,14 @@ def player_roster_clear():
     _ROSTER.clear()
     _BOUND.clear()
     _LAST_ID.clear()
+    # Warn-once state is per MISSION, not per process: the next mission may name a
+    # hull this one already complained about, and it deserves to be told too.
+    _CREW_WARNED.clear()
+
+
+def player_roster_crew_warn_count():
+    """How many unloaded CREW_HULL keys have been reported. On the reset ledger."""
+    return len(_CREW_WARNED)
 
 
 def player_roster_count_records():
@@ -457,6 +465,47 @@ def player_ship_rebuild_stats(obj):
     return True
 
 
+_CREW_WARNED = set()
+
+
+def _crew_override(key, check_hull=True):
+    """A map's `Defaults: CREW_HULL:` / `CREW_SIDE:`, or None.
+
+    WHY THIS EXISTS. A map used to reshape its crew's ship from its own BODY, which runs
+    after the console-select screen - so everyone spent the whole of that screen looking
+    at the roster's ship and then watched it turn into a different one. Reported from the
+    Gamma with a Q playtest as "set the hull at mission select ... after Q's intro is too
+    late and confuses people".
+
+    `map_apply_defaults` publishes a map's `Defaults:` block as shared variables just
+    before the server panel renders, and `player_roster_apply` runs on the very next line,
+    so declaring the hull there reseats the crew AS THE MISSION IS SELECTED.
+
+    Weaker than the crew's own pick, like every theater layer, because a crew that chose a
+    ship in front of the picker chose it deliberately. A mission that means the map to win
+    outright locks the picker with SHIP_PICK_READ_ONLY, and then there is no pick to lose
+    to - which is what Gamma with a Q does.
+
+    A HULL THAT IS NOT LOADED IS IGNORED, said once. Swapping a player ship onto a key
+    shipData has never heard of is a worse outcome than flying the wrong ship, and a map
+    naming a modded hull on a stock install is the ordinary way to get here.
+    """
+    from .execution import get_shared_variable
+    value = get_shared_variable(key, None)
+    value = str(value).strip() if value else ""
+    if not value:
+        return None
+    if check_hull:
+        from .ship_data import get_ship_data_for
+        if get_ship_data_for(value) is None:
+            if value not in _CREW_WARNED:
+                _CREW_WARNED.add(value)
+                print(f"player roster: {key} '{value}' is not in the ship table - "
+                      f"leaving the crew's own ship")
+            return None
+    return value
+
+
 def player_roster_apply(loadout=None, force=False):
     """Reshape every active record's ship to match the record. Idempotent.
 
@@ -508,6 +557,9 @@ def player_roster_apply(loadout=None, force=False):
         explicit = theater_players()
         if rec["slot"] < len(explicit) and explicit[rec["slot"]]:
             want_hull = explicit[rec["slot"]]
+        map_hull = _crew_override("CREW_HULL")
+        if map_hull:
+            want_hull = map_hull
         if rec.get("picked_hull"):
             want_hull = rec["picked_hull"]
         want_name = rec.get("picked_name") or rec.get("name")
@@ -545,6 +597,13 @@ def player_roster_apply(loadout=None, force=False):
         # only thing that can invalidate it)
 
         want_side = rec.get("side") or ""
+        # THE SIDE MOVES WITH THE SHIP. A map that seats its crew in a Klingon hull and
+        # leaves them on the roster's side gets an allied fleet that opens fire on them,
+        # which is invisible until the diplomacy matrix is correct. Lowercased because
+        # this is the side KEY, not the shipData display string.
+        map_side = _crew_override("CREW_SIDE", check_hull=False)
+        if map_side:
+            want_side = map_side.lower()
         if rebuilt or obj.side != want_side:
             obj.side = want_side
             dirty = True

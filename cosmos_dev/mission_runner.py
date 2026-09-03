@@ -360,8 +360,17 @@ def _try_auto_start_map(map_arg, sbs) -> bool:
     # real engine does this when presenting the properties panel and again at launch, but the
     # headless runner skips the panel, so a map-local property var (e.g. JOBS_SELECT) would
     # otherwise be undefined in the map body.
-    from sbs_utils.procedural.maps import map_apply_defaults
+    from sbs_utils.procedural.maps import map_apply_defaults, map_apply_crew
+    from sbs_utils.procedural.player_roster import player_roster_apply
     map_apply_defaults(map_label)
+
+    # ...and the map's `Crew:` block, then the roster pass the server panel runs on the
+    # very next line. Without this pair the crew reaches the map body still wearing the
+    # roster's hull, so only a map that swaps it in its own body ends up in the right
+    # ship - which is the thing declaring the crew at the picker exists to stop needing.
+    # `player_roster_apply` is diff-then-write and a no-op on an empty roster.
+    map_apply_crew(map_label)
+    player_roster_apply()
 
     # task_schedule_server needs the server page's gui task. A trivial mission can
     # reach the registered @map list before that task exists (heavier missions

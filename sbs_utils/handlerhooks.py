@@ -508,11 +508,13 @@ from .procedural.amd_sides import amd_sides_audience_count, amd_sides_clear
 register_reset_state("amd side audiences", amd_sides_audience_count)
 from .procedural.amd_theater import amd_theater_clear, amd_theater_count
 from .procedural.races import races_clear, races_count
-from .procedural.player_roster import player_roster_clear, player_roster_count_records
+from .procedural.player_roster import (player_roster_clear, player_roster_count_records,
+                                        player_roster_crew_warn_count)
 from .procedural.ship_data import art_keys_cache_clear
 register_reset_state("amd theaters",      amd_theater_count)
 register_reset_state("race overrides",    races_count)
 register_reset_state("player roster",     player_roster_count_records)
+register_reset_state("crew hull warnings", player_roster_crew_warn_count)
 from .procedural.amd_landmarks import _RECORDS as _AMD_LANDMARKS, landmarks_registry_clear
 register_reset_state("amd landmarks",     lambda: len(_AMD_LANDMARKS))
 from .procedural.amd_dialogue import (_SCENES as _AMD_SCENES, _SLOTS as _AMD_SLOTS,

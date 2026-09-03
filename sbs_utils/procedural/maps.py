@@ -131,6 +131,59 @@ def map_get_defaults(map):
     return map.get_inventory_value("Defaults", map.get_inventory_value("defaults"))
 
 
+def map_get_crew(map):
+    """Return the ``Crew`` metadata dict of a map label (fallback ``crew``).
+
+    A sibling of ``Properties`` and ``Defaults``. Where ``Defaults`` seeds the map's own
+    controls, this says what the CREW FLIES on this map::
+
+        metadata:``` yaml
+        Crew:
+          hull: tng_fed_defiant
+          side: federation
+        ```
+
+    Args:
+        map (Label): The map label object.
+
+    Returns:
+        dict | None: The crew dict, or ``None`` if the map declares none.
+    """
+    return map.get_inventory_value("Crew", map.get_inventory_value("crew"))
+
+
+# The shared variables `player_roster_apply` reads as its map layer.
+_CREW_VARS = (("hull", "CREW_HULL"), ("side", "CREW_SIDE"))
+
+
+def map_apply_crew(map):
+    """Publish a map's ``Crew:`` block for :func:`player_roster_apply`, OVERWRITING.
+
+    WHY THIS IS NOT PART OF ``Defaults``. ``map_apply_defaults`` is set-if-absent, which
+    is exactly right for seeding a control and exactly wrong here: an operator browsing
+    the picker would pin whichever map they happened to look at FIRST, and every trial
+    after it would be flown in that ship. So this always writes, and CLEARS the variables
+    when the selected map declares no crew - leaving a stale hull behind is the same bug
+    wearing a different hat.
+
+    Reported from the Gamma with a Q playtest as "set the hull at mission select ... after
+    Q's intro is too late and confuses people": a map that reshapes its crew from its own
+    BODY does it after the console-select screen, so everyone spends that screen looking
+    at a ship they are about to stop flying.
+
+    Args:
+        map (Label | None): The map label object (``None`` clears, so a picker with
+            nothing selected does not keep the last map's crew).
+    """
+    from .execution import set_shared_variable
+    crew = map_get_crew(map) if map is not None else None
+    if not isinstance(crew, dict):
+        crew = {}
+    for key, var in _CREW_VARS:
+        value = crew.get(key)
+        set_shared_variable(var, str(value).strip() if value else None)
+
+
 _DEFAULT_MISSING = object()
 
 
@@ -769,6 +822,9 @@ def map_start(map):
     from .cosmos import sim_resume
 
     map_apply_defaults(map)
+    # What the crew flies, if this map says. Overwrites, so starting a second map
+    # in one session does not inherit the first one's ship.
+    map_apply_crew(map)
     sim_resume()
     task_schedule(map, defer=True)
     set_shared_variable("GAME_STARTED", True)
