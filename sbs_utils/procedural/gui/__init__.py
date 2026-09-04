@@ -1,7 +1,7 @@
 from .console_tab import gui_tab_enable,gui_tab_back,gui_tab_add_top,gui_tab_enable_top,gui_tab_activate, gui_tab_get_active, gui_app_activate, gui_app_get_active, gui_tab_clear_top, gui_tab_remove_top, gui_tab_is_top
 from .console_tab import gui_tab_get_list
 from .messages_gui import gui_messages_screen, gui_messages_tick
-from .status_gui import gui_status_screen, status_rows
+from .status_gui import gui_status_screen, gui_status_tick, status_rows
 from .away_gui import (gui_away_screen, away_who, away_set_who, away_label,
                        away_go_down, away_go_up, away_relevant)
 from .epadd import (gui_app_subnav,

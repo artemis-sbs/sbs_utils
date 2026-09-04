@@ -371,10 +371,19 @@ def format_counter_elapsed_seconds(id_or_obj, name, display="hh:mm:ss"):
     Example:
         gui_text("Elapsed: {format_counter_elapsed_seconds(SHIP_ID, 'mission')}")
     """
+    return _format_elapsed(get_counter_elapsed_seconds(id_or_obj, name, 0), display)
+
+
+def _format_elapsed(seconds, display):
+    """Fill ``display``'s hh/mm/ss tokens in from a count of seconds.
+
+    Shared by every elapsed readout, so the mission clock and a per-agent counter
+    round and pad the same way.
+    """
     # TODO: single-character tokens (h/m/s) are deliberately NOT supported. A
     # display like "h hours, m minutes" cannot be substituted by plain replace()
     # without also rewriting the letters in the surrounding words.
-    seconds = round(get_counter_elapsed_seconds(id_or_obj, name, 0))
+    seconds = round(seconds or 0)
     if seconds < 0:
         seconds = 0
     # Largest unit first, and only the ones the caller actually asked for, so the
@@ -404,6 +413,76 @@ def clear_counter(id_or_obj, name):
     """    
     set_inventory_value(id_or_obj, f"__counter__{name}", None)
     _signal_disarm(id_or_obj, f"__counter__{name}")
+
+
+# ---------------------------------------------------------------------------
+# The mission clock
+#
+# "How long have we been out here" is asked by the crew, not by one script, so it
+# is a counter on Agent.SHARED rather than something every mission remembers to
+# keep for itself. SHARED is rebuilt per mission by clear_shared(), so the clock
+# resets with the mission and needs no entry in the reset ledger.
+#
+# It is SIM time: a paused sim does not advance it, which is what the crew mean by
+# how long the mission has been going, and it matches every other timer here.
+# ---------------------------------------------------------------------------
+MISSION_COUNTER = "__mission__"
+
+
+def mission_clock_start():
+    """Stamp now as the start of the mission.
+
+    Called by ``map_start`` - the one door every mission goes through - so a
+    mission gets a clock without asking for one. Call it directly to restart the
+    clock at a moment the mission thinks is the real beginning (the end of a
+    cutscene, say).
+
+    Example:
+        mission_clock_start()
+    """
+    from ..agent import Agent
+    start_counter(Agent.SHARED, MISSION_COUNTER)
+
+
+def mission_elapsed_seconds():
+    """Sim seconds since the mission started.
+
+    Falls back to the sim's own clock when nothing stamped a start - a mission
+    that never calls ``map_start`` has been running for as long as its sim has,
+    which is the honest answer and never ``None``.
+
+    Returns:
+        float: Seconds since the mission started.
+
+    Example:
+        if mission_elapsed_seconds() > 600:
+            "You have been out here ten minutes."
+    """
+    from ..agent import Agent
+    elapsed = get_counter_elapsed_seconds(Agent.SHARED, MISSION_COUNTER, None)
+    if elapsed is None:
+        return FrameContext.context.sim.time_tick_counter / TICK_PER_SECONDS
+    return elapsed
+
+
+def mission_elapsed_text(display="hh:mm:ss"):
+    """The mission clock as text, rounded to the second.
+
+    Same layout tokens as ``format_counter_elapsed_seconds``: ``hh``, ``mm``,
+    ``ss``, with the largest one present absorbing everything above it. Fixed
+    width by default, so a readout drawn with it does not twitch as the digits
+    roll over.
+
+    Args:
+        display (str): Layout to fill in. Defaults to ``"hh:mm:ss"``.
+
+    Returns:
+        str: The formatted elapsed time.
+
+    Example:
+        gui_text("$text:{gui_text_escape(mission_elapsed_text())};")
+    """
+    return _format_elapsed(mission_elapsed_seconds(), display)
 
 
 # ---------------------------------------------------------------------------

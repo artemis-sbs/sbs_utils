@@ -800,6 +800,7 @@ def map_start(map):
         would never advance otherwise.
       * ``task_schedule(map, defer=True)`` - deferred so consoles repaint before the map
         body's first tick.
+      * ``mission_clock_start()`` - the mission clock the ePADD Status app reads.
       * ``GAME_STARTED`` and the ``game_started`` signal - the contract missions gate on.
 
     What it deliberately does NOT do, because these are LegendaryMissions' own contract
@@ -820,12 +821,16 @@ def map_start(map):
     from .execution import task_schedule, set_shared_variable
     from .signal import signal_emit
     from .cosmos import sim_resume
+    from .timers import mission_clock_start
 
     map_apply_defaults(map)
     # What the crew flies, if this map says. Overwrites, so starting a second map
     # in one session does not inherit the first one's ship.
     map_apply_crew(map)
     sim_resume()
+    # The mission clock starts HERE, with the sim, not when the process did - the
+    # lobby's paused sim is not mission time and nobody counts it.
+    mission_clock_start()
     task_schedule(map, defer=True)
     set_shared_variable("GAME_STARTED", True)
     signal_emit("game_started", {})

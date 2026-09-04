@@ -87,6 +87,34 @@ start_counter(SHIP_ID, "in_combat")
     clear_counter(0, "Mission_Elapsed_Time")
     ```
 
+## The mission clock
+
+"How long have we been out here" is asked by the crew, not by one script, so the library
+keeps that one counter itself. `map_start` stamps it - which every mission goes through -
+so a mission has a clock without starting one:
+
+| function | answers |
+|---|---|
+| `mission_elapsed_seconds()` | seconds since the mission started, as a float |
+| `mission_elapsed_text(display="hh:mm:ss")` | the same, formatted and rounded |
+| `mission_clock_start()` | restart it, when the real beginning is later |
+
+```
+== show_mission_time ==
+    gui_text(f"$text:{gui_text_escape(mission_elapsed_text())};")
+    log(f"{int(mission_elapsed_seconds())} seconds in")
+    ->END
+```
+
+It is sim time, like everything else here, so a paused sim does not age the mission. A
+mission whose real beginning is the end of a cutscene calls `mission_clock_start()` there
+and the clock re-zeros. Nothing reads `None`: with no start stamped the clock answers with
+the sim's own age.
+
+The ePADD **Status** app draws it in the top right of its title bar as `T+hh:mm:ss`, and
+moves it on with `gui_status_tick()` from an `on change` - the widget, never a page
+repaint.
+
 ## Signals instead of polling
 
 A timer is one value in an agent's inventory and nothing runs on its behalf, which is
