@@ -23,8 +23,8 @@ from sbs_utils.procedural.gui.camera import camera_anchor, _MOVES
 from sbs_utils.procedural.gui.cutscene import _CUTSCENES, _PLAYING, cutscene_get
 from sbs_utils.procedural.gui.rundown import rundown_clear, rundown_shots, rundown_get
 from sbs_utils.procedural.amd_cutscene import (
-    amd_cutscenes, cutscene_amd, rundown_amd, cutscene_cast, amd_cutscene_clear,
-    CUTSCENE_AMD, RUNDOWN_AMD, _vec, _move)
+    amd_cutscenes, cutscene_amd, cutscene_amd_shots, rundown_amd, cutscene_cast,
+    amd_cutscene_clear, CUTSCENE_AMD, RUNDOWN_AMD, _vec, _move)
 
 
 DOC = (
@@ -344,3 +344,40 @@ class TestResetLedger(AmdCutsceneBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestShotsWithoutPlaying(AmdCutsceneBase):
+    """`cutscene_amd_shots` resolves a scene without running it on a clock.
+
+    A cutscene is TIMED, which makes it useless to anything that wants to look at one
+    shot: a capture harness holding a shot still for a screenshot, an editor previewing
+    a single shot, a test asserting what a scene resolved to. Same resolution
+    `cutscene_amd` does, handed back instead of handed to `cutscene_play`.
+    """
+
+    def test_it_returns_the_resolved_shots(self):
+        self.load()
+        station = camera_anchor(0, 0, 0)
+        hero = camera_anchor(5000, 0, 0)
+        cutscene_cast("station", station)
+        cutscene_cast("hero", hero)
+        shots = cutscene_amd_shots("intro")
+        self.assertEqual([s["subject"] for s in shots], [station, hero])
+
+    def test_it_does_not_play(self):
+        # The whole point: nothing is presented, so a still can be grabbed at leisure.
+        self.load()
+        cutscene_cast("station", camera_anchor(0, 0, 0))
+        cutscene_cast("hero", camera_anchor(5000, 0, 0))
+        cutscene_amd_shots("intro")
+        self.assertNotIn(C1, mock_sbs._cinematic)
+        self.assertEqual(_CUTSCENES, {})
+
+    def test_an_unresolvable_shot_is_dropped_here_too(self):
+        self.load()
+        cutscene_cast("hero", camera_anchor(5000, 0, 0))
+        self.assertEqual(len(cutscene_amd_shots("intro")), 1)
+
+    def test_an_unknown_scene_is_empty_not_an_exception(self):
+        self.load()
+        self.assertEqual(cutscene_amd_shots("no_such_scene"), [])

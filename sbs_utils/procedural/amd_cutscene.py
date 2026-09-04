@@ -303,6 +303,24 @@ def _playable(shots):
     return out
 
 
+def cutscene_amd_shots(key):
+    """The playable shots of an AMD cutscene, without playing it.
+
+    Same resolution `cutscene_amd` does - subjects bound now, unresolvable shots
+    dropped - but handed back instead of handed to `cutscene_play`. That is what lets
+    a caller step a shot list one shot at a time (`shot_apply`) rather than run it on
+    a clock: a capture harness holding each shot for a still, an editor previewing a
+    single shot, a test asserting what a scene resolved to.
+
+    Returns [] for a key no loaded AMD declares.
+    """
+    rec = CUTSCENE_AMD.get(key)
+    if rec is None:
+        _log(f"cutscene {key!r} is not declared in any loaded AMD")
+        return []
+    return _playable(rec["shots"])
+
+
 def cutscene_amd(key, to=None, consoles=None, **overrides):
     """Play a cutscene declared in AMD. Returns the Promise, or None if unknown."""
     rec = CUTSCENE_AMD.get(key)
