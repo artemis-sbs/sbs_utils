@@ -27,6 +27,7 @@ class Client:
         self.client_id = client_id
         self.title = title
         self.size = None
+        self.why = None
 
     def __repr__(self):
         return "<Client %s pid=%s hwnd=%s cid=%s %r>" % (
@@ -48,27 +49,35 @@ def client_ids(drv, timeout=10.0):
 
 
 def wait_for_new_client(drv, before, timeout=60.0, poll=0.5):
-    """Wait until exactly one new client id appears, and return it.
+    """Wait until exactly one new client id appears. Returns (id, reason).
 
-    Returns None on timeout. More than one new id means something else connected
-    concurrently - the caller should treat that as a failed binding rather than
-    guess which is which.
+    `id` is None when it could not be bound, and `reason` says why - a timeout and a
+    double-connect are different problems with different fixes, and "never bound" on
+    its own sends you looking in the wrong place.
     """
     deadline = time.time() + timeout
     before = set(before)
+    last_seen = sorted(before)
+    last_err = None
     while time.time() < deadline:
         try:
             now = set(client_ids(drv, timeout=5.0))
-        except Exception:
+            last_seen = sorted(now)
+        except Exception as e:
+            last_err = e
             time.sleep(poll)
             continue
         new = now - before
         if len(new) == 1:
-            return new.pop()
+            return new.pop(), "bound"
         if len(new) > 1:
-            return None
+            return None, ("%d clients appeared at once - cannot attribute a window "
+                          "to an id; launch them one at a time" % len(new))
         time.sleep(poll)
-    return None
+    if last_err is not None:
+        return None, "the queue stopped answering: %s" % last_err
+    return None, ("no new client id within %gs; engine saw %d client(s): %s"
+                  % (timeout, len(last_seen), last_seen))
 
 
 def launch_client(drv, role, title, ip="127.0.0.1", timeout=60.0, maximize=True):
@@ -83,9 +92,10 @@ def launch_client(drv, role, title, ip="127.0.0.1", timeout=60.0, maximize=True)
         cwd=drv.cosmos_dir, env=dict(os.environ))
 
     hwnd = windows.window_of_pid(proc.pid, timeout=30.0)
-    cid = wait_for_new_client(drv, before, timeout=timeout)
+    cid, why = wait_for_new_client(drv, before, timeout=timeout)
 
     client = Client(role, proc, hwnd, cid, title)
+    client.why = why
     if hwnd:
         windows.set_title(hwnd, title)
         client.size = windows.maximize(hwnd) if maximize else windows.client_size(hwnd)

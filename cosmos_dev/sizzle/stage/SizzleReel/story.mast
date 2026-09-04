@@ -1,0 +1,32 @@
+# The sizzle-reel staging mission (dev-only).
+#
+# It does not play anything. A staging label spawns a scene, binds the cast the shot
+# list names, and loads shots.amd; the capture harness then steps the shots one at a
+# time so a still can be grabbed while the camera holds.
+
+import maps/sz_stage.mast
+
+
+# Every page - server and client - parks, in a SCHEDULED task.
+#
+# Two rules collide here and only this shape satisfies both:
+#
+#   * A GUI task that ENDS closes its page and blanks the screen - mast.runtime.log
+#     says so in as many words ("has no tasks left, so its page is being closed").
+#     A blank client is not something you can photograph.
+#   * Top-level code from EVERY loaded file is combined into one shared main, so an
+#     `await` at the top level blocks that main for everyone. Awaiting here stalls
+#     the cosmos_devqueue mastlib's own top-level `task_schedule(...)` before it
+#     ever runs, and the harness then waits out its timeout on a queue that was
+#     never started.
+#
+# So: schedule the park and let main run on.
+task_schedule(sz_park)
+
+
+=== sz_park ===
+    # One empty row, deliberately. `await gui()` with no build at all is a black
+    # screen, but anything drawn would sit on top of the shot - what the camera
+    # client shows is set by shot_apply, which switches it to the cinematic view.
+    gui_blank()
+    await gui()

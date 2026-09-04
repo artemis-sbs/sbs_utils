@@ -435,6 +435,164 @@ def cmd_stage(args):
     return 0
 
 
+def _sync_stage_mission(missions_dir, name="SizzleReel"):
+    """Copy the versioned staging mission into data/missions.
+
+    It lives in the repo so the shot list is version-controlled beside the tool, and
+    is copied out per run so `enable_in_story` never edits anything of yours.
+    """
+    import shutil
+    src = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                       "sizzle", "stage", name)
+    dst = os.path.join(missions_dir, name)
+    if not os.path.isdir(src):
+        raise FileNotFoundError(src)
+    if os.path.isdir(dst):
+        shutil.rmtree(dst)
+    shutil.copytree(src, dst)
+    return dst
+
+
+def _start_scene(drv, label, timeout=60.0):
+    """Schedule a staging label on the server and wait for its shots to load.
+
+    NOT `map=` on the command line: that only reaches `sbs.command_line_dict()`, and a
+    mission has to be written to read it (LegendaryMissions is; a minimal staging
+    mission is not). Scheduling the label is independent of that and works the same
+    for every scene.
+    """
+    code = chr(10).join([
+        "from sbs_utils.procedural.execution import task_schedule_server",
+        "from sbs_utils.helpers import FrameContext",
+        "_p = FrameContext.server_page or FrameContext.page",
+        "_labels = getattr(getattr(_p, 'story', None), 'labels', None) or {}",
+        "_lbl = _labels.get(%r)" % label,
+        "if _lbl is None:",
+        "    raise KeyError('no label %%r; known: %%s' %% (%r, sorted(_labels)[:40]))" % label,
+        "task_schedule_server(_lbl)",
+    ])
+    resp = drv.send(code, timeout=20)
+    if not resp.get("ok"):
+        raise RuntimeError(resp.get("error"))
+    return True
+
+
+def cmd_contact(args):
+    """M4: step the shot list, grab one still per shot, tile them into a sheet."""
+    from ..engine_driver.driver import EngineDriver
+    from ..sizzle import clients as C, windows as W, stepper, contact as sheet
+
+    W.set_dpi_aware()
+    if check_engine(args) and not args.force:
+        print("\nRefusing to start (use --force to override).")
+        return 1
+
+    missions = args.missions_dir or os.path.join(args.cosmos_dir, "data", "missions")
+    print("staging mission -> %s" % _sync_stage_mission(missions))
+
+    drv = EngineDriver(cosmos_dir=args.cosmos_dir, mission="SizzleReel",
+                       missions_dir=missions)
+    drv.build_mastlib()
+    drv.enable_in_story()
+    print("launching engine on SizzleReel map=%s ..." % args.map)
+    drv.launch(map=args.map)
+    if not drv.ping(timeout=args.timeout):
+        print("FAIL: the engine never answered the queue")
+        return 1
+    print("  queue answered; warmup %ds (the known crash window is ~2s after a "
+          "console connects)" % args.warmup)
+    for _ in range(args.warmup):
+        time.sleep(1)
+        if not drv.is_running():
+            print("FAIL: the engine died during warmup")
+            return 1
+
+    made = []
+    scene = "sizzle-contact"
+    src_name = "sizzle-cam"
+    prev_scene = None
+    obs = None
+    try:
+        cam = C.launch_client(drv, "cam", "SZ-CAM", timeout=args.timeout)
+        made.append(cam)
+        print("  %r" % cam)
+        if cam.client_id is None:
+            print("FAIL: the client never bound - %s" % cam.why)
+            return 1
+        if cam.size:
+            print("  shooting at %dx%d" % cam.size)
+
+        obs = obsws.connect(host=args.obs_host, port=args.obs_port,
+                            password=args.obs_password)
+        prev_scene = obs.current_scene()
+        obs.remove_input(src_name)
+        obs.remove_scene(scene)
+        obs.create_scene(scene)
+        obs.create_window_capture(
+            scene, src_name, "%s:Engine:Artemis3-x64-release.exe" % cam.title)
+        obs.set_current_scene(scene)
+        time.sleep(1.5)          # let game_capture hook the swap chain
+
+        print("staging scene via label %r ..." % args.label)
+        _start_scene(drv, args.label)
+
+        # The label spawns, casts and loads the .amd; give it frames to finish
+        # before asking what resolved.
+        shots = []
+        for _ in range(int(args.timeout)):
+            time.sleep(1)
+            shots = stepper.load_shots(drv, args.scene)
+            if shots:
+                break
+        print("\n%d shots resolved in scene %r" % (len(shots), args.scene))
+        if not shots:
+            print("FAIL: no shots resolved. Either the staging label never ran, or")
+            print("every Subject: failed to resolve (cast not bound) so each shot")
+            print("was dropped. Check %s/SizzleReel/mast.runtime.log" % missions)
+            return 1
+
+        want = None
+        if args.only:
+            want = set(int(x) for x in args.only.replace(" ", "").split(",") if x != "")
+
+        tiles = []
+        for i, shot in enumerate(shots):
+            if want is not None and i not in want:
+                tiles.append(None)
+                continue
+            label = stepper.apply_shot(drv, args.scene, i, [cam.client_id])
+            time.sleep(args.settle)
+            try:
+                png = obs.source_screenshot(src_name, width=args.width)
+            except obsws.ObsError as e:
+                print("  %02d %-28s NO FRAME (%s)" % (i, label, e))
+                png = None
+            else:
+                print("  %02d %-28s %d bytes" % (i, label, len(png)))
+            tiles.append(png)
+            if not stepper.alive(drv):
+                print("FAIL: the engine stopped answering at shot %d" % i)
+                break
+
+        out = args.out or os.path.join(missions, "_sizzle", "contact")
+        path = sheet.write_sheet(out, tiles, shots, cols=args.cols, width=args.width)
+        print("\nsheet: %s" % path)
+    finally:
+        if obs is not None:
+            try:
+                if prev_scene:
+                    obs.set_current_scene(prev_scene)
+                obs.remove_input(src_name)
+                obs.remove_scene(scene)
+            except Exception:
+                pass
+            obs.close()
+        if not args.keep:
+            C.stop(made)
+            drv.close()
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="sizzle", description=__doc__.splitlines()[0])
     ap.add_argument("--cosmos-dir", default=os.environ.get("COSMOS_DIR", r"E:\a\Cosmos-dev"))
@@ -464,6 +622,22 @@ def main(argv=None):
     st.add_argument("--force", action="store_true",
                     help="start even though an engine is already running")
     st.set_defaults(func=cmd_stage)
+
+    ct = sub.add_parser("contact", help="M4: step the shot list into a contact sheet")
+    ct.add_argument("--scene", default="open", help="cutscene key in shots.amd")
+    ct.add_argument("--map", default=None)
+    ct.add_argument("--label", default="sz_stage_open",
+                    help="staging label to schedule on the server")
+    ct.add_argument("--only", default=None, help="re-shoot only these indices, e.g. 4,7")
+    ct.add_argument("--settle", type=float, default=0.6)
+    ct.add_argument("--warmup", type=int, default=20)
+    ct.add_argument("--width", type=int, default=480)
+    ct.add_argument("--cols", type=int, default=4)
+    ct.add_argument("--timeout", type=float, default=120.0)
+    ct.add_argument("--out", default=None)
+    ct.add_argument("--keep", action="store_true")
+    ct.add_argument("--force", action="store_true")
+    ct.set_defaults(func=cmd_contact)
 
     args = ap.parse_args(argv)
     if not getattr(args, "func", None):

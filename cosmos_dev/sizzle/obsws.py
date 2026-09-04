@@ -182,6 +182,53 @@ class ObsClient:
     def inputs(self):
         return self.request("GetInputList")
 
+    # --- scene / source plumbing -----------------------------------------------------
+
+    def scene_names(self):
+        return [s.get("sceneName") for s in (self.scenes().get("scenes") or [])]
+
+    def current_scene(self):
+        out = self.request("GetCurrentProgramScene")
+        return out.get("sceneName") or out.get("currentProgramSceneName")
+
+    def set_current_scene(self, name):
+        self.request("SetCurrentProgramScene", {"sceneName": name})
+
+    def create_scene(self, name):
+        if name not in self.scene_names():
+            self.request("CreateScene", {"sceneName": name})
+
+    def remove_scene(self, name):
+        try:
+            self.request("RemoveScene", {"sceneName": name})
+        except ObsError:
+            pass
+
+    def create_window_capture(self, scene, input_name, window):
+        """A game_capture locked to one window title.
+
+        `window` is OBS's triple - "<title>:<class>:<exe>". The engine's class is
+        `Engine`, which is what makes capture-by-title work at all: the harness
+        renames each client window and OBS finds it by that name.
+        """
+        self.request("CreateInput", {
+            "sceneName": scene,
+            "inputName": input_name,
+            "inputKind": "game_capture",
+            "inputSettings": {
+                "capture_mode": "window",
+                "window": window,
+                "capture_audio": False,
+                "capture_cursor": False,
+            },
+        })
+
+    def remove_input(self, input_name):
+        try:
+            self.request("RemoveInput", {"inputName": input_name})
+        except ObsError:
+            pass
+
     def source_screenshot(self, source, fmt="png", width=None):
         """Return one source's current frame as raw image bytes.
 

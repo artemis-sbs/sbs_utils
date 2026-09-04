@@ -1,0 +1,59 @@
+# Staging for the sizzle reel.
+#
+# AMD frames shots; it cannot spawn anything (amd_cutscene.py resolves `Subject:`
+# against a cast or a role and DROPS the shot otherwise). So every object a shot
+# points at is born here and bound to a cast name.
+#
+# Determinism is the contract: literal coordinates, explicit facings, ships at rest,
+# and no `random` anywhere in this file. A shot list is only worth iterating if take 2
+# frames the same thing take 1 did.
+#
+# Nothing here plays a cutscene. The map parks in a hold loop and the HOST steps the
+# shots (cutscene_amd_shots + shot_apply), because a cutscene runs on a clock and a
+# clock is useless to something trying to hold a frame still for a screenshot.
+
+@map/sz_open "Sizzle: cold open + fight"
+metadata: ``` yaml
+pre_game: true
+```
+    " Stages the hero, the raiders and a debris field, then holds for the stepper.
+    jump sz_stage_open
+
+=== sz_stage_open ===
+    # --- the cast -----------------------------------------------------------------
+    shared SZ_HERO = to_object(npc_spawn(0, 0, 0, "Artemis", "tsn", "tsn_light_cruiser", "behav_npcship"))
+    shared SZ_LEAD = to_object(npc_spawn(2400, 0, 1800, "Kralien Lead", "kralien", "kralien_battleship", "behav_npcship"))
+    shared SZ_WING = to_object(npc_spawn(3200, 0, 2600, "Kralien Two", "kralien", "kralien_cruiser", "behav_npcship"))
+    shared SZ_FIGHTER = to_object(npc_spawn(300, 0, 0 - 400, "Hawk 1", "tsn", "tsn_fighter", "behav_npcship"))
+
+    # Something for the wide shots to have depth against. Fixed positions, no random.
+    for sz_i in range(9):
+        terrain_spawn(0 - 8000 + sz_i * 1900, 0, 5200, f"szrock{sz_i}", "#,szref", "plain_asteroid_9", "behav_asteroid")
+
+    cutscene_cast("hero", SZ_HERO)
+    cutscene_cast("raider_lead", SZ_LEAD)
+    cutscene_cast("fighter", SZ_FIGHTER)
+
+    # A 2D console screen is not a space object and has no cast entry of its own. The
+    # shot points at the hero so the record resolves; the PICTURE comes from rerouting
+    # a client to that screen and capturing its window instead of the camera's.
+    cutscene_cast("engineering_screen", SZ_HERO)
+
+    # --- the shot list ------------------------------------------------------------
+    # amd_document takes the TEXT, not a path.
+    sz_doc = amd_document(media_read_relative_file("shots.amd"))
+    sz_loaded = amd_cutscenes(amd_root_node(sz_doc))
+
+    signal_emit("sz_staged")
+---sz_hold
+    await delay_sim(1)
+    jump sz_hold
+
+
+# The firefight is SCRIPTED, not simulated. Letting brains fight and hoping a good
+# frame happens is how a contact sheet comes back full of empty space.
+//signal/sz_fire
+    ->END if not object_exists(SZ_LEAD.id)
+    target(SZ_LEAD.id, SZ_HERO.id, True, 0.0)
+    target(SZ_WING.id, SZ_HERO.id, True, 0.0)
+    ->END

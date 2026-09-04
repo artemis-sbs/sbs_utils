@@ -1,0 +1,88 @@
+# [Sizzle Reel](sizzle)
+
+The shot list. Times are in BEATS, not seconds - `sz_play(key, bpm)` multiplies every
+`Seconds:` by `60/bpm`, so at 120bpm a beat is half a second and `Seconds: 8` is a
+four-second shot. Retiming the whole reel to a different track is one flag.
+
+Every shot uses `Framing:` rather than `Lens:`. Framing is hull-relative, so a shot
+reads the same whether it is pointed at a shuttle or a starbase, and moving a spawn
+in `sz_stage.mast` does not silently rebreak it.
+
+`Subject:` names a CAST that `sz_stage.mast` binds before playing - which is why there
+is not one coordinate in this file.
+
+## [Cold open](open)
+---
+Letterbox: yes
+Skippable: no
+Bar: 4
+---
+
+## [Into the throat](open_1)
+---
+Cutscene: open
+Subject: hero
+Framing: wide, close
+Seconds: 8
+Ease: in_out
+Overlay: lower_third
+Name: Fly inside
+---
+Some ruins you go around. This one you go into.
+
+## [Through the chamber](open_2)
+---
+Cutscene: open
+Subject: hero
+Framing: close
+Yaw: 150
+Pitch: 8
+Seconds: 6
+Transition: CUT TO:
+---
+
+## [The fight](fight)
+---
+Letterbox: yes
+Skippable: no
+Bar: 4
+---
+
+## [Contact, wide](fight_1)
+---
+Cutscene: fight
+Subject: raider_lead
+Framing: wide
+Seconds: 4
+---
+
+## [Impact](fight_2)
+---
+Cutscene: fight
+Subject: hero
+Framing: close
+Yaw: 40
+Seconds: 3
+---
+
+## [Engineering holds it together](fight_3)
+---
+Cutscene: fight
+Subject: engineering_screen
+Framing: close
+Seconds: 6
+Overlay: lower_third
+Name: Worn, then tuned
+---
+A system does not have to break to need you.
+
+## [Launch](fight_4)
+---
+Cutscene: fight
+Subject: fighter
+Framing: close, medium
+Seconds: 5
+Ease: out
+Overlay: lower_third
+Name: Hangar
+---
