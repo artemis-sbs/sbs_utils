@@ -1664,6 +1664,27 @@ def grid_node_apply_color(id_or_obj, theme_name=None):
     return color
 
 
+def grid_node_is_system(id_or_obj):
+    """Is this node part of a ship SYSTEM - the only kind of node that wears?
+
+    Every shipped interior says so in its own roles: a system room's roles begin with
+    ``system`` (``system,weapon,beam``, ``system,ENGINE,impulse``, ``system,shield,fwd``)
+    and a crew space's begin with ``room`` (``room,cabin,gym``, ``room,cabin,quarters``,
+    ``room,bay,cargo``). Measured across `data/grid_data.json`: 38 rolesets, 11 of them
+    systems, and not one where `system` appears anywhere but first. LegendaryMissions'
+    docking repair and the EPad room list already read the same role.
+
+    Wear is a SYSTEM idea - a tuned beam array fires harder, a worn impulse drive pushes
+    less - and none of that means anything for a gymnasium. Before this, upkeep aged
+    every node on the ship, so the gym went worn on schedule and Engineering offered a
+    damage-control team to go and tune it.
+
+    Damage is different and is deliberately NOT gated: a fire in the galley is a real
+    fire, and a team still goes and puts it out.
+    """
+    return has_role(to_id(id_or_obj), "system")
+
+
 def grid_set_node_wear(id_or_obj, value, ship_id=None):
     """Set a node's wear, reconciling everything that follows from it.
 
@@ -1671,6 +1692,11 @@ def grid_set_node_wear(id_or_obj, value, ship_id=None):
     through grid_node_apply_color, and recomputes the ship's coefficients - but only
     when the ROLE actually flipped, so wear moving within a band costs one dict write
     and nothing else.
+
+    Only a SYSTEM node carries wear at all (see ``grid_node_is_system``); on anything
+    else this is a no-op that answers with the nominal reading. Gating the one writer
+    rather than each caller is what makes the whole model system-only: upkeep, the
+    wear a damcon patch leaves behind, a mission's own call, all of it.
 
     ``__worn__`` never coexists with ``__damaged__``: damage supersedes wear, and a
     worn node keeps ``__undamaged__`` so nothing that counts undamaged system nodes
@@ -1689,6 +1715,8 @@ def grid_set_node_wear(id_or_obj, value, ship_id=None):
     node = to_object(node_id)
     if node is None:
         return 0.0
+    if not grid_node_is_system(node_id):
+        return grid_node_wear(node_id)
     value = max(0.0, min(1.0, float(value)))
     set_inventory_value(node_id, "wear", value)
 
@@ -1744,7 +1772,10 @@ def grid_wear_system(ship_id, sys_role, amount, count=1):
 
 
 def grid_wear_upkeep(ship_id, amount=None):
-    """Age every working node on a ship by one upkeep step.
+    """Age every working SYSTEM node on a ship by one upkeep step.
+
+    Crew spaces are left alone: a gymnasium does not drift out of tune, and one that
+    read `worn` put a tuning job for it on the Engineering board.
 
     Args:
         ship_id: the ship.
@@ -1755,7 +1786,9 @@ def grid_wear_upkeep(ship_id, amount=None):
     """
     if amount is None:
         amount = WEAR_UPKEEP_RATE
-    nodes = grid_objects(ship_id) & role("__undamaged__")
+    # SYSTEMS ONLY, and the count has to say so too - reporting 40 aged nodes on a ship
+    # where 12 can age reads as the model working when it is not.
+    nodes = grid_objects(ship_id) & role("__undamaged__") & role("system")
     for node_id in nodes:
         grid_add_node_wear(node_id, amount, ship_id)
     return len(nodes)

@@ -45,9 +45,12 @@ class WearBase(unittest.TestCase):
         FrameContext.context = None
         SpaceObject.clear()
 
-    def node(self, x, *roles):
+    def node(self, x, *roles, kind="system"):
+        """A node of `kind` - `system` by default, because wear is a SYSTEM idea and
+        that is what nearly every test here is about. Pass kind="room" for a crew
+        space (a gymnasium, quarters, the galley), which does not wear at all."""
         go = grid_spawn(self.ship, f"n{x}", f"n{x}", x, 0, 12, "LightYellow",
-                        "#,room," + ",".join(roles))
+                        f"#,{kind}," + ",".join(roles))
         node_id = to_id(go)
         set_inventory_value(node_id, "color", "LightYellow")
         return node_id
@@ -384,6 +387,58 @@ class TestRateTuning(WearBase):
         finally:
             D.log = original
         self.assertTrue(any("beeem_hit" in m for m in seen), seen)
+
+
+class TestOnlySystemsWear(WearBase):
+    """Wear is a SYSTEM property. A gymnasium does not drift out of tune.
+
+    Every shipped interior says which is which in its own roles - a system room's
+    roles begin with `system`, a crew space's with `room` - and upkeep used to age
+    both. So the gym went worn on schedule and Engineering offered a damage-control
+    team to go and tune it, which is what put this rule in.
+    """
+
+    def gym(self, x=3):
+        return self.node(x, "cabin", "gym", "__undamaged__", kind="room")
+
+    def test_a_crew_space_does_not_take_wear(self):
+        gym = self.gym()
+        D.grid_add_node_wear(gym, 0.9)
+        self.assertEqual(D.grid_node_wear(gym), D.WEAR_NOMINAL)
+        self.assertEqual(D.grid_node_state(gym), "nominal")
+        self.assertFalse(has_role(gym, "__worn__"))
+
+    def test_upkeep_ages_the_systems_and_leaves_the_gym_alone(self):
+        beam = self.node(1, "weapon", "beam", "__undamaged__")
+        gym = self.gym()
+        aged = D.grid_wear_upkeep(self.ship)
+        self.assertGreater(D.grid_node_wear(beam), D.WEAR_NOMINAL)
+        self.assertEqual(D.grid_node_wear(gym), D.WEAR_NOMINAL)
+        self.assertEqual(aged, 1, "the count has to say systems only, or a ship where "
+                                  "nothing can age still reports a busy upkeep")
+
+    def test_a_patch_leaves_no_wear_on_a_crew_space(self):
+        """A damcon patch leaves a system worn - back in service, but worn. On a room
+        that would be permanent: nothing can tune it back."""
+        gym = self.gym()
+        D.grid_set_node_wear(gym, D.WEAR_AFTER_PATCH)
+        self.assertEqual(D.grid_node_state(gym), "nominal")
+
+    def test_A_GYM_IS_NEVER_A_TUNING_JOB(self):
+        """The reported bug, in the words it was reported in: why would a gym need
+        tuning? The comms menu asks work_order_kind_wanted and offers `<team> tune`
+        for anything that answers KIND_MAINTAIN."""
+        gym = self.gym()
+        self.assertIsNone(W.work_order_kind_wanted(gym))
+
+    def test_but_a_fire_in_the_gym_is_still_a_repair(self):
+        """Damage is not gated - a fire in the galley is a real fire."""
+        gym = self.node(4, "cabin", "gym", "__damaged__", kind="room")
+        self.assertEqual(W.work_order_kind_wanted(gym), W.KIND_REPAIR)
+
+    def test_a_system_still_offers_the_tuning_job(self):
+        beam = self.node(5, "weapon", "beam", "__undamaged__")
+        self.assertEqual(W.work_order_kind_wanted(beam), W.KIND_MAINTAIN)
 
 
 if __name__ == "__main__":

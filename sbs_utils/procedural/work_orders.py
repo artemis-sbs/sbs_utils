@@ -29,7 +29,7 @@ from .roles import role, has_role, add_role, remove_role
 from .links import link, unlink, linked_to, has_link, has_link_to
 from .inventory import get_inventory_value, set_inventory_value
 from .grid import grid_objects, grid_closest, grid_valid_blob, grid_object_valid
-from .internal_damage import grid_node_state
+from .internal_damage import grid_node_state, grid_node_is_system
 
 WORK_ORDER_LINK = "work-order"
 
@@ -66,20 +66,28 @@ def work_order_kind_wanted(id_or_obj):
     made cyan reachable only by neglecting a system and then fixing it, which is the
     exact opposite of rewarding a well-run ship.
 
-    Only an already-tuned node answers None: there is genuinely nothing left to do.
+    But only a SYSTEM node can be tuned. Tuning is what moves a system's
+    effectiveness, and a gymnasium has none to move - offering a damage-control team
+    to go and tune one was the tell that the model had been applied a room too wide.
+    A crew space still takes a REPAIR: a fire in the galley is a real fire.
+
+    An already-tuned system answers None too: there is genuinely nothing left to do.
 
     Args:
         id_or_obj: a grid node.
 
     Returns:
         str | None: KIND_REPAIR for a damaged node, KIND_MAINTAIN for a worn or
-        nominal one, None for one already at spec.
+        nominal SYSTEM, None for a crew space in one piece or a system already at
+        spec.
     """
     node_id = to_id(id_or_obj)
     state = grid_node_state(node_id)
     if state == "damaged":
         return KIND_REPAIR
     if state == "tuned":
+        return None
+    if not grid_node_is_system(node_id):
         return None
     return KIND_MAINTAIN
 

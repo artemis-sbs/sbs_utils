@@ -45,11 +45,14 @@ class WorkOrderBase(unittest.TestCase):
         SpaceObject.clear()
 
     # --- fixtures ---------------------------------------------------------
-    def node(self, x, *roles, ship=None):
+    def node(self, x, *roles, ship=None, kind="system"):
         """A REAL grid object: grid_objects walks the engine's hull map, so a
-        stand-in agent is invisible to every query under test."""
+        stand-in agent is invisible to every query under test.
+
+        `system` by default - only a system node wears, so only a system node can
+        carry a maintenance order. Pass kind="room" for a crew space."""
         go = grid_spawn(ship or self.ship, f"n{x}", f"n{x}", x, 0, 12, "white",
-                        "#,room," + ",".join(roles))
+                        f"#,{kind}," + ",".join(roles))
         return to_id(go)
 
     def broken(self, x, ship=None):
