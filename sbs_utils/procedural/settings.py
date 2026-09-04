@@ -93,6 +93,7 @@ def settings_profile_reset():
     interpreter can be pointed at a different mission, and its profile."""
     global _profile_data
     _profile_data = None
+    _merge_reported.clear()
 
 
 def _profile_section(name):
@@ -135,13 +136,28 @@ def _profile_load(path_for):
     return data if isinstance(data, dict) else None
 
 
-def _profile_overrides():
-    """Settings from `profile=<name>` on the command line -> `profiles/<name>.yaml`.
+def _profile_names(raw):
+    """`profile=a,b,c` -> ["a", "b", "c"], in the order they were typed.
 
-    The command line is for a HANDFUL of short, memorable arguments; a profile is how a
-    launch carries twenty settings without twenty arguments. `cmd.exe` caps a command line
-    at 8191 characters, shortcuts truncate, Windows quoting around spaces and `=` is
-    painful, and none of it is diffable or reviewable. A file is all of those things.
+    Comma-separated because a launch argument has no other list syntax that survives a
+    Windows shortcut, and because the order IS the meaning - later profiles win.
+
+    Duplicates are dropped rather than applied twice: `profile=house,house` merging a file
+    into itself would be a no-op for settings but would double every `include:` entry.
+    """
+    out = []
+    seen = set()
+    for part in str(raw).split(","):
+        name = part.strip()
+        if not name or name.casefold() in seen:
+            continue
+        seen.add(name.casefold())
+        out.append(name)
+    return out
+
+
+def _profile_load_named(name):
+    """One profile by name, from the mission then from common_data. None if neither has it.
 
     Two places are searched, in order:
 
@@ -156,12 +172,7 @@ def _profile_overrides():
     The mission wins on a name collision, so a mission can always ship a definitive
     profile under a name an operator also happens to use.
     """
-    from .command_line import command_line_get
     from ..fs import get_common_data_filename
-    name = command_line_get("profile")
-    if not name:
-        return None
-    name = str(name).strip()
 
     data = _profile_load(
         lambda ext: get_mission_dir_filename(os.path.join("profiles", name + ext)))
@@ -184,6 +195,112 @@ def _profile_overrides():
     _warn(f"profile='{name}' matched neither profiles/{name}.yaml in the mission nor "
           f"common_data/profiles/{name}.yaml - ignoring it")
     return None
+
+
+_SECTIONS = ("addons", "media")     # the two that select CONTENT, not settings
+_merge_reported = set()             # merge orders already logged - see _profile_overrides
+
+
+def _merge_section(base, added):
+    """Fold one profile's `addons:`/`media:` block into the running one.
+
+    A setting is a single value, so the last profile to name it simply wins. A content
+    section is not: `profile=skies,autoplay` excluding the stock skybox in one file and
+    adding a debug add-on in the other must do BOTH, and a plain `|` would silently keep
+    only the second. So include lists CONCATENATE (in typed order, deduped) and exclude
+    lists UNION.
+
+    An entry that one profile excludes and a later one includes ends up in both lists;
+    the consumer applies excludes first and includes second, so the include wins. That is
+    the useful direction - it lets a specific profile re-add something a broad one
+    removed - and it is the same order a reader of the command line would assume.
+    """
+    if not isinstance(added, dict):
+        return base if isinstance(base, dict) else {}
+    if not isinstance(base, dict):
+        return dict(added)
+    out = dict(base)
+    for key in ("include", "exclude"):
+        left, right = base.get(key), added.get(key)
+        if right is None:
+            continue
+        if left is None:
+            out[key] = right
+            continue
+        if isinstance(left, str):
+            left = [left]
+        if isinstance(right, str):
+            right = [right]
+        try:
+            merged, seen = [], set()
+            for item in list(left) + list(right):
+                token = str(item).strip().lower()
+                if not token or token in seen:
+                    continue
+                seen.add(token)
+                merged.append(item)
+            out[key] = merged
+        except TypeError:
+            # Hand-written YAML; a non-iterable here means "the later one wins" rather
+            # than a failed launch.
+            out[key] = right
+    return out
+
+
+def _profile_merge(base, added):
+    """`base` overlaid with `added` - later wins on settings, sections accumulate."""
+    out = base | added
+    for section in _SECTIONS:
+        if section in base and section in added:
+            out[section] = _merge_section(base[section], added[section])
+    return out
+
+
+def _profile_overrides():
+    """Settings from `profile=<name>` on the command line -> `profiles/<name>.yaml`.
+
+    The command line is for a HANDFUL of short, memorable arguments; a profile is how a
+    launch carries twenty settings without twenty arguments. `cmd.exe` caps a command line
+    at 8191 characters, shortcuts truncate, Windows quoting around spaces and `=` is
+    painful, and none of it is diffable or reviewable. A file is all of those things.
+
+    **Several may be named**, comma separated - `profile=autoplay7,tng_all` - and they are
+    merged LEFT TO RIGHT, so the last one typed wins a settings key the earlier ones also
+    set. That is what makes profiles composable instead of combinatorial: a host with three
+    house settings and four mods needs seven files, not twelve. `addons:` and `media:`
+    accumulate rather than replace (see :func:`_merge_section`) - excluding the stock
+    skybox in one profile and adding a debug add-on in another has to do both.
+
+    A name that matches no file is warned about and SKIPPED; the rest still apply. One
+    typo in a list of four must not silently discard the other three, which is what a
+    single-name reader did when handed a comma list.
+    """
+    from .command_line import command_line_get
+    raw = command_line_get("profile")
+    if not raw:
+        return None
+    names = _profile_names(raw)
+    if not names:
+        return None
+
+    merged = None
+    applied = []
+    for name in names:
+        data = _profile_load_named(name)
+        if data is None:
+            continue
+        applied.append(name)
+        merged = dict(data) if merged is None else _profile_merge(merged, data)
+    if merged is not None and len(applied) > 1:
+        # Which files, and in what order - the merge is order-dependent, so a log that
+        # only said "a profile applied" would not be enough to explain the result. Said
+        # once: this function runs at least twice a launch (settings, then the add-on
+        # selection during compile) and the same line twice reads like two merges.
+        order = " < ".join(applied)
+        if order not in _merge_reported:
+            _merge_reported.add(order)
+            _log(f"profiles merged, later wins: {order}")
+    return merged
 
 
 def _cli_overrides(known):
@@ -466,7 +583,7 @@ def settings_get_defaults():
     # Runtime overrides (e.g. `sbs debug --set ...`) win over the file/built-ins
     # without editing settings.yaml.
     # A named profile: `profile=soak` -> profiles/soak.yaml. Bulk config belongs in a file
-    # that the command line merely NAMES.
+    # that the command line merely NAMES. `profile=a,b` merges them, later wins.
     profile = _profile_overrides()
     if profile is not None:
         setting_defaults = setting_defaults | profile

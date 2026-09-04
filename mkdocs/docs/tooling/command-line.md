@@ -31,7 +31,7 @@ through to script, which is what lets a mission define its own.
 |---|---|
 | `map=<name>` | start this map, skipping the picker. Index, path, display name, or an unambiguous part of one |
 | `console=<name>` | this client opens on that console |
-| `profile=<name>` | load `profiles/<name>.yaml` over the mission's settings |
+| `profile=<name>` | load `profiles/<name>.yaml` over the mission's settings. Several, comma separated, merge left to right |
 | `var.NAME=value` | override one setting |
 | `var.A.B=value` | override a nested setting |
 | `seed=<n>` | fix the random seed, so a run can be repeated |
@@ -52,6 +52,7 @@ built-in defaults
   <  the mission's settings.yaml
   <  profile=<name>          ->  <mission>/profiles/<name>.yaml
                              ->  common_data/profiles/<name>.yaml
+     profile=<a>,<b>            several merge left to right, last wins
   <  the COSMOS_SETTINGS environment variable
   <  var.NAME= on the command line
 ```

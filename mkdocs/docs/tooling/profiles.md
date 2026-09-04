@@ -34,6 +34,37 @@ Only `exclude:` names something a particular mission declared, and an `exclude` 
 matches nothing is a no-op filter rather than an error - so the same file is safe to point
 at a mission that never had the add-on you are replacing.
 
+## Several at once
+
+Name more than one, comma separated, and they are merged **left to right** - the last one
+typed wins any settings key the earlier ones also set:
+
+```
+... profile=house,a28_skies,soak
+python -m cosmos_dev.mission_runner . --test 20 --map 0 --profile house,a28_skies
+```
+
+This is what keeps profiles from being combinatorial. Three house setups and four content
+packs is seven files if they compose and twelve if they do not, and the twelve drift apart
+the first time one of them is edited. Write one profile per *decision* - the venue, the
+mods, the run style - and pick the ones you want at launch.
+
+`addons:` and `media:` **accumulate** rather than replace, which is the behavior these
+sections need: excluding the stock skybox in one profile and adding a debug add-on in
+another has to do both, and a last-wins rule would keep only the second. Includes
+concatenate in typed order and excludes union; duplicates are listed once. An entry one
+profile excludes and a later one includes ends up in both lists, and the **include wins** -
+excludes are applied first - so a specific profile can re-add something a broad one removed.
+
+A name that matches no file is warned about and **skipped**, and the rest still apply. One
+typo in a list of four must not discard the other three.
+
+The merge order is logged, because the result depends on it:
+
+```
+profiles merged, later wins: house < a28_skies < soak
+```
+
 ## Why a file and not more arguments
 
 A Windows command line is capped at 8191 characters, shortcuts truncate it, quoting around
@@ -62,13 +93,14 @@ Merged in this order, each beating the one before:
 built-in defaults
   <  a mod's settings_set_mod_default()
   <  the mission's settings.yaml
-  <  profile=<name>
+  <  profile=<name>            (several: merged left to right, last wins)
   <  the COSMOS_SETTINGS environment variable
   <  var.NAME= on the command line
 ```
 
 Whole-key replace, not a deep merge: a profile's `AUTO_PLAY` replaces the entire
-`AUTO_PLAY` entry rather than merging into it.
+`AUTO_PLAY` entry rather than merging into it. The same is true between two profiles -
+`profile=a,b` where both set `AUTO_PLAY` gives you b's, whole.
 
 ## Add-ons and media packs
 

@@ -2876,8 +2876,9 @@ if __name__ == "__main__":
                     help="Map index (int) or map name to auto-start  [default: show GUI picker]")
     ap.add_argument("--mast", default=None,
                     help="Debug .mast file inside mission folder  [default: story.mast]")
-    ap.add_argument("--profile", default=None, metavar="NAME",
-                    help="Launch profile: profiles/NAME.yaml  (same as the engine's profile=NAME)")
+    ap.add_argument("--profile", default=None, metavar="NAME[,NAME...]",
+                    help="Launch profile(s): profiles/NAME.yaml, comma separated and "
+                         "merged left to right (same as the engine's profile=NAME)")
     ap.add_argument("--gui", action="store_true",
                     help="Start the cosmos_dev WebSocket GUI server")
     ap.add_argument("--port", type=int, default=8765,
