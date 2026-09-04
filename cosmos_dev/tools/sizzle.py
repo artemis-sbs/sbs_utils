@@ -626,6 +626,216 @@ def cmd_contact(args):
     return 0
 
 
+def cmd_shoot(args):
+    """M5: record one continuous take, stepping the shot list and marking each cut."""
+    from ..engine_driver.driver import EngineDriver
+    from ..sizzle import clients as C, windows as W, stepper, record as R
+
+    W.set_dpi_aware()
+    if check_engine(args) and not args.force:
+        print("\nRefusing to start (use --force to override).")
+        return 1
+
+    missions = args.missions_dir or os.path.join(args.cosmos_dir, "data", "missions")
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    out_dir = args.out or os.path.join(missions, "_sizzle", stamp, "takes", args.scene)
+    print("staging mission -> %s" % _sync_stage_mission(missions))
+
+    drv = EngineDriver(cosmos_dir=args.cosmos_dir, mission="SizzleReel",
+                       missions_dir=missions)
+    drv.build_mastlib()
+    drv.enable_in_story()
+    print("launching engine on SizzleReel ...")
+    drv.launch(map=args.map)
+    try:
+        ok = drv.ping(timeout=args.timeout)
+    except Exception as e:
+        print("FAIL: the engine never answered the queue (%s)" % e)
+        drv.stop_engines()
+        return 1
+    if not ok:
+        print("FAIL: the engine never answered the queue")
+        drv.stop_engines()
+        return 1
+
+    print("  warmup %ds ..." % args.warmup)
+    for _ in range(args.warmup):
+        time.sleep(1)
+        if not drv.is_running():
+            print("FAIL: the engine died during warmup")
+            return 1
+
+    made = []
+    scene, src_name = "sizzle-take", "sizzle-cam"
+    obs = prev_scene = prev_video = None
+    take = None
+    rc = 0
+    try:
+        cam = C.launch_client(drv, "cam", "SZ-CAM", timeout=args.timeout)
+        made.append(cam)
+        if cam.client_id is None:
+            print("FAIL: the client never bound - %s" % cam.why)
+            return 1
+        asp = _aspect(*cam.size) if cam.size else "?"
+        print("  shooting at %s (%s)" % ("%dx%d" % cam.size if cam.size else "?", asp))
+        if asp != "16:9":
+            print("  WARNING: not 16:9 - set the engine to FULLSCREEN by hand.")
+
+        obs = obsws.connect(host=args.obs_host, port=args.obs_port,
+                            password=args.obs_password)
+        prev_scene = obs.current_scene()
+        v = obs.video_settings()
+        prev_video = (v.get("baseWidth"), v.get("baseHeight"),
+                      v.get("outputWidth"), v.get("outputHeight"))
+        # Match the canvas to the SOURCE so the take is resampled once, on the way to
+        # the output, instead of being upscaled onto a bigger canvas and then scaled
+        # back down. Restored in the finally - this is the user's own profile.
+        if cam.size:
+            obs.set_video_settings(cam.size[0], cam.size[1],
+                                   args.out_width, args.out_height)
+        obs.remove_input(src_name)
+        obs.remove_scene(scene)
+        obs.create_scene(scene)
+        obs.create_window_capture(
+            scene, src_name, "%s:Engine:Artemis3-x64-release.exe" % cam.title)
+        obs.fit_source_to_canvas(scene, src_name)
+
+        print("starting map %r ..." % args.map)
+        _start_scene(drv, args.map)
+        shots = []
+        for _ in range(int(args.timeout)):
+            time.sleep(1)
+            shots = stepper.load_shots(drv, args.scene)
+            if shots:
+                break
+        if not shots:
+            print("FAIL: no shots resolved in scene %r" % args.scene)
+            return 1
+        beat = 60.0 / float(args.bpm)
+        total = sum(float(s.get("seconds") or 4) for s in shots) * beat
+        print("\n%d shots, %.4g bpm -> %.1fs of tape" % (len(shots), args.bpm, total))
+
+        take = R.Take(obs, scene, src_name, out_dir)
+        take.start()
+        print("RECORDING -> %s" % out_dir)
+        for i, shot in enumerate(shots):
+            label = stepper.apply_shot(drv, args.scene, i, [cam.client_id])
+            take.mark(i, label, shot)
+            hold = float(shot.get("seconds") or 4) * beat
+            print("  %02d %-28s %.2fs" % (i, label, hold))
+            time.sleep(hold)
+            if not stepper.alive(drv):
+                where = R.abort(take, os.path.dirname(out_dir),
+                                "engine stopped answering at shot %d" % i,
+                                log_tail=(drv.read_log(tail=1500) or "")[-1500:])
+                print("\nABORTED at shot %d - partial take kept in %s" % (i, where))
+                print("Not assembling.")
+                return 1
+        path = take.stop()
+        take.write_marks({"bpm": args.bpm, "scene": args.scene,
+                          "source_size": list(cam.size or ())})
+        print("\ntake: %s" % path)
+        print("marks: %s" % os.path.join(out_dir, "marks.json"))
+    except KeyboardInterrupt:
+        print("\ninterrupted")
+        rc = 1
+    finally:
+        if obs is not None:
+            try:
+                if take is not None and take.path is None:
+                    take.stop()
+                if prev_video and all(prev_video):
+                    obs.set_video_settings(*prev_video)
+                if prev_scene:
+                    obs.set_current_scene(prev_scene)
+                obs.remove_input(src_name)
+                obs.remove_scene(scene)
+            except Exception:
+                pass
+            obs.close()
+        if not args.keep:
+            C.stop(made)
+            drv.close()
+            drv.stop_engines()
+    return rc
+
+
+def ffmpeg_exe():
+    """The ffmpeg to use, in preference order, or None."""
+    p = shutil.which("ffmpeg")
+    if p:
+        return p
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return None
+
+
+def cmd_sheet(args):
+    """Re-derive a contact sheet FROM a recorded take, at its marks.
+
+    This is what proves the marks are right. A live sheet says what the camera was
+    doing; this says what the TAPE actually holds at the times the marks claim - and
+    if they disagree, every cut in the assembly lands in the wrong place.
+    """
+    from ..sizzle import contact as sheet
+
+    ff = ffmpeg_exe()
+    if ff is None:
+        print("FAIL: no ffmpeg (pip install imageio-ffmpeg)")
+        return 1
+
+    marks_path = os.path.join(args.take, "marks.json")
+    if not os.path.isfile(marks_path):
+        print("FAIL: no marks.json in %s" % args.take)
+        return 1
+    with open(marks_path, encoding="utf-8") as f:
+        doc = json.load(f)
+    take = doc.get("take")
+    if not take or not os.path.isfile(take):
+        cand = glob.glob(os.path.join(args.take, "*.mkv")) + \
+               glob.glob(os.path.join(args.take, "*.mp4"))
+        take = cand[0] if cand else None
+    if not take:
+        print("FAIL: the take file named in marks.json is gone")
+        return 1
+    print("take:  %s" % take)
+
+    out = args.out or os.path.join(args.take, "from_take")
+    os.makedirs(out, exist_ok=True)
+    tiles, shots = [], []
+    for m in doc.get("marks") or []:
+        t0 = float(m.get("t") or 0.0)
+        t1 = float(m.get("t_end") or (t0 + 1.0))
+        # MID-shot, not at the mark: a frame taken exactly on a cut catches the
+        # transition and tells you nothing about how the shot was framed.
+        at = t0 + (t1 - t0) / 2.0
+        png = os.path.join(out, "shot_%02d.png" % m.get("index", 0))
+        cmd = [ff, "-y", "-hide_banner", "-loglevel", "error",
+               "-ss", "%.3f" % at, "-i", take, "-frames:v", "1",
+               "-vf", "scale=%d:-1" % args.width, png]
+        subprocess.run(cmd, capture_output=True, timeout=60)
+        raw = None
+        if os.path.isfile(png):
+            with open(png, "rb") as f:
+                raw = f.read()
+        print("  %02d %-28s t=%6.2fs  %s" % (
+            m.get("index", 0), m.get("label", "?"), at,
+            "%d bytes" % len(raw) if raw else "NO FRAME"))
+        tiles.append(raw)
+        shots.append({"key": m.get("label"), "label": m.get("label"),
+                      "framing": m.get("framing"), "seconds": m.get("seconds"),
+                      "subject": m.get("subject")})
+
+    if not tiles:
+        print("FAIL: no marks to extract")
+        return 1
+    path = sheet.write_sheet(out, tiles, shots, cols=args.cols, width=args.width)
+    print("\nsheet: %s" % path)
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="sizzle", description=__doc__.splitlines()[0])
     ap.add_argument("--cosmos-dir", default=os.environ.get("COSMOS_DIR", r"E:\a\Cosmos-dev"))
@@ -670,6 +880,27 @@ def main(argv=None):
     ct.add_argument("--keep", action="store_true")
     ct.add_argument("--force", action="store_true")
     ct.set_defaults(func=cmd_contact)
+
+    sh = sub.add_parser("shoot", help="M5: record a continuous take with marks")
+    sh.add_argument("--scene", default="open")
+    sh.add_argument("--map", default="sz_open")
+    sh.add_argument("--bpm", type=float, default=120.0,
+                    help="Seconds: in shots.amd are BEATS; this converts them")
+    sh.add_argument("--out-width", type=int, default=1920)
+    sh.add_argument("--out-height", type=int, default=1080)
+    sh.add_argument("--warmup", type=int, default=20)
+    sh.add_argument("--timeout", type=float, default=120.0)
+    sh.add_argument("--out", default=None)
+    sh.add_argument("--keep", action="store_true")
+    sh.add_argument("--force", action="store_true")
+    sh.set_defaults(func=cmd_shoot)
+
+    sk = sub.add_parser("sheet", help="re-derive a contact sheet FROM a recorded take")
+    sk.add_argument("take", help="a takes/<name>/ directory containing marks.json")
+    sk.add_argument("--width", type=int, default=480)
+    sk.add_argument("--cols", type=int, default=4)
+    sk.add_argument("--out", default=None)
+    sk.set_defaults(func=cmd_sheet)
 
     args = ap.parse_args(argv)
     if not getattr(args, "func", None):

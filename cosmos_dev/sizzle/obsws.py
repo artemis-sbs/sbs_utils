@@ -229,6 +229,62 @@ class ObsClient:
         except ObsError:
             pass
 
+    # --- video settings and recording ------------------------------------------------
+
+    def video_settings(self):
+        return self.request("GetVideoSettings")
+
+    def set_video_settings(self, base_w, base_h, out_w, out_h):
+        """Set canvas and output size. CHANGES THE USER'S PROFILE - save the old values
+        and put them back."""
+        self.request("SetVideoSettings", {
+            "baseWidth": int(base_w), "baseHeight": int(base_h),
+            "outputWidth": int(out_w), "outputHeight": int(out_h),
+        })
+
+    def fit_source_to_canvas(self, scene, input_name):
+        """Stretch a scene item to fill the canvas.
+
+        A freshly created input sits at its native size at 0,0. If the canvas and the
+        source differ at all, the take is captured with a border or a crop - and that
+        is only visible once the reel is cut.
+        """
+        items = self.request("GetSceneItemList", {"sceneName": scene}).get("sceneItems") or []
+        item_id = None
+        for it in items:
+            if it.get("sourceName") == input_name:
+                item_id = it.get("sceneItemId")
+                break
+        if item_id is None:
+            return False
+        v = self.video_settings()
+        self.request("SetSceneItemTransform", {
+            "sceneName": scene,
+            "sceneItemId": item_id,
+            "sceneItemTransform": {
+                "positionX": 0, "positionY": 0,
+                "boundsType": "OBS_BOUNDS_SCALE_INNER",
+                "boundsAlignment": 0,
+                "boundsWidth": float(v.get("baseWidth") or 1920),
+                "boundsHeight": float(v.get("baseHeight") or 1080),
+            },
+        })
+        return True
+
+    def set_record_directory(self, path):
+        self.request("SetRecordDirectory", {"recordDirectory": path})
+
+    def start_record(self):
+        self.request("StartRecord")
+
+    def stop_record(self):
+        """Stop, and return the file OBS actually wrote."""
+        out = self.request("StopRecord")
+        return out.get("outputPath")
+
+    def record_status(self):
+        return self.request("GetRecordStatus")
+
     def source_screenshot(self, source, fmt="png", width=None):
         """Return one source's current frame as raw image bytes.
 
