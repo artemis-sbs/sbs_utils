@@ -111,9 +111,9 @@ mission whose real beginning is the end of a cutscene calls `mission_clock_start
 and the clock re-zeros. Nothing reads `None`: with no start stamped the clock answers with
 the sim's own age.
 
-The ePADD **Status** app draws it in the top right of its title bar as `T+hh:mm:ss`, and
-moves it on with `gui_status_tick()` from an `on change` - the widget, never a page
-repaint.
+The ePADD **home screen** draws it at the right end of its bar as `T+hh:mm:ss`, in the
+wordmark's own size, and moves it on with `gui_app_home_tick()` from an `on change` - the
+widget, never a page repaint.
 
 ## Signals instead of polling
 

@@ -12,19 +12,8 @@ Selecting a row opens that app, because the reason you read a number is to go an
 something about it.
 """
 from ...helpers import FrameContext
-from ..timers import mission_elapsed_text
 from .epadd import (ACCENT, DIM, PANEL_HEAD, _esc, epadd_console_name,
                     gui_app_badge, gui_app_list, gui_app_open, gui_app_chrome)
-
-# What the screen keeps on the PAGE so the clock can be moved on without rebuilding
-# the board. On the page rather than in a module dict, so it dies with the page and
-# one console's view is never handed to another's.
-VIEW_ATTR = "_epadd_status_view"
-
-# The clock's style, in one place: `update()` REPLACES the whole style string, so
-# the tick has to re-send the font and color with the new time or the readout drops
-# to unstyled text on its first second.
-CLOCK_STYLE = f"font:gui-1;color:{DIM};"
 
 
 def status_rows(console=None):
@@ -79,18 +68,6 @@ def gui_status_screen(title="Status"):
     # NO SUBTITLE. "3 reporting" over a board that is already the three rows is the
     # status of Status. The one thing worth saying here is when there is nothing.
     gui_app_chrome(title, subtitle=(None if rows else "nothing to report"))
-    # THE MISSION CLOCK, on the far end of the title bar. It is added after the
-    # chrome and therefore after the chrome's trailing blank, which is what puts it
-    # right - the same seam `gui_app_subnav` uses. "T+" says it counts up from the
-    # start of the mission rather than being a time of day, and hh:mm:ss is fixed
-    # width so digits rolling over do not shuffle the bar.
-    clock = gui_text(f"$text:{_esc('T+' + mission_elapsed_text())};{CLOCK_STYLE}",
-                     style="col-width: content;")
-    # Held for `gui_status_tick`, which sets its value each second. A board that
-    # repainted once a second would send every widget on it over the wire, to every
-    # console, forever.
-    if page is not None:
-        setattr(page, VIEW_ATTR, {"clock": clock, "shown": None})
     gui_section(style="area: 0, 80px, 100, 100;")
 
     if not rows:
@@ -113,34 +90,3 @@ def gui_status_screen(title="Status"):
     gui_message_callback(lb, _open)
     return lb
 
-
-def gui_status_tick():
-    """Move the mission clock on, without rebuilding the board.
-
-    The screen calls this from an `on change mission_elapsed_text()` block, so it
-    runs once a second - which means it has to be cheap, and it has to not care
-    about being called when the screen is no longer up:
-
-        gui_status_screen()
-        on change mission_elapsed_text():
-            gui_status_tick()
-
-    Returns:
-        bool: True when the readout changed, False when there was nothing to do -
-            no screen of ours on this page, or the same second again.
-    """
-    page = FrameContext.page
-    view = getattr(page, VIEW_ATTR, None) if page is not None else None
-    if not view:
-        # A handler can outlive the screen that registered it. Ordinary, not an
-        # error: say nothing, do nothing.
-        return False
-    clock = view.get("clock")
-    if clock is None:
-        return False
-    text = "T+" + mission_elapsed_text()
-    if text == view.get("shown"):
-        return False
-    view["shown"] = text
-    clock.update(f"$text:{_esc(text)};{CLOCK_STYLE}")
-    return True

@@ -16,8 +16,10 @@ from sbs_utils.agent import clear_shared
 from sbs_utils.mast_sbs.maststorypage import StoryPage
 from sbs_utils.mast_sbs.story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
 from sbs_utils.procedural.gui.epadd import (
-    gui_app_register, gui_app_home, gui_app_open,
-    gui_app_chrome)
+    gui_app_register, gui_app_home, gui_app_home_tick, gui_app_open,
+    gui_app_chrome, ACCENT, CLOCK_STYLE, CLOCK_WIDTH, HOME_VIEW_ATTR)
+from sbs_utils.procedural.timers import (mission_clock_start, mission_elapsed_seconds,
+                                         mission_elapsed_text)
 
 ENGI = 7
 SERVER = 0
@@ -469,3 +471,140 @@ class TestSubAppNav(EpaddShellBase):
         self.assertEqual(opened, [])
 
 
+class TestTheMissionClock(EpaddShellBase):
+    """How long the mission has been going, on the PADD's own bar.
+
+    It reads at a glance from across a room, which is why it is the wordmark's size
+    rather than the dim console label's - and it moves on without the sheet of tiles
+    being rebuilt underneath it.
+    """
+
+    def at(self, seconds):
+        FrameContext.context.sim.time_tick_counter = int(seconds * 30)
+
+    def clock_texts(self, page):
+        from sbs_utils.pages.layout.text import Text
+        return [i.message for i in _all_items(page)
+                if isinstance(i, Text) and "T+" in (i.message or "")]
+
+    def test_it_counts_from_when_the_mission_started(self):
+        self.at(500)
+        mission_clock_start()
+        self.at(500 + 65)
+        self.assertAlmostEqual(mission_elapsed_seconds(), 65)
+        self.assertEqual(mission_elapsed_text(), "00:01:05")
+
+    def test_starting_it_again_re_zeros_it(self):
+        """A mission whose real beginning is the end of a cutscene says so."""
+        self.at(100)
+        mission_clock_start()
+        self.at(400)
+        mission_clock_start()
+        self.assertEqual(mission_elapsed_text(), "00:00:00")
+
+    def test_with_no_start_stamped_it_answers_with_the_sim(self):
+        """A mission that never goes through map_start has been running for as long
+        as its sim has - never None, which a readout would print."""
+        self.at(90)
+        self.assertAlmostEqual(mission_elapsed_seconds(), 90)
+        self.assertEqual(mission_elapsed_text(), "00:01:30")
+
+    def test_hours_are_not_lost(self):
+        mission_clock_start()
+        self.at(3 * 3600 + 4 * 60 + 9)
+        self.assertEqual(mission_elapsed_text(), "03:04:09")
+
+    def test_the_home_screen_draws_it(self):
+        mission_clock_start()
+        self.at(75)
+        page = self.build()
+        self.assertEqual(self.clock_texts(page),
+                         [f"$text:`T+00:01:15`;{CLOCK_STYLE}"])
+
+    def test_it_is_the_wordmarks_size_not_a_dim_detail(self):
+        """The reason it moved here off the Status board: gui-1 read as a detail."""
+        page = self.build()
+        self.assertIn("font:gui-4", self.clock_texts(page)[0])
+
+    def test_it_is_there_on_a_console_with_no_apps(self):
+        GuiAppDecoratorLabel.clear()
+        page = self.build()
+        self.assertTrue(self.clock_texts(page))
+
+    def test_THE_TICK_UPDATES_THE_WIDGET_AND_NOT_THE_PAGE(self):
+        """The property that keeps a once-a-second readout affordable: a repaint is
+        every tile on the sheet, over the wire, per console."""
+        mission_clock_start()
+        page = self.build()
+        layouts = len(page.pending_layouts)
+
+        self.at(61)
+        self.assertTrue(gui_app_home_tick())
+        # The whole style, not just the text: `update()` REPLACES it, so a tick that
+        # sent only the time would leave the clock unstyled from its first second.
+        self.assertEqual(self.clock_texts(page),
+                         [f"$text:`T+00:01:01`;{CLOCK_STYLE}"])
+        self.assertEqual(len(page.pending_layouts), layouts)
+
+    def test_the_same_second_twice_changes_nothing(self):
+        self.build()
+        self.at(5)
+        self.assertTrue(gui_app_home_tick())
+        self.assertFalse(gui_app_home_tick())
+
+    def test_a_tick_with_no_home_screen_is_quiet(self):
+        """The handler can outlive the screen that registered it - ordinary, not an
+        error, and never something that raises into the GUI task."""
+        page = self.build()
+        delattr(page, HOME_VIEW_ATTR)
+        self.assertFalse(gui_app_home_tick())
+        FrameContext.page = None
+        self.assertFalse(gui_app_home_tick())
+
+    def console_label_bounds(self, page):
+        """Where the console name sits, after a real layout pass."""
+        from sbs_utils.pages.layout.text import Text
+        for layout in page.pending_layouts:
+            layout.calc(ENGI)
+        if page.pending_row is not None:
+            page.pending_row.calc(ENGI) if hasattr(page.pending_row, "calc") else None
+        label = [i for i in _all_items(page)
+                 if isinstance(i, Text) and "ENGINEERING" in (i.message or "")]
+        self.assertTrue(label, "the bar drew no console name to measure")
+        b = label[0].bounds
+        return (round(b.left, 4), round(b.right, 4))
+
+    def test_THE_CONSOLE_NAME_DOES_NOT_MOVE_WHEN_THE_CLOCK_TICKS(self):
+        """The reported bug. The engine's fonts are proportional - `T+11:11:11` is
+        60px narrower than `T+00:00:00` at gui-4 - so a content-sized clock re-measured
+        every second, the row's flex spacer gave the difference away, and the console
+        name shuffled sideways once a second."""
+        self.at(0)
+        mission_clock_start()
+        page = self.build()
+        before = self.console_label_bounds(page)
+
+        # 11:11:11 is the narrowest reading there is; 00:00:00 the widest.
+        self.at(11 * 3600 + 11 * 60 + 11)
+        self.assertTrue(gui_app_home_tick())
+        self.assertEqual(self.console_label_bounds(page), before)
+
+        self.at(20 * 3600)
+        self.assertTrue(gui_app_home_tick())
+        self.assertEqual(self.console_label_bounds(page), before)
+
+    def test_the_box_is_wide_enough_for_the_widest_reading(self):
+        """A box too small does not clip - the engine draws straight over whatever is
+        beside it. Measured against the library's own text measurement, in the pixels
+        the box is declared in."""
+        from sbs_utils.pages.layout.measure import measure_props, pct_to_px_x
+        from sbs_utils.mast.parsers import ContentSize
+
+        class _AR:
+            x, y = 1920, 1080
+        widest = max(
+            measure_props(f"$text:`T+{h}`;font:gui-4;", ContentSize("max-content"),
+                          _AR.x, "gui-4", _AR)[0]
+            for h in ("00:00:00", "88:88:88", "23:59:59", "09:00:00"))
+        box = float(CLOCK_WIDTH.replace("px", ""))
+        self.assertLessEqual(pct_to_px_x(widest, _AR), box)

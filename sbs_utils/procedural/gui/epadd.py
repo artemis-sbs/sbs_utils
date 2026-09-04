@@ -347,6 +347,37 @@ DIM = "#9ab"
 #: a band twice the strip's height for that is space the app's own sheet should have.
 BAR_HEIGHT = "35px"
 
+#: The mission clock, on the home screen's bar. gui-4 - the WORDMARK's size, not the
+#: dim console label's: it was a gui-1 line on the Status app's bar first and read as
+#: a detail nobody looked at. A crew glances at this from across a room.
+#: RIGHT-JUSTIFIED, inside the fixed box below: the digits then grow leftward into
+#: their own slack instead of pushing the box around.
+#: `update()` REPLACES the whole style string, so the tick has to re-send the font and
+#: color with the new time or the clock drops to unstyled text on its first second.
+CLOCK_STYLE = f"font:gui-4;color:{ACCENT};justify:right;"
+
+#: THE CLOCK'S BOX, and why it is not `content`.
+#:
+#: The engine's fonts are PROPORTIONAL - a `1` is much narrower than a `0` - so
+#: hh:mm:ss is fixed width in characters and not in pixels. Measured at gui-4 on a
+#: 1920 screen: `T+00:00:00` is 182px and `T+11:11:11` is 122px, a 60px swing purely
+#: from which digits happen to be showing. A `col-width: content` clock therefore
+#: re-measured every second, the row's flex spacer gave the difference away, and
+#: everything between the spacer and the clock shuffled sideways - reported as the
+#: console name moving around whenever the time changed.
+#:
+#: A fixed box keeps a value change a VALUE change: the widest reading fits, the
+#: measure never moves the layout, and the neighbours stay where they were put.
+#: PIXELS, not percent, because the font is sized in pixels too - the same 10% of the
+#: screen is 190px at 1920 wide and 102px at 1024, where the text would then overrun
+#: its neighbour (the engine does not clip).
+CLOCK_WIDTH = "190px"
+
+#: What the home screen keeps on the PAGE so the clock can be moved on without
+#: rebuilding the sheet. On the page rather than in a module dict, so it dies with the
+#: page and one console's view is never handed to another's.
+HOME_VIEW_ATTR = "_epadd_home_view"
+
 #: The band the bar owns: under the tab strip, clear of the engine's Options button.
 #: 45px is the console body top - the LM convention every tab body follows - and 80 is
 #: 45 + the bar's own 35. Callers put their body at `0, 80px, 100, 100` below it.
@@ -822,6 +853,7 @@ def gui_app_home(ship_name=None, columns=None, title="ePADD"):
     from .text import gui_text
     from .blank import gui_blank
     from .grid import gui_grid
+    from ..timers import mission_elapsed_text
 
     page = FrameContext.page
     console = epadd_console_name(_console_identity())
@@ -844,6 +876,17 @@ def gui_app_home(ship_name=None, columns=None, title="ePADD"):
     if console:
         gui_text(f"$text:{_esc(console.upper())};font:gui-1;color:{DIM};",
                  style="col-width: content;")
+    # THE MISSION CLOCK, anchoring the right end of the bar. It comes after the
+    # blank, which takes the row's slack, so everything after it sits at the far end.
+    # "T+" says it counts up from the start of the mission rather than being a time of
+    # day, and hh:mm:ss is fixed width so digits rolling over do not shuffle the bar.
+    clock = gui_text(f"$text:{_esc('T+' + mission_elapsed_text())};{CLOCK_STYLE}",
+                     style=f"col-width: {CLOCK_WIDTH};")
+    # Held for `gui_app_home_tick`, which sets its value each second. The home screen
+    # is a grid of tiles; repainting all of them once a second would send every widget
+    # on the sheet over the wire, to every console, forever.
+    if page is not None:
+        setattr(page, HOME_VIEW_ATTR, {"clock": clock, "shown": None})
 
     if not groups:
         gui_row("row-height: content; padding: 24px, 16px, 24px, 0;")
@@ -863,6 +906,40 @@ def gui_app_home(ship_name=None, columns=None, title="ePADD"):
         with gui_grid(columns, row_style=TILE_ROW):
             for app in apps:
                 _tile(app, dense)
+
+
+def gui_app_home_tick():
+    """Move the mission clock on, without rebuilding the home sheet.
+
+    The screen calls this from an `on change mission_elapsed_text()` block, so it
+    runs once a second - which means it has to be cheap, and it has to not care
+    about being called when the home screen is no longer up:
+
+        gui_app_home()
+        on change mission_elapsed_text():
+            gui_app_home_tick()
+
+    Returns:
+        bool: True when the clock was changed, False when there was nothing to do -
+            no home screen on this page, or the same second again.
+    """
+    from ..timers import mission_elapsed_text
+
+    page = FrameContext.page
+    view = getattr(page, HOME_VIEW_ATTR, None) if page is not None else None
+    if not view:
+        # A handler can outlive the screen that registered it. Ordinary, not an
+        # error: say nothing, do nothing.
+        return False
+    clock = view.get("clock")
+    if clock is None:
+        return False
+    text = "T+" + mission_elapsed_text()
+    if text == view.get("shown"):
+        return False
+    view["shown"] = text
+    clock.update(f"$text:{_esc(text)};{CLOCK_STYLE}")
+    return True
 
 
 # --- the badge that is there without opening anything ---------------------------------

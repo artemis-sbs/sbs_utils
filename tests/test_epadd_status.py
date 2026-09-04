@@ -21,12 +21,8 @@ from sbs_utils.gui import GuiClient
 from sbs_utils.agent import clear_shared
 from sbs_utils.mast_sbs.maststorypage import StoryPage
 from sbs_utils.mast_sbs.story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
-from sbs_utils.procedural.gui.epadd import (gui_app_register, gui_app_badge, gui_app_list,
-                                            gui_app_revision, DIM)
-from sbs_utils.procedural.gui.status_gui import (status_rows, gui_status_screen,
-                                                 gui_status_tick, VIEW_ATTR)
-from sbs_utils.procedural.timers import (mission_clock_start, mission_elapsed_seconds,
-                                         mission_elapsed_text)
+from sbs_utils.procedural.gui.epadd import gui_app_register, gui_app_badge, gui_app_list, gui_app_revision
+from sbs_utils.procedural.gui.status_gui import status_rows, gui_status_screen
 
 ENGI = 7
 SERVER = 0
@@ -275,97 +271,3 @@ class TestTheHomeScreenKnowsToRepaint(StatusBase):
         self.app("cargo", title="Cargo", consoles="engineering", status=lambda: "42/60")
         self.assertNotEqual(gui_app_revision("engineering"),
                             gui_app_revision("helm"))
-
-
-class TestTheMissionClock(StatusBase):
-    """How long the mission has been going, on the board that answers "how are we
-    doing". Two properties carry it: it is SIM time, and moving it on must not
-    repaint the board."""
-
-    def at(self, seconds):
-        FrameContext.context.sim.time_tick_counter = int(seconds * 30)
-
-    def build(self):
-        page = _page()
-        FrameContext.page = page
-        FrameContext.task = page.gui_task
-        gui_status_screen()
-        return page
-
-    def clock_texts(self, page):
-        from sbs_utils.pages.layout.text import Text
-        return [i.message for i in _all_items(page)
-                if isinstance(i, Text) and "T+" in (i.message or "")]
-
-    def test_it_counts_from_when_the_mission_started(self):
-        self.at(500)
-        mission_clock_start()
-        self.at(500 + 65)
-        self.assertAlmostEqual(mission_elapsed_seconds(), 65)
-        self.assertEqual(mission_elapsed_text(), "00:01:05")
-
-    def test_starting_it_again_re_zeros_it(self):
-        """A mission whose real beginning is the end of a cutscene says so."""
-        self.at(100)
-        mission_clock_start()
-        self.at(400)
-        mission_clock_start()
-        self.assertEqual(mission_elapsed_text(), "00:00:00")
-
-    def test_with_no_start_stamped_it_answers_with_the_sim(self):
-        """A mission that never goes through map_start has been running for as long
-        as its sim has - never None, which a readout would print."""
-        self.at(90)
-        self.assertAlmostEqual(mission_elapsed_seconds(), 90)
-        self.assertEqual(mission_elapsed_text(), "00:01:30")
-
-    def test_hours_are_not_lost(self):
-        mission_clock_start()
-        self.at(3 * 3600 + 4 * 60 + 9)
-        self.assertEqual(mission_elapsed_text(), "03:04:09")
-
-    def test_the_board_draws_it(self):
-        self.app("cargo", title="Cargo", status=lambda: "42/60")
-        mission_clock_start()
-        self.at(75)
-        page = self.build()
-        self.assertEqual(self.clock_texts(page),
-                         [f"$text:`T+00:01:15`;font:gui-1;color:{DIM};"])
-
-    def test_it_is_there_even_when_nothing_reports(self):
-        """The empty board still answers the question the clock answers."""
-        self.app("cargo", title="Cargo")
-        page = self.build()
-        self.assertTrue(self.clock_texts(page))
-
-    def test_THE_TICK_UPDATES_THE_WIDGET_AND_NOT_THE_PAGE(self):
-        """The property that keeps a once-a-second readout affordable: a repaint is
-        every widget on the screen, over the wire, per console."""
-        self.app("cargo", title="Cargo", status=lambda: "42/60")
-        mission_clock_start()
-        page = self.build()
-        layouts = len(page.pending_layouts)
-
-        self.at(61)
-        self.assertTrue(gui_status_tick())
-        # The whole style, not just the text: `update()` REPLACES it, so a tick that
-        # sent only the time would leave the readout unstyled from its first second.
-        self.assertEqual(self.clock_texts(page),
-                         [f"$text:`T+00:01:01`;font:gui-1;color:{DIM};"])
-        self.assertEqual(len(page.pending_layouts), layouts)
-
-    def test_the_same_second_twice_changes_nothing(self):
-        self.app("cargo", title="Cargo", status=lambda: "42/60")
-        self.build()
-        self.at(5)
-        self.assertTrue(gui_status_tick())
-        self.assertFalse(gui_status_tick())
-
-    def test_a_tick_with_no_screen_is_quiet(self):
-        """The handler can outlive the screen that registered it - ordinary, not an
-        error, and never something that raises into the GUI task."""
-        page = self.build()
-        delattr(page, VIEW_ATTR)
-        self.assertFalse(gui_status_tick())
-        FrameContext.page = None
-        self.assertFalse(gui_status_tick())
