@@ -360,6 +360,122 @@ class TestItUpdatesInsteadOfRebuilding(ScreenBase):
                          "the inbox watcher is still repainting the whole page")
 
 
+class TestTheReadingPaneLeavesNothingBehind(ScreenBase):
+    """The reported bug, from a real bridge: the inbox "creating numerous text areas
+    instead of updating the one that is there" - three messages' titles, senders and
+    bodies drawn on top of each other, unreadable.
+
+    A refill allocates NEW tags, and the engine keeps drawing a tag until something
+    takes it away. `rebuild()` empties the model and says nothing to the client, so
+    every earlier fill stayed painted underneath. What is checked here is that every
+    widget the previous fill drew is re-sent OFF SCREEN before the new one is drawn.
+    """
+
+    def setUp(self):
+        super().setUp()
+        message_send("Body one, the good pan.", to="away", sender="Devi",
+                     subject="Did you take the good pan")
+        message_send("Body two, entirely different.", to="away", sender="Zed",
+                     subject="Second")
+        self.inbox = message_inbox()
+        self.build()
+        self.pane = getattr(self.page, messages_gui.VIEW_ATTR)["pane"]
+        self.pane.sub_section.calc(CID)
+        self.pane.sub_section.present(FakeEvent(CID, "gui_present"))
+
+    def pane_tags(self):
+        """The tags of the widgets that actually DRAW - the leaves.
+
+        A Row and a Layout carry tags too but send nothing unless they have a
+        background, so asking for those to be retired would measure the harness."""
+        out = []
+
+        def walk(o):
+            kids = getattr(o, "rows", None) or getattr(o, "columns", None)
+            if kids:
+                for c in kids:
+                    walk(c)
+                return
+            tag = getattr(o, "tag", None)
+            if tag is not None:
+                out.append(str(tag))
+        walk(self.pane.sub_section)
+        return out
+
+    def sends(self):
+        """(tag, left, top) for everything drawn while the recorder is installed."""
+        calls = []
+        originals = {}
+        for name in ("send_gui_text", "send_gui_button", "send_gui_image"):
+            originals[name] = getattr(sbs, name)
+
+            def rec(cid, parent, tag, props, left, top, right, bottom,
+                    _o=originals[name], _c=calls):
+                _c.append((str(tag), left, top))
+                return _o(cid, parent, tag, props, left, top, right, bottom)
+            setattr(sbs, name, rec)
+        self.addCleanup(lambda: [setattr(sbs, n, o) for n, o in originals.items()])
+        return calls
+
+    def test_EVERY_WIDGET_THE_OLD_FILL_DREW_LEAVES_THE_SCREEN(self):
+        before = set(self.pane_tags())
+        self.assertTrue(before, "the pane drew nothing to begin with")
+
+        calls = self.sends()
+        message_select(self.inbox[1]["id"])
+        messages_gui.gui_messages_tick()
+
+        after = set(self.pane_tags())
+        self.assertTrue(after.isdisjoint(before),
+                        "the refill reused tags - this test no longer measures anything")
+        # Off screen is Bounds.hidden, a long way negative. Every old tag has to have
+        # been sent there; a tag that was never mentioned again is still painted.
+        for tag in before:
+            sent = [c for c in calls if c[0] == tag]
+            self.assertTrue(sent, f"widget {tag} was dropped without being retired - "
+                                  "the engine is still drawing it")
+            self.assertLess(sent[-1][1], -100, f"widget {tag} is still on screen")
+            self.assertLess(sent[-1][2], -100, f"widget {tag} is still on screen")
+
+    def test_and_the_new_message_is_drawn_where_it_should_be(self):
+        """The retirement must not take the REPLACEMENT off screen with it."""
+        calls = self.sends()
+        message_select(self.inbox[1]["id"])
+        messages_gui.gui_messages_tick()
+
+        new = set(self.pane_tags())
+        drawn = [c for c in calls if c[0] in new]
+        self.assertTrue(drawn, "the pane refilled but nothing was sent")
+        self.assertTrue(all(c[1] > -100 and c[2] > -100 for c in drawn),
+                        "the new fill landed off screen")
+
+    def test_A_GHOST_BUTTON_IS_THE_DANGEROUS_ONE(self):
+        """A stale line of text is unreadable; a stale reply BUTTON is still there to
+        be pressed, wired to the message that is no longer on screen."""
+        asked = message_send("Do we hold?", to="away", sender="The Captain",
+                             choices=["Hold", "Fall back"])
+        message_select(asked["id"])
+        messages_gui.gui_messages_tick()
+        buttons = [t for t in self.pane_tags()]
+        self.assertTrue(buttons)
+
+        calls = self.sends()
+        message_select(self.inbox[1]["id"])
+        messages_gui.gui_messages_tick()
+        for tag in buttons:
+            sent = [c for c in calls if c[0] == tag]
+            self.assertTrue(sent, f"reply widget {tag} was left on screen")
+            self.assertLess(sent[-1][1], -100, f"reply widget {tag} is still pressable")
+
+    def test_a_pane_that_never_presented_retires_nothing(self):
+        """Nothing was drawn, so there is nothing to take back - and no client to
+        send it to. This is the freshly-built page, before its first present."""
+        self.build()
+        pane = getattr(self.page, messages_gui.VIEW_ATTR)["pane"]
+        pane.sub_section.client_id = None
+        self.assertFalse(pane.clear())
+
+
 class TestAnEmptyInbox(ScreenBase):
     def test_it_draws_without_a_list_and_does_not_raise(self):
         self.build()

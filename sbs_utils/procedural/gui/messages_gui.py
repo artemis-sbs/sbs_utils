@@ -353,7 +353,13 @@ def gui_messages_tick():
 
     pane = view.get("pane")
     if pane is not None and pane.sub_section is not None:
-        pane.sub_section.rebuild()
+        # CLEAR, not rebuild. `rebuild()` empties the MODEL; the widgets it drops are
+        # still drawn on the client, because a refill allocates new tags and the engine
+        # goes on drawing a tag until something takes it away. Reported from a bridge
+        # as the inbox "creating numerous text areas instead of updating the one that
+        # is there" - three messages' titles, senders and bodies superimposed. `clear()`
+        # retires them first (Layout.clear_content).
+        pane.clear()
         with pane:
             _reading_pane(inbox, lb)
         # AND SEND IT. `rebuild()` empties the rows and the refill builds new widgets,

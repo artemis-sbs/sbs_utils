@@ -143,7 +143,12 @@ def gui_rebuild(region):
     """Mark a section or region to rebuild its layout on the next present.
 
     Clears the region's sub-layout so it is reconstructed from scratch the
-    next time the region is rendered.
+    next time the region is rendered - and takes what it had already drawn off
+    the screen, which emptying the model alone does not do: a refill allocates
+    new tags and the engine goes on drawing the old ones. See
+    ``Layout.clear_content``. A REGION cleared itself already (its own
+    ``send_gui_clear`` runs at present time); this is what a plain section
+    never had.
 
     Args:
         region: A section or region layout item.
@@ -155,7 +160,7 @@ def gui_rebuild(region):
         gui_rebuild(my_region)
         gui_represent(my_region)
     """
-    region.sub_section.rebuild()
+    region.sub_section.clear_content()
     return region
 
 def gui_update(tag, props, shared=False, test=None):
