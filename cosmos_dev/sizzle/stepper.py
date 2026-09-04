@@ -63,3 +63,42 @@ def alive(drv, timeout=3.0):
         return drv.eval("1+1", timeout=timeout) == 2
     except Exception:
         return False
+
+
+def scene_report(drv, timeout=20.0):
+    """What actually exists in the sim, and where - so an empty frame can be told from
+    an empty SCENE. A shot that resolves still frames nothing if the subject never
+    spawned, and the two look identical on a contact sheet."""
+    expr = (
+        "__import__('json').dumps({"
+        "'npcs': len(__import__('sbs_utils.procedural.query', fromlist=['x'])"
+        ".to_object_list(__import__('sbs_utils.procedural.roles', fromlist=['x']).role('__npc__'))),"
+        "'objects': [ (o.name, round(o.pos.x), round(o.pos.y), round(o.pos.z)) "
+        "for o in __import__('sbs_utils.procedural.query', fromlist=['x'])"
+        ".to_object_list(__import__('sbs_utils.procedural.roles', fromlist=['x']).role('__npc__'))][:8]"
+        "})"
+    )
+    try:
+        return json.loads(drv.eval(expr, timeout=timeout) or "{}")
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def framing_report(drv, subject_id, timeout=20.0):
+    """The distance `wide`/`medium`/`close` resolve to for one subject, and its hull
+    radius - the two numbers that decide whether a framed shot shows a ship or a speck."""
+    expr = (
+        "__import__('json').dumps({"
+        "'hull_radius': getattr(__import__('sbs_utils.procedural.query', fromlist=['x'])"
+        ".to_object(%d), 'hull_radius', None),"
+        "'close': __import__('sbs_utils.procedural.gui.cutscene', fromlist=['x'])"
+        ".cutscene_framing(%d, 'close'),"
+        "'medium': __import__('sbs_utils.procedural.gui.cutscene', fromlist=['x'])"
+        ".cutscene_framing(%d, 'medium'),"
+        "'wide': __import__('sbs_utils.procedural.gui.cutscene', fromlist=['x'])"
+        ".cutscene_framing(%d, 'wide')})" % (subject_id, subject_id, subject_id, subject_id)
+    )
+    try:
+        return json.loads(drv.eval(expr, timeout=timeout) or "{}")
+    except Exception as e:
+        return {"error": str(e)}

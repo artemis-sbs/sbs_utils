@@ -193,8 +193,14 @@ def shot_apply(cids, shot):
     framing = shot.get("framing")
     move = None
     if framing:
-        yaw = float(shot.get("yaw", 0.0))
-        pitch = float(shot.get("pitch", ORBIT_PITCH))
+        # Coalesce rather than rely on get()'s default: an AMD shot carries `yaw` and
+        # `pitch` as keys that are PRESENT and None when the record did not set them
+        # (amd_cutscene._shot_from), so the default never applies and float(None)
+        # raised. Every framed shot without an explicit `Yaw:` hit this.
+        yaw = shot.get("yaw")
+        pitch = shot.get("pitch")
+        yaw = 0.0 if yaw is None else float(yaw)
+        pitch = ORBIT_PITCH if pitch is None else float(pitch)
         if isinstance(framing, (list, tuple)):
             # A MOVE, through camera_dolly rather than camera_move. Dolly holds the angle
             # and changes only the distance, recomputing from wherever the subject is each

@@ -12,14 +12,24 @@
 # shots (cutscene_amd_shots + shot_apply), because a cutscene runs on a clock and a
 # clock is useless to something trying to hold a frame still for a screenshot.
 
-@map/sz_open "Sizzle: cold open + fight"
-metadata: ``` yaml
-pre_game: true
-```
-    " Stages the hero, the raiders and a debris field, then holds for the stepper.
-    jump sz_stage_open
+# The SERVER's main GUI task, reached by gui_reroute_server. It parks, and nothing
+# else: the scene is a real @map, started through the library's own map_start.
+=== sz_server ===
+    # The sim has to EXIST before anything is spawned into it. A mission that loads the
+    # LegendaryMissions consoles addon gets this from LM's own start_server; this one
+    # does not, so it does it here - the documented shape for a mission without LM is
+    # create_new_sim(), spawn, resume.
+    sim_create()
 
-=== sz_stage_open ===
+    gui_blank()
+    await gui()
+
+
+# The scene, as an ordinary @map - so the library can start it (maps_find + map_start)
+# the same way the server console and the headless runner do, rather than this mission
+# inventing a fourth launch sequence.
+@map/sz_open "Sizzle: cold open + fight"
+    " Stages the hero, the kraliens and a debris field for the capture harness.
     # --- the cast -----------------------------------------------------------------
     shared SZ_HERO = to_object(npc_spawn(0, 0, 0, "Artemis", "tsn", "tsn_light_cruiser", "behav_npcship"))
     shared SZ_LEAD = to_object(npc_spawn(2400, 0, 1800, "Kralien Lead", "kralien", "kralien_battleship", "behav_npcship"))
@@ -45,9 +55,7 @@ pre_game: true
     sz_loaded = amd_cutscenes(amd_root_node(sz_doc))
 
     signal_emit("sz_staged")
----sz_hold
-    await delay_sim(1)
-    jump sz_hold
+    ->END
 
 
 # The firefight is SCRIPTED, not simulated. Letting brains fight and hoping a good
@@ -57,3 +65,34 @@ pre_game: true
     target(SZ_LEAD.id, SZ_HERO.id, True, 0.0)
     target(SZ_WING.id, SZ_HERO.id, True, 0.0)
     ->END
+
+
+# A CLIENT's main GUI task, reached by gui_reroute_clients.
+=== sz_park ===
+    # The scene may not exist yet; a client can connect before the staging label has
+    # run. Poll rather than await a signal - a signal emitted before this task existed
+    # is simply missed, and the console would sit blank forever waiting for it.
+--- sz_wait
+    if SZ_HERO is None:
+        await delay_sim(0.5)
+        jump sz_wait
+
+    # Both are needed: the engine renders what a console is ASSIGNED to, and the view
+    # mode decides how it is drawn. shot_apply redoes both per shot (camera_track
+    # assigns and calls gui_cinematic_full_control), so this is only what to look at
+    # until the first shot lands.
+    assign_client_to_ship(client_id, SZ_HERO.id)
+    gui_cinematic_auto(client_id)
+
+    # The 3D view is an ENGINE widget and only renders when the console's widget list
+    # contains it - assigning a ship and setting the view mode is not enough on its own.
+    # Without this the page is a bare `await gui()`, which is a black screen with the
+    # overlays drawn on top: the lower third appears and the shot does not, which reads
+    # as "the camera is pointing at nothing" when the camera is fine.
+    #
+    # Full bleed, its own section, no MAST controls beside it - the engine draws an
+    # engine widget at its own size and paints over anything sharing the row.
+    gui_section(style="area:0,0,100,100;")
+    gui_row()
+    gui_layout_widget("3dview")
+    await gui()

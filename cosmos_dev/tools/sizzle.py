@@ -447,29 +447,33 @@ def _sync_stage_mission(missions_dir, name="SizzleReel"):
     dst = os.path.join(missions_dir, name)
     if not os.path.isdir(src):
         raise FileNotFoundError(src)
-    if os.path.isdir(dst):
-        shutil.rmtree(dst)
-    shutil.copytree(src, dst)
+    # Copy OVER rather than delete-then-copy. The engine keeps mast.*.log open and
+    # Windows will not remove a directory with an open handle in it, so an rmtree here
+    # fails with PermissionError and takes the whole run with it - for a folder whose
+    # only stale contents are logs we do not care about.
+    shutil.copytree(src, dst, dirs_exist_ok=True)
     return dst
 
 
-def _start_scene(drv, label, timeout=60.0):
-    """Schedule a staging label on the server and wait for its shots to load.
+def _start_scene(drv, spec, timeout=60.0):
+    """Start a @map through the library's own launch sequence.
 
-    NOT `map=` on the command line: that only reaches `sbs.command_line_dict()`, and a
-    mission has to be written to read it (LegendaryMissions is; a minimal staging
-    mission is not). Scheduling the label is independent of that and works the same
-    for every scene.
+    `maps_find` + `map_start` is the canonical pair - map_start's docstring says it
+    exists BECAUSE LegendaryMissions and the headless runner had each hand-rolled the
+    sequence and drifted on whether the sim resumes before or after scheduling. Calling
+    it here means the harness is not a third divergent copy.
+
+    Not `map=` on the engine command line either: that only reaches
+    `sbs.command_line_dict()` and a mission has to be written to read it.
     """
     code = chr(10).join([
-        "from sbs_utils.procedural.execution import task_schedule_server",
-        "from sbs_utils.helpers import FrameContext",
-        "_p = FrameContext.server_page or FrameContext.page",
-        "_labels = getattr(getattr(_p, 'story', None), 'labels', None) or {}",
-        "_lbl = _labels.get(%r)" % label,
-        "if _lbl is None:",
-        "    raise KeyError('no label %%r; known: %%s' %% (%r, sorted(_labels)[:40]))" % label,
-        "task_schedule_server(_lbl)",
+        "from sbs_utils.procedural.maps import maps_find, map_start",
+        "_m = maps_find(%r)" % spec,
+        "if _m is None:",
+        "    from sbs_utils.procedural.maps import maps_get_list",
+        "    raise KeyError('no map %%r; known: %%s' %% (%r, "
+        "[getattr(x, 'path', x) for x in maps_get_list()]))" % spec,
+        "map_start(_m)",
     ])
     resp = drv.send(code, timeout=20)
     if not resp.get("ok"):
@@ -496,8 +500,16 @@ def cmd_contact(args):
     drv.enable_in_story()
     print("launching engine on SizzleReel map=%s ..." % args.map)
     drv.launch(map=args.map)
-    if not drv.ping(timeout=args.timeout):
+    try:
+        ok = drv.ping(timeout=args.timeout)
+    except Exception as e:
+        print("FAIL: the engine never answered the queue (%s)" % e)
+        print("  logs: %s" % os.path.join(missions, "SizzleReel", "mast.compile.log"))
+        drv.stop_engines()
+        return 1
+    if not ok:
         print("FAIL: the engine never answered the queue")
+        drv.stop_engines()
         return 1
     print("  queue answered; warmup %ds (the known crash window is ~2s after a "
           "console connects)" % args.warmup)
@@ -533,8 +545,8 @@ def cmd_contact(args):
         obs.set_current_scene(scene)
         time.sleep(1.5)          # let game_capture hook the swap chain
 
-        print("staging scene via label %r ..." % args.label)
-        _start_scene(drv, args.label)
+        print("starting map %r via map_start ..." % args.map)
+        _start_scene(drv, args.map)
 
         # The label spawns, casts and loads the .amd; give it frames to finish
         # before asking what resolved.
@@ -545,6 +557,13 @@ def cmd_contact(args):
             if shots:
                 break
         print("\n%d shots resolved in scene %r" % (len(shots), args.scene))
+        rep = stepper.scene_report(drv)
+        print("  sim: %s npc(s)" % rep.get("npcs", "?"))
+        for o in (rep.get("objects") or []):
+            print("       %-14s at %6d,%5d,%6d" % tuple(o))
+        if shots and shots[0].get("subject"):
+            fr = stepper.framing_report(drv, shots[0]["subject"])
+            print("  framing for subject %s: %s" % (shots[0]["subject"], fr))
         if not shots:
             print("FAIL: no shots resolved. Either the staging label never ran, or")
             print("every Subject: failed to resolve (cast not bound) so each shot")
@@ -590,6 +609,10 @@ def cmd_contact(args):
         if not args.keep:
             C.stop(made)
             drv.close()
+            # close() only ends the process this driver started. A client is its own
+            # process and an early failure can leave the server behind, which then
+            # blocks the NEXT run on the already-running guard - so sweep.
+            drv.stop_engines()
     return 0
 
 
@@ -625,9 +648,8 @@ def main(argv=None):
 
     ct = sub.add_parser("contact", help="M4: step the shot list into a contact sheet")
     ct.add_argument("--scene", default="open", help="cutscene key in shots.amd")
-    ct.add_argument("--map", default=None)
-    ct.add_argument("--label", default="sz_stage_open",
-                    help="staging label to schedule on the server")
+    ct.add_argument("--map", default="sz_open",
+                    help="@map to start (index, path, name or substring)")
     ct.add_argument("--only", default=None, help="re-shoot only these indices, e.g. 4,7")
     ct.add_argument("--settle", type=float, default=0.6)
     ct.add_argument("--warmup", type=int, default=20)
