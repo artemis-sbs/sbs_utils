@@ -91,28 +91,6 @@ class PageSubSection:
         """
         return event.sub_tag == self.sub_section.tag or event.sub_tag == self.sub_section.click_tag
 
-    def clear(self):
-        """Empty this sub-section, and take what it drew off the screen with it.
-
-        What `rebuild()` alone does NOT do. A refill allocates new tags, and the
-        engine keeps drawing a tag until it is told otherwise, so refilling a pane
-        left every earlier fill painted underneath the new one - see
-        `Layout.clear_content`, which this calls.
-
-        Use it before re-entering the `with` block:
-
-            pane.clear()
-            with pane:
-                draw_the_new_contents()
-
-        Returns:
-            bool: True if anything was retired from the screen.
-        """
-        if self.sub_section is None:
-            return False
-        return self.sub_section.clear_content()
-  
-
     def __enter__(self):
         # Allow reentering
         self.sub_section = self.page.push_sub_section(self.style, self.sub_section, False)

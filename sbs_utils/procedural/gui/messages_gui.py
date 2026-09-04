@@ -11,8 +11,9 @@ it and marks it read, which is what makes the unread badge on the tile mean anyt
 Composing is a `To` dropdown plus a line of text. Addressed to a CONSOLE, because that
 is what a person is sitting at - see `procedural/messages.py` for why not a crew name.
 """
-from ...helpers import FakeEvent, FrameContext
+from ...helpers import FrameContext
 from ..inventory import get_inventory_value, set_inventory_value
+from .update import gui_rebuild
 from ..messages import (message_inbox, message_send, message_mark_read,
                         message_is_read, message_unread, message_choices,
                         message_answer, message_answered, message_select,
@@ -29,6 +30,50 @@ DEFAULT_TO = ["Everyone", "helm", "weapons", "engineering", "science", "comms"]
 # consoles compose at the same time and neither should see the other's half-sentence.
 DRAFT_VAR = "epadd_message_draft"
 TO_VAR = "epadd_message_to"
+
+
+# --- how the reading pane changes, and why it is built the way it is -------------------
+#
+# A WIDGET IS UPDATED. A PANE IS NOT REBUILT.
+#
+# `Control` - the base class of TextArea, LayoutListbox and TabbedPanel - opens its own
+# sub-region and sends `send_gui_clear` on it EVERY present (pages/widgets/control.py).
+# So a text area you keep and assign to wipes its own rectangle first and can never draw
+# over itself. A text area you BUILD AGAIN is a different tag, hence a different region,
+# and the one before it stays painted with nothing left that can clear it.
+#
+# That is what this screen did - it emptied the pane's sub-section and re-ran the builder
+# on every tick - and it is what the crew saw: three messages' titles, senders and bodies
+# superimposed. A plain `gui_sub_section` has no region and the engine has no "delete this
+# widget", so there was nothing to take the old fill away.
+#
+# So the pane is built ONCE (`_reading_pane_build`) and the tick assigns to the widgets it
+# kept (`_reading_pane_update`). Every screen in the codebase that gets this right does the
+# same: LegendaryMissions documents/document_screen.mast, hangar/hangar.mast, and
+# log_panel_gui here.
+#
+# The replies are the one part that changes SHAPE - none, three buttons, an answered line,
+# an away beat - so they get a `gui_region`, which brackets its own drawing region and
+# clears it in `Layout.region_begin`. A region is the other thing in this codebase that
+# can take its own content away.
+
+#: The reply band, pinned to the bottom of the reading pane. Three stacked replies at
+#: `row-height: 2.4em` plus their padding; a fourth scrolls off, which is why
+#: `message_choices` is worth keeping short.
+REPLY_BAND_PX = 200
+
+#: What the compose line takes off the bottom of the body section: `row-height: 2.4em`
+#: on an unfonted row (gui-2, 24px) and its own padding. MEASURED against the built
+#: layout rather than derived - the reply band's top has to land exactly where the
+#: body's reserved row ends, and both are px offsets from the bottom, so they agree at
+#: any screen height once this number is right.
+COMPOSE_BAND_PX = 65
+
+#: The reading pane's left edge, in screen percent: the inbox list takes `col-width: 42`
+#: of the row and the pane has the rest. The region has to be told in absolute terms what
+#: the flow works out for itself.
+PANE_LEFT = 43
+PANE_RIGHT = 99
 
 
 def _row_template(item):
@@ -230,9 +275,9 @@ def gui_messages_screen(consoles=None, title="Messages"):
             standard bridge consoles.
         title (str, optional): the app bar's title.
     """
-    from .section import gui_section, gui_sub_section
+    from .section import gui_section, gui_sub_section, gui_region
     from .row import gui_row
-    from .text import gui_text, gui_text_area
+    from .text import gui_text
     from .listbox import gui_list_box
     from .dropdown import gui_drop_down
     from .input import gui_input
@@ -269,12 +314,17 @@ def gui_messages_screen(consoles=None, title="Messages"):
             lb = gui_list_box(inbox, "item-gap: 0.15em;", item_template=_row_template,
                               select=True, reveal=True, hint=hint)
 
+    # The pane is built ONCE, here, and never again. What a tick changes is the VALUE
+    # of the four widgets it keeps - see the note at the top of this file.
+    reading = _reading_choose(inbox, lb)
     pane = gui_sub_section()
     with pane:
-        _reading_pane(inbox, lb)
+        widgets = _reading_pane_build()
 
     view = {"lb": lb, "pane": pane, "subtitle": subtitle_widget,
             "ids": [m.get("id") for m in inbox], "unread": unread}
+    view.update(widgets)
+    _reading_pane_update(view, reading)
     if page is not None:
         setattr(page, VIEW_ATTR, view)
 
@@ -312,6 +362,22 @@ def gui_messages_screen(consoles=None, title="Messages"):
 
     gui_button("$text:SEND;", style="col-width: content;", on_press=_send)
 
+    # --- the replies, in a region of their own ----------------------------------
+    # LAST, because gui_region opens a new top-level section: anything built after it
+    # would land inside the region rather than in the body above.
+    #
+    # A region is the only container besides a Control that can take its own content
+    # away - `Layout.region_begin` sends `send_gui_clear` for its drawing region before
+    # it redraws - which is what a part that changes SHAPE needs. Absolute, because a
+    # region is positioned rather than flowed; the band it covers is reserved by the
+    # pane's last row so the message body cannot run under it.
+    replies = gui_region(style=f"area: {PANE_LEFT}, "
+                               f"100-{REPLY_BAND_PX + COMPOSE_BAND_PX}px, "
+                               f"{PANE_RIGHT}, 100-{COMPOSE_BAND_PX}px;")
+    with replies:
+        _reading_replies_fill(reading)
+    view["replies"] = replies
+
 
 #: Where the built screen is remembered, so a later tick can update it instead of
 #: drawing it again. On the PAGE, so it dies with the page and needs no reset ledger.
@@ -328,10 +394,10 @@ def gui_messages_tick():
     empty list, and why scrolling sometimes showed what looked like two list boxes: the
     old page and the new one, briefly both on screen.
 
-    Nothing here needs a rebuild. A listbox re-renders its own rows from `items`, and the
-    reading pane is a sub-section that can be refilled on its own - so an arriving message
-    touches the list, and a new selection touches the pane, and neither touches anything
-    else.
+    NOTHING HERE IS REBUILT. A listbox re-renders its own rows from `items`; the reading
+    pane's four widgets are assigned to; the replies are the one part that changes shape,
+    and they have a region that clears itself. An arriving message touches the list, a new
+    selection touches the pane's values, and neither touches anything else.
 
     Safe to call when the screen is not up: it does nothing without a recorded view.
     """
@@ -351,27 +417,24 @@ def gui_messages_tick():
         view["ids"] = ids
         changed = True
 
-    pane = view.get("pane")
-    if pane is not None and pane.sub_section is not None:
-        # CLEAR, not rebuild. `rebuild()` empties the MODEL; the widgets it drops are
-        # still drawn on the client, because a refill allocates new tags and the engine
-        # goes on drawing a tag until something takes it away. Reported from a bridge
-        # as the inbox "creating numerous text areas instead of updating the one that
-        # is there" - three messages' titles, senders and bodies superimposed. `clear()`
-        # retires them first (Layout.clear_content).
-        pane.clear()
-        with pane:
-            _reading_pane(inbox, lb)
-        # AND SEND IT. `rebuild()` empties the rows and the refill builds new widgets,
-        # but neither marks anything dirty - so the pane changed in the model and nothing
-        # reached the client. Reported as "selecting a message doesn't show the message",
-        # and measured: zero send_gui_* calls during a tick, three the moment this line
-        # is added.
-        #
-        # This is the half a mock cannot see. The model was right the whole time, which
-        # is why the tick's own tests passed.
-        pane.sub_section.invalidate_all()
-        pane.sub_section.represent(FakeEvent(page.client_id))
+    # THE VALUES, NOT THE WIDGETS. Rebuilding the pane is what drew three messages on
+    # top of each other: a new `gui_text_area` is a new tag, hence a new sub-region,
+    # and the one before it stays painted with nothing left able to clear it.
+    reading = _reading_choose(inbox, lb)
+    if _reading_pane_update(view, reading):
+        changed = True
+
+    # The replies DO change shape, so they are rebuilt - inside their own region, which
+    # sends `send_gui_clear` for itself before redrawing. Unconditional rather than
+    # gated on a signature: the strip reads the away beat and the answered state as
+    # well as the message, and a band that is right about the message and wrong about
+    # the beat is the half-stale pane this whole design exists to avoid. It costs one
+    # region redraw per revision change, not per frame.
+    replies = view.get("replies")
+    if replies is not None and replies.sub_section is not None:
+        gui_rebuild(replies)
+        with replies:
+            _reading_replies_fill(reading)
         changed = True
 
     unread = message_unread()
@@ -384,11 +447,12 @@ def gui_messages_tick():
     return changed
 
 
-def _reading_pane(inbox, lb):
-    """The message being read, drawn on its own so a tick can redraw JUST this."""
-    from .row import gui_row
-    from .text import gui_text, gui_text_area
+def _reading_choose(inbox, lb):
+    """WHICH message is being read. No drawing - the pane is already built.
 
+    Kept whole from the original builder, because every line of it is a decision
+    somebody made about a real complaint.
+    """
     # The selection has to be RESTORED, not read off the listbox: a repaint makes
     # a new one whose selection starts empty, so the reading pane would otherwise
     # snap back to the newest message every time anything arrived.
@@ -414,19 +478,89 @@ def _reading_pane(inbox, lb):
         lb.value = reading
     if reading is not None:
         message_mark_read(reading.get("id"))
-        gui_row("row-height: content; padding: 0, 0, 0, 4px;")
-        gui_text(f"$text:{_esc(reading.get('subject') or '')};font:gui-4;"
-                 f"overflow:shrink;")
-        gui_row("row-height: content; padding: 0, 0, 0, 10px;")
-        gui_text(f"$text:{_esc('From ' + (reading.get('from') or 'unknown'))};"
-                 f"font:gui-1;color:{ACCENT};")
-        # Mail for an empty post is forwarded here rather than lost. Say so, or a
-        # letter addressed to somebody else reads as a mistake.
-        covering = message_forwarded_from(reading)
-        if covering:
-            gui_row("row-height: content; padding: 0, 0, 0, 8px;")
-            gui_text(f"$text:{_esc('Forwarded - addressed to ' + covering)};"
-                     f"font:gui-1;color:{DIM};")
-        gui_row()
-        gui_text_area(reading.get("text") or "")
+    return reading
+
+
+def _reading_pane_build():
+    """The pane's fixed shape, built ONCE. Returns the handles the tick assigns to.
+
+    Every row here exists whatever is being read - including the forwarded note, which
+    is built EMPTY rather than skipped. A widget that comes and goes is a shape change,
+    and a shape change is the thing this design exists to avoid.
+
+    The last row reserves the reply band. The replies are drawn into a region pinned
+    over that space (see `gui_messages_screen`), so the body must not flow into it: the
+    engine does not clip, and a long message would otherwise run under the buttons.
+    """
+    from .row import gui_row
+    from .text import gui_text, gui_text_area
+    from .blank import gui_blank
+
+    gui_row("row-height: content; padding: 0, 0, 0, 4px;")
+    subject = gui_text("$text:;font:gui-4;overflow:shrink;")
+    gui_row("row-height: content; padding: 0, 0, 0, 10px;")
+    sender = gui_text(f"$text:;font:gui-1;color:{ACCENT};")
+    # A SPACE, not nothing. `row-height: content` over empty text measures zero and the
+    # row collapses to a degenerate rect - so the body would step up and down the pane as
+    # messages with and without a cover note were opened. A space keeps the line's height
+    # reserved, which is the same reason the widget is built at all.
+    gui_row("row-height: content; padding: 0, 0, 0, 8px;")
+    forwarded = gui_text(f"$text:` `;font:gui-1;color:{DIM};")
+    gui_row()
+    body = gui_text_area(" ")
+    gui_row(f"row-height: {REPLY_BAND_PX}px;")
+    gui_blank()
+    return {"subject": subject, "sender": sender, "forwarded": forwarded, "body": body}
+
+
+def _reading_pane_update(view, reading):
+    """Point the pane at `reading`. Same widgets, same tags, new values.
+
+    ALL FOUR MOVE TOGETHER. Updating only the interesting one is its own bug: the TNG
+    face builder left the description under its preview describing the previous
+    selection that way, and a pane that is half stale is worse than a blank one.
+    """
+    subject = view.get("subject")
+    sender = view.get("sender")
+    forwarded = view.get("forwarded")
+    body = view.get("body")
+    if subject is None or body is None:
+        return False
+
+    if reading is None:
+        subject.update("$text:;font:gui-4;overflow:shrink;")
+        sender.update(f"$text:;font:gui-1;color:{ACCENT};")
+        forwarded.update(f"$text:` `;font:gui-1;color:{DIM};")
+        body.value = " "
+        return True
+
+    subject.update(f"$text:{_esc(reading.get('subject') or '')};font:gui-4;"
+                   f"overflow:shrink;")
+    sender.update(f"$text:{_esc('From ' + (reading.get('from') or 'unknown'))};"
+                  f"font:gui-1;color:{ACCENT};")
+    # Mail for an empty post is forwarded here rather than lost. Say so, or a letter
+    # addressed to somebody else reads as a mistake. Empty when there is nothing to
+    # say, so the pane's SHAPE does not depend on which message is open.
+    covering = message_forwarded_from(reading)
+    forwarded.update(
+        f"$text:{_esc('Forwarded - addressed to ' + covering) if covering else '` `'};"
+        f"font:gui-1;color:{DIM};")
+    # A text area clears its own sub-region every time it draws, so this assignment
+    # could never have ghosted - as long as it is the same text area.
+    body.value = reading.get("text") or " "
+    return True
+
+
+def _reading_replies_fill(reading):
+    """The reply band's contents, drawn inside its own region.
+
+    ALWAYS DRAWS SOMETHING. The engine swaps a region's back buffer forward on
+    `complete` only when it holds content; completing an empty one leaves what was
+    there before on screen - which for this band is the previous message's buttons.
+    The overlay system carries the same one-space placeholder for the same reason.
+    """
+    from .text import gui_text
+
+    if reading is not None:
         _reply_strip(reading)
+    gui_text("$text:` `;")

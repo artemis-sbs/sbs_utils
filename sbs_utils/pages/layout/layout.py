@@ -447,53 +447,6 @@ class Layout(Clickable):
     def rebuild(self):
         self.rows = [Row()]
 
-    def clear_content(self, client_id=None):
-        """Empty this layout AND take what it drew off the screen.
-
-        `rebuild()` only drops the rows from the model. The widgets it dropped are
-        still on the CLIENT: every widget carries a tag, the engine keeps drawing a
-        tag until something tells it otherwise, and a refill allocates NEW tags - so
-        each refill left the previous fill painted underneath. Reported from a real
-        bridge as the ePADD inbox "creating numerous text areas instead of updating
-        the one that is there": three messages' worth of title, sender and body
-        superimposed, unreadable.
-
-        A REGION has an answer already: `region_begin` sends `send_gui_clear` for its
-        own drawing region before it redraws, so its old children genuinely go. A
-        plain sub-section has no region of its own to clear, and the engine offers no
-        "delete this widget" - so this uses the visibility model instead: hiding a row
-        lays its content out at `Bounds.hidden`, and presenting it there re-sends each
-        widget, by its own tag, at -1011,-1011. The tag is then off screen and nothing
-        draws it again.
-
-        Those tags stay parked on the client until the next FULL page repaint (whose
-        root clear takes everything), which is the cost of doing it this way. It is
-        bounded by one visit to a screen, and it is what a leaking ghost cost anyway -
-        the widgets were already there, just on top of the new ones.
-
-        Args:
-            client_id (int, optional): who to send the retirement to. Defaults to the
-                client this layout last presented for; nothing is sent if it has never
-                presented, because then nothing was drawn.
-
-        Returns:
-            bool: True if anything was retired.
-        """
-        from ...helpers import FakeEvent
-        retired = False
-        cid = client_id if client_id is not None else self.client_id
-        # A region clears itself on its next present, and a layout that never
-        # presented has nothing on any client to take back.
-        if (cid is not None and self.rows
-                and self.region_type == RegionType.SECTION_AREA_ABSOLUTE):
-            for row in self.rows:
-                row.show(False)
-            self.invalidate_all()
-            self.present(FakeEvent(cid))
-            retired = True
-        self.rebuild()
-        return retired
-
     def show(self, _show):
         """
         Use to force the gui element to be hidden, or to allow it to be seen.

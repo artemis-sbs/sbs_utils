@@ -315,9 +315,14 @@ class TestItUpdatesInsteadOfRebuilding(ScreenBase):
                              sent.append(props))
         try:
             messages_gui.gui_messages_tick()
+            # The tick ASSIGNS; the assignment marks the widget dirty and the next
+            # present puts it on the wire. That is the whole point - the widget is
+            # the same one, so there is nothing to clear and nothing to rebuild.
+            for layout in self.page.pending_layouts:
+                layout.present(FakeEvent(CID))
         finally:
             sbs.send_gui_text = real
-        self.assertTrue(sent, "the pane was refilled but never transmitted")
+        self.assertTrue(sent, "the pane was updated but never transmitted")
         self.assertTrue(any("First" in s for s in sent),
                         "the selected message was not among what was sent: %r" % (sent,))
 
@@ -360,15 +365,18 @@ class TestItUpdatesInsteadOfRebuilding(ScreenBase):
                          "the inbox watcher is still repainting the whole page")
 
 
-class TestTheReadingPaneLeavesNothingBehind(ScreenBase):
-    """The reported bug, from a real bridge: the inbox "creating numerous text areas
-    instead of updating the one that is there" - three messages' titles, senders and
-    bodies drawn on top of each other, unreadable.
+class TestTheReadingPaneIsUpdatedNotRebuilt(ScreenBase):
+    """The reported bug: the inbox drew three messages' titles, senders and bodies on
+    top of each other, unreadable.
 
-    A refill allocates NEW tags, and the engine keeps drawing a tag until something
-    takes it away. `rebuild()` empties the model and says nothing to the client, so
-    every earlier fill stayed painted underneath. What is checked here is that every
-    widget the previous fill drew is re-sent OFF SCREEN before the new one is drawn.
+    A `gui_text_area` is a `Control` - it opens its own sub-region and sends
+    `send_gui_clear` on it EVERY present (pages/widgets/control.py) - so it cannot draw
+    over itself. Unless it is a DIFFERENT text area: rebuilding the pane allocated new
+    tags, so each fill got a new region and the one before it stayed on the client with
+    nothing left able to clear it.
+
+    So what is pinned here is the property whose absence caused the bug: after a
+    selection change the pane holds the SAME WIDGETS.
     """
 
     def setUp(self):
@@ -379,15 +387,10 @@ class TestTheReadingPaneLeavesNothingBehind(ScreenBase):
                      subject="Second")
         self.inbox = message_inbox()
         self.build()
-        self.pane = getattr(self.page, messages_gui.VIEW_ATTR)["pane"]
-        self.pane.sub_section.calc(CID)
-        self.pane.sub_section.present(FakeEvent(CID, "gui_present"))
+        self.view = getattr(self.page, messages_gui.VIEW_ATTR)
 
     def pane_tags(self):
-        """The tags of the widgets that actually DRAW - the leaves.
-
-        A Row and a Layout carry tags too but send nothing unless they have a
-        background, so asking for those to be retired would measure the harness."""
+        """Every drawing widget in the pane, by tag."""
         out = []
 
         def walk(o):
@@ -399,81 +402,84 @@ class TestTheReadingPaneLeavesNothingBehind(ScreenBase):
             tag = getattr(o, "tag", None)
             if tag is not None:
                 out.append(str(tag))
-        walk(self.pane.sub_section)
+        walk(self.view["pane"].sub_section)
         return out
 
-    def sends(self):
-        """(tag, left, top) for everything drawn while the recorder is installed."""
-        calls = []
-        originals = {}
-        for name in ("send_gui_text", "send_gui_button", "send_gui_image"):
-            originals[name] = getattr(sbs, name)
+    def select(self, msg):
+        message_select(msg.get("id"))
+        return messages_gui.gui_messages_tick()
 
-            def rec(cid, parent, tag, props, left, top, right, bottom,
-                    _o=originals[name], _c=calls):
-                _c.append((str(tag), left, top))
-                return _o(cid, parent, tag, props, left, top, right, bottom)
-            setattr(sbs, name, rec)
-        self.addCleanup(lambda: [setattr(sbs, n, o) for n, o in originals.items()])
-        return calls
+    def test_THE_BODY_IS_THE_SAME_TEXT_AREA_AFTERWARDS(self):
+        """The one that matters. A new text area is a new region, and the old one is
+        then painted forever."""
+        body = self.view["body"]
+        tag = body.tag
+        self.select(self.inbox[1])
+        self.assertIs(self.view["body"], body, "the pane was rebuilt")
+        self.assertEqual(self.view["body"].tag, tag, "the body got a new tag")
 
-    def test_EVERY_WIDGET_THE_OLD_FILL_DREW_LEAVES_THE_SCREEN(self):
-        before = set(self.pane_tags())
+    def test_AND_NO_WIDGET_IN_THE_PANE_IS_NEW(self):
+        before = self.pane_tags()
         self.assertTrue(before, "the pane drew nothing to begin with")
+        self.select(self.inbox[1])
+        self.assertEqual(self.pane_tags(), before,
+                         "a tag appeared or moved - something was rebuilt")
 
-        calls = self.sends()
-        message_select(self.inbox[1]["id"])
-        messages_gui.gui_messages_tick()
+    def test_and_the_pane_says_the_message_that_was_picked(self):
+        self.select(self.inbox[1])          # the older one: the good pan
+        self.assertIn("good pan", " ".join(self.view["body"].value))
+        self.assertIn("good pan", self.view["subject"].message)
+        self.assertIn("Devi", self.view["sender"].message)
 
-        after = set(self.pane_tags())
-        self.assertTrue(after.isdisjoint(before),
-                        "the refill reused tags - this test no longer measures anything")
-        # Off screen is Bounds.hidden, a long way negative. Every old tag has to have
-        # been sent there; a tag that was never mentioned again is still painted.
-        for tag in before:
-            sent = [c for c in calls if c[0] == tag]
-            self.assertTrue(sent, f"widget {tag} was dropped without being retired - "
-                                  "the engine is still drawing it")
-            self.assertLess(sent[-1][1], -100, f"widget {tag} is still on screen")
-            self.assertLess(sent[-1][2], -100, f"widget {tag} is still on screen")
+        self.select(self.inbox[0])
+        self.assertIn("entirely different", " ".join(self.view["body"].value))
+        self.assertIn("Second", self.view["subject"].message)
+        self.assertIn("Zed", self.view["sender"].message)
 
-    def test_and_the_new_message_is_drawn_where_it_should_be(self):
-        """The retirement must not take the REPLACEMENT off screen with it."""
-        calls = self.sends()
-        message_select(self.inbox[1]["id"])
-        messages_gui.gui_messages_tick()
+    def test_the_forwarded_line_is_BUILT_even_when_there_is_nothing_to_say(self):
+        """A widget that comes and goes is a shape change, and a shape change is what
+        this design exists to avoid. It is built empty instead."""
+        self.assertIsNotNone(self.view.get("forwarded"))
+        # Built, and saying nothing. A SPACE rather than nothing: `row-height: content`
+        # over empty text measures zero, and a row that collapses and reappears steps
+        # the body up and down the pane.
+        self.assertIn("` `", self.view["forwarded"].message)
+        self.assertNotIn("Forwarded", self.view["forwarded"].message)
 
-        new = set(self.pane_tags())
-        drawn = [c for c in calls if c[0] in new]
-        self.assertTrue(drawn, "the pane refilled but nothing was sent")
-        self.assertTrue(all(c[1] > -100 and c[2] > -100 for c in drawn),
-                        "the new fill landed off screen")
+    def test_the_replies_live_in_a_region_that_clears_itself(self):
+        """The one part that DOES change shape - none, three buttons, an answered line.
+        A region brackets its own drawing region and clears it before redrawing, which
+        is the only other thing in the library that can take its own content away."""
+        from sbs_utils.pages.layout.layout import RegionType
+        replies = self.view.get("replies")
+        self.assertIsNotNone(replies)
+        with replies:
+            pass
+        self.assertEqual(replies.sub_section.region_type, RegionType.REGION_ABSOLUTE)
 
     def test_A_GHOST_BUTTON_IS_THE_DANGEROUS_ONE(self):
-        """A stale line of text is unreadable; a stale reply BUTTON is still there to
-        be pressed, wired to the message that is no longer on screen."""
+        """A stale line of text is unreadable; a stale reply BUTTON is still there to be
+        pressed, wired to a message that is no longer on screen. The region's clear is
+        what takes it away - so this pins that the clear is sent, for the region's own
+        tag, when the replies are redrawn."""
         asked = message_send("Do we hold?", to="away", sender="The Captain",
                              choices=["Hold", "Fall back"])
-        message_select(asked["id"])
-        messages_gui.gui_messages_tick()
-        buttons = [t for t in self.pane_tags()]
-        self.assertTrue(buttons)
+        self.select(asked)
+        replies = self.view["replies"]
+        replies.sub_section.calc(CID)
+        replies.sub_section.present(FakeEvent(CID))
 
-        calls = self.sends()
-        message_select(self.inbox[1]["id"])
-        messages_gui.gui_messages_tick()
-        for tag in buttons:
-            sent = [c for c in calls if c[0] == tag]
-            self.assertTrue(sent, f"reply widget {tag} was left on screen")
-            self.assertLess(sent[-1][1], -100, f"reply widget {tag} is still pressable")
-
-    def test_a_pane_that_never_presented_retires_nothing(self):
-        """Nothing was drawn, so there is nothing to take back - and no client to
-        send it to. This is the freshly-built page, before its first present."""
-        self.build()
-        pane = getattr(self.page, messages_gui.VIEW_ATTR)["pane"]
-        pane.sub_section.client_id = None
-        self.assertFalse(pane.clear())
+        cleared = []
+        real = sbs.send_gui_clear
+        sbs.send_gui_clear = lambda cid, tag=None, *a: cleared.append(tag)
+        try:
+            self.select(self.inbox[1])       # a message with no replies at all
+        finally:
+            sbs.send_gui_clear = real
+        self.assertIn(replies.sub_section.drawing_region_tag, cleared,
+                      "the reply band was redrawn without clearing itself first - the "
+                      "previous message's buttons are still on screen and still "
+                      "pressable")
 
 
 class TestAnEmptyInbox(ScreenBase):

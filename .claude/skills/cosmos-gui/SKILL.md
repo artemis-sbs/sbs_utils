@@ -93,25 +93,45 @@ repaint.
 | a list's contents | `lb.items = new_items` (marks dirty, re-renders its own rows) | rebuild the page |
 | one value / label | `w.value = x` or `w.update("<full style>")` | rebuild the page |
 | a widget you cannot reach | `gui_update("name", props)` (needs a `tag:` style) | rebuild the page |
-| a whole variable-shaped panel | hold a `gui_sub_section`, then `pane.sub_section.rebuild()` and re-enter `with pane:` | rebuild the page |
+| a whole variable-shaped panel | a `gui_region`, then `gui_rebuild(r)` + re-enter `with r:` | refill a `gui_sub_section` |
 | a section's layout | `gui_rebuild(region)` | rebuild the page |
 
-A held sub-section can be refilled **outside a build**, from an event callback or a
-watcher - `push_sub_section` handles re-entry, and `pending_layouts` comes back balanced.
-That is what makes a list/detail screen updatable without a repaint: the list takes new
-`items`, the detail pane is refilled, and nothing else is touched.
+### WHY A SUB-SECTION IS NOT ON THAT LIST (this cost a shipped bug)
 
-**The shape that works** - build once, then a tick that updates only what moved:
+**Only two things in the library can take their own content off the screen.**
+
+- **A `Control`** - `gui_text_area`, `gui_list_box`, the info panel, `gui_input` - opens
+  its own sub-region and sends `send_gui_clear` on it **every present**
+  (`pages/widgets/control.py`). A held text area you assign to therefore wipes its own
+  rectangle first. It cannot draw over itself.
+- **A `gui_region`** - `Layout.region_begin` sends `send_gui_clear` for its drawing
+  region before it redraws.
+
+A `gui_sub_section` is neither. It is a plain `Layout` with no region, and the engine
+has **no "delete this widget"** - a widget is drawn until something clears the region it
+sits in, and nothing clears the page root except a full repaint. So refilling a
+sub-section allocates NEW tags for the new content and leaves every earlier fill
+**painted underneath it**.
+
+That is not hypothetical: this file used to recommend `pane.sub_section.rebuild()`, the
+ePADD inbox followed it, and the crew got three messages' titles, senders and bodies
+superimposed. Retiring the old widgets off screen first does not save it either.
+
+**The shape that works** - build once, assign to what you kept, and give a region to the
+one part that changes SHAPE:
 
 ```python
 def my_screen():
     sub = gui_app_chrome("Inbox", subtitle="")   # "" makes the widget, for later
     lb = gui_list_box(items, item_template=row)
-    pane = gui_sub_section()
-    with pane:
-        draw_detail()
+    subject = gui_text("$text:;font:gui-4;")     # built ONCE, empty
+    body = gui_text_area(" ")                    # a Control: clears its own region
+    actions = gui_region("area: 43, 100-274px, 99, 100-74px;")   # shape changes here
+    with actions:
+        draw_actions(sel)
     setattr(FrameContext.page, VIEW_ATTR,        # on the PAGE: dies with it
-            {"lb": lb, "pane": pane, "subtitle": sub, "ids": ids})
+            {"lb": lb, "subject": subject, "body": body, "actions": actions,
+             "subtitle": sub, "ids": ids})
 
 def my_screen_tick():                            # the `on change` calls THIS
     view = getattr(FrameContext.page, VIEW_ATTR, None)
@@ -119,10 +139,21 @@ def my_screen_tick():                            # the `on change` calls THIS
         return False                             # the handler can outlive the screen
     if new_ids != view["ids"]:
         view["lb"].items = new_items
-    view["pane"].sub_section.rebuild()
-    with view["pane"]:
-        draw_detail()
+    view["subject"].update("$text:" + gui_text_escape(sel.title) + ";font:gui-4;")
+    view["body"].value = sel.text                # same widget, same tag, no ghost
+    gui_rebuild(view["actions"])                 # a region: clears itself
+    with view["actions"]:
+        draw_actions(sel)
 ```
+
+**Update every part, not just the interesting one.** A pane that is right about the body
+and stale about the heading is worse than a blank one - the TNG face builder found this
+by poking only its face widget and leaving the description under it describing the
+previous pick.
+
+**A region must always draw SOMETHING.** The engine swaps a region's back buffer forward
+on `complete` only when it holds content, so a band that empties has to emit a
+placeholder (`gui_text("$text:` `;")`) or the last content stays on screen.
 
 ```
     on change my_revision():
