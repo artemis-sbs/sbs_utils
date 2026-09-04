@@ -24249,6 +24249,15 @@ gui_represent(my_section)</p>
         <p>Mark a section or region to rebuild its layout on the next present.</p>
 <p>Clears the region's sub-layout so it is reconstructed from scratch the
 next time the region is rendered.</p>
+<p>USE THIS ON A REGION, NOT ON A PLAIN SUB-SECTION. A region brackets its own
+drawing region and sends <code>send_gui_clear</code> for it before redrawing
+(<code>Layout.region_begin</code>), so its old children genuinely go. A plain
+<code>gui_sub_section</code> has no region to clear and the engine offers no "delete
+this widget", so a refill allocates NEW tags and every earlier fill stays
+painted underneath - which is how the ePADD inbox came to draw three
+messages on top of each other. A pane that is refilled out of band has to be
+a region, or a <code>Control</code> that owns its region (a text area, a listbox),
+updated in place.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>

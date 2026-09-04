@@ -5571,6 +5571,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-mission-clock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The mission clock
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#signals-instead-of-polling" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5768,6 +5779,39 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;is_timer_set_and_finished
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.timers.mission_clock_start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;mission_clock_start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.timers.mission_elapsed_seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;mission_elapsed_seconds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.timers.mission_elapsed_text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;mission_elapsed_text
       
     </span>
   </a>
@@ -9989,6 +10033,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-mission-clock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The mission clock
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#signals-instead-of-polling" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10186,6 +10241,39 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;is_timer_set_and_finished
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.timers.mission_clock_start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;mission_clock_start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.timers.mission_elapsed_seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;mission_elapsed_seconds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.timers.mission_elapsed_text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;mission_elapsed_text
       
     </span>
   </a>
@@ -10452,6 +10540,44 @@ place to hang a mission-wide clock. <code>set_timer(0, "mission_clock", minutes=
 </div>
 </div>
 </div>
+<h2 id="the-mission-clock">The mission clock</h2>
+<p>"How long have we been out here" is asked by the crew, not by one script, so the library
+keeps that one counter itself. <code>map_start</code> stamps it - which every mission goes through -
+so a mission has a clock without starting one:</p>
+<table>
+<thead>
+<tr>
+<th>function</th>
+<th>answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mission_elapsed_seconds()</code></td>
+<td>seconds since the mission started, as a float</td>
+</tr>
+<tr>
+<td><code>mission_elapsed_text(display="hh:mm:ss")</code></td>
+<td>the same, formatted and rounded</td>
+</tr>
+<tr>
+<td><code>mission_clock_start()</code></td>
+<td>restart it, when the real beginning is later</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code>== show_mission_time ==
+    gui_text(f&quot;$text:{gui_text_escape(mission_elapsed_text())};&quot;)
+    log(f&quot;{int(mission_elapsed_seconds())} seconds in&quot;)
+    -&gt;END
+</code></pre></div>
+<p>It is sim time, like everything else here, so a paused sim does not age the mission. A
+mission whose real beginning is the end of a cutscene calls <code>mission_clock_start()</code> there
+and the clock re-zeros. Nothing reads <code>None</code>: with no start stamped the clock answers with
+the sim's own age.</p>
+<p>The ePADD <strong>home screen</strong> draws it at the right end of its bar as <code>T+hh:mm:ss</code>, in the
+wordmark's own size, and moves it on with <code>gui_app_home_tick()</code> from an <code>on change</code> - the
+widget, never a page repaint.</p>
 <h2 id="signals-instead-of-polling">Signals instead of polling</h2>
 <p>A timer is one value in an agent's inventory and nothing runs on its behalf, which is
 why a mission can hold hundreds of them for free — but it also means a script has to
@@ -11781,6 +11907,162 @@ set. Use this to distinguish "timer done" from "timer never started".</p>
   <p>if is_timer_set_and_finished(SHIP_ID, "cooldown"):
     clear_timer(SHIP_ID, "cooldown")
     "Weapons ready!"</p>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.timers.mission_clock_start" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">mission_clock_start</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Stamp now as the start of the mission.</p>
+<p>Called by <code>map_start</code> - the one door every mission goes through - so a
+mission gets a clock without asking for one. Call it directly to restart the
+clock at a moment the mission thinks is the real beginning (the end of a
+cutscene, say).</p>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <p>mission_clock_start()</p>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.timers.mission_elapsed_seconds" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">mission_elapsed_seconds</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Sim seconds since the mission started.</p>
+<p>Falls back to the sim's own clock when nothing stamped a start - a mission
+that never calls <code>map_start</code> has been running for as long as its sim has,
+which is the honest answer and never <code>None</code>.</p>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>float</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Seconds since the mission started.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <p>if mission_elapsed_seconds() &gt; 600:
+    "You have been out here ten minutes."</p>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.timers.mission_elapsed_text" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">mission_elapsed_text</span><span class="p">(</span><span class="n">display</span><span class="o">=</span><span class="s1">&#39;hh:mm:ss&#39;</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The mission clock as text, rounded to the second.</p>
+<p>Same layout tokens as <code>format_counter_elapsed_seconds</code>: <code>hh</code>, <code>mm</code>,
+<code>ss</code>, with the largest one present absorbing everything above it. Fixed
+width by default, so a readout drawn with it does not twitch as the digits
+roll over.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>display</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Layout to fill in. Defaults to <code>"hh:mm:ss"</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;hh:mm:ss&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>str</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The formatted elapsed time.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <p>gui_text("$text:{gui_text_escape(mission_elapsed_text())};")</p>
 </details>
 
     </div>

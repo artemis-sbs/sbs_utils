@@ -10034,6 +10034,82 @@ the port, rather than quietly guessed at.
 <p>Everything in this part is something you already had, met again. A few change what
 your game looks like whether you ask for them or not.</p>
 <hr />
+<h2 id="engineering-has-something-to-do-between-the-hits">🔧 Engineering has something to do between the hits</h2>
+<p>Damage control was binary: a room was broken or it was fine, and the only thing that
+ever changed it was taking a hit. Systems now have <strong>condition</strong> as well as damage —
+and Engineering has a panel that shows it.</p>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Drawn</th>
+<th>Worth</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Damaged</strong></td>
+<td>crimson</td>
+<td>nothing</td>
+</tr>
+<tr>
+<td><strong>Worn</strong></td>
+<td>gold</td>
+<td>75%</td>
+</tr>
+<tr>
+<td><strong>Nominal</strong></td>
+<td>its own color</td>
+<td>100%</td>
+</tr>
+<tr>
+<td><strong>Tuned</strong></td>
+<td>cyan</td>
+<td>110%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>A damage-control team patches a room; it does not rebuild it.</strong> A room your teams
+put out comes back <strong>worn</strong> — in service, drawing gold, giving three quarters of what
+it used to. Only a dockyard repair makes it new again. So the ship that leaves the
+second fight is not the ship that went into the first, and that is now something the
+crew can act on rather than something they just live with.</p>
+<p><strong>Wear does not only come from being shot.</strong> Firing a beam wears the beam that fired;
+launching a torpedo wears the tube — charged on the shot, because a torpedo that
+missed wore it just the same; a hit wears the shield facing that ate it. And
+everything ages on a slow clock, the drive you are actually running included. Warp is
+about five times harder on a ship than impulse.</p>
+<p><strong>Tuning is what a well-run ship gets for it — and somebody has to order it.</strong> Send a
+team to a system that is <em>fine</em> and they bring it above spec: a tuned beam pool fires
+at 110 percent. Nothing tunes itself, and a team no longer tunes the room it happens
+to be standing in. It is a job you assigned.</p>
+<p><strong>The order is two clicks now.</strong> Picking a damaged or worn room in comms used to grow
+two buttons per damage-control team — eight or more on a three-team ship, with the one
+you wanted buried in them. It is one button, <strong>Repair</strong> or <strong>Tune</strong>, carrying how many
+teams are already on it, opening a submenu of who to send, who to call off, and how
+urgent it is. Raise a job to critical and the team turns around <strong>once</strong>: the choice is
+committed, so two orders can never trade a team back and forth.</p>
+<p><strong>Engineering's right column is a three-tab panel</strong>, in place of the oversized crew
+face that used to hold it (and that was also the thing that collapsed at 1280x720):</p>
+<ul>
+<li><strong>Selected</strong> — the room or team you picked on the interior view, described in full.</li>
+<li><strong>Orders</strong> — every work order on the ship, highest priority first, with raise and
+  close on each row. A job someone else already finished drops off the list instead of
+  sitting there as a button that does nothing.</li>
+<li><strong>Systems</strong> — the four pools, and the <strong>eight effectiveness numbers</strong> the grid has
+  always derived and Engineering has never been able to see: beam, tube, impulse,
+  warp, turn, sensor, and both shield facings. Each one wears its tier's color, so the
+  pool that is hurting is findable without reading all eight.</li>
+</ul>
+<p>The cockpit's system lights read the same model, so they show the wear tiers too.</p>
+<p><strong>A mission that never opts in sees no change at all.</strong> An untouched system reads as
+nominal and weighs exactly <code>1.0</code>, so effectiveness comes out identical to the
+<code>undamaged / total</code> fraction it replaced — and because wear sits <em>on top of</em>
+undamaged rather than replacing it, an all-worn ship still cannot explode. Every
+threshold and rate is a dial: <code>grid_set_wear_tuning(tuned_bonus=0.0)</code> gives you
+maintenance with no over-unity, <code>upkeep_rate=0</code> turns off time-based wear entirely.</p>
+<p>Docs: <a href="../api/procedural/work_orders/">Work orders and maintenance</a>, <a href="../build/damage/">Damage</a>.</p>
+<hr />
 <h2 id="the-text-waterfall-grew-up-into-the-ships-log">📻 The text waterfall grew up into the ship's log</h2>
 <p><strong>Every console gets this, with nothing to opt into.</strong> The waterfall did one job — show
 the last few lines — and did it with its hands tied: the engine never wrote to it, script

@@ -4945,6 +4945,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.internal_damage.grid_node_is_system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_node_is_system
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.internal_damage.grid_node_state" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10372,6 +10383,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.internal_damage.grid_node_is_system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_node_is_system
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.internal_damage.grid_node_state" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -11925,6 +11947,36 @@ fraction on a ship that has never worn anything.</p>
 <div class="doc doc-object doc-function">
 
 
+<h2 id="sbs_utils.procedural.internal_damage.grid_node_is_system" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">grid_node_is_system</span><span class="p">(</span><span class="n">id_or_obj</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Is this node part of a ship SYSTEM - the only kind of node that wears?</p>
+<p>Every shipped interior says so in its own roles: a system room's roles begin with
+<code>system</code> (<code>system,weapon,beam</code>, <code>system,ENGINE,impulse</code>, <code>system,shield,fwd</code>)
+and a crew space's begin with <code>room</code> (<code>room,cabin,gym</code>, <code>room,cabin,quarters</code>,
+<code>room,bay,cargo</code>). Measured across <code>data/grid_data.json</code>: 38 rolesets, 11 of them
+systems, and not one where <code>system</code> appears anywhere but first. LegendaryMissions'
+docking repair and the EPad room list already read the same role.</p>
+<p>Wear is a SYSTEM idea - a tuned beam array fires harder, a worn impulse drive pushes
+less - and none of that means anything for a gymnasium. Before this, upkeep aged
+every node on the ship, so the gym went worn on schedule and Engineering offered a
+damage-control team to go and tune it.</p>
+<p>Damage is different and is deliberately NOT gated: a fire in the galley is a real
+fire, and a team still goes and puts it out.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="sbs_utils.procedural.internal_damage.grid_node_state" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">grid_node_state</span><span class="p">(</span><span class="n">id_or_obj</span><span class="p">)</span></code>
 
@@ -12555,6 +12607,10 @@ not been switched to yet.</p>
 through grid_node_apply_color, and recomputes the ship's coefficients - but only
 when the ROLE actually flipped, so wear moving within a band costs one dict write
 and nothing else.</p>
+<p>Only a SYSTEM node carries wear at all (see <code>grid_node_is_system</code>); on anything
+else this is a no-op that answers with the nominal reading. Gating the one writer
+rather than each caller is what makes the whole model system-only: upkeep, the
+wear a damcon patch leaves behind, a mission's own call, all of it.</p>
 <p><code>__worn__</code> never coexists with <code>__damaged__</code>: damage supersedes wear, and a
 worn node keeps <code>__undamaged__</code> so nothing that counts undamaged system nodes
 changes meaning because a node got tired.</p>
@@ -13566,7 +13622,9 @@ from MAST.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Age every working node on a ship by one upkeep step.</p>
+        <p>Age every working SYSTEM node on a ship by one upkeep step.</p>
+<p>Crew spaces are left alone: a gymnasium does not drift out of tune, and one that
+read <code>worn</code> put a tuning job for it on the Engineering board.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>

@@ -2465,6 +2465,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#wear-condition-and-work-orders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wear, condition and work orders
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -9634,6 +9645,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#wear-condition-and-work-orders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wear, condition and work orders
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -9701,6 +9723,29 @@ handlers that spawn wrecks.</p>
 <a href="../../api/procedural/internal_damage/">internal_damage</a> API and the
 <code>//damage/internal</code> / <code>//damage/heat</code> routes. Heat builds from <em>overpowering</em> a
 system; coolant is the only sink.</p>
+<h2 id="wear-condition-and-work-orders">Wear, condition and work orders</h2>
+<p>Damage is one axis; <strong>condition</strong> is the other. A grid node carries <code>__damaged__</code> or
+<code>__undamaged__</code> as it always did, and wear rides on top as <code>__worn__</code> - so
+<code>role("__undamaged__")</code>, <code>system_damage[]</code> and the explode check all mean exactly
+what they meant before, and an all-worn ship cannot blow up.</p>
+<p>Four tiers come out of it - damaged, worn, nominal, tuned - worth <code>0</code>, <code>0.75</code>, <code>1.0</code>
+and <code>1.10</code> to the effectiveness coefficients. A node a damage-control team repaired
+comes back <strong>worn</strong> and wants a maintenance order; a dockyard repair restores it
+fully. <strong>A healthy system can be tuned</strong>, which is how the tuned tier is earned at
+all, and nothing tunes itself: it takes an order.</p>
+<p>An order is a link - <code>link(dc, "work-order", node)</code> - which is what it always was, so
+a mission that files orders that way keeps working unchanged.</p>
+<div class="highlight"><pre><span></span><code># What this node would accept: &quot;repair&quot;, &quot;maintain&quot;, or None if it is already tuned
+kind = work_order_kind_wanted(node_id)
+work_order_add(dc_id, node_id, kind)
+work_order_set_priority(node_id, 100)      # the brain preempts its commit once
+</code></pre></div>
+<p><strong>Nothing happens until something writes wear.</strong> An untouched node reads nominal and
+weighs exactly <code>1.0</code>, so a mission that never opts in sees no change. LM's <code>damage</code>
+addon wires up the usual sources (firing, being hit, and a per-minute beat for time
+and travel); <code>grid_set_wear_tuning</code> moves every threshold and rate.</p>
+<p>Full model, the tuning table and the gotchas:
+<a href="../../api/procedural/work_orders/">Work orders and maintenance</a>.</p>
 <p>See also the <a href="../../api/dispatch/damage_dispatcher/">DamageDispatcher</a> and the
 <a href="../../mast/routes/lifetime/">Lifetime routes</a>.</p>
 
