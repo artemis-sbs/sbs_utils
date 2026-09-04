@@ -63,11 +63,26 @@ class Take:
             "subject": shot.get("subject"),
         })
 
-    def stop(self):
+    def stop(self, timeout=15.0):
+        """Stop, and WAIT until OBS has actually finished writing.
+
+        StopRecord returns while the output is still finalizing, and OBS refuses to
+        change the record directory while one is active - so the NEXT take in a
+        multi-take session died on `SetRecordDirectory failed: 500`, blaming a
+        directory that was perfectly fine.
+        """
         try:
             self.path = self.obs.stop_record()
         except Exception:
             self.path = None
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                if not (self.obs.record_status() or {}).get("outputActive", False):
+                    break
+            except Exception:
+                break
+            time.sleep(0.2)
         # Close the last mark so every shot has an end, not just a start.
         if self.marks and self.t0:
             self.marks[-1]["t_end"] = round(time.time() - self.t0, 3)

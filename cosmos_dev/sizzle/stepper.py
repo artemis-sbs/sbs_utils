@@ -39,12 +39,19 @@ def apply_shot(drv, scene_key, index, client_ids, timeout=20.0):
     code = _py([
         "from sbs_utils.procedural.amd_cutscene import cutscene_amd_shots",
         "from sbs_utils.procedural.gui.cutscene import shot_apply, shot_furniture",
+        "from sbs_utils.procedural.gui.overlay import overlay_clear",
         "_shots = cutscene_amd_shots(%r)" % scene_key,
         "_i = %d" % index,
         "if _i >= len(_shots):",
         "    raise IndexError('shot %d of %d' % (_i, len(_shots)))",
         "_shot = _shots[_i]",
         "_cids = set(%r)" % (list(client_ids),),
+        # Clear FIRST. shot_furniture returns early when a shot has no overlay, so it
+        # never takes the previous one down - during normal playback _Playing tracks
+        # the slots each shot used and clears them between shots, and the stepping
+        # path has no such bookkeeping. Without this a shot that authors no overlay
+        # inherits the last one's: a firefight still wearing the cold open's title.
+        "overlay_clear(None, to=_cids)",
         "shot_apply(_cids, _shot)",
         "shot_furniture(_cids, _shot)",
         "_result = str(_shot.get('label') or _shot.get('key') or _i)",

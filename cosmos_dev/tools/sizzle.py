@@ -626,6 +626,44 @@ def cmd_contact(args):
     return 0
 
 
+def _record_one(drv, obs, cam, spec, root, args, stepper, R):
+    """Record ONE take into <root>/takes/<name>/. Returns (ok, out_dir, why)."""
+    out_dir = os.path.join(root, "takes", spec["name"])
+    scene, src_name = "sizzle-take", "sizzle-cam"
+
+    shots = stepper.load_shots(drv, spec["scene"])
+    if not shots:
+        return False, out_dir, "no shots resolved in scene %r" % spec["scene"]
+
+    beat = 60.0 / float(args.bpm)
+    total = sum(float(s.get("seconds") or 4) for s in shots) * beat
+    print("\n=== take %r: %d shots, %.1fs ===" % (spec["name"], len(shots), total))
+
+    first = stepper.apply_shot(drv, spec["scene"], 0, [cam.client_id])
+    time.sleep(args.settle)
+
+    take = R.Take(obs, scene, src_name, out_dir)
+    take.start()
+    for i, shot in enumerate(shots):
+        label = first if i == 0 else stepper.apply_shot(
+            drv, spec["scene"], i, [cam.client_id])
+        take.mark(i, label, shot)
+        hold = float(shot.get("seconds") or 4) * beat
+        print("  %02d %-28s %.2fs" % (i, label, hold))
+        time.sleep(hold)
+        if not stepper.alive(drv):
+            where = R.abort(take, os.path.join(root, "takes"),
+                            "engine stopped answering at shot %d" % i,
+                            log_tail=(drv.read_log(tail=1500) or "")[-1500:])
+            return False, where, "engine died at shot %d" % i
+    path = take.stop()
+    take.write_marks({"bpm": args.bpm, "scene": spec["scene"],
+                      "name": spec["name"],
+                      "source_size": list(cam.size or ())})
+    print("  -> %s" % path)
+    return True, out_dir, None
+
+
 def cmd_shoot(args):
     """M5: record one continuous take, stepping the shot list and marking each cut."""
     from ..engine_driver.driver import EngineDriver
@@ -889,6 +927,148 @@ def cmd_assemble(args):
     return 0
 
 
+def cmd_reel(args):
+    """M7: shoot every take in the manifest, then assemble them into one reel."""
+    from ..engine_driver.driver import EngineDriver
+    from ..sizzle import (clients as C, windows as W, stepper,
+                          record as R, reel as REEL, assemble as A)
+
+    W.set_dpi_aware()
+    if check_engine(args) and not args.force:
+        print("\nRefusing to start (use --force to override).")
+        return 1
+
+    takes = REEL.load(args.manifest)
+    missions = args.missions_dir or os.path.join(args.cosmos_dir, "data", "missions")
+    root = args.out or os.path.join(missions, "_sizzle",
+                                    time.strftime("%Y%m%d-%H%M%S"))
+    os.makedirs(root, exist_ok=True)
+    REEL.save(takes, os.path.join(root, "reel.json"))
+    print("reel: %d take(s) -> %s" % (len(takes), root))
+    for t in takes:
+        print("  %-10s %s / %s / scene %s"
+              % (t["name"], t["mission"], t["map"], t["scene"]))
+
+    done, failed = [], []
+    for group in REEL.group_by_session(takes):
+        mission, mp = group[0]["mission"], group[0]["map"]
+        print("\n--- session: %s map=%s (%d take(s)) ---"
+              % (mission, mp, len(group)))
+        if mission == "SizzleReel":
+            _sync_stage_mission(missions)
+        drv = EngineDriver(cosmos_dir=args.cosmos_dir, mission=mission,
+                           missions_dir=missions)
+        drv.build_mastlib()
+        drv.enable_in_story()
+        drv.launch(map=mp)
+        obs = None
+        made = []
+        try:
+            try:
+                ok = drv.ping(timeout=args.timeout)
+            except Exception as e:
+                print("FAIL: queue never answered (%s)" % e)
+                failed += [t["name"] for t in group]
+                continue
+            if not ok:
+                print("FAIL: queue never answered")
+                failed += [t["name"] for t in group]
+                continue
+            for _ in range(args.warmup):
+                time.sleep(1)
+            cam = C.launch_client(drv, "cam", "SZ-CAM", timeout=args.timeout)
+            made.append(cam)
+            if cam.client_id is None:
+                print("FAIL: client never bound - %s" % cam.why)
+                failed += [t["name"] for t in group]
+                continue
+            asp = _aspect(*cam.size) if cam.size else "?"
+            print("  shooting at %s (%s)"
+                  % ("%dx%d" % cam.size if cam.size else "?", asp))
+            if asp != "16:9":
+                print("  WARNING: not 16:9 - set the engine to FULLSCREEN by hand.")
+
+            obs = obsws.connect(host=args.obs_host, port=args.obs_port,
+                                password=args.obs_password)
+            prev_scene = obs.current_scene()
+            v = obs.video_settings()
+            prev_video = (v.get("baseWidth"), v.get("baseHeight"),
+                          v.get("outputWidth"), v.get("outputHeight"))
+            if cam.size:
+                obs.set_video_settings(cam.size[0], cam.size[1],
+                                       args.out_width, args.out_height)
+            obs.remove_input("sizzle-cam")
+            obs.remove_scene("sizzle-take")
+            obs.create_scene("sizzle-take")
+            obs.create_window_capture(
+                "sizzle-take", "sizzle-cam",
+                "%s:Engine:Artemis3-x64-release.exe" % cam.title)
+            obs.fit_source_to_canvas("sizzle-take", "sizzle-cam")
+
+            _start_scene(drv, mp)
+            for _ in range(int(args.timeout)):
+                time.sleep(1)
+                if stepper.load_shots(drv, group[0]["scene"]):
+                    break
+
+            for spec in group:
+                ok, where, why = _record_one(drv, obs, cam, spec, root,
+                                             args, stepper, R)
+                (done if ok else failed).append(spec["name"])
+                if not ok:
+                    print("  ABORTED %r: %s (kept in %s)" % (spec["name"], why, where))
+                    break
+        finally:
+            if obs is not None:
+                try:
+                    if prev_video and all(prev_video):
+                        obs.set_video_settings(*prev_video)
+                    if prev_scene:
+                        obs.set_current_scene(prev_scene)
+                    obs.remove_input("sizzle-cam")
+                    obs.remove_scene("sizzle-take")
+                except Exception:
+                    pass
+                obs.close()
+            C.stop(made)
+            drv.close()
+            drv.stop_engines()
+
+    print("\n%d recorded, %d failed" % (len(done), len(failed)))
+    if failed:
+        print("failed: %s" % ", ".join(failed))
+    if not done:
+        print("nothing to assemble.")
+        return 1
+    if args.no_assemble:
+        return 0
+
+    ff = A.ffmpeg_exe()
+    if ff is None:
+        print("no ffmpeg - not assembling")
+        return 1
+    clips = []
+    for name in done:
+        d = os.path.join(root, "takes", name)
+        take, marks = A.load_take(d)
+        if not take:
+            continue
+        clips += A.cut_clips(ff, take, marks, os.path.join(root, "clips", name))
+    if not clips:
+        print("FAIL: no clips")
+        return 1
+    cut = A.concat(ff, clips, os.path.join(root, "cut.mp4"))
+    dur = A.duration(ff, cut)
+    audio = args.audio or A.beat_track(ff, dur, args.bpm,
+                                       os.path.join(root, "beats.m4a"))
+    final = A.mux(ff, cut, audio, os.path.join(root, "sizzle.mp4"))
+    sheet = A.final_sheet(ff, final, os.path.join(root, "final_sheet.png"),
+                          every=args.sheet_every, cols=args.cols, seconds=dur)
+    print("\nreel:  %s  (%.1fs, %d clips)" % (final, dur, len(clips)))
+    print("sheet: %s" % sheet)
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="sizzle", description=__doc__.splitlines()[0])
     ap.add_argument("--cosmos-dir", default=os.environ.get("COSMOS_DIR", r"E:\a\Cosmos-dev"))
@@ -965,6 +1145,22 @@ def main(argv=None):
     asm.add_argument("--cols", type=int, default=6)
     asm.add_argument("--out", default=None)
     asm.set_defaults(func=cmd_assemble)
+
+    rl = sub.add_parser("reel", help="M7: shoot every take in the manifest and cut them")
+    rl.add_argument("--manifest", default=None, help="reel.json; omit for the default")
+    rl.add_argument("--bpm", type=float, default=120.0)
+    rl.add_argument("--audio", default=None)
+    rl.add_argument("--out-width", type=int, default=1920)
+    rl.add_argument("--out-height", type=int, default=1080)
+    rl.add_argument("--warmup", type=int, default=20)
+    rl.add_argument("--settle", type=float, default=0.6)
+    rl.add_argument("--timeout", type=float, default=120.0)
+    rl.add_argument("--sheet-every", type=float, default=2.0)
+    rl.add_argument("--cols", type=int, default=6)
+    rl.add_argument("--no-assemble", action="store_true")
+    rl.add_argument("--out", default=None)
+    rl.add_argument("--force", action="store_true")
+    rl.set_defaults(func=cmd_reel)
 
     args = ap.parse_args(argv)
     if not getattr(args, "func", None):
