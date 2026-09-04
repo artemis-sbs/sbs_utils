@@ -1,11 +1,12 @@
 # Profiles
 
-A **profile** is one named file that decides how a mission runs — its settings, and which
-add-ons and art packs it loads. You select it by name and nothing else changes:
+A **profile** is a named file that decides how a mission runs — its settings, and which
+add-ons and art packs it loads. You select one, or several, by name and nothing else
+changes:
 
 ```
 Artemis3-x64-release.exe autostartserver defaultmission=LegendaryMissions profile=a28_skies
-python -m cosmos_dev.mission_runner . --test 20 --map 0 --profile a28_skies
+python -m cosmos_dev.mission_runner . --test 20 --map 0 --profile house,a28_skies
 ```
 
 It lives in one of two places, searched in this order:
@@ -34,30 +35,29 @@ Only `exclude:` names something a particular mission declared, and an `exclude` 
 matches nothing is a no-op filter rather than an error - so the same file is safe to point
 at a mission that never had the add-on you are replacing.
 
-## Several at once
+## Naming more than one
 
-Name more than one, comma separated, and they are merged **left to right** - the last one
-typed wins any settings key the earlier ones also set:
+Profiles compose. Name several, comma separated, and they merge **left to right** - the
+last one typed wins any settings key the earlier ones also set:
 
 ```
 ... profile=house,a28_skies,soak
-python -m cosmos_dev.mission_runner . --test 20 --map 0 --profile house,a28_skies
 ```
 
-This is what keeps profiles from being combinatorial. Three house setups and four content
-packs is seven files if they compose and twelve if they do not, and the twelve drift apart
-the first time one of them is edited. Write one profile per *decision* - the venue, the
-mods, the run style - and pick the ones you want at launch.
+So write one profile per *decision* - the venue, the mods, the run style - and pick the
+combination you want at launch. Three house setups and four content packs is seven files
+this way; folding each combination into its own file would be twelve, and the twelve drift
+apart the first time one of them is edited.
 
 `addons:` and `media:` **accumulate** rather than replace, which is the behavior these
 sections need: excluding the stock skybox in one profile and adding a debug add-on in
-another has to do both, and a last-wins rule would keep only the second. Includes
-concatenate in typed order and excludes union; duplicates are listed once. An entry one
-profile excludes and a later one includes ends up in both lists, and the **include wins** -
-excludes are applied first - so a specific profile can re-add something a broad one removed.
+another has to do both. Includes concatenate in typed order and excludes union; duplicates
+are listed once. An entry one profile excludes and a later one includes ends up in both
+lists, and the **include wins** - excludes are applied first - so a specific profile can
+re-add something a broad one removed.
 
 A name that matches no file is warned about and **skipped**, and the rest still apply. One
-typo in a list of four must not discard the other three.
+typo in a list of four does not discard the other three.
 
 The merge order is logged, because the result depends on it:
 
@@ -93,13 +93,13 @@ Merged in this order, each beating the one before:
 built-in defaults
   <  a mod's settings_set_mod_default()
   <  the mission's settings.yaml
-  <  profile=<name>            (several: merged left to right, last wins)
+  <  profile=<name>[,<name>]   (several merge left to right, last wins)
   <  the COSMOS_SETTINGS environment variable
   <  var.NAME= on the command line
 ```
 
 Whole-key replace, not a deep merge: a profile's `AUTO_PLAY` replaces the entire
-`AUTO_PLAY` entry rather than merging into it. The same is true between two profiles -
+`AUTO_PLAY` entry rather than merging into it. The same holds between two profiles -
 `profile=a,b` where both set `AUTO_PLAY` gives you b's, whole.
 
 ## Add-ons and media packs
@@ -183,7 +183,9 @@ and loads them through the directory walk rather than the `mastlib` list. Both a
     A mission's `profiles/` folder is read from that mission only. Two missions that want
     the same *content* profile need a copy each - `addons:`/`media:` cannot be shared,
     because they name things one `story.json` declares. A **settings** profile can be
-    shared: put it in `common_data/profiles/` and every mission sees it.
+    shared: put it in `common_data/profiles/` and every mission sees it. Naming both at
+    once - `profile=house,a28_skies` - is how a shared settings profile and a mission's
+    own content profile end up in the same launch.
 
 ## It follows a restart, not a mission switch
 

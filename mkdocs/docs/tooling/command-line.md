@@ -31,7 +31,7 @@ through to script, which is what lets a mission define its own.
 |---|---|
 | `map=<name>` | start this map, skipping the picker. Index, path, display name, or an unambiguous part of one |
 | `console=<name>` | this client opens on that console |
-| `profile=<name>` | load `profiles/<name>.yaml` over the mission's settings. Several, comma separated, merge left to right |
+| `profile=<name>[,<name>]` | load `profiles/<name>.yaml` over the mission's settings; several merge left to right |
 | `var.NAME=value` | override one setting |
 | `var.A.B=value` | override a nested setting |
 | `seed=<n>` | fix the random seed, so a run can be repeated |
@@ -50,9 +50,9 @@ Settings are merged in this order, each beating the one before:
 built-in defaults
   <  a mod's settings_set_mod_default()
   <  the mission's settings.yaml
-  <  profile=<name>          ->  <mission>/profiles/<name>.yaml
+  <  profile=<name>[,<name>] ->  <mission>/profiles/<name>.yaml
                              ->  common_data/profiles/<name>.yaml
-     profile=<a>,<b>            several merge left to right, last wins
+                                 (several merge left to right, last wins)
   <  the COSMOS_SETTINGS environment variable
   <  var.NAME= on the command line
 ```
@@ -77,7 +77,8 @@ Each dropped argument says so in the log rather than vanishing. The comparison n
 `defaultmission=` to know what you started with; without it nothing is dropped.
 
 
-A profile is an ordinary settings file under `profiles/`:
+A profile is an ordinary settings file under `profiles/`. Name one, or several
+comma-separated ones to be merged left to right:
 
 ```yaml title="missions/MyMission/profiles/soak.yaml"
 DIFFICULTY: 11
@@ -88,6 +89,7 @@ AUTO_PLAY:
 
 ```
 Artemis3-x64-release.exe autostartserver defaultmission=MyMission profile=soak
+Artemis3-x64-release.exe autostartserver defaultmission=MyMission profile=house,soak
 ```
 
 **Why a file and not more arguments.** A command line is capped at 8191 characters on
