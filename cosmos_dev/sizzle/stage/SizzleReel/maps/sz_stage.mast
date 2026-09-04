@@ -36,7 +36,7 @@
 @map/sz_open "Sizzle: cold open + fight"
     " Stages the hero, the kraliens and a debris field for the capture harness.
     # --- the cast -----------------------------------------------------------------
-    shared SZ_HERO = to_object(npc_spawn(0, 0, 0, "Artemis", "tsn", "tsn_light_cruiser", "behav_npcship"))
+    shared SZ_HERO = to_object(npc_spawn(0, 0, 0, "Artemis", "tsn", "tsn_dreadnought", "behav_npcship"))
     shared SZ_LEAD = to_object(npc_spawn(2400, 0, 1800, "Kralien Lead", "kralien", "kralien_battleship", "behav_npcship"))
     shared SZ_WING = to_object(npc_spawn(3200, 0, 2600, "Kralien Two", "kralien", "kralien_cruiser", "behav_npcship"))
     shared SZ_FIGHTER = to_object(npc_spawn(300, 0, 0 - 400, "Hawk 1", "tsn", "tsn_fighter", "behav_npcship"))

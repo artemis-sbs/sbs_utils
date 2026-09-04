@@ -239,11 +239,26 @@ class ObsClient:
             },
         })
 
-    def remove_input(self, input_name):
+    def input_names(self):
+        return [i.get("inputName") for i in (self.inputs().get("inputs") or [])]
+
+    def remove_input(self, input_name, timeout=5.0):
+        """Remove an input and WAIT until OBS agrees it is gone.
+
+        RemoveInput returns before the source is actually torn down, so a CreateInput
+        immediately after fails with "a source already exists by that input name" -
+        and the name in question is one this harness only just asked to delete. Same
+        shape as the CreateScene race above.
+        """
         try:
             self.request("RemoveInput", {"inputName": input_name})
         except ObsError:
-            pass
+            return                            # not there to begin with
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if input_name not in self.input_names():
+                return
+            time.sleep(0.15)
 
     # --- video settings and recording ------------------------------------------------
 

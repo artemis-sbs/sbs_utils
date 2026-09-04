@@ -22,7 +22,7 @@ Bar: 4
 ---
 Cutscene: open
 Subject: hero
-Framing: medium, close
+Framing: close, tight
 Seconds: 8
 Ease: in_out
 Overlay: lower_third
@@ -34,7 +34,7 @@ Some ruins you go around. This one you go into.
 ---
 Cutscene: open
 Subject: hero
-Framing: close
+Framing: tight
 Yaw: 150
 Pitch: 8
 Seconds: 6

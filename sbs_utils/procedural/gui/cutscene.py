@@ -131,7 +131,12 @@ def _warn_unknown_shot_keys(shot):
 
 #: What a named shot size means, in the subject's own hull radii. The numbers are not
 #: here - they come from `viewscreen_framing`, which is where they already lived.
-SHOT_SIZES = ("close", "medium", "wide")
+SHOT_SIZES = ("tight", "close", "medium", "wide")
+
+
+# A `tight` shot still needs a floor, or the lens ends up inside a small hull. Half
+# of viewscreen's FRAME_MIN, because `tight` is deliberately half of `close`.
+FRAME_MIN_TIGHT = 125.0
 
 
 def cutscene_framing(subject, size="medium"):
@@ -154,13 +159,21 @@ def cutscene_framing(subject, size="medium"):
 
     Args:
         subject: the object the shot looks at.
-        size (str): ``close``, ``medium`` or ``wide``. Anything else is treated as
-            ``medium`` - a misspelled size should give a usable shot, not no shot.
+        size (str): ``tight``, ``close``, ``medium`` or ``wide``. Anything else is
+            treated as ``medium`` - a misspelled size should give a usable shot, not
+            no shot.
 
     Returns:
         float: distance from the subject, in world units.
     """
     near, far = viewscreen_framing(subject)
+    if size == "tight":
+        # Half of `close`, for a shot that wants the subject to FILL the frame - a
+        # hero beat in a promo, a reveal. Still hull-relative, so it stays portable
+        # between subjects; a bigger hull does NOT make a ship bigger in frame,
+        # because every size scales with the hull, which is the point of framing and
+        # also the reason `close` alone cannot be pushed in on.
+        return max(FRAME_MIN_TIGHT, near / 2.0)
     if size == "close":
         return near
     if size == "wide":
