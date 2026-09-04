@@ -21,6 +21,11 @@
     # create_new_sim(), spawn, resume.
     sim_create()
 
+    # Nothing the engine draws for its own convenience belongs in a promo frame.
+    # The flag here is the DIALOG's state, not the suppression's, so 0 is what turns
+    # it OFF - it reads backwards against the name and is not a typo.
+    sbs.suppress_client_connect_dialog(0)
+
     gui_blank()
     await gui()
 
@@ -92,6 +97,13 @@
     #
     # Full bleed, its own section, no MAST controls beside it - the engine draws an
     # engine widget at its own size and paints over anything sharing the row.
+    # The engine's Options button otherwise sits in the top corner of every frame.
+    # gui_options_button, not sbs.transparent_options_button: the raw call is a
+    # one-shot that the NEXT page build undoes, so the button would come back the
+    # moment anything repainted. The wrapper records the intent and the page
+    # restores to that.
+    gui_options_button()
+
     gui_section(style="area:0,0,100,100;")
     gui_row()
     gui_layout_widget("3dview")
