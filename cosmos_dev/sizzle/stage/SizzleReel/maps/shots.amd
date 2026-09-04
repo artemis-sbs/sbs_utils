@@ -22,7 +22,7 @@ Bar: 4
 ---
 Cutscene: open
 Subject: hero
-Framing: wide, close
+Framing: medium, close
 Seconds: 8
 Ease: in_out
 Overlay: lower_third

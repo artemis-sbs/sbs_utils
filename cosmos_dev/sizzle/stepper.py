@@ -89,8 +89,8 @@ def framing_report(drv, subject_id, timeout=20.0):
     radius - the two numbers that decide whether a framed shot shows a ship or a speck."""
     expr = (
         "__import__('json').dumps({"
-        "'hull_radius': getattr(__import__('sbs_utils.procedural.query', fromlist=['x'])"
-        ".to_object(%d), 'hull_radius', None),"
+        "'exclusion_radius': getattr(__import__('sbs_utils.procedural.query', fromlist=['x'])"
+        ".to_object(%d).space_object(), 'exclusion_radius', None),"
         "'close': __import__('sbs_utils.procedural.gui.cutscene', fromlist=['x'])"
         ".cutscene_framing(%d, 'close'),"
         "'medium': __import__('sbs_utils.procedural.gui.cutscene', fromlist=['x'])"
