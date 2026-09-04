@@ -534,6 +534,68 @@ your game looks like whether you ask for them or not.
 
 ---
 
+## 🔧 Engineering has something to do between the hits
+
+Damage control was binary: a room was broken or it was fine, and the only thing that
+ever changed it was taking a hit. Systems now have **condition** as well as damage —
+and Engineering has a panel that shows it.
+
+| Tier | Drawn | Worth |
+|---|---|---|
+| **Damaged** | crimson | nothing |
+| **Worn** | gold | 75% |
+| **Nominal** | its own color | 100% |
+| **Tuned** | cyan | 110% |
+
+**A damage-control team patches a room; it does not rebuild it.** A room your teams
+put out comes back **worn** — in service, drawing gold, giving three quarters of what
+it used to. Only a dockyard repair makes it new again. So the ship that leaves the
+second fight is not the ship that went into the first, and that is now something the
+crew can act on rather than something they just live with.
+
+**Wear does not only come from being shot.** Firing a beam wears the beam that fired;
+launching a torpedo wears the tube — charged on the shot, because a torpedo that
+missed wore it just the same; a hit wears the shield facing that ate it. And
+everything ages on a slow clock, the drive you are actually running included. Warp is
+about five times harder on a ship than impulse.
+
+**Tuning is what a well-run ship gets for it — and somebody has to order it.** Send a
+team to a system that is *fine* and they bring it above spec: a tuned beam pool fires
+at 110 percent. Nothing tunes itself, and a team no longer tunes the room it happens
+to be standing in. It is a job you assigned.
+
+**The order is two clicks now.** Picking a damaged or worn room in comms used to grow
+two buttons per damage-control team — eight or more on a three-team ship, with the one
+you wanted buried in them. It is one button, **Repair** or **Tune**, carrying how many
+teams are already on it, opening a submenu of who to send, who to call off, and how
+urgent it is. Raise a job to critical and the team turns around **once**: the choice is
+committed, so two orders can never trade a team back and forth.
+
+**Engineering's right column is a three-tab panel**, in place of the oversized crew
+face that used to hold it (and that was also the thing that collapsed at 1280x720):
+
+- **Selected** — the room or team you picked on the interior view, described in full.
+- **Orders** — every work order on the ship, highest priority first, with raise and
+  close on each row. A job someone else already finished drops off the list instead of
+  sitting there as a button that does nothing.
+- **Systems** — the four pools, and the **eight effectiveness numbers** the grid has
+  always derived and Engineering has never been able to see: beam, tube, impulse,
+  warp, turn, sensor, and both shield facings. Each one wears its tier's color, so the
+  pool that is hurting is findable without reading all eight.
+
+The cockpit's system lights read the same model, so they show the wear tiers too.
+
+**A mission that never opts in sees no change at all.** An untouched system reads as
+nominal and weighs exactly `1.0`, so effectiveness comes out identical to the
+`undamaged / total` fraction it replaced — and because wear sits *on top of*
+undamaged rather than replacing it, an all-worn ship still cannot explode. Every
+threshold and rate is a dial: `grid_set_wear_tuning(tuned_bonus=0.0)` gives you
+maintenance with no over-unity, `upkeep_rate=0` turns off time-based wear entirely.
+
+Docs: [Work orders and maintenance](api/procedural/work_orders.md), [Damage](build/damage.md).
+
+---
+
 ## 📻 The text waterfall grew up into the ship's log
 
 **Every console gets this, with nothing to opt into.** The waterfall did one job — show
