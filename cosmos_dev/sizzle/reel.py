@@ -14,9 +14,25 @@ import json
 
 # Each entry: the take's name (also its directory), the mission that stages it, the
 # @map to start, and the cutscene key in that mission's shots.amd.
+# A take is one of two KINDS, and the difference is what a shot means:
+#   camera  - `scene` names a cutscene in the mission's shots.amd; each shot is a
+#             subject and a framing, and the picture is the cinematic view.
+#   screen  - `screens` names MAST labels; each shot is a CONSOLE, reached by
+#             rerouting the client, and the picture is that console's window.
+# They share the capture and nothing else.
 DEFAULT_REEL = [
-    {"name": "open",  "mission": "SizzleReel", "map": "sz_open", "scene": "open"},
-    {"name": "fight", "mission": "SizzleReel", "map": "sz_open", "scene": "fight"},
+    {"name": "open",  "kind": "camera", "mission": "SizzleReel",
+     "map": "sz_open", "scene": "open"},
+    {"name": "fight", "kind": "camera", "mission": "SizzleReel",
+     "map": "sz_open", "scene": "fight"},
+    {"name": "padd",  "kind": "screen", "mission": "LegendaryMissions", "map": None,
+     "seconds": 4,
+     "seed": "messages",
+     "screens": [
+         {"label": "epadd_home_screen", "title": "The PADD"},
+         {"label": "epadd_messages_screen", "title": "Messages"},
+         {"label": "epadd_status_screen", "title": "Status"},
+     ]},
 ]
 
 
@@ -49,7 +65,7 @@ def group_by_session(takes):
     """
     groups, cur, key = [], [], None
     for t in takes:
-        k = (t.get("mission"), t.get("map"))
+        k = (t.get("mission"), t.get("map"), t.get("kind", "camera"))
         if key is not None and k != key:
             groups.append(cur)
             cur = []

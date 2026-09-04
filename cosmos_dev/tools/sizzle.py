@@ -626,6 +626,74 @@ def cmd_contact(args):
     return 0
 
 
+SEED_MESSAGES = [
+    ("Cmdr Vale", "Supply run", "Phoenix has our parts. Two days out if we push it."),
+    ("Engineering", "Coil wear", "Number two coil is at 71 percent. Tune it before it goes."),
+    ("Sci Officer", "Contact", "Something is holding station off the belt and not moving."),
+]
+
+
+def _record_screens(drv, obs, cam, spec, root, args, stepper, R):
+    """Record a SCREEN take: reroute the client through labels, hold each one.
+
+    Same tape, same marks, same cut - only the shot differs. The picture here is a
+    console rather than a camera, so there is no subject and no framing; what has to
+    be right instead is that the screen has STATE worth photographing.
+    """
+    out_dir = os.path.join(root, "takes", spec["name"])
+    screens = spec.get("screens") or []
+    if not screens:
+        return False, out_dir, "no screens listed"
+
+    if spec.get("seed") == "messages":
+        try:
+            n = stepper.seed_messages(drv, SEED_MESSAGES)
+            print("  seeded %d message(s)" % n)
+        except Exception as e:
+            print("  WARNING: could not seed messages (%s) - the inbox may be empty" % e)
+
+    beat = 60.0 / float(args.bpm)
+    hold = float(spec.get("seconds") or 4) * beat
+    print("\n=== take %r: %d screen(s), %.1fs ==="
+          % (spec["name"], len(screens), hold * len(screens)))
+
+    # Prime the first screen before the tape rolls, as with a camera take.
+    try:
+        stepper.show_screen(drv, cam.client_id, screens[0]["label"])
+    except Exception as e:
+        return False, out_dir, "reroute failed: %s" % e
+    time.sleep(args.settle)
+
+    take = R.Take(obs, "sizzle-take", "sizzle-cam", out_dir)
+    take.start()
+    for i, sc in enumerate(screens):
+        if i:
+            try:
+                stepper.show_screen(drv, cam.client_id, sc["label"])
+            except Exception as e:
+                print("  %02d %-28s REROUTE FAILED (%s)" % (i, sc["label"], e))
+                continue
+            time.sleep(args.settle)
+        landed = stepper.current_label(drv, cam.client_id)
+        ok = sc["label"] in str(landed)
+        print("  %02d %-28s %s" % (i, sc.get("title") or sc["label"],
+                                   "on %s" % landed if ok else "WRONG LABEL: %s" % landed))
+        take.mark(i, sc.get("title") or sc["label"],
+                  {"seconds": spec.get("seconds") or 4, "framing": "screen",
+                   "subject": sc["label"]})
+        time.sleep(hold)
+        if not stepper.alive(drv):
+            where = R.abort(take, os.path.join(root, "takes"),
+                            "engine stopped answering at screen %d" % i,
+                            log_tail=(drv.read_log(tail=1500) or "")[-1500:])
+            return False, where, "engine died at screen %d" % i
+    path = take.stop()
+    take.write_marks({"bpm": args.bpm, "kind": "screen", "name": spec["name"],
+                      "source_size": list(cam.size or ())})
+    print("  -> %s" % path)
+    return True, out_dir, None
+
+
 def _record_one(drv, obs, cam, spec, root, args, stepper, R):
     """Record ONE take into <root>/takes/<name>/. Returns (ok, out_dir, why)."""
     out_dir = os.path.join(root, "takes", spec["name"])
@@ -946,8 +1014,11 @@ def cmd_reel(args):
     REEL.save(takes, os.path.join(root, "reel.json"))
     print("reel: %d take(s) -> %s" % (len(takes), root))
     for t in takes:
-        print("  %-10s %s / %s / scene %s"
-              % (t["name"], t["mission"], t["map"], t["scene"]))
+        what = ("scene %s" % t["scene"] if t.get("kind") != "screen"
+                else "%d screen(s)" % len(t.get("screens") or []))
+        print("  %-10s %-8s %-18s %-10s %s"
+              % (t["name"], t.get("kind", "camera"), t["mission"],
+                 t.get("map") or "-", what))
 
     done, failed = [], []
     for group in REEL.group_by_session(takes):
@@ -1005,15 +1076,20 @@ def cmd_reel(args):
                 "%s:Engine:Artemis3-x64-release.exe" % cam.title)
             obs.fit_source_to_canvas("sizzle-take", "sizzle-cam")
 
-            _start_scene(drv, mp)
-            for _ in range(int(args.timeout)):
-                time.sleep(1)
-                if stepper.load_shots(drv, group[0]["scene"]):
-                    break
+            if mp:
+                _start_scene(drv, mp)
+                for _ in range(int(args.timeout)):
+                    time.sleep(1)
+                    if stepper.load_shots(drv, group[0].get("scene") or ""):
+                        break
 
             for spec in group:
-                ok, where, why = _record_one(drv, obs, cam, spec, root,
-                                             args, stepper, R)
+                if spec.get("kind") == "screen":
+                    ok, where, why = _record_screens(drv, obs, cam, spec, root,
+                                                     args, stepper, R)
+                else:
+                    ok, where, why = _record_one(drv, obs, cam, spec, root,
+                                                 args, stepper, R)
                 (done if ok else failed).append(spec["name"])
                 if not ok:
                     print("  ABORTED %r: %s (kept in %s)" % (spec["name"], why, where))

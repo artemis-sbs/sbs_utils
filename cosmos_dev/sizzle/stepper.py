@@ -109,3 +109,69 @@ def framing_report(drv, subject_id, timeout=20.0):
         return json.loads(drv.eval(expr, timeout=timeout) or "{}")
     except Exception as e:
         return {"error": str(e)}
+
+
+# --- 2D console screens ----------------------------------------------------------------
+#
+# A screen take is not a camera take. There is no subject and no framing: the picture is
+# a CONSOLE, so the shot is "send this client to that label and photograph its window".
+# The camera path and this one meet only at the capture.
+
+def seed_messages(drv, lines, timeout=20.0):
+    """Put messages in the inbox before photographing it.
+
+    An empty inbox is a bad shot - it is technically correct and says nothing. This is
+    the 2D equivalent of staging a scene, and it is the part that is easy to forget
+    until the contact sheet comes back showing an empty panel.
+    """
+    code = ["from sbs_utils.procedural.messages import message_send"]
+    for sender, subject, text in lines:
+        code.append("message_send(%r, sender=%r, subject=%r, kind='mail')"
+                    % (text, sender, subject))
+    resp = drv.send(_py(code), timeout=timeout)
+    if not resp.get("ok"):
+        raise RuntimeError(resp.get("error"))
+    return len(lines)
+
+
+def show_screen(drv, client_id, label, timeout=20.0):
+    """Send one client to a named MAST label and leave it there.
+
+    A MAST label is not a Python name in a devqueue exec, so it is looked up in the
+    page's story table - naming it bare is a NameError and the reroute never runs.
+    """
+    code = _py([
+        "from sbs_utils.gui import Gui",
+        "from sbs_utils.procedural.gui.navigation import gui_reroute_client",
+        "_c = Gui.clients.get(%d)" % client_id,
+        "_p = _c.page_stack[-1] if _c and _c.page_stack else None",
+        "_labels = getattr(getattr(_p, 'story', None), 'labels', None) or {}",
+        "_lbl = _labels.get(%r)" % label,
+        "if _lbl is None:",
+        "    raise KeyError('no label %%r; %%d labels known' %% (%r, len(_labels)))" % label,
+        "gui_reroute_client(%d, _lbl)" % client_id,
+    ])
+    resp = drv.send(code, timeout=timeout)
+    if not resp.get("ok"):
+        raise RuntimeError(resp.get("error"))
+    return label
+
+
+def current_label(drv, client_id, timeout=15.0):
+    """What label a client is on - so a screen shot can be VERIFIED rather than assumed."""
+    expr = (
+        "(lambda c: 'no client' if c is None else "
+        "(lambda p: 'no page' if p is None else "
+        # active_label is the label NAME, a plain string (mastscheduler.py:173) - not
+        # an object with .name. Reaching for .name first and falling back to 'unknown'
+        # made every screen report WRONG LABEL while the reroute was working fine.
+        "(lambda t: 'no gui_task' if t is None else "
+        "str(getattr(t, 'active_label', None) or 'no active_label'))"
+        "(getattr(p, 'gui_task', None)))"
+        "(c.page_stack[-1] if getattr(c, 'page_stack', None) else None))"
+        "(__import__('sbs_utils.gui', fromlist=['Gui']).Gui.clients.get(%d))" % client_id
+    )
+    try:
+        return drv.eval(expr, timeout=timeout)
+    except Exception as e:
+        return "unknown: %s" % e
