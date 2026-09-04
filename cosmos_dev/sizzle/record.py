@@ -27,16 +27,29 @@ class Take:
         self.marks = []
         self.path = None
 
-    def start(self):
+    LEAD_IN = 0.8
+
+    def start(self, lead_in=None):
+        """Roll tape, then start the clock a beat later.
+
+        OBS writes frames before the capture has settled, so the first fraction of a
+        second of any recording is black - and a reel that opens on a black frame is
+        the one thing a cold open cannot afford. Rather than trim it later, the mark
+        timebase starts AFTER that lead-in, so clip 0 begins on real picture and every
+        mark is offset consistently.
+        """
+        lead_in = self.LEAD_IN if lead_in is None else lead_in
         os.makedirs(self.out_dir, exist_ok=True)
         self.obs.set_record_directory(os.path.abspath(self.out_dir))
         self.obs.set_current_scene(self.scene)
         time.sleep(1.0)                 # let game_capture hook before tape rolls
         self.obs.start_record()
-        # StartRecord returns before the first frame is written; the offset that
-        # matters is measured from here, so every mark is consistently late by the
-        # same small amount rather than each being late by a different one.
+        # t0 is RECORDING START, not "after the lead-in" - every mark is a position in
+        # the file, so the timebase has to be the file's. The sleep is what pushes the
+        # first mark past the black, not a shift of the clock.
         self.t0 = time.time()
+        self.lead_in = lead_in
+        time.sleep(lead_in)             # burn the black frames OBS writes first
         return self.t0
 
     def mark(self, index, label, shot):

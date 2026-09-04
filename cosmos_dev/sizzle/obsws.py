@@ -194,9 +194,25 @@ class ObsClient:
     def set_current_scene(self, name):
         self.request("SetCurrentProgramScene", {"sceneName": name})
 
-    def create_scene(self, name):
-        if name not in self.scene_names():
+    def create_scene(self, name, timeout=5.0):
+        """Create a scene and WAIT until OBS agrees it exists.
+
+        Checking scene_names() first and skipping was racy: a RemoveScene immediately
+        before can still be settling, so the name looks present, CreateScene is
+        skipped, and the CreateInput that follows fails with "no source was found by
+        the name of <scene>". Ask unconditionally, tolerate "already exists", then
+        confirm.
+        """
+        try:
             self.request("CreateScene", {"sceneName": name})
+        except ObsError:
+            pass                              # already there is fine
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if name in self.scene_names():
+                return True
+            time.sleep(0.15)
+        raise ObsError("scene %r never appeared after CreateScene" % name)
 
     def remove_scene(self, name):
         try:

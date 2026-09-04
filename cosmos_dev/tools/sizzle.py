@@ -715,11 +715,19 @@ def cmd_shoot(args):
         total = sum(float(s.get("seconds") or 4) for s in shots) * beat
         print("\n%d shots, %.4g bpm -> %.1fs of tape" % (len(shots), args.bpm, total))
 
+        # PRIME the camera before the tape rolls. StartRecord captures whatever is on
+        # screen at that instant, and if shot 0 has not been applied yet that is a
+        # black frame - so the finished reel opens on nothing. Applying it first costs
+        # one settle and means frame one is already the shot.
+        first = stepper.apply_shot(drv, args.scene, 0, [cam.client_id])
+        time.sleep(args.settle)
+
         take = R.Take(obs, scene, src_name, out_dir)
         take.start()
         print("RECORDING -> %s" % out_dir)
         for i, shot in enumerate(shots):
-            label = stepper.apply_shot(drv, args.scene, i, [cam.client_id])
+            label = first if i == 0 else stepper.apply_shot(
+                drv, args.scene, i, [cam.client_id])
             take.mark(i, label, shot)
             hold = float(shot.get("seconds") or 4) * beat
             print("  %02d %-28s %.2fs" % (i, label, hold))
@@ -836,6 +844,51 @@ def cmd_sheet(args):
     return 0
 
 
+def cmd_assemble(args):
+    """M6: cut a take at its marks, concat, mux, and sheet the finished file."""
+    from ..sizzle import assemble as A
+
+    ff = A.ffmpeg_exe()
+    if ff is None:
+        print("FAIL: no ffmpeg. -> pip install imageio-ffmpeg")
+        return 1
+    print("ffmpeg: %s" % ff)
+
+    take, marks = A.load_take(args.take)
+    if not take:
+        print("FAIL: no take/marks.json in %s" % args.take)
+        return 1
+    print("take:   %s  (%d marks)" % (take, len(marks)))
+
+    out_dir = args.out or os.path.join(args.take, "cut")
+    os.makedirs(out_dir, exist_ok=True)
+
+    clips = A.cut_clips(ff, take, marks, os.path.join(out_dir, "clips"))
+    if not clips:
+        print("FAIL: no clips - every mark had zero duration")
+        return 1
+    print("clips:  %d" % len(clips))
+
+    cut = A.concat(ff, clips, os.path.join(out_dir, "cut.mp4"))
+    dur = sum(float(m.get("t_end", 0)) - float(m.get("t", 0)) for m in marks)
+    print("cut:    %s  (~%.1fs)" % (cut, dur))
+
+    audio = args.audio
+    if audio is None:
+        audio = A.beat_track(ff, dur, args.bpm, os.path.join(out_dir, "beats.m4a"))
+        print("audio:  %s  (PLACEHOLDER - swap with --audio)" % audio)
+    else:
+        print("audio:  %s" % audio)
+
+    final = A.mux(ff, cut, audio, os.path.join(out_dir, "sizzle.mp4"))
+    print("final:  %s" % final)
+
+    sheet = A.final_sheet(ff, final, os.path.join(out_dir, "final_sheet.png"),
+                          every=args.sheet_every, cols=args.cols)
+    print("sheet:  %s" % sheet)
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="sizzle", description=__doc__.splitlines()[0])
     ap.add_argument("--cosmos-dir", default=os.environ.get("COSMOS_DIR", r"E:\a\Cosmos-dev"))
@@ -889,6 +942,8 @@ def main(argv=None):
     sh.add_argument("--out-width", type=int, default=1920)
     sh.add_argument("--out-height", type=int, default=1080)
     sh.add_argument("--warmup", type=int, default=20)
+    sh.add_argument("--settle", type=float, default=0.6,
+                    help="hold after priming shot 0, before the tape rolls")
     sh.add_argument("--timeout", type=float, default=120.0)
     sh.add_argument("--out", default=None)
     sh.add_argument("--keep", action="store_true")
@@ -901,6 +956,15 @@ def main(argv=None):
     sk.add_argument("--cols", type=int, default=4)
     sk.add_argument("--out", default=None)
     sk.set_defaults(func=cmd_sheet)
+
+    asm = sub.add_parser("assemble", help="M6: cut a take at its marks into a reel")
+    asm.add_argument("take", help="a takes/<name>/ directory containing marks.json")
+    asm.add_argument("--audio", default=None, help="a real track; omit for a click grid")
+    asm.add_argument("--bpm", type=float, default=120.0)
+    asm.add_argument("--sheet-every", type=float, default=2.0)
+    asm.add_argument("--cols", type=int, default=6)
+    asm.add_argument("--out", default=None)
+    asm.set_defaults(func=cmd_assemble)
 
     args = ap.parse_args(argv)
     if not getattr(args, "func", None):
