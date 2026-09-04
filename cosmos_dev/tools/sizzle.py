@@ -532,7 +532,17 @@ def cmd_contact(args):
             print("FAIL: the client never bound - %s" % cam.why)
             return 1
         if cam.size:
-            print("  shooting at %dx%d" % cam.size)
+            asp = _aspect(*cam.size)
+            print("  shooting at %dx%d (%s)" % (cam.size[0], cam.size[1], asp))
+            if asp != "16:9":
+                # A maximized window keeps its title bar, so its client area is short
+                # of 16:9 and the take gets letterboxed or cropped on the way out.
+                # The engine's own fullscreen mode fixes it and is set BY HAND - it is
+                # not scriptable - so say so rather than silently shooting the wrong
+                # shape, which is only visible once the reel is cut.
+                print("  WARNING: not 16:9. Set the engine to FULLSCREEN by hand for a")
+                print("  true %dx%d, or the reel is letterboxed/cropped."
+                      % (W.screen_size() or (0, 0)))
 
         obs = obsws.connect(host=args.obs_host, port=args.obs_port,
                             password=args.obs_password)

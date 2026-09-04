@@ -106,19 +106,35 @@ SW_MAXIMIZE = 3
 SW_RESTORE = 9
 
 
+def screen_size():
+    """The primary monitor, in real pixels (call set_dpi_aware first)."""
+    if not IS_WINDOWS:
+        return None
+    return (_user32.GetSystemMetrics(0), _user32.GetSystemMetrics(1))
+
+
 def maximize(hwnd):
-    """Fill the monitor - the shooting resolution for any window that goes in the reel.
+    """Fill the monitor - unless the window is ALREADY filling it.
 
     A window left at its opening size shoots at that size, so the reel would be cut
     from whatever the engine happened to open at. Maximizing makes the capture the
-    monitor's native resolution, which is the largest honest source available; OBS
-    then downscales once, to its output, instead of the reel being upscaled later.
+    monitor's native resolution, which is the largest honest source available.
 
-    Returns the resulting client size so the caller can record what it actually got
-    rather than assume the monitor's size.
+    But maximizing is NOT as good as the engine's own fullscreen mode: a maximized
+    window keeps its title bar, so its CLIENT area is the monitor height minus the
+    chrome - 2560x1351 on a 2560x1440 screen, which is 1.895:1, not 16:9. The engine's
+    fullscreen gives a true 2560x1440. Fullscreen is set by hand (it is not scriptable),
+    so when a window already covers the screen this leaves it alone rather than
+    dragging it back out of fullscreen.
+
+    Returns the resulting client size, so the caller records what it actually got.
     """
     if not IS_WINDOWS or not hwnd:
         return None
+    size = client_size(hwnd)
+    screen = screen_size()
+    if size and screen and size[0] >= screen[0] and size[1] >= screen[1]:
+        return size                          # already fullscreen - do not touch it
     _user32.ShowWindow(hwnd, SW_MAXIMIZE)
     _user32.SetForegroundWindow(hwnd)
     time.sleep(0.3)                          # let the swap chain resize before measuring
