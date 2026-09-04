@@ -3293,6 +3293,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#naming-more-than-one" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming more than one
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#why-a-file-and-not-more-arguments" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4062,6 +4073,8 @@
       
         
           
+        
+      
         
       
         
@@ -5731,6 +5744,34 @@
     
   
     upgrades
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/work_orders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    work_orders
   
 
     
@@ -9674,6 +9715,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#naming-more-than-one" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming more than one
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#why-a-file-and-not-more-arguments" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -9810,10 +9862,11 @@
 
 
 <h1 id="profiles">Profiles</h1>
-<p>A <strong>profile</strong> is one named file that decides how a mission runs — its settings, and which
-add-ons and art packs it loads. You select it by name and nothing else changes:</p>
+<p>A <strong>profile</strong> is a named file that decides how a mission runs — its settings, and which
+add-ons and art packs it loads. You select one, or several, by name and nothing else
+changes:</p>
 <div class="highlight"><pre><span></span><code>Artemis3-x64-release.exe autostartserver defaultmission=LegendaryMissions profile=a28_skies
-python -m cosmos_dev.mission_runner . --test 20 --map 0 --profile a28_skies
+python -m cosmos_dev.mission_runner . --test 20 --map 0 --profile house,a28_skies
 </code></pre></div>
 <p>It lives in one of two places, searched in this order:</p>
 <table>
@@ -9851,6 +9904,26 @@ whatever I am running tonight" is one file rather than one copy per mission:</p>
 <p>Only <code>exclude:</code> names something a particular mission declared, and an <code>exclude</code> that
 matches nothing is a no-op filter rather than an error - so the same file is safe to point
 at a mission that never had the add-on you are replacing.</p>
+<h2 id="naming-more-than-one">Naming more than one</h2>
+<p>Profiles compose. Name several, comma separated, and they merge <strong>left to right</strong> - the
+last one typed wins any settings key the earlier ones also set:</p>
+<div class="highlight"><pre><span></span><code>... profile=house,a28_skies,soak
+</code></pre></div>
+<p>So write one profile per <em>decision</em> - the venue, the mods, the run style - and pick the
+combination you want at launch. Three house setups and four content packs is seven files
+this way; folding each combination into its own file would be twelve, and the twelve drift
+apart the first time one of them is edited.</p>
+<p><code>addons:</code> and <code>media:</code> <strong>accumulate</strong> rather than replace, which is the behavior these
+sections need: excluding the stock skybox in one profile and adding a debug add-on in
+another has to do both. Includes concatenate in typed order and excludes union; duplicates
+are listed once. An entry one profile excludes and a later one includes ends up in both
+lists, and the <strong>include wins</strong> - excludes are applied first - so a specific profile can
+re-add something a broad one removed.</p>
+<p>A name that matches no file is warned about and <strong>skipped</strong>, and the rest still apply. One
+typo in a list of four does not discard the other three.</p>
+<p>The merge order is logged, because the result depends on it:</p>
+<div class="highlight"><pre><span></span><code>profiles merged, later wins: house &lt; a28_skies &lt; soak
+</code></pre></div>
 <h2 id="why-a-file-and-not-more-arguments">Why a file and not more arguments</h2>
 <p>A Windows command line is capped at 8191 characters, shortcuts truncate it, quoting around
 spaces and <code>=</code> is awkward, and none of it can be commented, reviewed or diffed. A file is
@@ -9869,12 +9942,13 @@ it — plus a <code>var.</code> or two for whatever you are changing right now:<
 <div class="highlight"><pre><span></span><code>built-in defaults
   &lt;  a mod&#39;s settings_set_mod_default()
   &lt;  the mission&#39;s settings.yaml
-  &lt;  profile=&lt;name&gt;
+  &lt;  profile=&lt;name&gt;[,&lt;name&gt;]   (several merge left to right, last wins)
   &lt;  the COSMOS_SETTINGS environment variable
   &lt;  var.NAME= on the command line
 </code></pre></div>
 <p>Whole-key replace, not a deep merge: a profile's <code>AUTO_PLAY</code> replaces the entire
-<code>AUTO_PLAY</code> entry rather than merging into it.</p>
+<code>AUTO_PLAY</code> entry rather than merging into it. The same holds between two profiles -
+<code>profile=a,b</code> where both set <code>AUTO_PLAY</code> gives you b's, whole.</p>
 <h2 id="add-ons-and-media-packs">Add-ons and media packs</h2>
 <p>A profile can also add and remove <strong>add-ons</strong> and <strong>art packs</strong> relative to <code>story.json</code>.
 This is what turns a profile from "a bundle of settings" into "a way to run the same
@@ -9966,7 +10040,9 @@ pick — silently, with no error, leaving you the stock set.</p>
 <p>A mission's <code>profiles/</code> folder is read from that mission only. Two missions that want
 the same <em>content</em> profile need a copy each - <code>addons:</code>/<code>media:</code> cannot be shared,
 because they name things one <code>story.json</code> declares. A <strong>settings</strong> profile can be
-shared: put it in <code>common_data/profiles/</code> and every mission sees it.</p>
+shared: put it in <code>common_data/profiles/</code> and every mission sees it. Naming both at
+once - <code>profile=house,a28_skies</code> - is how a shared settings profile and a mission's
+own content profile end up in the same launch.</p>
 </div>
 <h2 id="it-follows-a-restart-not-a-mission-switch">It follows a restart, not a mission switch</h2>
 <p>A profile applies to every restart of the mission you launched, for as long as the

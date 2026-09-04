@@ -4023,6 +4023,8 @@
       
         
       
+        
+      
     
     
     
@@ -4984,10 +4986,32 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.map_apply_crew" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;map_apply_crew
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.maps.map_apply_defaults" class="md-nav__link">
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;map_apply_defaults
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.map_get_crew" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;map_get_crew
       
     </span>
   </a>
@@ -5934,6 +5958,34 @@
     
   
     upgrades
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../work_orders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    work_orders
   
 
     
@@ -10045,10 +10097,32 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.map_apply_crew" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;map_apply_crew
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.maps.map_apply_defaults" class="md-nav__link">
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;map_apply_defaults
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.maps.map_get_crew" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;map_get_crew
       
     </span>
   </a>
@@ -10932,6 +11006,66 @@ the day <code>map=siege</code> and <code>MUSIC_SELECT=siege</code> mean differen
 <div class="doc doc-object doc-function">
 
 
+<h2 id="sbs_utils.procedural.maps.map_apply_crew" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">map_apply_crew</span><span class="p">(</span><span class="nb">map</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Publish a map's <code>Crew:</code> block for :func:<code>player_roster_apply</code>, OVERWRITING.</p>
+<p>WHY THIS IS NOT PART OF <code>Defaults</code>. <code>map_apply_defaults</code> is set-if-absent, which
+is exactly right for seeding a control and exactly wrong here: an operator browsing
+the picker would pin whichever map they happened to look at FIRST, and every trial
+after it would be flown in that ship. So this always writes, and CLEARS the variables
+when the selected map declares no crew - leaving a stale hull behind is the same bug
+wearing a different hat.</p>
+<p>Reported from the Gamma with a Q playtest as "set the hull at mission select ... after
+Q's intro is too late and confuses people": a map that reshapes its crew from its own
+BODY does it after the console-select screen, so everyone spends that screen looking
+at a ship they are about to stop flying.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>map</code>
+            </td>
+            <td>
+                  <code><span title="Label">Label</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The map label object (<code>None</code> clears, so a picker with
+nothing selected does not keep the last map's crew).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="sbs_utils.procedural.maps.map_apply_defaults" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">map_apply_defaults</span><span class="p">(</span><span class="nb">map</span><span class="p">)</span></code>
 
@@ -10983,6 +11117,36 @@ is a no-op, and an already-set var is left untouched - so calling it at both poi
           </tr>
       </tbody>
     </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.maps.map_get_crew" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">map_get_crew</span><span class="p">(</span><span class="nb">map</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return the <code>Crew</code> metadata dict of a map label (fallback <code>crew</code>).</p>
+<p>A sibling of <code>Properties</code> and <code>Defaults</code>. Where <code>Defaults</code> seeds the map's own
+controls, this says what the CREW FLIES on this map::</p>
+<pre><code>metadata:``` yaml
+Crew:
+  hull: tng_fed_defiant
+  side: federation
+```
+</code></pre>
+<p>Args:
+    map (Label): The map label object.</p>
+<p>Returns:
+    dict | None: The crew dict, or <code>None</code> if the map declares none.</p>
 
 
     </div>

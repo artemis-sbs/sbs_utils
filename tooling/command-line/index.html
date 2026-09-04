@@ -4150,6 +4150,8 @@
       
         
       
+        
+      
     
     
     
@@ -5703,6 +5705,34 @@
     
   
     upgrades
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/procedural/work_orders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    work_orders
   
 
     
@@ -9809,8 +9839,8 @@ through to script, which is what lets a mission define its own.</p>
 <td>this client opens on that console</td>
 </tr>
 <tr>
-<td><code>profile=&lt;name&gt;</code></td>
-<td>load <code>profiles/&lt;name&gt;.yaml</code> over the mission's settings</td>
+<td><code>profile=&lt;name&gt;[,&lt;name&gt;]</code></td>
+<td>load <code>profiles/&lt;name&gt;.yaml</code> over the mission's settings; several merge left to right</td>
 </tr>
 <tr>
 <td><code>var.NAME=value</code></td>
@@ -9845,8 +9875,9 @@ a mistyped argument is otherwise invisible.</p>
 <div class="highlight"><pre><span></span><code>built-in defaults
   &lt;  a mod&#39;s settings_set_mod_default()
   &lt;  the mission&#39;s settings.yaml
-  &lt;  profile=&lt;name&gt;          -&gt;  &lt;mission&gt;/profiles/&lt;name&gt;.yaml
+  &lt;  profile=&lt;name&gt;[,&lt;name&gt;] -&gt;  &lt;mission&gt;/profiles/&lt;name&gt;.yaml
                              -&gt;  common_data/profiles/&lt;name&gt;.yaml
+                                 (several merge left to right, last wins)
   &lt;  the COSMOS_SETTINGS environment variable
   &lt;  var.NAME= on the command line
 </code></pre></div>
@@ -9874,13 +9905,15 @@ switch:</p>
 profile keeps applying to every restart, indefinitely.</p>
 <p>Each dropped argument says so in the log rather than vanishing. The comparison needs
 <code>defaultmission=</code> to know what you started with; without it nothing is dropped.</p>
-<p>A profile is an ordinary settings file under <code>profiles/</code>:</p>
+<p>A profile is an ordinary settings file under <code>profiles/</code>. Name one, or several
+comma-separated ones to be merged left to right:</p>
 <div class="highlight"><span class="filename">missions/MyMission/profiles/soak.yaml</span><pre><span></span><code><span class="nt">DIFFICULTY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">11</span>
 <span class="nt">MAP_SIZE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Huge</span>
 <span class="nt">AUTO_PLAY</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">enable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code>Artemis3-x64-release.exe autostartserver defaultmission=MyMission profile=soak
+Artemis3-x64-release.exe autostartserver defaultmission=MyMission profile=house,soak
 </code></pre></div>
 <p><strong>Why a file and not more arguments.</strong> A command line is capped at 8191 characters on
 Windows, shortcuts truncate it, quoting around spaces and <code>=</code> is awkward, and none of it

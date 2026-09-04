@@ -4023,6 +4023,8 @@
       
         
       
+        
+      
     
     
     
@@ -5361,6 +5363,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.icon.gui_icon_name_button" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_icon_name_button
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.gui.icon.gui_icon_recolor" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5899,6 +5912,28 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;console_tab
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.console_tab.gui_app_activate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_app_activate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.console_tab.gui_app_get_active" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_app_get_active
       
     </span>
   </a>
@@ -7597,6 +7632,34 @@
     
   
     upgrades
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../work_orders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    work_orders
   
 
     
@@ -12281,6 +12344,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.icon.gui_icon_name_button" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_icon_name_button
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.gui.icon.gui_icon_recolor" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -12819,6 +12893,28 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;console_tab
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.console_tab.gui_app_activate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_app_activate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.console_tab.gui_app_get_active" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_app_get_active
       
     </span>
   </a>
@@ -17584,6 +17680,184 @@ one glyph serves every state.</p>
 <div class="doc doc-object doc-function">
 
 
+<h2 id="sbs_utils.procedural.gui.icon.gui_icon_name_button" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">gui_icon_name_button</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">props</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">on_press</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_sub_task</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p><code>gui_icon_name</code>, but clickable - the button form of drawing an icon BY NAME.</p>
+<p>Without this a caller that wanted a named icon it could press had to resolve the
+sheet index itself and hand it to <code>gui_icon_button</code>, which is exactly the bare
+index the name indirection exists to remove: a mission that re-skins the sheet
+then moves every icon on the screen EXCEPT the ones you can click.</p>
+<p><code>data</code>/<code>on_press</code> behave as on <code>gui_button</code>, so a row of these built in a plain
+<code>for</code> loop each knows which row it belongs to - the documented escape from the
+for-loop handler trap.</p>
+<p>An unknown name draws NOTHING and says so once, same as <code>gui_icon_name</code>: a wrong
+icon is worse than a missing one because it looks deliberate.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>name</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>a meaning or a look - see <code>icon_names.icon_names()</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>color</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>tint.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>style</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>layout style.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>props</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>extra icon properties appended verbatim.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>data</code>
+            </td>
+            <td>
+                  <code><span title="object">object</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>carried by the widget; a dict is unpacked into the
+handler's variables.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>on_press</code>
+            </td>
+            <td>
+                  <code><span title="label">label</span> | <span title="callable">callable</span> | <span title="Promise">Promise</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>what a press does.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>is_sub_task</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>how an <code>on_press</code> LABEL runs. See
+<code>gui_icon_button</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>IconButton | None</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="sbs_utils.procedural.gui.icon.gui_icon_recolor" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">gui_icon_recolor</span><span class="p">(</span><span class="n">widget</span><span class="p">,</span> <span class="n">color</span><span class="p">)</span></code>
 
@@ -21700,6 +21974,80 @@ gui_tab_add_top("debug")
 <div class="doc doc-object doc-function">
 
 
+<h2 id="sbs_utils.procedural.gui.console_tab.gui_app_activate" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">gui_app_activate</span><span class="p">(</span><span class="n">app_name</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Records which ePADD app this client is on. Injected by every <code>//gui/app</code> label.</p>
+<p>DELIBERATELY DOES NOT TOUCH <code>__active_tab__</code>. That asymmetry with
+<code>gui_tab_activate</code> is the whole return-point mechanism: an app never overwrites the
+tab you were on, so the PADD's single Back knows where to send you with nothing
+having to capture it.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>app_name</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The path of a //gui/app</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.gui.console_tab.gui_app_get_active" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">gui_app_get_active</span><span class="p">(</span><span class="n">client_id</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The ePADD app this client is on, or "" when they are not in the PADD.</p>
+<p>Takes an explicit client because the PAGE asks this question while drawing, and
+<code>_tab_client_id</code> answers with the ambient page - which during a strip build is not
+reliably the page being built. The same distinction <code>epadd._client_id</code> documents.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="sbs_utils.procedural.gui.console_tab.gui_tab_activate" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">gui_tab_activate</span><span class="p">(</span><span class="n">tab_name</span><span class="p">)</span></code>
 
@@ -21710,6 +22058,9 @@ gui_tab_add_top("debug")
 
         <p>Sets the back tab (left most) tab for the console tabs.
 This is general called automatically by //gui/tab and //console labels</p>
+<p>ALSO ENDS THE PADD. Arriving at a tab is how you leave the ePADD, so this clears
+<code>__active_app__</code> - otherwise the strip would go on drawing the PADD's bar over a
+console. Doing it here rather than in each tab means nothing has to remember to.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -21908,6 +22259,11 @@ This allows overriding</p>
     <div class="doc doc-contents ">
 
         <p>Enable a tab on the console tabs</p>
+<p>A NAME THAT IS NOT A STRING IS IGNORED, not a crash. Callers pass a variable -
+<code>gui_tab_back(CONSOLE_SELECT)</code> is the shipped shape - and a task variable that was
+never set arrives as None, which used to reach <code>None.split(",")</code> and raise INSIDE a
+GUI build. A screen that cannot draw is a far worse outcome than a screen with no
+back tab, and the missing tab is reported where it is noticed rather than here.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
