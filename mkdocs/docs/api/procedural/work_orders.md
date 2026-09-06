@@ -10,7 +10,11 @@ A grid node has two independent things going on.
 **Damage** is the pair of roles the engine and every existing query already use:
 `__damaged__` or `__undamaged__`. A damaged node is broken and contributes nothing.
 
-**Condition** is wear on top of that, and `__worn__` is its role. Wear runs `0.0`
+**Condition** is wear on top of that, and `__worn__` is its role. **Only a SYSTEM has
+one.** A crew space - a gym, quarters, the galley, a hatch, an airlock - can burn and be
+repaired like anything else, but it never wears, never goes `__worn__`, never appears in
+upkeep and is never offered a tune. In short: **repair applies to every node, tuning only
+to systems.** `grid_node_is_system` is the test, and it is a plain `system` role check. Wear runs `0.0`
 (perfect) to `1.0` (worn out), and lands a node in one of four tiers:
 
 | tier | wear | draws | worth |
@@ -162,8 +166,15 @@ re-skins them the usual way - `extra_grid_theme.json`, or `grid_merge_mod_theme`
 
 ## Gotchas
 
-- **`work_order_kind_wanted` answers `None` only for an already-tuned node.** Gate a
-  menu on that, not on `__damaged__`, or maintenance can never be offered at all.
+- **`work_order_kind_wanted` answers `None` for an already-tuned node, and for any
+  undamaged NON-SYSTEM node.** Gate a menu on that, not on `__damaged__`, or maintenance
+  can never be offered at all. A burning gym still answers `KIND_REPAIR` - the system
+  test sits after the damage test precisely so that it does.
+- **Repair repaints; the wear writer does not do it for you.** `grid_set_node_wear`
+  returns early for a non-system node, so it never reaches `grid_node_apply_color`,
+  while damage writes `icon_color` directly. Anything that clears damage outside
+  `grid_repair_grid_objects` has to repaint too, or the node is stuck in the damage
+  color with no work order left to try again from.
 - **A brain node that filters on `room: __damaged__` will never see a maintenance
   order.** `ai_lifeform_move_to_work_order` defaults to no filter for that reason,
   and the idle room matches `__maintenance__` rather than `__worn__`.

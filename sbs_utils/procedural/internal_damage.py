@@ -1462,10 +1462,17 @@ def grid_repair_grid_objects(player_ship, id_or_set, who_repaired=None):
             # pass before it is fully itself again. That is where the whole
             # maintenance loop comes from: nothing invents work, damage does.
             #
-            # grid_set_node_wear repaints through grid_node_apply_color, which is why
-            # there is no icon_color write here any more.
             grid_set_node_wear(id, WEAR_AFTER_PATCH if damcon_repairer is not None
                                else WEAR_NOMINAL, player_ship_id)
+            # REPAIR REPAINTS, and it cannot delegate that to the wear writer.
+            #
+            # The writer is system-only, so a non-system node returns from it early
+            # and never reaches grid_node_apply_color - while damage paints red by
+            # writing icon_color DIRECTLY. That asymmetry left every repaired gym,
+            # cargo bay, hatch and airlock stuck in the damage color forever, with no
+            # work order left to try again from: the node really was repaired, so the
+            # menu correctly offered nothing.
+            grid_node_apply_color(id)
             if has_role(id, "sensor"):
                 system_heal = SBS.SHPSYS.SENSORS
             elif has_role(id, "weapon"):
@@ -1897,6 +1904,11 @@ def grid_tune_grid_object(ship_id, node_id, who=None):
     """
     from .work_orders import work_order_cancel_all
     if to_object(node_id) is None:
+        return False
+    if not grid_node_is_system(node_id):
+        # Only a system wears, so only a system can be tuned. Saying True here - and
+        # emitting grid_node_tuned - reported a tune that the wear write below had
+        # already no-opped.
         return False
     grid_set_node_wear(node_id, 0.0, ship_id)
     work_order_cancel_all(node_id)

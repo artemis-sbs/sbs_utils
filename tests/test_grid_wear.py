@@ -230,6 +230,68 @@ class TestPatchVersusRestore(WearBase):
         self.assertEqual(D.grid_node_state(n), "nominal")
 
 
+class TestNonSystemRepair(WearBase):
+    """A gym can be REPAIRED, even though it never wears and is never tuned.
+
+    Wear is a system idea and the model is deliberately system-only. Repair is not:
+    a crew space burns like anything else, and when the fire is out it has to LOOK
+    like the fire is out. There is no work order left once it is undamaged, so a node
+    that comes back from repair still wearing the damage color is stuck that way with
+    nothing the player can do about it.
+
+    Nothing covered this. The tests that would have - TestColors and
+    test_a_DAMCON_repair_leaves_the_node_worn - ran on `#,room,...` nodes until the
+    fixture default became kind="system", in the same commit that gated the writer.
+    """
+
+    def color_of(self, node_id):
+        return to_blob(node_id).get("icon_color", 0)
+
+    def test_a_DAMCON_repair_repaints_a_room(self):
+        n = self.node(0, "gym", "__undamaged__", kind="room")
+        dc = grid_spawn(self.ship, "DC1", "DC1", 5, 0, 80, "slateblue",
+                        "crew,damcons,lifeform")
+        D.grid_damage_grid_object(self.ship, n, "Crimson")
+        self.assertEqual(self.color_of(n), "Crimson")
+        D.grid_repair_grid_objects(self.ship, n, to_id(dc))
+        self.assertEqual(self.color_of(n), "LightYellow")
+
+    def test_a_DOCKYARD_repair_repaints_a_room(self):
+        n = self.node(0, "gym", "__undamaged__", kind="room")
+        D.grid_damage_grid_object(self.ship, n, "Crimson")
+        D.grid_repair_grid_objects(self.ship, n)          # who_repaired=None
+        self.assertEqual(self.color_of(n), "LightYellow")
+
+    def test_a_repaired_room_is_nominal_and_never_worn(self):
+        """The system-only model still holds: repair paints it, it does not wear it."""
+        n = self.node(0, "gym", "__undamaged__", kind="room")
+        dc = grid_spawn(self.ship, "DC1", "DC1", 5, 0, 80, "slateblue",
+                        "crew,damcons,lifeform")
+        D.grid_damage_grid_object(self.ship, n, "Crimson")
+        D.grid_repair_grid_objects(self.ship, n, to_id(dc))
+        # WEAR_NOMINAL, not 0.0: nothing was stored, so this is the default a node
+        # nothing has ever worn reads back. 0.0 would mean TUNED, which a room is not.
+        self.assertEqual(D.grid_node_wear(n), D.WEAR_NOMINAL)
+        self.assertFalse(has_role(n, "__worn__"))
+        self.assertEqual(D.grid_node_state(n), "nominal")
+
+    def test_a_SYSTEM_still_comes_back_worn_from_a_patch(self):
+        """The repaint must not flatten the patch-versus-restore distinction."""
+        n = self.node(0, "beam", "__undamaged__")
+        dc = grid_spawn(self.ship, "DC1", "DC1", 5, 0, 80, "slateblue",
+                        "crew,damcons,lifeform")
+        D.grid_damage_grid_object(self.ship, n, "Crimson")
+        D.grid_repair_grid_objects(self.ship, n, to_id(dc))
+        self.assertEqual(D.grid_node_state(n), "worn")
+        self.assertEqual(self.color_of(n), G.GRID_WORN_COLOR)
+
+    def test_tuning_a_room_reports_that_it_did_NOT_tune(self):
+        """It never tuned one - the wear write no-ops - but it used to say it had,
+        and emit grid_node_tuned for it."""
+        n = self.node(0, "gym", "__undamaged__", kind="room")
+        self.assertFalse(D.grid_tune_grid_object(self.ship, n))
+
+
 class TestTuning(WearBase):
     def test_tuning_zeroes_wear_and_clears_the_role(self):
         n = self.node(0, "beam", "__undamaged__")
