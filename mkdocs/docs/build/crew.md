@@ -140,6 +140,25 @@ unless you turn it off.
 Two people never get the same person: a seat is taken when somebody sits in it and freed
 when they leave, so a bridge with two science stations gets two different officers.
 
+## A ship has a crew, not a client
+
+Both steps that name somebody for you &mdash; a `By: console` cast and the automatic names
+below &mdash; answer per **(ship, station)**. Helm on the Artemis is the same person every
+time anything asks: before a single console has connected, while a player is only looking at
+it on the picker, and after whoever was sitting there has gone.
+
+That is what lets the picker show you who you are about to be, and what lets a Director
+bridge wall name a station nobody is at:
+
+```python
+crew_seat_name(ship, "helm")        # the ship's helmsman, with or without a human in the chair
+```
+
+It also means moving from helm to weapons **renames** an automatically named player &mdash;
+you stopped being the helmsman and became the weapons officer, which is what a cast has
+always done. A player who typed their own name is the strongest step above and is never
+renamed.
+
 ## Automatic names
 
 A console nobody named gets one regardless, and a **different one from every other console
@@ -162,7 +181,30 @@ consulted first:
 ```python
 crew_register_names("helm", ["Ensign Vega", "Lt. Sorm"])       # any console
 crew_register_names("helm", ["K'tal"], race="klingon")         # or per race
+crew_register_names("helm", ["Ensign Vega"], gender="female")  # and which face it wears
 ```
+
+### The face agrees with the name, and wears a uniform
+
+A face is **rolled** for anyone who has none of their own, and a terran face has a gender
+axis &mdash; so the roll has to be told which one, or half of *Freya Laurent*'s consoles show
+a man. The stock pool is gendered; `crew_name_gender()` answers for any name it knows, whole
+or given-name-only, and a roster says it outright:
+
+```
+### [Tomas Vale](tv)
+---
+Console: helm
+Gender: female        # male, female, fluid - which face to roll
+---
+```
+
+The face also always **wears a uniform**. Left to chance one face in five comes back
+civilian, which on a bridge is not a variation on a crew member &mdash; it is a stranger at
+the helm. Same reason the identity editor keeps the uniform on: the slider stays, so *which*
+uniform is still the player's, but the checkbox that removed it is gone.
+
+Neither applies to a mod race: its faces are whole drawn portraits with no parts to steer.
 
 A group roster (`By: person`) never hands out **its** people automatically &mdash; a seat
 nobody claimed gets an automatic name instead. Giving Doug's face to whoever opened helm
@@ -172,21 +214,30 @@ Names are released by the mission reset, so "unique per run" is precisely that.
 
 ## At the console picker
 
-When a roster staffs the ship, the picker grows a **crew dropdown** and a portrait
-beside the name box. The dropdown is an *override* &mdash; a cast already assigns itself,
-so reaching for the list is reaching past the automatic answer.
+The picker shows **who this console is about to be** &mdash; the face and the name, on one
+line, following whichever station is highlighted in the list. Highlight engineering on a
+Galaxy-class and it says Geordi. Nothing is written while you look: the seat's name is
+worked out once and kept, so what the line shows is what the console gets.
 
-**Edit Face** opens the [avatar editor](../cosmos/gui.md) and brings you back. It appears
-only when the `avatar_editor` add-on is loaded, and it builds the six stock races; a
-mod's faces are whole drawn portraits with nothing to slide, so those are picked from a
-gallery instead.
+**Edit** beside it opens the identity page, which owns the whole person:
 
-Turn the whole affordance off and the picker is the plain name box it always was:
+- their **name**, typed;
+- their **face**, through the [avatar editor](../cosmos/gui.md) &mdash; present only when the
+  `avatar_editor` add-on is loaded. It builds the six stock races; a mod's faces are whole
+  drawn portraits with nothing to slide, so those are picked from a gallery instead;
+- **who they are instead**, out of a roster that staffs this ship. An *override* &mdash; a
+  cast already assigns itself, so reaching for the list is reaching past the automatic
+  answer;
+- **Use Default**, which drops all of it and hands the seat back to the ship.
+
+Turn editing off and the line becomes a readout: the cast still crews the console, it simply
+cannot be argued with.
 
 ```yaml
 CREW_EDIT:
-    enable: true
-    allow_face: true
+    enable: true            # false: the identity line is a readout, with no Edit button
+    allow_name: true        # the name field inside the Edit page
+    allow_face: true        # the avatar editor button inside it
     allow_portrait: false
 ```
 
@@ -201,6 +252,17 @@ so everything that already read it keeps working with no change:
 
 The face, portrait, rank, roster and *why this name was chosen* arrive as `CREW_FACE`,
 `CREW_PORTRAIT`, `CREW_RANK`, `CREW_ROSTER` and `CREW_SOURCE` alongside it.
+
+### In a cockpit, a callsign
+
+The always-on identity badge shows the crew name on a bridge console and the pilot's
+**callsign** on a flight one (`cockpit`, `hangar`) &mdash; there the callsign is what the rest
+of the flight calls you, and it is already what every readout the hangar draws uses. It
+replaces the name rather than joining it, because the badge shares a narrow strip with the
+count of what is waiting. Dock, go back to a bridge station, and you are a crew member again.
+
+The hangar owns the value; `crew_callsign(client_id)` is the library's one named place to
+read it.
 
 ## See also
 

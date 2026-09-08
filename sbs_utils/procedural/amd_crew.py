@@ -79,7 +79,7 @@ CREW_KINDS = ("crew", "crews", "roster", "rosters", "officers", "bridge")
 # apply - a rank of "1st Officer" must not become the number 1.
 _CSV_FIELDS = ("hull", "ship", "roles")
 _TEXT_FIELDS = ("name", "desc", "by", "assign", "console", "rank", "portrait", "portraits",
-                "race", "face", "sheet", "display", "color")
+                "race", "face", "sheet", "display", "color", "gender")
 
 
 def _lower(data):
@@ -131,6 +131,10 @@ def crew_member_record(section, data, key, name=None, roster_key=None):
         "key": key,
         "name": data.get("name") or name or key,
         "rank": data.get("rank") or "",
+        # WHICH FACE, when this member has no `Face:` of their own. A face is rolled by
+        # gender, so without this the roll is a coin toss against the name the author wrote.
+        # Section-level like Race:, so a roster whose people are all one thing says it once.
+        "gender": str(data.get("gender") or section.get("gender") or "").strip().lower(),
         "console": str(data.get("console") or "").strip().lower(),
         "face": data.get("face") or "",
         "portrait": data.get("portrait") or "",

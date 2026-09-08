@@ -5,6 +5,27 @@
 
 ### LegendaryMissions (core addons)
 
+- The console picker shows WHO YOU ARE ABOUT TO BE - the face and the name on one line,
+  following the station highlighted in the list - instead of an empty "Crew person Name"
+  box. A name was only ever worked out after the console was chosen, so the one screen
+  where a player decides what to be was the one screen that could not say. Nothing is
+  written while you look: a seat's name is allocated once and kept, so the line shows what
+  the console gets.
+- "Edit Face" becomes **Edit**, and opens an identity page that owns the whole person -
+  the name, the avatar editor, and who you are instead out of the ship's roster (the crew
+  dropdown moves here off the picker). New `CREW_EDIT.allow_name` gates the name field;
+  `enable: false` now leaves the line as a readout rather than falling back to a name box.
+- The identity editor hands the avatar editor **the face on screen**. It was handing it
+  `crew_face`, which holds only what a human built for themselves and is empty for nearly
+  everybody - that is, for exactly the people opening the editor, who therefore arrived at a
+  stranger. The editor also takes `av_required` (the picker passes `Uniform`), which pins a
+  feature on and drops the checkbox that could switch it off.
+- Every stock roster member declares a `Gender:`, so their faces stop contradicting their
+  names.
+- The stock **TSN Watch** roster grows from 8 people to 40 - seven name a station, the
+  rest float - so a ship with a dozen consoles open, a second science station and a hangar
+  of pilots stays inside the cast instead of falling through to automatic names half way
+  down the ship.
 - hangar_crafts.yaml reworked as deltas over shipData hulls: each loadout is a
   shipData `key` + `type` + a list of default `upgrades`, instead of restating
   roles/name/shields/ammo. Craft name and roles now derive from shipData.
@@ -25,6 +46,34 @@
 
 ### sbs_utils
 
+- **A crew face now agrees with its name, and wears a uniform.** A face is rolled for
+  anybody who has none of their own and a terran face has a gender axis, so an ungendered
+  name pool put a man's face over "Freya Laurent" one console in two. The stock pool is
+  gendered (`crew_name_gender`), `crew_register_names` takes `gender=`, and a roster member
+  can declare `Gender:`. `random_face` gained `gender=` and `civilian=`; crew faces ask for
+  `civilian=False`, because one face in five came back out of uniform - on a bridge that is
+  not a variation on a crew member, it is a stranger at the helm. (`terran_civilian` now
+  really is one; it used to roll the uniform anyway.)
+- **A ship has a crew, not a client.** An automatic crew name is allocated per
+  `(ship, station)` and remembered, rather than per client at the moment a console was
+  chosen. So a ship's helmsman exists before anybody connects - which is what lets the
+  picker preview a station and a Director bridge wall name an empty one - and
+  `crew_seat_name(ship, "helm")` asks for it directly. The seat is keyed on the player
+  roster SLOT, so it survives a ship being respawned. Consequence, and deliberate: moving
+  from helm to weapons RENAMES an automatically named player, exactly as a cast has always
+  done; a player who typed a name is the strongest tier and is never renamed.
+- `crew_preview_post()` answers "who WOULD be at this console" without writing anything or
+  taking a seat - and because a seat's name is allocated once, it cannot drift from what
+  `crew_assign` later publishes.
+- `crew_roster_for()`, `crew_choices_for()`, `crew_pick_for()`, `crew_resolve()` and
+  `crew_assign()` take a `hull=` (and the last two a `slot=`). A console picker is choosing
+  a hull for a ship that does not exist yet, so the `Hull:` tier - the one a mod's cast
+  rides on - could never answer there before.
+- `crew_assign` claims the resolved name whatever produced it, so the automatic pool no
+  longer hands a console a name the roster is already using on the same bridge.
+- The ePADD identity badge shows a pilot's **callsign** on a flight console (`cockpit`,
+  `hangar`) and the crew name everywhere else. New `crew_callsign(client_id)` is the one
+  named place to read the value the hangar owns.
 - A ship name can no longer carry the engine's own control characters. `^` is the
   engine's line break (and the widget-list separator), `;` terminates a style property,
   and a backtick closes the quoting `gui_text_escape` adds - so a name containing one

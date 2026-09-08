@@ -26,6 +26,15 @@ things:
 Nothing here spawns anything. A crew member is a label on a seat occupied by a human, not an
 agent in the world - which is why this is not a ``lifeform``.
 
+**A ship has a crew, not a client.** Both tiers that name somebody automatically - a
+``By: console`` roster and the fallback name pool - answer per ``(ship, console)``, so helm on
+the Artemis is the same person every time it is asked: before anybody connects, while a picker
+is only previewing it, and after the client who was sitting there leaves. That is what lets a
+console picker show a player who they are about to be, and a Director bridge wall name a
+station nobody is at. It also means moving from helm to weapons RENAMES an automatically named
+player, which is what the fiction says; a player who typed their own name is the strongest tier
+and is never renamed.
+
 **The live value stays where it was.** :func:`crew_assign` writes ``CREW_NAME`` with exactly
 the meaning it has today, so every existing consumer keeps working untouched; the face,
 portrait, rank and provenance arrive as additional keys beside it.
@@ -67,6 +76,25 @@ _SHIP_BINDINGS = {}    # normalized ship NAME -> roster key      (the MISSION ti
 # inventory shape is one value per key, which is the collapse above wearing a different hat.
 _SEATS = {}
 
+# A SHIP'S COMPLEMENT of automatic names: (ship_key, normalized console) -> [name, ...].
+#
+# Keyed by the SEAT rather than by the client, which is the whole model: a ship has a crew
+# whether or not a human is sitting in it, so the name for helm on the Artemis exists before
+# anybody connects and a Director bridge wall can name an EMPTY station. It also makes this
+# tier work the way the roster tier already does (`_seat_pick` assigns by console), instead of
+# being the one tier that decides identity a different way.
+#
+# A LIST per seat, because two clients can legitimately sit at the same console type - a
+# second science station, a spare screen somebody opened - and the second must get the next
+# person rather than a duplicate of the first. Same reasoning as `_SEATS` above.
+_COMPLEMENT = {}
+
+# WHICH of a seat's people a client is: client_id -> (seat key, index into the complement).
+# The companion to `_COMPLEMENT`, and the reason the list above is a list. Self-healing the
+# same way `_SEATS` is - an entry is believed only while the client's CONSOLE_TYPE still
+# agrees with it - so a client that left frees its place without anything having to notice.
+_SEAT_OCCUPANTS = {}
+
 BY_CONSOLE = "console"
 BY_PERSON = "person"
 
@@ -103,6 +131,8 @@ def crew_clear():
     _HULL_DEFAULTS.clear()
     _SHIP_BINDINGS.clear()
     _SEATS.clear()
+    _COMPLEMENT.clear()
+    _SEAT_OCCUPANTS.clear()
 
 
 def crew_count():
@@ -117,6 +147,17 @@ def crew_seat_count():
     for different reasons, and one probe covering both cannot say which of them happened.
     """
     return sum(len(v) for v in _SEATS.values())
+
+
+def crew_complement_count():
+    """Reset-ledger probe: how many automatic names are allocated to seats.
+
+    A third probe rather than a bigger one, for the same reason `crew_seat_count` is separate:
+    a complement that survives into the next mission is a DIFFERENT bug from a leaked seat -
+    it shows up as run 2 naming its bridge after run 1's, or eventually as a pool with no free
+    names left.
+    """
+    return sum(len(v) for v in _COMPLEMENT.values())
 
 
 def crew_declare(records):
@@ -321,18 +362,25 @@ def crew_bind_hull(hull_key, roster_spec):
     return True
 
 
-def crew_roster_for(ship_id):
+def crew_roster_for(ship_id, hull=None):
     """Which roster staffs this ship, and WHY: ``(roster, source)``.
 
     Source is ``ship`` / ``map`` / ``hull`` / None, strongest first. It is returned rather
     than merely logged because "why is this console called that" is otherwise unanswerable
     from the outside - every tier looks identical once it has produced a name.
+
+    ``hull`` is the shipData KEY, for a caller that has one and no object - the console picker
+    is choosing a hull for a ship that does not exist yet. Without it the ``hull`` tier could
+    never answer during setup, which is precisely the tier a mod's cast rides on. A ship_id
+    given as a bare string is read as a ship NAME first and a hull key second, so either fact
+    may be passed in either place.
     """
     from .query import to_object
-    obj = to_object(ship_id)
+    obj = None if isinstance(ship_id, str) else to_object(ship_id)
+    name = _norm(ship_id) if isinstance(ship_id, str) else _norm(getattr(obj, "name", "") if obj is not None else "")
 
-    if obj is not None:
-        key = _SHIP_BINDINGS.get(_norm(getattr(obj, "name", "")))
+    if name:
+        key = _SHIP_BINDINGS.get(name)
         if key and key in _ROSTERS:
             return _ROSTERS[key], "ship"
 
@@ -341,8 +389,10 @@ def crew_roster_for(ship_id):
     if picked is not None:
         return picked, "map"
 
-    if obj is not None:
-        key = _HULL_DEFAULTS.get(_norm(getattr(obj, "art_id", "")))
+    for candidate in (hull,
+                      ship_id if isinstance(ship_id, str) else None,
+                      getattr(obj, "art_id", "") if obj is not None else None):
+        key = _HULL_DEFAULTS.get(_norm(candidate)) if candidate else None
         if key and key in _ROSTERS:
             return _ROSTERS[key], "hull"
 
@@ -417,6 +467,7 @@ def crew_release(client_id):
     """
     for seats in _SEATS.values():
         seats.pop(client_id, None)
+    _SEAT_OCCUPANTS.pop(client_id, None)
 
 
 # --- automatic names -----------------------------------------------------------------------
@@ -441,12 +492,31 @@ _USED_NAMES = set()
 # mission that loads no add-ons at all - "defaulted" is not much of a default otherwise. A
 # base game or a total conversion overrides it wholesale with `crew_register_names`, which is
 # consulted FIRST.
-_GIVEN = (
-    "Ada", "Ansel", "Bex", "Corbin", "Dmitri", "Elena", "Farid", "Greta", "Halden", "Ines",
-    "Joaquin", "Kwame", "Lena", "Mateo", "Nkechi", "Osric", "Priya", "Quinn", "Rasa", "Sana",
-    "Tomas", "Ume", "Vikram", "Wren", "Xiulan", "Yusra", "Zofia", "Amara", "Bodhi", "Cato",
-    "Dagny", "Emeka", "Freya", "Goro", "Hana", "Idris", "Juno", "Kiran", "Liesl", "Mira",
+#
+# GENDERED, because the FACE has to agree with the name. A face is rolled for whoever ends
+# up in the seat, and terran faces have a gender axis - so an ungendered pool put a man's
+# face over "Freya Laurent" one console in two. The two lists are the same length so a name
+# is no more likely to be one than the other.
+_GIVEN_MALE = (
+    "Ansel", "Corbin", "Dmitri", "Farid", "Halden", "Joaquin", "Kwame", "Mateo", "Osric",
+    "Tomas", "Vikram", "Bodhi", "Cato", "Emeka", "Goro", "Idris", "Kiran", "Anwar", "Rafael",
+    "Tobias",
 )
+_GIVEN_FEMALE = (
+    "Ada", "Bex", "Elena", "Greta", "Ines", "Lena", "Nkechi", "Priya", "Rasa", "Sana",
+    "Ume", "Xiulan", "Yusra", "Zofia", "Amara", "Dagny", "Freya", "Hana", "Liesl", "Mira",
+)
+#: Names with no gender of their own - they go to either face, and are drawn from both
+#: lists' share so the pool does not lose its balance.
+_GIVEN_ANY = ("Quinn", "Wren", "Juno")
+_GIVEN = _GIVEN_MALE + _GIVEN_FEMALE + _GIVEN_ANY
+
+#: given name -> gender, for the face. Seeded from the lists above and added to by
+#: `crew_register_names(gender=...)`; the stock half is restored by the mission reset, since
+#: it is not per-mission data.
+_STOCK_GENDER = dict([(_n.lower(), "male") for _n in _GIVEN_MALE]
+                     + [(_n.lower(), "female") for _n in _GIVEN_FEMALE])
+_NAME_GENDER = dict(_STOCK_GENDER)
 _FAMILY = (
     "Marek", "Okonjo", "Ferrero", "Lindqvist", "Raghunathan", "Nwosu", "Osei", "Vasquez",
     "Rooke", "Al-Amin", "Sarkisian", "Vale", "Balogun", "Petrauskas", "Ferreira", "Tsai",
@@ -456,20 +526,38 @@ _FAMILY = (
 )
 
 
-def crew_register_names(console, names, race=None):
+def crew_register_names(console, names, race=None, gender=None):
     """Declare fallback names for a console, optionally for one race.
 
     These fill seats a roster left empty - never seats nobody asked about. See
     :func:`crew_default_name`.
+
+    ``gender`` says which face these names should wear - "male", "female", "fluid". Register
+    a list per gender rather than one mixed list: a face is rolled for whoever ends up in
+    the seat, and it has to agree with the name above it. Names registered without one get
+    a face of either, exactly as before.
     """
     con = _NAME_POOL.setdefault(_norm(console), {})
-    con.setdefault(_norm(race), []).extend(str(n).strip() for n in (names or ()) if str(n).strip())
+    clean = [str(n).strip() for n in (names or ()) if str(n).strip()]
+    con.setdefault(_norm(race), []).extend(clean)
+    if gender:
+        for name in clean:
+            _NAME_GENDER[_norm(name)] = str(gender).strip().lower()
 
 
 def crew_names_clear():
-    """Drop every registered name AND every name handed out this run."""
+    """Drop every registered name AND every name handed out this run.
+
+    The allocated complement goes with them: it holds names that are only claimed while
+    `_USED_NAMES` holds them, and keeping one without the other would leave seats named after
+    people nothing believes are taken.
+    """
     _NAME_POOL.clear()
+    _NAME_GENDER.clear()
+    _NAME_GENDER.update(_STOCK_GENDER)
     _USED_NAMES.clear()
+    _COMPLEMENT.clear()
+    _SEAT_OCCUPANTS.clear()
 
 
 def crew_autoname_enabled():
@@ -492,6 +580,19 @@ def _take(name):
     return name
 
 
+def crew_name_gender(name):
+    """The gender a name was declared with - "male", "female", "fluid" - or "".
+
+    Looked up by the WHOLE name and then by the given name alone, so a roster that writes
+    "Sana Okonjo" gets an answer from the stock pool's "Sana" without having to say. "" means
+    nobody said, and a face rolled for that name is of either.
+    """
+    key = _norm(name)
+    if key in _NAME_GENDER:
+        return _NAME_GENDER[key]
+    return _NAME_GENDER.get(key.split(" ")[0], "") if key else ""
+
+
 def crew_default_name(console, race=None):
     """An automatic name for a console, UNIQUE within this run, or "".
 
@@ -502,6 +603,9 @@ def crew_default_name(console, race=None):
     Uniqueness is per RUN because `_USED_NAMES` is cleared by the mission reset. Two consoles
     are never the same person, which matters most on a Director bridge wall where they are
     all on screen at once.
+
+    Ask :func:`crew_name_gender` what face it should wear - the two are separate calls
+    because a name is also handed to callers that draw no face at all.
     """
     con = _NAME_POOL.get(_norm(console)) or {}
     for pool in ((con.get(_norm(race)) if race else None), con.get("")):
@@ -522,6 +626,114 @@ def crew_default_name(console, race=None):
             if name:
                 return name
     return ""
+
+
+def _complement_key(ship_id=None, slot=None):
+    """A STABLE identity for the ship whose complement this is.
+
+    Never the raw engine id. A player ship can be respawned mid-mission and come back with a
+    new one, and the crew must not change when it does - the same reason `crew_bind_ship`
+    binds by NAME rather than by id.
+
+    In order: the player-roster SLOT, which is what a console actually binds to and cannot
+    dangle; then the ship's name; then the hull key. ``slot`` is passed EXPLICITLY rather than
+    read out of ``ship_id``, because a ship id is an int too and there is nothing in the value
+    to tell the two apart. A live player ship resolves to its own slot anyway, so a seat
+    previewed by slot and then resolved by ship is the same seat.
+    """
+    if slot is not None:
+        return "slot:%d" % int(slot)
+    if ship_id is None:
+        return "?"
+    if isinstance(ship_id, str):
+        return "name:%s" % _norm(ship_id)
+    try:
+        from .player_roster import player_roster_slot_of_ship
+        found = player_roster_slot_of_ship(ship_id)
+        if found is not None:
+            return "slot:%d" % int(found)
+    except Exception:
+        pass
+    from .query import to_object
+    obj = to_object(ship_id)
+    if obj is None:
+        return "?"
+    name = _norm(getattr(obj, "name", ""))
+    if name:
+        return "name:%s" % name
+    return "hull:%s" % _norm(getattr(obj, "art_id", ""))
+
+
+def _seat_occupant_index(client_id, seat_key, console):
+    """WHICH person at this seat this client is - 0 unless somebody else is already there.
+
+    Pruned the same way `_taken_members` prunes seats: a recorded occupant is believed only
+    while its client's own CONSOLE_TYPE still agrees, so a client that disconnected or moved
+    station frees its place without any event having to be caught.
+    """
+    held = _SEAT_OCCUPANTS.get(client_id)
+    if held is not None and held[0] == seat_key:
+        return held[1]
+    taken = set()
+    stale = []
+    for cid, (key, index) in _SEAT_OCCUPANTS.items():
+        if cid == client_id or key != seat_key:
+            continue
+        if not _seat_is_live(cid, console):
+            stale.append(cid)
+            continue
+        taken.add(index)
+    for cid in stale:
+        _SEAT_OCCUPANTS.pop(cid, None)
+    index = 0
+    while index in taken:
+        index += 1
+    return index
+
+
+def _seat_person(ship, console, occupant=0, race=None, slot=None):
+    """(name, face) for a seat, allocated on first ask and remembered after.
+
+    The FACE is allocated with the name and kept with it. Rolling a fresh `random_face` on
+    every resolve would give the picker a different person each time it previewed the same
+    station, and the console a different one again on arrival.
+    """
+    if not crew_autoname_enabled():
+        return "", ""
+    people = _COMPLEMENT.setdefault((_complement_key(ship, slot), _norm(console)), [])
+    index = max(int(occupant or 0), 0)
+    while len(people) <= index:
+        name = crew_default_name(console, race)
+        if not name:
+            return "", ""
+        # Same reason as _member_face: a hull's shipData `side` is "TSN", which is a SIDE and
+        # not a face race at all, and face_resolve would hand "TSN" to send_gui_face as a face
+        # string. random_face answers with a real face whatever it is given.
+        #
+        # THE FACE AGREES WITH THE NAME, and wears a uniform. Neither used to be asked for:
+        # a face is rolled by gender, so half of "Freya Laurent"'s consoles showed a man, and
+        # one face in five comes back civilian - which on a bridge is not a variation, it is
+        # a stranger at the helm.
+        from ..faces import random_face
+        people.append((name, random_face(race or None, gender=crew_name_gender(name),
+                                         civilian=False)))
+    return people[index]
+
+
+def crew_seat_name(ship, console, occupant=0, race=None, slot=None):
+    """The automatic name for a SEAT - allocated once, then the same answer forever.
+
+    ``occupant`` is which person at that station: 0 is the station's own officer, 1 the second
+    client to open it, and so on. Each is allocated on first ask, so a ship costs the pool only
+    the seats somebody actually looked at.
+
+    Public because a seat has a name whether or not anyone is sitting in it: a Director bridge
+    wall listing stations wants "helm - Sana Okonjo" rather than "helm - unmanned" for a ship
+    whose crew simply is not all on screen.
+
+    Returns "" when automatic naming is off (``CREW_AUTONAME``) or the pool is exhausted.
+    """
+    return _seat_person(ship, console, occupant, race, slot)[0]
 
 
 def crew_avatar_race(ship_id=None):
@@ -624,8 +836,15 @@ def _member_face(roster, member):
     # like `Race: klingon` would become the face string "klingon" and draw nothing. Exactly
     # the case this feature exists for. random_face checks mod-registered races first and
     # falls back to a real face for anything it does not know.
+    #
+    # The member's own `Gender:` first, then whatever the stock pool knows about the name -
+    # so a roster written before the field existed still gets a face that agrees with the
+    # name it wrote. `civilian=False` for the same reason it is forced for an automatic
+    # crew member: a roster is a ship's watch, and one in five of them arriving out of
+    # uniform reads as a stranger on the bridge.
     from ..faces import random_face
-    face = random_face(race) or ""
+    gender = member.get("gender") or crew_name_gender(member.get("name"))
+    face = random_face(race, gender=gender, civilian=False) or ""
     setattr(member, "__face__", face)
     return face
 
@@ -642,7 +861,8 @@ def _member_post(roster, member, source):
 
 
 def crew_resolve(client_id, ship_id, console,
-                 own_name=None, own_face=None, own_portrait=None, own_pick=None):
+                 own_name=None, own_face=None, own_portrait=None, own_pick=None,
+                 hull=None, slot=None):
     """Who is at this console, and why. Returns a post - see the module docstring.
 
     Resolution runs strongest first, and the ``source`` on the returned post says which tier
@@ -661,6 +881,12 @@ def crew_resolve(client_id, ship_id, console,
         Nobody - which is exactly what a mission that does none of this gets, and why this is
         backward compatible.
 
+    ``hull`` is the shipData key and ``slot`` the player-roster slot, for a caller that has
+    those and no ship - the console picker is choosing a hull for a ship that does not exist
+    yet. The hull reaches the roster lookup and the fallback face's race; the slot names the
+    seat, and is what a live player ship resolves to anyway, so a station previewed by slot
+    and then taken on the spawned ship is the same seat.
+
     Does NOT write anything. :func:`crew_assign` is the one that does.
     """
     picked_roster, picked_member = _member_by_pick(own_pick)
@@ -678,7 +904,7 @@ def crew_resolve(client_id, ship_id, console,
     if own_name or own_face or own_portrait:
         return _post(own_name, "", own_face, own_portrait, "", "", "own")
 
-    roster, source = crew_roster_for(ship_id)
+    roster, source = crew_roster_for(ship_id, hull)
     if roster is not None:
         member = _seat_pick(roster, ship_id, console, client_id)
         if member is not None:
@@ -695,42 +921,43 @@ def crew_resolve(client_id, ship_id, console,
     if not crew_autoname_enabled():
         return _post("")
 
-    # KEEP THE ONE THIS CLIENT ALREADY HAS. `crew_assign` runs on every console selection,
-    # so allocating afresh each time would rename a player the moment they moved from helm to
-    # weapons - and the old name would stay claimed, so they could never get it back.
-    # An automatic name belongs to the CLIENT for the run, not to the seat.
-    held = _held_autoname(client_id)
-    if held is not None:
-        return held
-
-    race = (roster.get("race") if roster is not None else "") or _hull_race(ship_id)
-    name = crew_default_name(console, race)
+    # THE NAME BELONGS TO THE SEAT, not to the client. A ship has a crew whether or not
+    # anybody is sitting in it, so helm on this ship is the same person every time it is asked
+    # - before anyone connects, while the picker is only previewing it, and after the client
+    # who was there leaves. Moving from helm to weapons therefore RENAMES an auto-named
+    # player, which is what the fiction says and exactly what a roster already does; a player
+    # who typed a name is tier 1 above and never reaches here.
+    race = (roster.get("race") if roster is not None else "") or _hull_race(ship_id) or _hull_race(hull)
+    ship = ship_id if ship_id is not None else hull
+    seat = (_complement_key(ship, slot), _norm(console))
+    index = _seat_occupant_index(client_id, seat, console)
+    name, face = _seat_person(ship, console, index, race, slot)
     if not name:
         return _post("")
-    # Same reason as _member_face: a hull's shipData `side` is "TSN", which is a SIDE and
-    # not a face race at all, and face_resolve would hand "TSN" to send_gui_face as a face
-    # string. random_face answers with a real face whatever it is given.
-    from ..faces import random_face
-    face = random_face(race) if race else random_face()
-    return _post(name, "", face, "", "",
+    post = _post(name, "", face, "", "",
                  roster.get("key") if roster is not None else "", "library")
+    # WHICH seat this came from, carried on the post so `crew_assign` records the same place
+    # this resolved rather than working it out a second time - by then it has released the
+    # client's old seat, and would answer differently.
+    setattr(post, "seat", seat)
+    setattr(post, "seat_index", index)
+    return post
 
 
-def _held_autoname(client_id):
-    """The automatic name this client was already given, as a post, or None.
+def crew_preview_post(client_id, ship_id, console,
+                      own_name=None, own_face=None, own_portrait=None, own_pick=None,
+                      hull=None, slot=None):
+    """Who WOULD be at this console - the same answer, without taking anything.
 
-    Only an AUTOMATIC one: a roster's answer is re-resolved every time because the roster
-    may have changed, and what the player typed is tier 1 and never reaches here.
+    For a picker showing the player who they are about to be. It writes nothing and claims no
+    seat, and because a seat's automatic name is allocated once and remembered
+    (:func:`crew_seat_name`), what it shows IS what :func:`crew_assign` publishes - the two
+    cannot drift apart. Clicking through every station on the picker costs the name pool one
+    name per station looked at, and costs it that once.
     """
-    from .inventory import get_inventory_value
-    if get_inventory_value(client_id, "CREW_SOURCE", None) != "library":
-        return None
-    name = get_inventory_value(client_id, "CREW_NAME", None)
-    if not name:
-        return None
-    return _post(name, get_inventory_value(client_id, "CREW_RANK", ""),
-                 get_inventory_value(client_id, "CREW_FACE", ""),
-                 "", "", get_inventory_value(client_id, "CREW_ROSTER", ""), "library")
+    return crew_resolve(client_id, ship_id, console,
+                        own_name=own_name, own_face=own_face,
+                        own_portrait=own_portrait, own_pick=own_pick, hull=hull, slot=slot)
 
 
 def _hull_race(ship_or_key):
@@ -759,7 +986,8 @@ def _hull_race(ship_or_key):
 
 
 def crew_assign(client_id, ship_id, console,
-                own_name=None, own_face=None, own_portrait=None, own_pick=None):
+                own_name=None, own_face=None, own_portrait=None, own_pick=None,
+                hull=None, slot=None):
     """Resolve this console's crew and PUBLISH it. Returns the post.
 
     Writes on the client agent:
@@ -781,11 +1009,20 @@ def crew_assign(client_id, ship_id, console,
     from .inventory import set_inventory_value
     post = crew_resolve(client_id, ship_id, console,
                         own_name=own_name, own_face=own_face,
-                        own_portrait=own_portrait, own_pick=own_pick)
+                        own_portrait=own_portrait, own_pick=own_pick, hull=hull, slot=slot)
 
     crew_release(client_id)
     if post.key:
         _SEATS.setdefault(ship_id, {})[client_id] = (_norm(console), post.key)
+    seat = post.get("seat", None)
+    if seat is not None:
+        _SEAT_OCCUPANTS[client_id] = (seat, post.get("seat_index", 0))
+    # CLAIM THE NAME whatever produced it. An automatic name claims itself as it is allocated,
+    # but a roster person's did not - so a bridge staffed half from a cast and half
+    # automatically could hand a console the pool's "Sana Okonjo" while the roster's Sana
+    # Okonjo was sitting at helm. Claiming here means the pool skips a name the cast already
+    # uses; a name claimed twice is simply already claimed.
+    _take(post.name)
 
     set_inventory_value(client_id, "CREW_NAME", post.name)
     set_inventory_value(client_id, "CREW_RANK", post.rank)
@@ -818,7 +1055,7 @@ def crew_post_of(client_id):
                  get_inventory_value(client_id, "CREW_ROLES", ""))
 
 
-def crew_choices_for(ship_id, console=None, client_id=None):
+def crew_choices_for(ship_id, console=None, client_id=None, hull=None):
     """The people a picker may OFFER, in declaration order.
 
     ``console`` NARROWS a ``By: console`` roster to those who could take that exact seat.
@@ -830,10 +1067,13 @@ def crew_choices_for(ship_id, console=None, client_id=None):
     Console is ignored outright for a ``By: person`` roster, where the seat is not what
     identifies anybody.
 
+    ``hull`` is the shipData key, for a picker choosing one for a ship that does not exist
+    yet - see :func:`crew_roster_for`.
+
     Returns [] when no roster staffs this ship, which is what keeps the picker looking
     exactly as it does today for a mission that declares none.
     """
-    roster, _source = crew_roster_for(ship_id)
+    roster, _source = crew_roster_for(ship_id, hull)
     if roster is None:
         return []
     taken = _taken_members(ship_id, exclude_client=client_id)
@@ -844,7 +1084,7 @@ def crew_choices_for(ship_id, console=None, client_id=None):
     return [m for m in free if _norm(m.get("console")) in (want, "")]
 
 
-def crew_pick_for(ship_id, name, client_id=None):
+def crew_pick_for(ship_id, name, client_id=None, hull=None):
     """The pick string for a person chosen BY DISPLAY NAME, or "" for none of them.
 
     The picker's dropdown is a list of names, and a MAST handler mapping one back to a member
@@ -854,10 +1094,10 @@ def crew_pick_for(ship_id, name, client_id=None):
     want = _norm(name)
     if not want or want.startswith("("):        # "(auto)", "(me)" - not a person
         return ""
-    roster, _source = crew_roster_for(ship_id)
+    roster, _source = crew_roster_for(ship_id, hull)
     if roster is None:
         return ""
-    for m in crew_choices_for(ship_id, None, client_id):
+    for m in crew_choices_for(ship_id, None, client_id, hull):
         if _norm(m.get("name")) == want:
             return crew_pick_value(roster.get("key"), m.get("key"))
     return ""
@@ -941,6 +1181,18 @@ def crew_self_unpack(text):
 def crew_pick_value(roster_key, member_key):
     """The ``"<roster>:<member>"`` string a picker persists for a chosen person."""
     return "%s:%s" % (str(roster_key or "").strip(), str(member_key or "").strip())
+
+
+def crew_callsign(client_id):
+    """The pilot callsign this client flies under, or "".
+
+    A DIFFERENT identity from the crew name and deliberately so: a callsign belongs to whoever
+    is in the cockpit, is assigned by the hangar rather than by a roster, and is what the rest
+    of the flight calls you. The hangar addon owns the value; this is the library's one named
+    place to read it, so a console badge or a message list does not have to know the key.
+    """
+    from .inventory import get_inventory_value
+    return str(get_inventory_value(client_id, "call_sign", "") or "").strip()
 
 
 def console_display_name(client_id):

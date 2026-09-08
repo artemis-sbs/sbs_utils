@@ -438,6 +438,17 @@ CREW = {
     # console types are registered at RUNTIME from @console labels; there is no fixed list.
     "console": enum("helm", "weapons", "science", "engineering", "comms", open=True),
     "rank": text(hint="Captain, Lt. Commander - display only"),
+    # WHICH FACE to roll for a member with no `Face:` of their own. Open, because a mod's
+    # own vocabulary should degrade to a random face rather than be refused.
+    "gender": field(enum("male", "female", "fluid", open=True),
+                    doc="Which face to roll for a member with no Face: of their own - a "
+                        "face has a gender axis, so without this it is a coin toss against "
+                        "the name."),
+    # WHAT THEY ARE FOR, beside who they are. Read by the runtime since crew rosters
+    # landed (`amd_crew._CSV_FIELDS`, published as CREW_ROLES) and missing from here, so
+    # every roster that used it was warned about a field the game understands - an away
+    # scene guarding its choices on `medical` is the case it exists for.
+    "roles": csv(hint="what this person is FOR - medical, engineering, security"),
     # NOT `Image:`. `image` is already a section word (_SECTION_ALIASES) and one label must
     # never mean two things - CUTSCENE reached for `backdrop` for exactly this reason.
     "portrait": text(hint="a photograph: an atlas key, or a path under `Portraits:`"),

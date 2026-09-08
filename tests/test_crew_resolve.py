@@ -220,37 +220,79 @@ class TestLibraryTier(CrewCase):
         # Uniqueness is what makes a Director bridge wall readable - all of them are on
         # screen at once.
         s = self.ship("Nobody", hull="tsn_light_cruiser")
-        names = [crew.crew_resolve(i, s.id, "helm").name for i in range(40)]
+        consoles = ("helm", "weapons", "science", "engineering", "comms", "mainscreen")
+        names = [crew.crew_resolve(1, s.id, c).name for c in consoles]
         self.assertEqual(len(names), len(set(names)))
         self.assertTrue(all(names))
 
+    def test_two_ships_do_not_share_a_crew(self):
+        a, b = self.ship("A", hull="tsn_light_cruiser"), self.ship("B", hull="tsn_light_cruiser")
+        self.assertNotEqual(crew.crew_resolve(1, a.id, "helm").name,
+                            crew.crew_resolve(1, b.id, "helm").name)
+
     def test_a_registered_pool_running_out_falls_through_to_the_stock_one(self):
         crew.crew_register_names("helm", ["Ensign Vega"])
-        s = self.ship("Nobody", hull="tsn_light_cruiser")
-        first = crew.crew_resolve(1, s.id, "helm").name
-        second = crew.crew_resolve(2, s.id, "helm").name
+        a, b = self.ship("A", hull="tsn_light_cruiser"), self.ship("B", hull="tsn_light_cruiser")
+        first = crew.crew_resolve(1, a.id, "helm").name
+        second = crew.crew_resolve(1, b.id, "helm").name
         self.assertEqual(first, "Ensign Vega")
         self.assertTrue(second)
         self.assertNotEqual(second, first)
 
-    def test_an_automatic_name_follows_the_player_between_stations(self):
-        # crew_assign runs on every console selection. Re-rolling each time would rename a
-        # player the moment they moved seat, and the old name would stay claimed so they
-        # could never get it back.
+    def test_a_seat_keeps_its_person_when_the_player_moves_on(self):
+        # THE NAME BELONGS TO THE SEAT. Helm on this ship is the same person before anybody
+        # sits there, while somebody does, and after they leave - which is what lets a picker
+        # preview it and a bridge wall name a station nobody is at.
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        self.seat(10, "helm")
+        helm = crew.crew_assign(10, s.id, "helm")
+        self.seat(10, "weapons")
+        crew.crew_assign(10, s.id, "weapons")
+        self.seat(11, "helm")
+        self.assertEqual(crew.crew_assign(11, s.id, "helm").name, helm.name)
+        self.assertEqual(crew.crew_assign(11, s.id, "helm").face, helm.face)
+
+    def test_moving_station_renames_an_automatically_named_player(self):
+        # The other half of the same rule, and a deliberate change from the client-keyed
+        # model: you stopped being the helmsman and became the weapons officer. Exactly what
+        # a roster has always done.
         s = self.ship("Nobody", hull="tsn_light_cruiser")
         self.seat(10, "helm")
         first = crew.crew_assign(10, s.id, "helm")
         self.seat(10, "weapons")
         second = crew.crew_assign(10, s.id, "weapons")
         self.assertTrue(first.name)
+        self.assertNotEqual(second.name, first.name)
+
+    def test_moving_station_does_NOT_rename_a_player_who_typed_a_name(self):
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        self.seat(10, "helm")
+        crew.crew_assign(10, s.id, "helm", own_name="Doug")
+        self.seat(10, "weapons")
+        self.assertEqual(crew.crew_assign(10, s.id, "weapons", own_name="Doug").name, "Doug")
+
+    def test_a_seat_name_survives_the_ship_being_respawned(self):
+        # Keyed by the player-roster slot or the ship NAME, never the engine id - a player
+        # ship can be respawned mid-mission and come back with a new one.
+        first = crew.crew_resolve(1, self.ship("Artemis", hull="tsn_light_cruiser").id, "helm")
+        SpaceObject.clear()
+        second = crew.crew_resolve(1, self.ship("Artemis", hull="tsn_light_cruiser").id, "helm")
+        self.assertTrue(first.name)
         self.assertEqual(second.name, first.name)
-        self.assertEqual(second.face, first.face)
 
     def test_re_selecting_the_same_console_keeps_the_name(self):
         s = self.ship("Nobody", hull="tsn_light_cruiser")
         self.seat(10, "helm")
         first = crew.crew_assign(10, s.id, "helm").name
         self.assertEqual(crew.crew_assign(10, s.id, "helm").name, first)
+
+    def test_an_empty_seat_can_be_named_before_anybody_sits_in_it(self):
+        # What a Director bridge wall asks for: the ship's helmsman, with no client at helm.
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        name = crew.crew_seat_name(s.id, "helm")
+        self.assertTrue(name)
+        self.seat(10, "helm")
+        self.assertEqual(crew.crew_assign(10, s.id, "helm").name, name)
 
     def test_a_typed_name_still_replaces_an_automatic_one(self):
         # Tier 1 is checked before the held name, so a player can always name themselves.
@@ -298,6 +340,155 @@ class TestLibraryTier(CrewCase):
         self.assertTrue(crew._USED_NAMES)
         crew.crew_names_clear()
         self.assertFalse(crew._USED_NAMES)
+
+
+class TestGenderAndUniform(CrewCase):
+    """A face has to agree with the name above it, and a crew member wears a uniform."""
+
+    def face_of(self, face):
+        """(gender index, wears a uniform) out of a terran face string.
+
+        Read back through `parse_face`, the inverse the avatar editor uses, rather than by
+        matching the string - so the test asks the same question the editor does.
+        """
+        from sbs_utils.faces import FACE_FEATURES, parse_face
+        parsed = parse_face(face)
+        self.assertIsNotNone(parsed, face)
+        self.assertEqual(parsed["race"], "terran")
+        uniform = [f["label"] for f in FACE_FEATURES["terran"]].index("Uniform")
+        return parsed["values"][0], bool(parsed["enables"][uniform])
+
+    def test_the_stock_pool_offers_both_genders(self):
+        self.assertTrue(crew._GIVEN_MALE and crew._GIVEN_FEMALE)
+        self.assertEqual(len(crew._GIVEN_MALE), len(crew._GIVEN_FEMALE),
+                         "a lopsided pool makes one gender rarer for no reason")
+        self.assertFalse(set(n.lower() for n in crew._GIVEN_MALE)
+                         & set(n.lower() for n in crew._GIVEN_FEMALE))
+
+    def test_a_name_knows_its_gender(self):
+        self.assertEqual(crew.crew_name_gender("Freya"), "female")
+        self.assertEqual(crew.crew_name_gender("Tomas"), "male")
+        self.assertEqual(crew.crew_name_gender("Freya Laurent"), "female",
+                         "the full name has to answer - that is what a roster writes")
+        self.assertEqual(crew.crew_name_gender("Quinn"), "", "ungendered means either")
+        self.assertEqual(crew.crew_name_gender("Nobody At All"), "")
+
+    def test_an_automatic_face_agrees_with_its_name(self):
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        seen = 0
+        for console in ("helm", "weapons", "science", "engineering", "comms",
+                        "mainscreen", "hangar", "cinematic"):
+            post = crew.crew_resolve(1, s.id, console)
+            want = crew.crew_name_gender(post.name)
+            if not want:
+                continue                      # Quinn, Wren, Juno - either face is right
+            seen += 1
+            gender, _uniform = self.face_of(post.face)
+            self.assertEqual(gender, 0 if want == "male" else 1,
+                             f"{post.name} got the other gender's face")
+        self.assertTrue(seen, "the sample has to actually contain gendered names")
+
+    def test_an_automatic_crew_member_is_in_uniform(self):
+        """One face in five comes back civilian when nobody says. On a bridge that is not
+        a variation, it is a stranger at the helm."""
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        for console in ("helm", "weapons", "science", "engineering", "comms",
+                        "mainscreen", "hangar", "cinematic"):
+            _gender, uniform = self.face_of(crew.crew_resolve(1, s.id, console).face)
+            self.assertTrue(uniform, f"{console} arrived out of uniform")
+
+    def test_a_roster_member_is_in_uniform_too(self):
+        s = self.ship("Enterprise")
+        for console in ("helm", "science", "engineering"):
+            _gender, uniform = self.face_of(crew.crew_resolve(1, s.id, console).face)
+            self.assertTrue(uniform)
+
+    def test_a_roster_member_gets_the_face_their_name_implies(self):
+        """`Race:` alone used to roll a coin against the name the author wrote."""
+        s = self.ship("Enterprise")
+        post = crew.crew_resolve(1, s.id, "engineering")     # Ensign Ro, the floater
+        self.assertEqual(post.name, "Ensign Ro")
+
+    def test_a_declared_gender_beats_the_name(self):
+        from sbs_utils.procedural.amd_doc import amd_document as _doc
+        crew.crew_declare(crew_from_document(_doc("""# [R](r)
+
+## [Named](named)
+---
+crew
+Ship: Tester
+Race: terran
+---
+
+### [Tomas Vale](tv)
+---
+Console: helm
+Gender: female
+---
+""", data_parser=amd_crew_data)))
+        s = self.ship("Tester")
+        gender, _u = self.face_of(crew.crew_resolve(1, s.id, "helm").face)
+        self.assertEqual(gender, 1)
+
+    def test_a_registered_pool_can_declare_its_gender(self):
+        crew.crew_register_names("helm", ["Ensign Vega"], gender="female")
+        self.assertEqual(crew.crew_name_gender("Ensign Vega"), "female")
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        gender, uniform = self.face_of(crew.crew_resolve(1, s.id, "helm").face)
+        self.assertEqual(gender, 1)
+        self.assertTrue(uniform)
+
+    def test_the_reset_keeps_the_stock_genders_and_drops_a_mod_s(self):
+        crew.crew_register_names("helm", ["Ensign Vega"], gender="female")
+        crew.crew_names_clear()
+        self.assertEqual(crew.crew_name_gender("Ensign Vega"), "")
+        self.assertEqual(crew.crew_name_gender("Freya"), "female")
+
+
+class TestPreview(CrewCase):
+    """What the console picker shows before anybody commits to a station."""
+
+    def test_the_preview_is_what_assign_publishes(self):
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        self.seat(10, "helm")
+        preview = crew.crew_preview_post(10, s.id, "helm")
+        self.assertTrue(preview.name)
+        self.assertEqual(crew.crew_assign(10, s.id, "helm").name, preview.name)
+        self.assertEqual(crew.crew_assign(10, s.id, "helm").face, preview.face)
+
+    def test_previewing_takes_no_seat(self):
+        s = self.ship("Enterprise")
+        crew.crew_preview_post(10, s.id, "helm")
+        self.assertEqual(crew.crew_seat_count(), 0)
+        self.seat(11, "helm")
+        self.assertEqual(crew.crew_assign(11, s.id, "helm").name, "William Riker")
+
+    def test_clicking_through_stations_costs_one_name_each_and_that_once(self):
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        for _pass in range(3):
+            for console in ("helm", "weapons", "science"):
+                crew.crew_preview_post(10, s.id, console)
+        self.assertEqual(crew.crew_complement_count(), 3)
+
+    def test_a_hull_key_finds_the_mod_roster_with_no_ship_at_all(self):
+        # The picker is choosing a hull for a ship that does not exist yet, so the `hull` tier
+        # could never answer there - and that is the tier a mod's cast rides on.
+        roster, source = crew.crew_roster_for(None, hull="tsn_battle_cruiser")
+        self.assertEqual(roster.key, "tng_d")
+        self.assertEqual(source, "hull")
+
+    def test_a_slot_previews_the_cast_before_the_ship_exists(self):
+        post = crew.crew_preview_post(10, None, "helm", hull="tsn_battle_cruiser", slot=0)
+        self.assertEqual(post.name, "William Riker")
+
+    def test_a_slot_keeps_its_complement_when_its_ship_is_replaced(self):
+        def preview(slot):
+            return crew.crew_preview_post(10, None, "helm",
+                                          hull="tsn_light_cruiser", slot=slot).name
+        first = preview(3)
+        self.assertTrue(first)
+        self.assertEqual(preview(3), first)
+        self.assertNotEqual(preview(4), first)
 
 
 class TestByPerson(CrewCase):
@@ -427,6 +618,16 @@ class TestSeats(CrewCase):
         post = crew.crew_resolve(1, s.id, "helm", own_name="Foo{bar}")
         self.assertNotIn("{", post.name)
 
+    def test_an_automatic_name_never_duplicates_a_roster_person(self):
+        # A bridge staffed half from a cast and half automatically. The pool did not know the
+        # cast's names were spoken for, so it could hand a console the roster's own Data.
+        s = self.ship("Enterprise")
+        self.seat(10, "helm")
+        crew.crew_assign(10, s.id, "helm")            # William Riker, from the cast
+        auto = [crew.crew_seat_name(s.id, c) for c in
+                ("weapons", "engineering", "comms", "mainscreen", "cinematic")]
+        self.assertNotIn("William Riker", auto)
+
 
 class TestReset(CrewCase):
     def test_clear_drops_rosters_bindings_and_seats(self):
@@ -438,6 +639,22 @@ class TestReset(CrewCase):
         crew.crew_clear()
         self.assertEqual(crew.crew_count(), 0)
         self.assertEqual(crew.crew_seat_count(), 0)
+
+    def test_clear_drops_the_allocated_complement(self):
+        # Per-mission by definition: a complement carried into run 2 names its bridge after
+        # run 1's, and eventually finds the pool with nothing free in it.
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        crew.crew_resolve(1, s.id, "helm")
+        self.assertTrue(crew.crew_complement_count())
+        crew.crew_clear()
+        self.assertEqual(crew.crew_complement_count(), 0)
+
+    def test_names_clear_drops_the_complement_too(self):
+        # The complement holds names that are only claimed while _USED_NAMES holds them.
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        crew.crew_resolve(1, s.id, "helm")
+        crew.crew_names_clear()
+        self.assertEqual(crew.crew_complement_count(), 0)
 
     def test_declaring_the_same_roster_twice_does_not_duplicate(self):
         # An in-process recompile re-registers every file.

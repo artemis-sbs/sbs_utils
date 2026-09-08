@@ -432,8 +432,12 @@ register_reset_state("messages pending", _messages_pending)
 # single probe covering both cannot say which of them happened.
 from .procedural.crew import crew_count as _crew_count
 from .procedural.crew import crew_seat_count as _crew_seat_count
+from .procedural.crew import crew_complement_count as _crew_complement_count
 register_reset_state("crew rosters", _crew_count)
 register_reset_state("crew seats", _crew_seat_count)
+# A THIRD, for the same reason: an automatic name allocated to a ship's helm is per-mission
+# state, and a complement carried into run 2 names its bridge after run 1's.
+register_reset_state("crew complement", _crew_complement_count)
 from .procedural.away import away_team_count as _away_team_count
 from .procedural.away import away_scene_count as _away_scene_count
 register_reset_state("away team", _away_team_count)

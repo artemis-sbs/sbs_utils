@@ -831,7 +831,25 @@ def face_race_mapped(race):
     return mapped if mapped else race
 
 
-def random_face(race=None, role=None):
+#: What a gender word means to the terran builder's `face_id`. Everything else - "", None,
+#: a word nobody here knows - stays None, which is "roll one", the behavior this had before
+#: the argument existed.
+_FACE_GENDER = {"male": 0, "m": 0, "man": 0,
+                "female": 1, "f": 1, "woman": 1,
+                "fluid": 2, "nonbinary": 2, "non-binary": 2, "nb": 2}
+
+
+def face_gender_index(gender):
+    """A gender word as the terran builder's face index, or None for "any".
+
+    0 male, 1 female, 2 fluid - the numbering :func:`terran` documents. Unknown words
+    answer None rather than guessing, so a mod's own vocabulary degrades to a random face
+    instead of to the wrong one.
+    """
+    return _FACE_GENDER.get(str(gender or "").strip().lower())
+
+
+def random_face(race=None, role=None, gender=None, civilian=None):
     """
     Returns a random face for the specified race.
 
@@ -843,6 +861,13 @@ def random_face(race=None, role=None):
         race (str): The Race Terran, Torgoth etc, or a registered mod race.
         role (str): optional role filter for registered races ("command", "ops"...).
                     Ignored by the six stock races, which have no role concept.
+        gender (str): "male", "female", "fluid" - so a face can be asked to AGREE with
+                    a name. Only terran has a gender axis; the other stock races ignore
+                    it, as do mod races, whose faces are whole drawn portraits.
+        civilian (bool): True forces no uniform, False forces one, None (the default)
+                    leaves it to chance - which is one civilian in five. A crew member
+                    wants False: a bridge officer out of uniform is not a variation, it
+                    is a stranger on the bridge. Terran only, for the same reason.
 
     Returns:
         str: The Face String
@@ -860,18 +885,22 @@ def random_face(race=None, role=None):
         s = face_random_registered(race, role)
         if s is not None:
             return s
-    race = race.lower()    
+    race = race.lower()
+    # The gender and uniform asks reach the terran builder, which is the only stock race
+    # with either axis. The three `terran_*` spellings name a gender themselves, so an
+    # explicit argument only fills in where the spelling did not say.
+    face_id = face_gender_index(gender)
     match race:
         case "terran":
-            return random_terran()
+            return random_terran(face_id, civilian)
         case "terran_male":
-            return random_terran_male()
+            return random_terran_male(civilian)
         case "terran_female":
-            return random_terran_female()
+            return random_terran_female(civilian)
         case "terran_fluid":
-            return random_terran_fluid()
+            return random_terran_fluid(civilian)
         case "terran_civilian":
-            return random_terran_fluid()
+            return random_terran_fluid(True)
         case "torgoth":
             return random_torgoth()
         case "skaraan":
@@ -882,7 +911,7 @@ def random_face(race=None, role=None):
             return random_arvonian()
         case "kralien":
             return random_kralien()
-    return random_terran()
+    return random_terran(face_id, civilian)
 
 
 # --- Face builder recipe (ported from modding_tools char_editor) --------------

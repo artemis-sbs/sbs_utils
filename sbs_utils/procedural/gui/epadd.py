@@ -71,6 +71,12 @@ CONSOLE_ALIASES = {
     "normal_comm": "comms",
 }
 
+# Where a pilot is known by a callsign rather than by their name. `cockpit` is a real console
+# type - the hangar's launch path sets it with `gui_activate_console("cockpit")` and the
+# addon reads it back to spot a craft whose pilot wandered off - and `hangar` is the deck it
+# launches from, where the same callsign is already on every list the addon draws.
+_FLIGHT_CONSOLES = ("cockpit", "hangar")
+
 
 def _console_identity(client_id=None):
     """Which console this client is on, for scoping the app list.
@@ -972,7 +978,7 @@ def gui_app_identity_text(client_id=None, console=None):
     None when there is nothing worth a line - then no badge is drawn at all, rather
     than an empty box on every console of a mission that uses none of this.
     """
-    who = _identity_name(client_id)
+    who = _identity_name(client_id, console)
     waiting = gui_app_waiting(console=console, client_id=client_id)
     if not who and not waiting:
         return None
@@ -982,18 +988,32 @@ def gui_app_identity_text(client_id=None, console=None):
     return f"{who} ({waiting})" if who else f"ePADD ({waiting})"
 
 
-def _identity_name(client_id):
-    """The person at this console: their away character first, then their crew post.
+def _identity_name(client_id, console=None):
+    """The person at this console: away character, then callsign in a cockpit, then crew post.
 
     The away character wins because it is who they are RIGHT NOW - a crew member on the
     surface is playing that body, and the badge saying their bridge name there would be
     the stranger problem all over again.
+
+    A CALLSIGN wins on a flight console for the same reason one step down: in a cockpit the
+    callsign IS what the rest of the flight calls you, and it is what every other readout the
+    hangar draws already uses. It REPLACES the crew name rather than joining it because the
+    badge shares a narrow strip with the waiting count - see the placement note above - and a
+    name plus a callsign plus a count does not fit any of them.
     """
     try:
         from .away_gui import away_who, away_label
         active = away_who(client_id)
         if active is not None:
             return away_label(active)[0]
+    except Exception:
+        pass
+    try:
+        if epadd_console_name(console or _console_identity(client_id)) in _FLIGHT_CONSOLES:
+            from ..crew import crew_callsign
+            callsign = crew_callsign(client_id)
+            if callsign:
+                return callsign
     except Exception:
         pass
     try:

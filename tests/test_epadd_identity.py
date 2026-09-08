@@ -122,6 +122,16 @@ class BadgeBase(unittest.TestCase):
         set_inventory_value(CID, "CREW_NAME", name)
         set_inventory_value(CID, "CREW_RANK", rank)
 
+    def at_console(self, console):
+        """Move this client to a console, the way entering one does.
+
+        BOTH facts: the build declares its own console (`gui_activate_console`) and the
+        door records it. Setting only the inventory key leaves the page still declaring
+        the console it was built for, which is the stronger of the two.
+        """
+        self.page.console = console
+        set_inventory_value(CID, "CONSOLE_TYPE", console)
+
     def build(self):
         self.page.pending_layouts = []
         self.page.gui_queue_console_tabs()
@@ -198,6 +208,35 @@ class TestItSaysWhoYouAre(BadgeBase):
     def test_a_crew_member_with_no_rank_is_just_their_name(self):
         self.crew("Marek")
         self.assertIn("Marek", self.badge_text() or "")
+
+    def test_a_pilot_in_a_cockpit_is_their_CALLSIGN(self):
+        """In a cockpit the callsign is what the rest of the flight calls you, and it is
+        already what every readout the hangar draws uses. It replaces the crew name rather
+        than joining it - the badge shares a narrow strip with the waiting count."""
+        self.crew("Marek", "Lt")
+        set_inventory_value(CID, "call_sign", "Rascal")
+        self.at_console("cockpit")
+        self.assertIn("Rascal", self.badge_text() or "")
+        self.assertNotIn("Marek", self.badge_text() or "")
+
+    def test_the_hangar_deck_uses_it_too(self):
+        self.crew("Marek", "Lt")
+        set_inventory_value(CID, "call_sign", "Rascal")
+        self.at_console("hangar")
+        self.assertIn("Rascal", self.badge_text() or "")
+
+    def test_a_bridge_console_is_still_the_crew_name(self):
+        """A pilot who came back to the bridge is a crew member again."""
+        self.crew("Marek", "Lt")
+        set_inventory_value(CID, "call_sign", "Rascal")
+        self.at_console("helm")
+        self.assertIn("Lt Marek", self.badge_text() or "")
+        self.assertNotIn("Rascal", self.badge_text() or "")
+
+    def test_a_cockpit_with_no_callsign_falls_back_to_the_crew_name(self):
+        self.crew("Marek", "Lt")
+        self.at_console("cockpit")
+        self.assertIn("Lt Marek", self.badge_text() or "")
 
     def test_NOTHING_TO_SAY_DRAWS_NO_BOX(self):
         """A mission using none of this must not get an empty panel welded to every
