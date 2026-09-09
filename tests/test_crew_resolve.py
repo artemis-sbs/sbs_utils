@@ -342,6 +342,90 @@ class TestLibraryTier(CrewCase):
         self.assertFalse(crew._USED_NAMES)
 
 
+class TestEditingOneThingKeepsTheRest(CrewCase):
+    """A player edits one aspect at a time, and the others have to survive it.
+
+    The three - name, face, portrait - are separate answers to separate questions, and the
+    "own" tier used to replace the whole identity the moment any ONE of them was set. So
+    building a face for an automatically named officer and pressing Done handed back a post
+    with a face and no name at all, and the console read as unmanned.
+    """
+
+    def test_building_a_face_keeps_the_name(self):
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        was = crew.crew_resolve(1, s.id, "helm")
+        self.assertTrue(was.name)
+        now = crew.crew_resolve(1, s.id, "helm", own_face="ter #fff 0 0;")
+        self.assertEqual(now.name, was.name)
+        self.assertEqual(now.face, "ter #fff 0 0;")
+        self.assertEqual(now.source, "own")
+
+    def test_typing_a_name_keeps_the_face(self):
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        was = crew.crew_resolve(1, s.id, "helm")
+        self.assertTrue(was.face)
+        now = crew.crew_resolve(1, s.id, "helm", own_name="Doug")
+        self.assertEqual(now.name, "Doug")
+        self.assertEqual(now.face, was.face)
+
+    def test_a_name_then_a_face_then_another_name(self):
+        """The sequence the picker actually produces: an assigned name, edit the name, edit
+        the face, edit the name again. Nothing may fall off on the way."""
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        post = crew.crew_resolve(1, s.id, "helm", own_name="Doug")
+        post = crew.crew_resolve(1, s.id, "helm", own_name="Doug", own_face="ter #fff 0 0;")
+        post = crew.crew_resolve(1, s.id, "helm", own_name="Douglas", own_face="ter #fff 0 0;")
+        self.assertEqual(post.name, "Douglas")
+        self.assertEqual(post.face, "ter #fff 0 0;")
+
+    def test_renaming_a_roster_person_keeps_their_face_and_rank(self):
+        s = self.ship("Enterprise")
+        post = crew.crew_resolve(1, s.id, "helm", own_name="Doug")
+        self.assertEqual(post.name, "Doug")
+        self.assertEqual(post.rank, "Commander")
+        self.assertTrue(post.face)
+        self.assertEqual(post.key, "riker", "they are still the person at that station")
+
+    def test_a_face_built_over_a_picked_person_keeps_their_name(self):
+        set_shared_variable("CREW_SELECT", "thursday")
+        s = self.ship("Anything")
+        pick = crew.crew_pick_value("thursday", "doug")
+        post = crew.crew_resolve(1, s.id, "helm", own_pick=pick, own_face="ter #fff 0 0;")
+        self.assertEqual(post.name, "Doug")
+        self.assertEqual(post.face, "ter #fff 0 0;")
+
+    def test_a_face_and_a_photograph_still_displace_each_other(self):
+        """The one pair that CANNOT both stand - they answer the same question, and nothing
+        could resolve having both."""
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        post = crew.crew_resolve(1, s.id, "helm", own_portrait="media/me")
+        self.assertEqual(post.portrait, "media/me")
+        self.assertEqual(post.face, "")
+        post = crew.crew_resolve(1, s.id, "helm", own_face="ter #fff 0 0;")
+        self.assertEqual(post.face, "ter #fff 0 0;")
+        self.assertEqual(post.portrait, "")
+
+    def test_clearing_everything_hands_the_seat_back(self):
+        """What the Edit page's Use Default button does."""
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        was = crew.crew_resolve(1, s.id, "helm")
+        crew.crew_resolve(1, s.id, "helm", own_name="Doug", own_face="ter #fff 0 0;")
+        back = crew.crew_resolve(1, s.id, "helm", own_name="", own_face="", own_portrait="")
+        self.assertEqual(back.name, was.name)
+        self.assertEqual(back.face, was.face)
+        self.assertEqual(back.source, "library")
+
+    def test_an_edited_face_survives_being_published_and_read_back(self):
+        """End to end through the write path, which is where the console gets it."""
+        s = self.ship("Nobody", hull="tsn_light_cruiser")
+        self.seat(10, "helm")
+        was = crew.crew_assign(10, s.id, "helm")
+        crew.crew_assign(10, s.id, "helm", own_face="ter #fff 0 0;")
+        post = crew.crew_post_of(10)
+        self.assertEqual(post.name, was.name)
+        self.assertEqual(post.face, "ter #fff 0 0;")
+
+
 class TestGenderAndUniform(CrewCase):
     """A face has to agree with the name above it, and a crew member wears a uniform."""
 

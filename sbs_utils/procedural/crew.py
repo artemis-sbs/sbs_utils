@@ -860,6 +860,35 @@ def _member_post(roster, member, source):
                  member.get("roles") or "")
 
 
+def _own_over(post, own_name=None, own_face=None, own_portrait=None):
+    """Lay what the player chose over the identity the ship had for them.
+
+    FIELD BY FIELD. The three are separate answers to separate questions - what am I called,
+    what do I look like, is that a photograph - and a player edits one at a time. Replacing
+    the whole post the moment any one of them was set is what made editing destructive: a
+    face built for an automatically named officer arrived with `own_name` empty, so the post
+    came back nameless and the console read as unmanned.
+
+    A PORTRAIT AND A FACE still displace each other, because they answer the same question
+    and nothing could resolve having both.
+
+    Everything they did not answer - the rank, the roster key, the seat - stays, so a player
+    who renames themselves is still the person the ship put at that station.
+    """
+    if not (own_name or own_face or own_portrait):
+        return post
+    if own_name:
+        post.name = _plain(own_name)
+    if own_face:
+        post.face = str(own_face)
+        post.portrait = ""
+    if own_portrait:
+        post.portrait = str(own_portrait)
+        post.face = ""
+    post.source = "own"
+    return post
+
+
 def crew_resolve(client_id, ship_id, console,
                  own_name=None, own_face=None, own_portrait=None, own_pick=None,
                  hull=None, slot=None):
@@ -871,6 +900,12 @@ def crew_resolve(client_id, ship_id, console,
     ``own``
         What this human chose at the picker - a typed name, a built face, or a person they
         picked out of a ``By: person`` roster. Nothing outranks a person's own answer.
+
+        PER FIELD, not wholesale. What they did not answer is still answered by the tier
+        below, so naming yourself keeps the face the ship gave you and building a face keeps
+        the name. It used to replace the whole identity, which meant editing one aspect blanked
+        the others: opening the avatar editor on an automatically named officer and pressing
+        Done left them with a face and NO NAME.
     ``ship`` / ``map`` / ``hull``
         A roster bound to this named ship, selected for this game, or declared by a mod for
         this hull. :func:`crew_roster_for` picks between them; :func:`_seat_pick` then
@@ -891,24 +926,16 @@ def crew_resolve(client_id, ship_id, console,
     """
     picked_roster, picked_member = _member_by_pick(own_pick)
     if picked_member is not None:
-        post = _member_post(picked_roster, picked_member, "own")
-        # A typed name still wins over the picked person's - the player edited it on purpose.
-        if own_name:
-            post.name = _plain(own_name)
-        if own_face:
-            post.face = str(own_face)
-        if own_portrait:
-            post.portrait = str(own_portrait)
-        return post
-
-    if own_name or own_face or own_portrait:
-        return _post(own_name, "", own_face, own_portrait, "", "", "own")
+        # THE PICKED PERSON IS THE BASE, and what the player edited about them goes on top.
+        return _own_over(_member_post(picked_roster, picked_member, "own"),
+                         own_name, own_face, own_portrait)
 
     roster, source = crew_roster_for(ship_id, hull)
     if roster is not None:
         member = _seat_pick(roster, ship_id, console, client_id)
         if member is not None:
-            return _member_post(roster, member, source)
+            return _own_over(_member_post(roster, member, source),
+                             own_name, own_face, own_portrait)
 
     # NOBODY NAMED THIS CONSOLE, so name it anyway - a different person from every other
     # console in the run. Reached whether or not a roster matched: a roster that does not
@@ -919,7 +946,7 @@ def crew_resolve(client_id, ship_id, console,
     # third that used to read "unmanned" now reads a name. That is the point of the feature
     # rather than a side effect - but it is why `CREW_AUTONAME: false` exists.
     if not crew_autoname_enabled():
-        return _post("")
+        return _own_over(_post(""), own_name, own_face, own_portrait)
 
     # THE NAME BELONGS TO THE SEAT, not to the client. A ship has a crew whether or not
     # anybody is sitting in it, so helm on this ship is the same person every time it is asked
@@ -933,7 +960,7 @@ def crew_resolve(client_id, ship_id, console,
     index = _seat_occupant_index(client_id, seat, console)
     name, face = _seat_person(ship, console, index, race, slot)
     if not name:
-        return _post("")
+        return _own_over(_post(""), own_name, own_face, own_portrait)
     post = _post(name, "", face, "", "",
                  roster.get("key") if roster is not None else "", "library")
     # WHICH seat this came from, carried on the post so `crew_assign` records the same place
@@ -941,7 +968,7 @@ def crew_resolve(client_id, ship_id, console,
     # client's old seat, and would answer differently.
     setattr(post, "seat", seat)
     setattr(post, "seat_index", index)
-    return post
+    return _own_over(post, own_name, own_face, own_portrait)
 
 
 def crew_preview_post(client_id, ship_id, console,

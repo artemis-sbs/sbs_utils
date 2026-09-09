@@ -15,6 +15,10 @@
   the name, the avatar editor, and who you are instead out of the ship's roster (the crew
   dropdown moves here off the picker). New `CREW_EDIT.allow_name` gates the name field;
   `enable: false` now leaves the line as a readout rather than falling back to a name box.
+- The identity page edits one aspect without destroying the others: coming back from the
+  avatar editor changes the face and nothing else, the name box opens on the name you already
+  have (without silently adopting an assigned one as your own), and choosing somebody off the
+  roster no longer copies their name into a client string, which persists per machine.
 - The identity editor hands the avatar editor **the face on screen**. It was handing it
   `crew_face`, which holds only what a human built for themselves and is empty for nearly
   everybody - that is, for exactly the people opening the editor, who therefore arrived at a
@@ -46,6 +50,14 @@
 
 ### sbs_utils
 
+- **What a player chose is laid over their identity one field at a time**, instead of
+  replacing it. The three - name, face, portrait - are separate answers to separate
+  questions, and a player edits one at a time; setting any ONE of them used to blank the
+  other two. So building a face for an automatically named officer and pressing Done handed
+  back a face and no name, and the console read as unmanned. Now naming yourself keeps the
+  face the ship gave you, building a face keeps your name, and renaming a cast member keeps
+  their rank and their station. A face and a photograph still displace each other - they
+  answer the same question.
 - **A crew face now agrees with its name, and wears a uniform.** A face is rolled for
   anybody who has none of their own and a terran face has a gender axis, so an ungendered
   name pool put a man's face over "Freya Laurent" one console in two. The stock pool is

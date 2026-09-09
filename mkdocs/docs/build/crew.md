@@ -126,7 +126,9 @@ Strongest first. Every step above the last is optional; the last one always answ
 unless you turn it off.
 
 1. **The player.** What they typed at the picker, the face they built, or the person
-   they picked out of a group. Nothing outranks somebody's own answer about themselves.
+   they picked out of a group. Nothing outranks somebody's own answer about themselves &mdash;
+   but **per field**: what they did not answer is still answered by the step below, so naming
+   yourself keeps the face the ship gave you and building a face keeps your name.
 2. **The ship.** A roster declaring `Ship: Enterprise`, or `crew_bind_ship()`. This is
    how one game runs several crews at once &mdash; the Enterprise flies with one, the
    Defiant with another.
