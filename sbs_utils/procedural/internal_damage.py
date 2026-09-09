@@ -1697,7 +1697,7 @@ def grid_set_node_wear(id_or_obj, value, ship_id=None):
 
     The ONLY writer. It clamps, stores, adds or removes ``__worn__``, repaints
     through grid_node_apply_color, and recomputes the ship's coefficients - but only
-    when the ROLE actually flipped, so wear moving within a band costs one dict write
+    when the TIER actually changed, so wear moving within a band costs one dict write
     and nothing else.
 
     Only a SYSTEM node carries wear at all (see ``grid_node_is_system``); on anything
@@ -1725,6 +1725,8 @@ def grid_set_node_wear(id_or_obj, value, ship_id=None):
     if not grid_node_is_system(node_id):
         return grid_node_wear(node_id)
     value = max(0.0, min(1.0, float(value)))
+    # Read the tier BEFORE the write - grid_node_state reads the wear back out.
+    was_state = grid_node_state(node_id)
     set_inventory_value(node_id, "wear", value)
 
     was_worn = has_role(node_id, "__worn__")
@@ -1737,7 +1739,13 @@ def grid_set_node_wear(id_or_obj, value, ship_id=None):
     grid_node_apply_color(node_id)
 
     # Only a tier change moves a coefficient, and this can run per node per minute.
-    if was_worn != should_be_worn:
+    #
+    # The tier, NOT the `__worn__` role. There are four tiers and only ONE of the
+    # boundaries has a role behind it, so gating on the role meant a node drifting
+    # back out of TUNED repainted its icon and changed grid_node_state - while
+    # `all_beam_damage_coeff` kept the 1.10 the tune had written. Engineering read
+    # "4 ok" beside "beam 110%" indefinitely, and the +10 percent was never paid back.
+    if was_state != grid_node_state(node_id):
         host = ship_id if ship_id is not None else getattr(node, "host_id", None)
         if host is not None:
             set_damage_coefficients(host)

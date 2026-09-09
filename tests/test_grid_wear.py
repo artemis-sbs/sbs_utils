@@ -351,6 +351,40 @@ class TestWearWriters(WearBase):
         self.assertAlmostEqual(self.coeff("all_beam_damage_coeff"),
                                D.WEAR_WORN_FACTOR, places=6)
 
+    def test_drifting_back_OUT_of_tuned_recomputes_the_coefficient(self):
+        """The recompute is gated on the TIER, not on the `__worn__` role.
+
+        Only one of the four tier boundaries has a role behind it. Gated on that
+        role, a node aging past WEAR_TUNED_MAX repainted its icon and dropped out of
+        `grid_node_state` while `all_beam_damage_coeff` kept the 1.10 the tune wrote -
+        so Engineering showed "4 ok" beside "beam 110%" and the bonus was never
+        given back.
+        """
+        nodes = self.pool("beam", 2, wear=0.0)
+        D.set_damage_coefficients(self.ship)
+        self.assertAlmostEqual(self.coeff("all_beam_damage_coeff"),
+                               1.0 + D.WEAR_TUNED_BONUS, places=6)
+        # Upkeep ages it a hair past the tuned band - no role flips, and the node
+        # stays undamaged and well short of worn.
+        for n in nodes:
+            D.grid_set_node_wear(n, D.WEAR_TUNED_MAX + 0.01, self.ship)
+            self.assertEqual(D.grid_node_state(n), "nominal")
+            self.assertFalse(has_role(n, "__worn__"))
+        self.assertAlmostEqual(self.coeff("all_beam_damage_coeff"), 1.0, places=6)
+
+    def test_wear_moving_WITHIN_a_tier_does_not_recompute(self):
+        """The other half of the gate - this runs per node per sim-minute."""
+        nodes = self.pool("beam", 2)
+        calls = []
+        original = D.set_damage_coefficients
+        D.set_damage_coefficients = lambda s: calls.append(s)
+        try:
+            for n in nodes:
+                D.grid_set_node_wear(n, D.WEAR_NOMINAL + 0.05, self.ship)
+        finally:
+            D.set_damage_coefficients = original
+        self.assertEqual(calls, [])
+
 
 class TestTravelWear(WearBase):
     """The throttle split, which the routes now delegate here so it can be pinned.
