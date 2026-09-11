@@ -2,7 +2,8 @@
 Mock player-energy model tests.
 
 The engine seeds player ships with a full energy tank + an APU that trickles it
-back up (neither is in shipData). Flight (impulse + warp) spends energy; firing or
+back up - but only to 200 (neither is in shipData; the APU numbers are the engine's
+preferences.json). Flight (impulse + warp) spends energy; firing or
 loading torpedoes does NOT (that's the weapons console's energy<->torp conversion,
 a separate manual choice). Docking refills it (LM docking, capped at the tank max).
 """
@@ -29,7 +30,9 @@ class TestMockEnergy(unittest.TestCase):
         # plus an APU (Cosmos has passive regen, unlike old Artemis).
         _pid, p = self._player()
         self.assertEqual(p.data_set.get("energy"), sbs.PLAYER_ENERGY_MAX)
-        self.assertEqual(p.data_set.get("ship_apu_ceiling"), sbs.PLAYER_ENERGY_MAX)
+        # The APU does NOT refill to the tank max: engine preferences.json
+        # ship_apu_assistance_ceiling is 200.
+        self.assertEqual(p.data_set.get("ship_apu_ceiling"), 200.0)
         self.assertGreater(p.data_set.get("ship_apu_output") or 0.0, 0.0)
 
     def test_npc_does_not_get_a_player_energy_tank(self):
@@ -68,13 +71,37 @@ class TestMockEnergy(unittest.TestCase):
     def test_apu_recharges_when_idle(self):
         pid, p = self._player()
         ds = p.data_set
-        ds.set("energy", 400.0, 0)                   # partly drained
+        ds.set("energy", 100.0, 0)                   # drained below the APU ceiling
         ds.set("playerThrottle", 0.0, 0)             # idle -> APU should refill
         sbs.resume_sim()
         for _ in range(int(30 * 30)):
             sbs.physics_tick(dt=1 / 30)
-        self.assertGreater(ds.get("energy"), 400.0)
-        self.assertLessEqual(ds.get("energy"), sbs.PLAYER_ENERGY_MAX)   # never exceeds ceiling
+        self.assertGreater(ds.get("energy"), 100.0)
+        self.assertLessEqual(ds.get("energy"), 200.0)   # never exceeds the ceiling
+
+    def test_apu_refills_at_the_engine_rate(self):
+        # ship_apu_assistance_per_tick 0.1 at 30 ticks/s = 3 energy/s.
+        pid, p = self._player()
+        ds = p.data_set
+        ds.set("energy", 0.0, 0)
+        ds.set("playerThrottle", 0.0, 0)
+        sbs.resume_sim()
+        for _ in range(10 * 30):                     # 10 sim-seconds
+            sbs.physics_tick(dt=1 / 30)
+        self.assertAlmostEqual(ds.get("energy"), 30.0, delta=1.0)
+
+    def test_apu_does_not_refill_above_its_ceiling(self):
+        # THE BUG THIS PINS: with a 1000 ceiling the mock let a parked ship climb back to
+        # any threshold, so LM's brain autoplayer parked ships below 400 to "recover" - and
+        # in the engine they never got there.
+        pid, p = self._player()
+        ds = p.data_set
+        ds.set("energy", 400.0, 0)
+        ds.set("playerThrottle", 0.0, 0)
+        sbs.resume_sim()
+        for _ in range(int(30 * 30)):
+            sbs.physics_tick(dt=1 / 30)
+        self.assertEqual(round(ds.get("energy"), 1), 400.0)
 
     def test_impulse_costs_less_than_warp(self):
         # Same duration: impulse (thr 1) should spend far less than warp (thr 3).

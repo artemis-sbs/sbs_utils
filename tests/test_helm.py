@@ -1,11 +1,9 @@
 """Flying a player ship: throttle clamps, steering, docking, and the energy reserve.
 
-The reserve tests are the load-bearing ones. LegendaryMissions' autoplay carries an energy
-REFILL cheat, put there so a long unattended run would not stall - and a cheat like that
-also hides every real energy bug behind it. It can only be deleted if the bot is provably
-unable to strand itself, so these pin the three rules that make that true: warp is refused
-without the reserve to reach help, a stop always recovers, and "can I afford to get there"
-is asked about a real distance rather than a flat number.
+The energy tests are the load-bearing ones. They pin: warp is refused without the reserve,
+"can I afford to get there" is asked about a real distance rather than a flat number, and -
+the one that was once wrong - a stopped ship recovers only up to the APU ceiling (~200), so
+nothing may park a ship waiting to reach a threshold above it.
 
 Run:
     python -m unittest tests.test_helm
@@ -20,7 +18,7 @@ from cosmos_dev.mock import sbs as sbs
 from tests.reset_helper import reset_mock
 from sbs_utils.helpers import Context, FakeEvent, FrameContext
 from sbs_utils.procedural.helm import (
-    DEFAULT_ENERGY_RESERVE, IMPULSE_MAX, helm_can_turn, helm_distance, helm_dock_request,
+    APU_CEILING, DEFAULT_ENERGY_RESERVE, IMPULSE_MAX, helm_apu_ceiling, helm_can_turn, helm_distance, helm_dock_request,
     helm_eng_controls, helm_energy, helm_energy_cost, helm_energy_reserve, helm_is_docked,
     helm_set_power, helm_shield_fraction, helm_shields, helm_steer_to_point,
     helm_steer_to_vec, helm_stop, helm_system_damage, helm_system_heat, helm_throttle,
@@ -138,22 +136,49 @@ class ThrottleTests(HelmBase):
 
 
 class EnergyTests(HelmBase):
-    def test_a_stopped_ship_always_recovers(self):
-        """The floor the whole no-cheat argument rests on.
-
-        The APU tops the tank up whenever energy is below its ceiling, and only throttle
-        drains it. So a ship with the throttle at zero cannot get worse - which means
-        there is no unrecoverable energy state, and a bot that stalls is one that never
-        stopped burning.
-        """
+    def test_a_stopped_ship_regains_energy_below_the_apu_ceiling(self):
         sbs.resume_sim()        # physics_tick returns immediately on a paused sim
         self.ds.set("energy", 10.0)
         helm_stop(self.ship)
         before = helm_energy(self.ship)
         for _ in range(120):
             sbs.physics_tick(1.0 / 30.0)
-        self.assertGreater(helm_energy(self.ship), before,
-                           "a stopped ship must regain energy, or nothing can be proven")
+        self.assertGreater(helm_energy(self.ship), before)
+
+    def test_a_stopped_ship_does_NOT_regain_energy_above_the_apu_ceiling(self):
+        """This used to be asserted the other way: "a stopped ship always recovers".
+
+        True of the mock's old 1000 ceiling, false of the engine's 200. LM's brain autoplayer
+        parked ships below a 400 reserve to wait for it, and they waited forever.
+        """
+        sbs.resume_sim()
+        self.ds.set("energy", 400.0)
+        helm_stop(self.ship)
+        for _ in range(300):
+            sbs.physics_tick(1.0 / 30.0)
+        self.assertLessEqual(helm_energy(self.ship), 400.0)
+        self.assertLess(helm_apu_ceiling(self.ship), DEFAULT_ENERGY_RESERVE,
+                        "the warp reserve is above the ceiling - waiting cannot reach it")
+
+    def test_apu_ceiling_reads_the_ship_when_it_says(self):
+        self.ds.set("ship_apu_ceiling", 350.0)
+        self.assertEqual(helm_apu_ceiling(self.ship), 350.0)
+
+    def test_apu_ceiling_falls_back_to_the_engine_default(self):
+        self.ds.set("ship_apu_ceiling", 0.0)
+        self.assertEqual(helm_apu_ceiling(self.ship), APU_CEILING)
+        from sbs_utils.procedural import helm as H
+
+        class _Unset:
+            def get(self, key, index=0):
+                return None
+
+        real = H._ds
+        H._ds = lambda ship: _Unset()
+        try:
+            self.assertEqual(H.helm_apu_ceiling(self.ship), APU_CEILING)
+        finally:
+            H._ds = real
 
     def test_warp_drains_faster_than_the_apu_refills(self):
         """The other half of the claim, so it says something.

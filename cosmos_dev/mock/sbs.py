@@ -1077,7 +1077,7 @@ def _apply_ship_data_to_object(obj, data: dict) -> None:
     # docking refills it fast. See PLAYER_ENERGY_MAX.
     if is_player:
         ds.set("energy", PLAYER_ENERGY_MAX)
-        ds.set("ship_apu_ceiling", PLAYER_ENERGY_MAX)
+        ds.set("ship_apu_ceiling", PLAYER_APU_CEILING)
         if not (ds.get("ship_apu_output") or 0.0):
             ds.set("ship_apu_output", PLAYER_APU_OUTPUT)
 
@@ -2981,8 +2981,16 @@ PLAYER_SHIP_SYSTEMS = 4        # SHPSYS count the controls map onto
 PLAYER_SYSTEM_MAX_DAMAGE = 3.0 # engine value at spawn
 PLAYER_COOLANT = 8             # system_coolant_available at spawn
 
-PLAYER_ENERGY_MAX = 1000.0     # full tank / APU ceiling (engine player default)
-PLAYER_APU_OUTPUT = 1.0        # passive regen coefficient (energy/s = output * 2.0)
+PLAYER_ENERGY_MAX = 1000.0     # full tank (engine player default)
+# The APU is the engine's, from data/preferences.json: `ship_apu_assistance_per_tick` 0.1
+# (3/s at 30 ticks) up to `ship_apu_assistance_ceiling` 200. This used to refill to the TANK
+# max, so a parked mock ship climbed back to any threshold - and LM's brain autoplayer shipped
+# a policy that parked ships below 400 to wait for 400, which never happens in the engine.
+PLAYER_APU_CEILING = 200.0
+PLAYER_APU_OUTPUT = 1.5        # passive regen coefficient (energy/s = output * 2.0 = 3/s)
+# NOT modeled yet, units unmeasured: the engine also drains with speed
+# (`player-fuel-use-coeff`), with slider power even when stopped
+# (`player-base-energy-use-coeff`), x2 with shields up, and per beam shot.
 # Flight drain coefficients (uncalibrated - no per-second figure available; tuned so
 # sustained warp NET-drains the tank over a few minutes despite APU regen, while idle
 # and light impulse let the APU recharge it). per second:

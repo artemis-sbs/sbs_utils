@@ -37,38 +37,34 @@ calls serve an attract bot and a conformance run; what differs is the policy abo
       docked ship with a *tractor*, so rewriting only the state leaves it attached to a base
       it believes it has left.
 
-## Energy has a floor, and that is the useful part
+## Energy: waiting gets you to 200, docking gets you home
 
-The tank drains **only while the throttle is up** —
-`min(thr,1) * ship_energy_cost + max(0, thr-1) * warp_energy_cost`, warp weighted about
-double — and the auxiliary power unit trickles it back **unconditionally** whenever energy
-is below `ship_apu_ceiling`. Docking refills it fast on top of that.
+The engine's energy numbers are in `data/preferences.json`:
 
-> **There is no unrecoverable energy state. A ship that strands is a ship that never stopped
-> burning.**
+| key | value | meaning |
+|---|---|---|
+| `player-fuel-use-coeff` | 0.12 | drain, times the ship's speed |
+| `player-base-energy-use-coeff` | 0.007 | drain, times the power on every engineering slider — a stopped ship still draws |
+| `player-shields-raised-energy-coeff` | 2.0 | drain multiplier while shields are up |
+| `energyCostOfOneBeamShot` | 1.0 | per beam shot |
+| `ship_apu_assistance_per_tick` | 0.1 | APU refill, 3/s at 30 ticks |
+| `ship_apu_assistance_ceiling` | 200 | **the APU stops here** |
+| `player-no_energy-speed-coeff` | 0.1 | an empty ship still flies, at 10% |
 
-That is why `helm_throttle` consults a reserve before allowing warp, and why
-`helm_energy_reserve` exists at all. Three rules follow, and together they make stranding
-impossible rather than unlikely:
+`helm_apu_ceiling(ship)` returns that ceiling (the ship's `ship_apu_ceiling` when it carries
+one). **Anything that parks a ship "until energy recovers" must aim below it**, or it waits
+forever. Only docking refills the tank.
 
-1. **Never enter warp without the reserve to reach help.** Warp is the only thing that
-   outruns the APU.
-2. **Below the reserve, drop to impulse or stop.** The APU then refills with certainty.
-3. **Dock when a station is in reach**, because it is faster than waiting.
+`helm_throttle` still refuses warp below `DEFAULT_ENERGY_RESERVE` (400), so a ship keeps
+enough in hand to reach a station. That is a spending gate, not a recovery target.
+`helm_energy_reserve(ship, target)` estimates whether a trip is affordable at a given
+throttle. Because an empty ship still moves, "unaffordable" means "slow", not "impossible".
 
-`helm_energy_reserve(ship, target)` asks the question a flat threshold cannot: *can I afford
-to get there and still have something left?* "Dock below 300 energy" says nothing about
-whether the station is 2,000 units away or 40,000.
-
-This is what let LegendaryMissions' autoplay delete its energy **refill cheat** rather than
-keep hiding real energy bugs behind it. A cheat put there so an unattended run would not
-stall also guarantees the run can never find an energy bug.
-
-!!! tip "Prove it, because a plain run does not"
-    Neither the old nor the new autoplayer dropped below ~730 energy in 300 sim-seconds on
-    siege — the cheat never fired, so the run proved nothing either way. Draining the tank
-    to 20 (below the old threshold) and watching it climb back to 596 unaided is the test
-    that means something.
+!!! danger "This page used to say energy has a floor"
+    It claimed a stopped ship always recovers, because the mock's APU refilled to 1000. LM's
+    brain autoplayer believed it: it parked ships below 400 to wait for 400, and in the
+    engine every ship that ran low away from a station sat still for the rest of the run.
+    The mock now uses the engine's ceiling and rate.
 
 ## The engineering table is many-to-one
 

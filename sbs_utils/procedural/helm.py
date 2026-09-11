@@ -19,19 +19,25 @@ subtly wrong:
   `dock_state = unknown` - and the engine holds the dock with a *tractor*, so a cancel that
   does not delete it leaves the ship attached.
 
-ENERGY IS THE INTERESTING PART. The tank drains only while the throttle is up -
-`min(thr,1) * ship_energy_cost + max(0, thr-1) * warp_energy_cost`, warp weighted about
-double - and the auxiliary power unit trickles it back **unconditionally** whenever energy
-is below `ship_apu_ceiling`. Docking refills fast on top of that.
+ENERGY IS THE INTERESTING PART, and the engine's numbers live in `data/preferences.json`:
 
-> **There is no unrecoverable energy state. A ship that strands is a ship that never
-> stopped burning.**
+* the tank drains with SPEED (`player-fuel-use-coeff`), with the power on every engineering
+  slider (`player-base-energy-use-coeff`) - so a stopped ship still draws - doubled while
+  shields are raised (`player-shields-raised-energy-coeff`), and per beam shot;
+* the auxiliary power unit adds 0.1 a tick (3/s) but **only up to 200**
+  (`ship_apu_assistance_ceiling`). It is a get-home trickle, not a recharge;
+* an empty tank does not stop the ship - it flies at 10% (`player-no_energy-speed-coeff`);
+* docking refills the tank to full.
 
-That is why `helm_throttle` consults a reserve before allowing warp, and why
-`helm_energy_reserve` exists at all. A bot that respects them cannot strand itself, which
-means the "refill the tank so the test doesn't stall" cheat can be deleted rather than
-hidden. Everything here is a real control write, so the same calls serve an attract bot and
-a conformance run; what differs is the policy above them, not the actuation.
+> **Waiting never gets a ship past ~200 energy. Only docking does.**
+
+This module used to say the opposite - "a stopped ship always recovers" - because that was
+true of the MOCK, whose APU refilled to 1000. LM's brain autoplayer believed it, parked
+ships below a 400 reserve to wait for the APU, and they sat there for the rest of the run.
+A threshold that waiting is meant to clear must sit under `helm_apu_ceiling`.
+
+Everything here is a real control write, so the same calls serve an attract bot and a
+conformance run; what differs is the policy above them, not the actuation.
 """
 import math
 
@@ -52,9 +58,13 @@ REVERSE = -1.0
 TURN_COEFF_FLOOR = 0.35
 MANEUVER_DAMAGE_CEILING = 0.75
 
-# How much energy to keep in hand before spending any on warp. Warp is the only way to
-# drain the tank faster than the APU refills it, so this is the whole anti-strand budget.
+# How much energy to keep in hand before spending any on warp. This is a spending gate, not
+# a recovery target: it is above the APU ceiling, so waiting alone never gets back to it.
 DEFAULT_ENERGY_RESERVE = 400.0
+
+# The most the auxiliary power unit refills to. `ship_apu_assistance_ceiling` in the engine's
+# preferences.json; used when the ship's data_set does not say.
+APU_CEILING = 200.0
 
 
 def _ds(ship):
@@ -191,6 +201,21 @@ def helm_energy(ship):
     return _num(_ds(ship), "energy")
 
 
+def helm_apu_ceiling(ship):
+    """The energy the auxiliary power unit refills to - and so the most waiting can reach.
+
+    Reads `ship_apu_ceiling` when the ship carries a positive one, otherwise the engine's
+    global `ship_apu_assistance_ceiling` (200). Anything that parks a ship "until energy
+    recovers" has to aim below this, or it waits forever.
+    """
+    ceiling = _raw(_ds(ship), "ship_apu_ceiling")
+    try:
+        ceiling = float(ceiling)
+    except (TypeError, ValueError):
+        return APU_CEILING
+    return ceiling if ceiling > 0 else APU_CEILING
+
+
 def helm_warp_available(ship):
     """Whether this hull may use warp. Unknown counts as YES - see below.
 
@@ -223,8 +248,8 @@ def helm_energy_cost(ship, throttle, seconds):
 
     Mirrors the engine's drain: impulse is charged on the part of the throttle up to 1.0
     and warp on the excess, at the hull's own `ship_energy_cost` / `warp_energy_cost`.
-    Warp costs roughly double per unit, which is why sustained warp is the only thing that
-    outruns the auxiliary power unit.
+    Warp costs roughly double per unit. An ESTIMATE for trip planning: the engine really
+    charges by speed and slider power (see the module docstring), not these fields.
     """
     ds = _ds(ship)
     thr = max(0.0, float(throttle))
@@ -299,8 +324,8 @@ def helm_throttle(ship, level, allow_warp=True, reserve=None):
     clamps, and both are silent failures otherwise:
 
     * the hull has no warp drive (`warp != 1.0`), so the engine ignores the warp band;
-    * the tank is below the reserve, and warp is the one thing that drains faster than
-      the auxiliary power unit refills. Clamping to impulse lets the APU win.
+    * the tank is below the reserve, and warp burns it fastest. Clamping to impulse keeps
+      enough in hand to reach a station.
 
     Pass `allow_warp=False` to hold impulse regardless - a caller that has decided to
     conserve does not need to restate why.
@@ -328,8 +353,8 @@ def helm_throttle(ship, level, allow_warp=True, reserve=None):
 def helm_stop(ship):
     """Cut the throttle and drop direction steering.
 
-    Also the recovery move: with the throttle at zero nothing drains the tank, so the
-    auxiliary power unit refills it. Stopping is always a way out.
+    Stopping cuts the speed drain, but the sliders and shields still draw, and the auxiliary
+    power unit only refills to `helm_apu_ceiling` (~200). It buys a trickle, not a full tank.
     """
     ds = _ds(ship)
     if ds is None:
