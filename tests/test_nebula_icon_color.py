@@ -190,12 +190,23 @@ class TestCallerSuppliedColors(unittest.TestCase):
 # derivation -- confirmed by running the engine's own raymarch
 # (data/graphics/shader-emissivenebula.ps:152-180) over each entry.
 #
-# Retuned on a LOOK, which is the only way this call can be made: `red` was pushed toward
-# magenta (hue 13 -> 335, which also parts it from orange) and `yellow` off chartreuse and
-# onto yellow (hue 111 -> 61). Their absorption moved with their emission, because in a
-# thick cloud the rendered color tends to emission/(absorption+scattering) -- so leaving
-# red absorbing blue at 1.5 would have kept the magenta out of the CLOUD while putting it
-# in the icon, which is the exact split this whole derivation exists to close.
+# Retuned on a LOOK, which is the only way this call can be made:
+#
+#     yellow  hue 111 -> 61    off chartreuse and onto yellow
+#     red     hue  13 -> 354   a touch of magenta, so it is not orange
+#     orange  hue  14 -> 28    its name says 30; at 14 it WAS red
+#
+# `orange` was not in the original complaint and is the reason the other two are possible.
+# Red could not come back toward red while orange sat at hue 14: the two were one degree
+# apart, so parting them meant either shoving red deep into magenta (335, tried, too far)
+# or moving orange to where its own name already said it should be.
+#
+# Absorption moved with emission, because in a thick cloud the rendered color tends to
+# emission/(absorption+scattering) -- so leaving red absorbing blue at 1.5, or orange
+# absorbing at 0.61 the very green that makes it orange, would have put the new hue in the
+# icon while keeping it out of the CLOUD. That split is what this derivation exists to
+# close. NOTE that the thick-cloud reasoning is derivation from the shader, not a
+# measurement; the thin-cloud case (hue follows emission) is the measured one.
 #
 # Kept as an (empty) set rather than deleted: it is the seam where a future retune that
 # collapses two colors again gets caught, and the pair test reads better with it present.

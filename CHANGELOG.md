@@ -50,6 +50,16 @@
 
 ### sbs_utils
 
+- **A red nebula is red, a yellow one is yellow, and orange is neither of the others.**
+  Three of the seven stock nebula colors rendered as something their name did not claim:
+  `yellow` came out chartreuse, and `red` and `orange` were the same red-orange one degree
+  apart - a single indistinguishable dot wherever both appeared on a map. The CLOUDS were
+  retuned, not just their map icons, because the icon is derived from the cloud and the two
+  are not allowed to disagree; so nebulae genuinely look different now in any mission using
+  the stock colors. `red` keeps a trace of magenta to stay clear of `orange`, and `orange`
+  moved to where its name always said it was. Each one's absorption moved with its emission,
+  since a dense cloud tints toward whatever it does not absorb - `orange` had been absorbing
+  the very green that makes it orange.
 - **What a player chose is laid over their identity one field at a time**, instead of
   replacing it. The three - name, face, portrait - are separate answers to separate
   questions, and a player edits one at a time; setting any ONE of them used to blank the
